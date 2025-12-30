@@ -1,22 +1,29 @@
-use std::{ops::Deref, time::Duration};
+use std::time::Duration;
 
+use bincode::{
+    Decode, Encode,
+    de::Decoder,
+    enc::Encoder,
+    error::{DecodeError, EncodeError},
+};
 use turbo_rcstr::RcStr;
-// This specific macro identifier is detected by turbo-tasks-build.
 use turbo_tasks_macros::primitive as __turbo_tasks_internal_primitive;
 
 use crate::{
-    Vc, {self as turbo_tasks},
+    self as turbo_tasks, Vc,
+    value_type::{ManualDecodeWrapper, ManualEncodeWrapper},
 };
 
 __turbo_tasks_internal_primitive!(());
-__turbo_tasks_internal_primitive!(String, manual_shrink_to_fit);
+__turbo_tasks_internal_primitive!(String);
 __turbo_tasks_internal_primitive!(RcStr);
 __turbo_tasks_internal_primitive!(Option<String>);
 __turbo_tasks_internal_primitive!(Option<RcStr>);
-__turbo_tasks_internal_primitive!(Vec<RcStr>, manual_shrink_to_fit);
+__turbo_tasks_internal_primitive!(Vec<RcStr>);
 __turbo_tasks_internal_primitive!(Option<u16>);
 __turbo_tasks_internal_primitive!(Option<u64>);
 __turbo_tasks_internal_primitive!(bool);
+__turbo_tasks_internal_primitive!(Option<bool>);
 __turbo_tasks_internal_primitive!(u8);
 __turbo_tasks_internal_primitive!(u16);
 __turbo_tasks_internal_primitive!(u32);
@@ -29,31 +36,42 @@ __turbo_tasks_internal_primitive!(i64);
 __turbo_tasks_internal_primitive!(i128);
 __turbo_tasks_internal_primitive!(usize);
 __turbo_tasks_internal_primitive!(isize);
-__turbo_tasks_internal_primitive!(serde_json::Value);
-__turbo_tasks_internal_primitive!(Duration);
-__turbo_tasks_internal_primitive!(Vec<u8>, manual_shrink_to_fit);
-__turbo_tasks_internal_primitive!(Vec<bool>, manual_shrink_to_fit);
-
-#[turbo_tasks::value(transparent, eq = "manual")]
-#[derive(Debug, Clone)]
-pub struct Regex(
-    #[turbo_tasks(trace_ignore)]
-    #[serde(with = "serde_regex")]
-    pub regex::Regex,
+__turbo_tasks_internal_primitive!(
+    serde_json::Value,
+    bincode_wrappers(JsonValueEncodeWrapper, JsonValueDecodeWrapper),
 );
+__turbo_tasks_internal_primitive!(Duration);
+__turbo_tasks_internal_primitive!(Vec<u8>);
+__turbo_tasks_internal_primitive!(Vec<bool>);
 
-impl Deref for Regex {
-    type Target = regex::Regex;
+struct JsonValueEncodeWrapper<'a>(&'a serde_json::Value);
 
-    fn deref(&self) -> &Self::Target {
-        &self.0
+impl ManualEncodeWrapper for JsonValueEncodeWrapper<'_> {
+    type Value = serde_json::Value;
+
+    fn new<'a>(value: &'a Self::Value) -> impl Encode + 'a {
+        JsonValueEncodeWrapper(value)
     }
 }
 
-impl PartialEq for Regex {
-    fn eq(&self, other: &Regex) -> bool {
-        // Context: https://github.com/rust-lang/regex/issues/313#issuecomment-269898900
-        self.0.as_str() == other.0.as_str()
+impl Encode for JsonValueEncodeWrapper<'_> {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        turbo_bincode::serde_self_describing::encode(self.0, encoder)
     }
 }
-impl Eq for Regex {}
+
+struct JsonValueDecodeWrapper(serde_json::Value);
+
+impl ManualDecodeWrapper for JsonValueDecodeWrapper {
+    type Value = serde_json::Value;
+
+    fn inner(self) -> Self::Value {
+        self.0
+    }
+}
+
+impl<Context> Decode<Context> for JsonValueDecodeWrapper {
+    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
+        Ok(Self(turbo_bincode::serde_self_describing::decode(decoder)?))
+    }
+}

@@ -3,6 +3,7 @@
 
 use once_cell::sync::Lazy;
 use regex::Regex;
+use regress;
 use rustc_hash::FxHashMap;
 
 const INTERCEPTION_ROUTE_MARKERS: [&str; 4] = ["(..)(..)", "(.)", "(..)", "(...)"];
@@ -64,7 +65,7 @@ fn parse_parameter(param: &str) -> ParsedParameter {
 }
 
 fn escape_string_regexp(segment: &str) -> String {
-    regex::escape(segment)
+    regress::escape(segment)
 }
 
 /// Removes the trailing slash for a given route or page path. Preserves the
@@ -164,6 +165,7 @@ fn get_safe_key_from_segment(
     segment: &str,
     route_keys: &mut FxHashMap<String, String>,
     key_prefix: Option<&'static str>,
+    intercept_prefix: Option<&str>,
 ) -> String {
     let ParsedParameter {
         key,
@@ -195,11 +197,13 @@ fn get_safe_key_from_segment(
     } else {
         route_keys.insert(cleaned_key.clone(), key);
     }
+
+    let intercept_prefix = intercept_prefix.map_or_else(String::new, escape_string_regexp);
     match (repeat, optional) {
-        (true, true) => format!(r"(?:/(?P<{cleaned_key}>.+?))?"),
-        (true, false) => format!(r"/(?P<{cleaned_key}>.+?)"),
-        (false, true) => format!(r"(?:/(?P<{cleaned_key}>[^/]+?))?"),
-        (false, false) => format!(r"/(?P<{cleaned_key}>[^/]+?)"),
+        (true, true) => format!(r"(?:/{intercept_prefix}(?P<{cleaned_key}>.+?))?"),
+        (true, false) => format!(r"/{intercept_prefix}(?P<{cleaned_key}>.+?)"),
+        (false, true) => format!(r"(?:/{intercept_prefix}(?P<{cleaned_key}>[^/]+?))?"),
+        (false, false) => format!(r"/{intercept_prefix}(?P<{cleaned_key}>[^/]+?)"),
     }
 }
 
@@ -213,11 +217,12 @@ fn get_named_parametrized_route(
     let parameterized_route = segments
         .iter()
         .map(|segment| {
+            let interception_marker = INTERCEPTION_ROUTE_MARKERS
+                .iter()
+                .find(|&m| segment.starts_with(m))
+                .copied();
             let key_prefix = if prefix_route_keys {
-                let has_interception_marker = INTERCEPTION_ROUTE_MARKERS
-                    .iter()
-                    .any(|&m| segment.starts_with(m));
-                if has_interception_marker {
+                if interception_marker.is_some() {
                     Some(NEXT_INTERCEPTION_MARKER_PREFIX)
                 } else {
                     Some(NEXT_QUERY_PARAM_PREFIX)
@@ -233,6 +238,7 @@ fn get_named_parametrized_route(
                     &matches[1],
                     &mut route_keys,
                     key_prefix,
+                    interception_marker,
                 );
             }
             format!("/{}", escape_string_regexp(segment))
@@ -264,4 +270,40 @@ pub fn get_named_route_regex(normalized_route: &str) -> NamedRouteRegex {
 pub fn get_named_middleware_regex(normalized_route: &str) -> String {
     let (parameterized_route, _route_keys) = get_named_parametrized_route(normalized_route, true);
     format!("^{parameterized_route}(?:/)?$")
+}
+
+#[cfg(test)]
+mod test {
+    use super::get_named_middleware_regex;
+
+    #[test]
+    fn should_properly_handle_intercept_routes() {
+        let tests = [
+            (
+                "/[locale]/example/(...)[locale]/intercepted",
+                "^/(?P<nxtPlocale>[^/]+?)/example/\\(\\.\\.\\.\\)(?P<nxtIlocale>[^/]+?)/\
+                 intercepted(?:/)?$",
+            ),
+            (
+                "/[locale]/example/(..)[locale]/intercepted",
+                "^/(?P<nxtPlocale>[^/]+?)/example/\\(\\.\\.\\)(?P<nxtIlocale>[^/]+?)/intercepted(?\
+                 :/)?$",
+            ),
+            (
+                "/[locale]/example/(.)[locale]/intercepted",
+                "^/(?P<nxtPlocale>[^/]+?)/example/\\(\\.\\)(?P<nxtIlocale>[^/]+?)/intercepted(?:/\
+                 )?$",
+            ),
+            (
+                "/[locale]/example/(..)(..)[locale]/intercepted",
+                "^/(?P<nxtPlocale>[^/]+?)/example/\\(\\.\\.\\)\\(\\.\\.\\)(?P<nxtIlocale>[^/]+?)/\
+                 intercepted(?:/)?$",
+            ),
+        ];
+
+        for test in tests {
+            let intercept_route = get_named_middleware_regex(test.0);
+            assert_eq!(intercept_route, test.1);
+        }
+    }
 }

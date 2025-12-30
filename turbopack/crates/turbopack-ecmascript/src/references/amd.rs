@@ -1,7 +1,7 @@
 use std::mem::take;
 
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use swc_core::{
     common::DUMMY_SP,
     ecma::{
@@ -18,8 +18,8 @@ use turbo_tasks::{
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext},
     issue::IssueSource,
-    module_graph::ModuleGraph,
     reference::ModuleReference,
+    reference_type::CommonJsReferenceSubType,
     resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request},
 };
 use turbopack_resolve::ecmascript::cjs_resolve;
@@ -68,7 +68,8 @@ impl ModuleReference for AmdDefineAssetReference {
         cjs_resolve(
             *self.origin,
             *self.request,
-            Some(self.issue_source.clone()),
+            CommonJsReferenceSubType::Undefined,
+            Some(self.issue_source),
             self.in_try,
         )
     }
@@ -88,15 +89,7 @@ impl ValueToString for AmdDefineAssetReference {
 impl ChunkableModuleReference for AmdDefineAssetReference {}
 
 #[derive(
-    ValueDebugFormat,
-    Debug,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    Clone,
-    NonLocalValue,
+    ValueDebugFormat, Debug, PartialEq, Eq, TraceRawVcs, Clone, NonLocalValue, Hash, Encode, Decode,
 )]
 pub enum AmdDefineDependencyElement {
     Request {
@@ -113,12 +106,13 @@ pub enum AmdDefineDependencyElement {
     Debug,
     PartialEq,
     Eq,
-    Serialize,
-    Deserialize,
     TraceRawVcs,
     Copy,
     Clone,
     NonLocalValue,
+    Hash,
+    Encode,
+    Decode,
 )]
 pub enum AmdDefineFactoryType {
     Unknown,
@@ -126,7 +120,9 @@ pub enum AmdDefineFactoryType {
     Value,
 }
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
+)]
 pub struct AmdDefineWithDependenciesCodeGen {
     dependencies_requests: Vec<AmdDefineDependencyElement>,
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
@@ -157,7 +153,6 @@ impl AmdDefineWithDependenciesCodeGen {
 
     pub async fn code_generation(
         &self,
-        _module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let mut visitors = Vec::new();
@@ -174,11 +169,12 @@ impl AmdDefineWithDependenciesCodeGen {
                         pattern_mapping: PatternMapping::resolve_request(
                             **request,
                             *self.origin,
-                            Vc::upcast(chunking_context),
+                            chunking_context,
                             cjs_resolve(
                                 *self.origin,
                                 **request,
-                                Some(self.issue_source.clone()),
+                                CommonJsReferenceSubType::Undefined,
+                                Some(self.issue_source),
                                 self.in_try,
                             ),
                             ResolveType::ChunkItem,
@@ -202,11 +198,14 @@ impl AmdDefineWithDependenciesCodeGen {
 
         let factory_type = self.factory_type;
 
-        visitors.push(
-            create_visitor!(exact self.path, visit_mut_call_expr(call_expr: &mut CallExpr) {
+        visitors.push(create_visitor!(
+            exact,
+            self.path,
+            visit_mut_call_expr,
+            |call_expr: &mut CallExpr| {
                 transform_amd_factory(call_expr, &resolved_elements, factory_type)
-            }),
-        );
+            }
+        ));
 
         Ok(CodeGeneration::visitors(visitors))
     }

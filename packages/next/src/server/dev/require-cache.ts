@@ -2,7 +2,7 @@ import isError from '../../lib/is-error'
 import { realpathSync } from '../../lib/realpath'
 import { clearManifestCache } from '../load-manifest.external'
 
-export function deleteFromRequireCache(filePath: string) {
+function deleteFromRequireCache(filePath: string) {
   try {
     filePath = realpathSync(filePath)
   } catch (e) {

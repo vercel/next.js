@@ -2,6 +2,7 @@
 
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
+import url from 'node:url'
 import execa from 'execa'
 import { NEXT_DIR, logCommand, execFn } from './pack-util'
 
@@ -31,7 +32,7 @@ export default async function buildNative(
 }
 
 // Check if this file is being run directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.url === url.pathToFileURL(process.argv[1]).toString()) {
   buildNative(process.argv.slice(2)).catch((err) => {
     console.error(err)
     process.exit(1)

@@ -35,18 +35,15 @@ function prefixedLog(prefixType: keyof typeof prefixes, ...message: any[]) {
     // Ensure if there's ANSI escape codes it's concatenated into one string.
     // Chrome DevTool can only handle color if it's in one string.
     if (message.length === 1 && typeof message[0] === 'string') {
-      console[consoleMethod](' ' + prefix + ' ' + message[0])
+      console[consoleMethod](prefix + ' ' + message[0])
     } else {
-      console[consoleMethod](' ' + prefix, ...message)
+      console[consoleMethod](prefix, ...message)
     }
   }
 }
 
-export function bootstrap(...message: string[]) {
-  // logging format: ' <prefix> <message>'
-  // e.g. ' ✓ Compiled successfully'
-  // Add spaces to align with the indent of other logs
-  console.log('   ' + message.join(' '))
+export function bootstrap(message: string) {
+  console.log(message)
 }
 
 export function wait(...message: any[]) {
@@ -83,5 +80,14 @@ export function warnOnce(...message: any[]) {
   if (!warnOnceCache.has(key)) {
     warnOnceCache.set(key, key)
     warn(...message)
+  }
+}
+
+const errorOnceCache = new LRUCache<string>(10_000, (value) => value.length)
+export function errorOnce(...message: any[]) {
+  const key = message.join(' ')
+  if (!errorOnceCache.has(key)) {
+    errorOnceCache.set(key, key)
+    error(...message)
   }
 }

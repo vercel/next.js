@@ -1,17 +1,20 @@
 use std::fmt::Display;
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ResolvedVc, Vc};
+use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
 
 use crate::{module::Module, resolve::ModulePart};
 
-/// Named references to inner assets. Modules can used them to allow to
+/// Named references to inner assets. Modules can use them to allow to
 /// per-module aliases of some requests to already created module assets.
 ///
 /// Name is usually in UPPER_CASE to make it clear that this is an inner asset.
 #[turbo_tasks::value(transparent)]
-pub struct InnerAssets(FxIndexMap<RcStr, ResolvedVc<Box<dyn Module>>>);
+pub struct InnerAssets(
+    #[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, ResolvedVc<Box<dyn Module>>>,
+);
 
 #[turbo_tasks::value_impl]
 impl InnerAssets {
@@ -27,22 +30,47 @@ impl InnerAssets {
 // TODO when plugins are supported, replace u8 with a trait that defines the
 // behavior.
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Default, Clone, Hash)]
+#[derive(
+    PartialEq,
+    Eq,
+    TraceRawVcs,
+    NonLocalValue,
+    Debug,
+    Default,
+    Clone,
+    Copy,
+    Hash,
+    TaskInput,
+    Encode,
+    Decode,
+)]
 pub enum CommonJsReferenceSubType {
     Custom(u8),
     #[default]
     Undefined,
 }
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Clone, Hash)]
+#[derive(
+    PartialEq, Eq, TraceRawVcs, NonLocalValue, Debug, Clone, Copy, Hash, TaskInput, Encode, Decode,
+)]
 pub enum ImportWithType {
     Json,
+    Bytes,
 }
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Default, Clone, Hash)]
+#[derive(
+    PartialEq,
+    Eq,
+    TraceRawVcs,
+    NonLocalValue,
+    Debug,
+    Default,
+    Clone,
+    Hash,
+    TaskInput,
+    Encode,
+    Decode,
+)]
 pub enum EcmaScriptModulesReferenceSubType {
     ImportPart(ModulePart),
     Import,
@@ -101,30 +129,30 @@ impl ImportContext {
 
         let layers = {
             let mut layers = this.layers.clone();
-            if let Some(attr_layer) = attr_layer {
-                if !layers.contains(&attr_layer) {
-                    layers.push(attr_layer);
-                }
+            if let Some(attr_layer) = attr_layer
+                && !layers.contains(&attr_layer)
+            {
+                layers.push(attr_layer);
             }
             layers
         };
 
         let media = {
             let mut media = this.media.clone();
-            if let Some(attr_media) = attr_media {
-                if !media.contains(&attr_media) {
-                    media.push(attr_media);
-                }
+            if let Some(attr_media) = attr_media
+                && !media.contains(&attr_media)
+            {
+                media.push(attr_media);
             }
             media
         };
 
         let supports = {
             let mut supports = this.supports.clone();
-            if let Some(attr_supports) = attr_supports {
-                if !supports.contains(&attr_supports) {
-                    supports.push(attr_supports);
-                }
+            if let Some(attr_supports) = attr_supports
+                && !supports.contains(&attr_supports)
+            {
+                supports.push(attr_supports);
             }
             supports
         };
@@ -170,15 +198,27 @@ impl ImportContext {
     }
 }
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Default, Clone, Hash)]
+#[derive(
+    PartialEq,
+    Eq,
+    TraceRawVcs,
+    NonLocalValue,
+    Debug,
+    Default,
+    Clone,
+    Copy,
+    Hash,
+    TaskInput,
+    Encode,
+    Decode,
+)]
 pub enum CssReferenceSubType {
     AtImport(Option<ResolvedVc<ImportContext>>),
     /// Reference from ModuleCssAsset to an imported ModuleCssAsset for retrieving the composed
     /// class name
     Compose,
     /// Reference from ModuleCssAsset to the CssModuleAsset
-    Internal,
+    Inner,
     /// Used for generating the list of classes in a ModuleCssAsset
     Analyze,
     Custom(u8),
@@ -186,8 +226,20 @@ pub enum CssReferenceSubType {
     Undefined,
 }
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Default, Clone, Hash)]
+#[derive(
+    PartialEq,
+    Eq,
+    TraceRawVcs,
+    NonLocalValue,
+    Debug,
+    Default,
+    Clone,
+    Copy,
+    Hash,
+    TaskInput,
+    Encode,
+    Decode,
+)]
 pub enum UrlReferenceSubType {
     EcmaScriptNewUrl,
     CssUrl,
@@ -196,30 +248,37 @@ pub enum UrlReferenceSubType {
     Undefined,
 }
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Clone, Hash)]
+#[derive(
+    PartialEq, Eq, TraceRawVcs, NonLocalValue, Debug, Clone, Copy, Hash, TaskInput, Encode, Decode,
+)]
 pub enum TypeScriptReferenceSubType {
     Custom(u8),
     Undefined,
 }
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Clone, Hash)]
+#[derive(
+    PartialEq, Eq, TraceRawVcs, NonLocalValue, Debug, Clone, Copy, Hash, TaskInput, Encode, Decode,
+)]
 pub enum WorkerReferenceSubType {
     WebWorker,
     SharedWorker,
     ServiceWorker,
+    NodeWorker,
     Custom(u8),
     Undefined,
 }
 
 // TODO(sokra) this was next.js specific values. We want to solve this in a
 // different way.
-#[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Clone, Hash)]
+#[derive(
+    PartialEq, Eq, TraceRawVcs, NonLocalValue, Debug, Clone, Copy, Hash, TaskInput, Encode, Decode,
+)]
 pub enum EntryReferenceSubType {
     Web,
     Page,
+    // A development only type that is used in pages router to differentiate between server prop
+    // changes and template changes.
+    PageData,
     PagesApi,
     AppPage,
     AppRoute,
@@ -231,8 +290,19 @@ pub enum EntryReferenceSubType {
     Undefined,
 }
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Default, Clone, Hash)]
+#[derive(
+    PartialEq,
+    Eq,
+    TraceRawVcs,
+    NonLocalValue,
+    Debug,
+    Default,
+    Clone,
+    Hash,
+    TaskInput,
+    Encode,
+    Decode,
+)]
 pub enum ReferenceType {
     CommonJs(CommonJsReferenceSubType),
     EcmaScriptModules(EcmaScriptModulesReferenceSubType),
@@ -322,11 +392,6 @@ impl ReferenceType {
     /// combination with [`ModuleRuleCondition::Internal`] to determine if a
     /// rule should be applied to an internal asset/reference.
     pub fn is_internal(&self) -> bool {
-        matches!(
-            self,
-            ReferenceType::Internal(_)
-                | ReferenceType::Css(CssReferenceSubType::Internal)
-                | ReferenceType::Runtime
-        )
+        matches!(self, ReferenceType::Internal(_) | ReferenceType::Runtime)
     }
 }

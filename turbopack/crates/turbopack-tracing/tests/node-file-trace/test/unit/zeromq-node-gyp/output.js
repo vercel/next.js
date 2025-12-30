@@ -1,0 +1,11 @@
+;[
+  'node_modules/@aminya/node-gyp-build/index.js',
+  'node_modules/@aminya/node-gyp-build/package.json',
+  'node_modules/zeromq/lib/draft.js',
+  'node_modules/zeromq/lib/index.js',
+  'node_modules/zeromq/lib/native.js',
+  'node_modules/zeromq/lib/util.js',
+  'node_modules/zeromq/package.json',
+  'package.json',
+  'test/unit/zeromq-node-gyp/input.js',
+]

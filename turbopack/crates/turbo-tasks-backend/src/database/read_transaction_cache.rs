@@ -53,14 +53,6 @@ impl<T: KeyValueDatabase + 'static> KeyValueDatabase for ReadTransactionCache<T>
     where
         T: 'l;
 
-    fn lower_read_transaction<'l: 'i + 'r, 'i: 'r, 'r>(
-        tx: &'r Self::ReadTransaction<'l>,
-    ) -> &'r Self::ReadTransaction<'i> {
-        // Safety: When T compiles fine and lower_read_transaction is implemented correctly this is
-        // safe to do.
-        unsafe { transmute::<&'r Self::ReadTransaction<'l>, &'r Self::ReadTransaction<'i>>(tx) }
-    }
-
     fn is_empty(&self) -> bool {
         self.database.is_empty()
     }

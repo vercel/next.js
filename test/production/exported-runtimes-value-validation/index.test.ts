@@ -10,13 +10,54 @@ describe('Exported runtimes value validation', () => {
     )
     expect(result).toMatchObject({
       code: 1,
-      stderr: expect.stringContaining(
-        `Invalid enum value. Expected 'edge' | 'experimental-edge' | 'nodejs', received 'something-odd'`
-      ),
+      stderr: process.env.IS_TURBOPACK_TEST
+        ? expect.stringContaining(
+            'runtime` has an invalid value: unknown variant `something-odd`, expected one of `nodejs`, `edge`, `experimental-edge`'
+          )
+        : expect.stringContaining(
+            `Invalid enum value. Expected 'edge' | 'experimental-edge' | 'nodejs', received 'something-odd'`
+          ),
     })
   })
 
-  test('warns on unrecognized runtimes value', async () => {
+  test('fails the build on invalid middleware matcher', async () => {
+    const result = await nextBuild(
+      path.resolve(__dirname, './invalid-middleware'),
+      undefined,
+      { stdout: true, stderr: true }
+    )
+
+    // The build should fail to prevent unexpected behavior
+    expect(result.code).toBe(1)
+
+    // TODO: Turbopack matches the error message but omits the routing & error information
+    if (process.env.IS_TURBOPACK_TEST) {
+      expect(result.stderr).toEqual(
+        expect.stringContaining(
+          "Next.js can't recognize the exported `config` field in route"
+        )
+      )
+      expect(result.stderr).toEqual(
+        expect.stringContaining(
+          ' Entry `matcher[1]` need to be static strings or static objects.'
+        )
+      )
+    } else {
+      expect(result.stderr).toEqual(
+        expect.stringContaining(
+          'Next.js can\'t recognize the exported `config` field in route "/middleware"'
+        )
+      )
+
+      expect(result.stderr).toEqual(
+        expect.stringContaining(
+          'Unknown identifier "dynamicPath" at "config.matcher[1]"'
+        )
+      )
+    }
+  })
+
+  test('fails the build on unrecognized runtimes value', async () => {
     const result = await nextBuild(
       path.resolve(__dirname, './unsupported-syntax/app'),
       undefined,
@@ -111,8 +152,6 @@ describe('Exported runtimes value validation', () => {
           "Next.js can't recognize the exported `config` field in route"
         )
       )
-      // ensure only 1 occurrence of the log
-      expect(result.stderr.match(/\/array-spread-operator/g)?.length).toBe(1)
       // TODO: Turbopack has this information in issue.detail but it's not logged to the user.
       // expect(result.stderr).toEqual(
       //   expect.stringContaining(

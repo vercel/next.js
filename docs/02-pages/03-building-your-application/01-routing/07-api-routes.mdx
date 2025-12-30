@@ -6,14 +6,14 @@ description: Next.js supports API Routes, which allow you to build your API with
 <details>
   <summary>Examples</summary>
 
-- [API Routes Request Helpers](https://github.com/vercel/next.js/tree/canary/examples/api-routes-middleware)
+- [API Routes Request Helpers](https://github.com/vercel/next.js/tree/canary/examples/api-routes-proxy)
 - [API Routes with GraphQL](https://github.com/vercel/next.js/tree/canary/examples/api-routes-graphql)
 - [API Routes with REST](https://github.com/vercel/next.js/tree/canary/examples/api-routes-rest)
 - [API Routes with CORS](https://github.com/vercel/next.js/tree/canary/examples/api-routes-cors)
 
 </details>
 
-> **Good to know**: If you are using the App Router, you can use [Server Components](/docs/app/getting-started/server-and-client-components) or [Route Handlers](/docs/app/building-your-application/routing/route-handlers) instead of API Routes.
+> **Good to know**: If you are using the App Router, you can use [Server Components](/docs/app/getting-started/server-and-client-components) or [Route Handlers](/docs/app/api-reference/file-conventions/route) instead of API Routes.
 
 API routes provide a solution to build a **public API** with Next.js.
 
@@ -46,7 +46,7 @@ export default function handler(req, res) {
 >
 > - API Routes [do not specify CORS headers](https://developer.mozilla.org/docs/Web/HTTP/CORS), meaning they are **same-origin only** by default. You can customize such behavior by wrapping the request handler with the [CORS request helpers](https://github.com/vercel/next.js/tree/canary/examples/api-routes-cors).
 
-- API Routes can't be used with [static exports](/docs/pages/guides/static-exports). However, [Route Handlers](/docs/app/building-your-application/routing/route-handlers) in the App Router can.
+- API Routes can't be used with [static exports](/docs/pages/guides/static-exports). However, [Route Handlers](/docs/app/api-reference/file-conventions/route) in the App Router can.
   > - API Routes will be affected by [`pageExtensions` configuration](/docs/pages/api-reference/config/next-config-js/pageExtensions) in `next.config.js`.
 
 ## Parameters
@@ -418,11 +418,11 @@ The `query` objects are as follows:
 
 ## Streaming responses
 
-While the Pages Router does support streaming responses with API Routes, we recommend incrementally adopting the App Router and using [Route Handlers](/docs/app/building-your-application/routing/route-handlers) if you are on Next.js 14+.
+While the Pages Router does support streaming responses with API Routes, we recommend incrementally adopting the App Router and using [Route Handlers](/docs/app/api-reference/file-conventions/route) if you are on Next.js 14+.
 
 Here's how you can stream a response from an API Route with `writeHead`:
 
-```js filename="pages/api/hello.js"
+```ts filename="pages/api/hello.ts" switcher
 import { NextApiRequest, NextApiResponse } from 'next'
 
 export default async function handler(
@@ -431,7 +431,23 @@ export default async function handler(
 ) {
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
-    'Cache-Control': "no-store",
+    'Cache-Control': 'no-store',
+  })
+  let i = 0
+  while (i < 10) {
+    res.write(`data: ${i}\n\n`)
+    i++
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+  }
+  res.end()
+}
+```
+
+```js filename="pages/api/hello.js" switcher
+export default async function handler(req, res) {
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-store',
   })
   let i = 0
   while (i < 10) {

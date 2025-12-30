@@ -11,7 +11,7 @@ export default function Layout({ children }) {
   return (
     <DataContext.Provider value={{ data, setData }}>
       <div>{children}</div>
-      <div id="delayed-action-result">{data}</div>
+      <div id="delayed-action-result">{data ?? '<null>'}</div>
     </DataContext.Provider>
   )
 }

@@ -917,7 +917,7 @@ graph TD
     N26["Items: [ItemId(20, VarDeclarator(0))]"];
     N27["Items: [ItemId(21, VarDeclarator(0))]"];
     N28["Items: [ItemId(22, VarDeclarator(0)), ItemId(Export((&quot;gridArea&quot;, #2), &quot;gridArea&quot;))]"];
-    N29["Items: [ItemId(23, VarDeclarator(0)), ItemId(24, Normal), ItemId(Export((&quot;__TURBOPACK__default__export__&quot;, #12), &quot;default&quot;))]"];
+    N29["Items: [ItemId(23, VarDeclarator(0)), ItemId(24, Normal), ItemId(Export((&quot;__TURBOPACK__default__export__&quot;, #0), &quot;default&quot;))]"];
     N30["Items: [ItemId(Export((&quot;gridAutoColumns&quot;, #2), &quot;gridAutoColumns&quot;))]"];
     N31["Items: [ItemId(Export((&quot;gridAutoFlow&quot;, #2), &quot;gridAutoFlow&quot;))]"];
     N32["Items: [ItemId(Export((&quot;gridAutoRows&quot;, #2), &quot;gridAutoRows&quot;))]"];

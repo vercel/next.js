@@ -4,20 +4,19 @@ use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkingContext},
     ident::AssetIdent,
     module::Module,
-    module_graph::ModuleGraph,
+    output::OutputAssetsReference,
 };
 
-use super::module::EcmascriptModuleLocalsModule;
 use crate::{
-    EcmascriptAnalyzable,
+    EcmascriptAnalyzableExt,
     chunk::{EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkType},
+    side_effect_optimization::locals::module::EcmascriptModuleLocalsModule,
 };
 
 /// The chunk item for [EcmascriptModuleLocalsModule].
 #[turbo_tasks::value(shared)]
 pub struct EcmascriptModuleLocalsChunkItem {
     pub(super) module: ResolvedVc<EcmascriptModuleLocalsModule>,
-    pub(super) module_graph: ResolvedVc<ModuleGraph>,
     pub(super) chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
@@ -32,10 +31,10 @@ impl EcmascriptChunkItem for EcmascriptModuleLocalsChunkItem {
     async fn content_with_async_module_info(
         &self,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let module = self.module.await?;
         let chunking_context = self.chunking_context;
-        let module_graph = self.module_graph;
         let original_module = module.module;
 
         let analyze = original_module.analyze();
@@ -44,18 +43,20 @@ impl EcmascriptChunkItem for EcmascriptModuleLocalsChunkItem {
             .async_module
             .module_options(async_module_info);
 
-        let content =
-            self.module
-                .module_content(*module_graph, *chunking_context, async_module_info);
+        let content = self
+            .module
+            .module_content(*chunking_context, async_module_info);
 
         Ok(EcmascriptChunkItemContent::new(
             content,
             *chunking_context,
-            *original_module.await?.options,
             async_module_options,
         ))
     }
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for EcmascriptModuleLocalsChunkItem {}
 
 #[turbo_tasks::value_impl]
 impl ChunkItem for EcmascriptModuleLocalsChunkItem {
@@ -66,7 +67,7 @@ impl ChunkItem for EcmascriptModuleLocalsChunkItem {
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *ResolvedVc::upcast(self.chunking_context)
+        *self.chunking_context
     }
 
     #[turbo_tasks::function]

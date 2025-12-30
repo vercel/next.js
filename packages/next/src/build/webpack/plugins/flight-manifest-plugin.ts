@@ -19,7 +19,7 @@ import { getProxiedPluginState } from '../../build-context'
 import { WEBPACK_LAYERS } from '../../../lib/constants'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
 import { CLIENT_STATIC_FILES_RUNTIME_MAIN_APP } from '../../../shared/lib/constants'
-import { getDeploymentIdQueryOrEmptyString } from '../../deployment-id'
+import { getDeploymentIdQueryOrEmptyString } from '../../../shared/lib/deployment-id'
 import {
   formatBarrelOptimizedResource,
   getModuleReferencesInOrder,
@@ -41,7 +41,7 @@ interface Options {
 type ModuleId = string | number /*| null*/
 
 // double indexed chunkId, filename
-export type ManifestChunks = Array<string>
+export type ManifestChunks = ReadonlyArray<string>
 
 const pluginState = getProxiedPluginState({
   ssrModules: {} as { [ssrModuleId: string]: ModuleInfo },
@@ -128,9 +128,6 @@ function getAppPathRequiredChunks(
     }
 
     // Get the actual chunk file names from the chunk file list.
-    // It's possible that the chunk is generated via `import()`, in
-    // that case the chunk file name will be '[name].[contenthash]'
-    // instead of '[name]-[chunkhash]'.
     if (chunk.id != null) {
       const chunkId = '' + chunk.id
       chunk.files.forEach((file) => {
@@ -229,7 +226,7 @@ export class ClientReferenceManifestPlugin {
           name: PLUGIN_NAME,
           // Have to be in the optimize stage to run after updating the CSS
           // asset hash via extract mini css plugin.
-          stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
+          stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ANALYSE,
         },
         () => this.createAsset(compilation, compiler.context)
       )

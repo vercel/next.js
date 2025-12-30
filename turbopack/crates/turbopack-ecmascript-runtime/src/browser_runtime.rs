@@ -2,8 +2,8 @@ use std::io::Write;
 
 use anyhow::Result;
 use indoc::writedoc;
-use turbo_rcstr::RcStr;
-use turbo_tasks::{Value, Vc};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     code_builder::{Code, CodeBuilder},
     context::AssetContext,
@@ -11,28 +11,30 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::utils::StringifyJs;
 
-use crate::{RuntimeType, asset_context::get_runtime_asset_context, embed_js::embed_static_code};
+use crate::{
+    ChunkSuffix, RuntimeType, asset_context::get_runtime_asset_context, embed_js::embed_static_code,
+};
 
 /// Returns the code for the ECMAScript runtime.
 #[turbo_tasks::function]
 pub async fn get_browser_runtime_code(
-    environment: Vc<Environment>,
+    environment: ResolvedVc<Environment>,
     chunk_base_path: Vc<Option<RcStr>>,
-    chunk_suffix_path: Vc<Option<RcStr>>,
-    runtime_type: Value<RuntimeType>,
-    output_root_to_root_path: Vc<RcStr>,
+    chunk_suffix: Vc<ChunkSuffix>,
+    runtime_type: RuntimeType,
+    output_root_to_root_path: RcStr,
     generate_source_map: bool,
 ) -> Result<Vc<Code>> {
-    let asset_context = get_runtime_asset_context(environment).await?;
+    let asset_context = get_runtime_asset_context(*environment).resolve().await?;
 
     let shared_runtime_utils_code = embed_static_code(
         asset_context,
-        "shared/runtime-utils.ts".into(),
+        rcstr!("shared/runtime-utils.ts"),
         generate_source_map,
     );
 
     let mut runtime_base_code = vec!["browser/runtime/base/runtime-base.ts"];
-    match *runtime_type {
+    match runtime_type {
         RuntimeType::Production => runtime_base_code.push("browser/runtime/base/build-base.ts"),
         RuntimeType::Development => {
             runtime_base_code.push("browser/runtime/base/dev-base.ts");
@@ -50,7 +52,7 @@ pub async fn get_browser_runtime_code(
         .await?;
 
     let mut runtime_backend_code = vec![];
-    match (chunk_loading, *runtime_type) {
+    match (chunk_loading, runtime_type) {
         (ChunkLoading::Edge, RuntimeType::Development) => {
             runtime_backend_code.push("browser/runtime/edge/runtime-backend-edge.ts");
             runtime_backend_code.push("browser/runtime/edge/dev-backend-edge.ts");
@@ -67,7 +69,6 @@ pub async fn get_browser_runtime_code(
             runtime_backend_code.push("browser/runtime/dom/dev-backend-dom.ts");
         }
         (ChunkLoading::Dom, RuntimeType::Production) => {
-            // TODO
             runtime_backend_code.push("browser/runtime/dom/runtime-backend-dom.ts");
         }
 
@@ -78,13 +79,10 @@ pub async fn get_browser_runtime_code(
     };
 
     let mut code: CodeBuilder = CodeBuilder::default();
-    let relative_root_path = output_root_to_root_path.await?;
-    let chunk_base_path = &*chunk_base_path.await?;
+    let relative_root_path = output_root_to_root_path;
+    let chunk_base_path = chunk_base_path.await?;
     let chunk_base_path = chunk_base_path.as_ref().map_or_else(|| "", |f| f.as_str());
-    let chunk_suffix_path = &*chunk_suffix_path.await?;
-    let chunk_suffix_path = chunk_suffix_path
-        .as_ref()
-        .map_or_else(|| "", |f| f.as_str());
+    let chunk_suffix = chunk_suffix.await?;
 
     writedoc!(
         code,
@@ -95,15 +93,41 @@ pub async fn get_browser_runtime_code(
             }}
 
             const CHUNK_BASE_PATH = {};
-            const CHUNK_SUFFIX_PATH = {};
             const RELATIVE_ROOT_PATH = {};
             const RUNTIME_PUBLIC_PATH = {};
         "#,
         StringifyJs(chunk_base_path),
-        StringifyJs(chunk_suffix_path),
         StringifyJs(relative_root_path.as_str()),
         StringifyJs(chunk_base_path),
     )?;
+
+    match &*chunk_suffix {
+        ChunkSuffix::None => {
+            writedoc!(
+                code,
+                r#"
+                    const CHUNK_SUFFIX = "";
+                "#
+            )?;
+        }
+        ChunkSuffix::Constant(suffix) => {
+            writedoc!(
+                code,
+                r#"
+                    const CHUNK_SUFFIX = {};
+                "#,
+                StringifyJs(suffix.as_str())
+            )?;
+        }
+        ChunkSuffix::FromScriptSrc => {
+            writedoc!(
+                code,
+                r#"
+                    const CHUNK_SUFFIX = (self.TURBOPACK_CHUNK_SUFFIX ?? document?.currentScript?.getAttribute?.('src')?.replace(/^(.*(?=\?)|^.*$)/, "")) || "";
+                "#
+            )?;
+        }
+    }
 
     code.push_code(&*shared_runtime_utils_code.await?);
     for runtime_code in runtime_base_code {
@@ -116,7 +140,7 @@ pub async fn get_browser_runtime_code(
         code.push_code(
             &*embed_static_code(
                 asset_context,
-                "shared-node/base-externals-utils.ts".into(),
+                rcstr!("shared-node/base-externals-utils.ts"),
                 generate_source_map,
             )
             .await?,
@@ -126,7 +150,7 @@ pub async fn get_browser_runtime_code(
         code.push_code(
             &*embed_static_code(
                 asset_context,
-                "shared-node/node-externals-utils.ts".into(),
+                rcstr!("shared-node/node-externals-utils.ts"),
                 generate_source_map,
             )
             .await?,
@@ -136,7 +160,7 @@ pub async fn get_browser_runtime_code(
         code.push_code(
             &*embed_static_code(
                 asset_context,
-                "shared-node/node-wasm-utils.ts".into(),
+                rcstr!("shared-node/node-wasm-utils.ts"),
                 generate_source_map,
             )
             .await?,
@@ -159,13 +183,13 @@ pub async fn get_browser_runtime_code(
             chunksToRegister.forEach(registerChunk);
         "#
     )?;
-    if matches!(*runtime_type, RuntimeType::Development) {
+    if matches!(runtime_type, RuntimeType::Development) {
         writedoc!(
             code,
             r#"
             const chunkListsToRegister = globalThis.TURBOPACK_CHUNK_LISTS || [];
-            chunkListsToRegister.forEach(registerChunkList);
             globalThis.TURBOPACK_CHUNK_LISTS = {{ push: registerChunkList }};
+            chunkListsToRegister.forEach(registerChunkList);
         "#
         )?;
     }

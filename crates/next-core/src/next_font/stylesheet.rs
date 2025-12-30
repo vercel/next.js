@@ -38,8 +38,8 @@ pub(crate) async fn build_fallback_definition(fallbacks: Vc<FontFallbacks>) -> R
                     {}
                 }}
             "#,
-                fallback.scoped_font_family.await?,
-                fallback.local_font_family.await?,
+                fallback.scoped_font_family,
+                fallback.local_font_family,
                 override_properties
             ));
         }

@@ -18,10 +18,6 @@ pub trait KeyValueDatabase {
     where
         Self: 'l;
 
-    fn lower_read_transaction<'l: 'i + 'r, 'i: 'r, 'r>(
-        tx: &'r Self::ReadTransaction<'l>,
-    ) -> &'r Self::ReadTransaction<'i>;
-
     fn begin_read_transaction(&self) -> Result<Self::ReadTransaction<'_>>;
 
     fn is_empty(&self) -> bool {

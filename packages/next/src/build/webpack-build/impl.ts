@@ -1,7 +1,7 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { stringBufferUtils } from 'next/dist/compiled/webpack-sources3'
 import { red } from '../../lib/picocolors'
-import formatWebpackMessages from '../../client/components/react-dev-overlay/utils/format-webpack-messages'
+import formatWebpackMessages from '../../shared/lib/format-webpack-messages'
 import { nonNullable } from '../../lib/non-nullable'
 import type { COMPILER_INDEXES } from '../../shared/lib/constants'
 import {
@@ -40,7 +40,8 @@ import type { UnwrapPromise } from '../../lib/coalesced-function'
 
 import origDebug from 'next/dist/compiled/debug'
 import { Telemetry } from '../../telemetry/storage'
-import { durationToString } from '../duration-to-string'
+import { durationToString, hrtimeToSeconds } from '../duration-to-string'
+import { installBindings } from '../swc/install-bindings'
 
 const debug = origDebug('next:build:webpack-build')
 
@@ -328,12 +329,12 @@ export async function webpackBuildImpl(
       throw err
     }
     const err = new Error(
-      `Build failed because of ${process.env.NEXT_RSPACK ? 'rspack' : 'webpack'} errors`
+      `Build failed because of ${process.env.NEXT_RSPACK ? 'Rspack' : 'webpack'} errors`
     ) as NextError
     err.code = 'WEBPACK_ERRORS'
     throw err
   } else {
-    const duration = webpackBuildEnd[0]
+    const duration = hrtimeToSeconds(webpackBuildEnd)
     const durationString = durationToString(duration)
 
     if (result.warnings.length > 0) {
@@ -345,7 +346,7 @@ export async function webpackBuildImpl(
     }
 
     return {
-      duration: webpackBuildEnd[0],
+      duration,
       buildTraceContext: traceEntryPointsPlugin?.buildTraceContext,
       pluginState: getPluginState(),
       telemetryState: {
@@ -383,10 +384,15 @@ export async function workerMain(workerData: {
   resumePluginState(NextBuildContext.pluginState)
 
   /// load the config because it's not serializable
-  NextBuildContext.config = await loadConfig(
+  const config = (NextBuildContext.config = await loadConfig(
     PHASE_PRODUCTION_BUILD,
-    NextBuildContext.dir!
-  )
+    NextBuildContext.dir!,
+    {
+      debugPrerender: NextBuildContext.debugPrerender,
+      reactProductionProfiling: NextBuildContext.reactProductionProfiling,
+    }
+  ))
+  await installBindings(config.experimental?.useWasmBinary)
   NextBuildContext.nextBuildSpan = trace(
     `worker-main-${workerData.compilerName}`
   )
@@ -408,5 +414,7 @@ export async function workerMain(workerData: {
     result.buildTraceContext!.chunksTrace!.entryNameFilesMap = entryNameFilesMap
   }
   NextBuildContext.nextBuildSpan.stop()
+  await telemetry.flush()
+
   return { ...result, debugTraceEvents: getTraceEvents() }
 }

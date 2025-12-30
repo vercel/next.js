@@ -34,10 +34,18 @@ export function unstable_noStore() {
       switch (workUnitStore.type) {
         case 'prerender':
         case 'prerender-client':
+        case 'prerender-runtime':
           // unstable_noStore() is a noop in Dynamic I/O.
           return
+        case 'prerender-ppr':
+        case 'prerender-legacy':
+        case 'request':
+        case 'cache':
+        case 'private-cache':
+        case 'unstable-cache':
+          break
         default:
-        // fallthrough
+          workUnitStore satisfies never
       }
     }
     markCurrentScopeAsDynamic(store, workUnitStore, callingExpression)

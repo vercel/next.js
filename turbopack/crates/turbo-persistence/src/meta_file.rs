@@ -1,16 +1,22 @@
 use std::{
+    fmt::Display,
     fs::File,
     hash::BuildHasherDefault,
     io::{BufReader, Seek},
+    ops::Deref,
     path::{Path, PathBuf},
     sync::{Arc, OnceLock},
 };
 
 use anyhow::{Context, Result, bail};
+use bincode::{Decode, Encode};
+use bitfield::bitfield;
 use byteorder::{BE, ReadBytesExt};
+use either::Either;
 use memmap2::{Mmap, MmapOptions};
 use quick_cache::sync::GuardResult;
 use rustc_hash::FxHasher;
+use turbo_bincode::turbo_bincode_decode;
 
 use crate::{
     QueryKey,
@@ -18,16 +24,53 @@ use crate::{
 };
 
 #[derive(Clone, Default)]
-pub struct AqmfWeighter;
+pub struct AmqfWeighter;
 
-impl quick_cache::Weighter<u32, Arc<qfilter::Filter>> for AqmfWeighter {
+impl quick_cache::Weighter<u32, Arc<qfilter::Filter>> for AmqfWeighter {
     fn weight(&self, _key: &u32, filter: &Arc<qfilter::Filter>) -> u64 {
         filter.capacity() + 1
     }
 }
 
-pub type AqmfCache =
-    quick_cache::sync::Cache<u32, Arc<qfilter::Filter>, AqmfWeighter, BuildHasherDefault<FxHasher>>;
+pub type AmqfCache =
+    quick_cache::sync::Cache<u32, Arc<qfilter::Filter>, AmqfWeighter, BuildHasherDefault<FxHasher>>;
+
+bitfield! {
+    #[derive(Clone, Copy, Default)]
+    pub struct MetaEntryFlags(u32);
+    impl Debug;
+    impl From<u32>;
+    /// The SST file was compacted and none of the entries have been accessed recently.
+    pub cold, set_cold: 0;
+    /// The SST file was freshly written and has not been compacted yet.
+    pub fresh, set_fresh: 1;
+}
+
+impl MetaEntryFlags {
+    pub const FRESH: MetaEntryFlags = MetaEntryFlags(0b10);
+    pub const COLD: MetaEntryFlags = MetaEntryFlags(0b01);
+    pub const WARM: MetaEntryFlags = MetaEntryFlags(0b00);
+}
+
+impl Display for MetaEntryFlags {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.fresh() {
+            f.pad_integral(true, "", "fresh")
+        } else if self.cold() {
+            f.pad_integral(true, "", "cold")
+        } else {
+            f.pad_integral(true, "", "warm")
+        }
+    }
+}
+
+/// A wrapper around [`qfilter::Filter`] that implements [`Encode`] and [`Decode`].
+#[derive(Encode, Decode)]
+pub struct AmqfBincodeWrapper(
+    // this annotation can be replaced with `#[bincode(serde)]` once
+    // <https://github.com/arthurprs/qfilter/issues/13> is resolved
+    #[bincode(with = "turbo_bincode::serde_self_describing")] pub qfilter::Filter,
+);
 
 pub struct MetaEntry {
     /// The metadata for the static sorted file.
@@ -40,15 +83,17 @@ pub struct MetaEntry {
     max_hash: u64,
     /// The size of the SST file in bytes.
     size: u64,
-    /// The offset of the start of the AQMF data in the meta file relative to the end of the
+    /// The status flags for this entry.
+    flags: MetaEntryFlags,
+    /// The offset of the start of the AMQF data in the meta file relative to the end of the
     /// header.
-    start_of_aqmf_data_offset: u32,
-    /// The offset of the end of the AQMF data in the the meta file relative to the end of the
+    start_of_amqf_data_offset: u32,
+    /// The offset of the end of the AMQF data in the the meta file relative to the end of the
     /// header.
-    end_of_aqmf_data_offset: u32,
-    /// The AQMF filter of this file. This is only used if the range is very large. Smaller ranges
-    /// use the AQMF cache instead.
-    aqmf: OnceLock<qfilter::Filter>,
+    end_of_amqf_data_offset: u32,
+    /// The AMQF filter of this file. This is only used if the range is very large. Smaller ranges
+    /// use the AMQF cache instead.
+    amqf: OnceLock<qfilter::Filter>,
     /// The static sorted file that is lazily loaded
     sst: OnceLock<StaticSortedFile>,
 }
@@ -62,15 +107,69 @@ impl MetaEntry {
         self.size
     }
 
-    pub fn aqmf<'l>(&self, aqmf_data: &'l [u8]) -> &'l [u8] {
-        aqmf_data
-            .get(self.start_of_aqmf_data_offset as usize..self.end_of_aqmf_data_offset as usize)
-            .expect("AQMF data out of bounds")
+    pub fn flags(&self) -> MetaEntryFlags {
+        self.flags
     }
 
-    pub fn sst(&self, db_path: &Path) -> Result<&StaticSortedFile> {
-        self.sst
-            .get_or_try_init(|| StaticSortedFile::open(db_path, self.sst_data.clone()))
+    pub fn amqf_size(&self) -> u32 {
+        self.end_of_amqf_data_offset - self.start_of_amqf_data_offset
+    }
+
+    pub fn raw_amqf<'l>(&self, amqf_data: &'l [u8]) -> &'l [u8] {
+        amqf_data
+            .get(self.start_of_amqf_data_offset as usize..self.end_of_amqf_data_offset as usize)
+            .expect("AMQF data out of bounds")
+    }
+
+    pub fn deserialize_amqf(&self, meta: &MetaFile) -> Result<qfilter::Filter> {
+        let amqf = self.raw_amqf(meta.amqf_data());
+        Ok(turbo_bincode_decode::<AmqfBincodeWrapper>(amqf)
+            .with_context(|| {
+                format!(
+                    "Failed to deserialize AMQF from {:08}.meta for {:08}.sst",
+                    meta.sequence_number,
+                    self.sequence_number()
+                )
+            })?
+            .0)
+    }
+
+    pub fn amqf(
+        &self,
+        meta: &MetaFile,
+        amqf_cache: &AmqfCache,
+    ) -> Result<impl Deref<Target = qfilter::Filter>> {
+        let use_amqf_cache = self.max_hash - self.min_hash < 1 << 60;
+        Ok(if use_amqf_cache {
+            let amqf = match amqf_cache.get_value_or_guard(&self.sequence_number(), None) {
+                GuardResult::Value(amqf) => amqf,
+                GuardResult::Guard(guard) => {
+                    let amqf = self.deserialize_amqf(meta)?;
+                    let amqf: Arc<qfilter::Filter> = Arc::new(amqf);
+                    let _ = guard.insert(amqf.clone());
+                    amqf
+                }
+                GuardResult::Timeout => unreachable!(),
+            };
+            Either::Left(amqf)
+        } else {
+            let amqf = self.amqf.get_or_try_init(|| {
+                let amqf = self.deserialize_amqf(meta)?;
+                anyhow::Ok(amqf)
+            })?;
+            Either::Right(amqf)
+        })
+    }
+
+    pub fn sst(&self, meta: &MetaFile) -> Result<&StaticSortedFile> {
+        self.sst.get_or_try_init(|| {
+            StaticSortedFile::open(&meta.db_path, self.sst_data.clone()).with_context(|| {
+                format!(
+                    "Unable to open static sorted file referenced from {:08}.meta",
+                    meta.sequence_number()
+                )
+            })
+        })
     }
 
     /// Returns the key family and hash range of this file.
@@ -94,10 +193,6 @@ impl MetaEntry {
         self.sst_data.key_compression_dictionary_length
     }
 
-    pub fn value_compression_dictionary_length(&self) -> u16 {
-        self.sst_data.value_compression_dictionary_length
-    }
-
     pub fn block_count(&self) -> u16 {
         self.sst_data.block_count
     }
@@ -110,9 +205,9 @@ pub enum MetaLookupResult {
     /// The key was not found because it is out of the range of this SST file. But it was the
     /// correct key family.
     RangeMiss,
-    /// The key was not found because it was not in the AQMF filter. But it was in the range.
+    /// The key was not found because it was not in the AMQF filter. But it was in the range.
     QuickFilterMiss,
-    /// The key was looked up in the SST file. It was in the AQMF filter.
+    /// The key was looked up in the SST file. It was in the AMQF filter.
     SstLookup(SstLookupResult),
 }
 
@@ -133,8 +228,16 @@ pub struct MetaFile {
     family: u32,
     /// The entries of the file.
     entries: Vec<MetaEntry>,
+    /// The entries that have been marked as obsolete.
+    obsolete_entries: Vec<u32>,
     /// The obsolete SST files.
     obsolete_sst_files: Vec<u32>,
+    /// The offset of the start of the "used keys" AMQF data in the meta file relative to the end
+    /// of the header.
+    start_of_used_keys_amqf_data_offset: u32,
+    /// The offset of the end of the "used keys" AMQF data in the the meta file relative to the end
+    /// of the header.
+    end_of_used_keys_amqf_data_offset: u32,
     /// The memory mapped file.
     mmap: Mmap,
 }
@@ -164,27 +267,30 @@ impl MetaFile {
         }
         let count = file.read_u32::<BE>()?;
         let mut entries = Vec::with_capacity(count as usize);
-        let mut start_of_aqmf_data_offset = 0;
+        let mut start_of_amqf_data_offset = 0;
         for _ in 0..count {
             let entry = MetaEntry {
                 sst_data: StaticSortedFileMetaData {
                     sequence_number: file.read_u32::<BE>()?,
                     key_compression_dictionary_length: file.read_u16::<BE>()?,
-                    value_compression_dictionary_length: file.read_u16::<BE>()?,
                     block_count: file.read_u16::<BE>()?,
                 },
                 family,
                 min_hash: file.read_u64::<BE>()?,
                 max_hash: file.read_u64::<BE>()?,
                 size: file.read_u64::<BE>()?,
-                start_of_aqmf_data_offset,
-                end_of_aqmf_data_offset: file.read_u32::<BE>()?,
-                aqmf: OnceLock::new(),
+                flags: MetaEntryFlags(file.read_u32::<BE>()?),
+                start_of_amqf_data_offset,
+                end_of_amqf_data_offset: file.read_u32::<BE>()?,
+                amqf: OnceLock::new(),
                 sst: OnceLock::new(),
             };
-            start_of_aqmf_data_offset = entry.end_of_aqmf_data_offset;
+            start_of_amqf_data_offset = entry.end_of_amqf_data_offset;
             entries.push(entry);
         }
+        let start_of_used_keys_amqf_data_offset = start_of_amqf_data_offset;
+        let end_of_used_keys_amqf_data_offset = file.read_u32::<BE>()?;
+
         let offset = file.stream_position()?;
         let file = file.into_inner();
         let mut options = MmapOptions::new();
@@ -197,7 +303,10 @@ impl MetaFile {
             sequence_number,
             family,
             entries,
+            obsolete_entries: Vec::new(),
             obsolete_sst_files,
+            start_of_used_keys_amqf_data_offset,
+            end_of_used_keys_amqf_data_offset,
             mmap,
         };
         Ok(file)
@@ -220,15 +329,39 @@ impl MetaFile {
         &self.entries[index]
     }
 
-    pub fn aqmf_data(&self) -> &[u8] {
+    pub fn amqf_data(&self) -> &[u8] {
         &self.mmap
+    }
+
+    pub fn deserialize_used_key_hashes_amqf(&self) -> Result<Option<qfilter::Filter>> {
+        if self.start_of_used_keys_amqf_data_offset == self.end_of_used_keys_amqf_data_offset {
+            return Ok(None);
+        }
+        let amqf = &self.amqf_data()[self.start_of_used_keys_amqf_data_offset as usize
+            ..self.end_of_used_keys_amqf_data_offset as usize];
+        Ok(Some(pot::from_slice(amqf).with_context(|| {
+            format!(
+                "Failed to deserialize used key hashes AMQF from {:08}.meta",
+                self.sequence_number
+            )
+        })?))
     }
 
     pub fn retain_entries(&mut self, mut predicate: impl FnMut(u32) -> bool) -> bool {
         let old_len = self.entries.len();
-        self.entries
-            .retain(|entry| predicate(entry.sst_data.sequence_number));
+        self.entries.retain(|entry| {
+            if predicate(entry.sst_data.sequence_number) {
+                true
+            } else {
+                self.obsolete_entries.push(entry.sst_data.sequence_number);
+                false
+            }
+        });
         old_len != self.entries.len()
+    }
+
+    pub fn obsolete_entries(&self) -> &[u32] {
+        &self.obsolete_entries
     }
 
     pub fn has_active_entries(&self) -> bool {
@@ -244,7 +377,7 @@ impl MetaFile {
         key_family: u32,
         key_hash: u64,
         key: &K,
-        aqmf_cache: &AqmfCache,
+        amqf_cache: &AmqfCache,
         key_block_cache: &BlockCache,
         value_block_cache: &BlockCache,
     ) -> Result<MetaLookupResult> {
@@ -252,42 +385,21 @@ impl MetaFile {
             return Ok(MetaLookupResult::FamilyMiss);
         }
         let mut miss_result = MetaLookupResult::RangeMiss;
-        for entry in self.entries.iter() {
+        for entry in self.entries.iter().rev() {
             if key_hash < entry.min_hash || key_hash > entry.max_hash {
                 continue;
             }
-            let use_aqmf_cache = entry.max_hash - entry.min_hash < 1 << 60;
-            if use_aqmf_cache {
-                let aqmf = match aqmf_cache.get_value_or_guard(&entry.sequence_number(), None) {
-                    GuardResult::Value(aqmf) => aqmf,
-                    GuardResult::Guard(guard) => {
-                        let aqmf = entry.aqmf(self.aqmf_data());
-                        let aqmf: Arc<qfilter::Filter> = Arc::new(pot::from_slice(aqmf)?);
-                        let _ = guard.insert(aqmf.clone());
-                        aqmf
-                    }
-                    GuardResult::Timeout => unreachable!(),
-                };
-                if !aqmf.contains_fingerprint(key_hash) {
+            {
+                let amqf = entry.amqf(self, amqf_cache)?;
+                if !amqf.contains_fingerprint(key_hash) {
                     miss_result = MetaLookupResult::QuickFilterMiss;
                     continue;
                 }
-            } else {
-                let aqmf = entry.aqmf.get_or_try_init(|| {
-                    let aqmf = entry.aqmf(self.aqmf_data());
-                    anyhow::Ok(pot::from_slice(aqmf)?)
-                })?;
-                if !aqmf.contains_fingerprint(key_hash) {
-                    miss_result = MetaLookupResult::QuickFilterMiss;
-                    continue;
-                }
-            };
-            let result = entry.sst(&self.db_path)?.lookup(
-                key_hash,
-                key,
-                key_block_cache,
-                value_block_cache,
-            )?;
+            }
+            let result =
+                entry
+                    .sst(self)?
+                    .lookup(key_hash, key, key_block_cache, value_block_cache)?;
             if !matches!(result, SstLookupResult::NotFound) {
                 return Ok(MetaLookupResult::SstLookup(result));
             }

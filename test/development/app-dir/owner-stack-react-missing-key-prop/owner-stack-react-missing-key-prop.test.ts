@@ -19,10 +19,11 @@ describe('app-dir - owner-stack-react-missing-key-prop', () => {
 
     if (isTurbopack) {
       expect(stackFramesContent).toMatchInlineSnapshot(`
-         "at span ()
-         at <anonymous> (app/rsc/page.tsx (7:9))
-         at Page (app/rsc/page.tsx (6:13))"
-        `)
+       "at span ()
+       at <anonymous> (app/rsc/page.tsx (7:9))
+       at Array.map ()
+       at Page (app/rsc/page.tsx (6:13))"
+      `)
       expect(source).toMatchInlineSnapshot(`
          "app/rsc/page.tsx (7:9) @ <anonymous>
 
@@ -36,10 +37,11 @@ describe('app-dir - owner-stack-react-missing-key-prop', () => {
         `)
     } else {
       expect(stackFramesContent).toMatchInlineSnapshot(`
-         "at span ()
-         at eval (app/rsc/page.tsx (7:9))
-         at Page (app/rsc/page.tsx (6:13))"
-        `)
+       "at span ()
+       at eval (app/rsc/page.tsx (7:9))
+       at Array.map ()
+       at Page (app/rsc/page.tsx (6:13))"
+      `)
       expect(source).toMatchInlineSnapshot(`
           "app/rsc/page.tsx (7:9) @ eval
 

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -8,18 +8,13 @@ use turbopack_core::{
         ChunkingTypeOption,
     },
     ident::AssetIdent,
-    module::Module,
+    module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     reference::{ModuleReference, ModuleReferences},
     resolve::ModuleResolveResult,
 };
 
 use super::chunk_item::WorkerLoaderChunkItem;
-
-#[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("worker loader".into())
-}
 
 /// The WorkerLoaderModule is a module that creates a separate root chunk group for the given module
 /// and exports a URL to pass to the worker constructor.
@@ -37,7 +32,7 @@ impl WorkerLoaderModule {
 
     #[turbo_tasks::function]
     pub fn asset_ident_for(module: Vc<Box<dyn ChunkableModule>>) -> Vc<AssetIdent> {
-        module.ident().with_modifier(modifier())
+        module.ident().with_modifier(rcstr!("worker loader"))
     }
 }
 
@@ -49,12 +44,22 @@ impl Module for WorkerLoaderModule {
     }
 
     #[turbo_tasks::function]
+    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
+        Vc::cell(None)
+    }
+
+    #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
         Ok(Vc::cell(vec![ResolvedVc::upcast(
             WorkerModuleReference::new(*ResolvedVc::upcast(self.await?.inner))
                 .to_resolved()
                 .await?,
         )]))
+    }
+
+    #[turbo_tasks::function]
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        ModuleSideEffects::SideEffectFree.cell()
     }
 }
 
@@ -121,6 +126,6 @@ impl ModuleReference for WorkerModuleReference {
 impl ValueToString for WorkerModuleReference {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell("worker module".into())
+        Vc::cell(rcstr!("worker module"))
     }
 }

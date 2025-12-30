@@ -20,7 +20,9 @@ use self::graph::{DepGraph, ItemData, ItemId, ItemIdGroupKind, Mode, SplitModule
 pub(crate) use self::graph::{
     PartId, create_turbopack_part_id_assert, find_turbopack_part_id_in_asserts,
 };
-use crate::{EcmascriptModuleAsset, analyzer::graph::EvalContext, parse::ParseResult};
+use crate::{
+    EcmascriptModuleAsset, EcmascriptParsable, analyzer::graph::EvalContext, parse::ParseResult,
+};
 
 pub mod asset;
 pub mod chunk_item;
@@ -97,10 +99,10 @@ impl Analyzer<'_> {
 
     fn handle_explicit_deps(&mut self) {
         for item_id in self.item_ids.iter() {
-            if let Some(item) = self.items.get(item_id) {
-                if !item.explicit_deps.is_empty() {
-                    self.g.add_strong_deps(item_id, item.explicit_deps.iter());
-                }
+            if let Some(item) = self.items.get(item_id)
+                && !item.explicit_deps.is_empty()
+            {
+                self.g.add_strong_deps(item_id, item.explicit_deps.iter());
             }
         }
     }
@@ -170,12 +172,12 @@ impl Analyzer<'_> {
                     let state = self.vars.entry(id.clone()).or_default();
                     self.g.add_strong_deps(item_id, state.last_writes.iter());
 
-                    if let Some(declarator) = &state.declarator {
-                        if declarator != item_id {
-                            // A read also depends on the declaration.
-                            self.g
-                                .add_strong_deps(item_id, [declarator].iter().copied());
-                        }
+                    if let Some(declarator) = &state.declarator
+                        && declarator != item_id
+                    {
+                        // A read also depends on the declaration.
+                        self.g
+                            .add_strong_deps(item_id, [declarator].iter().copied());
                     }
 
                     if state.last_op == Some(VarOp::Write) && !item.write_vars.contains(id) {
@@ -194,11 +196,11 @@ impl Analyzer<'_> {
                     let state = self.vars.entry(id.clone()).or_default();
                     self.g.add_weak_deps(item_id, state.last_reads.iter());
 
-                    if let Some(declarator) = &state.declarator {
-                        if declarator != item_id {
-                            // A write also depends on the declaration.
-                            self.g.add_strong_deps(item_id, [declarator]);
-                        }
+                    if let Some(declarator) = &state.declarator
+                        && declarator != item_id
+                    {
+                        // A write also depends on the declaration.
+                        self.g.add_strong_deps(item_id, [declarator]);
                     }
 
                     if !item.read_vars.contains(id) {
@@ -317,11 +319,11 @@ impl Analyzer<'_> {
                     let state = self.vars.entry(id.clone()).or_default();
                     self.g.add_strong_deps(item_id, state.last_writes.iter());
 
-                    if let Some(declarator) = &state.declarator {
-                        if declarator != item_id {
-                            // A read also depends on the declaration.
-                            self.g.add_strong_deps(item_id, [declarator]);
-                        }
+                    if let Some(declarator) = &state.declarator
+                        && declarator != item_id
+                    {
+                        // A read also depends on the declaration.
+                        self.g.add_strong_deps(item_id, [declarator]);
                     }
                 }
 
@@ -334,11 +336,11 @@ impl Analyzer<'_> {
 
                     self.g.add_weak_deps(item_id, state.last_reads.iter());
 
-                    if let Some(declarator) = &state.declarator {
-                        if declarator != item_id {
-                            // A write also depends on the declaration.
-                            self.g.add_strong_deps(item_id, [declarator]);
-                        }
+                    if let Some(declarator) = &state.declarator
+                        && declarator != item_id
+                    {
+                        // A write also depends on the declaration.
+                        self.g.add_strong_deps(item_id, [declarator]);
                     }
                 }
 
@@ -351,10 +353,10 @@ impl Analyzer<'_> {
     /// Phase 4: Exports
     fn handle_exports(&mut self, _module: &Module) {
         // We use the last side effect as a module evaluation
-        if let Some(last) = self.last_side_effects.last() {
-            if let Some(item) = self.items.get_mut(last) {
-                item.is_module_evaluation = true;
-            }
+        if let Some(last) = self.last_side_effects.last()
+            && let Some(item) = self.items.get_mut(last)
+        {
+            item.is_module_evaluation = true;
         }
 
         for item_id in self.item_ids.iter() {
@@ -407,13 +409,12 @@ async fn get_part_id(result: &SplitResult, part: &ModulePart) -> Result<u32> {
     }
 
     // This is required to handle `export * from 'foo'`
-    if let ModulePart::Export(..) = part {
-        if let Some(&v) = entrypoints
+    if let ModulePart::Export(..) = part
+        && let Some(&v) = entrypoints
             .get(&Key::StarExports)
             .or_else(|| entrypoints.get(&Key::Exports))
-        {
-            return Ok(v);
-        }
+    {
+        return Ok(v);
     }
 
     let mut dump = String::new();
@@ -471,15 +472,8 @@ impl PartialEq for SplitResult {
 
 #[turbo_tasks::function]
 pub(super) async fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Result<Vc<SplitResult>> {
-    Ok(split(asset.source().ident(), asset.source(), asset.parse()))
-}
-
-#[turbo_tasks::function]
-pub(super) async fn split(
-    ident: ResolvedVc<AssetIdent>,
-    source: ResolvedVc<Box<dyn Source>>,
-    parsed: ResolvedVc<ParseResult>,
-) -> Result<Vc<SplitResult>> {
+    let parsed: ResolvedVc<ParseResult> = asset.failsafe_parse().to_resolved().await?;
+    let ident = asset.source().ident().to_resolved().await?;
     // Do not split already split module
     if !ident.await?.parts.is_empty() {
         return Ok(SplitResult::Failed {
@@ -499,6 +493,7 @@ pub(super) async fn split(
     }
 
     let parse_result = parsed.await?;
+    let source = asset.source().to_resolved().await?;
 
     match &*parse_result {
         ParseResult::Ok {
@@ -571,7 +566,7 @@ pub(super) async fn split(
                 .map(|module| {
                     let program = Program::Module(module);
                     let eval_context = EvalContext::new(
-                        &program,
+                        Some(&program),
                         eval_context.unresolved_mark,
                         eval_context.top_level_mark,
                         eval_context.force_free_values.clone(),
@@ -696,7 +691,7 @@ pub(crate) async fn part_of_module(
 
                     let program = Program::Module(module);
                     let eval_context = EvalContext::new(
-                        &program,
+                        Some(&program),
                         eval_context.unresolved_mark,
                         eval_context.top_level_mark,
                         eval_context.force_free_values.clone(),

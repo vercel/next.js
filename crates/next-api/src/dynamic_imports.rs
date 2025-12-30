@@ -19,24 +19,24 @@
 //!      to wait until all the dynamic components are being loaded, this ensures hydration mismatch
 //!      won't occur
 
-use anyhow::Result;
+use anyhow::{Context, Result};
+use bincode::{Decode, Encode};
 use next_core::{
     next_app::ClientReferencesChunks, next_client_reference::EcmascriptClientReferenceModule,
     next_dynamic::NextDynamicEntryModule,
 };
-use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, Vc,
+    FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
     debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbopack_core::{
     chunk::{
-        ChunkItem, ChunkableModule, ChunkingContext, ModuleChunkItemIdExt, ModuleId,
+        ChunkableModule, ChunkingContext, ModuleChunkItemIdExt, ModuleId,
         availability_info::AvailabilityInfo,
     },
     module::Module,
-    module_graph::{ModuleGraph, SingleModuleGraph, SingleModuleGraphModuleNode},
-    output::OutputAssets,
+    module_graph::{ModuleGraph, SingleModuleGraph},
+    output::{OutputAssetsReference, OutputAssetsWithReferenced},
 };
 
 use crate::module_graph::DynamicImportEntriesWithImporter;
@@ -66,24 +66,26 @@ pub(crate) async fn collect_next_dynamic_chunks(
                 NextDynamicChunkAvailability::ClientReferences(client_reference_chunks) => {
                     client_reference_chunks
                         .client_component_client_chunks
-                        .get(&parent_client_reference.unwrap())
-                        .unwrap()
-                        .1
+                        .get(
+                            &parent_client_reference.context(
+                                "Parent client reference not found for next/dynamic import",
+                            )?,
+                        )
+                        .context("Client reference chunk group not found for next/dynamic import")?
+                        .await?
+                        .availability_info
                 }
                 NextDynamicChunkAvailability::AvailabilityInfo(availability_info) => {
                     *availability_info
                 }
             };
 
-            let async_loader = chunking_context.async_loader_chunk_item(
-                *module,
-                module_graph,
-                Value::new(availability_info),
-            );
+            let async_loader =
+                chunking_context.async_loader_chunk_item(*module, module_graph, availability_info);
             let async_chunk_group = async_loader.references().to_resolved().await?;
 
             let module_id = dynamic_entry
-                .chunk_item_id(Vc::upcast(chunking_context))
+                .chunk_item_id(chunking_context)
                 .to_resolved()
                 .await?;
 
@@ -100,15 +102,14 @@ pub(crate) async fn collect_next_dynamic_chunks(
 #[turbo_tasks::value(transparent)]
 #[derive(Default)]
 pub struct DynamicImportedChunks(
+    #[bincode(with = "turbo_bincode::indexmap")]
     pub  FxIndexMap<
         ResolvedVc<NextDynamicEntryModule>,
-        (ResolvedVc<ModuleId>, ResolvedVc<OutputAssets>),
+        (ResolvedVc<ModuleId>, ResolvedVc<OutputAssetsWithReferenced>),
     >,
 );
 
-#[derive(
-    Clone, PartialEq, Eq, ValueDebugFormat, Serialize, Deserialize, TraceRawVcs, NonLocalValue,
-)]
+#[derive(Clone, PartialEq, Eq, ValueDebugFormat, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub enum DynamicImportEntriesMapType {
     DynamicEntry(ResolvedVc<NextDynamicEntryModule>),
     ClientReference(ResolvedVc<EcmascriptClientReferenceModule>),
@@ -116,7 +117,8 @@ pub enum DynamicImportEntriesMapType {
 
 #[turbo_tasks::value(transparent)]
 pub struct DynamicImportEntries(
-    pub FxIndexMap<ResolvedVc<Box<dyn Module>>, DynamicImportEntriesMapType>,
+    #[bincode(with = "turbo_bincode::indexmap")]
+    pub  FxIndexMap<ResolvedVc<Box<dyn Module>>, DynamicImportEntriesMapType>,
 );
 
 #[turbo_tasks::function]
@@ -124,29 +126,28 @@ pub async fn map_next_dynamic(graph: Vc<SingleModuleGraph>) -> Result<Vc<Dynamic
     let actions = graph
         .await?
         .iter_nodes()
-        .map(|node| async move {
-            let SingleModuleGraphModuleNode { module } = node;
-            let layer = match module.ident().await?.layer {
-                Some(l) => Some(l.await?),
-                None => None,
-            };
-            if layer.is_some_and(|layer| *layer == "app-client" || *layer == "client") {
-                if let Some(dynamic_entry_module) =
-                    ResolvedVc::try_downcast_type::<NextDynamicEntryModule>(*module)
-                {
-                    return Ok(Some((
-                        *module,
-                        DynamicImportEntriesMapType::DynamicEntry(dynamic_entry_module),
-                    )));
-                }
+        .map(|module| async move {
+            if module
+                .ident()
+                .await?
+                .layer
+                .as_ref()
+                .is_some_and(|layer| layer.name() == "app-client" || layer.name() == "client")
+                && let Some(dynamic_entry_module) =
+                    ResolvedVc::try_downcast_type::<NextDynamicEntryModule>(module)
+            {
+                return Ok(Some((
+                    module,
+                    DynamicImportEntriesMapType::DynamicEntry(dynamic_entry_module),
+                )));
             }
             // TODO add this check once these modules have the correct layer
             // if layer.is_some_and(|layer| &**layer == "app-rsc") {
             if let Some(client_reference_module) =
-                ResolvedVc::try_downcast_type::<EcmascriptClientReferenceModule>(*module)
+                ResolvedVc::try_downcast_type::<EcmascriptClientReferenceModule>(module)
             {
                 return Ok(Some((
-                    *module,
+                    module,
                     DynamicImportEntriesMapType::ClientReference(client_reference_module),
                 )));
             }

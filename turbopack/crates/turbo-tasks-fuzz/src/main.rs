@@ -11,7 +11,7 @@ use clap::{Args, Parser, Subcommand};
 use rand::{Rng, RngCore, SeedableRng};
 use rustc_hash::FxHashSet;
 use tokio::time::sleep;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{NonLocalValue, ResolvedVc, TransientInstance, Vc, trace::TraceRawVcs};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath};
@@ -50,11 +50,15 @@ struct FsWatcher {
     file_modifications: u32,
     #[arg(long, default_value_t = 2)]
     directory_modifications: u32,
+    #[arg(long)]
+    print_missing_invalidations: bool,
+    /// Call `start_watching` after the initial read of files instead of before (the default).
+    #[arg(long)]
+    start_watching_late: bool,
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    register();
     let cli = Cli::parse();
 
     match cli.command {
@@ -84,10 +88,14 @@ async fn fuzz_fs_watcher(args: FsWatcher) -> anyhow::Result<()> {
             .await?;
         let project_root = disk_file_system_root_operation(project_fs)
             .resolve_strongly_consistent()
+            .await?
+            .owned()
             .await?;
         create_directory_tree(&mut FxHashSet::default(), &fs_root, args.depth, args.width)?;
 
-        project_fs.await?.start_watching(None).await?;
+        if !args.start_watching_late {
+            project_fs.await?.start_watching(None).await?;
+        }
 
         let read_all_paths_op =
             read_all_paths_operation(invalidations.clone(), project_root, args.depth, args.width);
@@ -96,6 +104,10 @@ async fn fuzz_fs_watcher(args: FsWatcher) -> anyhow::Result<()> {
             let mut invalidations = invalidations.0.lock().unwrap();
             println!("read all {} files", invalidations.len());
             invalidations.clear();
+        }
+
+        if args.start_watching_late {
+            project_fs.await?.start_watching(None).await?;
         }
 
         let mut rand_buf = [0; 16];
@@ -133,6 +145,19 @@ async fn fuzz_fs_watcher(args: FsWatcher) -> anyhow::Result<()> {
                     modified_file_paths.len(),
                     invalidations.len()
                 );
+                if args.print_missing_invalidations {
+                    let absolute_path_invalidations = invalidations
+                        .iter()
+                        .map(|relative_path| fs_root.join(relative_path))
+                        .collect::<FxHashSet<PathBuf>>();
+                    let mut missing = modified_file_paths
+                        .difference(&absolute_path_invalidations)
+                        .collect::<Vec<_>>();
+                    missing.sort_unstable();
+                    for path in &missing {
+                        println!("  missing {path:?}");
+                    }
+                }
                 invalidations.clear();
             }
         }
@@ -142,7 +167,7 @@ async fn fuzz_fs_watcher(args: FsWatcher) -> anyhow::Result<()> {
 
 #[turbo_tasks::function(operation)]
 fn disk_file_system_operation(fs_root: RcStr) -> Vc<DiskFileSystem> {
-    DiskFileSystem::new("project".into(), fs_root, Vec::new())
+    DiskFileSystem::new(rcstr!("project"), fs_root)
 }
 
 #[turbo_tasks::function(operation)]
@@ -153,9 +178,9 @@ fn disk_file_system_root_operation(fs: ResolvedVc<DiskFileSystem>) -> Vc<FileSys
 #[turbo_tasks::function]
 async fn read_path(
     invalidations: TransientInstance<PathInvalidations>,
-    path: ResolvedVc<FileSystemPath>,
+    path: FileSystemPath,
 ) -> anyhow::Result<()> {
-    let path_str = path.await?.path.clone();
+    let path_str = path.path.clone();
     invalidations.0.lock().unwrap().insert(path_str);
     let _ = path.read().await?;
     Ok(())
@@ -164,21 +189,21 @@ async fn read_path(
 #[turbo_tasks::function(operation)]
 async fn read_all_paths_operation(
     invalidations: TransientInstance<PathInvalidations>,
-    root: ResolvedVc<FileSystemPath>,
+    root: FileSystemPath,
     depth: usize,
     width: usize,
 ) -> anyhow::Result<()> {
     async fn read_all_paths_inner(
         invalidations: TransientInstance<PathInvalidations>,
-        parent: ResolvedVc<FileSystemPath>,
+        parent: FileSystemPath,
         depth: usize,
         width: usize,
     ) -> anyhow::Result<()> {
         for child_id in 0..width {
-            let child_name = RcStr::from(child_id.to_string());
-            let child_path = parent.join(child_name).to_resolved().await?;
+            let child_name = child_id.to_string();
+            let child_path = parent.join(&child_name)?;
             if depth == 1 {
-                read_path(invalidations.clone(), *child_path).await?;
+                read_path(invalidations.clone(), child_path).await?;
             } else {
                 Box::pin(read_all_paths_inner(
                     invalidations.clone(),
@@ -249,10 +274,4 @@ impl Drop for FsCleanup<'_> {
     fn drop(&mut self) {
         std::fs::remove_dir_all(self.path).unwrap();
     }
-}
-
-fn register() {
-    turbo_tasks::register();
-    turbo_tasks_fs::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }

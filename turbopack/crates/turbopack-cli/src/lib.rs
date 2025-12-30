@@ -9,12 +9,3 @@ pub(crate) mod contexts;
 pub mod dev;
 pub(crate) mod embed_js;
 pub(crate) mod util;
-
-pub fn register() {
-    turbopack::register();
-    turbopack_nodejs::register();
-    turbopack_browser::register();
-    turbopack_ecmascript_plugins::register();
-    turbopack_resolve::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
-}

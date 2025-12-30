@@ -1,35 +1,31 @@
 import { nextTestSetup } from 'e2e-utils'
-import { waitFor } from 'next-test-utils'
-
-const ORDERED_LOGS = [
-  'instrumentation:side-effect',
-  'instrumentation:register:begin',
-  'instrumentation:register:timeout',
-  'instrumentation:register:end',
-  'global-side-effect:app-router-page',
-]
+import { retry } from 'next-test-utils'
 
 describe('instrumentation-order', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
   })
 
-  it('should work using cheerio', async () => {
-    // Wait for the timeout in the instrumentation to complete
-    await waitFor(500)
+  it('should work', async () => {
+    await next.fetch('/')
 
-    // Dev mode requires to render the page to trigger the build of the page
-    if (isNextDev) {
-      await next.render$('/')
-    }
+    await retry(async () => {
+      const serverLog = next.cliOutput.split('Starting...')[1]
+      const cliOutputLines = serverLog.split('\n')
 
-    const serverLog = next.cliOutput.split('Starting...')[1]
-    const cliOutputLines = serverLog.split('\n')
-    const searchedLines = cliOutputLines.filter((line) =>
-      ORDERED_LOGS.includes(line.trim())
-    )
+      const ORDERED_LOGS = [
+        'instrumentation:side-effect',
+        'instrumentation:register:begin',
+        'instrumentation:register:timeout',
+        'instrumentation:register:end',
+        'global-side-effect:app-router-page',
+      ]
+      const searchedLines = cliOutputLines.filter((line) =>
+        ORDERED_LOGS.includes(line.trim())
+      )
 
-    expect(searchedLines).toEqual(ORDERED_LOGS)
+      expect(searchedLines).toEqual(ORDERED_LOGS)
+    })
   })
 })

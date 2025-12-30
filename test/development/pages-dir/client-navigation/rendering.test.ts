@@ -2,16 +2,15 @@
 
 import cheerio from 'cheerio'
 import { nextTestSetup } from 'e2e-utils'
-import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
+import { fetchViaHTTP, getDistDir, renderViaHTTP } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST } from 'next/constants'
 import path from 'path'
-import url from 'url'
 
 const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 
 describe('Client Navigation rendering', () => {
-  const { isTurbopack, next } = nextTestSetup({
+  const { isTurbopack, next, isRspack } = nextTestSetup({
     files: path.join(__dirname, 'fixture'),
     env: {
       TEST_STRICT_NEXT_HEAD: String(true),
@@ -47,7 +46,7 @@ describe('Client Navigation rendering', () => {
     it('should should not contain scripts that are not js', async () => {
       const $ = await get$('/')
       $('script[src]').each((_index, element) => {
-        const parsedUrl = url.parse($(element).attr('src'))
+        const parsedUrl = new URL($(element).attr('src'), next.url)
         if (!parsedUrl.pathname.endsWith('.js')) {
           throw new Error(
             `Page includes script that is not a javascript file ${parsedUrl.pathname}`
@@ -136,7 +135,7 @@ describe('Client Navigation rendering', () => {
            "label": "Runtime Error",
            "source": null,
            "stack": [
-             "new Promise <anonymous> (0:0)",
+             "new Promise <anonymous>",
            ],
          }
         `)
@@ -236,12 +235,25 @@ describe('Client Navigation rendering', () => {
            "description": "This is an expected error",
            "environmentLabel": null,
            "label": "Runtime Error",
-           "source": "pages/error-inside-page.js (2:9) @
-         {default export}
+           "source": "pages/error-inside-page.js (2:9) @ {default export}
          > 2 |   throw new Error('This is an expected error')
              |         ^",
            "stack": [
              "{default export} pages/error-inside-page.js (2:9)",
+           ],
+         }
+        `)
+      } else if (isRspack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "This is an expected error",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "pages/error-inside-page.js (2:9) @ __rspack_default_export
+         > 2 |   throw new Error('This is an expected error')
+             |         ^",
+           "stack": [
+             "__rspack_default_export pages/error-inside-page.js (2:9)",
            ],
          }
         `)
@@ -274,16 +286,16 @@ describe('Client Navigation rendering', () => {
            "description": "aa is not defined",
            "environmentLabel": null,
            "label": "Runtime ReferenceError",
-           "source": "pages/error-in-the-global-scope.js (1:1) @ [project]/pages/error-in-the-global-scope.js [ssr] (ecmascript)
+           "source": "pages/error-in-the-global-scope.js (1:1) @ module evaluation
          > 1 | aa = 10 //eslint-disable-line
              | ^",
            "stack": [
-             "[project]/pages/error-in-the-global-scope.js [ssr] (ecmascript) pages/error-in-the-global-scope.js (1:1)",
+             "module evaluation pages/error-in-the-global-scope.js (1:1)",
              "<FIXME-next-dist-dir>",
            ],
          }
         `)
-      } else {
+      } else if (isRspack) {
         await expect(browser).toDisplayRedbox(`
          {
            "description": "aa is not defined",
@@ -306,6 +318,26 @@ describe('Client Navigation rendering', () => {
            ],
          }
         `)
+      } else {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "aa is not defined",
+           "environmentLabel": null,
+           "label": "Runtime ReferenceError",
+           "source": "pages/error-in-the-global-scope.js (1:1) @ eval
+         > 1 | aa = 10 //eslint-disable-line
+             | ^",
+           "stack": [
+             "eval pages/error-in-the-global-scope.js (1:1)",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+           ],
+         }
+        `)
       }
     })
 
@@ -313,11 +345,13 @@ describe('Client Navigation rendering', () => {
       // build dynamic page
       await fetch('/dynamic/ssr')
 
-      const buildManifest = await next.readJSON(`.next/${BUILD_MANIFEST}`)
+      const buildManifest = await next.readJSON(
+        `${getDistDir()}/${BUILD_MANIFEST}`
+      )
       const reactLoadableManifest = await next.readJSON(
         process.env.IS_TURBOPACK_TEST
-          ? `.next/server/pages/dynamic/ssr/${REACT_LOADABLE_MANIFEST}`
-          : `.next/${REACT_LOADABLE_MANIFEST}`
+          ? `${getDistDir()}/server/pages/dynamic/ssr/${REACT_LOADABLE_MANIFEST}`
+          : `${getDistDir()}/${REACT_LOADABLE_MANIFEST}`
       )
       const resources = []
 

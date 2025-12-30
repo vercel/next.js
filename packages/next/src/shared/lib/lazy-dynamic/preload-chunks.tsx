@@ -4,6 +4,7 @@ import { preload } from 'react-dom'
 
 import { workAsyncStorage } from '../../../server/app-render/work-async-storage.external'
 import { encodeURIPath } from '../encode-uri-path'
+import { getDeploymentIdQueryOrEmptyString } from '../deployment-id'
 
 export function PreloadChunks({
   moduleIds,
@@ -37,9 +38,7 @@ export function PreloadChunks({
     return null
   }
 
-  const dplId = process.env.NEXT_DEPLOYMENT_ID
-    ? `?dpl=${process.env.NEXT_DEPLOYMENT_ID}`
-    : ''
+  const dplId = getDeploymentIdQueryOrEmptyString()
 
   return (
     <>
@@ -58,6 +57,7 @@ export function PreloadChunks({
               href={href}
               rel="stylesheet"
               as="style"
+              nonce={workStore.nonce}
             />
           )
         } else {
@@ -65,6 +65,7 @@ export function PreloadChunks({
           preload(href, {
             as: 'script',
             fetchPriority: 'low',
+            nonce: workStore.nonce,
           })
           return null
         }

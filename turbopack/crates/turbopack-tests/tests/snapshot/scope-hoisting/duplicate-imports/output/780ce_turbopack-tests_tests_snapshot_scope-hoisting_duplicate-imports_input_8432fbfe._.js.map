@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 3, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/duplicate-imports/input/shared.js"],"sourcesContent":["module.exports = 'shared'\n"],"names":[],"mappings":"AAAA,OAAO,OAAO,GAAG"}},
+    {"offset": {"line": 8, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/duplicate-imports/input/a.js","turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/duplicate-imports/input/b.js","turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/duplicate-imports/input/c.js"],"sourcesContent":["import shared from './shared.js'\n\nconsole.log('a', shared)\n","import './a.js'\nimport shared from './shared.js'\n\nconsole.log('a', shared)\n","import './b.js'\nimport shared from './shared.js'\n\nconsole.log('c', shared)\n"],"names":[],"mappings":";;;;;;;;;AAAA;;AAEA,QAAQ,GAAG,CAAC,KAAK,mOAAM;;;;ACCvB,QAAQ,GAAG,CAAC,KAAK,oOAAM;;;;ACAvB,QAAQ,GAAG,CAAC,KAAK,oOAAM"}}]
+}

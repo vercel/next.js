@@ -45,13 +45,19 @@ describe.each([['', '/docs']])(
           },
         })
 
+        // render 404 page to generate
+        // "/_next/static/chunks/pages/_app.js"
+        // we need this because not found static assets
+        // served as plain text 404 instead of HTML.
+        await next.render('/404')
+
         await retry(async () => {
           // make sure host server is running
-          const asset = await fetchViaHTTP(
+          const res = await fetchViaHTTP(
             next.appPort,
             '/_next/static/chunks/pages/_app.js'
           )
-          expect(asset.status).toBe(200)
+          expect(res.status).toBe(200)
         })
       })
       afterAll(() => next.destroy())
@@ -199,13 +205,19 @@ describe.each([['', '/docs']])(
           },
         })
 
+        // render 404 page to generate
+        // "/_next/static/chunks/pages/_app.js"
+        // since we haven't built any paths by this point
+        // causing this chunk to not be written to disk yet
+        await next.render('/404')
+
         await retry(async () => {
           // make sure host server is running
-          const asset = await fetchViaHTTP(
+          const res = await fetchViaHTTP(
             next.appPort,
             '/_next/static/chunks/pages/_app.js'
           )
-          expect(asset.status).toBe(200)
+          expect(res.status).toBe(200)
         })
       })
       afterAll(() => next.destroy())

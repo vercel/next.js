@@ -58,7 +58,6 @@ fn test(input: &Path, minify: bool) {
                     ..Default::default()
                 },
                 disable_next_ssg: false,
-                disable_page_config: false,
                 pages_dir: None,
                 is_page_file: false,
                 is_development: true,

@@ -1,17 +1,18 @@
-// It might insert extra parnes for JSX components
+// It might insert extra parens for JSX components
 // x-ref: https://github.com/facebook/jscodeshift/issues/534
 
-import type { API, FileInfo } from 'jscodeshift'
+import type { API, Collection, FileInfo, JSXElement } from 'jscodeshift'
 import { createParserFromPath } from '../lib/parser'
+import { NEXT_CODEMOD_ERROR_PREFIX } from './lib/async-request-api/utils'
 
 export default function transformer(file: FileInfo, _api: API) {
   const j = createParserFromPath(file.path)
 
   const $j = j(file.source)
+  let hasChanges = false
 
-  return $j
-    .find(j.ImportDeclaration, { source: { value: 'next/link' } })
-    .forEach((path) => {
+  $j.find(j.ImportDeclaration, { source: { value: 'next/link' } }).forEach(
+    (path) => {
       const defaultImport = j(path).find(j.ImportDefaultSpecifier)
       if (defaultImport.size() === 0) {
         return
@@ -26,36 +27,25 @@ export default function transformer(file: FileInfo, _api: API) {
       }
 
       const linkElements = $j.findJSXElements(variableName)
-      const hasStylesJSX = $j.findJSXElements('style').some((stylePath) => {
-        const $style = j(stylePath)
-        const hasJSXProp =
-          $style.find(j.JSXAttribute, { name: { name: 'jsx' } }).size() !== 0
-
-        return hasJSXProp
-      })
 
       linkElements.forEach((linkPath) => {
-        const $link = j(linkPath).filter((childPath) => {
-          // Exclude links with `legacybehavior` prop from modification
-          return (
-            j(childPath)
-              .find(j.JSXAttribute, { name: { name: 'legacyBehavior' } })
-              .size() === 0
-          )
-        })
+        const $link: Collection<JSXElement> = j(linkPath)
 
         if ($link.size() === 0) {
           return
         }
 
-        // If file has <style jsx> enable legacyBehavior
-        // and keep <a> to stay on the safe side
-        if (hasStylesJSX) {
-          $link
-            .get('attributes')
-            .push(j.jsxAttribute(j.jsxIdentifier('legacyBehavior')))
-          return
-        }
+        const $legacyBehaviorProps = $link.find(j.JSXAttribute, {
+          name: { type: 'JSXIdentifier', name: 'legacyBehavior' },
+        })
+        $legacyBehaviorProps.remove()
+        hasChanges ||= $legacyBehaviorProps.size() > 0
+
+        const $passHrefProps = $link.find(j.JSXAttribute, {
+          name: { type: 'JSXIdentifier', name: 'passHref' },
+        })
+        $passHrefProps.remove()
+        hasChanges ||= $passHrefProps.size() > 0
 
         const linkChildrenNodes = $link.get('children')
 
@@ -78,39 +68,56 @@ export default function transformer(file: FileInfo, _api: API) {
           )
         })
 
-        // No <a> as child to <Link> so the old behavior is used
-        if ($childrenWithA.size() !== 1) {
-          $link
-            .get('attributes')
-            .push(j.jsxAttribute(j.jsxIdentifier('legacyBehavior')))
-          return
+        if ($childrenWithA.length === 0) {
+          if ($legacyBehaviorProps.length > 0) {
+            linkPath.node.children.unshift(
+              j.jsxText('\n'),
+              j.jsxExpressionContainer.from({
+                expression: j.jsxEmptyExpression.from({
+                  comments: [
+                    j.commentBlock.from({
+                      value: ` ${NEXT_CODEMOD_ERROR_PREFIX} This Link previously used the now removed \`legacyBehavior\` prop, and has a child that might not be an anchor. The codemod bailed out of lifting the child props to the Link. Check that the child component does not render an anchor, and potentially move the props manually to Link. `,
+                    }),
+                  ],
+                }),
+              })
+            )
+            hasChanges = true
+          }
+        } else {
+          const props = $childrenWithA.get('attributes').value
+          const hasProps = props.length > 0
+
+          if (hasProps) {
+            // Add only unique props to <Link> (skip duplicate props)
+            const linkPropNames = $link
+              .get('attributes')
+              .value.map((linkProp) => linkProp?.name?.name)
+            const uniqueProps = []
+
+            props.forEach((anchorProp) => {
+              if (!linkPropNames.includes(anchorProp?.name?.name)) {
+                uniqueProps.push(anchorProp)
+              }
+            })
+
+            $link.get('attributes').value.push(...uniqueProps)
+
+            // Remove props from <a>
+            props.length = 0
+            hasChanges = true
+          }
+
+          const childrenProps = $childrenWithA.get('children')
+          $childrenWithA.replaceWith(childrenProps.value)
+          hasChanges = true
         }
-
-        const props = $childrenWithA.get('attributes').value
-        const hasProps = props.length > 0
-
-        if (hasProps) {
-          // Add only unique props to <Link> (skip duplicate props)
-          const linkPropNames = $link
-            .get('attributes')
-            .value.map((linkProp) => linkProp?.name?.name)
-          const uniqueProps = []
-
-          props.forEach((anchorProp) => {
-            if (!linkPropNames.includes(anchorProp?.name?.name)) {
-              uniqueProps.push(anchorProp)
-            }
-          })
-
-          $link.get('attributes').value.push(...uniqueProps)
-
-          // Remove props from <a>
-          props.length = 0
-        }
-
-        const childrenProps = $childrenWithA.get('children')
-        $childrenWithA.replaceWith(childrenProps.value)
       })
-    })
-    .toSource()
+    }
+  )
+
+  if (hasChanges) {
+    return $j.toSource()
+  }
+  return file.source
 }

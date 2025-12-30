@@ -2,37 +2,44 @@
 
 use std::{num::NonZeroU8, os::raw::c_void, ptr::NonNull, slice};
 
-#[cfg(feature = "atom_size_128")]
-type RawTaggedValue = u128;
-#[cfg(any(
-    target_pointer_width = "32",
-    target_pointer_width = "16",
-    feature = "atom_size_64"
-))]
-type RawTaggedValue = u64;
+use self::raw_types::*;
 #[cfg(not(any(
     target_pointer_width = "32",
     target_pointer_width = "16",
     feature = "atom_size_64",
     feature = "atom_size_128"
 )))]
-type RawTaggedValue = usize;
+use crate::TAG_MASK;
 
 #[cfg(feature = "atom_size_128")]
-type RawTaggedNonZeroValue = std::num::NonZeroU128;
-#[cfg(any(
-    target_pointer_width = "32",
-    target_pointer_width = "16",
-    feature = "atom_size_64"
+mod raw_types {
+    pub type RawTaggedValue = u128;
+    pub type RawTaggedNonZeroValue = std::num::NonZeroU128;
+}
+
+#[cfg(all(
+    any(
+        target_pointer_width = "32",
+        target_pointer_width = "16",
+        feature = "atom_size_64"
+    ),
+    not(feature = "atom_size_128")
 ))]
-type RawTaggedNonZeroValue = std::num::NonZeroU64;
+mod raw_types {
+    pub type RawTaggedValue = u64;
+    pub type RawTaggedNonZeroValue = std::num::NonZeroU64;
+}
+
 #[cfg(not(any(
     target_pointer_width = "32",
     target_pointer_width = "16",
     feature = "atom_size_64",
     feature = "atom_size_128"
 )))]
-type RawTaggedNonZeroValue = std::ptr::NonNull<()>;
+mod raw_types {
+    pub type RawTaggedValue = usize;
+    pub type RawTaggedNonZeroValue = std::ptr::NonNull<()>;
+}
 
 pub(crate) const MAX_INLINE_LEN: usize = std::mem::size_of::<TaggedValue>() - 1;
 
@@ -72,9 +79,10 @@ impl TaggedValue {
     }
 
     #[inline(always)]
-    pub fn new_tag(value: NonZeroU8) -> Self {
+    pub const fn new_tag(value: NonZeroU8) -> Self {
         let value = value.get() as RawTaggedValue;
         Self {
+            #[allow(clippy::transmute_int_to_non_zero)]
             value: unsafe { std::mem::transmute(value) },
         }
     }
@@ -88,7 +96,9 @@ impl TaggedValue {
             feature = "atom_size_128"
         ))]
         {
-            self.value.get() as usize as _
+            use crate::TAG_MASK;
+
+            (self.value.get() as usize & !(TAG_MASK as usize)) as _
         }
         #[cfg(not(any(
             target_pointer_width = "32",
@@ -96,8 +106,8 @@ impl TaggedValue {
             feature = "atom_size_64",
             feature = "atom_size_128"
         )))]
-        unsafe {
-            std::mem::transmute(Some(self.value))
+        {
+            (self.value.as_ptr() as usize & !(TAG_MASK as usize)) as _
         }
     }
 
@@ -107,7 +117,7 @@ impl TaggedValue {
     }
 
     #[inline(always)]
-    pub fn tag(&self) -> u8 {
+    pub fn tag_byte(&self) -> u8 {
         (self.get_value() & 0xff) as u8
     }
 
@@ -129,7 +139,7 @@ impl TaggedValue {
     /// used when setting the untagged slice part of this value. If tag is
     /// zero and the slice is zeroed out, using this `TaggedValue` will be
     /// UB!
-    pub unsafe fn data_mut(&mut self) -> &mut [u8] {
+    pub const unsafe fn data_mut(&mut self) -> &mut [u8] {
         let x: *mut _ = &mut self.value;
         let mut data = x as *mut u8;
         // All except the lowest byte, which is first in little-endian, last in

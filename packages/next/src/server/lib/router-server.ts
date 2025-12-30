@@ -23,7 +23,6 @@ import { addRequestMeta, getRequestMeta } from '../request-meta'
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 import setupCompression from 'next/dist/compiled/compression'
-import { NoFallbackError } from '../base-server'
 import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
 import { isPostpone } from './router-utils/is-postpone'
 import { parseUrl as parseUrlUtil } from '../../shared/lib/router/utils/parse-url'
@@ -42,8 +41,8 @@ import { getHostname } from '../../shared/lib/get-hostname'
 import { detectDomainLocale } from '../../shared/lib/i18n/detect-domain-locale'
 import { MockedResponse } from './mock-request'
 import {
-  HMR_ACTIONS_SENT_TO_BROWSER,
-  type AppIsrManifestAction,
+  HMR_MESSAGE_SENT_TO_BROWSER,
+  type AppIsrManifestMessage,
 } from '../dev/hot-reloader-types'
 import { normalizedAssetPrefix } from '../../shared/lib/normalized-asset-prefix'
 import { NEXT_PATCH_SYMBOL } from './patch-fetch'
@@ -51,10 +50,16 @@ import type { ServerInitResult } from './render-server'
 import { filterInternalHeaders } from './server-ipc/utils'
 import { blockCrossSite } from './router-utils/block-cross-site'
 import { traceGlobals } from '../../trace/shared'
+import { NoFallbackError } from '../../shared/lib/no-fallback-error.external'
 import {
   RouterServerContextSymbol,
   routerServerGlobal,
 } from './router-utils/router-server-context'
+import {
+  handleChromeDevtoolsWorkspaceRequest,
+  isChromeDevtoolsWorkspaceUrl,
+} from './chrome-devtools-workspace'
+import { getNextConfigRuntime, type NextConfigComplete } from '../config-shared'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -114,9 +119,13 @@ export async function initialize(opts: {
 
   const renderServer: LazyRenderServerInstance = {}
 
-  let developmentBundler: DevBundler | undefined
-
-  let devBundlerService: DevBundlerService | undefined
+  let development:
+    | {
+        bundler: DevBundler
+        service: DevBundlerService
+        config: NextConfigComplete
+      }
+    | undefined = undefined
 
   let originalFetch = globalThis.fetch
 
@@ -142,7 +151,11 @@ export async function initialize(opts: {
     const setupDevBundlerSpan = opts.startServerSpan
       ? opts.startServerSpan.traceChild('setup-dev-bundler')
       : trace('setup-dev-bundler')
-    developmentBundler = await setupDevBundlerSpan.traceAsyncFn(() =>
+
+    // In development, it's always the complete config.
+    let developmentConfig = config as NextConfigComplete
+
+    let developmentBundler = await setupDevBundlerSpan.traceAsyncFn(() =>
       setupDevBundler({
         // Passed here but the initialization of this object happens below, doing the initialization before the setupDev call breaks.
         renderServer,
@@ -151,7 +164,7 @@ export async function initialize(opts: {
         telemetry,
         fsChecker,
         dir: opts.dir,
-        nextConfig: config,
+        nextConfig: developmentConfig,
         isCustomServer: opts.customServer,
         turbo: !!process.env.TURBOPACK,
         port: opts.port,
@@ -160,7 +173,7 @@ export async function initialize(opts: {
       })
     )
 
-    devBundlerService = new DevBundlerService(
+    let devBundlerService = new DevBundlerService(
       developmentBundler,
       // The request handler is assigned below, this allows us to create a lazy
       // reference to it.
@@ -168,12 +181,20 @@ export async function initialize(opts: {
         return requestHandlers[opts.dir](req, res)
       }
     )
+
+    development = {
+      bundler: developmentBundler,
+      service: devBundlerService,
+      config: developmentConfig,
+    }
   }
 
   renderServer.instance =
     require('./render-server') as typeof import('./render-server')
 
   const requestHandlerImpl: WorkerRequestHandler = async (req, res) => {
+    addRequestMeta(req, 'relativeProjectDir', relativeProjectDir)
+
     // internal headers should not be honored by the request handler
     if (!process.env.NEXT_PRIVATE_TEST_HEADERS) {
       filterInternalHeaders(req.headers)
@@ -299,7 +320,6 @@ export async function initialize(opts: {
           await initResult?.requestHandler(req, res)
         } catch (err) {
           if (err instanceof NoFallbackError) {
-            // eslint-disable-next-line
             await handleRequest(handleIndex + 1)
             return
           }
@@ -323,8 +343,15 @@ export async function initialize(opts: {
       }
 
       // handle hot-reloader first
-      if (developmentBundler) {
-        if (blockCrossSite(req, res, config.allowedDevOrigins, opts.hostname)) {
+      if (development) {
+        if (
+          blockCrossSite(
+            req,
+            res,
+            development.config.allowedDevOrigins,
+            opts.hostname
+          )
+        ) {
           return
         }
 
@@ -341,9 +368,9 @@ export async function initialize(opts: {
           req.url = removePathPrefix(origUrl, config.assetPrefix)
         }
 
-        const parsedUrl = url.parse(req.url || '/')
+        const parsedUrl = parseUrlUtil(req.url || '/')
 
-        const hotReloaderResult = await developmentBundler.hotReloader.run(
+        const hotReloaderResult = await development.bundler.hotReloader.run(
           req,
           res,
           parsedUrl
@@ -375,7 +402,7 @@ export async function initialize(opts: {
         return
       }
 
-      if (developmentBundler && matchedOutput?.type === 'devVirtualFsItem') {
+      if (development && matchedOutput?.type === 'devVirtualFsItem') {
         const origUrl = req.url || '/'
 
         if (config.basePath && pathHasPrefix(origUrl, config.basePath)) {
@@ -387,12 +414,12 @@ export async function initialize(opts: {
           req.url = removePathPrefix(origUrl, config.assetPrefix)
         }
 
-        if (resHeaders) {
+        if (resHeaders !== null) {
           for (const key of Object.keys(resHeaders)) {
             res.setHeader(key, resHeaders[key])
           }
         }
-        const result = await developmentBundler.requestHandler(req, res)
+        const result = await development.bundler.requestHandler(req, res)
 
         if (result.finished) {
           return
@@ -414,8 +441,10 @@ export async function initialize(opts: {
       })
 
       // apply any response headers from routing
-      for (const key of Object.keys(resHeaders || {})) {
-        res.setHeader(key, resHeaders[key])
+      if (resHeaders !== null) {
+        for (const key of Object.keys(resHeaders)) {
+          res.setHeader(key, resHeaders[key])
+        }
       }
 
       // handle redirect
@@ -479,14 +508,9 @@ export async function initialize(opts: {
         if (!(req.method === 'GET' || req.method === 'HEAD')) {
           res.setHeader('Allow', ['GET', 'HEAD'])
           res.statusCode = 405
-          return await invokeRender(
-            url.parse('/405', true),
-            '/405',
-            handleIndex,
-            {
-              invokeStatus: 405,
-            }
-          )
+          return await invokeRender(parseUrlUtil('/405'), '/405', handleIndex, {
+            invokeStatus: 405,
+          })
         }
 
         try {
@@ -545,7 +569,7 @@ export async function initialize(opts: {
             const invokeStatus = err.statusCode
             res.statusCode = err.statusCode
             return await invokeRender(
-              url.parse(invokePath, true),
+              parseUrlUtil(invokePath),
               invokePath,
               handleIndex,
               {
@@ -570,11 +594,47 @@ export async function initialize(opts: {
         )
       }
 
+      // We want the original pathname without any basePath or proxy rewrites.
+      if (development && isChromeDevtoolsWorkspaceUrl(req.url)) {
+        await handleChromeDevtoolsWorkspaceRequest(res, opts, config)
+        return
+      }
+
       // 404 case
       res.setHeader(
         'Cache-Control',
         'private, no-cache, no-store, max-age=0, must-revalidate'
       )
+
+      let realRequestPathname = parsedUrl.pathname ?? ''
+      if (realRequestPathname) {
+        if (config.basePath) {
+          realRequestPathname = removePathPrefix(
+            realRequestPathname,
+            config.basePath
+          )
+        }
+        if (config.assetPrefix) {
+          realRequestPathname = removePathPrefix(
+            realRequestPathname,
+            config.assetPrefix
+          )
+        }
+        if (config.i18n) {
+          realRequestPathname = removePathPrefix(
+            realRequestPathname,
+            '/' + (getRequestMeta(req, 'locale') ?? '')
+          )
+        }
+      }
+      // For not found static assets, return plain text 404 instead of
+      // full HTML 404 pages to save bandwidth.
+      if (realRequestPathname.startsWith('/_next/static/')) {
+        res.statusCode = 404
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+        res.end('Not Found')
+        return null
+      }
 
       // Short-circuit favicon.ico serving so that the 404 page doesn't get built as favicon is requested by the browser when loading any route.
       if (opts.dev && !matchedOutput && parsedUrl.pathname === '/favicon.ico') {
@@ -584,7 +644,7 @@ export async function initialize(opts: {
       }
 
       const appNotFound = opts.dev
-        ? developmentBundler?.serverFields.hasAppNotFound
+        ? development?.bundler?.serverFields.hasAppNotFound
         : await fsChecker.getItem(UNDERSCORE_NOT_FOUND_ROUTE)
 
       res.statusCode = 404
@@ -619,7 +679,7 @@ export async function initialize(opts: {
           console.error(err)
         }
         res.statusCode = Number(invokeStatus)
-        return await invokeRender(url.parse(invokePath, true), invokePath, 0, {
+        return await invokeRender(parseUrlUtil(invokePath), invokePath, 0, {
           invokeStatus: res.statusCode,
         })
       } catch (err2) {
@@ -634,7 +694,8 @@ export async function initialize(opts: {
   if (config.experimental.testProxy) {
     // Intercept fetch and other testmode apis.
     const { wrapRequestHandlerWorker, interceptTestApis } =
-      require('next/dist/experimental/testmode/server') as typeof import('next/src/experimental/testmode/server')
+      // eslint-disable-next-line @next/internal/typechecked-require -- experimental/testmode is not built ins next/dist/esm
+      require('next/dist/experimental/testmode/server') as typeof import('../../experimental/testmode/server')
     requestHandler = wrapRequestHandlerWorker(requestHandler)
     interceptTestApis()
     // We treat the intercepted fetch as "original" fetch that should be reset to during HMR.
@@ -650,12 +711,14 @@ export async function initialize(opts: {
     dev: !!opts.dev,
     server: opts.server,
     serverFields: {
-      ...(developmentBundler?.serverFields || {}),
-      setIsrStatus: devBundlerService?.setIsrStatus.bind(devBundlerService),
+      ...(development?.bundler?.serverFields || {}),
+      setIsrStatus: development?.service?.setIsrStatus.bind(
+        development?.service
+      ),
     } satisfies ServerFields,
     experimentalTestProxy: !!config.experimental.testProxy,
     experimentalHttpsServer: !!opts.experimentalHttpsServer,
-    bundlerService: devBundlerService,
+    bundlerService: development?.service,
     startServerSpan: opts.startServerSpan,
     quiet: opts.quiet,
     onDevServerCleanup: opts.onDevServerCleanup,
@@ -673,14 +736,24 @@ export async function initialize(opts: {
   const relativeProjectDir = path.relative(process.cwd(), opts.dir)
 
   routerServerGlobal[RouterServerContextSymbol][relativeProjectDir] = {
-    nextConfig: config,
+    nextConfig: getNextConfigRuntime(config),
     hostname: handlers.server.hostname,
     revalidate: handlers.server.revalidate.bind(handlers.server),
+    render404: handlers.server.render404.bind(handlers.server),
     experimentalTestProxy: renderServerOpts.experimentalTestProxy,
     logErrorWithOriginalStack: opts.dev
       ? handlers.server.logErrorWithOriginalStack.bind(handlers.server)
-      : (err: unknown) => Log.error(err),
-    setIsrStatus: devBundlerService?.setIsrStatus.bind(devBundlerService),
+      : (err: unknown) => !opts.quiet && Log.error(err),
+    setCacheStatus: config.cacheComponents
+      ? development?.service?.setCacheStatus.bind(development?.service)
+      : undefined,
+    setIsrStatus: development?.service?.setIsrStatus.bind(development?.service),
+    setReactDebugChannel: development?.config.experimental.reactDebugChannel
+      ? development?.service?.setReactDebugChannel.bind(development?.service)
+      : undefined,
+    sendErrorsToBrowser: development?.service?.sendErrorsToBrowser.bind(
+      development?.service
+    ),
   }
 
   const logError = async (
@@ -708,7 +781,7 @@ export async function initialize(opts: {
     opts,
     renderServer.instance,
     renderServerOpts,
-    developmentBundler?.ensureMiddleware
+    development?.bundler?.ensureMiddleware
   )
 
   const upgradeHandler: WorkerUpgradeHandler = async (req, socket, head) => {
@@ -722,9 +795,14 @@ export async function initialize(opts: {
         // console.error(_err);
       })
 
-      if (opts.dev && developmentBundler && req.url) {
+      if (opts.dev && development && req.url) {
         if (
-          blockCrossSite(req, socket, config.allowedDevOrigins, opts.hostname)
+          blockCrossSite(
+            req,
+            socket,
+            development.config.allowedDevOrigins,
+            opts.hostname
+          )
         ) {
           return
         }
@@ -751,17 +829,26 @@ export async function initialize(opts: {
         // only handle HMR requests if the basePath in the request
         // matches the basePath for the handler responding to the request
         if (isHMRRequest) {
-          return developmentBundler.hotReloader.onHMR(
+          return development.bundler.hotReloader.onHMR(
             req,
             socket,
             head,
-            (client) => {
-              client.send(
-                JSON.stringify({
-                  action: HMR_ACTIONS_SENT_TO_BROWSER.ISR_MANIFEST,
-                  data: devBundlerService?.appIsrManifest || {},
-                } satisfies AppIsrManifestAction)
-              )
+            (client, { isLegacyClient }) => {
+              if (isLegacyClient) {
+                // Only send the ISR manifest to legacy clients, i.e. Pages
+                // Router clients, or App Router clients that have Cache
+                // Components disabled. The ISR manifest is only used to inform
+                // the static indicator, which currently does not provide useful
+                // information if Cache Components is enabled due to its binary
+                // nature (i.e. it does not support showing info for partially
+                // static pages).
+                client.send(
+                  JSON.stringify({
+                    type: HMR_MESSAGE_SENT_TO_BROWSER.ISR_MANIFEST,
+                    data: development.service?.appIsrManifest || {},
+                  } satisfies AppIsrManifestMessage)
+                )
+              }
             }
           )
         }
@@ -804,7 +891,7 @@ export async function initialize(opts: {
     upgradeHandler,
     server: handlers.server,
     closeUpgraded() {
-      developmentBundler?.hotReloader?.close()
+      development?.bundler?.hotReloader?.close()
     },
   }
 }

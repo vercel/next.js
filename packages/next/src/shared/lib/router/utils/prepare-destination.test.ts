@@ -14,13 +14,18 @@ describe('parseDestination', () => {
 
     expect(result).toMatchInlineSnapshot(`
      {
+       "auth": null,
        "hash": "",
-       "hostname": undefined,
+       "host": null,
+       "hostname": null,
        "href": "/hello/:name",
+       "origin": undefined,
        "pathname": "/hello/:name",
+       "port": null,
+       "protocol": null,
        "query": {},
        "search": "",
-       "slashes": undefined,
+       "slashes": null,
      }
     `)
   })
@@ -38,9 +43,11 @@ describe('parseDestination', () => {
 
     expect(result).toMatchInlineSnapshot(`
      {
+       "auth": null,
        "hash": "#bar",
        "hostname": "o:foo.com",
        "href": "https://o:foo.com/hello/:name#bar",
+       "origin": "https://o:foo.com",
        "pathname": "/hello/:name",
        "port": "",
        "protocol": "https:",
@@ -64,9 +71,11 @@ describe('parseDestination', () => {
 
     expect(result).toMatchInlineSnapshot(`
      {
+       "auth": null,
        "hash": "",
        "hostname": "o:foo.com",
        "href": "https://o:foo.com/hello/:name?foo=:bar",
+       "origin": "https://o:foo.com",
        "pathname": "/hello/:name",
        "port": "",
        "protocol": "https:",

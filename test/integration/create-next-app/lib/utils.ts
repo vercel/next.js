@@ -30,10 +30,13 @@ const cli = require.resolve('create-next-app/dist/index.js')
 export const createNextApp = (
   args: string[],
   options?: SpawnOptions,
-  testVersion?: string
+  testVersion?: string,
+  clearPreferences: boolean = true
 ) => {
   const conf = new Conf({ projectName: 'create-next-app' })
-  conf.clear()
+  if (clearPreferences) {
+    conf.clear()
+  }
 
   console.log(`[TEST] $ ${cli} ${args.join(' ')}`, { options })
 

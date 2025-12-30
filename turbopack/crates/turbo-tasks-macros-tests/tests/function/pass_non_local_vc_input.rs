@@ -1,6 +1,7 @@
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 #![allow(dead_code)]
+#![allow(unexpected_cfgs)]
 
 use anyhow::Result;
 use turbo_tasks::{ResolvedVc, Vc};

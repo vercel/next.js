@@ -29,7 +29,7 @@ pub(crate) async fn analyze(source: Vc<WebAssemblySource>) -> Result<Vc<WebAssem
         return Ok(analysis.cell());
     };
 
-    let mut bytes = &*file.content().to_bytes()?;
+    let mut bytes = &*file.content().to_bytes();
 
     let mut parser = Parser::new(0);
     loop {

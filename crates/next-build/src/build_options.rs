@@ -47,7 +47,7 @@ pub struct BuildContext {
 
 #[derive(Debug, Clone)]
 pub struct DefineEnv {
-    pub client: Vec<(RcStr, RcStr)>,
-    pub edge: Vec<(RcStr, RcStr)>,
-    pub nodejs: Vec<(RcStr, RcStr)>,
+    pub client: Vec<(RcStr, Option<RcStr>)>,
+    pub edge: Vec<(RcStr, Option<RcStr>)>,
+    pub nodejs: Vec<(RcStr, Option<RcStr>)>,
 }

@@ -3,7 +3,7 @@ const isCpuProfileEnabled = process.env.NEXT_CPU_PROF || privateCpuProfileName
 
 if (isCpuProfileEnabled) {
   const { Session } = require('inspector') as typeof import('inspector')
-  const fs = require('fs')
+  const fs = require('fs') as typeof import('fs')
 
   const session = new Session()
   session.connect()

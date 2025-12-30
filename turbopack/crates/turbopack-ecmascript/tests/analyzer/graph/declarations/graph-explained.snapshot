@@ -1,25 +1,25 @@
-*anonymous function 25* = (...) => undefined
+*anonymous function 25* (const after eval) = (...) => undefined
 
-a = (...) => undefined
+a (const after eval) = (...) => undefined
 
-aa = a
+aa (const after eval) = a
 
-b = *anonymous function 25*
+b (const after eval) = *anonymous function 25*
 
-bb = b
+bb (const after eval) = b
 
-c = 123
+c (const after eval) = 123
 
-cc = c
+cc (const after eval) = c
 
-d = "hello"
+d (const after eval) = "hello"
 
-dd = d
+dd (const after eval) = d
 
-e = ???*0*
+e (const after eval) = ???*0*
 - *0* unsupported expression
   ⚠️  This value might have side effects
 
-ee = e
+ee (const after eval) = e
 
-ff = FreeVar(f)
+ff (const after eval) = FreeVar(f)

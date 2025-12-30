@@ -22,7 +22,188 @@ Replacing `<transform>` and `<path>` with appropriate values.
 - `--dry` Do a dry-run, no code will be edited
 - `--print` Prints the changed output for comparison
 
+## Upgrade
+
+Upgrades your Next.js application, automatically running codemods and updating Next.js, React, and React DOM.
+
+```bash filename="Terminal"
+npx @next/codemod upgrade [revision]
+```
+
+### Options
+
+- `revision` (optional): Specify the upgrade type (`patch`, `minor`, `major`), an NPM dist tag (e.g. `latest`, `canary`, `rc`), or an exact version (e.g. `15.0.0`). Defaults to `minor` for stable versions.
+- `--verbose`: Show more detailed output during the upgrade process.
+
+For example:
+
+```bash filename="Terminal"
+# Upgrade to the latest patch (e.g. 16.0.7 -> 16.0.8)
+npx @next/codemod upgrade patch
+
+# Upgrade to the latest minor (e.g. 15.3.7 -> 15.4.8). This is the default.
+npx @next/codemod upgrade minor
+
+# Upgrade to the latest major (e.g. 15.5.7 -> 16.0.7)
+npx @next/codemod upgrade major
+
+# Upgrade to a specific version
+npx @next/codemod upgrade 16
+
+# Upgrade to the canary release
+npx @next/codemod upgrade canary
+```
+
+> **Good to know**:
+>
+> - If the target version is the same as or lower than your current version, the command exits without making changes.
+> - During the upgrade, you may be prompted to choose which Next.js codemods to apply and run React 19 codemods if upgrading React.
+
 ## Codemods
+
+### 16.0
+
+#### Remove `experimental_ppr` Route Segment Config from App Router pages and layouts
+
+##### `remove-experimental-ppr`
+
+```bash filename="Terminal"
+npx @next/codemod@latest remove-experimental-ppr .
+```
+
+This codemod removes the `experimental_ppr` Route Segment Config from App Router pages and layouts.
+
+```diff filename="app/page.tsx"
+- export const experimental_ppr = true;
+```
+
+#### Remove `unstable_` prefix from stabilized API
+
+##### `remove-unstable-prefix`
+
+```bash filename="Terminal"
+npx @next/codemod@latest remove-unstable-prefix .
+```
+
+This codemod removes the `unstable_` prefix from stabilized API.
+
+For example:
+
+```ts
+import { unstable_cacheTag as cacheTag } from 'next/cache'
+
+cacheTag()
+```
+
+Transforms into:
+
+```ts
+import { cacheTag } from 'next/cache'
+
+cacheTag()
+```
+
+#### Migrate from deprecated `middleware` convention to `proxy`
+
+##### `middleware-to-proxy`
+
+```bash filename="Terminal"
+npx @next/codemod@latest middleware-to-proxy .
+```
+
+This codemod migrates projects from using the deprecated `middleware` convention to using the `proxy` convention. It:
+
+- Renames `middleware.<extension>` to `proxy.<extension>` (e.g. `middleware.ts` to `proxy.ts`)
+- Renames named export `middleware` to `proxy`
+- Renames Next.js config property `experimental.middlewarePrefetch` to `experimental.proxyPrefetch`
+- Renames Next.js config property `experimental.middlewareClientMaxBodySize` to `experimental.proxyClientMaxBodySize`
+- Renames Next.js config property `experimental.externalMiddlewareRewritesResolve` to `experimental.externalProxyRewritesResolve`
+- Renames Next.js config property `skipMiddlewareUrlNormalize` to `skipProxyUrlNormalize`
+
+For example:
+
+```ts filename="middleware.ts"
+import { NextResponse } from 'next/server'
+
+export function middleware() {
+  return NextResponse.next()
+}
+```
+
+Transforms into:
+
+```ts filename="proxy.ts"
+import { NextResponse } from 'next/server'
+
+export function proxy() {
+  return NextResponse.next()
+}
+```
+
+#### Migrate from `next lint` to ESLint CLI
+
+##### `next-lint-to-eslint-cli`
+
+```bash filename="Terminal"
+npx @next/codemod@canary next-lint-to-eslint-cli .
+```
+
+This codemod migrates projects from using `next lint` to using the ESLint CLI with your local ESLint config. It:
+
+- Creates an `eslint.config.mjs` file with Next.js recommended configurations
+- Updates `package.json` scripts to use `eslint .` instead of `next lint`
+- Adds necessary ESLint dependencies to `package.json`
+- Preserves existing ESLint configurations when found
+
+For example:
+
+```json filename="package.json"
+{
+  "scripts": {
+    "lint": "next lint"
+  }
+}
+```
+
+Becomes:
+
+```json filename="package.json"
+{
+  "scripts": {
+    "lint": "eslint ."
+  }
+}
+```
+
+And creates:
+
+```js filename="eslint.config.mjs"
+import { dirname } from 'path'
+import { fileURLToPath } from 'url'
+import { FlatCompat } from '@eslint/eslintrc'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
+
+const compat = new FlatCompat({
+  baseDirectory: __dirname,
+})
+
+const eslintConfig = [
+  ...compat.extends('next/core-web-vitals', 'next/typescript'),
+  {
+    ignores: [
+      'node_modules/**',
+      '.next/**',
+      'out/**',
+      'build/**',
+      'next-env.d.ts',
+    ],
+  },
+]
+
+export default eslintConfig
+```
 
 ### 15.0
 
@@ -353,13 +534,13 @@ npx @next/codemod@latest new-link .
 
 <AppOnly>
 
-Remove `<a>` tags inside [Link Components](/docs/app/api-reference/components/link), or add a `legacyBehavior` prop to Links that cannot be auto-fixed.
+Remove `<a>` tags inside [Link Components](/docs/app/api-reference/components/link).
 
 </AppOnly>
 
 <PagesOnly>
 
-Remove `<a>` tags inside [Link Components](/docs/pages/api-reference/components/link), or add a `legacyBehavior` prop to Links that cannot be auto-fixed.
+Remove `<a>` tags inside [Link Components](/docs/pages/api-reference/components/link).
 
 </PagesOnly>
 
@@ -380,20 +561,6 @@ For example:
 // transforms into
 <Link href="/about" onClick={() => console.log('clicked')}>
   About
-</Link>
-```
-
-In cases where auto-fixing can't be applied, the `legacyBehavior` prop is added. This allows your app to keep functioning using the old behavior for that particular link.
-
-```jsx
-const Component = () => <a>About</a>
-
-<Link href="/about">
-  <Component />
-</Link>
-// becomes
-<Link href="/about" legacyBehavior>
-  <Component />
 </Link>
 ```
 
@@ -477,6 +644,8 @@ export default function MyComponent() {
 The component will have a camel-cased name based on the name of the file, and it also works with arrow functions.
 
 ### 8
+
+> **Note**: Built-in AMP support and this codemod have been removed in Next.js 16.
 
 #### Transform AMP HOC into page config
 

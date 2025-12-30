@@ -9,7 +9,8 @@ import { initialize, version, router, emitter, hydrate } from './'
 import { displayContent } from './dev/fouc'
 
 window.next = {
-  version: `${version}-turbo`,
+  version,
+  turbopack: true,
   // router is initialized later so it has to be live-binded
   get router() {
     return router
@@ -29,7 +30,9 @@ initialize({})
       page: string,
       chunksData: any
     ) => {
-      const chunkPromises = chunksData.map(__turbopack_load__)
+      const chunkPromises = chunksData.map((c: unknown) =>
+        __turbopack_load__(c)
+      )
 
       Promise.all(chunkPromises).catch((err) =>
         console.error('failed to load chunks for page ' + page, err)

@@ -45,9 +45,9 @@ export default function Home() {
                   <td>
                     <Link
                       href={`/movie/${encodeURIComponent(movie.title)}`}
-                      legacyBehavior
+                      className="link"
                     >
-                      <a className="link">{movie.title}</a>
+                      {movie.title}
                     </Link>
                   </td>
                   <td>{movie.released}</td>
@@ -65,9 +65,9 @@ export default function Home() {
                         <li key={actor}>
                           <Link
                             href={`/actor/${encodeURIComponent(actor)}`}
-                            legacyBehavior
+                            className="link"
                           >
-                            <a className="link">{actor}</a>
+                            {actor}
                           </Link>
                         </li>
                       ))}
