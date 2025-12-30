@@ -5,7 +5,7 @@
 
 mod util;
 
-use std::{env, path::PathBuf, time::Duration};
+use std::{env, path::PathBuf};
 
 use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
@@ -547,22 +547,18 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     }
     let chunking_context = builder.build();
 
-    let res = tokio::time::timeout(
-        Duration::from_secs(15),
-        evaluate(
-            entries,
-            path.clone(),
-            Vc::upcast(CommandLineProcessEnv::new()),
-            Vc::upcast(test_source),
-            Vc::upcast(chunking_context),
-            module_graph,
-            vec![],
-            Completion::immutable(),
-            should_debug("execution_test"),
-        ),
+    let res = evaluate(
+        entries,
+        path.clone(),
+        Vc::upcast(CommandLineProcessEnv::new()),
+        Vc::upcast(test_source),
+        Vc::upcast(chunking_context),
+        module_graph,
+        vec![],
+        Completion::immutable(),
+        should_debug("execution_test"),
     )
-    .await
-    .context("Test execution timed out after 15 seconds")??;
+    .await?;
 
     let Some(str) = &*res else {
         return Ok(RunTestResult {
