@@ -54,6 +54,13 @@ async function webpackBuildWithWorker(
       forkOptions: {
         env: {
           NEXT_PRIVATE_BUILD_WORKER: '1',
+          ...(process.env.NEXT_CPU_PROF
+            ? {
+                NEXT_CPU_PROF: '1',
+                NEXT_CPU_PROF_DIR: process.env.NEXT_CPU_PROF_DIR,
+                __NEXT_PRIVATE_CPU_PROFILE: `build-webpack-${compilerName}`,
+              }
+            : undefined),
         },
       },
     }) as Worker & typeof import('./impl')
