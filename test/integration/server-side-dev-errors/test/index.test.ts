@@ -230,6 +230,7 @@ describe('server-side dev errors', () => {
       })
 
       const stderrOutput = stripAnsi(stderr.slice(stderrIdx)).trim()
+      // Both Turbopack and Webpack now have internal frames properly filtered
       expect(stderrOutput).toStartWith(
         '⨯ ReferenceError: missingVar is not defined' +
           '\n    at handler (../../test/integration/server-side-dev-errors/pages/api/hello.js:2:3)' +
@@ -283,6 +284,7 @@ describe('server-side dev errors', () => {
       })
 
       const stderrOutput = stripAnsi(stderr.slice(stderrIdx)).trim()
+      // Both Turbopack and Webpack now have internal frames properly filtered
       expect(stderrOutput).toStartWith(
         '⨯ ReferenceError: missingVar is not defined' +
           '\n    at handler (../../test/integration/server-side-dev-errors/pages/api/blog/[slug].js:2:3)' +

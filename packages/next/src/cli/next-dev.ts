@@ -268,7 +268,9 @@ const nextDev = async (
     hostname: host,
   }
 
-  const startServerPath = require.resolve('../server/lib/start-server')
+  const startServerPath = require.resolve(
+    '../server/lib/start-server-with-cache'
+  )
 
   async function startServer(startServerOptions: StartServerOptions) {
     return new Promise<void>((resolve) => {

@@ -1,4 +1,5 @@
 import { findSourceMap as nativeFindSourceMap } from 'module'
+import * as fs from 'fs'
 import * as path from 'path'
 import * as url from 'url'
 import type * as util from 'util'
@@ -7,8 +8,8 @@ import {
   type ModernSourceMapPayload,
   findApplicableSourceMapPayload,
   ignoreListAnonymousStackFramesIfSandwiched as ignoreListAnonymousStackFramesIfSandwichedGeneric,
-  sourceMapIgnoreListsEverything,
   normalizeSourceUrl,
+  sourceMapIgnoreListsEverything,
 } from './lib/source-maps'
 import { parseStack, type StackFrame } from './lib/parse-stack'
 import { getOriginalCodeFrame } from '../next-devtools/server/shared'
@@ -28,6 +29,39 @@ export function setBundlerFindSourceMapImplementation(
   findSourceMapImplementation: FindSourceMapPayload
 ): void {
   bundlerFindSourceMapPayload = findSourceMapImplementation
+}
+
+// Cache for source maps read from disk to avoid repeated file I/O
+const diskSourceMapCache = new Map<string, ModernSourceMapPayload | null>()
+
+/**
+ * Try to read a source map from disk as a fallback when Node.js's findSourceMap fails.
+ * This handles cases where source maps aren't registered in Node.js's source map registry
+ * (e.g., when --enable-source-maps isn't set or files are loaded in certain ways).
+ */
+function readSourceMapFromDisk(
+  filePath: string
+): ModernSourceMapPayload | undefined {
+  // Check cache first
+  const cached = diskSourceMapCache.get(filePath)
+  if (cached !== undefined) {
+    return cached ?? undefined
+  }
+
+  const mapPath = filePath + '.map'
+  try {
+    if (fs.existsSync(mapPath)) {
+      const content = fs.readFileSync(mapPath, 'utf8')
+      const payload = JSON.parse(content) as ModernSourceMapPayload
+      diskSourceMapCache.set(filePath, payload)
+      return payload
+    }
+  } catch {
+    // Ignore read errors
+  }
+
+  diskSourceMapCache.set(filePath, null)
+  return undefined
 }
 
 interface IgnorableStackFrame extends StackFrame {
@@ -195,6 +229,13 @@ function getSourcemappedFrameIfPossible(
     // "<anonymous>" or "node:internal/process/task_queues" here
     if (path.isAbsolute(frame.file)) {
       sourceURL = url.pathToFileURL(frame.file).toString()
+    } else if (
+      !frame.file.startsWith('webpack-internal://') &&
+      !frame.file.startsWith('<') &&
+      !frame.file.startsWith('node:')
+    ) {
+      // Relative paths need to be resolved to absolute paths for findSourceMap to work
+      sourceURL = url.pathToFileURL(path.resolve(frame.file)).toString()
     }
     let maybeSourceMapPayload: ModernSourceMapPayload | undefined
     try {
@@ -219,6 +260,10 @@ function getSourcemappedFrameIfPossible(
     }
     if (maybeSourceMapPayload === undefined) {
       maybeSourceMapPayload = bundlerFindSourceMapPayload(sourceURL)
+    }
+    // Fall back to reading source map from disk if Node.js and bundler both fail
+    if (maybeSourceMapPayload === undefined && path.isAbsolute(frame.file)) {
+      maybeSourceMapPayload = readSourceMapFromDisk(frame.file)
     }
 
     if (maybeSourceMapPayload === undefined) {
@@ -304,9 +349,17 @@ function getSourcemappedFrameIfPossible(
     ignored = true
   } else if (!ignored) {
     // TODO: O(n^2). Consider moving `ignoreList` into a Set
-    const sourceIndex = applicableSourceMap.sources.indexOf(
-      sourcePosition.source
-    )
+    // The source-map library may strip leading "./" when resolving paths,
+    // so we need to handle both formats when looking up in sources.
+    let sourceIndex = applicableSourceMap.sources.indexOf(sourcePosition.source)
+    if (sourceIndex === -1) {
+      // Try with "./" prefix for webpack:// URLs which often have this format
+      const sourceWithPrefix = sourcePosition.source.replace(
+        /^(webpack:\/\/[^/]+\/)/,
+        '$1./'
+      )
+      sourceIndex = applicableSourceMap.sources.indexOf(sourceWithPrefix)
+    }
     ignored = applicableSourceMap.ignoreList?.includes(sourceIndex) ?? false
   }
 

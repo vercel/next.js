@@ -20,6 +20,7 @@ import {
   type ModernSourceMapPayload,
   devirtualizeReactServerURL,
   findApplicableSourceMapPayload,
+  normalizeSourceUrl,
 } from '../lib/source-maps'
 import { findSourceMap, type SourceMap } from 'node:module'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -30,6 +31,13 @@ function shouldIgnorePath(modulePath: string): boolean {
     modulePath.includes('node_modules') ||
     // Only relevant for when Next.js is symlinked e.g. in the Next.js monorepo
     modulePath.includes('next/dist') ||
+    modulePath.includes('next/src') ||
+    // Relative paths to Next.js source files (from tsc-generated source maps)
+    // These appear when the source map traces back to TS source but the ignoreList
+    // can't be checked due to path format mismatches
+    modulePath.startsWith('src/server/') ||
+    modulePath.startsWith('src/build/') ||
+    modulePath.startsWith('src/lib/') ||
     modulePath.startsWith('node:')
   )
 }
@@ -245,15 +253,28 @@ async function nativeTraceSource(
         )
       } else {
         // TODO: O(n^2). Consider moving `ignoreList` into a Set
-        const sourceIndex = applicableSourceMap.sources.indexOf(
+        // The source-map library may strip leading "./" when resolving paths,
+        // so we need to handle both formats when looking up in sources.
+        let sourceIndex = applicableSourceMap.sources.indexOf(
           originalPosition.source!
         )
+        if (sourceIndex === -1) {
+          // Try with "./" prefix for webpack:// URLs which often have this format
+          const sourceWithPrefix = originalPosition.source!.replace(
+            /^(webpack:\/\/[^/]+\/)/,
+            '$1./'
+          )
+          sourceIndex = applicableSourceMap.sources.indexOf(sourceWithPrefix)
+        }
         ignored =
           applicableSourceMap.ignoreList?.includes(sourceIndex) ??
           // When sourcemap is not available, fallback to checking `frame.file`.
           // e.g. In pages router, nextjs server code is not bundled into the page.
           shouldIgnorePath(frame.file)
       }
+
+      // Normalize source URLs that may have been incorrectly concatenated
+      const normalizedSource = normalizeSourceUrl(originalPosition.source!)
 
       const originalStackFrame: IgnorableStackFrame = {
         methodName:
@@ -264,7 +285,7 @@ async function nativeTraceSource(
           frame.methodName
             ?.replace('__WEBPACK_DEFAULT_EXPORT__', 'default')
             ?.replace('__webpack_exports__.', '') || '<unknown>',
-        file: originalPosition.source,
+        file: normalizedSource,
         line1: originalPosition.line,
         column1:
           originalPosition.column === null ? null : originalPosition.column + 1,
@@ -306,6 +327,15 @@ async function createOriginalStackFrame(
       projectPath,
       fileURLToPath(normalizedStackFrameLocation)
     )
+  } else if (
+    normalizedStackFrameLocation !== null &&
+    !path.isAbsolute(normalizedStackFrameLocation)
+  ) {
+    // Resolve relative paths from CWD and make relative to projectPath
+    const resolvedPath = path.resolve(normalizedStackFrameLocation)
+    if (resolvedPath.startsWith(projectPath)) {
+      normalizedStackFrameLocation = path.relative(projectPath, resolvedPath)
+    }
   }
 
   return {

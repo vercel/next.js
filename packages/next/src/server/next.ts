@@ -403,7 +403,7 @@ class NextCustomServer implements NextWrapperServer {
 
   async prepare() {
     const { getRequestHandlers } =
-      require('./lib/start-server') as typeof import('./lib/start-server')
+      require('./lib/start-server-with-cache') as typeof import('./lib/start-server-with-cache')
 
     let onDevServerCleanup: AsyncCallbackSet['add'] | undefined
     if (this.options.dev) {

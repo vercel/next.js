@@ -140,22 +140,27 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
       }
 
       if (request.match(/\.external(\.js)?$/)) {
-        const resolve = getResolve()
-        const resolved = await resolve(context, request)
-        const relative = path.relative(
-          path.join(__dirname, '..'),
-          resolved.replace('esm' + path.sep, '')
-        )
-        callback(null, `commonjs ${relative}`)
-      } else {
-        const regexMatch = Object.keys(externalsRegexMap).find((regex) =>
-          new RegExp(regex).test(request)
-        )
-        if (regexMatch) {
-          return callback(null, 'commonjs ' + externalsRegexMap[regexMatch])
+        try {
+          const resolve = getResolve()
+          const resolved = await resolve(context, request)
+          const relative = path.relative(
+            path.join(__dirname, '..'),
+            resolved.replace('esm' + path.sep, '')
+          )
+          callback(null, `commonjs ${relative}`)
+          return
+        } catch {
+          // Resolution failed, fall through to next block
         }
-        callback()
       }
+
+      const regexMatch = Object.keys(externalsRegexMap).find((regex) =>
+        new RegExp(regex).test(request)
+      )
+      if (regexMatch) {
+        return callback(null, 'commonjs ' + externalsRegexMap[regexMatch])
+      }
+      callback()
     })()
   }
 
