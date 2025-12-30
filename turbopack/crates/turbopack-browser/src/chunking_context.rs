@@ -1,21 +1,18 @@
 use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
-use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, Upcast, ValueToString, Vc,
-    trace::TraceRawVcs,
+    FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, Upcast, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{DeterministicHash, hash_xxh3_hash64};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule, ChunkingConfig,
-        ChunkingConfigs, ChunkingContext, EntryChunkGroupResult, EvaluatableAsset,
-        EvaluatableAssets, MinifyType, ModuleId, SourceMapSourceType, SourceMapsType,
+        ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule, ChunkingConfig, ChunkingConfigs,
+        ChunkingContext, EntryChunkGroupResult, EvaluatableAssets, MinifyType, ModuleId,
+        SourceMapSourceType, SourceMapsType,
         availability_info::AvailabilityInfo,
-        chunk_group::{MakeChunkGroupResult, make_chunk_group},
         module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
     },
     environment::Environment,
@@ -28,11 +25,6 @@ use turbopack_core::{
     },
     output::{OutputAsset, OutputAssets},
     reference::ModuleReference,
-};
-use turbopack_ecmascript::{
-    async_chunk::module::AsyncLoaderModule,
-    chunk::EcmascriptChunk,
-    manifest::{chunk_asset::ManifestAsyncModule, loader_item::ManifestLoaderChunkItem},
 };
 use turbopack_ecmascript_runtime::{ChunkSuffix, RuntimeType};
 
@@ -361,13 +353,22 @@ impl BrowserChunkingContext {
         }
     }
 }
-impl BrowserChunkingContext {
+// Implement the ecmascript-specific factory trait
+impl turbopack_ecmascript::chunk::chunking_context_impl::EcmascriptChunkingContextExt
+    for BrowserChunkingContext
+{
+    fn generate_chunk_from_ecmascript_chunk(
+        self: Vc<Self>,
+        chunk: ResolvedVc<turbopack_ecmascript::chunk::EcmascriptChunk>,
+    ) -> Vc<Box<dyn OutputAsset>> {
+        Vc::upcast(EcmascriptBrowserChunk::new(self, *chunk))
+    }
+
     fn generate_evaluate_chunk(
         self: Vc<Self>,
         ident: Vc<AssetIdent>,
         other_chunks: Vc<OutputAssets>,
         evaluatable_assets: Vc<EvaluatableAssets>,
-        // TODO(sokra) remove this argument and pass chunk items instead
         module_graph: Vc<ModuleGraph>,
     ) -> Vc<Box<dyn OutputAsset>> {
         Vc::upcast(EcmascriptBrowserEvaluateChunk::new(
@@ -378,6 +379,64 @@ impl BrowserChunkingContext {
             module_graph,
         ))
     }
+
+    async fn generate_evaluated_chunk_group_extra_assets(
+        self: Vc<Self>,
+        ident: Vc<AssetIdent>,
+        entries: Vc<EvaluatableAssets>,
+        other_assets: Vc<OutputAssets>,
+        input_availability_info: AvailabilityInfo,
+    ) -> Result<Vec<ResolvedVc<Box<dyn OutputAsset>>>> {
+        let this = self.await?;
+        if this.enable_hot_module_replacement {
+            let mut ident = ident;
+            if let Some(input_availability_info_ident) = input_availability_info.ident().await? {
+                ident = ident.with_modifier(input_availability_info_ident);
+            }
+            Ok(vec![
+                self.generate_chunk_list_register_chunk(
+                    ident,
+                    entries,
+                    other_assets,
+                    EcmascriptDevChunkListSource::Entry,
+                )
+                .to_resolved()
+                .await?,
+            ])
+        } else {
+            Ok(vec![])
+        }
+    }
+
+    async fn generate_chunk_group_extra_assets(
+        self: Vc<Self>,
+        ident: Vc<AssetIdent>,
+        other_assets: Vc<OutputAssets>,
+        input_availability_info: AvailabilityInfo,
+    ) -> Result<Vec<ResolvedVc<Box<dyn OutputAsset>>>> {
+        let this = self.await?;
+        if this.enable_hot_module_replacement {
+            let mut ident = ident;
+            if let Some(input_availability_info_ident) = input_availability_info.ident().await? {
+                ident = ident.with_modifier(input_availability_info_ident);
+            }
+            Ok(vec![
+                self.generate_chunk_list_register_chunk(
+                    ident,
+                    EvaluatableAssets::empty(),
+                    other_assets,
+                    EcmascriptDevChunkListSource::Dynamic,
+                )
+                .to_resolved()
+                .await?,
+            ])
+        } else {
+            Ok(vec![])
+        }
+    }
+}
+
+impl BrowserChunkingContext {
     fn generate_chunk_list_register_chunk(
         self: Vc<Self>,
         ident: Vc<AssetIdent>,
@@ -393,28 +452,8 @@ impl BrowserChunkingContext {
             source,
         ))
     }
-    async fn generate_chunk(
-        self: Vc<Self>,
-        chunk: ResolvedVc<Box<dyn Chunk>>,
-    ) -> Result<ResolvedVc<Box<dyn OutputAsset>>> {
-        Ok(
-            if let Some(ecmascript_chunk) = ResolvedVc::try_downcast_type::<EcmascriptChunk>(chunk)
-            {
-                ResolvedVc::upcast(
-                    EcmascriptBrowserChunk::new(self, *ecmascript_chunk)
-                        .to_resolved()
-                        .await?,
-                )
-            } else if let Some(output_asset) =
-                ResolvedVc::try_sidecast::<Box<dyn OutputAsset>>(chunk)
-            {
-                output_asset
-            } else {
-                bail!("Unable to generate output asset for chunk");
-            },
-        )
-    }
 }
+
 #[turbo_tasks::value_impl]
 impl BrowserChunkingContext {
     #[turbo_tasks::function]
@@ -609,25 +648,14 @@ impl ChunkingContext for BrowserChunkingContext {
         tag: Option<RcStr>,
     ) -> Result<Vc<FileSystemPath>> {
         let source_path = original_asset_ident.path().await?;
-        let basename = source_path.file_name();
-        let asset_path = match source_path.extension_ref() {
-            Some(ext) => format!(
-                "{basename}.{content_hash}.{ext}",
-                basename = &basename[..basename.len() - ext.len() - 1],
-                content_hash = &content_hash[..8]
-            ),
-            None => format!(
-                "{basename}.{content_hash}",
-                content_hash = &content_hash[..8]
-            ),
-        };
-
-        let asset_root_path = tag
-            .as_ref()
-            .and_then(|tag| self.asset_root_paths.get(tag))
-            .unwrap_or(&self.asset_root_path);
-
-        Ok(asset_root_path.join(&asset_path)?.cell())
+        let path = turbopack_ecmascript::chunk::chunking_context_impl::asset_path_impl(
+            &content_hash,
+            &source_path,
+            tag.as_ref().map(|s| s.as_str()),
+            &self.asset_root_paths,
+            &self.asset_root_path,
+        )?;
+        Ok(path.cell())
     }
 
     #[turbo_tasks::function]
@@ -683,141 +711,31 @@ impl ChunkingContext for BrowserChunkingContext {
         module_graph: Vc<ModuleGraph>,
         availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
-        let span = tracing::info_span!("chunking", name = display(ident.to_string().await?));
-        async move {
-            let this = self.await?;
-            let entries = chunk_group.entries();
-            let input_availability_info = availability_info;
-            let MakeChunkGroupResult {
-                chunks,
-                referenced_output_assets,
-                references,
-                availability_info,
-            } = make_chunk_group(
-                entries,
-                module_graph,
-                ResolvedVc::upcast(self),
-                input_availability_info,
-            )
-            .await?;
-
-            let mut assets = chunks
-                .iter()
-                .map(|chunk| self.generate_chunk(*chunk))
-                .try_join()
-                .await?;
-
-            if this.enable_hot_module_replacement {
-                let mut ident = ident;
-                if let Some(input_availability_info_ident) = input_availability_info.ident().await?
-                {
-                    ident = ident.with_modifier(input_availability_info_ident);
-                }
-                let other_assets = Vc::cell(assets.clone());
-                assets.push(
-                    self.generate_chunk_list_register_chunk(
-                        ident,
-                        EvaluatableAssets::empty(),
-                        other_assets,
-                        EcmascriptDevChunkListSource::Dynamic,
-                    )
-                    .to_resolved()
-                    .await?,
-                );
-            }
-
-            Ok(ChunkGroupResult {
-                assets: ResolvedVc::cell(assets),
-                referenced_assets: ResolvedVc::cell(referenced_output_assets),
-                references: ResolvedVc::cell(references),
-                availability_info,
-            }
-            .cell())
-        }
-        .instrument(span)
+        turbopack_ecmascript::chunk::chunking_context_impl::chunk_group_impl(
+            *self,
+            ident,
+            chunk_group,
+            module_graph,
+            availability_info,
+        )
         .await
     }
 
     #[turbo_tasks::function]
     async fn evaluated_chunk_group(
-        self: ResolvedVc<Self>,
+        self: Vc<Self>,
         ident: Vc<AssetIdent>,
         chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
         input_availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
-        let span = tracing::info_span!(
-            "chunking",
-            name = display(ident.to_string().await?),
-            chunking_type = "evaluated",
-        );
-        async move {
-            let this = self.await?;
-            let entries = chunk_group.entries();
-            let MakeChunkGroupResult {
-                chunks,
-                referenced_output_assets,
-                references,
-                availability_info,
-            } = make_chunk_group(
-                entries,
-                module_graph,
-                ResolvedVc::upcast(self),
-                input_availability_info,
-            )
-            .await?;
-
-            let mut assets: Vec<ResolvedVc<Box<dyn OutputAsset>>> = chunks
-                .iter()
-                .map(|chunk| self.generate_chunk(*chunk))
-                .try_join()
-                .await?;
-
-            let other_assets = Vc::cell(assets.clone());
-
-            let entries = Vc::cell(
-                chunk_group
-                    .entries()
-                    .map(|m| {
-                        ResolvedVc::try_downcast::<Box<dyn EvaluatableAsset>>(m)
-                            .context("evaluated_chunk_group entries must be evaluatable assets")
-                    })
-                    .collect::<Result<Vec<_>>>()?,
-            );
-
-            if this.enable_hot_module_replacement {
-                let mut ident = ident;
-                if let Some(input_availability_info_ident) = input_availability_info.ident().await?
-                {
-                    ident = ident.with_modifier(input_availability_info_ident);
-                }
-                assets.push(
-                    self.generate_chunk_list_register_chunk(
-                        ident,
-                        entries,
-                        other_assets,
-                        EcmascriptDevChunkListSource::Entry,
-                    )
-                    .to_resolved()
-                    .await?,
-                );
-            }
-
-            assets.push(
-                self.generate_evaluate_chunk(ident, other_assets, entries, module_graph)
-                    .to_resolved()
-                    .await?,
-            );
-
-            Ok(ChunkGroupResult {
-                assets: ResolvedVc::cell(assets),
-                referenced_assets: ResolvedVc::cell(referenced_output_assets),
-                references: ResolvedVc::cell(references),
-                availability_info,
-            }
-            .cell())
-        }
-        .instrument(span)
+        turbopack_ecmascript::chunk::chunking_context_impl::evaluated_chunk_group_impl(
+            self,
+            ident,
+            chunk_group,
+            module_graph,
+            input_availability_info,
+        )
         .await
     }
 
@@ -846,18 +764,14 @@ impl ChunkingContext for BrowserChunkingContext {
         module_graph: Vc<ModuleGraph>,
         availability_info: AvailabilityInfo,
     ) -> Result<Vc<Box<dyn ChunkItem>>> {
-        Ok(if self.await?.manifest_chunks {
-            let manifest_asset =
-                ManifestAsyncModule::new(module, module_graph, Vc::upcast(self), availability_info);
-            Vc::upcast(ManifestLoaderChunkItem::new(
-                manifest_asset,
-                module_graph,
-                Vc::upcast(self),
-            ))
-        } else {
-            let module = AsyncLoaderModule::new(module, Vc::upcast(self), availability_info);
-            module.as_chunk_item(module_graph, Vc::upcast(self))
-        })
+        turbopack_ecmascript::chunk::chunking_context_impl::async_loader_chunk_item_impl(
+            self.await?.manifest_chunks,
+            module,
+            module_graph,
+            Vc::upcast(self),
+            availability_info,
+        )
+        .await
     }
 
     #[turbo_tasks::function]
@@ -865,11 +779,13 @@ impl ChunkingContext for BrowserChunkingContext {
         self: Vc<Self>,
         module: Vc<Box<dyn ChunkableModule>>,
     ) -> Result<Vc<ModuleId>> {
-        Ok(if self.await?.manifest_chunks {
-            self.chunk_item_id_from_ident(ManifestLoaderChunkItem::asset_ident_for(module))
-        } else {
-            self.chunk_item_id_from_ident(AsyncLoaderModule::asset_ident_for(module))
-        })
+        Ok(
+            turbopack_ecmascript::chunk::chunking_context_impl::async_loader_chunk_item_id_impl(
+                self.await?.manifest_chunks,
+                module,
+                self,
+            ),
+        )
     }
 
     #[turbo_tasks::function]
@@ -877,11 +793,11 @@ impl ChunkingContext for BrowserChunkingContext {
         self: Vc<Self>,
         module: ResolvedVc<Box<dyn Module>>,
     ) -> Result<Vc<ModuleExportUsage>> {
-        if let Some(export_usage) = self.await?.export_usage {
-            Ok(export_usage.await?.used_exports(module).await?)
-        } else {
-            Ok(ModuleExportUsage::all())
-        }
+        turbopack_ecmascript::chunk::chunking_context_impl::module_export_usage_impl(
+            self.await?.export_usage,
+            module,
+        )
+        .await
     }
 
     #[turbo_tasks::function]
@@ -889,13 +805,11 @@ impl ChunkingContext for BrowserChunkingContext {
         self: Vc<Self>,
         reference: ResolvedVc<Box<dyn ModuleReference>>,
     ) -> Result<Vc<bool>> {
-        if let Some(unused_references) = self.await?.unused_references {
-            Ok(Vc::cell(
-                unused_references.await?.is_reference_unused(&reference),
-            ))
-        } else {
-            Ok(Vc::cell(false))
-        }
+        turbopack_ecmascript::chunk::chunking_context_impl::is_reference_unused_impl(
+            self.await?.unused_references,
+            reference,
+        )
+        .await
     }
 
     #[turbo_tasks::function]

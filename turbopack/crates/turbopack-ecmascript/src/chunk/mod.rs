@@ -1,5 +1,6 @@
 pub(crate) mod batch;
 pub(crate) mod chunk_type;
+pub mod chunking_context_impl;
 pub(crate) mod code_and_ids;
 pub(crate) mod content;
 pub(crate) mod data;
