@@ -18,7 +18,6 @@ import type {
   ServerOnInstrumentationRequestError,
 } from './app-render/types'
 import type { ServerComponentsHmrCache } from './response-cache'
-import type { UrlWithParsedQuery } from 'url'
 import {
   NormalizeError,
   DecodeError,
@@ -46,7 +45,7 @@ import type { PathnameNormalizer } from './normalizers/request/pathname-normaliz
 import type { InstrumentationModule } from './instrumentation/types'
 
 import * as path from 'path'
-import { format as formatUrl, parse as parseUrl } from 'url'
+import { format as formatUrl } from 'url'
 import { formatHostname } from './lib/format-hostname'
 import {
   APP_PATHS_MANIFEST,
@@ -75,7 +74,10 @@ import {
 import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { getHostname } from '../shared/lib/get-hostname'
-import { parseUrl as parseUrlUtil } from '../shared/lib/router/utils/parse-url'
+import {
+  parseUrl,
+  parseUrl as parseUrlUtil,
+} from '../shared/lib/router/utils/parse-url'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
 import {
   RSC_HEADER,
@@ -953,7 +955,7 @@ export default abstract class Server<
           throw new Error('Invariant: url can not be undefined')
         }
 
-        parsedUrl = parseUrl(req.url!, true)
+        parsedUrl = parseUrl(req.url)
       }
 
       if (!parsedUrl.pathname) {
@@ -1681,7 +1683,7 @@ export default abstract class Server<
   protected async run(
     req: ServerRequest,
     res: ServerResponse,
-    parsedUrl: UrlWithParsedQuery
+    parsedUrl: NextUrlWithParsedQuery
   ): Promise<void> {
     return getTracer().trace(BaseServerSpan.run, async () =>
       this.runImpl(req, res, parsedUrl)
@@ -1691,7 +1693,7 @@ export default abstract class Server<
   private async runImpl(
     req: ServerRequest,
     res: ServerResponse,
-    parsedUrl: UrlWithParsedQuery
+    parsedUrl: NextUrlWithParsedQuery
   ): Promise<void> {
     await this.handleCatchallRenderRequest(req, res, parsedUrl)
   }
@@ -2963,7 +2965,7 @@ export default abstract class Server<
     parsedUrl?: Pick<NextUrlWithParsedQuery, 'pathname' | 'query'>,
     setHeaders = true
   ): Promise<void> {
-    const { pathname, query } = parsedUrl ? parsedUrl : parseUrl(req.url!, true)
+    const { pathname, query } = parsedUrl ? parsedUrl : parseUrl(req.url)
 
     // Ensure the locales are provided on the request meta.
     if (this.nextConfig.i18n) {
