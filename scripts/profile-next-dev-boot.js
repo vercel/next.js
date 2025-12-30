@@ -13,13 +13,19 @@
  *   --turbopack         Use Turbopack (default)
  *   --webpack           Use Webpack
  *   --duration=MS       How long to profile after ready (default: 1000)
- *   --parent            Profile the parent process instead of child
  *   --cli               Profile just the CLI entry point (runs next --help)
+ *
+ * Output files:
+ *   - dev-turbopack-YYYY-MM-DDTHH-MM-SS.cpuprofile
+ *   - cli-turbopack-YYYY-MM-DDTHH-MM-SS.cpuprofile
  *
  * The profile can be loaded in:
  *   - Chrome DevTools (Performance tab -> Load profile)
  *   - VS Code (JavaScript Profile Visualizer extension)
  *   - https://www.speedscope.app/
+ *
+ * Note: Currently profiles the parent process only. For child process profiling,
+ * additional Next.js changes are needed (see future PRs).
  */
 
 const { spawn, execSync } = require('child_process')
@@ -35,13 +41,19 @@ const getArg = (name, defaultValue) => {
 const hasFlag = (name) => args.includes(`--${name}`)
 
 const testDir = getArg('test-dir', '/private/tmp/next-boot-test')
-const outputDir =
+const baseOutputDir =
   getArg('output-dir', null) || path.join(process.cwd(), 'profiles')
 const useWebpack = hasFlag('webpack')
 const duration = parseInt(getArg('duration', '1000'), 10)
-const profileParent = hasFlag('parent')
 const profileCli = hasFlag('cli')
 const bundlerFlag = useWebpack ? '--webpack' : '--turbopack'
+
+// Generate meaningful profile names
+const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
+const bundlerName = useWebpack ? 'webpack' : 'turbopack'
+const profileType = profileCli ? 'cli' : 'dev'
+const outputDir = baseOutputDir
+const profileName = `${profileType}-${bundlerName}-${timestamp}`
 
 const nextDir = path.join(__dirname, '..', 'packages', 'next')
 const nextBin = path.join(nextDir, 'dist/bin/next')
@@ -52,9 +64,6 @@ if (profileCli) {
   console.log('\x1b[34m=== Next.js Dev Server CPU Profile ===\x1b[0m')
   console.log(`Test directory: ${testDir}`)
   console.log(`Bundler: ${useWebpack ? 'Webpack' : 'Turbopack'}`)
-  console.log(
-    `Profiling: ${profileParent ? 'Parent process' : 'Child process (server worker)'}`
-  )
 }
 console.log(`Output directory: ${outputDir}`)
 console.log('')
@@ -96,34 +105,23 @@ async function runProfile() {
   return new Promise((resolve, reject) => {
     let resolved = false
 
-    // Build the command based on whether we're profiling parent or child
-    let spawnArgs
-    let spawnEnv = { ...process.env, FORCE_COLOR: '0' }
-
-    if (profileParent) {
-      // Profile the parent process (next-dev.ts)
-      spawnArgs = [
-        process.execPath,
-        [
-          '--cpu-prof',
-          `--cpu-prof-dir=${outputDir}`,
-          nextBin,
-          'dev',
-          bundlerFlag,
-        ],
-      ]
-    } else {
-      // Profile the child process (start-server.ts)
-      // next-dev.ts checks NEXT_CPU_PROF_DIR and passes --cpu-prof to the forked child
-      spawnEnv.NEXT_CPU_PROF_DIR = outputDir
-
-      spawnArgs = [nextBin, ['dev', bundlerFlag]]
-    }
+    // Profile the parent process with --cpu-prof
+    const spawnArgs = [
+      process.execPath,
+      [
+        '--cpu-prof',
+        `--cpu-prof-dir=${outputDir}`,
+        `--cpu-prof-name=${profileName}`,
+        nextBin,
+        'dev',
+        bundlerFlag,
+      ],
+    ]
 
     const child = spawn(spawnArgs[0], spawnArgs[1], {
       cwd: testDir,
       stdio: ['ignore', 'pipe', 'pipe'],
-      env: spawnEnv,
+      env: { ...process.env, FORCE_COLOR: '0' },
     })
 
     let output = ''
@@ -157,24 +155,37 @@ async function runProfile() {
 
       // Wait a moment for profile files to be written
       setTimeout(() => {
-        // Find the generated profile(s)
-        const files = fs
+        // Find and rename profiles matching our name pattern
+        // --cpu-prof-name creates files without extension
+        const files = fs.readdirSync(outputDir)
+        const rawFiles = files.filter(
+          (f) => f.startsWith(profileName) && !f.endsWith('.cpuprofile')
+        )
+
+        // Rename raw files to have .cpuprofile extension
+        rawFiles.forEach((f) => {
+          const oldPath = path.join(outputDir, f)
+          const newPath = path.join(outputDir, `${f}.cpuprofile`)
+          fs.renameSync(oldPath, newPath)
+        })
+
+        // Now find all .cpuprofile files
+        const profileFiles = fs
           .readdirSync(outputDir)
-          .filter((f) => f.endsWith('.cpuprofile'))
-        const profiles = files
+          .filter((f) => f.startsWith(profileName) && f.endsWith('.cpuprofile'))
+        const profiles = profileFiles
           .map((f) => ({
             name: f,
             path: path.join(outputDir, f),
-            time: fs.statSync(path.join(outputDir, f)).mtime,
             size: fs.statSync(path.join(outputDir, f)).size,
           }))
-          .filter((p) => p.size > 0) // Filter out empty profiles
-          .sort((a, b) => b.time - a.time)
+          .filter((p) => p.size > 0)
+          .sort((a, b) => b.size - a.size)
 
         if (profiles.length > 0) {
           console.log('')
           console.log(`\x1b[32mProfile(s) saved:\x1b[0m`)
-          profiles.slice(0, 5).forEach((p, i) => {
+          profiles.forEach((p, i) => {
             const sizeKB = Math.round(p.size / 1024)
             console.log(`  ${i + 1}. ${p.path} (${sizeKB} KB)`)
           })
@@ -224,7 +235,13 @@ async function runCliProfile() {
   return new Promise((resolve, reject) => {
     const child = spawn(
       process.execPath,
-      ['--cpu-prof', `--cpu-prof-dir=${outputDir}`, nextBin, '--help'],
+      [
+        '--cpu-prof',
+        `--cpu-prof-dir=${outputDir}`,
+        `--cpu-prof-name=${profileName}`,
+        nextBin,
+        '--help',
+      ],
       {
         cwd: process.cwd(),
         stdio: ['ignore', 'pipe', 'pipe'],
@@ -238,25 +255,15 @@ async function runCliProfile() {
     child.on('close', (code) => {
       // Wait for profile to be written
       setTimeout(() => {
-        const files = fs
-          .readdirSync(outputDir)
-          .filter((f) => f.endsWith('.cpuprofile'))
-        const profiles = files
-          .map((f) => ({
-            name: f,
-            path: path.join(outputDir, f),
-            time: fs.statSync(path.join(outputDir, f)).mtime,
-            size: fs.statSync(path.join(outputDir, f)).size,
-          }))
-          .filter((p) => p.size > 0)
-          .sort((a, b) => b.time - a.time)
+        // --cpu-prof-name creates files without extension, rename to .cpuprofile
+        const rawFile = path.join(outputDir, profileName)
+        const finalFile = path.join(outputDir, `${profileName}.cpuprofile`)
 
-        if (profiles.length > 0) {
-          const latestProfile = profiles[0]
+        if (fs.existsSync(rawFile)) {
+          fs.renameSync(rawFile, finalFile)
+          const size = fs.statSync(finalFile).size
           console.log(`\x1b[32mProfile saved:\x1b[0m`)
-          console.log(
-            `  ${latestProfile.path} (${Math.round(latestProfile.size / 1024)} KB)`
-          )
+          console.log(`  ${finalFile} (${Math.round(size / 1024)} KB)`)
           console.log('')
           console.log('To view the profile:')
           console.log('  1. Open Chrome DevTools -> Performance tab')
@@ -266,7 +273,12 @@ async function runCliProfile() {
           console.log(
             '\x1b[33mTip:\x1b[0m Look for heavy modules loaded at startup'
           )
-          resolve(latestProfile.path)
+          resolve(finalFile)
+        } else if (fs.existsSync(finalFile)) {
+          const size = fs.statSync(finalFile).size
+          console.log(`\x1b[32mProfile saved:\x1b[0m`)
+          console.log(`  ${finalFile} (${Math.round(size / 1024)} KB)`)
+          resolve(finalFile)
         } else {
           reject(new Error('Profile file not found'))
         }

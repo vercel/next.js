@@ -68,9 +68,10 @@ Module.prototype.require = function (id) {
   return result
 }
 
-// Intercept process.exit to prevent CLI from exiting
+// Save original process.exit and intercept to prevent CLI from exiting mid-profile
+const originalExit = process.exit
 process.exit = () => {
-  // Don't actually exit - we want to capture the profile
+  // Don't actually exit during profiling - we want to capture the full profile
 }
 
 // Start profiling
@@ -130,6 +131,9 @@ session.post('Profiler.enable', () => {
       Module.prototype.require = originalRequire
 
       session.disconnect()
+
+      // Exit cleanly now that profiling is complete
+      originalExit(0)
     })
   })
 })
