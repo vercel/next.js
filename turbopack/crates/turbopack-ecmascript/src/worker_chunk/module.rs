@@ -70,7 +70,11 @@ impl Module for WorkerLoaderModule {
 impl Asset for WorkerLoaderModule {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
-        panic!("content() should not be called");
+        // Delegate to the inner module's content for tools like node-file-trace
+        // that need to emit the actual worker file.  This wont be called during actual chunking
+        // A better solution might be to produce these loaders during chunking (like
+        // AsyncModuleLoaders).  This would require a better understanding of isolated entry points.
+        self.inner.content()
     }
 }
 
