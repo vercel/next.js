@@ -118,7 +118,7 @@ fn base_alloc() -> &'static impl GlobalAlloc {
         feature = "custom_allocator",
         not(any(target_family = "wasm", target_env = "musl"))
     ))]
-    return &mimalloc_rspack::MiMalloc;
+    return &mimalloc::MiMalloc;
     #[cfg(any(
         not(feature = "custom_allocator"),
         any(target_family = "wasm", target_env = "musl")
@@ -132,7 +132,7 @@ unsafe fn base_alloc_size(ptr: *const u8, layout: Layout) -> usize {
         feature = "custom_allocator",
         not(any(target_family = "wasm", target_env = "musl"))
     ))]
-    return unsafe { mimalloc_rspack::MiMalloc.usable_size(ptr) };
+    return unsafe { mimalloc::MiMalloc.usable_size(ptr) };
     #[cfg(any(
         not(feature = "custom_allocator"),
         any(target_family = "wasm", target_env = "musl")

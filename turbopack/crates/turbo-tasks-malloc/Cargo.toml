@@ -10,21 +10,21 @@ autobenches = false
 bench = false
 
 [dependencies]
-rspack-libmimalloc-sys = { version = "0.2.4", default-features = false, features = [], optional = true }
+
 
 [target.'cfg(not(any(target_os = "linux", target_family = "wasm", target_env = "musl")))'.dependencies]
-mimalloc-rspack = { version = "0.2.4", features = [
+mimalloc = { version = "0.1.48", features = [
   "v3",
-  "extended"
+  "extended",
 ], optional = true }
 
 [target.'cfg(all(target_os = "linux", not(any(target_family = "wasm", target_env = "musl"))))'.dependencies]
-mimalloc-rspack = { version = "0.2.4", features = [
+mimalloc = { version = "0.1.48", features = [
   "v3",
   "extended",
   "local_dynamic_tls",
 ], optional = true }
 
 [features]
-custom_allocator = ["dep:mimalloc-rspack", "dep:rspack-libmimalloc-sys"]
+custom_allocator = ["dep:mimalloc"]
 default = ["custom_allocator"]
