@@ -29,7 +29,6 @@ use crate::{
         AstPath,
         pattern_mapping::{PatternMapping, ResolveType},
     },
-    runtime_functions::TURBOPACK_REQUIRE,
     worker_chunk::{WorkerType, module::WorkerLoaderModule},
 };
 
@@ -264,9 +263,8 @@ impl WorkerAssetReferenceCodeGen {
                             // call that uses the pattern mapping to resolve to the correct loader
                             // module
                             *key_expr = quote_expr!(
-                                "$turbopack_require($id)",
-                                turbopack_require: Expr = TURBOPACK_REQUIRE.into(),
-                                id: Expr = pm.create_id(*key_expr.take())
+                                "$require",
+                                require: Expr = pm.create_require(*key_expr.take())
                             );
 
                             // For web workers, modify the options to set type: undefined
