@@ -462,22 +462,116 @@ function formatPassedOnRetrySection(tests: CategorizedTest[], sha: string): stri
 function formatReproductionCommands(failedTestPaths: string[]): string {
   if (failedTestPaths.length === 0) return ''
 
+  // Normalize paths
+  const normalizedPaths = failedTestPaths.map((p) =>
+    p.replace(/^.*?(test\/)/, 'test/').replace(/^.*?(packages\/)/, 'packages/')
+  )
+
+  // Deduplicate
+  const uniquePaths = [...new Set(normalizedPaths)]
+
   let content = `\n---\n\n### Reproduce locally\n\n`
 
-  if (failedTestPaths.length <= 5) {
-    content += `\`\`\`bash\n`
-    for (const testPath of failedTestPaths) {
-      const shortPath = testPath.replace(/^.*?(test\/)/, 'test/').replace(/^.*?(packages\/)/, 'packages/')
-      content += `pnpm test ${shortPath}\n`
-    }
-    content += `\`\`\`\n`
-  } else {
-    content += `\`\`\`bash\n# Run all failing tests\n`
-    content += `pnpm test ${failedTestPaths.slice(0, 3).map(p => p.replace(/^.*?(test\/)/, 'test/').replace(/^.*?(packages\/)/, 'packages/')).join(' ')}\n`
-    content += `# ... and ${failedTestPaths.length - 3} more\n\`\`\`\n`
+  // Group by test type
+  const e2eTests = uniquePaths.filter((p) => p.includes('test/e2e'))
+  const devTests = uniquePaths.filter((p) => p.includes('test/development'))
+  const prodTests = uniquePaths.filter((p) => p.includes('test/production'))
+  const integrationTests = uniquePaths.filter((p) => p.includes('test/integration'))
+  const packageTests = uniquePaths.filter((p) => p.includes('packages/'))
+  const otherTests = uniquePaths.filter(
+    (p) =>
+      !p.includes('test/e2e') &&
+      !p.includes('test/development') &&
+      !p.includes('test/production') &&
+      !p.includes('test/integration') &&
+      !p.includes('packages/')
+  )
+
+  content += `<details>\n<summary>Copy commands (${uniquePaths.length} tests)</summary>\n\n`
+
+  if (uniquePaths.length <= 10) {
+    content += `**Run all failing tests:**\n`
+    content += `\`\`\`bash\npnpm test ${uniquePaths.join(' ')}\n\`\`\`\n\n`
   }
 
+  // Individual test commands
+  if (e2eTests.length > 0) {
+    content += `**E2E tests (${e2eTests.length}):**\n\`\`\`bash\n`
+    for (const p of e2eTests.slice(0, 15)) {
+      content += `pnpm test ${p}\n`
+    }
+    if (e2eTests.length > 15) {
+      content += `# ... and ${e2eTests.length - 15} more e2e tests\n`
+    }
+    content += `\`\`\`\n\n`
+  }
+
+  if (devTests.length > 0) {
+    content += `**Development tests (${devTests.length}):**\n\`\`\`bash\n`
+    for (const p of devTests.slice(0, 15)) {
+      content += `pnpm test ${p}\n`
+    }
+    if (devTests.length > 15) {
+      content += `# ... and ${devTests.length - 15} more development tests\n`
+    }
+    content += `\`\`\`\n\n`
+  }
+
+  if (prodTests.length > 0) {
+    content += `**Production tests (${prodTests.length}):**\n\`\`\`bash\n`
+    for (const p of prodTests.slice(0, 15)) {
+      content += `pnpm test ${p}\n`
+    }
+    if (prodTests.length > 15) {
+      content += `# ... and ${prodTests.length - 15} more production tests\n`
+    }
+    content += `\`\`\`\n\n`
+  }
+
+  if (integrationTests.length > 0) {
+    content += `**Integration tests (${integrationTests.length}):**\n\`\`\`bash\n`
+    for (const p of integrationTests.slice(0, 15)) {
+      content += `pnpm test ${p}\n`
+    }
+    if (integrationTests.length > 15) {
+      content += `# ... and ${integrationTests.length - 15} more integration tests\n`
+    }
+    content += `\`\`\`\n\n`
+  }
+
+  if (packageTests.length > 0) {
+    content += `**Package tests (${packageTests.length}):**\n\`\`\`bash\n`
+    for (const p of packageTests.slice(0, 15)) {
+      content += `pnpm test ${p}\n`
+    }
+    if (packageTests.length > 15) {
+      content += `# ... and ${packageTests.length - 15} more package tests\n`
+    }
+    content += `\`\`\`\n\n`
+  }
+
+  if (otherTests.length > 0) {
+    content += `**Other tests (${otherTests.length}):**\n\`\`\`bash\n`
+    for (const p of otherTests.slice(0, 10)) {
+      content += `pnpm test ${p}\n`
+    }
+    if (otherTests.length > 10) {
+      content += `# ... and ${otherTests.length - 10} more tests\n`
+    }
+    content += `\`\`\`\n\n`
+  }
+
+  content += `</details>\n`
+
   return content
+}
+
+function formatFooter(): string {
+  return `\n---\n\n` +
+    `<sub>` +
+    `[Testing docs](https://github.com/vercel/next.js/blob/canary/contributing/core/testing.md) · ` +
+    `[About this comment](https://github.com/vercel/next.js/tree/canary/.github/actions/next-integration-stat)` +
+    `</sub>\n`
 }
 
 // =============================================================================
@@ -927,6 +1021,9 @@ async function run() {
   commentBody += formatPassedOnRetrySection(passedOnRetry, sha)
 
   commentBody += formatReproductionCommands(failedTestLists)
+
+  // Add footer with help links
+  commentBody += formatFooter()
 
   // Check comment length and truncate if needed
   if (commentBody.length > 65000) {
