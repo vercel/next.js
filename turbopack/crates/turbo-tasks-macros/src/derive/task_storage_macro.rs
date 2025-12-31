@@ -72,6 +72,7 @@ struct StorageFieldAttributes {
     category: Category,
     group: Option<String>,
     lazy: bool,
+    specialized: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -97,6 +98,7 @@ fn parse_field_storage_attributes(field: &syn::Field) -> StorageFieldAttributes 
     let mut category = Category::Data;
     let mut group = None;
     let mut lazy = false;
+    let mut specialized = false;
 
     // Parse attributes
     for attr in &field.attrs {
@@ -180,6 +182,8 @@ fn parse_field_storage_attributes(field: &syn::Field) -> StorageFieldAttributes 
                     if let Some(ident) = path.get_ident() {
                         if *ident == "lazy" {
                             lazy = true;
+                        } else if *ident == "specialized" {
+                            specialized = true;
                         }
                     }
                 }
@@ -195,6 +199,7 @@ fn parse_field_storage_attributes(field: &syn::Field) -> StorageFieldAttributes 
         category,
         group,
         lazy,
+        specialized,
     }
 }
 
@@ -202,6 +207,8 @@ fn parse_field_storage_attributes(field: &syn::Field) -> StorageFieldAttributes 
 struct GroupedFields {
     data_groups: Vec<FieldGroup>,
     meta_groups: Vec<FieldGroup>,
+    specialized_data_fields: Vec<StorageFieldAttributes>,
+    specialized_meta_fields: Vec<StorageFieldAttributes>,
 }
 
 #[derive(Debug)]
@@ -216,8 +223,19 @@ fn group_fields(fields: &[StorageFieldAttributes]) -> GroupedFields {
 
     let mut data_groups_map: HashMap<String, Vec<StorageFieldAttributes>> = HashMap::new();
     let mut meta_groups_map: HashMap<String, Vec<StorageFieldAttributes>> = HashMap::new();
+    let mut specialized_data_fields = Vec::new();
+    let mut specialized_meta_fields = Vec::new();
 
     for field in fields {
+        // Specialized fields are stored directly, not in groups
+        if field.specialized {
+            match field.category {
+                Category::Data => specialized_data_fields.push(field.clone()),
+                Category::Meta => specialized_meta_fields.push(field.clone()),
+            }
+            continue;
+        }
+
         let group_name = field
             .group
             .clone()
@@ -269,6 +287,8 @@ fn group_fields(fields: &[StorageFieldAttributes]) -> GroupedFields {
     GroupedFields {
         data_groups,
         meta_groups,
+        specialized_data_fields,
+        specialized_meta_fields,
     }
 }
 
@@ -280,10 +300,16 @@ fn generate_task_storage_impl(_ident: &Ident, grouped_fields: &GroupedFields) ->
     let meta_group_structs = generate_group_structs(&grouped_fields.meta_groups, "Meta");
 
     // Generate the main TaskData struct
-    let task_data_struct = generate_task_data_struct(&grouped_fields.data_groups);
+    let task_data_struct = generate_task_data_struct(
+        &grouped_fields.data_groups,
+        &grouped_fields.specialized_data_fields,
+    );
 
     // Generate the main TaskMeta struct
-    let task_meta_struct = generate_task_meta_struct(&grouped_fields.meta_groups);
+    let task_meta_struct = generate_task_meta_struct(
+        &grouped_fields.meta_groups,
+        &grouped_fields.specialized_meta_fields,
+    );
 
     // Generate the InnerStorage struct
     let inner_storage_struct = generate_inner_storage_struct();
@@ -334,7 +360,7 @@ fn generate_group_structs(
 
     for group in groups {
         // Skip single-field groups that don't need a struct
-        if group.fields.len() == 1 && group.lazy {
+        if group.fields.len() == 1 && !group.lazy {
             continue;
         }
 
@@ -368,9 +394,22 @@ fn generate_group_structs(
     output
 }
 
-fn generate_task_data_struct(groups: &[FieldGroup]) -> proc_macro2::TokenStream {
+fn generate_task_data_struct(
+    groups: &[FieldGroup],
+    specialized_fields: &[StorageFieldAttributes],
+) -> proc_macro2::TokenStream {
+    let mut specialized_field_defs = Vec::new();
     let mut direct_fields = Vec::new();
     let mut group_fields = Vec::new();
+
+    // Add specialized fields first (for memory layout optimization)
+    for field in specialized_fields {
+        let field_name = &field.field_name;
+        let field_type = &field.field_type;
+        specialized_field_defs.push(quote! {
+            pub #field_name: #field_type
+        });
+    }
 
     for group in groups {
         if group.fields.len() == 1 && !group.lazy {
@@ -404,15 +443,29 @@ fn generate_task_data_struct(groups: &[FieldGroup]) -> proc_macro2::TokenStream 
     quote! {
         #[derive(Debug, Clone, Default, bincode::Encode, bincode::Decode)]
         pub struct TaskData {
+            #(#specialized_field_defs,)*
             #(#direct_fields,)*
             #(#group_fields),*
         }
     }
 }
 
-fn generate_task_meta_struct(groups: &[FieldGroup]) -> proc_macro2::TokenStream {
+fn generate_task_meta_struct(
+    groups: &[FieldGroup],
+    specialized_fields: &[StorageFieldAttributes],
+) -> proc_macro2::TokenStream {
+    let mut specialized_field_defs = Vec::new();
     let mut direct_fields = Vec::new();
     let mut group_fields = Vec::new();
+
+    // Add specialized fields first (for memory layout optimization)
+    for field in specialized_fields {
+        let field_name = &field.field_name;
+        let field_type = &field.field_type;
+        specialized_field_defs.push(quote! {
+            pub #field_name: #field_type
+        });
+    }
 
     for group in groups {
         if group.fields.len() == 1 && !group.lazy {
@@ -446,6 +499,7 @@ fn generate_task_meta_struct(groups: &[FieldGroup]) -> proc_macro2::TokenStream 
     quote! {
         #[derive(Debug, Clone, Default, bincode::Encode, bincode::Decode)]
         pub struct TaskMeta {
+            #(#specialized_field_defs,)*
             #(#direct_fields,)*
             #(#group_fields),*
         }
@@ -489,6 +543,16 @@ fn generate_inner_storage_struct() -> proc_macro2::TokenStream {
 
 fn generate_accessor_methods(grouped_fields: &GroupedFields) -> proc_macro2::TokenStream {
     let mut methods = proc_macro2::TokenStream::new();
+
+    // Generate methods for specialized data fields
+    for field in &grouped_fields.specialized_data_fields {
+        methods.extend(generate_specialized_field_accessors(field, "data"));
+    }
+
+    // Generate methods for specialized meta fields
+    for field in &grouped_fields.specialized_meta_fields {
+        methods.extend(generate_specialized_field_accessors(field, "meta"));
+    }
 
     // Generate methods for data fields
     for group in &grouped_fields.data_groups {
@@ -622,6 +686,67 @@ fn generate_group_accessors(group: &FieldGroup, category: &str) -> proc_macro2::
                     }
                 });
             }
+        }
+    }
+
+    methods
+}
+
+fn generate_specialized_field_accessors(
+    field: &StorageFieldAttributes,
+    category: &str,
+) -> proc_macro2::TokenStream {
+    let mut methods = proc_macro2::TokenStream::new();
+    let category_ident = syn::Ident::new(category, proc_macro2::Span::call_site());
+    let field_name = &field.field_name;
+    let field_type = &field.field_type;
+
+    // Determine modification tracking method based on category
+    let set_modified = if category == "data" {
+        quote! { self.state.set_data_modified(true); }
+    } else {
+        quote! { self.state.set_meta_modified(true); }
+    };
+
+    // Specialized fields are always direct access at the top level of TaskData/TaskMeta
+    let field_path = quote! { self.#category_ident.#field_name };
+    let field_path_mut = quote! { &mut self.#category_ident.#field_name };
+
+    // Generate appropriate accessors based on storage type
+    match field.storage_type {
+        StorageType::Direct => {
+            let get_name = syn::Ident::new(
+                &format!("get_{}", field_name),
+                proc_macro2::Span::call_site(),
+            );
+            let set_name = syn::Ident::new(
+                &format!("set_{}", field_name),
+                proc_macro2::Span::call_site(),
+            );
+
+            methods.extend(quote! {
+                pub fn #get_name(&self) -> &#field_type {
+                    &#field_path
+                }
+
+                pub fn #set_name(&mut self, value: #field_type) {
+                    *#field_path_mut = value;
+                    #set_modified
+                }
+            });
+        }
+        StorageType::AutoSet | StorageType::CounterMap | StorageType::IndexedVec => {
+            let get_name = syn::Ident::new(
+                &format!("{}_mut", field_name),
+                proc_macro2::Span::call_site(),
+            );
+
+            methods.extend(quote! {
+                pub fn #get_name(&mut self) -> &mut #field_type {
+                    #set_modified
+                    #field_path_mut
+                }
+            });
         }
     }
 

@@ -30,9 +30,18 @@ bitfield::bitfield! {
 /// This should generate structures similar to our hand-written prototype
 #[derive(TaskStorage)]
 pub struct TaskStorageSchema {
-    // Direct field, data category
-    #[task_storage(storage = "direct", category = "data")]
+    // Specialized hot-path fields (outside groups for optimal memory layout)
+    #[task_storage(storage = "direct", category = "meta", specialized)]
+    pub aggregation_number: Option<AggregationNumber>,
+
+    #[task_storage(storage = "auto_set", category = "data", specialized)]
+    pub output_dependent: AutoSet<TaskId>,
+
+    #[task_storage(storage = "direct", category = "data", specialized)]
     pub output: Option<OutputValue>,
+
+    #[task_storage(storage = "counter_map", category = "data", specialized)]
+    pub upper: CounterMap<TaskId, u32>,
 
     // Grouped fields with lazy allocation - dependencies group
     #[task_storage(storage = "auto_set", category = "data", group = "dependencies", lazy)]
@@ -48,20 +57,9 @@ pub struct TaskStorageSchema {
         group = "aggregation",
         lazy
     )]
-    pub upper: CounterMap<TaskId, u32>,
-
-    #[task_storage(
-        storage = "counter_map",
-        category = "data",
-        group = "aggregation",
-        lazy
-    )]
     pub followers: CounterMap<TaskId, u32>,
 
-    // Meta category fields
-    #[task_storage(storage = "direct", category = "meta")]
-    pub aggregation_number: Option<AggregationNumber>,
-
+    // Meta category fields (non-specialized)
     #[task_storage(storage = "direct", category = "meta")]
     pub dirty: Option<Dirtyness>,
 }
@@ -239,6 +237,42 @@ mod tests {
         // Verify modification flags are restored
         assert!(restored.state().data_modified());
         assert!(restored.state().meta_modified());
+    }
+
+    #[test]
+    fn test_specialized_fields() {
+        let mut storage = InnerStorage::new();
+
+        // Test specialized data field (output)
+        storage.set_output(Some(OutputValue::Output(unsafe {
+            TaskId::new_unchecked(123)
+        })));
+        assert!(storage.get_output().is_some());
+        assert!(storage.state().data_modified());
+
+        // Test specialized counter_map field (upper)
+        storage = InnerStorage::new();
+        storage
+            .upper_mut()
+            .insert(unsafe { TaskId::new_unchecked(1) }, 10);
+        assert!(storage.state().data_modified());
+
+        // Test specialized auto_set field (output_dependent)
+        storage = InnerStorage::new();
+        storage
+            .output_dependent_mut()
+            .insert(unsafe { TaskId::new_unchecked(5) });
+        assert!(storage.state().data_modified());
+
+        // Test specialized meta field (aggregation_number)
+        storage = InnerStorage::new();
+        storage.set_aggregation_number(Some(AggregationNumber {
+            base: 1,
+            distance: 2,
+            effective: 3,
+        }));
+        assert!(storage.state().meta_modified());
+        assert!(!storage.state().data_modified());
     }
 
     #[test]

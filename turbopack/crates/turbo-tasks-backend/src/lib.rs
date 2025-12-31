@@ -11,6 +11,14 @@ mod database;
 mod kv_backing_storage;
 mod utils;
 
+// Storage implementation prototypes and macro tests
+#[cfg(test)]
+mod storage_macro_test;
+#[cfg(test)]
+mod storage_prototype;
+#[cfg(test)]
+mod storage_types;
+
 use std::path::Path;
 
 use anyhow::Result;
