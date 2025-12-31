@@ -177,6 +177,8 @@ jobs:
         uses: ./.github/actions/next-integration-stat
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          datadog_api_key: ${{ secrets.DATA_DOG_API_KEY }}
+          datadog_app_key: ${{ secrets.DD_APPLICATION_KEY }}
 
       - name: Store artifacts
         uses: actions/upload-artifact@v4

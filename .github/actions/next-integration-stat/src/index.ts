@@ -149,6 +149,169 @@ function formatCategoryLabel(category: TestCategory): string {
 }
 
 // =============================================================================
+// Datadog Flaky Test Detection
+// =============================================================================
+
+interface DatadogFlakyData {
+  testName: string
+  isKnownFlaky: boolean
+  flakeRate: number // 0-100
+  recentFailures: number
+  recentRuns: number
+}
+
+async function queryDatadogFlakyTests(
+  testNames: string[],
+  apiKey: string,
+  appKey: string
+): Promise<Map<string, DatadogFlakyData>> {
+  const flakyData = new Map<string, DatadogFlakyData>()
+
+  if (!apiKey || !appKey) {
+    console.log('Datadog keys not provided, skipping flaky test detection')
+    return flakyData
+  }
+
+  console.log(`Querying Datadog for ${testNames.length} tests...`)
+
+  try {
+    // Query Datadog CI Visibility API for test events from the last 30 days
+    // We look for tests that have both passed and failed recently
+    const now = Math.floor(Date.now() / 1000)
+    const thirtyDaysAgo = now - 30 * 24 * 60 * 60
+
+    // Build the query for all test names
+    // We need to batch this as URLs have length limits
+    const batchSize = 10
+    for (let i = 0; i < testNames.length; i += batchSize) {
+      const batch = testNames.slice(i, i + batchSize)
+
+      for (const testName of batch) {
+        try {
+          // Normalize test name for query
+          const normalizedName = testName
+            .replace(/^.*?(test\/)/, 'test/')
+            .replace(/^.*?(packages\/)/, 'packages/')
+
+          // Query for this specific test's results
+          const query = encodeURIComponent(
+            `@git.repository.id:github.com/vercel/next.js ` +
+            `@test.name:"${normalizedName}" ` +
+            `@git.branch:canary`
+          )
+
+          const response = await fetch(
+            `https://api.datadoghq.com/api/v2/ci/tests/events?filter[query]=${query}&filter[from]=${thirtyDaysAgo}s&filter[to]=${now}s&page[limit]=100`,
+            {
+              headers: {
+                'DD-API-KEY': apiKey,
+                'DD-APPLICATION-KEY': appKey,
+                'Content-Type': 'application/json',
+              },
+            }
+          )
+
+          if (!response.ok) {
+            console.log(`Datadog API error for ${normalizedName}: ${response.status}`)
+            continue
+          }
+
+          const data = await response.json()
+          const events = data.data || []
+
+          if (events.length === 0) continue
+
+          // Count passes and failures
+          let passes = 0
+          let failures = 0
+          let isKnownFlaky = false
+
+          for (const event of events) {
+            const status = event.attributes?.test?.status
+            const tags = event.attributes?.tags || []
+
+            if (status === 'pass') passes++
+            if (status === 'fail') failures++
+
+            // Check for flaky tags
+            if (tags.includes('is_flaky:true') || tags.includes('is_known_flaky:true')) {
+              isKnownFlaky = true
+            }
+          }
+
+          const totalRuns = passes + failures
+          if (totalRuns > 0) {
+            const flakeRate = totalRuns > 1 && passes > 0 && failures > 0
+              ? Math.round((Math.min(passes, failures) / totalRuns) * 100)
+              : 0
+
+            // Consider it flaky if it has both passes and failures, or is tagged as flaky
+            if (isKnownFlaky || (passes > 0 && failures > 0 && flakeRate >= 10)) {
+              flakyData.set(testName, {
+                testName,
+                isKnownFlaky: isKnownFlaky || flakeRate >= 30,
+                flakeRate,
+                recentFailures: failures,
+                recentRuns: totalRuns,
+              })
+            }
+          }
+        } catch (err) {
+          console.log(`Error querying Datadog for test: ${err}`)
+        }
+      }
+
+      // Small delay between batches to avoid rate limiting
+      if (i + batchSize < testNames.length) {
+        await new Promise((resolve) => setTimeout(resolve, 100))
+      }
+    }
+
+    console.log(`Found ${flakyData.size} known flaky tests`)
+  } catch (err) {
+    console.log('Error querying Datadog:', err)
+  }
+
+  return flakyData
+}
+
+function formatFlakyTestsSection(
+  flakyTests: CategorizedTest[],
+  flakyData: Map<string, DatadogFlakyData>,
+  sha: string
+): string {
+  if (flakyTests.length === 0) return ''
+
+  let content = `\n---\n\n### Known Flaky Tests (can likely ignore)\n\n`
+  content += `> These tests have a history of flaky behavior on \`canary\`. They may not be caused by your changes.\n\n`
+
+  content += `<details>\n`
+  content += `<summary>${flakyTests.length} known flaky test${flakyTests.length > 1 ? 's' : ''}</summary>\n\n`
+
+  content += `| Test | Flake Rate | Recent (30d) | Links |\n|------|-----------|--------------|-------|\n`
+
+  for (const test of flakyTests) {
+    const shortPath = test.testPath
+      .replace(/^.*?(test\/)/, 'test/')
+      .replace(/^.*?(packages\/)/, 'packages/')
+    const testType = test.category.bundler === 'turbopack' ? 'turbopack' : 'nextjs'
+    const ddLink = createDatadogLink(sha, test.name, testType)
+
+    const data = flakyData.get(test.testPath) || flakyData.get(test.name)
+    const flakeRate = data?.flakeRate ?? '?'
+    const recentStats = data ? `${data.recentFailures}/${data.recentRuns} failed` : '-'
+
+    // Truncate long names
+    const displayName = shortPath.length > 50 ? shortPath.substring(0, 47) + '...' : shortPath
+    content += `| \`${displayName}\` | ${flakeRate}% | ${recentStats} | [DD](${ddLink}) [job](${test.jobUrl}) |\n`
+  }
+
+  content += `\n</details>\n`
+
+  return content
+}
+
+// =============================================================================
 // Cross-PR Failure Detection
 // =============================================================================
 
@@ -365,6 +528,62 @@ function formatSummaryTable(
 
   for (const [label, count] of categoryGroups) {
     summary += `| ${label} | ${count} |\n`
+  }
+
+  return summary
+}
+
+function formatSummaryTableWithFlaky(
+  sha: string,
+  runId: number,
+  runAttempt: number,
+  totalFailures: number,
+  needsInvestigationCount: number,
+  knownFlakyCount: number,
+  passedOnRetryCount: number,
+  investigationGroups: TestGroup[]
+): string {
+  const commitUrl = `https://github.com/vercel/next.js/commit/${sha}`
+  const runUrl = `https://github.com/vercel/next.js/actions/runs/${runId}/attempts/${runAttempt}`
+  const rerunUrl = `https://github.com/vercel/next.js/actions/runs/${runId}`
+  const shortSha = sha.substring(0, 7)
+
+  let summary = `## Failing test suites ${BOT_COMMENT_MARKER}\n\n`
+
+  // Header with commit info
+  summary += `| | |\n|---|---|\n`
+  summary += `| **Tested Commit** | [\`${shortSha}\`](${commitUrl}) |\n`
+  summary += `| **Workflow Run** | [#${runId}](${runUrl}) · Attempt ${runAttempt} |\n\n`
+
+  summary += `[**Re-run failed jobs →**](${rerunUrl})\n\n`
+
+  summary += `---\n\n`
+
+  // Summary counts with flaky breakdown
+  summary += `| Summary | |\n|---------|---|\n`
+  summary += `| Total Failed | ${totalFailures} |\n`
+
+  if (knownFlakyCount > 0) {
+    summary += `| **Needs Investigation** | **${needsInvestigationCount}** |\n`
+    summary += `| Known Flaky | ${knownFlakyCount} (can likely ignore) |\n`
+  }
+
+  if (passedOnRetryCount > 0) {
+    summary += `| Passed on Retry | ${passedOnRetryCount} (likely flaky) |\n`
+  }
+
+  // Group counts by category (only for needs investigation)
+  if (investigationGroups.length > 0) {
+    summary += `\n| Breakdown | |\n|---------|---|\n`
+    const categoryGroups = new Map<string, number>()
+    for (const group of investigationGroups) {
+      const label = formatCategoryLabel(group.category)
+      categoryGroups.set(label, (categoryGroups.get(label) || 0) + group.tests.length)
+    }
+
+    for (const [label, count] of categoryGroups) {
+      summary += `| ${label} | ${count} |\n`
+    }
   }
 
   return summary
@@ -990,7 +1209,7 @@ async function run() {
   }
 
   // Process and categorize test results
-  const { groups, passedOnRetry } = processTestResults(
+  const { categorizedTests, groups, passedOnRetry } = processTestResults(
     jobResults.result as Array<JobResult & { jobUrl?: string }>,
     sha
   )
@@ -999,23 +1218,68 @@ async function run() {
   const runId = context.runId
   const runAttempt = parseInt(process.env.GITHUB_RUN_ATTEMPT || '1', 10)
 
+  // Query Datadog for flaky test history
+  const datadogApiKey = getInput('datadog_api_key')
+  const datadogAppKey = getInput('datadog_app_key')
+  const flakyData = await queryDatadogFlakyTests(failedTestLists, datadogApiKey, datadogAppKey)
+
+  // Split tests into "needs investigation" vs "known flaky"
+  const flakyTests: CategorizedTest[] = []
+  const needsInvestigation: CategorizedTest[] = []
+
+  for (const test of categorizedTests) {
+    const testFlakyData = flakyData.get(test.testPath) || flakyData.get(test.name)
+    if (testFlakyData && testFlakyData.isKnownFlaky) {
+      flakyTests.push(test)
+    } else {
+      needsInvestigation.push(test)
+    }
+  }
+
+  // Re-group the needs investigation tests
+  const investigationGroupMap = new Map<string, TestGroup>()
+  for (const test of needsInvestigation) {
+    const key = getCategoryKey(test.category)
+    if (!investigationGroupMap.has(key)) {
+      investigationGroupMap.set(key, {
+        key,
+        category: test.category,
+        tests: [],
+        jobUrl: test.jobUrl,
+      })
+    }
+    investigationGroupMap.get(key)!.tests.push(test)
+  }
+  const investigationGroups = Array.from(investigationGroupMap.values()).sort((a, b) => b.tests.length - a.tests.length)
+
   // Check for cross-PR failures
   console.log('Checking for cross-PR failures...')
   const otherPRFailures = await fetchOtherPRFailures(octokit, prNumber)
   const commonFailures = findCommonFailures(failedTestLists, otherPRFailures)
   console.log(`Found ${commonFailures.length} tests failing in other PRs`)
 
-  // Build comment
-  let commentBody = formatSummaryTable(sha, runId, runAttempt, totalFailures, passedOnRetry.length, groups)
+  // Build comment with updated summary
+  let commentBody = formatSummaryTableWithFlaky(
+    sha, runId, runAttempt,
+    totalFailures, needsInvestigation.length, flakyTests.length,
+    passedOnRetry.length, investigationGroups
+  )
 
   // Add cross-PR alert if applicable
   if (commonFailures.length > 0) {
     commentBody += formatCrossPRAlert(commonFailures, context.repo.owner, context.repo.repo)
   }
 
-  for (const group of groups) {
-    commentBody += formatTestGroup(group, sha)
+  // Show "needs investigation" tests first (these are the important ones)
+  if (investigationGroups.length > 0) {
+    commentBody += `\n### Needs Investigation\n`
+    for (const group of investigationGroups) {
+      commentBody += formatTestGroup(group, sha)
+    }
   }
+
+  // Show known flaky tests (collapsed, less important)
+  commentBody += formatFlakyTestsSection(flakyTests, flakyData, sha)
 
   // Add passed on retry section
   commentBody += formatPassedOnRetrySection(passedOnRetry, sha)
