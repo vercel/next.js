@@ -149,6 +149,158 @@ function formatCategoryLabel(category: TestCategory): string {
 }
 
 // =============================================================================
+// Cross-PR Failure Detection
+// =============================================================================
+
+interface CrossPRFailure {
+  testPath: string
+  prNumbers: number[]
+}
+
+async function fetchOtherPRFailures(
+  octokit: Octokit,
+  currentPRNumber: number
+): Promise<Map<string, number[]>> {
+  // Map of test path -> PR numbers where it's failing
+  const failureMap = new Map<string, number[]>()
+
+  try {
+    // Get recent open PRs (excluding current)
+    const { data: pulls } = await octokit.rest.pulls.list({
+      ...context.repo,
+      state: 'open',
+      sort: 'updated',
+      direction: 'desc',
+      per_page: 20,
+    })
+
+    const otherPRs = pulls.filter((pr) => pr.number !== currentPRNumber).slice(0, 10)
+
+    console.log(`Checking ${otherPRs.length} other PRs for common failures`)
+
+    for (const pr of otherPRs) {
+      try {
+        // Get comments for this PR
+        const comments = await octokit.paginate(octokit.rest.issues.listComments, {
+          ...context.repo,
+          issue_number: pr.number,
+          per_page: 100,
+        })
+
+        // Find bot test result comments
+        const testComments = comments.filter(
+          (comment) =>
+            comment?.user?.login === 'github-actions[bot]' &&
+            comment?.body?.includes(BOT_COMMENT_MARKER) &&
+            comment?.body?.includes('Failing test suites')
+        )
+
+        if (testComments.length === 0) continue
+
+        // Get the most recent test comment
+        const latestComment = testComments[testComments.length - 1]
+        const body = latestComment.body || ''
+
+        // Parse failing test paths from the comment
+        // Look for patterns like: #### `test/e2e/app-dir/...` or pnpm test <path>
+        const testPathMatches = body.matchAll(/#### `([^`]+)`/g)
+        for (const match of testPathMatches) {
+          const testPath = match[1]
+          if (!failureMap.has(testPath)) {
+            failureMap.set(testPath, [])
+          }
+          if (!failureMap.get(testPath)!.includes(pr.number)) {
+            failureMap.get(testPath)!.push(pr.number)
+          }
+        }
+
+        // Also look for pnpm test patterns
+        const pnpmMatches = body.matchAll(/pnpm test ([^\s\n`]+)/g)
+        for (const match of pnpmMatches) {
+          const testPath = match[1]
+          if (!failureMap.has(testPath)) {
+            failureMap.set(testPath, [])
+          }
+          if (!failureMap.get(testPath)!.includes(pr.number)) {
+            failureMap.get(testPath)!.push(pr.number)
+          }
+        }
+      } catch (err) {
+        console.log(`Failed to fetch comments for PR #${pr.number}:`, err)
+      }
+    }
+  } catch (err) {
+    console.log('Failed to fetch other PRs:', err)
+  }
+
+  return failureMap
+}
+
+function findCommonFailures(
+  currentFailures: string[],
+  otherPRFailures: Map<string, number[]>
+): CrossPRFailure[] {
+  const commonFailures: CrossPRFailure[] = []
+
+  for (const testPath of currentFailures) {
+    // Normalize the test path for comparison
+    const normalizedPath = testPath
+      .replace(/^.*?(test\/)/, 'test/')
+      .replace(/^.*?(packages\/)/, 'packages/')
+
+    // Check if this test is failing in other PRs
+    for (const [otherPath, prNumbers] of otherPRFailures) {
+      const normalizedOtherPath = otherPath
+        .replace(/^.*?(test\/)/, 'test/')
+        .replace(/^.*?(packages\/)/, 'packages/')
+
+      if (normalizedPath === normalizedOtherPath && prNumbers.length > 0) {
+        commonFailures.push({
+          testPath: normalizedPath,
+          prNumbers,
+        })
+        break
+      }
+    }
+  }
+
+  return commonFailures
+}
+
+function formatCrossPRAlert(
+  commonFailures: CrossPRFailure[],
+  repoOwner: string,
+  repoName: string
+): string {
+  if (commonFailures.length === 0) return ''
+
+  // Get unique PR numbers
+  const allPRNumbers = new Set<number>()
+  for (const failure of commonFailures) {
+    for (const prNum of failure.prNumbers) {
+      allPRNumbers.add(prNum)
+    }
+  }
+
+  const prLinks = Array.from(allPRNumbers)
+    .slice(0, 5)
+    .map((num) => `[#${num}](https://github.com/${repoOwner}/${repoName}/pull/${num})`)
+    .join(', ')
+
+  const moreCount = allPRNumbers.size > 5 ? ` and ${allPRNumbers.size - 5} more` : ''
+
+  let alert = `\n> ⚠️ **Cross-PR Alert:** ${commonFailures.length} of these failures also occur on ${prLinks}${moreCount}\n`
+
+  if (allPRNumbers.size >= 3) {
+    alert += `> This may indicate an infrastructure issue rather than a problem with your changes.\n`
+  }
+
+  alert += `\n`
+
+  return alert
+}
+
+// =============================================================================
 // Datadog Link Helpers
 // =============================================================================
 
@@ -753,8 +905,19 @@ async function run() {
   const runId = context.runId
   const runAttempt = parseInt(process.env.GITHUB_RUN_ATTEMPT || '1', 10)
 
+  // Check for cross-PR failures
+  console.log('Checking for cross-PR failures...')
+  const otherPRFailures = await fetchOtherPRFailures(octokit, prNumber)
+  const commonFailures = findCommonFailures(failedTestLists, otherPRFailures)
+  console.log(`Found ${commonFailures.length} tests failing in other PRs`)
+
   // Build comment
   let commentBody = formatSummaryTable(sha, runId, runAttempt, totalFailures, passedOnRetry.length, groups)
+
+  // Add cross-PR alert if applicable
+  if (commonFailures.length > 0) {
+    commentBody += formatCrossPRAlert(commonFailures, context.repo.owner, context.repo.repo)
+  }
 
   for (const group of groups) {
     commentBody += formatTestGroup(group, sha)
