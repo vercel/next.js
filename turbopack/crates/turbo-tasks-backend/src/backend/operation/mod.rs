@@ -27,7 +27,7 @@ use crate::{
     backing_storage::BackingStorage,
     data::{
         CachedDataItem, CachedDataItemKey, CachedDataItemType, CachedDataItemValue,
-        CachedDataItemValueRef, CachedDataItemValueRefMut, Dirtyness,
+        CachedDataItemValueRef, CachedDataItemValueRefMut, CellRef, Dirtyness,
     },
 };
 
@@ -446,6 +446,26 @@ pub trait TaskGuard: Debug {
     /// Returns true if the dependency was newly added, false if it already existed
     fn add_output_dependency(&mut self, target: TaskId) -> bool {
         self.add(CachedDataItem::OutputDependency { target, value: () })
+    }
+
+    // ============ Typed CellDependency APIs ============
+
+    /// Check if this task has a cell dependency on another task's cell
+    fn has_cell_dependency(&self, target: CellRef) -> bool {
+        self.has_key(&CachedDataItemKey::CellDependency { target })
+    }
+
+    /// Remove a cell dependency from this task
+    /// Returns true if the dependency was present and removed
+    fn remove_cell_dependency(&mut self, target: CellRef) -> bool {
+        self.remove(&CachedDataItemKey::CellDependency { target })
+            .is_some()
+    }
+
+    /// Add a cell dependency to this task
+    /// Returns true if the dependency was newly added, false if it already existed
+    fn add_cell_dependency(&mut self, target: CellRef) -> bool {
+        self.add(CachedDataItem::CellDependency { target, value: () })
     }
 
     fn invalidate_serialization(&mut self);

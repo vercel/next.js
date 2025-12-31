@@ -818,7 +818,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     .remove(&CachedDataItemKey::OutdatedCellDependency { target })
                     .is_none()
                 {
-                    let _ = reader_task.add(CachedDataItem::CellDependency { target, value: () });
+                    let _ = reader_task.add_cell_dependency(target);
                 }
             }
         }
@@ -1686,9 +1686,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         .collect::<SmallVec<[_; 8]>>();
                 let outdated_cell_dependencies_to_remove =
                     iter_many!(task, OutdatedCellDependency { target } => target)
-                        .filter(|&target| {
-                            !task.has_key(&CachedDataItemKey::CellDependency { target })
-                        })
+                        .filter(|&target| !task.has_cell_dependency(target))
                         .collect::<SmallVec<[_; 8]>>();
                 task.extend(
                     CachedDataItemType::OutdatedCellDependency,

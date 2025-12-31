@@ -211,9 +211,7 @@ impl Operation for UpdateCellOperation {
                             // But importantly we still need to make the task dirty as it should no
                             // longer be considered as "recomputation".
                             make_stale = false;
-                        } else if !dependent
-                            .has_key(&CachedDataItemKey::CellDependency { target: cell_ref })
-                        {
+                        } else if !dependent.has_cell_dependency(cell_ref) {
                             // cell dependency has been removed, so the task doesn't depend on the
                             // cell anymore and doesn't need to be
                             // invalidated
