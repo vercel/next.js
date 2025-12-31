@@ -19,6 +19,14 @@ inputs:
     default: 'false'
     description: 'Whether to include the full test failure message in the report. This is currently disabled as we have too many failed test cases, which would lead to massive comments.'
 
+  datadog_api_key:
+    description: 'Datadog API key for querying historical test data'
+    required: false
+
+  datadog_app_key:
+    description: 'Datadog Application key for querying historical test data'
+    required: false
+
 runs:
   using: node20
   main: dist/index.js
