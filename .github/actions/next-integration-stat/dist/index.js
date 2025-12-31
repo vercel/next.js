@@ -56239,13 +56239,13 @@ function getCategoryKey(category) {
 function formatCategoryLabel(category) {
     return `\`${category.type}\` · \`${category.bundler}\` · \`${category.platform}\``;
 }
-function queryDatadogFlakyTests(testNames, apiKey, appKey) {
-    var _a, _b, _c;
+function queryDatadogTestData(testNames, apiKey, appKey) {
+    var _a, _b, _c, _d, _e;
     return __awaiter(this, void 0, void 0, function* () {
-        const flakyData = new Map();
+        const testData = new Map();
         if (!apiKey || !appKey) {
-            console.log('Datadog keys not provided, skipping flaky test detection');
-            return flakyData;
+            console.log('Datadog keys not provided, skipping test data query');
+            return testData;
         }
         console.log(`Querying Datadog for ${testNames.length} tests...`);
         try {
@@ -56283,17 +56283,23 @@ function queryDatadogFlakyTests(testNames, apiKey, appKey) {
                         const events = data.data || [];
                         if (events.length === 0)
                             continue;
-                        // Count passes and failures
+                        // Count passes, failures, and collect durations
                         let passes = 0;
                         let failures = 0;
                         let isKnownFlaky = false;
+                        const durations = [];
                         for (const event of events) {
                             const status = (_b = (_a = event.attributes) === null || _a === void 0 ? void 0 : _a.test) === null || _b === void 0 ? void 0 : _b.status;
                             const tags = ((_c = event.attributes) === null || _c === void 0 ? void 0 : _c.tags) || [];
+                            const duration = (_e = (_d = event.attributes) === null || _d === void 0 ? void 0 : _d.test) === null || _e === void 0 ? void 0 : _e.duration;
                             if (status === 'pass')
                                 passes++;
                             if (status === 'fail')
                                 failures++;
+                            // Collect duration in milliseconds (Datadog returns nanoseconds)
+                            if (typeof duration === 'number' && duration > 0) {
+                                durations.push(duration / 1000000); // Convert ns to ms
+                            }
                             // Check for flaky tags
                             if (tags.includes('is_flaky:true') || tags.includes('is_known_flaky:true')) {
                                 isKnownFlaky = true;
@@ -56304,14 +56310,27 @@ function queryDatadogFlakyTests(testNames, apiKey, appKey) {
                             const flakeRate = totalRuns > 1 && passes > 0 && failures > 0
                                 ? Math.round((Math.min(passes, failures) / totalRuns) * 100)
                                 : 0;
-                            // Consider it flaky if it has both passes and failures, or is tagged as flaky
-                            if (isKnownFlaky || (passes > 0 && failures > 0 && flakeRate >= 10)) {
-                                flakyData.set(testName, {
+                            // Calculate duration baseline (p50)
+                            let baselineDurationMs;
+                            let baselineDurationP50Ms;
+                            if (durations.length >= 3) {
+                                durations.sort((a, b) => a - b);
+                                const p50Index = Math.floor(durations.length / 2);
+                                baselineDurationP50Ms = durations[p50Index];
+                                baselineDurationMs = durations.reduce((a, b) => a + b, 0) / durations.length;
+                            }
+                            // Store data for all tests that have history (for duration comparison)
+                            // or are flaky
+                            const isFlaky = isKnownFlaky || (passes > 0 && failures > 0 && flakeRate >= 10);
+                            if (isFlaky || durations.length >= 3) {
+                                testData.set(testName, {
                                     testName,
                                     isKnownFlaky: isKnownFlaky || flakeRate >= 30,
                                     flakeRate,
                                     recentFailures: failures,
                                     recentRuns: totalRuns,
+                                    baselineDurationMs,
+                                    baselineDurationP50Ms,
                                 });
                             }
                         }
@@ -56325,15 +56344,15 @@ function queryDatadogFlakyTests(testNames, apiKey, appKey) {
                     yield new Promise((resolve) => setTimeout(resolve, 100));
                 }
             }
-            console.log(`Found ${flakyData.size} known flaky tests`);
+            console.log(`Found ${testData.size} tests with historical data`);
         }
         catch (err) {
             console.log('Error querying Datadog:', err);
         }
-        return flakyData;
+        return testData;
     });
 }
-function formatFlakyTestsSection(flakyTests, flakyData, sha) {
+function formatFlakyTestsSection(flakyTests, testData, sha) {
     var _a;
     if (flakyTests.length === 0)
         return '';
@@ -56348,7 +56367,7 @@ function formatFlakyTestsSection(flakyTests, flakyData, sha) {
             .replace(/^.*?(packages\/)/, 'packages/');
         const testType = test.category.bundler === 'turbopack' ? 'turbopack' : 'nextjs';
         const ddLink = createDatadogLink(sha, test.name, testType);
-        const data = flakyData.get(test.testPath) || flakyData.get(test.name);
+        const data = testData.get(test.testPath) || testData.get(test.name);
         const flakeRate = (_a = data === null || data === void 0 ? void 0 : data.flakeRate) !== null && _a !== void 0 ? _a : '?';
         const recentStats = data ? `${data.recentFailures}/${data.recentRuns} failed` : '-';
         // Truncate long names
@@ -56356,6 +56375,60 @@ function formatFlakyTestsSection(flakyTests, flakyData, sha) {
         content += `| \`${displayName}\` | ${flakeRate}% | ${recentStats} | [DD](${ddLink}) [job](${test.jobUrl}) |\n`;
     }
     content += `\n</details>\n`;
+    return content;
+}
+function findSlowTestRegressions(tests, testData, thresholdPercent = 100 // Flag tests that are 2x slower (100% increase)
+) {
+    const slowTests = [];
+    for (const test of tests) {
+        if (!test.duration)
+            continue;
+        const data = testData.get(test.testPath) || testData.get(test.name);
+        if (!(data === null || data === void 0 ? void 0 : data.baselineDurationP50Ms))
+            continue;
+        const currentDurationMs = test.duration;
+        const baselineDurationMs = data.baselineDurationP50Ms;
+        const percentageIncrease = ((currentDurationMs - baselineDurationMs) / baselineDurationMs) * 100;
+        // Only flag significant slowdowns (above threshold and at least 5 seconds slower)
+        if (percentageIncrease >= thresholdPercent && (currentDurationMs - baselineDurationMs) >= 5000) {
+            slowTests.push({
+                test,
+                currentDurationMs,
+                baselineDurationMs,
+                percentageIncrease,
+            });
+        }
+    }
+    // Sort by percentage increase (worst first)
+    return slowTests.sort((a, b) => b.percentageIncrease - a.percentageIncrease);
+}
+function formatSlowTestsSection(slowTests, sha) {
+    if (slowTests.length === 0)
+        return '';
+    let content = `\n---\n\n### Slow Test Regressions\n\n`;
+    content += `> These tests are significantly slower than their historical baseline on \`canary\`.\n\n`;
+    content += `<details>\n`;
+    content += `<summary>${slowTests.length} test${slowTests.length > 1 ? 's' : ''} with duration regression</summary>\n\n`;
+    content += `| Test | Current | Baseline (p50) | Delta | Links |\n|------|---------|----------------|-------|-------|\n`;
+    for (const { test, currentDurationMs, baselineDurationMs, percentageIncrease } of slowTests) {
+        const shortPath = test.testPath
+            .replace(/^.*?(test\/)/, 'test/')
+            .replace(/^.*?(packages\/)/, 'packages/');
+        const testType = test.category.bundler === 'turbopack' ? 'turbopack' : 'nextjs';
+        const ddLink = createDatadogLink(sha, test.name, testType);
+        const formatDuration = (ms) => {
+            if (ms >= 60000)
+                return `${(ms / 60000).toFixed(1)}m`;
+            if (ms >= 1000)
+                return `${(ms / 1000).toFixed(1)}s`;
+            return `${Math.round(ms)}ms`;
+        };
+        const displayName = shortPath.length > 40 ? shortPath.substring(0, 37) + '...' : shortPath;
+        const delta = `+${Math.round(percentageIncrease)}%`;
+        content += `| \`${displayName}\` | ${formatDuration(currentDurationMs)} | ${formatDuration(baselineDurationMs)} | **${delta}** ⚠️ | [DD](${ddLink}) |\n`;
+    }
+    content += `\n> ℹ️ Baseline calculated from last 30 days of runs on \`canary\`\n\n`;
+    content += `</details>\n`;
     return content;
 }
 function fetchOtherPRFailures(octokit, currentPRNumber) {
@@ -56978,22 +57051,24 @@ function run() {
         const totalFailures = groups.reduce((sum, g) => sum + g.tests.length, 0);
         const runId = _actions_github__WEBPACK_IMPORTED_MODULE_0__.context.runId;
         const runAttempt = parseInt(process.env.GITHUB_RUN_ATTEMPT || '1', 10);
-        // Query Datadog for flaky test history
+        // Query Datadog for test history (flaky detection + duration baselines)
         const datadogApiKey = (0,_actions_core__WEBPACK_IMPORTED_MODULE_1__.getInput)('datadog_api_key');
         const datadogAppKey = (0,_actions_core__WEBPACK_IMPORTED_MODULE_1__.getInput)('datadog_app_key');
-        const flakyData = yield queryDatadogFlakyTests(failedTestLists, datadogApiKey, datadogAppKey);
+        const testData = yield queryDatadogTestData(failedTestLists, datadogApiKey, datadogAppKey);
         // Split tests into "needs investigation" vs "known flaky"
         const flakyTests = [];
         const needsInvestigation = [];
         for (const test of categorizedTests) {
-            const testFlakyData = flakyData.get(test.testPath) || flakyData.get(test.name);
-            if (testFlakyData && testFlakyData.isKnownFlaky) {
+            const data = testData.get(test.testPath) || testData.get(test.name);
+            if (data && data.isKnownFlaky) {
                 flakyTests.push(test);
             }
             else {
                 needsInvestigation.push(test);
             }
         }
+        // Find slow test regressions (tests that are 2x slower than baseline)
+        const slowTestRegressions = findSlowTestRegressions(categorizedTests, testData);
         // Re-group the needs investigation tests
         const investigationGroupMap = new Map();
         for (const test of needsInvestigation) {
@@ -57028,7 +57103,11 @@ function run() {
             }
         }
         // Show known flaky tests (collapsed, less important)
-        commentBody += formatFlakyTestsSection(flakyTests, flakyData, sha);
+        commentBody += formatFlakyTestsSection(flakyTests, testData, sha);
+        // Show slow test regressions
+        if (slowTestRegressions.length > 0) {
+            commentBody += formatSlowTestsSection(slowTestRegressions, sha);
+        }
         // Add passed on retry section
         commentBody += formatPassedOnRetrySection(passedOnRetry, sha);
         commentBody += formatReproductionCommands(failedTestLists);
