@@ -15,7 +15,8 @@ use std::{
 
 use bincode::{Decode, Encode};
 use turbo_tasks::{
-    CellId, FxIndexMap, KeyValuePair, TaskId, TurboTasksBackendApi, TypedSharedReference,
+    CellId, FxIndexMap, KeyValuePair, TaskId, TraitTypeId, TurboTasksBackendApi,
+    TypedSharedReference,
 };
 
 use crate::{
@@ -27,7 +28,7 @@ use crate::{
     backing_storage::BackingStorage,
     data::{
         CachedDataItem, CachedDataItemKey, CachedDataItemType, CachedDataItemValue,
-        CachedDataItemValueRef, CachedDataItemValueRefMut, CellRef, Dirtyness,
+        CachedDataItemValueRef, CachedDataItemValueRefMut, CellRef, CollectiblesRef, Dirtyness,
     },
 };
 
@@ -500,6 +501,47 @@ pub trait TaskGuard: Debug {
             task,
             value: (),
         })
+    }
+
+    // ============ Typed CollectiblesDependent APIs ============
+
+    /// Remove a collectibles dependent from this task
+    /// Returns true if the dependent was present and removed
+    fn remove_collectibles_dependent(
+        &mut self,
+        collectible_type: TraitTypeId,
+        task: TaskId,
+    ) -> bool {
+        self.remove(&CachedDataItemKey::CollectiblesDependent {
+            collectible_type,
+            task,
+        })
+        .is_some()
+    }
+
+    /// Add a collectibles dependent to this task
+    /// Returns true if the dependent was newly added, false if it already existed
+    fn add_collectibles_dependent(&mut self, collectible_type: TraitTypeId, task: TaskId) -> bool {
+        self.add(CachedDataItem::CollectiblesDependent {
+            collectible_type,
+            task,
+            value: (),
+        })
+    }
+
+    // ============ Typed CollectiblesDependency APIs ============
+
+    /// Remove a collectibles dependency from this task
+    /// Returns true if the dependency was present and removed
+    fn remove_collectibles_dependency(&mut self, target: CollectiblesRef) -> bool {
+        self.remove(&CachedDataItemKey::CollectiblesDependency { target })
+            .is_some()
+    }
+
+    /// Add a collectibles dependency to this task
+    /// Returns true if the dependency was newly added, false if it already existed
+    fn add_collectibles_dependency(&mut self, target: CollectiblesRef) -> bool {
+        self.add(CachedDataItem::CollectiblesDependency { target, value: () })
     }
 
     fn invalidate_serialization(&mut self);

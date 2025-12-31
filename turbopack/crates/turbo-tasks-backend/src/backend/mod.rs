@@ -2674,11 +2674,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     .or_insert(0) += count;
             }
             if let Some(reader_id) = reader_id {
-                let _ = task.add(CachedDataItem::CollectiblesDependent {
-                    collectible_type,
-                    task: reader_id,
-                    value: (),
-                });
+                let _ = task.add_collectibles_dependent(collectible_type, reader_id);
             }
         }
         if let Some(reader_id) = reader_id {
@@ -2691,7 +2687,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 .remove(&CachedDataItemKey::OutdatedCollectiblesDependency { target })
                 .is_none()
             {
-                let _ = reader.add(CachedDataItem::CollectiblesDependency { target, value: () });
+                let _ = reader.add_collectibles_dependency(target);
             }
         }
         collectibles

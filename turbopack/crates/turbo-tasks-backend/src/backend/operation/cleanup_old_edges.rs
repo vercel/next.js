@@ -20,7 +20,7 @@ use crate::{
         },
         storage::update_count,
     },
-    data::{CachedDataItemKey, CellRef, CollectibleRef, CollectiblesRef},
+    data::{CellRef, CollectibleRef, CollectiblesRef},
 };
 
 #[derive(Encode, Decode, Clone, Default)]
@@ -200,18 +200,13 @@ impl Operation for CleanupOldEdgesOperation {
                                 {
                                     let mut task =
                                         ctx.task(dependent_task_id, TaskDataCategory::Data);
-                                    task.remove(&CachedDataItemKey::CollectiblesDependent {
-                                        collectible_type,
-                                        task: task_id,
-                                    });
+                                    task.remove_collectibles_dependent(collectible_type, task_id);
                                 }
                                 {
                                     let mut task = ctx.task(task_id, TaskDataCategory::Data);
-                                    task.remove(&CachedDataItemKey::CollectiblesDependency {
-                                        target: CollectiblesRef {
-                                            collectible_type,
-                                            task: dependent_task_id,
-                                        },
+                                    task.remove_collectibles_dependency(CollectiblesRef {
+                                        collectible_type,
+                                        task: dependent_task_id,
                                     });
                                 }
                             }
