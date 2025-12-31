@@ -468,6 +468,21 @@ pub trait TaskGuard: Debug {
         self.add(CachedDataItem::CellDependency { target, value: () })
     }
 
+    // ============ Typed OutputDependent APIs ============
+
+    /// Remove an output dependent from this task
+    /// Returns true if the dependent was present and removed
+    fn remove_output_dependent(&mut self, task: TaskId) -> bool {
+        self.remove(&CachedDataItemKey::OutputDependent { task })
+            .is_some()
+    }
+
+    /// Add an output dependent to this task
+    /// Returns true if the dependent was newly added, false if it already existed
+    fn add_output_dependent(&mut self, task: TaskId) -> bool {
+        self.add(CachedDataItem::OutputDependent { task, value: () })
+    }
+
     fn invalidate_serialization(&mut self);
     fn prefetch(&mut self) -> Option<FxIndexMap<TaskId, bool>>;
     fn is_immutable(&self) -> bool;

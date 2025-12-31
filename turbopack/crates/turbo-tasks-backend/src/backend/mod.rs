@@ -730,10 +730,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     dependent_task = ?reader
                 )
                 .entered();
-                let _ = task.add(CachedDataItem::OutputDependent {
-                    task: reader.unwrap(),
-                    value: (),
-                });
+                let _ = task.add_output_dependent(reader.unwrap());
                 drop(task);
 
                 // Note: We use `task_pair` earlier to lock the task and its reader at the same
