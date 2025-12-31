@@ -197,9 +197,7 @@ impl Operation for CleanupOldEdgesOperation {
                                 }
                                 {
                                     let mut task = ctx.task(task_id, TaskDataCategory::Data);
-                                    task.remove(&CachedDataItemKey::OutputDependency {
-                                        target: output_task_id,
-                                    });
+                                    task.remove_output_dependency(output_task_id);
                                 }
                             }
                             OutdatedEdge::CollectiblesDependency(CollectiblesRef {

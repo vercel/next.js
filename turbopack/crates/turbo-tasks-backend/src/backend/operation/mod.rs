@@ -427,6 +427,27 @@ pub trait TaskGuard: Debug {
             children.map(|task| CachedDataItem::Child { task, value: () }),
         )
     }
+
+    // ============ Typed OutputDependency APIs ============
+
+    /// Check if this task has an output dependency on another task
+    fn has_output_dependency(&self, target: TaskId) -> bool {
+        self.has_key(&CachedDataItemKey::OutputDependency { target })
+    }
+
+    /// Remove an output dependency from this task
+    /// Returns true if the dependency was present and removed
+    fn remove_output_dependency(&mut self, target: TaskId) -> bool {
+        self.remove(&CachedDataItemKey::OutputDependency { target })
+            .is_some()
+    }
+
+    /// Add an output dependency to this task
+    /// Returns true if the dependency was newly added, false if it already existed
+    fn add_output_dependency(&mut self, target: TaskId) -> bool {
+        self.add(CachedDataItem::OutputDependency { target, value: () })
+    }
+
     fn invalidate_serialization(&mut self);
     fn prefetch(&mut self) -> Option<FxIndexMap<TaskId, bool>>;
     fn is_immutable(&self) -> bool;

@@ -745,10 +745,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     .remove(&CachedDataItemKey::OutdatedOutputDependency { target: task_id })
                     .is_none()
                 {
-                    let _ = reader_task.add(CachedDataItem::OutputDependency {
-                        target: task_id,
-                        value: (),
-                    });
+                    let _ = reader_task.add_output_dependency(task_id);
                 }
             }
 
@@ -1708,9 +1705,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         .collect::<SmallVec<[_; 8]>>();
                 let outdated_output_dependencies_to_remove =
                     iter_many!(task, OutdatedOutputDependency { target } => target)
-                        .filter(|&target| {
-                            !task.has_key(&CachedDataItemKey::OutputDependency { target })
-                        })
+                        .filter(|&target| !task.has_output_dependency(target))
                         .collect::<SmallVec<[_; 8]>>();
                 task.extend(
                     CachedDataItemType::OutdatedOutputDependency,
@@ -2197,7 +2192,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 // But importantly we still need to make the task dirty as it should no longer
                 // be considered as "recomputation".
                 make_stale = false;
-            } else if !dependent.has_key(&CachedDataItemKey::OutputDependency { target: task_id }) {
+            } else if !dependent.has_output_dependency(task_id) {
                 // output dependency has been removed, so the task doesn't depend on the
                 // output anymore and doesn't need to be invalidated
                 #[cfg(feature = "trace_task_output_dependencies")]
