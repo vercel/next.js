@@ -341,11 +341,8 @@ where
         let old = entry.or_insert(V::default());
         let old_value = *old;
 
-        if delta >= V::default() {
-            *old += delta;
-        } else {
-            *old -= delta;
-        }
+        *old += delta;
+
         let new_value = *old;
 
         // Remove if reached zero
