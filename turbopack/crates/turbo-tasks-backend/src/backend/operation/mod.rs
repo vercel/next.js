@@ -29,6 +29,7 @@ use crate::{
     data::{
         CachedDataItem, CachedDataItemKey, CachedDataItemType, CachedDataItemValue,
         CachedDataItemValueRef, CachedDataItemValueRefMut, CellRef, CollectiblesRef, Dirtyness,
+        OutputValue,
     },
 };
 
@@ -562,6 +563,68 @@ pub trait TaskGuard: Debug {
     /// Returns true if the marker was newly added, false if it already existed
     fn mark_immutable(&mut self) -> bool {
         self.add(CachedDataItem::Immutable { value: () })
+    }
+
+    // State field accessors
+
+    /// Get reference to the output value (if present)
+    fn get_output_ref(&self) -> Option<&OutputValue> {
+        get!(self, Output)
+    }
+
+    /// Check if this task has an output
+    fn has_output(&self) -> bool {
+        self.has_key(&CachedDataItemKey::Output {})
+    }
+
+    /// Set the output value, returning the old value if present
+    fn set_output(&mut self, value: OutputValue) -> Option<OutputValue> {
+        self.insert(CachedDataItem::Output { value })
+            .and_then(|old| match old {
+                CachedDataItemValue::Output { value } => Some(value),
+                _ => None,
+            })
+    }
+
+    /// Get the current dirty state
+    fn get_dirty(&self) -> Option<&Dirtyness> {
+        get!(self, Dirty)
+    }
+
+    /// Set the dirty state, returning the old state if present
+    fn set_dirty(&mut self, value: Dirtyness) -> Option<Dirtyness> {
+        self.insert(CachedDataItem::Dirty { value })
+            .and_then(|old| match old {
+                CachedDataItemValue::Dirty { value } => Some(value),
+                _ => None,
+            })
+    }
+
+    /// Clear the dirty state, returning the old state if present
+    fn clear_dirty(&mut self) -> Option<Dirtyness> {
+        self.remove(&CachedDataItemKey::Dirty {})
+            .and_then(|old| match old {
+                CachedDataItemValue::Dirty { value } => Some(value),
+                _ => None,
+            })
+    }
+
+    /// Check if this task is marked as clean in the current session
+    fn is_current_session_clean(&self) -> bool {
+        get!(self, CurrentSessionClean).is_some()
+    }
+
+    /// Mark this task as clean in the current session
+    /// Returns true if it was newly marked, false if already marked
+    fn mark_current_session_clean(&mut self) -> bool {
+        self.add(CachedDataItem::CurrentSessionClean { value: () })
+    }
+
+    /// Clear the current session clean marker
+    /// Returns true if it was cleared, false if it wasn't marked
+    fn clear_current_session_clean(&mut self) -> bool {
+        self.remove(&CachedDataItemKey::CurrentSessionClean {})
+            .is_some()
     }
 
     fn invalidate_serialization(&mut self);

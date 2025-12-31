@@ -64,8 +64,7 @@ impl UpdateCellOperation {
         // We need to detect recomputation, because here the content has not actually changed (even
         // if it's not equal to the old content, as not all values implement Eq). We have to
         // assume that tasks are deterministic and pure.
-        let assume_unchanged =
-            !ctx.should_track_dependencies() || !task.has_key(&CachedDataItemKey::Dirty {});
+        let assume_unchanged = !ctx.should_track_dependencies() || task.get_dirty().is_none();
 
         if assume_unchanged {
             let has_old_content = task.has_cell_data(is_serializable_cell_content, cell);

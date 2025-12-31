@@ -9,7 +9,7 @@ use crate::{
             aggregation_update::{AggregationUpdateJob, AggregationUpdateQueue},
         },
     },
-    data::{CachedDataItem, CachedDataItemKey, InProgressState, InProgressStateInner},
+    data::{CachedDataItem, InProgressState, InProgressStateInner},
 };
 
 #[derive(Encode, Decode, Clone, Default)]
@@ -66,7 +66,7 @@ impl ConnectChildOperation {
         } else {
             let mut child_task = ctx.task(child_task_id, TaskDataCategory::All);
 
-            if !child_task.has_key(&CachedDataItemKey::Output {})
+            if !child_task.has_output()
                 && child_task.add(CachedDataItem::new_scheduled(
                     TaskExecutionReason::Connect,
                     || ctx.get_task_desc_fn(child_task_id),

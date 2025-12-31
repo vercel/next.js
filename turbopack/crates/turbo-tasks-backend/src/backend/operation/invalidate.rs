@@ -11,12 +11,9 @@ use crate::{
                 AggregationUpdateJob, AggregationUpdateQueue, ComputeDirtyAndCleanUpdate,
             },
         },
-        storage::{get, get_mut, remove},
+        storage::{get, get_mut},
     },
-    data::{
-        CachedDataItem, CachedDataItemKey, CachedDataItemValue, Dirtyness, InProgressState,
-        InProgressStateInner,
-    },
+    data::{CachedDataItem, CachedDataItemKey, Dirtyness, InProgressState, InProgressStateInner},
 };
 
 #[derive(Encode, Decode, Clone, Default)]
@@ -231,13 +228,9 @@ pub fn make_task_dirty_internal(
         .entered();
         *stale = true;
     }
-    let old = task.insert(CachedDataItem::Dirty {
-        value: Dirtyness::Dirty,
-    });
+    let old = task.set_dirty(Dirtyness::Dirty);
     let (old_self_dirty, old_current_session_self_clean) = match old {
-        Some(CachedDataItemValue::Dirty {
-            value: Dirtyness::Dirty,
-        }) => {
+        Some(Dirtyness::Dirty) => {
             #[cfg(feature = "trace_task_dirty")]
             let _span = tracing::trace_span!(
                 "task already dirty",
@@ -249,11 +242,9 @@ pub fn make_task_dirty_internal(
             // already dirty
             return;
         }
-        Some(CachedDataItemValue::Dirty {
-            value: Dirtyness::SessionDependent,
-        }) => {
+        Some(Dirtyness::SessionDependent) => {
             // It was a session-dependent dirty before, so we need to remove that clean count
-            let was_current_session_clean = remove!(task, CurrentSessionClean).is_some();
+            let was_current_session_clean = task.clear_current_session_clean();
             if was_current_session_clean {
                 // There was a clean count for a session. If it was the current session, we need to
                 // propagate that change.
@@ -274,7 +265,6 @@ pub fn make_task_dirty_internal(
             // It was clean before, so we need to increase the dirty count
             (false, false)
         }
-        _ => unreachable!(),
     };
 
     let new_self_dirty = true;

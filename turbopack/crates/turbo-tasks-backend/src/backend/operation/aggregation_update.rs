@@ -1466,7 +1466,7 @@ impl AggregationUpdateQueue {
         let dirty = task.is_dirty();
         let should_schedule = if dirty {
             Some(TaskExecutionReason::ActivateDirty)
-        } else if !task.has_key(&CachedDataItemKey::Output {}) {
+        } else if !task.has_output() {
             Some(TaskExecutionReason::ActivateInitial)
         } else {
             None

@@ -61,8 +61,9 @@ use crate::{
     backing_storage::BackingStorage,
     data::{
         ActivenessState, AggregationNumber, CachedDataItem, CachedDataItemKey, CachedDataItemType,
-        CachedDataItemValueRef, CellRef, CollectibleRef, CollectiblesRef, Dirtyness,
-        InProgressCellState, InProgressState, InProgressStateInner, OutputValue, RootType,
+        CachedDataItemValue, CachedDataItemValueRef, CellRef, CollectibleRef, CollectiblesRef,
+        Dirtyness, InProgressCellState, InProgressState, InProgressStateInner, OutputValue,
+        RootType,
     },
     utils::{
         bi_map::BiMap, chunked_vec::ChunkedVec, dash_map_drop_contents::drop_contents,
@@ -711,7 +712,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             return value;
         }
 
-        if let Some(output) = get!(task, Output) {
+        if let Some(output) = task.get_output_ref() {
             let result = match output {
                 OutputValue::Cell(cell) => Ok(Ok(RawVc::TaskCell(cell.task, cell.cell))),
                 OutputValue::Output(task) => Ok(Ok(RawVc::TaskOutput(*task))),
@@ -2067,7 +2068,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
 
         // Check if output need to be updated
-        let current_output = get!(task, Output);
+        let current_output = task.get_output_ref();
         #[cfg(feature = "verify_determinism")]
         let no_output_set = current_output.is_none();
         let new_output = match result {
@@ -2216,7 +2217,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let mut queue = AggregationUpdateQueue::new();
         for &child_id in new_children {
             let child_task = ctx.task(child_id, TaskDataCategory::Meta);
-            if !child_task.has_key(&CachedDataItemKey::Output {}) {
+            if !child_task.has_output() {
                 make_task_dirty_internal(
                     child_task,
                     child_id,
@@ -2342,7 +2343,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // Set the output if it has changed
         let mut old_content = None;
         if let Some(value) = new_output {
-            old_content = task.insert(CachedDataItem::Output { value });
+            old_content = task
+                .set_output(value)
+                .map(|value| CachedDataItemValue::Output { value });
         }
 
         // If the task is not stateful and has no mutable children, it does not have a way to be
@@ -2367,12 +2370,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         ));
 
         // Grab the old dirty state
-        let old_dirtyness = get!(task, Dirty).cloned();
+        let old_dirtyness = task.get_dirty().cloned();
         let (old_self_dirty, old_current_session_self_clean) = match old_dirtyness {
             None => (false, false),
             Some(Dirtyness::Dirty) => (true, false),
             Some(Dirtyness::SessionDependent) => {
-                let clean_in_current_session = get!(task, CurrentSessionClean).is_some();
+                let clean_in_current_session = task.is_current_session_clean();
                 (true, clean_in_current_session)
             }
         };
@@ -2387,16 +2390,16 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // Update the dirty state
         if old_dirtyness != new_dirtyness {
             if let Some(value) = new_dirtyness {
-                task.insert(CachedDataItem::Dirty { value });
+                task.set_dirty(value);
             } else if old_dirtyness.is_some() {
-                task.remove(&CachedDataItemKey::Dirty {});
+                task.clear_dirty();
             }
         }
         if old_current_session_self_clean != new_current_session_self_clean {
             if new_current_session_self_clean {
-                task.insert(CachedDataItem::CurrentSessionClean { value: () });
+                task.mark_current_session_clean();
             } else if old_current_session_self_clean {
-                task.remove(&CachedDataItemKey::CurrentSessionClean {});
+                task.clear_current_session_clean();
             }
         }
 
@@ -2992,7 +2995,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     }
                 }
 
-                let is_dirty = get!(task, Dirty).is_some();
+                let is_dirty = task.get_dirty().is_some();
                 let has_dirty_container = task.has_dirty_containers();
                 let should_be_in_upper = is_dirty || has_dirty_container;
 
