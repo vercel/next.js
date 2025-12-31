@@ -1932,12 +1932,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         // handle stateful
         if stateful {
-            let _ = task.add(CachedDataItem::Stateful { value: () });
+            let _ = task.mark_stateful();
         }
 
         // handle has_invalidator
         if has_invalidator {
-            let _ = task.add(CachedDataItem::HasInvalidator { value: () });
+            let _ = task.mark_has_invalidator();
         }
 
         // handle cell counters: update max index and remove cells that are no longer used
@@ -2348,7 +2348,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // If the task is not stateful and has no mutable children, it does not have a way to be
         // invalidated and we can mark it as immutable.
         if is_now_immutable {
-            let _ = task.add(CachedDataItem::Immutable { value: () });
+            let _ = task.mark_immutable();
         }
 
         // Notify in progress cells

@@ -544,6 +544,26 @@ pub trait TaskGuard: Debug {
         self.add(CachedDataItem::CollectiblesDependency { target, value: () })
     }
 
+    // ============ Typed Marker APIs ============
+
+    /// Mark this task as stateful
+    /// Returns true if the marker was newly added, false if it already existed
+    fn mark_stateful(&mut self) -> bool {
+        self.add(CachedDataItem::Stateful { value: () })
+    }
+
+    /// Mark this task as having an invalidator
+    /// Returns true if the marker was newly added, false if it already existed
+    fn mark_has_invalidator(&mut self) -> bool {
+        self.add(CachedDataItem::HasInvalidator { value: () })
+    }
+
+    /// Mark this task as immutable
+    /// Returns true if the marker was newly added, false if it already existed
+    fn mark_immutable(&mut self) -> bool {
+        self.add(CachedDataItem::Immutable { value: () })
+    }
+
     fn invalidate_serialization(&mut self);
     fn prefetch(&mut self) -> Option<FxIndexMap<TaskId, bool>>;
     fn is_immutable(&self) -> bool;
