@@ -23,13 +23,15 @@ use crate::{
     backend::{
         OperationGuard, TaskDataCategory, TransientTask, TurboTasksBackend, TurboTasksBackendInner,
         TurboTasksBackendJob,
-        storage::{SpecificTaskDataCategory, StorageWriteGuard, get, iter_many, remove},
+        storage::{
+            SpecificTaskDataCategory, StorageWriteGuard, get, iter_many, remove, update_count,
+        },
     },
     backing_storage::BackingStorage,
     data::{
-        CachedDataItem, CachedDataItemKey, CachedDataItemType, CachedDataItemValue,
-        CachedDataItemValueRef, CachedDataItemValueRefMut, CellRef, CollectiblesRef, Dirtyness,
-        OutputValue,
+        ActivenessState, AggregationNumber, CachedDataItem, CachedDataItemKey, CachedDataItemType,
+        CachedDataItemValue, CachedDataItemValueRef, CachedDataItemValueRefMut, CellRef,
+        CollectiblesRef, Dirtyness, OutputValue,
     },
 };
 
@@ -625,6 +627,60 @@ pub trait TaskGuard: Debug {
     fn clear_current_session_clean(&mut self) -> bool {
         self.remove(&CachedDataItemKey::CurrentSessionClean {})
             .is_some()
+    }
+
+    // Counter field accessors
+
+    /// Get the aggregation number
+    fn get_aggregation_number_ref(&self) -> Option<&AggregationNumber> {
+        get!(self, AggregationNumber)
+    }
+
+    /// Set the aggregation number, returning the old value if present
+    fn set_aggregation_number(&mut self, value: AggregationNumber) -> Option<AggregationNumber> {
+        self.insert(CachedDataItem::AggregationNumber { value })
+            .and_then(|old| match old {
+                CachedDataItemValue::AggregationNumber { value } => Some(value),
+                _ => None,
+            })
+    }
+
+    /// Update an Upper counter for a task
+    /// Returns true if the count reached zero and was removed
+    fn update_upper_count(&mut self, task: TaskId, delta: u32) -> bool {
+        update_count!(self, Upper { task }, delta)
+    }
+
+    /// Add a new Upper entry (used when adding new uppers)
+    /// Panics if the key is already present
+    fn add_upper(&mut self, task: TaskId, count: u32) {
+        self.add_new(CachedDataItem::Upper { task, value: count })
+    }
+
+    /// Update a Follower counter for a task
+    /// Returns true if the count reached zero and was removed
+    fn update_follower_count(&mut self, task: TaskId, delta: u32) -> bool {
+        update_count!(self, Follower { task }, delta)
+    }
+
+    /// Add a new Follower entry (used when adding new followers)
+    /// Panics if the key is already present
+    fn add_follower(&mut self, task: TaskId, count: u32) {
+        self.add_new(CachedDataItem::Follower { task, value: count })
+    }
+
+    /// Get the activeness state
+    fn get_activeness(&self) -> Option<&ActivenessState> {
+        get!(self, Activeness)
+    }
+
+    /// Set the activeness state, returning the old state if present
+    fn set_activeness(&mut self, value: ActivenessState) -> Option<ActivenessState> {
+        self.insert(CachedDataItem::Activeness { value })
+            .and_then(|old| match old {
+                CachedDataItemValue::Activeness { value } => Some(value),
+                _ => None,
+            })
     }
 
     fn invalidate_serialization(&mut self);
