@@ -7,6 +7,10 @@ inputs:
     default: ${{ github.token }}
     description: 'GitHub token used to create the test report comment. If not specified, the default GitHub actions token will be used'
 
+  mode:
+    default: 'report'
+    description: 'Action mode: "report" (default) to post test results, "mark-stale" to mark existing comments as outdated'
+
   diff_base:
     default: 'main'
     description: "The base of the test results to compare against. If not specified, will try to compare with latest main branch's test results."
