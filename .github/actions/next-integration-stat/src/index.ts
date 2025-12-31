@@ -13,6 +13,64 @@ type Job = Awaited<
 
 // A comment marker to identify the comment created by this action.
 const BOT_COMMENT_MARKER = `<!-- __marker__ next.js integration stats __marker__ -->`
+const STALE_MARKER = `<!-- __stale__ -->`
+
+// =============================================================================
+// Mark Stale Mode
+// =============================================================================
+
+async function runMarkStale() {
+  const token = getInput('token')
+  const octokit = getOctokit(token)
+
+  const prNumber = context?.payload?.pull_request?.number
+  const sha = context?.sha
+  const shortSha = sha?.substring(0, 7)
+
+  if (!prNumber) {
+    console.log('No PR number found, skipping staleness marker')
+    return
+  }
+
+  console.log(`Marking test results as stale for PR #${prNumber}`)
+
+  // Find existing bot comments
+  const comments = await octokit.paginate(octokit.rest.issues.listComments, {
+    ...context.repo,
+    issue_number: prNumber,
+    per_page: 200,
+  })
+
+  const existingComments = comments?.filter(
+    (comment) =>
+      comment?.user?.login === 'github-actions[bot]' &&
+      comment?.body?.includes(BOT_COMMENT_MARKER) &&
+      !comment?.body?.includes(STALE_MARKER) // Don't re-mark already stale comments
+  )
+
+  if (!existingComments?.length) {
+    console.log('No existing test comments found to mark as stale')
+    return
+  }
+
+  const runId = context.runId
+  const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`
+
+  for (const comment of existingComments) {
+    // Prepend staleness banner to the comment
+    const staleBanner = `> ⏳ **Results may be outdated** — Tests are running for commit [\`${shortSha}\`](${runUrl})\n>\n> The results below are from a previous run.\n\n${STALE_MARKER}\n\n`
+
+    const updatedBody = staleBanner + comment.body
+
+    await octokit.rest.issues.updateComment({
+      ...context.repo,
+      comment_id: comment.id,
+      body: updatedBody,
+    })
+
+    console.log(`Marked comment ${comment.id} as stale`)
+  }
+}
 
 // =============================================================================
 // Test Categorization Helpers
@@ -617,4 +675,21 @@ async function run() {
   }
 }
 
-run()
+// =============================================================================
+// Entry Point
+// =============================================================================
+
+async function main() {
+  const mode = getInput('mode') || 'report'
+
+  if (mode === 'mark-stale') {
+    await runMarkStale()
+  } else {
+    await run()
+  }
+}
+
+main().catch((error) => {
+  console.error('Action failed:', error)
+  process.exit(1)
+})

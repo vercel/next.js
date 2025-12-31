@@ -38,6 +38,23 @@ on:
         default: 2
 
 jobs:
+  # Mark existing test comments as stale immediately when tests start
+  mark-test-results-stale:
+    name: Mark test results as stale
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Mark existing comments as stale
+        uses: ./.github/actions/next-integration-stat
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          mode: mark-stale
+
   # First, build Next.js to execute across tests.
   build-next:
     name: build-next

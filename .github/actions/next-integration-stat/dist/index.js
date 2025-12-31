@@ -56160,6 +56160,47 @@ const { default: stripAnsi } = __nccwpck_require__(4140);
 const fs = __nccwpck_require__(7147);
 // A comment marker to identify the comment created by this action.
 const BOT_COMMENT_MARKER = `<!-- __marker__ next.js integration stats __marker__ -->`;
+const STALE_MARKER = `<!-- __stale__ -->`;
+// =============================================================================
+// Mark Stale Mode
+// =============================================================================
+function runMarkStale() {
+    var _a, _b;
+    return __awaiter(this, void 0, void 0, function* () {
+        const token = (0,_actions_core__WEBPACK_IMPORTED_MODULE_1__.getInput)('token');
+        const octokit = (0,_actions_github__WEBPACK_IMPORTED_MODULE_0__.getOctokit)(token);
+        const prNumber = (_b = (_a = _actions_github__WEBPACK_IMPORTED_MODULE_0__.context === null || _actions_github__WEBPACK_IMPORTED_MODULE_0__.context === void 0 ? void 0 : _actions_github__WEBPACK_IMPORTED_MODULE_0__.context.payload) === null || _a === void 0 ? void 0 : _a.pull_request) === null || _b === void 0 ? void 0 : _b.number;
+        const sha = _actions_github__WEBPACK_IMPORTED_MODULE_0__.context === null || _actions_github__WEBPACK_IMPORTED_MODULE_0__.context === void 0 ? void 0 : _actions_github__WEBPACK_IMPORTED_MODULE_0__.context.sha;
+        const shortSha = sha === null || sha === void 0 ? void 0 : sha.substring(0, 7);
+        if (!prNumber) {
+            console.log('No PR number found, skipping staleness marker');
+            return;
+        }
+        console.log(`Marking test results as stale for PR #${prNumber}`);
+        // Find existing bot comments
+        const comments = yield octokit.paginate(octokit.rest.issues.listComments, Object.assign(Object.assign({}, _actions_github__WEBPACK_IMPORTED_MODULE_0__.context.repo), { issue_number: prNumber, per_page: 200 }));
+        const existingComments = comments === null || comments === void 0 ? void 0 : comments.filter((comment) => {
+            var _a, _b, _c;
+            return ((_a = comment === null || comment === void 0 ? void 0 : comment.user) === null || _a === void 0 ? void 0 : _a.login) === 'github-actions[bot]' &&
+                ((_b = comment === null || comment === void 0 ? void 0 : comment.body) === null || _b === void 0 ? void 0 : _b.includes(BOT_COMMENT_MARKER)) &&
+                !((_c = comment === null || comment === void 0 ? void 0 : comment.body) === null || _c === void 0 ? void 0 : _c.includes(STALE_MARKER));
+        } // Don't re-mark already stale comments
+        );
+        if (!(existingComments === null || existingComments === void 0 ? void 0 : existingComments.length)) {
+            console.log('No existing test comments found to mark as stale');
+            return;
+        }
+        const runId = _actions_github__WEBPACK_IMPORTED_MODULE_0__.context.runId;
+        const runUrl = `https://github.com/${_actions_github__WEBPACK_IMPORTED_MODULE_0__.context.repo.owner}/${_actions_github__WEBPACK_IMPORTED_MODULE_0__.context.repo.repo}/actions/runs/${runId}`;
+        for (const comment of existingComments) {
+            // Prepend staleness banner to the comment
+            const staleBanner = `> ⏳ **Results may be outdated** — Tests are running for commit [\`${shortSha}\`](${runUrl})\n>\n> The results below are from a previous run.\n\n${STALE_MARKER}\n\n`;
+            const updatedBody = staleBanner + comment.body;
+            yield octokit.rest.issues.updateComment(Object.assign(Object.assign({}, _actions_github__WEBPACK_IMPORTED_MODULE_0__.context.repo), { comment_id: comment.id, body: updatedBody }));
+            console.log(`Marked comment ${comment.id} as stale`);
+        }
+    });
+}
 function categorizeTest(testPath, jobName) {
     // Test type from path
     let type = 'other';
@@ -56556,7 +56597,24 @@ function run() {
         }
     });
 }
-run();
+// =============================================================================
+// Entry Point
+// =============================================================================
+function main() {
+    return __awaiter(this, void 0, void 0, function* () {
+        const mode = (0,_actions_core__WEBPACK_IMPORTED_MODULE_1__.getInput)('mode') || 'report';
+        if (mode === 'mark-stale') {
+            yield runMarkStale();
+        }
+        else {
+            yield run();
+        }
+    });
+}
+main().catch((error) => {
+    console.error('Action failed:', error);
+    process.exit(1);
+});
 
 })();
 
