@@ -56258,7 +56258,7 @@ function createTestSourceLink(testPath, sha) {
 // =============================================================================
 // Comment Formatting
 // =============================================================================
-function formatSummaryTable(sha, runId, runAttempt, totalFailures, categorizedGroups) {
+function formatSummaryTable(sha, runId, runAttempt, totalFailures, passedOnRetryCount, categorizedGroups) {
     const commitUrl = `https://github.com/vercel/next.js/commit/${sha}`;
     const runUrl = `https://github.com/vercel/next.js/actions/runs/${runId}/attempts/${runAttempt}`;
     const rerunUrl = `https://github.com/vercel/next.js/actions/runs/${runId}`;
@@ -56272,7 +56272,10 @@ function formatSummaryTable(sha, runId, runAttempt, totalFailures, categorizedGr
     summary += `---\n\n`;
     // Summary counts
     summary += `| Summary | |\n|---------|---|\n`;
-    summary += `| Total Failures | ${totalFailures} |\n`;
+    summary += `| Failed Tests | ${totalFailures} |\n`;
+    if (passedOnRetryCount > 0) {
+        summary += `| Passed on Retry | ${passedOnRetryCount} (likely flaky) |\n`;
+    }
     // Group counts by category
     const categoryGroups = new Map();
     for (const group of categorizedGroups) {
@@ -56325,6 +56328,29 @@ function formatTestGroup(group, sha) {
         }
     }
     content += `</details>\n`;
+    return content;
+}
+function formatPassedOnRetrySection(tests, sha) {
+    if (tests.length === 0)
+        return '';
+    let content = `\n---\n\n`;
+    content += `### Passed on Retry (likely flaky)\n\n`;
+    content += `> These tests failed initially but passed on retry. They may be flaky.\n\n`;
+    content += `<details>\n`;
+    content += `<summary>${tests.length} test${tests.length > 1 ? 's' : ''} passed on retry</summary>\n\n`;
+    content += `| Test | Attempts | Links |\n|------|----------|-------|\n`;
+    for (const test of tests) {
+        const shortPath = test.testPath.replace(/^.*?(test\/)/, 'test/').replace(/^.*?(packages\/)/, 'packages/');
+        const testType = test.category.bundler === 'turbopack' ? 'turbopack' : 'nextjs';
+        const ddLink = createDatadogLink(sha, test.name, testType);
+        const retryInfo = test.retryInfo
+            ? `${retryInfo === null || retryInfo === void 0 ? void 0 : retryInfo.failedAttempts}/${retryInfo === null || retryInfo === void 0 ? void 0 : retryInfo.attempts} ❌→✅`
+            : '❌→✅';
+        // Truncate long names
+        const displayName = shortPath.length > 60 ? shortPath.substring(0, 57) + '...' : shortPath;
+        content += `| \`${displayName}\` | ${retryInfo} | [DD](${ddLink}) [job](${test.jobUrl}) |\n`;
+    }
+    content += `\n</details>\n`;
     return content;
 }
 function formatReproductionCommands(failedTestPaths) {
@@ -56467,18 +56493,15 @@ function getJobResults(octokit, token, sha) {
 }
 function processTestResults(jobResults, sha) {
     var _a, _b;
-    const categorizedTests = [];
-    const seenTests = new Set();
+    // First pass: collect all attempts for each test
+    const testAttempts = new Map();
     for (const result of jobResults) {
         const { job: jobName, data: testData, jobUrl = '' } = result;
         for (const testResult of (_a = testData.testResults) !== null && _a !== void 0 ? _a : []) {
-            if (testResult.status === 'passed')
-                continue;
-            const testKey = `${testResult.name}-${jobName}`;
-            if (seenTests.has(testKey))
-                continue;
-            seenTests.add(testKey);
-            const category = categorizeTest(testResult.name, jobName);
+            const testKey = testResult.name;
+            if (!testAttempts.has(testKey)) {
+                testAttempts.set(testKey, []);
+            }
             const failedAssertions = ((_b = testResult.assertionResults) !== null && _b !== void 0 ? _b : [])
                 .filter((a) => a.status === 'failed')
                 .map((a) => ({
@@ -56486,25 +56509,67 @@ function processTestResults(jobResults, sha) {
                 title: a.title,
                 fullName: a.fullName,
             }));
-            // If no individual assertions, create one from the test itself
-            if (failedAssertions.length === 0) {
-                failedAssertions.push({
-                    ancestorTitles: [],
-                    title: testResult.name,
-                    fullName: testResult.name,
-                });
-            }
-            categorizedTests.push({
-                name: testResult.name,
-                testPath: testResult.name,
+            testAttempts.get(testKey).push({
+                status: testResult.status === 'passed' ? 'passed' : 'failed',
                 jobName,
                 jobUrl,
-                category,
-                failedAssertions,
                 errorOutput: stripAnsi(testResult.message || ''),
+                failedAssertions,
                 duration: testResult.endTime && testResult.startTime
                     ? testResult.endTime - testResult.startTime
                     : undefined,
+            });
+        }
+    }
+    // Second pass: categorize tests based on their final status and retry history
+    const categorizedTests = [];
+    const passedOnRetry = [];
+    for (const [testName, attempts] of testAttempts) {
+        const failedAttempts = attempts.filter((a) => a.status === 'failed');
+        const passedAttempts = attempts.filter((a) => a.status === 'passed');
+        // Test passed on retry: had failures but eventually passed
+        if (failedAttempts.length > 0 && passedAttempts.length > 0) {
+            const lastFailedAttempt = failedAttempts[failedAttempts.length - 1];
+            const category = categorizeTest(testName, lastFailedAttempt.jobName);
+            passedOnRetry.push({
+                name: testName,
+                testPath: testName,
+                jobName: lastFailedAttempt.jobName,
+                jobUrl: lastFailedAttempt.jobUrl,
+                category,
+                failedAssertions: lastFailedAttempt.failedAssertions.length > 0
+                    ? lastFailedAttempt.failedAssertions
+                    : [{ ancestorTitles: [], title: testName, fullName: testName }],
+                errorOutput: lastFailedAttempt.errorOutput,
+                duration: lastFailedAttempt.duration,
+                retryInfo: {
+                    attempts: attempts.length,
+                    failedAttempts: failedAttempts.length,
+                    passedOnRetry: true,
+                },
+            });
+            continue;
+        }
+        // Test ultimately failed (no successful attempts)
+        if (failedAttempts.length > 0 && passedAttempts.length === 0) {
+            const lastAttempt = failedAttempts[failedAttempts.length - 1];
+            const category = categorizeTest(testName, lastAttempt.jobName);
+            categorizedTests.push({
+                name: testName,
+                testPath: testName,
+                jobName: lastAttempt.jobName,
+                jobUrl: lastAttempt.jobUrl,
+                category,
+                failedAssertions: lastAttempt.failedAssertions.length > 0
+                    ? lastAttempt.failedAssertions
+                    : [{ ancestorTitles: [], title: testName, fullName: testName }],
+                errorOutput: lastAttempt.errorOutput,
+                duration: lastAttempt.duration,
+                retryInfo: {
+                    attempts: attempts.length,
+                    failedAttempts: failedAttempts.length,
+                    passedOnRetry: false,
+                },
             });
         }
     }
@@ -56525,6 +56590,7 @@ function processTestResults(jobResults, sha) {
     return {
         categorizedTests,
         groups: Array.from(groupMap.values()).sort((a, b) => b.tests.length - a.tests.length),
+        passedOnRetry,
     };
 }
 function createCommentAsync(octokit, prNumber, body) {
@@ -56572,15 +56638,17 @@ function run() {
             return;
         }
         // Process and categorize test results
-        const { groups } = processTestResults(jobResults.result, sha);
+        const { groups, passedOnRetry } = processTestResults(jobResults.result, sha);
         const totalFailures = groups.reduce((sum, g) => sum + g.tests.length, 0);
         const runId = _actions_github__WEBPACK_IMPORTED_MODULE_0__.context.runId;
         const runAttempt = parseInt(process.env.GITHUB_RUN_ATTEMPT || '1', 10);
         // Build comment
-        let commentBody = formatSummaryTable(sha, runId, runAttempt, totalFailures, groups);
+        let commentBody = formatSummaryTable(sha, runId, runAttempt, totalFailures, passedOnRetry.length, groups);
         for (const group of groups) {
             commentBody += formatTestGroup(group, sha);
         }
+        // Add passed on retry section
+        commentBody += formatPassedOnRetrySection(passedOnRetry, sha);
         commentBody += formatReproductionCommands(failedTestLists);
         // Check comment length and truncate if needed
         if (commentBody.length > 65000) {
