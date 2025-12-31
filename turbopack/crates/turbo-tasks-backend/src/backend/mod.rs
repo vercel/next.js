@@ -795,11 +795,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             if let Some(mut reader_task) = reader_task
                 && (!task.is_immutable() || cfg!(feature = "verify_immutable"))
             {
-                let _ = task.add(CachedDataItem::CellDependent {
-                    cell,
-                    task: reader.unwrap(),
-                    value: (),
-                });
+                let _ = task.add_cell_dependent(cell, reader.unwrap());
                 drop(task);
 
                 // Note: We use `task_pair` earlier to lock the task and its reader at the same

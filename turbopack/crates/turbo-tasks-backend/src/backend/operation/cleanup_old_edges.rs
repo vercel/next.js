@@ -166,10 +166,7 @@ impl Operation for CleanupOldEdgesOperation {
                             }) => {
                                 {
                                     let mut task = ctx.task(cell_task_id, TaskDataCategory::Data);
-                                    task.remove(&CachedDataItemKey::CellDependent {
-                                        cell,
-                                        task: task_id,
-                                    });
+                                    task.remove_cell_dependent(cell, task_id);
                                 }
                                 {
                                     let mut task = ctx.task(task_id, TaskDataCategory::Data);
