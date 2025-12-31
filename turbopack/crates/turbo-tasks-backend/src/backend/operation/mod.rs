@@ -405,6 +405,28 @@ pub trait TaskGuard: Debug {
     ) -> impl Iterator<Item = CachedDataItem>
     where
         F: for<'a> FnMut(CachedDataItemKey, CachedDataItemValueRef<'a>) -> bool + 'l;
+
+    // ============ Typed Child APIs ============
+
+    /// Check if a task is a child of this task
+    fn has_child(&self, task: TaskId) -> bool {
+        self.has_key(&CachedDataItemKey::Child { task })
+    }
+
+    /// Remove a child from this task
+    /// Returns true if the child was present and removed
+    fn remove_child(&mut self, task: TaskId) -> bool {
+        self.remove(&CachedDataItemKey::Child { task }).is_some()
+    }
+
+    /// Add children in bulk. All children must be new (not already present).
+    /// Panics if any child is already present.
+    fn add_children(&mut self, children: impl Iterator<Item = TaskId>) {
+        self.extend_new(
+            CachedDataItemType::Child,
+            children.map(|task| CachedDataItem::Child { task, value: () }),
+        )
+    }
     fn invalidate_serialization(&mut self);
     fn prefetch(&mut self) -> Option<FxIndexMap<TaskId, bool>>;
     fn is_immutable(&self) -> bool;

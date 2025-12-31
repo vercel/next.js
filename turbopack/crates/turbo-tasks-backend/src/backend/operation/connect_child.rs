@@ -42,9 +42,7 @@ impl ConnectChildOperation {
                 return;
             }
 
-            if parent_task.has_key(&CachedDataItemKey::Child {
-                task: child_task_id,
-            }) {
+            if parent_task.has_child(child_task_id) {
                 // It is already connected, we can skip the rest
                 return;
             }
