@@ -80,26 +80,30 @@ impl OutputAsset for NftJsonAsset {
 pub struct OutputSpecifier(Option<RcStr>);
 
 fn get_output_specifier(
-    path_ref: &FileSystemPath,
+    chunk: ResolvedVc<Box<dyn OutputAsset>>,
+    chunk_path: &FileSystemPath,
     ident_folder: &FileSystemPath,
     ident_folder_in_project_fs: &FileSystemPath,
     output_root: &FileSystemPath,
     project_root: &FileSystemPath,
 ) -> Result<RcStr> {
     // include assets in the outputs such as referenced chunks
-    if path_ref.is_inside_ref(output_root) {
-        return Ok(ident_folder.get_relative_path_to(path_ref).unwrap());
+    if chunk_path.is_inside_ref(output_root) {
+        return Ok(ident_folder.get_relative_path_to(chunk_path).unwrap());
     }
 
     // include assets in the project root such as images and traced references (externals)
-    if path_ref.is_inside_ref(project_root) {
+    if chunk_path.is_inside_ref(project_root) {
         return Ok(ident_folder_in_project_fs
-            .get_relative_path_to(path_ref)
+            .get_relative_path_to(chunk_path)
             .unwrap());
     }
 
     // This should effectively be unreachable
-    bail!("NftJsonAsset: cannot handle filepath {path_ref}");
+    bail!(
+        "NftJsonAsset: cannot handle filepath '{chunk_path}' for {chunk:?} it is not under the \
+         output_root: '{output_root}' or the project_root: '{project_root}'",
+    );
 }
 
 /// Apply outputFileTracingIncludes patterns to find additional files
@@ -286,6 +290,7 @@ impl Asset for NftJsonAsset {
                 }
 
                 let specifier = get_output_specifier(
+                    referenced_chunk,
                     &referenced_chunk_path,
                     &ident_folder,
                     &ident_folder_in_project_fs,
