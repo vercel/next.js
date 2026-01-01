@@ -1477,11 +1477,11 @@ impl AggregationUpdateQueue {
                 activeness_state.set_active_until_clean();
             }
         }
-        if let Some(reason) = should_schedule {
-            if task.add_scheduled(reason, || ctx.get_task_desc_fn(task_id)) {
-                drop(task);
-                ctx.schedule(task_id);
-            }
+        if let Some(reason) = should_schedule
+            && task.add_scheduled(reason, || ctx.get_task_desc_fn(task_id))
+        {
+            drop(task);
+            ctx.schedule(task_id);
         }
     }
 

@@ -308,13 +308,13 @@ pub fn make_task_dirty_internal(
 
     let should_schedule = !ctx.should_track_activeness() || task.has_activeness();
 
-    if should_schedule {
-        if task.add_scheduled(TaskExecutionReason::Invalidated, || {
+    if should_schedule
+        && task.add_scheduled(TaskExecutionReason::Invalidated, || {
             ctx.get_task_desc_fn(task_id)
-        }) {
-            drop(task);
-            let task = ctx.task(task_id, TaskDataCategory::All);
-            ctx.schedule_task(task);
-        }
+        })
+    {
+        drop(task);
+        let task = ctx.task(task_id, TaskDataCategory::All);
+        ctx.schedule_task(task);
     }
 }
