@@ -202,9 +202,7 @@ impl Operation for UpdateCellOperation {
                         }
                         let mut make_stale = true;
                         let dependent = ctx.task(dependent_task_id, TaskDataCategory::All);
-                        if dependent.has_key_internal(&CachedDataItemKey::OutdatedCellDependency {
-                            target: cell_ref,
-                        }) {
+                        if dependent.has_outdated_cell_dependency(cell_ref) {
                             // cell dependency is outdated, so it hasn't read the cell yet
                             // and doesn't need to be invalidated.
                             // But importantly we still need to make the task dirty as it should no

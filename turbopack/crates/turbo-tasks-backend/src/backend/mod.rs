@@ -912,10 +912,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         if is_cancelled {
             bail!("{} was canceled", ctx.get_task_description(task_id));
         }
-        task.add_new_internal(CachedDataItem::new_scheduled(
-            TaskExecutionReason::CellNotAvailable,
-            || self.get_task_desc_fn(task_id),
-        ));
+        task.add_scheduled(TaskExecutionReason::CellNotAvailable, || {
+            self.get_task_desc_fn(task_id)
+        });
         ctx.schedule_task(task);
 
         Ok(Err(listener))

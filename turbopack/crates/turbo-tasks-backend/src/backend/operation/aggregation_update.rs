@@ -1478,8 +1478,7 @@ impl AggregationUpdateQueue {
             }
         }
         if let Some(reason) = should_schedule {
-            let description = || ctx.get_task_desc_fn(task_id);
-            if task.add_internal(CachedDataItem::new_scheduled(reason, description)) {
+            if task.add_scheduled(reason, || ctx.get_task_desc_fn(task_id)) {
                 drop(task);
                 ctx.schedule(task_id);
             }

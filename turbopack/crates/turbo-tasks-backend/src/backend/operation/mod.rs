@@ -15,8 +15,8 @@ use std::{
 
 use bincode::{Decode, Encode};
 use turbo_tasks::{
-    CellId, FxIndexMap, KeyValuePair, TaskId, TraitTypeId, TurboTasksBackendApi,
-    TypedSharedReference,
+    CellId, FxIndexMap, KeyValuePair, TaskExecutionReason, TaskId, TraitTypeId,
+    TurboTasksBackendApi, TypedSharedReference,
 };
 
 use crate::{
@@ -849,6 +849,26 @@ pub trait TaskGuard: Debug {
         } else {
             self.has_key_internal(&CachedDataItemKey::TransientCellData { cell })
         }
+    }
+
+    /// Check if task has an outdated cell dependency
+    #[must_use]
+    fn has_outdated_cell_dependency(&self, target: CellRef) -> bool {
+        self.has_key_internal(&CachedDataItemKey::OutdatedCellDependency { target })
+    }
+
+    /// Add a scheduled task item. Returns true if the task was successfully added (wasn't already
+    /// present).
+    #[must_use]
+    fn add_scheduled<InnerFn>(
+        &mut self,
+        reason: TaskExecutionReason,
+        description: impl FnOnce() -> InnerFn,
+    ) -> bool
+    where
+        InnerFn: Fn() -> String + Sync + Send + 'static,
+    {
+        self.add_internal(CachedDataItem::new_scheduled(reason, description))
     }
 }
 
