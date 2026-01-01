@@ -16,7 +16,7 @@ use std::{
 use bincode::{Decode, Encode};
 use turbo_tasks::{
     CellId, FxIndexMap, KeyValuePair, TaskExecutionReason, TaskId, TraitTypeId,
-    TurboTasksBackendApi, TypedSharedReference,
+    TurboTasksBackendApi, TypedSharedReference, ValueTypeId,
 };
 
 use crate::{
@@ -31,7 +31,7 @@ use crate::{
     data::{
         ActivenessState, AggregationNumber, CachedDataItem, CachedDataItemKey, CachedDataItemType,
         CachedDataItemValue, CachedDataItemValueRef, CachedDataItemValueRefMut, CellRef,
-        CollectiblesRef, Dirtyness, OutputValue,
+        CollectibleRef, CollectiblesRef, Dirtyness, OutputValue,
     },
 };
 
@@ -869,6 +869,108 @@ pub trait TaskGuard: Debug {
         InnerFn: Fn() -> String + Sync + Send + 'static,
     {
         self.add_internal(CachedDataItem::new_scheduled(reason, description))
+    }
+
+    // ============ Outdated Dependency APIs ============
+
+    /// Remove an outdated output dependency
+    fn remove_outdated_output_dependency(&mut self, target: TaskId) -> bool {
+        self.remove_internal(&CachedDataItemKey::OutdatedOutputDependency { target })
+            .is_some()
+    }
+
+    /// Remove an outdated cell dependency
+    fn remove_outdated_cell_dependency(&mut self, target: CellRef) -> bool {
+        self.remove_internal(&CachedDataItemKey::OutdatedCellDependency { target })
+            .is_some()
+    }
+
+    /// Check if task has an outdated output dependency
+    #[must_use]
+    fn has_outdated_output_dependency(&self, target: TaskId) -> bool {
+        self.has_key_internal(&CachedDataItemKey::OutdatedOutputDependency { target })
+    }
+
+    /// Remove an outdated collectibles dependency
+    fn remove_outdated_collectibles_dependency(&mut self, target: CollectiblesRef) -> bool {
+        self.remove_internal(&CachedDataItemKey::OutdatedCollectiblesDependency { target })
+            .is_some()
+    }
+
+    /// Add multiple outdated cell dependencies at once
+    fn add_outdated_cell_dependencies(
+        &mut self,
+        dependencies: impl Iterator<Item = CellRef>,
+    ) -> bool {
+        self.extend_internal(
+            CachedDataItemType::OutdatedCellDependency,
+            dependencies.map(|target| CachedDataItem::OutdatedCellDependency { target, value: () }),
+        )
+    }
+
+    /// Add multiple outdated output dependencies at once
+    fn add_outdated_output_dependencies(
+        &mut self,
+        dependencies: impl Iterator<Item = TaskId>,
+    ) -> bool {
+        self.extend_internal(
+            CachedDataItemType::OutdatedOutputDependency,
+            dependencies
+                .map(|target| CachedDataItem::OutdatedOutputDependency { target, value: () }),
+        )
+    }
+
+    // ============ Collectible APIs ============
+
+    /// Insert an outdated collectible with count. Returns true if it was newly inserted.
+    #[must_use]
+    fn insert_outdated_collectible(&mut self, collectible: CollectibleRef, value: i32) -> bool {
+        self.insert_internal(CachedDataItem::OutdatedCollectible { collectible, value })
+            .is_none()
+    }
+
+    /// Check if task has a collectible
+    #[must_use]
+    fn has_collectible(&self, collectible: CollectibleRef) -> bool {
+        self.has_key_internal(&CachedDataItemKey::Collectible { collectible })
+    }
+
+    /// Remove an outdated collectible
+    fn remove_outdated_collectible(&mut self, collectible: CollectibleRef) -> bool {
+        self.remove_internal(&CachedDataItemKey::OutdatedCollectible { collectible })
+            .is_some()
+    }
+
+    // ============ Dependency Bulk Operations ============
+
+    /// Add multiple cell dependencies at once
+    fn add_cell_dependencies(&mut self, dependencies: impl Iterator<Item = CellRef>) -> bool {
+        self.extend_internal(
+            CachedDataItemType::CellDependency,
+            dependencies.map(|target| CachedDataItem::CellDependency { target, value: () }),
+        )
+    }
+
+    /// Add multiple output dependencies at once
+    fn add_output_dependencies(&mut self, dependencies: impl Iterator<Item = TaskId>) -> bool {
+        self.extend_internal(
+            CachedDataItemType::OutputDependency,
+            dependencies.map(|target| CachedDataItem::OutputDependency { target, value: () }),
+        )
+    }
+
+    // ============ Other APIs ============
+
+    /// Remove cell type max index
+    fn remove_cell_type_max_index(&mut self, cell_type: ValueTypeId) -> bool {
+        self.remove_internal(&CachedDataItemKey::CellTypeMaxIndex { cell_type })
+            .is_some()
+    }
+
+    /// Check if task has invalidator
+    #[must_use]
+    fn has_invalidator(&self) -> bool {
+        self.has_key_internal(&CachedDataItemKey::HasInvalidator {})
     }
 }
 

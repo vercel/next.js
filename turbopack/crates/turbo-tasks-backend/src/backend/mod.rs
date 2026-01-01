@@ -739,12 +739,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 // between grabbing the locks. If that happened, and if the task is "outdated" or
                 // doesn't have the dependency edge yet, the invalidation would be lost.
 
-                if reader_task
-                    .remove_internal(&CachedDataItemKey::OutdatedOutputDependency {
-                        target: task_id,
-                    })
-                    .is_none()
-                {
+                if !reader_task.remove_outdated_output_dependency(task_id) {
                     let _ = reader_task.add_output_dependency(task_id);
                 }
             }
@@ -810,10 +805,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     task: task_id,
                     cell,
                 };
-                if reader_task
-                    .remove_internal(&CachedDataItemKey::OutdatedCellDependency { target })
-                    .is_none()
-                {
+                if !reader_task.remove_outdated_cell_dependency(target) {
                     let _ = reader_task.add_cell_dependency(target);
                 }
             }
@@ -1663,16 +1655,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             for collectible in collectibles {
                 match collectible {
                     Collectible::Current(collectible, value) => {
-                        let _ = task.insert_internal(CachedDataItem::OutdatedCollectible {
-                            collectible,
-                            value,
-                        });
+                        task.insert_outdated_collectible(collectible, value);
                     }
                     Collectible::Outdated(collectible) => {
-                        if !task.has_key_internal(&CachedDataItemKey::Collectible { collectible }) {
-                            task.remove_internal(&CachedDataItemKey::OutdatedCollectible {
-                                collectible,
-                            });
+                        if !task.has_collectible(collectible) {
+                            task.remove_outdated_collectible(collectible);
                         }
                     }
                 }
@@ -1687,14 +1674,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     iter_many!(task, OutdatedCellDependency { target } => target)
                         .filter(|&target| !task.has_cell_dependency(target))
                         .collect::<SmallVec<[_; 8]>>();
-                task.extend_internal(
-                    CachedDataItemType::OutdatedCellDependency,
-                    outdated_cell_dependencies_to_add
-                        .into_iter()
-                        .map(|target| CachedDataItem::OutdatedCellDependency { target, value: () }),
-                );
+                task.add_outdated_cell_dependencies(outdated_cell_dependencies_to_add.into_iter());
                 for target in outdated_cell_dependencies_to_remove {
-                    task.remove_internal(&CachedDataItemKey::OutdatedCellDependency { target });
+                    task.remove_outdated_cell_dependency(target);
                 }
 
                 let outdated_output_dependencies_to_add =
@@ -1704,17 +1686,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     iter_many!(task, OutdatedOutputDependency { target } => target)
                         .filter(|&target| !task.has_output_dependency(target))
                         .collect::<SmallVec<[_; 8]>>();
-                task.extend_internal(
-                    CachedDataItemType::OutdatedOutputDependency,
-                    outdated_output_dependencies_to_add
-                        .into_iter()
-                        .map(|target| CachedDataItem::OutdatedOutputDependency {
-                            target,
-                            value: (),
-                        }),
+                task.add_outdated_output_dependencies(
+                    outdated_output_dependencies_to_add.into_iter(),
                 );
                 for target in outdated_output_dependencies_to_remove {
-                    task.remove_internal(&CachedDataItemKey::OutdatedOutputDependency { target });
+                    task.remove_outdated_output_dependency(target);
                 }
             }
         }
@@ -1972,7 +1948,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             }),
         );
         for (cell_type, _) in counters_to_remove {
-            task.remove_internal(&CachedDataItemKey::CellTypeMaxIndex { cell_type });
+            task.remove_cell_type_max_index(cell_type);
         }
 
         let mut queue = AggregationUpdateQueue::new();
@@ -1988,7 +1964,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             // Task is not session dependent (session dependent tasks can change between sessions)
             && !session_dependent
             // Task has no invalidator
-            && !task.has_key_internal(&CachedDataItemKey::HasInvalidator {})
+            && !task.has_invalidator()
             // Task has no dependencies on collectibles
             && count!(task, CollectiblesDependency) == 0
         {
@@ -2181,9 +2157,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             }
             let mut make_stale = true;
             let dependent = ctx.task(dependent_task_id, TaskDataCategory::All);
-            if dependent
-                .has_key_internal(&CachedDataItemKey::OutdatedOutputDependency { target: task_id })
-            {
+            if dependent.has_outdated_output_dependency(task_id) {
                 #[cfg(feature = "trace_task_output_dependencies")]
                 span.record("result", "outdated dependency");
                 // output dependency is outdated, so it hasn't read the output yet
@@ -2693,10 +2667,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 task: task_id,
                 collectible_type,
             };
-            if reader
-                .remove_internal(&CachedDataItemKey::OutdatedCollectiblesDependency { target })
-                .is_none()
-            {
+            if !reader.remove_outdated_collectibles_dependency(target) {
                 let _ = reader.add_collectibles_dependency(target);
             }
         }
