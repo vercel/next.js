@@ -381,7 +381,6 @@ where
 
 #[cfg(test)]
 mod tests {
-    use turbo_tasks::CellId;
 
     use super::*;
 

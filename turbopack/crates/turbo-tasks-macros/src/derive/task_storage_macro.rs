@@ -40,7 +40,7 @@ pub fn derive_task_storage(input: TokenStream) -> TokenStream {
                 Fields::Named(fields) => fields
                     .named
                     .iter()
-                    .map(|f| parse_field_storage_attributes(f))
+                    .map(parse_field_storage_attributes)
                     .collect::<Vec<_>>(),
                 _ => {
                     return syn::Error::new(
@@ -168,14 +168,13 @@ fn parse_field_storage_attributes(field: &syn::Field) -> StorageFieldAttributes 
                                 }
                             };
                         }
-                    } else if *ident == "group" {
-                        if let syn::Expr::Lit(syn::ExprLit {
+                    } else if *ident == "group"
+                        && let syn::Expr::Lit(syn::ExprLit {
                             lit: syn::Lit::Str(lit_str),
                             ..
                         }) = &nv.value
-                        {
-                            group = Some(lit_str.value());
-                        }
+                    {
+                        group = Some(lit_str.value());
                     }
                 }
                 Meta::Path(path) => {

@@ -116,7 +116,7 @@ impl UpdateCellOperation {
                 // tasks and after that set the new cell content. When the cell content is unset,
                 // readers will wait for it to be set via InProgressCell.
 
-                let old_content = task.remove(&CachedDataItemKey::cell_data(
+                let old_content = task.remove_internal(&CachedDataItemKey::cell_data(
                     is_serializable_cell_content,
                     cell,
                 ));
@@ -143,13 +143,13 @@ impl UpdateCellOperation {
         // So we can just update the cell content.
 
         let old_content = if let Some(new_content) = content {
-            task.insert(CachedDataItem::cell_data(
+            task.insert_internal(CachedDataItem::cell_data(
                 is_serializable_cell_content,
                 cell,
                 new_content,
             ))
         } else {
-            task.remove(&CachedDataItemKey::cell_data(
+            task.remove_internal(&CachedDataItemKey::cell_data(
                 is_serializable_cell_content,
                 cell,
             ))
@@ -202,7 +202,7 @@ impl Operation for UpdateCellOperation {
                         }
                         let mut make_stale = true;
                         let dependent = ctx.task(dependent_task_id, TaskDataCategory::All);
-                        if dependent.has_key(&CachedDataItemKey::OutdatedCellDependency {
+                        if dependent.has_key_internal(&CachedDataItemKey::OutdatedCellDependency {
                             target: cell_ref,
                         }) {
                             // cell dependency is outdated, so it hasn't read the cell yet
@@ -246,7 +246,7 @@ impl Operation for UpdateCellOperation {
                     let mut task = ctx.task(task, TaskDataCategory::Data);
 
                     if let Some(content) = content {
-                        task.add_new(CachedDataItem::cell_data(
+                        task.add_new_internal(CachedDataItem::cell_data(
                             is_serializable_cell_content,
                             cell,
                             content,

@@ -13,7 +13,7 @@ use crate::{
         },
         storage::{get, get_mut},
     },
-    data::{CachedDataItem, CachedDataItemKey, Dirtyness, InProgressState, InProgressStateInner},
+    data::{CachedDataItem, Dirtyness, InProgressState, InProgressStateInner},
 };
 
 #[derive(Encode, Decode, Clone, Default)]
@@ -306,12 +306,11 @@ pub fn make_task_dirty_internal(
         ));
     }
 
-    let should_schedule =
-        !ctx.should_track_activeness() || task.has_key(&CachedDataItemKey::Activeness {});
+    let should_schedule = !ctx.should_track_activeness() || task.has_activeness();
 
     if should_schedule {
         let description = || ctx.get_task_desc_fn(task_id);
-        if task.add(CachedDataItem::new_scheduled(
+        if task.add_internal(CachedDataItem::new_scheduled(
             TaskExecutionReason::Invalidated,
             description,
         )) {

@@ -933,7 +933,7 @@ impl DerefMut for StorageWriteGuard<'_> {
 }
 
 macro_rules! count {
-    ($task:ident, $key:ident) => {{ $task.count($crate::data::CachedDataItemType::$key) }};
+    ($task:ident, $key:ident) => {{ $task.count_internal($crate::data::CachedDataItemType::$key) }};
 }
 
 macro_rules! get {
@@ -942,7 +942,7 @@ macro_rules! get {
         use $crate::backend::operation::TaskGuard;
         if let Some($crate::data::CachedDataItemValueRef::$key {
             value,
-        }) = $task.get(&$crate::data::CachedDataItemKey::$key $input) {
+        }) = $task.get_internal(&$crate::data::CachedDataItemKey::$key $input) {
             Some(value)
         } else {
             None
@@ -959,7 +959,7 @@ macro_rules! get_mut {
         use $crate::backend::operation::TaskGuard;
         if let Some($crate::data::CachedDataItemValueRefMut::$key {
             value,
-        }) = $task.get_mut(&$crate::data::CachedDataItemKey::$key $input) {
+        }) = $task.get_mut_internal(&$crate::data::CachedDataItemKey::$key $input) {
             let () = $crate::data::allow_mut_access::$key;
             Some(value)
         } else {
@@ -979,7 +979,7 @@ macro_rules! get_mut_or_insert_with {
         let functor = $f;
         let $crate::data::CachedDataItemValueRefMut::$key {
             value,
-        } = $task.get_mut_or_insert_with($crate::data::CachedDataItemKey::$key $input, move || $crate::data::CachedDataItemValue::$key { value: functor() }) else {
+        } = $task.get_mut_or_insert_with_internal($crate::data::CachedDataItemKey::$key $input, move || $crate::data::CachedDataItemValue::$key { value: functor() }) else {
             unreachable!()
         };
         value
@@ -999,7 +999,7 @@ macro_rules! iter_many {
         #[allow(unused_imports)]
         use $crate::backend::operation::TaskGuard;
         $task
-            .iter($crate::data::CachedDataItemType::$key)
+            .iter_internal($crate::data::CachedDataItemType::$key)
             .filter_map(|(key, _)| match key {
                 $crate::data::CachedDataItemKey::$key $key_pattern $(if $cond)? => Some(
                     $iter_item
@@ -1011,7 +1011,7 @@ macro_rules! iter_many {
         #[allow(unused_imports)]
         use $crate::backend::operation::TaskGuard;
         $task
-            .iter($crate::data::CachedDataItemType::$key)
+            .iter_internal($crate::data::CachedDataItemType::$key)
             .filter_map(|(key, value)| match (key, value) {
                 (
                     $crate::data::CachedDataItemKey::$key $input,
@@ -1038,7 +1038,7 @@ macro_rules! update {
         use $crate::backend::operation::TaskGuard;
         #[allow(unused_mut)]
         let mut update = $update;
-        $task.update($crate::data::CachedDataItemKey::$key $input, |old| {
+        $task.update_internal($crate::data::CachedDataItemKey::$key $input, |old| {
             update(old.and_then(|old| {
                 if let $crate::data::CachedDataItemValue::$key { value } = old {
                     Some(value)
@@ -1139,7 +1139,7 @@ macro_rules! remove {
     ($task:ident, $key:ident $input:tt) => {{
         #[allow(unused_imports)]
         use $crate::backend::operation::TaskGuard;
-        if let Some($crate::data::CachedDataItemValue::$key { value }) = $task.remove(
+        if let Some($crate::data::CachedDataItemValue::$key { value }) = $task.remove_internal(
             &$crate::data::CachedDataItemKey::$key $input
         ) {
             Some(value)

@@ -361,48 +361,95 @@ impl<'e, B: BackingStorage> ChildExecuteContext<'e> for ChildExecuteContextImpl<
 
 pub trait TaskGuard: Debug {
     fn id(&self) -> TaskId;
+
+    // ============ Generic CachedDataItem APIs - FOR SERIALIZATION/INTERNAL USE ONLY ============
+    // These methods provide low-level access to CachedDataItem. They should ONLY be used for:
+    // 1. Serialization/deserialization (restore_task_data paths)
+    // 2. As implementation details within typed APIs
+    // All other code should use the typed APIs below instead.
+
     /// Adds a new item to the task if the key is not already present.
     /// Returns `true` if the item was added.
     /// Returns `false` if an item with the same key was already present.
+    ///
+    /// **FOR SERIALIZATION USE ONLY** - Use typed APIs instead.
     #[must_use]
-    fn add(&mut self, item: CachedDataItem) -> bool;
+    fn add_internal(&mut self, item: CachedDataItem) -> bool;
+
     /// Adds a new item to the task. The key must not be already present.
     /// Might panic if the key is already present.
-    fn add_new(&mut self, item: CachedDataItem);
+    ///
+    /// **FOR SERIALIZATION USE ONLY** - Use typed APIs instead.
+    fn add_new_internal(&mut self, item: CachedDataItem);
+
     /// Extends the task with items from the iterator.
     /// Overwrites existing keys.
     /// Returns `true` if all items were new and added.
     /// Returns `false` if any item had a key that was already present.
-    fn extend(
+    ///
+    /// **FOR SERIALIZATION USE ONLY** - Use typed APIs instead.
+    fn extend_internal(
         &mut self,
         ty: CachedDataItemType,
         items: impl Iterator<Item = CachedDataItem>,
     ) -> bool;
+
     /// Extends the task with items from the iterator.
     /// Might panic if any item has a key that is already present.
-    fn extend_new(&mut self, ty: CachedDataItemType, items: impl Iterator<Item = CachedDataItem>);
-    fn insert(&mut self, item: CachedDataItem) -> Option<CachedDataItemValue>;
-    fn update(
+    ///
+    /// **FOR SERIALIZATION USE ONLY** - Use typed APIs instead.
+    fn extend_new_internal(
+        &mut self,
+        ty: CachedDataItemType,
+        items: impl Iterator<Item = CachedDataItem>,
+    );
+
+    /// **FOR SERIALIZATION USE ONLY** - Use typed APIs instead.
+    fn insert_internal(&mut self, item: CachedDataItem) -> Option<CachedDataItemValue>;
+
+    /// **FOR SERIALIZATION USE ONLY** - Use typed APIs instead.
+    fn update_internal(
         &mut self,
         key: CachedDataItemKey,
         update: impl FnOnce(Option<CachedDataItemValue>) -> Option<CachedDataItemValue>,
     );
-    fn remove(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValue>;
-    fn get(&self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRef<'_>>;
-    fn get_mut(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRefMut<'_>>;
-    fn get_mut_or_insert_with(
+
+    /// **FOR SERIALIZATION USE ONLY** - Use typed APIs instead.
+    fn remove_internal(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValue>;
+
+    /// **FOR SERIALIZATION USE ONLY** - Use typed APIs instead.
+    fn get_internal(&self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRef<'_>>;
+
+    /// **FOR SERIALIZATION USE ONLY** - Use typed APIs instead.
+    fn get_mut_internal(
+        &mut self,
+        key: &CachedDataItemKey,
+    ) -> Option<CachedDataItemValueRefMut<'_>>;
+
+    /// **FOR SERIALIZATION USE ONLY** - Use typed APIs instead.
+    fn get_mut_or_insert_with_internal(
         &mut self,
         key: CachedDataItemKey,
         insert: impl FnOnce() -> CachedDataItemValue,
     ) -> CachedDataItemValueRefMut<'_>;
-    fn has_key(&self, key: &CachedDataItemKey) -> bool;
-    fn count(&self, ty: CachedDataItemType) -> usize;
-    fn iter(
+
+    /// **FOR SERIALIZATION USE ONLY** - Use typed APIs instead.
+    fn has_key_internal(&self, key: &CachedDataItemKey) -> bool;
+
+    /// **FOR SERIALIZATION USE ONLY** - Use typed APIs instead.
+    fn count_internal(&self, ty: CachedDataItemType) -> usize;
+
+    /// **FOR SERIALIZATION USE ONLY** - Use typed APIs instead.
+    fn iter_internal(
         &self,
         ty: CachedDataItemType,
     ) -> impl Iterator<Item = (CachedDataItemKey, CachedDataItemValueRef<'_>)>;
-    fn shrink_to_fit(&mut self, ty: CachedDataItemType);
-    fn extract_if<'l, F>(
+
+    /// **FOR SERIALIZATION USE ONLY** - Use typed APIs instead.
+    fn shrink_to_fit_internal(&mut self, ty: CachedDataItemType);
+
+    /// **FOR SERIALIZATION USE ONLY** - Use typed APIs instead.
+    fn extract_if_internal<'l, F>(
         &'l mut self,
         ty: CachedDataItemType,
         f: F,
@@ -414,19 +461,23 @@ pub trait TaskGuard: Debug {
 
     /// Check if a task is a child of this task
     fn has_child(&self, task: TaskId) -> bool {
-        self.has_key(&CachedDataItemKey::Child { task })
+        self.has_key_internal(&CachedDataItemKey::Child { task })
     }
 
     /// Remove a child from this task
     /// Returns true if the child was present and removed
     fn remove_child(&mut self, task: TaskId) -> bool {
-        self.remove(&CachedDataItemKey::Child { task }).is_some()
+        self.remove_internal(&CachedDataItemKey::Child { task })
+            .is_some()
     }
 
     /// Add children in bulk. All children must be new (not already present).
+    ///
+    /// # Panics
+    ///
     /// Panics if any child is already present.
     fn add_children(&mut self, children: impl Iterator<Item = TaskId>) {
-        self.extend_new(
+        self.extend_new_internal(
             CachedDataItemType::Child,
             children.map(|task| CachedDataItem::Child { task, value: () }),
         )
@@ -436,40 +487,41 @@ pub trait TaskGuard: Debug {
 
     /// Check if this task has an output dependency on another task
     fn has_output_dependency(&self, target: TaskId) -> bool {
-        self.has_key(&CachedDataItemKey::OutputDependency { target })
+        self.has_key_internal(&CachedDataItemKey::OutputDependency { target })
     }
 
     /// Remove an output dependency from this task
     /// Returns true if the dependency was present and removed
     fn remove_output_dependency(&mut self, target: TaskId) -> bool {
-        self.remove(&CachedDataItemKey::OutputDependency { target })
+        self.remove_internal(&CachedDataItemKey::OutputDependency { target })
             .is_some()
     }
 
     /// Add an output dependency to this task
     /// Returns true if the dependency was newly added, false if it already existed
     fn add_output_dependency(&mut self, target: TaskId) -> bool {
-        self.add(CachedDataItem::OutputDependency { target, value: () })
+        self.add_internal(CachedDataItem::OutputDependency { target, value: () })
     }
 
     // ============ Typed CellDependency APIs ============
 
     /// Check if this task has a cell dependency on another task's cell
     fn has_cell_dependency(&self, target: CellRef) -> bool {
-        self.has_key(&CachedDataItemKey::CellDependency { target })
+        self.has_key_internal(&CachedDataItemKey::CellDependency { target })
     }
 
     /// Remove a cell dependency from this task
     /// Returns true if the dependency was present and removed
     fn remove_cell_dependency(&mut self, target: CellRef) -> bool {
-        self.remove(&CachedDataItemKey::CellDependency { target })
+        self.remove_internal(&CachedDataItemKey::CellDependency { target })
             .is_some()
     }
 
     /// Add a cell dependency to this task
     /// Returns true if the dependency was newly added, false if it already existed
+    #[must_use]
     fn add_cell_dependency(&mut self, target: CellRef) -> bool {
-        self.add(CachedDataItem::CellDependency { target, value: () })
+        self.add_internal(CachedDataItem::CellDependency { target, value: () })
     }
 
     // ============ Typed OutputDependent APIs ============
@@ -477,14 +529,15 @@ pub trait TaskGuard: Debug {
     /// Remove an output dependent from this task
     /// Returns true if the dependent was present and removed
     fn remove_output_dependent(&mut self, task: TaskId) -> bool {
-        self.remove(&CachedDataItemKey::OutputDependent { task })
+        self.remove_internal(&CachedDataItemKey::OutputDependent { task })
             .is_some()
     }
 
     /// Add an output dependent to this task
     /// Returns true if the dependent was newly added, false if it already existed
+    #[must_use]
     fn add_output_dependent(&mut self, task: TaskId) -> bool {
-        self.add(CachedDataItem::OutputDependent { task, value: () })
+        self.add_internal(CachedDataItem::OutputDependent { task, value: () })
     }
 
     // ============ Typed CellDependent APIs ============
@@ -492,14 +545,15 @@ pub trait TaskGuard: Debug {
     /// Remove a cell dependent from this task
     /// Returns true if the dependent was present and removed
     fn remove_cell_dependent(&mut self, cell: CellId, task: TaskId) -> bool {
-        self.remove(&CachedDataItemKey::CellDependent { cell, task })
+        self.remove_internal(&CachedDataItemKey::CellDependent { cell, task })
             .is_some()
     }
 
     /// Add a cell dependent to this task
     /// Returns true if the dependent was newly added, false if it already existed
+    #[must_use]
     fn add_cell_dependent(&mut self, cell: CellId, task: TaskId) -> bool {
-        self.add(CachedDataItem::CellDependent {
+        self.add_internal(CachedDataItem::CellDependent {
             cell,
             task,
             value: (),
@@ -515,7 +569,7 @@ pub trait TaskGuard: Debug {
         collectible_type: TraitTypeId,
         task: TaskId,
     ) -> bool {
-        self.remove(&CachedDataItemKey::CollectiblesDependent {
+        self.remove_internal(&CachedDataItemKey::CollectiblesDependent {
             collectible_type,
             task,
         })
@@ -524,8 +578,9 @@ pub trait TaskGuard: Debug {
 
     /// Add a collectibles dependent to this task
     /// Returns true if the dependent was newly added, false if it already existed
+    #[must_use]
     fn add_collectibles_dependent(&mut self, collectible_type: TraitTypeId, task: TaskId) -> bool {
-        self.add(CachedDataItem::CollectiblesDependent {
+        self.add_internal(CachedDataItem::CollectiblesDependent {
             collectible_type,
             task,
             value: (),
@@ -537,14 +592,15 @@ pub trait TaskGuard: Debug {
     /// Remove a collectibles dependency from this task
     /// Returns true if the dependency was present and removed
     fn remove_collectibles_dependency(&mut self, target: CollectiblesRef) -> bool {
-        self.remove(&CachedDataItemKey::CollectiblesDependency { target })
+        self.remove_internal(&CachedDataItemKey::CollectiblesDependency { target })
             .is_some()
     }
 
     /// Add a collectibles dependency to this task
     /// Returns true if the dependency was newly added, false if it already existed
+    #[must_use]
     fn add_collectibles_dependency(&mut self, target: CollectiblesRef) -> bool {
-        self.add(CachedDataItem::CollectiblesDependency { target, value: () })
+        self.add_internal(CachedDataItem::CollectiblesDependency { target, value: () })
     }
 
     // ============ Typed Marker APIs ============
@@ -552,19 +608,21 @@ pub trait TaskGuard: Debug {
     /// Mark this task as stateful
     /// Returns true if the marker was newly added, false if it already existed
     fn mark_stateful(&mut self) -> bool {
-        self.add(CachedDataItem::Stateful { value: () })
+        self.add_internal(CachedDataItem::Stateful { value: () })
     }
 
     /// Mark this task as having an invalidator
     /// Returns true if the marker was newly added, false if it already existed
+    #[must_use]
     fn mark_has_invalidator(&mut self) -> bool {
-        self.add(CachedDataItem::HasInvalidator { value: () })
+        self.add_internal(CachedDataItem::HasInvalidator { value: () })
     }
 
     /// Mark this task as immutable
     /// Returns true if the marker was newly added, false if it already existed
+    #[must_use]
     fn mark_immutable(&mut self) -> bool {
-        self.add(CachedDataItem::Immutable { value: () })
+        self.add_internal(CachedDataItem::Immutable { value: () })
     }
 
     // State field accessors
@@ -576,12 +634,12 @@ pub trait TaskGuard: Debug {
 
     /// Check if this task has an output
     fn has_output(&self) -> bool {
-        self.has_key(&CachedDataItemKey::Output {})
+        self.has_key_internal(&CachedDataItemKey::Output {})
     }
 
     /// Set the output value, returning the old value if present
     fn set_output(&mut self, value: OutputValue) -> Option<OutputValue> {
-        self.insert(CachedDataItem::Output { value })
+        self.insert_internal(CachedDataItem::Output { value })
             .and_then(|old| match old {
                 CachedDataItemValue::Output { value } => Some(value),
                 _ => None,
@@ -595,7 +653,7 @@ pub trait TaskGuard: Debug {
 
     /// Set the dirty state, returning the old state if present
     fn set_dirty(&mut self, value: Dirtyness) -> Option<Dirtyness> {
-        self.insert(CachedDataItem::Dirty { value })
+        self.insert_internal(CachedDataItem::Dirty { value })
             .and_then(|old| match old {
                 CachedDataItemValue::Dirty { value } => Some(value),
                 _ => None,
@@ -604,7 +662,7 @@ pub trait TaskGuard: Debug {
 
     /// Clear the dirty state, returning the old state if present
     fn clear_dirty(&mut self) -> Option<Dirtyness> {
-        self.remove(&CachedDataItemKey::Dirty {})
+        self.remove_internal(&CachedDataItemKey::Dirty {})
             .and_then(|old| match old {
                 CachedDataItemValue::Dirty { value } => Some(value),
                 _ => None,
@@ -619,13 +677,13 @@ pub trait TaskGuard: Debug {
     /// Mark this task as clean in the current session
     /// Returns true if it was newly marked, false if already marked
     fn mark_current_session_clean(&mut self) -> bool {
-        self.add(CachedDataItem::CurrentSessionClean { value: () })
+        self.add_internal(CachedDataItem::CurrentSessionClean { value: () })
     }
 
     /// Clear the current session clean marker
     /// Returns true if it was cleared, false if it wasn't marked
     fn clear_current_session_clean(&mut self) -> bool {
-        self.remove(&CachedDataItemKey::CurrentSessionClean {})
+        self.remove_internal(&CachedDataItemKey::CurrentSessionClean {})
             .is_some()
     }
 
@@ -638,7 +696,7 @@ pub trait TaskGuard: Debug {
 
     /// Set the aggregation number, returning the old value if present
     fn set_aggregation_number(&mut self, value: AggregationNumber) -> Option<AggregationNumber> {
-        self.insert(CachedDataItem::AggregationNumber { value })
+        self.insert_internal(CachedDataItem::AggregationNumber { value })
             .and_then(|old| match old {
                 CachedDataItemValue::AggregationNumber { value } => Some(value),
                 _ => None,
@@ -647,26 +705,40 @@ pub trait TaskGuard: Debug {
 
     /// Update an Upper counter for a task
     /// Returns true if the count reached zero and was removed
+    #[must_use]
     fn update_upper_count(&mut self, task: TaskId, delta: u32) -> bool {
         update_count!(self, Upper { task }, delta)
     }
 
     /// Add a new Upper entry (used when adding new uppers)
-    /// Panics if the key is already present
+    ///
+    /// # Panics
+    ///
+    /// Panics if the entry already exists.
     fn add_upper(&mut self, task: TaskId, count: u32) {
-        self.add_new(CachedDataItem::Upper { task, value: count })
+        self.add_new_internal(CachedDataItem::Upper { task, value: count })
     }
 
     /// Update a Follower counter for a task
     /// Returns true if the count reached zero and was removed
+    #[must_use]
     fn update_follower_count(&mut self, task: TaskId, delta: u32) -> bool {
         update_count!(self, Follower { task }, delta)
     }
 
     /// Add a new Follower entry (used when adding new followers)
-    /// Panics if the key is already present
+    ///
+    /// # Panics
+    ///
+    /// Panics if the entry already exists.
     fn add_follower(&mut self, task: TaskId, count: u32) {
-        self.add_new(CachedDataItem::Follower { task, value: count })
+        self.add_new_internal(CachedDataItem::Follower { task, value: count })
+    }
+
+    /// Check if this task has activeness tracking
+    #[must_use]
+    fn has_activeness(&self) -> bool {
+        self.get_activeness().is_some()
     }
 
     /// Get the activeness state
@@ -676,11 +748,17 @@ pub trait TaskGuard: Debug {
 
     /// Set the activeness state, returning the old state if present
     fn set_activeness(&mut self, value: ActivenessState) -> Option<ActivenessState> {
-        self.insert(CachedDataItem::Activeness { value })
+        self.insert_internal(CachedDataItem::Activeness { value })
             .and_then(|old| match old {
                 CachedDataItemValue::Activeness { value } => Some(value),
                 _ => None,
             })
+    }
+
+    /// Clear the activeness state
+    fn clear_activeness(&mut self) -> bool {
+        self.remove_internal(&CachedDataItemKey::Activeness {})
+            .is_some()
     }
 
     fn invalidate_serialization(&mut self);
@@ -767,9 +845,9 @@ pub trait TaskGuard: Debug {
     }
     fn has_cell_data(&self, is_serializable_cell_content: bool, cell: CellId) -> bool {
         if is_serializable_cell_content {
-            self.has_key(&CachedDataItemKey::CellData { cell })
+            self.has_key_internal(&CachedDataItemKey::CellData { cell })
         } else {
-            self.has_key(&CachedDataItemKey::TransientCellData { cell })
+            self.has_key_internal(&CachedDataItemKey::TransientCellData { cell })
         }
     }
 }
@@ -849,7 +927,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
     }
 
     #[track_caller]
-    fn add(&mut self, item: CachedDataItem) -> bool {
+    fn add_internal(&mut self, item: CachedDataItem) -> bool {
         let category = item.category();
         self.check_access(category);
         if !self.task_id.is_transient() && item.is_persistent() {
@@ -862,7 +940,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
     }
 
     #[track_caller]
-    fn add_new(&mut self, item: CachedDataItem) {
+    fn add_new_internal(&mut self, item: CachedDataItem) {
         let category = item.category();
         self.check_access(category);
         if !self.task_id.is_transient() && item.is_persistent() {
@@ -873,7 +951,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
     }
 
     #[track_caller]
-    fn extend(
+    fn extend_internal(
         &mut self,
         ty: CachedDataItemType,
         items: impl Iterator<Item = CachedDataItem>,
@@ -895,7 +973,11 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
     }
 
     #[track_caller]
-    fn extend_new(&mut self, ty: CachedDataItemType, items: impl Iterator<Item = CachedDataItem>) {
+    fn extend_new_internal(
+        &mut self,
+        ty: CachedDataItemType,
+        items: impl Iterator<Item = CachedDataItem>,
+    ) {
         let category = ty.category();
         self.check_access(category);
         if !self.task_id.is_transient() && ty.is_persistent() {
@@ -907,7 +989,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
     }
 
     #[track_caller]
-    fn insert(&mut self, item: CachedDataItem) -> Option<CachedDataItemValue> {
+    fn insert_internal(&mut self, item: CachedDataItem) -> Option<CachedDataItemValue> {
         let category = item.category();
         self.check_access(category);
         if !self.task_id.is_transient() && item.is_persistent() {
@@ -917,7 +999,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
     }
 
     #[track_caller]
-    fn update(
+    fn update_internal(
         &mut self,
         key: CachedDataItemKey,
         update: impl FnOnce(Option<CachedDataItemValue>) -> Option<CachedDataItemValue>,
@@ -931,7 +1013,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
     }
 
     #[track_caller]
-    fn remove(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValue> {
+    fn remove_internal(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValue> {
         let category = key.category();
         self.check_access(category);
         if !self.task_id.is_transient() && key.is_persistent() {
@@ -940,13 +1022,16 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         self.task.remove(key)
     }
 
-    fn get(&self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRef<'_>> {
+    fn get_internal(&self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRef<'_>> {
         self.check_access(key.category());
         self.task.get(key)
     }
 
     #[track_caller]
-    fn get_mut(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRefMut<'_>> {
+    fn get_mut_internal(
+        &mut self,
+        key: &CachedDataItemKey,
+    ) -> Option<CachedDataItemValueRefMut<'_>> {
         let category = key.category();
         self.check_access(category);
         if !self.task_id.is_transient() && key.is_persistent() {
@@ -956,7 +1041,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
     }
 
     #[track_caller]
-    fn get_mut_or_insert_with(
+    fn get_mut_or_insert_with_internal(
         &mut self,
         key: CachedDataItemKey,
         insert: impl FnOnce() -> CachedDataItemValue,
@@ -970,18 +1055,18 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
     }
 
     #[track_caller]
-    fn has_key(&self, key: &CachedDataItemKey) -> bool {
+    fn has_key_internal(&self, key: &CachedDataItemKey) -> bool {
         self.check_access(key.category());
         self.task.contains_key(key)
     }
 
     #[track_caller]
-    fn count(&self, ty: CachedDataItemType) -> usize {
+    fn count_internal(&self, ty: CachedDataItemType) -> usize {
         self.check_access(ty.category());
         self.task.count(ty)
     }
 
-    fn iter(
+    fn iter_internal(
         &self,
         ty: CachedDataItemType,
     ) -> impl Iterator<Item = (CachedDataItemKey, CachedDataItemValueRef<'_>)> {
@@ -989,12 +1074,12 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         self.task.iter(ty)
     }
 
-    fn shrink_to_fit(&mut self, ty: CachedDataItemType) {
+    fn shrink_to_fit_internal(&mut self, ty: CachedDataItemType) {
         self.task.shrink_to_fit(ty)
     }
 
     #[track_caller]
-    fn extract_if<'l, F>(
+    fn extract_if_internal<'l, F>(
         &'l mut self,
         ty: CachedDataItemType,
         f: F,

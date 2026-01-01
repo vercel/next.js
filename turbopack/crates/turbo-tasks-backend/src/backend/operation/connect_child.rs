@@ -67,7 +67,7 @@ impl ConnectChildOperation {
             let mut child_task = ctx.task(child_task_id, TaskDataCategory::All);
 
             if !child_task.has_output()
-                && child_task.add(CachedDataItem::new_scheduled(
+                && child_task.add_internal(CachedDataItem::new_scheduled(
                     TaskExecutionReason::Connect,
                     || ctx.get_task_desc_fn(child_task_id),
                 ))

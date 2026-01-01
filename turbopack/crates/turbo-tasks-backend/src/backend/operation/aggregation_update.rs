@@ -33,8 +33,7 @@ use crate::{
         },
     },
     data::{
-        ActivenessState, AggregationNumber, CachedDataItem, CachedDataItemKey, CachedDataItemType,
-        CollectibleRef,
+        ActivenessState, AggregationNumber, CachedDataItem, CachedDataItemType, CollectibleRef,
     },
     utils::swap_retain,
 };
@@ -436,7 +435,7 @@ impl AggregatedDataUpdate {
                 // When a dirty container count is increased and the task is considered as active
                 // we need to schedule the dirty tasks in the new dirty container
                 let current_session_update = count - *current_session_clean_update;
-                if current_session_update > 0 && task.has_key(&CachedDataItemKey::Activeness {}) {
+                if current_session_update > 0 && task.has_activeness() {
                     queue.push_find_and_schedule_dirty(dirty_container_id)
                 }
             }
@@ -574,7 +573,7 @@ impl AggregatedDataUpdate {
                             activeness_state.all_clean_event.notify(usize::MAX);
                             activeness_state.unset_active_until_clean();
                             if activeness_state.is_empty() {
-                                task.remove(&CachedDataItemKey::Activeness {});
+                                task.clear_activeness();
                             }
                         }
                     }
@@ -1324,9 +1323,7 @@ impl AggregationUpdateQueue {
                             });
                         }
 
-                        if ctx.should_track_activeness()
-                            && upper.has_key(&CachedDataItemKey::Activeness {})
-                        {
+                        if ctx.should_track_activeness() && upper.has_activeness() {
                             // If the upper node is has `Activeness` we need to schedule the
                             // dirty tasks in the new dirty container
                             self.push_find_and_schedule_dirty(task_id);
@@ -1482,7 +1479,7 @@ impl AggregationUpdateQueue {
         }
         if let Some(reason) = should_schedule {
             let description = || ctx.get_task_desc_fn(task_id);
-            if task.add(CachedDataItem::new_scheduled(reason, description)) {
+            if task.add_internal(CachedDataItem::new_scheduled(reason, description)) {
                 drop(task);
                 ctx.schedule(task_id);
             }
@@ -1899,8 +1896,7 @@ impl AggregationUpdateQueue {
                 false
             } else {
                 // It's an inner node, continue with the list
-                if ctx.should_track_activeness() && upper.has_key(&CachedDataItemKey::Activeness {})
-                {
+                if ctx.should_track_activeness() && upper.has_activeness() {
                     is_active = true;
                 }
                 true
@@ -1973,7 +1969,7 @@ impl AggregationUpdateQueue {
                         if !is_active {
                             // We need to check this again, since this might have changed in the
                             // meantime due to race conditions
-                            if upper.has_key(&CachedDataItemKey::Activeness {}) {
+                            if upper.has_activeness() {
                                 is_active = true;
                             }
                         }
@@ -2192,7 +2188,7 @@ impl AggregationUpdateQueue {
                         // For performance reasons this should stay `Meta` and not `All`
                         TaskDataCategory::Meta,
                     );
-                    is_active = upper.has_key(&CachedDataItemKey::Activeness {});
+                    is_active = upper.has_activeness();
                 }
                 if is_active {
                     self.extend_find_and_schedule_dirty(
@@ -2304,7 +2300,7 @@ impl AggregationUpdateQueue {
             let _span = trace_span!("new inner").entered();
 
             // It's an inner node, continue with the list
-            let mut is_active = upper.has_key(&CachedDataItemKey::Activeness {});
+            let mut is_active = upper.has_activeness();
             drop(upper);
 
             let mut inner = ctx.task(
@@ -2352,7 +2348,7 @@ impl AggregationUpdateQueue {
                         // For performance reasons this should stay `Meta` and not `All`
                         TaskDataCategory::Meta,
                     );
-                    is_active = upper.has_key(&CachedDataItemKey::Activeness {});
+                    is_active = upper.has_activeness();
                 }
                 if is_active {
                     self.push_find_and_schedule_dirty(new_follower_id);
@@ -2378,7 +2374,7 @@ impl AggregationUpdateQueue {
         let is_zero = state.decrement_active_counter();
         let is_empty = state.is_empty();
         if is_empty {
-            task.remove(&CachedDataItemKey::Activeness {});
+            task.clear_activeness();
         }
         debug_assert!(
             !(is_new && is_zero),
@@ -2423,7 +2419,7 @@ impl AggregationUpdateQueue {
         let is_empty = state.is_empty();
         // This can happen if active count was negative before
         if is_empty {
-            task.remove(&CachedDataItemKey::Activeness {});
+            task.clear_activeness();
         }
         debug_assert!(
             !is_new || is_positive_now,
@@ -2509,7 +2505,7 @@ impl AggregationUpdateQueue {
                 // When converted from leaf to aggregating node, all children become
                 // followers
                 let children: Vec<_> = get_many!(task, Child { task } => task);
-                task.extend_new(
+                task.extend_new_internal(
                     CachedDataItemType::Follower,
                     children
                         .iter()
