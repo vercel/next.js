@@ -531,7 +531,7 @@ export default function OuterLayoutRouter({
   }
 
   const activeSegment = activeTree[0]
-  const activeStateKey = createRouterCacheKey(activeSegment, true) // no search params
+  const activeStateKey = createRouterCacheKey(activeSegment, true)
 
   // At each level of the route tree, not only do we render the currently
   // active segment — we also render the last N segments that were active at
@@ -548,7 +548,11 @@ export default function OuterLayoutRouter({
     const tree = bfcacheEntry.tree
     const stateKey = bfcacheEntry.stateKey
     const segment = tree[0]
-    const cacheKey = createRouterCacheKey(segment)
+    // For client-side router cache purposes, we exclude search params from the cache key
+    // to ensure that pages with different search parameters can reuse the same cached
+    // router data, consistent with how state keys work. This fixes the issue where
+    // search parameters disable client-side router cache.
+    const cacheKey = createRouterCacheKey(segment, true)
 
     // Read segment path from the parallel router cache node.
     const cacheNode = segmentMap.get(cacheKey) ?? null
