@@ -1,75 +1,125 @@
 import React from 'react'
 
 const styles: Record<string, React.CSSProperties> = {
-  error: {
-    // https://github.com/sindresorhus/modern-normalize/blob/main/modern-normalize.css#L38-L52
+  container: {
     fontFamily:
       'system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
     height: '100vh',
-    textAlign: 'center',
     display: 'flex',
-    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
+    textAlign: 'center',
   },
-  desc: {
-    lineHeight: '48px',
+  content: {
+    maxWidth: '420px',
+    padding: '0 24px',
   },
-  h1: {
-    display: 'inline-block',
-    margin: '0 20px 0 0',
-    paddingRight: 23,
-    fontSize: 24,
-    fontWeight: 500,
-    verticalAlign: 'top',
+  icon: {
+    marginBottom: '20px',
   },
-  h2: {
-    fontSize: 14,
+  title: {
+    fontSize: '18px',
+    fontWeight: 600,
+    letterSpacing: '-0.01em',
+    color: '#dc2626',
+    margin: '0 0 12px 0',
+  },
+  message: {
+    fontSize: '15px',
     fontWeight: 400,
-    lineHeight: '28px',
+    lineHeight: 1.6,
+    color: '#64748b',
+    margin: '0 0 24px 0',
   },
-  wrap: {
-    display: 'inline-block',
+  button: {
+    padding: '10px 20px',
+    fontSize: '14px',
+    fontWeight: 500,
+    letterSpacing: '0.01em',
+    color: '#fff',
+    backgroundColor: '#dc2626',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
   },
-} as const
+  devHint: {
+    fontSize: '12px',
+    fontWeight: 400,
+    color: '#9ca3af',
+    margin: '24px 0 0 0',
+  },
+}
 
 /* CSS minified from
 body { margin: 0; color: #000; background: #fff; }
-.next-error-h1 {
-  border-right: 1px solid rgba(0, 0, 0, .3);
-}
 @media (prefers-color-scheme: dark) {
-  body { color: #fff; background: #000; }
-  .next-error-h1 {
-    border-right: 1px solid rgba(255, 255, 255, .3);
-  }
+  body { color: #fff; background: #0a0a0a; }
+  .next-error-message { color: #a1a1aa; }
+  .next-error-dev-hint { color: #71717a; }
+  .next-error-icon-ring { stroke: #7f1d1d; }
+  .next-error-icon-fill { fill: #1c1917; }
 }
 */
-const themeCss = `body{color:#000;background:#fff;margin:0}.next-error-h1{border-right:1px solid rgba(0,0,0,.3)}
-@media (prefers-color-scheme:dark){body{color:#fff;background:#000}.next-error-h1{border-right:1px solid rgba(255,255,255,.3)}}`
+const themeCss = `body{margin:0;color:#000;background:#fff}@media(prefers-color-scheme:dark){body{color:#fff;background:#0a0a0a}.next-error-message{color:#a1a1aa}.next-error-dev-hint{color:#71717a}.next-error-icon-ring{stroke:#7f1d1d}.next-error-icon-fill{fill:#1c1917}}`
+
+function ErrorIcon() {
+  return (
+    <svg
+      width="48"
+      height="48"
+      viewBox="0 0 48 48"
+      fill="none"
+      style={styles.icon}
+    >
+      <circle
+        className="next-error-icon-ring"
+        cx="24"
+        cy="24"
+        r="23"
+        stroke="#fecaca"
+        strokeWidth="2"
+      />
+      <circle
+        className="next-error-icon-fill"
+        cx="24"
+        cy="24"
+        r="20"
+        fill="#fef2f2"
+      />
+      <path
+        d="M24 14v12M24 30v4"
+        stroke="#dc2626"
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
 
 function AppError() {
-  const errorMessage = 'Internal Server Error.'
-  const title = `500: ${errorMessage}`
   return (
     <html id="__next_error__">
       <head>
-        <title>{title}</title>
+        <title>500: Internal Server Error</title>
+        <style dangerouslySetInnerHTML={{ __html: themeCss }} />
       </head>
       <body>
-        <div style={styles.error}>
-          <div style={styles.desc}>
-            <style
-              dangerouslySetInnerHTML={{
-                __html: themeCss,
-              }}
-            />
-            <h1 className="next-error-h1" style={styles.h1}>
-              500
-            </h1>
-            <div style={styles.wrap}>
-              <h2 style={styles.h2}>{errorMessage}</h2>
-            </div>
+        <div style={styles.container}>
+          <div style={styles.content}>
+            <ErrorIcon />
+            <h1 style={styles.title}>Internal Server Error</h1>
+            <p className="next-error-message" style={styles.message}>
+              The server encountered an error. Please try again later.
+            </p>
+            <button
+              style={styles.button}
+              onClick={() => window.location.reload()}
+            >
+              Try Again
+            </button>
+            <p className="next-error-dev-hint" style={styles.devHint}>
+              Developers: Check your server logs for details.
+            </p>
           </div>
         </div>
       </body>

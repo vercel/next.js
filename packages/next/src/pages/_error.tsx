@@ -9,6 +9,13 @@ const statusCodes: { [code: number]: string } = {
   500: 'Internal Server Error',
 }
 
+const statusMessages: { [code: number]: string } = {
+  400: 'The request could not be understood by the server.',
+  404: 'The page you are looking for does not exist.',
+  405: 'The request method is not supported.',
+  500: 'The server encountered an error. Please try again later.',
+}
+
 export type ErrorProps = {
   statusCode: number
   hostname?: string
@@ -43,36 +50,87 @@ function _getInitialProps({
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  error: {
-    // https://github.com/sindresorhus/modern-normalize/blob/main/modern-normalize.css#L38-L52
+  container: {
     fontFamily:
       'system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
     height: '100vh',
-    textAlign: 'center',
     display: 'flex',
-    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
+    textAlign: 'center',
   },
-  desc: {
-    lineHeight: '48px',
+  content: {
+    maxWidth: '420px',
+    padding: '0 24px',
   },
-  h1: {
-    display: 'inline-block',
-    margin: '0 20px 0 0',
-    paddingRight: 23,
-    fontSize: 24,
-    fontWeight: 500,
-    verticalAlign: 'top',
+  icon: {
+    marginBottom: '20px',
   },
-  h2: {
-    fontSize: 14,
+  title: {
+    fontSize: '18px',
+    fontWeight: 600,
+    letterSpacing: '-0.01em',
+    color: '#dc2626',
+    margin: '0 0 12px 0',
+  },
+  message: {
+    fontSize: '15px',
     fontWeight: 400,
-    lineHeight: '28px',
+    lineHeight: 1.6,
+    color: '#64748b',
+    margin: '0 0 24px 0',
   },
-  wrap: {
-    display: 'inline-block',
+  button: {
+    padding: '10px 20px',
+    fontSize: '14px',
+    fontWeight: 500,
+    letterSpacing: '0.01em',
+    color: '#fff',
+    backgroundColor: '#dc2626',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
   },
+  devHint: {
+    fontSize: '12px',
+    fontWeight: 400,
+    color: '#9ca3af',
+    margin: '24px 0 0 0',
+  },
+}
+
+function ErrorIcon() {
+  return (
+    <svg
+      width="48"
+      height="48"
+      viewBox="0 0 48 48"
+      fill="none"
+      style={styles.icon}
+    >
+      <circle
+        className="next-error-icon-ring"
+        cx="24"
+        cy="24"
+        r="23"
+        stroke="#fecaca"
+        strokeWidth="2"
+      />
+      <circle
+        className="next-error-icon-fill"
+        cx="24"
+        cy="24"
+        r="20"
+        fill="#fef2f2"
+      />
+      <path
+        d="M24 14v12M24 30v4"
+        stroke="#dc2626"
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
 }
 
 /**
@@ -84,71 +142,60 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
   static getInitialProps = _getInitialProps
   static origGetInitialProps = _getInitialProps
 
+  handleRetry = () => {
+    if (typeof window !== 'undefined') {
+      window.location.reload()
+    }
+  }
+
   render() {
     const { statusCode, withDarkMode = true } = this.props
     const title =
       this.props.title ||
       statusCodes[statusCode] ||
-      'An unexpected error has occurred'
+      'An Error Occurred'
+    const message =
+      statusMessages[statusCode] ||
+      'Something went wrong. Please try again.'
+    const isClientError = !statusCode
+
+    /* CSS minified from
+      body { margin: 0; color: #000; background: #fff; }
+      @media (prefers-color-scheme: dark) {
+        body { color: #fff; background: #0a0a0a; }
+        .next-error-message { color: #a1a1aa; }
+        .next-error-dev-hint { color: #71717a; }
+        .next-error-icon-ring { stroke: #7f1d1d; }
+        .next-error-icon-fill { fill: #1c1917; }
+      }
+    */
+    const themeCss = withDarkMode
+      ? `body{margin:0;color:#000;background:#fff}@media(prefers-color-scheme:dark){body{color:#fff;background:#0a0a0a}.next-error-message{color:#a1a1aa}.next-error-dev-hint{color:#71717a}.next-error-icon-ring{stroke:#7f1d1d}.next-error-icon-fill{fill:#1c1917}}`
+      : `body{margin:0;color:#000;background:#fff}`
 
     return (
-      <div style={styles.error}>
+      <div style={styles.container}>
         <Head>
           <title>
             {statusCode
               ? `${statusCode}: ${title}`
-              : 'Application error: a client-side exception has occurred'}
+              : 'An Error Occurred'}
           </title>
         </Head>
-        <div style={styles.desc}>
-          <style
-            dangerouslySetInnerHTML={{
-              /* CSS minified from
-                body { margin: 0; color: #000; background: #fff; }
-                .next-error-h1 {
-                  border-right: 1px solid rgba(0, 0, 0, .3);
-                }
-
-                ${
-                  withDarkMode
-                    ? `@media (prefers-color-scheme: dark) {
-                  body { color: #fff; background: #000; }
-                  .next-error-h1 {
-                    border-right: 1px solid rgba(255, 255, 255, .3);
-                  }
-                }`
-                    : ''
-                }
-               */
-              __html: `body{color:#000;background:#fff;margin:0}.next-error-h1{border-right:1px solid rgba(0,0,0,.3)}${
-                withDarkMode
-                  ? '@media (prefers-color-scheme:dark){body{color:#fff;background:#000}.next-error-h1{border-right:1px solid rgba(255,255,255,.3)}}'
-                  : ''
-              }`,
-            }}
-          />
-
-          {statusCode ? (
-            <h1 className="next-error-h1" style={styles.h1}>
-              {statusCode}
-            </h1>
-          ) : null}
-          <div style={styles.wrap}>
-            <h2 style={styles.h2}>
-              {this.props.title || statusCode ? (
-                title
-              ) : (
-                <>
-                  Application error: a client-side exception has occurred{' '}
-                  {Boolean(this.props.hostname) && (
-                    <>while loading {this.props.hostname}</>
-                  )}{' '}
-                  (see the browser console for more information)
-                </>
-              )}
-              .
-            </h2>
-          </div>
+        <style dangerouslySetInnerHTML={{ __html: themeCss }} />
+        <div style={styles.content}>
+          <ErrorIcon />
+          <h1 style={styles.title}>{title}</h1>
+          <p className="next-error-message" style={styles.message}>
+            {message}
+          </p>
+          <button style={styles.button} onClick={this.handleRetry}>
+            Try Again
+          </button>
+          <p className="next-error-dev-hint" style={styles.devHint}>
+            Developers: Check your{' '}
+            {isClientError ? 'browser console' : 'server logs'} for details.
+          </p>
         </div>
       </div>
     )
