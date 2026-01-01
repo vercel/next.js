@@ -74,8 +74,6 @@ const themeCss = `
   :root {
     --next-error-bg: #0a0a0a;
     --next-error-text: #ededed;
-    --next-error-card-bg: rgba(255,255,255,0.04);
-    --next-error-card-border: 1px solid rgba(255,255,255,0.08);
     --next-error-title: #ededed;
     --next-error-message: #a0a0a0;
     --next-error-hint: #707070;
