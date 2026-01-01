@@ -134,14 +134,14 @@ function DefaultGlobalError({ error }: { error: any }) {
                 Error ID: {digest}
               </p>
             )}
-            <button
-              style={styles.button}
-              onClick={() => window.location.reload()}
-            >
-              Try Again
-            </button>
+            <form>
+              <button type="submit" style={styles.button}>
+                Try Again
+              </button>
+            </form>
             <p className="next-error-dev-hint" style={styles.devHint}>
-              Developers: Check your {isServerError ? 'server logs' : 'browser console'} for details.
+              Developers: Check your{' '}
+              {isServerError ? 'server logs' : 'browser console'} for details.
             </p>
           </div>
         </div>

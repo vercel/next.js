@@ -142,21 +142,12 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
   static getInitialProps = _getInitialProps
   static origGetInitialProps = _getInitialProps
 
-  handleRetry = () => {
-    if (typeof window !== 'undefined') {
-      window.location.reload()
-    }
-  }
-
   render() {
     const { statusCode, withDarkMode = true } = this.props
     const title =
-      this.props.title ||
-      statusCodes[statusCode] ||
-      'An Error Occurred'
+      this.props.title || statusCodes[statusCode] || 'An Error Occurred'
     const message =
-      statusMessages[statusCode] ||
-      'Something went wrong. Please try again.'
+      statusMessages[statusCode] || 'Something went wrong. Please try again.'
     const isClientError = !statusCode
 
     /* CSS minified from
@@ -177,9 +168,7 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
       <div style={styles.container}>
         <Head>
           <title>
-            {statusCode
-              ? `${statusCode}: ${title}`
-              : 'An Error Occurred'}
+            {statusCode ? `${statusCode}: ${title}` : 'An Error Occurred'}
           </title>
         </Head>
         <style dangerouslySetInnerHTML={{ __html: themeCss }} />
@@ -189,9 +178,11 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
           <p className="next-error-message" style={styles.message}>
             {message}
           </p>
-          <button style={styles.button} onClick={this.handleRetry}>
-            Try Again
-          </button>
+          <form>
+            <button type="submit" style={styles.button}>
+              Try Again
+            </button>
+          </form>
           <p className="next-error-dev-hint" style={styles.devHint}>
             Developers: Check your{' '}
             {isClientError ? 'browser console' : 'server logs'} for details.

@@ -111,12 +111,11 @@ function AppError() {
             <p className="next-error-message" style={styles.message}>
               The server encountered an error. Please try again later.
             </p>
-            <button
-              style={styles.button}
-              onClick={() => window.location.reload()}
-            >
-              Try Again
-            </button>
+            <form>
+              <button type="submit" style={styles.button}>
+                Try Again
+              </button>
+            </form>
             <p className="next-error-dev-hint" style={styles.devHint}>
               Developers: Check your server logs for details.
             </p>
