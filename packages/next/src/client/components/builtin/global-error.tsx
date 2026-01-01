@@ -10,53 +10,72 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    textAlign: 'center',
   },
-  content: {
+  card: {
     maxWidth: '420px',
-    padding: '0 24px',
+    padding: '32px 28px',
+    textAlign: 'left' as const,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: '12px',
   },
   icon: {
-    marginBottom: '20px',
+    marginBottom: '16px',
   },
   title: {
-    fontSize: '18px',
+    fontSize: '17px',
     fontWeight: 600,
     letterSpacing: '-0.01em',
-    color: '#e5484d', // --color-red-700
-    margin: '0 0 12px 0',
+    color: '#171717',
+    margin: '0 0 8px 0',
   },
   message: {
-    fontSize: '15px',
+    fontSize: '14px',
     fontWeight: 400,
     lineHeight: 1.6,
-    color: '#666666', // --color-gray-900
-    margin: '0 0 16px 0',
+    color: '#666666',
+    margin: '0 0 6px 0',
   },
-  digest: {
+  messageHint: {
     fontSize: '13px',
     fontWeight: 400,
-    color: '#8f8f8f', // --color-gray-700
-    margin: '0 0 24px 0',
-    fontFamily:
-      'ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace',
+    lineHeight: 1.5,
+    color: '#8f8f8f',
+    margin: '0 0 20px 0',
   },
   button: {
     padding: '10px 20px',
     fontSize: '14px',
     fontWeight: 500,
     letterSpacing: '0.01em',
-    color: '#fff',
-    backgroundColor: '#e5484d', // --color-red-700
-    border: 'none',
+    color: '#171717',
+    backgroundColor: '#fff',
+    border: '1px solid #e5e5e5',
     borderRadius: '6px',
     cursor: 'pointer',
   },
-  devHint: {
+  digestContainer: {
+    marginTop: '20px',
+    paddingTop: '16px',
+    borderTop: '1px solid rgba(0,0,0,0.06)',
+  },
+  digest: {
     fontSize: '12px',
     fontWeight: 400,
-    color: '#8f8f8f', // --color-gray-700
-    margin: '24px 0 0 0',
+    color: '#a0a0a0',
+    margin: '0 0 2px 0',
+  },
+  digestCode: {
+    fontFamily:
+      'ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace',
+    fontSize: '11px',
+    color: '#8f8f8f',
+    userSelect: 'all' as const,
+  },
+  digestHint: {
+    fontSize: '11px',
+    fontWeight: 400,
+    color: '#b0b0b0',
+    margin: '4px 0 0 0',
   },
 } as const
 
@@ -64,45 +83,49 @@ const styles = {
 body { margin: 0; color: #171717; background: #fff; }
 @media (prefers-color-scheme: dark) {
   body { color: #ededed; background: #0a0a0a; }
-  .next-error-title { color: #ff6369; }
+  .next-error-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); }
+  .next-error-title { color: #ededed; }
   .next-error-message { color: #a0a0a0; }
-  .next-error-digest { color: #878787; }
-  .next-error-dev-hint { color: #878787; }
-  .next-error-icon-ring { stroke: #822025; }
-  .next-error-icon-fill { fill: #2a1314; }
-  .next-error-button { background: #e5484d; }
+  .next-error-message-hint { color: #707070; }
+  .next-error-digest { color: #606060; }
+  .next-error-digest-code { color: #707070; }
+  .next-error-digest-hint { color: #505050; }
+  .next-error-digest-container { border-color: rgba(255,255,255,0.08); }
+  .next-error-icon-ring { stroke: #5c2121; }
+  .next-error-icon-fill { fill: #2a1618; }
+  .next-error-button { background: #1a1a1a; color: #ededed; border-color: #333; }
 }
 */
-const themeCss = `body{margin:0;color:#171717;background:#fff}@media(prefers-color-scheme:dark){body{color:#ededed;background:#0a0a0a}.next-error-title{color:#ff6369}.next-error-message{color:#a0a0a0}.next-error-digest{color:#878787}.next-error-dev-hint{color:#878787}.next-error-icon-ring{stroke:#822025}.next-error-icon-fill{fill:#2a1314}.next-error-button{background:#e5484d}}`
+const themeCss = `body{margin:0;color:#171717;background:#fff}@media(prefers-color-scheme:dark){body{color:#ededed;background:#0a0a0a}.next-error-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08)}.next-error-title{color:#ededed}.next-error-message{color:#a0a0a0}.next-error-message-hint{color:#707070}.next-error-digest{color:#606060}.next-error-digest-code{color:#707070}.next-error-digest-hint{color:#505050}.next-error-digest-container{border-color:rgba(255,255,255,0.08)}.next-error-icon-ring{stroke:#5c2121}.next-error-icon-fill{fill:#2a1618}.next-error-button{background:#1a1a1a;color:#ededed;border-color:#333}}`
 
 function ErrorIcon() {
   return (
     <svg
-      width="48"
-      height="48"
-      viewBox="0 0 48 48"
+      width="40"
+      height="40"
+      viewBox="0 0 40 40"
       fill="none"
       style={styles.icon}
     >
       <circle
         className="next-error-icon-ring"
-        cx="24"
-        cy="24"
-        r="23"
+        cx="20"
+        cy="20"
+        r="19"
         stroke="#fecaca"
         strokeWidth="2"
       />
       <circle
         className="next-error-icon-fill"
-        cx="24"
-        cy="24"
-        r="20"
+        cx="20"
+        cy="20"
+        r="16"
         fill="#fef2f2"
       />
       <path
-        d="M24 14v12M24 30v4"
+        d="M20 11v10M20 25v3"
         stroke="#dc2626"
-        strokeWidth="3"
+        strokeWidth="2.5"
         strokeLinecap="round"
       />
     </svg>
@@ -115,7 +138,6 @@ export type GlobalErrorComponent = React.ComponentType<{
 
 function DefaultGlobalError({ error }: { error: any }) {
   const digest: string | undefined = error?.digest
-  const isServerError = !!digest
 
   return (
     <html id="__next_error__">
@@ -125,32 +147,46 @@ function DefaultGlobalError({ error }: { error: any }) {
       <body>
         <HandleISRError error={error} />
         <div style={styles.container}>
-          <div style={styles.content}>
+          <div className="next-error-card" style={styles.card}>
             <ErrorIcon />
             <h1 className="next-error-title" style={styles.title}>
-              An Error Occurred
+              Something went wrong
             </h1>
             <p className="next-error-message" style={styles.message}>
-              Something went wrong. Please try again.
+              This page failed to load.
             </p>
-            {digest && (
-              <p className="next-error-digest" style={styles.digest}>
-                Error ID: {digest}
-              </p>
-            )}
+            <p className="next-error-message-hint" style={styles.messageHint}>
+              Reloading usually fixes this. If it keeps happening, the page may
+              be temporarily unavailable.
+            </p>
             <form>
               <button
                 className="next-error-button"
                 type="submit"
                 style={styles.button}
               >
-                Try Again
+                Reload page
               </button>
             </form>
-            <p className="next-error-dev-hint" style={styles.devHint}>
-              Developers: Check your{' '}
-              {isServerError ? 'server logs' : 'browser console'} for details.
-            </p>
+            {digest && (
+              <div
+                className="next-error-digest-container"
+                style={styles.digestContainer}
+              >
+                <p className="next-error-digest" style={styles.digest}>
+                  Error reference:{' '}
+                  <code
+                    className="next-error-digest-code"
+                    style={styles.digestCode}
+                  >
+                    {digest}
+                  </code>
+                </p>
+                <p className="next-error-digest-hint" style={styles.digestHint}>
+                  Include this if you contact support.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </body>

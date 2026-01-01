@@ -31,30 +31,29 @@ describe('app dir - default error page UI', () => {
 
     // In production mode, verify the new error page UI elements
 
-    // Check that the SVG icon is present
+    // Check that the SVG icon is present (40x40 size)
     const svgIcon = await browser.elementByCss('svg')
-    expect(await svgIcon.getAttribute('width')).toBe('48')
-    expect(await svgIcon.getAttribute('height')).toBe('48')
+    expect(await svgIcon.getAttribute('width')).toBe('40')
+    expect(await svgIcon.getAttribute('height')).toBe('40')
 
     // Check the error title
     const title = await browser.elementByCss('h1')
-    expect(await title.text()).toBe('An Error Occurred')
+    expect(await title.text()).toBe('Something went wrong')
 
     // Check the error message
     const message = await browser.elementByCss('p')
-    expect(await message.text()).toContain('Something went wrong')
+    expect(await message.text()).toContain('failed to load')
 
-    // Check the "Try Again" button exists
+    // Check the "Reload page" button exists
     const button = await browser.elementByCss('button')
-    expect(await button.text()).toBe('Try Again')
+    expect(await button.text()).toBe('Reload page')
 
-    // Check the developer hint
+    // Check the hint text about reloading
     const html = await browser.eval('document.documentElement.innerHTML')
-    expect(html).toContain('Developers:')
-    expect(html).toContain('browser console')
+    expect(html).toContain('Reloading usually fixes this')
   })
 
-  it('should reload the page when Try Again button is clicked', async () => {
+  it('should reload the page when Reload page button is clicked', async () => {
     const browser = await next.browser('/trigger-error')
 
     // Trigger a client-side error
@@ -68,7 +67,7 @@ describe('app dir - default error page UI', () => {
     // Get the current URL
     const urlBefore = await browser.url()
 
-    // Click the Try Again button
+    // Click the Reload page button
     await browser.elementByCss('button').click()
 
     // Wait for page to reload (should be back to the trigger-error page)
@@ -94,21 +93,20 @@ describe('app dir - default error page UI', () => {
       return
     }
 
-    // Check that the title has red color
+    // Check that the title has neutral dark color (not red)
     const title = await browser.elementByCss('h1')
     const titleColor = await title.getComputedCss('color')
-    // #e5484d = rgb(229, 72, 77)
-    expect(titleColor).toContain('229')
-    expect(titleColor).toContain('72')
+    // In light mode: #171717 = rgb(23, 23, 23)
+    expect(titleColor).toContain('23')
 
-    // Check that the button has red background
+    // Check that the button has neutral styling (white background with border)
     const button = await browser.elementByCss('button')
     const buttonBg = await button.getComputedCss('background-color')
-    expect(buttonBg).toContain('229')
-    expect(buttonBg).toContain('72')
+    // White = rgb(255, 255, 255)
+    expect(buttonBg).toContain('255')
   })
 
-  it('should display Error ID for server-side errors', async () => {
+  it('should display Error reference for server-side errors', async () => {
     const browser = await next.browser('/server-error')
 
     // Skip in dev mode (redbox overlay)
@@ -129,32 +127,24 @@ describe('app dir - default error page UI', () => {
       return
     }
 
-    // In production mode, verify the error page shows Error ID
+    // In production mode, verify the error page shows Error reference
     const html = await browser.eval('document.documentElement.innerHTML')
-    expect(html).toContain('Error ID:')
-    expect(html).toContain('server logs')
+    expect(html).toContain('Error reference:')
+    expect(html).toContain('contact support')
   })
 
-  it('should show correct developer hint based on error type', async () => {
-    // Client-side error should mention "browser console"
-    const clientBrowser = await next.browser('/trigger-error')
-    await clientBrowser.elementByCss('#trigger-error').click()
+  it('should have left-aligned text inside centered container', async () => {
+    const browser = await next.browser('/trigger-error')
 
-    if (!isNextDev) {
-      const clientHtml = await clientBrowser.eval(
-        'document.documentElement.innerHTML'
-      )
-      expect(clientHtml).toContain('browser console')
+    await browser.elementByCss('#trigger-error').click()
+
+    if (isNextDev) {
+      return
     }
 
-    // Server-side error should mention "server logs"
-    const serverBrowser = await next.browser('/server-error')
-
-    if (!isNextDev) {
-      const serverHtml = await serverBrowser.eval(
-        'document.documentElement.innerHTML'
-      )
-      expect(serverHtml).toContain('server logs')
-    }
+    // Check that the card has left text alignment
+    const card = await browser.elementByCss('.next-error-card')
+    const textAlign = await card.getComputedCss('text-align')
+    expect(textAlign).toBe('left')
   })
 })
