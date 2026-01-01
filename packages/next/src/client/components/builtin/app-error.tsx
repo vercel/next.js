@@ -13,8 +13,9 @@ const styles = {
     maxWidth: '420px',
     padding: '32px 28px',
     textAlign: 'left' as const,
-    backgroundColor: 'rgba(255,255,255,0.03)',
     borderRadius: '12px',
+    background: 'var(--next-error-card-bg)',
+    border: 'var(--next-error-card-border)',
   },
   icon: {
     marginBottom: '16px',
@@ -23,50 +24,70 @@ const styles = {
     fontSize: '17px',
     fontWeight: 600,
     letterSpacing: '-0.01em',
-    color: '#171717',
     margin: '0 0 8px 0',
+    color: 'var(--next-error-title)',
   },
   message: {
     fontSize: '14px',
     fontWeight: 400,
     lineHeight: 1.6,
-    color: '#666666',
     margin: '0 0 6px 0',
+    color: 'var(--next-error-message)',
   },
   messageHint: {
     fontSize: '13px',
     fontWeight: 400,
     lineHeight: 1.5,
-    color: '#8f8f8f',
     margin: '0 0 20px 0',
+    color: 'var(--next-error-hint)',
   },
   button: {
     padding: '10px 20px',
     fontSize: '14px',
     fontWeight: 500,
     letterSpacing: '0.01em',
-    color: '#171717',
-    backgroundColor: '#fff',
-    border: '1px solid #e5e5e5',
     borderRadius: '6px',
     cursor: 'pointer',
+    color: 'var(--next-error-btn-text)',
+    background: 'var(--next-error-btn-bg)',
+    border: 'var(--next-error-btn-border)',
   },
 }
 
-/* CSS minified from
-body { margin: 0; color: #171717; background: #fff; }
-@media (prefers-color-scheme: dark) {
-  body { color: #ededed; background: #0a0a0a; }
-  .next-error-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); }
-  .next-error-title { color: #ededed; }
-  .next-error-message { color: #a0a0a0; }
-  .next-error-message-hint { color: #707070; }
-  .next-error-icon-ring { stroke: #5c2121; }
-  .next-error-icon-fill { fill: #2a1618; }
-  .next-error-button { background: #1a1a1a; color: #ededed; border-color: #333; }
+/* CSS variables for theming */
+const themeCss = `
+:root {
+  --next-error-bg: #fff;
+  --next-error-text: #171717;
+  --next-error-card-bg: transparent;
+  --next-error-card-border: none;
+  --next-error-title: #171717;
+  --next-error-message: #666;
+  --next-error-hint: #888;
+  --next-error-btn-text: #171717;
+  --next-error-btn-bg: #fff;
+  --next-error-btn-border: 1px solid #e5e5e5;
+  --next-error-icon-ring: #fecaca;
+  --next-error-icon-fill: #fef2f2;
 }
-*/
-const themeCss = `body{margin:0;color:#171717;background:#fff}@media(prefers-color-scheme:dark){body{color:#ededed;background:#0a0a0a}.next-error-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08)}.next-error-title{color:#ededed}.next-error-message{color:#a0a0a0}.next-error-message-hint{color:#707070}.next-error-icon-ring{stroke:#5c2121}.next-error-icon-fill{fill:#2a1618}.next-error-button{background:#1a1a1a;color:#ededed;border-color:#333}}`
+@media (prefers-color-scheme: dark) {
+  :root {
+    --next-error-bg: #0a0a0a;
+    --next-error-text: #ededed;
+    --next-error-card-bg: rgba(255,255,255,0.04);
+    --next-error-card-border: 1px solid rgba(255,255,255,0.08);
+    --next-error-title: #ededed;
+    --next-error-message: #a0a0a0;
+    --next-error-hint: #707070;
+    --next-error-btn-text: #ededed;
+    --next-error-btn-bg: #1a1a1a;
+    --next-error-btn-border: 1px solid #333;
+    --next-error-icon-ring: #5c2121;
+    --next-error-icon-fill: #2a1618;
+  }
+}
+body { margin: 0; color: var(--next-error-text); background: var(--next-error-bg); }
+`.replace(/\n\s*/g, '')
 
 function ErrorIcon() {
   return (
@@ -78,20 +99,13 @@ function ErrorIcon() {
       style={styles.icon}
     >
       <circle
-        className="next-error-icon-ring"
         cx="20"
         cy="20"
         r="19"
-        stroke="#fecaca"
+        stroke="var(--next-error-icon-ring)"
         strokeWidth="2"
       />
-      <circle
-        className="next-error-icon-fill"
-        cx="20"
-        cy="20"
-        r="16"
-        fill="#fef2f2"
-      />
+      <circle cx="20" cy="20" r="16" fill="var(--next-error-icon-fill)" />
       <path
         d="M20 11v10M20 25v3"
         stroke="#dc2626"
@@ -111,24 +125,16 @@ function AppError() {
       </head>
       <body>
         <div style={styles.container}>
-          <div className="next-error-card" style={styles.card}>
+          <div style={styles.card}>
             <ErrorIcon />
-            <h1 className="next-error-title" style={styles.title}>
-              Something went wrong
-            </h1>
-            <p className="next-error-message" style={styles.message}>
-              The server encountered an error.
-            </p>
-            <p className="next-error-message-hint" style={styles.messageHint}>
+            <h1 style={styles.title}>Something went wrong</h1>
+            <p style={styles.message}>The server encountered an error.</p>
+            <p style={styles.messageHint}>
               Reloading usually fixes this. If it keeps happening, the page may
               be temporarily unavailable.
             </p>
             <form>
-              <button
-                className="next-error-button"
-                type="submit"
-                style={styles.button}
-              >
+              <button type="submit" style={styles.button}>
                 Reload page
               </button>
             </form>

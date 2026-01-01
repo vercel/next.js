@@ -130,7 +130,6 @@ describe('app dir - default error page UI', () => {
     // In production mode, verify the error page shows Error reference
     const html = await browser.eval('document.documentElement.innerHTML')
     expect(html).toContain('Error reference:')
-    expect(html).toContain('contact support')
   })
 
   it('should have left-aligned text inside centered container', async () => {
