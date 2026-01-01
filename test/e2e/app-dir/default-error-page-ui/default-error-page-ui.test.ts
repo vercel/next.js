@@ -49,7 +49,7 @@ describe('app dir - default error page UI', () => {
     expect(await button.text()).toBe('Try Again')
 
     // Check the developer hint
-    const html = await browser.html()
+    const html = await browser.eval('document.documentElement.innerHTML')
     expect(html).toContain('Developers:')
     expect(html).toContain('browser console')
   })
@@ -97,15 +97,15 @@ describe('app dir - default error page UI', () => {
     // Check that the title has red color
     const title = await browser.elementByCss('h1')
     const titleColor = await title.getComputedCss('color')
-    // #dc2626 = rgb(220, 38, 38)
-    expect(titleColor).toContain('220')
-    expect(titleColor).toContain('38')
+    // #e5484d = rgb(229, 72, 77)
+    expect(titleColor).toContain('229')
+    expect(titleColor).toContain('72')
 
     // Check that the button has red background
     const button = await browser.elementByCss('button')
     const buttonBg = await button.getComputedCss('background-color')
-    expect(buttonBg).toContain('220')
-    expect(buttonBg).toContain('38')
+    expect(buttonBg).toContain('229')
+    expect(buttonBg).toContain('72')
   })
 
   it('should display Error ID for server-side errors', async () => {
@@ -130,7 +130,7 @@ describe('app dir - default error page UI', () => {
     }
 
     // In production mode, verify the error page shows Error ID
-    const html = await browser.html()
+    const html = await browser.eval('document.documentElement.innerHTML')
     expect(html).toContain('Error ID:')
     expect(html).toContain('server logs')
   })
@@ -141,7 +141,9 @@ describe('app dir - default error page UI', () => {
     await clientBrowser.elementByCss('#trigger-error').click()
 
     if (!isNextDev) {
-      const clientHtml = await clientBrowser.html()
+      const clientHtml = await clientBrowser.eval(
+        'document.documentElement.innerHTML'
+      )
       expect(clientHtml).toContain('browser console')
     }
 
@@ -149,7 +151,9 @@ describe('app dir - default error page UI', () => {
     const serverBrowser = await next.browser('/server-error')
 
     if (!isNextDev) {
-      const serverHtml = await serverBrowser.html()
+      const serverHtml = await serverBrowser.eval(
+        'document.documentElement.innerHTML'
+      )
       expect(serverHtml).toContain('server logs')
     }
   })

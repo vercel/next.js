@@ -70,14 +70,14 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '18px',
     fontWeight: 600,
     letterSpacing: '-0.01em',
-    color: '#dc2626',
+    color: '#e5484d', // --color-red-700
     margin: '0 0 12px 0',
   },
   message: {
     fontSize: '15px',
     fontWeight: 400,
     lineHeight: 1.6,
-    color: '#64748b',
+    color: '#666666', // --color-gray-900
     margin: '0 0 24px 0',
   },
   button: {
@@ -86,15 +86,15 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 500,
     letterSpacing: '0.01em',
     color: '#fff',
-    backgroundColor: '#dc2626',
+    backgroundColor: '#e5484d', // --color-red-700
     border: 'none',
-    borderRadius: '8px',
+    borderRadius: '6px',
     cursor: 'pointer',
   },
   devHint: {
     fontSize: '12px',
     fontWeight: 400,
-    color: '#9ca3af',
+    color: '#8f8f8f', // --color-gray-700
     margin: '24px 0 0 0',
   },
 }
@@ -151,18 +151,20 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
     const isClientError = !statusCode
 
     /* CSS minified from
-      body { margin: 0; color: #000; background: #fff; }
+      body { margin: 0; color: #171717; background: #fff; }
       @media (prefers-color-scheme: dark) {
-        body { color: #fff; background: #0a0a0a; }
-        .next-error-message { color: #a1a1aa; }
-        .next-error-dev-hint { color: #71717a; }
-        .next-error-icon-ring { stroke: #7f1d1d; }
-        .next-error-icon-fill { fill: #1c1917; }
+        body { color: #ededed; background: #0a0a0a; }
+        .next-error-title { color: #ff6369; }
+        .next-error-message { color: #a0a0a0; }
+        .next-error-dev-hint { color: #878787; }
+        .next-error-icon-ring { stroke: #822025; }
+        .next-error-icon-fill { fill: #2a1314; }
+        .next-error-button { background: #e5484d; }
       }
     */
     const themeCss = withDarkMode
-      ? `body{margin:0;color:#000;background:#fff}@media(prefers-color-scheme:dark){body{color:#fff;background:#0a0a0a}.next-error-message{color:#a1a1aa}.next-error-dev-hint{color:#71717a}.next-error-icon-ring{stroke:#7f1d1d}.next-error-icon-fill{fill:#1c1917}}`
-      : `body{margin:0;color:#000;background:#fff}`
+      ? `body{margin:0;color:#171717;background:#fff}@media(prefers-color-scheme:dark){body{color:#ededed;background:#0a0a0a}.next-error-title{color:#ff6369}.next-error-message{color:#a0a0a0}.next-error-dev-hint{color:#878787}.next-error-icon-ring{stroke:#822025}.next-error-icon-fill{fill:#2a1314}.next-error-button{background:#e5484d}}`
+      : `body{margin:0;color:#171717;background:#fff}`
 
     return (
       <div style={styles.container}>
@@ -174,12 +176,18 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
         <style dangerouslySetInnerHTML={{ __html: themeCss }} />
         <div style={styles.content}>
           <ErrorIcon />
-          <h1 style={styles.title}>{title}</h1>
+          <h1 className="next-error-title" style={styles.title}>
+            {title}
+          </h1>
           <p className="next-error-message" style={styles.message}>
             {message}
           </p>
           <form>
-            <button type="submit" style={styles.button}>
+            <button
+              className="next-error-button"
+              type="submit"
+              style={styles.button}
+            >
               Try Again
             </button>
           </form>
