@@ -294,11 +294,6 @@ export default class NextNodeServer extends BaseServer<
     if (this.renderOpts.nextScriptWorkers) {
       process.env.__NEXT_SCRIPT_WORKERS = JSON.stringify(true)
     }
-    process.env.NEXT_DEPLOYMENT_ID = this.nextConfig.experimental.useSkewCookie
-      ? ''
-      : typeof this.nextConfig.deploymentId === 'string'
-        ? this.nextConfig.deploymentId
-        : ''
 
     if (!this.minimalMode) {
       this.imageResponseCache = new ResponseCache(this.minimalMode)
