@@ -250,6 +250,13 @@ jobs:
       - run: git checkout .
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
+      # Convert CRLF to LF for codemod test fixtures on Windows
+      # TODO: Remove this once Windows runners are configured with core.autocrlf=false
+      - name: Fix line endings for codemod tests
+        if: ${{ contains(fromJson(inputs.runs_on_labels), 'windows') }}
+        shell: bash
+        run: find packages/next-codemod -type f \( -name "*.js" -o -name "*.ts" -o -name "*.tsx" -o -name "*.jsx" \) -exec sed -i 's/\r$//' {} \;
+
       - run: pnpm install
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
