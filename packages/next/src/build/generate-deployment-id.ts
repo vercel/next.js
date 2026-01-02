@@ -1,19 +1,24 @@
 /**
- * Generates a deployment ID from a user-provided string or auto-generates one
- * if the experimental flag is enabled.
+ * Generates a deployment ID from a user-provided function or string.
+ * Similar to generateBuildId, but for deploymentId.
  */
-export function generateDeploymentId(
-  deploymentId: string | undefined,
-  autoGenerate: boolean,
-  generateFn: () => string
-): string {
-  if (autoGenerate) {
-    // Auto-generate a unique deployment ID
-    return generateFn()
+export async function generateDeploymentId(
+  deploymentId: string | (() => string | Promise<string>) | undefined,
+  fallback: () => string
+): Promise<string> {
+  if (!deploymentId) {
+    // If no deploymentId is provided, generate one using the fallback
+    return fallback()
   }
 
-  if (!deploymentId) {
-    return ''
+  if (typeof deploymentId === 'function') {
+    const result = await deploymentId()
+    if (typeof result !== 'string') {
+      throw new Error(
+        'deploymentId function must return a string. https://nextjs.org/docs/messages/deploymentid-not-a-string'
+      )
+    }
+    return result.trim()
   }
 
   return deploymentId.trim()
