@@ -250,13 +250,6 @@ jobs:
       - run: git checkout .
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
-      # Convert CRLF to LF on Windows (must run after git checkout which restores CRLF)
-      - name: Convert line endings to LF
-        if: ${{ contains(fromJson(inputs.runs_on_labels), 'windows') }}
-        shell: bash
-        run: |
-          find packages/next-codemod -type f \( -name "*.js" -o -name "*.ts" -o -name "*.tsx" -o -name "*.jsx" \) -exec sed -i 's/\r$//' {} \;
-
       - run: pnpm install
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
