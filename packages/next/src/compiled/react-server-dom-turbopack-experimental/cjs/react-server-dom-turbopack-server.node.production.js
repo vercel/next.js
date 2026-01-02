@@ -524,6 +524,7 @@ function getChildFormatContext(parentContext, type, props) {
   }
 }
 var requestStorage = new async_hooks.AsyncLocalStorage(),
+  supportsRequestStorage = true,
   TEMPORARY_REFERENCE_TAG = Symbol.for("react.temporary.reference"),
   proxyHandlers = {
     get: function (target, name) {
@@ -1320,7 +1321,7 @@ function renderElement(request, task, type, key, ref, props) {
 }
 function runInAsyncContext(request, fn) {
   return function() {
-    if (request.asyncContextSnapshot) {
+    if (request.asyncContextSnapshot && supportsRequestStorage) {
       return request.asyncContextSnapshot(fn);
     }
     return fn();
@@ -1913,6 +1914,7 @@ function fatalError(request, error) {
   request.cacheController.abort(
     Error("The render was aborted due to a fatal error.", { cause: error })
   );
+  request.asyncContextSnapshot = null;
 }
 function emitErrorChunk(request, id, digest) {
   digest = { digest: digest };
@@ -2174,7 +2176,8 @@ function flushCompletedChunks(request) {
     null !== request.destination &&
       ((request.status = 14),
       request.destination.end(),
-      (request.destination = null)));
+      (request.destination = null)),
+    (request.asyncContextSnapshot = null));
 }
 function startWork(request) {
   request.flushScheduled = null !== request.destination;

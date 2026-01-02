@@ -2237,7 +2237,7 @@
     }
     function runInAsyncContext(request, fn) {
       return function() {
-        if (request.asyncContextSnapshot) {
+        if (request.asyncContextSnapshot && supportsRequestStorage) {
           return request.asyncContextSnapshot(fn);
         }
         return fn();
@@ -3028,6 +3028,7 @@
       request.cacheController.abort(
         Error("The render was aborted due to a fatal error.", { cause: error })
       );
+      request.asyncContextSnapshot = null;
     }
     function serializeErrorValue(request, error) {
       var name = "Error",
@@ -4160,12 +4161,14 @@
               (request.destination = null)),
             null !== request.debugDestination &&
               (request.debugDestination.end(),
-              (request.debugDestination = null)))
+              (request.debugDestination = null)),
+            (request.asyncContextSnapshot = null))
           : null !== importsChunks &&
             null !== request.destination &&
             ((request.status = CLOSED),
             request.destination.end(),
-            (request.destination = null)));
+            (request.destination = null),
+            (request.asyncContextSnapshot = null)));
     }
     function startWork(request) {
       request.flushScheduled = null !== request.destination;
@@ -5663,6 +5666,7 @@
         /^ {3} at (?:(.+) \((?:(.+):(\d+):(\d+)|<anonymous>)\)|(?:async )?(.+):(\d+):(\d+)|<anonymous>)$/,
       stackTraceCache = new WeakMap(),
       requestStorage = new async_hooks.AsyncLocalStorage(),
+      supportsRequestStorage = true,
       componentStorage = new async_hooks.AsyncLocalStorage(),
       TEMPORARY_REFERENCE_TAG = Symbol.for("react.temporary.reference"),
       proxyHandlers = {
