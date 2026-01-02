@@ -56,14 +56,22 @@ use crate::{
 /// This is used to populate the `names` field in source maps.
 /// Based on swc_compiler_base::IdentCollector.
 pub struct IdentCollector {
-    pub names: FxHashMap<BytePos, Atom>,
+    names_vec: Vec<(BytePos, Atom)>,
 }
 
 impl IdentCollector {
     pub fn new() -> Self {
         Self {
-            names: FxHashMap::default(),
+            // Vec is cheap to grow, small default is fine
+            names_vec: Vec::with_capacity(128),
         }
+    }
+
+    /// Converts the collected identifiers into a map.
+    /// This is called after visiting the AST to get the final names map.
+    pub fn into_map(self) -> FxHashMap<BytePos, Atom> {
+        // Now we know the exact size - perfect allocation!
+        self.names_vec.into_iter().collect()
     }
 }
 
@@ -71,18 +79,22 @@ impl Visit for IdentCollector {
     noop_visit_type!();
 
     fn visit_ident(&mut self, ident: &Ident) {
-        self.names.insert(ident.span.lo, ident.sym.clone());
+        // Skip dummy spans - these are synthetic/generated identifiers
+        if !ident.span.lo.is_dummy() {
+            // we can get away with just the `lo` positions since identifiers cannot overlap.
+            self.names_vec.push((ident.span.lo, ident.sym.clone()));
+        }
     }
 
     fn visit_ident_name(&mut self, ident: &IdentName) {
         // We don't want to specifically include the constructor name in the source map
         // so that the source map name in thrown errors refers to the class name
         // instead of the constructor name.
-        if ident.sym == "constructor" {
+        if ident.sym == "constructor" || ident.span.lo.is_dummy() {
             return;
         }
 
-        self.names.insert(ident.span.lo, ident.sym.clone());
+        self.names_vec.push((ident.span.lo, ident.sym.clone()));
     }
 }
 

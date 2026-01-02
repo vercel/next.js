@@ -72,7 +72,7 @@ pub fn minify(code: Code, source_maps: bool, mangle: Option<MangleType>) -> Resu
                     let source_map_names = if source_maps.is_some() {
                         let mut collector = IdentCollector::new();
                         program.visit_with(&mut collector);
-                        collector.names
+                        collector.into_map()
                     } else {
                         Default::default()
                     };

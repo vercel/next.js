@@ -2111,7 +2111,7 @@ async fn emit_content(
     let source_map_names = if generate_source_map {
         let mut collector = IdentCollector::new();
         program.visit_with(&mut collector);
-        collector.names
+        collector.into_map()
     } else {
         Default::default()
     };
