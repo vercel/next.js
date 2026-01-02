@@ -14,6 +14,7 @@ describe('app-dir - bun externals', () => {
     const $ = await next.render$('/')
 
     // When not running in Bun, these should throw "Cannot find module" errors
+    expect($('#bun-bundle').text()).toBe('external (not found)')
     expect($('#bun-ffi').text()).toBe('external (not found)')
     expect($('#bun-jsc').text()).toBe('external (not found)')
     expect($('#bun-sqlite').text()).toBe('external (not found)')
@@ -37,6 +38,7 @@ describe('app-dir - bun externals', () => {
     const response = await next.fetch('/api/bun-externals')
     const data = await response.json()
 
+    expect(data.bunBundle).toBe('external')
     expect(data.bunFfi).toBe('external')
     expect(data.bunJsc).toBe('external')
     expect(data.bunSqlite).toBe('external')
@@ -57,12 +59,14 @@ describe('app-dir - bun externals', () => {
       await next.fetch('/')
       const rscBundle = await next.readFile('.next/server/app/page.js')
 
+      expect(rscBundle).not.toContain('bun:bundle implementation')
       expect(rscBundle).not.toContain('bun:ffi implementation')
       expect(rscBundle).not.toContain('bun:jsc implementation')
       expect(rscBundle).not.toContain('bun:sqlite implementation')
       expect(rscBundle).not.toContain('bun:test implementation')
       expect(rscBundle).not.toContain('bun:wrap implementation')
 
+      expect(rscBundle).toMatch(/require\(["']bun:bundle["']\)/)
       expect(rscBundle).toMatch(/require\(["']bun:ffi["']\)/)
       expect(rscBundle).toMatch(/require\(["']bun:jsc["']\)/)
       expect(rscBundle).toMatch(/require\(["']bun:sqlite["']\)/)

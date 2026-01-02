@@ -4,6 +4,7 @@ export async function GET() {
   const results: Record<string, string> = {}
 
   const modules = [
+    { name: 'bunBundle', module: 'bun:bundle' },
     { name: 'bunFfi', module: 'bun:ffi' },
     { name: 'bunJsc', module: 'bun:jsc' },
     { name: 'bunSqlite', module: 'bun:sqlite' },

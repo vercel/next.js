@@ -33,6 +33,7 @@ const IS_TURBOPACK = process.env.IS_TURBOPACK_TEST === '1'
     // Bun modules should be treated as external
     // When modules are external, webpack preserves the require() calls
     const bunModules = [
+      'bun:bundle',
       'bun:ffi',
       'bun:jsc',
       'bun:sqlite',

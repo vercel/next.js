@@ -67,7 +67,8 @@ pub const NODE_EXTERNALS: [&str; 64] = [
 
 pub const EDGE_NODE_EXTERNALS: [&str; 5] = ["buffer", "events", "assert", "util", "async_hooks"];
 
-pub const BUN_EXTERNALS: [&str; 6] = [
+pub const BUN_EXTERNALS: [&str; 7] = [
+    "bun:bundle",
     "bun:ffi",
     "bun:jsc",
     "bun:sqlite",

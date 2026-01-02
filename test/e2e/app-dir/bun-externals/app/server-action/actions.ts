@@ -2,6 +2,7 @@
 
 export async function testBunExternals() {
   const modules = [
+    'bun:bundle',
     'bun:ffi',
     'bun:jsc',
     'bun:sqlite',
