@@ -1,6 +1,8 @@
 mod dynamic_storage;
 mod operation;
 mod storage;
+mod storage_bridge;
+mod storage_schema;
 
 use std::{
     borrow::Cow,

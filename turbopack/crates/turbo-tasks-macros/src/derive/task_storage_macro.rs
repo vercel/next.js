@@ -18,6 +18,7 @@ use syn::{
 /// - `#[task_storage(storage = "...")]` - Specifies the storage type:
 ///   - `direct` - Direct field access (e.g., `Option<OutputValue>`)
 ///   - `auto_set` - Uses AutoSet for small collections
+///   - `auto_map` - Uses AutoMap for key-value pairs
 ///   - `counter_map` - Uses CounterMap for reference counting
 ///   - `indexed_vec` - Uses IndexedVec for direct index access
 ///
@@ -28,6 +29,10 @@ use syn::{
 /// - `#[task_storage(group = "...")]` - Groups related fields together
 ///
 /// - `#[task_storage(lazy)]` - Wraps field group in Option<Box<...>>
+///
+/// - `#[task_storage(transient)]` - Field is not serialized (skipped in bincode)
+///
+/// - `#[task_storage(specialized)]` - Field is stored at top level, not in a group
 pub fn derive_task_storage(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
 
@@ -73,12 +78,14 @@ struct StorageFieldAttributes {
     group: Option<String>,
     lazy: bool,
     specialized: bool,
+    transient: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum StorageType {
     Direct,
     AutoSet,
+    AutoMap,
     CounterMap,
     IndexedVec,
 }
@@ -99,6 +106,7 @@ fn parse_field_storage_attributes(field: &syn::Field) -> StorageFieldAttributes 
     let mut group = None;
     let mut lazy = false;
     let mut specialized = false;
+    let mut transient = false;
 
     // Parse attributes
     for attr in &field.attrs {
@@ -139,6 +147,7 @@ fn parse_field_storage_attributes(field: &syn::Field) -> StorageFieldAttributes 
                             storage_type = match lit_str.value().as_str() {
                                 "direct" => StorageType::Direct,
                                 "auto_set" => StorageType::AutoSet,
+                                "auto_map" => StorageType::AutoMap,
                                 "counter_map" => StorageType::CounterMap,
                                 "indexed_vec" => StorageType::IndexedVec,
                                 other => {
@@ -183,6 +192,8 @@ fn parse_field_storage_attributes(field: &syn::Field) -> StorageFieldAttributes 
                             lazy = true;
                         } else if *ident == "specialized" {
                             specialized = true;
+                        } else if *ident == "transient" {
+                            transient = true;
                         }
                     }
                 }
@@ -199,6 +210,7 @@ fn parse_field_storage_attributes(field: &syn::Field) -> StorageFieldAttributes 
         group,
         lazy,
         specialized,
+        transient,
     }
 }
 
@@ -215,6 +227,9 @@ struct FieldGroup {
     name: String,
     fields: Vec<StorageFieldAttributes>,
     lazy: bool,
+    /// True if any field in the group is transient (meaning the entire group
+    /// cannot be serialized and should be skipped in bincode)
+    has_transient: bool,
 }
 
 fn group_fields(fields: &[StorageFieldAttributes]) -> GroupedFields {
@@ -252,6 +267,7 @@ fn group_fields(fields: &[StorageFieldAttributes]) -> GroupedFields {
         .into_iter()
         .map(|(name, fields)| {
             let lazy = fields.first().map(|f| f.lazy).unwrap_or(false);
+            let has_transient = fields.iter().any(|f| f.transient);
             // Ensure all fields in a group have the same lazy setting
             for f in &fields {
                 if f.lazy != lazy {
@@ -262,7 +278,12 @@ fn group_fields(fields: &[StorageFieldAttributes]) -> GroupedFields {
                         .emit();
                 }
             }
-            FieldGroup { name, fields, lazy }
+            FieldGroup {
+                name,
+                fields,
+                lazy,
+                has_transient,
+            }
         })
         .collect();
 
@@ -270,6 +291,7 @@ fn group_fields(fields: &[StorageFieldAttributes]) -> GroupedFields {
         .into_iter()
         .map(|(name, fields)| {
             let lazy = fields.first().map(|f| f.lazy).unwrap_or(false);
+            let has_transient = fields.iter().any(|f| f.transient);
             for f in &fields {
                 if f.lazy != lazy {
                     f.field_name
@@ -279,7 +301,12 @@ fn group_fields(fields: &[StorageFieldAttributes]) -> GroupedFields {
                         .emit();
                 }
             }
-            FieldGroup { name, fields, lazy }
+            FieldGroup {
+                name,
+                fields,
+                lazy,
+                has_transient,
+            }
         })
         .collect();
 
@@ -369,15 +396,22 @@ fn generate_group_structs(
             proc_macro2::Span::call_site(),
         );
 
-        // Generate fields
+        // Generate fields with appropriate bincode attributes for transient fields
         let field_defs: Vec<_> = group
             .fields
             .iter()
             .map(|f| {
                 let field_name = &f.field_name;
                 let field_type = &f.field_type;
-                quote! {
-                    pub #field_name: #field_type
+                if f.transient {
+                    quote! {
+                        #[bincode(skip)]
+                        pub #field_name: #field_type
+                    }
+                } else {
+                    quote! {
+                        pub #field_name: #field_type
+                    }
                 }
             })
             .collect();
@@ -405,9 +439,16 @@ fn generate_task_data_struct(
     for field in specialized_fields {
         let field_name = &field.field_name;
         let field_type = &field.field_type;
-        specialized_field_defs.push(quote! {
-            pub #field_name: #field_type
-        });
+        if field.transient {
+            specialized_field_defs.push(quote! {
+                #[bincode(skip)]
+                pub #field_name: #field_type
+            });
+        } else {
+            specialized_field_defs.push(quote! {
+                pub #field_name: #field_type
+            });
+        }
     }
 
     for group in groups {
@@ -416,9 +457,16 @@ fn generate_task_data_struct(
             let field = &group.fields[0];
             let field_name = &field.field_name;
             let field_type = &field.field_type;
-            direct_fields.push(quote! {
-                pub #field_name: #field_type
-            });
+            if field.transient {
+                direct_fields.push(quote! {
+                    #[bincode(skip)]
+                    pub #field_name: #field_type
+                });
+            } else {
+                direct_fields.push(quote! {
+                    pub #field_name: #field_type
+                });
+            }
         } else {
             // Group field
             let group_name = syn::Ident::new(&group.name, proc_macro2::Span::call_site());
@@ -427,12 +475,21 @@ fn generate_task_data_struct(
                 proc_macro2::Span::call_site(),
             );
 
+            // If any field in the group is transient, skip the whole group in bincode
+            let skip_attr = if group.has_transient {
+                quote! { #[bincode(skip)] }
+            } else {
+                quote! {}
+            };
+
             if group.lazy {
                 group_fields.push(quote! {
+                    #skip_attr
                     pub #group_name: Option<Box<#struct_name>>
                 });
             } else {
                 group_fields.push(quote! {
+                    #skip_attr
                     pub #group_name: #struct_name
                 });
             }
@@ -461,9 +518,16 @@ fn generate_task_meta_struct(
     for field in specialized_fields {
         let field_name = &field.field_name;
         let field_type = &field.field_type;
-        specialized_field_defs.push(quote! {
-            pub #field_name: #field_type
-        });
+        if field.transient {
+            specialized_field_defs.push(quote! {
+                #[bincode(skip)]
+                pub #field_name: #field_type
+            });
+        } else {
+            specialized_field_defs.push(quote! {
+                pub #field_name: #field_type
+            });
+        }
     }
 
     for group in groups {
@@ -472,9 +536,16 @@ fn generate_task_meta_struct(
             let field = &group.fields[0];
             let field_name = &field.field_name;
             let field_type = &field.field_type;
-            direct_fields.push(quote! {
-                pub #field_name: #field_type
-            });
+            if field.transient {
+                direct_fields.push(quote! {
+                    #[bincode(skip)]
+                    pub #field_name: #field_type
+                });
+            } else {
+                direct_fields.push(quote! {
+                    pub #field_name: #field_type
+                });
+            }
         } else {
             // Group field
             let group_name = syn::Ident::new(&group.name, proc_macro2::Span::call_site());
@@ -483,12 +554,21 @@ fn generate_task_meta_struct(
                 proc_macro2::Span::call_site(),
             );
 
+            // If any field in the group is transient, skip the whole group in bincode
+            let skip_attr = if group.has_transient {
+                quote! { #[bincode(skip)] }
+            } else {
+                quote! {}
+            };
+
             if group.lazy {
                 group_fields.push(quote! {
+                    #skip_attr
                     pub #group_name: Option<Box<#struct_name>>
                 });
             } else {
                 group_fields.push(quote! {
+                    #skip_attr
                     pub #group_name: #struct_name
                 });
             }
@@ -574,42 +654,20 @@ fn generate_group_accessors(group: &FieldGroup, category: &str) -> proc_macro2::
     let mut methods = proc_macro2::TokenStream::new();
     let category_ident = syn::Ident::new(category, proc_macro2::Span::call_site());
 
+    // Calculate group-related names once if needed
+    let group_name = syn::Ident::new(&group.name, proc_macro2::Span::call_site());
+    let category_suffix = if category == "data" { "Data" } else { "Meta" };
+    let group_struct = syn::Ident::new(
+        &format!("{}{}Group", capitalize(&group.name), category_suffix),
+        proc_macro2::Span::call_site(),
+    );
+
+    // Is this a multi-field group or a lazy single-field group?
+    let is_grouped = group.fields.len() > 1 || group.lazy;
+
     for field in &group.fields {
         let field_name = &field.field_name;
         let field_type = &field.field_type;
-
-        // Determine the path to the field based on grouping
-        let field_path = if group.fields.len() == 1 && !group.lazy {
-            // Direct field
-            quote! { self.#category_ident.#field_name }
-        } else {
-            // Grouped field
-            let group_name = syn::Ident::new(&group.name, proc_macro2::Span::call_site());
-            quote! {
-                self.#category_ident.#group_name.as_ref()?.#field_name
-            }
-        };
-
-        let field_path_mut = if group.fields.len() == 1 && !group.lazy {
-            // Direct field
-            quote! { &mut self.#category_ident.#field_name }
-        } else {
-            // Grouped field with lazy allocation
-            let group_name = syn::Ident::new(&group.name, proc_macro2::Span::call_site());
-            let group_struct = syn::Ident::new(
-                &format!(
-                    "{}{}Group",
-                    capitalize(&group.name),
-                    if category == "data" { "Data" } else { "Meta" }
-                ),
-                proc_macro2::Span::call_site(),
-            );
-            quote! {
-                &mut self.#category_ident.#group_name
-                    .get_or_insert_with(|| Box::new(#group_struct::default()))
-                    .#field_name
-            }
-        };
 
         // Determine modification tracking method based on category
         let set_modified = if category == "data" {
@@ -631,59 +689,83 @@ fn generate_group_accessors(group: &FieldGroup, category: &str) -> proc_macro2::
                     proc_macro2::Span::call_site(),
                 );
 
-                methods.extend(quote! {
-                    pub fn #get_name(&self) -> &#field_type {
-                        &#field_path
-                    }
+                if is_grouped && group.lazy {
+                    // Lazy group - getter returns Option<&T> by checking if group exists
+                    methods.extend(quote! {
+                        pub fn #get_name(&self) -> Option<&#field_type> {
+                            self.#category_ident.#group_name.as_ref().map(|g| &g.#field_name)
+                        }
 
-                    pub fn #set_name(&mut self, value: #field_type) {
-                        *#field_path_mut = value;
-                        #set_modified
-                    }
-                });
+                        pub fn #set_name(&mut self, value: #field_type) {
+                            self.#category_ident.#group_name
+                                .get_or_insert_with(|| Box::new(#group_struct::default()))
+                                .#field_name = value;
+                            #set_modified
+                        }
+                    });
+                } else if is_grouped {
+                    // Non-lazy group - direct access through group
+                    methods.extend(quote! {
+                        pub fn #get_name(&self) -> &#field_type {
+                            &self.#category_ident.#group_name.#field_name
+                        }
+
+                        pub fn #set_name(&mut self, value: #field_type) {
+                            self.#category_ident.#group_name.#field_name = value;
+                            #set_modified
+                        }
+                    });
+                } else {
+                    // Direct field (single non-lazy field)
+                    methods.extend(quote! {
+                        pub fn #get_name(&self) -> &#field_type {
+                            &self.#category_ident.#field_name
+                        }
+
+                        pub fn #set_name(&mut self, value: #field_type) {
+                            self.#category_ident.#field_name = value;
+                            #set_modified
+                        }
+                    });
+                }
             }
-            StorageType::AutoSet => {
-                // Just provide direct access to the AutoSet via mutable reference
-                // Note: Modification tracking happens when mutable reference is obtained
+            StorageType::AutoSet
+            | StorageType::AutoMap
+            | StorageType::CounterMap
+            | StorageType::IndexedVec => {
+                // Provide direct mutable access
                 let get_name = syn::Ident::new(
                     &format!("{}_mut", field_name),
                     proc_macro2::Span::call_site(),
                 );
 
-                methods.extend(quote! {
-                    pub fn #get_name(&mut self) -> &mut #field_type {
-                        #set_modified
-                        #field_path_mut
-                    }
-                });
-            }
-            StorageType::CounterMap => {
-                // Provide direct mutable access to CounterMap
-                let get_name = syn::Ident::new(
-                    &format!("{}_mut", field_name),
-                    proc_macro2::Span::call_site(),
-                );
-
-                methods.extend(quote! {
-                    pub fn #get_name(&mut self) -> &mut #field_type {
-                        #set_modified
-                        #field_path_mut
-                    }
-                });
-            }
-            StorageType::IndexedVec => {
-                // Provide direct mutable access to IndexedVec
-                let get_name = syn::Ident::new(
-                    &format!("{}_mut", field_name),
-                    proc_macro2::Span::call_site(),
-                );
-
-                methods.extend(quote! {
-                    pub fn #get_name(&mut self) -> &mut #field_type {
-                        #set_modified
-                        #field_path_mut
-                    }
-                });
+                if is_grouped && group.lazy {
+                    // Lazy group - need to initialize on access
+                    methods.extend(quote! {
+                        pub fn #get_name(&mut self) -> &mut #field_type {
+                            #set_modified
+                            &mut self.#category_ident.#group_name
+                                .get_or_insert_with(|| Box::new(#group_struct::default()))
+                                .#field_name
+                        }
+                    });
+                } else if is_grouped {
+                    // Non-lazy group - direct access through group
+                    methods.extend(quote! {
+                        pub fn #get_name(&mut self) -> &mut #field_type {
+                            #set_modified
+                            &mut self.#category_ident.#group_name.#field_name
+                        }
+                    });
+                } else {
+                    // Direct field (single non-lazy field)
+                    methods.extend(quote! {
+                        pub fn #get_name(&mut self) -> &mut #field_type {
+                            #set_modified
+                            &mut self.#category_ident.#field_name
+                        }
+                    });
+                }
             }
         }
     }
@@ -734,7 +816,10 @@ fn generate_specialized_field_accessors(
                 }
             });
         }
-        StorageType::AutoSet | StorageType::CounterMap | StorageType::IndexedVec => {
+        StorageType::AutoSet
+        | StorageType::AutoMap
+        | StorageType::CounterMap
+        | StorageType::IndexedVec => {
             let get_name = syn::Ident::new(
                 &format!("{}_mut", field_name),
                 proc_macro2::Span::call_site(),
