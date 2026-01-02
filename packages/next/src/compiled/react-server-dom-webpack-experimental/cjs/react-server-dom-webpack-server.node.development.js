@@ -4218,11 +4218,13 @@
     }
     function startWork(request) {
       request.flushScheduled = null !== request.destination;
-      request.asyncContextSnapshot = typeof async_hooks.AsyncLocalStorage.snapshot === 'function'
-        ? async_hooks.AsyncLocalStorage.snapshot()
-        : null;
       scheduleMicrotask(function () {
-        requestStorage.run(request, performWork, request);
+        requestStorage.run(request, function() {
+          request.asyncContextSnapshot = typeof async_hooks.AsyncLocalStorage.snapshot === 'function'
+            ? async_hooks.AsyncLocalStorage.snapshot()
+            : null;
+          performWork(request);
+        });
       });
       setImmediate(function () {
         10 === request.status && (request.status = 11);
