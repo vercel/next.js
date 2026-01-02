@@ -197,6 +197,13 @@ jobs:
         with:
           fetch-depth: 25
 
+      # Renormalize line endings after checkout on Windows
+      - name: Renormalize line endings
+        if: ${{ contains(fromJson(inputs.runs_on_labels), 'windows') }}
+        run: |
+          git add --renormalize .
+          git checkout -- .
+
       # local action -> needs to run after checkout
       - name: Install Rust
         uses: ./.github/actions/setup-rust
