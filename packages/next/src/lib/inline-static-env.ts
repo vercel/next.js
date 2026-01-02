@@ -17,7 +17,7 @@ export async function inlineStaticEnv({
   config: NextConfigComplete
 }) {
   const nextConfigEnv = getNextConfigEnv(config)
-  const staticEnv = getStaticEnv(config, config.deploymentId)
+  const staticEnv = getStaticEnv(config)
 
   const serverDir = path.join(distDir, 'server')
   const serverChunks = await glob('**/*.{js,json,js.map}', {

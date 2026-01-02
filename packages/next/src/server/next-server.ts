@@ -357,7 +357,7 @@ export default class NextNodeServer extends BaseServer<
     // when using compile mode static env isn't inlined so we
     // need to populate in normal runtime env
     if (this.renderOpts.isExperimentalCompile) {
-      populateStaticEnv(this.nextConfig, this.renderOpts.deploymentId || '')
+      populateStaticEnv(this.nextConfig)
     }
 
     const shouldRemoveUncaughtErrorAndRejectionListeners = Boolean(
@@ -722,29 +722,30 @@ export default class NextNodeServer extends BaseServer<
         // TODO: re-enable this once we've refactored to use implicit matches
         // throw new Error('Invariant: render should have used routeModule')
 
-      return lazyRenderPagesPage(
-        req.originalRequest,
-        res.originalResponse,
-        pathname,
-        query,
-        renderOpts,
-        {
-          buildId: this.buildId,
-          deploymentId:
-            typeof this.nextConfig.deploymentId === 'string'
-              ? this.nextConfig.deploymentId
-              : undefined,
-          customServer: this.serverOptions.customServer || undefined,
-        },
-        {
-          isFallback: false,
-          isDraftMode: renderOpts.isDraftMode,
-          developmentNotFoundSourcePage: getRequestMeta(
-            req,
-            'developmentNotFoundSourcePage'
-          ),
-        }
-      )
+        return lazyRenderPagesPage(
+          req.originalRequest,
+          res.originalResponse,
+          pathname,
+          query,
+          renderOpts as LoadedRenderOpts<PagesModule>,
+          {
+            buildId: this.buildId,
+            deploymentId:
+              typeof this.nextConfig.deploymentId === 'string'
+                ? this.nextConfig.deploymentId
+                : undefined,
+            customServer: this.serverOptions.customServer || undefined,
+          },
+          {
+            isFallback: false,
+            isDraftMode: renderOpts.isDraftMode,
+            developmentNotFoundSourcePage: getRequestMeta(
+              req,
+              'developmentNotFoundSourcePage'
+            ),
+          }
+        )
+      }
     }
   }
 

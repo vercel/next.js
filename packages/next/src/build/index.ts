@@ -948,9 +948,7 @@ export default async function build(
       // Generate deploymentId - can be a string, function, or auto-generated if not provided
       const deploymentId = await nextBuildSpan
         .traceChild('generate-deploymentid')
-        .traceAsyncFn(() =>
-          generateDeploymentId(config.deploymentId, nanoid)
-        )
+        .traceAsyncFn(() => generateDeploymentId(config.deploymentId, nanoid))
       process.env.NEXT_DEPLOYMENT_ID = deploymentId
       // Update config with the evaluated deploymentId so it's available as a string throughout the build
       config.deploymentId = deploymentId
@@ -998,7 +996,7 @@ export default async function build(
       // when using compile mode static env isn't inlined so we
       // need to populate in normal runtime env
       if (isCompileMode || isGenerateMode) {
-        populateStaticEnv(config, config.deploymentId)
+        populateStaticEnv(config)
       }
 
       const customRoutes: CustomRoutes = await nextBuildSpan
