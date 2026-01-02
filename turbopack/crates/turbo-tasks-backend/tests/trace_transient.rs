@@ -2,7 +2,7 @@
 #![feature(arbitrary_self_types_pointers)]
 
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
 use turbo_tasks_testing::{Registration, register, run_once_without_cache_check};
 
@@ -50,6 +50,7 @@ impl Adder {
 
     #[turbo_tasks::function]
     async fn add_method(&self, arg1: ResolvedVc<u16>, arg2: ResolvedVc<u32>) -> Result<Vc<u64>> {
+        let _ = self; // Make sure unused argument filtering doesn't remove the arg
         Ok(Vc::cell(u64::from(*arg1.await?) + u64::from(*arg2.await?)))
     }
 }
@@ -61,9 +62,7 @@ async fn read_incorrect_task_input_operation(value: IncorrectTaskInput) -> Resul
 
 /// Has an intentionally incorrect `TaskInput` implementation, representing some code that the debug
 /// tracing might be particularly useful with.
-#[derive(
-    Copy, Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Serialize, Deserialize, NonLocalValue,
-)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode, NonLocalValue)]
 struct IncorrectTaskInput(ResolvedVc<u64>);
 
 impl TaskInput for IncorrectTaskInput {

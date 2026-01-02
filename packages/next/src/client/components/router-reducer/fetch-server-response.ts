@@ -12,9 +12,9 @@ import type {
   NavigationFlightResponse,
 } from '../../../shared/lib/app-router-types'
 
-import type { NEXT_ROUTER_SEGMENT_PREFETCH_HEADER } from '../app-router-headers'
 import {
-  NEXT_ROUTER_PREFETCH_HEADER,
+  type NEXT_ROUTER_PREFETCH_HEADER,
+  type NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_RSC_UNION_QUERY,
   NEXT_URL,
@@ -28,7 +28,6 @@ import {
 } from '../app-router-headers'
 import { callServer } from '../../app-call-server'
 import { findSourceMapURL } from '../../app-find-source-map-url'
-import { PrefetchKind } from './router-reducer-types'
 import {
   normalizeFlightData,
   prepareFlightRouterStateForRequest,
@@ -41,6 +40,7 @@ import {
   urlToUrlWithoutFlightMarker,
 } from '../../route-params'
 import type { NormalizedSearch } from '../segment-cache/cache-key'
+import { getDeploymentId } from '../../../shared/lib/deployment-id'
 
 const createFromReadableStream =
   createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
@@ -63,7 +63,6 @@ if (
 export interface FetchServerResponseOptions {
   readonly flightRouterState: FlightRouterState
   readonly nextUrl: string | null
-  readonly prefetchKind?: PrefetchKind
   readonly isHmrRefresh?: boolean
 }
 
@@ -102,21 +101,20 @@ function doMpaNavigation(url: string): FetchServerResponseResult {
   return urlToUrlWithoutFlightMarker(new URL(url, location.origin)).toString()
 }
 
-let abortController = new AbortController()
+let isPageUnloading = false
 
 if (typeof window !== 'undefined') {
-  // Abort any in-flight requests when the page is unloaded, e.g. due to
-  // reloading the page or performing hard navigations. This allows us to ignore
-  // what would otherwise be a thrown TypeError when the browser cancels the
-  // requests.
+  // Track when the page is unloading, e.g. due to reloading the page or
+  // performing hard navigations. This allows us to suppress error logging when
+  // the browser cancels in-flight requests during page unload.
   window.addEventListener('pagehide', () => {
-    abortController.abort()
+    isPageUnloading = true
   })
 
-  // Use a fresh AbortController instance on pageshow, e.g. when navigating back
-  // and the JavaScript execution context is restored by the browser.
+  // Reset the flag on pageshow, e.g. when navigating back and the JavaScript
+  // execution context is restored by the browser.
   window.addEventListener('pageshow', () => {
-    abortController = new AbortController()
+    isPageUnloading = false
   })
 }
 
@@ -128,7 +126,7 @@ export async function fetchServerResponse(
   url: URL,
   options: FetchServerResponseOptions
 ): Promise<FetchServerResponseResult> {
-  const { flightRouterState, nextUrl, prefetchKind } = options
+  const { flightRouterState, nextUrl } = options
 
   const headers: RequestHeaders = {
     // Enable flight response
@@ -138,16 +136,6 @@ export async function fetchServerResponse(
       flightRouterState,
       options.isHmrRefresh
     ),
-  }
-
-  /**
-   * Three cases:
-   * - `prefetchKind` is `undefined`, it means it's a normal navigation, so we want to prefetch the page data fully
-   * - `prefetchKind` is `full` - we want to prefetch the whole page so same as above
-   * - `prefetchKind` is `auto` - if the page is dynamic, prefetch the page data partially, if static prefetch the page data fully
-   */
-  if (prefetchKind === PrefetchKind.AUTO) {
-    headers[NEXT_ROUTER_PREFETCH_HEADER] = '1'
   }
 
   if (process.env.NODE_ENV === 'development' && options.isHmrRefresh) {
@@ -163,16 +151,6 @@ export async function fetchServerResponse(
   const originalUrl = url
 
   try {
-    // When creating a "temporary" prefetch (the "on-demand" prefetch that gets created on navigation, if one doesn't exist)
-    // we send the request with a "high" priority as it's in response to a user interaction that could be blocking a transition.
-    // Otherwise, all other prefetches are sent with a "low" priority.
-    // We use "auto" for in all other cases to match the existing default, as this function is shared outside of prefetching.
-    const fetchPriority = prefetchKind
-      ? prefetchKind === PrefetchKind.TEMPORARY
-        ? 'high'
-        : 'low'
-      : 'auto'
-
     if (process.env.NODE_ENV === 'production') {
       if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {
         // In "output: export" mode, we can't rely on headers to distinguish
@@ -196,9 +174,8 @@ export async function fetchServerResponse(
     const res = await createFetch<NavigationFlightResponse>(
       url,
       headers,
-      fetchPriority,
-      shouldImmediatelyDecode,
-      abortController.signal
+      'auto',
+      shouldImmediatelyDecode
     )
 
     const responseUrl = urlToUrlWithoutFlightMarker(new URL(res.url))
@@ -287,7 +264,7 @@ export async function fetchServerResponse(
       debugInfo: flightResponsePromise._debugInfo ?? null,
     }
   } catch (err) {
-    if (!abortController.signal.aborted) {
+    if (!isPageUnloading) {
       console.error(
         `Failed to fetch RSC payload for ${originalUrl}. Falling back to browser navigation.`,
         err
@@ -331,8 +308,9 @@ export async function createFetch<T>(
     headers['Next-Test-Fetch-Priority'] = fetchPriority
   }
 
-  if (process.env.NEXT_DEPLOYMENT_ID) {
-    headers['x-deployment-id'] = process.env.NEXT_DEPLOYMENT_ID
+  const deploymentId = getDeploymentId()
+  if (deploymentId) {
+    headers['x-deployment-id'] = deploymentId
   }
 
   if (process.env.NODE_ENV !== 'production') {

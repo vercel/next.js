@@ -50,10 +50,12 @@ export async function copy_styled_jsx_assets(task, opts) {
 }
 
 const externals = {
-  // don't bundle caniuse-lite data so users can
+  // don't bundle caniuse-lite and baseline-browser-mapping data so users can
   // update it manually
   'caniuse-lite': 'caniuse-lite',
   '/caniuse-lite(/.*)/': 'caniuse-lite$1',
+  'baseline-browser-mapping': 'baseline-browser-mapping',
+  '/baseline-browser-mapping(/.*)/': 'baseline-browser-mapping$1',
 
   postcss: 'postcss',
   // Ensure latest version is used
@@ -2415,14 +2417,14 @@ export async function cli(task, opts) {
 
 export async function lib(task, opts) {
   await task
-    .source('src/lib/**/!(*.test).+(js|ts|tsx|json)')
+    .source('src/lib/**/!(*.test).+(js|ts|tsx|json|jsonc)')
     .swc('server', { dev: opts.dev })
     .target('dist/lib')
 }
 
 export async function lib_esm(task, opts) {
   await task
-    .source('src/lib/**/!(*.test).+(js|ts|tsx|json)')
+    .source('src/lib/**/!(*.test).+(js|ts|tsx|json|jsonc)')
     .swc('server', { dev: opts.dev, esm: true })
     .target('dist/esm/lib')
 }

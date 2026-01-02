@@ -1,4 +1,5 @@
 use anyhow::{Context, Result, bail};
+use bincode::{Decode, Encode};
 use next_core::{
     app_structure::{
         AppPageLoaderTree, CollectedRootParams, Entrypoint as AppEntrypoint,
@@ -33,7 +34,6 @@ use next_core::{
     segment_config::{NextSegmentConfig, ParseSegmentMode},
     util::{NextRuntime, app_function_name, module_styles_rule_condition, styles_rule_condition},
 };
-use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
@@ -45,7 +45,6 @@ use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack::{
     ModuleAssetContext,
     module_options::{ModuleOptionsContext, RuleCondition, transition_rule::TransitionRule},
-    resolve_options_context::ResolveOptionsContext,
     transition::{FullContextTransition, Transition, TransitionOptions},
 };
 use turbopack_core::{
@@ -59,6 +58,7 @@ use turbopack_core::{
     module::Module,
     module_graph::{
         GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
+        binding_usage_info::compute_binding_usage_info,
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
     },
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
@@ -69,9 +69,8 @@ use turbopack_core::{
     source_map::SourceMapAsset,
     virtual_output::VirtualOutputAsset,
 };
-use turbopack_ecmascript::{
-    resolve::cjs_resolve, single_file_ecmascript_output::SingleFileEcmascriptOutput,
-};
+use turbopack_ecmascript::single_file_ecmascript_output::SingleFileEcmascriptOutput;
+use turbopack_resolve::{ecmascript::cjs_resolve, resolve_options_context::ResolveOptionsContext};
 
 use crate::{
     dynamic_imports::{NextDynamicChunkAvailability, collect_next_dynamic_chunks},
@@ -856,7 +855,11 @@ impl AppProject {
         has_layout_segments: bool,
     ) -> Result<Vc<BaseAndFullModuleGraph>> {
         if *self.project.per_page_module_graph().await? {
-            let should_trace = self.project.next_mode().await?.is_production();
+            let next_mode = self.project.next_mode();
+            let next_mode_ref = next_mode.await?;
+            let should_trace = next_mode_ref.is_production();
+            let should_read_binding_usage = next_mode_ref.is_production();
+
             let client_shared_entries = client_shared_entries
                 .await?
                 .into_iter()
@@ -872,7 +875,8 @@ impl AppProject {
                     let ServerEntries {
                         server_utils,
                         server_component_entries,
-                    } = &*find_server_entries(*rsc_entry, should_trace).await?;
+                    } = &*find_server_entries(*rsc_entry, should_trace, should_read_binding_usage)
+                        .await?;
 
                     let graph = SingleModuleGraph::new_with_entries_visited_intern(
                         vec![
@@ -889,6 +893,7 @@ impl AppProject {
                         ],
                         VisitedModules::empty(),
                         should_trace,
+                        should_read_binding_usage,
                     );
                     graphs.push(graph);
                     let mut visited_modules = VisitedModules::from_graph(graph);
@@ -906,6 +911,7 @@ impl AppProject {
                             vec![ChunkGroupEntry::Entry(vec![ResolvedVc::upcast(*module)])],
                             visited_modules,
                             should_trace,
+                            should_read_binding_usage,
                         );
                         graphs.push(graph);
                         let is_layout = module.server_path().await?.file_stem() == Some("layout");
@@ -927,6 +933,7 @@ impl AppProject {
                         vec![ChunkGroupEntry::Entry(client_shared_entries)],
                         VisitedModules::empty(),
                         should_trace,
+                        should_read_binding_usage,
                     );
                     graphs.push(graph);
                     VisitedModules::from_graph(graph)
@@ -936,6 +943,7 @@ impl AppProject {
                     vec![rsc_entry_chunk_group],
                     visited_modules,
                     should_trace,
+                    should_read_binding_usage,
                 );
                 graphs.push(graph);
                 visited_modules = visited_modules.concatenate(graph);
@@ -946,13 +954,35 @@ impl AppProject {
                     additional_entries.owned().await?,
                     visited_modules,
                     should_trace,
+                    should_read_binding_usage,
                 );
                 graphs.push(additional_module_graph);
 
-                let full = ModuleGraph::from_graphs(graphs);
+                let full_with_unused_references =
+                    ModuleGraph::from_graphs(graphs).to_resolved().await?;
+
+                let full = if *self
+                    .project
+                    .next_config()
+                    .turbopack_remove_unused_imports(next_mode)
+                    .await?
+                {
+                    full_with_unused_references
+                        .without_unused_references(
+                            *compute_binding_usage_info(full_with_unused_references, true)
+                                .resolve_strongly_consistent()
+                                .await?,
+                        )
+                        .to_resolved()
+                        .await?
+                } else {
+                    full_with_unused_references
+                };
+
                 Ok(BaseAndFullModuleGraph {
                     base: base.to_resolved().await?,
-                    full: full.to_resolved().await?,
+                    full_with_unused_references,
+                    full,
                 }
                 .cell())
             }
@@ -1036,13 +1066,13 @@ pub fn app_entry_point_to_route(
 #[turbo_tasks::value(transparent)]
 struct OutputAssetsWithAvailability((ResolvedVc<OutputAssets>, AvailabilityInfo));
 
-#[derive(Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue, Encode, Decode)]
 enum AppPageEndpointType {
     Html,
     Rsc,
 }
 
-#[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue)]
+#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue, Encode, Decode)]
 enum AppEndpointType {
     Page {
         ty: AppPageEndpointType,
@@ -1259,12 +1289,15 @@ impl AppEndpoint {
                 .get_next_dynamic_imports_for_endpoint(*rsc_entry)
                 .await?;
 
+        let is_production = project.next_mode().await?.is_production();
+
         let client_references =
             ClientReferencesGraphs::new(*module_graphs.base, per_page_module_graph)
                 .get_client_references_for_endpoint(
                     *rsc_entry,
                     matches!(this.ty, AppEndpointType::Page { .. }),
-                    project.next_mode().await?.is_production(),
+                    is_production,
+                    is_production,
                 )
                 .to_resolved()
                 .await?;
@@ -1357,7 +1390,10 @@ impl AppEndpoint {
                         "server/app{manifest_path_prefix}/webpack-stats.json",
                     ))?,
                     AssetContent::file(
-                        File::from(serde_json::to_string_pretty(&webpack_stats)?).into(),
+                        FileContent::Content(File::from(serde_json::to_string_pretty(
+                            &webpack_stats,
+                        )?))
+                        .cell(),
                     ),
                 )
                 .to_resolved()
@@ -1490,6 +1526,9 @@ impl AppEndpoint {
                     rcstr!("server/middleware-build-manifest.js"),
                     rcstr!("server/interception-route-rewrite-manifest.js"),
                 ];
+                if project.next_mode().await?.is_production() {
+                    file_paths_from_root.insert(rcstr!("required-server-files.js"));
+                }
                 if emit_manifests == EmitManifests::Full {
                     file_paths_from_root.insert(rcstr!("server/next-font-manifest.js"));
                 };
@@ -1886,7 +1925,10 @@ async fn create_app_paths_manifest(
         VirtualOutputAsset::new(
             path,
             AssetContent::file(
-                File::from(serde_json::to_string_pretty(&app_paths_manifest)?).into(),
+                FileContent::Content(File::from(serde_json::to_string_pretty(
+                    &app_paths_manifest,
+                )?))
+                .cell(),
             ),
         )
         .to_resolved()

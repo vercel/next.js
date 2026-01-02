@@ -12,12 +12,12 @@ use std::{
 };
 
 use anyhow::{Context, Result};
+use bincode::{Decode, Encode};
 use notify::{
     Config, EventKind, PollWatcher, RecommendedWatcher, RecursiveMode, Watcher,
     event::{MetadataKind, ModifyKind, RenameMode},
 };
 use rustc_hash::FxHashSet;
-use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
@@ -60,9 +60,9 @@ static WATCH_RECURSIVE_MODE: LazyLock<RecursiveMode> = LazyLock::new(|| {
     }
 });
 
-#[derive(Serialize, Deserialize)]
+#[derive(Encode, Decode)]
 pub(crate) struct DiskWatcher {
-    #[serde(skip, default = "State::new_stopped")]
+    #[bincode(skip)]
     state: State,
 }
 
@@ -71,6 +71,12 @@ enum State {
     // `RwLock` to allow us to quickly bail out on calls to `ensure_watched`.
     Recursive(RwLock<RecursiveState>),
     NonRecursive(RwLock<NonRecursiveState>),
+}
+
+impl Default for State {
+    fn default() -> Self {
+        State::new_stopped()
+    }
 }
 
 enum StateWriteGuard<'a> {

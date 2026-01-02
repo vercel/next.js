@@ -1,5 +1,5 @@
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use swc_core::{
     base::SwcComments,
     ecma::{
@@ -35,7 +35,6 @@ use crate::{
         exports_info::{ExportsInfoBinding, ExportsInfoRef},
         ident::IdentReplacement,
         member::MemberReplacement,
-        replace_parent_with_child::ReplaceParentWithChild,
         require_context::RequireContextAssetReferenceCodeGen,
         unreachable::Unreachable,
         worker::WorkerAssetReferenceCodeGen,
@@ -175,7 +174,7 @@ impl_modify!(visit_mut_switch_case, SwitchCase);
 impl_modify!(visit_mut_program, Program);
 
 #[derive(
-    PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug,
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
 )]
 pub enum CodeGen {
     // AMD occurs very rarely and makes the enum much bigger
@@ -200,7 +199,6 @@ pub enum CodeGen {
     RequireContextAssetReferenceCodeGen(RequireContextAssetReferenceCodeGen),
     UrlAssetReferenceCodeGen(UrlAssetReferenceCodeGen),
     WorkerAssetReferenceCodeGen(WorkerAssetReferenceCodeGen),
-    ReplaceParentWithChild(ReplaceParentWithChild),
 }
 
 impl CodeGen {
@@ -214,8 +212,8 @@ impl CodeGen {
         match self {
             Self::AmdDefineWithDependenciesCodeGen(v) => v.code_generation(ctx).await,
             Self::CjsRequireCacheAccess(v) => v.code_generation(ctx).await,
-            Self::ConstantConditionCodeGen(v) => v.code_generation(),
-            Self::ConstantValueCodeGen(v) => v.code_generation(),
+            Self::ConstantConditionCodeGen(v) => v.code_generation(ctx).await,
+            Self::ConstantValueCodeGen(v) => v.code_generation(ctx).await,
             Self::DynamicExpression(v) => v.code_generation(ctx).await,
             Self::EsmBinding(v) => v.code_generation(ctx, scope_hoisting_context).await,
             Self::EsmModuleItem(v) => v.code_generation(ctx).await,
@@ -233,7 +231,6 @@ impl CodeGen {
             Self::RequireContextAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
             Self::UrlAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
             Self::WorkerAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
-            Self::ReplaceParentWithChild(v) => v.code_generation(),
         }
     }
 }

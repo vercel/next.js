@@ -6,7 +6,7 @@ use quote::{ToTokens, quote, quote_spanned};
 use regex::Regex;
 use syn::{
     Error, Expr, ExprLit, Fields, FieldsUnnamed, Generics, Item, ItemEnum, ItemStruct, Lit, LitStr,
-    Meta, MetaNameValue, Result, Token,
+    Meta, MetaNameValue, Token,
     parse::{Parse, ParseStream},
     parse_macro_input, parse_quote,
     spanned::Spanned,
@@ -20,7 +20,7 @@ enum CellMode {
 }
 
 impl Parse for CellMode {
-    fn parse(input: ParseStream) -> Result<Self> {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
         let ident = input.parse::<LitStr>()?;
         Self::try_from(ident)
     }
@@ -29,7 +29,7 @@ impl Parse for CellMode {
 impl TryFrom<LitStr> for CellMode {
     type Error = Error;
 
-    fn try_from(lit: LitStr) -> std::result::Result<Self, Self::Error> {
+    fn try_from(lit: LitStr) -> Result<Self, Self::Error> {
         match lit.value().as_str() {
             "compare" => Ok(CellMode::Compare),
             "new" => Ok(CellMode::New),
@@ -45,7 +45,7 @@ enum SerializationMode {
 }
 
 impl Parse for SerializationMode {
-    fn parse(input: ParseStream) -> Result<Self> {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
         let ident = input.parse::<LitStr>()?;
         Self::try_from(ident)
     }
@@ -54,7 +54,7 @@ impl Parse for SerializationMode {
 impl TryFrom<LitStr> for SerializationMode {
     type Error = Error;
 
-    fn try_from(lit: LitStr) -> std::result::Result<Self, Self::Error> {
+    fn try_from(lit: LitStr) -> Result<Self, Self::Error> {
         match lit.value().as_str() {
             "none" => Ok(SerializationMode::None),
             "auto" => Ok(SerializationMode::Auto),
@@ -78,7 +78,7 @@ struct ValueArguments {
 }
 
 impl Parse for ValueArguments {
-    fn parse(input: ParseStream) -> Result<Self> {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
         let mut result = ValueArguments {
             serialization_mode: SerializationMode::Auto,
             shared: false,
@@ -300,16 +300,11 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         SerializationMode::Auto => {
             struct_attributes.push(quote! {
                 #[derive(
-                    turbo_tasks::macro_helpers::serde::Serialize,
-                    turbo_tasks::macro_helpers::serde::Deserialize,
+                    turbo_tasks::macro_helpers::bincode::Encode,
+                    turbo_tasks::macro_helpers::bincode::Decode,
                 )]
-                #[serde(crate = "turbo_tasks::macro_helpers::serde")]
+                #[bincode(crate = "turbo_tasks::macro_helpers::bincode")]
             });
-            if transparent {
-                struct_attributes.push(quote! {
-                    #[serde(transparent)]
-                });
-            }
         }
         SerializationMode::None | SerializationMode::Custom => {}
     };
@@ -345,9 +340,13 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         },
         SerializationMode::Auto | SerializationMode::Custom => {
             quote! {
-                turbo_tasks::ValueType::new_with_any_serialization::<#ident>(#name)
+                turbo_tasks::ValueType::new_with_bincode::<#ident>(#name)
             }
         }
+    };
+    let has_serialization = match serialization_mode {
+        SerializationMode::None => quote! { false },
+        SerializationMode::Auto | SerializationMode::Custom => quote! { true },
     };
 
     let value_debug_impl = if inner_type.is_some() {
@@ -380,6 +379,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         read,
         cell_mode,
         new_value_type,
+        has_serialization,
     );
 
     let expanded = quote! {
@@ -405,6 +405,7 @@ pub fn value_type_and_register(
     read: proc_macro2::TokenStream,
     cell_mode: proc_macro2::TokenStream,
     new_value_type: proc_macro2::TokenStream,
+    has_serialization: proc_macro2::TokenStream,
 ) -> proc_macro2::TokenStream {
     let value_type_ident = get_value_type_ident(ident);
 
@@ -437,6 +438,10 @@ pub fn value_type_and_register(
                     });
 
                 *ident
+            }
+
+            fn has_serialization() -> bool {
+                #has_serialization
             }
         }
     }

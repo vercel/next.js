@@ -2,22 +2,62 @@ import type {
   Mutable,
   ReadonlyReducerState,
   ReducerState,
-  RefreshAction,
 } from '../router-reducer-types'
 import { handleNavigationResult } from './navigate-reducer'
-import { refresh as refreshUsingSegmentCache } from '../../segment-cache/navigation'
+import { navigateToSeededRoute } from '../../segment-cache/navigation'
+import { revalidateEntireCache } from '../../segment-cache/cache'
+import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
+import { FreshnessPolicy } from '../ppr-navigations'
 
-export function refreshReducer(
+export function refreshReducer(state: ReadonlyReducerState): ReducerState {
+  // TODO: Currently, all refreshes purge the prefetch cache. In the future,
+  // only client-side refreshes will have this behavior; the server-side
+  // `refresh` should send new data without purging the prefetch cache.
+  const currentNextUrl = state.nextUrl
+  const currentRouterState = state.tree
+  revalidateEntireCache(currentNextUrl, currentRouterState)
+  return refreshDynamicData(state, FreshnessPolicy.RefreshAll)
+}
+
+export function refreshDynamicData(
   state: ReadonlyReducerState,
-  action: RefreshAction
+  freshnessPolicy: FreshnessPolicy.RefreshAll | FreshnessPolicy.HMRRefresh
 ): ReducerState {
-  const currentUrl = new URL(state.canonicalUrl, action.origin)
-  const result = refreshUsingSegmentCache(
+  const currentNextUrl = state.nextUrl
+
+  // We always send the last next-url, not the current when performing a dynamic
+  // request. This is because we update the next-url after a navigation, but we
+  // want the same interception route to be matched that used the last next-url.
+  const nextUrlForRefresh = hasInterceptionRouteInCurrentTree(state.tree)
+    ? state.previousNextUrl || currentNextUrl
+    : null
+
+  // A refresh is modeled as a navigation to the current URL, but where any
+  // existing dynamic data (including in shared layouts) is re-fetched.
+  const currentCanonicalUrl = state.canonicalUrl
+  const currentUrl = new URL(currentCanonicalUrl, location.origin)
+  const currentFlightRouterState = state.tree
+  const shouldScroll = true
+
+  const navigationSeed = {
+    tree: state.tree,
+    renderedSearch: state.renderedSearch,
+    data: null,
+    head: null,
+  }
+
+  const now = Date.now()
+  const result = navigateToSeededRoute(
+    now,
     currentUrl,
-    state.tree,
-    state.nextUrl,
-    state.renderedSearch,
-    state.canonicalUrl
+    currentCanonicalUrl,
+    navigationSeed,
+    currentUrl,
+    state.cache,
+    currentFlightRouterState,
+    freshnessPolicy,
+    nextUrlForRefresh,
+    shouldScroll
   )
 
   const mutable: Mutable = {}

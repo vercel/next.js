@@ -42,6 +42,7 @@ import type {
   GetStaticPaths,
   GetStaticProps,
 } from '../../../types'
+import { getDeploymentId } from '../../../shared/lib/deployment-id'
 
 export const getHandler = ({
   srcPage: originalSrcPage,
@@ -101,9 +102,7 @@ export const getHandler = ({
       return
     }
 
-    const isMinimalMode = Boolean(
-      process.env.MINIMAL_MODE || getRequestMeta(req, 'minimalMode')
-    )
+    const isMinimalMode = Boolean(getRequestMeta(req, 'minimalMode'))
 
     const render404 = async () => {
       // TODO: should route-module itself handle rendering the 404
@@ -257,7 +256,7 @@ export const getHandler = ({
                     buildId,
                     customServer:
                       Boolean(routerServerContext?.isCustomServer) || undefined,
-                    deploymentId: process.env.NEXT_DEPLOYMENT_ID,
+                    deploymentId: getDeploymentId(),
                   },
                   renderOpts: {
                     params,
@@ -420,6 +419,7 @@ export const getHandler = ({
               // if this is a background revalidate we need to report
               // the request error here as it won't be bubbled
               if (previousCacheEntry?.isStale) {
+                const silenceLog = false
                 await routeModule.onRequestError(
                   req,
                   err,
@@ -432,6 +432,7 @@ export const getHandler = ({
                       isOnDemandRevalidate,
                     }),
                   },
+                  silenceLog,
                   routerServerContext
                 )
               }
@@ -742,6 +743,7 @@ export const getHandler = ({
       }
     } catch (err) {
       if (!(err instanceof NoFallbackError)) {
+        const silenceLog = false
         await routeModule.onRequestError(
           req,
           err,
@@ -754,6 +756,7 @@ export const getHandler = ({
               isOnDemandRevalidate,
             }),
           },
+          silenceLog,
           routerServerContext
         )
       }

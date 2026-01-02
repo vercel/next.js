@@ -61,12 +61,12 @@ interface SerializedDefineEnv {
  * Serializes the DefineEnv config so that it can be inserted into the code by Webpack/Turbopack, JSON stringifies each value.
  */
 function serializeDefineEnv(defineEnv: DefineEnv): SerializedDefineEnv {
-  const defineEnvStringified: SerializedDefineEnv = {}
-  for (const key in defineEnv) {
-    const value = defineEnv[key]
-    defineEnvStringified[key] = JSON.stringify(value)
-  }
-
+  const defineEnvStringified: SerializedDefineEnv = Object.fromEntries(
+    Object.entries(defineEnv).map(([key, value]) => [
+      key,
+      JSON.stringify(value),
+    ])
+  )
   return defineEnvStringified
 }
 
@@ -147,8 +147,6 @@ export function getDefineEnv({
       : process.env.NEXT_RSPACK
         ? 'Rspack'
         : 'Webpack',
-    // minimal mode is enforced when an adapter is configured
-    'process.env.MINIMAL_MODE': Boolean(config.experimental.adapterPath),
     // TODO: enforce `NODE_ENV` on `process.env`, and add a test:
     'process.env.NODE_ENV':
       dev || config.experimental.allowDevelopmentBuild
@@ -298,7 +296,7 @@ export function getDefineEnv({
       config.experimental.trustHostHeader ?? false,
     'process.env.__NEXT_ALLOWED_REVALIDATE_HEADERS':
       config.experimental.allowedRevalidateHeaderKeys ?? [],
-    ...(isNodeServer
+    ...(isNodeServer || isEdgeServer
       ? {
           'process.env.__NEXT_RELATIVE_DIST_DIR': config.distDir,
           'process.env.__NEXT_RELATIVE_PROJECT_DIR': path.relative(
@@ -374,8 +372,10 @@ export function getDefineEnv({
     for (const key in nextConfigEnv) {
       serializedDefineEnv[key] = safeKey(key)
     }
-    for (const key of ['process.env.NEXT_DEPLOYMENT_ID']) {
-      serializedDefineEnv[key] = safeKey(key)
+    if (!config.experimental.runtimeServerDeploymentId) {
+      for (const key of ['process.env.NEXT_DEPLOYMENT_ID']) {
+        serializedDefineEnv[key] = safeKey(key)
+      }
     }
   }
 

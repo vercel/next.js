@@ -57,13 +57,14 @@ const nextTypegen = async (
   await verifyTypeScriptSetup({
     dir: baseDir,
     distDir: nextConfig.distDir,
-    intentDirs: [pagesDir, appDir].filter(Boolean) as string[],
     typeCheckPreflight: false,
     tsconfigPath: nextConfig.typescript.tsconfigPath,
     disableStaticImages: nextConfig.images.disableStaticImages,
     hasAppDir: !!appDir,
     hasPagesDir: !!pagesDir,
     isolatedDevBuild: nextConfig.experimental.isolatedDevBuild,
+    appDir: appDir || undefined,
+    pagesDir: pagesDir || undefined,
   })
 
   console.log('Generating route types...')
@@ -168,7 +169,11 @@ const nextTypegen = async (
     nextConfig
   )
 
-  await writeValidatorFile(routeTypesManifest, validatorFilePath)
+  await writeValidatorFile(
+    routeTypesManifest,
+    validatorFilePath,
+    Boolean(nextConfig.experimental.strictRouteTypes)
+  )
 
   // Generate cache-life types if cacheLife config exists
   const cacheLifeFilePath = join(distDir, 'types', 'cache-life.d.ts')

@@ -1,4 +1,4 @@
-import type { AdapterOptions } from '../../server/web/adapter'
+import type { AdapterOptions, EdgeHandler } from '../../server/web/adapter'
 
 import '../../server/web/globals'
 
@@ -13,7 +13,7 @@ const mod = { ..._mod }
 
 const page: string = 'VAR_DEFINITION_PAGE'
 const isProxy = page === '/proxy' || page === '/src/proxy'
-const handler = (isProxy ? mod.proxy : mod.middleware) || mod.default
+const handlerUserland = (isProxy ? mod.proxy : mod.middleware) || mod.default
 
 class ProxyMissingExportError extends Error {
   constructor(message: string) {
@@ -25,7 +25,7 @@ class ProxyMissingExportError extends Error {
 
 // TODO: This spams logs during development. Find a better way to handle this.
 // Removing this will spam "fn is not a function" logs which is worse.
-if (typeof handler !== 'function') {
+if (typeof handlerUserland !== 'function') {
   throw new ProxyMissingExportError(
     `The ${isProxy ? 'Proxy' : 'Middleware'} file "${page}" must export a function named \`${isProxy ? 'proxy' : 'middleware'}\` or a default function.`
   )
@@ -69,12 +69,11 @@ function errorHandledHandler(fn: AdapterOptions['handler']) {
   }
 }
 
-export default function nHandler(
-  opts: Omit<AdapterOptions, 'IncrementalCache' | 'page' | 'handler'>
-) {
+const handler: EdgeHandler = (opts) => {
   return adapter({
     ...opts,
     page,
-    handler: errorHandledHandler(handler),
+    handler: errorHandledHandler(handlerUserland),
   })
 }
+export default handler

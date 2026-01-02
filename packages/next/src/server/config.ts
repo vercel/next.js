@@ -9,6 +9,7 @@ import {
   PHASE_DEVELOPMENT_SERVER,
   PHASE_EXPORT,
   PHASE_PRODUCTION_BUILD,
+  type PHASE_PRODUCTION_SERVER,
   type PHASE_TYPE,
 } from '../shared/lib/constants'
 import { defaultConfig, normalizeConfig } from './config-shared'
@@ -16,6 +17,7 @@ import type {
   ExperimentalConfig,
   NextConfigComplete,
   NextConfig,
+  NextConfigRuntime,
 } from './config-shared'
 
 import { loadWebpackHook } from './config-utils'
@@ -38,10 +40,6 @@ import { dset } from '../shared/lib/dset'
 import { normalizeZodErrors } from '../shared/lib/zod'
 import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot'
 import { findDir } from '../lib/find-pages-dir'
-import {
-  CanaryOnlyConfigError,
-  isStableBuild,
-} from '../shared/lib/errors/canary-only-config-error'
 import { interopDefault } from '../lib/interop-default'
 import { djb2Hash } from '../shared/lib/hash'
 import type { NextAdapter } from '../build/adapter/build-complete'
@@ -372,7 +370,7 @@ function assignDefaultsAndValidate(
   }
 
   // ensure correct default is set for api-resolver revalidate handling
-  if (!result.experimental?.trustHostHeader && ciEnvironment.hasNextSupport) {
+  if (!result.experimental.trustHostHeader && ciEnvironment.hasNextSupport) {
     result.experimental.trustHostHeader = true
   }
 
@@ -396,15 +394,6 @@ function assignDefaultsAndValidate(
         `Custom Sass functions are only available with webpack. ` +
         `Please remove the "functions" property from your sassOptions in ${configFileName}.`
     )
-  }
-
-  if (isStableBuild()) {
-    // Prevents usage of certain experimental features outside of canary
-    if (result.experimental?.turbopackFileSystemCacheForBuild) {
-      throw new CanaryOnlyConfigError({
-        feature: 'experimental.turbopackFileSystemCacheForBuild',
-      })
-    }
   }
 
   if (result.experimental.ppr) {
@@ -927,6 +916,23 @@ function assignDefaultsAndValidate(
     }
   }
 
+  if (
+    result.experimental.runtimeServerDeploymentId == null &&
+    phase === PHASE_PRODUCTION_BUILD &&
+    ciEnvironment.hasNextSupport &&
+    process.env.NEXT_DEPLOYMENT_ID
+  ) {
+    if (
+      result.deploymentId != null &&
+      result.deploymentId !== process.env.NEXT_DEPLOYMENT_ID
+    ) {
+      throw new Error(
+        `The NEXT_DEPLOYMENT_ID environment variable value "${process.env.NEXT_DEPLOYMENT_ID}" does not match the provided deploymentId "${result.deploymentId}" in the config.`
+      )
+    }
+    result.experimental.runtimeServerDeploymentId = true
+  }
+
   // only leverage deploymentId
   if (process.env.NEXT_DEPLOYMENT_ID) {
     result.deploymentId = process.env.NEXT_DEPLOYMENT_ID
@@ -1356,7 +1362,7 @@ function assignDefaultsAndValidate(
   ;(result as NextConfigComplete).distDirRoot = result.distDir
   if (
     phase === PHASE_DEVELOPMENT_SERVER &&
-    result.experimental?.isolatedDevBuild
+    result.experimental.isolatedDevBuild
   ) {
     result.distDir = join(result.distDir, 'dev')
   }
@@ -1424,6 +1430,34 @@ function getCacheKey(
 
   return djb2Hash(keyData).toString(36)
 }
+
+type LoadConfigOptions = {
+  customConfig?: object | null
+  rawConfig?: boolean
+  silent?: boolean
+  reportExperimentalFeatures?: (
+    configuredExperimentalFeatures: ConfiguredExperimentalFeature[]
+  ) => void
+  reactProductionProfiling?: boolean
+  debugPrerender?: boolean
+}
+
+export default async function loadConfig(
+  phase: typeof PHASE_DEVELOPMENT_SERVER,
+  dir: string,
+  opts?: LoadConfigOptions
+): Promise<NextConfigComplete>
+export default async function loadConfig(
+  phase: typeof PHASE_PRODUCTION_SERVER | typeof PHASE_DEVELOPMENT_SERVER,
+  dir: string,
+  opts?: LoadConfigOptions
+): Promise<NextConfigRuntime | NextConfigComplete>
+export default async function loadConfig(
+  phase: PHASE_TYPE,
+  dir: string,
+  opts?: LoadConfigOptions
+): Promise<NextConfigComplete>
+
 export default async function loadConfig(
   phase: PHASE_TYPE,
   dir: string,
@@ -1434,16 +1468,7 @@ export default async function loadConfig(
     reportExperimentalFeatures,
     reactProductionProfiling,
     debugPrerender,
-  }: {
-    customConfig?: object | null
-    rawConfig?: boolean
-    silent?: boolean
-    reportExperimentalFeatures?: (
-      configuredExperimentalFeatures: ConfiguredExperimentalFeature[]
-    ) => void
-    reactProductionProfiling?: boolean
-    debugPrerender?: boolean
-  } = {}
+  }: LoadConfigOptions = {}
 ): Promise<NextConfigComplete> {
   // Generate cache key based on parameters that affect config output
   // Include process.pid to invalidate cache on server restart
@@ -1859,6 +1884,25 @@ function enforceExperimentalFeatures(
         'reactDebugChannel',
         true,
         'enabled by `__NEXT_EXPERIMENTAL_DEBUG_CHANNEL`'
+      )
+    }
+  }
+
+  // TODO: Remove this once strictRouteTypes is the default.
+  if (
+    process.env.__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES === 'true' &&
+    // We do respect an explicit value in the user config.
+    (config.experimental.strictRouteTypes === undefined ||
+      (isDefaultConfig && !config.experimental.strictRouteTypes))
+  ) {
+    config.experimental.strictRouteTypes = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'strictRouteTypes',
+        true,
+        'enabled by `__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES`'
       )
     }
   }

@@ -1,14 +1,14 @@
 use std::{env::current_dir, path::PathBuf};
 
 use anyhow::{Context, Result};
+use bincode::{Decode, Encode};
 use dunce::canonicalize;
-use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{NonLocalValue, TaskInput, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 
 #[derive(
-    Clone, Debug, TaskInput, Hash, PartialEq, Eq, NonLocalValue, Serialize, Deserialize, TraceRawVcs,
+    Clone, Debug, TaskInput, Hash, PartialEq, Eq, NonLocalValue, TraceRawVcs, Encode, Decode,
 )]
 pub enum EntryRequest {
     Relative(RcStr),
