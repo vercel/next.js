@@ -15,7 +15,6 @@ use crate::{
             AggregationUpdateQueue, ExecuteContext, Operation, TaskGuard,
             invalidate::make_task_dirty_internal,
         },
-        storage::{get_many, remove},
     },
     data::{CachedDataItem, CachedDataItemKey, CellRef},
 };
@@ -95,12 +94,10 @@ impl UpdateCellOperation {
             // When not recomputing, we need to notify dependent tasks if the content actually
             // changes.
 
-            let dependent_tasks: SmallVec<[TaskId; 4]> = get_many!(
-                task,
-                CellDependent { cell: dependent_cell, task }
-                if dependent_cell == cell
-                => task
-            );
+            let dependent_tasks: SmallVec<[TaskId; 4]> = task
+                .iter_cell_dependents()
+                .filter_map(|(dependent_cell, task)| (dependent_cell == cell).then_some(task))
+                .collect();
 
             if !dependent_tasks.is_empty() {
                 // Slow path: We need to invalidate tasks depending on this cell.
@@ -155,7 +152,7 @@ impl UpdateCellOperation {
             ))
         };
 
-        let in_progress_cell = remove!(task, InProgressCell { cell });
+        let in_progress_cell = task.remove_in_progress_cell(cell);
 
         drop(task);
         drop(old_content);
@@ -251,7 +248,7 @@ impl Operation for UpdateCellOperation {
                         ));
                     }
 
-                    let in_progress_cell = remove!(task, InProgressCell { cell });
+                    let in_progress_cell = task.remove_in_progress_cell(cell);
 
                     drop(task);
 

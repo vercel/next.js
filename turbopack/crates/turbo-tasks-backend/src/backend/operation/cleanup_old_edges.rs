@@ -9,7 +9,7 @@ use turbo_tasks::TaskId;
 use crate::backend::operation::invalidate::TaskDirtyCause;
 use crate::{
     backend::{
-        TaskDataCategory, get, get_many,
+        TaskDataCategory,
         operation::{
             AggregatedDataUpdate, ExecuteContext, Operation, TaskGuard,
             aggregation_update::{
@@ -18,7 +18,6 @@ use crate::{
             },
             invalidate::make_task_dirty,
         },
-        storage::update_count,
     },
     data::{CellRef, CollectibleRef, CollectiblesRef},
 };
@@ -103,7 +102,8 @@ impl Operation for CleanupOldEdgesOperation {
                                 } else {
                                     let upper_ids = get_uppers(&task);
                                     let has_active_count = ctx.should_track_activeness()
-                                        && get!(task, Activeness)
+                                        && task
+                                            .get_activeness()
                                             .is_some_and(|a| a.active_counter > 0);
                                     drop(task);
                                     if has_active_count {
@@ -134,19 +134,18 @@ impl Operation for CleanupOldEdgesOperation {
                                 let mut task = ctx.task(task_id, TaskDataCategory::All);
                                 let mut emptied_collectables = FxHashSet::default();
                                 for (collectible, count) in collectibles.iter_mut() {
-                                    if update_count!(
-                                        task,
-                                        Collectible {
-                                            collectible: *collectible
-                                        },
-                                        *count
-                                    ) {
+                                    if task.update_collectible_count(*collectible, *count) {
                                         emptied_collectables.insert(collectible.collectible_type);
                                     }
                                 }
 
                                 for ty in emptied_collectables {
-                                    let task_ids = get_many!(task, CollectiblesDependent { collectible_type, task } if collectible_type == ty => { task });
+                                    let task_ids: SmallVec<[_; 4]> = task
+                                        .iter_collectibles_dependents()
+                                        .filter_map(|(collectible_type, task)| {
+                                            (collectible_type == ty).then_some(task)
+                                        })
+                                        .collect();
                                     queue.push(
                                         AggregationUpdateJob::InvalidateDueToCollectiblesChange {
                                             task_ids,

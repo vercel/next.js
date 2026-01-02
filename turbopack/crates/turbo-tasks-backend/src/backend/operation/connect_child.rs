@@ -3,7 +3,7 @@ use turbo_tasks::{TaskExecutionReason, TaskId};
 
 use crate::{
     backend::{
-        TaskDataCategory, get_mut,
+        TaskDataCategory,
         operation::{
             ExecuteContext, Operation, TaskGuard,
             aggregation_update::{AggregationUpdateJob, AggregationUpdateQueue},
@@ -32,7 +32,7 @@ impl ConnectChildOperation {
             let mut parent_task = ctx.task(parent_task_id, TaskDataCategory::All);
             let Some(InProgressState::InProgress(box InProgressStateInner {
                 new_children, ..
-            })) = get_mut!(parent_task, InProgress)
+            })) = parent_task.get_in_progress_mut()
             else {
                 panic!("Task is not in progress while calling another task");
             };

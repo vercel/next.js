@@ -5,12 +5,11 @@ use turbo_tasks::TaskId;
 
 use crate::{
     backend::{
-        TaskDataCategory, get_many,
+        TaskDataCategory,
         operation::{
             AggregatedDataUpdate, AggregationUpdateJob, AggregationUpdateQueue, ExecuteContext,
-            Operation, get_aggregation_number, is_root_node,
+            Operation, TaskGuard, get_aggregation_number, is_root_node,
         },
-        storage::{get, update_count},
     },
     data::CollectibleRef,
 };
@@ -52,32 +51,27 @@ impl UpdateCollectibleOperation {
             }
         }
         let mut queue = AggregationUpdateQueue::new();
-        let outdated = get!(task, OutdatedCollectible { collectible }).copied();
+        let outdated = task.get_outdated_collectible(collectible).copied();
         if let Some(outdated) = outdated {
             if count > 0 && outdated > 0 {
                 let shared = min(count, outdated);
-                update_count!(task, OutdatedCollectible { collectible }, -shared);
+                let _ = task.update_outdated_collectible_count(collectible, -shared);
                 count -= shared;
             } else if count < 0 && outdated < 0 {
                 let shared = min(-count, -outdated);
-                update_count!(task, OutdatedCollectible { collectible }, shared);
+                let _ = task.update_outdated_collectible_count(collectible, shared);
                 count += shared;
             } else {
                 // Not reduced from outdated
             }
         }
         if count != 0 {
-            if update_count!(task, Collectible { collectible }, count) {
+            if task.update_collectible_count(collectible, count) {
                 let ty = collectible.collectible_type;
-                let dependent: SmallVec<[TaskId; 4]> = get_many!(
-                    task,
-                    CollectiblesDependent {
-                        collectible_type,
-                        task,
-                    } if collectible_type == ty => {
-                        task
-                    }
-                );
+                let dependent: SmallVec<[TaskId; 4]> = task
+                    .iter_collectibles_dependents()
+                    .filter_map(|(collectible_type, task)| (collectible_type == ty).then_some(task))
+                    .collect();
                 if !dependent.is_empty() {
                     queue.push(AggregationUpdateJob::InvalidateDueToCollectiblesChange {
                         task_ids: dependent,

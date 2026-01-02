@@ -11,7 +11,6 @@ use crate::{
                 AggregationUpdateJob, AggregationUpdateQueue, ComputeDirtyAndCleanUpdate,
             },
         },
-        storage::{get, get_mut},
     },
     data::{Dirtyness, InProgressState, InProgressStateInner},
 };
@@ -215,7 +214,7 @@ pub fn make_task_dirty_internal(
 
     if make_stale
         && let Some(InProgressState::InProgress(box InProgressStateInner { stale, .. })) =
-            get_mut!(task, InProgress)
+            task.get_in_progress_mut()
         && !*stale
     {
         #[cfg(feature = "trace_task_dirty")]
@@ -270,13 +269,14 @@ pub fn make_task_dirty_internal(
     let new_self_dirty = true;
     let new_current_session_self_clean = false;
 
-    let dirty_container_count = get!(task, AggregatedDirtyContainerCount)
+    let dirty_container_count = task
+        .get_aggregated_dirty_container_count()
         .copied()
         .unwrap_or_default();
-    let current_session_clean_container_count =
-        get!(task, AggregatedCurrentSessionCleanContainerCount)
-            .copied()
-            .unwrap_or_default();
+    let current_session_clean_container_count = task
+        .get_aggregated_current_session_clean_container_count()
+        .copied()
+        .unwrap_or_default();
 
     #[cfg(feature = "trace_task_dirty")]
     let _span = tracing::trace_span!(
