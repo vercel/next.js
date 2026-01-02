@@ -2237,7 +2237,7 @@
     }
     function runInAsyncContext(request, fn) {
       return function() {
-        if (request.asyncContextSnapshot) {
+        if (request.asyncContextSnapshot && supportsRequestStorage) {
           return request.asyncContextSnapshot(fn);
         }
         return fn();
@@ -4172,8 +4172,8 @@
     }
     function startWork(request) {
       request.flushScheduled = null !== request.destination;
-      request.asyncContextSnapshot = typeof AsyncLocalStorage.snapshot === 'function'
-        ? AsyncLocalStorage.snapshot()
+      request.asyncContextSnapshot = typeof async_hooks.AsyncLocalStorage.snapshot === 'function'
+        ? async_hooks.AsyncLocalStorage.snapshot()
         : null;
       scheduleMicrotask(function () {
         requestStorage.run(request, performWork, request);

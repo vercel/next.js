@@ -2129,8 +2129,8 @@ function flushCompletedChunks(request) {
 }
 function startWork(request) {
   request.flushScheduled = null !== request.destination;
-  request.asyncContextSnapshot = typeof AsyncLocalStorage.snapshot === 'function'
-    ? AsyncLocalStorage.snapshot()
+  request.asyncContextSnapshot = typeof async_hooks.AsyncLocalStorage.snapshot === 'function'
+    ? async_hooks.AsyncLocalStorage.snapshot()
     : null;
   scheduleMicrotask(function () {
     requestStorage.run(request, performWork, request);
