@@ -144,7 +144,10 @@ async function requestHandler(
       trailingSlash: nextConfig.trailingSlash,
       images: nextConfig.images,
       previewProps: prerenderManifest.preview,
-      deploymentId: nextConfig.deploymentId,
+      deploymentId:
+        typeof nextConfig.deploymentId === 'string'
+          ? nextConfig.deploymentId
+          : undefined,
       enableTainting: nextConfig.experimental.taint,
       htmlLimitedBots: nextConfig.htmlLimitedBots,
       reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,

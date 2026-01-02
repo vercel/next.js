@@ -55,7 +55,8 @@ export default async function analyze({
       reactProductionProfiling,
     })
 
-    process.env.NEXT_DEPLOYMENT_ID = config.deploymentId || ''
+    process.env.NEXT_DEPLOYMENT_ID =
+      typeof config.deploymentId === 'string' ? config.deploymentId : ''
 
     const distDir = path.join(dir, '.next')
     const telemetry = new Telemetry({ distDir })

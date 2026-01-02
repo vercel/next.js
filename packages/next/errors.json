@@ -930,5 +930,6 @@
   "929": "No pages or app directory found.",
   "930": "Expected a dynamic route, but got a static route: %s",
   "931": "Unexpected empty path segments match for a route \"%s\" with param \"%s\" of type \"%s\"",
-  "932": "Could not resolve param value for segment: %s"
+  "932": "Could not resolve param value for segment: %s",
+  "933": "deploymentId function must return a string. https://nextjs.org/docs/messages/deploymentid-not-a-string"
 }

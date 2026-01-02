@@ -49,7 +49,8 @@ export function getStaticEnv(config: NextConfigComplete) {
   const staticEnv: Record<string, string | undefined> = {
     ...getNextPublicEnvironmentVariables(),
     ...getNextConfigEnv(config),
-    'process.env.NEXT_DEPLOYMENT_ID': config.deploymentId || '',
+    'process.env.NEXT_DEPLOYMENT_ID':
+      typeof config.deploymentId === 'string' ? config.deploymentId : '',
   }
   return staticEnv
 }

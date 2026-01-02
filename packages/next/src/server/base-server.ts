@@ -509,13 +509,19 @@ export default abstract class Server<
     }
 
     this.nextFontManifest = this.getNextFontManifest()
-    process.env.NEXT_DEPLOYMENT_ID = this.nextConfig.deploymentId || ''
+    process.env.NEXT_DEPLOYMENT_ID =
+      typeof this.nextConfig.deploymentId === 'string'
+        ? this.nextConfig.deploymentId
+        : ''
 
     this.renderOpts = {
       dir: this.dir,
       supportsDynamicResponse: true,
       trailingSlash: this.nextConfig.trailingSlash,
-      deploymentId: this.nextConfig.deploymentId,
+      deploymentId:
+        typeof this.nextConfig.deploymentId === 'string'
+          ? this.nextConfig.deploymentId
+          : undefined,
       poweredByHeader: this.nextConfig.poweredByHeader,
       generateEtags,
       previewProps: this.getPrerenderManifest().preview,

@@ -293,7 +293,9 @@ export default class NextNodeServer extends BaseServer<
     }
     process.env.NEXT_DEPLOYMENT_ID = this.nextConfig.experimental.useSkewCookie
       ? ''
-      : this.nextConfig.deploymentId || ''
+      : typeof this.nextConfig.deploymentId === 'string'
+        ? this.nextConfig.deploymentId
+        : ''
 
     if (!this.minimalMode) {
       this.imageResponseCache = new ResponseCache(this.minimalMode)
@@ -728,7 +730,10 @@ export default class NextNodeServer extends BaseServer<
         renderOpts,
         {
           buildId: this.buildId,
-          deploymentId: this.nextConfig.deploymentId,
+          deploymentId:
+            typeof this.nextConfig.deploymentId === 'string'
+              ? this.nextConfig.deploymentId
+              : undefined,
           customServer: this.serverOptions.customServer || undefined,
         },
         {

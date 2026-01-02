@@ -390,7 +390,10 @@ async function exportAppImpl(
           serverActionsManifest,
         }
       : {}),
-    deploymentId: nextConfig.deploymentId,
+    deploymentId:
+      typeof nextConfig.deploymentId === 'string'
+        ? nextConfig.deploymentId
+        : undefined,
     htmlLimitedBots: nextConfig.htmlLimitedBots.source,
     experimental: {
       clientTraceMetadata: nextConfig.experimental.clientTraceMetadata,

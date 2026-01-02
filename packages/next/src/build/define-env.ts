@@ -169,7 +169,9 @@ export function getDefineEnv({
 
     'process.env.NEXT_DEPLOYMENT_ID': config.experimental?.useSkewCookie
       ? false
-      : config.deploymentId || false,
+      : typeof config.deploymentId === 'string'
+        ? config.deploymentId
+        : false,
     // Propagates the `__NEXT_EXPERIMENTAL_STATIC_SHELL_DEBUGGING` environment
     // variable to the client.
     'process.env.__NEXT_EXPERIMENTAL_STATIC_SHELL_DEBUGGING':
