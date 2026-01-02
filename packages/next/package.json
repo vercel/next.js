@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "16.1.1-canary.9",
+  "version": "16.1.1-canary.10",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -97,7 +97,7 @@
     ]
   },
   "dependencies": {
-    "@next/env": "16.1.1-canary.9",
+    "@next/env": "16.1.1-canary.10",
     "@swc/helpers": "0.5.15",
     "baseline-browser-mapping": "^2.8.3",
     "caniuse-lite": "^1.0.30001579",
@@ -162,11 +162,11 @@
     "@modelcontextprotocol/sdk": "1.18.1",
     "@mswjs/interceptors": "0.23.0",
     "@napi-rs/triples": "1.2.0",
-    "@next/font": "16.1.1-canary.9",
-    "@next/polyfill-module": "16.1.1-canary.9",
-    "@next/polyfill-nomodule": "16.1.1-canary.9",
-    "@next/react-refresh-utils": "16.1.1-canary.9",
-    "@next/swc": "16.1.1-canary.9",
+    "@next/font": "16.1.1-canary.10",
+    "@next/polyfill-module": "16.1.1-canary.10",
+    "@next/polyfill-nomodule": "16.1.1-canary.10",
+    "@next/react-refresh-utils": "16.1.1-canary.10",
+    "@next/swc": "16.1.1-canary.10",
     "@opentelemetry/api": "1.6.0",
     "@playwright/test": "1.51.1",
     "@rspack/core": "1.6.7",
