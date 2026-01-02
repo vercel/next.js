@@ -119,11 +119,11 @@ describe('app dir - default error page UI', () => {
          "description": "Test server error",
          "environmentLabel": "Server",
          "label": "Runtime Error",
-         "source": "app/server-error/page.js (5:9) @ ServerErrorPage
-       > 5 |   throw new Error('Test server error')
+         "source": "app/server-error/page.js (6:9) @ ServerErrorContent
+       > 6 |   throw new Error('Test server error')
            |         ^",
          "stack": [
-           "ServerErrorPage app/server-error/page.js (5:9)",
+           "ServerErrorContent app/server-error/page.js (6:9)",
          ],
        }
       `)

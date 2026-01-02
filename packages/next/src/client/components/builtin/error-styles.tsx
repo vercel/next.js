@@ -141,11 +141,12 @@ export function ErrorIcon() {
       />
       <circle cx="20" cy="20" r="16" fill="var(--next-error-icon-fill)" />
       <path
-        d="M20 11v10M20 25v3"
+        d="M20 12v9"
         stroke="#dc2626"
         strokeWidth="2.5"
         strokeLinecap="round"
       />
+      <circle cx="20" cy="27" r="1.5" fill="#dc2626" />
     </svg>
   )
 }
