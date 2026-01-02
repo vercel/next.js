@@ -932,10 +932,6 @@ impl DerefMut for StorageWriteGuard<'_> {
     }
 }
 
-macro_rules! count {
-    ($task:ident, $key:ident) => {{ $task.count_internal($crate::data::CachedDataItemType::$key) }};
-}
-
 macro_rules! get {
     ($task:ident, $key:ident $input:tt) => {{
         #[allow(unused_imports)]
@@ -1020,16 +1016,6 @@ macro_rules! iter_many {
                 _ => None,
             })
     }};
-}
-
-/// A thin wrapper around [`iter_many`] that calls [`Iterator::collect`].
-///
-/// Note that the return type of [`Iterator::collect`] may be ambiguous in certain contexts, so
-/// using this macro may require explicit type annotations on variables.
-macro_rules! get_many {
-    ($($args:tt)*) => {
-        $crate::backend::storage::iter_many!($($args)*).collect()
-    };
 }
 
 macro_rules! update {
@@ -1152,9 +1138,7 @@ macro_rules! remove {
     };
 }
 
-pub(crate) use count;
 pub(crate) use get;
-pub(crate) use get_many;
 pub(crate) use get_mut;
 pub(crate) use get_mut_or_insert_with;
 pub(crate) use iter_many;

@@ -15,7 +15,7 @@ use std::{
 
 use bincode::{Decode, Encode};
 use turbo_tasks::{
-    CellId, FxIndexMap, KeyValuePair, TaskExecutionReason, TaskId, TraitTypeId,
+    CellId, FxIndexMap, KeyValuePair, SharedReference, TaskExecutionReason, TaskId, TraitTypeId,
     TurboTasksBackendApi, TypedSharedReference, ValueTypeId,
 };
 
@@ -24,14 +24,16 @@ use crate::{
         OperationGuard, TaskDataCategory, TransientTask, TurboTasksBackend, TurboTasksBackendInner,
         TurboTasksBackendJob,
         storage::{
-            SpecificTaskDataCategory, StorageWriteGuard, get, iter_many, remove, update_count,
+            SpecificTaskDataCategory, StorageWriteGuard, get, get_mut, get_mut_or_insert_with,
+            iter_many, remove, update, update_count, update_count_and_get,
         },
     },
     backing_storage::BackingStorage,
     data::{
         ActivenessState, AggregationNumber, CachedDataItem, CachedDataItemKey, CachedDataItemType,
         CachedDataItemValue, CachedDataItemValueRef, CachedDataItemValueRefMut, CellRef,
-        CollectibleRef, CollectiblesRef, Dirtyness, OutputValue,
+        CollectibleRef, CollectiblesRef, Dirtyness, InProgressCellState, InProgressState,
+        OutputValue,
     },
 };
 
@@ -372,14 +374,14 @@ pub trait TaskGuard: Debug {
     /// Returns `true` if the item was added.
     /// Returns `false` if an item with the same key was already present.
     ///
-    /// **FOR SERIALIZATION USE ONLY** - Use typed APIs instead.
+    /// **FOR INTERNAL USE ONLY** - Use typed APIs instead.
     #[must_use]
     fn add_internal(&mut self, item: CachedDataItem) -> bool;
 
     /// Adds a new item to the task. The key must not be already present.
     /// Might panic if the key is already present.
     ///
-    /// **FOR SERIALIZATION USE ONLY** - Use typed APIs instead.
+    /// **FOR INTERNAL USE ONLY** - Use typed APIs instead.
     fn add_new_internal(&mut self, item: CachedDataItem);
 
     /// Extends the task with items from the iterator.
@@ -387,7 +389,7 @@ pub trait TaskGuard: Debug {
     /// Returns `true` if all items were new and added.
     /// Returns `false` if any item had a key that was already present.
     ///
-    /// **FOR SERIALIZATION USE ONLY** - Use typed APIs instead.
+    /// **FOR INTERNAL USE ONLY** - Use typed APIs instead.
     fn extend_internal(
         &mut self,
         ty: CachedDataItemType,
@@ -397,58 +399,58 @@ pub trait TaskGuard: Debug {
     /// Extends the task with items from the iterator.
     /// Might panic if any item has a key that is already present.
     ///
-    /// **FOR SERIALIZATION USE ONLY** - Use typed APIs instead.
+    /// **FOR INTERNAL USE ONLY** - Use typed APIs instead.
     fn extend_new_internal(
         &mut self,
         ty: CachedDataItemType,
         items: impl Iterator<Item = CachedDataItem>,
     );
 
-    /// **FOR SERIALIZATION USE ONLY** - Use typed APIs instead.
+    /// **FOR INTERNAL USE ONLY** - Use typed APIs instead.
     fn insert_internal(&mut self, item: CachedDataItem) -> Option<CachedDataItemValue>;
 
-    /// **FOR SERIALIZATION USE ONLY** - Use typed APIs instead.
+    /// **FOR INTERNAL USE ONLY** - Use typed APIs instead.
     fn update_internal(
         &mut self,
         key: CachedDataItemKey,
         update: impl FnOnce(Option<CachedDataItemValue>) -> Option<CachedDataItemValue>,
     );
 
-    /// **FOR SERIALIZATION USE ONLY** - Use typed APIs instead.
+    /// **FOR INTERNAL USE ONLY** - Use typed APIs instead.
     fn remove_internal(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValue>;
 
-    /// **FOR SERIALIZATION USE ONLY** - Use typed APIs instead.
+    /// **FOR INTERNAL USE ONLY** - Use typed APIs instead.
     fn get_internal(&self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRef<'_>>;
 
-    /// **FOR SERIALIZATION USE ONLY** - Use typed APIs instead.
+    /// **FOR INTERNAL USE ONLY** - Use typed APIs instead.
     fn get_mut_internal(
         &mut self,
         key: &CachedDataItemKey,
     ) -> Option<CachedDataItemValueRefMut<'_>>;
 
-    /// **FOR SERIALIZATION USE ONLY** - Use typed APIs instead.
+    /// **FOR INTERNAL USE ONLY** - Use typed APIs instead.
     fn get_mut_or_insert_with_internal(
         &mut self,
         key: CachedDataItemKey,
         insert: impl FnOnce() -> CachedDataItemValue,
     ) -> CachedDataItemValueRefMut<'_>;
 
-    /// **FOR SERIALIZATION USE ONLY** - Use typed APIs instead.
+    /// **FOR INTERNAL USE ONLY** - Use typed APIs instead.
     fn has_key_internal(&self, key: &CachedDataItemKey) -> bool;
 
-    /// **FOR SERIALIZATION USE ONLY** - Use typed APIs instead.
+    /// **FOR INTERNAL USE ONLY** - Use typed APIs instead.
     fn count_internal(&self, ty: CachedDataItemType) -> usize;
 
-    /// **FOR SERIALIZATION USE ONLY** - Use typed APIs instead.
+    /// **FOR INTERNAL USE ONLY** - Use typed APIs instead.
     fn iter_internal(
         &self,
         ty: CachedDataItemType,
     ) -> impl Iterator<Item = (CachedDataItemKey, CachedDataItemValueRef<'_>)>;
 
-    /// **FOR SERIALIZATION USE ONLY** - Use typed APIs instead.
+    /// **FOR INTERNAL USE ONLY** - Use typed APIs instead.
     fn shrink_to_fit_internal(&mut self, ty: CachedDataItemType);
 
-    /// **FOR SERIALIZATION USE ONLY** - Use typed APIs instead.
+    /// **FOR INTERNAL USE ONLY** - Use typed APIs instead.
     fn extract_if_internal<'l, F>(
         &'l mut self,
         ty: CachedDataItemType,
@@ -703,11 +705,27 @@ pub trait TaskGuard: Debug {
             })
     }
 
-    /// Update an Upper counter for a task
-    /// Returns true if the count reached zero and was removed
+    /// Update an Upper counter for a task by the given delta.
+    ///
+    /// Returns `true` if the update caused the count to cross zero (i.e., the sign changed,
+    /// or the count became zero/non-zero), `false` otherwise. This is useful for tracking
+    /// state transitions where crossing zero indicates a significant change.
     #[must_use]
     fn update_upper_count(&mut self, task: TaskId, delta: u32) -> bool {
         update_count!(self, Upper { task }, delta)
+    }
+
+    /// Remove an Upper entry for a task, returning the count if present
+    fn remove_upper(&mut self, task: TaskId) -> Option<u32> {
+        remove!(self, Upper { task })
+    }
+
+    /// Update an Upper entry for a task with a closure
+    fn update_upper<F>(&mut self, task: TaskId, f: F)
+    where
+        F: FnOnce(Option<u32>) -> Option<u32>,
+    {
+        update!(self, Upper { task }, f)
     }
 
     /// Add a new Upper entry (used when adding new uppers)
@@ -719,11 +737,27 @@ pub trait TaskGuard: Debug {
         self.add_new_internal(CachedDataItem::Upper { task, value: count })
     }
 
-    /// Update a Follower counter for a task
-    /// Returns true if the count reached zero and was removed
+    /// Update a Follower counter for a task by the given delta.
+    ///
+    /// Returns `true` if the update caused the count to cross zero (i.e., the sign changed,
+    /// or the count became zero/non-zero), `false` otherwise. This is useful for tracking
+    /// state transitions where crossing zero indicates a significant change.
     #[must_use]
     fn update_follower_count(&mut self, task: TaskId, delta: u32) -> bool {
         update_count!(self, Follower { task }, delta)
+    }
+
+    /// Remove a Follower entry for a task, returning the count if present
+    fn remove_follower(&mut self, task: TaskId) -> Option<u32> {
+        remove!(self, Follower { task })
+    }
+
+    /// Update a Follower entry for a task with a closure
+    fn update_follower<F>(&mut self, task: TaskId, f: F)
+    where
+        F: FnOnce(Option<u32>) -> Option<u32>,
+    {
+        update!(self, Follower { task }, f)
     }
 
     /// Add a new Follower entry (used when adding new followers)
@@ -733,6 +767,30 @@ pub trait TaskGuard: Debug {
     /// Panics if the entry already exists.
     fn add_follower(&mut self, task: TaskId, count: u32) {
         self.add_new_internal(CachedDataItem::Follower { task, value: count })
+    }
+
+    /// Update a Collectible counter for a collectible by the given delta.
+    ///
+    /// Returns `true` if the update caused the count to cross zero (i.e., the sign changed,
+    /// or the count became zero/non-zero), `false` otherwise. This is useful for tracking
+    /// state transitions where crossing zero indicates a significant change.
+    #[must_use]
+    fn update_collectible_count(&mut self, collectible: CollectibleRef, delta: i32) -> bool {
+        update_count!(self, Collectible { collectible }, delta)
+    }
+
+    /// Update an OutdatedCollectible counter for a collectible by the given delta.
+    ///
+    /// Returns `true` if the update caused the count to cross zero (i.e., the sign changed,
+    /// or the count became zero/non-zero), `false` otherwise. This is useful for tracking
+    /// state transitions where crossing zero indicates a significant change.
+    #[must_use]
+    fn update_outdated_collectible_count(
+        &mut self,
+        collectible: CollectibleRef,
+        delta: i32,
+    ) -> bool {
+        update_count!(self, OutdatedCollectible { collectible }, delta)
     }
 
     /// Check if this task has activeness tracking
@@ -746,6 +804,19 @@ pub trait TaskGuard: Debug {
         get!(self, Activeness)
     }
 
+    /// Get mutable reference to the activeness state
+    fn get_activeness_mut(&mut self) -> Option<&mut ActivenessState> {
+        get_mut!(self, Activeness)
+    }
+
+    /// Get mutable reference to the activeness state, inserting a new one if not present
+    fn get_activeness_mut_or_insert_with<F>(&mut self, f: F) -> &mut ActivenessState
+    where
+        F: FnOnce() -> ActivenessState,
+    {
+        get_mut_or_insert_with!(self, Activeness, f)
+    }
+
     /// Set the activeness state, returning the old state if present
     fn set_activeness(&mut self, value: ActivenessState) -> Option<ActivenessState> {
         self.insert_internal(CachedDataItem::Activeness { value })
@@ -755,10 +826,158 @@ pub trait TaskGuard: Debug {
             })
     }
 
-    /// Clear the activeness state
-    fn clear_activeness(&mut self) -> bool {
-        self.remove_internal(&CachedDataItemKey::Activeness {})
-            .is_some()
+    /// Clear the activeness state, returning the old state if present
+    fn clear_activeness(&mut self) -> Option<ActivenessState> {
+        remove!(self, Activeness)
+    }
+
+    /// Get the in-progress state
+    fn get_in_progress(&self) -> Option<&InProgressState> {
+        get!(self, InProgress)
+    }
+
+    /// Get mutable reference to the in-progress state
+    fn get_in_progress_mut(&mut self) -> Option<&mut InProgressState> {
+        get_mut!(self, InProgress)
+    }
+
+    /// Remove the in-progress state, returning the old state if present
+    fn remove_in_progress(&mut self) -> Option<InProgressState> {
+        remove!(self, InProgress)
+    }
+
+    /// Get the in-progress cell state for a specific cell
+    fn get_in_progress_cell(&self, cell: CellId) -> Option<&InProgressCellState> {
+        get!(self, InProgressCell { cell })
+    }
+
+    /// Remove the in-progress cell state for a specific cell, returning the old state if present
+    fn remove_in_progress_cell(&mut self, cell: CellId) -> Option<InProgressCellState> {
+        remove!(self, InProgressCell { cell })
+    }
+
+    /// Get current session clean marker
+    fn get_current_session_clean(&self) -> Option<()> {
+        get!(self, CurrentSessionClean).map(|_| ())
+    }
+
+    /// Get transient cell data for a specific cell
+    fn get_transient_cell_data(&self, cell: CellId) -> Option<&SharedReference> {
+        get!(self, TransientCellData { cell })
+    }
+
+    /// Get aggregated dirty container count
+    fn get_aggregated_dirty_container_count(&self) -> Option<&i32> {
+        get!(self, AggregatedDirtyContainerCount)
+    }
+
+    /// Update aggregated dirty container count by the given delta and return the new count.
+    ///
+    /// Unlike `update_*_count` methods which return a bool indicating zero-crossing,
+    /// this method returns the actual new count value after the update.
+    fn update_and_get_aggregated_dirty_container_count(&mut self, delta: i32) -> i32 {
+        update_count_and_get!(self, AggregatedDirtyContainerCount, delta)
+    }
+    /// Get aggregated current session clean container count
+    fn get_aggregated_current_session_clean_container_count(&self) -> Option<&i32> {
+        get!(self, AggregatedCurrentSessionCleanContainerCount)
+    }
+
+    /// Update aggregated current session clean container count by the given delta and return the
+    /// new count.
+    ///
+    /// Unlike `update_*_count` methods which return a bool indicating zero-crossing,
+    /// this method returns the actual new count value after the update.
+    fn update_and_get_aggregated_current_session_clean_container_count(
+        &mut self,
+        delta: i32,
+    ) -> i32 {
+        update_count_and_get!(self, AggregatedCurrentSessionCleanContainerCount, delta)
+    }
+
+    /// Get aggregated dirty container count for a specific task
+    fn get_aggregated_dirty_container(&self, task: TaskId) -> Option<&i32> {
+        get!(self, AggregatedDirtyContainer { task })
+    }
+
+    /// Update aggregated dirty container count for a specific task by the given delta and return
+    /// the new count.
+    ///
+    /// Unlike `update_*_count` methods which return a bool indicating zero-crossing,
+    /// this method returns the actual new count value after the update.
+    fn update_and_get_aggregated_dirty_container(&mut self, task: TaskId, delta: i32) -> i32 {
+        update_count_and_get!(self, AggregatedDirtyContainer { task }, delta)
+    }
+
+    /// Get aggregated current session clean container count for a specific task
+    fn get_aggregated_current_session_clean_container(&self, task: TaskId) -> Option<&i32> {
+        get!(self, AggregatedCurrentSessionCleanContainer { task })
+    }
+
+    /// Update aggregated current session clean container count for a specific task by the given
+    /// delta and return the new count.
+    ///
+    /// Unlike `update_*_count` methods which return a bool indicating zero-crossing,
+    /// this method returns the actual new count value after the update.
+    fn update_and_get_aggregated_current_session_clean_container(
+        &mut self,
+        task: TaskId,
+        delta: i32,
+    ) -> i32 {
+        update_count_and_get!(self, AggregatedCurrentSessionCleanContainer { task }, delta)
+    }
+
+    /// Get aggregated collectible count for a specific collectible
+    fn get_aggregated_collectible(&self, collectible: CollectibleRef) -> Option<&i32> {
+        get!(self, AggregatedCollectible { collectible })
+    }
+
+    /// Update aggregated collectible count for a specific collectible with a closure
+    fn update_aggregated_collectible<F>(&mut self, collectible: CollectibleRef, f: F)
+    where
+        F: FnOnce(Option<i32>) -> Option<i32>,
+    {
+        update!(self, AggregatedCollectible { collectible }, f)
+    }
+
+    /// Get outdated collectible count for a specific collectible
+    fn get_outdated_collectible(&self, collectible: CollectibleRef) -> Option<&i32> {
+        get!(self, OutdatedCollectible { collectible })
+    }
+
+    /// Get cell type max index for a specific cell type
+    fn get_cell_type_max_index(&self, cell_type: ValueTypeId) -> Option<&u32> {
+        get!(self, CellTypeMaxIndex { cell_type })
+    }
+
+    /// Count the number of followers
+    fn count_followers(&self) -> usize {
+        self.count_internal(CachedDataItemType::Follower)
+    }
+
+    /// Count the number of uppers
+    fn count_uppers(&self) -> usize {
+        self.count_internal(CachedDataItemType::Upper)
+    }
+
+    /// Count the number of children
+    fn count_children(&self) -> usize {
+        self.count_internal(CachedDataItemType::Child)
+    }
+
+    /// Count the number of collectibles
+    fn count_collectibles(&self) -> usize {
+        self.count_internal(CachedDataItemType::Collectible)
+    }
+
+    /// Count the number of outdated collectibles
+    fn count_outdated_collectibles(&self) -> usize {
+        self.count_internal(CachedDataItemType::OutdatedCollectible)
+    }
+
+    /// Count the number of collectibles dependencies
+    fn count_collectibles_dependencies(&self) -> usize {
+        self.count_internal(CachedDataItemType::CollectiblesDependency)
     }
 
     fn invalidate_serialization(&mut self);
@@ -851,12 +1070,6 @@ pub trait TaskGuard: Debug {
         }
     }
 
-    /// Check if task has an outdated cell dependency
-    #[must_use]
-    fn has_outdated_cell_dependency(&self, target: CellRef) -> bool {
-        self.has_key_internal(&CachedDataItemKey::OutdatedCellDependency { target })
-    }
-
     /// Add a scheduled task item. Returns true if the task was successfully added (wasn't already
     /// present).
     #[must_use]
@@ -889,6 +1102,12 @@ pub trait TaskGuard: Debug {
     #[must_use]
     fn has_outdated_output_dependency(&self, target: TaskId) -> bool {
         self.has_key_internal(&CachedDataItemKey::OutdatedOutputDependency { target })
+    }
+
+    /// Check if task has an outdated cell dependency
+    #[must_use]
+    fn has_outdated_cell_dependency(&self, target: CellRef) -> bool {
+        self.has_key_internal(&CachedDataItemKey::OutdatedCellDependency { target })
     }
 
     /// Remove an outdated collectibles dependency
@@ -972,6 +1191,301 @@ pub trait TaskGuard: Debug {
     fn has_invalidator(&self) -> bool {
         self.has_key_internal(&CachedDataItemKey::HasInvalidator {})
     }
+
+    // ============ Iterator APIs ============
+    // These replace the iter_many! and get_many! macros with typed iterators
+
+    /// Iterate over all child tasks
+    fn iter_children(&self) -> impl Iterator<Item = TaskId> + '_ {
+        self.iter_internal(CachedDataItemType::Child)
+            .filter_map(|(key, _)| match key {
+                CachedDataItemKey::Child { task } => Some(task),
+                _ => None,
+            })
+    }
+
+    /// Iterate over all follower tasks (with count > 0)
+    fn iter_followers(&self) -> impl Iterator<Item = TaskId> + '_ {
+        self.iter_internal(CachedDataItemType::Follower)
+            .filter_map(|(key, value)| match (key, value) {
+                (
+                    CachedDataItemKey::Follower { task },
+                    CachedDataItemValueRef::Follower { value: count },
+                ) if *count > 0 => Some(task),
+                _ => None,
+            })
+    }
+
+    /// Iterate over all upper tasks (with count > 0)
+    fn iter_uppers(&self) -> impl Iterator<Item = TaskId> + '_ {
+        self.iter_internal(CachedDataItemType::Upper)
+            .filter_map(|(key, value)| match (key, value) {
+                (
+                    CachedDataItemKey::Upper { task },
+                    CachedDataItemValueRef::Upper { value: count },
+                ) if *count > 0 => Some(task),
+                _ => None,
+            })
+    }
+
+    /// Iterate over all output dependencies
+    fn iter_output_dependencies(&self) -> impl Iterator<Item = TaskId> + '_ {
+        self.iter_internal(CachedDataItemType::OutputDependency)
+            .filter_map(|(key, _)| match key {
+                CachedDataItemKey::OutputDependency { target } => Some(target),
+                _ => None,
+            })
+    }
+
+    /// Iterate over all cell dependencies
+    fn iter_cell_dependencies(&self) -> impl Iterator<Item = CellRef> + '_ {
+        self.iter_internal(CachedDataItemType::CellDependency)
+            .filter_map(|(key, _)| match key {
+                CachedDataItemKey::CellDependency { target } => Some(target),
+                _ => None,
+            })
+    }
+
+    /// Iterate over all outdated output dependencies
+    fn iter_outdated_output_dependencies(&self) -> impl Iterator<Item = TaskId> + '_ {
+        self.iter_internal(CachedDataItemType::OutdatedOutputDependency)
+            .filter_map(|(key, _)| match key {
+                CachedDataItemKey::OutdatedOutputDependency { target } => Some(target),
+                _ => None,
+            })
+    }
+
+    /// Iterate over all outdated cell dependencies
+    fn iter_outdated_cell_dependencies(&self) -> impl Iterator<Item = CellRef> + '_ {
+        self.iter_internal(CachedDataItemType::OutdatedCellDependency)
+            .filter_map(|(key, _)| match key {
+                CachedDataItemKey::OutdatedCellDependency { target } => Some(target),
+                _ => None,
+            })
+    }
+
+    /// Iterate over all collectibles dependencies
+    fn iter_collectibles_dependencies(&self) -> impl Iterator<Item = CollectiblesRef> + '_ {
+        self.iter_internal(CachedDataItemType::CollectiblesDependency)
+            .filter_map(|(key, _)| match key {
+                CachedDataItemKey::CollectiblesDependency { target } => Some(target),
+                _ => None,
+            })
+    }
+
+    /// Iterate over all output dependents
+    fn iter_output_dependents(&self) -> impl Iterator<Item = TaskId> + '_ {
+        self.iter_internal(CachedDataItemType::OutputDependent)
+            .filter_map(|(key, _)| match key {
+                CachedDataItemKey::OutputDependent { task } => Some(task),
+                _ => None,
+            })
+    }
+
+    /// Iterate over all cell dependents, returning (cell, task) pairs
+    fn iter_cell_dependents(&self) -> impl Iterator<Item = (CellId, TaskId)> + '_ {
+        self.iter_internal(CachedDataItemType::CellDependent)
+            .filter_map(|(key, _)| match key {
+                CachedDataItemKey::CellDependent { cell, task } => Some((cell, task)),
+                _ => None,
+            })
+    }
+
+    /// Iterate over all collectibles dependents, returning (collectible_type, task) pairs
+    fn iter_collectibles_dependents(&self) -> impl Iterator<Item = (TraitTypeId, TaskId)> + '_ {
+        self.iter_internal(CachedDataItemType::CollectiblesDependent)
+            .filter_map(|(key, _)| match key {
+                CachedDataItemKey::CollectiblesDependent {
+                    collectible_type,
+                    task,
+                } => Some((collectible_type, task)),
+                _ => None,
+            })
+    }
+
+    /// Iterate over all collectibles with their counts
+    fn iter_collectibles(&self) -> impl Iterator<Item = (CollectibleRef, i32)> + '_ {
+        self.iter_internal(CachedDataItemType::Collectible)
+            .filter_map(|(key, value)| match (key, value) {
+                (
+                    CachedDataItemKey::Collectible { collectible },
+                    CachedDataItemValueRef::Collectible { value },
+                ) => Some((collectible, *value)),
+                _ => None,
+            })
+    }
+
+    /// Iterate over all outdated collectibles
+    fn iter_outdated_collectibles(&self) -> impl Iterator<Item = CollectibleRef> + '_ {
+        self.iter_internal(CachedDataItemType::OutdatedCollectible)
+            .filter_map(|(key, _)| match key {
+                CachedDataItemKey::OutdatedCollectible { collectible } => Some(collectible),
+                _ => None,
+            })
+    }
+
+    /// Iterate over all outdated collectibles with their values, returning (collectible, value)
+    /// pairs
+    fn iter_outdated_collectibles_with_values(
+        &self,
+    ) -> impl Iterator<Item = (CollectibleRef, i32)> + '_ {
+        self.iter_internal(CachedDataItemType::OutdatedCollectible)
+            .filter_map(|(key, value)| match (key, value) {
+                (
+                    CachedDataItemKey::OutdatedCollectible { collectible },
+                    CachedDataItemValueRef::OutdatedCollectible { value },
+                ) => Some((collectible, *value)),
+                _ => None,
+            })
+    }
+
+    /// Iterate over all aggregated collectibles (with count > 0), returning (collectible, count)
+    /// pairs
+    fn iter_aggregated_collectibles(&self) -> impl Iterator<Item = (CollectibleRef, i32)> + '_ {
+        self.iter_internal(CachedDataItemType::AggregatedCollectible)
+            .filter_map(|(key, value)| match (key, value) {
+                (
+                    CachedDataItemKey::AggregatedCollectible { collectible },
+                    CachedDataItemValueRef::AggregatedCollectible { value },
+                ) if *value > 0 => Some((collectible, *value)),
+                _ => None,
+            })
+    }
+
+    /// Iterate over all aggregated dirty containers with their counts
+    fn iter_aggregated_dirty_containers(&self) -> impl Iterator<Item = (TaskId, i32)> + '_ {
+        self.iter_internal(CachedDataItemType::AggregatedDirtyContainer)
+            .filter_map(|(key, value)| match (key, value) {
+                (
+                    CachedDataItemKey::AggregatedDirtyContainer { task },
+                    CachedDataItemValueRef::AggregatedDirtyContainer { value },
+                ) => Some((task, *value)),
+                _ => None,
+            })
+    }
+
+    /// Iterate over all cell data entries
+    fn iter_cell_data(&self) -> impl Iterator<Item = CellId> + '_ {
+        self.iter_internal(CachedDataItemType::CellData)
+            .filter_map(|(key, _)| match key {
+                CachedDataItemKey::CellData { cell } => Some(cell),
+                _ => None,
+            })
+    }
+
+    /// Iterate over all transient cell data entries
+    fn iter_transient_cell_data(&self) -> impl Iterator<Item = CellId> + '_ {
+        self.iter_internal(CachedDataItemType::TransientCellData)
+            .filter_map(|(key, _)| match key {
+                CachedDataItemKey::TransientCellData { cell } => Some(cell),
+                _ => None,
+            })
+    }
+
+    /// Iterate over all cell type max indices, returning (cell_type, max_index) pairs
+    fn iter_cell_type_max_indices(&self) -> impl Iterator<Item = (ValueTypeId, u32)> + '_ {
+        self.iter_internal(CachedDataItemType::CellTypeMaxIndex)
+            .filter_map(|(key, value)| match (key, value) {
+                (
+                    CachedDataItemKey::CellTypeMaxIndex { cell_type },
+                    CachedDataItemValueRef::CellTypeMaxIndex { value: max_index },
+                ) => Some((cell_type, *max_index)),
+                _ => None,
+            })
+    }
+
+    // ============ Collection Getter APIs ============
+    // These replace the get_many! macro with typed collection getters
+
+    /// Get all child tasks as a Vec
+    fn get_children(&self) -> Vec<TaskId> {
+        self.iter_children().collect()
+    }
+
+    /// Get all follower tasks (with count > 0) as a Vec
+    fn get_followers(&self) -> Vec<TaskId> {
+        self.iter_followers().collect()
+    }
+
+    /// Get all upper tasks (with count > 0) as a Vec
+    fn get_uppers(&self) -> Vec<TaskId> {
+        self.iter_uppers().collect()
+    }
+
+    /// Get all output dependencies as a Vec
+    fn get_output_dependencies(&self) -> Vec<TaskId> {
+        self.iter_output_dependencies().collect()
+    }
+
+    /// Get all cell dependencies as a Vec
+    fn get_cell_dependencies(&self) -> Vec<CellRef> {
+        self.iter_cell_dependencies().collect()
+    }
+
+    /// Get all outdated output dependencies as a Vec
+    fn get_outdated_output_dependencies(&self) -> Vec<TaskId> {
+        self.iter_outdated_output_dependencies().collect()
+    }
+
+    /// Get all outdated cell dependencies as a Vec
+    fn get_outdated_cell_dependencies(&self) -> Vec<CellRef> {
+        self.iter_outdated_cell_dependencies().collect()
+    }
+
+    /// Get all output dependents as a Vec
+    fn get_output_dependents(&self) -> Vec<TaskId> {
+        self.iter_output_dependents().collect()
+    }
+
+    /// Get all collectibles with their counts as a Vec
+    fn get_collectibles(&self) -> Vec<(CollectibleRef, i32)> {
+        self.iter_collectibles().collect()
+    }
+
+    /// Get all aggregated collectibles (with count > 0) as a Vec
+    fn get_aggregated_collectibles(&self) -> Vec<(CollectibleRef, i32)> {
+        self.iter_aggregated_collectibles().collect()
+    }
+
+    /// Get all aggregated dirty containers with their counts as a Vec
+    fn get_aggregated_dirty_containers(&self) -> Vec<(TaskId, i32)> {
+        self.iter_aggregated_dirty_containers().collect()
+    }
+
+    /// Get all cell type max indices as a Vec
+    fn get_cell_type_max_indices(&self) -> Vec<(ValueTypeId, u32)> {
+        self.iter_cell_type_max_indices().collect()
+    }
+
+    // ============ Extract-If APIs ============
+    // These replace extract_if_internal with typed filter/extract operations
+
+    /// Extract cell data matching the predicate. Returns removed items.
+    fn extract_cell_data_if<'l, F>(&'l mut self, f: F) -> impl Iterator<Item = CachedDataItem>
+    where
+        F: for<'a> FnMut(CachedDataItemKey, CachedDataItemValueRef<'a>) -> bool + 'l;
+
+    /// Extract transient cell data matching the predicate. Returns removed items.
+    fn extract_transient_cell_data_if<'l, F>(
+        &'l mut self,
+        f: F,
+    ) -> impl Iterator<Item = CachedDataItem>
+    where
+        F: for<'a> FnMut(CachedDataItemKey, CachedDataItemValueRef<'a>) -> bool + 'l;
+
+    /// Extract in-progress cells matching the predicate. Returns removed items.
+    fn extract_in_progress_cells_if<'l, F>(
+        &'l mut self,
+        f: F,
+    ) -> impl Iterator<Item = CachedDataItem>
+    where
+        F: for<'a> FnMut(CachedDataItemKey, CachedDataItemValueRef<'a>) -> bool + 'l;
+
+    // ============ Memory Management APIs ============
+
+    /// Shrink all relevant storage data structures to fit their current contents.
+    /// This includes cell data, dependencies, and indices.
+    fn shrink_to_fit(&mut self);
 }
 
 pub struct TaskGuardImpl<'a, B: BackingStorage> {
@@ -1214,6 +1728,42 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
             self.task.track_modification(ty.category().into_specific());
         }
         self.task.extract_if(ty, f)
+    }
+
+    fn extract_cell_data_if<'l, F>(&'l mut self, f: F) -> impl Iterator<Item = CachedDataItem>
+    where
+        F: for<'a> FnMut(CachedDataItemKey, CachedDataItemValueRef<'a>) -> bool + 'l,
+    {
+        self.extract_if_internal(CachedDataItemType::CellData, f)
+    }
+
+    fn extract_transient_cell_data_if<'l, F>(
+        &'l mut self,
+        f: F,
+    ) -> impl Iterator<Item = CachedDataItem>
+    where
+        F: for<'a> FnMut(CachedDataItemKey, CachedDataItemValueRef<'a>) -> bool + 'l,
+    {
+        self.extract_if_internal(CachedDataItemType::TransientCellData, f)
+    }
+
+    fn extract_in_progress_cells_if<'l, F>(
+        &'l mut self,
+        f: F,
+    ) -> impl Iterator<Item = CachedDataItem>
+    where
+        F: for<'a> FnMut(CachedDataItemKey, CachedDataItemValueRef<'a>) -> bool + 'l,
+    {
+        self.extract_if_internal(CachedDataItemType::InProgressCell, f)
+    }
+
+    fn shrink_to_fit(&mut self) {
+        self.shrink_to_fit_internal(CachedDataItemType::CellData);
+        self.shrink_to_fit_internal(CachedDataItemType::TransientCellData);
+        self.shrink_to_fit_internal(CachedDataItemType::CellTypeMaxIndex);
+        self.shrink_to_fit_internal(CachedDataItemType::CellDependency);
+        self.shrink_to_fit_internal(CachedDataItemType::OutputDependency);
+        self.shrink_to_fit_internal(CachedDataItemType::CollectiblesDependency);
     }
 
     fn invalidate_serialization(&mut self) {
