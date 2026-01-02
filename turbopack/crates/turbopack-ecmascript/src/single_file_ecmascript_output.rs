@@ -99,7 +99,7 @@ impl GenerateSourceMap for SingleFileEcmascriptOutput {
             None::<&Rope>,
             true,
             true,
-            &Default::default(),
+            Default::default(),
         )?;
         Ok(FileContent::Content(File::from(map)).cell())
     }

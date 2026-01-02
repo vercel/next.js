@@ -159,7 +159,7 @@ pub fn minify(code: Code, source_maps: bool, mangle: Option<MangleType>) -> Resu
                 // We provide a synthesized value to `cm.new_source_file` above, so it cannot be
                 // the value user expect anyway.
                 false,
-                &source_map_names,
+                source_map_names,
             )?),
         );
     } else {

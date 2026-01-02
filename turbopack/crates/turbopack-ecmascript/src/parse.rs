@@ -60,17 +60,14 @@ pub struct IdentCollector {
 }
 
 impl IdentCollector {
-    /// Converts the collected identifiers into a map.
-    /// This is called after visiting the AST to get the final names map.
+    /// Converts the collected identifiers into a map keyed by the start position of the identifier
     pub fn into_map(self) -> FxHashMap<BytePos, Atom> {
-        // Now we know the exact size - perfect allocation!
-        self.names_vec.into_iter().collect()
+        FxHashMap::from_iter(self.names_vec)
     }
 }
 impl Default for IdentCollector {
     fn default() -> Self {
         Self {
-            // Vec is cheap to grow, small default is fine
             names_vec: Vec::with_capacity(128),
         }
     }
@@ -130,7 +127,7 @@ pub fn generate_js_source_map<'a>(
     original_source_maps: impl IntoIterator<Item = &'a Rope>,
     original_source_maps_complete: bool,
     inline_sources_content: bool,
-    names: &FxHashMap<BytePos, Atom>,
+    names: FxHashMap<BytePos, Atom>,
 ) -> Result<Rope> {
     let original_source_maps = original_source_maps
         .into_iter()
@@ -193,12 +190,12 @@ pub fn generate_js_source_map<'a>(
 /// A config to generate a source map which includes the source content of every
 /// source file. SWC doesn't inline sources content by default when generating a
 /// sourcemap, so we need to provide a custom config to do it.
-pub struct InlineSourcesContentConfig<'a> {
+pub struct InlineSourcesContentConfig {
     inline_sources_content: bool,
-    names: &'a FxHashMap<BytePos, Atom>,
+    names: FxHashMap<BytePos, Atom>,
 }
 
-impl SourceMapGenConfig for InlineSourcesContentConfig<'_> {
+impl SourceMapGenConfig for InlineSourcesContentConfig {
     fn file_name_to_source(&self, f: &FileName) -> String {
         match f {
             FileName::Custom(s) => {

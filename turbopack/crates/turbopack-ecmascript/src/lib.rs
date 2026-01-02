@@ -2171,7 +2171,7 @@ async fn emit_content(
                 CodeGenResultOriginalSourceMap::Single(_)
             ),
             true,
-            &source_map_names,
+            source_map_names,
         )?)
     } else {
         None
