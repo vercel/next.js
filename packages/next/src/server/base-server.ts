@@ -449,19 +449,25 @@ export default abstract class Server<
     // TODO: should conf be normalized to prevent missing
     // values from causing issues as this can be user provided
     this.nextConfig = conf as NextConfigRuntime
-
+    let deploymentId
     if (this.nextConfig.experimental.runtimeServerDeploymentId) {
       if (!process.env.NEXT_DEPLOYMENT_ID) {
         throw new Error(
           'process.env.NEXT_DEPLOYMENT_ID is missing but runtimeServerDeploymentId is enabled'
         )
       }
+      deploymentId = process.env.NEXT_DEPLOYMENT_ID
     } else {
       let id = this.nextConfig.experimental.useSkewCookie
         ? ''
         : this.nextConfig.deploymentId || ''
 
-      process.env.NEXT_DEPLOYMENT_ID = typeof id === 'string' ? id : ''
+      if (typeof id === 'string') {
+        deploymentId = id
+      } else {
+        deploymentId = id() as string
+      }
+      process.env.NEXT_DEPLOYMENT_ID = deploymentId
     }
 
     this.hostname = hostname

@@ -3,7 +3,7 @@
  * Similar to generateBuildId, but for deploymentId.
  */
 export async function generateDeploymentId(
-  deploymentId: string | (() => string | Promise<string>) | undefined,
+  deploymentId: string | (() => string) | undefined,
   fallback: () => string
 ): Promise<string> {
   if (!deploymentId) {
@@ -23,4 +23,3 @@ export async function generateDeploymentId(
 
   return deploymentId.trim()
 }
-

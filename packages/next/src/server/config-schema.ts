@@ -465,10 +465,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .union([z.literal('anonymous'), z.literal('use-credentials')])
       .optional(),
     deploymentId: z
-      .union([
-        z.string(),
-        z.function().returns(z.union([z.string(), z.promise(z.string())])),
-      ])
+      .union([z.string(), z.function().returns(z.string())])
       .optional(),
     devIndicators: z
       .union([

@@ -1137,7 +1137,7 @@ export interface NextConfig {
    * }
    * ```
    */
-  deploymentId?: string | (() => string | Promise<string>)
+  deploymentId?: string | (() => string)
 
   /**
    * Deploy a Next.js application under a sub-path of a domain

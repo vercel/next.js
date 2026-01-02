@@ -508,7 +508,7 @@ export abstract class RouteModule<
   /** A more lightweight version of `prepare()` for only retrieving the config on edge */
   public getNextConfigEdge(req: NextIncomingMessage): {
     nextConfig: NextConfigRuntime
-    deploymentId: string | (() => string | Promise<string>)
+    deploymentId: string | (() => string)
   } {
     if (process.env.NEXT_RUNTIME !== 'edge') {
       throw new Error(
@@ -558,7 +558,7 @@ export abstract class RouteModule<
   ): Promise<
     | {
         buildId: string
-        deploymentId: string | (() => string | Promise<string>)
+        deploymentId: string | (() => string)
         locale?: string
         locales?: readonly string[]
         defaultLocale?: string
@@ -957,7 +957,7 @@ export abstract class RouteModule<
       nextConfig:
         nextConfig satisfies DeepReadonly<NextConfigRuntime> as NextConfigRuntime,
       routerServerContext,
-      deploymentId: deploymentId as string | (() => string | Promise<string>),
+      deploymentId: deploymentId as string | (() => string),
     }
   }
 
