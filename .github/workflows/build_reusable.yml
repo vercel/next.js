@@ -197,12 +197,12 @@ jobs:
         with:
           fetch-depth: 25
 
-      # Renormalize line endings after checkout on Windows
-      - name: Renormalize line endings
+      # Convert CRLF to LF on Windows
+      - name: Convert line endings to LF
         if: ${{ contains(fromJson(inputs.runs_on_labels), 'windows') }}
+        shell: bash
         run: |
-          git add --renormalize .
-          git checkout -- .
+          find packages/next-codemod -type f \( -name "*.js" -o -name "*.ts" -o -name "*.tsx" -o -name "*.jsx" \) -exec sed -i 's/\r$//' {} \;
 
       # local action -> needs to run after checkout
       - name: Install Rust
