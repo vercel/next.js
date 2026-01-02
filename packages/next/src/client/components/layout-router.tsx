@@ -32,7 +32,10 @@ import { disableSmoothScrollDuringRouteTransition } from '../../shared/lib/route
 import { RedirectBoundary } from './redirect-boundary'
 import { HTTPAccessFallbackBoundary } from './http-access-fallback/error-boundary'
 import { createRouterCacheKey } from './router-reducer/create-router-cache-key'
-import { useRouterBFCache, type RouterBFCacheEntry } from './bfcache'
+import {
+  useRouterBFCache,
+  type RouterBFCacheEntry,
+} from './bfcache-state-manager'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import {
   NavigationPromisesContext,
@@ -529,14 +532,6 @@ export default function OuterLayoutRouter({
 
   // Get the CacheNode for this segment by reading it from the parent segment's
   // child map.
-  const parentParallelRoutes = parentCacheNode.parallelRoutes
-  let segmentMap = parentParallelRoutes.get(parallelRouterKey)
-  // If the parallel router cache node does not exist yet, create it.
-  // This writes to the cache when there is no item in the cache yet. It never *overwrites* existing cache items which is why it's safe in concurrent mode.
-  if (!segmentMap) {
-    segmentMap = new Map()
-    parentParallelRoutes.set(parallelRouterKey, segmentMap)
-  }
   const parentTreeSegment = parentTree[0]
   const segmentPath =
     parentSegmentPath === null
@@ -557,7 +552,8 @@ export default function OuterLayoutRouter({
   // (This only applies to page segments; layout segments cannot access search
   // params on the server.)
   const activeTree = parentTree[1][parallelRouterKey]
-  if (activeTree === undefined) {
+  const maybeParentSlots = parentCacheNode.slots
+  if (activeTree === undefined || maybeParentSlots === null) {
     // Could not find a matching segment. The client tree is inconsistent with
     // the server tree. Suspend indefinitely; the router will have already
     // detected the inconsistency when handling the server response, and
@@ -566,6 +562,7 @@ export default function OuterLayoutRouter({
   }
 
   const activeSegment = activeTree[0]
+  const activeCacheNode = maybeParentSlots![parallelRouterKey] ?? null
   const activeStateKey = createRouterCacheKey(activeSegment, true) // no search params
 
   // At each level of the route tree, not only do we render the currently
@@ -576,17 +573,15 @@ export default function OuterLayoutRouter({
   // bfcacheEntry is a linked list of FlightRouterStates.
   let bfcacheEntry: RouterBFCacheEntry | null = useRouterBFCache(
     activeTree,
+    activeCacheNode,
     activeStateKey
   )
   let children: Array<React.ReactNode> = []
   do {
     const tree = bfcacheEntry.tree
+    const cacheNode = bfcacheEntry.cacheNode
     const stateKey = bfcacheEntry.stateKey
     const segment = tree[0]
-    const cacheKey = createRouterCacheKey(segment)
-
-    // Read segment path from the parallel router cache node.
-    const cacheNode = segmentMap.get(cacheKey) ?? null
 
     /*
     - Error boundary

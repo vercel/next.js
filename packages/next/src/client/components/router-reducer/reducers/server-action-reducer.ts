@@ -63,6 +63,7 @@ import {
 } from '../../../../shared/lib/action-revalidation-kind'
 import { isExternalURL } from '../../app-router-utils'
 import { FreshnessPolicy } from '../ppr-navigations'
+import { invalidateBfCache } from '../../segment-cache/bfcache'
 
 const createFromFetch =
   createFromFetchBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromFetch']
@@ -283,6 +284,11 @@ export function serverActionReducer(
       redirectType,
     }) => {
       if (revalidationKind !== ActionDidNotRevalidate) {
+        // There was either a revalidation or a refresh, or maybe both.
+
+        // Evict the BFCache, which may contain dynamic data.
+        invalidateBfCache()
+
         // Store whether this action triggered any revalidation
         // The action queue will use this information to potentially
         // trigger a refresh action if the action was discarded

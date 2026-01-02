@@ -11,6 +11,7 @@ import {
 import { revalidateEntireCache } from '../../segment-cache/cache'
 import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
 import { FreshnessPolicy } from '../ppr-navigations'
+import { invalidateBfCache } from '../../segment-cache/bfcache'
 
 export function refreshReducer(state: ReadonlyReducerState): ReducerState {
   // TODO: Currently, all refreshes purge the prefetch cache. In the future,
@@ -26,6 +27,9 @@ export function refreshDynamicData(
   state: ReadonlyReducerState,
   freshnessPolicy: FreshnessPolicy.RefreshAll | FreshnessPolicy.HMRRefresh
 ): ReducerState {
+  // During a refresh, invalidate the BFCache, which may contain dynamic data.
+  invalidateBfCache()
+
   const currentNextUrl = state.nextUrl
 
   // We always send the last next-url, not the current when performing a dynamic
