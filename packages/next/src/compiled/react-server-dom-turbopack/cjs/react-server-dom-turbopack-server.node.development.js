@@ -2237,6 +2237,9 @@
     }
     function runInAsyncContext(request, fn) {
       return function() {
+        if (request.asyncContextSnapshot) {
+          return request.asyncContextSnapshot(fn);
+        }
         return fn();
       };
     }
