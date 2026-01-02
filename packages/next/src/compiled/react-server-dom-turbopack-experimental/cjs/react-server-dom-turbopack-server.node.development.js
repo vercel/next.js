@@ -1174,6 +1174,7 @@
       type = this.timeOrigin = performance.now();
       emitTimeOriginChunk(this, type + performance.timeOrigin);
       this.abortTime = -0;
+      this.asyncContextSnapshot = null;
       model = createTask(
         this,
         model,
@@ -2252,6 +2253,14 @@
         emitDebugChunk(request, task.id, alreadyForwardedDebugInfo),
         markOperationEndTime(request, task, node.end));
     }
+    function runInAsyncContext(request, fn) {
+      return function() {
+        if (request.asyncContextSnapshot) {
+          return request.asyncContextSnapshot(fn);
+        }
+        return fn();
+      };
+    }
     function pingTask(request, task) {
       task.timed = !0;
       var pingedTasks = request.pingedTasks;
@@ -2259,12 +2268,12 @@
       1 === pingedTasks.length &&
         ((request.flushScheduled = null !== request.destination),
         21 === request.type || 10 === request.status
-          ? scheduleMicrotask(function () {
+          ? scheduleMicrotask(runInAsyncContext(request, function () {
               return performWork(request);
-            })
-          : setImmediate(function () {
+            }))
+          : setImmediate(runInAsyncContext(request, function () {
               return performWork(request);
-            }));
+            })));
     }
     function createTask(
       request,
@@ -4206,6 +4215,9 @@
     }
     function startWork(request) {
       request.flushScheduled = null !== request.destination;
+      request.asyncContextSnapshot = typeof AsyncLocalStorage.snapshot === 'function'
+        ? AsyncLocalStorage.snapshot()
+        : null;
       scheduleMicrotask(function () {
         requestStorage.run(request, performWork, request);
       });

@@ -891,6 +891,7 @@ function RequestInstance(
   this.identifierPrefix = identifierPrefix || "";
   this.identifierCount = 1;
   this.taintCleanupQueue = [];
+  this.asyncContextSnapshot = null;
   this.onError = void 0 === onError ? defaultErrorHandler : onError;
   this.onAllReady = onAllReady;
   this.onFatalError = onFatalError;
@@ -1293,18 +1294,26 @@ function renderElement(request, task, type, key, ref, props) {
   task = task.implicitSlot && null !== request ? [props] : props;
   return task;
 }
+function runInAsyncContext(request, fn) {
+  return function() {
+    if (request.asyncContextSnapshot) {
+      return request.asyncContextSnapshot(fn);
+    }
+    return fn();
+  };
+}
 function pingTask(request, task) {
   var pingedTasks = request.pingedTasks;
   pingedTasks.push(task);
   1 === pingedTasks.length &&
     ((request.flushScheduled = null !== request.destination),
     21 === request.type || 10 === request.status
-      ? scheduleMicrotask(function () {
+      ? scheduleMicrotask(runInAsyncContext(request, function () {
           return performWork(request);
-        })
-      : setImmediate(function () {
+        }))
+      : setImmediate(runInAsyncContext(request, function () {
           return performWork(request);
-        }));
+        })));
 }
 function createTask(
   request,
@@ -2117,6 +2126,9 @@ function flushCompletedChunks(request) {
 }
 function startWork(request) {
   request.flushScheduled = null !== request.destination;
+  request.asyncContextSnapshot = typeof AsyncLocalStorage.snapshot === 'function'
+    ? AsyncLocalStorage.snapshot()
+    : null;
   scheduleMicrotask(function () {
     requestStorage.run(request, performWork, request);
   });
