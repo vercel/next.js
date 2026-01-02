@@ -12,6 +12,40 @@ Key principle: **If it builds, it's correct.** The build process validates that:
 - Cached data doesn't depend on request-specific APIs
 - `generateStaticParams` provides valid parameters to test rendering
 
+---
+
+## Quick Debugging Checklist
+
+Copy this checklist when debugging cache issues:
+
+### Cache Not Working
+
+- [ ] `cacheComponents: true` in next.config?
+- [ ] Function is `async`?
+- [ ] `'use cache'` is FIRST statement in function body?
+- [ ] All arguments are serializable (no functions, class instances)?
+- [ ] Not accessing `cookies()`/`headers()` inside cache?
+
+### Stale Data After Mutation
+
+- [ ] Called `updateTag()` or `revalidateTag()` after mutation?
+- [ ] Tag in invalidation matches tag in `cacheTag()`?
+- [ ] Using `updateTag()` (not `revalidateTag()`) for immediate updates?
+
+### Build Errors
+
+- [ ] Dynamic data wrapped in `<Suspense>`?
+- [ ] `generateStaticParams` returns at least one param?
+- [ ] Not mixing `'use cache'` with `cookies()`/`headers()`?
+
+### Performance Issues
+
+- [ ] Cache granularity appropriate? (not too coarse/fine)
+- [ ] `cacheLife` set appropriately for data volatility?
+- [ ] Using hierarchical tags for targeted invalidation?
+
+---
+
 ## Error: UseCacheTimeoutError
 
 ### Symptoms

@@ -218,6 +218,56 @@ cacheTag('posts', `post-${id}`, `author-${authorId}`)
 
 ---
 
+## Understanding Cache Scope
+
+### What Creates a New Cache Entry?
+
+A new cache entry is created when ANY of these differ:
+
+| Factor                | Example                                 |
+| --------------------- | --------------------------------------- |
+| **Function identity** | Different functions = different entries |
+| **Arguments**         | `getUser("123")` vs `getUser("456")`    |
+| **File path**         | Same function name in different files   |
+
+### Cache Key Composition
+
+```tsx
+// These create THREE separate cache entries:
+async function getProduct(id: string) {
+  'use cache'
+  return db.products.findUnique({ where: { id } })
+}
+
+await getProduct('prod-1') // Cache key: [getProduct, "prod-1"]
+await getProduct('prod-2') // Cache key: [getProduct, "prod-2"]
+await getProduct('prod-1') // HIT! Same as first call
+```
+
+### ⚠️ Object Arguments Create New Entries
+
+```tsx
+// ❌ Every call creates a new cache entry (objects aren't structurally compared)
+async function getData(options: { limit: number }) {
+  'use cache'
+  return fetch(`/api?limit=${options.limit}`)
+}
+
+getData({ limit: 10 }) // New entry
+getData({ limit: 10 }) // NEW entry (different object reference)
+
+// ✅ Primitives are compared by value
+async function getData(limit: number) {
+  'use cache'
+  return fetch(`/api?limit=${limit}`)
+}
+
+getData(10) // New entry
+getData(10) // HIT!
+```
+
+---
+
 ## Function: `updateTag()`
 
 Immediately invalidates cache entries and ensures read-your-own-writes.
@@ -292,6 +342,55 @@ export async function updateSettings(data: FormData) {
 - **Stale-while-revalidate**: Serves cached content while refreshing
 - **Background refresh**: New cache populated asynchronously
 - **Lower priority**: Use when immediate consistency isn't required
+
+---
+
+## updateTag() vs revalidateTag(): When to Use Each
+
+This is one of the most common questions. Here's a decision guide:
+
+| Scenario                   | Use               | Why                                        |
+| -------------------------- | ----------------- | ------------------------------------------ |
+| User creates a post        | `updateTag()`     | User expects to see their post immediately |
+| User updates their profile | `updateTag()`     | Read-your-own-writes semantics             |
+| Admin publishes content    | `revalidateTag()` | Other users can see stale briefly          |
+| Analytics/view counts      | `revalidateTag()` | Freshness less critical                    |
+| Background sync job        | `revalidateTag()` | No user waiting for result                 |
+| E-commerce cart update     | `updateTag()`     | User needs accurate cart state             |
+
+### E-commerce Example
+
+```tsx
+'use server'
+import { updateTag, revalidateTag } from 'next/cache'
+
+// When USER adds to cart → updateTag (they need accurate count)
+export async function addToCart(productId: string, userId: string) {
+  await db.cart.add({ productId, userId })
+  updateTag(`cart-${userId}`) // Immediate - user sees their cart
+}
+
+// When INVENTORY changes from warehouse sync → revalidateTag
+export async function syncInventory(products: Product[]) {
+  await db.inventory.bulkUpdate(products)
+  revalidateTag('inventory') // Background - eventual consistency OK
+}
+
+// When USER completes purchase → updateTag for buyer, revalidateTag for product
+export async function completePurchase(orderId: string) {
+  const order = await processOrder(orderId)
+
+  updateTag(`order-${orderId}`) // Buyer sees confirmation immediately
+  updateTag(`cart-${order.userId}`) // Buyer's cart clears immediately
+  revalidateTag(`product-${order.productId}`) // Others see updated stock eventually
+}
+```
+
+### The Rule of Thumb
+
+> **updateTag**: "The person who triggered this action is waiting to see the result"
+>
+> **revalidateTag**: "This update affects others, but they don't know to wait for it"
 
 ---
 
@@ -569,6 +668,183 @@ export default async function ProductsPage() {
 | `export const dynamic = 'force-dynamic'` | Wrap in `<Suspense>` without cache                     |
 | `export const dynamic = 'auto'`          | Default behavior - not needed                          |
 | `export const dynamic = 'error'`         | Default with Cache Components (build errors guide you) |
+
+---
+
+## Migration Scenarios
+
+### Scenario 1: Page with `revalidate` Export
+
+**Before:**
+
+```tsx
+// app/products/page.tsx
+export const revalidate = 3600
+
+export default async function ProductsPage() {
+  const products = await db.products.findMany()
+  return <ProductGrid products={products} />
+}
+```
+
+**After:**
+
+```tsx
+// app/products/page.tsx
+import { cacheLife, cacheTag } from 'next/cache'
+
+async function getProducts() {
+  'use cache'
+  cacheTag('products')
+  cacheLife('hours') // Roughly equivalent to revalidate = 3600
+
+  return db.products.findMany()
+}
+
+export default async function ProductsPage() {
+  const products = await getProducts()
+  return <ProductGrid products={products} />
+}
+```
+
+### Scenario 2: Page with `dynamic = 'force-dynamic'`
+
+**Before:**
+
+```tsx
+// app/dashboard/page.tsx
+export const dynamic = 'force-dynamic'
+
+export default async function Dashboard() {
+  const user = await getCurrentUser()
+  const stats = await getStats()
+  const notifications = await getNotifications(user.id)
+
+  return (
+    <div>
+      <UserHeader user={user} />
+      <Stats data={stats} />
+      <Notifications items={notifications} />
+    </div>
+  )
+}
+```
+
+**After (Partial Prerendering):**
+
+```tsx
+// app/dashboard/page.tsx
+import { Suspense } from 'react'
+import { cacheLife, cacheTag } from 'next/cache'
+
+// Stats can be cached - same for all users
+async function CachedStats() {
+  'use cache'
+  cacheTag('stats')
+  cacheLife('minutes')
+
+  const stats = await getStats()
+  return <Stats data={stats} />
+}
+
+// User-specific content streams in
+async function UserContent() {
+  const user = await getCurrentUser()
+  const notifications = await getNotifications(user.id)
+
+  return (
+    <>
+      <UserHeader user={user} />
+      <Notifications items={notifications} />
+    </>
+  )
+}
+
+export default function Dashboard() {
+  return (
+    <div>
+      <CachedStats /> {/* In static shell */}
+      <Suspense fallback={<DashboardSkeleton />}>
+        <UserContent /> {/* Streams dynamically */}
+      </Suspense>
+    </div>
+  )
+}
+```
+
+**Key improvement:** Stats now load instantly from cache while user content streams in.
+
+### Scenario 3: ISR with `revalidate` + On-Demand Revalidation
+
+**Before:**
+
+```tsx
+// app/blog/[slug]/page.tsx
+export const revalidate = 3600
+
+export async function generateStaticParams() {
+  const posts = await getAllPosts()
+  return posts.map((post) => ({ slug: post.slug }))
+}
+
+export default async function BlogPost({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
+  const { slug } = await params
+  const post = await getPost(slug)
+  return <Article post={post} />
+}
+
+// api/revalidate/route.ts
+export async function POST(request: Request) {
+  const { slug } = await request.json()
+  revalidatePath(`/blog/${slug}`)
+  return Response.json({ revalidated: true })
+}
+```
+
+**After:**
+
+```tsx
+// lib/posts.ts
+import { cacheTag, cacheLife } from 'next/cache'
+
+export async function getPost(slug: string) {
+  'use cache'
+  cacheTag('posts', `post-${slug}`)
+  cacheLife('hours')
+
+  return db.posts.findUnique({ where: { slug } })
+}
+
+// app/blog/[slug]/page.tsx
+export default async function BlogPost({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
+  const { slug } = await params
+  const post = await getPost(slug)
+  return <Article post={post} />
+}
+
+// actions/posts.ts
+;('use server')
+import { updateTag } from 'next/cache'
+
+export async function publishPost(slug: string) {
+  await db.posts.update({ where: { slug }, data: { published: true } })
+  updateTag(`post-${slug}`) // Immediate invalidation via Server Action
+}
+```
+
+**Key improvements:**
+
+- Cache configuration co-located with data fetching
+- Server Action replaces API route for invalidation
+- `updateTag` provides immediate consistency
 
 ---
 

@@ -64,6 +64,55 @@ Cache Components represents a shift from **segment configuration** to **composit
 └─────────────────────────────────────────────────────┘
 ```
 
+## Mental Model: The Caching Decision Tree
+
+When writing a React Server Component, ask these questions in order:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ Does this component fetch data or perform I/O?          │
+└─────────────────────┬───────────────────────────────────┘
+                      │
+           ┌──────────▼──────────┐
+           │   YES               │ NO → Pure component, no action needed
+           └──────────┬──────────┘
+                      │
+    ┌─────────────────▼─────────────────┐
+    │ Does it depend on request context? │
+    │ (cookies, headers, searchParams)   │
+    └─────────────────┬─────────────────┘
+                      │
+         ┌────────────┴────────────┐
+         │                         │
+    ┌────▼────┐              ┌─────▼─────┐
+    │   YES   │              │    NO     │
+    └────┬────┘              └─────┬─────┘
+         │                         │
+         │                   ┌─────▼─────────────────┐
+         │                   │ Can this be cached?   │
+         │                   │ (same for all users?) │
+         │                   └─────┬─────────────────┘
+         │                         │
+         │              ┌──────────┴──────────┐
+         │              │                     │
+         │         ┌────▼────┐          ┌─────▼─────┐
+         │         │   YES   │          │    NO     │
+         │         └────┬────┘          └─────┬─────┘
+         │              │                     │
+         │              ▼                     │
+         │         'use cache'                │
+         │         + cacheTag()               │
+         │         + cacheLife()              │
+         │                                    │
+         └──────────────┬─────────────────────┘
+                        │
+                        ▼
+              Wrap in <Suspense>
+              (dynamic streaming)
+```
+
+**Key insight**: The `'use cache'` directive is for data that's the _same across users_. User-specific data either uses `'use cache: private'` or stays dynamic with Suspense.
+
 ## Quick Start
 
 ### Enable Cache Components
