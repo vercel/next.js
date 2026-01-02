@@ -1,15 +1,82 @@
-#!/bin/sh
-# Next.js CLI entry point
-#
-# Tries to use the native Rust binary for faster restarts, falls back to Node.js.
-# The Rust binary is distributed via @next/cli-* platform-specific packages.
+#!/usr/bin/env node
+// Next.js CLI entry point
+// Tries native Rust binary first, falls back to Node.js implementation
 
-DIR="$(dirname "$0")"
+const { dirname, join } = require('path')
+const { spawn } = require('child_process')
 
-# Production: check installed @next/cli-* package (hoisted to node_modules/@next/cli-*)
-for pkg in "$DIR"/../../@next/cli-*/next; do
-  [ -x "$pkg" ] && exec "$pkg" "$@"
-done
+const platform = process.platform
+const arch = process.arch
 
-# Fallback: Node.js (also used for in-repo development)
-exec node "$DIR/../dist/bin/next" "$@"
+// Map to @next/cli-* package names
+const binaryMap = {
+  'darwin-arm64': '@next/cli-darwin-arm64',
+  'darwin-x64': '@next/cli-darwin-x64',
+  'linux-arm64': '@next/cli-linux-arm64',
+  'linux-x64': '@next/cli-linux-x64',
+  'win32-x64': '@next/cli-win32-x64-msvc',
+  'win32-arm64': '@next/cli-win32-arm64-msvc',
+}
+
+/**
+ * Fallback: spawn Node.js with the same flags the Rust binary would use.
+ * This ensures feature parity when the native binary isn't available.
+ */
+function runWithNode() {
+  const args = process.argv.slice(2)
+  const nodeArgs = ['--enable-source-maps']
+
+  // Parse args to handle --disable-source-maps like the Rust binary
+  const hasDisableSourceMaps = args.includes('--disable-source-maps')
+  if (hasDisableSourceMaps) {
+    nodeArgs.length = 0 // Clear the array - don't pass --enable-source-maps
+  }
+
+  // Extract --inspect flags (they must come before the script for Node.js)
+  const inspectArgs = []
+  const scriptArgs = []
+  for (const arg of args) {
+    if (arg.startsWith('--inspect')) {
+      inspectArgs.push(arg)
+    } else {
+      scriptArgs.push(arg)
+    }
+  }
+
+  const scriptPath = join(__dirname, '../dist/bin/next')
+  const child = spawn(
+    process.execPath,
+    [...nodeArgs, ...inspectArgs, scriptPath, ...scriptArgs],
+    { stdio: 'inherit', env: process.env }
+  )
+  child.on('close', (code) => process.exit(code ?? 0))
+}
+
+const key = `${platform}-${arch}`
+const pkg = binaryMap[key]
+
+if (pkg) {
+  try {
+    // Use require.resolve() for robust package resolution
+    // Works with npm, yarn, pnpm, and various hoisting strategies
+    const pkgPath = require.resolve(`${pkg}/package.json`)
+    const binName = platform === 'win32' ? 'next.exe' : 'next'
+    const binPath = join(dirname(pkgPath), binName)
+
+    const child = spawn(binPath, process.argv.slice(2), {
+      stdio: 'inherit',
+      env: process.env,
+    })
+    child.on('close', (code) => process.exit(code ?? 0))
+    child.on('error', () => {
+      // Binary exists but failed to execute, fall through to JS with Node flags
+      runWithNode()
+    })
+  } catch {
+    // Package not installed, use JS implementation with Node flags
+    runWithNode()
+  }
+} else {
+  // Unsupported platform, use JS implementation with Node flags
+  runWithNode()
+}

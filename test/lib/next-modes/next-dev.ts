@@ -5,6 +5,10 @@ import { retry, waitFor } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 import { quote as shellQuote } from 'shell-quote'
 
+// Exit code 77 signals that the server wants to be restarted (e.g., after config changes)
+// The Rust CLI wrapper normally handles this, but in tests we need to handle it ourselves
+const RESTART_EXIT_CODE = 77
+
 export class NextDevInstance extends NextInstance {
   private _cliOutput: string = ''
 
@@ -150,54 +154,78 @@ export class NextDevInstance extends NextInstance {
       }
     }
 
+    const spawnServer = () => {
+      this.childProcess = spawn(startArgs[0], startArgs.slice(1), {
+        cwd: this.testDir,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        shell: false,
+        env: {
+          ...process.env,
+          ...this.env,
+          NODE_ENV: this.env.NODE_ENV || ('' as any),
+          PORT: this.forcedPort || '0',
+          __NEXT_TEST_MODE: 'e2e',
+        },
+      })
+
+      this.childProcess.stdout!.on('data', (chunk) => {
+        const msg = chunk.toString()
+        process.stdout.write(chunk)
+        this._cliOutput += msg
+        this.emit('stdout', [msg])
+      })
+      this.childProcess.stderr!.on('data', (chunk) => {
+        const msg = chunk.toString()
+        process.stderr.write(chunk)
+        this._cliOutput += msg
+        this.emit('stderr', [msg])
+      })
+
+      return this.childProcess
+    }
+
     console.log('running', shellQuote(startArgs))
     await new Promise<void>((resolve, reject) => {
       try {
-        this.childProcess = spawn(startArgs[0], startArgs.slice(1), {
-          cwd: this.testDir,
-          stdio: ['ignore', 'pipe', 'pipe'],
-          shell: false,
-          env: {
-            ...process.env,
-            ...this.env,
-            NODE_ENV: this.env.NODE_ENV || ('' as any),
-            PORT: this.forcedPort || '0',
-            __NEXT_TEST_MODE: 'e2e',
-          },
-        })
-
+        spawnServer()
         this._cliOutput = ''
-
-        this.childProcess.stdout!.on('data', (chunk) => {
-          const msg = chunk.toString()
-          process.stdout.write(chunk)
-          this._cliOutput += msg
-          this.emit('stdout', [msg])
-        })
-        this.childProcess.stderr!.on('data', (chunk) => {
-          const msg = chunk.toString()
-          process.stderr.write(chunk)
-          this._cliOutput += msg
-          this.emit('stderr', [msg])
-        })
 
         const serverReadyTimeoutId = this.setServerReadyTimeout(
           reject,
           this.startServerTimeout
         )
 
-        this.childProcess.on('close', (code, signal) => {
-          if (this.isStopping) return
-          if (code || signal) {
-            this.childProcess = undefined
-            const error = new Error(
-              `next dev exited unexpectedly with code/signal ${code || signal}`
-            )
-            clearTimeout(serverReadyTimeoutId)
-            require('console').error(error)
-            reject(error)
-          }
-        })
+        let isInitialStartup = true
+
+        const setupCloseHandler = () => {
+          this.childProcess!.on('close', (code, signal) => {
+            if (this.isStopping) return
+
+            // Handle restart exit code (77) - the Rust wrapper normally handles this,
+            // but in tests we need to restart the server ourselves
+            if (code === RESTART_EXIT_CODE) {
+              spawnServer()
+              setupCloseHandler()
+              return
+            }
+
+            if (code || signal) {
+              this.childProcess = undefined
+              const error = new Error(
+                `next dev exited unexpectedly with code/signal ${code || signal}`
+              )
+              if (isInitialStartup) {
+                clearTimeout(serverReadyTimeoutId)
+                require('console').error(error)
+                reject(error)
+              } else {
+                // After initial startup, log but don't reject (promise already resolved)
+                require('console').error(error)
+              }
+            }
+          })
+        }
+        setupCloseHandler()
 
         const readyCb = (msg) => {
           const resolveServer = () => {
@@ -211,6 +239,7 @@ export class NextDevInstance extends NextInstance {
               })
             }
             // server might reload so we keep listening
+            isInitialStartup = false
             resolve()
           }
 
