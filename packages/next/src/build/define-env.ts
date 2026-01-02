@@ -165,11 +165,24 @@ export function getDefineEnv({
     'process.env.__NEXT_CACHE_COMPONENTS': isCacheComponentsEnabled,
     'process.env.__NEXT_USE_CACHE': isUseCacheEnabled,
 
-    'process.env.NEXT_DEPLOYMENT_ID': config.experimental?.useSkewCookie
-      ? false
-      : typeof config.deploymentId === 'string'
-        ? config.deploymentId
-        : false,
+    ...(isClient
+      ? {
+          // TODO use `globalThis.NEXT_DEPLOYMENT_ID` on client to still support accessing
+          // process.env.NEXT_DEPLOYMENT_ID in userland
+          'process.env.NEXT_DEPLOYMENT_ID': config.experimental?.useSkewCookie
+            ? false
+            : config.deploymentId || false,
+        }
+      : config.experimental?.runtimeServerDeploymentId
+        ? {
+            // Don't inline at all, keep process.env.NEXT_DEPLOYMENT_ID as is
+          }
+        : {
+            'process.env.NEXT_DEPLOYMENT_ID': config.experimental?.useSkewCookie
+              ? false
+              : config.deploymentId || false,
+          }),
+
     // Propagates the `__NEXT_EXPERIMENTAL_STATIC_SHELL_DEBUGGING` environment
     // variable to the client.
     'process.env.__NEXT_EXPERIMENTAL_STATIC_SHELL_DEBUGGING':
