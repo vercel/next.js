@@ -9,13 +9,6 @@ const statusCodes: { [code: number]: string } = {
   500: 'Internal Server Error',
 }
 
-const statusMessages: { [code: number]: string } = {
-  400: 'The request could not be understood by the server.',
-  404: 'The page you are looking for does not exist.',
-  405: 'The request method is not supported.',
-  500: 'The server encountered an error.',
-}
-
 export type ErrorProps = {
   statusCode: number
   hostname?: string
@@ -50,84 +43,36 @@ function _getInitialProps({
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  container: {
+  error: {
+    // https://github.com/sindresorhus/modern-normalize/blob/main/modern-normalize.css#L38-L52
     fontFamily:
       'system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
     height: '100vh',
+    textAlign: 'center',
     display: 'flex',
+    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  card: {
-    maxWidth: '420px',
-    padding: '32px 28px',
-    textAlign: 'left',
-    borderRadius: '12px',
-    background: 'var(--next-error-card-bg)',
-    border: 'var(--next-error-card-border)',
+  desc: {
+    lineHeight: '48px',
   },
-  icon: {
-    marginBottom: '16px',
-  },
-  title: {
-    fontSize: '17px',
-    fontWeight: 600,
-    letterSpacing: '-0.01em',
-    margin: '0 0 8px 0',
-    color: 'var(--next-error-title)',
-  },
-  message: {
-    fontSize: '14px',
-    fontWeight: 400,
-    lineHeight: 1.6,
-    margin: '0 0 6px 0',
-    color: 'var(--next-error-message)',
-  },
-  messageHint: {
-    fontSize: '13px',
-    fontWeight: 400,
-    lineHeight: 1.5,
-    margin: '0 0 20px 0',
-    color: 'var(--next-error-hint)',
-  },
-  button: {
-    padding: '10px 20px',
-    fontSize: '14px',
+  h1: {
+    display: 'inline-block',
+    margin: '0 20px 0 0',
+    paddingRight: 23,
+    fontSize: 24,
     fontWeight: 500,
-    letterSpacing: '0.01em',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    color: 'var(--next-error-btn-text)',
-    background: 'var(--next-error-btn-bg)',
-    border: 'var(--next-error-btn-border)',
+    verticalAlign: 'top',
   },
-}
-
-function ErrorIcon() {
-  return (
-    <svg
-      width="40"
-      height="40"
-      viewBox="0 0 40 40"
-      fill="none"
-      style={styles.icon}
-    >
-      <circle
-        cx="20"
-        cy="20"
-        r="19"
-        stroke="var(--next-error-icon-ring)"
-        strokeWidth="2"
-      />
-      <circle cx="20" cy="20" r="16" fill="var(--next-error-icon-fill)" />
-      <path
-        d="M20 11v10M20 25v3"
-        stroke="#dc2626"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-      />
-    </svg>
-  )
+  h2: {
+    fontSize: 14,
+    fontWeight: 400,
+    lineHeight: '28px',
+  },
+  wrap: {
+    display: 'inline-block',
+  },
 }
 
 /**
@@ -142,81 +87,68 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
   render() {
     const { statusCode, withDarkMode = true } = this.props
     const title =
-      this.props.title || statusCodes[statusCode] || 'Something went wrong'
-    const message = statusMessages[statusCode] || 'This page failed to load.'
-
-    /* CSS variables for theming */
-    const themeCss = withDarkMode
-      ? `
-:root {
-  --next-error-bg: #fff;
-  --next-error-text: #171717;
-  --next-error-card-bg: transparent;
-  --next-error-card-border: none;
-  --next-error-title: #171717;
-  --next-error-message: #666;
-  --next-error-hint: #888;
-  --next-error-btn-text: #171717;
-  --next-error-btn-bg: #fff;
-  --next-error-btn-border: 1px solid #e5e5e5;
-  --next-error-icon-ring: #fecaca;
-  --next-error-icon-fill: #fef2f2;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --next-error-bg: #0a0a0a;
-    --next-error-text: #ededed;
-    --next-error-title: #ededed;
-    --next-error-message: #a0a0a0;
-    --next-error-hint: #707070;
-    --next-error-btn-text: #ededed;
-    --next-error-btn-bg: #1a1a1a;
-    --next-error-btn-border: 1px solid #333;
-    --next-error-icon-ring: #5c2121;
-    --next-error-icon-fill: #2a1618;
-  }
-}
-body { margin: 0; color: var(--next-error-text); background: var(--next-error-bg); }
-`.replace(/\n\s*/g, '')
-      : `
-:root {
-  --next-error-bg: #fff;
-  --next-error-text: #171717;
-  --next-error-card-bg: transparent;
-  --next-error-card-border: none;
-  --next-error-title: #171717;
-  --next-error-message: #666;
-  --next-error-hint: #888;
-  --next-error-btn-text: #171717;
-  --next-error-btn-bg: #fff;
-  --next-error-btn-border: 1px solid #e5e5e5;
-  --next-error-icon-ring: #fecaca;
-  --next-error-icon-fill: #fef2f2;
-}
-body { margin: 0; color: var(--next-error-text); background: var(--next-error-bg); }
-`.replace(/\n\s*/g, '')
+      this.props.title ||
+      statusCodes[statusCode] ||
+      'An unexpected error has occurred'
 
     return (
-      <div style={styles.container}>
+      <div style={styles.error}>
         <Head>
           <title>
-            {statusCode ? `${statusCode}: ${title}` : 'Something went wrong'}
+            {statusCode
+              ? `${statusCode}: ${title}`
+              : 'Application error: a client-side exception has occurred'}
           </title>
         </Head>
-        <style dangerouslySetInnerHTML={{ __html: themeCss }} />
-        <div style={styles.card}>
-          <ErrorIcon />
-          <h1 style={styles.title}>{title}</h1>
-          <p style={styles.message}>{message}</p>
-          <p style={styles.messageHint}>
-            Reloading usually fixes this. If it keeps happening, the page may be
-            temporarily unavailable.
-          </p>
-          <form>
-            <button type="submit" style={styles.button}>
-              Reload page
-            </button>
-          </form>
+        <div style={styles.desc}>
+          <style
+            dangerouslySetInnerHTML={{
+              /* CSS minified from
+                body { margin: 0; color: #000; background: #fff; }
+                .next-error-h1 {
+                  border-right: 1px solid rgba(0, 0, 0, .3);
+                }
+
+                ${
+                  withDarkMode
+                    ? `@media (prefers-color-scheme: dark) {
+                  body { color: #fff; background: #000; }
+                  .next-error-h1 {
+                    border-right: 1px solid rgba(255, 255, 255, .3);
+                  }
+                }`
+                    : ''
+                }
+               */
+              __html: `body{color:#000;background:#fff;margin:0}.next-error-h1{border-right:1px solid rgba(0,0,0,.3)}${
+                withDarkMode
+                  ? '@media (prefers-color-scheme:dark){body{color:#fff;background:#000}.next-error-h1{border-right:1px solid rgba(255,255,255,.3)}}'
+                  : ''
+              }`,
+            }}
+          />
+
+          {statusCode ? (
+            <h1 className="next-error-h1" style={styles.h1}>
+              {statusCode}
+            </h1>
+          ) : null}
+          <div style={styles.wrap}>
+            <h2 style={styles.h2}>
+              {this.props.title || statusCode ? (
+                title
+              ) : (
+                <>
+                  Application error: a client-side exception has occurred{' '}
+                  {Boolean(this.props.hostname) && (
+                    <>while loading {this.props.hostname}</>
+                  )}{' '}
+                  (see the browser console for more information)
+                </>
+              )}
+              .
+            </h2>
+          </div>
         </div>
       </div>
     )

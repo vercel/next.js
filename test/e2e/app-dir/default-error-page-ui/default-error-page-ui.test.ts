@@ -5,7 +5,7 @@ describe('app dir - default error page UI', () => {
     files: __dirname,
   })
 
-  it('should render the redesigned default error page with all UI elements', async () => {
+  it('should render client error page with correct UI elements', async () => {
     const browser = await next.browser('/trigger-error')
 
     // Trigger a client-side error
@@ -29,24 +29,27 @@ describe('app dir - default error page UI', () => {
       return
     }
 
-    // In production mode, verify the new error page UI elements
+    // In production mode, verify the client error page UI elements
 
     // Check that the SVG icon is present (40x40 size)
     const svgIcon = await browser.elementByCss('svg')
     expect(await svgIcon.getAttribute('width')).toBe('40')
     expect(await svgIcon.getAttribute('height')).toBe('40')
 
-    // Check the error title
+    // Check the error title - client errors show "This page crashed"
     const title = await browser.elementByCss('h1')
-    expect(await title.text()).toBe('Something went wrong')
+    expect(await title.text()).toBe('This page crashed')
 
-    // Check the error message
+    // Check the error message - client errors show "An error occurred while running this page."
     const message = await browser.elementByCss('p')
-    expect(await message.text()).toContain('failed to load')
+    expect(await message.text()).toContain('An error occurred while running')
 
     // Check the "Reload page" button exists
-    const button = await browser.elementByCss('button')
-    expect(await button.text()).toBe('Reload page')
+    const buttons = await browser.elementsByCss('button')
+    expect(await buttons[0].innerText()).toBe('Reload page')
+
+    // Check "Go back" button exists for client errors
+    expect(await buttons[1].innerText()).toBe('Go back')
 
     // Check the hint text about reloading
     const html = await browser.eval('document.documentElement.innerHTML')
@@ -106,7 +109,7 @@ describe('app dir - default error page UI', () => {
     expect(buttonBg).toContain('255')
   })
 
-  it('should display Error reference for server-side errors', async () => {
+  it('should display server error page with Error reference', async () => {
     const browser = await next.browser('/server-error')
 
     // Skip in dev mode (redbox overlay)
@@ -116,23 +119,31 @@ describe('app dir - default error page UI', () => {
          "description": "Test server error",
          "environmentLabel": "Server",
          "label": "Runtime Error",
-         "source": "app/server-error/page.js (2:9) @ ServerErrorPage
-       > 2 |   throw new Error('Test server error')
+         "source": "app/server-error/page.js (5:9) @ ServerErrorPage
+       > 5 |   throw new Error('Test server error')
            |         ^",
          "stack": [
-           "ServerErrorPage app/server-error/page.js (2:9)",
+           "ServerErrorPage app/server-error/page.js (5:9)",
          ],
        }
       `)
       return
     }
 
-    // In production mode, verify the error page shows Error reference
+    // In production mode, verify the server error page
     const html = await browser.eval('document.documentElement.innerHTML')
+
+    // Server errors show "This page failed to load"
+    expect(html).toContain('This page failed to load')
+
+    // Server errors show "Error reference:" with digest
     expect(html).toContain('Error reference:')
+
+    // Server errors show hint about server issue
+    expect(html).toContain('it may be a server issue')
   })
 
-  it('should have left-aligned text inside centered container', async () => {
+  it('should have left-aligned text in error page', async () => {
     const browser = await next.browser('/trigger-error')
 
     await browser.elementByCss('#trigger-error').click()
@@ -141,9 +152,9 @@ describe('app dir - default error page UI', () => {
       return
     }
 
-    // Check that the card has left text alignment
-    const card = await browser.elementByCss('.next-error-card')
-    const textAlign = await card.getComputedCss('text-align')
+    // Check that the h1 has left text alignment
+    const title = await browser.elementByCss('h1')
+    const textAlign = await title.getComputedCss('text-align')
     expect(textAlign).toBe('left')
   })
 })
