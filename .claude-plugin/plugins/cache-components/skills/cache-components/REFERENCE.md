@@ -107,15 +107,19 @@ interface CacheLifeOptions {
 
 ### Predefined Profiles
 
-| Profile     | stale   | revalidate     | expire        |
-| ----------- | ------- | -------------- | ------------- |
-| `'default'` | 0       | 900 (15min)    | 3600 (1hr)    |
-| `'seconds'` | 0       | 1              | 60            |
-| `'minutes'` | 60      | 300 (5min)     | 3600 (1hr)    |
-| `'hours'`   | 300     | 3600 (1hr)     | 86400 (1day)  |
-| `'days'`    | 3600    | 86400 (1day)   | 604800 (1wk)  |
-| `'weeks'`   | 86400   | 604800 (1wk)   | 2592000 (30d) |
-| `'max'`     | 2592000 | 31536000 (1yr) | Infinity      |
+| Profile     | stale | revalidate    | expire         |
+| ----------- | ----- | ------------- | -------------- |
+| `'default'` | 300\* | 900 (15min)   | ∞ (INFINITE)   |
+| `'seconds'` | 30    | 1             | 60             |
+| `'minutes'` | 300   | 60 (1min)     | 3600 (1hr)     |
+| `'hours'`   | 300   | 3600 (1hr)    | 86400 (1day)   |
+| `'days'`    | 300   | 86400 (1day)  | 604800 (1wk)   |
+| `'weeks'`   | 300   | 604800 (1wk)  | 2592000 (30d)  |
+| `'max'`     | 300   | 2592000 (30d) | 31536000 (1yr) |
+
+\* Default `stale` falls back to `experimental.staleTimes.static` (300 seconds)
+
+> **Important:** Profiles with `expire < 300` seconds (like `'seconds'`) are treated as **dynamic** and won't be included in the static shell during Partial Prerendering. See [Dynamic Threshold](#dynamic-threshold) below.
 
 ### Custom Profiles
 
@@ -160,6 +164,40 @@ expire - revalidate → stale-while-revalidate
 
 Example: stale=60, revalidate=3600, expire=86400
 → Cache-Control: max-age=60, s-maxage=3600, stale-while-revalidate=82800
+```
+
+### Dynamic Threshold
+
+Cache entries with short expiration times are treated as **dynamic holes** during Partial Prerendering:
+
+| Condition               | Behavior                                 |
+| ----------------------- | ---------------------------------------- |
+| `expire < 300` seconds  | Treated as dynamic (not in static shell) |
+| `revalidate === 0`      | Treated as dynamic (not in static shell) |
+| `expire >= 300` seconds | Included in static shell                 |
+
+**Practical implications:**
+
+- `cacheLife('seconds')` (expire=60) → **Dynamic** - streams at request time
+- `cacheLife('minutes')` (expire=3600) → **Static** - included in PPR shell
+- Custom `cacheLife({ expire: 120 })` → **Dynamic** - below 300s threshold
+
+This 300-second threshold ensures that very short-lived caches don't pollute the static shell with immediately-stale content.
+
+```tsx
+// This cache is DYNAMIC (expire=60 < 300)
+async function RealtimePrice() {
+  'use cache'
+  cacheLife('seconds') // expire=60, below threshold
+  return await fetchPrice()
+}
+
+// This cache is STATIC (expire=3600 >= 300)
+async function ProductDetails() {
+  'use cache'
+  cacheLife('minutes') // expire=3600, above threshold
+  return await fetchProduct()
+}
 ```
 
 ---
@@ -216,6 +254,57 @@ cacheTag('admin')
 cacheTag('posts', `post-${id}`, `author-${authorId}`)
 ```
 
+### Tag Constraints
+
+Tags have enforced limits:
+
+| Limit          | Value          | Behavior if exceeded           |
+| -------------- | -------------- | ------------------------------ |
+| Max tag length | 256 characters | Warning logged, tag ignored    |
+| Max total tags | 128 tags       | Warning logged, excess ignored |
+
+```tsx
+// ❌ Tag too long (>256 chars) - will be ignored with warning
+cacheTag('a'.repeat(300))
+
+// ❌ Too many tags (>128) - excess will be ignored with warning
+cacheTag(...Array(200).fill('tag'))
+
+// ✅ Valid usage
+cacheTag('products', `product-${id}`, `category-${category}`)
+```
+
+### Implicit Tags (Automatic)
+
+In addition to explicit `cacheTag()` calls, Next.js automatically applies **implicit tags** based on the route hierarchy:
+
+| Route             | Implicit Tags Applied                                           |
+| ----------------- | --------------------------------------------------------------- |
+| `/blog/my-post`   | `_N_T_/layout`, `_N_T_/blog/layout`, `_N_T_/blog/my-post`       |
+| `/products/shoes` | `_N_T_/layout`, `_N_T_/products/layout`, `_N_T_/products/shoes` |
+
+**Why this matters:**
+
+- `revalidatePath('/blog', 'layout')` works without explicit `cacheTag()` calls
+- It invalidates via the implicit `_N_T_/blog/layout` tag
+- All nested routes under `/blog/*` are affected
+
+```tsx
+'use server'
+import { revalidatePath } from 'next/cache'
+
+export async function publishBlogPost() {
+  await db.posts.create({
+    /* ... */
+  })
+
+  // This works because of implicit tags - no explicit cacheTag() needed
+  revalidatePath('/blog', 'layout') // Invalidates all /blog/* routes
+}
+```
+
+> **Note:** Implicit tags are prefixed with `_N_T_` internally. You don't need to use this prefix - just use `revalidatePath()`.
+
 ---
 
 ## Understanding Cache Scope
@@ -232,6 +321,19 @@ A new cache entry is created when ANY of these differ:
 
 ### Cache Key Composition
 
+Cache keys are composed of multiple parts:
+
+```
+[buildId, functionId, serializedArgs, (hmrRefreshHash)]
+```
+
+| Part             | Description                                                     |
+| ---------------- | --------------------------------------------------------------- |
+| `buildId`        | Unique build identifier (prevents cross-deployment cache reuse) |
+| `functionId`     | Server reference ID for the cached function                     |
+| `serializedArgs` | React Flight-encoded function arguments                         |
+| `hmrRefreshHash` | (Dev only) Invalidates cache on file changes                    |
+
 ```tsx
 // These create THREE separate cache entries:
 async function getProduct(id: string) {
@@ -239,32 +341,40 @@ async function getProduct(id: string) {
   return db.products.findUnique({ where: { id } })
 }
 
-await getProduct('prod-1') // Cache key: [getProduct, "prod-1"]
-await getProduct('prod-2') // Cache key: [getProduct, "prod-2"]
+await getProduct('prod-1') // Cache key: [buildId, getProduct, "prod-1"]
+await getProduct('prod-2') // Cache key: [buildId, getProduct, "prod-2"]
 await getProduct('prod-1') // HIT! Same as first call
 ```
 
-### ⚠️ Object Arguments Create New Entries
+### Object Arguments and Cache Keys
+
+Arguments are serialized using React's `encodeReply()`, which performs **structural serialization**:
 
 ```tsx
-// ❌ Every call creates a new cache entry (objects aren't structurally compared)
 async function getData(options: { limit: number }) {
   'use cache'
   return fetch(`/api?limit=${options.limit}`)
 }
 
-getData({ limit: 10 }) // New entry
-getData({ limit: 10 }) // NEW entry (different object reference)
+// Objects with identical structure produce the same cache key
+getData({ limit: 10 }) // Cache key includes serialized { limit: 10 }
+getData({ limit: 10 }) // HIT! Same structural content
 
-// ✅ Primitives are compared by value
+// Different values = different cache keys
+getData({ limit: 20 }) // MISS - different content
+```
+
+**Best practice:** While objects work correctly, primitives are simpler to reason about:
+
+```tsx
+// ✅ Clear and explicit
 async function getData(limit: number) {
   'use cache'
   return fetch(`/api?limit=${limit}`)
 }
-
-getData(10) // New entry
-getData(10) // HIT!
 ```
+
+> **Note:** Non-serializable values (functions, class instances, Symbols) cannot be used as arguments to cached functions and will cause errors.
 
 ---
 
@@ -321,8 +431,15 @@ import { revalidateTag } from 'next/cache'
 ### Signature
 
 ```tsx
-function revalidateTag(tag: string): void
+function revalidateTag(tag: string, profile?: string | CacheLifeOptions): void
 ```
+
+### Parameters
+
+| Parameter | Type                         | Description                                                 |
+| --------- | ---------------------------- | ----------------------------------------------------------- |
+| `tag`     | `string`                     | The cache tag to invalidate                                 |
+| `profile` | `string \| CacheLifeOptions` | Optional. Cache profile for stale-while-revalidate behavior |
 
 ### Usage
 
@@ -333,15 +450,23 @@ import { revalidateTag } from 'next/cache'
 export async function updateSettings(data: FormData) {
   await db.settings.update({ data })
 
-  revalidateTag('settings') // Mark stale, revalidate in background
+  // Basic usage - immediate invalidation
+  revalidateTag('settings')
+
+  // With profile - stale-while-revalidate behavior
+  revalidateTag('settings', 'hours')
+
+  // With custom options
+  revalidateTag('settings', { stale: 60, revalidate: 300 })
 }
 ```
 
 ### Behavior
 
-- **Stale-while-revalidate**: Serves cached content while refreshing
+- **Without profile**: Immediate invalidation (similar to `updateTag`)
+- **With profile**: Stale-while-revalidate - serves cached content while refreshing in background
 - **Background refresh**: New cache populated asynchronously
-- **Lower priority**: Use when immediate consistency isn't required
+- **Broader context**: Can be called from Route Handlers, Server Actions, and API routes
 
 ---
 
@@ -848,13 +973,98 @@ export async function publishPost(slug: string) {
 
 ---
 
+## Runtime Behaviors
+
+### Draft Mode
+
+When [Draft Mode](https://nextjs.org/docs/app/building-your-application/configuring/draft-mode) is enabled, cache entries are **not saved**:
+
+```tsx
+import { draftMode } from 'next/headers'
+
+export default async function PreviewPage() {
+  const { isEnabled } = await draftMode()
+
+  // When isEnabled is true:
+  // - 'use cache' functions still execute
+  // - But results are NOT stored in cache
+  // - Ensures preview content is always fresh
+}
+```
+
+This prevents stale preview content from being cached and served to production users.
+
+### Cache Bypass Conditions
+
+Cache is bypassed (not read from) when:
+
+| Condition              | Description                                        |
+| ---------------------- | -------------------------------------------------- |
+| Draft Mode enabled     | `draftMode().isEnabled === true`                   |
+| On-demand revalidation | `revalidateTag()` or `revalidatePath()` was called |
+| Dev mode + no-cache    | Request includes `Cache-Control: no-cache` header  |
+
+### Prerender Timeout
+
+During static prerendering (build time), cached functions have a **50-second timeout**:
+
+- If a cached function doesn't complete within 50 seconds, it becomes a dynamic hole
+- At request time, there is **no timeout** - background revalidation can take as long as needed
+- Timeout errors throw `UseCacheTimeoutError` with code `'USE_CACHE_TIMEOUT'`
+
+```tsx
+// If this takes >50s during build, it becomes dynamic
+async function SlowData() {
+  'use cache'
+  return await verySlowApiCall() // May timeout during prerender
+}
+```
+
+### Development Mode: HMR Cache Invalidation
+
+In development, cache keys include an **HMR refresh hash**:
+
+- When you edit a file containing a cached function, the cache automatically invalidates
+- No manual cache clearing needed during development
+- This hash is not included in production builds
+
+### Cache Propagation (Nested Caches)
+
+When cached functions call other cached functions, cache metadata propagates **upward**:
+
+```tsx
+async function Inner() {
+  'use cache'
+  cacheLife('seconds') // expire=60
+  cacheTag('inner')
+  return await fetchData()
+}
+
+async function Outer() {
+  'use cache'
+  cacheLife('hours') // expire=86400
+  cacheTag('outer')
+
+  const data = await Inner() // Calls inner cached function
+  return process(data)
+}
+
+// Outer's effective cache:
+// - expire = min(86400, 60) = 60 (inherits Inner's shorter expiration)
+// - tags = ['outer', 'inner'] (tags merge)
+```
+
+This ensures parent caches don't outlive their dependencies.
+
+---
+
 ## Type Definitions
 
 ### CacheLife
 
 ```typescript
 type CacheLife = {
-  stale?: number // Default: 0
+  stale?: number // Default: 300 (from staleTimes.static)
   revalidate?: number // Default: profile-dependent
   expire?: number // Default: profile-dependent
 }

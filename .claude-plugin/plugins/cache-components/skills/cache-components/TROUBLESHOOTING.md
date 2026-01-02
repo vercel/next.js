@@ -566,18 +566,37 @@ async function CachedData() {
 }
 ```
 
-**2. Skip prerendering for dynamic routes:**
+**2. Limit static generation scope:**
 
 ```tsx
 // app/[slug]/page.tsx
-export const dynamic = 'force-dynamic'
-
-// Or limit static generation
 export function generateStaticParams() {
-  // Only prerender most important pages
+  // Only prerender most important pages at build time
+  // Other pages will be generated on-demand at request time
   return [{ slug: 'home' }, { slug: 'about' }]
 }
 ```
+
+**3. Use Suspense for truly dynamic content:**
+
+```tsx
+// app/[slug]/page.tsx
+import { Suspense } from 'react'
+
+export default function Page({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
+  return (
+    <Suspense fallback={<PageSkeleton />}>
+      <DynamicContent params={params} />
+    </Suspense>
+  )
+}
+```
+
+> **Note:** Avoid using `export const dynamic = 'force-dynamic'` as this segment config is deprecated with Cache Components. Use Suspense boundaries and `'use cache'` for granular control instead.
 
 ---
 
