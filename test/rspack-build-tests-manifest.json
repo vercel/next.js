@@ -553,10 +553,11 @@
       "app dir client cache semantics (experimental staleTimes) dynamic: 0, static: 0 should trigger a loading state before fetching the page, followed by fresh data on every subsequent navigation",
       "app dir client cache semantics (experimental staleTimes) dynamic: 0, static: 0 without a loading boundary should get fresh data on every subsequent navigation",
       "app dir client cache semantics (experimental staleTimes) static: 180 prefetch={true} should use the custom static override time (3 minutes)",
-      "app dir client cache semantics (experimental staleTimes) static: 180 prefetch={undefined} - default should re-use the loading boundary for the custom static override time (3 minutes)",
       "app dir client cache semantics (experimental staleTimes) static: 180 telemetry should send staleTimes feature usage event"
     ],
-    "failed": [],
+    "failed": [
+      "app dir client cache semantics (experimental staleTimes) static: 180 prefetch={undefined} - default should re-use the loading boundary for the custom static override time (3 minutes)"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -22153,6 +22154,15 @@
   },
   "test/production/typescript-basic/typechecking.test.ts": {
     "passed": ["typechecking should typecheck"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/typescript-build-output/typescript-build-output.test.ts": {
+    "passed": [
+      "typescript-build-output should show \"Finished TypeScript\" message in build output"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
