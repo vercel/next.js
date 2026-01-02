@@ -2109,7 +2109,7 @@ async fn emit_content(
 
     // Collect identifier names for source maps before emitting
     let source_map_names = if generate_source_map {
-        let mut collector = IdentCollector::new();
+        let mut collector = IdentCollector::default();
         program.visit_with(&mut collector);
         collector.into_map()
     } else {

@@ -60,18 +60,19 @@ pub struct IdentCollector {
 }
 
 impl IdentCollector {
-    pub fn new() -> Self {
-        Self {
-            // Vec is cheap to grow, small default is fine
-            names_vec: Vec::with_capacity(128),
-        }
-    }
-
     /// Converts the collected identifiers into a map.
     /// This is called after visiting the AST to get the final names map.
     pub fn into_map(self) -> FxHashMap<BytePos, Atom> {
         // Now we know the exact size - perfect allocation!
         self.names_vec.into_iter().collect()
+    }
+}
+impl Default for IdentCollector {
+    fn default() -> Self {
+        Self {
+            // Vec is cheap to grow, small default is fine
+            names_vec: Vec::with_capacity(128),
+        }
     }
 }
 
