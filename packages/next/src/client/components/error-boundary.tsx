@@ -6,11 +6,9 @@ import { isNextRouterError } from './is-next-router-error'
 import { handleHardNavError } from './nav-failure-handler'
 import { HandleISRError } from './handle-isr-error'
 import { isBot } from '../../shared/lib/router/utils/is-bot'
-import {
-  isChunkOrNetworkError,
-  ChunkLoadErrorBanner,
-  type ChunkErrorAction,
-} from './chunk-load-error'
+import { isChunkOrNetworkError } from './chunk-load-error/is-chunk-load-error'
+import { ChunkLoadErrorBanner } from './chunk-load-error/chunk-load-error-banner'
+import type { ChunkErrorAction } from './chunk-load-error/chunk-load-error-handler'
 
 const isBotUserAgent =
   typeof window !== 'undefined' && isBot(window.navigator.userAgent)
