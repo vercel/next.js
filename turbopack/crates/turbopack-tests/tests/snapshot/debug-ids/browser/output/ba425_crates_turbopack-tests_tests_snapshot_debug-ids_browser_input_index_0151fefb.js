@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="daa7096d-88eb-4aef-8d70-6aae41560fce")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="ea8c7f06-bd06-8c68-dd64-026f2dc028cc")}catch(e){}}();
 (globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push([
     "output/ba425_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0151fefb.js",
     {"otherChunks":["output/aaf3a_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0b8736b3.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -740,6 +740,13 @@ function loadWebAssemblyModule(chunkPath, edgeModule) {
     return BACKEND.loadWebAssemblyModule(1, this.m.id, chunkPath, edgeModule);
 }
 contextPrototype.u = loadWebAssemblyModule;
+// Expose chunk resolver clearing to Next.js for retry logic
+if (typeof globalThis !== 'undefined') {
+    ;
+    globalThis.__turbopack_clear_chunk_resolver__ = (chunkUrl)=>{
+        BACKEND.clearChunkResolver?.(chunkUrl);
+    };
+}
 /// <reference path="./dev-globals.d.ts" />
 /// <reference path="./dev-protocol.d.ts" />
 /// <reference path="./dev-extensions.ts" />
@@ -1642,6 +1649,28 @@ let BACKEND;
         async loadWebAssemblyModule (_sourceType, _sourceData, wasmChunkPath, _edgeModule) {
             const req = fetchWebAssembly(wasmChunkPath);
             return await WebAssembly.compileStreaming(req);
+        },
+        /**
+     * Clears a failed chunk resolver so it can be retried.
+     * This is used by Next.js for chunk load error retry logic.
+     */ clearChunkResolver (chunkUrl) {
+            const resolver = chunkResolvers.get(chunkUrl);
+            if (resolver && !resolver.resolved) {
+                chunkResolvers.delete(chunkUrl);
+                // Remove failed script/link tag so it can be re-added on retry
+                const decodedChunkUrl = decodeURI(chunkUrl);
+                if (isJs(chunkUrl)) {
+                    const scripts = document.querySelectorAll(`script[src="${chunkUrl}"],script[src^="${chunkUrl}?"],script[src="${decodedChunkUrl}"],script[src^="${decodedChunkUrl}?"]`);
+                    for (const script of Array.from(scripts)){
+                        script.remove();
+                    }
+                } else if (isCss(chunkUrl)) {
+                    const links = document.querySelectorAll(`link[rel=stylesheet][href="${chunkUrl}"],link[rel=stylesheet][href^="${chunkUrl}?"],link[rel=stylesheet][href="${decodedChunkUrl}"],link[rel=stylesheet][href^="${decodedChunkUrl}?"]`);
+                    for (const link of Array.from(links)){
+                        link.remove();
+                    }
+                }
+            }
         }
     };
     function getOrCreateResolver(chunkUrl) {
@@ -1858,5 +1887,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=daa7096d-88eb-4aef-8d70-6aae41560fce
+//# debugId=ea8c7f06-bd06-8c68-dd64-026f2dc028cc
 //# sourceMappingURL=aaf3a_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0151fefb.js.map

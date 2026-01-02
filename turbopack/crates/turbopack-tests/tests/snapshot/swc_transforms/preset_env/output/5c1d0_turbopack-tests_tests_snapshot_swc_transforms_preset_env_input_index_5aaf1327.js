@@ -1223,6 +1223,14 @@ function loadWebAssemblyModule(chunkPath, edgeModule) {
     return BACKEND.loadWebAssemblyModule(1, this.m.id, chunkPath, edgeModule);
 }
 contextPrototype.u = loadWebAssemblyModule;
+// Expose chunk resolver clearing to Next.js for retry logic
+if (typeof globalThis !== 'undefined') {
+    ;
+    globalThis.__turbopack_clear_chunk_resolver__ = function(chunkUrl) {
+        var _BACKEND_clearChunkResolver, _BACKEND;
+        (_BACKEND_clearChunkResolver = (_BACKEND = BACKEND).clearChunkResolver) === null || _BACKEND_clearChunkResolver === void 0 ? void 0 : _BACKEND_clearChunkResolver.call(_BACKEND, chunkUrl);
+    };
+}
 /// <reference path="./runtime-base.ts" />
 /// <reference path="./dummy.ts" />
 var moduleCache = {};
@@ -1548,6 +1556,62 @@ var BACKEND;
                     }
                 });
             })();
+        },
+        /**
+     * Clears a failed chunk resolver so it can be retried.
+     * This is used by Next.js for chunk load error retry logic.
+     */ clearChunkResolver: function clearChunkResolver(chunkUrl) {
+            var resolver = chunkResolvers.get(chunkUrl);
+            if (resolver && !resolver.resolved) {
+                chunkResolvers.delete(chunkUrl);
+                // Remove failed script/link tag so it can be re-added on retry
+                var decodedChunkUrl = decodeURI(chunkUrl);
+                if (isJs(chunkUrl)) {
+                    var scripts = document.querySelectorAll(`script[src="${chunkUrl}"],script[src^="${chunkUrl}?"],script[src="${decodedChunkUrl}"],script[src^="${decodedChunkUrl}?"]`);
+                    var _iteratorNormalCompletion = true, _didIteratorError = false, _iteratorError = undefined;
+                    try {
+                        for(var _iterator = Array.from(scripts)[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true){
+                            var script = _step.value;
+                            script.remove();
+                        }
+                    } catch (err) {
+                        _didIteratorError = true;
+                        _iteratorError = err;
+                    } finally{
+                        try {
+                            if (!_iteratorNormalCompletion && _iterator.return != null) {
+                                _iterator.return();
+                            }
+                        } finally{
+                            if (_didIteratorError) {
+                                throw _iteratorError;
+                            }
+                        }
+                    }
+                } else if (isCss(chunkUrl)) {
+                    var links = document.querySelectorAll(`link[rel=stylesheet][href="${chunkUrl}"],link[rel=stylesheet][href^="${chunkUrl}?"],link[rel=stylesheet][href="${decodedChunkUrl}"],link[rel=stylesheet][href^="${decodedChunkUrl}?"]`);
+                    var _iteratorNormalCompletion1 = true, _didIteratorError1 = false, _iteratorError1 = undefined;
+                    try {
+                        for(var _iterator1 = Array.from(links)[Symbol.iterator](), _step1; !(_iteratorNormalCompletion1 = (_step1 = _iterator1.next()).done); _iteratorNormalCompletion1 = true){
+                            var link = _step1.value;
+                            link.remove();
+                        }
+                    } catch (err) {
+                        _didIteratorError1 = true;
+                        _iteratorError1 = err;
+                    } finally{
+                        try {
+                            if (!_iteratorNormalCompletion1 && _iterator1.return != null) {
+                                _iterator1.return();
+                            }
+                        } finally{
+                            if (_didIteratorError1) {
+                                throw _iteratorError1;
+                            }
+                        }
+                    }
+                }
+            }
         }
     };
     function getOrCreateResolver(chunkUrl) {

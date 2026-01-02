@@ -5,7 +5,7 @@ import fs from 'fs'
 import { retry } from 'next-test-utils'
 
 describe('chunk-load-error-banner', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
   })
 
@@ -138,7 +138,7 @@ describe('chunk-load-error-banner', () => {
       })
 
       // Verify error message format
-      if (process.env.IS_TURBOPACK_TEST) {
+      if (isTurbopack) {
         expect(capturedError!.message).toContain('Failed to load chunk')
       } else {
         expect(capturedError!.message).toMatch(/Loading chunk .* failed/)
@@ -231,6 +231,207 @@ describe('chunk-load-error-banner', () => {
         return document.querySelector('[role="alert"]') !== null
       })
       expect(hasAlertRole).toBe(true)
+    })
+  })
+
+  describe('Auto-Retry with Cache Clearing', () => {
+    it('should expose chunk cache clearing global for Turbopack', async () => {
+      if (!isTurbopack) {
+        return
+      }
+
+      const browser = await next.browser('/dynamic')
+
+      const hasGlobal = await browser.eval(() => {
+        return (
+          typeof (globalThis as any).__turbopack_clear_chunk_resolver__ ===
+          'function'
+        )
+      })
+
+      expect(hasGlobal).toBe(true)
+    })
+
+    it('should expose chunk cache clearing global for Webpack', async () => {
+      if (isTurbopack) {
+        return
+      }
+
+      const browser = await next.browser('/dynamic')
+
+      const hasGlobal = await browser.eval(() => {
+        return (
+          typeof (globalThis as any).__next_clear_chunk_cache__ === 'function'
+        )
+      })
+
+      expect(hasGlobal).toBe(true)
+    })
+
+    it('should retry dynamic import failure once before showing banner', async () => {
+      const lazyChunk = await getLazyComponentChunk()
+
+      let requestCount = 0
+      const browser = await next.browser('/dynamic', {
+        beforePageLoad(page) {
+          page.route('**/' + lazyChunk, async (route) => {
+            requestCount++
+            if (requestCount === 1) {
+              // First request fails
+              await route.abort('connectionreset')
+            } else {
+              // Retry succeeds
+              await route.continue()
+            }
+          })
+        },
+      })
+
+      // Component should render after retry
+      await retry(async () => {
+        const body = await browser.elementByCss('body')
+        expect(await body.text()).toContain(
+          'this is a lazy loaded async component'
+        )
+      })
+
+      // Verify 2 requests were made (original + retry)
+      expect(requestCount).toBe(2)
+    })
+
+    it('should show banner if retry also fails', async () => {
+      const lazyChunk = await getLazyComponentChunk()
+
+      let requestCount = 0
+      const browser = await next.browser('/dynamic', {
+        beforePageLoad(page) {
+          page.route('**/' + lazyChunk, async (route) => {
+            requestCount++
+            await route.abort('connectionreset') // Always fail
+          })
+        },
+      })
+
+      // Banner should show after retry exhausted
+      await retry(async () => {
+        const body = await browser.elementByCss('body')
+        expect(await body.text()).toContain(
+          "This page couldn't be fully loaded"
+        )
+      })
+
+      // Should have made 2 requests (original + 1 retry)
+      expect(requestCount).toBe(2)
+    })
+
+    it('should have delay between original request and retry', async () => {
+      const lazyChunk = await getLazyComponentChunk()
+
+      const requestTimes: number[] = []
+      const browser = await next.browser('/dynamic', {
+        beforePageLoad(page) {
+          page.route('**/' + lazyChunk, async (route) => {
+            requestTimes.push(Date.now())
+            if (requestTimes.length === 1) {
+              await route.abort('connectionreset')
+            } else {
+              await route.continue()
+            }
+          })
+        },
+      })
+
+      // Wait for component to render
+      await retry(async () => {
+        const body = await browser.elementByCss('body')
+        expect(await body.text()).toContain(
+          'this is a lazy loaded async component'
+        )
+      })
+
+      // Verify delay between requests (should be ~200-500ms)
+      expect(requestTimes.length).toBe(2)
+      const delay = requestTimes[1] - requestTimes[0]
+      expect(delay).toBeGreaterThanOrEqual(150) // Allow some tolerance
+      expect(delay).toBeLessThan(2000)
+    })
+  })
+
+  describe('Error Handling Behavior', () => {
+    it('should show banner for chunk load failure in next/dynamic', async () => {
+      const lazyChunk = await getLazyComponentChunk()
+
+      let requestCount = 0
+      const browser = await next.browser('/dynamic', {
+        beforePageLoad(page) {
+          page.route('**/' + lazyChunk, async (route) => {
+            requestCount++
+            await route.abort('connectionreset')
+          })
+        },
+      })
+
+      // Wait for the banner to appear
+      await retry(async () => {
+        const body = await browser.elementByCss('body')
+        const text = await body.text()
+        expect(text).toContain("This page couldn't be fully loaded")
+      })
+
+      // Should have made 2 requests (original + 1 retry)
+      expect(requestCount).toBe(2)
+    })
+
+    it('should preserve frozen content when chunk load fails', async () => {
+      const lazyChunk = await getLazyComponentChunk()
+
+      const browser = await next.browser('/dynamic', {
+        beforePageLoad(page) {
+          page.route('**/' + lazyChunk, async (route) => {
+            await route.abort('connectionreset')
+          })
+        },
+      })
+
+      // Wait for banner to appear
+      await retry(async () => {
+        const body = await browser.elementByCss('body')
+        const text = await body.text()
+        // Both banner and original page content should be visible
+        expect(text).toContain("This page couldn't be fully loaded")
+        expect(text).toContain('Dynamic Page')
+      })
+    })
+
+    it('should allow subsequent navigation after chunk error', async () => {
+      const lazyChunk = await getLazyComponentChunk()
+
+      const browser = await next.browser('/dynamic', {
+        beforePageLoad(page) {
+          page.route('**/' + lazyChunk, async (route) => {
+            await route.abort('connectionreset')
+          })
+        },
+      })
+
+      // Wait for banner to appear
+      await retry(async () => {
+        const body = await browser.elementByCss('body')
+        expect(await body.text()).toContain(
+          "This page couldn't be fully loaded"
+        )
+      })
+
+      // Navigate to another page using browser navigation
+      await browser.get(next.url + '/other')
+
+      // Should successfully navigate and banner should be gone
+      await retry(async () => {
+        const body = await browser.elementByCss('body')
+        const text = await body.text()
+        expect(text).toContain('Other Page')
+        expect(text).not.toContain("This page couldn't be fully loaded")
+      })
     })
   })
 })

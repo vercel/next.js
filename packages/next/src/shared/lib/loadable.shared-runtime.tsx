@@ -24,6 +24,11 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
 
 import React from 'react'
 import { LoadableContext } from './loadable-context.shared-runtime'
+import { isChunkLoadError } from '../../client/components/chunk-load-error/is-chunk-load-error'
+import {
+  clearChunkCache,
+  getRetryDelayMs,
+} from '../../client/components/chunk-load-error/chunk-load-error-handler'
 
 function resolve(obj: any) {
   return obj && obj.default ? obj.default : obj
@@ -167,12 +172,14 @@ class LoadableSubscription {
   _timeout: any
   _res: any
   _state: any
+  _hasAutoRetried: boolean
   constructor(loadFn: any, opts: any) {
     this._loadFn = loadFn
     this._opts = opts
     this._callbacks = new Set()
     this._delay = null
     this._timeout = null
+    this._hasAutoRetried = false
 
     this.retry()
   }
@@ -217,7 +224,28 @@ class LoadableSubscription {
         this._update({})
         this._clearTimeouts()
       })
-      .catch((_err: any) => {
+      .catch((err: any) => {
+        // Auto-retry for chunk load errors (once)
+        // This handles transient network failures during dynamic imports
+        if (
+          typeof window !== 'undefined' &&
+          isChunkLoadError(err) &&
+          !this._hasAutoRetried
+        ) {
+          this._hasAutoRetried = true
+
+          // Clear bundler's chunk cache so retry will fetch fresh
+          clearChunkCache(err)
+
+          // Retry after a short delay with jitter
+          const delay = getRetryDelayMs()
+          setTimeout(() => {
+            this.retry()
+          }, delay)
+          return
+        }
+
+        // No more retries - propagate error
         this._update({})
         this._clearTimeouts()
       })

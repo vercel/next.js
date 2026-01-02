@@ -81,6 +81,7 @@ import {
 } from './create-compiler-aliases'
 import { hasCustomExportOutput } from '../export/utils'
 import { CssChunkingPlugin } from './webpack/plugins/css-chunking-plugin'
+import { ChunkCacheClearPlugin } from './webpack/plugins/chunk-cache-clear-plugin'
 import {
   getBabelLoader,
   getReactCompilerLoader,
@@ -2039,6 +2040,8 @@ export default async function getBaseWebpackConfig(
           runtimeAsset: `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`,
           dev,
         }),
+      // Expose chunk cache clearing for retry logic (webpack only - Turbopack has its own mechanism)
+      isClient && !isRspack && new ChunkCacheClearPlugin(),
       isNodeServer &&
         !dev &&
         new ((

@@ -26,6 +26,13 @@ import {
   NEXT_HTML_REQUEST_ID_HEADER,
   NEXT_REQUEST_ID_HEADER,
 } from '../app-router-headers'
+import { isChunkOrNetworkError } from '../chunk-load-error/is-chunk-load-error'
+import {
+  createChunkErrorContext,
+  handleChunkFailure,
+  getRetryDelayMs,
+  sleep,
+} from '../chunk-load-error/chunk-load-error-handler'
 import { callServer } from '../../app-call-server'
 import { findSourceMapURL } from '../../app-find-source-map-url'
 import {
@@ -264,6 +271,44 @@ export async function fetchServerResponse(
       debugInfo: flightResponsePromise._debugInfo ?? null,
     }
   } catch (err) {
+    // Check if this is a chunk/network error that we can retry
+    if (
+      err instanceof Error &&
+      isChunkOrNetworkError(err) &&
+      !isPageUnloading
+    ) {
+      const ctx = createChunkErrorContext(
+        err,
+        originalUrl.pathname,
+        true // user-visible navigation
+      )
+
+      if (ctx) {
+        // handleChunkFailure updates failure tracking and returns action
+        const action = handleChunkFailure(ctx)
+
+        if (action === 'retry') {
+          // Silent retry with jittered delay
+          const delay = getRetryDelayMs()
+          await sleep(delay)
+
+          try {
+            // Retry the fetch once
+            return await fetchServerResponse(url, options)
+          } catch (retryErr) {
+            // Retry failed, fall through to MPA navigation
+            if (!isPageUnloading) {
+              console.error(
+                `Retry failed for RSC payload ${originalUrl}. Falling back to browser navigation.`,
+                retryErr
+              )
+            }
+            return originalUrl.toString()
+          }
+        }
+      }
+    }
+
     if (!isPageUnloading) {
       console.error(
         `Failed to fetch RSC payload for ${originalUrl}. Falling back to browser navigation.`,

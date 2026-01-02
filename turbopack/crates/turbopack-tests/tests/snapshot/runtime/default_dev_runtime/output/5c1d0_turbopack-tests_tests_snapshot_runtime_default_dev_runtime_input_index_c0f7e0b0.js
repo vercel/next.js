@@ -739,6 +739,13 @@ function loadWebAssemblyModule(chunkPath, edgeModule) {
     return BACKEND.loadWebAssemblyModule(1, this.m.id, chunkPath, edgeModule);
 }
 contextPrototype.u = loadWebAssemblyModule;
+// Expose chunk resolver clearing to Next.js for retry logic
+if (typeof globalThis !== 'undefined') {
+    ;
+    globalThis.__turbopack_clear_chunk_resolver__ = (chunkUrl)=>{
+        BACKEND.clearChunkResolver?.(chunkUrl);
+    };
+}
 /// <reference path="./dev-globals.d.ts" />
 /// <reference path="./dev-protocol.d.ts" />
 /// <reference path="./dev-extensions.ts" />
@@ -1641,6 +1648,28 @@ let BACKEND;
         async loadWebAssemblyModule (_sourceType, _sourceData, wasmChunkPath, _edgeModule) {
             const req = fetchWebAssembly(wasmChunkPath);
             return await WebAssembly.compileStreaming(req);
+        },
+        /**
+     * Clears a failed chunk resolver so it can be retried.
+     * This is used by Next.js for chunk load error retry logic.
+     */ clearChunkResolver (chunkUrl) {
+            const resolver = chunkResolvers.get(chunkUrl);
+            if (resolver && !resolver.resolved) {
+                chunkResolvers.delete(chunkUrl);
+                // Remove failed script/link tag so it can be re-added on retry
+                const decodedChunkUrl = decodeURI(chunkUrl);
+                if (isJs(chunkUrl)) {
+                    const scripts = document.querySelectorAll(`script[src="${chunkUrl}"],script[src^="${chunkUrl}?"],script[src="${decodedChunkUrl}"],script[src^="${decodedChunkUrl}?"]`);
+                    for (const script of Array.from(scripts)){
+                        script.remove();
+                    }
+                } else if (isCss(chunkUrl)) {
+                    const links = document.querySelectorAll(`link[rel=stylesheet][href="${chunkUrl}"],link[rel=stylesheet][href^="${chunkUrl}?"],link[rel=stylesheet][href="${decodedChunkUrl}"],link[rel=stylesheet][href^="${decodedChunkUrl}?"]`);
+                    for (const link of Array.from(links)){
+                        link.remove();
+                    }
+                }
+            }
         }
     };
     function getOrCreateResolver(chunkUrl) {
