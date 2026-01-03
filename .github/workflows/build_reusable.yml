@@ -130,6 +130,14 @@ jobs:
       input_step_key: ${{ steps.var.outputs.input_step_key }}
 
     steps:
+      # enforce consistent line endings for git on windows
+      - name: Configure git to use LF endings
+        if: ${{ contains(fromJson(inputs.runs_on_labels), 'windows') }}
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+        shell: bash
+
       - name: Check if fnm is installed
         id: check-fnm
         run: |
