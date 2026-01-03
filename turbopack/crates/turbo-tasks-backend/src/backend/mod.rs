@@ -2,7 +2,7 @@ mod dynamic_storage;
 mod operation;
 mod storage;
 mod storage_bridge;
-mod storage_schema;
+pub(crate) mod storage_schema;
 
 use std::{
     borrow::Cow,
@@ -56,6 +56,7 @@ use crate::{
             get_uppers, is_root_node, make_task_dirty_internal, prepare_new_children,
         },
         storage::{InnerStorageSnapshot, Storage},
+        storage_schema::TaskStorageAccessors,
     },
     backing_storage::BackingStorage,
     data::{

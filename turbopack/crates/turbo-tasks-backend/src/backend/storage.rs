@@ -9,7 +9,10 @@ use smallvec::SmallVec;
 use turbo_tasks::{FxDashMap, TaskId, parallel};
 
 use crate::{
-    backend::dynamic_storage::DynamicStorage,
+    backend::{
+        dynamic_storage::DynamicStorage,
+        storage_schema::{TaskData, TaskMeta, TypedStorage},
+    },
     data::{
         AggregationNumber, CachedDataItem, CachedDataItemKey, CachedDataItemType,
         CachedDataItemValue, CachedDataItemValueRef, CachedDataItemValueRefMut, OutputValue,
@@ -138,9 +141,13 @@ impl InnerStorageState {
 }
 
 pub struct InnerStorageSnapshot {
+    // Typed storage data for persistence
+    // Currently migrated: Output (in typed_meta)
+    pub typed_data: TaskData,
+    pub typed_meta: TaskMeta,
+    // Legacy specialized fields (will be migrated to typed storage)
     aggregation_number: OptionStorage<AggregationNumber>,
     output_dependent: AutoMapStorage<TaskId, ()>,
-    output: OptionStorage<OutputValue>,
     upper: AutoMapStorage<TaskId, u32>,
     dynamic: DynamicStorage,
     pub meta_modified: bool,
@@ -150,9 +157,10 @@ pub struct InnerStorageSnapshot {
 impl From<&InnerStorage> for InnerStorageSnapshot {
     fn from(inner: &InnerStorage) -> Self {
         Self {
+            typed_data: inner.typed.data.clone(),
+            typed_meta: inner.typed.meta.clone(),
             aggregation_number: inner.aggregation_number.clone(),
             output_dependent: inner.output_dependent.clone(),
-            output: inner.output.clone(),
             upper: inner.upper.clone(),
             dynamic: inner.dynamic.snapshot_for_persisting(),
             meta_modified: inner.state.meta_modified(),
@@ -166,18 +174,15 @@ impl InnerStorageSnapshot {
         &self,
     ) -> impl Iterator<Item = (CachedDataItemKey, CachedDataItemValueRef<'_>)> {
         use crate::data_storage::Storage;
-        self.dynamic
+        // Typed storage items (migrated fields including Output)
+        self.typed_data
             .iter_all()
+            .chain(self.typed_meta.iter_all())
+            // Legacy specialized fields (will be removed as migration progresses)
             .chain(self.aggregation_number.iter().map(|(_, value)| {
                 (
                     CachedDataItemKey::AggregationNumber {},
                     CachedDataItemValueRef::AggregationNumber { value },
-                )
-            }))
-            .chain(self.output.iter().map(|(_, value)| {
-                (
-                    CachedDataItemKey::Output {},
-                    CachedDataItemValueRef::Output { value },
                 )
             }))
             .chain(self.upper.iter().map(|(k, value)| {
@@ -192,24 +197,32 @@ impl InnerStorageSnapshot {
                     CachedDataItemValueRef::OutputDependent { value },
                 )
             }))
+            // Dynamic storage (unmigrated CachedDataItem variants)
+            .chain(self.dynamic.iter_all())
     }
 
     pub fn len(&self) -> usize {
         use crate::data_storage::Storage;
-        self.dynamic.len()
+        self.typed_data.len()
+            + self.typed_meta.len()
             + self.aggregation_number.len()
-            + self.output.len()
             + self.upper.len()
             + self.output_dependent.len()
+            + self.dynamic.len()
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct InnerStorage {
+    // Typed storage for incremental migration
+    // Fields will be migrated from dynamic -> typed one by one
+    // Currently migrated: Output
+    typed: TypedStorage,
+    // Legacy specialized fields (will be migrated to typed storage)
     aggregation_number: OptionStorage<AggregationNumber>,
     output_dependent: AutoMapStorage<TaskId, ()>,
-    output: OptionStorage<OutputValue>,
     upper: AutoMapStorage<TaskId, u32>,
+    // Dynamic storage for unmigrated CachedDataItem variants
     dynamic: DynamicStorage,
     state: InnerStorageState,
 }
@@ -217,13 +230,25 @@ pub struct InnerStorage {
 impl InnerStorage {
     fn new() -> Self {
         Self {
+            typed: TypedStorage::new(),
             aggregation_number: Default::default(),
             output_dependent: Default::default(),
-            output: Default::default(),
             upper: Default::default(),
             dynamic: DynamicStorage::new(),
             state: InnerStorageState::default(),
         }
+    }
+
+    /// Access the typed storage for direct field access
+    #[inline]
+    pub fn typed(&self) -> &TypedStorage {
+        &self.typed
+    }
+
+    /// Access the typed storage mutably for direct field access
+    #[inline]
+    pub fn typed_mut(&mut self) -> &mut TypedStorage {
+        &mut self.typed
     }
 
     pub fn state(&self) -> &InnerStorageState {
@@ -452,54 +477,105 @@ macro_rules! generate_inner_storage {
         impl InnerStorage {
             pub fn add(&mut self, item: CachedDataItem) -> bool {
                 use crate::data_storage::Storage;
+                // Typed storage variants (migrated) - add is needed for persistence restore
+                if let CachedDataItem::Output { value } = item {
+                    return self.add_output(value);
+                }
+                // Legacy specialized fields
                 $crate::generate_inner_storage_internal!(CachedDataItem: self, item, value, none, add(value): $($config)*);
                 self.dynamic.add(item)
             }
 
             pub fn extend(&mut self, ty: CachedDataItemType, items: impl Iterator<Item = CachedDataItem>) -> bool {
                 use crate::data_storage::Storage;
+                // Typed storage variants (migrated) - extend is needed for persistence restore
+                if let CachedDataItemType::Output = ty {
+                    let mut any_added = false;
+                    for item in items {
+                        if let CachedDataItem::Output { value } = item {
+                            any_added |= self.add_output(value);
+                        }
+                    }
+                    return any_added;
+                }
+                // Legacy specialized fields
                 $crate::generate_inner_storage_internal!(extend: self, ty, items: $($config)*);
                 self.dynamic.extend(ty, items)
             }
 
             pub fn insert(&mut self, item: CachedDataItem) -> Option<CachedDataItemValue> {
                 use crate::data_storage::Storage;
+                // Typed storage variants - use typed accessors via TaskGuard instead
+                if matches!(item, CachedDataItem::Output { .. }) {
+                    panic!("Use TaskGuard::set_output() instead of insert() for Output");
+                }
+                // Legacy specialized fields
                 $crate::generate_inner_storage_internal!(CachedDataItem: self, item, value, option_value, insert(value): $($config)*);
                 self.dynamic.insert(item)
             }
 
             pub fn remove(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValue> {
                 use crate::data_storage::Storage;
+                // Typed storage variants - use typed accessors via TaskGuard instead
+                if matches!(key, CachedDataItemKey::Output {}) {
+                    panic!("Use typed storage accessors instead of remove() for Output");
+                }
+                // Legacy specialized fields
                 $crate::generate_inner_storage_internal!(CachedDataItemKey: self, key, option_value, remove(): $($config)*);
                 self.dynamic.remove(key)
             }
 
             pub fn count(&self, ty: CachedDataItemType) -> usize {
                 use crate::data_storage::Storage;
+                // Typed storage variants - use typed storage accessors instead
+                if matches!(ty, CachedDataItemType::Output) {
+                    panic!("Use typed storage accessors instead of count() for Output");
+                }
+                // Legacy specialized fields
                 $crate::generate_inner_storage_internal!(CachedDataItemType: self, ty, none, len(): $($config)*);
                 self.dynamic.count(ty)
             }
 
             pub fn get(&self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRef<'_>> {
                 use crate::data_storage::Storage;
+                // Typed storage variants - use typed accessors via TaskGuard instead
+                if matches!(key, CachedDataItemKey::Output {}) {
+                    panic!("Use TaskGuard::get_output_ref() instead of get() for Output");
+                }
+                // Legacy specialized fields
                 $crate::generate_inner_storage_internal!(CachedDataItemKey: self, key, option_ref, get(): $($config)*);
                 self.dynamic.get(key)
             }
 
             pub fn contains_key(&self, key: &CachedDataItemKey) -> bool {
                 use crate::data_storage::Storage;
+                // Typed storage variants - use typed accessors via TaskGuard instead
+                if matches!(key, CachedDataItemKey::Output {}) {
+                    panic!("Use TaskGuard::has_output() instead of contains_key() for Output");
+                }
+                // Legacy specialized fields
                 $crate::generate_inner_storage_internal!(CachedDataItemKey: self, key, none, contains_key(): $($config)*);
                 self.dynamic.contains_key(key)
             }
 
             pub fn get_mut(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRefMut<'_>> {
                 use crate::data_storage::Storage;
+                // Typed storage variants - use typed storage accessors instead
+                if matches!(key, CachedDataItemKey::Output {}) {
+                    panic!("Use typed storage accessors instead of get_mut() for Output");
+                }
+                // Legacy specialized fields
                 $crate::generate_inner_storage_internal!(CachedDataItemKey: self, key, option_ref_mut, get_mut(): $($config)*);
                 self.dynamic.get_mut(key)
             }
 
             pub fn shrink_to_fit(&mut self, ty: CachedDataItemType) {
                 use crate::data_storage::Storage;
+                // Typed storage variants don't need shrink_to_fit (fixed size)
+                if matches!(ty, CachedDataItemType::Output) {
+                    return;
+                }
+                // Legacy specialized fields
                 $crate::generate_inner_storage_internal!(CachedDataItemType: self, ty, none, shrink_to_fit(): $($config)*);
                 self.dynamic.shrink_to_fit(ty)
             }
@@ -510,6 +586,11 @@ macro_rules! generate_inner_storage {
                 update: impl FnOnce(Option<CachedDataItemValue>) -> Option<CachedDataItemValue>,
             ) {
                 use crate::data_storage::Storage;
+                // Typed storage variants - use typed storage accessors instead
+                if matches!(key, CachedDataItemKey::Output {}) {
+                    panic!("Use typed storage accessors instead of update() for Output");
+                }
+                // Legacy specialized fields
                 $crate::generate_inner_storage_internal!(update: self, key, update: $($config)*);
                 self.dynamic.update(key, update)
             }
@@ -523,6 +604,11 @@ macro_rules! generate_inner_storage {
                 F: for<'a> FnMut(CachedDataItemKey, CachedDataItemValueRef<'a>) -> bool + 'l,
             {
                 use crate::data_storage::Storage;
+                // Typed storage variants - use typed storage accessors instead
+                if matches!(ty, CachedDataItemType::Output) {
+                    panic!("Use typed storage accessors instead of extract_if() for Output");
+                }
+                // Legacy specialized fields
                 $crate::generate_inner_storage_internal!(extract_if: self, ty, f: $($config)*);
                 InnerStorageIter::Dynamic(self.dynamic.extract_if(ty, f))
             }
@@ -534,6 +620,11 @@ macro_rules! generate_inner_storage {
             ) -> CachedDataItemValueRefMut<'_>
             {
                 use crate::data_storage::Storage;
+                // Typed storage variants - use typed storage accessors instead
+                if matches!(key, CachedDataItemKey::Output {}) {
+                    panic!("Use typed storage accessors instead of get_mut_or_insert_with() for Output");
+                }
+                // Legacy specialized fields
                 $crate::generate_inner_storage_internal!(get_mut_or_insert_with: self, key, f: $($config)*);
                 self.dynamic.get_mut_or_insert_with(key, f)
             }
@@ -544,6 +635,11 @@ macro_rules! generate_inner_storage {
             ) -> impl Iterator<Item = (CachedDataItemKey, CachedDataItemValueRef<'_>)>
             {
                 use crate::data_storage::Storage;
+                // Typed storage variants - use typed storage accessors instead
+                if matches!(ty, CachedDataItemType::Output) {
+                    panic!("Use typed storage accessors instead of iter() for Output");
+                }
+                // Legacy specialized fields
                 $crate::generate_inner_storage_internal!(iter: self, ty: $($config)*);
                 InnerStorageIter::Dynamic(self.dynamic.iter(ty))
             }
@@ -555,25 +651,35 @@ macro_rules! generate_inner_storage {
 generate_inner_storage!(
     AggregationNumber => aggregation_number,
     OutputDependent task => output_dependent,
-    Output => output,
     Upper task => upper,
 );
 
-enum InnerStorageIter<A, B, C, D, E> {
-    AggregationNumber(A),
-    OutputDependent(B),
-    Output(C),
-    Upper(D),
-    Dynamic(E),
+// Typed storage methods for migrated variants
+// Only add_output is needed - it's used by persistence restore via the `add` method
+impl InnerStorage {
+    fn add_output(&mut self, value: OutputValue) -> bool {
+        if self.typed.meta.output.is_some() {
+            false
+        } else {
+            self.typed.meta.output = Some(value);
+            true
+        }
+    }
 }
 
-impl<T, A, B, C, D, E> Iterator for InnerStorageIter<A, B, C, D, E>
+enum InnerStorageIter<A, B, C, D> {
+    AggregationNumber(A),
+    OutputDependent(B),
+    Upper(C),
+    Dynamic(D),
+}
+
+impl<T, A, B, C, D> Iterator for InnerStorageIter<A, B, C, D>
 where
     A: Iterator<Item = T>,
     B: Iterator<Item = T>,
     C: Iterator<Item = T>,
     D: Iterator<Item = T>,
-    E: Iterator<Item = T>,
 {
     type Item = T;
 
@@ -581,7 +687,6 @@ where
         match self {
             InnerStorageIter::AggregationNumber(iter) => iter.next(),
             InnerStorageIter::OutputDependent(iter) => iter.next(),
-            InnerStorageIter::Output(iter) => iter.next(),
             InnerStorageIter::Upper(iter) => iter.next(),
             InnerStorageIter::Dynamic(iter) => iter.next(),
         }
@@ -593,18 +698,14 @@ impl InnerStorage {
         &self,
     ) -> impl Iterator<Item = (CachedDataItemKey, CachedDataItemValueRef<'_>)> {
         use crate::data_storage::Storage;
-        self.dynamic
+        // Typed storage items (migrated fields including Output)
+        self.typed
             .iter_all()
+            // Legacy specialized fields (will be removed as migration progresses)
             .chain(self.aggregation_number.iter().map(|(_, value)| {
                 (
                     CachedDataItemKey::AggregationNumber {},
                     CachedDataItemValueRef::AggregationNumber { value },
-                )
-            }))
-            .chain(self.output.iter().map(|(_, value)| {
-                (
-                    CachedDataItemKey::Output {},
-                    CachedDataItemValueRef::Output { value },
                 )
             }))
             .chain(self.upper.iter().map(|(k, value)| {
@@ -619,15 +720,17 @@ impl InnerStorage {
                     CachedDataItemValueRef::OutputDependent { value },
                 )
             }))
+            // Dynamic storage (unmigrated CachedDataItem variants)
+            .chain(self.dynamic.iter_all())
     }
 
     pub fn len(&self) -> usize {
         use crate::data_storage::Storage;
-        self.dynamic.len()
+        self.typed.len()
             + self.aggregation_number.len()
-            + self.output.len()
             + self.upper.len()
             + self.output_dependent.len()
+            + self.dynamic.len()
     }
 }
 

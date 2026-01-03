@@ -26,5 +26,5 @@ fn test_macro_generates_types() {
     // Check that the macro ran and generated types
     let _data = TaskData::default();
     let _meta = TaskMeta::default();
-    let _storage = InnerStorage::new();
+    let _storage = TypedStorage::new();
 }

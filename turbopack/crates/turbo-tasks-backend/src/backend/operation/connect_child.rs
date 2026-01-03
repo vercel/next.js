@@ -8,6 +8,7 @@ use crate::{
             ExecuteContext, Operation, TaskGuard,
             aggregation_update::{AggregationUpdateJob, AggregationUpdateQueue},
         },
+        storage_schema::TaskStorageAccessors,
     },
     data::{InProgressState, InProgressStateInner},
 };

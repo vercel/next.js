@@ -1,7 +1,10 @@
 //! Test file for the TaskStorage derive macro
 //!
-//! This validates that the macro correctly parses annotations and will eventually
-//! generate the correct storage structures.
+//! This validates that the macro correctly parses annotations and generates
+//! the correct TypedStorage structures.
+//!
+//! Note: TypedStorage does not include state tracking - that is handled by
+//! the wrapper InnerStorage in the actual backend.
 
 use turbo_tasks::TaskId;
 use turbo_tasks_macros::TaskStorage;
@@ -10,20 +13,6 @@ use crate::{
     data::{AggregationNumber, Dirtyness, OutputValue},
     storage_types::{AutoSet, CounterMap},
 };
-
-// Temporary mock of InnerStorageState for testing
-// In production, this will come from backend::storage
-bitfield::bitfield! {
-    #[derive(Clone, Default)]
-    pub struct InnerStorageState(u32);
-    impl Debug;
-    pub meta_restored, set_meta_restored: 0;
-    pub data_restored, set_data_restored: 1;
-    pub meta_modified, set_meta_modified: 2;
-    pub data_modified, set_data_modified: 3;
-    pub meta_snapshot, set_meta_snapshot: 4;
-    pub data_snapshot, set_data_snapshot: 5;
-}
 
 /// Test schema using the TaskStorage derive macro
 ///
@@ -70,10 +59,10 @@ mod tests {
 
     #[test]
     fn test_task_storage_generates_types() {
-        // The macro generates TaskData, TaskMeta, and InnerStorage types
+        // The macro generates TaskData, TaskMeta, and TypedStorage types
         let _data = TaskData::default();
         let _meta = TaskMeta::default();
-        let storage = InnerStorage::new();
+        let storage = TypedStorage::new();
 
         // Verify the generated structure compiles
         drop(storage);
@@ -83,7 +72,7 @@ mod tests {
     fn test_generated_accessors() {
         use turbo_tasks::TaskId;
 
-        let mut storage = InnerStorage::new();
+        let mut storage = TypedStorage::new();
 
         // Test direct field accessors (data category)
         assert_eq!(storage.get_output(), &None);
@@ -122,7 +111,7 @@ mod tests {
 
     #[test]
     fn test_memory_efficiency() {
-        let empty_storage = InnerStorage::new();
+        let empty_storage = TypedStorage::new();
 
         // Empty storage should not allocate the lazy groups
         // We can't directly test Option<Box<...>> internals without unsafe,
@@ -131,7 +120,7 @@ mod tests {
         assert_eq!(empty_storage.get_aggregation_number(), &None);
 
         // Create a storage with some data
-        let mut storage_with_data = InnerStorage::new();
+        let mut storage_with_data = TypedStorage::new();
         storage_with_data.set_output(Some(OutputValue::Output(unsafe {
             turbo_tasks::TaskId::new_unchecked(1)
         })));
@@ -151,133 +140,51 @@ mod tests {
     }
 
     #[test]
-    fn test_modification_tracking_spot_check() {
-        let mut storage = InnerStorage::new();
-
-        // Initially unmodified
-        assert!(!storage.state().data_modified());
-        assert!(!storage.state().meta_modified());
-
-        // Spot check: data field modification
-        storage.set_output(Some(OutputValue::Output(unsafe {
-            TaskId::new_unchecked(1)
-        })));
-        assert!(storage.state().data_modified());
-        assert!(!storage.state().meta_modified());
-
-        // Reset for meta test
-        storage = InnerStorage::new();
-
-        // Spot check: meta field modification
-        storage.set_dirty(Some(Dirtyness::Dirty));
-        assert!(!storage.state().data_modified());
-        assert!(storage.state().meta_modified());
-
-        // Spot check: lazy group allocation triggers tracking
-        storage = InnerStorage::new();
-        storage
-            .output_dependencies_mut()
-            .insert(unsafe { TaskId::new_unchecked(1) });
-        assert!(storage.state().data_modified());
-        assert!(!storage.state().meta_modified());
-    }
-
-    #[test]
-    fn test_reads_dont_modify() {
-        let storage = InnerStorage::new();
-        let _ = storage.get_output();
-        let _ = storage.get_dirty();
-        assert!(!storage.state().data_modified());
-        assert!(!storage.state().meta_modified());
-    }
-
-    #[test]
-    fn test_snapshot_round_trip() {
-        let mut storage = InnerStorage::new();
-
-        // Add some data
-        storage.set_output(Some(OutputValue::Output(unsafe {
-            TaskId::new_unchecked(42)
-        })));
-        storage
-            .output_dependencies_mut()
-            .insert(unsafe { TaskId::new_unchecked(1) });
-        storage
-            .output_dependencies_mut()
-            .insert(unsafe { TaskId::new_unchecked(2) });
-
-        // Add some meta
-        storage.set_dirty(Some(Dirtyness::Dirty));
-        storage.set_aggregation_number(Some(AggregationNumber {
-            base: 10,
-            distance: 5,
-            effective: 15,
-        }));
-
-        // Verify modification flags are set
-        assert!(storage.state().data_modified());
-        assert!(storage.state().meta_modified());
-
-        // Take snapshot
-        let snapshot = storage.snapshot();
-
-        // Verify snapshot captures modification flags
-        assert!(snapshot.data_modified);
-        assert!(snapshot.meta_modified);
-
-        // Create new storage and restore
-        let mut restored = InnerStorage::new();
-        restored.restore(snapshot);
-
-        // Verify data is restored
-        assert!(restored.get_output().is_some());
-        assert_eq!(restored.get_dirty(), &Some(Dirtyness::Dirty));
-        assert!(restored.get_aggregation_number().is_some());
-
-        // Verify modification flags are restored
-        assert!(restored.state().data_modified());
-        assert!(restored.state().meta_modified());
-    }
-
-    #[test]
     fn test_specialized_fields() {
-        let mut storage = InnerStorage::new();
+        let mut storage = TypedStorage::new();
 
         // Test specialized data field (output)
         storage.set_output(Some(OutputValue::Output(unsafe {
             TaskId::new_unchecked(123)
         })));
         assert!(storage.get_output().is_some());
-        assert!(storage.state().data_modified());
 
         // Test specialized counter_map field (upper)
-        storage = InnerStorage::new();
+        storage = TypedStorage::new();
         storage
             .upper_mut()
             .insert(unsafe { TaskId::new_unchecked(1) }, 10);
-        assert!(storage.state().data_modified());
+        assert_eq!(
+            storage
+                .upper_mut()
+                .get(&unsafe { TaskId::new_unchecked(1) }),
+            Some(10)
+        );
 
         // Test specialized auto_set field (output_dependent)
-        storage = InnerStorage::new();
+        storage = TypedStorage::new();
         storage
             .output_dependent_mut()
             .insert(unsafe { TaskId::new_unchecked(5) });
-        assert!(storage.state().data_modified());
+        assert!(
+            storage
+                .output_dependent_mut()
+                .contains(&unsafe { TaskId::new_unchecked(5) })
+        );
 
         // Test specialized meta field (aggregation_number)
-        storage = InnerStorage::new();
+        storage = TypedStorage::new();
         storage.set_aggregation_number(Some(AggregationNumber {
             base: 1,
             distance: 2,
             effective: 3,
         }));
-        assert!(storage.state().meta_modified());
-        assert!(!storage.state().data_modified());
+        assert!(storage.get_aggregation_number().is_some());
     }
 
     #[test]
     fn test_serialization_round_trip() {
-        let mut storage = InnerStorage::new();
+        let mut storage = TypedStorage::new();
 
         // Add some data to TaskData
         storage.set_output(Some(OutputValue::Output(unsafe {

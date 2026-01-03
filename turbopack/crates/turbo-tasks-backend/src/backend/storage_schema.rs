@@ -25,12 +25,9 @@ use turbo_tasks::{
 };
 use turbo_tasks_macros::TaskStorage;
 
-use crate::{
-    backend::storage::InnerStorageState,
-    data::{
-        ActivenessState, AggregationNumber, CellRef, CollectibleRef, CollectiblesRef, Dirtyness,
-        InProgressCellState, InProgressState, OutputValue,
-    },
+use crate::data::{
+    ActivenessState, AggregationNumber, CellRef, CollectibleRef, CollectiblesRef, Dirtyness,
+    InProgressCellState, InProgressState, OutputValue,
 };
 
 /// Auto-set storage for small sets of keys with unit values.
@@ -78,7 +75,8 @@ pub struct TaskStorageSchema {
 
     /// The task's output value.
     /// Specialized: accessed on every task completion and read.
-    #[task_storage(storage = "direct", category = "meta", specialized)]
+    /// Migrated: uses TaskStorageAccessors trait for typed access via TaskGuard.
+    #[task_storage(storage = "direct", category = "meta", specialized, migrated)]
     pub output: Option<OutputValue>,
 
     /// Upper nodes in the aggregation tree (reference counted).
@@ -298,13 +296,193 @@ pub struct TaskStorageSchema {
     pub in_progress_cells: AutoMap<CellId, InProgressCellState>,
 }
 
+// Manual implementation of iter_all for TaskData
+// This provides compatibility with the CachedDataItem API during migration
+impl TaskData {
+    /// Iterate over all data items, converting to CachedDataItem format.
+    pub fn iter_all(
+        &self,
+    ) -> impl Iterator<
+        Item = (
+            crate::data::CachedDataItemKey,
+            crate::data::CachedDataItemValueRef<'_>,
+        ),
+    > {
+        use crate::data::{CachedDataItemKey, CachedDataItemValueRef};
+
+        // Specialized data fields
+        self.output_dependent.iter().map(|task| {
+            (
+                CachedDataItemKey::OutputDependent { task: *task },
+                CachedDataItemValueRef::OutputDependent { value: &() },
+            )
+        })
+        // TODO: Add remaining data fields as they are migrated
+    }
+
+    /// Count the number of data items.
+    pub fn len(&self) -> usize {
+        self.output_dependent.len()
+        // TODO: Add remaining data fields as they are migrated
+    }
+
+    /// Check if data storage is empty.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+}
+
+// Manual implementation of iter_all for TaskMeta
+impl TaskMeta {
+    /// Iterate over all meta items, converting to CachedDataItem format.
+    pub fn iter_all(
+        &self,
+    ) -> impl Iterator<
+        Item = (
+            crate::data::CachedDataItemKey,
+            crate::data::CachedDataItemValueRef<'_>,
+        ),
+    > {
+        use crate::data::{CachedDataItemKey, CachedDataItemValueRef};
+
+        let aggregation_number_iter = self
+            .aggregation_number
+            .as_ref()
+            .map(|value| {
+                (
+                    CachedDataItemKey::AggregationNumber {},
+                    CachedDataItemValueRef::AggregationNumber { value },
+                )
+            })
+            .into_iter();
+
+        let output_iter = self
+            .output
+            .as_ref()
+            .map(|value| {
+                (
+                    CachedDataItemKey::Output {},
+                    CachedDataItemValueRef::Output { value },
+                )
+            })
+            .into_iter();
+
+        let upper_iter = self.upper.iter().map(|(task, value)| {
+            (
+                CachedDataItemKey::Upper { task: *task },
+                CachedDataItemValueRef::Upper { value },
+            )
+        });
+
+        aggregation_number_iter.chain(output_iter).chain(upper_iter)
+        // TODO: Add remaining meta fields as they are migrated
+    }
+
+    /// Count the number of meta items.
+    pub fn len(&self) -> usize {
+        let mut count = 0;
+        if self.aggregation_number.is_some() {
+            count += 1;
+        }
+        if self.output.is_some() {
+            count += 1;
+        }
+        count += self.upper.len();
+        // TODO: Add remaining meta fields as they are migrated
+        count
+    }
+
+    /// Check if meta storage is empty.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+}
+
+// Manual implementation of iter_all for TypedStorage
+// This provides compatibility with the CachedDataItem API during migration
+impl TypedStorage {
+    /// Iterate over all items in typed storage, converting to CachedDataItem format.
+    /// This is used for compatibility with existing code during migration.
+    pub fn iter_all(
+        &self,
+    ) -> impl Iterator<
+        Item = (
+            crate::data::CachedDataItemKey,
+            crate::data::CachedDataItemValueRef<'_>,
+        ),
+    > {
+        self.data.iter_all().chain(self.meta.iter_all())
+    }
+
+    /// Count the number of items in typed storage.
+    pub fn len(&self) -> usize {
+        self.data.len() + self.meta.len()
+    }
+
+    /// Check if typed storage is empty.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use turbo_tasks::TaskId;
+
     use super::*;
+    use crate::data::{AggregationNumber, CachedDataItemKey, OutputValue};
 
     #[test]
     fn test_schema_compiles() {
         // This test just verifies the schema compiles correctly
         // The actual generated types will be tested separately
+    }
+
+    #[test]
+    fn test_typed_storage_iter_all() {
+        let mut storage = TypedStorage::new();
+
+        // Initially empty
+        assert!(storage.is_empty());
+        assert_eq!(storage.len(), 0);
+        assert_eq!(storage.iter_all().count(), 0);
+
+        // Add some specialized data
+        storage.set_output(Some(OutputValue::Output(unsafe {
+            TaskId::new_unchecked(42)
+        })));
+        storage.set_aggregation_number(Some(AggregationNumber {
+            base: 1,
+            distance: 2,
+            effective: 3,
+        }));
+        storage
+            .output_dependent_mut()
+            .insert(unsafe { TaskId::new_unchecked(10) });
+        storage
+            .upper_mut()
+            .insert(unsafe { TaskId::new_unchecked(20) }, 5);
+
+        // Check counts
+        assert!(!storage.is_empty());
+        assert_eq!(storage.len(), 4);
+        assert_eq!(storage.iter_all().count(), 4);
+
+        // Verify we can iterate and get correct keys
+        let keys: Vec<_> = storage.iter_all().map(|(k, _)| k).collect();
+        assert!(
+            keys.iter()
+                .any(|k| matches!(k, CachedDataItemKey::Output {}))
+        );
+        assert!(
+            keys.iter()
+                .any(|k| matches!(k, CachedDataItemKey::AggregationNumber {}))
+        );
+        assert!(keys.iter().any(
+            |k| matches!(k, CachedDataItemKey::OutputDependent { task } if *task == unsafe { TaskId::new_unchecked(10) })
+        ));
+        assert!(keys
+            .iter()
+            .any(|k| matches!(k, CachedDataItemKey::Upper { task } if *task == unsafe { TaskId::new_unchecked(20) })));
     }
 }
