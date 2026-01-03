@@ -2451,7 +2451,8 @@ impl AggregationUpdateQueue {
                 let children: Vec<_> = task.iter_children().collect();
                 task.extend_new_internal(
                     CachedDataItemType::Follower,
-                    task.iter_children()
+                    children
+                        .iter()
                         .map(|&task| CachedDataItem::Follower { task, value: 1 }),
                 );
             }

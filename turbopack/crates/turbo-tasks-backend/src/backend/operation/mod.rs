@@ -1364,68 +1364,8 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
             })
     }
 
-    // ============ Collection Getter APIs ============
-    // These replace the get_many! macro with typed collection getters
-
-    /// Get all child tasks as a Vec
-    fn get_children(&self) -> Vec<TaskId> {
-        self.iter_children().collect()
-    }
-
-    /// Get all follower tasks (with count > 0) as a Vec
-    fn get_followers(&self) -> Vec<TaskId> {
-        self.iter_followers().collect()
-    }
-
-    /// Get all upper tasks (with count > 0) as a Vec
-    fn get_uppers(&self) -> Vec<TaskId> {
-        self.iter_uppers().collect()
-    }
-
-    /// Get all output dependencies as a Vec
-    fn get_output_dependencies(&self) -> Vec<TaskId> {
-        self.iter_output_dependencies().collect()
-    }
-
-    /// Get all cell dependencies as a Vec
-    fn get_cell_dependencies(&self) -> Vec<CellRef> {
-        self.iter_cell_dependencies().collect()
-    }
-
-    /// Get all outdated output dependencies as a Vec
-    fn get_outdated_output_dependencies(&self) -> Vec<TaskId> {
-        self.iter_outdated_output_dependencies().collect()
-    }
-
-    /// Get all outdated cell dependencies as a Vec
-    fn get_outdated_cell_dependencies(&self) -> Vec<CellRef> {
-        self.iter_outdated_cell_dependencies().collect()
-    }
-
-    /// Get all output dependents as a Vec
-    fn get_output_dependents(&self) -> Vec<TaskId> {
-        self.iter_output_dependents().collect()
-    }
-
-    /// Get all collectibles with their counts as a Vec
-    fn get_collectibles(&self) -> Vec<(CollectibleRef, i32)> {
-        self.iter_collectibles().collect()
-    }
-
-    /// Get all aggregated collectibles (with count > 0) as a Vec
-    fn get_aggregated_collectibles(&self) -> Vec<(CollectibleRef, i32)> {
-        self.iter_aggregated_collectibles().collect()
-    }
-
-    /// Get all aggregated dirty containers with their counts as a Vec
-    fn get_aggregated_dirty_containers(&self) -> Vec<(TaskId, i32)> {
-        self.iter_aggregated_dirty_containers().collect()
-    }
-
-    /// Get all cell type max indices as a Vec
-    fn get_cell_type_max_indices(&self) -> Vec<(ValueTypeId, u32)> {
-        self.iter_cell_type_max_indices().collect()
-    }
+    // NOTE: Vec-returning collection getters (get_children, get_followers, etc.) were removed.
+    // Callers should use iter_* methods and call .collect() if they need a Vec.
 
     // ============ Extract-If APIs ============
     // These replace extract_if_internal with typed filter/extract operations

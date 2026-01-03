@@ -2954,10 +2954,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 }
 
                 let aggregated_collectibles: Vec<_> = task
-                    .get_aggregated_collectibles()
-                    .into_iter()
+                    .iter_aggregated_collectibles()
                     .map(|(collectible, _)| collectible)
-                    .collect::<Vec<_>>();
+                    .collect();
                 for collectible in aggregated_collectibles {
                     collectibles
                         .entry(collectible)
@@ -3010,7 +3009,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             .get_aggregated_dirty_container(task_id)
                             .is_some_and(|&dirty| dirty > 0);
                         if !in_upper {
-                            let containers: Vec<_> = task.get_aggregated_dirty_containers();
+                            let containers: Vec<_> =
+                                task.iter_aggregated_dirty_containers().collect();
                             panic!(
                                 "Task {} ({}) is dirty, but is not listed in the upper task {} \
                                  ({})\nThese dirty containers are present:\n{:#?}",
