@@ -450,6 +450,16 @@ macro_rules! generate_inner_storage {
                 if let CachedDataItem::OutputDependent { task, .. } = item {
                     return self.add_output_dependent(task);
                 }
+                // Flags (migrated)
+                if let CachedDataItem::Stateful { .. } = item {
+                    return self.add_stateful();
+                }
+                if let CachedDataItem::HasInvalidator { .. } = item {
+                    return self.add_invalidator();
+                }
+                if let CachedDataItem::Immutable { .. } = item {
+                    return self.add_immutable();
+                }
                 self.dynamic.add(item)
             }
 
@@ -495,6 +505,34 @@ macro_rules! generate_inner_storage {
                     }
                     return any_added;
                 }
+                // Flags (migrated)
+                if let CachedDataItemType::Stateful = ty {
+                    let mut any_added = false;
+                    for item in items {
+                        if matches!(item, CachedDataItem::Stateful { .. }) {
+                            any_added |= self.add_stateful();
+                        }
+                    }
+                    return any_added;
+                }
+                if let CachedDataItemType::HasInvalidator = ty {
+                    let mut any_added = false;
+                    for item in items {
+                        if matches!(item, CachedDataItem::HasInvalidator { .. }) {
+                            any_added |= self.add_invalidator();
+                        }
+                    }
+                    return any_added;
+                }
+                if let CachedDataItemType::Immutable = ty {
+                    let mut any_added = false;
+                    for item in items {
+                        if matches!(item, CachedDataItem::Immutable { .. }) {
+                            any_added |= self.add_immutable();
+                        }
+                    }
+                    return any_added;
+                }
                 self.dynamic.extend(ty, items)
             }
 
@@ -518,6 +556,18 @@ macro_rules! generate_inner_storage {
                          OutputDependent"
                     );
                 }
+                // Flags (migrated)
+                if matches!(item, CachedDataItem::Stateful { .. }) {
+                    panic!("Use TaskGuard::set_stateful() instead of insert() for Stateful");
+                }
+                if matches!(item, CachedDataItem::HasInvalidator { .. }) {
+                    panic!(
+                        "Use TaskGuard::set_invalidator() instead of insert() for HasInvalidator"
+                    );
+                }
+                if matches!(item, CachedDataItem::Immutable { .. }) {
+                    panic!("Use TaskGuard::set_immutable() instead of insert() for Immutable");
+                }
                 self.dynamic.insert(item)
             }
 
@@ -538,6 +588,18 @@ macro_rules! generate_inner_storage {
                          OutputDependent"
                     );
                 }
+                // Flags (migrated)
+                if matches!(key, CachedDataItemKey::Stateful {}) {
+                    panic!("Use TaskGuard::take_stateful() instead of remove() for Stateful");
+                }
+                if matches!(key, CachedDataItemKey::HasInvalidator {}) {
+                    panic!(
+                        "Use TaskGuard::take_invalidator() instead of remove() for HasInvalidator"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::Immutable {}) {
+                    panic!("Use TaskGuard::take_immutable() instead of remove() for Immutable");
+                }
                 self.dynamic.remove(key)
             }
 
@@ -556,6 +618,18 @@ macro_rules! generate_inner_storage {
                     panic!(
                         "Use TaskGuard::output_dependent() instead of count() for OutputDependent"
                     );
+                }
+                // Flags (migrated)
+                if matches!(ty, CachedDataItemType::Stateful) {
+                    panic!("Use TaskGuard::has_stateful() instead of count() for Stateful");
+                }
+                if matches!(ty, CachedDataItemType::HasInvalidator) {
+                    panic!(
+                        "Use TaskGuard::has_invalidator() instead of count() for HasInvalidator"
+                    );
+                }
+                if matches!(ty, CachedDataItemType::Immutable) {
+                    panic!("Use TaskGuard::has_immutable() instead of count() for Immutable");
                 }
                 self.dynamic.count(ty)
             }
@@ -579,6 +653,18 @@ macro_rules! generate_inner_storage {
                         "Use TaskGuard::output_dependent() instead of get() for OutputDependent"
                     );
                 }
+                // Flags (migrated)
+                if matches!(key, CachedDataItemKey::Stateful {}) {
+                    panic!("Use TaskGuard::get_stateful_ref() instead of get() for Stateful");
+                }
+                if matches!(key, CachedDataItemKey::HasInvalidator {}) {
+                    panic!(
+                        "Use TaskGuard::get_invalidator_ref() instead of get() for HasInvalidator"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::Immutable {}) {
+                    panic!("Use TaskGuard::get_immutable_ref() instead of get() for Immutable");
+                }
                 self.dynamic.get(key)
             }
 
@@ -600,6 +686,21 @@ macro_rules! generate_inner_storage {
                     panic!(
                         "Use TaskGuard::output_dependent() instead of contains_key() for \
                          OutputDependent"
+                    );
+                }
+                // Flags (migrated)
+                if matches!(key, CachedDataItemKey::Stateful {}) {
+                    panic!("Use TaskGuard::has_stateful() instead of contains_key() for Stateful");
+                }
+                if matches!(key, CachedDataItemKey::HasInvalidator {}) {
+                    panic!(
+                        "Use TaskGuard::has_invalidator() instead of contains_key() for \
+                         HasInvalidator"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::Immutable {}) {
+                    panic!(
+                        "Use TaskGuard::has_immutable() instead of contains_key() for Immutable"
                     );
                 }
                 self.dynamic.contains_key(key)
@@ -627,6 +728,16 @@ macro_rules! generate_inner_storage {
                          OutputDependent"
                     );
                 }
+                // Flags (migrated)
+                if matches!(key, CachedDataItemKey::Stateful {}) {
+                    panic!("Use typed storage accessors instead of get_mut() for Stateful");
+                }
+                if matches!(key, CachedDataItemKey::HasInvalidator {}) {
+                    panic!("Use typed storage accessors instead of get_mut() for HasInvalidator");
+                }
+                if matches!(key, CachedDataItemKey::Immutable {}) {
+                    panic!("Use typed storage accessors instead of get_mut() for Immutable");
+                }
                 self.dynamic.get_mut(key)
             }
 
@@ -639,6 +750,9 @@ macro_rules! generate_inner_storage {
                         | CachedDataItemType::AggregationNumber
                         | CachedDataItemType::Upper
                         | CachedDataItemType::OutputDependent
+                        | CachedDataItemType::Stateful
+                        | CachedDataItemType::HasInvalidator
+                        | CachedDataItemType::Immutable
                 ) {
                     return;
                 }
@@ -665,6 +779,16 @@ macro_rules! generate_inner_storage {
                         "Use TaskGuard::output_dependent_mut() instead of update() for \
                          OutputDependent"
                     );
+                }
+                // Flags (migrated)
+                if matches!(key, CachedDataItemKey::Stateful {}) {
+                    panic!("Use typed storage accessors instead of update() for Stateful");
+                }
+                if matches!(key, CachedDataItemKey::HasInvalidator {}) {
+                    panic!("Use typed storage accessors instead of update() for HasInvalidator");
+                }
+                if matches!(key, CachedDataItemKey::Immutable {}) {
+                    panic!("Use typed storage accessors instead of update() for Immutable");
                 }
                 self.dynamic.update(key, update)
             }
@@ -694,6 +818,18 @@ macro_rules! generate_inner_storage {
                         "Use TaskGuard::output_dependent_mut() instead of extract_if() for \
                          OutputDependent"
                     );
+                }
+                // Flags (migrated)
+                if matches!(ty, CachedDataItemType::Stateful) {
+                    panic!("Use typed storage accessors instead of extract_if() for Stateful");
+                }
+                if matches!(ty, CachedDataItemType::HasInvalidator) {
+                    panic!(
+                        "Use typed storage accessors instead of extract_if() for HasInvalidator"
+                    );
+                }
+                if matches!(ty, CachedDataItemType::Immutable) {
+                    panic!("Use typed storage accessors instead of extract_if() for Immutable");
                 }
                 self.dynamic.extract_if(ty, f)
             }
@@ -727,6 +863,25 @@ macro_rules! generate_inner_storage {
                          get_mut_or_insert_with() for OutputDependent"
                     );
                 }
+                // Flags (migrated)
+                if matches!(key, CachedDataItemKey::Stateful {}) {
+                    panic!(
+                        "Use typed storage accessors instead of get_mut_or_insert_with() for \
+                         Stateful"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::HasInvalidator {}) {
+                    panic!(
+                        "Use typed storage accessors instead of get_mut_or_insert_with() for \
+                         HasInvalidator"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::Immutable {}) {
+                    panic!(
+                        "Use typed storage accessors instead of get_mut_or_insert_with() for \
+                         Immutable"
+                    );
+                }
                 self.dynamic.get_mut_or_insert_with(key, f)
             }
 
@@ -748,6 +903,16 @@ macro_rules! generate_inner_storage {
                     panic!(
                         "Use TaskGuard::output_dependent() instead of iter() for OutputDependent"
                     );
+                }
+                // Flags (migrated)
+                if matches!(ty, CachedDataItemType::Stateful) {
+                    panic!("Use typed storage accessors instead of iter() for Stateful");
+                }
+                if matches!(ty, CachedDataItemType::HasInvalidator) {
+                    panic!("Use typed storage accessors instead of iter() for HasInvalidator");
+                }
+                if matches!(ty, CachedDataItemType::Immutable) {
+                    panic!("Use typed storage accessors instead of iter() for Immutable");
                 }
                 self.dynamic.iter(ty)
             }
@@ -792,6 +957,34 @@ impl InnerStorage {
 
     fn add_output_dependent(&mut self, task: TaskId) -> bool {
         self.typed.data.output_dependent.insert(task)
+    }
+
+    // Flags (migrated)
+    fn add_stateful(&mut self) -> bool {
+        if self.typed.meta.flags.stateful.is_some() {
+            false
+        } else {
+            self.typed.meta.flags.stateful = Some(());
+            true
+        }
+    }
+
+    fn add_invalidator(&mut self) -> bool {
+        if self.typed.meta.flags.invalidator.is_some() {
+            false
+        } else {
+            self.typed.meta.flags.invalidator = Some(());
+            true
+        }
+    }
+
+    fn add_immutable(&mut self) -> bool {
+        if self.typed.meta.flags.immutable.is_some() {
+            false
+        } else {
+            self.typed.meta.flags.immutable = Some(());
+            true
+        }
     }
 }
 

@@ -147,17 +147,19 @@ pub struct TaskStorageSchema {
 
     // =========================================================================
     // FLAGS GROUP (meta) - Simple boolean flags
+    // Migrated: uses TaskStorageAccessors trait for typed access via TaskGuard.
+    // TODO: Consider using bool or bitflags instead of Option<()> for these flags.
     // =========================================================================
     /// Whether the task has mutable state.
-    #[task_storage(storage = "direct", category = "meta", group = "flags")]
+    #[task_storage(storage = "direct", category = "meta", group = "flags", migrated)]
     pub stateful: Option<()>,
 
     /// Whether the task has an invalidator.
-    #[task_storage(storage = "direct", category = "meta", group = "flags")]
-    pub has_invalidator: Option<()>,
+    #[task_storage(storage = "direct", category = "meta", group = "flags", migrated)]
+    pub invalidator: Option<()>,
 
     /// Whether the task output is immutable.
-    #[task_storage(storage = "direct", category = "meta", group = "flags")]
+    #[task_storage(storage = "direct", category = "meta", group = "flags", migrated)]
     pub immutable: Option<()>,
 
     // =========================================================================
@@ -377,7 +379,49 @@ impl TaskMeta {
             )
         });
 
-        aggregation_number_iter.chain(output_iter).chain(upper_iter)
+        // Flags group (non-lazy)
+        let stateful_iter = self
+            .flags
+            .stateful
+            .as_ref()
+            .map(|value| {
+                (
+                    CachedDataItemKey::Stateful {},
+                    CachedDataItemValueRef::Stateful { value },
+                )
+            })
+            .into_iter();
+
+        let invalidator_iter = self
+            .flags
+            .invalidator
+            .as_ref()
+            .map(|value| {
+                (
+                    CachedDataItemKey::HasInvalidator {},
+                    CachedDataItemValueRef::HasInvalidator { value },
+                )
+            })
+            .into_iter();
+
+        let immutable_iter = self
+            .flags
+            .immutable
+            .as_ref()
+            .map(|value| {
+                (
+                    CachedDataItemKey::Immutable {},
+                    CachedDataItemValueRef::Immutable { value },
+                )
+            })
+            .into_iter();
+
+        aggregation_number_iter
+            .chain(output_iter)
+            .chain(upper_iter)
+            .chain(stateful_iter)
+            .chain(invalidator_iter)
+            .chain(immutable_iter)
         // TODO: Add remaining meta fields as they are migrated
     }
 
@@ -391,6 +435,16 @@ impl TaskMeta {
             count += 1;
         }
         count += self.upper.len();
+        // Flags group (non-lazy)
+        if self.flags.stateful.is_some() {
+            count += 1;
+        }
+        if self.flags.invalidator.is_some() {
+            count += 1;
+        }
+        if self.flags.immutable.is_some() {
+            count += 1;
+        }
         // TODO: Add remaining meta fields as they are migrated
         count
     }

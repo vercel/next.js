@@ -60,9 +60,9 @@ fn get_followers_with_aggregation_number(
     aggregation_number: u32,
 ) -> TaskIdVec {
     if is_aggregating_node(aggregation_number) {
-        task.get_followers().into()
+        task.iter_followers().collect()
     } else {
-        task.get_children().into()
+        task.iter_children().collect()
     }
 }
 
@@ -75,7 +75,7 @@ fn get_followers(task: &impl TaskGuard) -> TaskIdVec {
 /// Returns a list of tasks that are considered as "upper" tasks of the task. The upper tasks are
 /// aggregating over the task.
 pub fn get_uppers(task: &impl TaskGuard) -> TaskIdVec {
-    task.get_uppers().into()
+    task.iter_uppers().collect()
 }
 
 /// Returns an iterator of tasks that are considered as "upper" tasks of the task. See `get_uppers`
@@ -345,7 +345,7 @@ impl AggregatedDataUpdate {
         let aggregation = get_aggregation_number(task);
         let mut dirty_count = 0;
         let mut current_session_clean_count = 0;
-        let mut collectibles_update: Vec<_> = task.get_collectibles();
+        let mut collectibles_update: Vec<_> = task.iter_collectibles().collect();
         if is_aggregating_node(aggregation) {
             dirty_count = task
                 .get_aggregated_dirty_container_count()
@@ -2448,11 +2448,10 @@ impl AggregationUpdateQueue {
             if !is_aggregating_node(old) && is_aggregating_node(aggregation_number) {
                 // When converted from leaf to aggregating node, all children become
                 // followers
-                let children: Vec<_> = task.get_children();
+                let children: Vec<_> = task.iter_children().collect();
                 task.extend_new_internal(
                     CachedDataItemType::Follower,
-                    children
-                        .iter()
+                    task.iter_children()
                         .map(|&task| CachedDataItem::Follower { task, value: 1 }),
                 );
             }

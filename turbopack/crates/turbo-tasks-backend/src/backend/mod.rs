@@ -1913,13 +1913,13 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             let _ = task.mark_stateful();
         }
 
-        // handle has_invalidator
+        // handle invalidator flag
         if has_invalidator {
-            let _ = task.mark_has_invalidator();
+            let _ = task.mark_invalidator();
         }
 
         // handle cell counters: update max index and remove cells that are no longer used
-        let old_counters: FxHashMap<_, _> = task.get_cell_type_max_indices().into_iter().collect();
+        let old_counters: FxHashMap<_, _> = task.iter_cell_type_max_indices().collect();
         let mut counters_to_remove = old_counters.clone();
 
         task.extend_internal(
@@ -2102,7 +2102,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let mut output_dependent_tasks = SmallVec::<[_; 4]>::new();
         // When output has changed, grab the dependent tasks
         if new_output.is_some() && ctx.should_track_dependencies() {
-            output_dependent_tasks = task.get_output_dependents().into();
+            output_dependent_tasks = task.iter_output_dependents().collect();
         }
 
         drop(task);
