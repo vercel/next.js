@@ -17,7 +17,6 @@ use crate::{
         AggregationNumber, CachedDataItem, CachedDataItemKey, CachedDataItemType,
         CachedDataItemValue, CachedDataItemValueRef, CachedDataItemValueRefMut, OutputValue,
     },
-    data_storage::AutoMapStorage,
     utils::{
         dash_map_drop_contents::drop_contents,
         dash_map_multi::{RefMut, get_multiple_mut},
@@ -142,12 +141,10 @@ impl InnerStorageState {
 
 pub struct InnerStorageSnapshot {
     // Typed storage data for persistence
-    // Currently migrated: Output, AggregationNumber (in typed_meta)
+    // Currently migrated: Output, AggregationNumber, Upper (in typed_meta), OutputDependent (in
+    // typed_data)
     pub typed_data: TaskData,
     pub typed_meta: TaskMeta,
-    // Legacy specialized fields (will be migrated to typed storage)
-    output_dependent: AutoMapStorage<TaskId, ()>,
-    upper: AutoMapStorage<TaskId, u32>,
     dynamic: DynamicStorage,
     pub meta_modified: bool,
     pub data_modified: bool,
@@ -158,8 +155,6 @@ impl From<&InnerStorage> for InnerStorageSnapshot {
         Self {
             typed_data: inner.typed.data.clone(),
             typed_meta: inner.typed.meta.clone(),
-            output_dependent: inner.output_dependent.clone(),
-            upper: inner.upper.clone(),
             dynamic: inner.dynamic.snapshot_for_persisting(),
             meta_modified: inner.state.meta_modified(),
             data_modified: inner.state.data_modified(),
@@ -171,35 +166,17 @@ impl InnerStorageSnapshot {
     pub fn iter_all(
         &self,
     ) -> impl Iterator<Item = (CachedDataItemKey, CachedDataItemValueRef<'_>)> {
-        use crate::data_storage::Storage;
-        // Typed storage items (migrated fields including Output, AggregationNumber)
+        // Typed storage items (migrated fields including Output, AggregationNumber, Upper,
+        // OutputDependent)
         self.typed_data
             .iter_all()
             .chain(self.typed_meta.iter_all())
-            // Legacy specialized fields (will be removed as migration progresses)
-            .chain(self.upper.iter().map(|(k, value)| {
-                (
-                    CachedDataItemKey::Upper { task: *k },
-                    CachedDataItemValueRef::Upper { value },
-                )
-            }))
-            .chain(self.output_dependent.iter().map(|(k, value)| {
-                (
-                    CachedDataItemKey::OutputDependent { task: *k },
-                    CachedDataItemValueRef::OutputDependent { value },
-                )
-            }))
             // Dynamic storage (unmigrated CachedDataItem variants)
             .chain(self.dynamic.iter_all())
     }
 
     pub fn len(&self) -> usize {
-        use crate::data_storage::Storage;
-        self.typed_data.len()
-            + self.typed_meta.len()
-            + self.upper.len()
-            + self.output_dependent.len()
-            + self.dynamic.len()
+        self.typed_data.len() + self.typed_meta.len() + self.dynamic.len()
     }
 }
 
@@ -207,11 +184,8 @@ impl InnerStorageSnapshot {
 pub struct InnerStorage {
     // Typed storage for incremental migration
     // Fields will be migrated from dynamic -> typed one by one
-    // Currently migrated: Output, AggregationNumber
+    // Currently migrated: Output, AggregationNumber, Upper, OutputDependent
     typed: TypedStorage,
-    // Legacy specialized fields (will be migrated to typed storage)
-    output_dependent: AutoMapStorage<TaskId, ()>,
-    upper: AutoMapStorage<TaskId, u32>,
     // Dynamic storage for unmigrated CachedDataItem variants
     dynamic: DynamicStorage,
     state: InnerStorageState,
@@ -221,8 +195,6 @@ impl InnerStorage {
     fn new() -> Self {
         Self {
             typed: TypedStorage::new(),
-            output_dependent: Default::default(),
-            upper: Default::default(),
             dynamic: DynamicStorage::new(),
             state: InnerStorageState::default(),
         }
@@ -462,10 +434,9 @@ macro_rules! generate_inner_storage_internal {
 }
 
 macro_rules! generate_inner_storage {
-    ($($config:tt)*) => {
+    () => {
         impl InnerStorage {
             pub fn add(&mut self, item: CachedDataItem) -> bool {
-                use crate::data_storage::Storage;
                 // Typed storage variants (migrated) - add is needed for persistence restore
                 if let CachedDataItem::Output { value } = item {
                     return self.add_output(value);
@@ -473,13 +444,20 @@ macro_rules! generate_inner_storage {
                 if let CachedDataItem::AggregationNumber { value } = item {
                     return self.add_aggregation_number(value);
                 }
-                // Legacy specialized fields
-                $crate::generate_inner_storage_internal!(CachedDataItem: self, item, value, none, add(value): $($config)*);
+                if let CachedDataItem::Upper { task, value } = item {
+                    return self.add_upper(task, value);
+                }
+                if let CachedDataItem::OutputDependent { task, .. } = item {
+                    return self.add_output_dependent(task);
+                }
                 self.dynamic.add(item)
             }
 
-            pub fn extend(&mut self, ty: CachedDataItemType, items: impl Iterator<Item = CachedDataItem>) -> bool {
-                use crate::data_storage::Storage;
+            pub fn extend(
+                &mut self,
+                ty: CachedDataItemType,
+                items: impl Iterator<Item = CachedDataItem>,
+            ) -> bool {
                 // Typed storage variants (migrated) - extend is needed for persistence restore
                 if let CachedDataItemType::Output = ty {
                     let mut any_added = false;
@@ -499,27 +477,51 @@ macro_rules! generate_inner_storage {
                     }
                     return any_added;
                 }
-                // Legacy specialized fields
-                $crate::generate_inner_storage_internal!(extend: self, ty, items: $($config)*);
+                if let CachedDataItemType::Upper = ty {
+                    let mut any_added = false;
+                    for item in items {
+                        if let CachedDataItem::Upper { task, value } = item {
+                            any_added |= self.add_upper(task, value);
+                        }
+                    }
+                    return any_added;
+                }
+                if let CachedDataItemType::OutputDependent = ty {
+                    let mut any_added = false;
+                    for item in items {
+                        if let CachedDataItem::OutputDependent { task, .. } = item {
+                            any_added |= self.add_output_dependent(task);
+                        }
+                    }
+                    return any_added;
+                }
                 self.dynamic.extend(ty, items)
             }
 
             pub fn insert(&mut self, item: CachedDataItem) -> Option<CachedDataItemValue> {
-                use crate::data_storage::Storage;
                 // Typed storage variants - use typed accessors via TaskGuard instead
                 if matches!(item, CachedDataItem::Output { .. }) {
                     panic!("Use TaskGuard::set_output() instead of insert() for Output");
                 }
                 if matches!(item, CachedDataItem::AggregationNumber { .. }) {
-                    panic!("Use TaskGuard::set_aggregation_number() instead of insert() for AggregationNumber");
+                    panic!(
+                        "Use TaskGuard::set_aggregation_number() instead of insert() for \
+                         AggregationNumber"
+                    );
                 }
-                // Legacy specialized fields
-                $crate::generate_inner_storage_internal!(CachedDataItem: self, item, value, option_value, insert(value): $($config)*);
+                if matches!(item, CachedDataItem::Upper { .. }) {
+                    panic!("Use TaskGuard::upper_mut() instead of insert() for Upper");
+                }
+                if matches!(item, CachedDataItem::OutputDependent { .. }) {
+                    panic!(
+                        "Use TaskGuard::output_dependent_mut() instead of insert() for \
+                         OutputDependent"
+                    );
+                }
                 self.dynamic.insert(item)
             }
 
             pub fn remove(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValue> {
-                use crate::data_storage::Storage;
                 // Typed storage variants - use typed accessors via TaskGuard instead
                 if matches!(key, CachedDataItemKey::Output {}) {
                     panic!("Use typed storage accessors instead of remove() for Output");
@@ -527,13 +529,19 @@ macro_rules! generate_inner_storage {
                 if matches!(key, CachedDataItemKey::AggregationNumber {}) {
                     panic!("Use typed storage accessors instead of remove() for AggregationNumber");
                 }
-                // Legacy specialized fields
-                $crate::generate_inner_storage_internal!(CachedDataItemKey: self, key, option_value, remove(): $($config)*);
+                if matches!(key, CachedDataItemKey::Upper { .. }) {
+                    panic!("Use TaskGuard::upper_mut() instead of remove() for Upper");
+                }
+                if matches!(key, CachedDataItemKey::OutputDependent { .. }) {
+                    panic!(
+                        "Use TaskGuard::output_dependent_mut() instead of remove() for \
+                         OutputDependent"
+                    );
+                }
                 self.dynamic.remove(key)
             }
 
             pub fn count(&self, ty: CachedDataItemType) -> usize {
-                use crate::data_storage::Storage;
                 // Typed storage variants - use typed storage accessors instead
                 if matches!(ty, CachedDataItemType::Output) {
                     panic!("Use typed storage accessors instead of count() for Output");
@@ -541,61 +549,99 @@ macro_rules! generate_inner_storage {
                 if matches!(ty, CachedDataItemType::AggregationNumber) {
                     panic!("Use typed storage accessors instead of count() for AggregationNumber");
                 }
-                // Legacy specialized fields
-                $crate::generate_inner_storage_internal!(CachedDataItemType: self, ty, none, len(): $($config)*);
+                if matches!(ty, CachedDataItemType::Upper) {
+                    panic!("Use TaskGuard::upper() instead of count() for Upper");
+                }
+                if matches!(ty, CachedDataItemType::OutputDependent) {
+                    panic!(
+                        "Use TaskGuard::output_dependent() instead of count() for OutputDependent"
+                    );
+                }
                 self.dynamic.count(ty)
             }
 
             pub fn get(&self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRef<'_>> {
-                use crate::data_storage::Storage;
                 // Typed storage variants - use typed accessors via TaskGuard instead
                 if matches!(key, CachedDataItemKey::Output {}) {
                     panic!("Use TaskGuard::get_output_ref() instead of get() for Output");
                 }
                 if matches!(key, CachedDataItemKey::AggregationNumber {}) {
-                    panic!("Use TaskGuard::get_aggregation_number_ref() instead of get() for AggregationNumber");
+                    panic!(
+                        "Use TaskGuard::get_aggregation_number_ref() instead of get() for \
+                         AggregationNumber"
+                    );
                 }
-                // Legacy specialized fields
-                $crate::generate_inner_storage_internal!(CachedDataItemKey: self, key, option_ref, get(): $($config)*);
+                if matches!(key, CachedDataItemKey::Upper { .. }) {
+                    panic!("Use TaskGuard::upper() instead of get() for Upper");
+                }
+                if matches!(key, CachedDataItemKey::OutputDependent { .. }) {
+                    panic!(
+                        "Use TaskGuard::output_dependent() instead of get() for OutputDependent"
+                    );
+                }
                 self.dynamic.get(key)
             }
 
             pub fn contains_key(&self, key: &CachedDataItemKey) -> bool {
-                use crate::data_storage::Storage;
                 // Typed storage variants - use typed accessors via TaskGuard instead
                 if matches!(key, CachedDataItemKey::Output {}) {
                     panic!("Use TaskGuard::has_output() instead of contains_key() for Output");
                 }
                 if matches!(key, CachedDataItemKey::AggregationNumber {}) {
-                    panic!("Use TaskGuard::has_aggregation_number() instead of contains_key() for AggregationNumber");
+                    panic!(
+                        "Use TaskGuard::has_aggregation_number() instead of contains_key() for \
+                         AggregationNumber"
+                    );
                 }
-                // Legacy specialized fields
-                $crate::generate_inner_storage_internal!(CachedDataItemKey: self, key, none, contains_key(): $($config)*);
+                if matches!(key, CachedDataItemKey::Upper { .. }) {
+                    panic!("Use TaskGuard::upper() instead of contains_key() for Upper");
+                }
+                if matches!(key, CachedDataItemKey::OutputDependent { .. }) {
+                    panic!(
+                        "Use TaskGuard::output_dependent() instead of contains_key() for \
+                         OutputDependent"
+                    );
+                }
                 self.dynamic.contains_key(key)
             }
 
-            pub fn get_mut(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRefMut<'_>> {
-                use crate::data_storage::Storage;
+            pub fn get_mut(
+                &mut self,
+                key: &CachedDataItemKey,
+            ) -> Option<CachedDataItemValueRefMut<'_>> {
                 // Typed storage variants - use typed storage accessors instead
                 if matches!(key, CachedDataItemKey::Output {}) {
                     panic!("Use typed storage accessors instead of get_mut() for Output");
                 }
                 if matches!(key, CachedDataItemKey::AggregationNumber {}) {
-                    panic!("Use typed storage accessors instead of get_mut() for AggregationNumber");
+                    panic!(
+                        "Use typed storage accessors instead of get_mut() for AggregationNumber"
+                    );
                 }
-                // Legacy specialized fields
-                $crate::generate_inner_storage_internal!(CachedDataItemKey: self, key, option_ref_mut, get_mut(): $($config)*);
+                if matches!(key, CachedDataItemKey::Upper { .. }) {
+                    panic!("Use TaskGuard::upper_mut() instead of get_mut() for Upper");
+                }
+                if matches!(key, CachedDataItemKey::OutputDependent { .. }) {
+                    panic!(
+                        "Use TaskGuard::output_dependent_mut() instead of get_mut() for \
+                         OutputDependent"
+                    );
+                }
                 self.dynamic.get_mut(key)
             }
 
             pub fn shrink_to_fit(&mut self, ty: CachedDataItemType) {
-                use crate::data_storage::Storage;
-                // Typed storage variants don't need shrink_to_fit (fixed size)
-                if matches!(ty, CachedDataItemType::Output | CachedDataItemType::AggregationNumber) {
+                // Typed storage variants don't need shrink_to_fit (fixed size or managed
+                // separately)
+                if matches!(
+                    ty,
+                    CachedDataItemType::Output
+                        | CachedDataItemType::AggregationNumber
+                        | CachedDataItemType::Upper
+                        | CachedDataItemType::OutputDependent
+                ) {
                     return;
                 }
-                // Legacy specialized fields
-                $crate::generate_inner_storage_internal!(CachedDataItemType: self, ty, none, shrink_to_fit(): $($config)*);
                 self.dynamic.shrink_to_fit(ty)
             }
 
@@ -604,7 +650,6 @@ macro_rules! generate_inner_storage {
                 key: CachedDataItemKey,
                 update: impl FnOnce(Option<CachedDataItemValue>) -> Option<CachedDataItemValue>,
             ) {
-                use crate::data_storage::Storage;
                 // Typed storage variants - use typed storage accessors instead
                 if matches!(key, CachedDataItemKey::Output {}) {
                     panic!("Use typed storage accessors instead of update() for Output");
@@ -612,57 +657,83 @@ macro_rules! generate_inner_storage {
                 if matches!(key, CachedDataItemKey::AggregationNumber {}) {
                     panic!("Use typed storage accessors instead of update() for AggregationNumber");
                 }
-                // Legacy specialized fields
-                $crate::generate_inner_storage_internal!(update: self, key, update: $($config)*);
+                if matches!(key, CachedDataItemKey::Upper { .. }) {
+                    panic!("Use TaskGuard::upper_mut() instead of update() for Upper");
+                }
+                if matches!(key, CachedDataItemKey::OutputDependent { .. }) {
+                    panic!(
+                        "Use TaskGuard::output_dependent_mut() instead of update() for \
+                         OutputDependent"
+                    );
+                }
                 self.dynamic.update(key, update)
             }
 
             pub fn extract_if<'l, F>(
                 &'l mut self,
                 ty: CachedDataItemType,
-                mut f: F,
+                f: F,
             ) -> impl Iterator<Item = CachedDataItem> + use<'l, F>
             where
                 F: for<'a> FnMut(CachedDataItemKey, CachedDataItemValueRef<'a>) -> bool + 'l,
             {
-                use crate::data_storage::Storage;
                 // Typed storage variants - use typed storage accessors instead
                 if matches!(ty, CachedDataItemType::Output) {
                     panic!("Use typed storage accessors instead of extract_if() for Output");
                 }
                 if matches!(ty, CachedDataItemType::AggregationNumber) {
-                    panic!("Use typed storage accessors instead of extract_if() for AggregationNumber");
+                    panic!(
+                        "Use typed storage accessors instead of extract_if() for AggregationNumber"
+                    );
                 }
-                // Legacy specialized fields
-                $crate::generate_inner_storage_internal!(extract_if: self, ty, f: $($config)*);
-                InnerStorageIter::Dynamic(self.dynamic.extract_if(ty, f))
+                if matches!(ty, CachedDataItemType::Upper) {
+                    panic!("Use TaskGuard::upper_mut() instead of extract_if() for Upper");
+                }
+                if matches!(ty, CachedDataItemType::OutputDependent) {
+                    panic!(
+                        "Use TaskGuard::output_dependent_mut() instead of extract_if() for \
+                         OutputDependent"
+                    );
+                }
+                self.dynamic.extract_if(ty, f)
             }
 
             pub fn get_mut_or_insert_with(
                 &mut self,
                 key: CachedDataItemKey,
                 f: impl FnOnce() -> CachedDataItemValue,
-            ) -> CachedDataItemValueRefMut<'_>
-            {
-                use crate::data_storage::Storage;
+            ) -> CachedDataItemValueRefMut<'_> {
                 // Typed storage variants - use typed storage accessors instead
                 if matches!(key, CachedDataItemKey::Output {}) {
-                    panic!("Use typed storage accessors instead of get_mut_or_insert_with() for Output");
+                    panic!(
+                        "Use typed storage accessors instead of get_mut_or_insert_with() for \
+                         Output"
+                    );
                 }
                 if matches!(key, CachedDataItemKey::AggregationNumber {}) {
-                    panic!("Use typed storage accessors instead of get_mut_or_insert_with() for AggregationNumber");
+                    panic!(
+                        "Use typed storage accessors instead of get_mut_or_insert_with() for \
+                         AggregationNumber"
+                    );
                 }
-                // Legacy specialized fields
-                $crate::generate_inner_storage_internal!(get_mut_or_insert_with: self, key, f: $($config)*);
+                if matches!(key, CachedDataItemKey::Upper { .. }) {
+                    panic!(
+                        "Use TaskGuard::upper_mut() instead of get_mut_or_insert_with() for Upper"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::OutputDependent { .. }) {
+                    panic!(
+                        "Use TaskGuard::output_dependent_mut() instead of \
+                         get_mut_or_insert_with() for OutputDependent"
+                    );
+                }
                 self.dynamic.get_mut_or_insert_with(key, f)
             }
 
             pub fn iter(
                 &self,
                 ty: CachedDataItemType,
-            ) -> impl Iterator<Item = (CachedDataItemKey, CachedDataItemValueRef<'_>)>
-            {
-                use crate::data_storage::Storage;
+            ) -> impl Iterator<Item = (CachedDataItemKey, CachedDataItemValueRef<'_>)> {
                 // Typed storage variants - use typed storage accessors instead
                 if matches!(ty, CachedDataItemType::Output) {
                     panic!("Use typed storage accessors instead of iter() for Output");
@@ -670,19 +741,22 @@ macro_rules! generate_inner_storage {
                 if matches!(ty, CachedDataItemType::AggregationNumber) {
                     panic!("Use typed storage accessors instead of iter() for AggregationNumber");
                 }
-                // Legacy specialized fields
-                $crate::generate_inner_storage_internal!(iter: self, ty: $($config)*);
-                InnerStorageIter::Dynamic(self.dynamic.iter(ty))
+                if matches!(ty, CachedDataItemType::Upper) {
+                    panic!("Use TaskGuard::upper() instead of iter() for Upper");
+                }
+                if matches!(ty, CachedDataItemType::OutputDependent) {
+                    panic!(
+                        "Use TaskGuard::output_dependent() instead of iter() for OutputDependent"
+                    );
+                }
+                self.dynamic.iter(ty)
             }
-
         }
     };
 }
 
-generate_inner_storage!(
-    OutputDependent task => output_dependent,
-    Upper task => upper,
-);
+// No legacy specialized fields remain - all are migrated to typed storage
+generate_inner_storage!();
 
 // Typed storage methods for migrated variants
 // These add methods are needed for persistence restore via the `add` method
@@ -704,28 +778,20 @@ impl InnerStorage {
             true
         }
     }
-}
 
-enum InnerStorageIter<A, B, C> {
-    OutputDependent(A),
-    Upper(B),
-    Dynamic(C),
-}
-
-impl<T, A, B, C> Iterator for InnerStorageIter<A, B, C>
-where
-    A: Iterator<Item = T>,
-    B: Iterator<Item = T>,
-    C: Iterator<Item = T>,
-{
-    type Item = T;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self {
-            InnerStorageIter::OutputDependent(iter) => iter.next(),
-            InnerStorageIter::Upper(iter) => iter.next(),
-            InnerStorageIter::Dynamic(iter) => iter.next(),
+    fn add_upper(&mut self, task: TaskId, value: u32) -> bool {
+        use std::collections::hash_map::Entry;
+        match self.typed.meta.upper.entry(task) {
+            Entry::Occupied(_) => false,
+            Entry::Vacant(e) => {
+                e.insert(value);
+                true
+            }
         }
+    }
+
+    fn add_output_dependent(&mut self, task: TaskId) -> bool {
+        self.typed.data.output_dependent.insert(task)
     }
 }
 
@@ -733,30 +799,15 @@ impl InnerStorage {
     pub fn iter_all(
         &self,
     ) -> impl Iterator<Item = (CachedDataItemKey, CachedDataItemValueRef<'_>)> {
-        use crate::data_storage::Storage;
-        // Typed storage items (migrated fields including Output, AggregationNumber)
+        // Typed storage items (all specialized fields are now migrated)
         self.typed
             .iter_all()
-            // Legacy specialized fields (will be removed as migration progresses)
-            .chain(self.upper.iter().map(|(k, value)| {
-                (
-                    CachedDataItemKey::Upper { task: *k },
-                    CachedDataItemValueRef::Upper { value },
-                )
-            }))
-            .chain(self.output_dependent.iter().map(|(k, value)| {
-                (
-                    CachedDataItemKey::OutputDependent { task: *k },
-                    CachedDataItemValueRef::OutputDependent { value },
-                )
-            }))
             // Dynamic storage (unmigrated CachedDataItem variants)
             .chain(self.dynamic.iter_all())
     }
 
     pub fn len(&self) -> usize {
-        use crate::data_storage::Storage;
-        self.typed.len() + self.upper.len() + self.output_dependent.len() + self.dynamic.len()
+        self.typed.len() + self.dynamic.len()
     }
 }
 

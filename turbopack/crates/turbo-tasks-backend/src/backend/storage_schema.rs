@@ -71,7 +71,8 @@ pub struct TaskStorageSchema {
 
     /// Tasks that depend on this task's output.
     /// Specialized: frequently accessed during invalidation.
-    #[task_storage(storage = "auto_set", category = "data", specialized)]
+    /// Migrated: uses TaskStorageAccessors trait for typed access via TaskGuard.
+    #[task_storage(storage = "auto_set", category = "data", specialized, migrated)]
     pub output_dependent: AutoSet<TaskId>,
 
     /// The task's output value.
@@ -82,7 +83,8 @@ pub struct TaskStorageSchema {
 
     /// Upper nodes in the aggregation tree (reference counted).
     /// Specialized: frequently accessed during aggregation updates.
-    #[task_storage(storage = "counter_map", category = "meta", specialized)]
+    /// Migrated: uses TaskStorageAccessors trait for typed access via TaskGuard.
+    #[task_storage(storage = "counter_map", category = "meta", specialized, migrated)]
     pub upper: CounterMap<TaskId, u32>,
 
     // =========================================================================
