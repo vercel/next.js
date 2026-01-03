@@ -513,7 +513,6 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 env,
                 options.runtime_type,
             )
-            .source_map_source_type(turbopack_core::chunk::SourceMapSourceType::RelativeUri)
             .minify_type(options.minify_type)
             .module_merging(options.scope_hoisting)
             .export_usage(
