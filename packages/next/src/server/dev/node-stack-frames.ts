@@ -1,5 +1,7 @@
 import { parse } from 'next/dist/compiled/stacktrace-parser'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
+import path from 'path'
+import url from 'url'
 import {
   decorateServerError,
   type ErrorSourceType,
@@ -29,6 +31,25 @@ function getFilesystemFrame(frame: StackFrame): StackFrame {
   return f
 }
 
+/**
+ * Convert a file path to a path relative to the current working directory.
+ */
+function toRelativePath(filePath: string): string {
+  if (filePath.startsWith('file://')) {
+    try {
+      filePath = url.fileURLToPath(filePath)
+    } catch {
+      // Invalid file URL, use as-is
+    }
+  }
+
+  if (path.isAbsolute(filePath)) {
+    return path.relative(process.cwd(), filePath)
+  }
+
+  return filePath
+}
+
 export function getServerError(error: Error, type: ErrorSourceType): Error {
   if (error.name === 'TurbopackInternalError') {
     // If this is an internal Turbopack error we shouldn't show internal details
@@ -54,7 +75,8 @@ export function getServerError(error: Error, type: ErrorSourceType): Error {
       .map((f) => {
         let str = `    at ${f.methodName}`
         if (f.file) {
-          let loc = f.file
+          // Convert to relative path for cleaner output
+          let loc = toRelativePath(f.file)
           if (f.lineNumber) {
             loc += `:${f.lineNumber}`
             if (f.column) {

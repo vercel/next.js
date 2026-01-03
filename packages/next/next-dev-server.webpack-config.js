@@ -194,6 +194,8 @@ module.exports = ({ dev }) => {
       path: path.join(__dirname, 'dist/compiled/dev-server'),
       filename: '[name].js',
       libraryTarget: 'commonjs2',
+      // Use absolute paths in source maps so error formatting can compute correct relative paths
+      devtoolModuleFilenameTemplate: '[absolute-resource-path]',
     },
     devtool: 'source-map',
     optimization: {
