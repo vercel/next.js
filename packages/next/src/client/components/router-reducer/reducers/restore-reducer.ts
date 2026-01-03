@@ -1,4 +1,3 @@
-import { createHrefFromUrl } from '../create-href-from-url'
 import type {
   ReadonlyReducerState,
   ReducerState,
@@ -12,9 +11,11 @@ import {
   type NavigationRequestAccumulation,
 } from '../ppr-navigations'
 import type { FlightRouterState } from '../../../../shared/lib/app-router-types'
-import { handleExternalUrl } from './navigate-reducer'
-import type { Mutable } from '../router-reducer-types'
-import { convertServerPatchToFullTree } from '../../segment-cache/navigation'
+import {
+  completeHardNavigation,
+  completeTraverseNavigation,
+  convertServerPatchToFullTree,
+} from '../../segment-cache/navigation'
 
 export function restoreReducer(
   state: ReadonlyReducerState,
@@ -39,7 +40,6 @@ export function restoreReducer(
 
   const currentUrl = new URL(state.canonicalUrl, location.origin)
   const restoredUrl = action.url
-  const restoredCanonicalUrl = createHrefFromUrl(restoredUrl)
   const restoredNextUrl =
     extractPathFromFlightRouterState(treeToRestore) ?? restoredUrl.pathname
 
@@ -69,12 +69,8 @@ export function restoreReducer(
   )
 
   if (task === null) {
-    const mutable: Mutable = {
-      preserveCustomHistoryState: true,
-    }
-    return handleExternalUrl(state, mutable, restoredCanonicalUrl, false)
+    return completeHardNavigation(state, restoredUrl, 'replace')
   }
-
   spawnDynamicRequests(
     task,
     restoredUrl,
@@ -82,27 +78,12 @@ export function restoreReducer(
     FreshnessPolicy.HistoryTraversal,
     accumulation
   )
-
-  return {
-    // Set canonical url
-    canonicalUrl: restoredCanonicalUrl,
+  return completeTraverseNavigation(
+    state,
+    restoredUrl,
     renderedSearch,
-    pushRef: {
-      pendingPush: false,
-      mpaNavigation: false,
-      // Ensures that the custom history state that was set is preserved when applying this update.
-      preserveCustomHistoryState: true,
-    },
-    focusAndScrollRef: state.focusAndScrollRef,
-    cache: task.node,
-    // Restore provided tree
-    tree: task.route,
-
-    nextUrl: restoredNextUrl,
-    // TODO: We need to restore previousNextUrl, too, which represents the
-    // Next-Url that was used to fetch the data. Anywhere we fetch using the
-    // canonical URL, there should be a corresponding Next-Url.
-    previousNextUrl: null,
-    debugInfo: null,
-  }
+    task.node,
+    task.route,
+    restoredNextUrl
+  )
 }
