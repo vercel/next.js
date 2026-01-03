@@ -28,6 +28,7 @@ use crate::{
     backend::{
         TaskDataCategory,
         operation::{ExecuteContext, Operation, TaskGuard, invalidate::make_task_dirty},
+        storage_schema::TaskStorageAccessors,
     },
     data::{
         ActivenessState, AggregationNumber, CachedDataItem, CachedDataItemType, CollectibleRef,

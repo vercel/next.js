@@ -65,7 +65,8 @@ pub struct TaskStorageSchema {
     // =========================================================================
     /// The task's aggregation number for the aggregation tree.
     /// Specialized: frequently accessed during aggregation operations.
-    #[task_storage(storage = "direct", category = "meta", specialized)]
+    /// Migrated: uses TaskStorageAccessors trait for typed access via TaskGuard.
+    #[task_storage(storage = "direct", category = "meta", specialized, migrated)]
     pub aggregation_number: Option<AggregationNumber>,
 
     /// Tasks that depend on this task's output.
