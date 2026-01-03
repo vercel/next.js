@@ -7020,7 +7020,6 @@
       "runtime prefetching in a private cache includes headers, but not dynamic content",
       "runtime prefetching in a private cache includes root params, but not dynamic content",
       "runtime prefetching in a private cache includes search params, but not dynamic content",
-      "runtime prefetching passed to a public cache can completely prefetch a page that uses cookies and no uncached IO",
       "runtime prefetching passed to a public cache includes cookies, but not dynamic content",
       "runtime prefetching passed to a public cache includes dynamic params, but not dynamic content",
       "runtime prefetching passed to a public cache includes headers, but not dynamic content",
@@ -7030,7 +7029,9 @@
       "runtime prefetching should not cache runtime prefetch responses in the browser cache or server-side different cookies should return different prefetch results - in a private cache",
       "runtime prefetching should not cache runtime prefetch responses in the browser cache or server-side private caches should return new results on each request"
     ],
-    "failed": [],
+    "failed": [
+      "runtime prefetching passed to a public cache can completely prefetch a page that uses cookies and no uncached IO"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -22153,6 +22154,15 @@
   },
   "test/production/typescript-basic/typechecking.test.ts": {
     "passed": ["typechecking should typecheck"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/typescript-build-output/typescript-build-output.test.ts": {
+    "passed": [
+      "typescript-build-output should show \"Finished TypeScript\" message in build output"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
