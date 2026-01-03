@@ -1,3 +1,6 @@
+# Enforce LF line endings for all text files (fixes Windows CRLF test flakiness)
+* text=auto eol=lf
+
 .github/actions/*/dist/** -text linguist-vendored
 packages/next/bundles/** -text linguist-vendored
 packages/next/compiled/** -text linguist-vendored
