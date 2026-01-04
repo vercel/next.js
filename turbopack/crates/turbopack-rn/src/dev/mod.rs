@@ -1,7 +1,7 @@
 use std::{env::current_dir, future::Future, net::SocketAddr, path::PathBuf, pin::Pin, sync::Arc};
 
 use anyhow::{Context, Error, Result};
-use futures::{SinkExt, StreamExt};
+use futures::StreamExt;
 use http_body_util::{BodyExt, Empty, Full, combinators::BoxBody};
 use hyper::{
     Method, Response, StatusCode,
@@ -175,6 +175,21 @@ impl Svc {
                 return Ok(res);
             }
             (&Method::GET, "/message") => {
+                // Check if the request is a websocket upgrade request.
+                if hyper_tungstenite::is_upgrade_request(&req) {
+                    let (response, websocket) = hyper_tungstenite::upgrade(&mut req, None).unwrap();
+
+                    // Spawn a task to handle the websocket connection.
+                    tokio::spawn(async move {
+                        if let Err(e) = serve_websocket(websocket).await {
+                            eprintln!("Error in websocket connection: {e}");
+                        }
+                    });
+
+                    return Ok(response.map(|b| BoxBody::new(b.map_err(|never| match never {}))));
+                }
+            }
+            (&Method::GET, "/hot") => {
                 // Check if the request is a websocket upgrade request.
                 if hyper_tungstenite::is_upgrade_request(&req) {
                     let (response, websocket) = hyper_tungstenite::upgrade(&mut req, None).unwrap();
@@ -416,7 +431,7 @@ impl Svc {
                         "userInterfaceStyle": "automatic",
                         "newArchEnabled": true,
                         "scheme": "myexpoapp",
-                        "ios": { "supportsTablet": true, "xbundler": "webpack" },
+                        "ios": { "supportsTablet": true, "bundler": "webpack" },
                         "android": {
                         "adaptiveIcon": {
                             "foregroundImage": "src/assets/images/adaptive-icon.png",
@@ -626,15 +641,15 @@ async fn serve_websocket(websocket: HyperWebsocket) -> Result<(), Error> {
         match message? {
             Message::Text(msg) => {
                 println!("Received text message: {msg}");
-                websocket
-                    .send(Message::text("Thank you, come again."))
-                    .await?;
+                // websocket
+                //     .send(Message::text("Thank you, come again."))
+                //     .await?;
             }
             Message::Binary(msg) => {
                 println!("Received binary message: {msg:02X?}");
-                websocket
-                    .send(Message::binary(b"Thank you, come again.".to_vec()))
-                    .await?;
+                // websocket
+                //     .send(Message::binary(b"Thank you, come again.".to_vec()))
+                //     .await?;
             }
             Message::Ping(msg) => {
                 // No need to send a reply: tungstenite takes care of this for you.
