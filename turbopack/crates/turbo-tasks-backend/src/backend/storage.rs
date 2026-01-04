@@ -6,7 +6,9 @@ use std::{
 
 use bitfield::bitfield;
 use smallvec::SmallVec;
-use turbo_tasks::{CellId, FxDashMap, TaskId, TypedSharedReference, ValueTypeId, parallel};
+use turbo_tasks::{
+    CellId, FxDashMap, TaskId, TraitTypeId, TypedSharedReference, ValueTypeId, parallel,
+};
 
 use crate::{
     backend::{
@@ -492,6 +494,19 @@ macro_rules! generate_inner_storage {
                 if let CachedDataItem::CellTypeMaxIndex { cell_type, value } = item {
                     return self.add_cell_type_max_index(cell_type, value);
                 }
+                // Cell dependents group (migrated)
+                if let CachedDataItem::CellDependent { cell, task, .. } = item {
+                    return self.add_cell_dependent(cell, task);
+                }
+                // Collectibles dependents group (migrated)
+                if let CachedDataItem::CollectiblesDependent {
+                    collectible_type,
+                    task,
+                    ..
+                } = item
+                {
+                    return self.add_collectibles_dependent(collectible_type, task);
+                }
                 self.dynamic.add(item)
             }
 
@@ -651,6 +666,31 @@ macro_rules! generate_inner_storage {
                     }
                     return all_new;
                 }
+                // Cell dependents group (migrated)
+                if let CachedDataItemType::CellDependent = ty {
+                    let mut all_new = true;
+                    for item in items {
+                        if let CachedDataItem::CellDependent { cell, task, .. } = item {
+                            all_new &= self.add_cell_dependent(cell, task);
+                        }
+                    }
+                    return all_new;
+                }
+                // Collectibles dependents group (migrated)
+                if let CachedDataItemType::CollectiblesDependent = ty {
+                    let mut all_new = true;
+                    for item in items {
+                        if let CachedDataItem::CollectiblesDependent {
+                            collectible_type,
+                            task,
+                            ..
+                        } = item
+                        {
+                            all_new &= self.add_collectibles_dependent(collectible_type, task);
+                        }
+                    }
+                    return all_new;
+                }
                 self.dynamic.extend(ty, items)
             }
 
@@ -765,6 +805,20 @@ macro_rules! generate_inner_storage {
                          CellTypeMaxIndex"
                     );
                 }
+                // Cell dependents group (migrated)
+                if matches!(item, CachedDataItem::CellDependent { .. }) {
+                    panic!(
+                        "Use TaskGuard::cell_dependents_mut() instead of insert() for \
+                         CellDependent"
+                    );
+                }
+                // Collectibles dependents group (migrated)
+                if matches!(item, CachedDataItem::CollectiblesDependent { .. }) {
+                    panic!(
+                        "Use TaskGuard::collectibles_dependents_mut() instead of insert() for \
+                         CollectiblesDependent"
+                    );
+                }
                 self.dynamic.insert(item)
             }
 
@@ -876,6 +930,20 @@ macro_rules! generate_inner_storage {
                          CellTypeMaxIndex"
                     );
                 }
+                // Cell dependents group (migrated)
+                if matches!(key, CachedDataItemKey::CellDependent { .. }) {
+                    panic!(
+                        "Use TaskGuard::cell_dependents_mut() instead of remove() for \
+                         CellDependent"
+                    );
+                }
+                // Collectibles dependents group (migrated)
+                if matches!(key, CachedDataItemKey::CollectiblesDependent { .. }) {
+                    panic!(
+                        "Use TaskGuard::collectibles_dependents_mut() instead of remove() for \
+                         CollectiblesDependent"
+                    );
+                }
                 self.dynamic.remove(key)
             }
 
@@ -984,6 +1052,17 @@ macro_rules! generate_inner_storage {
                     panic!(
                         "Use TaskGuard::cell_type_max_index() instead of count() for \
                          CellTypeMaxIndex"
+                    );
+                }
+                // Cell dependents group (migrated)
+                if matches!(ty, CachedDataItemType::CellDependent) {
+                    panic!("Use TaskGuard::cell_dependents() instead of count() for CellDependent");
+                }
+                // Collectibles dependents group (migrated)
+                if matches!(ty, CachedDataItemType::CollectiblesDependent) {
+                    panic!(
+                        "Use TaskGuard::collectibles_dependents() instead of count() for \
+                         CollectiblesDependent"
                     );
                 }
                 self.dynamic.count(ty)
@@ -1097,6 +1176,17 @@ macro_rules! generate_inner_storage {
                     panic!(
                         "Use TaskGuard::cell_type_max_index() instead of get() for \
                          CellTypeMaxIndex"
+                    );
+                }
+                // Cell dependents group (migrated)
+                if matches!(key, CachedDataItemKey::CellDependent { .. }) {
+                    panic!("Use TaskGuard::cell_dependents() instead of get() for CellDependent");
+                }
+                // Collectibles dependents group (migrated)
+                if matches!(key, CachedDataItemKey::CollectiblesDependent { .. }) {
+                    panic!(
+                        "Use TaskGuard::collectibles_dependents() instead of get() for \
+                         CollectiblesDependent"
                     );
                 }
                 self.dynamic.get(key)
@@ -1218,6 +1308,20 @@ macro_rules! generate_inner_storage {
                          CellTypeMaxIndex"
                     );
                 }
+                // Cell dependents group (migrated)
+                if matches!(key, CachedDataItemKey::CellDependent { .. }) {
+                    panic!(
+                        "Use TaskGuard::cell_dependents() instead of contains_key() for \
+                         CellDependent"
+                    );
+                }
+                // Collectibles dependents group (migrated)
+                if matches!(key, CachedDataItemKey::CollectiblesDependent { .. }) {
+                    panic!(
+                        "Use TaskGuard::collectibles_dependents() instead of contains_key() for \
+                         CollectiblesDependent"
+                    );
+                }
                 self.dynamic.contains_key(key)
             }
 
@@ -1333,6 +1437,20 @@ macro_rules! generate_inner_storage {
                          CellTypeMaxIndex"
                     );
                 }
+                // Cell dependents group (migrated)
+                if matches!(key, CachedDataItemKey::CellDependent { .. }) {
+                    panic!(
+                        "Use TaskGuard::cell_dependents_mut() instead of get_mut() for \
+                         CellDependent"
+                    );
+                }
+                // Collectibles dependents group (migrated)
+                if matches!(key, CachedDataItemKey::CollectiblesDependent { .. }) {
+                    panic!(
+                        "Use TaskGuard::collectibles_dependents_mut() instead of get_mut() for \
+                         CollectiblesDependent"
+                    );
+                }
                 self.dynamic.get_mut(key)
             }
 
@@ -1362,6 +1480,8 @@ macro_rules! generate_inner_storage {
                         | CachedDataItemType::CellData
                         | CachedDataItemType::TransientCellData
                         | CachedDataItemType::CellTypeMaxIndex
+                        | CachedDataItemType::CellDependent
+                        | CachedDataItemType::CollectiblesDependent
                 ) {
                     return;
                 }
@@ -1475,6 +1595,20 @@ macro_rules! generate_inner_storage {
                     panic!(
                         "Use TaskGuard::cell_type_max_index_mut() instead of update() for \
                          CellTypeMaxIndex"
+                    );
+                }
+                // Cell dependents group (migrated)
+                if matches!(key, CachedDataItemKey::CellDependent { .. }) {
+                    panic!(
+                        "Use TaskGuard::cell_dependents_mut() instead of update() for \
+                         CellDependent"
+                    );
+                }
+                // Collectibles dependents group (migrated)
+                if matches!(key, CachedDataItemKey::CollectiblesDependent { .. }) {
+                    panic!(
+                        "Use TaskGuard::collectibles_dependents_mut() instead of update() for \
+                         CollectiblesDependent"
                     );
                 }
                 self.dynamic.update(key, update)
@@ -1597,6 +1731,20 @@ macro_rules! generate_inner_storage {
                     panic!(
                         "Use TaskGuard::cell_type_max_index_mut() instead of extract_if() for \
                          CellTypeMaxIndex"
+                    );
+                }
+                // Cell dependents group (migrated)
+                if matches!(ty, CachedDataItemType::CellDependent) {
+                    panic!(
+                        "Use TaskGuard::cell_dependents_mut() instead of extract_if() for \
+                         CellDependent"
+                    );
+                }
+                // Collectibles dependents group (migrated)
+                if matches!(ty, CachedDataItemType::CollectiblesDependent) {
+                    panic!(
+                        "Use TaskGuard::collectibles_dependents_mut() instead of extract_if() for \
+                         CollectiblesDependent"
                     );
                 }
                 self.dynamic.extract_if(ty, f)
@@ -1743,6 +1891,20 @@ macro_rules! generate_inner_storage {
                          get_mut_or_insert_with() for CellTypeMaxIndex"
                     );
                 }
+                // Cell dependents group (migrated)
+                if matches!(key, CachedDataItemKey::CellDependent { .. }) {
+                    panic!(
+                        "Use TaskGuard::cell_dependents_mut() instead of get_mut_or_insert_with() \
+                         for CellDependent"
+                    );
+                }
+                // Collectibles dependents group (migrated)
+                if matches!(key, CachedDataItemKey::CollectiblesDependent { .. }) {
+                    panic!(
+                        "Use TaskGuard::collectibles_dependents_mut() instead of \
+                         get_mut_or_insert_with() for CollectiblesDependent"
+                    );
+                }
                 self.dynamic.get_mut_or_insert_with(key, f)
             }
 
@@ -1849,6 +2011,17 @@ macro_rules! generate_inner_storage {
                     panic!(
                         "Use TaskGuard::cell_type_max_index() instead of iter() for \
                          CellTypeMaxIndex"
+                    );
+                }
+                // Cell dependents group (migrated)
+                if matches!(ty, CachedDataItemType::CellDependent) {
+                    panic!("Use TaskGuard::cell_dependents() instead of iter() for CellDependent");
+                }
+                // Collectibles dependents group (migrated)
+                if matches!(ty, CachedDataItemType::CollectiblesDependent) {
+                    panic!(
+                        "Use TaskGuard::collectibles_dependents() instead of iter() for \
+                         CollectiblesDependent"
                     );
                 }
                 self.dynamic.iter(ty)
@@ -2023,6 +2196,34 @@ impl InnerStorage {
         let was_new = !group.cell_type_max_index.contains_key(&cell_type);
         group.cell_type_max_index.insert(cell_type, value);
         was_new
+    }
+
+    // Cell dependents group (migrated)
+    fn add_cell_dependent(&mut self, cell: CellId, task: TaskId) -> bool {
+        // cell_dependents is AutoMap<CellId, FxHashSet<TaskId>>
+        // We need to get or create the set for this cell, then insert the task
+        let group = self
+            .typed
+            .data
+            .cell_dependents
+            .get_or_insert_with(Default::default);
+        group.cell_dependents.entry(cell).or_default().insert(task)
+    }
+
+    // Collectibles dependents group (migrated)
+    fn add_collectibles_dependent(&mut self, collectible_type: TraitTypeId, task: TaskId) -> bool {
+        // collectibles_dependents is AutoMap<TraitTypeId, FxHashSet<TaskId>>
+        // We need to get or create the set for this collectible_type, then insert the task
+        let group = self
+            .typed
+            .meta
+            .collectibles_dependents
+            .get_or_insert_with(Default::default);
+        group
+            .collectibles_dependents
+            .entry(collectible_type)
+            .or_default()
+            .insert(task)
     }
 }
 

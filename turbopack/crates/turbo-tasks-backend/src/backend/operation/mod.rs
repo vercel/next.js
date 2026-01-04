@@ -540,51 +540,36 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     fn add_output_dependent(&mut self, task: TaskId) -> bool;
 
     // ============ Typed CellDependent APIs ============
+    // cell_dependents is a migrated auto_map: AutoMap<CellId, FxHashSet<TaskId>>
 
     /// Remove a cell dependent from this task
     /// Returns true if the dependent was present and removed
-    fn remove_cell_dependent(&mut self, cell: CellId, task: TaskId) -> bool {
-        self.remove_internal(&CachedDataItemKey::CellDependent { cell, task })
-            .is_some()
-    }
+    /// Uses typed storage directly - cell_dependents is a migrated auto_map
+    fn remove_cell_dependent(&mut self, cell: CellId, task: TaskId) -> bool;
 
     /// Add a cell dependent to this task
     /// Returns true if the dependent was newly added, false if it already existed
+    /// Uses typed storage directly - cell_dependents is a migrated auto_map
     #[must_use]
-    fn add_cell_dependent(&mut self, cell: CellId, task: TaskId) -> bool {
-        self.add_internal(CachedDataItem::CellDependent {
-            cell,
-            task,
-            value: (),
-        })
-    }
+    fn add_cell_dependent(&mut self, cell: CellId, task: TaskId) -> bool;
 
     // ============ Typed CollectiblesDependent APIs ============
+    // collectibles_dependents is a migrated auto_map: AutoMap<TraitTypeId, FxHashSet<TaskId>>
 
     /// Remove a collectibles dependent from this task
     /// Returns true if the dependent was present and removed
+    /// Uses typed storage directly - collectibles_dependents is a migrated auto_map
     fn remove_collectibles_dependent(
         &mut self,
         collectible_type: TraitTypeId,
         task: TaskId,
-    ) -> bool {
-        self.remove_internal(&CachedDataItemKey::CollectiblesDependent {
-            collectible_type,
-            task,
-        })
-        .is_some()
-    }
+    ) -> bool;
 
     /// Add a collectibles dependent to this task
     /// Returns true if the dependent was newly added, false if it already existed
+    /// Uses typed storage directly - collectibles_dependents is a migrated auto_map
     #[must_use]
-    fn add_collectibles_dependent(&mut self, collectible_type: TraitTypeId, task: TaskId) -> bool {
-        self.add_internal(CachedDataItem::CollectiblesDependent {
-            collectible_type,
-            task,
-            value: (),
-        })
-    }
+    fn add_collectibles_dependent(&mut self, collectible_type: TraitTypeId, task: TaskId) -> bool;
 
     // ============ Typed CollectiblesDependency APIs ============
 
@@ -1471,24 +1456,22 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     }
 
     /// Iterate over all cell dependents, returning (cell, task) pairs
+    /// Uses typed storage directly - cell_dependents is a migrated auto_map
     fn iter_cell_dependents(&self) -> impl Iterator<Item = (CellId, TaskId)> + '_ {
-        self.iter_internal(CachedDataItemType::CellDependent)
-            .filter_map(|(key, _)| match key {
-                CachedDataItemKey::CellDependent { cell, task } => Some((cell, task)),
-                _ => None,
-            })
+        self.cell_dependents().into_iter().flat_map(|map| {
+            map.iter()
+                .flat_map(|(&cell, set)| set.iter().map(move |&task| (cell, task)))
+        })
     }
 
     /// Iterate over all collectibles dependents, returning (collectible_type, task) pairs
+    /// Uses typed storage directly - collectibles_dependents is a migrated auto_map
     fn iter_collectibles_dependents(&self) -> impl Iterator<Item = (TraitTypeId, TaskId)> + '_ {
-        self.iter_internal(CachedDataItemType::CollectiblesDependent)
-            .filter_map(|(key, _)| match key {
-                CachedDataItemKey::CollectiblesDependent {
-                    collectible_type,
-                    task,
-                } => Some((collectible_type, task)),
-                _ => None,
+        self.collectibles_dependents().into_iter().flat_map(|map| {
+            map.iter().flat_map(|(&collectible_type, set)| {
+                set.iter().map(move |&task| (collectible_type, task))
             })
+        })
     }
 
     /// Iterate over all collectibles with their counts
@@ -1964,6 +1947,100 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
             self.task.track_modification(SpecificTaskDataCategory::Data);
         }
         self.output_dependent_mut().remove(&task)
+    }
+
+    fn add_cell_dependent(&mut self, cell: CellId, task: TaskId) -> bool {
+        // Uses typed storage directly - cell_dependents is a migrated auto_map
+        self.check_access(TaskDataCategory::Data);
+        // Check if already exists before tracking modification
+        if self
+            .cell_dependents()
+            .is_some_and(|m| m.get(&cell).is_some_and(|s| s.contains(&task)))
+        {
+            return false;
+        }
+        if !self.task_id.is_transient() {
+            self.task.track_modification(SpecificTaskDataCategory::Data);
+        }
+        self.cell_dependents_mut()
+            .entry(cell)
+            .or_default()
+            .insert(task)
+    }
+
+    fn remove_cell_dependent(&mut self, cell: CellId, task: TaskId) -> bool {
+        // Uses typed storage directly - cell_dependents is a migrated auto_map
+        self.check_access(TaskDataCategory::Data);
+        // Check if exists before tracking modification
+        let exists = self
+            .cell_dependents()
+            .is_some_and(|m| m.get(&cell).is_some_and(|s| s.contains(&task)));
+        if !exists {
+            return false;
+        }
+        if !self.task_id.is_transient() {
+            self.task.track_modification(SpecificTaskDataCategory::Data);
+        }
+        let map = self.cell_dependents_mut();
+        if let Some(set) = map.get_mut(&cell) {
+            let removed = set.remove(&task);
+            // Clean up empty sets
+            if set.is_empty() {
+                map.remove(&cell);
+            }
+            removed
+        } else {
+            false
+        }
+    }
+
+    fn add_collectibles_dependent(&mut self, collectible_type: TraitTypeId, task: TaskId) -> bool {
+        // Uses typed storage directly - collectibles_dependents is a migrated auto_map
+        self.check_access(TaskDataCategory::Meta);
+        // Check if already exists before tracking modification
+        if self
+            .collectibles_dependents()
+            .is_some_and(|m| m.get(&collectible_type).is_some_and(|s| s.contains(&task)))
+        {
+            return false;
+        }
+        if !self.task_id.is_transient() {
+            self.task.track_modification(SpecificTaskDataCategory::Meta);
+        }
+        self.collectibles_dependents_mut()
+            .entry(collectible_type)
+            .or_default()
+            .insert(task)
+    }
+
+    fn remove_collectibles_dependent(
+        &mut self,
+        collectible_type: TraitTypeId,
+        task: TaskId,
+    ) -> bool {
+        // Uses typed storage directly - collectibles_dependents is a migrated auto_map
+        self.check_access(TaskDataCategory::Meta);
+        // Check if exists before tracking modification
+        let exists = self
+            .collectibles_dependents()
+            .is_some_and(|m| m.get(&collectible_type).is_some_and(|s| s.contains(&task)));
+        if !exists {
+            return false;
+        }
+        if !self.task_id.is_transient() {
+            self.task.track_modification(SpecificTaskDataCategory::Meta);
+        }
+        let map = self.collectibles_dependents_mut();
+        if let Some(set) = map.get_mut(&collectible_type) {
+            let removed = set.remove(&task);
+            // Clean up empty sets
+            if set.is_empty() {
+                map.remove(&collectible_type);
+            }
+            removed
+        } else {
+            false
+        }
     }
 }
 

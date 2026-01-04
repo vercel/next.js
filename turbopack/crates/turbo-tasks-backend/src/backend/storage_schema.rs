@@ -256,6 +256,7 @@ pub struct TaskStorageSchema {
 
     // =========================================================================
     // DEPENDENTS GROUP (data, lazy) - Tasks that depend on this task's cells
+    // Migrated: uses TaskStorageAccessors trait for typed access via TaskGuard.
     // =========================================================================
     /// Tasks that depend on specific cells of this task.
     /// Maps CellId -> Set<TaskId>
@@ -263,7 +264,8 @@ pub struct TaskStorageSchema {
         storage = "auto_map",
         category = "data",
         group = "cell_dependents",
-        lazy
+        lazy,
+        migrated
     )]
     pub cell_dependents: AutoMap<CellId, FxHashSet<TaskId>>,
 
@@ -273,7 +275,8 @@ pub struct TaskStorageSchema {
         storage = "auto_map",
         category = "meta",
         group = "collectibles_dependents",
-        lazy
+        lazy,
+        migrated
     )]
     pub collectibles_dependents: AutoMap<TraitTypeId, FxHashSet<TaskId>>,
 
@@ -392,9 +395,26 @@ impl TaskData {
             })
         });
 
+        // Cell dependents group (lazy) - map of CellId -> Set<TaskId>
+        // Need to expand this to individual (cell, task) pairs for persistence
+        let cell_dependents_iter = self.cell_dependents.as_ref().into_iter().flat_map(|group| {
+            group.cell_dependents.iter().flat_map(|(cell, tasks)| {
+                tasks.iter().map(move |task| {
+                    (
+                        CachedDataItemKey::CellDependent {
+                            cell: *cell,
+                            task: *task,
+                        },
+                        CachedDataItemValueRef::CellDependent { value: &() },
+                    )
+                })
+            })
+        });
+
         output_dependent_iter
             .chain(cell_data_iter)
             .chain(cell_type_max_index_iter)
+            .chain(cell_dependents_iter)
         // TODO: Add remaining data fields as they are migrated
     }
 
@@ -406,6 +426,14 @@ impl TaskData {
             count += group.cell_data.len();
             // Note: transient_cell_data is transient
             count += group.cell_type_max_index.len();
+        }
+        // Cell dependents group (lazy) - count individual (cell, task) pairs
+        if let Some(ref group) = self.cell_dependents {
+            count += group
+                .cell_dependents
+                .values()
+                .map(|set| set.len())
+                .sum::<usize>();
         }
         // TODO: Add remaining data fields as they are migrated
         count
@@ -584,6 +612,29 @@ impl TaskMeta {
             })
         });
 
+        // Collectibles dependents group (lazy) - map of TraitTypeId -> Set<TaskId>
+        // Need to expand this to individual (collectible_type, task) pairs for persistence
+        let collectibles_dependents_iter = self
+            .collectibles_dependents
+            .as_ref()
+            .into_iter()
+            .flat_map(|group| {
+                group
+                    .collectibles_dependents
+                    .iter()
+                    .flat_map(|(collectible_type, tasks)| {
+                        tasks.iter().map(move |task| {
+                            (
+                                CachedDataItemKey::CollectiblesDependent {
+                                    collectible_type: *collectible_type,
+                                    task: *task,
+                                },
+                                CachedDataItemValueRef::CollectiblesDependent { value: &() },
+                            )
+                        })
+                    })
+            });
+
         aggregation_number_iter
             .chain(output_iter)
             .chain(upper_iter)
@@ -597,6 +648,7 @@ impl TaskMeta {
             .chain(aggregated_collectibles_iter)
             .chain(children_iter)
             .chain(followers_iter)
+            .chain(collectibles_dependents_iter)
         // TODO: Add remaining meta fields as they are migrated
     }
 
@@ -639,6 +691,14 @@ impl TaskMeta {
         if let Some(ref group) = self.aggregation {
             count += group.children.len();
             count += group.followers.len();
+        }
+        // Collectibles dependents group (lazy) - count individual (collectible_type, task) pairs
+        if let Some(ref group) = self.collectibles_dependents {
+            count += group
+                .collectibles_dependents
+                .values()
+                .map(|set| set.len())
+                .sum::<usize>();
         }
         // TODO: Add remaining meta fields as they are migrated
         count
