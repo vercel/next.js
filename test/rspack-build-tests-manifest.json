@@ -22158,6 +22158,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/production/typescript-build-output/typescript-build-output.test.ts": {
+    "passed": [
+      "typescript-build-output should show \"Finished TypeScript\" message in build output"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/production/typescript-checked-side-effect-imports/index.test.ts": {
     "passed": [
       "Imports of server/client-only with noUncheckedSideEffectImports Should build without typescript errors"
