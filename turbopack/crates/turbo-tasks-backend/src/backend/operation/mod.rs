@@ -673,12 +673,34 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     /// state transitions where crossing zero indicates a significant change.
     #[must_use]
     fn update_upper_count(&mut self, task: TaskId, delta: u32) -> bool {
-        update_count!(self, Upper { task }, delta)
+        use std::collections::hash_map::Entry;
+        let map = self.upper_mut();
+        match map.entry(task) {
+            Entry::Occupied(mut e) => {
+                let old = *e.get();
+                let new = old.wrapping_add(delta);
+                let state_change = old == 0 || new == 0;
+                if new == 0 {
+                    e.remove();
+                } else {
+                    *e.get_mut() = new;
+                }
+                state_change
+            }
+            Entry::Vacant(e) => {
+                if delta != 0 {
+                    e.insert(delta);
+                    true
+                } else {
+                    false
+                }
+            }
+        }
     }
 
     /// Remove an Upper entry for a task, returning the count if present
     fn remove_upper(&mut self, task: TaskId) -> Option<u32> {
-        remove!(self, Upper { task })
+        self.upper_mut().remove(&task)
     }
 
     /// Update an Upper entry for a task with a closure
@@ -686,7 +708,24 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     where
         F: FnOnce(Option<u32>) -> Option<u32>,
     {
-        update!(self, Upper { task }, f)
+        use std::collections::hash_map::Entry;
+        let map = self.upper_mut();
+        match map.entry(task) {
+            Entry::Occupied(mut e) => {
+                let old = Some(*e.get());
+                match f(old) {
+                    Some(new) => *e.get_mut() = new,
+                    None => {
+                        e.remove();
+                    }
+                }
+            }
+            Entry::Vacant(e) => {
+                if let Some(new) = f(None) {
+                    e.insert(new);
+                }
+            }
+        }
     }
 
     /// Add a new Upper entry (used when adding new uppers)
@@ -695,7 +734,9 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     ///
     /// Panics if the entry already exists.
     fn add_upper(&mut self, task: TaskId, count: u32) {
-        self.add_new_internal(CachedDataItem::Upper { task, value: count })
+        let map = self.upper_mut();
+        let old = map.insert(task, count);
+        assert!(old.is_none(), "Upper entry for {task:?} already exists");
     }
 
     /// Update a Follower counter for a task by the given delta.
@@ -907,17 +948,17 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
 
     /// Get current session clean marker
     fn get_current_session_clean(&self) -> Option<()> {
-        get!(self, CurrentSessionClean).map(|_| ())
+        self.get_current_session_clean_ref().map(|_| ())
     }
 
     /// Get transient cell data for a specific cell
     fn get_transient_cell_data(&self, cell: CellId) -> Option<&SharedReference> {
-        get!(self, TransientCellData { cell })
+        self.transient_cell_data().and_then(|map| map.get(&cell))
     }
 
     /// Get aggregated dirty container count
     fn get_aggregated_dirty_container_count(&self) -> Option<&i32> {
-        get!(self, AggregatedDirtyContainerCount)
+        self.get_aggregated_dirty_container_count_ref()
     }
 
     /// Update aggregated dirty container count by the given delta and return the new count.
@@ -925,11 +966,21 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     /// Unlike `update_*_count` methods which return a bool indicating zero-crossing,
     /// this method returns the actual new count value after the update.
     fn update_and_get_aggregated_dirty_container_count(&mut self, delta: i32) -> i32 {
-        update_count_and_get!(self, AggregatedDirtyContainerCount, delta)
+        let old = self
+            .get_aggregated_dirty_container_count_ref()
+            .copied()
+            .unwrap_or(0);
+        let new = old + delta;
+        if new == 0 {
+            self.take_aggregated_dirty_container_count();
+        } else {
+            self.set_aggregated_dirty_container_count(new);
+        }
+        new
     }
     /// Get aggregated current session clean container count
     fn get_aggregated_current_session_clean_container_count(&self) -> Option<&i32> {
-        get!(self, AggregatedCurrentSessionCleanContainerCount)
+        self.get_aggregated_current_session_clean_container_count_ref()
     }
 
     /// Update aggregated current session clean container count by the given delta and return the
@@ -941,12 +992,22 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         &mut self,
         delta: i32,
     ) -> i32 {
-        update_count_and_get!(self, AggregatedCurrentSessionCleanContainerCount, delta)
+        let old = self
+            .get_aggregated_current_session_clean_container_count_ref()
+            .copied()
+            .unwrap_or(0);
+        let new = old + delta;
+        if new == 0 {
+            self.take_aggregated_current_session_clean_container_count();
+        } else {
+            self.set_aggregated_current_session_clean_container_count(new);
+        }
+        new
     }
 
     /// Get aggregated dirty container count for a specific task
     fn get_aggregated_dirty_container(&self, task: TaskId) -> Option<&i32> {
-        get!(self, AggregatedDirtyContainer { task })
+        self.aggregated_dirty_containers().get(&task)
     }
 
     /// Update aggregated dirty container count for a specific task by the given delta and return
@@ -955,12 +1016,32 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     /// Unlike `update_*_count` methods which return a bool indicating zero-crossing,
     /// this method returns the actual new count value after the update.
     fn update_and_get_aggregated_dirty_container(&mut self, task: TaskId, delta: i32) -> i32 {
-        update_count_and_get!(self, AggregatedDirtyContainer { task }, delta)
+        use std::collections::hash_map::Entry;
+        let map = self.aggregated_dirty_containers_mut();
+        match map.entry(task) {
+            Entry::Occupied(mut e) => {
+                let old = *e.get();
+                let new = old + delta;
+                if new == 0 {
+                    e.remove();
+                } else {
+                    *e.get_mut() = new;
+                }
+                new
+            }
+            Entry::Vacant(e) => {
+                if delta != 0 {
+                    e.insert(delta);
+                }
+                delta
+            }
+        }
     }
 
     /// Get aggregated current session clean container count for a specific task
     fn get_aggregated_current_session_clean_container(&self, task: TaskId) -> Option<&i32> {
-        get!(self, AggregatedCurrentSessionCleanContainer { task })
+        self.aggregated_current_session_clean_containers()
+            .get(&task)
     }
 
     /// Update aggregated current session clean container count for a specific task by the given
@@ -973,7 +1054,26 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         task: TaskId,
         delta: i32,
     ) -> i32 {
-        update_count_and_get!(self, AggregatedCurrentSessionCleanContainer { task }, delta)
+        use std::collections::hash_map::Entry;
+        let map = self.aggregated_current_session_clean_containers_mut();
+        match map.entry(task) {
+            Entry::Occupied(mut e) => {
+                let old = *e.get();
+                let new = old + delta;
+                if new == 0 {
+                    e.remove();
+                } else {
+                    *e.get_mut() = new;
+                }
+                new
+            }
+            Entry::Vacant(e) => {
+                if delta != 0 {
+                    e.insert(delta);
+                }
+                delta
+            }
+        }
     }
 
     /// Get aggregated collectible count for a specific collectible
@@ -1014,7 +1114,8 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
 
     /// Get cell type max index for a specific cell type
     fn get_cell_type_max_index(&self, cell_type: ValueTypeId) -> Option<&u32> {
-        get!(self, CellTypeMaxIndex { cell_type })
+        self.cell_type_max_index()
+            .and_then(|map| map.get(&cell_type))
     }
 
     /// Count the number of followers
@@ -1024,7 +1125,7 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
 
     /// Count the number of uppers
     fn count_uppers(&self) -> usize {
-        self.count_internal(CachedDataItemType::Upper)
+        self.upper().len()
     }
 
     /// Count the number of children
@@ -1051,58 +1152,59 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     fn prefetch(&mut self) -> Option<FxIndexMap<TaskId, bool>>;
     fn is_immutable(&self) -> bool;
     fn is_dirty(&self) -> bool {
-        get!(self, Dirty).is_some_and(|dirtyness| match dirtyness {
-            Dirtyness::Dirty => true,
-            Dirtyness::SessionDependent => get!(self, CurrentSessionClean).is_none(),
-        })
+        self.get_dirty_ref()
+            .is_some_and(|dirtyness| match dirtyness {
+                Dirtyness::Dirty => true,
+                Dirtyness::SessionDependent => self.get_current_session_clean_ref().is_none(),
+            })
     }
     fn dirtyness_and_session(&self) -> Option<(Dirtyness, bool)> {
-        match get!(self, Dirty)? {
+        match self.get_dirty_ref()? {
             Dirtyness::Dirty => Some((Dirtyness::Dirty, false)),
             Dirtyness::SessionDependent => Some((
                 Dirtyness::SessionDependent,
-                get!(self, CurrentSessionClean).is_some(),
+                self.get_current_session_clean_ref().is_some(),
             )),
         }
     }
     /// Returns (is_dirty, is_clean_in_current_session)
-    fn dirty(&self) -> (bool, bool) {
-        match get!(self, Dirty) {
+    fn dirty_state(&self) -> (bool, bool) {
+        match self.get_dirty_ref() {
             None => (false, false),
             Some(Dirtyness::Dirty) => (true, false),
-            Some(Dirtyness::SessionDependent) => (true, get!(self, CurrentSessionClean).is_some()),
+            Some(Dirtyness::SessionDependent) => {
+                (true, self.get_current_session_clean_ref().is_some())
+            }
         }
     }
     fn dirty_containers(&self) -> impl Iterator<Item = TaskId> {
         self.dirty_containers_with_count()
             .map(|(task_id, _)| task_id)
     }
-    fn dirty_containers_with_count(&self) -> impl Iterator<Item = (TaskId, i32)> {
-        iter_many!(self, AggregatedDirtyContainer { task } count => (task, *count)).filter(
-            move |&(task_id, count)| {
-                if count > 0 {
-                    let clean_count = get!(
-                        self,
-                        AggregatedCurrentSessionCleanContainer { task: task_id }
-                    )
-                    .copied()
-                    .unwrap_or_default();
-                    count > clean_count
-                } else {
-                    false
+    fn dirty_containers_with_count(&self) -> impl Iterator<Item = (TaskId, i32)> + '_ {
+        let dirty_map = self.aggregated_dirty_containers();
+        let clean_map = self.aggregated_current_session_clean_containers();
+        dirty_map.iter().filter_map(move |(&task_id, &count)| {
+            if count > 0 {
+                let clean_count = clean_map.get(&task_id).copied().unwrap_or_default();
+                if count > clean_count {
+                    return Some((task_id, count));
                 }
-            },
-        )
+            }
+            None
+        })
     }
 
     fn has_dirty_containers(&self) -> bool {
-        let dirty_count = get!(self, AggregatedDirtyContainerCount)
+        let dirty_count = self
+            .get_aggregated_dirty_container_count_ref()
             .copied()
             .unwrap_or_default();
         if dirty_count <= 0 {
             return false;
         }
-        let clean_count = get!(self, AggregatedCurrentSessionCleanContainerCount)
+        let clean_count = self
+            .get_aggregated_current_session_clean_container_count_ref()
             .copied()
             .unwrap_or_default();
         dirty_count > clean_count
@@ -1113,9 +1215,11 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         cell: CellId,
     ) -> Option<TypedSharedReference> {
         if is_serializable_cell_content {
-            remove!(self, CellData { cell })
+            self.cell_data_mut().remove(&cell)
         } else {
-            remove!(self, TransientCellData { cell }).map(|sr| sr.into_typed(cell.type_id))
+            self.transient_cell_data_mut()
+                .remove(&cell)
+                .map(|sr| sr.into_typed(cell.type_id))
         }
     }
     fn get_cell_data(
@@ -1124,17 +1228,46 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         cell: CellId,
     ) -> Option<TypedSharedReference> {
         if is_serializable_cell_content {
-            get!(self, CellData { cell }).cloned()
+            self.cell_data().and_then(|map| map.get(&cell)).cloned()
         } else {
-            get!(self, TransientCellData { cell }).map(|sr| sr.clone().into_typed(cell.type_id))
+            self.transient_cell_data()
+                .and_then(|map| map.get(&cell))
+                .map(|sr| sr.clone().into_typed(cell.type_id))
         }
     }
     fn has_cell_data(&self, is_serializable_cell_content: bool, cell: CellId) -> bool {
         if is_serializable_cell_content {
-            self.has_key_internal(&CachedDataItemKey::CellData { cell })
+            self.cell_data().is_some_and(|map| map.contains_key(&cell))
         } else {
-            self.has_key_internal(&CachedDataItemKey::TransientCellData { cell })
+            self.transient_cell_data()
+                .is_some_and(|map| map.contains_key(&cell))
         }
+    }
+    /// Set cell data, returning the old value if any.
+    fn set_cell_data(
+        &mut self,
+        is_serializable_cell_content: bool,
+        cell: CellId,
+        value: TypedSharedReference,
+    ) -> Option<TypedSharedReference> {
+        if is_serializable_cell_content {
+            self.cell_data_mut().insert(cell, value)
+        } else {
+            self.transient_cell_data_mut()
+                .insert(cell, value.into_untyped())
+                .map(|sr| sr.into_typed(cell.type_id))
+        }
+    }
+
+    /// Add new cell data (asserts that the cell is new and didn't exist before).
+    fn add_cell_data(
+        &mut self,
+        is_serializable_cell_content: bool,
+        cell: CellId,
+        value: TypedSharedReference,
+    ) {
+        let old = self.set_cell_data(is_serializable_cell_content, cell, value);
+        assert!(old.is_none(), "Cell data already exists for {cell:?}");
     }
 
     /// Add a scheduled task item. Returns true if the task was successfully added (wasn't already
@@ -1257,8 +1390,7 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
 
     /// Remove cell type max index
     fn remove_cell_type_max_index(&mut self, cell_type: ValueTypeId) -> bool {
-        self.remove_internal(&CachedDataItemKey::CellTypeMaxIndex { cell_type })
-            .is_some()
+        self.cell_type_max_index_mut().remove(&cell_type).is_some()
     }
 
     // NOTE: has_invalidator() is provided by the TaskStorageAccessors trait (generated by macro)
@@ -1397,44 +1529,28 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
 
     /// Iterate over all aggregated dirty containers with their counts
     fn iter_aggregated_dirty_containers(&self) -> impl Iterator<Item = (TaskId, i32)> + '_ {
-        self.iter_internal(CachedDataItemType::AggregatedDirtyContainer)
-            .filter_map(|(key, value)| match (key, value) {
-                (
-                    CachedDataItemKey::AggregatedDirtyContainer { task },
-                    CachedDataItemValueRef::AggregatedDirtyContainer { value },
-                ) => Some((task, *value)),
-                _ => None,
-            })
+        self.aggregated_dirty_containers()
+            .iter()
+            .map(|(&k, &v)| (k, v))
     }
 
     /// Iterate over all cell data entries
     fn iter_cell_data(&self) -> impl Iterator<Item = CellId> + '_ {
-        self.iter_internal(CachedDataItemType::CellData)
-            .filter_map(|(key, _)| match key {
-                CachedDataItemKey::CellData { cell } => Some(cell),
-                _ => None,
-            })
+        self.cell_data().into_iter().flat_map(|m| m.keys().copied())
     }
 
     /// Iterate over all transient cell data entries
     fn iter_transient_cell_data(&self) -> impl Iterator<Item = CellId> + '_ {
-        self.iter_internal(CachedDataItemType::TransientCellData)
-            .filter_map(|(key, _)| match key {
-                CachedDataItemKey::TransientCellData { cell } => Some(cell),
-                _ => None,
-            })
+        self.transient_cell_data()
+            .into_iter()
+            .flat_map(|m| m.keys().copied())
     }
 
     /// Iterate over all cell type max indices, returning (cell_type, max_index) pairs
     fn iter_cell_type_max_indices(&self) -> impl Iterator<Item = (ValueTypeId, u32)> + '_ {
-        self.iter_internal(CachedDataItemType::CellTypeMaxIndex)
-            .filter_map(|(key, value)| match (key, value) {
-                (
-                    CachedDataItemKey::CellTypeMaxIndex { cell_type },
-                    CachedDataItemValueRef::CellTypeMaxIndex { value: max_index },
-                ) => Some((cell_type, *max_index)),
-                _ => None,
-            })
+        self.cell_type_max_index()
+            .into_iter()
+            .flat_map(|m| m.iter().map(|(&k, &v)| (k, v)))
     }
 
     // NOTE: Vec-returning collection getters (get_children, get_followers, etc.) were removed.
@@ -1713,21 +1829,69 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         self.task.extract_if(ty, f)
     }
 
-    fn extract_cell_data_if<'l, F>(&'l mut self, f: F) -> impl Iterator<Item = CachedDataItem>
+    fn extract_cell_data_if<'l, F>(&'l mut self, mut f: F) -> impl Iterator<Item = CachedDataItem>
     where
         F: for<'a> FnMut(CachedDataItemKey, CachedDataItemValueRef<'a>) -> bool + 'l,
     {
-        self.extract_if_internal(CachedDataItemType::CellData, f)
+        use crate::data::{CachedDataItemKey, CachedDataItemValueRef};
+        self.check_access(TaskDataCategory::Data);
+        if !self.task_id.is_transient() {
+            self.task.track_modification(SpecificTaskDataCategory::Data);
+        }
+        // Collect items to extract first, then remove them
+        let to_extract: Vec<_> = self
+            .cell_data()
+            .into_iter()
+            .flat_map(|m| m.iter())
+            .filter_map(|(&cell, value)| {
+                let key = CachedDataItemKey::CellData { cell };
+                let value_ref = CachedDataItemValueRef::CellData { value };
+                if f(key, value_ref) { Some(cell) } else { None }
+            })
+            .collect();
+
+        let map = self.cell_data_mut();
+        to_extract
+            .into_iter()
+            .filter_map(move |cell| {
+                map.remove(&cell)
+                    .map(|value| CachedDataItem::CellData { cell, value })
+            })
+            .collect::<Vec<_>>()
+            .into_iter()
     }
 
     fn extract_transient_cell_data_if<'l, F>(
         &'l mut self,
-        f: F,
+        mut f: F,
     ) -> impl Iterator<Item = CachedDataItem>
     where
         F: for<'a> FnMut(CachedDataItemKey, CachedDataItemValueRef<'a>) -> bool + 'l,
     {
-        self.extract_if_internal(CachedDataItemType::TransientCellData, f)
+        use crate::data::{CachedDataItemKey, CachedDataItemValueRef};
+        self.check_access(TaskDataCategory::Data);
+        // transient cell data doesn't track modification (it's transient)
+        // Collect items to extract first, then remove them
+        let to_extract: Vec<_> = self
+            .transient_cell_data()
+            .into_iter()
+            .flat_map(|m| m.iter())
+            .filter_map(|(&cell, value)| {
+                let key = CachedDataItemKey::TransientCellData { cell };
+                let value_ref = CachedDataItemValueRef::TransientCellData { value };
+                if f(key, value_ref) { Some(cell) } else { None }
+            })
+            .collect();
+
+        let map = self.transient_cell_data_mut();
+        to_extract
+            .into_iter()
+            .filter_map(move |cell| {
+                map.remove(&cell)
+                    .map(|value| CachedDataItem::TransientCellData { cell, value })
+            })
+            .collect::<Vec<_>>()
+            .into_iter()
     }
 
     fn extract_in_progress_cells_if<'l, F>(
@@ -1741,9 +1905,11 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
     }
 
     fn shrink_to_fit(&mut self) {
-        self.shrink_to_fit_internal(CachedDataItemType::CellData);
-        self.shrink_to_fit_internal(CachedDataItemType::TransientCellData);
-        self.shrink_to_fit_internal(CachedDataItemType::CellTypeMaxIndex);
+        // Cells group - use typed accessors
+        self.cell_data_mut().shrink_to_fit();
+        self.transient_cell_data_mut().shrink_to_fit();
+        self.cell_type_max_index_mut().shrink_to_fit();
+        // Dependencies - still use dynamic storage
         self.shrink_to_fit_internal(CachedDataItemType::CellDependency);
         self.shrink_to_fit_internal(CachedDataItemType::OutputDependency);
         self.shrink_to_fit_internal(CachedDataItemType::CollectiblesDependency);

@@ -359,7 +359,7 @@ impl AggregatedDataUpdate {
                 collectibles_update.push((collectible, 1));
             }
         }
-        let (dirty, current_session_clean) = task.dirty();
+        let (dirty, current_session_clean) = task.dirty_state();
         if dirty {
             dirty_count += 1;
         }
@@ -483,7 +483,7 @@ impl AggregatedDataUpdate {
                 before_after_to_diff_value(was_single_container_clean, is_single_container_clean);
 
             if dirty_container_count_update != 0 || current_session_clean_update != 0 {
-                let (is_self_dirty, current_session_self_clean) = task.dirty();
+                let (is_self_dirty, current_session_self_clean) = task.dirty_state();
 
                 let task_id = task.id();
 

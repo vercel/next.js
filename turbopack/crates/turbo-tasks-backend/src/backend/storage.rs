@@ -6,7 +6,7 @@ use std::{
 
 use bitfield::bitfield;
 use smallvec::SmallVec;
-use turbo_tasks::{FxDashMap, TaskId, parallel};
+use turbo_tasks::{CellId, FxDashMap, TaskId, TypedSharedReference, ValueTypeId, parallel};
 
 use crate::{
     backend::{
@@ -485,6 +485,13 @@ macro_rules! generate_inner_storage {
                 if let CachedDataItem::Follower { task, value } = item {
                     return self.add_follower(task, value);
                 }
+                // Cells group (migrated)
+                if let CachedDataItem::CellData { cell, value } = item {
+                    return self.add_cell_data(cell, value);
+                }
+                if let CachedDataItem::CellTypeMaxIndex { cell_type, value } = item {
+                    return self.add_cell_type_max_index(cell_type, value);
+                }
                 self.dynamic.add(item)
             }
 
@@ -624,6 +631,25 @@ macro_rules! generate_inner_storage {
                     }
                     return any_added;
                 }
+                // Cells group (migrated)
+                if let CachedDataItemType::CellData = ty {
+                    let mut any_added = false;
+                    for item in items {
+                        if let CachedDataItem::CellData { cell, value } = item {
+                            any_added |= self.add_cell_data(cell, value);
+                        }
+                    }
+                    return any_added;
+                }
+                if let CachedDataItemType::CellTypeMaxIndex = ty {
+                    let mut any_added = false;
+                    for item in items {
+                        if let CachedDataItem::CellTypeMaxIndex { cell_type, value } = item {
+                            any_added |= self.add_cell_type_max_index(cell_type, value);
+                        }
+                    }
+                    return any_added;
+                }
                 self.dynamic.extend(ty, items)
             }
 
@@ -722,6 +748,22 @@ macro_rules! generate_inner_storage {
                 if matches!(item, CachedDataItem::Follower { .. }) {
                     panic!("Use TaskGuard::followers_mut() instead of insert() for Follower");
                 }
+                // Cells group (migrated)
+                if matches!(item, CachedDataItem::CellData { .. }) {
+                    panic!("Use TaskGuard::cell_data_mut() instead of insert() for CellData");
+                }
+                if matches!(item, CachedDataItem::TransientCellData { .. }) {
+                    panic!(
+                        "Use TaskGuard::transient_cell_data_mut() instead of insert() for \
+                         TransientCellData"
+                    );
+                }
+                if matches!(item, CachedDataItem::CellTypeMaxIndex { .. }) {
+                    panic!(
+                        "Use TaskGuard::cell_type_max_index_mut() instead of insert() for \
+                         CellTypeMaxIndex"
+                    );
+                }
                 self.dynamic.insert(item)
             }
 
@@ -817,6 +859,22 @@ macro_rules! generate_inner_storage {
                 if matches!(key, CachedDataItemKey::Follower { .. }) {
                     panic!("Use TaskGuard::followers_mut() instead of remove() for Follower");
                 }
+                // Cells group (migrated)
+                if matches!(key, CachedDataItemKey::CellData { .. }) {
+                    panic!("Use TaskGuard::cell_data_mut() instead of remove() for CellData");
+                }
+                if matches!(key, CachedDataItemKey::TransientCellData { .. }) {
+                    panic!(
+                        "Use TaskGuard::transient_cell_data_mut() instead of remove() for \
+                         TransientCellData"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::CellTypeMaxIndex { .. }) {
+                    panic!(
+                        "Use TaskGuard::cell_type_max_index_mut() instead of remove() for \
+                         CellTypeMaxIndex"
+                    );
+                }
                 self.dynamic.remove(key)
             }
 
@@ -910,6 +968,22 @@ macro_rules! generate_inner_storage {
                 }
                 if matches!(ty, CachedDataItemType::Follower) {
                     panic!("Use TaskGuard::followers() instead of count() for Follower");
+                }
+                // Cells group (migrated)
+                if matches!(ty, CachedDataItemType::CellData) {
+                    panic!("Use TaskGuard::cell_data() instead of count() for CellData");
+                }
+                if matches!(ty, CachedDataItemType::TransientCellData) {
+                    panic!(
+                        "Use TaskGuard::transient_cell_data() instead of count() for \
+                         TransientCellData"
+                    );
+                }
+                if matches!(ty, CachedDataItemType::CellTypeMaxIndex) {
+                    panic!(
+                        "Use TaskGuard::cell_type_max_index() instead of count() for \
+                         CellTypeMaxIndex"
+                    );
                 }
                 self.dynamic.count(ty)
             }
@@ -1007,6 +1081,22 @@ macro_rules! generate_inner_storage {
                 }
                 if matches!(key, CachedDataItemKey::Follower { .. }) {
                     panic!("Use TaskGuard::followers() instead of get() for Follower");
+                }
+                // Cells group (migrated)
+                if matches!(key, CachedDataItemKey::CellData { .. }) {
+                    panic!("Use TaskGuard::cell_data() instead of get() for CellData");
+                }
+                if matches!(key, CachedDataItemKey::TransientCellData { .. }) {
+                    panic!(
+                        "Use TaskGuard::transient_cell_data() instead of get() for \
+                         TransientCellData"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::CellTypeMaxIndex { .. }) {
+                    panic!(
+                        "Use TaskGuard::cell_type_max_index() instead of get() for \
+                         CellTypeMaxIndex"
+                    );
                 }
                 self.dynamic.get(key)
             }
@@ -1111,6 +1201,22 @@ macro_rules! generate_inner_storage {
                 if matches!(key, CachedDataItemKey::Follower { .. }) {
                     panic!("Use TaskGuard::followers() instead of contains_key() for Follower");
                 }
+                // Cells group (migrated)
+                if matches!(key, CachedDataItemKey::CellData { .. }) {
+                    panic!("Use TaskGuard::cell_data() instead of contains_key() for CellData");
+                }
+                if matches!(key, CachedDataItemKey::TransientCellData { .. }) {
+                    panic!(
+                        "Use TaskGuard::transient_cell_data() instead of contains_key() for \
+                         TransientCellData"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::CellTypeMaxIndex { .. }) {
+                    panic!(
+                        "Use TaskGuard::cell_type_max_index() instead of contains_key() for \
+                         CellTypeMaxIndex"
+                    );
+                }
                 self.dynamic.contains_key(key)
             }
 
@@ -1210,6 +1316,22 @@ macro_rules! generate_inner_storage {
                 if matches!(key, CachedDataItemKey::Follower { .. }) {
                     panic!("Use TaskGuard::followers_mut() instead of get_mut() for Follower");
                 }
+                // Cells group (migrated)
+                if matches!(key, CachedDataItemKey::CellData { .. }) {
+                    panic!("Use TaskGuard::cell_data_mut() instead of get_mut() for CellData");
+                }
+                if matches!(key, CachedDataItemKey::TransientCellData { .. }) {
+                    panic!(
+                        "Use TaskGuard::transient_cell_data_mut() instead of get_mut() for \
+                         TransientCellData"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::CellTypeMaxIndex { .. }) {
+                    panic!(
+                        "Use TaskGuard::cell_type_max_index_mut() instead of get_mut() for \
+                         CellTypeMaxIndex"
+                    );
+                }
                 self.dynamic.get_mut(key)
             }
 
@@ -1236,6 +1358,9 @@ macro_rules! generate_inner_storage {
                         | CachedDataItemType::OutdatedCollectible
                         | CachedDataItemType::Child
                         | CachedDataItemType::Follower
+                        | CachedDataItemType::CellData
+                        | CachedDataItemType::TransientCellData
+                        | CachedDataItemType::CellTypeMaxIndex
                 ) {
                     return;
                 }
@@ -1334,6 +1459,22 @@ macro_rules! generate_inner_storage {
                 }
                 if matches!(key, CachedDataItemKey::Follower { .. }) {
                     panic!("Use TaskGuard::followers_mut() instead of update() for Follower");
+                }
+                // Cells group (migrated)
+                if matches!(key, CachedDataItemKey::CellData { .. }) {
+                    panic!("Use TaskGuard::cell_data_mut() instead of update() for CellData");
+                }
+                if matches!(key, CachedDataItemKey::TransientCellData { .. }) {
+                    panic!(
+                        "Use TaskGuard::transient_cell_data_mut() instead of update() for \
+                         TransientCellData"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::CellTypeMaxIndex { .. }) {
+                    panic!(
+                        "Use TaskGuard::cell_type_max_index_mut() instead of update() for \
+                         CellTypeMaxIndex"
+                    );
                 }
                 self.dynamic.update(key, update)
             }
@@ -1440,6 +1581,22 @@ macro_rules! generate_inner_storage {
                 }
                 if matches!(ty, CachedDataItemType::Follower) {
                     panic!("Use TaskGuard::followers_mut() instead of extract_if() for Follower");
+                }
+                // Cells group (migrated)
+                if matches!(ty, CachedDataItemType::CellData) {
+                    panic!("Use TaskGuard::cell_data_mut() instead of extract_if() for CellData");
+                }
+                if matches!(ty, CachedDataItemType::TransientCellData) {
+                    panic!(
+                        "Use TaskGuard::transient_cell_data_mut() instead of extract_if() for \
+                         TransientCellData"
+                    );
+                }
+                if matches!(ty, CachedDataItemType::CellTypeMaxIndex) {
+                    panic!(
+                        "Use TaskGuard::cell_type_max_index_mut() instead of extract_if() for \
+                         CellTypeMaxIndex"
+                    );
                 }
                 self.dynamic.extract_if(ty, f)
             }
@@ -1566,6 +1723,25 @@ macro_rules! generate_inner_storage {
                          Follower"
                     );
                 }
+                // Cells group (migrated)
+                if matches!(key, CachedDataItemKey::CellData { .. }) {
+                    panic!(
+                        "Use TaskGuard::cell_data_mut() instead of get_mut_or_insert_with() for \
+                         CellData"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::TransientCellData { .. }) {
+                    panic!(
+                        "Use TaskGuard::transient_cell_data_mut() instead of \
+                         get_mut_or_insert_with() for TransientCellData"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::CellTypeMaxIndex { .. }) {
+                    panic!(
+                        "Use TaskGuard::cell_type_max_index_mut() instead of \
+                         get_mut_or_insert_with() for CellTypeMaxIndex"
+                    );
+                }
                 self.dynamic.get_mut_or_insert_with(key, f)
             }
 
@@ -1657,6 +1833,22 @@ macro_rules! generate_inner_storage {
                 }
                 if matches!(ty, CachedDataItemType::Follower) {
                     panic!("Use TaskGuard::followers() instead of iter() for Follower");
+                }
+                // Cells group (migrated)
+                if matches!(ty, CachedDataItemType::CellData) {
+                    panic!("Use TaskGuard::cell_data() instead of iter() for CellData");
+                }
+                if matches!(ty, CachedDataItemType::TransientCellData) {
+                    panic!(
+                        "Use TaskGuard::transient_cell_data() instead of iter() for \
+                         TransientCellData"
+                    );
+                }
+                if matches!(ty, CachedDataItemType::CellTypeMaxIndex) {
+                    panic!(
+                        "Use TaskGuard::cell_type_max_index() instead of iter() for \
+                         CellTypeMaxIndex"
+                    );
                 }
                 self.dynamic.iter(ty)
             }
@@ -1824,6 +2016,31 @@ impl InnerStorage {
             .aggregation
             .get_or_insert_with(Default::default);
         match group.followers.entry(task) {
+            Entry::Occupied(_) => false,
+            Entry::Vacant(e) => {
+                e.insert(value);
+                true
+            }
+        }
+    }
+
+    // Cells group (migrated)
+    fn add_cell_data(&mut self, cell: CellId, value: TypedSharedReference) -> bool {
+        use std::collections::hash_map::Entry;
+        let group = self.typed.data.cells.get_or_insert_with(Default::default);
+        match group.cell_data.entry(cell) {
+            Entry::Occupied(_) => false,
+            Entry::Vacant(e) => {
+                e.insert(value);
+                true
+            }
+        }
+    }
+
+    fn add_cell_type_max_index(&mut self, cell_type: ValueTypeId, value: u32) -> bool {
+        use std::collections::hash_map::Entry;
+        let group = self.typed.data.cells.get_or_insert_with(Default::default);
+        match group.cell_type_max_index.entry(cell_type) {
             Entry::Occupied(_) => false,
             Entry::Vacant(e) => {
                 e.insert(value);

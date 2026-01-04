@@ -17,7 +17,7 @@ use crate::{
         },
         storage_schema::TaskStorageAccessors,
     },
-    data::{CachedDataItem, CachedDataItemKey, CellRef},
+    data::CellRef,
 };
 
 #[derive(Encode, Decode, Clone, Default)]
@@ -114,10 +114,7 @@ impl UpdateCellOperation {
                 // tasks and after that set the new cell content. When the cell content is unset,
                 // readers will wait for it to be set via InProgressCell.
 
-                let old_content = task.remove_internal(&CachedDataItemKey::cell_data(
-                    is_serializable_cell_content,
-                    cell,
-                ));
+                let old_content = task.remove_cell_data(is_serializable_cell_content, cell);
 
                 drop(task);
                 drop(old_content);
@@ -141,16 +138,9 @@ impl UpdateCellOperation {
         // So we can just update the cell content.
 
         let old_content = if let Some(new_content) = content {
-            task.insert_internal(CachedDataItem::cell_data(
-                is_serializable_cell_content,
-                cell,
-                new_content,
-            ))
+            task.set_cell_data(is_serializable_cell_content, cell, new_content)
         } else {
-            task.remove_internal(&CachedDataItemKey::cell_data(
-                is_serializable_cell_content,
-                cell,
-            ))
+            task.remove_cell_data(is_serializable_cell_content, cell)
         };
 
         let in_progress_cell = task.remove_in_progress_cell(cell);
@@ -242,11 +232,7 @@ impl Operation for UpdateCellOperation {
                     let mut task = ctx.task(task, TaskDataCategory::Data);
 
                     if let Some(content) = content {
-                        task.add_new_internal(CachedDataItem::cell_data(
-                            is_serializable_cell_content,
-                            cell,
-                            content,
-                        ));
+                        task.add_cell_data(is_serializable_cell_content, cell, content);
                     }
 
                     let in_progress_cell = task.remove_in_progress_cell(cell);

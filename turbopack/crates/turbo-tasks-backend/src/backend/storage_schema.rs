@@ -279,9 +279,16 @@ pub struct TaskStorageSchema {
 
     // =========================================================================
     // CELL DATA GROUP (data, lazy)
+    // Migrated: uses TaskStorageAccessors trait for typed access via TaskGuard.
     // =========================================================================
     /// Persistent cell data (serializable).
-    #[task_storage(storage = "auto_map", category = "data", group = "cells", lazy)]
+    #[task_storage(
+        storage = "auto_map",
+        category = "data",
+        group = "cells",
+        lazy,
+        migrated
+    )]
     pub cell_data: AutoMap<CellId, TypedSharedReference>,
 
     /// Transient cell data (not serializable).
@@ -290,12 +297,19 @@ pub struct TaskStorageSchema {
         category = "data",
         group = "cells",
         lazy,
-        transient
+        transient,
+        migrated
     )]
     pub transient_cell_data: AutoMap<CellId, SharedReference>,
 
     /// Maximum cell index per cell type.
-    #[task_storage(storage = "auto_map", category = "data", group = "cells", lazy)]
+    #[task_storage(
+        storage = "auto_map",
+        category = "data",
+        group = "cells",
+        lazy,
+        migrated
+    )]
     pub cell_type_max_index: AutoMap<ValueTypeId, u32>,
 
     // =========================================================================
@@ -347,19 +361,54 @@ impl TaskData {
         use crate::data::{CachedDataItemKey, CachedDataItemValueRef};
 
         // Specialized data fields
-        self.output_dependent.iter().map(|task| {
+        let output_dependent_iter = self.output_dependent.iter().map(|task| {
             (
                 CachedDataItemKey::OutputDependent { task: *task },
                 CachedDataItemValueRef::OutputDependent { value: &() },
             )
-        })
+        });
+
+        // Cells group (lazy) - check if the Option<Box<_>> is Some before iterating
+        let cell_data_iter = self.cells.as_ref().into_iter().flat_map(|group| {
+            group.cell_data.iter().map(|(cell, value)| {
+                (
+                    CachedDataItemKey::CellData { cell: *cell },
+                    CachedDataItemValueRef::CellData { value },
+                )
+            })
+        });
+
+        // Note: transient_cell_data is transient, so not included in iter_all (used for
+        // persistence)
+
+        let cell_type_max_index_iter = self.cells.as_ref().into_iter().flat_map(|group| {
+            group.cell_type_max_index.iter().map(|(cell_type, value)| {
+                (
+                    CachedDataItemKey::CellTypeMaxIndex {
+                        cell_type: *cell_type,
+                    },
+                    CachedDataItemValueRef::CellTypeMaxIndex { value },
+                )
+            })
+        });
+
+        output_dependent_iter
+            .chain(cell_data_iter)
+            .chain(cell_type_max_index_iter)
         // TODO: Add remaining data fields as they are migrated
     }
 
     /// Count the number of data items.
     pub fn len(&self) -> usize {
-        self.output_dependent.len()
+        let mut count = self.output_dependent.len();
+        // Cells group (lazy)
+        if let Some(ref group) = self.cells {
+            count += group.cell_data.len();
+            // Note: transient_cell_data is transient
+            count += group.cell_type_max_index.len();
+        }
         // TODO: Add remaining data fields as they are migrated
+        count
     }
 
     /// Check if data storage is empty.
