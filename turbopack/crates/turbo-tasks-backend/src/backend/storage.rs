@@ -501,154 +501,155 @@ macro_rules! generate_inner_storage {
                 items: impl Iterator<Item = CachedDataItem>,
             ) -> bool {
                 // Typed storage variants (migrated) - extend is needed for persistence restore
+                // Returns true only if ALL items were new (matches data_storage::Storage semantics)
                 if let CachedDataItemType::Output = ty {
-                    let mut any_added = false;
+                    let mut all_new = true;
                     for item in items {
                         if let CachedDataItem::Output { value } = item {
-                            any_added |= self.add_output(value);
+                            all_new &= self.add_output(value);
                         }
                     }
-                    return any_added;
+                    return all_new;
                 }
                 if let CachedDataItemType::AggregationNumber = ty {
-                    let mut any_added = false;
+                    let mut all_new = true;
                     for item in items {
                         if let CachedDataItem::AggregationNumber { value } = item {
-                            any_added |= self.add_aggregation_number(value);
+                            all_new &= self.add_aggregation_number(value);
                         }
                     }
-                    return any_added;
+                    return all_new;
                 }
                 if let CachedDataItemType::Upper = ty {
-                    let mut any_added = false;
+                    let mut all_new = true;
                     for item in items {
                         if let CachedDataItem::Upper { task, value } = item {
-                            any_added |= self.add_upper(task, value);
+                            all_new &= self.add_upper(task, value);
                         }
                     }
-                    return any_added;
+                    return all_new;
                 }
                 if let CachedDataItemType::OutputDependent = ty {
-                    let mut any_added = false;
+                    let mut all_new = true;
                     for item in items {
                         if let CachedDataItem::OutputDependent { task, .. } = item {
-                            any_added |= self.add_output_dependent(task);
+                            all_new &= self.add_output_dependent(task);
                         }
                     }
-                    return any_added;
+                    return all_new;
                 }
                 // Flags (migrated)
                 if let CachedDataItemType::Stateful = ty {
-                    let mut any_added = false;
+                    let mut all_new = true;
                     for item in items {
                         if matches!(item, CachedDataItem::Stateful { .. }) {
-                            any_added |= self.add_stateful();
+                            all_new &= self.add_stateful();
                         }
                     }
-                    return any_added;
+                    return all_new;
                 }
                 if let CachedDataItemType::HasInvalidator = ty {
-                    let mut any_added = false;
+                    let mut all_new = true;
                     for item in items {
                         if matches!(item, CachedDataItem::HasInvalidator { .. }) {
-                            any_added |= self.add_invalidator();
+                            all_new &= self.add_invalidator();
                         }
                     }
-                    return any_added;
+                    return all_new;
                 }
                 if let CachedDataItemType::Immutable = ty {
-                    let mut any_added = false;
+                    let mut all_new = true;
                     for item in items {
                         if matches!(item, CachedDataItem::Immutable { .. }) {
-                            any_added |= self.add_immutable();
+                            all_new &= self.add_immutable();
                         }
                     }
-                    return any_added;
+                    return all_new;
                 }
                 // State group (migrated)
                 if let CachedDataItemType::Dirty = ty {
-                    let mut any_added = false;
+                    let mut all_new = true;
                     for item in items {
                         if let CachedDataItem::Dirty { value } = item {
-                            any_added |= self.add_dirty(value);
+                            all_new &= self.add_dirty(value);
                         }
                     }
-                    return any_added;
+                    return all_new;
                 }
                 if let CachedDataItemType::AggregatedDirtyContainerCount = ty {
-                    let mut any_added = false;
+                    let mut all_new = true;
                     for item in items {
                         if let CachedDataItem::AggregatedDirtyContainerCount { value } = item {
-                            any_added |= self.add_aggregated_dirty_container_count(value);
+                            all_new &= self.add_aggregated_dirty_container_count(value);
                         }
                     }
-                    return any_added;
+                    return all_new;
                 }
                 if let CachedDataItemType::AggregatedDirtyContainer = ty {
-                    let mut any_added = false;
+                    let mut all_new = true;
                     for item in items {
                         if let CachedDataItem::AggregatedDirtyContainer { task, value } = item {
-                            any_added |= self.add_aggregated_dirty_container(task, value);
+                            all_new &= self.add_aggregated_dirty_container(task, value);
                         }
                     }
-                    return any_added;
+                    return all_new;
                 }
                 // Collectibles group (migrated)
                 if let CachedDataItemType::Collectible = ty {
-                    let mut any_added = false;
+                    let mut all_new = true;
                     for item in items {
                         if let CachedDataItem::Collectible { collectible, value } = item {
-                            any_added |= self.add_collectible(collectible, value);
+                            all_new &= self.add_collectible(collectible, value);
                         }
                     }
-                    return any_added;
+                    return all_new;
                 }
                 if let CachedDataItemType::AggregatedCollectible = ty {
-                    let mut any_added = false;
+                    let mut all_new = true;
                     for item in items {
                         if let CachedDataItem::AggregatedCollectible { collectible, value } = item {
-                            any_added |= self.add_aggregated_collectible(collectible, value);
+                            all_new &= self.add_aggregated_collectible(collectible, value);
                         }
                     }
-                    return any_added;
+                    return all_new;
                 }
                 // Aggregation group (migrated)
                 if let CachedDataItemType::Child = ty {
-                    let mut any_added = false;
+                    let mut all_new = true;
                     for item in items {
                         if let CachedDataItem::Child { task, .. } = item {
-                            any_added |= self.add_child(task);
+                            all_new &= self.add_child(task);
                         }
                     }
-                    return any_added;
+                    return all_new;
                 }
                 if let CachedDataItemType::Follower = ty {
-                    let mut any_added = false;
+                    let mut all_new = true;
                     for item in items {
                         if let CachedDataItem::Follower { task, value } = item {
-                            any_added |= self.add_follower(task, value);
+                            all_new &= self.add_follower(task, value);
                         }
                     }
-                    return any_added;
+                    return all_new;
                 }
                 // Cells group (migrated)
                 if let CachedDataItemType::CellData = ty {
-                    let mut any_added = false;
+                    let mut all_new = true;
                     for item in items {
                         if let CachedDataItem::CellData { cell, value } = item {
-                            any_added |= self.add_cell_data(cell, value);
+                            all_new &= self.add_cell_data(cell, value);
                         }
                     }
-                    return any_added;
+                    return all_new;
                 }
                 if let CachedDataItemType::CellTypeMaxIndex = ty {
-                    let mut any_added = false;
+                    let mut all_new = true;
                     for item in items {
                         if let CachedDataItem::CellTypeMaxIndex { cell_type, value } = item {
-                            any_added |= self.add_cell_type_max_index(cell_type, value);
+                            all_new &= self.add_cell_type_max_index(cell_type, value);
                         }
                     }
-                    return any_added;
+                    return all_new;
                 }
                 self.dynamic.extend(ty, items)
             }
@@ -1881,14 +1882,10 @@ impl InnerStorage {
     }
 
     fn add_upper(&mut self, task: TaskId, value: u32) -> bool {
-        use std::collections::hash_map::Entry;
-        match self.typed.meta.upper.entry(task) {
-            Entry::Occupied(_) => false,
-            Entry::Vacant(e) => {
-                e.insert(value);
-                true
-            }
-        }
+        // Matches extend semantics: overwrites existing, returns false if key existed
+        let was_new = !self.typed.meta.upper.contains_key(&task);
+        self.typed.meta.upper.insert(task, value);
+        was_new
     }
 
     fn add_output_dependent(&mut self, task: TaskId) -> bool {
@@ -1949,53 +1946,44 @@ impl InnerStorage {
     }
 
     fn add_aggregated_dirty_container(&mut self, task: TaskId, value: i32) -> bool {
-        use std::collections::hash_map::Entry;
-        match self
+        // Matches extend semantics: overwrites existing, returns false if key existed
+        let was_new = !self
             .typed
             .meta
             .state
             .aggregated_dirty_containers
-            .entry(task)
-        {
-            Entry::Occupied(_) => false,
-            Entry::Vacant(e) => {
-                e.insert(value);
-                true
-            }
-        }
+            .contains_key(&task);
+        self.typed
+            .meta
+            .state
+            .aggregated_dirty_containers
+            .insert(task, value);
+        was_new
     }
 
     // Collectibles group (migrated)
     fn add_collectible(&mut self, collectible: CollectibleRef, value: i32) -> bool {
-        use std::collections::hash_map::Entry;
+        // Matches extend semantics: overwrites existing, returns false if key existed
         let group = self
             .typed
             .meta
             .collectibles
             .get_or_insert_with(Default::default);
-        match group.collectibles.entry(collectible) {
-            Entry::Occupied(_) => false,
-            Entry::Vacant(e) => {
-                e.insert(value);
-                true
-            }
-        }
+        let was_new = !group.collectibles.contains_key(&collectible);
+        group.collectibles.insert(collectible, value);
+        was_new
     }
 
     fn add_aggregated_collectible(&mut self, collectible: CollectibleRef, value: i32) -> bool {
-        use std::collections::hash_map::Entry;
+        // Matches extend semantics: overwrites existing, returns false if key existed
         let group = self
             .typed
             .meta
             .collectibles
             .get_or_insert_with(Default::default);
-        match group.aggregated_collectibles.entry(collectible) {
-            Entry::Occupied(_) => false,
-            Entry::Vacant(e) => {
-                e.insert(value);
-                true
-            }
-        }
+        let was_new = !group.aggregated_collectibles.contains_key(&collectible);
+        group.aggregated_collectibles.insert(collectible, value);
+        was_new
     }
 
     // Aggregation group (migrated)
@@ -2009,44 +1997,32 @@ impl InnerStorage {
     }
 
     fn add_follower(&mut self, task: TaskId, value: u32) -> bool {
-        use std::collections::hash_map::Entry;
+        // Matches extend semantics: overwrites existing, returns false if key existed
         let group = self
             .typed
             .meta
             .aggregation
             .get_or_insert_with(Default::default);
-        match group.followers.entry(task) {
-            Entry::Occupied(_) => false,
-            Entry::Vacant(e) => {
-                e.insert(value);
-                true
-            }
-        }
+        let was_new = !group.followers.contains_key(&task);
+        group.followers.insert(task, value);
+        was_new
     }
 
     // Cells group (migrated)
     fn add_cell_data(&mut self, cell: CellId, value: TypedSharedReference) -> bool {
-        use std::collections::hash_map::Entry;
+        // Matches extend semantics: overwrites existing, returns false if key existed
         let group = self.typed.data.cells.get_or_insert_with(Default::default);
-        match group.cell_data.entry(cell) {
-            Entry::Occupied(_) => false,
-            Entry::Vacant(e) => {
-                e.insert(value);
-                true
-            }
-        }
+        let was_new = !group.cell_data.contains_key(&cell);
+        group.cell_data.insert(cell, value);
+        was_new
     }
 
     fn add_cell_type_max_index(&mut self, cell_type: ValueTypeId, value: u32) -> bool {
-        use std::collections::hash_map::Entry;
+        // Matches extend semantics: overwrites existing, returns false if key existed
         let group = self.typed.data.cells.get_or_insert_with(Default::default);
-        match group.cell_type_max_index.entry(cell_type) {
-            Entry::Occupied(_) => false,
-            Entry::Vacant(e) => {
-                e.insert(value);
-                true
-            }
-        }
+        let was_new = !group.cell_type_max_index.contains_key(&cell_type);
+        group.cell_type_max_index.insert(cell_type, value);
+        was_new
     }
 }
 

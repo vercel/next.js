@@ -530,17 +530,14 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
 
     /// Remove an output dependent from this task
     /// Returns true if the dependent was present and removed
-    fn remove_output_dependent(&mut self, task: TaskId) -> bool {
-        self.remove_internal(&CachedDataItemKey::OutputDependent { task })
-            .is_some()
-    }
+    /// Uses typed storage directly - output_dependent is a migrated auto_set
+    fn remove_output_dependent(&mut self, task: TaskId) -> bool;
 
     /// Add an output dependent to this task
     /// Returns true if the dependent was newly added, false if it already existed
+    /// Uses typed storage directly - output_dependent is a migrated auto_set
     #[must_use]
-    fn add_output_dependent(&mut self, task: TaskId) -> bool {
-        self.add_internal(CachedDataItem::OutputDependent { task, value: () })
-    }
+    fn add_output_dependent(&mut self, task: TaskId) -> bool;
 
     // ============ Typed CellDependent APIs ============
 
@@ -1941,6 +1938,32 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
     fn is_immutable(&self) -> bool {
         // Uses typed storage accessor from TaskStorageAccessors trait
         self.has_immutable()
+    }
+
+    fn add_output_dependent(&mut self, task: TaskId) -> bool {
+        // Uses typed storage directly - output_dependent is a migrated auto_set
+        self.check_access(TaskDataCategory::Data);
+        // Check if already exists before tracking modification
+        if self.output_dependent().contains(&task) {
+            return false;
+        }
+        if !self.task_id.is_transient() {
+            self.task.track_modification(SpecificTaskDataCategory::Data);
+        }
+        self.output_dependent_mut().insert(task)
+    }
+
+    fn remove_output_dependent(&mut self, task: TaskId) -> bool {
+        // Uses typed storage directly - output_dependent is a migrated auto_set
+        self.check_access(TaskDataCategory::Data);
+        // Check if exists before tracking modification
+        if !self.output_dependent().contains(&task) {
+            return false;
+        }
+        if !self.task_id.is_transient() {
+            self.task.track_modification(SpecificTaskDataCategory::Data);
+        }
+        self.output_dependent_mut().remove(&task)
     }
 }
 
