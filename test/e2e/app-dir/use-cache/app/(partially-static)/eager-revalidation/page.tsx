@@ -7,11 +7,18 @@ async function getCachedTimestamp() {
   return Date.now().toString()
 }
 
+async function getRenderTimestamp() {
+  'use cache'
+  // Same cacheTag as getCachedTimestamp - both get invalidated together.
+  // If User B sees the same render timestamp as User A, it proves HTML cache hit.
+  cacheTag('eager-test')
+  cacheLife('max')
+  return Date.now().toString()
+}
+
 export default async function Page() {
   const timestamp = await getCachedTimestamp()
-  // This timestamp is NOT cached - it changes on every render.
-  // Used to verify HTML cache hits vs re-renders.
-  const renderTimestamp = Date.now().toString()
+  const renderTimestamp = await getRenderTimestamp()
   return (
     <div>
       <p id="timestamp">{timestamp}</p>

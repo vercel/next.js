@@ -505,6 +505,32 @@ function createUnclosingPrefetchStream(
 }
 
 /**
+ * Finds the byte index of a byte sequence in a Uint8Array.
+ * This is used instead of string.indexOf() because converting to string and searching
+ * would use character indices instead of byte indices, which breaks with multi-byte UTF-8 chars.
+ *
+ * @param buffer - The buffer to search in
+ * @param searchBytes - The byte sequence to find
+ * @returns The byte index of the sequence, or -1 if not found
+ */
+function findBoundaryIndex(
+  buffer: Uint8Array,
+  searchBytes: Uint8Array
+): number {
+  for (let i = 0; i <= buffer.length - searchBytes.length; i++) {
+    let match = true
+    for (let j = 0; j < searchBytes.length; j++) {
+      if (buffer[i + j] !== searchBytes[j]) {
+        match = false
+        break
+      }
+    }
+    if (match) return i
+  }
+  return -1
+}
+
+/**
  * Splits a Flight stream that contains two concatenated streams separated by a boundary.
  * Used for split flight responses where action result and page data are sent together.
  *
@@ -520,7 +546,6 @@ export async function splitFlightStreams(
   pageStream: ReadableStream<Uint8Array>
 }> {
   const reader = body.getReader()
-  const decoder = new TextDecoder()
   const encoder = new TextEncoder()
   const boundaryBytes = encoder.encode(boundary)
 
@@ -540,9 +565,8 @@ export async function splitFlightStreams(
     newBuffer.set(value, buffer.length)
     buffer = newBuffer
 
-    // Search for boundary in the accumulated buffer
-    const text = decoder.decode(buffer)
-    boundaryIndex = text.indexOf(boundary)
+    // Search for boundary in the accumulated buffer (by searching raw bytes)
+    boundaryIndex = findBoundaryIndex(buffer, boundaryBytes)
   }
 
   // Split buffer at boundary

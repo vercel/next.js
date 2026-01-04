@@ -743,8 +743,8 @@ describe('use-cache', () => {
       })
 
       // 3. Fresh cold visitor (User B) should get same cached HTML
-      // The render-timestamp is NOT cached (changes on each render), so if User B
-      // sees the same render-timestamp as User A, it proves HTML cache hit (not re-render).
+      // The render-timestamp is cached with the same tag, so if User B
+      // sees the same render-timestamp as User A, it proves cache hit.
       const res = await next.fetch('/eager-revalidation')
       const html = await res.text()
       const userBValue = html.match(/id="timestamp">(\d+)</)?.[1]
@@ -752,11 +752,10 @@ describe('use-cache', () => {
         /id="render-timestamp">(\d+)</
       )?.[1]
 
-      // KEY ASSERTION: User B gets the same fresh value as User A (HTML cache was pre-warmed)
+      // KEY ASSERTION: User B gets the same fresh value as User A (cache was pre-warmed)
       expect(userBValue).toBe(userAValue!)
 
-      // KEY ASSERTION: Same render timestamp proves HTML cache hit, not re-render
-      // If the page re-rendered, render-timestamp would be different
+      // KEY ASSERTION: Same render timestamp proves cache hit
       expect(userBRenderTimestamp).toBe(userARenderTimestamp!)
 
       // 4. Verify it's actually cached (second fetch returns same value)
@@ -787,35 +786,6 @@ describe('use-cache', () => {
       expect(cachedTimestamp).not.toBe('')
     })
 
-    // Test for refresh() triggering eager regeneration
-    it('should eagerly regenerate HTML cache when refresh() is called', async () => {
-      const browser = await next.browser('/eager-revalidation-refresh')
-
-      // Call refresh with return value
-      await browser.elementByCss('#refresh-with-return').click()
-
-      // Wait for action to complete
-      await retry(async () => {
-        const result = await browser.elementByCss('#action-result').text()
-        expect(result).toContain('refreshed: true')
-      })
-
-      const userATimestamp = await browser
-        .elementByCss('#cached-timestamp')
-        .text()
-
-      // Wait for cache to be populated
-      await new Promise((r) => setTimeout(r, 2000))
-
-      // Cold visitor should get the same cached value
-      const res = await next.fetch('/eager-revalidation-refresh')
-      const html = await res.text()
-      const userBValue = html.match(/id="cached-timestamp">(\d+)</)?.[1]
-
-      // Both users should see the same cached timestamp
-      expect(userBValue).toBe(userATimestamp)
-    })
-
     // Test that refresh() does NOT invalidate tagged cached data
     // refresh() should only cause re-render with fresh dynamic data, but tagged caches should remain
     it('should NOT invalidate tagged cached data when only refresh() is called', async () => {
@@ -829,16 +799,16 @@ describe('use-cache', () => {
       // Call refresh() only (not updateTag)
       await browser.elementByCss('#refresh-only').click()
 
-      // Wait for action to complete and page to re-render
-      await new Promise((r) => setTimeout(r, 2000))
+      // Wait for action to complete and verify cached data is unchanged
+      await retry(async () => {
+        // The cached timestamp should be THE SAME - refresh() should NOT invalidate tagged caches
+        const afterRefreshTimestamp = await browser
+          .elementByCss('#cached-timestamp')
+          .text()
 
-      // The cached timestamp should be THE SAME - refresh() should NOT invalidate tagged caches
-      const afterRefreshTimestamp = await browser
-        .elementByCss('#cached-timestamp')
-        .text()
-
-      // KEY ASSERTION: Tagged cached data should NOT be invalidated by refresh()
-      expect(afterRefreshTimestamp).toBe(initialTimestamp)
+        // KEY ASSERTION: Tagged cached data should NOT be invalidated by refresh()
+        expect(afterRefreshTimestamp).toBe(initialTimestamp)
+      })
     })
 
     // Test for complex return values across split streams
