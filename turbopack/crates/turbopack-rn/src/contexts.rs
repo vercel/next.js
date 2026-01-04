@@ -333,7 +333,8 @@ fn client_defines(node_env: &NodeEnv) -> CompileTimeDefines {
         process.turbopack = true,
         process.env.TURBOPACK = true,
         process.env.NODE_ENV = node_env.to_string(),
-        __DEV__ = *node_env == NodeEnv::Development
+        __DEV__ = *node_env == NodeEnv::Development,
+        process.env.EXPO_OS = "ios"
     )
 }
 

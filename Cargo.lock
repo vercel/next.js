@@ -10922,6 +10922,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "bincode 2.0.1",
+ "chrono",
  "clap",
  "codspeed-criterion-compat",
  "console-subscriber",
@@ -10933,6 +10934,7 @@ dependencies = [
  "hyper-util",
  "owo-colors",
  "pin-project-lite",
+ "rand 0.9.0",
  "regex",
  "rustc-hash 2.1.1",
  "serde",
@@ -10968,6 +10970,7 @@ dependencies = [
  "turbopack-nodejs",
  "turbopack-resolve",
  "turbopack-trace-utils",
+ "uuid",
  "webbrowser",
 ]
 

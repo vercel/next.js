@@ -23,6 +23,7 @@ workspace = true
 anyhow = { workspace = true, features = ["backtrace"] }
 async-trait = { workspace = true }
 bincode = { workspace = true }
+chrono = { workspace = true }
 clap = { workspace = true, features = ["derive", "env"] }
 console-subscriber = { workspace = true, optional = true }
 dunce = { workspace = true }
@@ -57,6 +58,8 @@ turbopack-node = { workspace = true, default-features = false, features = ["proc
 turbopack-nodejs = { workspace = true }
 turbopack-resolve = { workspace = true }
 turbopack-trace-utils = { workspace = true }
+uuid = { workspace = true }
+rand = { workspace = true }
 webbrowser = { workspace = true }
 
 turbo-esregex = { workspace = true }

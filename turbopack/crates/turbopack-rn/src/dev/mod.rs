@@ -1,6 +1,6 @@
 use std::{env::current_dir, future::Future, net::SocketAddr, path::PathBuf, pin::Pin, sync::Arc};
 
-use anyhow::{Error, Result};
+use anyhow::{Context, Error, Result};
 use futures::{SinkExt, StreamExt};
 use http_body_util::{BodyExt, Empty, Full, combinators::BoxBody};
 use hyper::{
@@ -125,7 +125,7 @@ impl Svc {
         &self,
         mut req: hyper::Request<hyper::body::Incoming>,
     ) -> Result<Response<BoxBody<Bytes, anyhow::Error>>> {
-        eprintln!("Got request: {} {}", req.method(), req.uri().path());
+        eprintln!("Got request: {} {}", req.method(), req.uri());
 
         /*
         GET "/index.bundle?platform=ios&dev=true&lazy=true&minify=false&inlineSourceMap=false&modulesOnly=false&runModule=true&excludeSource=true&sourcePaths=url-server&app=org.reactjs.native.example.MyReactNativeApp"
@@ -209,11 +209,19 @@ impl Svc {
                 // query
                 // Check if the request is a websocket upgrade request.
                 if hyper_tungstenite::is_upgrade_request(&req) {
+                    #[derive(Deserialize)]
+                    struct Query {
+                        platform: Option<String>,
+                        entry: Option<String>,
+                    }
+                    let query: Query =
+                        serde_qs::from_str(req.uri().query().unwrap_or_default()).unwrap();
+
                     let (response, websocket) = hyper_tungstenite::upgrade(&mut req, None).unwrap();
 
                     let source_provider = ServerSourceProvider {
-                        platform: "ios".into(), // TODO
-                        entries: vec!["index.js".to_string()],
+                        platform: query.platform.unwrap_or_else(|| "ios".into()),
+                        entries: vec![query.entry.context("expected entry query param")?],
                         project_dir: self.project_dir.clone(),
                         root_dir: self.root_dir.clone(),
                     };
@@ -229,7 +237,14 @@ impl Svc {
                     return Ok(response.map(|b| BoxBody::new(b.map_err(|never| match never {}))));
                 }
             }
-            (&Method::GET, "/index.bundle") => {
+            (&Method::GET, path) if path.ends_with(".bundle") => {
+                let entry_file = path.trim_start_matches('/').trim_end_matches(".bundle");
+                let entry_file = if entry_file == "index" {
+                    "index.js".to_string()
+                } else {
+                    entry_file.to_string()
+                };
+
                 #[derive(Deserialize)]
                 struct Query {
                     platform: Option<String>,
@@ -255,7 +270,7 @@ impl Svc {
                     .run_once(async move {
                         let build_result_op = build_rn_internal(
                             query.platform.clone(),
-                            vec!["index.js".to_string()],
+                            vec![entry_file],
                             project_dir.clone(),
                             root_dir,
                         );
@@ -340,6 +355,132 @@ impl Svc {
                         return Ok(not_found);
                     }
                 }
+            }
+            // https://github.com/expo/expo/blob/main/packages/%40expo/cli/src/start/server/middleware/ExpoGoManifestHandlerMiddleware.ts
+            // GET / HTTP/1.1
+            // Host: 192.168.2.41:8081
+            // EAS-Client-ID: A829E3DA-81D5-4218-AFED-6B2B31D203F1
+            // User-Agent: Exponent/54.0.6 (arm64; iOS 18.6; Scale/3.00; en_DE)
+            // Expo-Client-Release-Type: SIMULATOR
+            // Exponent-Platform: ios
+            // Expo-Updates-Environment: EXPO_DEVICE
+            // Expo-JSON-Error: true
+            // Expo-Runtime-Version: exposdk:54.0.0
+            // Expo-Client-Environment: EXPO_DEVICE
+            // Exponent-Accept-Signature: true
+            // expo-expect-signature: sig, keyid="expo-root", alg="rsa-v1_5-sha256"
+            // Expo-API-Version: 1
+            // Expo-Platform: ios
+            // Connection: keep-alive
+            // Accept-Language: de-DE,de;q=0.9
+            // Exponent-Version: 54.0.6
+            // Exponent-SDK-Version: 54.0.0
+            // Expo-Protocol-Version: 1
+            // Accept: multipart/mixed,application/expo+json,application/json
+            // Accept-Encoding: gzip, deflate
+            //
+            //
+            // HTTP/1.1 200 OK
+            // expo-protocol-version: 0
+            // expo-sfv-version: 0
+            // cache-control: private, max-age=0
+            // content-type: multipart/mixed; boundary=formdata-2921c8735f7e3913
+            // Date: Sun, 04 Jan 2026 11:37:15 GMT
+            // Connection: keep-alive
+            // Keep-Alive: timeout=5
+            // Content-Length: 2112
+            (&Method::GET, "/") => {
+                let id = uuid::Uuid::from_u128(rand::random())
+                    .as_hyphenated()
+                    .to_string();
+                let created_at = chrono::Utc::now().to_rfc3339();
+                let manifest = serde_json::json!({
+                    "id": id,
+                    "createdAt": created_at,
+                    "runtimeVersion": "exposdk:54.0.0",
+                    "launchAsset": {
+                        "key": "bundle",
+                        "contentType": "application/javascript",
+                        "url": "http://192.168.2.41:8081/index.tsx.bundle?platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable"
+                    },
+                    "assets": [],
+                    "metadata": {},
+                    "extra": {
+                    "eas": {},
+                    "expoClient": {
+                        "name": "my-expo-app",
+                        "slug": "my-expo-app",
+                        "version": "1.0.0",
+                        "orientation": "portrait",
+                        "icon": "src/assets/images/icon.png",
+                        "userInterfaceStyle": "automatic",
+                        "newArchEnabled": true,
+                        "scheme": "myexpoapp",
+                        "ios": { "supportsTablet": true, "xbundler": "webpack" },
+                        "android": {
+                        "adaptiveIcon": {
+                            "foregroundImage": "src/assets/images/adaptive-icon.png",
+                            "backgroundColor": "#ffffff",
+                            "foregroundImageUrl": "http://192.168.2.41:8081/assets/src/assets/images/adaptive-icon.png"
+                        }
+                        },
+                        "web": { "favicon": "src/assets/images/favicon.png" },
+                        "plugins": [
+                        "expo-asset",
+                        [
+                            "expo-splash-screen",
+                            {
+                            "backgroundColor": "#ffffff",
+                            "image": "src/assets/images/splash-icon.png"
+                            }
+                        ]
+                        ],
+                        "_internal": {
+                        "isDebug": false,
+                        "projectRoot": "/Users/niklas/Downloads/my-expo-app",
+                        "dynamicConfigPath": {},
+                        "staticConfigPath": "/Users/niklas/Downloads/my-expo-app/app.json",
+                        "packageJsonPath": "/Users/niklas/Downloads/my-expo-app/package.json",
+                        "pluginHistory": {
+                            "expo-asset": { "name": "expo-asset", "version": "12.0.12" },
+                            "expo-splash-screen": {
+                            "name": "expo-splash-screen",
+                            "version": "31.0.13"
+                            }
+                        }
+                        },
+                        "sdkVersion": "54.0.0",
+                        "platforms": ["ios", "android", "web"],
+                        "androidStatusBar": { "backgroundColor": "#ffffff" },
+                        "iconUrl": "http://192.168.2.41:8081/assets/src/assets/images/icon.png",
+                        "hostUri": "192.168.2.41:8081"
+                    },
+                    "expoGo": {
+                        "debuggerHost": "192.168.2.41:8081",
+                        "developer": {
+                        "tool": "expo-cli",
+                        "projectRoot": "/Users/niklas/Downloads/my-expo-app"
+                        },
+                        "packagerOpts": { "dev": true },
+                        "mainModuleName": "index.tsx"
+                    },
+                    "scopeKey": "@anonymous/my-expo-app-4409bb44-b617-41ec-83c1-85a811747b59"
+                    }
+                });
+
+                let mut res = Response::new(BoxBody::new(
+                    Full::new(serde_json::to_string_pretty(&manifest)?.into())
+                        .map_err(|never| match never {}),
+                ));
+                res.headers_mut()
+                    .append("expo-protocol-version", HeaderValue::from_str("0").unwrap());
+                res.headers_mut()
+                    .append("expo-sfv-version", HeaderValue::from_str("0").unwrap());
+                res.headers_mut().append(
+                    "Cache-Control",
+                    HeaderValue::from_str("private, max-age=0").unwrap(),
+                );
+                return Ok(res);
             }
             _ => {}
         }
