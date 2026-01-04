@@ -20,7 +20,6 @@ import { hrtimeDurationToString } from './duration-to-string'
 function verifyTypeScriptSetup(
   dir: string,
   distDir: string,
-  distDirRoot: string | undefined,
   typeCheckPreflight: boolean,
   tsconfigPath: string | undefined,
   disableStaticImages: boolean,
@@ -51,7 +50,6 @@ function verifyTypeScriptSetup(
     .verifyTypeScriptSetup({
       dir,
       distDir,
-      distDirRoot,
       typeCheckPreflight,
       tsconfigPath,
       disableStaticImages,
@@ -119,7 +117,6 @@ export async function startTypeChecking({
         verifyTypeScriptSetup(
           dir,
           config.distDir,
-          config.distDirRoot,
           !ignoreTypeScriptErrors,
           config.typescript.tsconfigPath,
           config.images.disableStaticImages,

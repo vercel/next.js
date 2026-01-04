@@ -5,15 +5,12 @@ import { promises as fs } from 'fs'
 export async function writeAppTypeDeclarations({
   baseDir,
   distDir,
-  distDirRoot,
   imageImportsEnabled,
   hasPagesDir,
   hasAppDir,
 }: {
   baseDir: string
   distDir: string
-  /** The original distDir before any modifications (e.g., for isolatedDevBuild). Used for stable type imports. */
-  distDirRoot?: string
   imageImportsEnabled: boolean
   hasPagesDir: boolean
   hasAppDir: boolean
@@ -60,12 +57,10 @@ export async function writeAppTypeDeclarations({
     )
   }
 
-  // Use distDirRoot for stable path that doesn't change between dev/build modes
-  const stableDistDir = (distDirRoot ?? distDir).replaceAll(
-    path.win32.sep,
-    path.posix.sep
+  const routeTypesPath = path.posix.join(
+    distDir.replaceAll(path.win32.sep, path.posix.sep),
+    'types/routes.d.ts'
   )
-  const routeTypesPath = path.posix.join(stableDistDir, 'types/routes.d.ts')
 
   // Use ESM import instead of triple-slash reference for better ESLint compatibility
   directives.push(`import "./${routeTypesPath}";`)
