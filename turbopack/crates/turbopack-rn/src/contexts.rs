@@ -99,11 +99,18 @@ pub async fn get_client_resolve_options_context(
         browser: false,
         module: true,
         enable_react: true,
+        // The ecosystem relies on Typescript in node_modules, e.g.
+        // - node_modules/@expo/metro-runtime/src/index.ts
+        // - node_modules/expo-haptics/src/Haptics.ts
+        // - node_modules/expo-image/src/index.ts
+        // - node_modules/expo-modules-core/src/index.ts
+        // - node_modules/expo/src/Expo.ts
+        // - node_modules/react-native-gesture-handler/lib/module/handlers/
+        //   NativeViewGestureHandler.ts
+        enable_typescript: true,
         ..Default::default()
     };
     Ok(ResolveOptionsContext {
-        enable_typescript: true,
-        enable_react: true,
         rules: vec![(
             foreign_code_context_condition(),
             module_options_context.clone().resolved_cell(),
@@ -221,6 +228,17 @@ async fn get_client_module_options_context(
         ),
         ecmascript: EcmascriptOptionsContext {
             enable_jsx,
+            // The ecosystem relies on Typescript in node_modules, e.g.
+            // - node_modules/@expo/metro-runtime/src/index.ts
+            // - node_modules/expo-haptics/src/Haptics.ts
+            // - node_modules/expo-image/src/index.ts
+            // - node_modules/expo-modules-core/src/index.ts
+            // - node_modules/expo/src/Expo.ts
+            // - node_modules/react-native-gesture-handler/lib/module/handlers/
+            //   NativeViewGestureHandler.ts
+            enable_typescript_transform: Some(
+                TypescriptTransformOptions::default().resolved_cell(),
+            ),
             ..Default::default()
         },
         ..Default::default()
@@ -228,9 +246,6 @@ async fn get_client_module_options_context(
 
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
-            enable_typescript_transform: Some(
-                TypescriptTransformOptions::default().resolved_cell(),
-            ),
             source_maps: source_maps_type,
             ..module_options_context.ecmascript.clone()
         },

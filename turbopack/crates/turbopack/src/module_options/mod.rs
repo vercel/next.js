@@ -714,6 +714,7 @@ impl ModuleOptions {
                     RuleCondition::ResourcePathEndsWith(".png".to_string()),
                     RuleCondition::ResourcePathEndsWith(".svg".to_string()),
                     RuleCondition::ResourcePathEndsWith(".webp".to_string()),
+                    RuleCondition::ResourcePathEndsWith(".ttf".to_string()),
                     RuleCondition::ResourcePathEndsWith(".woff2".to_string()),
                 ]),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlJs {
