@@ -1,5 +1,6 @@
 import type { SourceMap } from 'module'
 import { LRUCache } from './lru-cache'
+export { normalizeSourceUrl } from './source-map-utils'
 
 function noSourceMap(): SourceMap | undefined {
   return undefined

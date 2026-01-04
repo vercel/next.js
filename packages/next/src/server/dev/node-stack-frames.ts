@@ -4,11 +4,16 @@ import {
   decorateServerError,
   type ErrorSourceType,
 } from '../../shared/lib/error-source'
+import { normalizeSourceUrl } from '../lib/source-map-utils'
 
 function getFilesystemFrame(frame: StackFrame): StackFrame {
   const f: StackFrame = { ...frame }
 
   if (typeof f.file === 'string') {
+    // Normalize paths that may have been malformed by source-map library
+    // (e.g., duplicate path segments from Turbopack)
+    f.file = normalizeSourceUrl(f.file)
+
     if (
       // Posix:
       f.file.startsWith('/') ||

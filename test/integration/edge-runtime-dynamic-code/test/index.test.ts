@@ -24,6 +24,43 @@ const context: Record<string, any> = {
 
 const isTurbopack = process.env.IS_TURBOPACK_TEST
 
+/**
+ * Extract the warning message from output for snapshot testing.
+ * Captures: warning header, user-level stack frames, and code frame.
+ * Excludes internal Next.js frames (dist/, src/server/, etc.)
+ */
+function extractWarning(output: string, warningType: string): string {
+  const stripped = stripAnsi(output)
+  const startIndex = stripped.indexOf(warningType)
+  if (startIndex === -1) return ''
+
+  const fromWarning = stripped.slice(startIndex)
+  const lines = fromWarning.split('\n')
+
+  const result: string[] = []
+
+  for (const line of lines) {
+    // Skip internal frames
+    const isInternalFrame =
+      line.includes('at eval (dist/') ||
+      line.includes('at eval (../') ||
+      line.includes('src/server/') ||
+      line.includes('node_modules/')
+
+    // Stop at pointer line (end of code frame)
+    if (/^\s+\|\s+\^/.test(line)) {
+      result.push(line)
+      break
+    }
+
+    if (!isInternalFrame) {
+      result.push(line)
+    }
+  }
+
+  return result.join('\n')
+}
+
 describe('Page using eval in development mode', () => {
   let output = ''
 
@@ -103,48 +140,10 @@ describe.each([
           expect(await extractValue(res)).toEqual(100)
           await waitFor(500)
           expect(output).toContain(EVAL_ERROR)
-          if (title === 'Middleware') {
-            expect(output).toContain(
-              isTurbopack
-                ? '' +
-                    // TODO(veil): Turbopack duplicates project path
-                    '\n    at usingEval (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/lib/utils.js:3:17)' +
-                    '\n    at middleware (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/middleware.js:12:54)' +
-                    '\n  1 | export async function usingEval() {'
-                : '\n    at usingEval (../../test/integration/edge-runtime-dynamic-code/lib/utils.js:3:19)' +
-                    '\n    at middleware (../../test/integration/edge-runtime-dynamic-code/middleware.js:12:54)' +
-                    // Next.js internal frame. Feel free to adjust.
-                    // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
-                    '\n    at eval (../packages/next/dist'
-            )
-          } else {
-            expect(output).toContain(
-              isTurbopack
-                ? '' +
-                    // TODO(veil): Turbopack duplicates project path
-                    '\n    at usingEval (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/lib/utils.js:3:17)' +
-                    '\n    at handler (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/pages/api/route.js:12:41)' +
-                    '\n  1 | export async function usingEval() {'
-                : '\n    at usingEval (../../test/integration/edge-runtime-dynamic-code/lib/utils.js:3:19)' +
-                    '\n    at handler (../../test/integration/edge-runtime-dynamic-code/pages/api/route.js:12:41)' +
-                    '\n  1 | export async function usingEval() {'
-            )
-          }
-
-          // Turbopack produces incorrect mappings in the sourcemap.
-          if (isTurbopack) {
-            expect(output).toContain(
-              '' +
-                "\n> 3 |   return { value: eval('100') }" +
-                '\n    |                 ^'
-            )
-          } else {
-            expect(output).toContain(
-              '' +
-                "\n> 3 |   return { value: eval('100') }" +
-                '\n    |                   ^'
-            )
-          }
+          const warning = extractWarning(output, 'DynamicCodeEvaluationWarning')
+          expect(warning).toMatchSnapshot(
+            `eval-${title}-${isTurbopack ? 'turbopack' : 'webpack'}`
+          )
         })
 
         it('does not show warning when no code uses eval', async () => {
@@ -165,54 +164,13 @@ describe.each([
           expect(await extractValue(res)).toEqual(81)
           await waitFor(500)
           expect(output).toContain(WASM_COMPILE_ERROR)
-          if (title === 'Middleware') {
-            // Turbopack produces incorrect mappings in the sourcemap.
-            expect(output).toContain(
-              isTurbopack
-                ? '' +
-                    '\n    at usingWebAssemblyCompile (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/lib/wasm.js:22:18)' +
-                    '\n    at middleware (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/middleware.js:24:68)' +
-                    '\n  20 |' +
-                    '\n  21 | export async function usingWebAssemblyCompile(x) {' +
-                    '\n> 22 |   const module = await WebAssembly.compile(SQUARE_WASM_BUFFER)' +
-                    '\n     |                  ^'
-                : '\n    at usingWebAssemblyCompile (../../test/integration/edge-runtime-dynamic-code/lib/wasm.js:22:24)' +
-                    '\n    at middleware (../../test/integration/edge-runtime-dynamic-code/middleware.js:24:68)' +
-                    // Next.js internal frame. Feel free to adjust.
-                    // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
-                    '\n    at'
-            )
-          } else {
-            // Turbopack produces incorrect mappings in the sourcemap.
-            expect(output).toContain(
-              isTurbopack
-                ? '' +
-                    // TODO(veil): Turbopack duplicates project path
-                    '\n    at usingWebAssemblyCompile (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/lib/wasm.js:22:18)' +
-                    '\n    at handler (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/pages/api/route.js:20:55)' +
-                    '\n  20 |'
-                : '' +
-                    '\n    at usingWebAssemblyCompile (../../test/integration/edge-runtime-dynamic-code/lib/wasm.js:22:24)' +
-                    '\n    at handler (../../test/integration/edge-runtime-dynamic-code/pages/api/route.js:20:55)' +
-                    '\n  20 |'
-            )
-
-            // Turbopack produces incorrect mappings in the sourcemap.
-            if (isTurbopack) {
-              expect(output).toContain(
-                '' +
-                  '\n> 22 |   const module = await WebAssembly.compile(SQUARE_WASM_BUFFER)' +
-                  '\n     |                  ^'
-              )
-            } else {
-              // TODO(veil): Inconsistent cursor position
-              expect(output).toContain(
-                '' +
-                  '\n> 22 |   const module = await WebAssembly.compile(SQUARE_WASM_BUFFER)' +
-                  '\n     |                        ^'
-              )
-            }
-          }
+          const warning = extractWarning(
+            output,
+            'DynamicWasmCodeGenerationWarning'
+          )
+          expect(warning).toMatchSnapshot(
+            `wasm-compile-${title}-${isTurbopack ? 'turbopack' : 'webpack'}`
+          )
         })
 
         it('shows a warning when running WebAssembly.instantiate with a buffer parameter', async () => {
@@ -223,45 +181,13 @@ describe.each([
           expect(await extractValue(res)).toEqual(81)
           await waitFor(500)
           expect(output).toContain(WASM_INSTANTIATE_ERROR)
-          if (title === 'Middleware') {
-            expect(output).toContain(
-              isTurbopack
-                ? '' +
-                    '\n    at async usingWebAssemblyInstantiateWithBuffer (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/lib/wasm.js:28:24)' +
-                    '\n    at async middleware (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/middleware.js:39:30)' +
-                    '\n  26 |\n'
-                : '' +
-                    '\n    at async usingWebAssemblyInstantiateWithBuffer (../../test/integration/edge-runtime-dynamic-code/lib/wasm.js:28:24)' +
-                    '\n    at async middleware (../../test/integration/edge-runtime-dynamic-code/middleware.js:39:30)' +
-                    // Next.js internal frame. Feel free to adjust.
-                    // TODO(veil): https://linear.app/vercel/issue/NDX-464
-                    '\n    at '
-            )
-            expect(stripAnsi(output)).toContain(
-              '' +
-                '\n> 28 |   const { instance } = await WebAssembly.instantiate(SQUARE_WASM_BUFFER, {})' +
-                '\n     |                        ^'
-            )
-          } else {
-            expect(output).toContain(
-              isTurbopack
-                ? '' +
-                    // TODO(veil): Turbopack duplicates project path
-                    '\n    at async usingWebAssemblyInstantiateWithBuffer (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/lib/wasm.js:28:24)' +
-                    '\n    at async handler (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/pages/api/route.js:28:26)' +
-                    '\n  26 |'
-                : '' +
-                    '\n    at async usingWebAssemblyInstantiateWithBuffer (../../test/integration/edge-runtime-dynamic-code/lib/wasm.js:28:24)' +
-                    '\n    at async handler (../../test/integration/edge-runtime-dynamic-code/pages/api/route.js:28:26)' +
-                    '\n  26 |'
-            )
-            // TODO(veil): Inconsistent cursor position
-            expect(stripAnsi(output)).toContain(
-              '' +
-                '\n> 28 |   const { instance } = await WebAssembly.instantiate(SQUARE_WASM_BUFFER, {})' +
-                '\n     |                        ^'
-            )
-          }
+          const warning = extractWarning(
+            output,
+            'DynamicWasmCodeGenerationWarning'
+          )
+          expect(warning).toMatchSnapshot(
+            `wasm-instantiate-${title}-${isTurbopack ? 'turbopack' : 'webpack'}`
+          )
         })
 
         it('does not show a warning when running WebAssembly.instantiate with a module parameter', async () => {

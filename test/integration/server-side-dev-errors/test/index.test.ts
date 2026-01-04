@@ -84,17 +84,20 @@ describe('server-side dev errors', () => {
       )
 
       await expect(browser).toDisplayRedbox(`
-        {
-          "description": "missingVar is not defined",
-          "environmentLabel": null,
-          "label": "Runtime ReferenceError",
-          "source": "pages/gsp.js (6:3) @ getStaticProps
-        > 6 |   missingVar;return {
-            |   ^",
-          "stack": [
-            "getStaticProps pages/gsp.js (6:3)",
-          ],
-        }
+       {
+         "description": "missingVar is not defined",
+         "environmentLabel": null,
+         "label": "Runtime ReferenceError",
+         "source": "../../test/integration/server-side-dev-errors/pages/gsp.js (6:3) @ getStaticProps
+       > 6 |   missingVar;return {
+           |   ^",
+         "stack": [
+           "getStaticProps ../../test/integration/server-side-dev-errors/pages/gsp.js (6:3)",
+           "async doRender src/server/route-modules/pages/pages-handler.ts (234:22)",
+           "async handleResponse src/server/route-modules/pages/pages-handler.ts (529:24)",
+           "async Module.handler src/server/route-modules/pages/pages-handler.ts (729:9)",
+         ],
+       }
       `)
 
       await fs.writeFile(gspPage, content, { flush: true })
@@ -134,17 +137,20 @@ describe('server-side dev errors', () => {
       )
 
       await expect(browser).toDisplayRedbox(`
-        {
-          "description": "missingVar is not defined",
-          "environmentLabel": null,
-          "label": "Runtime ReferenceError",
-          "source": "pages/gssp.js (6:3) @ getServerSideProps
-        > 6 |   missingVar;return {
-            |   ^",
-          "stack": [
-            "getServerSideProps pages/gssp.js (6:3)",
-          ],
-        }
+       {
+         "description": "missingVar is not defined",
+         "environmentLabel": null,
+         "label": "Runtime ReferenceError",
+         "source": "../../test/integration/server-side-dev-errors/pages/gssp.js (6:3) @ getServerSideProps
+       > 6 |   missingVar;return {
+           |   ^",
+         "stack": [
+           "getServerSideProps ../../test/integration/server-side-dev-errors/pages/gssp.js (6:3)",
+           "async doRender src/server/route-modules/pages/pages-handler.ts (234:22)",
+           "async handleResponse src/server/route-modules/pages/pages-handler.ts (529:24)",
+           "async Module.handler src/server/route-modules/pages/pages-handler.ts (729:9)",
+         ],
+       }
       `)
 
       await fs.writeFile(gsspPage, content)
@@ -184,17 +190,20 @@ describe('server-side dev errors', () => {
       )
 
       await expect(browser).toDisplayRedbox(`
-        {
-          "description": "missingVar is not defined",
-          "environmentLabel": null,
-          "label": "Runtime ReferenceError",
-          "source": "pages/blog/[slug].js (6:3) @ getServerSideProps
-        > 6 |   missingVar;return {
-            |   ^",
-          "stack": [
-            "getServerSideProps pages/blog/[slug].js (6:3)",
-          ],
-        }
+       {
+         "description": "missingVar is not defined",
+         "environmentLabel": null,
+         "label": "Runtime ReferenceError",
+         "source": "../../test/integration/server-side-dev-errors/pages/blog/[slug].js (6:3) @ getServerSideProps
+       > 6 |   missingVar;return {
+           |   ^",
+         "stack": [
+           "getServerSideProps ../../test/integration/server-side-dev-errors/pages/blog/[slug].js (6:3)",
+           "async doRender src/server/route-modules/pages/pages-handler.ts (234:22)",
+           "async handleResponse src/server/route-modules/pages/pages-handler.ts (529:24)",
+           "async Module.handler src/server/route-modules/pages/pages-handler.ts (729:9)",
+         ],
+       }
       `)
 
       await fs.writeFile(dynamicGsspPage, content)
@@ -221,40 +230,27 @@ describe('server-side dev errors', () => {
       })
 
       const stderrOutput = stripAnsi(stderr.slice(stderrIdx)).trim()
-      if (isTurbopack) {
-        expect(stderrOutput).toStartWith(
-          '⨯ ReferenceError: missingVar is not defined' +
-            '\n    at handler (../../test/integration/server-side-dev-errors/pages/api/hello.js:2:3)' +
-            '\n  1 | export default function handler(req, res) {' +
-            "\n> 2 |   missingVar;res.status(200).json({ hello: 'world' })" +
-            '\n    |   ^'
-        )
-      } else {
-        expect(stderrOutput).toStartWith(
-          '⨯ ReferenceError: missingVar is not defined' +
-            '\n    at handler (../../test/integration/server-side-dev-errors/pages/api/hello.js:2:3)' +
-            // TODO(veil): Why not ignore-listed?
-            '\n    at '
-        )
-        expect(stderrOutput).toContain(
+      expect(stderrOutput).toStartWith(
+        '⨯ ReferenceError: missingVar is not defined' +
+          '\n    at handler (../../test/integration/server-side-dev-errors/pages/api/hello.js:2:3)' +
           '\n  1 | export default function handler(req, res) {' +
-            "\n> 2 |   missingVar;res.status(200).json({ hello: 'world' })" +
-            '\n    |   ^'
-        )
-      }
+          "\n> 2 |   missingVar;res.status(200).json({ hello: 'world' })" +
+          '\n    |   ^'
+      )
 
       await expect(browser).toDisplayRedbox(`
-        {
-          "description": "missingVar is not defined",
-          "environmentLabel": null,
-          "label": "Runtime ReferenceError",
-          "source": "pages/api/hello.js (2:3) @ handler
-        > 2 |   missingVar;res.status(200).json({ hello: 'world' })
-            |   ^",
-          "stack": [
-            "handler pages/api/hello.js (2:3)",
-          ],
-        }
+       {
+         "description": "missingVar is not defined",
+         "environmentLabel": null,
+         "label": "Runtime ReferenceError",
+         "source": "../../test/integration/server-side-dev-errors/pages/api/hello.js (2:3) @ handler
+       > 2 |   missingVar;res.status(200).json({ hello: 'world' })
+           |   ^",
+         "stack": [
+           "handler ../../test/integration/server-side-dev-errors/pages/api/hello.js (2:3)",
+           "async Module.handler src/build/templates/pages-api.ts (149:7)",
+         ],
+       }
       `)
 
       await fs.writeFile(apiPage, content, { flush: true })
@@ -287,40 +283,27 @@ describe('server-side dev errors', () => {
       })
 
       const stderrOutput = stripAnsi(stderr.slice(stderrIdx)).trim()
-      if (isTurbopack) {
-        expect(stderrOutput).toStartWith(
-          '⨯ ReferenceError: missingVar is not defined' +
-            '\n    at handler (../../test/integration/server-side-dev-errors/pages/api/blog/[slug].js:2:3)' +
-            '\n  1 | export default function handler(req, res) {' +
-            '\n> 2 |   missingVar;res.status(200).json({ slug: req.query.slug })' +
-            '\n    |   ^'
-        )
-      } else {
-        expect(stderrOutput).toStartWith(
-          '⨯ ReferenceError: missingVar is not defined' +
-            '\n    at handler (../../test/integration/server-side-dev-errors/pages/api/blog/[slug].js:2:3)' +
-            // TODO(veil): Why not ignore-listed?
-            '\n    at'
-        )
-        expect(stderrOutput).toContain(
+      expect(stderrOutput).toStartWith(
+        '⨯ ReferenceError: missingVar is not defined' +
+          '\n    at handler (../../test/integration/server-side-dev-errors/pages/api/blog/[slug].js:2:3)' +
           '\n  1 | export default function handler(req, res) {' +
-            '\n> 2 |   missingVar;res.status(200).json({ slug: req.query.slug })' +
-            '\n    |   ^'
-        )
-      }
+          '\n> 2 |   missingVar;res.status(200).json({ slug: req.query.slug })' +
+          '\n    |   ^'
+      )
 
       await expect(browser).toDisplayRedbox(`
-        {
-          "description": "missingVar is not defined",
-          "environmentLabel": null,
-          "label": "Runtime ReferenceError",
-          "source": "pages/api/blog/[slug].js (2:3) @ handler
-        > 2 |   missingVar;res.status(200).json({ slug: req.query.slug })
-            |   ^",
-          "stack": [
-            "handler pages/api/blog/[slug].js (2:3)",
-          ],
-        }
+       {
+         "description": "missingVar is not defined",
+         "environmentLabel": null,
+         "label": "Runtime ReferenceError",
+         "source": "../../test/integration/server-side-dev-errors/pages/api/blog/[slug].js (2:3) @ handler
+       > 2 |   missingVar;res.status(200).json({ slug: req.query.slug })
+           |   ^",
+         "stack": [
+           "handler ../../test/integration/server-side-dev-errors/pages/api/blog/[slug].js (2:3)",
+           "async Module.handler src/build/templates/pages-api.ts (149:7)",
+         ],
+       }
       `)
 
       await fs.writeFile(dynamicApiPage, content, { flush: true })
@@ -385,7 +368,7 @@ describe('server-side dev errors', () => {
       // sometimes there is a leading newline, so trim it
       expect(stderrOutput.trimStart()).toMatchInlineSnapshot(`
         "Error: catch this rejection
-            at Timeout.eval [as _onTimeout] (../../test/integration/server-side-dev-errors/pages/uncaught-rejection.js:7:20)
+            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-rejection.js:7:20)
            5 | export async function getServerSideProps() {
            6 |   setTimeout(() => {
         >  7 |     Promise.reject(new Error('catch this rejection'))
@@ -394,7 +377,7 @@ describe('server-side dev errors', () => {
            9 |   return {
           10 |     props: {},
         ⨯ unhandledRejection: Error: catch this rejection
-            at Timeout.eval [as _onTimeout] (../../test/integration/server-side-dev-errors/pages/uncaught-rejection.js:7:20)
+            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-rejection.js:7:20)
            5 | export async function getServerSideProps() {
            6 |   setTimeout(() => {
         >  7 |     Promise.reject(new Error('catch this rejection'))
@@ -403,7 +386,7 @@ describe('server-side dev errors', () => {
            9 |   return {
           10 |     props: {},
         ⨯ unhandledRejection:  Error: catch this rejection
-            at Timeout.eval [as _onTimeout] (../../test/integration/server-side-dev-errors/pages/uncaught-rejection.js:7:20)
+            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-rejection.js:7:20)
            5 | export async function getServerSideProps() {
            6 |   setTimeout(() => {
         >  7 |     Promise.reject(new Error('catch this rejection'))
@@ -463,7 +446,7 @@ describe('server-side dev errors', () => {
     } else {
       expect(stderrOutput).toMatchInlineSnapshot(`
        "Error: 
-           at Timeout.eval [as _onTimeout] (../../test/integration/server-side-dev-errors/pages/uncaught-empty-rejection.js:7:20)
+           at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-empty-rejection.js:7:20)
           5 | export async function getServerSideProps() {
           6 |   setTimeout(() => {
        >  7 |     Promise.reject(new Error())
@@ -472,7 +455,7 @@ describe('server-side dev errors', () => {
           9 |   return {
          10 |     props: {},
        ⨯ unhandledRejection: Error: 
-           at Timeout.eval [as _onTimeout] (../../test/integration/server-side-dev-errors/pages/uncaught-empty-rejection.js:7:20)
+           at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-empty-rejection.js:7:20)
           5 | export async function getServerSideProps() {
           6 |   setTimeout(() => {
        >  7 |     Promise.reject(new Error())
@@ -481,7 +464,7 @@ describe('server-side dev errors', () => {
           9 |   return {
          10 |     props: {},
        ⨯ unhandledRejection:  Error: 
-           at Timeout.eval [as _onTimeout] (../../test/integration/server-side-dev-errors/pages/uncaught-empty-rejection.js:7:20)
+           at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-empty-rejection.js:7:20)
           5 | export async function getServerSideProps() {
           6 |   setTimeout(() => {
        >  7 |     Promise.reject(new Error())
@@ -541,7 +524,7 @@ describe('server-side dev errors', () => {
     } else {
       expect(stderrOutput).toMatchInlineSnapshot(`
        "Error: catch this exception
-           at Timeout.eval [as _onTimeout] (../../test/integration/server-side-dev-errors/pages/uncaught-exception.js:7:11)
+           at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-exception.js:7:11)
           5 | export async function getServerSideProps() {
           6 |   setTimeout(() => {
        >  7 |     throw new Error('catch this exception')
@@ -550,7 +533,7 @@ describe('server-side dev errors', () => {
           9 |   return {
          10 |     props: {},
        ⨯ uncaughtException: Error: catch this exception
-           at Timeout.eval [as _onTimeout] (../../test/integration/server-side-dev-errors/pages/uncaught-exception.js:7:11)
+           at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-exception.js:7:11)
           5 | export async function getServerSideProps() {
           6 |   setTimeout(() => {
        >  7 |     throw new Error('catch this exception')
@@ -559,7 +542,7 @@ describe('server-side dev errors', () => {
           9 |   return {
          10 |     props: {},
        ⨯ uncaughtException:  Error: catch this exception
-           at Timeout.eval [as _onTimeout] (../../test/integration/server-side-dev-errors/pages/uncaught-exception.js:7:11)
+           at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-exception.js:7:11)
           5 | export async function getServerSideProps() {
           6 |   setTimeout(() => {
        >  7 |     throw new Error('catch this exception')
@@ -619,7 +602,7 @@ describe('server-side dev errors', () => {
     } else {
       expect(stderrOutput).toMatchInlineSnapshot(`
        "Error: 
-           at Timeout.eval [as _onTimeout] (../../test/integration/server-side-dev-errors/pages/uncaught-empty-exception.js:7:11)
+           at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-empty-exception.js:7:11)
           5 | export async function getServerSideProps() {
           6 |   setTimeout(() => {
        >  7 |     throw new Error()
@@ -628,7 +611,7 @@ describe('server-side dev errors', () => {
           9 |   return {
          10 |     props: {},
        ⨯ uncaughtException: Error: 
-           at Timeout.eval [as _onTimeout] (../../test/integration/server-side-dev-errors/pages/uncaught-empty-exception.js:7:11)
+           at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-empty-exception.js:7:11)
           5 | export async function getServerSideProps() {
           6 |   setTimeout(() => {
        >  7 |     throw new Error()
@@ -637,7 +620,7 @@ describe('server-side dev errors', () => {
           9 |   return {
          10 |     props: {},
        ⨯ uncaughtException:  Error: 
-           at Timeout.eval [as _onTimeout] (../../test/integration/server-side-dev-errors/pages/uncaught-empty-exception.js:7:11)
+           at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-empty-exception.js:7:11)
           5 | export async function getServerSideProps() {
           6 |   setTimeout(() => {
        >  7 |     throw new Error()

@@ -8,6 +8,7 @@ import {
   findApplicableSourceMapPayload,
   ignoreListAnonymousStackFramesIfSandwiched as ignoreListAnonymousStackFramesIfSandwichedGeneric,
   sourceMapIgnoreListsEverything,
+  normalizeSourceUrl,
 } from './lib/source-maps'
 import { parseStack, type StackFrame } from './lib/parse-stack'
 import { getOriginalCodeFrame } from '../next-devtools/server/shared'
@@ -59,11 +60,28 @@ function frameToString(
     // In a multi-app repo, this leads to potentially larger file names but will make clicking snappy.
     // There's no tradeoff for the cases where `dir` in `next dev [dir]` is omitted
     // since relative to cwd is both the shortest and snappiest.
-    fileLocation = path.relative(process.cwd(), url.fileURLToPath(sourceURL))
+    try {
+      fileLocation = path.relative(process.cwd(), url.fileURLToPath(sourceURL))
+    } catch {
+      // fileURLToPath throws for file URLs with non-localhost hosts (e.g., file://remote/path)
+      // This can happen with malformed source map URLs. Fall back to using the URL as-is.
+      fileLocation = sourceURL
+    }
   } else if (sourceURL !== null && sourceURL.startsWith('/')) {
     fileLocation = path.relative(process.cwd(), sourceURL)
   } else {
     fileLocation = sourceURL
+  }
+
+  // Decode URL-encoded characters in the path.
+  // Dynamic routes like [slug] get encoded as %5Bslug%5D in source map URLs.
+  // Decode them back so stack traces show readable paths: pages/blog/[slug].js
+  if (fileLocation !== null) {
+    try {
+      fileLocation = decodeURIComponent(fileLocation)
+    } catch {
+      // Keep original if decoding fails (e.g., malformed percent encoding)
+    }
   }
 
   return methodName
@@ -112,14 +130,22 @@ interface SourceMappedFrame {
 function createUnsourcemappedFrame(
   frame: SourcemappableStackFrame
 ): SourceMappedFrame {
+  // Normalize the file path even for unsourcemapped frames.
+  // This handles cases where V8's built-in source map support already resolved the path
+  // but introduced duplicate path segments (e.g., from Turbopack's source maps).
+  const normalizedFile = normalizeSourceUrl(frame.file)
+
   return {
     stack: {
-      file: frame.file,
+      file: normalizedFile,
       line1: frame.line1,
       column1: frame.column1,
-      methodName: frame.methodName,
+      // Webpack's eval devtool wraps code in eval() which produces ugly method names like:
+      // "Timeout.eval [as _onTimeout]" instead of "Timeout._onTimeout"
+      // This regex extracts the actual method name from the "[as X]" wrapper.
+      methodName: frame.methodName?.replace(/\.eval \[as ([^\]]+)\]/, '.$1'),
       arguments: frame.arguments,
-      ignored: shouldIgnoreListGeneratedFrame(frame.file),
+      ignored: shouldIgnoreListGeneratedFrame(normalizedFile),
     },
     code: null,
   }
@@ -250,14 +276,16 @@ function getSourcemappedFrameIfPossible(
     applicableSourceMap !== undefined &&
     sourceMapIgnoreListsEverything(applicableSourceMap)
   if (sourcePosition.source === null) {
+    // Normalize the file path in case V8's source maps already resolved it with duplicates
+    const normalizedFile = normalizeSourceUrl(frame.file)
     return {
       stack: {
         arguments: frame.arguments,
-        file: frame.file,
+        file: normalizedFile,
         line1: frame.line1,
         column1: frame.column1,
         methodName: frame.methodName,
-        ignored: ignored || shouldIgnoreListGeneratedFrame(frame.file),
+        ignored: ignored || shouldIgnoreListGeneratedFrame(normalizedFile),
       },
       code: null,
     }
@@ -282,6 +310,11 @@ function getSourcemappedFrameIfPossible(
     ignored = applicableSourceMap.ignoreList?.includes(sourceIndex) ?? false
   }
 
+  // Normalize the source URL to fix issues from source-map library:
+  // 1. Duplicate path segments from Turbopack (test/foo/test/foo/file.js)
+  // 2. Malformed file:/ URLs from sourceRoot concatenation
+  const normalizedSource = normalizeSourceUrl(sourcePosition.source)
+
   const originalFrame: IgnorableStackFrame = {
     // We ignore the sourcemapped name since it won't be the correct name.
     // The callsite will point to the column of the variable name instead of the
@@ -289,8 +322,11 @@ function getSourcemappedFrameIfPossible(
     // TODO(NDX-531): Spy on prepareStackTrace to get the enclosing line number for method name mapping.
     methodName: frame.methodName
       ?.replace('__WEBPACK_DEFAULT_EXPORT__', 'default')
-      ?.replace('__webpack_exports__.', ''),
-    file: sourcePosition.source,
+      ?.replace('__webpack_exports__.', '')
+      // Webpack's eval devtool wraps code in eval() which produces ugly method names.
+      // Extract actual method name: "Timeout.eval [as _onTimeout]" -> "Timeout._onTimeout"
+      ?.replace(/\.eval \[as ([^\]]+)\]/, '.$1'),
+    file: normalizedSource,
     line1: sourcePosition.line,
     column1: sourcePosition.column + 1,
     // TODO: c&p from async createOriginalStackFrame but why not frame.arguments?

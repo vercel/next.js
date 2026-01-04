@@ -1,0 +1,134 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Edge route usage of dynamic code evaluation development mode shows a warning when running WebAssembly.compile: wasm-compile-Edge route-turbopack 1`] = `
+"DynamicWasmCodeGenerationWarning: Dynamic WASM code generation (e. g. 'WebAssembly.compile') not allowed in Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation
+    at usingWebAssemblyCompile (../../test/integration/edge-runtime-dynamic-code/lib/wasm.js:22:18)
+    at handler (../../test/integration/edge-runtime-dynamic-code/pages/api/route.js:20:55)
+  20 |
+  21 | export async function usingWebAssemblyCompile(x) {
+> 22 |   const module = await WebAssembly.compile(SQUARE_WASM_BUFFER)
+     |                  ^"
+`;
+
+exports[`Edge route usage of dynamic code evaluation development mode shows a warning when running WebAssembly.compile: wasm-compile-Edge route-webpack 1`] = `
+"DynamicWasmCodeGenerationWarning: Dynamic WASM code generation (e. g. 'WebAssembly.compile') not allowed in Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation
+    at usingWebAssemblyCompile (../../test/integration/edge-runtime-dynamic-code/lib/wasm.js:22:24)
+    at handler (../../test/integration/edge-runtime-dynamic-code/pages/api/route.js:20:55)
+  20 |
+  21 | export async function usingWebAssemblyCompile(x) {
+> 22 |   const module = await WebAssembly.compile(SQUARE_WASM_BUFFER)
+     |                        ^"
+`;
+
+exports[`Edge route usage of dynamic code evaluation development mode shows a warning when running WebAssembly.instantiate with a buffer parameter: wasm-instantiate-Edge route-turbopack 1`] = `
+"DynamicWasmCodeGenerationWarning: Dynamic WASM code generation ('WebAssembly.instantiate' with a buffer parameter) not allowed in Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation
+    at async usingWebAssemblyInstantiateWithBuffer (../../test/integration/edge-runtime-dynamic-code/lib/wasm.js:28:24)
+    at async handler (../../test/integration/edge-runtime-dynamic-code/pages/api/route.js:28:26)
+  26 |
+  27 | export async function usingWebAssemblyInstantiateWithBuffer(x) {
+> 28 |   const { instance } = await WebAssembly.instantiate(SQUARE_WASM_BUFFER, {})
+     |                        ^"
+`;
+
+exports[`Edge route usage of dynamic code evaluation development mode shows a warning when running WebAssembly.instantiate with a buffer parameter: wasm-instantiate-Edge route-webpack 1`] = `
+"DynamicWasmCodeGenerationWarning: Dynamic WASM code generation ('WebAssembly.instantiate' with a buffer parameter) not allowed in Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation
+    at async usingWebAssemblyInstantiateWithBuffer (../../test/integration/edge-runtime-dynamic-code/lib/wasm.js:28:24)
+    at async handler (../../test/integration/edge-runtime-dynamic-code/pages/api/route.js:28:26)
+  26 |
+  27 | export async function usingWebAssemblyInstantiateWithBuffer(x) {
+> 28 |   const { instance } = await WebAssembly.instantiate(SQUARE_WASM_BUFFER, {})
+     |                        ^"
+`;
+
+exports[`Edge route usage of dynamic code evaluation development mode shows a warning when running code with eval: eval-Edge route-turbopack 1`] = `
+"DynamicCodeEvaluationWarning: Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime
+Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation
+    at usingEval (../../test/integration/edge-runtime-dynamic-code/lib/utils.js:3:17)
+    at handler (../../test/integration/edge-runtime-dynamic-code/pages/api/route.js:12:41)
+  1 | export async function usingEval() {
+  2 |   // eslint-disable-next-line no-eval
+> 3 |   return { value: eval('100') }
+    |                 ^"
+`;
+
+exports[`Edge route usage of dynamic code evaluation development mode shows a warning when running code with eval: eval-Edge route-webpack 1`] = `
+"DynamicCodeEvaluationWarning: Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime
+Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation
+    at usingEval (../../test/integration/edge-runtime-dynamic-code/lib/utils.js:3:19)
+    at handler (../../test/integration/edge-runtime-dynamic-code/pages/api/route.js:12:41)
+  1 | export async function usingEval() {
+  2 |   // eslint-disable-next-line no-eval
+> 3 |   return { value: eval('100') }
+    |                   ^"
+`;
+
+exports[`Middleware usage of dynamic code evaluation development mode shows a warning when running WebAssembly.compile: wasm-compile-Middleware-turbopack 1`] = `
+"DynamicWasmCodeGenerationWarning: Dynamic WASM code generation (e. g. 'WebAssembly.compile') not allowed in Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation
+    at usingWebAssemblyCompile (../../test/integration/edge-runtime-dynamic-code/lib/wasm.js:22:18)
+    at middleware (../../test/integration/edge-runtime-dynamic-code/middleware.js:24:68)
+  20 |
+  21 | export async function usingWebAssemblyCompile(x) {
+> 22 |   const module = await WebAssembly.compile(SQUARE_WASM_BUFFER)
+     |                  ^"
+`;
+
+exports[`Middleware usage of dynamic code evaluation development mode shows a warning when running WebAssembly.compile: wasm-compile-Middleware-webpack 1`] = `
+"DynamicWasmCodeGenerationWarning: Dynamic WASM code generation (e. g. 'WebAssembly.compile') not allowed in Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation
+    at usingWebAssemblyCompile (../../test/integration/edge-runtime-dynamic-code/lib/wasm.js:22:24)
+    at middleware (../../test/integration/edge-runtime-dynamic-code/middleware.js:24:68)
+  20 |
+  21 | export async function usingWebAssemblyCompile(x) {
+> 22 |   const module = await WebAssembly.compile(SQUARE_WASM_BUFFER)
+     |                        ^"
+`;
+
+exports[`Middleware usage of dynamic code evaluation development mode shows a warning when running WebAssembly.instantiate with a buffer parameter: wasm-instantiate-Middleware-turbopack 1`] = `
+"DynamicWasmCodeGenerationWarning: Dynamic WASM code generation ('WebAssembly.instantiate' with a buffer parameter) not allowed in Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation
+    at async usingWebAssemblyInstantiateWithBuffer (../../test/integration/edge-runtime-dynamic-code/lib/wasm.js:28:24)
+    at async middleware (../../test/integration/edge-runtime-dynamic-code/middleware.js:39:30)
+  26 |
+  27 | export async function usingWebAssemblyInstantiateWithBuffer(x) {
+> 28 |   const { instance } = await WebAssembly.instantiate(SQUARE_WASM_BUFFER, {})
+     |                        ^"
+`;
+
+exports[`Middleware usage of dynamic code evaluation development mode shows a warning when running WebAssembly.instantiate with a buffer parameter: wasm-instantiate-Middleware-webpack 1`] = `
+"DynamicWasmCodeGenerationWarning: Dynamic WASM code generation ('WebAssembly.instantiate' with a buffer parameter) not allowed in Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation
+    at async usingWebAssemblyInstantiateWithBuffer (../../test/integration/edge-runtime-dynamic-code/lib/wasm.js:28:24)
+    at async middleware (../../test/integration/edge-runtime-dynamic-code/middleware.js:39:30)
+    at async eval (dist/build/webpack/loaders/next-middleware-loader.js?absolutePagePath=/Users/feedthejim/Projects/next.js/test/integration/edge-runtime-dynamic-code/middleware.js&page=/middleware&rootDir=/Users/feedthejim/Projects/next.js/test/integration/edge-runtime-dynamic-code&matchers=&preferredRegion=&middlewareConfig=e30=!:30:1)
+  26 |
+  27 | export async function usingWebAssemblyInstantiateWithBuffer(x) {
+> 28 |   const { instance } = await WebAssembly.instantiate(SQUARE_WASM_BUFFER, {})
+     |                        ^"
+`;
+
+exports[`Middleware usage of dynamic code evaluation development mode shows a warning when running code with eval: eval-Middleware-turbopack 1`] = `
+"DynamicCodeEvaluationWarning: Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime
+Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation
+    at usingEval (../../test/integration/edge-runtime-dynamic-code/lib/utils.js:3:17)
+    at middleware (../../test/integration/edge-runtime-dynamic-code/middleware.js:12:54)
+  1 | export async function usingEval() {
+  2 |   // eslint-disable-next-line no-eval
+> 3 |   return { value: eval('100') }
+    |                 ^"
+`;
+
+exports[`Middleware usage of dynamic code evaluation development mode shows a warning when running code with eval: eval-Middleware-webpack 1`] = `
+"DynamicCodeEvaluationWarning: Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime
+Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation
+    at usingEval (../../test/integration/edge-runtime-dynamic-code/lib/utils.js:3:19)
+    at middleware (../../test/integration/edge-runtime-dynamic-code/middleware.js:12:54)
+  1 | export async function usingEval() {
+  2 |   // eslint-disable-next-line no-eval
+> 3 |   return { value: eval('100') }
+    |                   ^"
+`;
