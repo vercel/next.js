@@ -378,7 +378,7 @@ jobs:
         uses: ijjk/rust-cache@turbo-cache-v1.0.9
         with:
           save-if: 'true'
-          cache-provider: 'turbo'
+          cache-provider: 'github'
           shared-key: build-${{ matrix.settings.target }}-${{ hashFiles('.cargo/config.toml') }}
 
       - name: Clear native build
