@@ -731,25 +731,35 @@ describe('use-cache', () => {
 
       // Wait for action response
       let userAValue: string
+      let userARenderTimestamp: string
       await retry(async () => {
         const afterAction = await browser.elementByCss('#timestamp').text()
         // KEY ASSERTION: User A sees fresh content immediately (read-your-own-writes)
         expect(afterAction).not.toBe(initial)
         userAValue = afterAction
+        userARenderTimestamp = await browser
+          .elementByCss('#render-timestamp')
+          .text()
       })
 
-      // 3. Wait for async HTML cache regeneration
-      await new Promise((r) => setTimeout(r, 2000))
-
-      // 4. Fresh cold visitor (User B) should get same cached HTML
+      // 3. Fresh cold visitor (User B) should get same cached HTML
+      // The render-timestamp is NOT cached (changes on each render), so if User B
+      // sees the same render-timestamp as User A, it proves HTML cache hit (not re-render).
       const res = await next.fetch('/eager-revalidation')
       const html = await res.text()
       const userBValue = html.match(/id="timestamp">(\d+)</)?.[1]
+      const userBRenderTimestamp = html.match(
+        /id="render-timestamp">(\d+)</
+      )?.[1]
 
       // KEY ASSERTION: User B gets the same fresh value as User A (HTML cache was pre-warmed)
       expect(userBValue).toBe(userAValue!)
 
-      // 5. Verify it's actually cached (second fetch returns same value)
+      // KEY ASSERTION: Same render timestamp proves HTML cache hit, not re-render
+      // If the page re-rendered, render-timestamp would be different
+      expect(userBRenderTimestamp).toBe(userARenderTimestamp!)
+
+      // 4. Verify it's actually cached (second fetch returns same value)
       const res2 = await next.fetch('/eager-revalidation')
       const html2 = await res2.text()
       const secondFetch = html2.match(/id="timestamp">(\d+)</)?.[1]

@@ -9,9 +9,13 @@ async function getCachedTimestamp() {
 
 export default async function Page() {
   const timestamp = await getCachedTimestamp()
+  // This timestamp is NOT cached - it changes on every render.
+  // Used to verify HTML cache hits vs re-renders.
+  const renderTimestamp = Date.now().toString()
   return (
     <div>
       <p id="timestamp">{timestamp}</p>
+      <p id="render-timestamp">{renderTimestamp}</p>
       <form>
         <button
           id="update-tag"
