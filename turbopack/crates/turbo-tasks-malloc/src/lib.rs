@@ -1,3 +1,5 @@
+#![feature(thread_local)]
+
 mod counter;
 
 use std::{
@@ -6,7 +8,30 @@ use std::{
     ops::{Add, AddAssign},
 };
 
+#[cfg(target_os = "android")]
+use std::cell::UnsafeCell;
+
 use self::counter::{add, flush, get, remove, update};
+
+#[cfg(target_os = "android")]
+#[thread_local]
+static mut IN_ALLOCATOR: bool = false;
+
+#[cfg(target_os = "android")]
+#[thread_local]
+pub(crate) static IS_THREAD_EXITING_FLAG: UnsafeCell<bool> = UnsafeCell::new(false);
+
+#[cfg(target_os = "android")]
+#[inline(always)]
+fn should_bypass() -> bool {
+    unsafe { IN_ALLOCATOR || *IS_THREAD_EXITING_FLAG.get() }
+}
+
+#[cfg(not(target_os = "android"))]
+#[inline(always)]
+fn should_bypass() -> bool {
+    false
+}
 
 #[derive(Default, Clone, Debug)]
 pub struct AllocationInfo {
@@ -100,6 +125,11 @@ impl TurboMalloc {
 
     pub fn thread_stop() {
         flush();
+
+        #[cfg(target_os = "android")]
+        unsafe {
+            *IS_THREAD_EXITING_FLAG.get() = true;
+        }
     }
 
     pub fn allocation_counters() -> AllocationCounters {
@@ -142,30 +172,91 @@ unsafe fn base_alloc_size(ptr: *const u8, layout: Layout) -> usize {
 
 unsafe impl GlobalAlloc for TurboMalloc {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+
+        #[cfg(target_os = "android")]
+        if should_bypass() {
+            return unsafe { base_alloc().alloc(layout) };
+        }
+
+        #[cfg(target_os = "android")]
+        unsafe {
+            IN_ALLOCATOR = true;
+        }
+
         let ret = unsafe { base_alloc().alloc(layout) };
         if !ret.is_null() {
             let size = unsafe { base_alloc_size(ret, layout) };
             add(size);
         }
+
+        #[cfg(target_os = "android")]
+        unsafe {
+            IN_ALLOCATOR = false;
+        }
+
         ret
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+
+        #[cfg(target_os = "android")]
+        if should_bypass() {
+            return unsafe { base_alloc().dealloc(ptr, layout) };
+        }
+
+        #[cfg(target_os = "android")]
+        unsafe{
+            IN_ALLOCATOR = true;
+        }
+
         let size = unsafe { base_alloc_size(ptr, layout) };
         unsafe { base_alloc().dealloc(ptr, layout) };
         remove(size);
+
+        #[cfg(target_os = "android")]
+        unsafe {
+            IN_ALLOCATOR = false;
+        }
     }
 
     unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
+
+        #[cfg(target_os = "android")]
+        if should_bypass() {
+            return unsafe { base_alloc().alloc_zeroed(layout) };
+        }
+
+        #[cfg(target_os = "android")]
+        unsafe {
+            IN_ALLOCATOR = true;
+        }
+
         let ret = unsafe { base_alloc().alloc_zeroed(layout) };
         if !ret.is_null() {
             let size = unsafe { base_alloc_size(ret, layout) };
             add(size);
         }
+
+        #[cfg(target_os = "android")]
+        unsafe {
+            IN_ALLOCATOR = false;
+        }
+
         ret
     }
 
     unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
+
+        #[cfg(target_os = "android")]
+        if should_bypass() {
+            return unsafe { base_alloc().realloc(ptr, layout, new_size) };
+        }
+
+        #[cfg(target_os = "android")]
+        unsafe {
+            IN_ALLOCATOR = true;
+        }
+
         let old_size = unsafe { base_alloc_size(ptr, layout) };
         let ret = unsafe { base_alloc().realloc(ptr, layout, new_size) };
         if !ret.is_null() {
@@ -175,6 +266,12 @@ unsafe impl GlobalAlloc for TurboMalloc {
             let new_size = unsafe { base_alloc_size(ret, new_layout) };
             update(old_size, new_size);
         }
+
+        #[cfg(target_os = "android")]
+        unsafe {
+            IN_ALLOCATOR = false;
+        }
+
         ret
     }
 }

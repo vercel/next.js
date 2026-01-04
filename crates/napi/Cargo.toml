@@ -55,6 +55,8 @@ ignored = [
 ]
 
 [dependencies]
+[target.'cfg(target_os = "android")'.dependencies]
+fs2 = "0.4"
 anyhow = { workspace = true }
 bincode = { workspace = true }
 console-subscriber = { workspace = true, optional = true }

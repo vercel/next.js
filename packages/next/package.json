@@ -127,7 +127,8 @@
     }
   },
   "optionalDependencies": {
-    "sharp": "^0.34.4"
+    "sharp": "^0.34.4",
+    "@next/swc-android-arm64": "16.1.1-canary.11"
   },
   "devDependencies": {
     "@babel/code-frame": "7.26.2",

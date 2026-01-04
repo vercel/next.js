@@ -6,6 +6,9 @@ use std::{
 
 use crate::AllocationCounters;
 
+#[cfg(target_os = "android")]
+use crate::IS_THREAD_EXITING_FLAG;
+
 /// Tracks the current total amount of memory allocated through all the [ThreadLocalCounter]
 /// instances.  This is an overestimate as individual threads 'preallocate' a [TARGET_BUFFER] bytes
 /// to reduce the number of global synchronizations.  This means at any given time this might
@@ -27,6 +30,21 @@ struct ThreadLocalCounter {
     /// value.
     buffer: usize,
     allocation_counters: AllocationCounters,
+}
+
+#[cfg(target_os = "android")]
+fn atomic_sub(atomic: &AtomicUsize, val: usize) {
+    let mut current = atomic.load(Ordering::Relaxed);
+    loop {
+        let new = current.saturating_sub(val);
+        match atomic.compare_exchange_weak(
+            current, new,
+            Ordering::Relaxed, Ordering::Relaxed,
+        ) {
+            Ok(_) => break,
+            Err(x) => current = x,
+        }
+    }
 }
 
 impl ThreadLocalCounter {
@@ -55,7 +73,12 @@ impl ThreadLocalCounter {
         if self.buffer > MAX_BUFFER {
             let offset = self.buffer - TARGET_BUFFER;
             self.buffer = TARGET_BUFFER;
+
+            #[cfg(not(target_os = "android"))]
             ALLOCATED.fetch_sub(offset, Ordering::Relaxed);
+
+            #[cfg(target_os = "android")]
+            atomic_sub(&ALLOCATED, offset);
         }
     }
 
@@ -82,7 +105,12 @@ impl ThreadLocalCounter {
                 if self.buffer > MAX_BUFFER {
                     let offset = self.buffer - TARGET_BUFFER;
                     self.buffer = TARGET_BUFFER;
+                    
+                    #[cfg(not(target_os = "android"))]
                     ALLOCATED.fetch_sub(offset, Ordering::Relaxed);
+
+                    #[cfg(target_os = "android")]
+                    atomic_sub(&ALLOCATED, offset);
                 }
             }
         }
@@ -90,15 +118,48 @@ impl ThreadLocalCounter {
 
     fn unload(&mut self) {
         if self.buffer > 0 {
+
+            #[cfg(not(target_os = "android"))]
             ALLOCATED.fetch_sub(self.buffer, Ordering::Relaxed);
+
+            #[cfg(target_os = "android")]
+            atomic_sub(&ALLOCATED, self.buffer);
+
             self.buffer = 0;
         }
         self.allocation_counters = AllocationCounters::default();
     }
 }
 
+#[cfg(target_os = "android")]
+struct CounterGuard(ThreadLocalCounter);
+
+#[cfg(target_os = "android")]
+impl Drop for CounterGuard {
+    fn drop(&mut self) {
+        unsafe {
+            *IS_THREAD_EXITING_FLAG.get() = true;
+        }
+    }
+}
+
+#[cfg(target_os = "android")]
+impl CounterGuard {
+    const fn new() -> Self {
+        Self(ThreadLocalCounter::new())
+    }
+}
+
+#[cfg(target_os = "android")]
+type InnerCounter = CounterGuard;
+
+#[cfg(not(target_os = "android"))]
+type InnerCounter = ThreadLocalCounter;
+
 thread_local! {
-  static LOCAL_COUNTER: UnsafeCell<ThreadLocalCounter> = const {UnsafeCell::new(ThreadLocalCounter::new())};
+    static LOCAL_COUNTER: UnsafeCell<InnerCounter> = const {
+        UnsafeCell::new(InnerCounter::new())
+    };
 }
 
 pub fn get() -> usize {
@@ -118,7 +179,14 @@ fn with_local_counter<T>(f: impl FnOnce(&mut ThreadLocalCounter) -> T) -> T {
         let ptr = local.get();
         // SAFETY: This is a thread local.
         let mut local = unsafe { NonNull::new_unchecked(ptr) };
-        f(unsafe { local.as_mut() })
+
+        #[cfg(target_os = "android")]
+        let inner = unsafe { &mut local.as_mut().0 };
+
+        #[cfg(not(target_os = "android"))]
+        let inner = unsafe { local.as_mut() };
+
+        f(inner)
     })
 }
 

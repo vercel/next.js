@@ -8,6 +8,10 @@ use anyhow::Context;
 use napi::bindgen_prelude::External;
 use napi_derive::napi;
 
+#[cfg(target_os = "android")]
+use fs2::FileExt;
+
+
 /// A wrapper around [`File`] that is passed to JS, and is set to `None` when [`lockfile_unlock`] is
 /// called.
 ///
@@ -59,7 +63,7 @@ pub fn lockfile_try_acquire_sync(path: String) -> napi::Result<Option<External<J
         }
     };
 
-    #[cfg(not(windows))]
+    #[cfg(all(not(windows), not(target_os = "android")))]
     return {
         use std::fs::TryLockError;
 
@@ -73,6 +77,32 @@ pub fn lockfile_try_acquire_sync(path: String) -> napi::Result<Option<External<J
             )))))),
             Err(TryLockError::WouldBlock) => Ok(None),
             Err(TryLockError::Error(err)) => Err(err.into()),
+        }
+    };
+
+    #[cfg(target_os = "android")]
+    return {
+        let file = open_options.open(&path)?;
+        println!("Trying to lock file at {:?}", path);
+
+        match file.try_lock_exclusive() {
+            Ok(_) => {
+                println!("Lock succeeded!");
+                Ok(Some(External::new(Mutex::new(ManuallyDrop::new(Some(
+                    LockfileInner {
+                        file,
+                        path: path.into(),
+                    },
+                ))))))
+            }
+            Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                println!("Lock would block, lock held elsewhere.");
+                Ok(None)
+            }
+            Err(e) => {
+                println!("Actual lock error: {:?}", e);
+                Err(e.into())
+            }
         }
     };
 }

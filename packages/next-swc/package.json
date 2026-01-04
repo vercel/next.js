@@ -31,7 +31,8 @@
         "x86_64-unknown-linux-musl",
         "aarch64-unknown-linux-musl",
         "aarch64-pc-windows-msvc",
-        "wasm32-wasip1-threads"
+        "wasm32-wasip1-threads",
+        "aarch64-linux-android"
       ]
     }
   },
