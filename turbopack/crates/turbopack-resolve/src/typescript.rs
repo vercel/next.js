@@ -68,7 +68,11 @@ pub async fn read_tsconfigs(
                 let message = format!("tsconfig is not parseable: invalid JSON: {}", e.message);
                 let source = IssueSource::from_unparsable_json(tsconfig, e);
                 TsConfigIssue {
-                    severity: IssueSeverity::Error,
+                    severity: if resolve_options.await?.loose_errors {
+                        IssueSeverity::Warning
+                    } else {
+                        IssueSeverity::Error
+                    },
                     source,
                     message: message.into(),
                 }
@@ -77,7 +81,11 @@ pub async fn read_tsconfigs(
             }
             FileJsonContent::NotFound => {
                 TsConfigIssue {
-                    severity: IssueSeverity::Error,
+                    severity: if resolve_options.await?.loose_errors {
+                        IssueSeverity::Warning
+                    } else {
+                        IssueSeverity::Error
+                    },
                     source: IssueSource::from_source_only(tsconfig),
                     message: rcstr!("tsconfig not found"),
                 }
@@ -94,7 +102,11 @@ pub async fn read_tsconfigs(
                         continue;
                     } else {
                         TsConfigIssue {
-                            severity: IssueSeverity::Error,
+                            severity: if resolve_options.await?.loose_errors {
+                                IssueSeverity::Warning
+                            } else {
+                                IssueSeverity::Error
+                            },
                             // TODO: this should point at the `extends` property
                             source: IssueSource::from_source_only(tsconfig),
                             message: format!("extends: \"{extends}\" doesn't resolve correctly")

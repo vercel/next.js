@@ -23,9 +23,11 @@ use turbopack_core::{
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment},
     free_var_references,
     ident::Layer,
+    reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{
         ExternalTraced, ExternalType,
         options::{ImportMap, ImportMapping},
+        parse::Request,
     },
 };
 use turbopack_ecmascript::TreeShakingMode;
@@ -33,7 +35,10 @@ use turbopack_node::{
     execution_context::ExecutionContext,
     transforms::{postcss::PostCssTransformOptions, webpack::WebpackLoaderItem},
 };
-use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
+use turbopack_resolve::{
+    ecmascript::apply_cjs_specific_options,
+    resolve_options_context::{ResolveOptionsContext, TsConfigHandling},
+};
 
 #[turbo_tasks::value(shared)]
 pub enum NodeEnv {
@@ -108,9 +113,13 @@ pub async fn get_client_resolve_options_context(
         // - node_modules/react-native-gesture-handler/lib/module/handlers/
         //   NativeViewGestureHandler.ts
         enable_typescript: true,
+        // There are invalid tsconfig.json files in the wild e.g. `extend`ing a dev-dependency which
+        // isn't resolvable.
+        tsconfig_path: TsConfigHandling::Disabled,
         ..Default::default()
     };
     Ok(ResolveOptionsContext {
+        tsconfig_path: TsConfigHandling::ContextFile,
         rules: vec![(
             foreign_code_context_condition(),
             module_options_context.clone().resolved_cell(),
@@ -118,6 +127,27 @@ pub async fn get_client_resolve_options_context(
         ..module_options_context
     }
     .cell())
+}
+
+/// Checks whether we can resolve the React Refresh runtime module from the
+/// given path. Emits an issue if we can't.
+#[turbo_tasks::function]
+pub async fn is_react_native_worklets_installed(
+    path: FileSystemPath,
+    resolve_options_context: Vc<ResolveOptionsContext>,
+) -> Result<Vc<bool>> {
+    let resolve_options = apply_cjs_specific_options(turbopack_resolve::resolve::resolve_options(
+        path.clone(),
+        resolve_options_context,
+    ));
+    let result = turbopack_core::resolve::resolve(
+        path.clone(),
+        ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
+        Request::parse_string(rcstr!("react-native-worklets")),
+        resolve_options,
+    );
+
+    Ok(Vc::cell(!*result.is_unresolvable().await?))
 }
 
 #[turbo_tasks::function]
@@ -131,7 +161,10 @@ async fn get_client_module_options_context(
 ) -> Result<Vc<ModuleOptionsContext>> {
     let is_dev = matches!(*node_env.await?, NodeEnv::Development);
 
-    let webpack_rules = ResolvedVc::cell(vec![(
+    let resolve_options_context =
+        get_client_resolve_options_context(project_path.clone(), node_env, platform);
+
+    let mut webpack_rules = vec![(
         rcstr!("*.{js,jsx,cjs,mjs}"),
         LoaderRuleItem {
             loaders: ResolvedVc::cell(vec![WebpackLoaderItem {
@@ -145,27 +178,6 @@ async fn get_client_module_options_context(
                             ["@babel/preset-flow", { "experimental_useHermesParser": true }],
                         ]),
                     ),
-                    (
-                        "plugins".to_string(),
-                        serde_json::json!([
-                                        // [
-                                        //     "babel-plugin-syntax-hermes-parser",
-                                        //     {
-                                        //         "parseLangTypes": "flow",
-                                        //         "reactRuntimeTarget": "19",
-                                        //     },
-                                        // ],
-                                        // [
-                                        // "@babel/plugin-transform-flow-strip-types",
-                                        //     {
-                                        //         "runtime": "automatic",
-                                        //         "importSource": "react",
-                                        //         "development": is_dev,
-                                        //         "useSpread": true
-                                        //     }
-                                        // ]
-                                    ]),
-                    ),
                 ]
                 .into_iter()
                 .collect(),
@@ -173,14 +185,41 @@ async fn get_client_module_options_context(
             rename_as: Some(rcstr!("*")),
             module_type: None,
             condition: Some(ConditionItem::Base {
-                // path: Some(ConditionPath::Glob(rcstr!(
-                //     "**/node_modules/react-native/**"
-                // ))),
                 path: None,
                 content: Some(EsRegex::new("@flow", "")?.resolved_cell()),
             }),
         },
-    )]);
+    )];
+
+    if *is_react_native_worklets_installed(project_path.clone(), resolve_options_context).await? {
+        // Merge with the other babel-loader above?
+        webpack_rules.push((
+            rcstr!("*.{js,jsx,cjs,mjs,ts,tsx}"),
+            LoaderRuleItem {
+                loaders: ResolvedVc::cell(vec![WebpackLoaderItem {
+                    loader: rcstr!("babel-loader"),
+                    options: [
+                        ("configFile".to_string(), false.into()),
+                        ("babelrc".to_string(), false.into()),
+                        (
+                            "plugins".to_string(),
+                            serde_json::json!([["react-native-worklets/plugin", {}]]),
+                        ),
+                    ]
+                    .into_iter()
+                    .collect(),
+                }]),
+                rename_as: Some(rcstr!("*")),
+                condition: Some(ConditionItem::Base {
+                    // path: Some(ConditionPath::Glob(rcstr!(
+                    //     "**/node_modules/react-native/**"
+                    // ))),
+                    path: None,
+                    content: Some(EsRegex::new("'worklet'|\"worklet\"", "")?.resolved_cell()),
+                }),
+            },
+        ));
+    }
 
     let loader_runner_package = Some(
         ImportMapping::Alternatives(vec![
@@ -193,9 +232,6 @@ async fn get_client_module_options_context(
         ])
         .resolved_cell(),
     );
-
-    let resolve_options_context =
-        get_client_resolve_options_context(project_path.clone(), node_env, platform);
 
     let enable_react_refresh = is_dev
         && assert_can_resolve_react_refresh(project_path.clone(), resolve_options_context)
@@ -218,7 +254,7 @@ async fn get_client_module_options_context(
         keep_last_successful_parse: is_dev,
         enable_webpack_loaders: Some(
             WebpackLoadersOptions {
-                rules: webpack_rules,
+                rules: ResolvedVc::cell(webpack_rules),
                 builtin_conditions: EmptyWebpackLoaderBuiltinConditionSet::new()
                     .to_resolved()
                     .await?,
