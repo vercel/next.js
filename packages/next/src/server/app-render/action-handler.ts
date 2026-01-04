@@ -45,6 +45,7 @@ import {
   NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
   NEXT_SPLIT_FLIGHT_HEADER,
   FLIGHT_STREAM_BOUNDARY,
+  NEXT_CACHE_IMPLICIT_TAG_ID,
 } from '../../lib/constants'
 import { concatenateFlightStreams } from '../stream-utils/node-web-streams-helper'
 import { getClientReferenceManifest } from './manifests-singleton'
@@ -71,6 +72,7 @@ import { getRequestMeta } from '../request-meta'
 import { setCacheBustingSearchParam } from '../../client/components/router-reducer/set-cache-busting-search-param'
 import {
   ActionDidNotRevalidate,
+  ActionDidRevalidateDynamicOnly,
   ActionDidRevalidateStaticAndDynamic,
 } from '../../shared/lib/action-revalidation-kind'
 
@@ -487,10 +489,18 @@ async function createInternalRequestRenderResult(
 
   const fetchUrl = new URL(`${origin}${basePath}${pagePath}`)
 
-  if (workStore.pendingRevalidatedTags?.length) {
+  // Forward tags for explicit updateTag() calls so the receiving server
+  // knows which tags were invalidated
+  const tagsToForward = workStore.pendingRevalidatedTags?.filter(
+    (item) =>
+      item.profile === undefined &&
+      !item.tag.startsWith(NEXT_CACHE_IMPLICIT_TAG_ID)
+  )
+
+  if (tagsToForward?.length) {
     forwardedHeaders.set(
       NEXT_CACHE_REVALIDATED_TAGS_HEADER,
-      workStore.pendingRevalidatedTags.map((item) => item.tag).join(',')
+      tagsToForward.map((item) => item.tag).join(',')
     )
     forwardedHeaders.set(
       NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
@@ -499,10 +509,13 @@ async function createInternalRequestRenderResult(
     )
   }
 
-  // Keep the router state tree header for partial rendering - Next.js's
-  // group revalidation will handle writing the full HTML cache
   // Remove action header since this is now a page render request
   forwardedHeaders.delete(ACTION_HEADER)
+
+  // Remove router state tree header to ensure we get a root render.
+  // This is needed so the client can use navigateToSeededRoute instead of
+  // making another server request.
+  forwardedHeaders.delete(NEXT_ROUTER_STATE_TREE_HEADER)
 
   try {
     setCacheBustingSearchParam(fetchUrl, {
@@ -1189,16 +1202,18 @@ export async function handleAction({
             addRevalidationHeader(res, { workStore, requestStore })
           })
 
-        // For updateTag() or refresh() calls, use internal request to ensure
-        // the HTML cache gets populated with the same data the action caller sees.
-        // This provides read-your-own-writes consistency between User A (action caller)
-        // and User B (subsequent cold visitor).
+        // For updateTag() or refresh() calls, use split flight to ensure the HTML cache
+        // gets populated with the same data the action caller sees (read-your-own-writes).
+        //
+        // Note: revalidatePath() is NOT included because the path being revalidated
+        // might differ from the current route (e.g., revalidatePath('/') from '/modal').
         const hasUpdateTagCalls = workStore.pendingRevalidatedTags?.some(
-          (item) => item.profile === undefined
+          (item) =>
+            item.profile === undefined &&
+            !item.tag.startsWith(NEXT_CACHE_IMPLICIT_TAG_ID)
         )
         const hasRefreshCall =
-          workStore.pathWasRevalidated !== undefined &&
-          workStore.pathWasRevalidated !== ActionDidNotRevalidate
+          workStore.pathWasRevalidated === ActionDidRevalidateDynamicOnly
 
         const shouldUseSplitFlightResponse = hasUpdateTagCalls || hasRefreshCall
 

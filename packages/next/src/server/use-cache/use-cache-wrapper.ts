@@ -1433,7 +1433,14 @@ export async function cache(
       const implicitTags = workUnitStore?.implicitTags?.tags ?? []
       let implicitTagsExpiration = 0
 
-      if (workUnitStore?.implicitTags) {
+      // Only call getExpiration if we don't already know about recently
+      // revalidated tags. When tags were just revalidated (e.g., via
+      // updateTag in a server action), isRecentlyRevalidatedTag will catch
+      // those in shouldDiscardCacheEntry, so we don't need to call
+      // getExpiration to check historical expiration times.
+      const skipGetExpiration = workStore.previouslyRevalidatedTags.length > 0
+
+      if (workUnitStore?.implicitTags && !skipGetExpiration) {
         const lazyExpiration =
           workUnitStore.implicitTags.expirationsByCacheKind.get(kind)
 
