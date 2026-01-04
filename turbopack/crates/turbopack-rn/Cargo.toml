@@ -39,6 +39,7 @@ turbo-tasks = { workspace = true }
 turbo-tasks-backend = { workspace = true }
 turbo-tasks-env = { workspace = true }
 turbo-unix-path = { workspace = true }
+turbo-tasks-hash = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbo-tasks-malloc = { workspace = true, default-features = false }
 turbopack = { workspace = true }
@@ -54,12 +55,15 @@ turbopack-ecmascript-plugins = { workspace = true, features = [
 turbopack-ecmascript-runtime = { workspace = true }
 turbopack-ecmascript-hmr-protocol = { workspace = true }
 turbopack-env = { workspace = true }
+turbopack-image = { workspace = true, features = ["webp"] }
 turbopack-node = { workspace = true, default-features = false, features = ["process_pool"]}
 turbopack-nodejs = { workspace = true }
 turbopack-resolve = { workspace = true }
+turbopack-static = { workspace = true }
 turbopack-trace-utils = { workspace = true }
 uuid = { workspace = true }
 rand = { workspace = true }
+urlencoding = { workspace = true }
 webbrowser = { workspace = true }
 
 turbo-esregex = { workspace = true }

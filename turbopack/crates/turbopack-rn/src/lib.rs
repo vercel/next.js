@@ -3,6 +3,7 @@
 #![feature(arbitrary_self_types_pointers)]
 
 pub mod arguments;
+pub(crate) mod asset_registry;
 pub mod build;
 pub(crate) mod contexts;
 pub mod dev;

@@ -9,8 +9,8 @@ use turbopack::{
     ModuleAssetContext,
     module_options::{
         ConditionItem, EcmascriptOptionsContext, EmptyWebpackLoaderBuiltinConditionSet,
-        JsxTransformOptions, LoaderRuleItem, ModuleOptionsContext, TypescriptTransformOptions,
-        WebpackLoadersOptions,
+        JsxTransformOptions, LoaderRuleItem, ModuleOptionsContext, ModuleRule, ModuleRuleEffect,
+        ModuleType, RuleCondition, TypescriptTransformOptions, WebpackLoadersOptions,
     },
 };
 use turbopack_browser::react_refresh::assert_can_resolve_react_refresh;
@@ -23,7 +23,7 @@ use turbopack_core::{
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment},
     free_var_references,
     ident::Layer,
-    reference_type::{CommonJsReferenceSubType, ReferenceType},
+    reference_type::{CommonJsReferenceSubType, ReferenceType, ReferenceTypeCondition},
     resolve::{
         ExternalTraced, ExternalType,
         options::{ImportMap, ImportMapping},
@@ -39,6 +39,8 @@ use turbopack_resolve::{
     ecmascript::apply_cjs_specific_options,
     resolve_options_context::{ResolveOptionsContext, TsConfigHandling},
 };
+
+use crate::asset_registry::ReactNativeStructuredAssetModuleType;
 
 #[turbo_tasks::value(shared)]
 pub enum NodeEnv {
@@ -349,11 +351,46 @@ async fn get_client_module_options_context(
         .resolved_cell(),
     );
 
+    let module_rules = vec![ModuleRule::new(
+        RuleCondition::All(vec![
+            // avoid urlAssetReference to be affected by this rule, since urlAssetReference
+            // requires raw module to have its paths in the export
+            RuleCondition::not(RuleCondition::ReferenceType(ReferenceType::Url(
+                UrlReferenceSubType::Undefined,
+            ))),
+            RuleCondition::any(
+                // https://github.com/facebook/metro/blob/8049cf009f9f754bf36bc06ec92a26bf51270f81/packages/metro-config/src/defaults/defaults.js#L16
+                [
+                    // Image formats
+                    ".bmp", ".gif", ".jpg", ".jpeg", ".png", ".psd", ".svg", ".webp", ".xml",
+                    // Video formats
+                    ".m4v", ".mov", ".mp4", ".mpeg", ".mpg", ".webm", // Audio formats
+                    ".aac", ".aiff", ".caf", ".m4a", ".mp3", ".wav",
+                    // Document formats
+                    ".html", ".pdf", ".yaml", ".yml", // Font formats
+                    ".otf", ".ttf", // Archives (virtual files)
+                    ".zip",
+                ]
+                .iter()
+                .map(|ext| RuleCondition::ResourcePathEndsWith(ext.to_string()))
+                .collect::<Vec<_>>(),
+            ),
+        ]),
+        vec![ModuleRuleEffect::ModuleType(ModuleType::Custom(
+            ResolvedVc::upcast(
+                ReactNativeStructuredAssetModuleType::new()
+                    .to_resolved()
+                    .await?,
+            ),
+        ))],
+    )];
+
     let module_options_context = ModuleOptionsContext {
         environment: Some(env),
         execution_context: Some(execution_context),
         tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
         keep_last_successful_parse: is_dev,
+        module_rules,
         enable_webpack_loaders: Some(
             WebpackLoadersOptions {
                 rules: ResolvedVc::cell(webpack_rules),
