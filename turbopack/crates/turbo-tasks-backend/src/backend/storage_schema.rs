@@ -120,29 +120,48 @@ pub struct TaskStorageSchema {
 
     // =========================================================================
     // STATE GROUP (meta)
+    // Migrated: uses TaskStorageAccessors trait for typed access via TaskGuard.
     // =========================================================================
     /// Whether the task is dirty (needs re-execution).
-    #[task_storage(storage = "direct", category = "meta", group = "state")]
+    #[task_storage(storage = "direct", category = "meta", group = "state", migrated)]
     pub dirty: Option<Dirtyness>,
 
     /// Count of dirty containers in the aggregated subgraph.
-    #[task_storage(storage = "direct", category = "meta", group = "state")]
+    #[task_storage(storage = "direct", category = "meta", group = "state", migrated)]
     pub aggregated_dirty_container_count: Option<i32>,
 
     /// Individual dirty containers in the aggregated subgraph.
-    #[task_storage(storage = "counter_map", category = "meta", group = "state")]
+    #[task_storage(storage = "counter_map", category = "meta", group = "state", migrated)]
     pub aggregated_dirty_containers: CounterMap<TaskId, i32>,
 
     /// Whether clean in current session (transient).
-    #[task_storage(storage = "direct", category = "meta", group = "state", transient)]
+    #[task_storage(
+        storage = "direct",
+        category = "meta",
+        group = "state",
+        transient,
+        migrated
+    )]
     pub current_session_clean: Option<()>,
 
     /// Count of clean containers in current session (transient).
-    #[task_storage(storage = "direct", category = "meta", group = "state", transient)]
+    #[task_storage(
+        storage = "direct",
+        category = "meta",
+        group = "state",
+        transient,
+        migrated
+    )]
     pub aggregated_current_session_clean_container_count: Option<i32>,
 
     /// Individual clean containers in current session (transient).
-    #[task_storage(storage = "counter_map", category = "meta", group = "state", transient)]
+    #[task_storage(
+        storage = "counter_map",
+        category = "meta",
+        group = "state",
+        transient,
+        migrated
+    )]
     pub aggregated_current_session_clean_containers: CounterMap<TaskId, i32>,
 
     // =========================================================================
@@ -416,12 +435,54 @@ impl TaskMeta {
             })
             .into_iter();
 
+        // State group (non-lazy)
+        let dirty_iter = self
+            .state
+            .dirty
+            .as_ref()
+            .map(|value| {
+                (
+                    CachedDataItemKey::Dirty {},
+                    CachedDataItemValueRef::Dirty { value },
+                )
+            })
+            .into_iter();
+
+        let aggregated_dirty_container_count_iter = self
+            .state
+            .aggregated_dirty_container_count
+            .as_ref()
+            .map(|value| {
+                (
+                    CachedDataItemKey::AggregatedDirtyContainerCount {},
+                    CachedDataItemValueRef::AggregatedDirtyContainerCount { value },
+                )
+            })
+            .into_iter();
+
+        let aggregated_dirty_containers_iter =
+            self.state
+                .aggregated_dirty_containers
+                .iter()
+                .map(|(task, count)| {
+                    (
+                        CachedDataItemKey::AggregatedDirtyContainer { task: *task },
+                        CachedDataItemValueRef::AggregatedDirtyContainer { value: count },
+                    )
+                });
+
+        // Note: current_session_clean and aggregated_current_session_clean_* are transient,
+        // so they are not included in iter_all (used for persistence)
+
         aggregation_number_iter
             .chain(output_iter)
             .chain(upper_iter)
             .chain(stateful_iter)
             .chain(invalidator_iter)
             .chain(immutable_iter)
+            .chain(dirty_iter)
+            .chain(aggregated_dirty_container_count_iter)
+            .chain(aggregated_dirty_containers_iter)
         // TODO: Add remaining meta fields as they are migrated
     }
 
@@ -445,6 +506,15 @@ impl TaskMeta {
         if self.flags.immutable.is_some() {
             count += 1;
         }
+        // State group (non-lazy)
+        if self.state.dirty.is_some() {
+            count += 1;
+        }
+        if self.state.aggregated_dirty_container_count.is_some() {
+            count += 1;
+        }
+        count += self.state.aggregated_dirty_containers.len();
+        // Note: current_session_clean and aggregated_current_session_clean_* are transient
         // TODO: Add remaining meta fields as they are migrated
         count
     }

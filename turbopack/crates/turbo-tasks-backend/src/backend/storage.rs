@@ -15,7 +15,8 @@ use crate::{
     },
     data::{
         AggregationNumber, CachedDataItem, CachedDataItemKey, CachedDataItemType,
-        CachedDataItemValue, CachedDataItemValueRef, CachedDataItemValueRefMut, OutputValue,
+        CachedDataItemValue, CachedDataItemValueRef, CachedDataItemValueRefMut, Dirtyness,
+        OutputValue,
     },
     utils::{
         dash_map_drop_contents::drop_contents,
@@ -460,6 +461,16 @@ macro_rules! generate_inner_storage {
                 if let CachedDataItem::Immutable { .. } = item {
                     return self.add_immutable();
                 }
+                // State group (migrated)
+                if let CachedDataItem::Dirty { value } = item {
+                    return self.add_dirty(value);
+                }
+                if let CachedDataItem::AggregatedDirtyContainerCount { value } = item {
+                    return self.add_aggregated_dirty_container_count(value);
+                }
+                if let CachedDataItem::AggregatedDirtyContainer { task, value } = item {
+                    return self.add_aggregated_dirty_container(task, value);
+                }
                 self.dynamic.add(item)
             }
 
@@ -533,6 +544,34 @@ macro_rules! generate_inner_storage {
                     }
                     return any_added;
                 }
+                // State group (migrated)
+                if let CachedDataItemType::Dirty = ty {
+                    let mut any_added = false;
+                    for item in items {
+                        if let CachedDataItem::Dirty { value } = item {
+                            any_added |= self.add_dirty(value);
+                        }
+                    }
+                    return any_added;
+                }
+                if let CachedDataItemType::AggregatedDirtyContainerCount = ty {
+                    let mut any_added = false;
+                    for item in items {
+                        if let CachedDataItem::AggregatedDirtyContainerCount { value } = item {
+                            any_added |= self.add_aggregated_dirty_container_count(value);
+                        }
+                    }
+                    return any_added;
+                }
+                if let CachedDataItemType::AggregatedDirtyContainer = ty {
+                    let mut any_added = false;
+                    for item in items {
+                        if let CachedDataItem::AggregatedDirtyContainer { task, value } = item {
+                            any_added |= self.add_aggregated_dirty_container(task, value);
+                        }
+                    }
+                    return any_added;
+                }
                 self.dynamic.extend(ty, items)
             }
 
@@ -568,6 +607,46 @@ macro_rules! generate_inner_storage {
                 if matches!(item, CachedDataItem::Immutable { .. }) {
                     panic!("Use TaskGuard::set_immutable() instead of insert() for Immutable");
                 }
+                // State group (migrated)
+                if matches!(item, CachedDataItem::Dirty { .. }) {
+                    panic!("Use TaskGuard::set_dirty() instead of insert() for Dirty");
+                }
+                if matches!(item, CachedDataItem::AggregatedDirtyContainerCount { .. }) {
+                    panic!(
+                        "Use TaskGuard::set_aggregated_dirty_container_count() instead of \
+                         insert() for AggregatedDirtyContainerCount"
+                    );
+                }
+                if matches!(item, CachedDataItem::AggregatedDirtyContainer { .. }) {
+                    panic!(
+                        "Use TaskGuard::aggregated_dirty_containers_mut() instead of insert() for \
+                         AggregatedDirtyContainer"
+                    );
+                }
+                if matches!(item, CachedDataItem::CurrentSessionClean { .. }) {
+                    panic!(
+                        "Use TaskGuard::set_current_session_clean() instead of insert() for \
+                         CurrentSessionClean"
+                    );
+                }
+                if matches!(
+                    item,
+                    CachedDataItem::AggregatedCurrentSessionCleanContainerCount { .. }
+                ) {
+                    panic!(
+                        "Use TaskGuard::set_aggregated_current_session_clean_container_count() \
+                         instead of insert() for AggregatedCurrentSessionCleanContainerCount"
+                    );
+                }
+                if matches!(
+                    item,
+                    CachedDataItem::AggregatedCurrentSessionCleanContainer { .. }
+                ) {
+                    panic!(
+                        "Use TaskGuard::aggregated_current_session_clean_containers_mut() instead \
+                         of insert() for AggregatedCurrentSessionCleanContainer"
+                    );
+                }
                 self.dynamic.insert(item)
             }
 
@@ -600,6 +679,46 @@ macro_rules! generate_inner_storage {
                 if matches!(key, CachedDataItemKey::Immutable {}) {
                     panic!("Use TaskGuard::take_immutable() instead of remove() for Immutable");
                 }
+                // State group (migrated)
+                if matches!(key, CachedDataItemKey::Dirty {}) {
+                    panic!("Use TaskGuard::take_dirty() instead of remove() for Dirty");
+                }
+                if matches!(key, CachedDataItemKey::AggregatedDirtyContainerCount {}) {
+                    panic!(
+                        "Use TaskGuard::take_aggregated_dirty_container_count() instead of \
+                         remove() for AggregatedDirtyContainerCount"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::AggregatedDirtyContainer { .. }) {
+                    panic!(
+                        "Use TaskGuard::aggregated_dirty_containers_mut() instead of remove() for \
+                         AggregatedDirtyContainer"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::CurrentSessionClean {}) {
+                    panic!(
+                        "Use TaskGuard::take_current_session_clean() instead of remove() for \
+                         CurrentSessionClean"
+                    );
+                }
+                if matches!(
+                    key,
+                    CachedDataItemKey::AggregatedCurrentSessionCleanContainerCount {}
+                ) {
+                    panic!(
+                        "Use TaskGuard::take_aggregated_current_session_clean_container_count() \
+                         instead of remove() for AggregatedCurrentSessionCleanContainerCount"
+                    );
+                }
+                if matches!(
+                    key,
+                    CachedDataItemKey::AggregatedCurrentSessionCleanContainer { .. }
+                ) {
+                    panic!(
+                        "Use TaskGuard::aggregated_current_session_clean_containers_mut() instead \
+                         of remove() for AggregatedCurrentSessionCleanContainer"
+                    );
+                }
                 self.dynamic.remove(key)
             }
 
@@ -630,6 +749,46 @@ macro_rules! generate_inner_storage {
                 }
                 if matches!(ty, CachedDataItemType::Immutable) {
                     panic!("Use TaskGuard::has_immutable() instead of count() for Immutable");
+                }
+                // State group (migrated)
+                if matches!(ty, CachedDataItemType::Dirty) {
+                    panic!("Use TaskGuard::has_dirty() instead of count() for Dirty");
+                }
+                if matches!(ty, CachedDataItemType::AggregatedDirtyContainerCount) {
+                    panic!(
+                        "Use TaskGuard::has_aggregated_dirty_container_count() instead of count() \
+                         for AggregatedDirtyContainerCount"
+                    );
+                }
+                if matches!(ty, CachedDataItemType::AggregatedDirtyContainer) {
+                    panic!(
+                        "Use TaskGuard::aggregated_dirty_containers() instead of count() for \
+                         AggregatedDirtyContainer"
+                    );
+                }
+                if matches!(ty, CachedDataItemType::CurrentSessionClean) {
+                    panic!(
+                        "Use TaskGuard::has_current_session_clean() instead of count() for \
+                         CurrentSessionClean"
+                    );
+                }
+                if matches!(
+                    ty,
+                    CachedDataItemType::AggregatedCurrentSessionCleanContainerCount
+                ) {
+                    panic!(
+                        "Use typed storage accessors instead of count() for \
+                         AggregatedCurrentSessionCleanContainerCount"
+                    );
+                }
+                if matches!(
+                    ty,
+                    CachedDataItemType::AggregatedCurrentSessionCleanContainer
+                ) {
+                    panic!(
+                        "Use TaskGuard::aggregated_current_session_clean_containers() instead of \
+                         count() for AggregatedCurrentSessionCleanContainer"
+                    );
                 }
                 self.dynamic.count(ty)
             }
@@ -664,6 +823,46 @@ macro_rules! generate_inner_storage {
                 }
                 if matches!(key, CachedDataItemKey::Immutable {}) {
                     panic!("Use TaskGuard::get_immutable_ref() instead of get() for Immutable");
+                }
+                // State group (migrated)
+                if matches!(key, CachedDataItemKey::Dirty {}) {
+                    panic!("Use TaskGuard::get_dirty_ref() instead of get() for Dirty");
+                }
+                if matches!(key, CachedDataItemKey::AggregatedDirtyContainerCount {}) {
+                    panic!(
+                        "Use TaskGuard::get_aggregated_dirty_container_count_ref() instead of \
+                         get() for AggregatedDirtyContainerCount"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::AggregatedDirtyContainer { .. }) {
+                    panic!(
+                        "Use TaskGuard::aggregated_dirty_containers() instead of get() for \
+                         AggregatedDirtyContainer"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::CurrentSessionClean {}) {
+                    panic!(
+                        "Use TaskGuard::get_current_session_clean_ref() instead of get() for \
+                         CurrentSessionClean"
+                    );
+                }
+                if matches!(
+                    key,
+                    CachedDataItemKey::AggregatedCurrentSessionCleanContainerCount {}
+                ) {
+                    panic!(
+                        "Use typed storage accessors instead of get() for \
+                         AggregatedCurrentSessionCleanContainerCount"
+                    );
+                }
+                if matches!(
+                    key,
+                    CachedDataItemKey::AggregatedCurrentSessionCleanContainer { .. }
+                ) {
+                    panic!(
+                        "Use TaskGuard::aggregated_current_session_clean_containers() instead of \
+                         get() for AggregatedCurrentSessionCleanContainer"
+                    );
                 }
                 self.dynamic.get(key)
             }
@@ -703,6 +902,46 @@ macro_rules! generate_inner_storage {
                         "Use TaskGuard::has_immutable() instead of contains_key() for Immutable"
                     );
                 }
+                // State group (migrated)
+                if matches!(key, CachedDataItemKey::Dirty {}) {
+                    panic!("Use TaskGuard::has_dirty() instead of contains_key() for Dirty");
+                }
+                if matches!(key, CachedDataItemKey::AggregatedDirtyContainerCount {}) {
+                    panic!(
+                        "Use TaskGuard::has_aggregated_dirty_container_count() instead of \
+                         contains_key() for AggregatedDirtyContainerCount"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::AggregatedDirtyContainer { .. }) {
+                    panic!(
+                        "Use TaskGuard::aggregated_dirty_containers() instead of contains_key() \
+                         for AggregatedDirtyContainer"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::CurrentSessionClean {}) {
+                    panic!(
+                        "Use TaskGuard::has_current_session_clean() instead of contains_key() for \
+                         CurrentSessionClean"
+                    );
+                }
+                if matches!(
+                    key,
+                    CachedDataItemKey::AggregatedCurrentSessionCleanContainerCount {}
+                ) {
+                    panic!(
+                        "Use typed storage accessors instead of contains_key() for \
+                         AggregatedCurrentSessionCleanContainerCount"
+                    );
+                }
+                if matches!(
+                    key,
+                    CachedDataItemKey::AggregatedCurrentSessionCleanContainer { .. }
+                ) {
+                    panic!(
+                        "Use TaskGuard::aggregated_current_session_clean_containers() instead of \
+                         contains_key() for AggregatedCurrentSessionCleanContainer"
+                    );
+                }
                 self.dynamic.contains_key(key)
             }
 
@@ -738,6 +977,45 @@ macro_rules! generate_inner_storage {
                 if matches!(key, CachedDataItemKey::Immutable {}) {
                     panic!("Use typed storage accessors instead of get_mut() for Immutable");
                 }
+                // State group (migrated)
+                if matches!(key, CachedDataItemKey::Dirty {}) {
+                    panic!("Use typed storage accessors instead of get_mut() for Dirty");
+                }
+                if matches!(key, CachedDataItemKey::AggregatedDirtyContainerCount {}) {
+                    panic!(
+                        "Use typed storage accessors instead of get_mut() for \
+                         AggregatedDirtyContainerCount"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::AggregatedDirtyContainer { .. }) {
+                    panic!(
+                        "Use TaskGuard::aggregated_dirty_containers_mut() instead of get_mut() \
+                         for AggregatedDirtyContainer"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::CurrentSessionClean {}) {
+                    panic!(
+                        "Use typed storage accessors instead of get_mut() for CurrentSessionClean"
+                    );
+                }
+                if matches!(
+                    key,
+                    CachedDataItemKey::AggregatedCurrentSessionCleanContainerCount {}
+                ) {
+                    panic!(
+                        "Use typed storage accessors instead of get_mut() for \
+                         AggregatedCurrentSessionCleanContainerCount"
+                    );
+                }
+                if matches!(
+                    key,
+                    CachedDataItemKey::AggregatedCurrentSessionCleanContainer { .. }
+                ) {
+                    panic!(
+                        "Use TaskGuard::aggregated_current_session_clean_containers_mut() instead \
+                         of get_mut() for AggregatedCurrentSessionCleanContainer"
+                    );
+                }
                 self.dynamic.get_mut(key)
             }
 
@@ -753,6 +1031,12 @@ macro_rules! generate_inner_storage {
                         | CachedDataItemType::Stateful
                         | CachedDataItemType::HasInvalidator
                         | CachedDataItemType::Immutable
+                        | CachedDataItemType::Dirty
+                        | CachedDataItemType::AggregatedDirtyContainerCount
+                        | CachedDataItemType::AggregatedDirtyContainer
+                        | CachedDataItemType::CurrentSessionClean
+                        | CachedDataItemType::AggregatedCurrentSessionCleanContainerCount
+                        | CachedDataItemType::AggregatedCurrentSessionCleanContainer
                 ) {
                     return;
                 }
@@ -789,6 +1073,45 @@ macro_rules! generate_inner_storage {
                 }
                 if matches!(key, CachedDataItemKey::Immutable {}) {
                     panic!("Use typed storage accessors instead of update() for Immutable");
+                }
+                // State group (migrated)
+                if matches!(key, CachedDataItemKey::Dirty {}) {
+                    panic!("Use typed storage accessors instead of update() for Dirty");
+                }
+                if matches!(key, CachedDataItemKey::AggregatedDirtyContainerCount {}) {
+                    panic!(
+                        "Use typed storage accessors instead of update() for \
+                         AggregatedDirtyContainerCount"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::AggregatedDirtyContainer { .. }) {
+                    panic!(
+                        "Use TaskGuard::aggregated_dirty_containers_mut() instead of update() for \
+                         AggregatedDirtyContainer"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::CurrentSessionClean {}) {
+                    panic!(
+                        "Use typed storage accessors instead of update() for CurrentSessionClean"
+                    );
+                }
+                if matches!(
+                    key,
+                    CachedDataItemKey::AggregatedCurrentSessionCleanContainerCount {}
+                ) {
+                    panic!(
+                        "Use typed storage accessors instead of update() for \
+                         AggregatedCurrentSessionCleanContainerCount"
+                    );
+                }
+                if matches!(
+                    key,
+                    CachedDataItemKey::AggregatedCurrentSessionCleanContainer { .. }
+                ) {
+                    panic!(
+                        "Use TaskGuard::aggregated_current_session_clean_containers_mut() instead \
+                         of update() for AggregatedCurrentSessionCleanContainer"
+                    );
                 }
                 self.dynamic.update(key, update)
             }
@@ -830,6 +1153,46 @@ macro_rules! generate_inner_storage {
                 }
                 if matches!(ty, CachedDataItemType::Immutable) {
                     panic!("Use typed storage accessors instead of extract_if() for Immutable");
+                }
+                // State group (migrated)
+                if matches!(ty, CachedDataItemType::Dirty) {
+                    panic!("Use typed storage accessors instead of extract_if() for Dirty");
+                }
+                if matches!(ty, CachedDataItemType::AggregatedDirtyContainerCount) {
+                    panic!(
+                        "Use typed storage accessors instead of extract_if() for \
+                         AggregatedDirtyContainerCount"
+                    );
+                }
+                if matches!(ty, CachedDataItemType::AggregatedDirtyContainer) {
+                    panic!(
+                        "Use TaskGuard::aggregated_dirty_containers_mut() instead of extract_if() \
+                         for AggregatedDirtyContainer"
+                    );
+                }
+                if matches!(ty, CachedDataItemType::CurrentSessionClean) {
+                    panic!(
+                        "Use typed storage accessors instead of extract_if() for \
+                         CurrentSessionClean"
+                    );
+                }
+                if matches!(
+                    ty,
+                    CachedDataItemType::AggregatedCurrentSessionCleanContainerCount
+                ) {
+                    panic!(
+                        "Use typed storage accessors instead of extract_if() for \
+                         AggregatedCurrentSessionCleanContainerCount"
+                    );
+                }
+                if matches!(
+                    ty,
+                    CachedDataItemType::AggregatedCurrentSessionCleanContainer
+                ) {
+                    panic!(
+                        "Use TaskGuard::aggregated_current_session_clean_containers_mut() instead \
+                         of extract_if() for AggregatedCurrentSessionCleanContainer"
+                    );
                 }
                 self.dynamic.extract_if(ty, f)
             }
@@ -882,6 +1245,48 @@ macro_rules! generate_inner_storage {
                          Immutable"
                     );
                 }
+                // State group (migrated)
+                if matches!(key, CachedDataItemKey::Dirty {}) {
+                    panic!(
+                        "Use typed storage accessors instead of get_mut_or_insert_with() for Dirty"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::AggregatedDirtyContainerCount {}) {
+                    panic!(
+                        "Use typed storage accessors instead of get_mut_or_insert_with() for \
+                         AggregatedDirtyContainerCount"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::AggregatedDirtyContainer { .. }) {
+                    panic!(
+                        "Use TaskGuard::aggregated_dirty_containers_mut() instead of \
+                         get_mut_or_insert_with() for AggregatedDirtyContainer"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::CurrentSessionClean {}) {
+                    panic!(
+                        "Use typed storage accessors instead of get_mut_or_insert_with() for \
+                         CurrentSessionClean"
+                    );
+                }
+                if matches!(
+                    key,
+                    CachedDataItemKey::AggregatedCurrentSessionCleanContainerCount {}
+                ) {
+                    panic!(
+                        "Use typed storage accessors instead of get_mut_or_insert_with() for \
+                         AggregatedCurrentSessionCleanContainerCount"
+                    );
+                }
+                if matches!(
+                    key,
+                    CachedDataItemKey::AggregatedCurrentSessionCleanContainer { .. }
+                ) {
+                    panic!(
+                        "Use TaskGuard::aggregated_current_session_clean_containers_mut() instead \
+                         of get_mut_or_insert_with() for AggregatedCurrentSessionCleanContainer"
+                    );
+                }
                 self.dynamic.get_mut_or_insert_with(key, f)
             }
 
@@ -913,6 +1318,43 @@ macro_rules! generate_inner_storage {
                 }
                 if matches!(ty, CachedDataItemType::Immutable) {
                     panic!("Use typed storage accessors instead of iter() for Immutable");
+                }
+                // State group (migrated)
+                if matches!(ty, CachedDataItemType::Dirty) {
+                    panic!("Use typed storage accessors instead of iter() for Dirty");
+                }
+                if matches!(ty, CachedDataItemType::AggregatedDirtyContainerCount) {
+                    panic!(
+                        "Use typed storage accessors instead of iter() for \
+                         AggregatedDirtyContainerCount"
+                    );
+                }
+                if matches!(ty, CachedDataItemType::AggregatedDirtyContainer) {
+                    panic!(
+                        "Use TaskGuard::aggregated_dirty_containers() instead of iter() for \
+                         AggregatedDirtyContainer"
+                    );
+                }
+                if matches!(ty, CachedDataItemType::CurrentSessionClean) {
+                    panic!("Use typed storage accessors instead of iter() for CurrentSessionClean");
+                }
+                if matches!(
+                    ty,
+                    CachedDataItemType::AggregatedCurrentSessionCleanContainerCount
+                ) {
+                    panic!(
+                        "Use typed storage accessors instead of iter() for \
+                         AggregatedCurrentSessionCleanContainerCount"
+                    );
+                }
+                if matches!(
+                    ty,
+                    CachedDataItemType::AggregatedCurrentSessionCleanContainer
+                ) {
+                    panic!(
+                        "Use TaskGuard::aggregated_current_session_clean_containers() instead of \
+                         iter() for AggregatedCurrentSessionCleanContainer"
+                    );
                 }
                 self.dynamic.iter(ty)
             }
@@ -984,6 +1426,48 @@ impl InnerStorage {
         } else {
             self.typed.meta.flags.immutable = Some(());
             true
+        }
+    }
+
+    // State group (migrated)
+    fn add_dirty(&mut self, value: Dirtyness) -> bool {
+        if self.typed.meta.state.dirty.is_some() {
+            false
+        } else {
+            self.typed.meta.state.dirty = Some(value);
+            true
+        }
+    }
+
+    fn add_aggregated_dirty_container_count(&mut self, value: i32) -> bool {
+        if self
+            .typed
+            .meta
+            .state
+            .aggregated_dirty_container_count
+            .is_some()
+        {
+            false
+        } else {
+            self.typed.meta.state.aggregated_dirty_container_count = Some(value);
+            true
+        }
+    }
+
+    fn add_aggregated_dirty_container(&mut self, task: TaskId, value: i32) -> bool {
+        use std::collections::hash_map::Entry;
+        match self
+            .typed
+            .meta
+            .state
+            .aggregated_dirty_containers
+            .entry(task)
+        {
+            Entry::Occupied(_) => false,
+            Entry::Vacant(e) => {
+                e.insert(value);
+                true
+            }
         }
     }
 }

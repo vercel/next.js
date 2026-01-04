@@ -2360,7 +2360,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         );
 
         // Grab the old dirty state
-        let old_dirtyness = task.get_dirty().cloned();
+        let old_dirtyness = task.get_dirty_ref().cloned();
         let (old_self_dirty, old_current_session_self_clean) = match old_dirtyness {
             None => (false, false),
             Some(Dirtyness::Dirty) => (true, false),
@@ -2382,7 +2382,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             if let Some(value) = new_dirtyness {
                 task.set_dirty(value);
             } else if old_dirtyness.is_some() {
-                task.clear_dirty();
+                task.take_dirty();
             }
         }
         if old_current_session_self_clean != new_current_session_self_clean {
@@ -2980,7 +2980,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     }
                 }
 
-                let is_dirty = task.get_dirty().is_some();
+                let is_dirty = task.has_dirty();
                 let has_dirty_container = task.has_dirty_containers();
                 let should_be_in_upper = is_dirty || has_dirty_container;
 
