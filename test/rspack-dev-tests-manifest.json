@@ -1080,14 +1080,13 @@
       "server-components-hmr-cache node runtime in after() should not use cached fetch calls for intentional refresh requests",
       "server-components-hmr-cache node runtime in after() should use cached fetch calls for fast refresh requests",
       "server-components-hmr-cache node runtime should not use cached fetch calls for intentional refresh requests",
-      "server-components-hmr-cache node runtime should use cached fetch calls for fast refresh requests"
-    ],
-    "failed": [
+      "server-components-hmr-cache node runtime should use cached fetch calls for fast refresh requests",
       "server-components-hmr-cache node runtime with cacheMaxMemorySize set to 0 should not warn about \"Single item size exceeds maxSize\"",
       "server-components-hmr-cache node runtime with cacheMaxMemorySize set to 0 should still use cached fetch calls for fast refresh requests",
       "server-components-hmr-cache node runtime with experimental.serverComponentsHmrCache disabled in after() should not use cached fetch calls for fast refresh requests",
       "server-components-hmr-cache node runtime with experimental.serverComponentsHmrCache disabled should not use cached fetch calls for fast refresh requests"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -7766,7 +7765,6 @@
       "parallel-routes-revalidation router.refresh (regular) - searchParams: true should correctly refresh data for the intercepted route and previously active page slot",
       "parallel-routes-revalidation server action revalidation handles refreshing when multiple parallel slots are active",
       "parallel-routes-revalidation should handle a redirect action when called in a slot",
-      "parallel-routes-revalidation should handle router.refresh() when called in a slot",
       "parallel-routes-revalidation should not trigger full page when calling router.refresh() on an intercepted route",
       "parallel-routes-revalidation should not trigger interception when calling router.refresh() on an intercepted route (/catchall/foobar)",
       "parallel-routes-revalidation should not trigger interception when calling router.refresh() on an intercepted route (/detail-page)",
@@ -7775,7 +7773,9 @@
       "parallel-routes-revalidation should refresh the correct page when a server action triggers a redirect",
       "parallel-routes-revalidation should submit the action and revalidate the page data"
     ],
-    "failed": [],
+    "failed": [
+      "parallel-routes-revalidation should handle router.refresh() when called in a slot"
+    ],
     "pending": [
       "parallel-routes-revalidation server action revalidation should not trigger a refresh for the page that is being redirected to"
     ],
