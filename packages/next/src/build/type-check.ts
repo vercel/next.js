@@ -22,6 +22,7 @@ function verifyTypeScriptSetup(
   distDir: string,
   typeCheckPreflight: boolean,
   tsconfigPath: string | undefined,
+  disableStaticImages: boolean,
   cacheDir: string | undefined,
   enableWorkerThreads: boolean | undefined,
   hasAppDir: boolean,
@@ -51,6 +52,7 @@ function verifyTypeScriptSetup(
       distDir,
       typeCheckPreflight,
       tsconfigPath,
+      disableStaticImages,
       cacheDir,
       hasAppDir,
       hasPagesDir,
@@ -117,6 +119,7 @@ export async function startTypeChecking({
           config.distDir,
           !ignoreTypeScriptErrors,
           config.typescript.tsconfigPath,
+          config.images.disableStaticImages,
           cacheDir,
           config.experimental.workerThreads,
           !!appDir,
@@ -133,11 +136,11 @@ export async function startTypeChecking({
 
     if (typeCheckingSpinner) {
       typeCheckingSpinner.stop()
-
-      createSpinner(
-        `Finished TypeScript${ignoreTypeScriptErrors ? ' config validation' : ''} in ${hrtimeDurationToString(typeCheckEnd)}`
-      )?.stopAndPersist()
     }
+
+    createSpinner(
+      `Finished TypeScript${ignoreTypeScriptErrors ? ' config validation' : ''} in ${hrtimeDurationToString(typeCheckEnd)}`
+    )?.stopAndPersist()
 
     if (!ignoreTypeScriptErrors && verifyResult) {
       telemetry.record(

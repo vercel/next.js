@@ -10,7 +10,8 @@ import {
   generateRouteTypesFile,
   generateLinkTypesFile,
   generateValidatorFile,
-  generateDynamicTypesFile,
+  generateValidatorFileStrict,
+  generateRouteTypesFileStrict,
 } from './typegen'
 import { tryToParsePath } from '../../../lib/try-to-parse-path'
 import {
@@ -362,7 +363,12 @@ export async function writeRouteTypesManifest(
   }
 
   // Write the main routes.d.ts file
-  await fs.promises.writeFile(filePath, generateRouteTypesFile(manifest))
+  await fs.promises.writeFile(
+    filePath,
+    config.experimental.strictRouteTypes
+      ? generateRouteTypesFileStrict(manifest)
+      : generateRouteTypesFile(manifest)
+  )
 
   // Write the link.d.ts file if typedRoutes is enabled
   if (config.typedRoutes === true) {
@@ -373,7 +379,8 @@ export async function writeRouteTypesManifest(
 
 export async function writeValidatorFile(
   manifest: RouteTypesManifest,
-  filePath: string
+  filePath: string,
+  strict: boolean
 ) {
   const dirname = path.dirname(filePath)
 
@@ -381,37 +388,10 @@ export async function writeValidatorFile(
     await fs.promises.mkdir(dirname, { recursive: true })
   }
 
-  await fs.promises.writeFile(filePath, generateValidatorFile(manifest))
-}
-
-/**
- * Writes the dynamic types file (.next/types/next-env.d.ts) that contains
- * config-dependent type references (image imports, navigation compat, etc.)
- */
-export async function writeDynamicTypesFile({
-  distDir,
-  imageImportsEnabled,
-  hasPagesDir,
-  hasAppDir,
-}: {
-  distDir: string
-  imageImportsEnabled: boolean
-  hasPagesDir: boolean
-  hasAppDir: boolean
-}) {
-  const typesDir = path.join(distDir, 'types')
-  const filePath = path.join(typesDir, 'next-env.d.ts')
-
-  // Directory should already be created by writeRouteTypesManifest, but ensure it exists
-  if (!fs.existsSync(typesDir)) {
-    await fs.promises.mkdir(typesDir, { recursive: true })
-  }
-
-  const content = generateDynamicTypesFile({
-    imageImportsEnabled,
-    hasPagesDir,
-    hasAppDir,
-  })
-
-  await fs.promises.writeFile(filePath, content)
+  await fs.promises.writeFile(
+    filePath,
+    strict
+      ? generateValidatorFileStrict(manifest)
+      : generateValidatorFile(manifest)
+  )
 }
