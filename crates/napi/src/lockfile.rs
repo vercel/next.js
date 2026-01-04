@@ -83,11 +83,9 @@ pub fn lockfile_try_acquire_sync(path: String) -> napi::Result<Option<External<J
     #[cfg(target_os = "android")]
     return {
         let file = open_options.open(&path)?;
-        println!("Trying to lock file at {:?}", path);
 
         match file.try_lock_exclusive() {
             Ok(_) => {
-                println!("Lock succeeded!");
                 Ok(Some(External::new(Mutex::new(ManuallyDrop::new(Some(
                     LockfileInner {
                         file,
@@ -96,11 +94,9 @@ pub fn lockfile_try_acquire_sync(path: String) -> napi::Result<Option<External<J
                 ))))))
             }
             Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                println!("Lock would block, lock held elsewhere.");
                 Ok(None)
             }
             Err(e) => {
-                println!("Actual lock error: {:?}", e);
                 Err(e.into())
             }
         }
