@@ -164,62 +164,164 @@ async fn get_client_module_options_context(
     let resolve_options_context =
         get_client_resolve_options_context(project_path.clone(), node_env, platform);
 
-    let mut webpack_rules = vec![(
-        rcstr!("*.{js,jsx,cjs,mjs}"),
+    let webpack_rules = vec![(
+        rcstr!("*.{js,jsx,cjs,mjs,ts,tsx}"),
         LoaderRuleItem {
             loaders: ResolvedVc::cell(vec![WebpackLoaderItem {
-                loader: rcstr!("babel-loader"),
-                options: [
-                    ("configFile".to_string(), false.into()),
-                    ("babelrc".to_string(), false.into()),
-                    (
-                        "presets".to_string(),
-                        serde_json::json!([
-                            ["@babel/preset-flow", { "experimental_useHermesParser": true }],
-                        ]),
-                    ),
-                ]
-                .into_iter()
-                .collect(),
+                loader: rcstr!(
+                    "/Users/niklas/code/next.js/packages/turbopack-rn-babel-loader/index.js"
+                ),
+                options: Default::default(),
             }]),
             rename_as: Some(rcstr!("*")),
             module_type: None,
             condition: Some(ConditionItem::Base {
                 path: None,
-                content: Some(EsRegex::new("@flow", "")?.resolved_cell()),
+                content: Some(
+                    EsRegex::new(
+                        [
+                            // Flow syntax
+                            "@flow",
+                            // codegen
+                            "codegenNativeComponent<",
+                            // Explicit worklets
+                            "'worklet'",
+                            "\"worklet\"",
+                            // https://github.com/software-mansion/react-native-reanimated/blob/ce9032c25e088e09bcce519963614cc5355beebb/packages/react-native-worklets/plugin/src/autoworkletization.ts#L16
+                            "useAnimatedScrollHandler",
+                            "react-native-gesture-handler",
+                            "useFrameCallback",
+                            "useAnimatedStyle",
+                            "useAnimatedProps",
+                            "createAnimatedPropAdapter",
+                            "useDerivedValue",
+                            "useAnimatedScrollHandler",
+                            "useAnimatedReaction",
+                            "withTiming",
+                            "withSpring",
+                            "withDecay",
+                            "withRepeat",
+                            "runOnUI",
+                            "executeOnUIRuntimeSync",
+                            "scheduleOnUI",
+                            "runOnUISync",
+                            "runOnUIAsync",
+                            "runOnRuntime",
+                            "scheduleOnRuntime",
+                        ]
+                        .join("|")
+                        .as_str(),
+                        "",
+                    )?
+                    .resolved_cell(),
+                ),
             }),
         },
     )];
 
-    if *is_react_native_worklets_installed(project_path.clone(), resolve_options_context).await? {
-        // Merge with the other babel-loader above?
-        webpack_rules.push((
-            rcstr!("*.{js,jsx,cjs,mjs,ts,tsx}"),
-            LoaderRuleItem {
-                loaders: ResolvedVc::cell(vec![WebpackLoaderItem {
-                    loader: rcstr!("babel-loader"),
-                    options: [
-                        ("configFile".to_string(), false.into()),
-                        ("babelrc".to_string(), false.into()),
-                        (
-                            "plugins".to_string(),
-                            serde_json::json!([["react-native-worklets/plugin", {}]]),
-                        ),
-                    ]
-                    .into_iter()
-                    .collect(),
-                }]),
-                rename_as: Some(rcstr!("*")),
-                condition: Some(ConditionItem::Base {
-                    // path: Some(ConditionPath::Glob(rcstr!(
-                    //     "**/node_modules/react-native/**"
-                    // ))),
-                    path: None,
-                    content: Some(EsRegex::new("'worklet'|\"worklet\"", "")?.resolved_cell()),
-                }),
-            },
-        ));
-    }
+    // TODO merge these separate babel-loader runs
+    // Use separately without @react-native/babel-preset
+    // (
+    //     "presets".to_string(),
+    //     // TODO only if @flow
+    //     serde_json::json!([
+    //         ["@babel/preset-flow", { "experimental_useHermesParser": true }],
+    //     ]),
+    // ),
+    // (
+    //     "plugins".to_string(),
+    //     // TODO only if codegenNativeComponent<
+    //     serde_json::json!([["@react-native/babel-plugin-codegen", {}]]),
+    // ),
+
+    // let mut webpack_rules = vec![(
+    //     rcstr!("*.{js,jsx,cjs,mjs,ts,tsx}"),
+    //     LoaderRuleItem {
+    //         loaders: ResolvedVc::cell(vec![WebpackLoaderItem {
+    //             loader:
+    // rcstr!("/Users/niklas/code/next.js-rn/packages/turbopack-rn-babel-loader/index.js"),
+    //             options: [
+    //                 ("configFile".to_string(), false.into()),
+    //                 ("babelrc".to_string(), false.into()),
+    //                 (
+    //                     "presets".to_string(),
+    //                     serde_json::json!([["@react-native/babel-preset", {}],]),
+    //                 ),
+    //             ]
+    //             .into_iter()
+    //             .collect(),
+    //         }]),
+    //         rename_as: Some(rcstr!("*")),
+    //         condition: Some(ConditionItem::Base {
+    //             path: None,
+    //             content: Some(EsRegex::new("@flow|codegenNativeComponent<",
+    // "")?.resolved_cell()),         }),
+    //     },
+    // )];
+
+    // if *is_react_native_worklets_installed(project_path.clone(), resolve_options_context).await?
+    // {     webpack_rules.push((
+    //         rcstr!("*.{js,jsx,cjs,mjs,ts,tsx}"),
+    //         LoaderRuleItem {
+    //             loaders: ResolvedVc::cell(vec![WebpackLoaderItem {
+    //                 loader: rcstr!("babel-loader"),
+    //                 options: [
+    //                     ("configFile".to_string(), false.into()),
+    //                     ("babelrc".to_string(), false.into()),
+    //                     (
+    //                         "plugins".to_string(),
+    //                         serde_json::json!([
+    //                             "@babel/plugin-syntax-jsx",
+    //                             "react-native-worklets/plugin"
+    //                         ]),
+    //                     ),
+    //                 ]
+    //                 .into_iter()
+    //                 .collect(),
+    //             }]),
+    //             rename_as: Some(rcstr!("*")),
+    //             condition: Some(ConditionItem::Base {
+    //                 // path: Some(ConditionPath::Glob(rcstr!(
+    //                 //     "**/node_modules/react-native/**"
+    //                 // ))),
+    //                 path: None,
+    //                 content: Some(
+    //                     EsRegex::new(
+    //                         [
+    //                             "'worklet'",
+    //                             "\"worklet\"",
+    //                             // https://github.com/software-mansion/react-native-reanimated/blob/ce9032c25e088e09bcce519963614cc5355beebb/packages/react-native-worklets/plugin/src/autoworkletization.ts#L16
+    //                             "useAnimatedScrollHandler",
+    //                             "react-native-gesture-handler",
+    //                             "useFrameCallback",
+    //                             "useAnimatedStyle",
+    //                             "useAnimatedProps",
+    //                             "createAnimatedPropAdapter",
+    //                             "useDerivedValue",
+    //                             "useAnimatedScrollHandler",
+    //                             "useAnimatedReaction",
+    //                             "withTiming",
+    //                             "withSpring",
+    //                             "withDecay",
+    //                             "withRepeat",
+    //                             "runOnUI",
+    //                             "executeOnUIRuntimeSync",
+    //                             "scheduleOnUI",
+    //                             "runOnUISync",
+    //                             "runOnUIAsync",
+    //                             "runOnRuntime",
+    //                             "scheduleOnRuntime",
+    //                         ]
+    //                         .join("|")
+    //                         .as_str(),
+    //                         "",
+    //                     )?
+    //                     .resolved_cell(),
+    //                 ),
+    //             }),
+    //         },
+    //     ));
+    // }
 
     let loader_runner_package = Some(
         ImportMapping::Alternatives(vec![

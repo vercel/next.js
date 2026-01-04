@@ -1954,6 +1954,12 @@ importers:
         specifier: 6.0.2
         version: 6.0.2
 
+  packages/turbopack-rn-babel-loader:
+    dependencies:
+      babel-loader:
+        specifier: 10.0.0
+        version: 10.0.0(@babel/core@7.26.10)(webpack@5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.15)))
+
   turbopack/crates/turbopack-cli/js:
     dependencies:
       '@vercel/turbopack-ecmascript-runtime':
@@ -1998,7 +2004,7 @@ importers:
     devDependencies:
       '@types/node':
         specifier: 20.17.6
-        version: 20.17.6(patch_hash=rvl3vkomen3tospgr67bzubfyu)
+        version: 20.17.6(patch_hash=9c31d25336aea4076b3cb942c35e59fd160c540947f01ea455a060367153f9fd)
 
   turbopack/crates/turbopack-tests/tests/execution:
     dependencies:
@@ -24823,6 +24829,12 @@ snapshots:
       '@babel/core': 7.26.10
       find-up: 5.0.0
       webpack: 5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.15))(esbuild@0.25.9)
+
+  babel-loader@10.0.0(@babel/core@7.26.10)(webpack@5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.15))):
+    dependencies:
+      '@babel/core': 7.26.10
+      find-up: 5.0.0
+      webpack: 5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.15))
 
   babel-plugin-istanbul@6.1.1:
     dependencies:

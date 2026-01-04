@@ -1,0 +1,8 @@
+{
+  "name": "turbopack-rn-babel-loader",
+  "version": "0.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "babel-loader": "10.0.0"
+  }
+}
