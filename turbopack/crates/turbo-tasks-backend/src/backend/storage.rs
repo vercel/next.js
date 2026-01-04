@@ -15,8 +15,8 @@ use crate::{
     },
     data::{
         AggregationNumber, CachedDataItem, CachedDataItemKey, CachedDataItemType,
-        CachedDataItemValue, CachedDataItemValueRef, CachedDataItemValueRefMut, Dirtyness,
-        OutputValue,
+        CachedDataItemValue, CachedDataItemValueRef, CachedDataItemValueRefMut, CollectibleRef,
+        Dirtyness, OutputValue,
     },
     utils::{
         dash_map_drop_contents::drop_contents,
@@ -471,6 +471,20 @@ macro_rules! generate_inner_storage {
                 if let CachedDataItem::AggregatedDirtyContainer { task, value } = item {
                     return self.add_aggregated_dirty_container(task, value);
                 }
+                // Collectibles group (migrated)
+                if let CachedDataItem::Collectible { collectible, value } = item {
+                    return self.add_collectible(collectible, value);
+                }
+                if let CachedDataItem::AggregatedCollectible { collectible, value } = item {
+                    return self.add_aggregated_collectible(collectible, value);
+                }
+                // Aggregation group (migrated)
+                if let CachedDataItem::Child { task, .. } = item {
+                    return self.add_child(task);
+                }
+                if let CachedDataItem::Follower { task, value } = item {
+                    return self.add_follower(task, value);
+                }
                 self.dynamic.add(item)
             }
 
@@ -572,6 +586,44 @@ macro_rules! generate_inner_storage {
                     }
                     return any_added;
                 }
+                // Collectibles group (migrated)
+                if let CachedDataItemType::Collectible = ty {
+                    let mut any_added = false;
+                    for item in items {
+                        if let CachedDataItem::Collectible { collectible, value } = item {
+                            any_added |= self.add_collectible(collectible, value);
+                        }
+                    }
+                    return any_added;
+                }
+                if let CachedDataItemType::AggregatedCollectible = ty {
+                    let mut any_added = false;
+                    for item in items {
+                        if let CachedDataItem::AggregatedCollectible { collectible, value } = item {
+                            any_added |= self.add_aggregated_collectible(collectible, value);
+                        }
+                    }
+                    return any_added;
+                }
+                // Aggregation group (migrated)
+                if let CachedDataItemType::Child = ty {
+                    let mut any_added = false;
+                    for item in items {
+                        if let CachedDataItem::Child { task, .. } = item {
+                            any_added |= self.add_child(task);
+                        }
+                    }
+                    return any_added;
+                }
+                if let CachedDataItemType::Follower = ty {
+                    let mut any_added = false;
+                    for item in items {
+                        if let CachedDataItem::Follower { task, value } = item {
+                            any_added |= self.add_follower(task, value);
+                        }
+                    }
+                    return any_added;
+                }
                 self.dynamic.extend(ty, items)
             }
 
@@ -647,6 +699,29 @@ macro_rules! generate_inner_storage {
                          of insert() for AggregatedCurrentSessionCleanContainer"
                     );
                 }
+                // Collectibles group (migrated)
+                if matches!(item, CachedDataItem::Collectible { .. }) {
+                    panic!("Use TaskGuard::collectibles_mut() instead of insert() for Collectible");
+                }
+                if matches!(item, CachedDataItem::AggregatedCollectible { .. }) {
+                    panic!(
+                        "Use TaskGuard::aggregated_collectibles_mut() instead of insert() for \
+                         AggregatedCollectible"
+                    );
+                }
+                if matches!(item, CachedDataItem::OutdatedCollectible { .. }) {
+                    panic!(
+                        "Use TaskGuard::outdated_collectibles_mut() instead of insert() for \
+                         OutdatedCollectible"
+                    );
+                }
+                // Aggregation group (migrated)
+                if matches!(item, CachedDataItem::Child { .. }) {
+                    panic!("Use TaskGuard::children_mut() instead of insert() for Child");
+                }
+                if matches!(item, CachedDataItem::Follower { .. }) {
+                    panic!("Use TaskGuard::followers_mut() instead of insert() for Follower");
+                }
                 self.dynamic.insert(item)
             }
 
@@ -719,6 +794,29 @@ macro_rules! generate_inner_storage {
                          of remove() for AggregatedCurrentSessionCleanContainer"
                     );
                 }
+                // Collectibles group (migrated)
+                if matches!(key, CachedDataItemKey::Collectible { .. }) {
+                    panic!("Use TaskGuard::collectibles_mut() instead of remove() for Collectible");
+                }
+                if matches!(key, CachedDataItemKey::AggregatedCollectible { .. }) {
+                    panic!(
+                        "Use TaskGuard::aggregated_collectibles_mut() instead of remove() for \
+                         AggregatedCollectible"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::OutdatedCollectible { .. }) {
+                    panic!(
+                        "Use TaskGuard::outdated_collectibles_mut() instead of remove() for \
+                         OutdatedCollectible"
+                    );
+                }
+                // Aggregation group (migrated)
+                if matches!(key, CachedDataItemKey::Child { .. }) {
+                    panic!("Use TaskGuard::children_mut() instead of remove() for Child");
+                }
+                if matches!(key, CachedDataItemKey::Follower { .. }) {
+                    panic!("Use TaskGuard::followers_mut() instead of remove() for Follower");
+                }
                 self.dynamic.remove(key)
             }
 
@@ -789,6 +887,29 @@ macro_rules! generate_inner_storage {
                         "Use TaskGuard::aggregated_current_session_clean_containers() instead of \
                          count() for AggregatedCurrentSessionCleanContainer"
                     );
+                }
+                // Collectibles group (migrated)
+                if matches!(ty, CachedDataItemType::Collectible) {
+                    panic!("Use TaskGuard::collectibles() instead of count() for Collectible");
+                }
+                if matches!(ty, CachedDataItemType::AggregatedCollectible) {
+                    panic!(
+                        "Use TaskGuard::aggregated_collectibles() instead of count() for \
+                         AggregatedCollectible"
+                    );
+                }
+                if matches!(ty, CachedDataItemType::OutdatedCollectible) {
+                    panic!(
+                        "Use TaskGuard::outdated_collectibles() instead of count() for \
+                         OutdatedCollectible"
+                    );
+                }
+                // Aggregation group (migrated)
+                if matches!(ty, CachedDataItemType::Child) {
+                    panic!("Use TaskGuard::children() instead of count() for Child");
+                }
+                if matches!(ty, CachedDataItemType::Follower) {
+                    panic!("Use TaskGuard::followers() instead of count() for Follower");
                 }
                 self.dynamic.count(ty)
             }
@@ -863,6 +984,29 @@ macro_rules! generate_inner_storage {
                         "Use TaskGuard::aggregated_current_session_clean_containers() instead of \
                          get() for AggregatedCurrentSessionCleanContainer"
                     );
+                }
+                // Collectibles group (migrated)
+                if matches!(key, CachedDataItemKey::Collectible { .. }) {
+                    panic!("Use TaskGuard::collectibles() instead of get() for Collectible");
+                }
+                if matches!(key, CachedDataItemKey::AggregatedCollectible { .. }) {
+                    panic!(
+                        "Use TaskGuard::aggregated_collectibles() instead of get() for \
+                         AggregatedCollectible"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::OutdatedCollectible { .. }) {
+                    panic!(
+                        "Use TaskGuard::outdated_collectibles() instead of get() for \
+                         OutdatedCollectible"
+                    );
+                }
+                // Aggregation group (migrated)
+                if matches!(key, CachedDataItemKey::Child { .. }) {
+                    panic!("Use TaskGuard::children() instead of get() for Child");
+                }
+                if matches!(key, CachedDataItemKey::Follower { .. }) {
+                    panic!("Use TaskGuard::followers() instead of get() for Follower");
                 }
                 self.dynamic.get(key)
             }
@@ -942,6 +1086,31 @@ macro_rules! generate_inner_storage {
                          contains_key() for AggregatedCurrentSessionCleanContainer"
                     );
                 }
+                // Collectibles group (migrated)
+                if matches!(key, CachedDataItemKey::Collectible { .. }) {
+                    panic!(
+                        "Use TaskGuard::collectibles() instead of contains_key() for Collectible"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::AggregatedCollectible { .. }) {
+                    panic!(
+                        "Use TaskGuard::aggregated_collectibles() instead of contains_key() for \
+                         AggregatedCollectible"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::OutdatedCollectible { .. }) {
+                    panic!(
+                        "Use TaskGuard::outdated_collectibles() instead of contains_key() for \
+                         OutdatedCollectible"
+                    );
+                }
+                // Aggregation group (migrated)
+                if matches!(key, CachedDataItemKey::Child { .. }) {
+                    panic!("Use TaskGuard::children() instead of contains_key() for Child");
+                }
+                if matches!(key, CachedDataItemKey::Follower { .. }) {
+                    panic!("Use TaskGuard::followers() instead of contains_key() for Follower");
+                }
                 self.dynamic.contains_key(key)
             }
 
@@ -1016,6 +1185,31 @@ macro_rules! generate_inner_storage {
                          of get_mut() for AggregatedCurrentSessionCleanContainer"
                     );
                 }
+                // Collectibles group (migrated)
+                if matches!(key, CachedDataItemKey::Collectible { .. }) {
+                    panic!(
+                        "Use TaskGuard::collectibles_mut() instead of get_mut() for Collectible"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::AggregatedCollectible { .. }) {
+                    panic!(
+                        "Use TaskGuard::aggregated_collectibles_mut() instead of get_mut() for \
+                         AggregatedCollectible"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::OutdatedCollectible { .. }) {
+                    panic!(
+                        "Use TaskGuard::outdated_collectibles_mut() instead of get_mut() for \
+                         OutdatedCollectible"
+                    );
+                }
+                // Aggregation group (migrated)
+                if matches!(key, CachedDataItemKey::Child { .. }) {
+                    panic!("Use TaskGuard::children_mut() instead of get_mut() for Child");
+                }
+                if matches!(key, CachedDataItemKey::Follower { .. }) {
+                    panic!("Use TaskGuard::followers_mut() instead of get_mut() for Follower");
+                }
                 self.dynamic.get_mut(key)
             }
 
@@ -1037,6 +1231,11 @@ macro_rules! generate_inner_storage {
                         | CachedDataItemType::CurrentSessionClean
                         | CachedDataItemType::AggregatedCurrentSessionCleanContainerCount
                         | CachedDataItemType::AggregatedCurrentSessionCleanContainer
+                        | CachedDataItemType::Collectible
+                        | CachedDataItemType::AggregatedCollectible
+                        | CachedDataItemType::OutdatedCollectible
+                        | CachedDataItemType::Child
+                        | CachedDataItemType::Follower
                 ) {
                     return;
                 }
@@ -1112,6 +1311,29 @@ macro_rules! generate_inner_storage {
                         "Use TaskGuard::aggregated_current_session_clean_containers_mut() instead \
                          of update() for AggregatedCurrentSessionCleanContainer"
                     );
+                }
+                // Collectibles group (migrated)
+                if matches!(key, CachedDataItemKey::Collectible { .. }) {
+                    panic!("Use TaskGuard::collectibles_mut() instead of update() for Collectible");
+                }
+                if matches!(key, CachedDataItemKey::AggregatedCollectible { .. }) {
+                    panic!(
+                        "Use TaskGuard::aggregated_collectibles_mut() instead of update() for \
+                         AggregatedCollectible"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::OutdatedCollectible { .. }) {
+                    panic!(
+                        "Use TaskGuard::outdated_collectibles_mut() instead of update() for \
+                         OutdatedCollectible"
+                    );
+                }
+                // Aggregation group (migrated)
+                if matches!(key, CachedDataItemKey::Child { .. }) {
+                    panic!("Use TaskGuard::children_mut() instead of update() for Child");
+                }
+                if matches!(key, CachedDataItemKey::Follower { .. }) {
+                    panic!("Use TaskGuard::followers_mut() instead of update() for Follower");
                 }
                 self.dynamic.update(key, update)
             }
@@ -1193,6 +1415,31 @@ macro_rules! generate_inner_storage {
                         "Use TaskGuard::aggregated_current_session_clean_containers_mut() instead \
                          of extract_if() for AggregatedCurrentSessionCleanContainer"
                     );
+                }
+                // Collectibles group (migrated)
+                if matches!(ty, CachedDataItemType::Collectible) {
+                    panic!(
+                        "Use TaskGuard::collectibles_mut() instead of extract_if() for Collectible"
+                    );
+                }
+                if matches!(ty, CachedDataItemType::AggregatedCollectible) {
+                    panic!(
+                        "Use TaskGuard::aggregated_collectibles_mut() instead of extract_if() for \
+                         AggregatedCollectible"
+                    );
+                }
+                if matches!(ty, CachedDataItemType::OutdatedCollectible) {
+                    panic!(
+                        "Use TaskGuard::outdated_collectibles_mut() instead of extract_if() for \
+                         OutdatedCollectible"
+                    );
+                }
+                // Aggregation group (migrated)
+                if matches!(ty, CachedDataItemType::Child) {
+                    panic!("Use TaskGuard::children_mut() instead of extract_if() for Child");
+                }
+                if matches!(ty, CachedDataItemType::Follower) {
+                    panic!("Use TaskGuard::followers_mut() instead of extract_if() for Follower");
                 }
                 self.dynamic.extract_if(ty, f)
             }
@@ -1287,6 +1534,38 @@ macro_rules! generate_inner_storage {
                          of get_mut_or_insert_with() for AggregatedCurrentSessionCleanContainer"
                     );
                 }
+                // Collectibles group (migrated)
+                if matches!(key, CachedDataItemKey::Collectible { .. }) {
+                    panic!(
+                        "Use TaskGuard::collectibles_mut() instead of get_mut_or_insert_with() \
+                         for Collectible"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::AggregatedCollectible { .. }) {
+                    panic!(
+                        "Use TaskGuard::aggregated_collectibles_mut() instead of \
+                         get_mut_or_insert_with() for AggregatedCollectible"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::OutdatedCollectible { .. }) {
+                    panic!(
+                        "Use TaskGuard::outdated_collectibles_mut() instead of \
+                         get_mut_or_insert_with() for OutdatedCollectible"
+                    );
+                }
+                // Aggregation group (migrated)
+                if matches!(key, CachedDataItemKey::Child { .. }) {
+                    panic!(
+                        "Use TaskGuard::children_mut() instead of get_mut_or_insert_with() for \
+                         Child"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::Follower { .. }) {
+                    panic!(
+                        "Use TaskGuard::followers_mut() instead of get_mut_or_insert_with() for \
+                         Follower"
+                    );
+                }
                 self.dynamic.get_mut_or_insert_with(key, f)
             }
 
@@ -1355,6 +1634,29 @@ macro_rules! generate_inner_storage {
                         "Use TaskGuard::aggregated_current_session_clean_containers() instead of \
                          iter() for AggregatedCurrentSessionCleanContainer"
                     );
+                }
+                // Collectibles group (migrated)
+                if matches!(ty, CachedDataItemType::Collectible) {
+                    panic!("Use TaskGuard::collectibles() instead of iter() for Collectible");
+                }
+                if matches!(ty, CachedDataItemType::AggregatedCollectible) {
+                    panic!(
+                        "Use TaskGuard::aggregated_collectibles() instead of iter() for \
+                         AggregatedCollectible"
+                    );
+                }
+                if matches!(ty, CachedDataItemType::OutdatedCollectible) {
+                    panic!(
+                        "Use TaskGuard::outdated_collectibles() instead of iter() for \
+                         OutdatedCollectible"
+                    );
+                }
+                // Aggregation group (migrated)
+                if matches!(ty, CachedDataItemType::Child) {
+                    panic!("Use TaskGuard::children() instead of iter() for Child");
+                }
+                if matches!(ty, CachedDataItemType::Follower) {
+                    panic!("Use TaskGuard::followers() instead of iter() for Follower");
                 }
                 self.dynamic.iter(ty)
             }
@@ -1463,6 +1765,65 @@ impl InnerStorage {
             .aggregated_dirty_containers
             .entry(task)
         {
+            Entry::Occupied(_) => false,
+            Entry::Vacant(e) => {
+                e.insert(value);
+                true
+            }
+        }
+    }
+
+    // Collectibles group (migrated)
+    fn add_collectible(&mut self, collectible: CollectibleRef, value: i32) -> bool {
+        use std::collections::hash_map::Entry;
+        let group = self
+            .typed
+            .meta
+            .collectibles
+            .get_or_insert_with(Default::default);
+        match group.collectibles.entry(collectible) {
+            Entry::Occupied(_) => false,
+            Entry::Vacant(e) => {
+                e.insert(value);
+                true
+            }
+        }
+    }
+
+    fn add_aggregated_collectible(&mut self, collectible: CollectibleRef, value: i32) -> bool {
+        use std::collections::hash_map::Entry;
+        let group = self
+            .typed
+            .meta
+            .collectibles
+            .get_or_insert_with(Default::default);
+        match group.aggregated_collectibles.entry(collectible) {
+            Entry::Occupied(_) => false,
+            Entry::Vacant(e) => {
+                e.insert(value);
+                true
+            }
+        }
+    }
+
+    // Aggregation group (migrated)
+    fn add_child(&mut self, task: TaskId) -> bool {
+        let group = self
+            .typed
+            .meta
+            .aggregation
+            .get_or_insert_with(Default::default);
+        group.children.insert(task)
+    }
+
+    fn add_follower(&mut self, task: TaskId, value: u32) -> bool {
+        use std::collections::hash_map::Entry;
+        let group = self
+            .typed
+            .meta
+            .aggregation
+            .get_or_insert_with(Default::default);
+        match group.followers.entry(task) {
             Entry::Occupied(_) => false,
             Entry::Vacant(e) => {
                 e.insert(value);

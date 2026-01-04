@@ -463,14 +463,13 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
 
     /// Check if a task is a child of this task
     fn has_child(&self, task: TaskId) -> bool {
-        self.has_key_internal(&CachedDataItemKey::Child { task })
+        self.children().is_some_and(|m| m.contains(&task))
     }
 
     /// Remove a child from this task
     /// Returns true if the child was present and removed
     fn remove_child(&mut self, task: TaskId) -> bool {
-        self.remove_internal(&CachedDataItemKey::Child { task })
-            .is_some()
+        self.children_mut().remove(&task)
     }
 
     /// Add children in bulk. All children must be new (not already present).
@@ -479,10 +478,11 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     ///
     /// Panics if any child is already present.
     fn add_children(&mut self, children: impl Iterator<Item = TaskId>) {
-        self.extend_new_internal(
-            CachedDataItemType::Child,
-            children.map(|task| CachedDataItem::Child { task, value: () }),
-        )
+        let set = self.children_mut();
+        for task in children {
+            let is_new = set.insert(task);
+            assert!(is_new, "Child {task} already present");
+        }
     }
 
     // ============ Typed OutputDependency APIs ============
@@ -705,12 +705,34 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     /// state transitions where crossing zero indicates a significant change.
     #[must_use]
     fn update_follower_count(&mut self, task: TaskId, delta: u32) -> bool {
-        update_count!(self, Follower { task }, delta)
+        use std::collections::hash_map::Entry;
+        let map = self.followers_mut();
+        match map.entry(task) {
+            Entry::Occupied(mut e) => {
+                let old = *e.get();
+                let new = old + delta;
+                let state_change = old == 0 && new > 0 || old > 0 && new == 0;
+                if new == 0 {
+                    e.remove();
+                } else {
+                    *e.get_mut() = new;
+                }
+                state_change
+            }
+            Entry::Vacant(e) => {
+                if delta != 0 {
+                    e.insert(delta);
+                    true
+                } else {
+                    false
+                }
+            }
+        }
     }
 
     /// Remove a Follower entry for a task, returning the count if present
     fn remove_follower(&mut self, task: TaskId) -> Option<u32> {
-        remove!(self, Follower { task })
+        self.followers_mut().remove(&task)
     }
 
     /// Update a Follower entry for a task with a closure
@@ -718,7 +740,23 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     where
         F: FnOnce(Option<u32>) -> Option<u32>,
     {
-        update!(self, Follower { task }, f)
+        use std::collections::hash_map::Entry;
+        let map = self.followers_mut();
+        match map.entry(task) {
+            Entry::Occupied(mut e) => match f(Some(*e.get())) {
+                Some(new) => {
+                    *e.get_mut() = new;
+                }
+                None => {
+                    e.remove();
+                }
+            },
+            Entry::Vacant(e) => {
+                if let Some(new) = f(None) {
+                    e.insert(new);
+                }
+            }
+        }
     }
 
     /// Add a new Follower entry (used when adding new followers)
@@ -727,7 +765,13 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     ///
     /// Panics if the entry already exists.
     fn add_follower(&mut self, task: TaskId, count: u32) {
-        self.add_new_internal(CachedDataItem::Follower { task, value: count })
+        use std::collections::hash_map::Entry;
+        match self.followers_mut().entry(task) {
+            Entry::Occupied(_) => panic!("Follower {task} already exists"),
+            Entry::Vacant(e) => {
+                e.insert(count);
+            }
+        }
     }
 
     /// Update a Collectible counter for a collectible by the given delta.
@@ -737,7 +781,29 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     /// state transitions where crossing zero indicates a significant change.
     #[must_use]
     fn update_collectible_count(&mut self, collectible: CollectibleRef, delta: i32) -> bool {
-        update_count!(self, Collectible { collectible }, delta)
+        use std::collections::hash_map::Entry;
+        let map = self.collectibles_mut();
+        match map.entry(collectible) {
+            Entry::Occupied(mut e) => {
+                let old = *e.get();
+                let new = old + delta;
+                let state_change = old <= 0 && new > 0 || old > 0 && new <= 0;
+                if new == 0 {
+                    e.remove();
+                } else {
+                    *e.get_mut() = new;
+                }
+                state_change
+            }
+            Entry::Vacant(e) => {
+                if delta != 0 {
+                    e.insert(delta);
+                    delta > 0
+                } else {
+                    false
+                }
+            }
+        }
     }
 
     /// Update an OutdatedCollectible counter for a collectible by the given delta.
@@ -751,7 +817,29 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         collectible: CollectibleRef,
         delta: i32,
     ) -> bool {
-        update_count!(self, OutdatedCollectible { collectible }, delta)
+        use std::collections::hash_map::Entry;
+        let map = self.outdated_collectibles_mut();
+        match map.entry(collectible) {
+            Entry::Occupied(mut e) => {
+                let old = *e.get();
+                let new = old + delta;
+                let state_change = old <= 0 && new > 0 || old > 0 && new <= 0;
+                if new == 0 {
+                    e.remove();
+                } else {
+                    *e.get_mut() = new;
+                }
+                state_change
+            }
+            Entry::Vacant(e) => {
+                if delta != 0 {
+                    e.insert(delta);
+                    delta > 0
+                } else {
+                    false
+                }
+            }
+        }
     }
 
     /// Check if this task has activeness tracking
@@ -890,7 +978,8 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
 
     /// Get aggregated collectible count for a specific collectible
     fn get_aggregated_collectible(&self, collectible: CollectibleRef) -> Option<&i32> {
-        get!(self, AggregatedCollectible { collectible })
+        self.aggregated_collectibles()
+            .and_then(|map| map.get(&collectible))
     }
 
     /// Update aggregated collectible count for a specific collectible with a closure
@@ -898,12 +987,29 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     where
         F: FnOnce(Option<i32>) -> Option<i32>,
     {
-        update!(self, AggregatedCollectible { collectible }, f)
+        use std::collections::hash_map::Entry;
+        let map = self.aggregated_collectibles_mut();
+        match map.entry(collectible) {
+            Entry::Occupied(mut e) => match f(Some(*e.get())) {
+                Some(new) => {
+                    *e.get_mut() = new;
+                }
+                None => {
+                    e.remove();
+                }
+            },
+            Entry::Vacant(e) => {
+                if let Some(new) = f(None) {
+                    e.insert(new);
+                }
+            }
+        }
     }
 
     /// Get outdated collectible count for a specific collectible
     fn get_outdated_collectible(&self, collectible: CollectibleRef) -> Option<&i32> {
-        get!(self, OutdatedCollectible { collectible })
+        self.outdated_collectibles()
+            .and_then(|map| map.get(&collectible))
     }
 
     /// Get cell type max index for a specific cell type
@@ -913,7 +1019,7 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
 
     /// Count the number of followers
     fn count_followers(&self) -> usize {
-        self.count_internal(CachedDataItemType::Follower)
+        self.followers().map_or(0, |m| m.len())
     }
 
     /// Count the number of uppers
@@ -923,17 +1029,17 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
 
     /// Count the number of children
     fn count_children(&self) -> usize {
-        self.count_internal(CachedDataItemType::Child)
+        self.children().map_or(0, |m| m.len())
     }
 
     /// Count the number of collectibles
     fn count_collectibles(&self) -> usize {
-        self.count_internal(CachedDataItemType::Collectible)
+        self.collectibles().map_or(0, |m| m.len())
     }
 
     /// Count the number of outdated collectibles
     fn count_outdated_collectibles(&self) -> usize {
-        self.count_internal(CachedDataItemType::OutdatedCollectible)
+        self.outdated_collectibles().map_or(0, |m| m.len())
     }
 
     /// Count the number of collectibles dependencies
@@ -1105,19 +1211,27 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     /// Insert an outdated collectible with count. Returns true if it was newly inserted.
     #[must_use]
     fn insert_outdated_collectible(&mut self, collectible: CollectibleRef, value: i32) -> bool {
-        self.insert_internal(CachedDataItem::OutdatedCollectible { collectible, value })
-            .is_none()
+        use std::collections::hash_map::Entry;
+        match self.outdated_collectibles_mut().entry(collectible) {
+            Entry::Occupied(_) => false,
+            Entry::Vacant(e) => {
+                e.insert(value);
+                true
+            }
+        }
     }
 
     /// Check if task has a collectible
     #[must_use]
     fn has_collectible(&self, collectible: CollectibleRef) -> bool {
-        self.has_key_internal(&CachedDataItemKey::Collectible { collectible })
+        self.collectibles()
+            .is_some_and(|m| m.contains_key(&collectible))
     }
 
     /// Remove an outdated collectible
     fn remove_outdated_collectible(&mut self, collectible: CollectibleRef) -> bool {
-        self.remove_internal(&CachedDataItemKey::OutdatedCollectible { collectible })
+        self.outdated_collectibles_mut()
+            .remove(&collectible)
             .is_some()
     }
 
@@ -1154,23 +1268,15 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
 
     /// Iterate over all child tasks
     fn iter_children(&self) -> impl Iterator<Item = TaskId> + '_ {
-        self.iter_internal(CachedDataItemType::Child)
-            .filter_map(|(key, _)| match key {
-                CachedDataItemKey::Child { task } => Some(task),
-                _ => None,
-            })
+        self.children().into_iter().flat_map(|m| m.iter().copied())
     }
 
     /// Iterate over all follower tasks (with count > 0)
     fn iter_followers(&self) -> impl Iterator<Item = TaskId> + '_ {
-        self.iter_internal(CachedDataItemType::Follower)
-            .filter_map(|(key, value)| match (key, value) {
-                (
-                    CachedDataItemKey::Follower { task },
-                    CachedDataItemValueRef::Follower { value: count },
-                ) if *count > 0 => Some(task),
-                _ => None,
-            })
+        self.followers().into_iter().flat_map(|m| {
+            m.iter()
+                .filter_map(|(&k, &v)| if v > 0 { Some(k) } else { None })
+        })
     }
 
     /// Iterate over all upper tasks (with count > 0)
@@ -1258,23 +1364,16 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
 
     /// Iterate over all collectibles with their counts
     fn iter_collectibles(&self) -> impl Iterator<Item = (CollectibleRef, i32)> + '_ {
-        self.iter_internal(CachedDataItemType::Collectible)
-            .filter_map(|(key, value)| match (key, value) {
-                (
-                    CachedDataItemKey::Collectible { collectible },
-                    CachedDataItemValueRef::Collectible { value },
-                ) => Some((collectible, *value)),
-                _ => None,
-            })
+        self.collectibles()
+            .into_iter()
+            .flat_map(|m| m.iter().map(|(&k, &v)| (k, v)))
     }
 
     /// Iterate over all outdated collectibles
     fn iter_outdated_collectibles(&self) -> impl Iterator<Item = CollectibleRef> + '_ {
-        self.iter_internal(CachedDataItemType::OutdatedCollectible)
-            .filter_map(|(key, _)| match key {
-                CachedDataItemKey::OutdatedCollectible { collectible } => Some(collectible),
-                _ => None,
-            })
+        self.outdated_collectibles()
+            .into_iter()
+            .flat_map(|m| m.keys().copied())
     }
 
     /// Iterate over all outdated collectibles with their values, returning (collectible, value)
@@ -1282,27 +1381,18 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     fn iter_outdated_collectibles_with_values(
         &self,
     ) -> impl Iterator<Item = (CollectibleRef, i32)> + '_ {
-        self.iter_internal(CachedDataItemType::OutdatedCollectible)
-            .filter_map(|(key, value)| match (key, value) {
-                (
-                    CachedDataItemKey::OutdatedCollectible { collectible },
-                    CachedDataItemValueRef::OutdatedCollectible { value },
-                ) => Some((collectible, *value)),
-                _ => None,
-            })
+        self.outdated_collectibles()
+            .into_iter()
+            .flat_map(|m| m.iter().map(|(&k, &v)| (k, v)))
     }
 
     /// Iterate over all aggregated collectibles (with count > 0), returning (collectible, count)
     /// pairs
     fn iter_aggregated_collectibles(&self) -> impl Iterator<Item = (CollectibleRef, i32)> + '_ {
-        self.iter_internal(CachedDataItemType::AggregatedCollectible)
-            .filter_map(|(key, value)| match (key, value) {
-                (
-                    CachedDataItemKey::AggregatedCollectible { collectible },
-                    CachedDataItemValueRef::AggregatedCollectible { value },
-                ) if *value > 0 => Some((collectible, *value)),
-                _ => None,
-            })
+        self.aggregated_collectibles().into_iter().flat_map(|m| {
+            m.iter()
+                .filter_map(|(&k, &v)| if v > 0 { Some((k, v)) } else { None })
+        })
     }
 
     /// Iterate over all aggregated dirty containers with their counts

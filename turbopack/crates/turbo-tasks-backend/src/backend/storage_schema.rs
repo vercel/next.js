@@ -88,14 +88,16 @@ pub struct TaskStorageSchema {
     pub upper: CounterMap<TaskId, u32>,
 
     // =========================================================================
-    // OUTPUT & COLLECTIBLES GROUP (meta, lazy)
+    // COLLECTIBLES GROUP (meta, lazy)
+    // Migrated: uses TaskStorageAccessors trait for typed access via TaskGuard.
     // =========================================================================
     /// Collectibles emitted by this task (reference counted).
     #[task_storage(
         storage = "counter_map",
         category = "meta",
         group = "collectibles",
-        lazy
+        lazy,
+        migrated
     )]
     pub collectibles: CounterMap<CollectibleRef, i32>,
 
@@ -104,7 +106,8 @@ pub struct TaskStorageSchema {
         storage = "counter_map",
         category = "meta",
         group = "collectibles",
-        lazy
+        lazy,
+        migrated
     )]
     pub aggregated_collectibles: CounterMap<CollectibleRef, i32>,
 
@@ -114,7 +117,8 @@ pub struct TaskStorageSchema {
         category = "meta",
         group = "collectibles",
         lazy,
-        transient
+        transient,
+        migrated
     )]
     pub outdated_collectibles: CounterMap<CollectibleRef, i32>,
 
@@ -183,9 +187,16 @@ pub struct TaskStorageSchema {
 
     // =========================================================================
     // CHILDREN & AGGREGATION GROUP (meta, lazy)
+    // Migrated: uses TaskStorageAccessors trait for typed access via TaskGuard.
     // =========================================================================
     /// Child tasks of this task.
-    #[task_storage(storage = "auto_set", category = "meta", group = "aggregation", lazy)]
+    #[task_storage(
+        storage = "auto_set",
+        category = "meta",
+        group = "aggregation",
+        lazy,
+        migrated
+    )]
     pub children: AutoSet<TaskId>,
 
     /// Follower nodes in the aggregation tree (reference counted).
@@ -193,7 +204,8 @@ pub struct TaskStorageSchema {
         storage = "counter_map",
         category = "meta",
         group = "aggregation",
-        lazy
+        lazy,
+        migrated
     )]
     pub followers: CounterMap<TaskId, u32>,
 
@@ -474,6 +486,55 @@ impl TaskMeta {
         // Note: current_session_clean and aggregated_current_session_clean_* are transient,
         // so they are not included in iter_all (used for persistence)
 
+        // Collectibles group (lazy) - check if the Option<Box<_>> is Some before iterating
+        let collectibles_iter = self.collectibles.as_ref().into_iter().flat_map(|group| {
+            group.collectibles.iter().map(|(collectible, value)| {
+                (
+                    CachedDataItemKey::Collectible {
+                        collectible: *collectible,
+                    },
+                    CachedDataItemValueRef::Collectible { value },
+                )
+            })
+        });
+
+        let aggregated_collectibles_iter =
+            self.collectibles.as_ref().into_iter().flat_map(|group| {
+                group
+                    .aggregated_collectibles
+                    .iter()
+                    .map(|(collectible, value)| {
+                        (
+                            CachedDataItemKey::AggregatedCollectible {
+                                collectible: *collectible,
+                            },
+                            CachedDataItemValueRef::AggregatedCollectible { value },
+                        )
+                    })
+            });
+
+        // Note: outdated_collectibles is transient, so not included in iter_all (used for
+        // persistence)
+
+        // Aggregation group (lazy)
+        let children_iter = self.aggregation.as_ref().into_iter().flat_map(|group| {
+            group.children.iter().map(|task| {
+                (
+                    CachedDataItemKey::Child { task: *task },
+                    CachedDataItemValueRef::Child { value: &() },
+                )
+            })
+        });
+
+        let followers_iter = self.aggregation.as_ref().into_iter().flat_map(|group| {
+            group.followers.iter().map(|(task, value)| {
+                (
+                    CachedDataItemKey::Follower { task: *task },
+                    CachedDataItemValueRef::Follower { value },
+                )
+            })
+        });
+
         aggregation_number_iter
             .chain(output_iter)
             .chain(upper_iter)
@@ -483,6 +544,10 @@ impl TaskMeta {
             .chain(dirty_iter)
             .chain(aggregated_dirty_container_count_iter)
             .chain(aggregated_dirty_containers_iter)
+            .chain(collectibles_iter)
+            .chain(aggregated_collectibles_iter)
+            .chain(children_iter)
+            .chain(followers_iter)
         // TODO: Add remaining meta fields as they are migrated
     }
 
@@ -515,6 +580,17 @@ impl TaskMeta {
         }
         count += self.state.aggregated_dirty_containers.len();
         // Note: current_session_clean and aggregated_current_session_clean_* are transient
+        // Collectibles group (lazy)
+        if let Some(ref group) = self.collectibles {
+            count += group.collectibles.len();
+            count += group.aggregated_collectibles.len();
+            // Note: outdated_collectibles is transient
+        }
+        // Aggregation group (lazy)
+        if let Some(ref group) = self.aggregation {
+            count += group.children.len();
+            count += group.followers.len();
+        }
         // TODO: Add remaining meta fields as they are migrated
         count
     }
