@@ -484,6 +484,10 @@ describe('use-cache', () => {
           '/directive-in-node-modules/without-handler',
           '/draft-mode/with-cookies',
           '/draft-mode/without-cookies',
+          '/eager-revalidation',
+          '/eager-revalidation-complex-return',
+          '/eager-revalidation-refresh',
+          '/eager-revalidation-with-return',
           '/form',
           '/imported-from-client',
           '/logs',
@@ -714,6 +718,151 @@ describe('use-cache', () => {
       // The key assertion: after 3 clicks, the value should still be the same
       // This proves revalidateTag with profile does NOT cause read-your-own-writes
       // (Unlike the bug where click 3 would show a different stale value)
+    })
+
+    // Test for updateTag read-your-own-writes and eager HTML cache regeneration
+    it('should provide read-your-own-writes and eagerly regenerate HTML cache after updateTag', async () => {
+      // 1. Open page in browser and get initial value
+      const browser = await next.browser('/eager-revalidation')
+      const initial = await browser.elementByCss('#timestamp').text()
+
+      // 2. Call updateTag via server action - User A should see fresh data (read-your-own-writes)
+      await browser.elementByCss('#update-tag').click()
+
+      // Wait for action response
+      let userAValue: string
+      await retry(async () => {
+        const afterAction = await browser.elementByCss('#timestamp').text()
+        // KEY ASSERTION: User A sees fresh content immediately (read-your-own-writes)
+        expect(afterAction).not.toBe(initial)
+        userAValue = afterAction
+      })
+
+      // 3. Wait for async HTML cache regeneration
+      await new Promise((r) => setTimeout(r, 2000))
+
+      // 4. Fresh cold visitor (User B) should get same cached HTML
+      const res = await next.fetch('/eager-revalidation')
+      const html = await res.text()
+      const userBValue = html.match(/id="timestamp">(\d+)</)?.[1]
+
+      // KEY ASSERTION: User B gets the same fresh value as User A (HTML cache was pre-warmed)
+      expect(userBValue).toBe(userAValue!)
+
+      // 5. Verify it's actually cached (second fetch returns same value)
+      const res2 = await next.fetch('/eager-revalidation')
+      const html2 = await res2.text()
+      const secondFetch = html2.match(/id="timestamp">(\d+)</)?.[1]
+      expect(secondFetch).toBe(userBValue) // Same cached value
+    })
+
+    // Test for action return values being preserved with split streams
+    it('should preserve action return values with split flight streams', async () => {
+      const browser = await next.browser('/eager-revalidation-with-return')
+
+      // Click the action button that returns a value
+      await browser.elementByCss('#update-and-return').click()
+
+      // Wait for action to complete and verify the returned value is displayed
+      await retry(async () => {
+        const result = await browser.elementByCss('#action-result').text()
+        expect(result).toContain('success: true')
+        expect(result).toContain('timestamp:')
+      })
+
+      // Verify page data was also updated (from the page stream)
+      const cachedTimestamp = await browser
+        .elementByCss('#cached-timestamp')
+        .text()
+      expect(cachedTimestamp).not.toBe('')
+    })
+
+    // Test for refresh() triggering eager regeneration
+    it('should eagerly regenerate HTML cache when refresh() is called', async () => {
+      const browser = await next.browser('/eager-revalidation-refresh')
+
+      // Call refresh with return value
+      await browser.elementByCss('#refresh-with-return').click()
+
+      // Wait for action to complete
+      await retry(async () => {
+        const result = await browser.elementByCss('#action-result').text()
+        expect(result).toContain('refreshed: true')
+      })
+
+      const userATimestamp = await browser
+        .elementByCss('#cached-timestamp')
+        .text()
+
+      // Wait for cache to be populated
+      await new Promise((r) => setTimeout(r, 2000))
+
+      // Cold visitor should get the same cached value
+      const res = await next.fetch('/eager-revalidation-refresh')
+      const html = await res.text()
+      const userBValue = html.match(/id="cached-timestamp">(\d+)</)?.[1]
+
+      // Both users should see the same cached timestamp
+      expect(userBValue).toBe(userATimestamp)
+    })
+
+    // Test that refresh() does NOT invalidate tagged cached data
+    // refresh() should only cause re-render with fresh dynamic data, but tagged caches should remain
+    it('should NOT invalidate tagged cached data when only refresh() is called', async () => {
+      const browser = await next.browser('/eager-revalidation-refresh')
+
+      // Get initial cached timestamp (from build/first render)
+      const initialTimestamp = await browser
+        .elementByCss('#cached-timestamp')
+        .text()
+
+      // Call refresh() only (not updateTag)
+      await browser.elementByCss('#refresh-only').click()
+
+      // Wait for action to complete and page to re-render
+      await new Promise((r) => setTimeout(r, 2000))
+
+      // The cached timestamp should be THE SAME - refresh() should NOT invalidate tagged caches
+      const afterRefreshTimestamp = await browser
+        .elementByCss('#cached-timestamp')
+        .text()
+
+      // KEY ASSERTION: Tagged cached data should NOT be invalidated by refresh()
+      expect(afterRefreshTimestamp).toBe(initialTimestamp)
+    })
+
+    // Test for complex return values across split streams
+    it('should handle complex return values across split flight streams', async () => {
+      const browser = await next.browser('/eager-revalidation-complex-return')
+
+      await browser.elementByCss('#complex-action').click()
+
+      await retry(async () => {
+        const result = await browser.elementByCss('#result').text()
+        // Verify nested object, array, and deep array are all present
+        expect(result).toContain('nested: nested-value')
+        expect(result).toContain('array: a,b,c')
+        expect(result).toContain('deep: 1,2,3,4,5')
+      })
+
+      // Verify cached timestamp was also updated
+      const cachedTimestamp = await browser
+        .elementByCss('#cached-timestamp')
+        .text()
+      expect(cachedTimestamp).not.toBe('none')
+    })
+
+    // Test that regular actions without updateTag/refresh are not affected
+    it('should not use split streams for actions without updateTag or refresh', async () => {
+      // This uses the existing cache-tag page which has regular revalidateTag
+      const browser = await next.browser('/cache-tag')
+      const initial = await browser.elementByCss('#a').text()
+
+      // Revalidate without updateTag - should work normally
+      await browser.elementByCss('#revalidate-a').click()
+      await retry(async () => {
+        expect(await browser.elementByCss('#a').text()).not.toBe(initial)
+      })
     })
   }
 

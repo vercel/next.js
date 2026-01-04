@@ -26,6 +26,12 @@ export const NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER =
 
 export const NEXT_RESUME_HEADER = 'next-resume'
 
+// Header to indicate split flight streams (action result + page data)
+export const NEXT_SPLIT_FLIGHT_HEADER = 'x-next-split-flight'
+
+// Boundary to separate action result stream from page stream in split flight responses
+export const FLIGHT_STREAM_BOUNDARY = '__NEXT_FLIGHT_BOUNDARY__\n'
+
 // if these change make sure we update the related
 // documentation as well
 export const NEXT_CACHE_TAG_MAX_ITEMS = 128

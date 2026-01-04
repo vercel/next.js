@@ -973,5 +973,6 @@
   "972": "Failed to resolve pattern \"%s\": %s",
   "973": "Server Actions are not enabled for this application. This request might be from an older or newer deployment.\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action",
   "974": "Failed to find Server Action%s. This request might be from an older or newer deployment.\\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action",
-  "975": "Failed to find Server Action. This request might be from an older or newer deployment.\\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action"
+  "975": "Failed to find Server Action. This request might be from an older or newer deployment.\\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action",
+  "976": "Split flight boundary not found in response"
 }

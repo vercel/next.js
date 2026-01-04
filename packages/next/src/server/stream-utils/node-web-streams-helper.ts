@@ -96,6 +96,26 @@ export function streamFromBuffer(chunk: Buffer): ReadableStream<Uint8Array> {
   })
 }
 
+/**
+ * Concatenates two Flight streams with a boundary delimiter.
+ * Used for split flight responses where action result and page data
+ * are sent as separate streams that the client will split and process independently.
+ */
+export function concatenateFlightStreams(
+  actionResultStream: ReadableStream<Uint8Array>,
+  pageStream: ReadableStream<Uint8Array>,
+  boundary: string
+): ReadableStream<Uint8Array> {
+  const boundaryStream = new ReadableStream({
+    start(controller) {
+      controller.enqueue(encoder.encode(boundary))
+      controller.close()
+    },
+  })
+
+  return chainStreams(actionResultStream, boundaryStream, pageStream)
+}
+
 async function streamToChunks(
   stream: ReadableStream<Uint8Array>
 ): Promise<Array<Uint8Array>> {

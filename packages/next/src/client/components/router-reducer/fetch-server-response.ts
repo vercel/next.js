@@ -503,3 +503,77 @@ function createUnclosingPrefetchStream(
     },
   })
 }
+
+/**
+ * Splits a Flight stream that contains two concatenated streams separated by a boundary.
+ * Used for split flight responses where action result and page data are sent together.
+ *
+ * @param body - The response body containing [action stream][boundary][page stream]
+ * @param boundary - The boundary string that separates the two streams
+ * @returns Two separate streams that can be processed independently
+ */
+export async function splitFlightStreams(
+  body: ReadableStream<Uint8Array>,
+  boundary: string
+): Promise<{
+  actionStream: ReadableStream<Uint8Array>
+  pageStream: ReadableStream<Uint8Array>
+}> {
+  const reader = body.getReader()
+  const decoder = new TextDecoder()
+  const encoder = new TextEncoder()
+  const boundaryBytes = encoder.encode(boundary)
+
+  let buffer = new Uint8Array(0)
+  let boundaryIndex = -1
+
+  // Read until we find the boundary
+  while (boundaryIndex === -1) {
+    const { done, value } = await reader.read()
+    if (done) {
+      throw new Error('Split flight boundary not found in response')
+    }
+
+    // Append to buffer
+    const newBuffer = new Uint8Array(buffer.length + value.length)
+    newBuffer.set(buffer)
+    newBuffer.set(value, buffer.length)
+    buffer = newBuffer
+
+    // Search for boundary in the accumulated buffer
+    const text = decoder.decode(buffer)
+    boundaryIndex = text.indexOf(boundary)
+  }
+
+  // Split buffer at boundary
+  const actionBytes = buffer.slice(0, boundaryIndex)
+  const pageStartBytes = buffer.slice(boundaryIndex + boundaryBytes.length)
+
+  // Create action stream from the buffered action bytes
+  const actionStream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(actionBytes)
+      controller.close()
+    },
+  })
+
+  // Create page stream: starts with buffered remainder, then pipes rest of original stream
+  const pageStream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      // First enqueue the buffered bytes after the boundary
+      if (pageStartBytes.length > 0) {
+        controller.enqueue(pageStartBytes)
+      }
+
+      // Then pipe through the rest of the original stream
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        controller.enqueue(value)
+      }
+      controller.close()
+    },
+  })
+
+  return { actionStream, pageStream }
+}

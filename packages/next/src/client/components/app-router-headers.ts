@@ -37,3 +37,6 @@ export const NEXT_HTML_REQUEST_ID_HEADER = 'x-nextjs-html-request-id' as const
 
 // TODO: Should this include nextjs in the name, like the others?
 export const NEXT_ACTION_REVALIDATED_HEADER = 'x-action-revalidated' as const
+
+// Header to indicate split flight response (action result + page data with boundary)
+export const NEXT_SPLIT_FLIGHT_HEADER = 'x-next-split-flight' as const

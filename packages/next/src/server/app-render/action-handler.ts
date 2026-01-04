@@ -43,7 +43,11 @@ import {
   JSON_CONTENT_TYPE_HEADER,
   NEXT_CACHE_REVALIDATED_TAGS_HEADER,
   NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
+  NEXT_SPLIT_FLIGHT_HEADER,
+  FLIGHT_STREAM_BOUNDARY,
 } from '../../lib/constants'
+import { concatenateFlightStreams } from '../stream-utils/node-web-streams-helper'
+import { getClientReferenceManifest } from './manifests-singleton'
 import { getServerActionRequestMetadata } from '../lib/server-action-request-meta'
 import { isCsrfOriginAllowed } from './csrf-protection'
 import { warn } from '../../build/output/log'
@@ -69,6 +73,13 @@ import {
   ActionDidNotRevalidate,
   ActionDidRevalidateStaticAndDynamic,
 } from '../../shared/lib/action-revalidation-kind'
+
+// Used for filtering stack frames in renderToReadableStream
+const filterStackFrame =
+  process.env.NODE_ENV !== 'production'
+    ? (require('../lib/source-maps') as typeof import('../lib/source-maps'))
+        .filterStackFrameDEV
+    : undefined
 
 /**
  * Checks if the app has any server actions defined in any runtime.
@@ -442,6 +453,100 @@ async function createRedirectRenderResult(
   }
 
   return RenderResult.EMPTY
+}
+
+/**
+ * Creates a render result by making an internal request to the current page.
+ * This is used for updateTag/refresh to ensure the HTML cache gets populated
+ * with the same data that the action caller sees (read-your-own-writes consistency).
+ *
+ * Similar to createRedirectRenderResult but for the current page instead of a redirect URL.
+ */
+async function createInternalRequestRenderResult(
+  req: BaseNextRequest,
+  res: BaseNextResponse,
+  originalHost: Host,
+  pagePath: string,
+  basePath: string,
+  workStore: WorkStore
+): Promise<RenderResult | null> {
+  if (!originalHost) {
+    return null
+  }
+
+  const forwardedHeaders = getForwardedHeaders(req, res)
+  forwardedHeaders.set(RSC_HEADER, '1')
+
+  const proto =
+    getRequestMeta(req, 'initProtocol')?.replace(/:+$/, '') || 'https'
+
+  // For standalone or the serverful mode, use the internal origin directly
+  // other than the host headers from the request.
+  const origin =
+    process.env.__NEXT_PRIVATE_ORIGIN || `${proto}://${originalHost.value}`
+
+  const fetchUrl = new URL(`${origin}${basePath}${pagePath}`)
+
+  if (workStore.pendingRevalidatedTags?.length) {
+    forwardedHeaders.set(
+      NEXT_CACHE_REVALIDATED_TAGS_HEADER,
+      workStore.pendingRevalidatedTags.map((item) => item.tag).join(',')
+    )
+    forwardedHeaders.set(
+      NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
+      workStore.incrementalCache?.prerenderManifest?.preview?.previewModeId ||
+        ''
+    )
+  }
+
+  // Keep the router state tree header for partial rendering - Next.js's
+  // group revalidation will handle writing the full HTML cache
+  // Remove action header since this is now a page render request
+  forwardedHeaders.delete(ACTION_HEADER)
+
+  try {
+    setCacheBustingSearchParam(fetchUrl, {
+      [NEXT_ROUTER_PREFETCH_HEADER]: forwardedHeaders.get(
+        NEXT_ROUTER_PREFETCH_HEADER
+      )
+        ? ('1' as const)
+        : undefined,
+      [NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]:
+        forwardedHeaders.get(NEXT_ROUTER_SEGMENT_PREFETCH_HEADER) ?? undefined,
+      [NEXT_ROUTER_STATE_TREE_HEADER]:
+        forwardedHeaders.get(NEXT_ROUTER_STATE_TREE_HEADER) ?? undefined,
+      [NEXT_URL]: forwardedHeaders.get(NEXT_URL) ?? undefined,
+    })
+
+    const response = await fetch(fetchUrl, {
+      method: 'GET',
+      headers: forwardedHeaders,
+      next: {
+        // @ts-ignore
+        internal: 1,
+      },
+    })
+
+    if (
+      response.headers.get('content-type')?.startsWith(RSC_CONTENT_TYPE_HEADER)
+    ) {
+      // Copy headers from the response
+      for (const [key, value] of response.headers) {
+        if (!actionsForbiddenHeaders.includes(key)) {
+          res.setHeader(key, value)
+        }
+      }
+
+      return new FlightRenderResult(response.body!)
+    } else {
+      // Since we aren't consuming the response body, we cancel it to avoid memory leaks
+      response.body?.cancel()
+    }
+  } catch (err) {
+    console.error('Failed to get internal request response for updateTag:', err)
+  }
+
+  return null
 }
 
 // Used to compare Host header and Origin header.
@@ -1083,6 +1188,64 @@ export async function handleAction({
           ).finally(() => {
             addRevalidationHeader(res, { workStore, requestStore })
           })
+
+        // For updateTag() or refresh() calls, use internal request to ensure
+        // the HTML cache gets populated with the same data the action caller sees.
+        // This provides read-your-own-writes consistency between User A (action caller)
+        // and User B (subsequent cold visitor).
+        const hasUpdateTagCalls = workStore.pendingRevalidatedTags?.some(
+          (item) => item.profile === undefined
+        )
+        const hasRefreshCall =
+          workStore.pathWasRevalidated !== undefined &&
+          workStore.pathWasRevalidated !== ActionDidNotRevalidate
+
+        const shouldUseSplitFlightResponse = hasUpdateTagCalls || hasRefreshCall
+
+        if (
+          isFetchAction &&
+          shouldUseSplitFlightResponse &&
+          !actionWasForwarded
+        ) {
+          // Make an internal request to get the page render stream.
+          // This ensures the same data is used for both action response and HTML cache.
+          const pageResult = await createInternalRequestRenderResult(
+            req,
+            res,
+            host,
+            workStore.route,
+            ctx.renderOpts.basePath,
+            workStore
+          )
+
+          if (pageResult) {
+            // Encode the action result as a separate Flight stream
+            const { clientModules } = getClientReferenceManifest()
+            const actionResultPayload = { a: Promise.resolve(actionResult) }
+            const actionResultStream = ComponentMod.renderToReadableStream(
+              actionResultPayload,
+              clientModules,
+              { temporaryReferences, filterStackFrame }
+            )
+
+            // Set header to indicate split flight response
+            res.setHeader(NEXT_SPLIT_FLIGHT_HEADER, '1')
+
+            // Concatenate: [action result stream][BOUNDARY][page stream]
+            // Client will split on boundary and process each stream independently
+            const combinedStream = concatenateFlightStreams(
+              actionResultStream,
+              pageResult.toReadableStream(),
+              FLIGHT_STREAM_BOUNDARY
+            )
+
+            return {
+              type: 'done',
+              result: new FlightRenderResult(combinedStream),
+            }
+          }
+          // If internal request failed, fall through to regular generateFlight
+        }
 
         // For form actions, we need to continue rendering the page.
         if (isFetchAction) {

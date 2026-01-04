@@ -198,6 +198,13 @@ export default class RenderResult<
   /**
    * Returns a readable stream of the response.
    */
+  public toReadableStream(): ReadableStream<Uint8Array> {
+    return this.readable
+  }
+
+  /**
+   * Returns a readable stream of the response.
+   */
   private get readable(): ReadableStream<Uint8Array> {
     if (this.response === null) {
       // If the response is null, return an empty stream. This behavior is

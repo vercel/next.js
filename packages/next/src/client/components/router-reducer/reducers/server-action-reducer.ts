@@ -13,7 +13,13 @@ import {
   NEXT_URL,
   RSC_CONTENT_TYPE_HEADER,
   NEXT_REQUEST_ID_HEADER,
+  NEXT_SPLIT_FLIGHT_HEADER,
 } from '../../app-router-headers'
+import { FLIGHT_STREAM_BOUNDARY } from '../../../../lib/constants'
+import {
+  splitFlightStreams,
+  createFromNextReadableStream,
+} from '../fetch-server-response'
 import { UnrecognizedActionError } from '../../unrecognized-action-error'
 
 // TODO: Explicitly import from client.browser
@@ -211,23 +217,55 @@ async function fetchServerAction(
   let actionFlightDataCouldBeIntercepted: FetchServerActionResult['actionFlightDataCouldBeIntercepted']
 
   if (isRscResponse) {
-    const response: ActionFlightResponse = await createFromFetch(
-      Promise.resolve(res),
-      {
-        callServer,
-        findSourceMapURL,
-        temporaryReferences,
-        debugChannel: createDebugChannel && createDebugChannel(headers),
-      }
-    )
+    // Check if this is a split flight response (action result + page data separated by boundary)
+    const isSplitFlight = res.headers.get(NEXT_SPLIT_FLIGHT_HEADER) === '1'
 
-    // An internal redirect can send an RSC response, but does not have a useful `actionResult`.
-    actionResult = redirectLocation ? undefined : response.a
-    const maybeFlightData = normalizeFlightData(response.f)
-    if (maybeFlightData !== '') {
-      actionFlightData = maybeFlightData
-      actionFlightDataRenderedSearch = response.q as NormalizedSearch
-      actionFlightDataCouldBeIntercepted = response.i
+    if (isSplitFlight && res.body) {
+      // Split the response body on boundary and process each stream independently
+      const { actionStream, pageStream } = await splitFlightStreams(
+        res.body,
+        FLIGHT_STREAM_BOUNDARY
+      )
+
+      // Process each stream independently using createFromNextReadableStream
+      // We cast to RequestHeaders since headers is a Record<string, string>
+      const requestHeaders =
+        headers as import('../fetch-server-response').RequestHeaders
+      const actionResponse: ActionFlightResponse =
+        await createFromNextReadableStream(actionStream, requestHeaders)
+      const pageResponse: ActionFlightResponse =
+        await createFromNextReadableStream(pageStream, requestHeaders)
+
+      // Combine at JS object level
+      // Action result comes from the action stream
+      actionResult = redirectLocation ? undefined : actionResponse.a
+      // Flight data comes from the page stream (internal request result)
+      const maybeFlightData = normalizeFlightData(pageResponse.f)
+      if (maybeFlightData !== '') {
+        actionFlightData = maybeFlightData
+        actionFlightDataRenderedSearch = pageResponse.q as NormalizedSearch
+        actionFlightDataCouldBeIntercepted = pageResponse.i
+      }
+    } else {
+      // Standard single-stream response
+      const response: ActionFlightResponse = await createFromFetch(
+        Promise.resolve(res),
+        {
+          callServer,
+          findSourceMapURL,
+          temporaryReferences,
+          debugChannel: createDebugChannel && createDebugChannel(headers),
+        }
+      )
+
+      // An internal redirect can send an RSC response, but does not have a useful `actionResult`.
+      actionResult = redirectLocation ? undefined : response.a
+      const maybeFlightData = normalizeFlightData(response.f)
+      if (maybeFlightData !== '') {
+        actionFlightData = maybeFlightData
+        actionFlightDataRenderedSearch = response.q as NormalizedSearch
+        actionFlightDataCouldBeIntercepted = response.i
+      }
     }
   } else {
     // An external redirect doesn't contain RSC data.
