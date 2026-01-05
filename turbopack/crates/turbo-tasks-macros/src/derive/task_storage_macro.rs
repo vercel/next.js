@@ -1296,7 +1296,12 @@ fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> proc_macro2
     }
 }
 
+/// Sentinel byte marking the end of lazy fields in serialization.
+/// Must be a value that cannot be a valid discriminant (discriminants start at 0).
+const LAZY_FIELD_SENTINEL: u8 = 0x00;
+
 /// Generate code to encode lazy fields to bincode.
+/// Uses sentinel-terminated format: [discriminant, data]... [sentinel]
 fn generate_encode_lazy_fields(fields: &[&StorageFieldAttributes]) -> proc_macro2::TokenStream {
     if fields.is_empty() {
         return quote! {};
@@ -1311,7 +1316,7 @@ fn generate_encode_lazy_fields(fields: &[&StorageFieldAttributes]) -> proc_macro
                 &to_pascal_case(&field.field_name.to_string()),
                 field.field_name.span(),
             );
-            let discriminant = idx as u8;
+            let discriminant = idx as u8 + 1;
             quote! {
                 LazyField::#variant_name(data) => {
                     bincode::Encode::encode(&#discriminant, encoder)?;
@@ -1321,36 +1326,21 @@ fn generate_encode_lazy_fields(fields: &[&StorageFieldAttributes]) -> proc_macro
         })
         .collect();
 
-    // Generate the filter condition - only include persistent fields of this category
-    let variant_checks: Vec<_> = fields
-        .iter()
-        .map(|field| {
-            let variant_name = syn::Ident::new(
-                &to_pascal_case(&field.field_name.to_string()),
-                field.field_name.span(),
-            );
-            quote! { LazyField::#variant_name(_) }
-        })
-        .collect();
-
     quote! {
-        // Count persistent lazy fields in this category
-        let count = self.lazy.iter()
-            .filter(|f| matches!(f, #(#variant_checks)|*))
-            .count();
-        bincode::Encode::encode(&(count as u16), encoder)?;
-
-        // Encode each persistent lazy field
+        // Encode each persistent lazy field in this category
         for field in &self.lazy {
             match field {
                 #(#encode_arms)*
                 _ => {} // Skip fields not in this category
             }
         }
+        // Write sentinel to mark end of lazy fields
+        bincode::Encode::encode(&#LAZY_FIELD_SENTINEL, encoder)?;
     }
 }
 
 /// Generate code to decode lazy fields from bincode.
+/// Reads until sentinel byte (0xFF) is encountered.
 fn generate_decode_lazy_fields(fields: &[&StorageFieldAttributes]) -> proc_macro2::TokenStream {
     if fields.is_empty() {
         return quote! {};
@@ -1365,7 +1355,7 @@ fn generate_decode_lazy_fields(fields: &[&StorageFieldAttributes]) -> proc_macro
                 &to_pascal_case(&field.field_name.to_string()),
                 field.field_name.span(),
             );
-            let discriminant = idx as u8;
+            let discriminant = idx as u8 + 1;
             quote! {
                 #discriminant => LazyField::#variant_name(bincode::Decode::decode(decoder)?)
             }
@@ -1373,13 +1363,14 @@ fn generate_decode_lazy_fields(fields: &[&StorageFieldAttributes]) -> proc_macro
         .collect();
 
     quote! {
-        // Decode lazy field count
-        let count: u16 = bincode::Decode::decode(decoder)?;
-
-        for _ in 0..count {
+        // Decode lazy fields until LAZY_FIELD_SENTINEL
+        loop {
             let discriminant: u8 = bincode::Decode::decode(decoder)?;
             let field = match discriminant {
                 #(#decode_arms,)*
+                #LAZY_FIELD_SENTINEL => {
+                    break
+                }
                 _ => {
                     return Err(bincode::error::DecodeError::Other(
                         "Unknown lazy field discriminant",
