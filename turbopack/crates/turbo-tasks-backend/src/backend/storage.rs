@@ -11,10 +11,7 @@ use turbo_tasks::{
 };
 
 use crate::{
-    backend::{
-        dynamic_storage::DynamicStorage,
-        storage_schema::{TaskData, TaskMeta, TypedStorage},
-    },
+    backend::storage_schema::TypedStorage,
     data::{
         ActivenessState, AggregationNumber, CachedDataItem, CachedDataItemKey, CachedDataItemType,
         CachedDataItemValue, CachedDataItemValueRef, CachedDataItemValueRefMut, CellRef,
@@ -144,12 +141,8 @@ impl InnerStorageState {
 }
 
 pub struct InnerStorageSnapshot {
-    // Typed storage data for persistence
-    // Currently migrated: Output, AggregationNumber, Upper (in typed_meta), OutputDependent (in
-    // typed_data)
-    pub typed_data: TaskData,
-    pub typed_meta: TaskMeta,
-    dynamic: DynamicStorage,
+    // Typed storage data for persistence - all CachedDataItem variants are now migrated
+    pub typed: TypedStorage,
     pub meta_modified: bool,
     pub data_modified: bool,
 }
@@ -157,9 +150,7 @@ pub struct InnerStorageSnapshot {
 impl From<&InnerStorage> for InnerStorageSnapshot {
     fn from(inner: &InnerStorage) -> Self {
         Self {
-            typed_data: inner.typed.data.clone(),
-            typed_meta: inner.typed.meta.clone(),
-            dynamic: inner.dynamic.snapshot_for_persisting(),
+            typed: inner.typed.clone(),
             meta_modified: inner.state.meta_modified(),
             data_modified: inner.state.data_modified(),
         }
@@ -170,28 +161,19 @@ impl InnerStorageSnapshot {
     pub fn iter_all(
         &self,
     ) -> impl Iterator<Item = (CachedDataItemKey, CachedDataItemValueRef<'_>)> {
-        // Typed storage items (migrated fields including Output, AggregationNumber, Upper,
-        // OutputDependent)
-        self.typed_data
-            .iter_all()
-            .chain(self.typed_meta.iter_all())
-            // Dynamic storage (unmigrated CachedDataItem variants)
-            .chain(self.dynamic.iter_all())
+        // All CachedDataItem variants are now in typed storage
+        self.typed.iter_all()
     }
 
     pub fn len(&self) -> usize {
-        self.typed_data.len() + self.typed_meta.len() + self.dynamic.len()
+        self.typed.len()
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct InnerStorage {
-    // Typed storage for incremental migration
-    // Fields will be migrated from dynamic -> typed one by one
-    // Currently migrated: Output, AggregationNumber, Upper, OutputDependent
+    // Typed storage - all CachedDataItem variants are now migrated
     typed: TypedStorage,
-    // Dynamic storage for unmigrated CachedDataItem variants
-    dynamic: DynamicStorage,
     state: InnerStorageState,
 }
 
@@ -199,7 +181,6 @@ impl InnerStorage {
     fn new() -> Self {
         Self {
             typed: TypedStorage::new(),
-            dynamic: DynamicStorage::new(),
             state: InnerStorageState::default(),
         }
     }
@@ -537,7 +518,7 @@ macro_rules! generate_inner_storage {
                 if let CachedDataItem::InProgressCell { cell, value } = item {
                     return self.add_in_progress_cell(cell, value);
                 }
-                self.dynamic.add(item)
+                unreachable!("All CachedDataItem variants are handled by typed storage")
             }
 
             pub fn extend(
@@ -777,7 +758,7 @@ macro_rules! generate_inner_storage {
                     }
                     return all_new;
                 }
-                self.dynamic.extend(ty, items)
+                unreachable!("All CachedDataItem variants are handled by typed storage")
             }
 
             pub fn insert(&mut self, item: CachedDataItem) -> Option<CachedDataItemValue> {
@@ -959,7 +940,7 @@ macro_rules! generate_inner_storage {
                          InProgressCell"
                     );
                 }
-                self.dynamic.insert(item)
+                unreachable!("All CachedDataItem variants are handled by typed storage")
             }
 
             pub fn remove(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValue> {
@@ -1141,7 +1122,7 @@ macro_rules! generate_inner_storage {
                          InProgressCell"
                     );
                 }
-                self.dynamic.remove(key)
+                unreachable!("All CachedDataItem variants are handled by typed storage")
             }
 
             pub fn count(&self, ty: CachedDataItemType) -> usize {
@@ -1314,7 +1295,7 @@ macro_rules! generate_inner_storage {
                         "Use TaskGuard::in_progress_cells() instead of count() for InProgressCell"
                     );
                 }
-                self.dynamic.count(ty)
+                unreachable!("All CachedDataItem variants are handled by typed storage")
             }
 
             pub fn get(&self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRef<'_>> {
@@ -1493,7 +1474,7 @@ macro_rules! generate_inner_storage {
                         "Use TaskGuard::get_in_progress_cell() instead of get() for InProgressCell"
                     );
                 }
-                self.dynamic.get(key)
+                unreachable!("All CachedDataItem variants are handled by typed storage")
             }
 
             pub fn contains_key(&self, key: &CachedDataItemKey) -> bool {
@@ -1683,7 +1664,7 @@ macro_rules! generate_inner_storage {
                          instead of contains_key() for InProgressCell"
                     );
                 }
-                self.dynamic.contains_key(key)
+                unreachable!("All CachedDataItem variants are handled by typed storage")
             }
 
             pub fn get_mut(
@@ -1869,7 +1850,7 @@ macro_rules! generate_inner_storage {
                          InProgressCell"
                     );
                 }
-                self.dynamic.get_mut(key)
+                unreachable!("All CachedDataItem variants are handled by typed storage")
             }
 
             pub fn shrink_to_fit(&mut self, ty: CachedDataItemType) {
@@ -1913,7 +1894,7 @@ macro_rules! generate_inner_storage {
                 ) {
                     return;
                 }
-                self.dynamic.shrink_to_fit(ty)
+                unreachable!("All CachedDataItem variants are handled by typed storage")
             }
 
             pub fn update(
@@ -2096,7 +2077,7 @@ macro_rules! generate_inner_storage {
                          InProgressCell"
                     );
                 }
-                self.dynamic.update(key, update)
+                unreachable!("All CachedDataItem variants are handled by typed storage")
             }
 
             pub fn extract_if<'l, F>(
@@ -2286,7 +2267,10 @@ macro_rules! generate_inner_storage {
                          InProgressCell"
                     );
                 }
-                self.dynamic.extract_if(ty, f)
+                // All CachedDataItem variants are handled by typed storage
+                // Return empty iterator with proper type for unreachable code path
+                #[allow(unreachable_code)]
+                std::iter::empty()
             }
 
             pub fn get_mut_or_insert_with(
@@ -2503,7 +2487,7 @@ macro_rules! generate_inner_storage {
                          get_mut_or_insert_with() for InProgressCell"
                     );
                 }
-                self.dynamic.get_mut_or_insert_with(key, f)
+                unreachable!("All CachedDataItem variants are handled by typed storage")
             }
 
             pub fn iter(
@@ -2674,7 +2658,10 @@ macro_rules! generate_inner_storage {
                         "Use TaskGuard::in_progress_cells() instead of iter() for InProgressCell"
                     );
                 }
-                self.dynamic.iter(ty)
+                // All CachedDataItem variants are handled by typed storage
+                // Return empty iterator with proper type for unreachable code path
+                #[allow(unreachable_code)]
+                std::iter::empty()
             }
         }
     };
@@ -2687,288 +2674,220 @@ generate_inner_storage!();
 // These add methods are needed for persistence restore via the `add` method
 impl InnerStorage {
     fn add_output(&mut self, value: OutputValue) -> bool {
-        if self.typed.meta.output.is_some() {
+        if self.typed.output.is_some() {
             false
         } else {
-            self.typed.meta.output = Some(value);
+            self.typed.output = Some(value);
             true
         }
     }
 
     fn add_aggregation_number(&mut self, value: AggregationNumber) -> bool {
-        if self.typed.meta.aggregation_number.is_some() {
+        if self.typed.aggregation_number.is_some() {
             false
         } else {
-            self.typed.meta.aggregation_number = Some(value);
+            self.typed.aggregation_number = Some(value);
             true
         }
     }
 
     fn add_upper(&mut self, task: TaskId, value: u32) -> bool {
         // Matches extend semantics: overwrites existing, returns false if key existed
-        let was_new = !self.typed.meta.upper.contains_key(&task);
-        self.typed.meta.upper.insert(task, value);
+        let was_new = !self.typed.upper.contains_key(&task);
+        self.typed.upper.insert(task, value);
         was_new
     }
 
     fn add_output_dependent(&mut self, task: TaskId) -> bool {
-        self.typed.data.output_dependent.insert(task)
+        self.typed.output_dependent.insert(task)
     }
 
-    // Flags (migrated)
+    // Flags (migrated - direct fields)
     fn add_stateful(&mut self) -> bool {
-        if self.typed.meta.flags.stateful.is_some() {
+        if self.typed.stateful.is_some() {
             false
         } else {
-            self.typed.meta.flags.stateful = Some(());
+            self.typed.stateful = Some(());
             true
         }
     }
 
     fn add_invalidator(&mut self) -> bool {
-        if self.typed.meta.flags.invalidator.is_some() {
+        if self.typed.invalidator.is_some() {
             false
         } else {
-            self.typed.meta.flags.invalidator = Some(());
+            self.typed.invalidator = Some(());
             true
         }
     }
 
     fn add_immutable(&mut self) -> bool {
-        if self.typed.meta.flags.immutable.is_some() {
+        if self.typed.immutable.is_some() {
             false
         } else {
-            self.typed.meta.flags.immutable = Some(());
+            self.typed.immutable = Some(());
             true
         }
     }
 
-    // State group (migrated)
+    // State fields (migrated - direct fields)
     fn add_dirty(&mut self, value: Dirtyness) -> bool {
-        if self.typed.meta.state.dirty.is_some() {
+        if self.typed.dirty.is_some() {
             false
         } else {
-            self.typed.meta.state.dirty = Some(value);
+            self.typed.dirty = Some(value);
             true
         }
     }
 
     fn add_aggregated_dirty_container_count(&mut self, value: i32) -> bool {
-        if self
-            .typed
-            .meta
-            .state
-            .aggregated_dirty_container_count
-            .is_some()
-        {
+        if self.typed.aggregated_dirty_container_count.is_some() {
             false
         } else {
-            self.typed.meta.state.aggregated_dirty_container_count = Some(value);
+            self.typed.aggregated_dirty_container_count = Some(value);
             true
         }
     }
 
     fn add_aggregated_dirty_container(&mut self, task: TaskId, value: i32) -> bool {
         // Matches extend semantics: overwrites existing, returns false if key existed
-        let was_new = !self
-            .typed
-            .meta
-            .state
-            .aggregated_dirty_containers
-            .contains_key(&task);
-        self.typed
-            .meta
-            .state
-            .aggregated_dirty_containers
-            .insert(task, value);
+        let was_new = !self.typed.aggregated_dirty_containers.contains_key(&task);
+        self.typed.aggregated_dirty_containers.insert(task, value);
         was_new
     }
 
-    // Collectibles group (migrated)
+    // Collectibles (lazy_vec migrated)
     fn add_collectible(&mut self, collectible: CollectibleRef, value: i32) -> bool {
         // Matches extend semantics: overwrites existing, returns false if key existed
-        let group = self
-            .typed
-            .meta
-            .collectibles
-            .get_or_insert_with(Default::default);
-        let was_new = !group.collectibles.contains_key(&collectible);
-        group.collectibles.insert(collectible, value);
+        let map = self.typed.collectibles_mut();
+        let was_new = !map.contains_key(&collectible);
+        map.insert(collectible, value);
         was_new
     }
 
     fn add_aggregated_collectible(&mut self, collectible: CollectibleRef, value: i32) -> bool {
         // Matches extend semantics: overwrites existing, returns false if key existed
-        let group = self
-            .typed
-            .meta
-            .collectibles
-            .get_or_insert_with(Default::default);
-        let was_new = !group.aggregated_collectibles.contains_key(&collectible);
-        group.aggregated_collectibles.insert(collectible, value);
+        let map = self.typed.aggregated_collectibles_mut();
+        let was_new = !map.contains_key(&collectible);
+        map.insert(collectible, value);
         was_new
     }
 
-    // Aggregation group (migrated)
+    // Children & Followers (lazy_vec migrated)
     fn add_child(&mut self, task: TaskId) -> bool {
-        let group = self
-            .typed
-            .meta
-            .aggregation
-            .get_or_insert_with(Default::default);
-        group.children.insert(task)
+        self.typed.children_mut().insert(task)
     }
 
     fn add_follower(&mut self, task: TaskId, value: u32) -> bool {
         // Matches extend semantics: overwrites existing, returns false if key existed
-        let group = self
-            .typed
-            .meta
-            .aggregation
-            .get_or_insert_with(Default::default);
-        let was_new = !group.followers.contains_key(&task);
-        group.followers.insert(task, value);
+        let map = self.typed.followers_mut();
+        let was_new = !map.contains_key(&task);
+        map.insert(task, value);
         was_new
     }
 
-    // Cells group (migrated)
+    // Cells (lazy_vec migrated)
     fn add_cell_data(&mut self, cell: CellId, value: TypedSharedReference) -> bool {
         // Matches extend semantics: overwrites existing, returns false if key existed
-        let group = self.typed.data.cells.get_or_insert_with(Default::default);
-        let was_new = !group.cell_data.contains_key(&cell);
-        group.cell_data.insert(cell, value);
+        let map = self.typed.cell_data_mut();
+        let was_new = !map.contains_key(&cell);
+        map.insert(cell, value);
         was_new
     }
 
     fn add_cell_type_max_index(&mut self, cell_type: ValueTypeId, value: u32) -> bool {
         // Matches extend semantics: overwrites existing, returns false if key existed
-        let group = self.typed.data.cells.get_or_insert_with(Default::default);
-        let was_new = !group.cell_type_max_index.contains_key(&cell_type);
-        group.cell_type_max_index.insert(cell_type, value);
+        let map = self.typed.cell_type_max_index_mut();
+        let was_new = !map.contains_key(&cell_type);
+        map.insert(cell_type, value);
         was_new
     }
 
-    // Cell dependents group (migrated)
+    // Cell dependents (lazy_vec migrated)
     fn add_cell_dependent(&mut self, cell: CellId, task: TaskId) -> bool {
         // cell_dependents is AutoMap<CellId, FxHashSet<TaskId>>
         // We need to get or create the set for this cell, then insert the task
-        let group = self
-            .typed
-            .data
-            .cell_dependents
-            .get_or_insert_with(Default::default);
-        group.cell_dependents.entry(cell).or_default().insert(task)
+        self.typed
+            .cell_dependents_mut()
+            .entry(cell)
+            .or_default()
+            .insert(task)
     }
 
-    // Collectibles dependents group (migrated)
+    // Collectibles dependents (lazy_vec migrated)
     fn add_collectibles_dependent(&mut self, collectible_type: TraitTypeId, task: TaskId) -> bool {
         // collectibles_dependents is AutoMap<TraitTypeId, FxHashSet<TaskId>>
         // We need to get or create the set for this collectible_type, then insert the task
-        let group = self
-            .typed
-            .meta
-            .collectibles_dependents
-            .get_or_insert_with(Default::default);
-        group
-            .collectibles_dependents
+        self.typed
+            .collectibles_dependents_mut()
             .entry(collectible_type)
             .or_default()
             .insert(task)
     }
 
-    // Dependencies group (migrated)
+    // Dependencies (lazy_vec migrated)
     fn add_output_dependency(&mut self, target: TaskId) -> bool {
-        let group = self
-            .typed
-            .data
-            .dependencies
-            .get_or_insert_with(Default::default);
-        group.output_dependencies.insert(target)
+        self.typed.output_dependencies_mut().insert(target)
     }
 
     fn add_cell_dependency(&mut self, target: CellRef) -> bool {
-        let group = self
-            .typed
-            .data
-            .dependencies
-            .get_or_insert_with(Default::default);
-        group.cell_dependencies.insert(target)
+        self.typed.cell_dependencies_mut().insert(target)
     }
 
     fn add_collectibles_dependency(&mut self, target: CollectiblesRef) -> bool {
-        let group = self
-            .typed
-            .data
-            .dependencies
-            .get_or_insert_with(Default::default);
-        group.collectibles_dependencies.insert(target)
+        self.typed.collectibles_dependencies_mut().insert(target)
     }
 
     fn add_outdated_output_dependency(&mut self, target: TaskId) -> bool {
-        let group = self
-            .typed
-            .data
-            .dependencies
-            .get_or_insert_with(Default::default);
-        group.outdated_output_dependencies.insert(target)
+        self.typed.outdated_output_dependencies_mut().insert(target)
     }
 
     fn add_outdated_cell_dependency(&mut self, target: CellRef) -> bool {
-        let group = self
-            .typed
-            .data
-            .dependencies
-            .get_or_insert_with(Default::default);
-        group.outdated_cell_dependencies.insert(target)
+        self.typed.outdated_cell_dependencies_mut().insert(target)
     }
 
     fn add_outdated_collectibles_dependency(&mut self, target: CollectiblesRef) -> bool {
-        let group = self
-            .typed
-            .data
-            .dependencies
-            .get_or_insert_with(Default::default);
-        group.outdated_collectibles_dependencies.insert(target)
+        self.typed
+            .outdated_collectibles_dependencies_mut()
+            .insert(target)
     }
 
-    // Execution group (migrated) - transient, not persisted, but needed for runtime
+    // Execution fields (lazy_vec migrated) - transient, not persisted, but needed for runtime
     fn add_activeness(&mut self, value: ActivenessState) -> bool {
-        let group = self
+        // Check if already present
+        if self
             .typed
-            .meta
-            .execution
-            .get_or_insert_with(Default::default);
-        if group.activeness.is_some() {
+            .get_activeness()
+            .and_then(|opt| opt.as_ref())
+            .is_some()
+        {
             false
         } else {
-            group.activeness = Some(value);
+            self.typed.set_activeness(Some(value));
             true
         }
     }
 
     fn add_in_progress(&mut self, value: InProgressState) -> bool {
-        let group = self
+        // Check if already present
+        if self
             .typed
-            .meta
-            .execution
-            .get_or_insert_with(Default::default);
-        if group.in_progress.is_some() {
+            .get_in_progress()
+            .and_then(|opt| opt.as_ref())
+            .is_some()
+        {
             false
         } else {
-            group.in_progress = Some(value);
+            self.typed.set_in_progress(Some(value));
             true
         }
     }
 
     fn add_in_progress_cell(&mut self, cell: CellId, value: InProgressCellState) -> bool {
-        let group = self
-            .typed
-            .meta
-            .execution
-            .get_or_insert_with(Default::default);
         // Matches extend semantics: overwrites existing, returns false if key existed
-        let was_new = !group.in_progress_cells.contains_key(&cell);
-        group.in_progress_cells.insert(cell, value);
+        let map = self.typed.in_progress_cells_mut();
+        let was_new = !map.contains_key(&cell);
+        map.insert(cell, value);
         was_new
     }
 }
@@ -2977,15 +2896,12 @@ impl InnerStorage {
     pub fn iter_all(
         &self,
     ) -> impl Iterator<Item = (CachedDataItemKey, CachedDataItemValueRef<'_>)> {
-        // Typed storage items (all specialized fields are now migrated)
-        self.typed
-            .iter_all()
-            // Dynamic storage (unmigrated CachedDataItem variants)
-            .chain(self.dynamic.iter_all())
+        // All CachedDataItem variants are now in typed storage
+        self.typed.iter_all()
     }
 
     pub fn len(&self) -> usize {
-        self.typed.len() + self.dynamic.len()
+        self.typed.len()
     }
 }
 
@@ -3289,221 +3205,6 @@ impl DerefMut for StorageWriteGuard<'_> {
         &mut self.inner
     }
 }
-
-macro_rules! get {
-    ($task:ident, $key:ident $input:tt) => {{
-        #[allow(unused_imports)]
-        use $crate::backend::operation::TaskGuard;
-        if let Some($crate::data::CachedDataItemValueRef::$key {
-            value,
-        }) = $task.get_internal(&$crate::data::CachedDataItemKey::$key $input) {
-            Some(value)
-        } else {
-            None
-        }
-    }};
-    ($task:ident, $key:ident) => {
-        $crate::backend::storage::get!($task, $key {})
-    };
-}
-
-macro_rules! get_mut {
-    ($task:ident, $key:ident $input:tt) => {{
-        #[allow(unused_imports)]
-        use $crate::backend::operation::TaskGuard;
-        if let Some($crate::data::CachedDataItemValueRefMut::$key {
-            value,
-        }) = $task.get_mut_internal(&$crate::data::CachedDataItemKey::$key $input) {
-            let () = $crate::data::allow_mut_access::$key;
-            Some(value)
-        } else {
-            None
-        }
-    }};
-    ($task:ident, $key:ident) => {
-        $crate::backend::storage::get_mut!($task, $key {})
-    };
-}
-
-macro_rules! get_mut_or_insert_with {
-    ($task:ident, $key:ident $input:tt, $f:expr) => {{
-        #[allow(unused_imports)]
-        use $crate::backend::operation::TaskGuard;
-        let () = $crate::data::allow_mut_access::$key;
-        let functor = $f;
-        let $crate::data::CachedDataItemValueRefMut::$key {
-            value,
-        } = $task.get_mut_or_insert_with_internal($crate::data::CachedDataItemKey::$key $input, move || $crate::data::CachedDataItemValue::$key { value: functor() }) else {
-            unreachable!()
-        };
-        value
-    }};
-    ($task:ident, $key:ident, $f:expr) => {
-        $crate::backend::storage::get_mut_or_insert_with!($task, $key {}, $f)
-    };
-}
-
-/// Creates an iterator over all [`CachedDataItemKey::$key`][crate::data::CachedDataItemKey]s in
-/// `$task` matching the given `$key_pattern`, optional `$value_pattern`, and optional `if $cond`.
-///
-/// Each element in the iterator is determined by `$iter_item`, which may use fields extracted by
-/// `$key_pattern` or `$value_pattern`.
-macro_rules! iter_many {
-    ($task:ident, $key:ident $key_pattern:tt $(if $cond:expr)? => $iter_item:expr) => {{
-        #[allow(unused_imports)]
-        use $crate::backend::operation::TaskGuard;
-        $task
-            .iter_internal($crate::data::CachedDataItemType::$key)
-            .filter_map(|(key, _)| match key {
-                $crate::data::CachedDataItemKey::$key $key_pattern $(if $cond)? => Some(
-                    $iter_item
-                ),
-                _ => None,
-            })
-    }};
-    ($task:ident, $key:ident $input:tt $value_pattern:tt $(if $cond:expr)? => $iter_item:expr) => {{
-        #[allow(unused_imports)]
-        use $crate::backend::operation::TaskGuard;
-        $task
-            .iter_internal($crate::data::CachedDataItemType::$key)
-            .filter_map(|(key, value)| match (key, value) {
-                (
-                    $crate::data::CachedDataItemKey::$key $input,
-                    $crate::data::CachedDataItemValueRef::$key { value: $value_pattern }
-                ) $(if $cond)? => Some($iter_item),
-                _ => None,
-            })
-    }};
-}
-
-macro_rules! update {
-    ($task:ident, $key:ident $input:tt, $update:expr) => {{
-        #[allow(unused_imports)]
-        use $crate::backend::operation::TaskGuard;
-        #[allow(unused_mut)]
-        let mut update = $update;
-        $task.update_internal($crate::data::CachedDataItemKey::$key $input, |old| {
-            update(old.and_then(|old| {
-                if let $crate::data::CachedDataItemValue::$key { value } = old {
-                    Some(value)
-                } else {
-                    None
-                }
-            }))
-            .map(|new| $crate::data::CachedDataItemValue::$key { value: new })
-        })
-    }};
-    ($task:ident, $key:ident, $update:expr) => {
-        $crate::backend::storage::update!($task, $key {}, $update)
-    };
-}
-
-macro_rules! update_count {
-    ($task:ident, $key:ident $input:tt, -$update:expr) => {
-        match $update {
-            update => {
-                let mut state_change = false;
-                $crate::backend::storage::update!($task, $key $input, |old: Option<_>| {
-                    #[allow(unused_comparisons, reason = "type of update might be unsigned, where update < 0 is always false")]
-                    if let Some(old) = old {
-                        let new = old - update;
-                        state_change = old <= 0 && new > 0 || old > 0 && new <= 0;
-                        (new != 0).then_some(new)
-                    } else {
-                        state_change = update < 0;
-                        (update != 0).then_some(-update)
-                    }
-                });
-                state_change
-            }
-        }
-    };
-    ($task:ident, $key:ident $input:tt, $update:expr) => {
-        match $update {
-            update => {
-                let mut state_change = false;
-                $crate::backend::storage::update!($task, $key $input, |old: Option<_>| {
-                    if let Some(old) = old {
-                        let new = old + update;
-                        state_change = old <= 0 && new > 0 || old > 0 && new <= 0;
-                        (new != 0).then_some(new)
-                    } else {
-                        state_change = update > 0;
-                        (update != 0).then_some(update)
-                    }
-                });
-                state_change
-            }
-        }
-    };
-    ($task:ident, $key:ident, -$update:expr) => {
-        $crate::backend::storage::update_count!($task, $key {}, -$update)
-    };
-    ($task:ident, $key:ident, $update:expr) => {
-        $crate::backend::storage::update_count!($task, $key {}, $update)
-    };
-}
-
-macro_rules! update_count_and_get {
-    ($task:ident, $key:ident $input:tt, -$update:expr) => {
-        match $update {
-            update => {
-                let mut new = 0;
-                $crate::backend::storage::update!($task, $key $input, |old: Option<_>| {
-                    let old = old.unwrap_or(0);
-                    new = old - update;
-                    (new != 0).then_some(new)
-                });
-                new
-            }
-        }
-    };
-    ($task:ident, $key:ident $input:tt, $update:expr) => {
-        match $update {
-            update => {
-                let mut new = 0;
-                $crate::backend::storage::update!($task, $key $input, |old: Option<_>| {
-                    let old = old.unwrap_or(0);
-                    new = old + update;
-                    (new != 0).then_some(new)
-                });
-                new
-            }
-        }
-    };
-    ($task:ident, $key:ident, -$update:expr) => {
-        $crate::backend::storage::update_count_and_get!($task, $key {}, -$update)
-    };
-    ($task:ident, $key:ident, $update:expr) => {
-        $crate::backend::storage::update_count_and_get!($task, $key {}, $update)
-    };
-}
-
-macro_rules! remove {
-    ($task:ident, $key:ident $input:tt) => {{
-        #[allow(unused_imports)]
-        use $crate::backend::operation::TaskGuard;
-        if let Some($crate::data::CachedDataItemValue::$key { value }) = $task.remove_internal(
-            &$crate::data::CachedDataItemKey::$key $input
-        ) {
-            Some(value)
-        } else {
-            None
-        }
-    }};
-    ($task:ident, $key:ident) => {
-        $crate::backend::storage::remove!($task, $key {})
-    };
-}
-
-pub(crate) use get;
-pub(crate) use get_mut;
-pub(crate) use get_mut_or_insert_with;
-pub(crate) use iter_many;
-pub(crate) use remove;
-pub(crate) use update;
-pub(crate) use update_count;
-pub(crate) use update_count_and_get;
 
 pub struct SnapshotGuard<'l> {
     storage: &'l Storage,

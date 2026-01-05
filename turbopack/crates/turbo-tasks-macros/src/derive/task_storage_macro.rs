@@ -8,10 +8,10 @@ use syn::{
 /// Derives the TaskStorage trait and generates optimized storage structures.
 ///
 /// This macro analyzes field annotations and generates:
-/// 1. Grouped data structures (e.g., DependencyData, AggregationData)
-/// 2. Lazy-allocated storage with Option<Box<...>>
+/// 1. A unified TypedStorage struct
+/// 2. LazyField enum for lazy_vec fields
 /// 3. Typed accessor methods on TypedStorage
-/// 4. TaskStorageAccessors trait with accessor methods for migrated fields
+/// 4. TaskStorageAccessors trait with accessor methods
 ///
 /// # Attributes
 ///
@@ -26,16 +26,10 @@ use syn::{
 ///   - `data` - Frequently changed, bulk I/O
 ///   - `meta` - Rarely changed, small I/O
 ///
-/// - `#[task_storage(group = "...")]` - Groups related fields together
+/// - `#[task_storage(lazy)]` - Field is lazily allocated in a Vec<LazyField> for memory efficiency.
+///   Fields without `lazy` are stored inline.
 ///
-/// - `#[task_storage(lazy)]` - Wraps field group in Option<Box<...>>
-///
-/// - `#[task_storage(transient)]` - Field is not serialized (skipped in bincode)
-///
-/// - `#[task_storage(specialized)]` - Field is stored at top level, not in a group
-///
-/// - `#[task_storage(migrated)]` - Field accessors are generated in TaskStorageAccessors trait for
-///   use with TaskGuard (supports incremental migration from CachedDataItem)
+/// - `#[task_storage(transient)]` - Field is not serialized
 pub fn derive_task_storage(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
 
@@ -78,13 +72,10 @@ struct StorageFieldAttributes {
     field_type: Type,
     storage_type: StorageType,
     category: Category,
-    group: Option<String>,
+    /// If true, field is lazily allocated in Vec<LazyField> instead of inline on TypedStorage
     lazy: bool,
-    specialized: bool,
+    /// If true, field is not serialized (skipped in bincode)
     transient: bool,
-    /// If true, generates accessor methods in TaskStorageAccessors trait
-    /// for use with TaskGuard (supports incremental migration)
-    migrated: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -109,11 +100,8 @@ fn parse_field_storage_attributes(field: &syn::Field) -> StorageFieldAttributes 
     // Default values
     let mut storage_type = StorageType::Direct;
     let mut category = Category::Data;
-    let mut group = None;
     let mut lazy = false;
-    let mut specialized = false;
     let mut transient = false;
-    let mut migrated = false;
 
     // Parse attributes
     for attr in &field.attrs {
@@ -184,25 +172,14 @@ fn parse_field_storage_attributes(field: &syn::Field) -> StorageFieldAttributes 
                                 }
                             };
                         }
-                    } else if *ident == "group"
-                        && let syn::Expr::Lit(syn::ExprLit {
-                            lit: syn::Lit::Str(lit_str),
-                            ..
-                        }) = &nv.value
-                    {
-                        group = Some(lit_str.value());
                     }
                 }
                 Meta::Path(path) => {
                     if let Some(ident) = path.get_ident() {
                         if *ident == "lazy" {
                             lazy = true;
-                        } else if *ident == "specialized" {
-                            specialized = true;
                         } else if *ident == "transient" {
                             transient = true;
-                        } else if *ident == "migrated" {
-                            migrated = true;
                         }
                     }
                 }
@@ -216,176 +193,75 @@ fn parse_field_storage_attributes(field: &syn::Field) -> StorageFieldAttributes 
         field_type,
         storage_type,
         category,
-        group,
         lazy,
-        specialized,
         transient,
-        migrated,
     }
 }
 
 #[derive(Debug)]
 struct GroupedFields {
-    data_groups: Vec<FieldGroup>,
-    meta_groups: Vec<FieldGroup>,
-    specialized_data_fields: Vec<StorageFieldAttributes>,
-    specialized_meta_fields: Vec<StorageFieldAttributes>,
-}
-
-#[derive(Debug)]
-struct FieldGroup {
-    name: String,
-    fields: Vec<StorageFieldAttributes>,
-    lazy: bool,
-    /// True if any field in the group is transient (meaning the entire group
-    /// cannot be serialized and should be skipped in bincode)
-    has_transient: bool,
+    /// Inline fields stored directly on TypedStorage (data category)
+    inline_data_fields: Vec<StorageFieldAttributes>,
+    /// Inline fields stored directly on TypedStorage (meta category)
+    inline_meta_fields: Vec<StorageFieldAttributes>,
+    /// Lazy fields stored in Vec<LazyField> (data category)
+    lazy_data_fields: Vec<StorageFieldAttributes>,
+    /// Lazy fields stored in Vec<LazyField> (meta category)
+    lazy_meta_fields: Vec<StorageFieldAttributes>,
 }
 
 fn group_fields(fields: &[StorageFieldAttributes]) -> GroupedFields {
-    use std::collections::HashMap;
-
-    let mut data_groups_map: HashMap<String, Vec<StorageFieldAttributes>> = HashMap::new();
-    let mut meta_groups_map: HashMap<String, Vec<StorageFieldAttributes>> = HashMap::new();
-    let mut specialized_data_fields = Vec::new();
-    let mut specialized_meta_fields = Vec::new();
+    let mut inline_data_fields = Vec::new();
+    let mut inline_meta_fields = Vec::new();
+    let mut lazy_data_fields = Vec::new();
+    let mut lazy_meta_fields = Vec::new();
 
     for field in fields {
-        // Specialized fields are stored directly, not in groups
-        if field.specialized {
+        if field.lazy {
+            // Lazy fields are stored in Vec<LazyField>
             match field.category {
-                Category::Data => specialized_data_fields.push(field.clone()),
-                Category::Meta => specialized_meta_fields.push(field.clone()),
+                Category::Data => lazy_data_fields.push(field.clone()),
+                Category::Meta => lazy_meta_fields.push(field.clone()),
             }
-            continue;
+        } else {
+            // Non-lazy fields are stored inline on TypedStorage
+            match field.category {
+                Category::Data => inline_data_fields.push(field.clone()),
+                Category::Meta => inline_meta_fields.push(field.clone()),
+            }
         }
-
-        let group_name = field
-            .group
-            .clone()
-            .unwrap_or_else(|| field.field_name.to_string());
-
-        let map = match field.category {
-            Category::Data => &mut data_groups_map,
-            Category::Meta => &mut meta_groups_map,
-        };
-
-        map.entry(group_name).or_default().push(field.clone());
     }
 
-    let data_groups = data_groups_map
-        .into_iter()
-        .map(|(name, fields)| {
-            let lazy = fields.first().map(|f| f.lazy).unwrap_or(false);
-            let has_transient = fields.iter().any(|f| f.transient);
-            // Ensure all fields in a group have the same lazy setting
-            for f in &fields {
-                if f.lazy != lazy {
-                    f.field_name
-                        .span()
-                        .unwrap()
-                        .warning("inconsistent lazy annotation within group")
-                        .emit();
-                }
-            }
-            FieldGroup {
-                name,
-                fields,
-                lazy,
-                has_transient,
-            }
-        })
-        .collect();
-
-    let meta_groups = meta_groups_map
-        .into_iter()
-        .map(|(name, fields)| {
-            let lazy = fields.first().map(|f| f.lazy).unwrap_or(false);
-            let has_transient = fields.iter().any(|f| f.transient);
-            for f in &fields {
-                if f.lazy != lazy {
-                    f.field_name
-                        .span()
-                        .unwrap()
-                        .warning("inconsistent lazy annotation within group")
-                        .emit();
-                }
-            }
-            FieldGroup {
-                name,
-                fields,
-                lazy,
-                has_transient,
-            }
-        })
-        .collect();
-
     GroupedFields {
-        data_groups,
-        meta_groups,
-        specialized_data_fields,
-        specialized_meta_fields,
+        inline_data_fields,
+        inline_meta_fields,
+        lazy_data_fields,
+        lazy_meta_fields,
     }
 }
 
 fn generate_task_storage_impl(_ident: &Ident, grouped_fields: &GroupedFields) -> TokenStream {
-    // Generate group structs for data category
-    let data_group_structs = generate_group_structs(&grouped_fields.data_groups, "Data");
+    // Generate LazyField enum for lazy fields
+    let lazy_field_enum = generate_lazy_field_enum(grouped_fields);
 
-    // Generate group structs for meta category
-    let meta_group_structs = generate_group_structs(&grouped_fields.meta_groups, "Meta");
-
-    // Generate the main TaskData struct
-    let task_data_struct = generate_task_data_struct(
-        &grouped_fields.data_groups,
-        &grouped_fields.specialized_data_fields,
-    );
-
-    // Generate the main TaskMeta struct
-    let task_meta_struct = generate_task_meta_struct(
-        &grouped_fields.meta_groups,
-        &grouped_fields.specialized_meta_fields,
-    );
-
-    // Generate the InnerStorage struct
-    let inner_storage_struct = generate_inner_storage_struct();
-
-    // Generate the InnerStorageSnapshot struct
-    let snapshot_struct = generate_snapshot_struct();
+    // Generate the unified TypedStorage struct
+    let typed_storage_struct = generate_typed_storage_struct(grouped_fields);
 
     // Generate accessor methods
     let accessor_methods = generate_accessor_methods(grouped_fields);
 
-    // Generate snapshot methods
-    let snapshot_methods = generate_snapshot_methods();
-
-    // Generate TaskStorageAccessors trait for migrated fields
+    // Generate TaskStorageAccessors trait for all fields
     let accessors_trait = generate_task_storage_accessors_trait(grouped_fields);
 
     let expanded = quote! {
-        // Generated group data structures
-        #data_group_structs
+        // Generated LazyField enum
+        #lazy_field_enum
 
-        // Generated group meta structures
-        #meta_group_structs
-
-        // Generated TaskData struct
-        #task_data_struct
-
-        // Generated TaskMeta struct
-        #task_meta_struct
-
-        // Generated InnerStorage struct
-        #inner_storage_struct
-
-        // Generated InnerStorageSnapshot struct
-        #snapshot_struct
+        // Generated TypedStorage struct (unified)
+        #typed_storage_struct
 
         // Generated accessor methods
         #accessor_methods
-
-        // Generated snapshot methods
-        #snapshot_methods
 
         // Generated TaskStorageAccessors trait
         #accessors_trait
@@ -394,230 +270,240 @@ fn generate_task_storage_impl(_ident: &Ident, grouped_fields: &GroupedFields) ->
     TokenStream::from(expanded)
 }
 
-fn generate_group_structs(
-    groups: &[FieldGroup],
-    category_suffix: &str,
-) -> proc_macro2::TokenStream {
-    let mut output = proc_macro2::TokenStream::new();
+/// Generate the LazyField enum containing all lazy fields
+fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> proc_macro2::TokenStream {
+    let all_lazy_fields: Vec<_> = grouped_fields
+        .lazy_data_fields
+        .iter()
+        .chain(grouped_fields.lazy_meta_fields.iter())
+        .collect();
 
-    for group in groups {
-        // Skip single-field groups that don't need a struct
-        if group.fields.len() == 1 && !group.lazy {
-            continue;
-        }
+    // If no lazy_vec fields, don't generate the enum
+    if all_lazy_fields.is_empty() {
+        return quote! {};
+    }
 
-        // Generate struct name from group name
-        let struct_name = syn::Ident::new(
-            &format!("{}{}Group", capitalize(&group.name), category_suffix),
-            proc_macro2::Span::call_site(),
-        );
+    // Generate enum variants
+    let variants: Vec<_> = all_lazy_fields
+        .iter()
+        .map(|field| {
+            let variant_name = syn::Ident::new(
+                &to_pascal_case(&field.field_name.to_string()),
+                field.field_name.span(),
+            );
+            let field_type = &field.field_type;
+            quote! {
+                #variant_name(#field_type)
+            }
+        })
+        .collect();
 
-        // Generate fields with appropriate bincode attributes for transient fields
-        let field_defs: Vec<_> = group
-            .fields
-            .iter()
-            .map(|f| {
-                let field_name = &f.field_name;
-                let field_type = &f.field_type;
-                if f.transient {
+    // Generate is_empty method arms
+    let is_empty_arms: Vec<_> = all_lazy_fields
+        .iter()
+        .map(|field| {
+            let variant_name = syn::Ident::new(
+                &to_pascal_case(&field.field_name.to_string()),
+                field.field_name.span(),
+            );
+            // For collection types, check if empty; for Option-like types, presence means non-empty
+            match field.storage_type {
+                StorageType::Direct => {
+                    // For Option<T> types, presence of the variant means it's non-empty
                     quote! {
-                        #[bincode(skip)]
-                        pub #field_name: #field_type
-                    }
-                } else {
-                    quote! {
-                        pub #field_name: #field_type
+                        LazyField::#variant_name(_) => false
                     }
                 }
-            })
-            .collect();
-
-        output.extend(quote! {
-            #[derive(Debug, Clone, Default, bincode::Encode, bincode::Decode)]
-            pub struct #struct_name {
-                #(#field_defs),*
+                _ => {
+                    // For collection types, delegate to is_empty()
+                    quote! {
+                        LazyField::#variant_name(v) => v.is_empty()
+                    }
+                }
             }
+        })
+        .collect();
+
+    // Generate is_persistent (transient check) method arms
+    let is_persistent_arms: Vec<_> = all_lazy_fields
+        .iter()
+        .map(|field| {
+            let variant_name = syn::Ident::new(
+                &to_pascal_case(&field.field_name.to_string()),
+                field.field_name.span(),
+            );
+            let is_persistent = !field.transient;
+            quote! {
+                LazyField::#variant_name(_) => #is_persistent
+            }
+        })
+        .collect();
+
+    // Generate is_meta/is_data method arms
+    let is_meta_arms: Vec<_> = all_lazy_fields
+        .iter()
+        .map(|field| {
+            let variant_name = syn::Ident::new(
+                &to_pascal_case(&field.field_name.to_string()),
+                field.field_name.span(),
+            );
+            let is_meta = field.category == Category::Meta;
+            quote! {
+                LazyField::#variant_name(_) => #is_meta
+            }
+        })
+        .collect();
+
+    // Generate discriminant method arms
+    let discriminant_arms: Vec<_> = all_lazy_fields
+        .iter()
+        .enumerate()
+        .map(|(i, field)| {
+            let variant_name = syn::Ident::new(
+                &to_pascal_case(&field.field_name.to_string()),
+                field.field_name.span(),
+            );
+            let idx = i as u8;
+            quote! {
+                LazyField::#variant_name(_) => #idx
+            }
+        })
+        .collect();
+
+    quote! {
+        /// All lazily-allocated fields stored in a single Vec.
+        /// Fields are stored directly (unboxed) to avoid allocation overhead.
+        #[derive(Debug, Clone)]
+        pub enum LazyField {
+            #(#variants),*
+        }
+
+        impl LazyField {
+            /// Returns true if this field is empty (can be removed from the Vec)
+            pub fn is_empty(&self) -> bool {
+                match self {
+                    #(#is_empty_arms),*
+                }
+            }
+
+            /// Returns true if this field should be persisted (not transient)
+            pub fn is_persistent(&self) -> bool {
+                match self {
+                    #(#is_persistent_arms),*
+                }
+            }
+
+            /// Returns true if this field belongs to the meta category
+            pub fn is_meta(&self) -> bool {
+                match self {
+                    #(#is_meta_arms),*
+                }
+            }
+
+            /// Returns true if this field belongs to the data category
+            pub fn is_data(&self) -> bool {
+                !self.is_meta()
+            }
+
+            /// Get discriminant value for serialization
+            pub fn discriminant(&self) -> u8 {
+                match self {
+                    #(#discriminant_arms),*
+                }
+            }
+        }
+    }
+}
+
+/// Generate the unified TypedStorage struct with all fields directly on it.
+fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> proc_macro2::TokenStream {
+    let has_lazy =
+        !grouped_fields.lazy_data_fields.is_empty() || !grouped_fields.lazy_meta_fields.is_empty();
+
+    // Collect all field definitions from both categories
+    let mut field_defs = Vec::new();
+
+    // Add inline fields directly on TypedStorage
+    // Note: No bincode attributes since we don't derive Encode/Decode (manual serialization)
+    for field in grouped_fields
+        .inline_data_fields
+        .iter()
+        .chain(grouped_fields.inline_meta_fields.iter())
+    {
+        let field_name = &field.field_name;
+        let field_type = &field.field_type;
+        field_defs.push(quote! {
+            pub #field_name: #field_type
         });
     }
 
-    output
-}
-
-fn generate_task_data_struct(
-    groups: &[FieldGroup],
-    specialized_fields: &[StorageFieldAttributes],
-) -> proc_macro2::TokenStream {
-    let mut specialized_field_defs = Vec::new();
-    let mut direct_fields = Vec::new();
-    let mut group_fields = Vec::new();
-
-    // Add specialized fields first (for memory layout optimization)
-    for field in specialized_fields {
-        let field_name = &field.field_name;
-        let field_type = &field.field_type;
-        if field.transient {
-            specialized_field_defs.push(quote! {
-                #[bincode(skip)]
-                pub #field_name: #field_type
-            });
-        } else {
-            specialized_field_defs.push(quote! {
-                pub #field_name: #field_type
-            });
+    // Add lazy vec field if needed
+    // Note: Serialization is handled manually via encode_data/encode_meta methods
+    let lazy_field = if has_lazy {
+        quote! {
+            /// Lazily-allocated fields stored in a single Vec for memory efficiency
+            pub lazy: Vec<LazyField>,
         }
-    }
+    } else {
+        quote! {}
+    };
 
-    for group in groups {
-        if group.fields.len() == 1 && !group.lazy {
-            // Direct field
-            let field = &group.fields[0];
-            let field_name = &field.field_name;
-            let field_type = &field.field_type;
-            if field.transient {
-                direct_fields.push(quote! {
-                    #[bincode(skip)]
-                    pub #field_name: #field_type
-                });
-            } else {
-                direct_fields.push(quote! {
-                    pub #field_name: #field_type
-                });
+    let lazy_helpers = if has_lazy {
+        quote! {
+            /// Find a lazy field by predicate (immutable)
+            pub fn find_lazy<T>(&self, extract: impl Fn(&LazyField) -> Option<&T>) -> Option<&T> {
+                self.lazy.iter().find_map(extract)
             }
-        } else {
-            // Group field
-            let group_name = syn::Ident::new(&group.name, proc_macro2::Span::call_site());
-            let struct_name = syn::Ident::new(
-                &format!("{}DataGroup", capitalize(&group.name)),
-                proc_macro2::Span::call_site(),
-            );
 
-            // If any field in the group is transient, skip the whole group in bincode
-            let skip_attr = if group.has_transient {
-                quote! { #[bincode(skip)] }
-            } else {
-                quote! {}
-            };
+            /// Find a lazy field by predicate (mutable)
+            pub fn find_lazy_mut<T>(&mut self, extract: impl Fn(&mut LazyField) -> Option<&mut T>) -> Option<&mut T> {
+                self.lazy.iter_mut().find_map(extract)
+            }
 
-            if group.lazy {
-                group_fields.push(quote! {
-                    #skip_attr
-                    pub #group_name: Option<Box<#struct_name>>
-                });
-            } else {
-                group_fields.push(quote! {
-                    #skip_attr
-                    pub #group_name: #struct_name
-                });
+            /// Get or create a lazy field, returning a mutable reference
+            pub fn get_or_create_lazy<T>(
+                &mut self,
+                check: impl Fn(&LazyField) -> bool,
+                extract: impl Fn(&mut LazyField) -> Option<&mut T>,
+                create: impl FnOnce() -> LazyField,
+            ) -> &mut T {
+                let idx = self.lazy.iter().position(|f| check(f));
+                if let Some(idx) = idx {
+                    extract(&mut self.lazy[idx]).unwrap()
+                } else {
+                    self.lazy.push(create());
+                    extract(self.lazy.last_mut().unwrap()).unwrap()
+                }
+            }
+
+            /// Remove a lazy field at index if it's empty
+            pub fn remove_if_empty(&mut self, idx: usize) {
+                if self.lazy[idx].is_empty() {
+                    self.lazy.swap_remove(idx);
+                }
             }
         }
-    }
+    } else {
+        quote! {}
+    };
 
+    // Note: We don't derive bincode::Encode/Decode here since serialization
+    // will be handled manually via encode_data/encode_meta/decode_data/decode_meta methods
     quote! {
-        #[derive(Debug, Clone, Default, bincode::Encode, bincode::Decode)]
-        pub struct TaskData {
-            #(#specialized_field_defs,)*
-            #(#direct_fields,)*
-            #(#group_fields),*
-        }
-    }
-}
-
-fn generate_task_meta_struct(
-    groups: &[FieldGroup],
-    specialized_fields: &[StorageFieldAttributes],
-) -> proc_macro2::TokenStream {
-    let mut specialized_field_defs = Vec::new();
-    let mut direct_fields = Vec::new();
-    let mut group_fields = Vec::new();
-
-    // Add specialized fields first (for memory layout optimization)
-    for field in specialized_fields {
-        let field_name = &field.field_name;
-        let field_type = &field.field_type;
-        if field.transient {
-            specialized_field_defs.push(quote! {
-                #[bincode(skip)]
-                pub #field_name: #field_type
-            });
-        } else {
-            specialized_field_defs.push(quote! {
-                pub #field_name: #field_type
-            });
-        }
-    }
-
-    for group in groups {
-        if group.fields.len() == 1 && !group.lazy {
-            // Direct field
-            let field = &group.fields[0];
-            let field_name = &field.field_name;
-            let field_type = &field.field_type;
-            if field.transient {
-                direct_fields.push(quote! {
-                    #[bincode(skip)]
-                    pub #field_name: #field_type
-                });
-            } else {
-                direct_fields.push(quote! {
-                    pub #field_name: #field_type
-                });
-            }
-        } else {
-            // Group field
-            let group_name = syn::Ident::new(&group.name, proc_macro2::Span::call_site());
-            let struct_name = syn::Ident::new(
-                &format!("{}MetaGroup", capitalize(&group.name)),
-                proc_macro2::Span::call_site(),
-            );
-
-            // If any field in the group is transient, skip the whole group in bincode
-            let skip_attr = if group.has_transient {
-                quote! { #[bincode(skip)] }
-            } else {
-                quote! {}
-            };
-
-            if group.lazy {
-                group_fields.push(quote! {
-                    #skip_attr
-                    pub #group_name: Option<Box<#struct_name>>
-                });
-            } else {
-                group_fields.push(quote! {
-                    #skip_attr
-                    pub #group_name: #struct_name
-                });
-            }
-        }
-    }
-
-    quote! {
-        #[derive(Debug, Clone, Default, bincode::Encode, bincode::Decode)]
-        pub struct TaskMeta {
-            #(#specialized_field_defs,)*
-            #(#direct_fields,)*
-            #(#group_fields),*
-        }
-    }
-}
-
-fn generate_inner_storage_struct() -> proc_macro2::TokenStream {
-    quote! {
-        /// Typed storage containing all task data organized into TaskData and TaskMeta.
+        /// Unified typed storage containing all task fields.
         /// This is designed to be embedded in the actual InnerStorage for incremental migration.
         #[derive(Debug, Clone, Default)]
         pub struct TypedStorage {
-            pub data: TaskData,
-            pub meta: TaskMeta,
+            #(#field_defs,)*
+            #lazy_field
         }
 
         impl TypedStorage {
             pub fn new() -> Self {
-                Self {
-                    data: TaskData::default(),
-                    meta: TaskMeta::default(),
-                }
+                Self::default()
             }
+
+            #lazy_helpers
         }
     }
 }
@@ -625,24 +511,22 @@ fn generate_inner_storage_struct() -> proc_macro2::TokenStream {
 fn generate_accessor_methods(grouped_fields: &GroupedFields) -> proc_macro2::TokenStream {
     let mut methods = proc_macro2::TokenStream::new();
 
-    // Generate methods for specialized data fields
-    for field in &grouped_fields.specialized_data_fields {
-        methods.extend(generate_specialized_field_accessors(field, "data"));
+    // Generate methods for inline fields (both data and meta)
+    for field in grouped_fields
+        .inline_data_fields
+        .iter()
+        .chain(grouped_fields.inline_meta_fields.iter())
+    {
+        methods.extend(generate_inline_field_accessors(field));
     }
 
-    // Generate methods for specialized meta fields
-    for field in &grouped_fields.specialized_meta_fields {
-        methods.extend(generate_specialized_field_accessors(field, "meta"));
-    }
-
-    // Generate methods for data fields (in groups)
-    for group in &grouped_fields.data_groups {
-        methods.extend(generate_group_accessors(group, "data"));
-    }
-
-    // Generate methods for meta fields (in groups)
-    for group in &grouped_fields.meta_groups {
-        methods.extend(generate_group_accessors(group, "meta"));
+    // Generate methods for lazy_vec fields
+    for field in grouped_fields
+        .lazy_data_fields
+        .iter()
+        .chain(grouped_fields.lazy_meta_fields.iter())
+    {
+        methods.extend(generate_lazy_field_accessors(field));
     }
 
     quote! {
@@ -652,134 +536,14 @@ fn generate_accessor_methods(grouped_fields: &GroupedFields) -> proc_macro2::Tok
     }
 }
 
-fn generate_group_accessors(group: &FieldGroup, category: &str) -> proc_macro2::TokenStream {
-    let mut methods = proc_macro2::TokenStream::new();
-    let category_ident = syn::Ident::new(category, proc_macro2::Span::call_site());
-
-    // Calculate group-related names once if needed
-    let group_name = syn::Ident::new(&group.name, proc_macro2::Span::call_site());
-    let category_suffix = if category == "data" { "Data" } else { "Meta" };
-    let group_struct = syn::Ident::new(
-        &format!("{}{}Group", capitalize(&group.name), category_suffix),
-        proc_macro2::Span::call_site(),
-    );
-
-    // Is this a multi-field group or a lazy single-field group?
-    let is_grouped = group.fields.len() > 1 || group.lazy;
-
-    for field in &group.fields {
-        let field_name = &field.field_name;
-        let field_type = &field.field_type;
-
-        // Generate appropriate accessors based on storage type
-        // Note: Modification tracking is handled by the wrapper InnerStorage, not here
-        match field.storage_type {
-            StorageType::Direct => {
-                // Simple get/set for direct types (already Option<T>)
-                let get_name = syn::Ident::new(
-                    &format!("get_{}", field_name),
-                    proc_macro2::Span::call_site(),
-                );
-                let set_name = syn::Ident::new(
-                    &format!("set_{}", field_name),
-                    proc_macro2::Span::call_site(),
-                );
-
-                if is_grouped && group.lazy {
-                    // Lazy group - getter returns Option<&T> by checking if group exists
-                    methods.extend(quote! {
-                        pub fn #get_name(&self) -> Option<&#field_type> {
-                            self.#category_ident.#group_name.as_ref().map(|g| &g.#field_name)
-                        }
-
-                        pub fn #set_name(&mut self, value: #field_type) {
-                            self.#category_ident.#group_name
-                                .get_or_insert_with(|| Box::new(#group_struct::default()))
-                                .#field_name = value;
-                        }
-                    });
-                } else if is_grouped {
-                    // Non-lazy group - direct access through group
-                    methods.extend(quote! {
-                        pub fn #get_name(&self) -> &#field_type {
-                            &self.#category_ident.#group_name.#field_name
-                        }
-
-                        pub fn #set_name(&mut self, value: #field_type) {
-                            self.#category_ident.#group_name.#field_name = value;
-                        }
-                    });
-                } else {
-                    // Direct field (single non-lazy field)
-                    methods.extend(quote! {
-                        pub fn #get_name(&self) -> &#field_type {
-                            &self.#category_ident.#field_name
-                        }
-
-                        pub fn #set_name(&mut self, value: #field_type) {
-                            self.#category_ident.#field_name = value;
-                        }
-                    });
-                }
-            }
-            StorageType::AutoSet
-            | StorageType::AutoMap
-            | StorageType::CounterMap
-            | StorageType::IndexedVec => {
-                // Provide direct mutable access
-                let get_name = syn::Ident::new(
-                    &format!("{}_mut", field_name),
-                    proc_macro2::Span::call_site(),
-                );
-
-                if is_grouped && group.lazy {
-                    // Lazy group - need to initialize on access
-                    methods.extend(quote! {
-                        pub fn #get_name(&mut self) -> &mut #field_type {
-                            &mut self.#category_ident.#group_name
-                                .get_or_insert_with(|| Box::new(#group_struct::default()))
-                                .#field_name
-                        }
-                    });
-                } else if is_grouped {
-                    // Non-lazy group - direct access through group
-                    methods.extend(quote! {
-                        pub fn #get_name(&mut self) -> &mut #field_type {
-                            &mut self.#category_ident.#group_name.#field_name
-                        }
-                    });
-                } else {
-                    // Direct field (single non-lazy field)
-                    methods.extend(quote! {
-                        pub fn #get_name(&mut self) -> &mut #field_type {
-                            &mut self.#category_ident.#field_name
-                        }
-                    });
-                }
-            }
-        }
-    }
-
-    methods
-}
-
-fn generate_specialized_field_accessors(
-    field: &StorageFieldAttributes,
-    category: &str,
-) -> proc_macro2::TokenStream {
-    let mut methods = proc_macro2::TokenStream::new();
-    let category_ident = syn::Ident::new(category, proc_macro2::Span::call_site());
+/// Generate accessor methods for an inline field (stored directly on TypedStorage)
+fn generate_inline_field_accessors(field: &StorageFieldAttributes) -> proc_macro2::TokenStream {
     let field_name = &field.field_name;
     let field_type = &field.field_type;
 
-    // Specialized fields are always direct access at the top level of TaskData/TaskMeta
-    let field_path = quote! { self.#category_ident.#field_name };
-    let field_path_mut = quote! { &mut self.#category_ident.#field_name };
-
-    // Generate appropriate accessors based on storage type
-    // Note: Modification tracking is handled by the wrapper InnerStorage, not here
     match field.storage_type {
         StorageType::Direct => {
+            // Simple get/set for direct types (already Option<T>)
             let get_name = syn::Ident::new(
                 &format!("get_{}", field_name),
                 proc_macro2::Span::call_site(),
@@ -789,53 +553,120 @@ fn generate_specialized_field_accessors(
                 proc_macro2::Span::call_site(),
             );
 
-            methods.extend(quote! {
+            quote! {
                 pub fn #get_name(&self) -> &#field_type {
-                    &#field_path
+                    &self.#field_name
                 }
 
                 pub fn #set_name(&mut self, value: #field_type) {
-                    *#field_path_mut = value;
+                    self.#field_name = value;
                 }
-            });
+            }
         }
         StorageType::AutoSet
         | StorageType::AutoMap
         | StorageType::CounterMap
         | StorageType::IndexedVec => {
-            let get_name = syn::Ident::new(
+            // Provide direct mutable access for collection types
+            let mut_name = syn::Ident::new(
                 &format!("{}_mut", field_name),
                 proc_macro2::Span::call_site(),
             );
 
-            methods.extend(quote! {
-                pub fn #get_name(&mut self) -> &mut #field_type {
-                    #field_path_mut
+            quote! {
+                pub fn #mut_name(&mut self) -> &mut #field_type {
+                    &mut self.#field_name
                 }
-            });
+            }
         }
     }
-
-    methods
 }
 
-fn generate_snapshot_struct() -> proc_macro2::TokenStream {
-    // No separate snapshot struct needed - TypedStorage can be cloned directly
-    // The wrapper InnerStorage handles snapshot/restore with state tracking
-    quote! {}
+/// Generate accessor methods for a lazy field (stored in Vec<LazyField>)
+fn generate_lazy_field_accessors(field: &StorageFieldAttributes) -> proc_macro2::TokenStream {
+    let field_name = &field.field_name;
+    let field_type = &field.field_type;
+    let variant_name = syn::Ident::new(
+        &to_pascal_case(&field.field_name.to_string()),
+        field.field_name.span(),
+    );
+
+    match field.storage_type {
+        StorageType::Direct => {
+            // For Option<T> types with lazy_vec, generate Option-like accessors
+            let get_name = syn::Ident::new(
+                &format!("get_{}", field_name),
+                proc_macro2::Span::call_site(),
+            );
+            let set_name = syn::Ident::new(
+                &format!("set_{}", field_name),
+                proc_macro2::Span::call_site(),
+            );
+            let take_name = syn::Ident::new(
+                &format!("take_{}", field_name),
+                proc_macro2::Span::call_site(),
+            );
+
+            quote! {
+                pub fn #get_name(&self) -> Option<&#field_type> {
+                    self.find_lazy(|f| match f {
+                        LazyField::#variant_name(v) => Some(v),
+                        _ => None,
+                    })
+                }
+
+                pub fn #set_name(&mut self, value: #field_type) {
+                    // Remove existing if any, then add new
+                    self.lazy.retain(|f| !matches!(f, LazyField::#variant_name(_)));
+                    self.lazy.push(LazyField::#variant_name(value));
+                }
+
+                pub fn #take_name(&mut self) -> Option<#field_type> {
+                    let idx = self.lazy.iter().position(|f| matches!(f, LazyField::#variant_name(_)))?;
+                    match self.lazy.swap_remove(idx) {
+                        LazyField::#variant_name(v) => Some(v),
+                        _ => unreachable!(),
+                    }
+                }
+            }
+        }
+        _ => {
+            // For collection types, generate get (Option<&T>) and get_mut (&mut T)
+            let ref_name =
+                syn::Ident::new(&format!("{}", field_name), proc_macro2::Span::call_site());
+            let mut_name = syn::Ident::new(
+                &format!("{}_mut", field_name),
+                proc_macro2::Span::call_site(),
+            );
+
+            quote! {
+                pub fn #ref_name(&self) -> Option<&#field_type> {
+                    self.find_lazy(|f| match f {
+                        LazyField::#variant_name(v) => Some(v),
+                        _ => None,
+                    })
+                }
+
+                pub fn #mut_name(&mut self) -> &mut #field_type {
+                    self.get_or_create_lazy(
+                        |f| matches!(f, LazyField::#variant_name(_)),
+                        |f| match f {
+                            LazyField::#variant_name(v) => Some(v),
+                            _ => None,
+                        },
+                        || LazyField::#variant_name(Default::default()),
+                    )
+                }
+            }
+        }
+    }
 }
 
-fn generate_snapshot_methods() -> proc_macro2::TokenStream {
-    // No snapshot methods needed - TypedStorage can be cloned directly
-    // The wrapper InnerStorage handles snapshot/restore with state tracking
-    quote! {}
-}
-
-/// Generates the TaskStorageAccessors trait with accessor methods for migrated fields.
+/// Generates the TaskStorageAccessors trait with accessor methods for all fields.
 ///
 /// This trait provides:
 /// 1. Required methods: `typed()` and `typed_mut(category)` that implementors must provide
-/// 2. Provided methods: accessor methods for each field marked with `migrated`
+/// 2. Provided methods: accessor methods for all fields
 ///
 /// The trait is designed to be used with TaskGuard, which implements the required methods
 /// and gets all the accessor methods for free.
@@ -844,59 +675,30 @@ fn generate_task_storage_accessors_trait(
 ) -> proc_macro2::TokenStream {
     let mut trait_methods = proc_macro2::TokenStream::new();
 
-    // Collect all migrated fields
-    let mut migrated_fields: Vec<(&StorageFieldAttributes, &str)> = Vec::new();
-
-    // Check specialized fields
-    for field in &grouped_fields.specialized_data_fields {
-        if field.migrated {
-            migrated_fields.push((field, "data"));
-        }
+    // Generate accessor methods for inline fields
+    for field in &grouped_fields.inline_data_fields {
+        trait_methods.extend(generate_inline_trait_accessor_methods(field, "data"));
     }
-    for field in &grouped_fields.specialized_meta_fields {
-        if field.migrated {
-            migrated_fields.push((field, "meta"));
-        }
+    for field in &grouped_fields.inline_meta_fields {
+        trait_methods.extend(generate_inline_trait_accessor_methods(field, "meta"));
     }
 
-    // Check grouped fields
-    for group in &grouped_fields.data_groups {
-        for field in &group.fields {
-            if field.migrated {
-                migrated_fields.push((field, "data"));
-            }
-        }
+    // Generate accessor methods for lazy_vec fields
+    for field in &grouped_fields.lazy_data_fields {
+        trait_methods.extend(generate_lazy_trait_accessor_methods(field));
     }
-    for group in &grouped_fields.meta_groups {
-        for field in &group.fields {
-            if field.migrated {
-                migrated_fields.push((field, "meta"));
-            }
-        }
-    }
-
-    // Generate accessor methods for each migrated field
-    for (field, category) in &migrated_fields {
-        trait_methods.extend(generate_trait_accessor_methods(
-            field,
-            category,
-            grouped_fields,
-        ));
-    }
-
-    // Only generate the trait if there are migrated fields
-    if migrated_fields.is_empty() {
-        return quote! {};
+    for field in &grouped_fields.lazy_meta_fields {
+        trait_methods.extend(generate_lazy_trait_accessor_methods(field));
     }
 
     quote! {
         /// Trait for typed storage accessors.
         ///
-        /// This trait is auto-generated by the TaskStorage macro for fields marked with `migrated`.
+        /// This trait is auto-generated by the TaskStorage macro.
         /// Implementors only need to provide `typed()` and `typed_mut()` methods, and all
         /// accessor methods are provided automatically.
         ///
-        /// This is designed to work with TaskGuard for incremental migration from CachedDataItem.
+        /// This is designed to work with TaskGuard.
         pub trait TaskStorageAccessors {
             /// Access the typed storage (read-only)
             fn typed(&self) -> &TypedStorage;
@@ -911,15 +713,13 @@ fn generate_task_storage_accessors_trait(
     }
 }
 
-/// Generates trait accessor methods for a single migrated field
-fn generate_trait_accessor_methods(
+/// Generates trait accessor methods for an inline field (stored directly on TypedStorage)
+fn generate_inline_trait_accessor_methods(
     field: &StorageFieldAttributes,
     category: &str,
-    grouped_fields: &GroupedFields,
 ) -> proc_macro2::TokenStream {
     let field_name = &field.field_name;
     let field_type = &field.field_type;
-    let category_ident = syn::Ident::new(category, proc_macro2::Span::call_site());
 
     // Determine the category enum variant for typed_mut
     let category_variant = if category == "data" {
@@ -927,10 +727,6 @@ fn generate_trait_accessor_methods(
     } else {
         quote! { crate::backend::storage::SpecificTaskDataCategory::Meta }
     };
-
-    // Check if this field is in a group and if that group is lazy
-    let (is_grouped, is_lazy, group_name, group_struct) =
-        find_field_group_info(field, category, grouped_fields);
 
     match field.storage_type {
         StorageType::Direct => {
@@ -955,91 +751,28 @@ fn generate_trait_accessor_methods(
             // Extract inner type from Option<T>
             let inner_type = extract_option_inner_type(field_type);
 
-            if is_grouped && is_lazy {
-                let group_name = group_name.unwrap();
-                let group_struct = group_struct.unwrap();
-                quote! {
-                    /// Get a reference to the field value (if present)
-                    fn #get_ref_name(&self) -> Option<&#inner_type> {
-                        self.typed().#category_ident.#group_name
-                            .as_ref()
-                            .and_then(|g| g.#field_name.as_ref())
-                    }
-
-                    /// Check if this field has a value
-                    fn #has_name(&self) -> bool {
-                        self.typed().#category_ident.#group_name
-                            .as_ref()
-                            .map(|g| g.#field_name.is_some())
-                            .unwrap_or(false)
-                    }
-
-                    /// Set the field value, returning the old value if present
-                    fn #set_name(&mut self, value: #inner_type) -> Option<#inner_type> {
-                        let typed = self.typed_mut(#category_variant);
-                        let group = typed.#category_ident.#group_name
-                            .get_or_insert_with(|| Box::new(#group_struct::default()));
-                        std::mem::replace(&mut group.#field_name, Some(value))
-                    }
-
-                    /// Take the field value, leaving None
-                    fn #take_name(&mut self) -> Option<#inner_type> {
-                        self.typed_mut(#category_variant).#category_ident.#group_name
-                            .as_mut()
-                            .and_then(|g| g.#field_name.take())
-                    }
+            quote! {
+                /// Get a reference to the field value (if present)
+                fn #get_ref_name(&self) -> Option<&#inner_type> {
+                    self.typed().#field_name.as_ref()
                 }
-            } else if is_grouped {
-                let group_name = group_name.unwrap();
-                quote! {
-                    /// Get a reference to the field value (if present)
-                    fn #get_ref_name(&self) -> Option<&#inner_type> {
-                        self.typed().#category_ident.#group_name.#field_name.as_ref()
-                    }
 
-                    /// Check if this field has a value
-                    fn #has_name(&self) -> bool {
-                        self.typed().#category_ident.#group_name.#field_name.is_some()
-                    }
-
-                    /// Set the field value, returning the old value if present
-                    fn #set_name(&mut self, value: #inner_type) -> Option<#inner_type> {
-                        std::mem::replace(
-                            &mut self.typed_mut(#category_variant).#category_ident.#group_name.#field_name,
-                            Some(value)
-                        )
-                    }
-
-                    /// Take the field value, leaving None
-                    fn #take_name(&mut self) -> Option<#inner_type> {
-                        self.typed_mut(#category_variant).#category_ident.#group_name.#field_name.take()
-                    }
+                /// Check if this field has a value
+                fn #has_name(&self) -> bool {
+                    self.typed().#field_name.is_some()
                 }
-            } else {
-                // Direct field at top level (specialized or single non-lazy)
-                quote! {
-                    /// Get a reference to the field value (if present)
-                    fn #get_ref_name(&self) -> Option<&#inner_type> {
-                        self.typed().#category_ident.#field_name.as_ref()
-                    }
 
-                    /// Check if this field has a value
-                    fn #has_name(&self) -> bool {
-                        self.typed().#category_ident.#field_name.is_some()
-                    }
+                /// Set the field value, returning the old value if present
+                fn #set_name(&mut self, value: #inner_type) -> Option<#inner_type> {
+                    std::mem::replace(
+                        &mut self.typed_mut(#category_variant).#field_name,
+                        Some(value)
+                    )
+                }
 
-                    /// Set the field value, returning the old value if present
-                    fn #set_name(&mut self, value: #inner_type) -> Option<#inner_type> {
-                        std::mem::replace(
-                            &mut self.typed_mut(#category_variant).#category_ident.#field_name,
-                            Some(value)
-                        )
-                    }
-
-                    /// Take the field value, leaving None
-                    fn #take_name(&mut self) -> Option<#inner_type> {
-                        self.typed_mut(#category_variant).#category_ident.#field_name.take()
-                    }
+                /// Take the field value, leaving None
+                fn #take_name(&mut self) -> Option<#inner_type> {
+                    self.typed_mut(#category_variant).#field_name.take()
                 }
             }
         }
@@ -1055,106 +788,19 @@ fn generate_trait_accessor_methods(
                 proc_macro2::Span::call_site(),
             );
 
-            if is_grouped && is_lazy {
-                let group_name = group_name.unwrap();
-                let group_struct = group_struct.unwrap();
-                quote! {
-                    /// Get a reference to the collection (may be empty if group not allocated)
-                    fn #ref_name(&self) -> Option<&#field_type> {
-                        self.typed().#category_ident.#group_name
-                            .as_ref()
-                            .map(|g| &g.#field_name)
-                    }
-
-                    /// Get a mutable reference to the collection (allocates group if needed)
-                    fn #mut_name(&mut self) -> &mut #field_type {
-                        let typed = self.typed_mut(#category_variant);
-                        &mut typed.#category_ident.#group_name
-                            .get_or_insert_with(|| Box::new(#group_struct::default()))
-                            .#field_name
-                    }
+            quote! {
+                /// Get a reference to the collection
+                fn #ref_name(&self) -> &#field_type {
+                    &self.typed().#field_name
                 }
-            } else if is_grouped {
-                let group_name = group_name.unwrap();
-                quote! {
-                    /// Get a reference to the collection
-                    fn #ref_name(&self) -> &#field_type {
-                        &self.typed().#category_ident.#group_name.#field_name
-                    }
 
-                    /// Get a mutable reference to the collection
-                    fn #mut_name(&mut self) -> &mut #field_type {
-                        &mut self.typed_mut(#category_variant).#category_ident.#group_name.#field_name
-                    }
-                }
-            } else {
-                // Direct field at top level
-                quote! {
-                    /// Get a reference to the collection
-                    fn #ref_name(&self) -> &#field_type {
-                        &self.typed().#category_ident.#field_name
-                    }
-
-                    /// Get a mutable reference to the collection
-                    fn #mut_name(&mut self) -> &mut #field_type {
-                        &mut self.typed_mut(#category_variant).#category_ident.#field_name
-                    }
+                /// Get a mutable reference to the collection
+                fn #mut_name(&mut self) -> &mut #field_type {
+                    &mut self.typed_mut(#category_variant).#field_name
                 }
             }
         }
     }
-}
-
-/// Find group info for a field (whether it's grouped, lazy, group name, group struct)
-fn find_field_group_info(
-    field: &StorageFieldAttributes,
-    category: &str,
-    grouped_fields: &GroupedFields,
-) -> (bool, bool, Option<syn::Ident>, Option<syn::Ident>) {
-    // Check if it's a specialized field (not grouped)
-    let specialized_fields = if category == "data" {
-        &grouped_fields.specialized_data_fields
-    } else {
-        &grouped_fields.specialized_meta_fields
-    };
-
-    if specialized_fields
-        .iter()
-        .any(|f| f.field_name == field.field_name)
-    {
-        return (false, false, None, None);
-    }
-
-    // Check groups
-    let groups = if category == "data" {
-        &grouped_fields.data_groups
-    } else {
-        &grouped_fields.meta_groups
-    };
-
-    for group in groups {
-        if group
-            .fields
-            .iter()
-            .any(|f| f.field_name == field.field_name)
-        {
-            // Single non-lazy field is not really grouped (stored directly)
-            if group.fields.len() == 1 && !group.lazy {
-                return (false, false, None, None);
-            }
-
-            let group_name = syn::Ident::new(&group.name, proc_macro2::Span::call_site());
-            let category_suffix = if category == "data" { "Data" } else { "Meta" };
-            let group_struct = syn::Ident::new(
-                &format!("{}{}Group", capitalize(&group.name), category_suffix),
-                proc_macro2::Span::call_site(),
-            );
-
-            return (true, group.lazy, Some(group_name), Some(group_struct));
-        }
-    }
-
-    (false, false, None, None)
 }
 
 /// Extract the inner type from Option<T>
@@ -1180,5 +826,129 @@ fn capitalize(s: &str) -> String {
     match c.next() {
         None => String::new(),
         Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+    }
+}
+
+/// Convert snake_case to PascalCase (e.g., "in_progress" -> "InProgress")
+fn to_pascal_case(s: &str) -> String {
+    s.split('_')
+        .map(|word| capitalize(word))
+        .collect::<String>()
+}
+
+/// Generate trait accessor methods for a lazy field (stored in Vec<LazyField>)
+fn generate_lazy_trait_accessor_methods(
+    field: &StorageFieldAttributes,
+) -> proc_macro2::TokenStream {
+    let field_name = &field.field_name;
+    let field_type = &field.field_type;
+    let variant_name = syn::Ident::new(
+        &to_pascal_case(&field.field_name.to_string()),
+        field.field_name.span(),
+    );
+
+    // Determine the category for typed_mut
+    let category_variant = if field.category == Category::Meta {
+        quote! { crate::backend::storage::SpecificTaskDataCategory::Meta }
+    } else {
+        quote! { crate::backend::storage::SpecificTaskDataCategory::Data }
+    };
+
+    match field.storage_type {
+        StorageType::Direct => {
+            // For Option<T> types with lazy_vec, generate Option-like trait accessors
+            let get_ref_name = syn::Ident::new(
+                &format!("get_{}_ref", field_name),
+                proc_macro2::Span::call_site(),
+            );
+            let has_name = syn::Ident::new(
+                &format!("has_{}", field_name),
+                proc_macro2::Span::call_site(),
+            );
+            let set_name = syn::Ident::new(
+                &format!("set_{}", field_name),
+                proc_macro2::Span::call_site(),
+            );
+            let take_name = syn::Ident::new(
+                &format!("take_{}", field_name),
+                proc_macro2::Span::call_site(),
+            );
+
+            let inner_type = extract_option_inner_type(field_type);
+
+            quote! {
+                /// Get a reference to the field value (if present)
+                fn #get_ref_name(&self) -> Option<&#inner_type> {
+                    self.typed().find_lazy(|f| match f {
+                        LazyField::#variant_name(v) => v.as_ref(),
+                        _ => None,
+                    })
+                }
+
+                /// Check if this field has a value
+                fn #has_name(&self) -> bool {
+                    self.typed().lazy.iter().any(|f| matches!(f, LazyField::#variant_name(Some(_))))
+                }
+
+                /// Set the field value, returning the old value if present
+                fn #set_name(&mut self, value: #inner_type) -> Option<#inner_type> {
+                    let typed = self.typed_mut(#category_variant);
+                    // Find and remove existing
+                    let old = typed.lazy.iter().position(|f| matches!(f, LazyField::#variant_name(_)))
+                        .and_then(|idx| {
+                            match typed.lazy.swap_remove(idx) {
+                                LazyField::#variant_name(v) => v,
+                                _ => None,
+                            }
+                        });
+                    typed.lazy.push(LazyField::#variant_name(Some(value)));
+                    old
+                }
+
+                /// Take the field value, leaving None
+                fn #take_name(&mut self) -> Option<#inner_type> {
+                    let typed = self.typed_mut(#category_variant);
+                    typed.lazy.iter().position(|f| matches!(f, LazyField::#variant_name(_)))
+                        .and_then(|idx| {
+                            match typed.lazy.swap_remove(idx) {
+                                LazyField::#variant_name(v) => v,
+                                _ => None,
+                            }
+                        })
+                }
+            }
+        }
+        _ => {
+            // For collection types, generate get (Option<&T>) and get_mut (&mut T)
+            let ref_name =
+                syn::Ident::new(&format!("{}", field_name), proc_macro2::Span::call_site());
+            let mut_name = syn::Ident::new(
+                &format!("{}_mut", field_name),
+                proc_macro2::Span::call_site(),
+            );
+
+            quote! {
+                /// Get a reference to the collection (may be None if not allocated)
+                fn #ref_name(&self) -> Option<&#field_type> {
+                    self.typed().find_lazy(|f| match f {
+                        LazyField::#variant_name(v) => Some(v),
+                        _ => None,
+                    })
+                }
+
+                /// Get a mutable reference to the collection (allocates if needed)
+                fn #mut_name(&mut self) -> &mut #field_type {
+                    let typed = self.typed_mut(#category_variant);
+                    typed.get_or_create_lazy(
+                        |f| matches!(f, LazyField::#variant_name(_)),
+                        |f| match f {
+                            LazyField::#variant_name(v) => Some(v),
+                            _ => None,
+                        },
+                        || LazyField::#variant_name(Default::default()),
+                    )
+                }
+            }
+        }
     }
 }

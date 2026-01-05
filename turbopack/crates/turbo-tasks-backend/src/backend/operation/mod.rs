@@ -2026,43 +2026,55 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         }
     }
 
-    // ============ Execution group implementations ============
+    // ============ Execution fields (lazy_vec) ============
 
     fn get_activeness_mut(&mut self) -> Option<&mut ActivenessState> {
-        // Access the typed storage directly - execution group is migrated
+        // Access the typed storage directly - activeness is a lazy_vec field
         self.check_access(TaskDataCategory::Meta);
         let typed = self.typed_mut(SpecificTaskDataCategory::Meta);
-        typed
-            .meta
-            .execution
-            .as_mut()
-            .and_then(|group| group.activeness.as_mut())
+        // For lazy_vec direct fields, the type is Option<T> stored in Vec<LazyField>
+        // The accessor get_activeness() returns Option<&Option<ActivenessState>>
+        // We need to find and return a mutable ref to the inner value
+        typed.find_lazy_mut(|f| match f {
+            crate::backend::storage_schema::LazyField::Activeness(opt) => opt.as_mut(),
+            _ => None,
+        })
     }
 
     fn get_activeness_mut_or_insert_with<F>(&mut self, f: F) -> &mut ActivenessState
     where
         F: FnOnce() -> ActivenessState,
     {
-        // Access the typed storage directly - execution group is migrated
+        // Access the typed storage directly - activeness is a lazy_vec field
         self.check_access(TaskDataCategory::Meta);
         let typed = self.typed_mut(SpecificTaskDataCategory::Meta);
+        // Check if we already have the field with a value
+        let has_value = typed
+            .get_activeness()
+            .and_then(|opt| opt.as_ref())
+            .is_some();
+        if !has_value {
+            typed.set_activeness(Some(f()));
+        }
+        // Now get it mutably
         typed
-            .meta
-            .execution
-            .get_or_insert_with(Default::default)
-            .activeness
-            .get_or_insert_with(f)
+            .find_lazy_mut(|field| match field {
+                crate::backend::storage_schema::LazyField::Activeness(opt) => opt.as_mut(),
+                _ => None,
+            })
+            .expect("activeness should exist after set")
     }
 
     fn get_in_progress_mut(&mut self) -> Option<&mut InProgressState> {
-        // Access the typed storage directly - execution group is migrated
+        // Access the typed storage directly - in_progress is a lazy_vec field
         self.check_access(TaskDataCategory::Meta);
         let typed = self.typed_mut(SpecificTaskDataCategory::Meta);
-        typed
-            .meta
-            .execution
-            .as_mut()
-            .and_then(|group| group.in_progress.as_mut())
+        // InProgress variant holds Option<InProgressState>
+        // We need to find the variant and then get mutable access to the inner value
+        typed.find_lazy_mut(|f| match f {
+            crate::backend::storage_schema::LazyField::InProgress(opt) => opt.as_mut(),
+            _ => None,
+        })
     }
 }
 
