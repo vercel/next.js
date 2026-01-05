@@ -588,13 +588,18 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
 
     // ============ Typed Marker APIs ============
     // Flags are migrated: use TaskStorageAccessors trait methods
-    // Generated methods: has_stateful, set_stateful, take_stateful, etc.
+    // Generated methods: stateful(), set_stateful(), invalidator(), set_invalidator(), etc.
 
     /// Mark this task as stateful
     /// Returns true if the marker was newly added, false if it already existed
     fn mark_stateful(&mut self) -> bool {
         // Uses typed storage accessor from TaskStorageAccessors trait
-        self.set_stateful(()).is_none()
+        if self.stateful() {
+            false
+        } else {
+            self.set_stateful(true);
+            true
+        }
     }
 
     /// Mark this task as having an invalidator
@@ -602,7 +607,12 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     #[must_use]
     fn mark_invalidator(&mut self) -> bool {
         // Uses typed storage accessor from TaskStorageAccessors trait
-        self.set_invalidator(()).is_none()
+        if self.invalidator() {
+            false
+        } else {
+            self.set_invalidator(true);
+            true
+        }
     }
 
     /// Mark this task as immutable
@@ -610,7 +620,12 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     #[must_use]
     fn mark_immutable(&mut self) -> bool {
         // Uses typed storage accessor from TaskStorageAccessors trait
-        self.set_immutable(()).is_none()
+        if self.immutable() {
+            false
+        } else {
+            self.set_immutable(true);
+            true
+        }
     }
 
     // ============ Output APIs ============
@@ -624,21 +639,31 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     // - take_dirty() -> Option<Dirtyness> (clears and returns old value)
 
     /// Check if this task is marked as clean in the current session
-    /// Uses has_current_session_clean() from TaskStorageAccessors trait
+    /// Uses current_session_clean() from TaskStorageAccessors trait
     fn is_current_session_clean(&self) -> bool {
-        self.has_current_session_clean()
+        self.current_session_clean()
     }
 
     /// Mark this task as clean in the current session
     /// Returns true if it was newly marked, false if already marked
     fn mark_current_session_clean(&mut self) -> bool {
-        self.set_current_session_clean(()).is_none()
+        if self.current_session_clean() {
+            false
+        } else {
+            self.set_current_session_clean(true);
+            true
+        }
     }
 
     /// Clear the current session clean marker
     /// Returns true if it was cleared, false if it wasn't marked
     fn clear_current_session_clean(&mut self) -> bool {
-        self.take_current_session_clean().is_some()
+        if self.current_session_clean() {
+            self.set_current_session_clean(false);
+            true
+        } else {
+            false
+        }
     }
 
     // Counter field accessors
@@ -1084,16 +1109,15 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         self.get_dirty_ref()
             .is_some_and(|dirtyness| match dirtyness {
                 Dirtyness::Dirty => true,
-                Dirtyness::SessionDependent => self.get_current_session_clean_ref().is_none(),
+                Dirtyness::SessionDependent => !self.current_session_clean(),
             })
     }
     fn dirtyness_and_session(&self) -> Option<(Dirtyness, bool)> {
         match self.get_dirty_ref()? {
             Dirtyness::Dirty => Some((Dirtyness::Dirty, false)),
-            Dirtyness::SessionDependent => Some((
-                Dirtyness::SessionDependent,
-                self.get_current_session_clean_ref().is_some(),
-            )),
+            Dirtyness::SessionDependent => {
+                Some((Dirtyness::SessionDependent, self.current_session_clean()))
+            }
         }
     }
     /// Returns (is_dirty, is_clean_in_current_session)
@@ -1101,9 +1125,7 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         match self.get_dirty_ref() {
             None => (false, false),
             Some(Dirtyness::Dirty) => (true, false),
-            Some(Dirtyness::SessionDependent) => {
-                (true, self.get_current_session_clean_ref().is_some())
-            }
+            Some(Dirtyness::SessionDependent) => (true, self.current_session_clean()),
         }
     }
     fn dirty_containers(&self) -> impl Iterator<Item = TaskId> {
@@ -1903,7 +1925,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
 
     fn is_immutable(&self) -> bool {
         // Uses typed storage accessor from TaskStorageAccessors trait
-        self.has_immutable()
+        self.immutable()
     }
 
     fn add_output_dependent(&mut self, task: TaskId) -> bool {

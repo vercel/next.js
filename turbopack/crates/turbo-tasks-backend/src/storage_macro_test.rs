@@ -156,4 +156,50 @@ mod tests {
             5
         );
     }
+
+    #[test]
+    fn test_flag_fields() {
+        use crate::backend::storage_schema::TaskFlags;
+
+        let mut storage = TypedStorage::new();
+
+        // Test that flags are default false
+        assert!(!storage.flags.stateful());
+        assert!(!storage.flags.invalidator());
+        assert!(!storage.flags.immutable());
+        assert!(!storage.flags.current_session_clean());
+
+        // Test setting flags
+        storage.flags.set_stateful(true);
+        assert!(storage.flags.stateful());
+        assert!(!storage.flags.invalidator()); // Other flags unchanged
+
+        storage.flags.set_invalidator(true);
+        storage.flags.set_immutable(true);
+        assert!(storage.flags.stateful());
+        assert!(storage.flags.invalidator());
+        assert!(storage.flags.immutable());
+
+        // Test transient flag (current_session_clean)
+        storage.flags.set_current_session_clean(true);
+        assert!(storage.flags.current_session_clean());
+
+        // Test persisted_bits only includes non-transient flags
+        // stateful=bit 0, invalidator=bit 1, immutable=bit 2 (persisted)
+        // current_session_clean=bit 3 (transient)
+        let persisted = storage.flags.persisted_bits();
+        assert_eq!(persisted, 0b0111); // Only bits 0, 1, 2
+
+        // Test TaskFlags constants
+        assert_eq!(TaskFlags::PERSISTED_MASK, 0b111); // 3 persisted flags
+
+        // Test set_persisted_bits preserves transient flags
+        let mut storage2 = TypedStorage::new();
+        storage2.flags.set_current_session_clean(true); // Set transient flag
+        storage2.flags.set_persisted_bits(0b101); // Set stateful and immutable
+        assert!(storage2.flags.stateful());
+        assert!(!storage2.flags.invalidator());
+        assert!(storage2.flags.immutable());
+        assert!(storage2.flags.current_session_clean()); // Transient flag preserved
+    }
 }

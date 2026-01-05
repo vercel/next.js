@@ -1957,7 +1957,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             // Task is not session dependent (session dependent tasks can change between sessions)
             && !session_dependent
             // Task has no invalidator
-            && !task.has_invalidator()
+            && !task.invalidator()
             // Task has no dependencies on collectibles
             && task.count_collectibles_dependencies() == 0
         {

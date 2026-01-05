@@ -1143,15 +1143,15 @@ macro_rules! generate_inner_storage {
                 }
                 // Flags (migrated)
                 if matches!(ty, CachedDataItemType::Stateful) {
-                    panic!("Use TaskGuard::has_stateful() instead of count() for Stateful");
+                    panic!("Use TaskGuard::stateful() instead of count() for Stateful");
                 }
                 if matches!(ty, CachedDataItemType::HasInvalidator) {
                     panic!(
-                        "Use TaskGuard::has_invalidator() instead of count() for HasInvalidator"
+                        "Use TaskGuard::invalidator() instead of count() for HasInvalidator"
                     );
                 }
                 if matches!(ty, CachedDataItemType::Immutable) {
-                    panic!("Use TaskGuard::has_immutable() instead of count() for Immutable");
+                    panic!("Use TaskGuard::immutable() instead of count() for Immutable");
                 }
                 // State group (migrated)
                 if matches!(ty, CachedDataItemType::Dirty) {
@@ -1171,7 +1171,7 @@ macro_rules! generate_inner_storage {
                 }
                 if matches!(ty, CachedDataItemType::CurrentSessionClean) {
                     panic!(
-                        "Use TaskGuard::has_current_session_clean() instead of count() for \
+                        "Use TaskGuard::current_session_clean() instead of count() for \
                          CurrentSessionClean"
                     );
                 }
@@ -1347,7 +1347,7 @@ macro_rules! generate_inner_storage {
                 }
                 if matches!(key, CachedDataItemKey::CurrentSessionClean {}) {
                     panic!(
-                        "Use TaskGuard::get_current_session_clean_ref() instead of get() for \
+                        "Use TaskGuard::current_session_clean() instead of get() for \
                          CurrentSessionClean"
                     );
                 }
@@ -1499,17 +1499,17 @@ macro_rules! generate_inner_storage {
                 }
                 // Flags (migrated)
                 if matches!(key, CachedDataItemKey::Stateful {}) {
-                    panic!("Use TaskGuard::has_stateful() instead of contains_key() for Stateful");
+                    panic!("Use TaskGuard::stateful() instead of contains_key() for Stateful");
                 }
                 if matches!(key, CachedDataItemKey::HasInvalidator {}) {
                     panic!(
-                        "Use TaskGuard::has_invalidator() instead of contains_key() for \
+                        "Use TaskGuard::invalidator() instead of contains_key() for \
                          HasInvalidator"
                     );
                 }
                 if matches!(key, CachedDataItemKey::Immutable {}) {
                     panic!(
-                        "Use TaskGuard::has_immutable() instead of contains_key() for Immutable"
+                        "Use TaskGuard::immutable() instead of contains_key() for Immutable"
                     );
                 }
                 // State group (migrated)
@@ -1530,7 +1530,7 @@ macro_rules! generate_inner_storage {
                 }
                 if matches!(key, CachedDataItemKey::CurrentSessionClean {}) {
                     panic!(
-                        "Use TaskGuard::has_current_session_clean() instead of contains_key() for \
+                        "Use TaskGuard::current_session_clean() instead of contains_key() for \
                          CurrentSessionClean"
                     );
                 }
@@ -2702,30 +2702,30 @@ impl InnerStorage {
         self.typed.output_dependent.insert(task)
     }
 
-    // Flags (migrated - direct fields)
+    // Flags (migrated - stored in TaskFlags bitfield)
     fn add_stateful(&mut self) -> bool {
-        if self.typed.stateful.is_some() {
+        if self.typed.flags.stateful() {
             false
         } else {
-            self.typed.stateful = Some(());
+            self.typed.flags.set_stateful(true);
             true
         }
     }
 
     fn add_invalidator(&mut self) -> bool {
-        if self.typed.invalidator.is_some() {
+        if self.typed.flags.invalidator() {
             false
         } else {
-            self.typed.invalidator = Some(());
+            self.typed.flags.set_invalidator(true);
             true
         }
     }
 
     fn add_immutable(&mut self) -> bool {
-        if self.typed.immutable.is_some() {
+        if self.typed.flags.immutable() {
             false
         } else {
-            self.typed.immutable = Some(());
+            self.typed.flags.set_immutable(true);
             true
         }
     }

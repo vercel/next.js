@@ -12,8 +12,9 @@ use syn::{
 /// 2. LazyField enum for lazy_vec fields
 /// 3. Typed accessor methods on TypedStorage
 /// 4. TaskStorageAccessors trait with accessor methods
+/// 5. TaskFlags bitfield for boolean flags
 ///
-/// # Attributes
+/// # Field Attributes
 ///
 /// - `#[task_storage(storage = "...")]` - Specifies the storage type:
 ///   - `direct` - Direct field access (e.g., `Option<OutputValue>`)
@@ -30,6 +31,9 @@ use syn::{
 ///   Fields without `lazy` are stored inline.
 ///
 /// - `#[task_storage(transient)]` - Field is not serialized
+///
+/// - `#[task_storage(flag)]` - Field is a boolean flag stored in a bitfield. The field type must be
+///   `bool`. Flags are stored in a compact `TaskFlags` bitfield.
 pub fn derive_task_storage(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
 
@@ -76,6 +80,8 @@ struct StorageFieldAttributes {
     lazy: bool,
     /// If true, field is not serialized (skipped in bincode)
     transient: bool,
+    /// If true, field is a boolean flag stored in the TaskFlags bitfield
+    flag: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -102,6 +108,7 @@ fn parse_field_storage_attributes(field: &syn::Field) -> StorageFieldAttributes 
     let mut category = Category::Data;
     let mut lazy = false;
     let mut transient = false;
+    let mut flag = false;
 
     // Parse attributes
     for attr in &field.attrs {
@@ -180,6 +187,8 @@ fn parse_field_storage_attributes(field: &syn::Field) -> StorageFieldAttributes 
                             lazy = true;
                         } else if *ident == "transient" {
                             transient = true;
+                        } else if *ident == "flag" {
+                            flag = true;
                         }
                     }
                 }
@@ -195,6 +204,7 @@ fn parse_field_storage_attributes(field: &syn::Field) -> StorageFieldAttributes 
         category,
         lazy,
         transient,
+        flag,
     }
 }
 
@@ -208,6 +218,10 @@ struct GroupedFields {
     lazy_data_fields: Vec<StorageFieldAttributes>,
     /// Lazy fields stored in Vec<LazyField> (meta category)
     lazy_meta_fields: Vec<StorageFieldAttributes>,
+    /// Flag fields stored in TaskFlags bitfield (persisted flags)
+    persisted_flag_fields: Vec<StorageFieldAttributes>,
+    /// Flag fields stored in TaskFlags bitfield (transient flags)
+    transient_flag_fields: Vec<StorageFieldAttributes>,
 }
 
 fn group_fields(fields: &[StorageFieldAttributes]) -> GroupedFields {
@@ -215,9 +229,18 @@ fn group_fields(fields: &[StorageFieldAttributes]) -> GroupedFields {
     let mut inline_meta_fields = Vec::new();
     let mut lazy_data_fields = Vec::new();
     let mut lazy_meta_fields = Vec::new();
+    let mut persisted_flag_fields = Vec::new();
+    let mut transient_flag_fields = Vec::new();
 
     for field in fields {
-        if field.lazy {
+        if field.flag {
+            // Flag fields are stored in TaskFlags bitfield
+            if field.transient {
+                transient_flag_fields.push(field.clone());
+            } else {
+                persisted_flag_fields.push(field.clone());
+            }
+        } else if field.lazy {
             // Lazy fields are stored in Vec<LazyField>
             match field.category {
                 Category::Data => lazy_data_fields.push(field.clone()),
@@ -237,10 +260,15 @@ fn group_fields(fields: &[StorageFieldAttributes]) -> GroupedFields {
         inline_meta_fields,
         lazy_data_fields,
         lazy_meta_fields,
+        persisted_flag_fields,
+        transient_flag_fields,
     }
 }
 
 fn generate_task_storage_impl(_ident: &Ident, grouped_fields: &GroupedFields) -> TokenStream {
+    // Generate TaskFlags bitfield if there are flag fields
+    let task_flags_bitfield = generate_task_flags_bitfield(grouped_fields);
+
     // Generate LazyField enum for lazy fields
     let lazy_field_enum = generate_lazy_field_enum(grouped_fields);
 
@@ -254,6 +282,9 @@ fn generate_task_storage_impl(_ident: &Ident, grouped_fields: &GroupedFields) ->
     let accessors_trait = generate_task_storage_accessors_trait(grouped_fields);
 
     let expanded = quote! {
+        // Generated TaskFlags bitfield
+        #task_flags_bitfield
+
         // Generated LazyField enum
         #lazy_field_enum
 
@@ -268,6 +299,85 @@ fn generate_task_storage_impl(_ident: &Ident, grouped_fields: &GroupedFields) ->
     };
 
     TokenStream::from(expanded)
+}
+
+/// Generate the TaskFlags bitfield using the bitfield crate.
+///
+/// Persisted flags come first (bits 0-N), then transient flags (bits N+1-M).
+/// This allows serializing only the persisted portion.
+fn generate_task_flags_bitfield(grouped_fields: &GroupedFields) -> proc_macro2::TokenStream {
+    let all_flags: Vec<_> = grouped_fields
+        .persisted_flag_fields
+        .iter()
+        .chain(grouped_fields.transient_flag_fields.iter())
+        .collect();
+
+    // If no flags, don't generate the bitfield
+    if all_flags.is_empty() {
+        return quote! {};
+    }
+
+    let persisted_count = grouped_fields.persisted_flag_fields.len();
+
+    // Generate bitfield accessors
+    // Format: pub field_name, set_field_name: bit_index;
+    let bitfield_accessors: Vec<_> = all_flags
+        .iter()
+        .enumerate()
+        .map(|(i, field)| {
+            let field_name = &field.field_name;
+            let set_name = syn::Ident::new(
+                &format!("set_{}", field_name),
+                proc_macro2::Span::call_site(),
+            );
+            // bitfield crate uses usize for bit indices, but literal integers work fine
+            let bit_idx = i;
+            quote! {
+                pub #field_name, #set_name: #bit_idx
+            }
+        })
+        .collect();
+
+    // Generate the persisted bits mask
+    let persisted_mask = (1u16 << persisted_count) - 1;
+
+    quote! {
+        bitfield::bitfield! {
+            /// Combined bitfield for task flags.
+            /// Persisted flags are in the lower bits (0 to N-1).
+            /// Transient flags are in the higher bits (N and above).
+            #[derive(Clone, Default)]
+            pub struct TaskFlags(u16);
+            impl Debug;
+
+            #(#bitfield_accessors;)*
+        }
+
+        impl TaskFlags {
+            /// Mask for persisted flags (lower bits only)
+            pub const PERSISTED_MASK: u16 = #persisted_mask;
+
+            /// Get the raw bits value
+            pub fn bits(&self) -> u16 {
+                self.0
+            }
+
+            /// Get only the persisted bits (for serialization)
+            pub fn persisted_bits(&self) -> u16 {
+                self.0 & Self::PERSISTED_MASK
+            }
+
+            /// Set bits from a raw value, preserving transient flags
+            pub fn set_persisted_bits(&mut self, bits: u16) {
+                self.0 = (self.0 & !Self::PERSISTED_MASK) | (bits & Self::PERSISTED_MASK);
+            }
+
+            /// Create from raw bits (for deserialization)
+            pub fn from_bits(bits: u16) -> Self {
+                Self(bits)
+            }
+        }
+    }
 }
 
 /// Generate the LazyField enum containing all lazy fields
@@ -419,6 +529,8 @@ fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> proc_macro2::Toke
 fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> proc_macro2::TokenStream {
     let has_lazy =
         !grouped_fields.lazy_data_fields.is_empty() || !grouped_fields.lazy_meta_fields.is_empty();
+    let has_flags = !grouped_fields.persisted_flag_fields.is_empty()
+        || !grouped_fields.transient_flag_fields.is_empty();
 
     // Collect all field definitions from both categories
     let mut field_defs = Vec::new();
@@ -436,6 +548,16 @@ fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> proc_macro2:
             pub #field_name: #field_type
         });
     }
+
+    // Add flags bitfield if needed
+    let flags_field = if has_flags {
+        quote! {
+            /// Combined bitfield for boolean flags (persisted + transient)
+            pub flags: TaskFlags,
+        }
+    } else {
+        quote! {}
+    };
 
     // Add lazy vec field if needed
     // Note: Serialization is handled manually via encode_data/encode_meta methods
@@ -495,6 +617,7 @@ fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> proc_macro2:
         #[derive(Debug, Clone, Default)]
         pub struct TypedStorage {
             #(#field_defs,)*
+            #flags_field
             #lazy_field
         }
 
@@ -689,6 +812,15 @@ fn generate_task_storage_accessors_trait(
     }
     for field in &grouped_fields.lazy_meta_fields {
         trait_methods.extend(generate_lazy_trait_accessor_methods(field));
+    }
+
+    // Generate accessor methods for flag fields (all flags are meta category)
+    for field in grouped_fields
+        .persisted_flag_fields
+        .iter()
+        .chain(grouped_fields.transient_flag_fields.iter())
+    {
+        trait_methods.extend(generate_flag_trait_accessor_methods(field));
     }
 
     quote! {
@@ -949,6 +1081,32 @@ fn generate_lazy_trait_accessor_methods(
                     )
                 }
             }
+        }
+    }
+}
+
+/// Generates trait accessor methods for a flag field (stored in TaskFlags bitfield)
+fn generate_flag_trait_accessor_methods(
+    field: &StorageFieldAttributes,
+) -> proc_macro2::TokenStream {
+    let field_name = &field.field_name;
+    let set_name = syn::Ident::new(
+        &format!("set_{}", field_name),
+        proc_macro2::Span::call_site(),
+    );
+
+    // All flags modify the meta category
+    let category_variant = quote! { crate::backend::storage::SpecificTaskDataCategory::Meta };
+
+    quote! {
+        /// Get the flag value
+        fn #field_name(&self) -> bool {
+            self.typed().flags.#field_name()
+        }
+
+        /// Set the flag value
+        fn #set_name(&mut self, value: bool) {
+            self.typed_mut(#category_variant).flags.#set_name(value);
         }
     }
 }

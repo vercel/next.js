@@ -111,9 +111,9 @@ pub struct TaskStorageSchema {
     #[task_storage(storage = "counter_map", category = "meta")]
     pub aggregated_dirty_containers: CounterMap<TaskId, i32>,
 
-    /// Whether clean in current session (transient).
-    #[task_storage(storage = "direct", category = "meta", transient)]
-    pub current_session_clean: Option<()>,
+    /// Whether clean in current session (transient flag).
+    #[task_storage(flag, transient)]
+    pub current_session_clean: bool,
 
     /// Count of clean containers in current session (transient).
     #[task_storage(storage = "direct", category = "meta", transient)]
@@ -124,20 +124,20 @@ pub struct TaskStorageSchema {
     pub aggregated_current_session_clean_containers: CounterMap<TaskId, i32>,
 
     // =========================================================================
-    // FLAGS (meta) - Simple boolean flags, stored inline
-    // TODO: Consider using bool or bitflags instead of Option<()> for these flags.
+    // FLAGS (meta) - Boolean flags stored in TaskFlags bitfield
+    // Persisted flags come first, then transient flags.
     // =========================================================================
-    /// Whether the task has mutable state.
-    #[task_storage(storage = "direct", category = "meta")]
-    pub stateful: Option<()>,
+    /// Whether the task has mutable state (persisted).
+    #[task_storage(flag)]
+    pub stateful: bool,
 
-    /// Whether the task has an invalidator.
-    #[task_storage(storage = "direct", category = "meta")]
-    pub invalidator: Option<()>,
+    /// Whether the task has an invalidator (persisted).
+    #[task_storage(flag)]
+    pub invalidator: bool,
 
-    /// Whether the task output is immutable.
-    #[task_storage(storage = "direct", category = "meta")]
-    pub immutable: Option<()>,
+    /// Whether the task output is immutable (persisted).
+    #[task_storage(flag)]
+    pub immutable: bool,
 
     // =========================================================================
     // CHILDREN & AGGREGATION (meta, lazy)
@@ -274,39 +274,36 @@ impl TypedStorage {
             )
         });
 
-        // Flags (direct fields at top level)
-        let stateful_iter = self
-            .stateful
-            .as_ref()
-            .map(|value| {
-                (
-                    CachedDataItemKey::Stateful {},
-                    CachedDataItemValueRef::Stateful { value },
-                )
-            })
-            .into_iter();
+        // Flags (stored in TaskFlags bitfield)
+        let stateful_iter = if self.flags.stateful() {
+            Some((
+                CachedDataItemKey::Stateful {},
+                CachedDataItemValueRef::Stateful { value: &() },
+            ))
+        } else {
+            None
+        }
+        .into_iter();
 
-        let invalidator_iter = self
-            .invalidator
-            .as_ref()
-            .map(|value| {
-                (
-                    CachedDataItemKey::HasInvalidator {},
-                    CachedDataItemValueRef::HasInvalidator { value },
-                )
-            })
-            .into_iter();
+        let invalidator_iter = if self.flags.invalidator() {
+            Some((
+                CachedDataItemKey::HasInvalidator {},
+                CachedDataItemValueRef::HasInvalidator { value: &() },
+            ))
+        } else {
+            None
+        }
+        .into_iter();
 
-        let immutable_iter = self
-            .immutable
-            .as_ref()
-            .map(|value| {
-                (
-                    CachedDataItemKey::Immutable {},
-                    CachedDataItemValueRef::Immutable { value },
-                )
-            })
-            .into_iter();
+        let immutable_iter = if self.flags.immutable() {
+            Some((
+                CachedDataItemKey::Immutable {},
+                CachedDataItemValueRef::Immutable { value: &() },
+            ))
+        } else {
+            None
+        }
+        .into_iter();
 
         // State fields (direct, non-lazy)
         let dirty_iter = self
@@ -514,14 +511,14 @@ impl TypedStorage {
             count += 1;
         }
         count += self.upper.len();
-        // Flags (direct fields at top level)
-        if self.stateful.is_some() {
+        // Flags (stored in TaskFlags bitfield)
+        if self.flags.stateful() {
             count += 1;
         }
-        if self.invalidator.is_some() {
+        if self.flags.invalidator() {
             count += 1;
         }
-        if self.immutable.is_some() {
+        if self.flags.immutable() {
             count += 1;
         }
         // State fields (direct, non-lazy)
