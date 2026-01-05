@@ -203,6 +203,53 @@ mod tests {
         assert!(storage2.flags.current_session_clean()); // Transient flag preserved
     }
 
+    #[test]
+    fn test_internal_state_flags() {
+        // Test the new internal state flags (formerly InnerStorageState)
+        let mut storage = TypedStorage::new();
+
+        // All internal state flags should be default false
+        assert!(!storage.flags.meta_restored());
+        assert!(!storage.flags.data_restored());
+        assert!(!storage.flags.meta_modified());
+        assert!(!storage.flags.data_modified());
+        assert!(!storage.flags.meta_snapshot());
+        assert!(!storage.flags.data_snapshot());
+        assert!(!storage.flags.prefetched());
+
+        // Test setting restored flags
+        storage.flags.set_meta_restored(true);
+        storage.flags.set_data_restored(true);
+        assert!(storage.flags.meta_restored());
+        assert!(storage.flags.data_restored());
+
+        // Test setting modified flags
+        storage.flags.set_meta_modified(true);
+        storage.flags.set_data_modified(true);
+        assert!(storage.flags.meta_modified());
+        assert!(storage.flags.data_modified());
+
+        // Test setting snapshot flags
+        storage.flags.set_meta_snapshot(true);
+        storage.flags.set_data_snapshot(true);
+        assert!(storage.flags.meta_snapshot());
+        assert!(storage.flags.data_snapshot());
+
+        // Test prefetched flag
+        storage.flags.set_prefetched(true);
+        assert!(storage.flags.prefetched());
+
+        // Verify these are all transient (not in persisted_bits)
+        // Only stateful, invalidator, immutable should be persisted
+        let persisted = storage.flags.persisted_bits();
+        assert_eq!(persisted, 0b000); // No persisted flags set
+
+        // Set a persisted flag and verify internal state flags are still transient
+        storage.flags.set_stateful(true);
+        let persisted = storage.flags.persisted_bits();
+        assert_eq!(persisted, 0b001); // Only stateful
+    }
+
     // Helper to create encoder
     fn new_encoder(
         buffer: &mut turbo_bincode::TurboBincodeBuffer,

@@ -1017,8 +1017,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             }
             let len = inner.len();
 
-            let meta_restored = inner.state().meta_restored();
-            let data_restored = inner.state().data_restored();
+            let meta_restored = inner.flags().meta_restored();
+            let data_restored = inner.flags().data_restored();
 
             let mut meta = meta_restored.then(|| Vec::with_capacity(len));
             let mut data = data_restored.then(|| Vec::with_capacity(len));

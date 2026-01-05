@@ -140,6 +140,38 @@ pub struct TaskStorageSchema {
     pub immutable: bool,
 
     // =========================================================================
+    // INTERNAL STATE FLAGS (transient) - Replaces InnerStorageState
+    // These flags track internal state for persistence and snapshotting.
+    // =========================================================================
+    /// Whether meta data has been restored from persistent storage.
+    #[task_storage(flag, transient)]
+    pub meta_restored: bool,
+
+    /// Whether data has been restored from persistent storage.
+    #[task_storage(flag, transient)]
+    pub data_restored: bool,
+
+    /// Whether meta was modified before snapshot mode was entered.
+    #[task_storage(flag, transient)]
+    pub meta_modified: bool,
+
+    /// Whether data was modified before snapshot mode was entered.
+    #[task_storage(flag, transient)]
+    pub data_modified: bool,
+
+    /// Whether meta was modified after snapshot mode was entered (snapshot taken).
+    #[task_storage(flag, transient)]
+    pub meta_snapshot: bool,
+
+    /// Whether data was modified after snapshot mode was entered (snapshot taken).
+    #[task_storage(flag, transient)]
+    pub data_snapshot: bool,
+
+    /// Whether dependencies have been prefetched.
+    #[task_storage(flag, transient)]
+    pub prefetched: bool,
+
+    // =========================================================================
     // CHILDREN & AGGREGATION (meta, lazy)
     // =========================================================================
     /// Child tasks of this task.
@@ -578,6 +610,49 @@ impl TypedStorage {
     /// Check if typed storage is empty.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
+    }
+}
+
+// =============================================================================
+// TaskFlags helper methods (for InnerStorageState compatibility)
+// =============================================================================
+
+use crate::backend::TaskDataCategory;
+
+impl TaskFlags {
+    /// Set restored flags based on category
+    pub fn set_restored(&mut self, category: TaskDataCategory) {
+        match category {
+            TaskDataCategory::Meta => {
+                self.set_meta_restored(true);
+            }
+            TaskDataCategory::Data => {
+                self.set_data_restored(true);
+            }
+            TaskDataCategory::All => {
+                self.set_meta_restored(true);
+                self.set_data_restored(true);
+            }
+        }
+    }
+
+    /// Check if category is restored
+    pub fn is_restored(&self, category: TaskDataCategory) -> bool {
+        match category {
+            TaskDataCategory::Meta => self.meta_restored(),
+            TaskDataCategory::Data => self.data_restored(),
+            TaskDataCategory::All => self.meta_restored() && self.data_restored(),
+        }
+    }
+
+    /// Check if any snapshot flag is set
+    pub fn any_snapshot(&self) -> bool {
+        self.meta_snapshot() || self.data_snapshot()
+    }
+
+    /// Check if any modified flag is set
+    pub fn any_modified(&self) -> bool {
+        self.meta_modified() || self.data_modified()
     }
 }
 

@@ -4,14 +4,13 @@ use std::{
     sync::{Arc, atomic::AtomicBool},
 };
 
-use bitfield::bitfield;
 use smallvec::SmallVec;
 use turbo_tasks::{
     CellId, FxDashMap, TaskId, TraitTypeId, TypedSharedReference, ValueTypeId, parallel,
 };
 
 use crate::{
-    backend::storage_schema::TypedStorage,
+    backend::storage_schema::{TaskFlags, TypedStorage},
     data::{
         ActivenessState, AggregationNumber, CachedDataItem, CachedDataItemKey, CachedDataItemType,
         CachedDataItemValue, CachedDataItemValueRef, CachedDataItemValueRefMut, CellRef,
@@ -90,55 +89,11 @@ impl Iterator for TaskDataCategoryIterator {
     }
 }
 
-bitfield! {
-    // Note: Due to alignment in InnerStorage it doesn't matter if this struct is 1 or 4 bytes.
-    #[derive(Clone, Default)]
-    pub struct InnerStorageState(u32);
-    impl Debug;
-    pub meta_restored, set_meta_restored: 0;
-    pub data_restored, set_data_restored: 1;
-    /// Item was modified before snapshot mode was entered.
-    pub meta_modified, set_meta_modified: 2;
-    pub data_modified, set_data_modified: 3;
-    /// Item was modified after snapshot mode was entered. A snapshot was taken.
-    pub meta_snapshot, set_meta_snapshot: 4;
-    pub data_snapshot, set_data_snapshot: 5;
-    /// Prefetched dependencies
-    pub prefetched, set_prefetched: 6;
-}
-
-impl InnerStorageState {
-    pub fn set_restored(&mut self, category: TaskDataCategory) {
-        match category {
-            TaskDataCategory::Meta => {
-                self.set_meta_restored(true);
-            }
-            TaskDataCategory::Data => {
-                self.set_data_restored(true);
-            }
-            TaskDataCategory::All => {
-                self.set_meta_restored(true);
-                self.set_data_restored(true);
-            }
-        }
-    }
-
-    pub fn is_restored(&self, category: TaskDataCategory) -> bool {
-        match category {
-            TaskDataCategory::Meta => self.meta_restored(),
-            TaskDataCategory::Data => self.data_restored(),
-            TaskDataCategory::All => self.meta_restored() && self.data_restored(),
-        }
-    }
-
-    pub fn any_snapshot(&self) -> bool {
-        self.meta_snapshot() || self.data_snapshot()
-    }
-
-    pub fn any_modified(&self) -> bool {
-        self.meta_modified() || self.data_modified()
-    }
-}
+// Note: InnerStorageState has been replaced by TaskFlags in TypedStorage.
+// The flags are now part of the typed storage and include both persisted flags
+// (stateful, invalidator, immutable) and transient internal state flags
+// (meta_restored, data_restored, meta_modified, data_modified,
+// meta_snapshot, data_snapshot, prefetched, current_session_clean).
 
 pub struct InnerStorageSnapshot {
     // Typed storage data for persistence - all CachedDataItem variants are now migrated
@@ -151,8 +106,8 @@ impl From<&InnerStorage> for InnerStorageSnapshot {
     fn from(inner: &InnerStorage) -> Self {
         Self {
             typed: inner.typed.clone(),
-            meta_modified: inner.state.meta_modified(),
-            data_modified: inner.state.data_modified(),
+            meta_modified: inner.typed.flags.meta_modified(),
+            data_modified: inner.typed.flags.data_modified(),
         }
     }
 }
@@ -173,15 +128,14 @@ impl InnerStorageSnapshot {
 #[derive(Debug, Clone)]
 pub struct InnerStorage {
     // Typed storage - all CachedDataItem variants are now migrated
+    // Also contains flags (TaskFlags) which replace InnerStorageState
     typed: TypedStorage,
-    state: InnerStorageState,
 }
 
 impl InnerStorage {
     fn new() -> Self {
         Self {
             typed: TypedStorage::new(),
-            state: InnerStorageState::default(),
         }
     }
 
@@ -197,12 +151,16 @@ impl InnerStorage {
         &mut self.typed
     }
 
-    pub fn state(&self) -> &InnerStorageState {
-        &self.state
+    /// Access flags for internal state (replaces InnerStorageState)
+    #[inline]
+    pub fn flags(&self) -> &TaskFlags {
+        &self.typed.flags
     }
 
-    pub fn state_mut(&mut self) -> &mut InnerStorageState {
-        &mut self.state
+    /// Access flags mutably for internal state (replaces InnerStorageState)
+    #[inline]
+    pub fn flags_mut(&mut self) -> &mut TaskFlags {
+        &mut self.typed.flags
     }
 }
 
@@ -3038,7 +2996,7 @@ impl Storage {
         // We also need to unset all the modified flags.
         for key in removed_modified {
             if let Some(mut inner) = self.map.get_mut(&key) {
-                let state = inner.state_mut();
+                let state = inner.flags_mut();
                 state.set_data_modified(false);
                 state.set_meta_modified(false);
             }
@@ -3067,7 +3025,7 @@ impl Storage {
         // And update the flags
         for key in removed_snapshots {
             if let Some(mut inner) = self.map.get_mut(&key) {
-                let state = inner.state_mut();
+                let state = inner.flags_mut();
                 if state.meta_snapshot() {
                     state.set_meta_snapshot(false);
                     state.set_meta_modified(true);
@@ -3131,7 +3089,7 @@ pub struct StorageWriteGuard<'a> {
 impl StorageWriteGuard<'_> {
     /// Tracks mutation of this task
     pub fn track_modification(&mut self, category: SpecificTaskDataCategory) {
-        let state = self.inner.state();
+        let state = self.inner.flags();
         let snapshot = match category {
             SpecificTaskDataCategory::Meta => state.meta_snapshot(),
             SpecificTaskDataCategory::Data => state.data_snapshot(),
@@ -3149,7 +3107,7 @@ impl StorageWriteGuard<'_> {
                             .modified
                             .insert(*self.inner.key(), ModifiedState::Modified);
                     }
-                    let state = self.inner.state_mut();
+                    let state = self.inner.flags_mut();
                     match category {
                         SpecificTaskDataCategory::Meta => state.set_meta_modified(true),
                         SpecificTaskDataCategory::Data => state.set_data_modified(true),
@@ -3166,7 +3124,7 @@ impl StorageWriteGuard<'_> {
                             .modified
                             .insert(*self.inner.key(), ModifiedState::Snapshot(None));
                     }
-                    let state = self.inner.state_mut();
+                    let state = self.inner.flags_mut();
                     match category {
                         SpecificTaskDataCategory::Meta => state.set_meta_snapshot(true),
                         SpecificTaskDataCategory::Data => state.set_data_snapshot(true),
@@ -3181,7 +3139,7 @@ impl StorageWriteGuard<'_> {
                             ModifiedState::Snapshot(Some(Box::new((&**self.inner).into()))),
                         );
                     }
-                    let state = self.inner.state_mut();
+                    let state = self.inner.flags_mut();
                     match category {
                         SpecificTaskDataCategory::Meta => state.set_meta_snapshot(true),
                         SpecificTaskDataCategory::Data => state.set_data_snapshot(true),
@@ -3240,7 +3198,7 @@ where
         }
         while let Some(task_id) = self.modified.pop() {
             let inner = self.storage.map.get(&task_id).unwrap();
-            let state = inner.state();
+            let state = inner.flags();
             if !state.any_snapshot() {
                 let preprocessed = (self.preprocess)(task_id, &inner);
                 drop(inner);

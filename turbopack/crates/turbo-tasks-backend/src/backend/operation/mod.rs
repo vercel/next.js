@@ -191,22 +191,22 @@ where
         }
 
         let mut task = self.backend.storage.access_mut(task_id);
-        if !task.state().is_restored(category) {
+        if !task.flags().is_restored(category) {
             if task_id.is_transient() {
-                task.state_mut().set_restored(TaskDataCategory::All);
+                task.flags_mut().set_restored(TaskDataCategory::All);
             } else {
                 for category in category {
-                    if !task.state().is_restored(category) {
+                    if !task.flags().is_restored(category) {
                         // Avoid holding the lock too long since this can also affect other tasks
                         drop(task);
 
                         let items = self.restore_task_data(task_id, category);
                         task = self.backend.storage.access_mut(task_id);
-                        if !task.state().is_restored(category) {
+                        if !task.flags().is_restored(category) {
                             for item in items {
                                 task.add(item);
                             }
-                            task.state_mut().set_restored(category);
+                            task.flags_mut().set_restored(category);
                         }
                     }
                 }
@@ -249,8 +249,8 @@ where
         }
 
         let (mut task1, mut task2) = self.backend.storage.access_pair_mut(task_id1, task_id2);
-        let is_restored1 = task1.state().is_restored(category);
-        let is_restored2 = task2.state().is_restored(category);
+        let is_restored1 = task1.flags().is_restored(category);
+        let is_restored2 = task2.flags().is_restored(category);
         if !is_restored1 || !is_restored2 {
             for category in category {
                 // Avoid holding the lock too long since this can also affect other tasks
@@ -263,17 +263,17 @@ where
                 let (t1, t2) = self.backend.storage.access_pair_mut(task_id1, task_id2);
                 task1 = t1;
                 task2 = t2;
-                if !task1.state().is_restored(category) {
+                if !task1.flags().is_restored(category) {
                     for item in items1.unwrap() {
                         task1.add(item);
                     }
-                    task1.state_mut().set_restored(category);
+                    task1.flags_mut().set_restored(category);
                 }
-                if !task2.state().is_restored(category) {
+                if !task2.flags().is_restored(category) {
                     for item in items2.unwrap() {
                         task2.add(item);
                     }
-                    task2.state_mut().set_restored(category);
+                    task2.flags_mut().set_restored(category);
                 }
             }
         }
@@ -1901,8 +1901,8 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
     }
 
     fn prefetch(&mut self) -> Option<FxIndexMap<TaskId, bool>> {
-        if !self.task.state().prefetched() {
-            self.task.state_mut().set_prefetched(true);
+        if !self.task.flags().prefetched() {
+            self.task.flags_mut().set_prefetched(true);
             // Uses typed storage iterators - dependencies are migrated auto_sets
             let map = self
                 .iter_output_dependencies()
