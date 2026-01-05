@@ -281,6 +281,9 @@ fn generate_task_storage_impl(_ident: &Ident, grouped_fields: &GroupedFields) ->
     // Generate TaskStorageAccessors trait for all fields
     let accessors_trait = generate_task_storage_accessors_trait(grouped_fields);
 
+    // Generate encode/decode methods for serialization
+    let encode_decode_methods = generate_encode_decode_methods(grouped_fields);
+
     let expanded = quote! {
         // Generated TaskFlags bitfield
         #task_flags_bitfield
@@ -293,6 +296,9 @@ fn generate_task_storage_impl(_ident: &Ident, grouped_fields: &GroupedFields) ->
 
         // Generated accessor methods
         #accessor_methods
+
+        // Generated encode/decode methods
+        #encode_decode_methods
 
         // Generated TaskStorageAccessors trait
         #accessors_trait
@@ -1107,6 +1113,280 @@ fn generate_flag_trait_accessor_methods(
         /// Set the flag value
         fn #set_name(&mut self, value: bool) {
             self.typed_mut(#category_variant).flags.#set_name(value);
+        }
+    }
+}
+
+/// Generate encode/decode methods for TypedStorage serialization.
+///
+/// Generates four methods:
+/// - `encode_meta<E>(&self, encoder: &mut E)` - Encode meta category fields
+/// - `encode_data<E>(&self, encoder: &mut E)` - Encode data category fields
+/// - `decode_meta<D>(&mut self, decoder: &mut D)` - Decode meta category fields
+/// - `decode_data<D>(&mut self, decoder: &mut D)` - Decode data category fields
+///
+/// Only persistent (non-transient) fields are encoded/decoded.
+fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> proc_macro2::TokenStream {
+    // Collect persistent inline fields by category
+    let persistent_inline_meta: Vec<_> = grouped_fields
+        .inline_meta_fields
+        .iter()
+        .filter(|f| !f.transient)
+        .collect();
+    let persistent_inline_data: Vec<_> = grouped_fields
+        .inline_data_fields
+        .iter()
+        .filter(|f| !f.transient)
+        .collect();
+
+    // Collect persistent lazy fields by category
+    let persistent_lazy_meta: Vec<_> = grouped_fields
+        .lazy_meta_fields
+        .iter()
+        .filter(|f| !f.transient)
+        .collect();
+    let persistent_lazy_data: Vec<_> = grouped_fields
+        .lazy_data_fields
+        .iter()
+        .filter(|f| !f.transient)
+        .collect();
+
+    let has_flags = !grouped_fields.persisted_flag_fields.is_empty();
+
+    // Generate encode_meta body
+    let encode_meta_inline: Vec<_> = persistent_inline_meta
+        .iter()
+        .map(|field| {
+            let field_name = &field.field_name;
+            quote! {
+                bincode::Encode::encode(&self.#field_name, encoder)?;
+            }
+        })
+        .collect();
+
+    let encode_meta_flags = if has_flags {
+        quote! {
+            // Encode only the persisted flag bits
+            let persisted_flags = self.flags.persisted_bits();
+            bincode::Encode::encode(&persisted_flags, encoder)?;
+        }
+    } else {
+        quote! {}
+    };
+
+    let encode_meta_lazy = generate_encode_lazy_fields(&persistent_lazy_meta);
+
+    // Generate encode_data body
+    let encode_data_inline: Vec<_> = persistent_inline_data
+        .iter()
+        .map(|field| {
+            let field_name = &field.field_name;
+            quote! {
+                bincode::Encode::encode(&self.#field_name, encoder)?;
+            }
+        })
+        .collect();
+
+    let encode_data_lazy = generate_encode_lazy_fields(&persistent_lazy_data);
+
+    // Generate decode_meta body
+    let decode_meta_inline: Vec<_> = persistent_inline_meta
+        .iter()
+        .map(|field| {
+            let field_name = &field.field_name;
+            quote! {
+                self.#field_name = bincode::Decode::decode(decoder)?;
+            }
+        })
+        .collect();
+
+    let decode_meta_flags = if has_flags {
+        quote! {
+            // Decode only the persisted flag bits, preserving transient bits
+            let persisted_flags: u16 = bincode::Decode::decode(decoder)?;
+            self.flags.set_persisted_bits(persisted_flags);
+        }
+    } else {
+        quote! {}
+    };
+
+    let decode_meta_lazy = generate_decode_lazy_fields(&persistent_lazy_meta);
+
+    // Generate decode_data body
+    let decode_data_inline: Vec<_> = persistent_inline_data
+        .iter()
+        .map(|field| {
+            let field_name = &field.field_name;
+            quote! {
+                self.#field_name = bincode::Decode::decode(decoder)?;
+            }
+        })
+        .collect();
+
+    let decode_data_lazy = generate_decode_lazy_fields(&persistent_lazy_data);
+
+    quote! {
+        impl TypedStorage {
+            /// Encode meta category fields directly to bincode.
+            /// Only persistent (non-transient) fields are encoded.
+            pub fn encode_meta<E: bincode::enc::Encoder>(
+                &self,
+                encoder: &mut E,
+            ) -> Result<(), bincode::error::EncodeError> {
+                // Encode inline meta fields
+                #(#encode_meta_inline)*
+
+                // Encode flags (persisted bits only)
+                #encode_meta_flags
+
+                // Encode lazy meta fields
+                #encode_meta_lazy
+
+                Ok(())
+            }
+
+            /// Encode data category fields directly to bincode.
+            /// Only persistent (non-transient) fields are encoded.
+            pub fn encode_data<E: bincode::enc::Encoder>(
+                &self,
+                encoder: &mut E,
+            ) -> Result<(), bincode::error::EncodeError> {
+                // Encode inline data fields
+                #(#encode_data_inline)*
+
+                // Encode lazy data fields
+                #encode_data_lazy
+
+                Ok(())
+            }
+
+            /// Decode meta category fields from bincode.
+            /// Only persistent (non-transient) fields are decoded.
+            pub fn decode_meta<D: bincode::de::Decoder>(
+                &mut self,
+                decoder: &mut D,
+            ) -> Result<(), bincode::error::DecodeError> {
+                // Decode inline meta fields
+                #(#decode_meta_inline)*
+
+                // Decode flags (persisted bits only)
+                #decode_meta_flags
+
+                // Decode lazy meta fields
+                #decode_meta_lazy
+
+                Ok(())
+            }
+
+            /// Decode data category fields from bincode.
+            /// Only persistent (non-transient) fields are decoded.
+            pub fn decode_data<D: bincode::de::Decoder>(
+                &mut self,
+                decoder: &mut D,
+            ) -> Result<(), bincode::error::DecodeError> {
+                // Decode inline data fields
+                #(#decode_data_inline)*
+
+                // Decode lazy data fields
+                #decode_data_lazy
+
+                Ok(())
+            }
+        }
+    }
+}
+
+/// Generate code to encode lazy fields to bincode.
+fn generate_encode_lazy_fields(fields: &[&StorageFieldAttributes]) -> proc_macro2::TokenStream {
+    if fields.is_empty() {
+        return quote! {};
+    }
+
+    // Generate match arms for encoding each field variant
+    let encode_arms: Vec<_> = fields
+        .iter()
+        .enumerate()
+        .map(|(idx, field)| {
+            let variant_name = syn::Ident::new(
+                &to_pascal_case(&field.field_name.to_string()),
+                field.field_name.span(),
+            );
+            let discriminant = idx as u8;
+            quote! {
+                LazyField::#variant_name(data) => {
+                    bincode::Encode::encode(&#discriminant, encoder)?;
+                    bincode::Encode::encode(data, encoder)?;
+                }
+            }
+        })
+        .collect();
+
+    // Generate the filter condition - only include persistent fields of this category
+    let variant_checks: Vec<_> = fields
+        .iter()
+        .map(|field| {
+            let variant_name = syn::Ident::new(
+                &to_pascal_case(&field.field_name.to_string()),
+                field.field_name.span(),
+            );
+            quote! { LazyField::#variant_name(_) }
+        })
+        .collect();
+
+    quote! {
+        // Count persistent lazy fields in this category
+        let count = self.lazy.iter()
+            .filter(|f| matches!(f, #(#variant_checks)|*))
+            .count();
+        bincode::Encode::encode(&(count as u16), encoder)?;
+
+        // Encode each persistent lazy field
+        for field in &self.lazy {
+            match field {
+                #(#encode_arms)*
+                _ => {} // Skip fields not in this category
+            }
+        }
+    }
+}
+
+/// Generate code to decode lazy fields from bincode.
+fn generate_decode_lazy_fields(fields: &[&StorageFieldAttributes]) -> proc_macro2::TokenStream {
+    if fields.is_empty() {
+        return quote! {};
+    }
+
+    // Generate match arms for decoding each field variant
+    let decode_arms: Vec<_> = fields
+        .iter()
+        .enumerate()
+        .map(|(idx, field)| {
+            let variant_name = syn::Ident::new(
+                &to_pascal_case(&field.field_name.to_string()),
+                field.field_name.span(),
+            );
+            let discriminant = idx as u8;
+            quote! {
+                #discriminant => LazyField::#variant_name(bincode::Decode::decode(decoder)?)
+            }
+        })
+        .collect();
+
+    quote! {
+        // Decode lazy field count
+        let count: u16 = bincode::Decode::decode(decoder)?;
+
+        for _ in 0..count {
+            let discriminant: u8 = bincode::Decode::decode(decoder)?;
+            let field = match discriminant {
+                #(#decode_arms,)*
+                _ => {
+                    return Err(bincode::error::DecodeError::Other(
+                        "Unknown lazy field discriminant",
+                    ));
+                }
+            };
+            self.lazy.push(field);
         }
     }
 }

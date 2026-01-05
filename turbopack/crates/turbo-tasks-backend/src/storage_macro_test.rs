@@ -202,4 +202,264 @@ mod tests {
         assert!(storage2.flags.immutable());
         assert!(storage2.flags.current_session_clean()); // Transient flag preserved
     }
+
+    // Helper to create encoder
+    fn new_encoder(
+        buffer: &mut turbo_bincode::TurboBincodeBuffer,
+    ) -> turbo_bincode::TurboBincodeEncoder<'_> {
+        bincode::enc::EncoderImpl::new(
+            turbo_bincode::TurboBincodeWriter::new(buffer),
+            turbo_bincode::TURBO_BINCODE_CONFIG,
+        )
+    }
+
+    // Helper to create decoder
+    fn new_decoder(buffer: &[u8]) -> turbo_bincode::TurboBincodeDecoder<'_> {
+        bincode::de::DecoderImpl::new(
+            turbo_bincode::TurboBincodeReader::new(buffer),
+            turbo_bincode::TURBO_BINCODE_CONFIG,
+            (),
+        )
+    }
+
+    #[test]
+    fn test_encode_decode_meta_roundtrip() {
+        let mut original = TypedStorage::new();
+
+        // Set inline meta fields
+        original.set_aggregation_number(Some(AggregationNumber {
+            base: 10,
+            distance: 5,
+            effective: 15,
+        }));
+        original.set_output(Some(OutputValue::Output(unsafe {
+            TaskId::new_unchecked(42)
+        })));
+        original
+            .upper_mut()
+            .insert(unsafe { TaskId::new_unchecked(100) }, 7);
+        original
+            .upper_mut()
+            .insert(unsafe { TaskId::new_unchecked(200) }, 3);
+        original.set_dirty(Some(Dirtyness::Dirty));
+        original.set_aggregated_dirty_container_count(Some(5));
+        original
+            .aggregated_dirty_containers_mut()
+            .insert(unsafe { TaskId::new_unchecked(50) }, 2);
+
+        // Set flags (persisted)
+        original.flags.set_stateful(true);
+        original.flags.set_immutable(true);
+        // Set transient flag (should NOT be serialized)
+        original.flags.set_current_session_clean(true);
+
+        // Set lazy meta fields (persisted)
+        original
+            .children_mut()
+            .insert(unsafe { TaskId::new_unchecked(1000) });
+        original
+            .children_mut()
+            .insert(unsafe { TaskId::new_unchecked(1001) });
+        original
+            .followers_mut()
+            .insert(unsafe { TaskId::new_unchecked(2000) }, 4);
+
+        // Encode meta fields using turbo_bincode
+        let mut buffer = turbo_bincode::TurboBincodeBuffer::new();
+        {
+            let mut encoder = new_encoder(&mut buffer);
+            original.encode_meta(&mut encoder).expect("encode failed");
+        }
+
+        // Decode into new storage
+        let mut decoded = TypedStorage::new();
+        // Set transient flag before decode to verify it's preserved
+        decoded.flags.set_current_session_clean(true);
+
+        {
+            let mut decoder = new_decoder(&buffer);
+            decoded.decode_meta(&mut decoder).expect("decode failed");
+        }
+
+        // Verify inline meta fields
+        assert_eq!(
+            decoded.get_aggregation_number(),
+            original.get_aggregation_number()
+        );
+        assert_eq!(decoded.get_output(), original.get_output());
+        assert_eq!(decoded.upper, original.upper);
+        assert_eq!(decoded.get_dirty(), original.get_dirty());
+        assert_eq!(
+            decoded.get_aggregated_dirty_container_count(),
+            original.get_aggregated_dirty_container_count()
+        );
+        assert_eq!(
+            decoded.aggregated_dirty_containers,
+            original.aggregated_dirty_containers
+        );
+
+        // Verify flags (persisted bits should match)
+        assert!(decoded.flags.stateful());
+        assert!(!decoded.flags.invalidator());
+        assert!(decoded.flags.immutable());
+        // Transient flag should be preserved (was set to true before decode)
+        assert!(decoded.flags.current_session_clean());
+
+        // Verify lazy meta fields
+        assert_eq!(decoded.children().unwrap().len(), 2);
+        assert!(
+            decoded
+                .children()
+                .unwrap()
+                .contains(&unsafe { TaskId::new_unchecked(1000) })
+        );
+        assert!(
+            decoded
+                .children()
+                .unwrap()
+                .contains(&unsafe { TaskId::new_unchecked(1001) })
+        );
+        assert_eq!(
+            *decoded
+                .followers()
+                .unwrap()
+                .get(&unsafe { TaskId::new_unchecked(2000) })
+                .unwrap(),
+            4
+        );
+    }
+
+    #[test]
+    fn test_encode_decode_data_roundtrip() {
+        use turbo_tasks::CellId;
+
+        use crate::data::CellRef;
+
+        let mut original = TypedStorage::new();
+
+        // Set inline data field
+        original
+            .output_dependent_mut()
+            .insert(unsafe { TaskId::new_unchecked(10) });
+        original
+            .output_dependent_mut()
+            .insert(unsafe { TaskId::new_unchecked(20) });
+
+        // Set lazy data fields (persisted)
+        original
+            .output_dependencies_mut()
+            .insert(unsafe { TaskId::new_unchecked(100) });
+        original
+            .output_dependencies_mut()
+            .insert(unsafe { TaskId::new_unchecked(200) });
+        original.cell_dependencies_mut().insert(CellRef {
+            task: unsafe { TaskId::new_unchecked(1) },
+            cell: CellId {
+                type_id: unsafe { turbo_tasks::ValueTypeId::new_unchecked(1) },
+                index: 0,
+            },
+        });
+
+        // Set lazy data transient field (should NOT be serialized)
+        original
+            .outdated_output_dependencies_mut()
+            .insert(unsafe { TaskId::new_unchecked(999) });
+
+        // Encode data fields
+        let mut buffer = turbo_bincode::TurboBincodeBuffer::new();
+        {
+            let mut encoder = new_encoder(&mut buffer);
+            original.encode_data(&mut encoder).expect("encode failed");
+        }
+
+        // Decode into new storage
+        let mut decoded = TypedStorage::new();
+
+        {
+            let mut decoder = new_decoder(&buffer);
+            decoded.decode_data(&mut decoder).expect("decode failed");
+        }
+
+        // Verify inline data field
+        assert_eq!(decoded.output_dependent.len(), 2);
+        assert!(
+            decoded
+                .output_dependent
+                .contains(&unsafe { TaskId::new_unchecked(10) })
+        );
+        assert!(
+            decoded
+                .output_dependent
+                .contains(&unsafe { TaskId::new_unchecked(20) })
+        );
+
+        // Verify lazy data fields
+        assert_eq!(decoded.output_dependencies().unwrap().len(), 2);
+        assert!(
+            decoded
+                .output_dependencies()
+                .unwrap()
+                .contains(&unsafe { TaskId::new_unchecked(100) })
+        );
+        assert!(
+            decoded
+                .output_dependencies()
+                .unwrap()
+                .contains(&unsafe { TaskId::new_unchecked(200) })
+        );
+        assert_eq!(decoded.cell_dependencies().unwrap().len(), 1);
+
+        // Verify transient fields were NOT decoded
+        assert!(decoded.outdated_output_dependencies().is_none());
+    }
+
+    #[test]
+    fn test_encode_decode_empty_storage() {
+        // Test that empty storage can be encoded/decoded
+        let original = TypedStorage::new();
+
+        // Encode meta
+        let mut meta_buffer = turbo_bincode::TurboBincodeBuffer::new();
+        {
+            let mut encoder = new_encoder(&mut meta_buffer);
+            original
+                .encode_meta(&mut encoder)
+                .expect("encode meta failed");
+        }
+
+        // Encode data
+        let mut data_buffer = turbo_bincode::TurboBincodeBuffer::new();
+        {
+            let mut encoder = new_encoder(&mut data_buffer);
+            original
+                .encode_data(&mut encoder)
+                .expect("encode data failed");
+        }
+
+        // Decode meta
+        let mut decoded = TypedStorage::new();
+        {
+            let mut decoder = new_decoder(&meta_buffer);
+            decoded
+                .decode_meta(&mut decoder)
+                .expect("decode meta failed");
+        }
+
+        // Decode data
+        {
+            let mut decoder = new_decoder(&data_buffer);
+            decoded
+                .decode_data(&mut decoder)
+                .expect("decode data failed");
+        }
+
+        // Verify empty
+        assert!(decoded.get_aggregation_number().is_none());
+        assert!(decoded.get_output().is_none());
+        assert!(decoded.upper.is_empty());
+        assert!(!decoded.flags.stateful());
+        assert!(decoded.output_dependent.is_empty());
+        assert!(decoded.children().is_none());
+        assert!(decoded.output_dependencies().is_none());
+    }
 }
