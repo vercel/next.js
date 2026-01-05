@@ -41,8 +41,8 @@ describe('chunk-load-failure', () => {
 
     await retry(async () => {
       const body = await browser.elementByCss('body')
-      // Client errors show "This page crashed"
-      expect(await body.text()).toMatch(/This page crashed/)
+      // Chunk load errors show a banner instead of full-page error
+      expect(await body.text()).toMatch(/This page couldn't be fully loaded/)
     })
 
     expect(pageError).toBeDefined()

@@ -16,6 +16,8 @@ declare global {
     | undefined
 }
 
+export type ChunkErrorAction = 'retry' | 'banner'
+
 /**
  * Context for chunk error handling.
  * Tracks where the error occurred and what kind of error it was.
@@ -290,16 +292,17 @@ export function createChunkErrorContext(
 }
 
 /**
- * Handle a chunk load failure and determine if we should retry.
+ * Handle a chunk load failure and determine the action to take.
  *
- * Returns true if a silent retry should be attempted, false otherwise.
+ * Returns 'retry' if a silent retry should be attempted,
+ * or 'banner' if the error should be shown to the user.
  * This function updates the failure tracking state.
  */
-export function handleChunkFailure(ctx: ChunkErrorContext): boolean {
+export function handleChunkFailure(ctx: ChunkErrorContext): ChunkErrorAction {
   // Don't count offline failures toward retry limit - they're expected
   // and will succeed once connectivity is restored
   if (typeof navigator !== 'undefined' && !navigator.onLine) {
-    return false
+    return 'banner'
   }
 
   // Record failure for online attempts
@@ -308,10 +311,10 @@ export function handleChunkFailure(ctx: ChunkErrorContext): boolean {
   // Check if we should try a silent retry
   if (shouldSilentRetry(ctx)) {
     markRetried(ctx)
-    return true
+    return 'retry'
   }
 
-  return false
+  return 'banner'
 }
 
 /**
@@ -325,9 +328,9 @@ export async function retryChunkImport<T>(
   ctx: ChunkErrorContext,
   importFn: () => Promise<T>
 ): Promise<T> {
-  const shouldRetry = handleChunkFailure(ctx)
+  const action = handleChunkFailure(ctx)
 
-  if (shouldRetry) {
+  if (action === 'retry') {
     const delay = getRetryDelayMs()
     await sleep(delay)
     return importFn()

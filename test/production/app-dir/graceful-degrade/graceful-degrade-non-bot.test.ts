@@ -15,7 +15,7 @@ describe('graceful-degrade - non bot', () => {
     deleteBrowserDynamicChunks(next)
   })
 
-  it('should not degrade to graceful error when chunk loading fails in ssr for non-bot user agents', async () => {
+  it('should show banner and preserve frozen content when chunk loading fails for non-bot user agents', async () => {
     const browser = await next.browser('/chunk-loading-failed')
 
     const logs = await browser.log()
@@ -25,15 +25,14 @@ describe('graceful-degrade - non bot', () => {
       .join('\n')
 
     expect(errors).toMatch(/Failed to load resource./)
-    // Should not show the original content
-    const html = await browser.elementByCss('html')
-    const body = await browser.elementByCss('body')
-    expect(await html.getAttribute('class')).not.toBe('layout-cls')
-    expect(await body.getAttribute('class')).not.toBe('body-cls')
 
+    const body = await browser.elementByCss('body')
     const bodyText = await body.text()
-    // Client errors show "This page crashed"
-    expect(bodyText).toMatch(/This page crashed/)
+
+    // Chunk load errors show a banner instead of full-page error
+    expect(bodyText).toMatch(/This page couldn't be fully loaded/)
+    // Banner should NOT show the "This page crashed" full-page error
+    expect(bodyText).not.toMatch(/This page crashed/)
   })
 
   it('should show error boundary when browser errors when error boundary is defined', async () => {

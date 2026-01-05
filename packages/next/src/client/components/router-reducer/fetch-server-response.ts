@@ -284,10 +284,10 @@ export async function fetchServerResponse(
       )
 
       if (ctx) {
-        // handleChunkFailure updates failure tracking and returns whether to retry
-        const shouldRetry = handleChunkFailure(ctx)
+        // handleChunkFailure updates failure tracking and returns action
+        const action = handleChunkFailure(ctx)
 
-        if (shouldRetry) {
+        if (action === 'retry') {
           // Silent retry with jittered delay
           const delay = getRetryDelayMs()
           await sleep(delay)
