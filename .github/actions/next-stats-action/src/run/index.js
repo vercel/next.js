@@ -7,28 +7,16 @@ const getDirSize = require('./get-dir-size')
 const collectStats = require('./collect-stats')
 const collectDiffs = require('./collect-diffs')
 const { statsAppDir, diffRepoDir } = require('../constants')
+const { calcStats } = require('../util/stats')
 
 // Number of iterations for build benchmarks to get stable median
-const BUILD_BENCHMARK_ITERATIONS = 3
+const BUILD_BENCHMARK_ITERATIONS = 5
 
 // Bundler configurations for dual-bundler benchmarking
 const BUNDLERS = [
   { name: 'Webpack', flag: '--webpack', suffix: 'Webpack' },
   { name: 'Turbopack', flag: '', suffix: 'Turbo' },
 ]
-
-// Calculate stats summary for an array of numbers
-function calcStats(arr) {
-  if (arr.length === 0) return null
-  const sorted = [...arr].sort((a, b) => a - b)
-  const mid = Math.floor(sorted.length / 2)
-  const med =
-    sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2
-  const min = sorted[0]
-  const max = sorted[sorted.length - 1]
-  const mean = arr.reduce((a, b) => a + b, 0) / arr.length
-  return { median: med, min, max, mean: Math.round(mean) }
-}
 
 async function runConfigs(
   configs = [],

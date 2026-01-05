@@ -36,17 +36,17 @@ const MAX_HISTORY_ENTRIES = 100
 // Human-readable labels for metrics
 const METRIC_LABELS = {
   // Dev boot metrics - Turbopack (Listen = port listening, First Request = HTTP responding)
-  'nextDevColdListenDurationTurbo (ms)': 'Cold (Listen)',
-  'nextDevColdReadyDurationTurbo (ms)': 'Cold (First Request)',
-  'nextDevWarmListenDurationTurbo (ms)': 'Warm (Listen)',
-  'nextDevWarmReadyDurationTurbo (ms)': 'Warm (First Request)',
+  nextDevColdListenDurationTurbo: 'Cold (Listen)',
+  nextDevColdReadyDurationTurbo: 'Cold (First Request)',
+  nextDevWarmListenDurationTurbo: 'Warm (Listen)',
+  nextDevWarmReadyDurationTurbo: 'Warm (First Request)',
   // Dev boot metrics - Webpack
-  'nextDevColdListenDurationWebpack (ms)': 'Webpack Cold (Listen)',
-  'nextDevColdReadyDurationWebpack (ms)': 'Webpack Cold (First Request)',
-  'nextDevWarmListenDurationWebpack (ms)': 'Webpack Warm (Listen)',
-  'nextDevWarmReadyDurationWebpack (ms)': 'Webpack Warm (First Request)',
+  nextDevColdListenDurationWebpack: 'Webpack Cold (Listen)',
+  nextDevColdReadyDurationWebpack: 'Webpack Cold (First Request)',
+  nextDevWarmListenDurationWebpack: 'Webpack Warm (Listen)',
+  nextDevWarmReadyDurationWebpack: 'Webpack Warm (First Request)',
   // Production metrics
-  'nextStartReadyDuration (ms)': 'Prod Start',
+  nextStartReadyDuration: 'Prod Start',
   // Build metrics - Webpack
   buildDurationWebpack: 'Webpack Build Time',
   buildDurationCachedWebpack: 'Webpack Build Time (cached)',
@@ -66,22 +66,22 @@ const METRIC_GROUPS = {
     metrics: [
       {
         label: 'Cold (Listen)',
-        key: 'nextDevColdListenDurationTurbo (ms)',
+        key: 'nextDevColdListenDurationTurbo',
         description: 'Time until TCP port accepts connections',
       },
       {
         label: 'Cold (First Request)',
-        key: 'nextDevColdReadyDurationTurbo (ms)',
+        key: 'nextDevColdReadyDurationTurbo',
         description: 'Time until first HTTP request succeeds',
       },
       {
         label: 'Warm (Listen)',
-        key: 'nextDevWarmListenDurationTurbo (ms)',
+        key: 'nextDevWarmListenDurationTurbo',
         description: 'Time until TCP port accepts connections (cached)',
       },
       {
         label: 'Warm (First Request)',
-        key: 'nextDevWarmReadyDurationTurbo (ms)',
+        key: 'nextDevWarmReadyDurationTurbo',
         description: 'Time until first HTTP request succeeds (cached)',
       },
     ],
@@ -95,22 +95,22 @@ const METRIC_GROUPS = {
     metrics: [
       {
         label: 'Cold (Listen)',
-        key: 'nextDevColdListenDurationWebpack (ms)',
+        key: 'nextDevColdListenDurationWebpack',
         description: 'Time until TCP port accepts connections',
       },
       {
         label: 'Cold (First Request)',
-        key: 'nextDevColdReadyDurationWebpack (ms)',
+        key: 'nextDevColdReadyDurationWebpack',
         description: 'Time until first HTTP request succeeds',
       },
       {
         label: 'Warm (Listen)',
-        key: 'nextDevWarmListenDurationWebpack (ms)',
+        key: 'nextDevWarmListenDurationWebpack',
         description: 'Time until TCP port accepts connections (cached)',
       },
       {
         label: 'Warm (First Request)',
-        key: 'nextDevWarmReadyDurationWebpack (ms)',
+        key: 'nextDevWarmReadyDurationWebpack',
         description: 'Time until first HTTP request succeeds (cached)',
       },
     ],
@@ -156,7 +156,7 @@ const METRIC_GROUPS = {
     metrics: [
       {
         label: 'Start (First Request)',
-        key: 'nextStartReadyDuration (ms)',
+        key: 'nextStartReadyDuration',
       },
     ],
   },
@@ -168,13 +168,16 @@ const METRIC_GROUPS = {
 
 async function loadHistory() {
   const kvClient = await getKV()
-  if (!kvClient) return { entries: [] }
+  if (!kvClient) {
+    logger('KV not configured - historical trends unavailable')
+    return { entries: [] }
+  }
 
   try {
     const data = await kvClient.lrange(KV_STATS_KEY, -MAX_HISTORY_ENTRIES, -1)
-    return {
-      entries: data.map((d) => (typeof d === 'string' ? JSON.parse(d) : d)),
-    }
+    const entries = data.map((d) => (typeof d === 'string' ? JSON.parse(d) : d))
+    logger(`Loaded ${entries.length} historical entries from KV`)
+    return { entries }
   } catch (e) {
     logger.error('Failed to load history from KV:', e)
     return { entries: [] }
@@ -223,7 +226,7 @@ const shortenLabel = (itemKey) =>
     : itemKey
 
 function getMetricLabel(key) {
-  return METRIC_LABELS[key] || shortenLabel(key.replace(/ \(ms\)$/, ''))
+  return METRIC_LABELS[key] || shortenLabel(key)
 }
 
 function formatChange(mainVal, diffVal, type = 'bytes') {
@@ -234,15 +237,15 @@ function formatChange(mainVal, diffVal, type = 'bytes') {
   const diff = diffVal - mainVal
   const percentChange = mainVal > 0 ? (diff / mainVal) * 100 : 0
 
-  // Thresholds: stricter for framework development to catch all regressions
-  // For time: <10ms AND <2% = not worth mentioning
+  // Thresholds: filter CI noise while catching real regressions
+  // For time: <50ms AND <10% = not worth mentioning (with 9 iterations for stable median)
   // For size: <1KB AND <1% = not worth mentioning
   // If mainVal is 0 and diff is non-zero, always consider it significant
   const isInsignificant =
     mainVal === 0 && diff !== 0
       ? false
       : type === 'ms'
-        ? Math.abs(diff) < 10 && Math.abs(percentChange) < 2
+        ? Math.abs(diff) < 50 && Math.abs(percentChange) < 10
         : Math.abs(diff) < 1024 && Math.abs(percentChange) < 1
 
   if (isInsignificant) {
@@ -306,7 +309,7 @@ function getHistoricalValues(history, metricKey, limit = 15) {
 
 // Determine if a metric is time-based (ms) or size-based (bytes)
 function getMetricType(metricKey) {
-  if (metricKey.includes('Duration') || metricKey.includes('(ms)')) {
+  if (metricKey.includes('Duration')) {
     return 'ms'
   }
   if (metricKey.includes('Size')) {
@@ -315,7 +318,7 @@ function getMetricType(metricKey) {
   return 'ms' // default to ms for performance metrics
 }
 
-function generateChangeSummary(mainStats, diffStats) {
+function generateChangeSummary(mainStats, diffStats, history) {
   // Collect all significant changes across all metrics
   const changes = []
 
@@ -330,11 +333,13 @@ function generateChangeSummary(mainStats, diffStats) {
     const change = formatChange(mainVal, diffVal, type)
 
     if (change.significant) {
+      const histValues = getHistoricalValues(history, key)
       changes.push({
         metric: getMetricLabel(key),
         mainVal: prettify(mainVal, type),
         diffVal: prettify(diffVal, type),
         change: change.text,
+        trend: generateTrendBar(histValues),
         improved: change.improved,
         regression: change.regression,
       })
@@ -365,12 +370,21 @@ function generateChangeSummary(mainStats, diffStats) {
     headline = `### 🟢 ${improvements.length} improvement${improvements.length > 1 ? 's' : ''}`
   }
 
+  const hasTrends = changes.some((c) => c.trend)
   let summary = `${headline}\n\n`
-  summary += `| Metric | Canary | PR | Change |\n`
-  summary += `|:-------|-------:|---:|-------:|\n`
 
-  for (const c of changes) {
-    summary += `| ${c.metric} | ${c.mainVal} | ${c.diffVal} | ${c.change} |\n`
+  if (hasTrends) {
+    summary += `| Metric | Canary | PR | Change | Trend |\n`
+    summary += `|:-------|-------:|---:|-------:|:-----:|\n`
+    for (const c of changes) {
+      summary += `| ${c.metric} | ${c.mainVal} | ${c.diffVal} | ${c.change} | ${c.trend} |\n`
+    }
+  } else {
+    summary += `| Metric | Canary | PR | Change |\n`
+    summary += `|:-------|-------:|---:|-------:|\n`
+    for (const c of changes) {
+      summary += `| ${c.metric} | ${c.mainVal} | ${c.diffVal} | ${c.change} |\n`
+    }
   }
 
   return summary + '\n'
@@ -391,7 +405,7 @@ function generateGlossary() {
 - **Cached** = With existing .next directory
 
 **Change Thresholds:**
-- Time: Changes < 10ms AND < 2% are insignificant
+- Time: Changes < 50ms AND < 10% are insignificant
 - Size: Changes < 1KB AND < 1% are insignificant
 - All other changes are flagged to catch regressions
 
@@ -794,7 +808,8 @@ module.exports = async function addComment(
     if (i === 0) {
       comment += generateChangeSummary(
         result.mainRepoStats,
-        result.diffRepoStats
+        result.diffRepoStats,
+        history
       )
     }
 

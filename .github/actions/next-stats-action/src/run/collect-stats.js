@@ -12,41 +12,10 @@ const { spawn } = require('../util/exec')
 const { parse: urlParse } = require('url')
 const benchmarkUrl = require('./benchmark-url')
 const { statsAppDir, diffingDir, benchTitle } = require('../constants')
+const { calcStats } = require('../util/stats')
 
 // Number of iterations for timing benchmarks to get stable median
-const BENCHMARK_ITERATIONS = 5
-
-// Calculate median of an array of numbers
-function median(arr) {
-  if (arr.length === 0) return null
-  const sorted = [...arr].sort((a, b) => a - b)
-  const mid = Math.floor(sorted.length / 2)
-  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2
-}
-
-// Calculate stats summary for an array of numbers
-function calcStats(arr) {
-  if (arr.length === 0) return null
-  const sorted = [...arr].sort((a, b) => a - b)
-  const mid = Math.floor(sorted.length / 2)
-  const med =
-    sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2
-  const min = sorted[0]
-  const max = sorted[sorted.length - 1]
-  const mean = arr.reduce((a, b) => a + b, 0) / arr.length
-  const variance =
-    arr.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / arr.length
-  const stddev = Math.sqrt(variance)
-  const cv = mean > 0 ? (stddev / mean) * 100 : 0 // coefficient of variation as %
-  return {
-    median: med,
-    min,
-    max,
-    mean: Math.round(mean),
-    stddev: Math.round(stddev),
-    cv: Math.round(cv),
-  }
-}
+const BENCHMARK_ITERATIONS = 9
 
 // Check if a port is accepting TCP connections
 function checkPort(port, timeout = 100) {
@@ -308,7 +277,7 @@ module.exports = async function collectStats(
       if (!orderedStats['General']) {
         orderedStats['General'] = {}
       }
-      orderedStats['General']['nextStartReadyDuration (ms)'] = readyStats.median
+      orderedStats['General']['nextStartReadyDuration'] = readyStats.median
     } else {
       logger(`  Prod Start: Failed to collect timing data`)
     }
@@ -458,14 +427,12 @@ module.exports = async function collectStats(
       )
 
       if (coldResult.listenTime !== null) {
-        orderedStats['General'][
-          `nextDevColdListenDuration${bundler.suffix} (ms)`
-        ] = coldResult.listenTime
+        orderedStats['General'][`nextDevColdListenDuration${bundler.suffix}`] =
+          coldResult.listenTime
       }
       if (coldResult.readyTime !== null) {
-        orderedStats['General'][
-          `nextDevColdReadyDuration${bundler.suffix} (ms)`
-        ] = coldResult.readyTime
+        orderedStats['General'][`nextDevColdReadyDuration${bundler.suffix}`] =
+          coldResult.readyTime
       }
 
       // 2. Warm up bytecode cache by running server for ~10 seconds
@@ -515,13 +482,12 @@ module.exports = async function collectStats(
 
         if (warmResult.listenTime !== null) {
           orderedStats['General'][
-            `nextDevWarmListenDuration${bundler.suffix} (ms)`
+            `nextDevWarmListenDuration${bundler.suffix}`
           ] = warmResult.listenTime
         }
         if (warmResult.readyTime !== null) {
-          orderedStats['General'][
-            `nextDevWarmReadyDuration${bundler.suffix} (ms)`
-          ] = warmResult.readyTime
+          orderedStats['General'][`nextDevWarmReadyDuration${bundler.suffix}`] =
+            warmResult.readyTime
         }
       }
     }
