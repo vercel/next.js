@@ -510,11 +510,13 @@ function generatePerformanceSection(mainStats, diffStats, history) {
 // Base group names (without bundler suffix)
 const BASE_BUNDLE_GROUPS = {
   client: [
-    'Client Bundles (main, webpack)',
+    'Client Bundles (main)',
     'Client Pages',
     'Legacy Client Bundles (polyfills)',
   ],
-  server: ['Next Runtimes', 'Edge SSR bundle Size', 'Middleware size'],
+  server: ['Edge SSR bundle Size', 'Middleware size'],
+  // Next Runtimes are built independently of Turbopack/Webpack
+  shared: ['Next Runtimes'],
   other: ['Client Build Manifests', 'Rendered Page Sizes', 'build cache'],
 }
 
@@ -588,7 +590,7 @@ function generateBundleGroup(groupKey, result, tableHead) {
 
   // Friendly names for groups
   const friendlyNames = {
-    'Client Bundles (main, webpack)': 'Main & Webpack',
+    'Client Bundles (main)': 'Main Bundles',
     'Legacy Client Bundles (polyfills)': 'Polyfills',
     'Client Pages': 'Pages',
     'Client Build Manifests': 'Build Manifests',
@@ -620,7 +622,7 @@ function generateBundleSizeSection(result, tableHead) {
 
   // Organize groups by bundler and category
   const bundlerGroups = {}
-  const nonBundlerGroups = { client: [], server: [], other: [] }
+  const nonBundlerGroups = { client: [], server: [], shared: [], other: [] }
 
   for (const groupKey of allGroupKeys) {
     if (groupKey === 'General' || groupKey === benchTitle) continue
@@ -639,6 +641,8 @@ function generateBundleSizeSection(result, tableHead) {
         nonBundlerGroups.client.push(groupKey)
       } else if (BASE_BUNDLE_GROUPS.server.includes(baseGroup)) {
         nonBundlerGroups.server.push(groupKey)
+      } else if (BASE_BUNDLE_GROUPS.shared.includes(baseGroup)) {
+        nonBundlerGroups.shared.push(groupKey)
       } else {
         nonBundlerGroups.other.push(groupKey)
       }
@@ -732,6 +736,7 @@ function generateBundleSizeSection(result, tableHead) {
       const titles = {
         client: '📦 Client',
         server: '🖥️ Server',
+        shared: '🔄 Shared (bundler-independent)',
         other: '🔧 Other',
       }
       content += `### ${titles[categoryKey]}\n\n${categoryContent}`
