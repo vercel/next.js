@@ -120,6 +120,9 @@ pub async fn get_browser_runtime_code(
             )?;
         }
         ChunkSuffix::FromScriptSrc => {
+            if chunk_loading == &ChunkLoading::Edge {
+                panic!("ChunkSuffix::FromScriptSrc is not supported in Edge runtimes");
+            }
             writedoc!(
                 code,
                 r#"
