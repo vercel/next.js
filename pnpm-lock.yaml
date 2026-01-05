@@ -759,6 +759,58 @@ importers:
         specifier: ^5
         version: 5.9.2
 
+  apps/gh-discussion-router:
+    dependencies:
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
+      lucide-react:
+        specifier: ^0.554.0
+        version: 0.554.0(react@19.3.0-canary-65eec428-20251218)
+      next:
+        specifier: 16.1.1
+        version: 16.1.1(@babel/core@7.26.10)(@opentelemetry/api@1.6.0)(@playwright/test@1.51.1)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@0.0.0-experimental-3fde738-20250918)(react-dom@19.3.0-canary-65eec428-20251218(react@19.3.0-canary-65eec428-20251218))(react@19.3.0-canary-65eec428-20251218)(sass@1.77.8)
+      octokit:
+        specifier: 3.1.0
+        version: 3.1.0
+      react:
+        specifier: 19.3.0-canary-65eec428-20251218
+        version: 19.3.0-canary-65eec428-20251218
+      react-dom:
+        specifier: 19.3.0-canary-65eec428-20251218
+        version: 19.3.0-canary-65eec428-20251218(react@19.3.0-canary-65eec428-20251218)
+      string-similarity-js:
+        specifier: ^2.1.4
+        version: 2.1.4
+      tailwind-merge:
+        specifier: ^2.5.5
+        version: 2.6.0
+      zod:
+        specifier: ^3.24.1
+        version: 3.25.76
+    devDependencies:
+      '@tailwindcss/postcss':
+        specifier: ^4.1.9
+        version: 4.1.13
+      '@types/node':
+        specifier: 20.17.6
+        version: 20.17.6(patch_hash=rvl3vkomen3tospgr67bzubfyu)
+      '@types/react':
+        specifier: 19.2.2
+        version: 19.2.2
+      '@types/react-dom':
+        specifier: 19.2.1
+        version: 19.2.1(@types/react@19.2.2)
+      postcss:
+        specifier: ^8.5
+        version: 8.5.3
+      tailwindcss:
+        specifier: ^4.1.9
+        version: 4.1.13
+      typescript:
+        specifier: ^5
+        version: 5.9.2
+
   bench/app-router-server:
     dependencies:
       next:
@@ -4265,6 +4317,9 @@ packages:
   '@next/env@16.0.8':
     resolution: {integrity: sha512-xP4WrQZuj9MdmLJy3eWFHepo+R3vznsMSS8Dy3wdA7FKpjCiesQ6DxZvdGziQisj0tEtCgBKJzjcAc4yZOgLEQ==}
 
+  '@next/env@16.1.1':
+    resolution: {integrity: sha512-3oxyM97Sr2PqiVyMyrZUtrtM3jqqFxOQJVuKclDsgj/L728iZt/GyslkN4NwarledZATCenbk4Offjk1hQmaAA==}
+
   '@next/rspack-binding-android-arm-eabi@1.0.2':
     resolution: {integrity: sha512-ayoNrm5Z9xYIHdYfhUSvzPzNXRunMXx5B6Bonch9pJBfyC/3tUlcqVlI5+1HS+H4euWtPMeGqe8bARjQ71J/ug==}
     cpu: [arm]
@@ -4343,6 +4398,12 @@ packages:
     cpu: [arm64]
     os: [darwin]
 
+  '@next/swc-darwin-arm64@16.1.1':
+    resolution: {integrity: sha512-JS3m42ifsVSJjSTzh27nW+Igfha3NdBOFScr9C80hHGrWx55pTrVL23RJbqir7k7/15SKlrLHhh/MQzqBBYrQA==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [darwin]
+
   '@next/swc-darwin-x64@15.5.7':
     resolution: {integrity: sha512-UP6CaDBcqaCBuiq/gfCEJw7sPEoX1aIjZHnBWN9v9qYHQdMKvCKcAVs4OX1vIjeE+tC5EIuwDTVIoXpUes29lg==}
     engines: {node: '>= 10'}
@@ -4351,6 +4412,12 @@ packages:
 
   '@next/swc-darwin-x64@16.0.8':
     resolution: {integrity: sha512-+zu2N3QQ0ZOb6RyqQKfcu/pn0UPGmg+mUDqpAAEviAcEVEYgDckemOpiMRsBP3IsEKpcoKuNzekDcPczEeEIzA==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [darwin]
+
+  '@next/swc-darwin-x64@16.1.1':
+    resolution: {integrity: sha512-hbyKtrDGUkgkyQi1m1IyD3q4I/3m9ngr+V93z4oKHrPcmxwNL5iMWORvLSGAf2YujL+6HxgVvZuCYZfLfb4bGw==}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [darwin]
@@ -4367,6 +4434,12 @@ packages:
     cpu: [arm64]
     os: [linux]
 
+  '@next/swc-linux-arm64-gnu@16.1.1':
+    resolution: {integrity: sha512-/fvHet+EYckFvRLQ0jPHJCUI5/B56+2DpI1xDSvi80r/3Ez+Eaa2Yq4tJcRTaB1kqj/HrYKn8Yplm9bNoMJpwQ==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [linux]
+
   '@next/swc-linux-arm64-musl@15.5.7':
     resolution: {integrity: sha512-nfymt+SE5cvtTrG9u1wdoxBr9bVB7mtKTcj0ltRn6gkP/2Nu1zM5ei8rwP9qKQP0Y//umK+TtkKgNtfboBxRrw==}
     engines: {node: '>= 10'}
@@ -4375,6 +4448,12 @@ packages:
 
   '@next/swc-linux-arm64-musl@16.0.8':
     resolution: {integrity: sha512-JaXFAlqn8fJV+GhhA9lpg6da/NCN/v9ub98n3HoayoUSPOVdoxEEt86iT58jXqQCs/R3dv5ZnxGkW8aF4obMrQ==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [linux]
+
+  '@next/swc-linux-arm64-musl@16.1.1':
+    resolution: {integrity: sha512-MFHrgL4TXNQbBPzkKKur4Fb5ICEJa87HM7fczFs2+HWblM7mMLdco3dvyTI+QmLBU9xgns/EeeINSZD6Ar+oLg==}
     engines: {node: '>= 10'}
     cpu: [arm64]
     os: [linux]
@@ -4391,6 +4470,12 @@ packages:
     cpu: [x64]
     os: [linux]
 
+  '@next/swc-linux-x64-gnu@16.1.1':
+    resolution: {integrity: sha512-20bYDfgOQAPUkkKBnyP9PTuHiJGM7HzNBbuqmD0jiFVZ0aOldz+VnJhbxzjcSabYsnNjMPsE0cyzEudpYxsrUQ==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [linux]
+
   '@next/swc-linux-x64-musl@15.5.7':
     resolution: {integrity: sha512-4IUO539b8FmF0odY6/SqANJdgwn1xs1GkPO5doZugwZ3ETF6JUdckk7RGmsfSf7ws8Qb2YB5It33mvNL/0acqA==}
     engines: {node: '>= 10'}
@@ -4399,6 +4484,12 @@ packages:
 
   '@next/swc-linux-x64-musl@16.0.8':
     resolution: {integrity: sha512-8+KClEC/GLI2dLYcrWwHu5JyC5cZYCFnccVIvmxpo6K+XQt4qzqM5L4coofNDZYkct/VCCyJWGbZZDsg6w6LFA==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [linux]
+
+  '@next/swc-linux-x64-musl@16.1.1':
+    resolution: {integrity: sha512-9pRbK3M4asAHQRkwaXwu601oPZHghuSC8IXNENgbBSyImHv/zY4K5udBusgdHkvJ/Tcr96jJwQYOll0qU8+fPA==}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [linux]
@@ -4415,6 +4506,12 @@ packages:
     cpu: [arm64]
     os: [win32]
 
+  '@next/swc-win32-arm64-msvc@16.1.1':
+    resolution: {integrity: sha512-bdfQkggaLgnmYrFkSQfsHfOhk/mCYmjnrbRCGgkMcoOBZ4n+TRRSLmT/CU5SATzlBJ9TpioUyBW/vWFXTqQRiA==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [win32]
+
   '@next/swc-win32-x64-msvc@15.5.7':
     resolution: {integrity: sha512-gMzgBX164I6DN+9/PGA+9dQiwmTkE4TloBNx8Kv9UiGARsr9Nba7IpcBRA1iTV9vwlYnrE3Uy6I7Aj6qLjQuqw==}
     engines: {node: '>= 10'}
@@ -4423,6 +4520,12 @@ packages:
 
   '@next/swc-win32-x64-msvc@16.0.8':
     resolution: {integrity: sha512-jWpWjWcMQu2iZz4pEK2IktcfR+OA9+cCG8zenyLpcW8rN4rzjfOzH4yj/b1FiEAZHKS+5Vq8+bZyHi+2yqHbFA==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [win32]
+
+  '@next/swc-win32-x64-msvc@16.1.1':
+    resolution: {integrity: sha512-Ncwbw2WJ57Al5OX0k4chM68DKhEPlrXBaSXDCi2kPi5f4d8b3ejr3RRJGfKBLrn2YJL5ezNS7w2TZLHSti8CMw==}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [win32]
@@ -4640,24 +4743,12 @@ packages:
     resolution: {integrity: sha512-AjOI6FNB2dweJ85p6rf7D4EhE4y6VBcwYfX/7KJkR5Q9fD9ET6NABAjajUTSNFfCxmNIaQgISggZ3pkgwtTqsA==}
     engines: {node: '>= 18'}
 
-  '@octokit/core@5.0.0':
-    resolution: {integrity: sha512-YbAtMWIrbZ9FCXbLwT9wWB8TyLjq9mxpKdgB3dUNxQcIVTf9hJ70gRPwAcqGZdY6WdJPZ0I7jLaaNDCiloGN2A==}
-    engines: {node: '>= 18'}
-
   '@octokit/core@5.2.2':
     resolution: {integrity: sha512-/g2d4sW9nUDJOMz3mabVQvOGhVa4e/BN/Um7yca9Bb2XTzPPnfTWHWQg+IsEYO7M3Vx+EXvaM/I2pJWIMun1bg==}
     engines: {node: '>= 18'}
 
-  '@octokit/endpoint@9.0.0':
-    resolution: {integrity: sha512-szrQhiqJ88gghWY2Htt8MqUDO6++E/EIXqJ2ZEp5ma3uGS46o7LZAzSLt49myB7rT+Hfw5Y6gO3LmOxGzHijAQ==}
-    engines: {node: '>= 18'}
-
   '@octokit/endpoint@9.0.6':
     resolution: {integrity: sha512-H1fNTMA57HbkFESSt3Y9+FBICv+0jFceJFPWDePYlR/iMGrwM5ph+Dd4XRQs+8X+PUFURLQgX9ChPfhJ/1uNQw==}
-    engines: {node: '>= 18'}
-
-  '@octokit/graphql@7.0.1':
-    resolution: {integrity: sha512-T5S3oZ1JOE58gom6MIcrgwZXzTaxRnxBso58xhozxHpOqSTgDS6YNeEUvZ/kRvXgPrRz/KHnZhtb7jUMRi9E6w==}
     engines: {node: '>= 18'}
 
   '@octokit/graphql@7.1.1':
@@ -4733,16 +4824,8 @@ packages:
     peerDependencies:
       '@octokit/core': ^5.0.0
 
-  '@octokit/request-error@5.0.0':
-    resolution: {integrity: sha512-1ue0DH0Lif5iEqT52+Rf/hf0RmGO9NWFjrzmrkArpG9trFfDM/efx00BJHdLGuro4BR/gECxCU2Twf5OKrRFsQ==}
-    engines: {node: '>= 18'}
-
   '@octokit/request-error@5.1.1':
     resolution: {integrity: sha512-v9iyEQJH6ZntoENr9/yXxjuezh4My67CBSu9r6Ve/05Iu5gNgnisNWOsoJHTP6k0Rr0+HQIpnH+kyammu90q/g==}
-    engines: {node: '>= 18'}
-
-  '@octokit/request@8.1.1':
-    resolution: {integrity: sha512-8N+tdUz4aCqQmXl8FpHYfKG9GelDFd7XGVzyN8rc6WxVlYcfpHECnuRkgquzz+WzvHTK62co5di8gSXnzASZPQ==}
     engines: {node: '>= 18'}
 
   '@octokit/request@8.4.1':
@@ -13797,6 +13880,27 @@ packages:
       sass:
         optional: true
 
+  next@16.1.1:
+    resolution: {integrity: sha512-QI+T7xrxt1pF6SQ/JYFz95ro/mg/1Znk5vBebsWwbpejj1T0A23hO7GYEaVac9QUOT2BIMiuzm0L99ooq7k0/w==}
+    engines: {node: '>=20.9.0'}
+    hasBin: true
+    peerDependencies:
+      '@opentelemetry/api': ^1.1.0
+      '@playwright/test': ^1.51.1
+      babel-plugin-react-compiler: '*'
+      react: 19.3.0-canary-65eec428-20251218
+      react-dom: 19.3.0-canary-65eec428-20251218
+      sass: ^1.3.0
+    peerDependenciesMeta:
+      '@opentelemetry/api':
+        optional: true
+      '@playwright/test':
+        optional: true
+      babel-plugin-react-compiler:
+        optional: true
+      sass:
+        optional: true
+
   nice-try@1.0.5:
     resolution: {integrity: sha512-1nh45deeb5olNY7eX82BkPO7SSxR5SSYJiPTrTdFUVYwAl8CKMA5N9PjTYkHiRjisVcxcQ1HXdLhx2qxxJzLNQ==}
 
@@ -16962,6 +17066,9 @@ packages:
   string-length@5.0.1:
     resolution: {integrity: sha512-9Ep08KAMUn0OadnVaBuRdE2l615CQ508kr0XMadjClfYpdCyvrbFp6Taebo8yyxokQ4viUd/xPPUA4FGgUa0ow==}
     engines: {node: '>=12.20'}
+
+  string-similarity-js@2.1.4:
+    resolution: {integrity: sha512-uApODZNjCHGYROzDSAdCmAHf60L/pMDHnP/yk6TAbvGg7JSPZlSto/ceCI7hZEqzc53/juU2aOJFkM2yUVTMTA==}
 
   string-width@1.0.2:
     resolution: {integrity: sha512-0XsVpQLnVCXHJfyEs8tC0zpTVIr5PKKsQtkT29IwupnPTjtPmQ3xT/4yCREF9hYkV/3M3kzcUTSAZT6a6h81tw==}
@@ -21378,6 +21485,8 @@ snapshots:
 
   '@next/env@16.0.8': {}
 
+  '@next/env@16.1.1': {}
+
   '@next/rspack-binding-android-arm-eabi@1.0.2':
     optional: true
 
@@ -21442,10 +21551,16 @@ snapshots:
   '@next/swc-darwin-arm64@16.0.8':
     optional: true
 
+  '@next/swc-darwin-arm64@16.1.1':
+    optional: true
+
   '@next/swc-darwin-x64@15.5.7':
     optional: true
 
   '@next/swc-darwin-x64@16.0.8':
+    optional: true
+
+  '@next/swc-darwin-x64@16.1.1':
     optional: true
 
   '@next/swc-linux-arm64-gnu@15.5.7':
@@ -21454,10 +21569,16 @@ snapshots:
   '@next/swc-linux-arm64-gnu@16.0.8':
     optional: true
 
+  '@next/swc-linux-arm64-gnu@16.1.1':
+    optional: true
+
   '@next/swc-linux-arm64-musl@15.5.7':
     optional: true
 
   '@next/swc-linux-arm64-musl@16.0.8':
+    optional: true
+
+  '@next/swc-linux-arm64-musl@16.1.1':
     optional: true
 
   '@next/swc-linux-x64-gnu@15.5.7':
@@ -21466,10 +21587,16 @@ snapshots:
   '@next/swc-linux-x64-gnu@16.0.8':
     optional: true
 
+  '@next/swc-linux-x64-gnu@16.1.1':
+    optional: true
+
   '@next/swc-linux-x64-musl@15.5.7':
     optional: true
 
   '@next/swc-linux-x64-musl@16.0.8':
+    optional: true
+
+  '@next/swc-linux-x64-musl@16.1.1':
     optional: true
 
   '@next/swc-win32-arm64-msvc@15.5.7':
@@ -21478,10 +21605,16 @@ snapshots:
   '@next/swc-win32-arm64-msvc@16.0.8':
     optional: true
 
+  '@next/swc-win32-arm64-msvc@16.1.1':
+    optional: true
+
   '@next/swc-win32-x64-msvc@15.5.7':
     optional: true
 
   '@next/swc-win32-x64-msvc@16.0.8':
+    optional: true
+
+  '@next/swc-win32-x64-msvc@16.1.1':
     optional: true
 
   '@nicolo-ribaudo/eslint-scope-5-internals@5.1.1-v1':
@@ -21757,9 +21890,9 @@ snapshots:
     dependencies:
       '@octokit/auth-app': 6.0.0
       '@octokit/auth-unauthenticated': 5.0.0
-      '@octokit/core': 5.0.0
+      '@octokit/core': 5.2.2
       '@octokit/oauth-app': 6.0.0
-      '@octokit/plugin-paginate-rest': 8.0.0(@octokit/core@5.0.0)
+      '@octokit/plugin-paginate-rest': 8.0.0(@octokit/core@5.2.2)
       '@octokit/types': 11.1.0
       '@octokit/webhooks': 12.0.3
 
@@ -21767,8 +21900,8 @@ snapshots:
     dependencies:
       '@octokit/auth-oauth-app': 7.0.0
       '@octokit/auth-oauth-user': 4.0.0
-      '@octokit/request': 8.1.1
-      '@octokit/request-error': 5.0.0
+      '@octokit/request': 8.4.1
+      '@octokit/request-error': 5.1.1
       '@octokit/types': 11.1.0
       deprecation: 2.3.1
       lru-cache: 10.4.3
@@ -21779,7 +21912,7 @@ snapshots:
     dependencies:
       '@octokit/auth-oauth-device': 6.0.0
       '@octokit/auth-oauth-user': 4.0.0
-      '@octokit/request': 8.1.1
+      '@octokit/request': 8.4.1
       '@octokit/types': 11.1.0
       '@types/btoa-lite': 1.0.0
       btoa-lite: 1.0.0
@@ -21788,7 +21921,7 @@ snapshots:
   '@octokit/auth-oauth-device@6.0.0':
     dependencies:
       '@octokit/oauth-methods': 4.0.0
-      '@octokit/request': 8.1.1
+      '@octokit/request': 8.4.1
       '@octokit/types': 11.1.0
       universal-user-agent: 6.0.0
 
@@ -21796,7 +21929,7 @@ snapshots:
     dependencies:
       '@octokit/auth-oauth-device': 6.0.0
       '@octokit/oauth-methods': 4.0.0
-      '@octokit/request': 8.1.1
+      '@octokit/request': 8.4.1
       '@octokit/types': 11.1.0
       btoa-lite: 1.0.0
       universal-user-agent: 6.0.0
@@ -21805,18 +21938,8 @@ snapshots:
 
   '@octokit/auth-unauthenticated@5.0.0':
     dependencies:
-      '@octokit/request-error': 5.0.0
+      '@octokit/request-error': 5.1.1
       '@octokit/types': 11.1.0
-
-  '@octokit/core@5.0.0':
-    dependencies:
-      '@octokit/auth-token': 4.0.0
-      '@octokit/graphql': 7.0.1
-      '@octokit/request': 8.1.1
-      '@octokit/request-error': 5.0.0
-      '@octokit/types': 11.1.0
-      before-after-hook: 2.2.3
-      universal-user-agent: 6.0.0
 
   '@octokit/core@5.2.2':
     dependencies:
@@ -21828,21 +21951,9 @@ snapshots:
       before-after-hook: 2.2.3
       universal-user-agent: 6.0.0
 
-  '@octokit/endpoint@9.0.0':
-    dependencies:
-      '@octokit/types': 11.1.0
-      is-plain-object: 5.0.0
-      universal-user-agent: 6.0.0
-
   '@octokit/endpoint@9.0.6':
     dependencies:
       '@octokit/types': 13.10.0
-      universal-user-agent: 6.0.0
-
-  '@octokit/graphql@7.0.1':
-    dependencies:
-      '@octokit/request': 8.1.1
-      '@octokit/types': 11.1.0
       universal-user-agent: 6.0.0
 
   '@octokit/graphql@7.1.1':
@@ -21856,7 +21967,7 @@ snapshots:
       '@octokit/auth-oauth-app': 7.0.0
       '@octokit/auth-oauth-user': 4.0.0
       '@octokit/auth-unauthenticated': 5.0.0
-      '@octokit/core': 5.0.0
+      '@octokit/core': 5.2.2
       '@octokit/oauth-authorization-url': 6.0.2
       '@octokit/oauth-methods': 4.0.0
       '@types/aws-lambda': 8.10.119
@@ -21867,8 +21978,8 @@ snapshots:
   '@octokit/oauth-methods@4.0.0':
     dependencies:
       '@octokit/oauth-authorization-url': 6.0.2
-      '@octokit/request': 8.1.1
-      '@octokit/request-error': 5.0.0
+      '@octokit/request': 8.4.1
+      '@octokit/request-error': 5.1.1
       '@octokit/types': 11.1.0
       btoa-lite: 1.0.0
 
@@ -21878,18 +21989,18 @@ snapshots:
 
   '@octokit/plugin-enterprise-rest@6.0.1': {}
 
-  '@octokit/plugin-paginate-graphql@4.0.0(@octokit/core@5.0.0)':
+  '@octokit/plugin-paginate-graphql@4.0.0(@octokit/core@5.2.2)':
     dependencies:
-      '@octokit/core': 5.0.0
+      '@octokit/core': 5.2.2
 
   '@octokit/plugin-paginate-rest@11.4.4-cjs.2(@octokit/core@5.2.2)':
     dependencies:
       '@octokit/core': 5.2.2
       '@octokit/types': 13.10.0
 
-  '@octokit/plugin-paginate-rest@8.0.0(@octokit/core@5.0.0)':
+  '@octokit/plugin-paginate-rest@8.0.0(@octokit/core@5.2.2)':
     dependencies:
-      '@octokit/core': 5.0.0
+      '@octokit/core': 5.2.2
       '@octokit/types': 11.1.0
 
   '@octokit/plugin-request-log@4.0.1(@octokit/core@5.2.2)':
@@ -21901,43 +22012,29 @@ snapshots:
       '@octokit/core': 5.2.2
       '@octokit/types': 13.10.0
 
-  '@octokit/plugin-rest-endpoint-methods@9.0.0(@octokit/core@5.0.0)':
+  '@octokit/plugin-rest-endpoint-methods@9.0.0(@octokit/core@5.2.2)':
     dependencies:
-      '@octokit/core': 5.0.0
+      '@octokit/core': 5.2.2
       '@octokit/types': 11.1.0
 
-  '@octokit/plugin-retry@6.0.0(@octokit/core@5.0.0)':
+  '@octokit/plugin-retry@6.0.0(@octokit/core@5.2.2)':
     dependencies:
-      '@octokit/core': 5.0.0
-      '@octokit/request-error': 5.0.0
+      '@octokit/core': 5.2.2
+      '@octokit/request-error': 5.1.1
       '@octokit/types': 11.1.0
       bottleneck: 2.19.5
 
-  '@octokit/plugin-throttling@7.0.0(@octokit/core@5.0.0)':
+  '@octokit/plugin-throttling@7.0.0(@octokit/core@5.2.2)':
     dependencies:
-      '@octokit/core': 5.0.0
+      '@octokit/core': 5.2.2
       '@octokit/types': 11.1.0
       bottleneck: 2.19.5
-
-  '@octokit/request-error@5.0.0':
-    dependencies:
-      '@octokit/types': 11.1.0
-      deprecation: 2.3.1
-      once: 1.4.0
 
   '@octokit/request-error@5.1.1':
     dependencies:
       '@octokit/types': 13.10.0
       deprecation: 2.3.1
       once: 1.4.0
-
-  '@octokit/request@8.1.1':
-    dependencies:
-      '@octokit/endpoint': 9.0.0
-      '@octokit/request-error': 5.0.0
-      '@octokit/types': 11.1.0
-      is-plain-object: 5.0.0
-      universal-user-agent: 6.0.0
 
   '@octokit/request@8.4.1':
     dependencies:
@@ -21981,7 +22078,7 @@ snapshots:
 
   '@octokit/webhooks@12.0.3':
     dependencies:
-      '@octokit/request-error': 5.0.0
+      '@octokit/request-error': 5.1.1
       '@octokit/webhooks-methods': 4.0.0
       '@octokit/webhooks-types': 7.1.0
       aggregate-error: 3.1.0
@@ -33300,6 +33397,34 @@ snapshots:
       - '@babel/core'
       - babel-plugin-macros
 
+  next@16.1.1(@babel/core@7.26.10)(@opentelemetry/api@1.6.0)(@playwright/test@1.51.1)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@0.0.0-experimental-3fde738-20250918)(react-dom@19.3.0-canary-65eec428-20251218(react@19.3.0-canary-65eec428-20251218))(react@19.3.0-canary-65eec428-20251218)(sass@1.77.8):
+    dependencies:
+      '@next/env': 16.1.1
+      '@swc/helpers': 0.5.15
+      baseline-browser-mapping: 2.8.32
+      caniuse-lite: 1.0.30001746
+      postcss: 8.4.31
+      react: 19.3.0-canary-65eec428-20251218
+      react-dom: 19.3.0-canary-65eec428-20251218(react@19.3.0-canary-65eec428-20251218)
+      styled-jsx: 5.1.6(@babel/core@7.26.10)(babel-plugin-macros@3.1.0)(react@19.3.0-canary-65eec428-20251218)
+    optionalDependencies:
+      '@next/swc-darwin-arm64': 16.1.1
+      '@next/swc-darwin-x64': 16.1.1
+      '@next/swc-linux-arm64-gnu': 16.1.1
+      '@next/swc-linux-arm64-musl': 16.1.1
+      '@next/swc-linux-x64-gnu': 16.1.1
+      '@next/swc-linux-x64-musl': 16.1.1
+      '@next/swc-win32-arm64-msvc': 16.1.1
+      '@next/swc-win32-x64-msvc': 16.1.1
+      '@opentelemetry/api': 1.6.0
+      '@playwright/test': 1.51.1
+      babel-plugin-react-compiler: 0.0.0-experimental-3fde738-20250918
+      sass: 1.77.8
+      sharp: 0.34.4
+    transitivePeerDependencies:
+      - '@babel/core'
+      - babel-plugin-macros
+
   nice-try@1.0.5: {}
 
   nlcst-is-literal@1.2.2:
@@ -33753,14 +33878,14 @@ snapshots:
   octokit@3.1.0:
     dependencies:
       '@octokit/app': 14.0.0
-      '@octokit/core': 5.0.0
+      '@octokit/core': 5.2.2
       '@octokit/oauth-app': 6.0.0
-      '@octokit/plugin-paginate-graphql': 4.0.0(@octokit/core@5.0.0)
-      '@octokit/plugin-paginate-rest': 8.0.0(@octokit/core@5.0.0)
-      '@octokit/plugin-rest-endpoint-methods': 9.0.0(@octokit/core@5.0.0)
-      '@octokit/plugin-retry': 6.0.0(@octokit/core@5.0.0)
-      '@octokit/plugin-throttling': 7.0.0(@octokit/core@5.0.0)
-      '@octokit/request-error': 5.0.0
+      '@octokit/plugin-paginate-graphql': 4.0.0(@octokit/core@5.2.2)
+      '@octokit/plugin-paginate-rest': 8.0.0(@octokit/core@5.2.2)
+      '@octokit/plugin-rest-endpoint-methods': 9.0.0(@octokit/core@5.2.2)
+      '@octokit/plugin-retry': 6.0.0(@octokit/core@5.2.2)
+      '@octokit/plugin-throttling': 7.0.0(@octokit/core@5.2.2)
+      '@octokit/request-error': 5.1.1
       '@octokit/types': 11.1.0
 
   on-finished@2.3.0:
@@ -37083,6 +37208,8 @@ snapshots:
     dependencies:
       char-regex: 2.0.2
       strip-ansi: 7.1.0
+
+  string-similarity-js@2.1.4: {}
 
   string-width@1.0.2:
     dependencies:
