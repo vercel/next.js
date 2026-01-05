@@ -93,6 +93,11 @@ interface RuntimeBackend {
     wasmChunkPath: ChunkPath,
     edgeModule: () => WebAssembly.Module
   ) => Promise<WebAssembly.Module>
+  /**
+   * Clears a failed chunk resolver so it can be retried.
+   * Used by Next.js for chunk load error retry logic.
+   */
+  clearChunkResolver?: (chunkUrl: ChunkUrl) => void
 }
 
 interface DevRuntimeBackend {
@@ -418,3 +423,12 @@ function loadWebAssemblyModule(
   )
 }
 contextPrototype.u = loadWebAssemblyModule
+
+// Expose chunk resolver clearing to Next.js for retry logic
+if (typeof globalThis !== 'undefined') {
+  ;(globalThis as any).__turbopack_clear_chunk_resolver__ = (
+    chunkUrl: ChunkUrl
+  ) => {
+    BACKEND.clearChunkResolver?.(chunkUrl)
+  }
+}

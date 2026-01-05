@@ -30,6 +30,7 @@ import {
   convertServerPatchToFullTree,
   type NavigationSeed,
 } from '../segment-cache/navigation'
+import { clearFailureState } from '../chunk-load-error/chunk-load-error-handler'
 
 // This is yet another tree type that is used to track pending promises that
 // need to be fulfilled once the dynamic data is received. The terminal nodes of
@@ -1302,6 +1303,9 @@ async function finishNavigationTask(
     case NavigationTaskExitStatus.Done: {
       // The task has completely finished. There's no missing data. Exit.
       previousNavigationDidMismatch = false
+      // Clear failure state for the successfully navigated route
+      const primaryRequestResult = await primaryRequestPromise
+      clearFailureState(primaryRequestResult.url.pathname)
       return
     }
     case NavigationTaskExitStatus.SoftRetry: {

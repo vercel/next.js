@@ -94,6 +94,37 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
 
       return await WebAssembly.compileStreaming(req)
     },
+
+    /**
+     * Clears a failed chunk resolver so it can be retried.
+     * This is used by Next.js for chunk load error retry logic.
+     */
+    clearChunkResolver(chunkUrl: ChunkUrl) {
+      const resolver = chunkResolvers.get(chunkUrl)
+      if (resolver && !resolver.resolved) {
+        chunkResolvers.delete(chunkUrl)
+        // Remove failed script/link tag so it can be re-added on retry
+        const decodedChunkUrl = decodeURI(chunkUrl)
+        // Escape URLs for safe use in CSS selectors
+        const escapedChunkUrl = CSS.escape(chunkUrl)
+        const escapedDecodedChunkUrl = CSS.escape(decodedChunkUrl)
+        if (isJs(chunkUrl)) {
+          const scripts = document.querySelectorAll(
+            `script[src="${escapedChunkUrl}"],script[src^="${escapedChunkUrl}?"],script[src="${escapedDecodedChunkUrl}"],script[src^="${escapedDecodedChunkUrl}?"]`
+          )
+          for (const script of Array.from(scripts)) {
+            script.remove()
+          }
+        } else if (isCss(chunkUrl)) {
+          const links = document.querySelectorAll(
+            `link[rel=stylesheet][href="${escapedChunkUrl}"],link[rel=stylesheet][href^="${escapedChunkUrl}?"],link[rel=stylesheet][href="${escapedDecodedChunkUrl}"],link[rel=stylesheet][href^="${escapedDecodedChunkUrl}?"]`
+          )
+          for (const link of Array.from(links)) {
+            link.remove()
+          }
+        }
+      }
+    },
   }
 
   function getOrCreateResolver(chunkUrl: ChunkUrl): ChunkResolver {
@@ -163,10 +194,13 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
     } else {
       // TODO(PACK-2140): remove this once all filenames are guaranteed to be escaped.
       const decodedChunkUrl = decodeURI(chunkUrl)
+      // Escape URLs for safe use in CSS selectors
+      const escapedChunkUrl = CSS.escape(chunkUrl)
+      const escapedDecodedChunkUrl = CSS.escape(decodedChunkUrl)
 
       if (isCss(chunkUrl)) {
         const previousLinks = document.querySelectorAll(
-          `link[rel=stylesheet][href="${chunkUrl}"],link[rel=stylesheet][href^="${chunkUrl}?"],link[rel=stylesheet][href="${decodedChunkUrl}"],link[rel=stylesheet][href^="${decodedChunkUrl}?"]`
+          `link[rel=stylesheet][href="${escapedChunkUrl}"],link[rel=stylesheet][href^="${escapedChunkUrl}?"],link[rel=stylesheet][href="${escapedDecodedChunkUrl}"],link[rel=stylesheet][href^="${escapedDecodedChunkUrl}?"]`
         )
         if (previousLinks.length > 0) {
           // CSS chunks do not register themselves, and as such must be marked as
@@ -189,7 +223,7 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
         }
       } else if (isJs(chunkUrl)) {
         const previousScripts = document.querySelectorAll(
-          `script[src="${chunkUrl}"],script[src^="${chunkUrl}?"],script[src="${decodedChunkUrl}"],script[src^="${decodedChunkUrl}?"]`
+          `script[src="${escapedChunkUrl}"],script[src^="${escapedChunkUrl}?"],script[src="${escapedDecodedChunkUrl}"],script[src^="${escapedDecodedChunkUrl}?"]`
         )
         if (previousScripts.length > 0) {
           // There is this edge where the script already failed loading, but we
