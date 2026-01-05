@@ -160,4 +160,89 @@ describe('segment cache (output: "export")', () => {
       }
     )
   })
+
+  // Test for https://github.com/vercel/next.js/issues/88032
+  // Multiple Links with the same href but different prefetch values should
+  // all work correctly in output: "export" mode.
+  it('navigate using link with prefetch={true} when another link with default prefetch exists', async () => {
+    let act
+    const browser = await webdriver(port, '/', {
+      beforePageLoad(p: Playwright.Page) {
+        act = createRouterAct(p)
+      },
+    })
+
+    // Make both links visible (one with default prefetch, one with prefetch={true})
+    // The RSC response contains "Blog: " and "post-1" as separate elements
+    await act(
+      async () => {
+        const checkbox = await browser.elementByCss(
+          '[data-multi-prefetch-accordion="/blog/post-1"]'
+        )
+        await checkbox.click()
+      },
+      {
+        includes: 'blog-post',
+      }
+    )
+
+    // Navigate using the link with prefetch={true}
+    // This should work correctly even though there's another link with default prefetch
+    await act(
+      async () => {
+        const link = await browser.elementByCss(
+          'a[data-link-force-prefetch][href="/blog/post-1"]'
+        )
+        await link.click()
+
+        // The page should be navigated to
+        const div = await browser.elementById('blog-post')
+        expect(await div.text()).toContain('Blog: post-1')
+      },
+      {
+        // Should have prefetched the home page
+        includes: 'Demonstrates that per-segment prefetching works',
+      }
+    )
+  })
+
+  it('navigate using link with default prefetch when another link with prefetch={true} exists', async () => {
+    let act
+    const browser = await webdriver(port, '/', {
+      beforePageLoad(p: Playwright.Page) {
+        act = createRouterAct(p)
+      },
+    })
+
+    // Make both links visible
+    await act(
+      async () => {
+        const checkbox = await browser.elementByCss(
+          '[data-multi-prefetch-accordion="/blog/post-1"]'
+        )
+        await checkbox.click()
+      },
+      {
+        includes: 'blog-post',
+      }
+    )
+
+    // Navigate using the link with default prefetch
+    await act(
+      async () => {
+        const link = await browser.elementByCss(
+          'a[data-link-default][href="/blog/post-1"]'
+        )
+        await link.click()
+
+        // The page should be navigated to
+        const div = await browser.elementById('blog-post')
+        expect(await div.text()).toContain('Blog: post-1')
+      },
+      {
+        // Should have prefetched the home page
+        includes: 'Demonstrates that per-segment prefetching works',
+      }
+    )
+  })
 })

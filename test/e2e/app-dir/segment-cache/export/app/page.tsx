@@ -1,4 +1,5 @@
 import { LinkAccordion } from '../components/link-accordion'
+import { MultiPrefetchLinks } from '../components/multi-prefetch-links'
 
 export default function OutputExport() {
   return (
@@ -32,6 +33,17 @@ export default function OutputExport() {
           <LinkAccordion href="/redirect-to-target-page">
             Redirect to target page
           </LinkAccordion>
+        </li>
+      </ul>
+      <p>
+        Test for issue #88032: multiple Links with same href but different
+        prefetch values
+      </p>
+      <ul>
+        <li>
+          <MultiPrefetchLinks href="/blog/post-1">
+            Blog post 1
+          </MultiPrefetchLinks>
         </li>
       </ul>
     </>

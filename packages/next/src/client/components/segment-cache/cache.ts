@@ -1732,7 +1732,17 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
   }
 
   try {
-    const response = await fetchPrefetchResponse(url, headers)
+    const requestUrl = isOutputExportMode
+      ? // In output: "export" mode, we need to fetch from the pre-generated
+        // static file instead of making a dynamic request to the page URL.
+        // The static export generates a __next._full.txt file that contains
+        // the full RSC payload for each page.
+        addSegmentPathToUrlInOutputExportMode(
+          url,
+          '/_full' as SegmentRequestKey
+        )
+      : url
+    const response = await fetchPrefetchResponse(requestUrl, headers)
     if (!response || !response.ok || !response.body) {
       // Server responded with an error, or with a miss. We should still cache
       // the response, but we can try again after 10 seconds.
