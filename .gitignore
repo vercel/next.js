@@ -63,3 +63,9 @@ test-timings.json
 
 # Storybook
 *storybook.log
+
+# Claude Code (local settings and session files)
+.claude/settings.local.json
+.claude/plans/
+.claude/todos.json
+CLAUDE.local.md
