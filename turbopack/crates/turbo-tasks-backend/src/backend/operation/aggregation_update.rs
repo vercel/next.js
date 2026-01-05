@@ -20,7 +20,7 @@ use smallvec::{SmallVec, smallvec};
     feature = "trace_find_and_schedule"
 ))]
 use tracing::{span::Span, trace_span};
-use turbo_tasks::{FxIndexMap, TaskExecutionReason, TaskId};
+use turbo_tasks::{FxIndexMap, TaskExecutionReason, TaskId, TaskPriority};
 
 #[cfg(feature = "trace_task_dirty")]
 use crate::backend::operation::invalidate::TaskDirtyCause;
@@ -1498,10 +1498,13 @@ impl AggregationUpdateQueue {
     ) {
         // Task need to be scheduled if it's dirty or doesn't have output
         let dirty = task.is_dirty();
-        let should_schedule = if dirty {
-            Some(TaskExecutionReason::ActivateDirty)
+        let should_schedule = if let Some(parent_priority) = dirty {
+            Some((TaskExecutionReason::ActivateDirty, parent_priority))
         } else if !task.has_key(&CachedDataItemKey::Output {}) {
-            Some(TaskExecutionReason::ActivateInitial)
+            Some((
+                TaskExecutionReason::ActivateInitial,
+                TaskPriority::initial(),
+            ))
         } else {
             None
         };
@@ -1512,7 +1515,7 @@ impl AggregationUpdateQueue {
         if !is_active_until_clean {
             let mut dirty_containers = task.dirty_containers().peekable();
             let is_empty = dirty_containers.peek().is_none();
-            if !is_empty || dirty {
+            if !is_empty || dirty.is_some() {
                 self.extend_find_and_schedule_dirty(dirty_containers);
 
                 let activeness_state =
@@ -1520,11 +1523,11 @@ impl AggregationUpdateQueue {
                 activeness_state.set_active_until_clean();
             }
         }
-        if let Some(reason) = should_schedule {
+        if let Some((reason, parent_priority)) = should_schedule {
             let description = || ctx.get_task_desc_fn(task_id);
             if task.add(CachedDataItem::new_scheduled(reason, description)) {
                 drop(task);
-                ctx.schedule(task_id);
+                ctx.schedule(task_id, parent_priority);
             }
         }
     }

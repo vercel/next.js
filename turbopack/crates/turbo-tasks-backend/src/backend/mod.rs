@@ -575,7 +575,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
             // Check the dirty count of the root node
             let has_dirty_containers = task.has_dirty_containers();
-            if has_dirty_containers || is_dirty {
+            if has_dirty_containers || is_dirty.is_some() {
                 let activeness = get_mut!(task, Activeness);
                 let mut task_ids_to_schedule: Vec<_> = Vec::new();
                 // When there are dirty task, subscribe to the all_clean_event
@@ -641,7 +641,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             let has_dirty_containers = task.has_dirty_containers();
 
                             let task_description = ctx.get_task_description(task_id);
-                            let is_dirty_label = if is_dirty { ", dirty" } else { "" };
+                            let is_dirty_label = if let Some(parent_priority) = is_dirty {
+                                format!(", dirty({parent_priority})")
+                            } else {
+                                format!("")
+                            };
                             let has_dirty_containers_label = if has_dirty_containers {
                                 ", dirty containers"
                             } else {
@@ -793,7 +797,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // It's not possible that the task is InProgress at this point. If it is InProgress {
         // done: true } it must have Output and would early return.
         task.add_new(item);
-        ctx.schedule_task(task);
+        ctx.schedule_task(task, TaskPriority::Initial);
 
         Ok(Err(listener))
     }
@@ -984,7 +988,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             TaskExecutionReason::CellNotAvailable,
             || self.get_task_desc_fn(task_id),
         ));
-        ctx.schedule_task(task);
+        ctx.schedule_task(task, TaskPriority::Initial);
 
         Ok(Err(listener))
     }
@@ -2492,7 +2496,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let old_dirtyness = get!(task, Dirty).cloned();
         let (old_self_dirty, old_current_session_self_clean) = match old_dirtyness {
             None => (false, false),
-            Some(Dirtyness::Dirty) => (true, false),
+            Some(Dirtyness::Dirty(_)) => (true, false),
             Some(Dirtyness::SessionDependent) => {
                 let clean_in_current_session = get!(task, CurrentSessionClean).is_some();
                 (true, clean_in_current_session)
@@ -2997,7 +3001,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let mut task = ctx.task(task_id, TaskDataCategory::All);
         let is_dirty = task.is_dirty();
         let has_dirty_containers = task.has_dirty_containers();
-        if is_dirty || has_dirty_containers {
+        if is_dirty.is_some() || has_dirty_containers {
             if let Some(activeness_state) = get_mut!(task, Activeness) {
                 // We will finish the task, but it would be removed after the task is done
                 activeness_state.unset_root_type();

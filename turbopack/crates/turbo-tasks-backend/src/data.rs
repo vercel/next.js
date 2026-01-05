@@ -1,7 +1,7 @@
 use bincode::{Decode, Encode};
 use rustc_hash::FxHashSet;
 use turbo_tasks::{
-    CellId, KeyValuePair, SharedReference, TaskExecutionReason, TaskId, TraitTypeId,
+    CellId, KeyValuePair, SharedReference, TaskExecutionReason, TaskId, TaskPriority, TraitTypeId,
     TypedSharedReference, ValueTypeId,
     backend::TurboTasksExecutionError,
     event::{Event, EventListener},
@@ -167,7 +167,7 @@ impl Eq for ActivenessState {}
 
 #[derive(Debug, Clone, Copy, Encode, Decode, PartialEq, Eq)]
 pub enum Dirtyness {
-    Dirty,
+    Dirty(TaskPriority),
     SessionDependent,
 }
 
