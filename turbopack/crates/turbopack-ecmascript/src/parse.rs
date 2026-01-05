@@ -80,7 +80,7 @@ impl Default for IdentCollector {
 /// Unmangles a Turbopack magic identifier, returning the original name or the input if not mangled
 fn unmangle_atom(name: &Atom) -> Atom {
     magic_identifier::unmangle(name)
-        .map(|s| Atom::from(s))
+        .map(Atom::from)
         .unwrap_or_else(|| name.clone())
 }
 
