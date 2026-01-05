@@ -67,13 +67,11 @@ async function SearchResults({
     similarDiscussions.length > 0 &&
     similarDiscussions[0].score >= env.SIMILARITY_THRESHOLD
 
+  const createUrl = getCreateDiscussionUrl(title, description, category)
   // If no matches found, redirect to GitHub new discussion page
   if (!hasGoodMatches) {
-    const createUrl = getCreateDiscussionUrl(title, description, category)
     redirect(createUrl)
   }
-
-  const createUrl = getCreateDiscussionUrl(title, description, category)
 
   return (
     <main className="min-h-screen p-8 bg-background">
