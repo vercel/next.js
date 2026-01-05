@@ -475,6 +475,13 @@ impl MetaFile {
                 }
                 continue;
             };
+            if start_index > end_index {
+                #[cfg(feature = "stats")]
+                {
+                    lookup_result.range_misses += 1;
+                }
+                continue;
+            }
             let amqf = entry.amqf(self, amqf_cache)?;
             for (hash, index, result) in &mut cells[start_index..=end_index] {
                 if result.is_some() {
