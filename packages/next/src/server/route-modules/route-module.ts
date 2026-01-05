@@ -57,6 +57,7 @@ import type { BaseNextRequest } from '../base-http'
 import type { I18NConfig, NextConfigRuntime } from '../config-shared'
 import ResponseCache, { type ResponseGenerator } from '../response-cache'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
+import { evaluateDeploymentId } from '../../build/generate-deployment-id'
 import {
   RouterServerContextSymbol,
   routerServerGlobal,
@@ -539,9 +540,13 @@ export abstract class RouteModule<
       }
       deploymentId = process.env.NEXT_DEPLOYMENT_ID
     } else {
-      deploymentId = nextConfig.deploymentId || ''
-      if (typeof deploymentId === 'function') {
-        deploymentId = deploymentId() || ''
+      const configDeploymentId = nextConfig.deploymentId
+      if (typeof configDeploymentId === 'string') {
+        deploymentId = evaluateDeploymentId(configDeploymentId)
+      } else if (typeof configDeploymentId === 'function') {
+        deploymentId = evaluateDeploymentId(configDeploymentId)
+      } else {
+        deploymentId = evaluateDeploymentId(undefined)
       }
     }
 
@@ -936,10 +941,14 @@ export abstract class RouteModule<
       }
       deploymentId = process.env.NEXT_DEPLOYMENT_ID
     } else {
-      deploymentId =
-        typeof nextConfig.deploymentId === 'function'
-          ? nextConfig.deploymentId() || ''
-          : nextConfig.deploymentId || ''
+      const configDeploymentId = nextConfig.deploymentId
+      if (typeof configDeploymentId === 'string') {
+        deploymentId = evaluateDeploymentId(configDeploymentId)
+      } else if (typeof configDeploymentId === 'function') {
+        deploymentId = evaluateDeploymentId(configDeploymentId as () => string)
+      } else {
+        deploymentId = evaluateDeploymentId(undefined)
+      }
     }
 
     return {

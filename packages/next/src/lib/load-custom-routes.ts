@@ -6,6 +6,7 @@ import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import { tryToParsePath } from './try-to-parse-path'
 import { allowedStatusCodes } from './redirect-status'
 import { isFullStringUrl } from './url'
+import { generateDeploymentId } from '../build/generate-deployment-id'
 
 export type RouteHas =
   | {
@@ -726,12 +727,14 @@ export default async function loadCustomRoutes(
   }
 
   if (config.experimental?.useSkewCookie && config.deploymentId) {
+    // Evaluate deploymentId function if needed before string interpolation
+    const deploymentId = generateDeploymentId(config.deploymentId) || ''
     headers.unshift({
       source: '/:path*',
       headers: [
         {
           key: 'Set-Cookie',
-          value: `__vdpl=${config.deploymentId}; Path=/; HttpOnly`,
+          value: `__vdpl=${deploymentId}; Path=/; HttpOnly`,
         },
       ],
     })

@@ -62,6 +62,7 @@ import { getBotType, isBot } from '../shared/lib/router/utils/is-bot'
 import RenderResult from './render-result'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
+import { evaluateDeploymentId } from '../build/generate-deployment-id'
 import * as Log from '../build/output/log'
 import { getServerUtils } from './server-utils'
 import isError, { getProperError } from '../lib/is-error'
@@ -463,7 +464,7 @@ export default abstract class Server<
         ? ''
         : this.nextConfig.deploymentId || ''
 
-      deploymentId = typeof id === 'function' ? id() || '' : id
+      deploymentId = evaluateDeploymentId(id)
       process.env.NEXT_DEPLOYMENT_ID = deploymentId
     }
 

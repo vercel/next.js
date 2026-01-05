@@ -6,6 +6,7 @@ import globOriginal from 'next/dist/compiled/glob'
 import { Sema } from 'next/dist/compiled/async-sema'
 import type { NextConfigComplete } from '../server/config-shared'
 import { getNextConfigEnv, getStaticEnv } from './static-env'
+import { generateDeploymentId } from '../build/generate-deployment-id'
 
 const glob = promisify(globOriginal)
 
@@ -17,14 +18,9 @@ export async function inlineStaticEnv({
   config: NextConfigComplete
 }) {
   const nextConfigEnv = getNextConfigEnv(config)
-  const staticEnv = getStaticEnv(
-    config,
-    typeof config.deploymentId === 'string'
-      ? config.deploymentId
-      : typeof config.deploymentId === 'function'
-        ? config.deploymentId()
-        : ''
-  )
+  // Evaluate deploymentId function if needed
+  const deploymentId = generateDeploymentId(config.deploymentId) || ''
+  const staticEnv = getStaticEnv(config, deploymentId)
 
   const serverDir = path.join(distDir, 'server')
   const serverChunks = await glob('**/*.{js,json,js.map}', {
