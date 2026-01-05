@@ -1,3 +1,5 @@
 CODE_OF_CONDUCT.md
 examples/
 **/*/LICENSE.md
+.claude/
+CLAUDE.md
