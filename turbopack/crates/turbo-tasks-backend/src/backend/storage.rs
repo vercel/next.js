@@ -1127,12 +1127,12 @@ macro_rules! generate_inner_storage {
                 // Execution group (migrated)
                 if matches!(key, CachedDataItemKey::Activeness {}) {
                     panic!(
-                        "Use TaskGuard::clear_activeness() instead of remove() for Activeness"
+                        "Use TaskGuard::take_activeness() instead of remove() for Activeness"
                     );
                 }
                 if matches!(key, CachedDataItemKey::InProgress {}) {
                     panic!(
-                        "Use TaskGuard::remove_in_progress() instead of remove() for InProgress"
+                        "Use TaskGuard::take_in_progress() instead of remove() for InProgress"
                     );
                 }
                 if matches!(key, CachedDataItemKey::InProgressCell { .. }) {
@@ -1301,12 +1301,12 @@ macro_rules! generate_inner_storage {
                 // Execution group (migrated)
                 if matches!(ty, CachedDataItemType::Activeness) {
                     panic!(
-                        "Use TaskGuard::get_activeness() instead of count() for Activeness"
+                        "Use TaskGuard::has_activeness() instead of count() for Activeness"
                     );
                 }
                 if matches!(ty, CachedDataItemType::InProgress) {
                     panic!(
-                        "Use TaskGuard::get_in_progress() instead of count() for InProgress"
+                        "Use TaskGuard::has_in_progress() instead of count() for InProgress"
                     );
                 }
                 if matches!(ty, CachedDataItemType::InProgressCell) {
@@ -1480,12 +1480,12 @@ macro_rules! generate_inner_storage {
                 // Execution group (migrated)
                 if matches!(key, CachedDataItemKey::Activeness {}) {
                     panic!(
-                        "Use TaskGuard::get_activeness() instead of get() for Activeness"
+                        "Use TaskGuard::get_activeness_ref() instead of get() for Activeness"
                     );
                 }
                 if matches!(key, CachedDataItemKey::InProgress {}) {
                     panic!(
-                        "Use TaskGuard::get_in_progress() instead of get() for InProgress"
+                        "Use TaskGuard::get_in_progress_ref() instead of get() for InProgress"
                     );
                 }
                 if matches!(key, CachedDataItemKey::InProgressCell { .. }) {
@@ -1669,18 +1669,18 @@ macro_rules! generate_inner_storage {
                 // Execution group (migrated)
                 if matches!(key, CachedDataItemKey::Activeness {}) {
                     panic!(
-                        "Use TaskGuard::get_activeness() instead of contains_key() for Activeness"
+                        "Use TaskGuard::has_activeness() instead of contains_key() for Activeness"
                     );
                 }
                 if matches!(key, CachedDataItemKey::InProgress {}) {
                     panic!(
-                        "Use TaskGuard::get_in_progress() instead of contains_key() for InProgress"
+                        "Use TaskGuard::has_in_progress() instead of contains_key() for InProgress"
                     );
                 }
                 if matches!(key, CachedDataItemKey::InProgressCell { .. }) {
                     panic!(
-                        "Use TaskGuard::in_progress_cells() instead of contains_key() for \
-                         InProgressCell"
+                        "Use TaskGuard::in_progress_cells().is_some_and(|m| m.contains_key()) \
+                         instead of contains_key() for InProgressCell"
                     );
                 }
                 self.dynamic.contains_key(key)
@@ -2272,12 +2272,12 @@ macro_rules! generate_inner_storage {
                 // Execution group (migrated) - Activeness and InProgress are direct, no extract_if
                 if matches!(ty, CachedDataItemType::Activeness) {
                     panic!(
-                        "Use TaskGuard::clear_activeness() instead of extract_if() for Activeness"
+                        "Use TaskGuard::take_activeness() instead of extract_if() for Activeness"
                     );
                 }
                 if matches!(ty, CachedDataItemType::InProgress) {
                     panic!(
-                        "Use TaskGuard::remove_in_progress() instead of extract_if() for InProgress"
+                        "Use TaskGuard::take_in_progress() instead of extract_if() for InProgress"
                     );
                 }
                 if matches!(ty, CachedDataItemType::InProgressCell) {
@@ -2661,12 +2661,12 @@ macro_rules! generate_inner_storage {
                 // Execution group (migrated)
                 if matches!(ty, CachedDataItemType::Activeness) {
                     panic!(
-                        "Use TaskGuard::get_activeness() instead of iter() for Activeness"
+                        "Use TaskGuard::get_activeness_ref() instead of iter() for Activeness"
                     );
                 }
                 if matches!(ty, CachedDataItemType::InProgress) {
                     panic!(
-                        "Use TaskGuard::get_in_progress() instead of iter() for InProgress"
+                        "Use TaskGuard::get_in_progress_ref() instead of iter() for InProgress"
                     );
                 }
                 if matches!(ty, CachedDataItemType::InProgressCell) {

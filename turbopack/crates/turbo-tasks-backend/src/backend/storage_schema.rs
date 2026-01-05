@@ -805,6 +805,8 @@ impl TypedStorage {
 
 #[cfg(test)]
 mod tests {
+    use std::mem::size_of;
+
     use turbo_tasks::TaskId;
 
     use super::*;
@@ -812,9 +814,153 @@ mod tests {
 
     #[test]
     fn test_schema_size() {
-        assert_eq!(256, std::mem::size_of::<TypedStorage>());
-        assert_eq!(200, std::mem::size_of::<TaskMeta>());
-        assert_eq!(56, std::mem::size_of::<TaskData>());
+        assert_eq!(256, size_of::<TypedStorage>());
+        assert_eq!(200, size_of::<TaskMeta>());
+        assert_eq!(56, size_of::<TaskData>());
+    }
+
+    #[test]
+    fn size_breakdown() {
+        println!("\n=== Size Breakdown ===\n");
+
+        // Option<Box<_>> is always 8 bytes
+        println!(
+            "Option<Box<T>>: {} bytes (pointer)",
+            size_of::<Option<Box<u8>>>()
+        );
+
+        // Each FxHashMap/FxHashSet is 56 bytes when empty
+        println!(
+            "FxHashMap<TaskId, u32>: {} bytes",
+            size_of::<rustc_hash::FxHashMap<TaskId, u32>>()
+        );
+        println!(
+            "FxHashSet<TaskId>: {} bytes",
+            size_of::<rustc_hash::FxHashSet<TaskId>>()
+        );
+
+        // Vec is 24 bytes (ptr + len + cap)
+        println!("Vec<u8>: {} bytes", size_of::<Vec<u8>>());
+
+        // Option<()> is 1 byte
+        println!("Option<()>: {} bytes", size_of::<Option<()>>());
+
+        println!("\n=== Group Sizes (when boxed) ===\n");
+        println!("CellsDataGroup: {} bytes", size_of::<CellsDataGroup>());
+        println!(
+            "DependenciesDataGroup: {} bytes",
+            size_of::<DependenciesDataGroup>()
+        );
+        println!(
+            "Cell_dependentsDataGroup: {} bytes",
+            size_of::<Cell_dependentsDataGroup>()
+        );
+        println!(
+            "AggregationMetaGroup: {} bytes",
+            size_of::<AggregationMetaGroup>()
+        );
+        println!(
+            "CollectiblesMetaGroup: {} bytes",
+            size_of::<CollectiblesMetaGroup>()
+        );
+        println!(
+            "Collectibles_dependentsMetaGroup: {} bytes",
+            size_of::<Collectibles_dependentsMetaGroup>()
+        );
+        println!(
+            "ExecutionMetaGroup: {} bytes",
+            size_of::<ExecutionMetaGroup>()
+        );
+
+        println!("\n=== Inline Groups ===\n");
+        println!("FlagsMetaGroup: {} bytes", size_of::<FlagsMetaGroup>());
+        println!("StateMetaGroup: {} bytes", size_of::<StateMetaGroup>());
+
+        println!("\n=== TaskData Breakdown ===\n");
+        println!("TaskData total: {} bytes", size_of::<TaskData>());
+        println!(
+            "  - output_dependent (FxHashSet<TaskId>): {} bytes",
+            size_of::<AutoSet<TaskId>>()
+        );
+        println!(
+            "  - cells (Option<Box<CellsDataGroup>>): {} bytes",
+            size_of::<Option<Box<CellsDataGroup>>>()
+        );
+        println!(
+            "  - cell_dependents (Option<Box<_>>): {} bytes",
+            size_of::<Option<Box<Cell_dependentsDataGroup>>>()
+        );
+        println!(
+            "  - dependencies (Option<Box<_>>): {} bytes",
+            size_of::<Option<Box<DependenciesDataGroup>>>()
+        );
+
+        println!("\n=== TaskMeta Breakdown ===\n");
+        println!("TaskMeta total: {} bytes", size_of::<TaskMeta>());
+        println!(
+            "  - aggregation_number: {} bytes",
+            size_of::<Option<AggregationNumber>>()
+        );
+        println!("  - output: {} bytes", size_of::<Option<OutputValue>>());
+        println!(
+            "  - upper (CounterMap<TaskId, u32>): {} bytes",
+            size_of::<CounterMap<TaskId, u32>>()
+        );
+        println!(
+            "  - aggregation (Option<Box<_>>): {} bytes",
+            size_of::<Option<Box<AggregationMetaGroup>>>()
+        );
+        println!(
+            "  - execution (Option<Box<_>>): {} bytes",
+            size_of::<Option<Box<ExecutionMetaGroup>>>()
+        );
+        println!("  - flags: {} bytes", size_of::<FlagsMetaGroup>());
+        println!(
+            "  - collectibles_dependents (Option<Box<_>>): {} bytes",
+            size_of::<Option<Box<Collectibles_dependentsMetaGroup>>>()
+        );
+        println!(
+            "  - collectibles (Option<Box<_>>): {} bytes",
+            size_of::<Option<Box<CollectiblesMetaGroup>>>()
+        );
+        println!("  - state: {} bytes", size_of::<StateMetaGroup>());
+
+        println!("\n=== Lazy Field Analysis ===\n");
+        let data_lazy = 3; // cells, cell_dependents, dependencies
+        let meta_lazy = 4; // aggregation, execution, collectibles_dependents, collectibles
+        println!(
+            "TaskData has {} Option<Box<_>> = {} bytes overhead",
+            data_lazy,
+            data_lazy * 8
+        );
+        println!(
+            "TaskMeta has {} Option<Box<_>> = {} bytes overhead",
+            meta_lazy,
+            meta_lazy * 8
+        );
+        println!(
+            "Total Option<Box<_>> overhead: {} bytes",
+            (data_lazy + meta_lazy) * 8
+        );
+
+        println!("\n=== Potential Savings ===\n");
+        // Vec<LazyField> would be 24 bytes (ptr + len + cap)
+        // vs 7 * 8 = 56 bytes for Option<Box<_>> fields
+        println!(
+            "Current: {} Option<Box<_>> = {} bytes",
+            data_lazy + meta_lazy,
+            (data_lazy + meta_lazy) * 8
+        );
+        println!("Vec approach: 1 Vec per category = {} bytes", 2 * 24);
+        println!(
+            "Potential savings from Vec: {} bytes",
+            (data_lazy + meta_lazy) * 8 - 2 * 24
+        );
+
+        println!(
+            "\nFlags with u8 bitfield: saves {} bytes",
+            size_of::<FlagsMetaGroup>() - 1
+        );
     }
 
     #[test]

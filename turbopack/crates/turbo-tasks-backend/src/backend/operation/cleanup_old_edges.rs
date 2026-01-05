@@ -18,6 +18,7 @@ use crate::{
             },
             invalidate::make_task_dirty,
         },
+        storage_schema::TaskStorageAccessors,
     },
     data::{CellRef, CollectibleRef, CollectiblesRef},
 };
@@ -103,7 +104,7 @@ impl Operation for CleanupOldEdgesOperation {
                                     let upper_ids = get_uppers(&task);
                                     let has_active_count = ctx.should_track_activeness()
                                         && task
-                                            .get_activeness()
+                                            .get_activeness_ref()
                                             .is_some_and(|a| a.active_counter > 0);
                                     drop(task);
                                     if has_active_count {

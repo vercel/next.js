@@ -23,10 +23,7 @@ use crate::{
     backend::{
         OperationGuard, TaskDataCategory, TransientTask, TurboTasksBackend, TurboTasksBackendInner,
         TurboTasksBackendJob,
-        storage::{
-            SpecificTaskDataCategory, StorageWriteGuard, get, get_mut, get_mut_or_insert_with,
-            iter_many, remove,
-        },
+        storage::{SpecificTaskDataCategory, StorageWriteGuard},
         storage_schema::TaskStorageAccessors,
     },
     backing_storage::BackingStorage,
@@ -881,11 +878,6 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     // - in_progress_cells() -> Option<&AutoMap<CellId, InProgressCellState>>
     // - in_progress_cells_mut() -> &mut AutoMap<CellId, InProgressCellState>
 
-    /// Get the activeness state (alias for get_activeness_ref)
-    fn get_activeness(&self) -> Option<&ActivenessState> {
-        self.get_activeness_ref()
-    }
-
     /// Get mutable reference to the activeness state
     fn get_activeness_mut(&mut self) -> Option<&mut ActivenessState>;
 
@@ -894,24 +886,8 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     where
         F: FnOnce() -> ActivenessState;
 
-    /// Clear the activeness state, returning the old state if present (alias for take_activeness)
-    fn clear_activeness(&mut self) -> Option<ActivenessState> {
-        self.take_activeness()
-    }
-
-    /// Get the in-progress state (alias for get_in_progress_ref)
-    fn get_in_progress(&self) -> Option<&InProgressState> {
-        self.get_in_progress_ref()
-    }
-
     /// Get mutable reference to the in-progress state
     fn get_in_progress_mut(&mut self) -> Option<&mut InProgressState>;
-
-    /// Remove the in-progress state, returning the old state if present (alias for
-    /// take_in_progress)
-    fn remove_in_progress(&mut self) -> Option<InProgressState> {
-        self.take_in_progress()
-    }
 
     /// Get the in-progress cell state for a specific cell
     fn get_in_progress_cell(&self, cell: CellId) -> Option<&InProgressCellState> {
@@ -923,88 +899,25 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         self.in_progress_cells_mut().remove(&cell)
     }
 
-    /// Get current session clean marker
-    fn get_current_session_clean(&self) -> Option<()> {
-        self.get_current_session_clean_ref().map(|_| ())
-    }
-
     /// Get transient cell data for a specific cell
     fn get_transient_cell_data(&self, cell: CellId) -> Option<&SharedReference> {
         self.transient_cell_data().and_then(|map| map.get(&cell))
     }
 
-    /// Get aggregated dirty container count
-    fn get_aggregated_dirty_container_count(&self) -> Option<&i32> {
-        self.get_aggregated_dirty_container_count_ref()
-    }
-
-    /// Update aggregated dirty container count by the given delta and return the new count.
-    ///
-    /// Unlike `update_*_count` methods which return a bool indicating zero-crossing,
-    /// this method returns the actual new count value after the update.
-    fn update_and_get_aggregated_dirty_container_count(&mut self, delta: i32) -> i32 {
-        let old = self
-            .get_aggregated_dirty_container_count_ref()
-            .copied()
-            .unwrap_or(0);
-        let new = old + delta;
-        if new == 0 {
-            self.take_aggregated_dirty_container_count();
-        } else {
-            self.set_aggregated_dirty_container_count(new);
-        }
-        new
-    }
-    /// Get aggregated current session clean container count
-    fn get_aggregated_current_session_clean_container_count(&self) -> Option<&i32> {
-        self.get_aggregated_current_session_clean_container_count_ref()
-    }
-
-    /// Update aggregated current session clean container count by the given delta and return the
-    /// new count.
-    ///
-    /// Unlike `update_*_count` methods which return a bool indicating zero-crossing,
-    /// this method returns the actual new count value after the update.
-    fn update_and_get_aggregated_current_session_clean_container_count(
-        &mut self,
-        delta: i32,
-    ) -> i32 {
-        let old = self
-            .get_aggregated_current_session_clean_container_count_ref()
-            .copied()
-            .unwrap_or(0);
-        let new = old + delta;
-        if new == 0 {
-            self.take_aggregated_current_session_clean_container_count();
-        } else {
-            self.set_aggregated_current_session_clean_container_count(new);
-        }
-        new
-    }
-
-    /// Get aggregated dirty container count for a specific task
-    fn get_aggregated_dirty_container(&self, task: TaskId) -> Option<&i32> {
-        self.aggregated_dirty_containers().get(&task)
-    }
-
     /// Update aggregated dirty container count for a specific task by the given delta and return
     /// the new count.
-    ///
-    /// Unlike `update_*_count` methods which return a bool indicating zero-crossing,
-    /// this method returns the actual new count value after the update.
     fn update_and_get_aggregated_dirty_container(&mut self, task: TaskId, delta: i32) -> i32 {
         use std::collections::hash_map::Entry;
         let map = self.aggregated_dirty_containers_mut();
         match map.entry(task) {
             Entry::Occupied(mut e) => {
-                let old = *e.get();
-                let new = old + delta;
-                if new == 0 {
+                let new_value = *e.get() + delta;
+                if new_value == 0 {
                     e.remove();
                 } else {
-                    *e.get_mut() = new;
+                    *e.get_mut() = new_value;
                 }
-                new
+                new_value
             }
             Entry::Vacant(e) => {
                 if delta != 0 {
@@ -1015,17 +928,8 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         }
     }
 
-    /// Get aggregated current session clean container count for a specific task
-    fn get_aggregated_current_session_clean_container(&self, task: TaskId) -> Option<&i32> {
-        self.aggregated_current_session_clean_containers()
-            .get(&task)
-    }
-
     /// Update aggregated current session clean container count for a specific task by the given
     /// delta and return the new count.
-    ///
-    /// Unlike `update_*_count` methods which return a bool indicating zero-crossing,
-    /// this method returns the actual new count value after the update.
     fn update_and_get_aggregated_current_session_clean_container(
         &mut self,
         task: TaskId,
@@ -1035,14 +939,13 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         let map = self.aggregated_current_session_clean_containers_mut();
         match map.entry(task) {
             Entry::Occupied(mut e) => {
-                let old = *e.get();
-                let new = old + delta;
-                if new == 0 {
+                let new_value = *e.get() + delta;
+                if new_value == 0 {
                     e.remove();
                 } else {
-                    *e.get_mut() = new;
+                    *e.get_mut() = new_value;
                 }
-                new
+                new_value
             }
             Entry::Vacant(e) => {
                 if delta != 0 {
@@ -1051,6 +954,53 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
                 delta
             }
         }
+    }
+
+    /// Get the dirty container count for a specific task from the aggregated dirty containers map.
+    fn get_aggregated_dirty_container(&self, task: TaskId) -> Option<&i32> {
+        self.aggregated_dirty_containers().get(&task)
+    }
+
+    /// Get the clean container count for a specific task from the aggregated current session clean
+    /// containers map.
+    fn get_aggregated_current_session_clean_container(&self, task: TaskId) -> Option<&i32> {
+        self.aggregated_current_session_clean_containers()
+            .get(&task)
+    }
+
+    /// Update the aggregated dirty container count (the scalar total count field) by the given
+    /// delta and return the new value.
+    fn update_and_get_aggregated_dirty_container_count(&mut self, delta: i32) -> i32 {
+        let current = self
+            .get_aggregated_dirty_container_count_ref()
+            .copied()
+            .unwrap_or(0);
+        let new_value = current + delta;
+        if new_value == 0 {
+            self.take_aggregated_dirty_container_count();
+        } else {
+            self.set_aggregated_dirty_container_count(new_value);
+        }
+        new_value
+    }
+
+    /// Update the aggregated current session clean container count (the scalar total count field)
+    /// by the given delta and return the new value.
+    fn update_and_get_aggregated_current_session_clean_container_count(
+        &mut self,
+        delta: i32,
+    ) -> i32 {
+        let current = self
+            .get_aggregated_current_session_clean_container_count_ref()
+            .copied()
+            .unwrap_or(0);
+        let new_value = current + delta;
+        if new_value == 0 {
+            self.take_aggregated_current_session_clean_container_count();
+        } else {
+            self.set_aggregated_current_session_clean_container_count(new_value);
+        }
+        new_value
     }
 
     /// Get aggregated collectible count for a specific collectible

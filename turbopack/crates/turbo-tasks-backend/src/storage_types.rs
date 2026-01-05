@@ -377,6 +377,25 @@ where
         delta -= one;
         self.update_count(key, delta)
     }
+
+    /// Update a counter by a delta value and return the new value.
+    ///
+    /// Automatically removes the entry if it reaches zero.
+    pub fn update_and_get(&mut self, key: K, delta: V) -> V {
+        let entry = self.map.entry(key.clone());
+        let old = entry.or_insert(V::default());
+
+        *old += delta;
+
+        let new_value = *old;
+
+        // Remove if reached zero
+        if new_value == V::default() {
+            self.map.remove(&key);
+        }
+
+        new_value
+    }
 }
 
 #[cfg(test)]

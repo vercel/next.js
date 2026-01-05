@@ -270,11 +270,11 @@ pub fn make_task_dirty_internal(
     let new_current_session_self_clean = false;
 
     let dirty_container_count = task
-        .get_aggregated_dirty_container_count()
+        .get_aggregated_dirty_container_count_ref()
         .copied()
         .unwrap_or_default();
     let current_session_clean_container_count = task
-        .get_aggregated_current_session_clean_container_count()
+        .get_aggregated_current_session_clean_container_count_ref()
         .copied()
         .unwrap_or_default();
 

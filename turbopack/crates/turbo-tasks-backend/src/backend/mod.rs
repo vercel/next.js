@@ -519,7 +519,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             ctx: &impl ExecuteContext<'_>,
         ) -> Option<std::result::Result<std::result::Result<RawVc, EventListener>, anyhow::Error>>
         {
-            match task.get_in_progress() {
+            match task.get_in_progress_ref() {
                 Some(InProgressState::Scheduled { done_event, .. }) => Some(Ok(Err(
                     listen_to_done_event(this, reader, tracking, done_event),
                 ))),
@@ -594,7 +594,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         task_ids_to_schedule = task.dirty_containers().collect();
                         task_ids_to_schedule.push(task_id);
                     }
-                    task.get_activeness().unwrap()
+                    task.get_activeness_ref().unwrap()
                 };
                 let listener = activeness.all_clean_event.listen_with_note(move || {
                     let this = self.clone();
@@ -617,13 +617,13 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             let task = ctx.task(task_id, TaskDataCategory::All);
                             let is_dirty = task.is_dirty();
                             let in_progress =
-                                task.get_in_progress()
+                                task.get_in_progress_ref()
                                     .map_or("not in progress", |p| match p {
                                         InProgressState::InProgress(_) => "in progress",
                                         InProgressState::Scheduled { .. } => "scheduled",
                                         InProgressState::Canceled => "canceled",
                                     });
-                            let activeness = task.get_activeness().map_or_else(
+                            let activeness = task.get_activeness_ref().map_or_else(
                                 || "not active".to_string(),
                                 |activeness| format!("{activeness:?}"),
                             );
@@ -849,7 +849,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             )));
         }
 
-        let in_progress = task.get_in_progress();
+        let in_progress = task.get_in_progress_ref();
         if matches!(
             in_progress,
             Some(InProgressState::InProgress(..) | InProgressState::Scheduled { .. })
@@ -1581,7 +1581,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     ) {
         let mut ctx = self.execute_context(turbo_tasks);
         let mut task = ctx.task(task_id, TaskDataCategory::Data);
-        if let Some(in_progress) = task.remove_in_progress() {
+        if let Some(in_progress) = task.take_in_progress() {
             match in_progress {
                 InProgressState::Scheduled {
                     done_event,
@@ -1620,7 +1620,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         {
             let mut ctx = self.execute_context(turbo_tasks);
             let mut task = ctx.task(task_id, TaskDataCategory::All);
-            let in_progress = task.remove_in_progress()?;
+            let in_progress = task.take_in_progress()?;
             let InProgressState::Scheduled { done_event, reason } = in_progress else {
                 let old = task.set_in_progress(in_progress);
                 debug_assert!(old.is_none(), "InProgress already exists");
@@ -1877,7 +1877,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 done_event,
                 mut new_children,
                 ..
-            })) = task.remove_in_progress()
+            })) = task.take_in_progress()
             else {
                 unreachable!();
             };
@@ -2230,7 +2230,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         debug_assert!(!new_children.is_empty());
 
         let mut task = ctx.task(task_id, TaskDataCategory::All);
-        let Some(in_progress) = task.get_in_progress() else {
+        let Some(in_progress) = task.get_in_progress_ref() else {
             panic!("Task execution completed, but task is not in progress: {task:#?}");
         };
         if matches!(in_progress, InProgressState::Canceled) {
@@ -2250,7 +2250,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         #[cfg(not(feature = "no_fast_stale"))]
         if *stale {
             let Some(InProgressState::InProgress(box InProgressStateInner { done_event, .. })) =
-                task.remove_in_progress()
+                task.take_in_progress()
             else {
                 unreachable!();
             };
@@ -2274,7 +2274,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         let has_active_count = ctx.should_track_activeness()
             && task
-                .get_activeness()
+                .get_activeness_ref()
                 .is_some_and(|activeness| activeness.active_counter > 0);
         connect_children(
             ctx,
@@ -2298,7 +2298,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         is_now_immutable: bool,
     ) -> bool {
         let mut task = ctx.task(task_id, TaskDataCategory::All);
-        let Some(in_progress) = task.remove_in_progress() else {
+        let Some(in_progress) = task.take_in_progress() else {
             panic!("Task execution completed, but task is not in progress: {task:#?}");
         };
         if matches!(in_progress, InProgressState::Canceled) {
@@ -2395,11 +2395,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             || old_current_session_self_clean != new_current_session_self_clean
         {
             let dirty_container_count = task
-                .get_aggregated_dirty_container_count()
+                .get_aggregated_dirty_container_count_ref()
                 .cloned()
                 .unwrap_or_default();
             let current_session_clean_container_count = task
-                .get_aggregated_current_session_clean_container_count()
+                .get_aggregated_current_session_clean_container_count_ref()
                 .copied()
                 .unwrap_or_default();
             let result = ComputeDirtyAndCleanUpdate {
@@ -2419,7 +2419,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     activeness_state.all_clean_event.notify(usize::MAX);
                     activeness_state.unset_active_until_clean();
                     if activeness_state.is_empty() {
-                        task.clear_activeness();
+                        task.take_activeness();
                     }
                 }
             }
@@ -2888,7 +2888,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 activeness_state.unset_root_type();
                 activeness_state.set_active_until_clean();
             };
-        } else if let Some(activeness_state) = task.clear_activeness() {
+        } else if let Some(activeness_state) = task.take_activeness() {
             // Technically nobody should be listening to this event, but just in case
             // we notify it anyway
             activeness_state.all_clean_event.notify(usize::MAX);

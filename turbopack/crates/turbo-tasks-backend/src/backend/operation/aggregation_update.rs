@@ -348,11 +348,11 @@ impl AggregatedDataUpdate {
         let mut collectibles_update: Vec<_> = task.iter_collectibles().collect();
         if is_aggregating_node(aggregation) {
             dirty_count = task
-                .get_aggregated_dirty_container_count()
+                .get_aggregated_dirty_container_count_ref()
                 .copied()
                 .unwrap_or_default();
             current_session_clean_count = task
-                .get_aggregated_current_session_clean_container_count()
+                .get_aggregated_current_session_clean_container_count_ref()
                 .copied()
                 .unwrap_or_default();
             for (collectible, _count) in task.iter_aggregated_collectibles() {
@@ -499,7 +499,7 @@ impl AggregatedDataUpdate {
                         new_dirty_container_count - dirty_container_count_update;
                 } else {
                     new_dirty_container_count = task
-                        .get_aggregated_dirty_container_count()
+                        .get_aggregated_dirty_container_count_ref()
                         .copied()
                         .unwrap_or_default();
                     old_dirty_container_count = new_dirty_container_count;
@@ -517,7 +517,7 @@ impl AggregatedDataUpdate {
                         new_current_session_clean_container_count - current_session_clean_update;
                 } else {
                     new_current_session_clean_container_count = task
-                        .get_aggregated_current_session_clean_container_count()
+                        .get_aggregated_current_session_clean_container_count_ref()
                         .copied()
                         .unwrap_or_default();
                     old_current_session_clean_container_count =
@@ -548,7 +548,7 @@ impl AggregatedDataUpdate {
                             activeness_state.all_clean_event.notify(usize::MAX);
                             activeness_state.unset_active_until_clean();
                             if activeness_state.is_empty() {
-                                task.clear_activeness();
+                                task.take_activeness();
                             }
                         }
                     }
@@ -1305,8 +1305,9 @@ impl AggregationUpdateQueue {
 
                     if ctx.should_track_activeness() {
                         // Follower was removed, we might need to update the active count
-                        let has_active_count =
-                            upper.get_activeness().is_some_and(|a| a.active_counter > 0);
+                        let has_active_count = upper
+                            .get_activeness_ref()
+                            .is_some_and(|a| a.active_counter > 0);
                         if has_active_count {
                             // TODO combine both operations to avoid the clone
                             self.push(AggregationUpdateJob::DecreaseActiveCount { task: task_id })
@@ -1334,8 +1335,9 @@ impl AggregationUpdateQueue {
                         }
                         if ctx.should_track_activeness() {
                             // update active count
-                            let has_active_count =
-                                upper.get_activeness().is_some_and(|a| a.active_counter > 0);
+                            let has_active_count = upper
+                                .get_activeness_ref()
+                                .is_some_and(|a| a.active_counter > 0);
                             if has_active_count {
                                 self.push(AggregationUpdateJob::IncreaseActiveCount {
                                     task: task_id,
@@ -1432,7 +1434,9 @@ impl AggregationUpdateQueue {
 
         // if it has `Activeness` we can skip visiting the nested nodes since
         // this would already be scheduled by the `Activeness`
-        let is_active_until_clean = task.get_activeness().is_some_and(|a| a.active_until_clean);
+        let is_active_until_clean = task
+            .get_activeness_ref()
+            .is_some_and(|a| a.active_until_clean);
         if !is_active_until_clean {
             let mut dirty_containers = task.dirty_containers().peekable();
             let is_empty = dirty_containers.peek().is_none();
@@ -1584,7 +1588,9 @@ impl AggregationUpdateQueue {
                     }
 
                     let has_active_count = ctx.should_track_activeness()
-                        && upper.get_activeness().is_some_and(|a| a.active_counter > 0);
+                        && upper
+                            .get_activeness_ref()
+                            .is_some_and(|a| a.active_counter > 0);
                     let upper_ids = get_uppers(&upper);
                     drop(upper);
                     // update active count
@@ -1732,8 +1738,9 @@ impl AggregationUpdateQueue {
                     }
 
                     let upper_ids = get_uppers(&upper);
-                    let has_active_count =
-                        upper.get_activeness().is_some_and(|a| a.active_counter > 0);
+                    let has_active_count = upper
+                        .get_activeness_ref()
+                        .is_some_and(|a| a.active_counter > 0);
                     drop(upper);
                     // update active count
                     if has_active_count {
@@ -1822,8 +1829,9 @@ impl AggregationUpdateQueue {
 
                     if ctx.should_track_activeness() {
                         // update active count
-                        let has_active_count =
-                            upper.get_activeness().is_some_and(|a| a.active_counter > 0);
+                        let has_active_count = upper
+                            .get_activeness_ref()
+                            .is_some_and(|a| a.active_counter > 0);
                         if has_active_count {
                             tasks_for_which_increment_active_count.push(new_follower_id);
                         }
@@ -1990,7 +1998,7 @@ impl AggregationUpdateQueue {
                 TaskDataCategory::Meta,
             );
             if ctx.should_track_activeness() {
-                let activeness_state = upper.get_activeness();
+                let activeness_state = upper.get_activeness_ref();
                 is_active = activeness_state.is_some();
                 has_active_count = activeness_state.is_some_and(|a| a.active_counter > 0);
             }
@@ -2209,7 +2217,9 @@ impl AggregationUpdateQueue {
                 }
 
                 let has_active_count = ctx.should_track_activeness()
-                    && upper.get_activeness().is_some_and(|a| a.active_counter > 0);
+                    && upper
+                        .get_activeness_ref()
+                        .is_some_and(|a| a.active_counter > 0);
                 let upper_ids = get_uppers(&upper);
                 drop(upper);
                 // update active count
@@ -2315,7 +2325,7 @@ impl AggregationUpdateQueue {
         let is_zero = state.decrement_active_counter();
         let is_empty = state.is_empty();
         if is_empty {
-            task.clear_activeness();
+            task.take_activeness();
         }
         debug_assert!(
             !(is_new && is_zero),
@@ -2360,7 +2370,7 @@ impl AggregationUpdateQueue {
         let is_empty = state.is_empty();
         // This can happen if active count was negative before
         if is_empty {
-            task.clear_activeness();
+            task.take_activeness();
         }
         debug_assert!(
             !is_new || is_positive_now,
