@@ -16,9 +16,10 @@ use crate::{
         storage_schema::{TaskData, TaskMeta, TypedStorage},
     },
     data::{
-        AggregationNumber, CachedDataItem, CachedDataItemKey, CachedDataItemType,
+        ActivenessState, AggregationNumber, CachedDataItem, CachedDataItemKey, CachedDataItemType,
         CachedDataItemValue, CachedDataItemValueRef, CachedDataItemValueRefMut, CellRef,
-        CollectibleRef, CollectiblesRef, Dirtyness, OutputValue,
+        CollectibleRef, CollectiblesRef, Dirtyness, InProgressCellState, InProgressState,
+        OutputValue,
     },
     utils::{
         dash_map_drop_contents::drop_contents,
@@ -526,6 +527,16 @@ macro_rules! generate_inner_storage {
                 if let CachedDataItem::OutdatedCollectiblesDependency { target, .. } = item {
                     return self.add_outdated_collectibles_dependency(target);
                 }
+                // Execution group (migrated) - transient, not persisted, but needed for runtime
+                if let CachedDataItem::Activeness { value } = item {
+                    return self.add_activeness(value);
+                }
+                if let CachedDataItem::InProgress { value } = item {
+                    return self.add_in_progress(value);
+                }
+                if let CachedDataItem::InProgressCell { cell, value } = item {
+                    return self.add_in_progress_cell(cell, value);
+                }
                 self.dynamic.add(item)
             }
 
@@ -931,6 +942,23 @@ macro_rules! generate_inner_storage {
                          insert() for OutdatedCollectiblesDependency"
                     );
                 }
+                // Execution group (migrated)
+                if matches!(item, CachedDataItem::Activeness { .. }) {
+                    panic!(
+                        "Use TaskGuard::set_activeness() instead of insert() for Activeness"
+                    );
+                }
+                if matches!(item, CachedDataItem::InProgress { .. }) {
+                    panic!(
+                        "Use TaskGuard::in_progress_mut() instead of insert() for InProgress"
+                    );
+                }
+                if matches!(item, CachedDataItem::InProgressCell { .. }) {
+                    panic!(
+                        "Use TaskGuard::in_progress_cells_mut() instead of insert() for \
+                         InProgressCell"
+                    );
+                }
                 self.dynamic.insert(item)
             }
 
@@ -1096,6 +1124,23 @@ macro_rules! generate_inner_storage {
                          remove() for OutdatedCollectiblesDependency"
                     );
                 }
+                // Execution group (migrated)
+                if matches!(key, CachedDataItemKey::Activeness {}) {
+                    panic!(
+                        "Use TaskGuard::clear_activeness() instead of remove() for Activeness"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::InProgress {}) {
+                    panic!(
+                        "Use TaskGuard::remove_in_progress() instead of remove() for InProgress"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::InProgressCell { .. }) {
+                    panic!(
+                        "Use TaskGuard::remove_in_progress_cell() instead of remove() for \
+                         InProgressCell"
+                    );
+                }
                 self.dynamic.remove(key)
             }
 
@@ -1251,6 +1296,22 @@ macro_rules! generate_inner_storage {
                     panic!(
                         "Use TaskGuard::outdated_collectibles_dependencies() instead of count() \
                          for OutdatedCollectiblesDependency"
+                    );
+                }
+                // Execution group (migrated)
+                if matches!(ty, CachedDataItemType::Activeness) {
+                    panic!(
+                        "Use TaskGuard::get_activeness() instead of count() for Activeness"
+                    );
+                }
+                if matches!(ty, CachedDataItemType::InProgress) {
+                    panic!(
+                        "Use TaskGuard::get_in_progress() instead of count() for InProgress"
+                    );
+                }
+                if matches!(ty, CachedDataItemType::InProgressCell) {
+                    panic!(
+                        "Use TaskGuard::in_progress_cells() instead of count() for InProgressCell"
                     );
                 }
                 self.dynamic.count(ty)
@@ -1414,6 +1475,22 @@ macro_rules! generate_inner_storage {
                     panic!(
                         "Use TaskGuard::outdated_collectibles_dependencies() instead of get() for \
                          OutdatedCollectiblesDependency"
+                    );
+                }
+                // Execution group (migrated)
+                if matches!(key, CachedDataItemKey::Activeness {}) {
+                    panic!(
+                        "Use TaskGuard::get_activeness() instead of get() for Activeness"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::InProgress {}) {
+                    panic!(
+                        "Use TaskGuard::get_in_progress() instead of get() for InProgress"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::InProgressCell { .. }) {
+                    panic!(
+                        "Use TaskGuard::get_in_progress_cell() instead of get() for InProgressCell"
                     );
                 }
                 self.dynamic.get(key)
@@ -1589,6 +1666,23 @@ macro_rules! generate_inner_storage {
                          contains_key() for OutdatedCollectiblesDependency"
                     );
                 }
+                // Execution group (migrated)
+                if matches!(key, CachedDataItemKey::Activeness {}) {
+                    panic!(
+                        "Use TaskGuard::get_activeness() instead of contains_key() for Activeness"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::InProgress {}) {
+                    panic!(
+                        "Use TaskGuard::get_in_progress() instead of contains_key() for InProgress"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::InProgressCell { .. }) {
+                    panic!(
+                        "Use TaskGuard::in_progress_cells() instead of contains_key() for \
+                         InProgressCell"
+                    );
+                }
                 self.dynamic.contains_key(key)
             }
 
@@ -1758,6 +1852,23 @@ macro_rules! generate_inner_storage {
                          get_mut() for OutdatedCollectiblesDependency"
                     );
                 }
+                // Execution group (migrated)
+                if matches!(key, CachedDataItemKey::Activeness {}) {
+                    panic!(
+                        "Use TaskGuard::get_activeness_mut() instead of get_mut() for Activeness"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::InProgress {}) {
+                    panic!(
+                        "Use TaskGuard::get_in_progress_mut() instead of get_mut() for InProgress"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::InProgressCell { .. }) {
+                    panic!(
+                        "Use TaskGuard::in_progress_cells_mut() instead of get_mut() for \
+                         InProgressCell"
+                    );
+                }
                 self.dynamic.get_mut(key)
             }
 
@@ -1795,6 +1906,10 @@ macro_rules! generate_inner_storage {
                         | CachedDataItemType::OutdatedOutputDependency
                         | CachedDataItemType::OutdatedCellDependency
                         | CachedDataItemType::OutdatedCollectiblesDependency
+                        // Execution group (migrated)
+                        | CachedDataItemType::Activeness
+                        | CachedDataItemType::InProgress
+                        | CachedDataItemType::InProgressCell
                 ) {
                     return;
                 }
@@ -1962,6 +2077,23 @@ macro_rules! generate_inner_storage {
                     panic!(
                         "Use TaskGuard::outdated_collectibles_dependencies_mut() instead of \
                          update() for OutdatedCollectiblesDependency"
+                    );
+                }
+                // Execution group (migrated)
+                if matches!(key, CachedDataItemKey::Activeness {}) {
+                    panic!(
+                        "Use TaskGuard::get_activeness_mut() instead of update() for Activeness"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::InProgress {}) {
+                    panic!(
+                        "Use TaskGuard::get_in_progress_mut() instead of update() for InProgress"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::InProgressCell { .. }) {
+                    panic!(
+                        "Use TaskGuard::in_progress_cells_mut() instead of update() for \
+                         InProgressCell"
                     );
                 }
                 self.dynamic.update(key, update)
@@ -2135,6 +2267,23 @@ macro_rules! generate_inner_storage {
                     panic!(
                         "Use TaskGuard::outdated_collectibles_dependencies_mut() instead of \
                          extract_if() for OutdatedCollectiblesDependency"
+                    );
+                }
+                // Execution group (migrated) - Activeness and InProgress are direct, no extract_if
+                if matches!(ty, CachedDataItemType::Activeness) {
+                    panic!(
+                        "Use TaskGuard::clear_activeness() instead of extract_if() for Activeness"
+                    );
+                }
+                if matches!(ty, CachedDataItemType::InProgress) {
+                    panic!(
+                        "Use TaskGuard::remove_in_progress() instead of extract_if() for InProgress"
+                    );
+                }
+                if matches!(ty, CachedDataItemType::InProgressCell) {
+                    panic!(
+                        "Use TaskGuard::in_progress_cells_mut() instead of extract_if() for \
+                         InProgressCell"
                     );
                 }
                 self.dynamic.extract_if(ty, f)
@@ -2335,6 +2484,25 @@ macro_rules! generate_inner_storage {
                          get_mut_or_insert_with() for OutdatedCollectiblesDependency"
                     );
                 }
+                // Execution group (migrated)
+                if matches!(key, CachedDataItemKey::Activeness {}) {
+                    panic!(
+                        "Use TaskGuard::get_activeness_mut_or_insert_with() instead of \
+                         get_mut_or_insert_with() for Activeness"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::InProgress {}) {
+                    panic!(
+                        "Use TaskGuard::in_progress_mut() instead of get_mut_or_insert_with() for \
+                         InProgress"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::InProgressCell { .. }) {
+                    panic!(
+                        "Use TaskGuard::in_progress_cells_mut() instead of \
+                         get_mut_or_insert_with() for InProgressCell"
+                    );
+                }
                 self.dynamic.get_mut_or_insert_with(key, f)
             }
 
@@ -2488,6 +2656,22 @@ macro_rules! generate_inner_storage {
                     panic!(
                         "Use TaskGuard::outdated_collectibles_dependencies() instead of iter() \
                          for OutdatedCollectiblesDependency"
+                    );
+                }
+                // Execution group (migrated)
+                if matches!(ty, CachedDataItemType::Activeness) {
+                    panic!(
+                        "Use TaskGuard::get_activeness() instead of iter() for Activeness"
+                    );
+                }
+                if matches!(ty, CachedDataItemType::InProgress) {
+                    panic!(
+                        "Use TaskGuard::get_in_progress() instead of iter() for InProgress"
+                    );
+                }
+                if matches!(ty, CachedDataItemType::InProgressCell) {
+                    panic!(
+                        "Use TaskGuard::in_progress_cells() instead of iter() for InProgressCell"
                     );
                 }
                 self.dynamic.iter(ty)
@@ -2745,6 +2929,47 @@ impl InnerStorage {
             .dependencies
             .get_or_insert_with(Default::default);
         group.outdated_collectibles_dependencies.insert(target)
+    }
+
+    // Execution group (migrated) - transient, not persisted, but needed for runtime
+    fn add_activeness(&mut self, value: ActivenessState) -> bool {
+        let group = self
+            .typed
+            .meta
+            .execution
+            .get_or_insert_with(Default::default);
+        if group.activeness.is_some() {
+            false
+        } else {
+            group.activeness = Some(value);
+            true
+        }
+    }
+
+    fn add_in_progress(&mut self, value: InProgressState) -> bool {
+        let group = self
+            .typed
+            .meta
+            .execution
+            .get_or_insert_with(Default::default);
+        if group.in_progress.is_some() {
+            false
+        } else {
+            group.in_progress = Some(value);
+            true
+        }
+    }
+
+    fn add_in_progress_cell(&mut self, cell: CellId, value: InProgressCellState) -> bool {
+        let group = self
+            .typed
+            .meta
+            .execution
+            .get_or_insert_with(Default::default);
+        // Matches extend semantics: overwrites existing, returns false if key existed
+        let was_new = !group.in_progress_cells.contains_key(&cell);
+        group.in_progress_cells.insert(cell, value);
+        was_new
     }
 }
 

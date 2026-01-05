@@ -339,6 +339,7 @@ pub struct TaskStorageSchema {
 
     // =========================================================================
     // TRANSIENT EXECUTION STATE (transient, lazy)
+    // Migrated: uses TaskStorageAccessors trait for typed access via TaskGuard.
     // =========================================================================
     /// Activeness state for root/once tasks (transient).
     #[task_storage(
@@ -346,7 +347,8 @@ pub struct TaskStorageSchema {
         category = "meta",
         group = "execution",
         lazy,
-        transient
+        transient,
+        migrated
     )]
     pub activeness: Option<ActivenessState>,
 
@@ -356,7 +358,8 @@ pub struct TaskStorageSchema {
         category = "meta",
         group = "execution",
         lazy,
-        transient
+        transient,
+        migrated
     )]
     pub in_progress: Option<InProgressState>,
 
@@ -366,7 +369,8 @@ pub struct TaskStorageSchema {
         category = "meta",
         group = "execution",
         lazy,
-        transient
+        transient,
+        migrated
     )]
     pub in_progress_cells: AutoMap<CellId, InProgressCellState>,
 }
@@ -807,9 +811,10 @@ mod tests {
     use crate::data::{AggregationNumber, CachedDataItemKey, OutputValue};
 
     #[test]
-    fn test_schema_compiles() {
-        // This test just verifies the schema compiles correctly
-        // The actual generated types will be tested separately
+    fn test_schema_size() {
+        assert_eq!(256, std::mem::size_of::<TypedStorage>());
+        assert_eq!(200, std::mem::size_of::<TaskMeta>());
+        assert_eq!(56, std::mem::size_of::<TaskData>());
     }
 
     #[test]

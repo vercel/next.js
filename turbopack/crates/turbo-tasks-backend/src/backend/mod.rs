@@ -761,14 +761,15 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         };
 
         // Output doesn't exist. We need to schedule the task to compute it.
-        let (item, listener) = CachedDataItem::new_scheduled_with_listener(
+        let (in_progress_state, listener) = InProgressState::new_scheduled_with_listener(
             TaskExecutionReason::OutputNotAvailable,
             || self.get_task_desc_fn(task_id),
             note,
         );
         // It's not possible that the task is InProgress at this point. If it is InProgress {
         // done: true } it must have Output and would early return.
-        task.add_new_internal(item);
+        let old = task.set_in_progress(in_progress_state);
+        debug_assert!(old.is_none(), "InProgress already exists");
         ctx.schedule_task(task);
 
         Ok(Err(listener))
@@ -931,10 +932,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
         let in_progress = InProgressCellState::new(task_id, cell);
         let listener = in_progress.event.listen_with_note(note);
-        task.add_new_internal(CachedDataItem::InProgressCell {
-            cell,
-            value: in_progress,
-        });
+        let old = task.in_progress_cells_mut().insert(cell, in_progress);
+        debug_assert!(old.is_none(), "InProgressCell already exists");
         (listener, true)
     }
 
@@ -1594,9 +1593,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 InProgressState::Canceled => {}
             }
         }
-        task.add_new_internal(CachedDataItem::InProgress {
-            value: InProgressState::Canceled,
-        });
+        let old = task.set_in_progress(InProgressState::Canceled);
+        debug_assert!(old.is_none(), "InProgress already exists");
     }
 
     fn try_start_task_execution(
@@ -1624,20 +1622,22 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             let mut task = ctx.task(task_id, TaskDataCategory::All);
             let in_progress = task.remove_in_progress()?;
             let InProgressState::Scheduled { done_event, reason } = in_progress else {
-                task.add_new_internal(CachedDataItem::InProgress { value: in_progress });
+                let old = task.set_in_progress(in_progress);
+                debug_assert!(old.is_none(), "InProgress already exists");
                 return None;
             };
             execution_reason = reason;
-            task.add_new_internal(CachedDataItem::InProgress {
-                value: InProgressState::InProgress(Box::new(InProgressStateInner {
+            let old = task.set_in_progress(InProgressState::InProgress(Box::new(
+                InProgressStateInner {
                     stale: false,
                     once_task,
                     done_event,
                     session_dependent: false,
                     marked_as_completed: false,
                     new_children: Default::default(),
-                })),
-            });
+                },
+            )));
+            debug_assert!(old.is_none(), "InProgress already exists");
 
             // Make all current collectibles outdated (remove left-over outdated collectibles)
             enum Collectible {
@@ -1881,12 +1881,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             else {
                 unreachable!();
             };
-            task.add_new_internal(CachedDataItem::InProgress {
-                value: InProgressState::Scheduled {
-                    done_event,
-                    reason: TaskExecutionReason::Stale,
-                },
+            let old = task.set_in_progress(InProgressState::Scheduled {
+                done_event,
+                reason: TaskExecutionReason::Stale,
             });
+            debug_assert!(old.is_none(), "InProgress already exists");
             // Remove old children from new_children to leave only the children that had their
             // active count increased
             for task in task.iter_children() {
@@ -2255,12 +2254,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             else {
                 unreachable!();
             };
-            task.add_new_internal(CachedDataItem::InProgress {
-                value: InProgressState::Scheduled {
-                    done_event,
-                    reason: TaskExecutionReason::Stale,
-                },
+            let old = task.set_in_progress(InProgressState::Scheduled {
+                done_event,
+                reason: TaskExecutionReason::Stale,
             });
+            debug_assert!(old.is_none(), "InProgress already exists");
             drop(task);
 
             // All `new_children` are currently hold active with an active count and we need to undo
@@ -2322,12 +2320,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         // If the task is stale, reschedule it
         if stale {
-            task.add_new_internal(CachedDataItem::InProgress {
-                value: InProgressState::Scheduled {
-                    done_event,
-                    reason: TaskExecutionReason::Stale,
-                },
+            let old = task.set_in_progress(InProgressState::Scheduled {
+                done_event,
+                reason: TaskExecutionReason::Stale,
             });
+            debug_assert!(old.is_none(), "InProgress already exists");
             return true;
         }
 
@@ -2440,12 +2437,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         #[cfg(not(feature = "verify_determinism"))]
         let reschedule = false;
         if reschedule {
-            task.add_new_internal(CachedDataItem::InProgress {
-                value: InProgressState::Scheduled {
-                    done_event,
-                    reason: TaskExecutionReason::Stale,
-                },
+            let old = task.set_in_progress(InProgressState::Scheduled {
+                done_event,
+                reason: TaskExecutionReason::Stale,
             });
+            debug_assert!(old.is_none(), "InProgress already exists");
             drop(task);
         } else {
             drop(task);

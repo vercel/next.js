@@ -867,67 +867,60 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         }
     }
 
-    /// Check if this task has activeness tracking
-    #[must_use]
-    fn has_activeness(&self) -> bool {
-        self.get_activeness().is_some()
-    }
+    // ============ Typed Execution State APIs ============
+    // Uses typed storage directly via TaskStorageAccessors trait - execution group is migrated
+    // Generated methods from TaskStorageAccessors:
+    // - has_activeness() -> bool
+    // - get_activeness_ref() -> Option<&ActivenessState>
+    // - set_activeness(v: ActivenessState) -> Option<ActivenessState>
+    // - take_activeness() -> Option<ActivenessState>
+    // - has_in_progress() -> bool
+    // - get_in_progress_ref() -> Option<&InProgressState>
+    // - set_in_progress(v: InProgressState) -> Option<InProgressState>
+    // - take_in_progress() -> Option<InProgressState>
+    // - in_progress_cells() -> Option<&AutoMap<CellId, InProgressCellState>>
+    // - in_progress_cells_mut() -> &mut AutoMap<CellId, InProgressCellState>
 
-    /// Get the activeness state
+    /// Get the activeness state (alias for get_activeness_ref)
     fn get_activeness(&self) -> Option<&ActivenessState> {
-        get!(self, Activeness)
+        self.get_activeness_ref()
     }
 
     /// Get mutable reference to the activeness state
-    fn get_activeness_mut(&mut self) -> Option<&mut ActivenessState> {
-        get_mut!(self, Activeness)
-    }
+    fn get_activeness_mut(&mut self) -> Option<&mut ActivenessState>;
 
     /// Get mutable reference to the activeness state, inserting a new one if not present
     fn get_activeness_mut_or_insert_with<F>(&mut self, f: F) -> &mut ActivenessState
     where
-        F: FnOnce() -> ActivenessState,
-    {
-        get_mut_or_insert_with!(self, Activeness, f)
-    }
+        F: FnOnce() -> ActivenessState;
 
-    /// Set the activeness state, returning the old state if present
-    fn set_activeness(&mut self, value: ActivenessState) -> Option<ActivenessState> {
-        self.insert_internal(CachedDataItem::Activeness { value })
-            .and_then(|old| match old {
-                CachedDataItemValue::Activeness { value } => Some(value),
-                _ => None,
-            })
-    }
-
-    /// Clear the activeness state, returning the old state if present
+    /// Clear the activeness state, returning the old state if present (alias for take_activeness)
     fn clear_activeness(&mut self) -> Option<ActivenessState> {
-        remove!(self, Activeness)
+        self.take_activeness()
     }
 
-    /// Get the in-progress state
+    /// Get the in-progress state (alias for get_in_progress_ref)
     fn get_in_progress(&self) -> Option<&InProgressState> {
-        get!(self, InProgress)
+        self.get_in_progress_ref()
     }
 
     /// Get mutable reference to the in-progress state
-    fn get_in_progress_mut(&mut self) -> Option<&mut InProgressState> {
-        get_mut!(self, InProgress)
-    }
+    fn get_in_progress_mut(&mut self) -> Option<&mut InProgressState>;
 
-    /// Remove the in-progress state, returning the old state if present
+    /// Remove the in-progress state, returning the old state if present (alias for
+    /// take_in_progress)
     fn remove_in_progress(&mut self) -> Option<InProgressState> {
-        remove!(self, InProgress)
+        self.take_in_progress()
     }
 
     /// Get the in-progress cell state for a specific cell
     fn get_in_progress_cell(&self, cell: CellId) -> Option<&InProgressCellState> {
-        get!(self, InProgressCell { cell })
+        self.in_progress_cells().and_then(|map| map.get(&cell))
     }
 
     /// Remove the in-progress cell state for a specific cell, returning the old state if present
     fn remove_in_progress_cell(&mut self, cell: CellId) -> Option<InProgressCellState> {
-        remove!(self, InProgressCell { cell })
+        self.in_progress_cells_mut().remove(&cell)
     }
 
     /// Get current session clean marker
@@ -1884,12 +1877,35 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
 
     fn extract_in_progress_cells_if<'l, F>(
         &'l mut self,
-        f: F,
+        mut f: F,
     ) -> impl Iterator<Item = CachedDataItem>
     where
         F: for<'a> FnMut(CachedDataItemKey, CachedDataItemValueRef<'a>) -> bool + 'l,
     {
-        self.extract_if_internal(CachedDataItemType::InProgressCell, f)
+        use crate::data::{CachedDataItemKey, CachedDataItemValueRef};
+        self.check_access(TaskDataCategory::Meta);
+        // in_progress_cells is transient, doesn't track modification
+        // Collect items to extract first, then remove them
+        let to_extract: Vec<_> = self
+            .in_progress_cells()
+            .into_iter()
+            .flat_map(|m| m.iter())
+            .filter_map(|(&cell, value)| {
+                let key = CachedDataItemKey::InProgressCell { cell };
+                let value_ref = CachedDataItemValueRef::InProgressCell { value };
+                if f(key, value_ref) { Some(cell) } else { None }
+            })
+            .collect();
+
+        let map = self.in_progress_cells_mut();
+        to_extract
+            .into_iter()
+            .filter_map(move |cell| {
+                map.remove(&cell)
+                    .map(|value| CachedDataItem::InProgressCell { cell, value })
+            })
+            .collect::<Vec<_>>()
+            .into_iter()
     }
 
     fn shrink_to_fit(&mut self) {
@@ -2058,6 +2074,45 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         } else {
             false
         }
+    }
+
+    // ============ Execution group implementations ============
+
+    fn get_activeness_mut(&mut self) -> Option<&mut ActivenessState> {
+        // Access the typed storage directly - execution group is migrated
+        self.check_access(TaskDataCategory::Meta);
+        let typed = self.typed_mut(SpecificTaskDataCategory::Meta);
+        typed
+            .meta
+            .execution
+            .as_mut()
+            .and_then(|group| group.activeness.as_mut())
+    }
+
+    fn get_activeness_mut_or_insert_with<F>(&mut self, f: F) -> &mut ActivenessState
+    where
+        F: FnOnce() -> ActivenessState,
+    {
+        // Access the typed storage directly - execution group is migrated
+        self.check_access(TaskDataCategory::Meta);
+        let typed = self.typed_mut(SpecificTaskDataCategory::Meta);
+        typed
+            .meta
+            .execution
+            .get_or_insert_with(Default::default)
+            .activeness
+            .get_or_insert_with(f)
+    }
+
+    fn get_in_progress_mut(&mut self) -> Option<&mut InProgressState> {
+        // Access the typed storage directly - execution group is migrated
+        self.check_access(TaskDataCategory::Meta);
+        let typed = self.typed_mut(SpecificTaskDataCategory::Meta);
+        typed
+            .meta
+            .execution
+            .as_mut()
+            .and_then(|group| group.in_progress.as_mut())
     }
 }
 

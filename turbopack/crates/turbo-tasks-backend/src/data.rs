@@ -186,6 +186,41 @@ transient_traits!(InProgressState);
 
 impl Eq for InProgressState {}
 
+impl InProgressState {
+    /// Create a new scheduled state with a done event.
+    pub fn new_scheduled<InnerFnDescription>(
+        reason: TaskExecutionReason,
+        description: impl FnOnce() -> InnerFnDescription,
+    ) -> Self
+    where
+        InnerFnDescription: Fn() -> String + Sync + Send + 'static,
+    {
+        let done_event = Event::new(move || {
+            let inner = description();
+            move || format!("{} done_event", inner())
+        });
+        InProgressState::Scheduled { done_event, reason }
+    }
+
+    /// Create a new scheduled state with a done event and return a listener.
+    pub fn new_scheduled_with_listener<InnerFnDescription, InnerFnNote>(
+        reason: TaskExecutionReason,
+        description: impl FnOnce() -> InnerFnDescription,
+        note: impl FnOnce() -> InnerFnNote,
+    ) -> (Self, EventListener)
+    where
+        InnerFnDescription: Fn() -> String + Sync + Send + 'static,
+        InnerFnNote: Fn() -> String + Sync + Send + 'static,
+    {
+        let done_event = Event::new(move || {
+            let inner = description();
+            move || format!("{} done_event", inner())
+        });
+        let listener = done_event.listen_with_note(note);
+        (InProgressState::Scheduled { done_event, reason }, listener)
+    }
+}
+
 #[derive(Debug)]
 pub struct InProgressCellState {
     pub event: Event,
