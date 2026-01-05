@@ -121,7 +121,25 @@ async function runConfigs(
         )
         curStats.General[`buildDuration${bundler.suffix}`] = freshStats.median
 
-        // Apply renames to get deterministic output names (after last build)
+        // Run cached build iterations BEFORE renames (renames invalidate cache)
+        const cachedBuildTimes = []
+        logger(`  Cached build (${BUILD_BENCHMARK_ITERATIONS} iterations)...`)
+        for (let i = 0; i < BUILD_BENCHMARK_ITERATIONS; i++) {
+          const buildStart = Date.now()
+          console.log(await exec(`cd ${statsAppDir} && ${buildCommand}`, false))
+          const buildDuration = Date.now() - buildStart
+          cachedBuildTimes.push(buildDuration)
+          logger(`    Iteration ${i + 1}: ${buildDuration}ms`)
+        }
+
+        const cachedStats = calcStats(cachedBuildTimes)
+        logger(
+          `  Cached build: median=${cachedStats.median}ms, range=${cachedStats.min}-${cachedStats.max}ms`
+        )
+        curStats.General[`buildDurationCached${bundler.suffix}`] =
+          cachedStats.median
+
+        // Apply renames to get deterministic output names (after cached builds)
         for (const rename of config.renames) {
           const renameResults = await glob(rename.srcGlob, { cwd: statsAppDir })
           for (const result of renameResults) {
@@ -140,7 +158,7 @@ async function runConfigs(
           }
         }
 
-        // Collect file stats for this bundler (only once, after final build)
+        // Collect file stats for this bundler (after renames for deterministic names)
         const collectedStats = await collectStats(
           config,
           statsConfig,
@@ -157,24 +175,6 @@ async function runConfigs(
             collectedStats[key]
           )
         }
-
-        // Run multiple cached build iterations for stable timing
-        const cachedBuildTimes = []
-        logger(`  Cached build (${BUILD_BENCHMARK_ITERATIONS} iterations)...`)
-        for (let i = 0; i < BUILD_BENCHMARK_ITERATIONS; i++) {
-          const buildStart = Date.now()
-          console.log(await exec(`cd ${statsAppDir} && ${buildCommand}`, false))
-          const buildDuration = Date.now() - buildStart
-          cachedBuildTimes.push(buildDuration)
-          logger(`    Iteration ${i + 1}: ${buildDuration}ms`)
-        }
-
-        const cachedStats = calcStats(cachedBuildTimes)
-        logger(
-          `  Cached build: median=${cachedStats.median}ms, range=${cachedStats.min}-${cachedStats.max}ms`
-        )
-        curStats.General[`buildDurationCached${bundler.suffix}`] =
-          cachedStats.median
       }
 
       // Run benchmarks for selected bundler(s) - dev boot and prod start
