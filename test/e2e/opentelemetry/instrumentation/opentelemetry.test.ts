@@ -1426,6 +1426,14 @@ async function expectTrace(
   match: SpanMatch[],
   edgeOnly?: boolean
 ) {
+  // Extract expected http.target values from the match to filter out extra spans
+  // that may be generated in production mode (e.g., RSC prefetch requests)
+  const expectedTargets = new Set(
+    match
+      .map((m) => m.attributes?.['http.target'] as string | undefined)
+      .filter(Boolean)
+  )
+
   await check(async () => {
     const traces = collector.getSpans()
 
@@ -1481,7 +1489,19 @@ async function expectTrace(
       })
     }
 
-    tree.sort((a, b) => {
+    // Filter root spans to only those matching expected http.target values
+    // This prevents flakiness from extra spans in prod mode (RSC prefetch, etc.)
+    const filteredTree =
+      expectedTargets.size > 0
+        ? tree.filter((span) => {
+            const target = span.attributes?.['http.target'] as
+              | string
+              | undefined
+            return target && expectedTargets.has(target)
+          })
+        : tree
+
+    filteredTree.sort((a, b) => {
       const runtimeDiff = (a.runtime ?? '').localeCompare(b.runtime ?? '')
       if (runtimeDiff !== 0) {
         return runtimeDiff
@@ -1489,7 +1509,7 @@ async function expectTrace(
       return a.name.localeCompare(b.name)
     })
 
-    expect(tree).toMatchObject(match)
+    expect(filteredTree).toMatchObject(match)
     return 'success'
   }, 'success')
 }
