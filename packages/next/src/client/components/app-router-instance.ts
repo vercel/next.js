@@ -282,6 +282,18 @@ export function dispatchNavigateAction(
 
   setLinkForCurrentNavigation(linkInstanceRef)
 
+  // Snapshot current scroll position into the active history entry so it can be
+  // restored deterministically on back/forward traversals.
+  try {
+    const state = window.history.state ?? {}
+    const scroll = { x: window.scrollX, y: window.scrollY, t: Date.now() }
+    const nextState = { ...state, __PRIVATE_NEXTJS_SCROLL: scroll }
+    // Replace without changing URL to persist scroll on the current entry.
+    window.history.replaceState(nextState, '')
+  } catch {
+    // Ignore failures (e.g., in non-browser environments)
+  }
+
   const onRouterTransitionStart = getProfilingHookForOnNavigationStart()
   if (onRouterTransitionStart !== null) {
     onRouterTransitionStart(href, navigateType)
