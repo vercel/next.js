@@ -73,6 +73,15 @@ async function SearchResults({
     redirect(createUrl)
   }
 
+  let formattedNumberOfDiscussions
+  try {
+    formattedNumberOfDiscussions = new Intl.NumberFormat().format(
+      similarDiscussions.length
+    )
+  } catch {
+    formattedNumberOfDiscussions = similarDiscussions.length.toString()
+  }
+
   return (
     <main className="min-h-screen p-8 bg-background">
       <div className="max-w-4xl mx-auto space-y-8">
@@ -85,9 +94,9 @@ async function SearchResults({
         <div className="space-y-6">
           <div className="space-y-4">
             <p className="text-muted-foreground">
-              We found {similarDiscussions.length} discussion(s) that might be
-              related to the problem you're facing. If relevant, please chime in
-              there rather than creating a new discussion:
+              We found {formattedNumberOfDiscussions} discussion(s) that might
+              be related to the problem you're facing. If relevant, please chime
+              in there rather than creating a new discussion:
             </p>
             <DiscussionList discussions={similarDiscussions} />
           </div>
