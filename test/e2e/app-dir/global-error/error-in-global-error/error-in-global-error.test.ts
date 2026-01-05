@@ -31,10 +31,10 @@ describe('app dir - global-error - error-in-global-error', () => {
 
   it('should render fallback UI when error occurs in global-error', async () => {
     const browser = await next.browser('/?error-in-global-error=1')
-    const text = await browser.elementByCss('h2').text()
-    expect(text).toMatch(
-      /Application error: a client-side exception has occurred while loading [\w.-]+ \(see the browser console for more information\)./
-    )
+    // When the custom global-error throws, it falls back to the default global-error
+    // Client errors show "This page crashed"
+    const title = await browser.elementByCss('h1').text()
+    expect(title).toBe('This page crashed')
 
     if (isNextDev) {
       await waitForRedbox(browser)
