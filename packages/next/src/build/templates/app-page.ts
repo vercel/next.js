@@ -846,17 +846,20 @@ export async function handler(
           ? minimalPostponed
           : undefined
 
-      // If this is a dynamic RSC request, we should use the postponed data from
-      // the static render (if available). This ensures that we can utilize the
-      // resume data cache (RDC) from the static render to ensure that the data
-      // is consistent between the static and dynamic renders.
+      // If this is a dynamic RSC request or a server action request, we should
+      // use the postponed data from the static render (if available). This
+      // ensures that we can utilize the resume data cache (RDC) from the static
+      // render to ensure that the data is consistent between the static and
+      // dynamic renders (for navigations) or when re-rendering after a server
+      // action.
       if (
         // Only enable RDC for Navigations if the feature is enabled.
         supportsRDCForNavigations &&
         process.env.NEXT_RUNTIME !== 'edge' &&
         !isMinimalMode &&
         incrementalCache &&
-        isDynamicRSCRequest &&
+        // Include both dynamic RSC requests (navigations) and server actions
+        (isDynamicRSCRequest || isPossibleServerAction) &&
         // We don't typically trigger an on-demand revalidation for dynamic RSC
         // requests, as we're typically revalidating the page in the background
         // instead. However, if the cache entry is stale, we should trigger a

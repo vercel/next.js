@@ -131,4 +131,37 @@ describe('resume-data-cache', () => {
       // between the static and dynamic renders.
     }
   )
+
+  it('should use RDC for server action re-renders', async () => {
+    const browser = await next.browser('/server-action')
+
+    // Get the initial values
+    const initialCachedValue = await browser
+      .elementByCss('#cached-random')
+      .text()
+    const initialUncachedValue = await browser
+      .elementByCss('#uncached-random')
+      .text()
+
+    await browser.elementByCss('#refresh-button').click()
+
+    // Wait for the action to complete and verify:
+    // 1. The uncached value should change
+    // 2. The cached value should remain the same (proving RDC is being used)
+    await retry(async () => {
+      const cachedValueAfterAction = await browser
+        .elementByCss('#cached-random')
+        .text()
+      const uncachedValueAfterAction = await browser
+        .elementByCss('#uncached-random')
+        .text()
+
+      // Uncached value should have changed - this proves the action caused a re-render
+      expect(uncachedValueAfterAction).not.toBe(initialUncachedValue)
+
+      // Cached value should remain the same - this proves the RDC is being used
+      // to maintain consistency during server action re-renders
+      expect(cachedValueAfterAction).toBe(initialCachedValue)
+    })
+  })
 })
