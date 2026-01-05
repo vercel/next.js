@@ -5,19 +5,19 @@ describe('generateDeploymentId', () => {
     expect(generateDeploymentId(undefined)).toBeUndefined()
   })
 
-  it('should return trimmed string when deploymentId is a string', () => {
+  it('should return string when deploymentId is a string', () => {
     expect(generateDeploymentId('my-deployment-123')).toBe('my-deployment-123')
     expect(generateDeploymentId('  my-deployment-123  ')).toBe(
-      'my-deployment-123'
+      '  my-deployment-123  '
     )
   })
 
-  it('should call function and return trimmed string when deploymentId is a function', () => {
+  it('should call function and return string when deploymentId is a function', () => {
     const fn = () => 'my-deployment-123'
     expect(generateDeploymentId(fn)).toBe('my-deployment-123')
 
     const fnWithWhitespace = () => '  my-deployment-123  '
-    expect(generateDeploymentId(fnWithWhitespace)).toBe('my-deployment-123')
+    expect(generateDeploymentId(fnWithWhitespace)).toBe('  my-deployment-123  ')
   })
 
   it('should throw error when function returns non-string', () => {
@@ -34,6 +34,6 @@ describe('generateDeploymentId', () => {
 
   it('should handle empty string deploymentId', () => {
     expect(generateDeploymentId('')).toBe('')
-    expect(generateDeploymentId('   ')).toBe('')
+    expect(generateDeploymentId('   ')).toBe('   ')
   })
 })
