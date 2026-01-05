@@ -244,6 +244,9 @@ pub trait TurboTasksBackendApi<B: Backend + 'static>: TurboTasksCallApi + Sync +
     /// Schedule a task for execution.
     fn schedule(&self, task: TaskId, priority: TaskPriority);
 
+    /// Returns the priority of the current task.
+    fn get_current_task_priority(&self) -> TaskPriority;
+
     /// Schedule a foreground backend job for execution.
     fn schedule_backend_foreground_job(&self, job: B::BackendJob);
 
@@ -399,10 +402,13 @@ impl Display for ReadTracking {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Encode, Decode, Default, Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum TaskPriority {
+    #[default]
     Initial,
-    Invalidation { priority: Reverse<u32> },
+    Invalidation {
+        priority: Reverse<u32>,
+    },
 }
 
 impl TaskPriority {
@@ -416,13 +422,13 @@ impl TaskPriority {
         Self::Initial
     }
 
-    pub fn in_parent(&self, get_parent_priority: impl FnOnce() -> TaskPriority) -> Self {
+    pub fn in_parent(&self, parent_priority: TaskPriority) -> Self {
         match self {
             TaskPriority::Initial => Self::Initial,
             TaskPriority::Invalidation { priority } => {
                 if let TaskPriority::Invalidation {
                     priority: parent_priority,
-                } = get_parent_priority()
+                } = parent_priority
                     && priority.0 < parent_priority.0
                 {
                     Self::Invalidation {
@@ -820,15 +826,6 @@ impl<B: Backend + 'static> TurboTasks<B> {
     pub(crate) fn schedule(&self, task_id: TaskId, priority: TaskPriority) {
         self.begin_foreground_job();
         self.scheduled_tasks.fetch_add(1, Ordering::AcqRel);
-
-        let priority = priority.in_parent(|| {
-            CURRENT_TASK_STATE
-                .try_with(|task_state| {
-                    let task_state = task_state.read().unwrap();
-                    task_state.priority
-                })
-                .unwrap_or(TaskPriority::initial())
-        });
 
         self.priority_runner.schedule(
             &self.pin(),
@@ -1623,6 +1620,12 @@ impl<B: Backend + 'static> TurboTasksBackendApi<B> for TurboTasks<B> {
     #[track_caller]
     fn schedule(&self, task: TaskId, priority: TaskPriority) {
         self.schedule(task, priority)
+    }
+
+    fn get_current_task_priority(&self) -> TaskPriority {
+        CURRENT_TASK_STATE
+            .try_with(|task_state| task_state.read().unwrap().priority)
+            .unwrap_or(TaskPriority::initial())
     }
 
     fn program_duration_until(&self, instant: Instant) -> Duration {

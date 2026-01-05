@@ -1,5 +1,5 @@
 use bincode::{Decode, Encode};
-use turbo_tasks::{TaskExecutionReason, TaskId};
+use turbo_tasks::{TaskExecutionReason, TaskId, TaskPriority};
 
 use crate::{
     backend::{
@@ -74,7 +74,7 @@ impl ConnectChildOperation {
                     || ctx.get_task_desc_fn(child_task_id),
                 ))
             {
-                ctx.schedule_task(child_task);
+                ctx.schedule_task(child_task, TaskPriority::initial());
             }
         }
 

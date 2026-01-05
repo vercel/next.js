@@ -79,8 +79,9 @@ pub trait ExecuteContext<'e>: Sized {
         task_id2: TaskId,
         category: TaskDataCategory,
     ) -> (Self::TaskGuardImpl, Self::TaskGuardImpl);
-    fn schedule(&mut self, task_id: TaskId);
-    fn schedule_task(&self, task: Self::TaskGuardImpl);
+    fn schedule(&mut self, task_id: TaskId, parent_priority: TaskPriority);
+    fn schedule_task(&self, task: Self::TaskGuardImpl, parent_priority: TaskPriority);
+    fn get_current_task_priority(&self) -> TaskPriority;
     fn operation_suspend_point<T>(&mut self, op: &T)
     where
         T: Clone + Into<AnyOperation>;
@@ -559,18 +560,23 @@ where
         )
     }
 
-    fn schedule(&mut self, task_id: TaskId) {
+    fn schedule(&mut self, task_id: TaskId, parent_priority: TaskPriority) {
         let task = self.task(task_id, TaskDataCategory::All);
-        self.schedule_task(task);
+        self.schedule_task(task, parent_priority);
     }
 
-    fn schedule_task(&self, task: Self::TaskGuardImpl) {
+    fn schedule_task(&self, task: Self::TaskGuardImpl, parent_priority: TaskPriority) {
         let priority = if get!(task, Output).is_some() {
             TaskPriority::invalidation(get!(task, LeafDistance).copied().unwrap_or_default().min)
         } else {
             TaskPriority::initial()
         };
-        self.turbo_tasks.schedule(task.id(), priority);
+        self.turbo_tasks
+            .schedule(task.id(), priority.in_parent(parent_priority));
+    }
+
+    fn get_current_task_priority(&self) -> TaskPriority {
+        self.turbo_tasks.get_current_task_priority()
     }
 
     fn operation_suspend_point<T: Clone + Into<AnyOperation>>(&mut self, op: &T) {
@@ -674,15 +680,21 @@ pub trait TaskGuard: Debug {
     fn is_immutable(&self) -> bool {
         self.has_key(&CachedDataItemKey::Immutable {})
     }
-    fn is_dirty(&self) -> bool {
-        get!(self, Dirty).is_some_and(|dirtyness| match dirtyness {
-            Dirtyness::Dirty => true,
-            Dirtyness::SessionDependent => get!(self, CurrentSessionClean).is_none(),
+    fn is_dirty(&self) -> Option<TaskPriority> {
+        get!(self, Dirty).and_then(|dirtyness| match dirtyness {
+            Dirtyness::Dirty(priority) => Some(*priority),
+            Dirtyness::SessionDependent => {
+                if get!(self, CurrentSessionClean).is_none() {
+                    Some(TaskPriority::initial())
+                } else {
+                    None
+                }
+            }
         })
     }
     fn dirtyness_and_session(&self) -> Option<(Dirtyness, bool)> {
         match get!(self, Dirty)? {
-            Dirtyness::Dirty => Some((Dirtyness::Dirty, false)),
+            Dirtyness::Dirty(priority) => Some((Dirtyness::Dirty(*priority), false)),
             Dirtyness::SessionDependent => Some((
                 Dirtyness::SessionDependent,
                 get!(self, CurrentSessionClean).is_some(),
@@ -693,7 +705,7 @@ pub trait TaskGuard: Debug {
     fn dirty(&self) -> (bool, bool) {
         match get!(self, Dirty) {
             None => (false, false),
-            Some(Dirtyness::Dirty) => (true, false),
+            Some(Dirtyness::Dirty(_)) => (true, false),
             Some(Dirtyness::SessionDependent) => (true, get!(self, CurrentSessionClean).is_some()),
         }
     }
