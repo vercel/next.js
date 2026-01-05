@@ -85,6 +85,7 @@ import {
   createRouteTypesManifest,
   writeRouteTypesManifest,
   writeValidatorFile,
+  writeRouteTypesProxy,
 } from './route-types-utils'
 import { writeCacheLifeTypes } from './cache-life-type-utils'
 import { isParallelRouteSegment } from '../../../shared/lib/segment'
@@ -143,6 +144,7 @@ async function verifyTypeScript(opts: SetupOpts) {
   const verifyResult = await verifyTypeScriptSetup({
     dir: opts.dir,
     distDir: opts.nextConfig.distDir,
+    distDirRoot: opts.nextConfig.distDirRoot,
     typeCheckPreflight: false,
     tsconfigPath: opts.nextConfig.typescript.tsconfigPath,
     disableStaticImages: opts.nextConfig.images.disableStaticImages,
@@ -265,6 +267,17 @@ async function startWatcher(
     path.join(distTypesDir, 'routes.d.ts'),
     opts.nextConfig
   )
+
+  // When isolatedDevBuild is enabled, write a proxy file at the stable path
+  // that re-exports from the dev types location
+  if (opts.nextConfig.experimental.isolatedDevBuild) {
+    const stableTypesDir = path.join(
+      opts.dir,
+      opts.nextConfig.distDirRoot,
+      'types'
+    )
+    await writeRouteTypesProxy(stableTypesDir, '../dev/types/routes.d.ts')
+  }
 
   const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
   const routesManifest: DevRoutesManifest = {

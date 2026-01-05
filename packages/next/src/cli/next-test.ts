@@ -140,6 +140,7 @@ async function runPlaywright(
     const { version: typeScriptVersion } = await verifyTypeScriptSetup({
       dir: baseDir,
       distDir: nextConfig.distDir,
+      distDirRoot: nextConfig.distDirRoot,
       typeCheckPreflight: false,
       tsconfigPath: nextConfig.typescript.tsconfigPath,
       disableStaticImages: nextConfig.images.disableStaticImages,
