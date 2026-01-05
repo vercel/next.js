@@ -388,7 +388,9 @@ async function exportAppImpl(
     deploymentId:
       typeof nextConfig.deploymentId === 'string'
         ? nextConfig.deploymentId
-        : nextConfig.deploymentId() || '',
+        : typeof nextConfig.deploymentId === 'function'
+          ? nextConfig.deploymentId() || ''
+          : '',
     htmlLimitedBots: nextConfig.htmlLimitedBots.source,
     experimental: {
       clientTraceMetadata: nextConfig.experimental.clientTraceMetadata,
