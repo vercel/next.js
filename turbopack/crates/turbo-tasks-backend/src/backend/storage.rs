@@ -17,8 +17,8 @@ use crate::{
     },
     data::{
         AggregationNumber, CachedDataItem, CachedDataItemKey, CachedDataItemType,
-        CachedDataItemValue, CachedDataItemValueRef, CachedDataItemValueRefMut, CollectibleRef,
-        Dirtyness, OutputValue,
+        CachedDataItemValue, CachedDataItemValueRef, CachedDataItemValueRefMut, CellRef,
+        CollectibleRef, CollectiblesRef, Dirtyness, OutputValue,
     },
     utils::{
         dash_map_drop_contents::drop_contents,
@@ -507,6 +507,25 @@ macro_rules! generate_inner_storage {
                 {
                     return self.add_collectibles_dependent(collectible_type, task);
                 }
+                // Dependencies group (migrated)
+                if let CachedDataItem::OutputDependency { target, .. } = item {
+                    return self.add_output_dependency(target);
+                }
+                if let CachedDataItem::CellDependency { target, .. } = item {
+                    return self.add_cell_dependency(target);
+                }
+                if let CachedDataItem::CollectiblesDependency { target, .. } = item {
+                    return self.add_collectibles_dependency(target);
+                }
+                if let CachedDataItem::OutdatedOutputDependency { target, .. } = item {
+                    return self.add_outdated_output_dependency(target);
+                }
+                if let CachedDataItem::OutdatedCellDependency { target, .. } = item {
+                    return self.add_outdated_cell_dependency(target);
+                }
+                if let CachedDataItem::OutdatedCollectiblesDependency { target, .. } = item {
+                    return self.add_outdated_collectibles_dependency(target);
+                }
                 self.dynamic.add(item)
             }
 
@@ -691,6 +710,62 @@ macro_rules! generate_inner_storage {
                     }
                     return all_new;
                 }
+                // Dependencies group (migrated)
+                if let CachedDataItemType::OutputDependency = ty {
+                    let mut all_new = true;
+                    for item in items {
+                        if let CachedDataItem::OutputDependency { target, .. } = item {
+                            all_new &= self.add_output_dependency(target);
+                        }
+                    }
+                    return all_new;
+                }
+                if let CachedDataItemType::CellDependency = ty {
+                    let mut all_new = true;
+                    for item in items {
+                        if let CachedDataItem::CellDependency { target, .. } = item {
+                            all_new &= self.add_cell_dependency(target);
+                        }
+                    }
+                    return all_new;
+                }
+                if let CachedDataItemType::CollectiblesDependency = ty {
+                    let mut all_new = true;
+                    for item in items {
+                        if let CachedDataItem::CollectiblesDependency { target, .. } = item {
+                            all_new &= self.add_collectibles_dependency(target);
+                        }
+                    }
+                    return all_new;
+                }
+                if let CachedDataItemType::OutdatedOutputDependency = ty {
+                    let mut all_new = true;
+                    for item in items {
+                        if let CachedDataItem::OutdatedOutputDependency { target, .. } = item {
+                            all_new &= self.add_outdated_output_dependency(target);
+                        }
+                    }
+                    return all_new;
+                }
+                if let CachedDataItemType::OutdatedCellDependency = ty {
+                    let mut all_new = true;
+                    for item in items {
+                        if let CachedDataItem::OutdatedCellDependency { target, .. } = item {
+                            all_new &= self.add_outdated_cell_dependency(target);
+                        }
+                    }
+                    return all_new;
+                }
+                if let CachedDataItemType::OutdatedCollectiblesDependency = ty {
+                    let mut all_new = true;
+                    for item in items {
+                        if let CachedDataItem::OutdatedCollectiblesDependency { target, .. } = item
+                        {
+                            all_new &= self.add_outdated_collectibles_dependency(target);
+                        }
+                    }
+                    return all_new;
+                }
                 self.dynamic.extend(ty, items)
             }
 
@@ -819,6 +894,43 @@ macro_rules! generate_inner_storage {
                          CollectiblesDependent"
                     );
                 }
+                // Dependencies group (migrated)
+                if matches!(item, CachedDataItem::OutputDependency { .. }) {
+                    panic!(
+                        "Use TaskGuard::output_dependencies_mut() instead of insert() for \
+                         OutputDependency"
+                    );
+                }
+                if matches!(item, CachedDataItem::CellDependency { .. }) {
+                    panic!(
+                        "Use TaskGuard::cell_dependencies_mut() instead of insert() for \
+                         CellDependency"
+                    );
+                }
+                if matches!(item, CachedDataItem::CollectiblesDependency { .. }) {
+                    panic!(
+                        "Use TaskGuard::collectibles_dependencies_mut() instead of insert() for \
+                         CollectiblesDependency"
+                    );
+                }
+                if matches!(item, CachedDataItem::OutdatedOutputDependency { .. }) {
+                    panic!(
+                        "Use TaskGuard::outdated_output_dependencies_mut() instead of insert() \
+                         for OutdatedOutputDependency"
+                    );
+                }
+                if matches!(item, CachedDataItem::OutdatedCellDependency { .. }) {
+                    panic!(
+                        "Use TaskGuard::outdated_cell_dependencies_mut() instead of insert() for \
+                         OutdatedCellDependency"
+                    );
+                }
+                if matches!(item, CachedDataItem::OutdatedCollectiblesDependency { .. }) {
+                    panic!(
+                        "Use TaskGuard::outdated_collectibles_dependencies_mut() instead of \
+                         insert() for OutdatedCollectiblesDependency"
+                    );
+                }
                 self.dynamic.insert(item)
             }
 
@@ -944,6 +1056,46 @@ macro_rules! generate_inner_storage {
                          CollectiblesDependent"
                     );
                 }
+                // Dependencies group (migrated)
+                if matches!(key, CachedDataItemKey::OutputDependency { .. }) {
+                    panic!(
+                        "Use TaskGuard::output_dependencies_mut() instead of remove() for \
+                         OutputDependency"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::CellDependency { .. }) {
+                    panic!(
+                        "Use TaskGuard::cell_dependencies_mut() instead of remove() for \
+                         CellDependency"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::CollectiblesDependency { .. }) {
+                    panic!(
+                        "Use TaskGuard::collectibles_dependencies_mut() instead of remove() for \
+                         CollectiblesDependency"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::OutdatedOutputDependency { .. }) {
+                    panic!(
+                        "Use TaskGuard::outdated_output_dependencies_mut() instead of remove() \
+                         for OutdatedOutputDependency"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::OutdatedCellDependency { .. }) {
+                    panic!(
+                        "Use TaskGuard::outdated_cell_dependencies_mut() instead of remove() for \
+                         OutdatedCellDependency"
+                    );
+                }
+                if matches!(
+                    key,
+                    CachedDataItemKey::OutdatedCollectiblesDependency { .. }
+                ) {
+                    panic!(
+                        "Use TaskGuard::outdated_collectibles_dependencies_mut() instead of \
+                         remove() for OutdatedCollectiblesDependency"
+                    );
+                }
                 self.dynamic.remove(key)
             }
 
@@ -1063,6 +1215,42 @@ macro_rules! generate_inner_storage {
                     panic!(
                         "Use TaskGuard::collectibles_dependents() instead of count() for \
                          CollectiblesDependent"
+                    );
+                }
+                // Dependencies group (migrated)
+                if matches!(ty, CachedDataItemType::OutputDependency) {
+                    panic!(
+                        "Use TaskGuard::output_dependencies() instead of count() for \
+                         OutputDependency"
+                    );
+                }
+                if matches!(ty, CachedDataItemType::CellDependency) {
+                    panic!(
+                        "Use TaskGuard::cell_dependencies() instead of count() for CellDependency"
+                    );
+                }
+                if matches!(ty, CachedDataItemType::CollectiblesDependency) {
+                    panic!(
+                        "Use TaskGuard::collectibles_dependencies() instead of count() for \
+                         CollectiblesDependency"
+                    );
+                }
+                if matches!(ty, CachedDataItemType::OutdatedOutputDependency) {
+                    panic!(
+                        "Use TaskGuard::outdated_output_dependencies() instead of count() for \
+                         OutdatedOutputDependency"
+                    );
+                }
+                if matches!(ty, CachedDataItemType::OutdatedCellDependency) {
+                    panic!(
+                        "Use TaskGuard::outdated_cell_dependencies() instead of count() for \
+                         OutdatedCellDependency"
+                    );
+                }
+                if matches!(ty, CachedDataItemType::OutdatedCollectiblesDependency) {
+                    panic!(
+                        "Use TaskGuard::outdated_collectibles_dependencies() instead of count() \
+                         for OutdatedCollectiblesDependency"
                     );
                 }
                 self.dynamic.count(ty)
@@ -1187,6 +1375,45 @@ macro_rules! generate_inner_storage {
                     panic!(
                         "Use TaskGuard::collectibles_dependents() instead of get() for \
                          CollectiblesDependent"
+                    );
+                }
+                // Dependencies group (migrated)
+                if matches!(key, CachedDataItemKey::OutputDependency { .. }) {
+                    panic!(
+                        "Use TaskGuard::output_dependencies() instead of get() for \
+                         OutputDependency"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::CellDependency { .. }) {
+                    panic!(
+                        "Use TaskGuard::cell_dependencies() instead of get() for CellDependency"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::CollectiblesDependency { .. }) {
+                    panic!(
+                        "Use TaskGuard::collectibles_dependencies() instead of get() for \
+                         CollectiblesDependency"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::OutdatedOutputDependency { .. }) {
+                    panic!(
+                        "Use TaskGuard::outdated_output_dependencies() instead of get() for \
+                         OutdatedOutputDependency"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::OutdatedCellDependency { .. }) {
+                    panic!(
+                        "Use TaskGuard::outdated_cell_dependencies() instead of get() for \
+                         OutdatedCellDependency"
+                    );
+                }
+                if matches!(
+                    key,
+                    CachedDataItemKey::OutdatedCollectiblesDependency { .. }
+                ) {
+                    panic!(
+                        "Use TaskGuard::outdated_collectibles_dependencies() instead of get() for \
+                         OutdatedCollectiblesDependency"
                     );
                 }
                 self.dynamic.get(key)
@@ -1322,6 +1549,46 @@ macro_rules! generate_inner_storage {
                          CollectiblesDependent"
                     );
                 }
+                // Dependencies group (migrated)
+                if matches!(key, CachedDataItemKey::OutputDependency { .. }) {
+                    panic!(
+                        "Use TaskGuard::output_dependencies() instead of contains_key() for \
+                         OutputDependency"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::CellDependency { .. }) {
+                    panic!(
+                        "Use TaskGuard::cell_dependencies() instead of contains_key() for \
+                         CellDependency"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::CollectiblesDependency { .. }) {
+                    panic!(
+                        "Use TaskGuard::collectibles_dependencies() instead of contains_key() for \
+                         CollectiblesDependency"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::OutdatedOutputDependency { .. }) {
+                    panic!(
+                        "Use TaskGuard::outdated_output_dependencies() instead of contains_key() \
+                         for OutdatedOutputDependency"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::OutdatedCellDependency { .. }) {
+                    panic!(
+                        "Use TaskGuard::outdated_cell_dependencies() instead of contains_key() \
+                         for OutdatedCellDependency"
+                    );
+                }
+                if matches!(
+                    key,
+                    CachedDataItemKey::OutdatedCollectiblesDependency { .. }
+                ) {
+                    panic!(
+                        "Use TaskGuard::outdated_collectibles_dependencies() instead of \
+                         contains_key() for OutdatedCollectiblesDependency"
+                    );
+                }
                 self.dynamic.contains_key(key)
             }
 
@@ -1451,6 +1718,46 @@ macro_rules! generate_inner_storage {
                          CollectiblesDependent"
                     );
                 }
+                // Dependencies group (migrated)
+                if matches!(key, CachedDataItemKey::OutputDependency { .. }) {
+                    panic!(
+                        "Use TaskGuard::output_dependencies_mut() instead of get_mut() for \
+                         OutputDependency"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::CellDependency { .. }) {
+                    panic!(
+                        "Use TaskGuard::cell_dependencies_mut() instead of get_mut() for \
+                         CellDependency"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::CollectiblesDependency { .. }) {
+                    panic!(
+                        "Use TaskGuard::collectibles_dependencies_mut() instead of get_mut() for \
+                         CollectiblesDependency"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::OutdatedOutputDependency { .. }) {
+                    panic!(
+                        "Use TaskGuard::outdated_output_dependencies_mut() instead of get_mut() \
+                         for OutdatedOutputDependency"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::OutdatedCellDependency { .. }) {
+                    panic!(
+                        "Use TaskGuard::outdated_cell_dependencies_mut() instead of get_mut() for \
+                         OutdatedCellDependency"
+                    );
+                }
+                if matches!(
+                    key,
+                    CachedDataItemKey::OutdatedCollectiblesDependency { .. }
+                ) {
+                    panic!(
+                        "Use TaskGuard::outdated_collectibles_dependencies_mut() instead of \
+                         get_mut() for OutdatedCollectiblesDependency"
+                    );
+                }
                 self.dynamic.get_mut(key)
             }
 
@@ -1482,6 +1789,12 @@ macro_rules! generate_inner_storage {
                         | CachedDataItemType::CellTypeMaxIndex
                         | CachedDataItemType::CellDependent
                         | CachedDataItemType::CollectiblesDependent
+                        | CachedDataItemType::OutputDependency
+                        | CachedDataItemType::CellDependency
+                        | CachedDataItemType::CollectiblesDependency
+                        | CachedDataItemType::OutdatedOutputDependency
+                        | CachedDataItemType::OutdatedCellDependency
+                        | CachedDataItemType::OutdatedCollectiblesDependency
                 ) {
                     return;
                 }
@@ -1609,6 +1922,46 @@ macro_rules! generate_inner_storage {
                     panic!(
                         "Use TaskGuard::collectibles_dependents_mut() instead of update() for \
                          CollectiblesDependent"
+                    );
+                }
+                // Dependencies group (migrated)
+                if matches!(key, CachedDataItemKey::OutputDependency { .. }) {
+                    panic!(
+                        "Use TaskGuard::output_dependencies_mut() instead of update() for \
+                         OutputDependency"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::CellDependency { .. }) {
+                    panic!(
+                        "Use TaskGuard::cell_dependencies_mut() instead of update() for \
+                         CellDependency"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::CollectiblesDependency { .. }) {
+                    panic!(
+                        "Use TaskGuard::collectibles_dependencies_mut() instead of update() for \
+                         CollectiblesDependency"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::OutdatedOutputDependency { .. }) {
+                    panic!(
+                        "Use TaskGuard::outdated_output_dependencies_mut() instead of update() \
+                         for OutdatedOutputDependency"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::OutdatedCellDependency { .. }) {
+                    panic!(
+                        "Use TaskGuard::outdated_cell_dependencies_mut() instead of update() for \
+                         OutdatedCellDependency"
+                    );
+                }
+                if matches!(
+                    key,
+                    CachedDataItemKey::OutdatedCollectiblesDependency { .. }
+                ) {
+                    panic!(
+                        "Use TaskGuard::outdated_collectibles_dependencies_mut() instead of \
+                         update() for OutdatedCollectiblesDependency"
                     );
                 }
                 self.dynamic.update(key, update)
@@ -1745,6 +2098,43 @@ macro_rules! generate_inner_storage {
                     panic!(
                         "Use TaskGuard::collectibles_dependents_mut() instead of extract_if() for \
                          CollectiblesDependent"
+                    );
+                }
+                // Dependencies group (migrated)
+                if matches!(ty, CachedDataItemType::OutputDependency) {
+                    panic!(
+                        "Use TaskGuard::output_dependencies_mut() instead of extract_if() for \
+                         OutputDependency"
+                    );
+                }
+                if matches!(ty, CachedDataItemType::CellDependency) {
+                    panic!(
+                        "Use TaskGuard::cell_dependencies_mut() instead of extract_if() for \
+                         CellDependency"
+                    );
+                }
+                if matches!(ty, CachedDataItemType::CollectiblesDependency) {
+                    panic!(
+                        "Use TaskGuard::collectibles_dependencies_mut() instead of extract_if() \
+                         for CollectiblesDependency"
+                    );
+                }
+                if matches!(ty, CachedDataItemType::OutdatedOutputDependency) {
+                    panic!(
+                        "Use TaskGuard::outdated_output_dependencies_mut() instead of \
+                         extract_if() for OutdatedOutputDependency"
+                    );
+                }
+                if matches!(ty, CachedDataItemType::OutdatedCellDependency) {
+                    panic!(
+                        "Use TaskGuard::outdated_cell_dependencies_mut() instead of extract_if() \
+                         for OutdatedCellDependency"
+                    );
+                }
+                if matches!(ty, CachedDataItemType::OutdatedCollectiblesDependency) {
+                    panic!(
+                        "Use TaskGuard::outdated_collectibles_dependencies_mut() instead of \
+                         extract_if() for OutdatedCollectiblesDependency"
                     );
                 }
                 self.dynamic.extract_if(ty, f)
@@ -1905,6 +2295,46 @@ macro_rules! generate_inner_storage {
                          get_mut_or_insert_with() for CollectiblesDependent"
                     );
                 }
+                // Dependencies group (migrated)
+                if matches!(key, CachedDataItemKey::OutputDependency { .. }) {
+                    panic!(
+                        "Use TaskGuard::output_dependencies_mut() instead of \
+                         get_mut_or_insert_with() for OutputDependency"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::CellDependency { .. }) {
+                    panic!(
+                        "Use TaskGuard::cell_dependencies_mut() instead of \
+                         get_mut_or_insert_with() for CellDependency"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::CollectiblesDependency { .. }) {
+                    panic!(
+                        "Use TaskGuard::collectibles_dependencies_mut() instead of \
+                         get_mut_or_insert_with() for CollectiblesDependency"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::OutdatedOutputDependency { .. }) {
+                    panic!(
+                        "Use TaskGuard::outdated_output_dependencies_mut() instead of \
+                         get_mut_or_insert_with() for OutdatedOutputDependency"
+                    );
+                }
+                if matches!(key, CachedDataItemKey::OutdatedCellDependency { .. }) {
+                    panic!(
+                        "Use TaskGuard::outdated_cell_dependencies_mut() instead of \
+                         get_mut_or_insert_with() for OutdatedCellDependency"
+                    );
+                }
+                if matches!(
+                    key,
+                    CachedDataItemKey::OutdatedCollectiblesDependency { .. }
+                ) {
+                    panic!(
+                        "Use TaskGuard::outdated_collectibles_dependencies_mut() instead of \
+                         get_mut_or_insert_with() for OutdatedCollectiblesDependency"
+                    );
+                }
                 self.dynamic.get_mut_or_insert_with(key, f)
             }
 
@@ -2022,6 +2452,42 @@ macro_rules! generate_inner_storage {
                     panic!(
                         "Use TaskGuard::collectibles_dependents() instead of iter() for \
                          CollectiblesDependent"
+                    );
+                }
+                // Dependencies group (migrated)
+                if matches!(ty, CachedDataItemType::OutputDependency) {
+                    panic!(
+                        "Use TaskGuard::output_dependencies() instead of iter() for \
+                         OutputDependency"
+                    );
+                }
+                if matches!(ty, CachedDataItemType::CellDependency) {
+                    panic!(
+                        "Use TaskGuard::cell_dependencies() instead of iter() for CellDependency"
+                    );
+                }
+                if matches!(ty, CachedDataItemType::CollectiblesDependency) {
+                    panic!(
+                        "Use TaskGuard::collectibles_dependencies() instead of iter() for \
+                         CollectiblesDependency"
+                    );
+                }
+                if matches!(ty, CachedDataItemType::OutdatedOutputDependency) {
+                    panic!(
+                        "Use TaskGuard::outdated_output_dependencies() instead of iter() for \
+                         OutdatedOutputDependency"
+                    );
+                }
+                if matches!(ty, CachedDataItemType::OutdatedCellDependency) {
+                    panic!(
+                        "Use TaskGuard::outdated_cell_dependencies() instead of iter() for \
+                         OutdatedCellDependency"
+                    );
+                }
+                if matches!(ty, CachedDataItemType::OutdatedCollectiblesDependency) {
+                    panic!(
+                        "Use TaskGuard::outdated_collectibles_dependencies() instead of iter() \
+                         for OutdatedCollectiblesDependency"
                     );
                 }
                 self.dynamic.iter(ty)
@@ -2224,6 +2690,61 @@ impl InnerStorage {
             .entry(collectible_type)
             .or_default()
             .insert(task)
+    }
+
+    // Dependencies group (migrated)
+    fn add_output_dependency(&mut self, target: TaskId) -> bool {
+        let group = self
+            .typed
+            .data
+            .dependencies
+            .get_or_insert_with(Default::default);
+        group.output_dependencies.insert(target)
+    }
+
+    fn add_cell_dependency(&mut self, target: CellRef) -> bool {
+        let group = self
+            .typed
+            .data
+            .dependencies
+            .get_or_insert_with(Default::default);
+        group.cell_dependencies.insert(target)
+    }
+
+    fn add_collectibles_dependency(&mut self, target: CollectiblesRef) -> bool {
+        let group = self
+            .typed
+            .data
+            .dependencies
+            .get_or_insert_with(Default::default);
+        group.collectibles_dependencies.insert(target)
+    }
+
+    fn add_outdated_output_dependency(&mut self, target: TaskId) -> bool {
+        let group = self
+            .typed
+            .data
+            .dependencies
+            .get_or_insert_with(Default::default);
+        group.outdated_output_dependencies.insert(target)
+    }
+
+    fn add_outdated_cell_dependency(&mut self, target: CellRef) -> bool {
+        let group = self
+            .typed
+            .data
+            .dependencies
+            .get_or_insert_with(Default::default);
+        group.outdated_cell_dependencies.insert(target)
+    }
+
+    fn add_outdated_collectibles_dependency(&mut self, target: CollectiblesRef) -> bool {
+        let group = self
+            .typed
+            .data
+            .dependencies
+            .get_or_insert_with(Default::default);
+        group.outdated_collectibles_dependencies.insert(target)
     }
 }
 

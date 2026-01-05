@@ -25,7 +25,7 @@ use crate::{
         TurboTasksBackendJob,
         storage::{
             SpecificTaskDataCategory, StorageWriteGuard, get, get_mut, get_mut_or_insert_with,
-            iter_many, remove, update, update_count, update_count_and_get,
+            iter_many, remove,
         },
         storage_schema::TaskStorageAccessors,
     },
@@ -486,44 +486,46 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     }
 
     // ============ Typed OutputDependency APIs ============
+    // Uses typed storage directly - output_dependencies is a migrated auto_set
 
     /// Check if this task has an output dependency on another task
     fn has_output_dependency(&self, target: TaskId) -> bool {
-        self.has_key_internal(&CachedDataItemKey::OutputDependency { target })
+        self.output_dependencies()
+            .is_some_and(|deps| deps.contains(&target))
     }
 
     /// Remove an output dependency from this task
     /// Returns true if the dependency was present and removed
     fn remove_output_dependency(&mut self, target: TaskId) -> bool {
-        self.remove_internal(&CachedDataItemKey::OutputDependency { target })
-            .is_some()
+        self.output_dependencies_mut().remove(&target)
     }
 
     /// Add an output dependency to this task
     /// Returns true if the dependency was newly added, false if it already existed
     fn add_output_dependency(&mut self, target: TaskId) -> bool {
-        self.add_internal(CachedDataItem::OutputDependency { target, value: () })
+        self.output_dependencies_mut().insert(target)
     }
 
     // ============ Typed CellDependency APIs ============
+    // Uses typed storage directly - cell_dependencies is a migrated auto_set
 
     /// Check if this task has a cell dependency on another task's cell
     fn has_cell_dependency(&self, target: CellRef) -> bool {
-        self.has_key_internal(&CachedDataItemKey::CellDependency { target })
+        self.cell_dependencies()
+            .is_some_and(|deps| deps.contains(&target))
     }
 
     /// Remove a cell dependency from this task
     /// Returns true if the dependency was present and removed
     fn remove_cell_dependency(&mut self, target: CellRef) -> bool {
-        self.remove_internal(&CachedDataItemKey::CellDependency { target })
-            .is_some()
+        self.cell_dependencies_mut().remove(&target)
     }
 
     /// Add a cell dependency to this task
     /// Returns true if the dependency was newly added, false if it already existed
     #[must_use]
     fn add_cell_dependency(&mut self, target: CellRef) -> bool {
-        self.add_internal(CachedDataItem::CellDependency { target, value: () })
+        self.cell_dependencies_mut().insert(target)
     }
 
     // ============ Typed OutputDependent APIs ============
@@ -572,19 +574,19 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     fn add_collectibles_dependent(&mut self, collectible_type: TraitTypeId, task: TaskId) -> bool;
 
     // ============ Typed CollectiblesDependency APIs ============
+    // Uses typed storage directly - collectibles_dependencies is a migrated auto_set
 
     /// Remove a collectibles dependency from this task
     /// Returns true if the dependency was present and removed
     fn remove_collectibles_dependency(&mut self, target: CollectiblesRef) -> bool {
-        self.remove_internal(&CachedDataItemKey::CollectiblesDependency { target })
-            .is_some()
+        self.collectibles_dependencies_mut().remove(&target)
     }
 
     /// Add a collectibles dependency to this task
     /// Returns true if the dependency was newly added, false if it already existed
     #[must_use]
     fn add_collectibles_dependency(&mut self, target: CollectiblesRef) -> bool {
-        self.add_internal(CachedDataItem::CollectiblesDependency { target, value: () })
+        self.collectibles_dependencies_mut().insert(target)
     }
 
     // ============ Typed Marker APIs ============
@@ -1126,8 +1128,10 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     }
 
     /// Count the number of collectibles dependencies
+    /// Uses typed storage directly - collectibles_dependencies is a migrated auto_set
     fn count_collectibles_dependencies(&self) -> usize {
-        self.count_internal(CachedDataItemType::CollectiblesDependency)
+        self.collectibles_dependencies()
+            .map_or(0, |deps| deps.len())
     }
 
     fn invalidate_serialization(&mut self);
@@ -1267,35 +1271,36 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     }
 
     // ============ Outdated Dependency APIs ============
+    // Uses typed storage directly - outdated_*_dependencies are migrated auto_sets
 
     /// Remove an outdated output dependency
     fn remove_outdated_output_dependency(&mut self, target: TaskId) -> bool {
-        self.remove_internal(&CachedDataItemKey::OutdatedOutputDependency { target })
-            .is_some()
+        self.outdated_output_dependencies_mut().remove(&target)
     }
 
     /// Remove an outdated cell dependency
     fn remove_outdated_cell_dependency(&mut self, target: CellRef) -> bool {
-        self.remove_internal(&CachedDataItemKey::OutdatedCellDependency { target })
-            .is_some()
+        self.outdated_cell_dependencies_mut().remove(&target)
     }
 
     /// Check if task has an outdated output dependency
     #[must_use]
     fn has_outdated_output_dependency(&self, target: TaskId) -> bool {
-        self.has_key_internal(&CachedDataItemKey::OutdatedOutputDependency { target })
+        self.outdated_output_dependencies()
+            .is_some_and(|deps| deps.contains(&target))
     }
 
     /// Check if task has an outdated cell dependency
     #[must_use]
     fn has_outdated_cell_dependency(&self, target: CellRef) -> bool {
-        self.has_key_internal(&CachedDataItemKey::OutdatedCellDependency { target })
+        self.outdated_cell_dependencies()
+            .is_some_and(|deps| deps.contains(&target))
     }
 
     /// Remove an outdated collectibles dependency
     fn remove_outdated_collectibles_dependency(&mut self, target: CollectiblesRef) -> bool {
-        self.remove_internal(&CachedDataItemKey::OutdatedCollectiblesDependency { target })
-            .is_some()
+        self.outdated_collectibles_dependencies_mut()
+            .remove(&target)
     }
 
     /// Add multiple outdated cell dependencies at once
@@ -1303,10 +1308,12 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         &mut self,
         dependencies: impl Iterator<Item = CellRef>,
     ) -> bool {
-        self.extend_internal(
-            CachedDataItemType::OutdatedCellDependency,
-            dependencies.map(|target| CachedDataItem::OutdatedCellDependency { target, value: () }),
-        )
+        let set = self.outdated_cell_dependencies_mut();
+        let mut all_new = true;
+        for dep in dependencies {
+            all_new &= set.insert(dep);
+        }
+        all_new
     }
 
     /// Add multiple outdated output dependencies at once
@@ -1314,11 +1321,12 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         &mut self,
         dependencies: impl Iterator<Item = TaskId>,
     ) -> bool {
-        self.extend_internal(
-            CachedDataItemType::OutdatedOutputDependency,
-            dependencies
-                .map(|target| CachedDataItem::OutdatedOutputDependency { target, value: () }),
-        )
+        let set = self.outdated_output_dependencies_mut();
+        let mut all_new = true;
+        for dep in dependencies {
+            all_new &= set.insert(dep);
+        }
+        all_new
     }
 
     // ============ Collectible APIs ============
@@ -1351,21 +1359,26 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     }
 
     // ============ Dependency Bulk Operations ============
+    // Uses typed storage directly - dependencies are migrated auto_sets
 
     /// Add multiple cell dependencies at once
     fn add_cell_dependencies(&mut self, dependencies: impl Iterator<Item = CellRef>) -> bool {
-        self.extend_internal(
-            CachedDataItemType::CellDependency,
-            dependencies.map(|target| CachedDataItem::CellDependency { target, value: () }),
-        )
+        let set = self.cell_dependencies_mut();
+        let mut all_new = true;
+        for dep in dependencies {
+            all_new &= set.insert(dep);
+        }
+        all_new
     }
 
     /// Add multiple output dependencies at once
     fn add_output_dependencies(&mut self, dependencies: impl Iterator<Item = TaskId>) -> bool {
-        self.extend_internal(
-            CachedDataItemType::OutputDependency,
-            dependencies.map(|target| CachedDataItem::OutputDependency { target, value: () }),
-        )
+        let set = self.output_dependencies_mut();
+        let mut all_new = true;
+        for dep in dependencies {
+            all_new &= set.insert(dep);
+        }
+        all_new
     }
 
     // ============ Other APIs ============
@@ -1405,48 +1418,43 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     }
 
     /// Iterate over all output dependencies
+    /// Uses typed storage directly - output_dependencies is a migrated auto_set
     fn iter_output_dependencies(&self) -> impl Iterator<Item = TaskId> + '_ {
-        self.iter_internal(CachedDataItemType::OutputDependency)
-            .filter_map(|(key, _)| match key {
-                CachedDataItemKey::OutputDependency { target } => Some(target),
-                _ => None,
-            })
+        self.output_dependencies()
+            .into_iter()
+            .flat_map(|deps| deps.iter().copied())
     }
 
     /// Iterate over all cell dependencies
+    /// Uses typed storage directly - cell_dependencies is a migrated auto_set
     fn iter_cell_dependencies(&self) -> impl Iterator<Item = CellRef> + '_ {
-        self.iter_internal(CachedDataItemType::CellDependency)
-            .filter_map(|(key, _)| match key {
-                CachedDataItemKey::CellDependency { target } => Some(target),
-                _ => None,
-            })
+        self.cell_dependencies()
+            .into_iter()
+            .flat_map(|deps| deps.iter().copied())
     }
 
     /// Iterate over all outdated output dependencies
+    /// Uses typed storage directly - outdated_output_dependencies is a migrated auto_set
     fn iter_outdated_output_dependencies(&self) -> impl Iterator<Item = TaskId> + '_ {
-        self.iter_internal(CachedDataItemType::OutdatedOutputDependency)
-            .filter_map(|(key, _)| match key {
-                CachedDataItemKey::OutdatedOutputDependency { target } => Some(target),
-                _ => None,
-            })
+        self.outdated_output_dependencies()
+            .into_iter()
+            .flat_map(|deps| deps.iter().copied())
     }
 
     /// Iterate over all outdated cell dependencies
+    /// Uses typed storage directly - outdated_cell_dependencies is a migrated auto_set
     fn iter_outdated_cell_dependencies(&self) -> impl Iterator<Item = CellRef> + '_ {
-        self.iter_internal(CachedDataItemType::OutdatedCellDependency)
-            .filter_map(|(key, _)| match key {
-                CachedDataItemKey::OutdatedCellDependency { target } => Some(target),
-                _ => None,
-            })
+        self.outdated_cell_dependencies()
+            .into_iter()
+            .flat_map(|deps| deps.iter().copied())
     }
 
     /// Iterate over all collectibles dependencies
+    /// Uses typed storage directly - collectibles_dependencies is a migrated auto_set
     fn iter_collectibles_dependencies(&self) -> impl Iterator<Item = CollectiblesRef> + '_ {
-        self.iter_internal(CachedDataItemType::CollectiblesDependency)
-            .filter_map(|(key, _)| match key {
-                CachedDataItemKey::CollectiblesDependency { target } => Some(target),
-                _ => None,
-            })
+        self.collectibles_dependencies()
+            .into_iter()
+            .flat_map(|deps| deps.iter().copied())
     }
 
     /// Iterate over all output dependents
@@ -1907,9 +1915,18 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
     fn prefetch(&mut self) -> Option<FxIndexMap<TaskId, bool>> {
         if !self.task.state().prefetched() {
             self.task.state_mut().set_prefetched(true);
-            let map = iter_many!(self, OutputDependency { target } => (target, false))
-                .chain(iter_many!(self, CellDependency { target } => (target.task, true)))
-                .chain(iter_many!(self, CollectiblesDependency { target } => (target.task, true)))
+            // Uses typed storage iterators - dependencies are migrated auto_sets
+            let map = self
+                .iter_output_dependencies()
+                .map(|target| (target, false))
+                .chain(
+                    self.iter_cell_dependencies()
+                        .map(|target| (target.task, true)),
+                )
+                .chain(
+                    self.iter_collectibles_dependencies()
+                        .map(|target| (target.task, true)),
+                )
                 .collect::<FxIndexMap<_, _>>();
             if map.len() > 16 {
                 return Some(map);

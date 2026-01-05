@@ -211,17 +211,36 @@ pub struct TaskStorageSchema {
 
     // =========================================================================
     // DEPENDENCIES GROUP (data, lazy)
+    // Migrated: uses TaskStorageAccessors trait for typed access via TaskGuard.
     // =========================================================================
     /// Tasks whose output this task depends on.
-    #[task_storage(storage = "auto_set", category = "data", group = "dependencies", lazy)]
+    #[task_storage(
+        storage = "auto_set",
+        category = "data",
+        group = "dependencies",
+        lazy,
+        migrated
+    )]
     pub output_dependencies: AutoSet<TaskId>,
 
     /// Cells this task depends on.
-    #[task_storage(storage = "auto_set", category = "data", group = "dependencies", lazy)]
+    #[task_storage(
+        storage = "auto_set",
+        category = "data",
+        group = "dependencies",
+        lazy,
+        migrated
+    )]
     pub cell_dependencies: AutoSet<CellRef>,
 
     /// Collectibles this task depends on.
-    #[task_storage(storage = "auto_set", category = "data", group = "dependencies", lazy)]
+    #[task_storage(
+        storage = "auto_set",
+        category = "data",
+        group = "dependencies",
+        lazy,
+        migrated
+    )]
     pub collectibles_dependencies: AutoSet<CollectiblesRef>,
 
     /// Outdated output dependencies to be cleaned up (transient).
@@ -230,7 +249,8 @@ pub struct TaskStorageSchema {
         category = "data",
         group = "dependencies",
         lazy,
-        transient
+        transient,
+        migrated
     )]
     pub outdated_output_dependencies: AutoSet<TaskId>,
 
@@ -240,7 +260,8 @@ pub struct TaskStorageSchema {
         category = "data",
         group = "dependencies",
         lazy,
-        transient
+        transient,
+        migrated
     )]
     pub outdated_cell_dependencies: AutoSet<CellRef>,
 
@@ -250,7 +271,8 @@ pub struct TaskStorageSchema {
         category = "data",
         group = "dependencies",
         lazy,
-        transient
+        transient,
+        migrated
     )]
     pub outdated_collectibles_dependencies: AutoSet<CollectiblesRef>,
 
@@ -411,10 +433,43 @@ impl TaskData {
             })
         });
 
+        // Dependencies group (lazy) - only non-transient fields for persistence
+        // Note: outdated_*_dependencies are transient, so not included
+        let output_dependencies_iter = self.dependencies.as_ref().into_iter().flat_map(|group| {
+            group.output_dependencies.iter().map(|target| {
+                (
+                    CachedDataItemKey::OutputDependency { target: *target },
+                    CachedDataItemValueRef::OutputDependency { value: &() },
+                )
+            })
+        });
+
+        let cell_dependencies_iter = self.dependencies.as_ref().into_iter().flat_map(|group| {
+            group.cell_dependencies.iter().map(|target| {
+                (
+                    CachedDataItemKey::CellDependency { target: *target },
+                    CachedDataItemValueRef::CellDependency { value: &() },
+                )
+            })
+        });
+
+        let collectibles_dependencies_iter =
+            self.dependencies.as_ref().into_iter().flat_map(|group| {
+                group.collectibles_dependencies.iter().map(|target| {
+                    (
+                        CachedDataItemKey::CollectiblesDependency { target: *target },
+                        CachedDataItemValueRef::CollectiblesDependency { value: &() },
+                    )
+                })
+            });
+
         output_dependent_iter
             .chain(cell_data_iter)
             .chain(cell_type_max_index_iter)
             .chain(cell_dependents_iter)
+            .chain(output_dependencies_iter)
+            .chain(cell_dependencies_iter)
+            .chain(collectibles_dependencies_iter)
         // TODO: Add remaining data fields as they are migrated
     }
 
@@ -434,6 +489,13 @@ impl TaskData {
                 .values()
                 .map(|set| set.len())
                 .sum::<usize>();
+        }
+        // Dependencies group (lazy) - only non-transient fields for persistence
+        // Note: outdated_*_dependencies are transient
+        if let Some(ref group) = self.dependencies {
+            count += group.output_dependencies.len();
+            count += group.cell_dependencies.len();
+            count += group.collectibles_dependencies.len();
         }
         // TODO: Add remaining data fields as they are migrated
         count
