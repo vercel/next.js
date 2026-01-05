@@ -145,7 +145,6 @@ function checkVersionMismatch(pkgData: any) {
 // we'll not include native bindings for these platform at all.
 const knownDefaultWasmFallbackTriples = [
   'x86_64-unknown-freebsd',
-  //'aarch64-linux-android',
   'arm-linux-androideabi',
   'armv7-unknown-linux-gnueabihf',
   'i686-pc-windows-msvc',
