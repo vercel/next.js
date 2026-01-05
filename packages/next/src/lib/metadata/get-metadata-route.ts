@@ -146,16 +146,3 @@ export function normalizeMetadataPageToRoute(page: string, isDynamic: boolean) {
 
   return mapped + (isRoute ? '/route' : '')
 }
-
-/**
- * Normalize static metadata file path by replacing dynamic segments with "-" placeholder.
- * This creates a consistent URL path for static files under dynamic routes.
- *
- * Example:
- * normalizeStaticMetadataFilePath('/dynamic/[id]/icon.png') -> '/dynamic/-/icon.png'
- * normalizeStaticMetadataFilePath('/[category]/[id]/opengraph-image.png') -> '/-/-/opengraph-image.png'
- */
-export function normalizeStaticMetadataFilePath(page: string): string {
-  // Replace dynamic segments [param] or [...param] or [[...param]] with "-"
-  return page.replace(/\[(?:\[\.\.\.)?[^\]]+\]?\]/g, '-')
-}

@@ -66,8 +66,8 @@ import {
   isStaticMetadataFile,
 } from '../../../lib/metadata/is-metadata-route'
 import {
+  fillMetadataSegment,
   normalizeMetadataPageToRoute,
-  normalizeStaticMetadataFilePath,
 } from '../../../lib/metadata/get-metadata-route'
 import { JsConfigPathsPlugin } from '../../../build/webpack/plugins/jsconfig-paths-plugin'
 import { store as consoleStore } from '../../../build/output/store'
@@ -695,7 +695,14 @@ async function startWatcher(
             // Static metadata files will be served from filesystem.
             if (appDir && isStaticMetadataFile(fileName.replace(appDir, ''))) {
               // Use "-" placeholder for dynamic segments since static files have consistent content
-              const normalizedPath = normalizeStaticMetadataFilePath(pageName)
+              const segment = path.posix.dirname(pageName)
+              const lastSegment = path.posix.basename(pageName)
+              const normalizedPath = fillMetadataSegment(
+                segment,
+                {},
+                lastSegment,
+                true
+              )
               staticMetadataFiles.set(normalizedPath, fileName)
             } else {
               appFiles.add(pageName)

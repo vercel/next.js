@@ -1,4 +1,4 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, isNextStart } from 'e2e-utils'
 import { getCommonMetadataHeadTags } from './utils'
 
 describe('metadata-files-static-output-dynamic-route', () => {
@@ -147,4 +147,18 @@ describe('metadata-files-static-output-dynamic-route', () => {
       sitemap: actualSitemap,
     })
   })
+
+  if (isNextStart) {
+    it('should display static metadata files with "-" placeholder in build output', () => {
+      // Build output should show normalized paths with "-" for dynamic segments
+      expect(next.cliOutput).toContain('/dynamic/-/apple-icon.png')
+      expect(next.cliOutput).toContain('/dynamic/-/icon.png')
+      expect(next.cliOutput).toContain('/dynamic/-/opengraph-image.png')
+      expect(next.cliOutput).toContain('/dynamic/-/twitter-image.png')
+
+      // Should NOT show the dynamic segment pattern in output for static files
+      expect(next.cliOutput).not.toMatch(/\/dynamic\/\[id\]\/icon\.png/)
+      expect(next.cliOutput).not.toMatch(/\/dynamic\/\[id\]\/apple-icon\.png/)
+    })
+  }
 })
