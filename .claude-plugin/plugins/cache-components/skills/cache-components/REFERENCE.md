@@ -52,6 +52,15 @@ async function UserSpecificContent() {
 - Not stored in persistent cache handlers
 - Dynamic at request time
 
+**When to use `'use cache: private'` vs parameter extraction**:
+
+| Approach                | Best For                                      | Trade-off                        |
+| ----------------------- | --------------------------------------------- | -------------------------------- |
+| `'use cache: private'`  | Complex user-specific data with many DB calls | Not in static shell, always runs |
+| Parameter extraction    | Simple user ID lookup, shared cache benefits  | Extra wrapper component          |
+
+> **Recommendation**: Prefer parameter extraction (Pattern 2 in PATTERNS.md) for most cases. Use `'use cache: private'` only when extracting parameters would require many round trips or complex logic.
+
 ### `'use cache: remote'`
 
 Uses platform-specific remote cache handler. Requires network roundtrip.
@@ -304,6 +313,17 @@ export async function publishBlogPost() {
 ```
 
 > **Note:** Implicit tags are prefixed with `_N_T_` internally. You don't need to use this prefix - just use `revalidatePath()`.
+
+**Choosing between implicit and explicit tags**:
+
+| Use Case                                   | Approach                              |
+| ------------------------------------------ | ------------------------------------- |
+| Invalidate all cached data under a route   | `revalidatePath()` (uses implicit)    |
+| Invalidate specific entity across routes   | `cacheTag()` + `updateTag()`          |
+| Invalidate on user mutation (immediate)    | `updateTag()` with explicit tag       |
+| Invalidate on background job (SWR)         | `revalidateTag()` with explicit tag   |
+
+> **Best practice**: Use `revalidatePath()` for route-level invalidation (e.g., after publishing). Use explicit `cacheTag()` + `updateTag()` for entity-level invalidation (e.g., after editing a specific post).
 
 ---
 

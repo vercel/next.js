@@ -107,6 +107,8 @@ export default function Page() {
 }
 ```
 
+> **See also**: Pattern 2 (Parameter Extraction for Runtime Data) in PATTERNS.md shows this approach in detail.
+
 ---
 
 ## Error: Cannot use 'use cache' with sync function
@@ -185,6 +187,8 @@ export default async function Page() {
 }
 ```
 
+> **See also**: Pattern 1 (Static + Cached + Dynamic Page) in PATTERNS.md shows the foundational Suspense boundary pattern.
+
 ---
 
 ## Error: Uncached Data Outside Suspense
@@ -197,7 +201,9 @@ Error: Accessing uncached data outside Suspense
 
 ### Cause
 
-With Cache Components, ALL I/O is considered dynamic by default. Database queries, fetch calls, and file reads must either be cached or wrapped in Suspense.
+With Cache Components, ALL **async** I/O is considered dynamic by default. Database queries, fetch calls, and file reads must either be cached or wrapped in Suspense.
+
+> **Note on synchronous databases**: Libraries with synchronous APIs (e.g., `better-sqlite3`) don't trigger this error because they don't involve async I/O. Synchronous operations complete during render and are included in the static shell. However, this also means they block the render thread - use judiciously for small, fast queries only.
 
 ### Solution
 
@@ -233,6 +239,8 @@ export default async function ProductPage({ params }) {
   )
 }
 ```
+
+> **See also**: Pattern 5 (Cached Data Fetching Functions) in PATTERNS.md shows reusable cached data fetcher patterns.
 
 ---
 
@@ -323,6 +331,8 @@ async function UserDashboard() {
   return await fetchDashboard(session.get('userId'))
 }
 ```
+
+> **See also**: Pattern 2 (Parameter Extraction for Runtime Data) in PATTERNS.md. For guidance on choosing between parameter extraction and `'use cache: private'`, see the comparison table in REFERENCE.md under the `'use cache: private'` section.
 
 ---
 
