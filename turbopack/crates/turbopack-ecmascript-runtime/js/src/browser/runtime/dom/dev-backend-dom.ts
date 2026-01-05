@@ -20,10 +20,12 @@ let DEV_BACKEND: DevRuntimeBackend
 
       // TODO(PACK-2140): remove this once all filenames are guaranteed to be escaped.
       const decodedChunkUrl = decodeURI(chunkUrl)
+      const escapedChunkUrl = CSS.escape(chunkUrl)
+      const escapedDecodedChunkUrl = CSS.escape(decodedChunkUrl)
 
       if (isCss(chunkUrl)) {
         const links = document.querySelectorAll(
-          `link[href="${chunkUrl}"],link[href^="${chunkUrl}?"],link[href="${decodedChunkUrl}"],link[href^="${decodedChunkUrl}?"]`
+          `link[href="${escapedChunkUrl}"],link[href^="${escapedChunkUrl}?"],link[href="${escapedDecodedChunkUrl}"],link[href^="${escapedDecodedChunkUrl}?"]`
         )
         for (const link of Array.from(links)) {
           link.remove()
@@ -34,7 +36,7 @@ let DEV_BACKEND: DevRuntimeBackend
         // However, we still want to remove the script tag from the DOM to keep
         // the HTML somewhat consistent from the user's perspective.
         const scripts = document.querySelectorAll(
-          `script[src="${chunkUrl}"],script[src^="${chunkUrl}?"],script[src="${decodedChunkUrl}"],script[src^="${decodedChunkUrl}?"]`
+          `script[src="${escapedChunkUrl}"],script[src^="${escapedChunkUrl}?"],script[src="${escapedDecodedChunkUrl}"],script[src^="${escapedDecodedChunkUrl}?"]`
         )
         for (const script of Array.from(scripts)) {
           script.remove()
@@ -52,8 +54,10 @@ let DEV_BACKEND: DevRuntimeBackend
         }
 
         const decodedChunkUrl = decodeURI(chunkUrl)
+        const escapedChunkUrl = CSS.escape(chunkUrl)
+        const escapedDecodedChunkUrl = CSS.escape(decodedChunkUrl)
         const previousLinks = document.querySelectorAll(
-          `link[rel=stylesheet][href="${chunkUrl}"],link[rel=stylesheet][href^="${chunkUrl}?"],link[rel=stylesheet][href="${decodedChunkUrl}"],link[rel=stylesheet][href^="${decodedChunkUrl}?"]`
+          `link[rel=stylesheet][href="${escapedChunkUrl}"],link[rel=stylesheet][href^="${escapedChunkUrl}?"],link[rel=stylesheet][href="${escapedDecodedChunkUrl}"],link[rel=stylesheet][href^="${escapedDecodedChunkUrl}?"]`
         )
 
         if (previousLinks.length === 0) {

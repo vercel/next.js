@@ -2,6 +2,8 @@ import { Suspense, Fragment, lazy } from 'react'
 import { BailoutToCSR } from './dynamic-bailout-to-csr'
 import type { ComponentModule } from './types'
 import { PreloadChunks } from './preload-chunks'
+import { isChunkLoadError } from '../../../client/components/chunk-load-error/is-chunk-load-error'
+import { getRetryDelayMs } from '../../../client/components/chunk-load-error/chunk-load-error-handler'
 
 // Normalize loader to return the module as form { default: Component } for `React.lazy`.
 // Also for backward compatible since next/dynamic allows to resolve a component directly with loader
@@ -25,6 +27,37 @@ function convertModule<P>(
   }
 }
 
+/**
+ * Creates a loader function with automatic retry for chunk load errors.
+ * On first failure, retries once after a delay.
+ */
+function createRetryableLoader<T>(loader: () => Promise<T>): () => Promise<T> {
+  let hasRetried = false
+
+  return () =>
+    loader().catch((err) => {
+      // Only retry chunk load errors, and only once
+      if (
+        typeof window !== 'undefined' &&
+        isChunkLoadError(err) &&
+        !hasRetried
+      ) {
+        hasRetried = true
+
+        // Retry after a short delay with jitter
+        return new Promise<T>((resolve, reject) => {
+          const delay = getRetryDelayMs()
+          setTimeout(() => {
+            loader().then(resolve, reject)
+          }, delay)
+        })
+      }
+
+      // No retry - propagate error
+      throw err
+    })
+}
+
 const defaultOptions = {
   loader: () => Promise.resolve(convertModule(() => null)),
   loading: null,
@@ -40,7 +73,11 @@ interface LoadableOptions {
 
 function Loadable(options: LoadableOptions) {
   const opts = { ...defaultOptions, ...options }
-  const Lazy = lazy(() => opts.loader().then(convertModule))
+  // Wrap loader with retry logic for chunk load errors (client-side only)
+  const retryableLoader = createRetryableLoader(() =>
+    opts.loader().then(convertModule)
+  )
+  const Lazy = lazy(retryableLoader)
   const Loading = opts.loading
 
   function LoadableComponent(props: any) {

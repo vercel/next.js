@@ -56,6 +56,7 @@ import {
   writeHeadToBFCache,
 } from '../segment-cache/bfcache'
 import { DYNAMIC_STALETIME_MS } from './reducers/navigate-reducer'
+import { clearFailureState } from '../chunk-load-error/chunk-load-error-handler'
 
 // This is yet another tree type that is used to track pending promises that
 // need to be fulfilled once the dynamic data is received. The terminal nodes of
@@ -1364,6 +1365,9 @@ async function finishNavigationTask(
     case NavigationTaskExitStatus.Done: {
       // The task has completely finished. There's no missing data. Exit.
       previousNavigationDidMismatch = false
+      // Clear failure state for the successfully navigated route
+      const primaryRequestResult = await primaryRequestPromise
+      clearFailureState(primaryRequestResult.url.pathname)
       return
     }
     case NavigationTaskExitStatus.SoftRetry: {
@@ -1373,6 +1377,8 @@ async function finishNavigationTask(
       // happen in a row, fall back to a hard retry.
       const isHardRetry = false
       const primaryRequestResult = await primaryRequestPromise
+      // Clear failure state for the route we're retrying to give it another chance
+      clearFailureState(primaryRequestResult.url.pathname)
       dispatchRetryDueToTreeMismatch(
         isHardRetry,
         primaryRequestResult.url,
@@ -1395,6 +1401,8 @@ async function finishNavigationTask(
       // doesn't exist yet.
       const isHardRetry = true
       const primaryRequestResult = await primaryRequestPromise
+      // Clear failure state for the route we're retrying to give it another chance
+      clearFailureState(primaryRequestResult.url.pathname)
       dispatchRetryDueToTreeMismatch(
         isHardRetry,
         primaryRequestResult.url,

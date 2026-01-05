@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="cb072996-4c5d-3896-d500-93f5d8c2afe9")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="a43d47ff-a1c3-8414-d8a9-d8bdcc7d398b")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/ba425_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0151fefb.js",
     {"otherChunks":["output/aaf3a_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0b8736b3.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -1904,6 +1904,13 @@ let BACKEND;
         }
         return resolver;
     }
+    function rejectChunkResolver(chunkUrl, resolver, error) {
+        // Match webpack behavior: failed chunk loads are not cached.
+        if (chunkResolvers.get(chunkUrl) === resolver) {
+            chunkResolvers.delete(chunkUrl);
+        }
+        resolver.reject(error);
+    }
     /**
    * Loads the given chunk, and returns a promise that resolves once the chunk
    * has been loaded.
@@ -1932,15 +1939,23 @@ let BACKEND;
             // ignore
             } else if (isJs(chunkUrl)) {
                 self.TURBOPACK_NEXT_CHUNK_URLS.push(chunkUrl);
-                importScripts(chunkUrl);
+                try {
+                    importScripts(chunkUrl);
+                } catch (error) {
+                    rejectChunkResolver(chunkUrl, resolver, error);
+                    throw error;
+                }
             } else {
                 throw new Error(`can't infer type of chunk from URL ${chunkUrl} in worker`);
             }
         } else {
             // TODO(PACK-2140): remove this once all filenames are guaranteed to be escaped.
             const decodedChunkUrl = decodeURI(chunkUrl);
+            // Escape URLs for safe use in CSS selectors
+            const escapedChunkUrl = CSS.escape(chunkUrl);
+            const escapedDecodedChunkUrl = CSS.escape(decodedChunkUrl);
             if (isCss(chunkUrl)) {
-                const previousLinks = document.querySelectorAll(`link[rel=stylesheet][href="${chunkUrl}"],link[rel=stylesheet][href^="${chunkUrl}?"],link[rel=stylesheet][href="${decodedChunkUrl}"],link[rel=stylesheet][href^="${decodedChunkUrl}?"]`);
+                const previousLinks = document.querySelectorAll(`link[rel=stylesheet][href="${escapedChunkUrl}"],link[rel=stylesheet][href^="${escapedChunkUrl}?"],link[rel=stylesheet][href="${escapedDecodedChunkUrl}"],link[rel=stylesheet][href^="${escapedDecodedChunkUrl}?"]`);
                 if (previousLinks.length > 0) {
                     // CSS chunks do not register themselves, and as such must be marked as
                     // loaded instantly.
@@ -1950,7 +1965,8 @@ let BACKEND;
                     link.rel = 'stylesheet';
                     link.href = chunkUrl;
                     link.onerror = ()=>{
-                        resolver.reject();
+                        link.remove();
+                        rejectChunkResolver(chunkUrl, resolver);
                     };
                     link.onload = ()=>{
                         // CSS chunks do not register themselves, and as such must be marked as
@@ -1961,13 +1977,16 @@ let BACKEND;
                     document.head.appendChild(link);
                 }
             } else if (isJs(chunkUrl)) {
-                const previousScripts = document.querySelectorAll(`script[src="${chunkUrl}"],script[src^="${chunkUrl}?"],script[src="${decodedChunkUrl}"],script[src^="${decodedChunkUrl}?"]`);
+                const previousScripts = document.querySelectorAll(`script[src="${escapedChunkUrl}"],script[src^="${escapedChunkUrl}?"],script[src="${escapedDecodedChunkUrl}"],script[src^="${escapedDecodedChunkUrl}?"]`);
                 if (previousScripts.length > 0) {
                     // There is this edge where the script already failed loading, but we
                     // can't detect that. The Promise will never resolve in this case.
                     for (const script of Array.from(previousScripts)){
                         script.addEventListener('error', ()=>{
-                            resolver.reject();
+                            script.remove();
+                            rejectChunkResolver(chunkUrl, resolver);
+                        }, {
+                            once: true
                         });
                     }
                 } else {
@@ -1977,7 +1996,8 @@ let BACKEND;
                     // which happens in `registerChunk`. Hence the absence of `resolve()` in
                     // this branch.
                     script.onerror = ()=>{
-                        resolver.reject();
+                        script.remove();
+                        rejectChunkResolver(chunkUrl, resolver);
                     };
                     // Append to the `head` for webpack compatibility.
                     document.head.appendChild(script);
@@ -2009,8 +2029,10 @@ let DEV_BACKEND;
             deleteResolver(chunkUrl);
             // TODO(PACK-2140): remove this once all filenames are guaranteed to be escaped.
             const decodedChunkUrl = decodeURI(chunkUrl);
+            const escapedChunkUrl = CSS.escape(chunkUrl);
+            const escapedDecodedChunkUrl = CSS.escape(decodedChunkUrl);
             if (isCss(chunkUrl)) {
-                const links = document.querySelectorAll(`link[href="${chunkUrl}"],link[href^="${chunkUrl}?"],link[href="${decodedChunkUrl}"],link[href^="${decodedChunkUrl}?"]`);
+                const links = document.querySelectorAll(`link[href="${escapedChunkUrl}"],link[href^="${escapedChunkUrl}?"],link[href="${escapedDecodedChunkUrl}"],link[href^="${escapedDecodedChunkUrl}?"]`);
                 for (const link of Array.from(links)){
                     link.remove();
                 }
@@ -2019,7 +2041,7 @@ let DEV_BACKEND;
                 // runtime once evaluated.
                 // However, we still want to remove the script tag from the DOM to keep
                 // the HTML somewhat consistent from the user's perspective.
-                const scripts = document.querySelectorAll(`script[src="${chunkUrl}"],script[src^="${chunkUrl}?"],script[src="${decodedChunkUrl}"],script[src^="${decodedChunkUrl}?"]`);
+                const scripts = document.querySelectorAll(`script[src="${escapedChunkUrl}"],script[src^="${escapedChunkUrl}?"],script[src="${escapedDecodedChunkUrl}"],script[src^="${escapedDecodedChunkUrl}?"]`);
                 for (const script of Array.from(scripts)){
                     script.remove();
                 }
@@ -2034,7 +2056,9 @@ let DEV_BACKEND;
                     return;
                 }
                 const decodedChunkUrl = decodeURI(chunkUrl);
-                const previousLinks = document.querySelectorAll(`link[rel=stylesheet][href="${chunkUrl}"],link[rel=stylesheet][href^="${chunkUrl}?"],link[rel=stylesheet][href="${decodedChunkUrl}"],link[rel=stylesheet][href^="${decodedChunkUrl}?"]`);
+                const escapedChunkUrl = CSS.escape(chunkUrl);
+                const escapedDecodedChunkUrl = CSS.escape(decodedChunkUrl);
+                const previousLinks = document.querySelectorAll(`link[rel=stylesheet][href="${escapedChunkUrl}"],link[rel=stylesheet][href^="${escapedChunkUrl}?"],link[rel=stylesheet][href="${escapedDecodedChunkUrl}"],link[rel=stylesheet][href^="${escapedDecodedChunkUrl}?"]`);
                 if (previousLinks.length === 0) {
                     reject(new Error(`No link element found for chunk ${chunkUrl}`));
                     return;
@@ -2095,5 +2119,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=cb072996-4c5d-3896-d500-93f5d8c2afe9
+//# debugId=a43d47ff-a1c3-8414-d8a9-d8bdcc7d398b
 //# sourceMappingURL=aaf3a_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0151fefb.js.map
