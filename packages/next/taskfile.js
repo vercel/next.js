@@ -2692,7 +2692,7 @@ export async function build(task, opts) {
       commitHash.trim()
     )
   } catch (err) {
-    // Ignore errors (e.g., not in a git repo)
+    throw new Error(`Failed to write build commit hash: ${err.message}`)
   }
 }
 
