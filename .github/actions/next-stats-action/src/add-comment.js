@@ -304,6 +304,51 @@ function getHistoricalValues(history, metricKey, limit = 15) {
 }
 
 // ============================================================================
+// Bundle Size Aggregation
+// ============================================================================
+
+/**
+ * Compute aggregate totals for each bundle group for KV persistence.
+ * This allows tracking bundle size trends over time even when individual
+ * files can't be matched (Turbopack uses content-hash filenames).
+ */
+function computeBundleGroupTotals(stats) {
+  const totals = {}
+
+  for (const [groupKey, groupStats] of Object.entries(stats)) {
+    if (groupKey === 'General' || groupKey === benchTitle) continue
+    if (!groupStats || typeof groupStats !== 'object') continue
+
+    // Sum gzip values for each group
+    let total = 0
+    for (const [key, value] of Object.entries(groupStats)) {
+      if (key.endsWith(' gzip') && typeof value === 'number') {
+        total += value
+      }
+    }
+
+    // Create stable key from group name
+    // "Client Bundles (main) (Turbopack)" → "clientBundlesMainTurbopackTotal"
+    const stableKey =
+      groupKey
+        .replace(/[^a-zA-Z0-9]/g, ' ')
+        .trim()
+        .split(/\s+/)
+        .filter((w) => w.length > 0)
+        .map((w, i) =>
+          i === 0
+            ? w.toLowerCase()
+            : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
+        )
+        .join('') + 'Total'
+
+    totals[stableKey] = total
+  }
+
+  return totals
+}
+
+// ============================================================================
 // Comment Generation
 // ============================================================================
 
@@ -422,15 +467,15 @@ function generateMetricsTable(
   history,
   isCollapsed = false
 ) {
-  let rows = ''
-  let hasAny = false
+  // Pre-compute all row data to check if we have any trends
+  const rowData = []
+  let hasTrends = false
 
   for (const metricDef of config.metrics) {
     const mainVal = mainGroup[metricDef.key]
     const diffVal = diffGroup[metricDef.key]
 
     if (mainVal === undefined && diffVal === undefined) continue
-    hasAny = true
 
     const metricType = metricDef.type || 'ms'
     const mainStr = prettify(mainVal, metricType)
@@ -439,15 +484,38 @@ function generateMetricsTable(
     const histValues = getHistoricalValues(history, metricDef.key)
     const sparkline = generateTrendBar(histValues)
 
-    rows += `| ${metricDef.label} | ${mainStr} | ${diffStr} | ${change.text} | ${sparkline} |\n`
+    if (sparkline) hasTrends = true
+
+    rowData.push({
+      label: metricDef.label,
+      mainStr,
+      diffStr,
+      changeText: change.text,
+      sparkline,
+    })
   }
 
-  if (!hasAny) return ''
+  if (rowData.length === 0) return ''
+
+  // Build rows with or without trend column
+  let rows = ''
+  for (const row of rowData) {
+    if (hasTrends) {
+      rows += `| ${row.label} | ${row.mainStr} | ${row.diffStr} | ${row.changeText} | ${row.sparkline} |\n`
+    } else {
+      rows += `| ${row.label} | ${row.mainStr} | ${row.diffStr} | ${row.changeText} |\n`
+    }
+  }
+
+  const header = hasTrends
+    ? `| Metric | Canary | PR | Change | Trend |
+|:-------|-------:|---:|-------:|:-----:|`
+    : `| Metric | Canary | PR | Change |
+|:-------|-------:|---:|-------:|`
 
   const table = `### ${config.icon} ${groupName}
 
-| Metric | Canary | PR | Change | Trend |
-|:-------|-------:|---:|-------:|:-----:|
+${header}
 ${rows}
 `
 
@@ -550,10 +618,33 @@ function generateBundleGroup(groupKey, result, tableHead) {
     ...Object.keys(diffRepoGroup),
   ])
 
+  // Detect pure-hash filenames (Turbopack uses content-hash only, can't be matched)
+  // Pattern: 16 hex chars followed by .js or .css (with optional .map or gzip suffix)
+  const pureHashPattern = /^[0-9a-f]{16}\.(js|css)/
+  let pureHashCount = 0
+  let totalGzipItems = 0
+
+  itemKeys.forEach((itemKey) => {
+    if (itemKey.endsWith('gzip')) {
+      totalGzipItems++
+      // Extract base filename (remove ' gzip' suffix)
+      const baseName = itemKey.replace(/ gzip$/, '')
+      if (pureHashPattern.test(baseName)) {
+        pureHashCount++
+      }
+    }
+  })
+
+  // If more than 50% of items are pure-hash files, show totals only
+  const isPureHashGroup =
+    totalGzipItems > 0 && pureHashCount / totalGzipItems > 0.5
+
   let groupTable = tableHead
   let mainRepoTotal = 0
   let diffRepoTotal = 0
   let hasItems = false
+  let matchedItems = 0
+  let unmatchedItems = 0
 
   itemKeys.forEach((itemKey) => {
     const isGzipItem = itemKey.endsWith('gzip')
@@ -565,14 +656,24 @@ function generateBundleGroup(groupKey, result, tableHead) {
     if (!isGzipItem && !groupKey.match(gzipIgnoreRegex)) return
 
     hasItems = true
-    const mainItemStr = prettify(mainItemVal, 'bytes')
-    const diffItemStr = prettify(diffItemVal, 'bytes')
-    const change = formatChange(mainItemVal, diffItemVal, 'bytes')
+
+    // Track matched vs unmatched items
+    if (typeof mainItemVal === 'number' && typeof diffItemVal === 'number') {
+      matchedItems++
+    } else {
+      unmatchedItems++
+    }
 
     if (typeof mainItemVal === 'number') mainRepoTotal += mainItemVal
     if (typeof diffItemVal === 'number') diffRepoTotal += diffItemVal
 
-    groupTable += `| ${shortenLabel(itemKey)} | ${mainItemStr} | ${diffItemStr} | ${change.text} |\n`
+    // Only add individual rows if not a pure-hash group
+    if (!isPureHashGroup) {
+      const mainItemStr = prettify(mainItemVal, 'bytes')
+      const diffItemStr = prettify(diffItemVal, 'bytes')
+      const change = formatChange(mainItemVal, diffItemVal, 'bytes')
+      groupTable += `| ${shortenLabel(itemKey)} | ${mainItemStr} | ${diffItemStr} | ${change.text} |\n`
+    }
   })
 
   if (!hasItems) return null
@@ -585,8 +686,6 @@ function generateBundleGroup(groupKey, result, tableHead) {
     const sign = totalChange > 0 ? '+' : '-'
     totalChangeStr = `${icon} ${sign}${prettyBytes(Math.abs(totalChange))}`
   }
-
-  groupTable += `| **Total** | **${prettyBytes(mainRepoTotal)}** | **${prettyBytes(diffRepoTotal)}** | ${totalChangeStr} |\n`
 
   // Friendly names for groups
   const friendlyNames = {
@@ -601,7 +700,21 @@ function generateBundleGroup(groupKey, result, tableHead) {
     'build cache': 'Build Cache',
   }
 
-  const displayName = friendlyNames[groupKey] || groupKey
+  const baseGroupName = getBaseGroupName(groupKey)
+  const displayName = friendlyNames[baseGroupName] || groupKey
+
+  // For pure-hash groups, show a simplified view with just totals
+  if (isPureHashGroup) {
+    return `<details>
+<summary>${displayName}: **${prettyBytes(mainRepoTotal)}** → **${prettyBytes(diffRepoTotal)}** ${totalChangeStr}</summary>
+
+*${totalGzipItems} files with content-based hashes (individual files not comparable between builds)*
+
+</details>
+`
+  }
+
+  groupTable += `| **Total** | **${prettyBytes(mainRepoTotal)}** | **${prettyBytes(diffRepoTotal)}** | ${totalChangeStr} |\n`
 
   return `<details>
 <summary>${displayName}</summary>
@@ -655,9 +768,18 @@ function generateBundleSizeSection(result, tableHead) {
     let hasAny = false
 
     // Organize bundler groups by category
+    // Skip shared groups - they'll be rendered in their own section
     const categorizedGroups = { client: [], server: [], other: [] }
     for (const groupKey of bundlerData.groups) {
       const baseGroup = getBaseGroupName(groupKey)
+      // Skip shared groups (like Next Runtimes) - they're bundler-independent
+      if (BASE_BUNDLE_GROUPS.shared.includes(baseGroup)) {
+        // Move to nonBundlerGroups.shared for unified rendering
+        if (!nonBundlerGroups.shared.includes(groupKey)) {
+          nonBundlerGroups.shared.push(groupKey)
+        }
+        continue
+      }
       if (BASE_BUNDLE_GROUPS.client.includes(baseGroup)) {
         categorizedGroups.client.push(groupKey)
       } else if (BASE_BUNDLE_GROUPS.server.includes(baseGroup)) {
@@ -717,14 +839,26 @@ function generateBundleSizeSection(result, tableHead) {
     }
   }
 
-  // Handle any non-bundler-specific groups (shouldn't happen but fallback)
+  // Handle any non-bundler-specific groups
   for (const [categoryKey, groups] of Object.entries(nonBundlerGroups)) {
     if (groups.length === 0) continue
 
     let categoryContent = ''
     let hasAny = false
 
+    // For shared groups, deduplicate by base name (e.g., "Next Runtimes (Turbopack)"
+    // and "Next Runtimes (Webpack)" should only show once)
+    const seenBaseGroups = new Set()
+
     for (const groupKey of groups) {
+      const baseGroup = getBaseGroupName(groupKey)
+
+      // Skip if we've already rendered this base group
+      if (categoryKey === 'shared' && seenBaseGroups.has(baseGroup)) {
+        continue
+      }
+      seenBaseGroups.add(baseGroup)
+
       const groupContent = generateBundleGroup(groupKey, result, tableHead)
       if (groupContent) {
         hasAny = true
@@ -847,10 +981,16 @@ module.exports = async function addComment(
   if (results.length > 0 && actionInfo.isRelease && actionInfo.commitId) {
     const mainStats = results[0].mainRepoStats
     if (mainStats?.General) {
+      // Compute aggregate totals for each bundle group
+      const bundleTotals = computeBundleGroupTotals(mainStats)
+
       const entry = {
         commitId: actionInfo.commitId,
         timestamp: new Date().toISOString(),
-        metrics: { ...mainStats.General },
+        metrics: {
+          ...mainStats.General, // Performance metrics
+          ...bundleTotals, // Bundle size totals
+        },
       }
       await saveToHistory(entry)
     }
