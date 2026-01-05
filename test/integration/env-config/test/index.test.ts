@@ -12,7 +12,7 @@ import {
   launchApp,
   killApp,
   fetchViaHTTP,
-  check,
+  retry,
 } from 'next-test-utils'
 
 let app
@@ -195,9 +195,13 @@ describe('Env Config', () => {
               await fs.writeFile(filePath, content + `\n${toUpdate.toAdd}`)
             }
           }
-          await check(() => {
-            return output.substring(outputIndex)
-          }, /Reload env:/)
+          await retry(
+            () => {
+              expect(output.substring(outputIndex)).toMatch(/Reload env:/)
+            },
+            30000,
+            1000
+          )
         })
         afterAll(async () => {
           for (const { file, content } of originalContents) {
@@ -231,21 +235,32 @@ describe('Env Config', () => {
             )
 
             // we should only log we loaded new env from .env
-            await check(() => output.substring(outputIdx), /Reload env:/)
+            await retry(
+              () => {
+                expect(output.substring(outputIdx)).toMatch(/Reload env:/)
+              },
+              30000,
+              1000
+            )
             expect(
               [...output.substring(outputIdx).matchAll(/Reload env:/g)].length
             ).toBe(1)
             expect(output.substring(outputIdx)).not.toContain('.env.local')
 
-            await check(async () => {
-              html = await fetchViaHTTP(appPort, '/').then((res) => res.text())
-              renderedEnv = JSON.parse(cheerio.load(html)('p').text())
-              expect(renderedEnv['ENV_FILE_KEY']).toBe('env-updated')
-              expect(renderedEnv['ENV_FILE_LOCAL_OVERRIDE_TEST']).toBe(
-                'localenv'
-              )
-              return 'success'
-            }, 'success')
+            await retry(
+              async () => {
+                html = await fetchViaHTTP(appPort, '/').then((res) =>
+                  res.text()
+                )
+                renderedEnv = JSON.parse(cheerio.load(html)('p').text())
+                expect(renderedEnv['ENV_FILE_KEY']).toBe('env-updated')
+                expect(renderedEnv['ENV_FILE_LOCAL_OVERRIDE_TEST']).toBe(
+                  'localenv'
+                )
+              },
+              30000,
+              1000
+            )
 
             outputIdx = output.length
 
@@ -258,21 +273,32 @@ describe('Env Config', () => {
             )
 
             // we should only log we loaded new env from .env
-            await check(() => output.substring(outputIdx), /Reload env:/)
+            await retry(
+              () => {
+                expect(output.substring(outputIdx)).toMatch(/Reload env:/)
+              },
+              30000,
+              1000
+            )
             expect(
               [...output.substring(outputIdx).matchAll(/Reload env:/g)].length
             ).toBe(1)
             expect(output.substring(outputIdx)).toContain('.env.local')
 
-            await check(async () => {
-              html = await fetchViaHTTP(appPort, '/').then((res) => res.text())
-              renderedEnv = JSON.parse(cheerio.load(html)('p').text())
-              expect(renderedEnv['ENV_FILE_KEY']).toBe('env-updated')
-              expect(renderedEnv['ENV_FILE_LOCAL_OVERRIDE_TEST']).toBe(
-                'localenv-updated'
-              )
-              return 'success'
-            }, 'success')
+            await retry(
+              async () => {
+                html = await fetchViaHTTP(appPort, '/').then((res) =>
+                  res.text()
+                )
+                renderedEnv = JSON.parse(cheerio.load(html)('p').text())
+                expect(renderedEnv['ENV_FILE_KEY']).toBe('env-updated')
+                expect(renderedEnv['ENV_FILE_LOCAL_OVERRIDE_TEST']).toBe(
+                  'localenv-updated'
+                )
+              },
+              30000,
+              1000
+            )
           } finally {
             await fs.writeFile(envFile, envContent)
             await fs.writeFile(envLocalFile, envLocalContent)
@@ -305,15 +331,26 @@ describe('Env Config', () => {
               )
             )
             // we should only log we loaded new env from .env
-            await check(() => output.substring(outputIdx), /Reload env:/)
+            await retry(
+              () => {
+                expect(output.substring(outputIdx)).toMatch(/Reload env:/)
+              },
+              30000,
+              1000
+            )
             expect(
               [...output.substring(outputIdx).matchAll(/Reload env:/g)].length
             ).toBe(1)
             expect(output.substring(outputIdx)).not.toContain('.env.local')
 
-            await check(
-              () => browser.waitForElementByCss('#global-value').text(),
-              'replaced'
+            await retry(
+              async () => {
+                expect(
+                  await browser.waitForElementByCss('#global-value').text()
+                ).toBe('replaced')
+              },
+              30000,
+              1000
             )
 
             outputIdx = output.length
@@ -323,28 +360,51 @@ describe('Env Config', () => {
               envLocalContent + `\nNEXT_PUBLIC_TEST_DEST=overridden`
             )
             // we should only log we loaded new env from .env
-            await check(() => output.substring(outputIdx), /Reload env:/)
+            await retry(
+              () => {
+                expect(output.substring(outputIdx)).toMatch(/Reload env:/)
+              },
+              30000,
+              1000
+            )
             expect(
               [...output.substring(outputIdx).matchAll(/Reload env:/g)].length
             ).toBe(1)
             expect(output.substring(outputIdx)).toContain('.env.local')
 
-            await check(
-              () => browser.waitForElementByCss('#global-value').text(),
-              'overridden'
+            await retry(
+              async () => {
+                expect(
+                  await browser.waitForElementByCss('#global-value').text()
+                ).toBe('overridden')
+              },
+              30000,
+              1000
             )
 
             outputIdx = output.length
 
             await fs.writeFile(envLocalFile, envLocalContent)
             // we should only log we loaded new env from .env
-            await check(() => output.substring(outputIdx), /Reload env:/)
+            await retry(
+              () => {
+                expect(output.substring(outputIdx)).toMatch(/Reload env:/)
+              },
+              30000,
+              1000
+            )
             expect(
               [...output.substring(outputIdx).matchAll(/Reload env:/g)].length
             ).toBe(1)
             expect(output.substring(outputIdx)).toContain('.env.local')
 
-            await check(() => browser.elementByCss('p').text(), 'replaced')
+            await retry(
+              async () => {
+                expect(await browser.elementByCss('p').text()).toBe('replaced')
+              },
+              30000,
+              1000
+            )
           } finally {
             await fs.writeFile(envFile, envContent)
             await fs.writeFile(envLocalFile, envLocalContent)

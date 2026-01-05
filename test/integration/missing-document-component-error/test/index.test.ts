@@ -6,8 +6,8 @@ import {
   findPort,
   killApp,
   launchApp,
-  check,
   renderViaHTTP,
+  retry,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
@@ -28,8 +28,20 @@ const checkMissing = async (missing = [], docContent) => {
 
   await renderViaHTTP(appPort, '/')
 
-  await check(() => stderr, new RegExp(`missing-document-component`))
-  await check(() => stderr, new RegExp(`${missing.join(', ')}`))
+  await retry(
+    () => {
+      expect(stderr).toMatch(new RegExp(`missing-document-component`))
+    },
+    30000,
+    1000
+  )
+  await retry(
+    () => {
+      expect(stderr).toMatch(new RegExp(`${missing.join(', ')}`))
+    },
+    30000,
+    1000
+  )
 
   await killApp(app)
   await fs.remove(docPath)

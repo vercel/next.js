@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import path from 'path'
 
 const describeCase = (
@@ -20,9 +20,14 @@ describe('Instrumentation Hook', () => {
   describeCase('with-esm-import', ({ next }) => {
     it('with-esm-import should run the instrumentation hook', async () => {
       await next.render('/')
-      await check(
-        () => next.cliOutput,
-        /register in instrumentation\.js is running/
+      await retry(
+        () => {
+          expect(next.cliOutput).toMatch(
+            /register in instrumentation\.js is running/
+          )
+        },
+        30000,
+        1000
       )
     })
   })
@@ -30,33 +35,63 @@ describe('Instrumentation Hook', () => {
   describeCase('with-middleware', ({ next }) => {
     it('with-middleware should run the instrumentation hook', async () => {
       await next.render('/')
-      await check(() => next.cliOutput, /instrumentation hook on the edge/)
+      await retry(
+        () => {
+          expect(next.cliOutput).toMatch(/instrumentation hook on the edge/)
+        },
+        30000,
+        1000
+      )
     })
   })
 
   describeCase('with-edge-api', ({ next }) => {
     it('with-edge-api should run the instrumentation hook', async () => {
       await next.render('/api')
-      await check(() => next.cliOutput, /instrumentation hook on the edge/)
+      await retry(
+        () => {
+          expect(next.cliOutput).toMatch(/instrumentation hook on the edge/)
+        },
+        30000,
+        1000
+      )
     })
   })
 
   describeCase('with-edge-page', ({ next }) => {
     it('with-edge-page should run the instrumentation hook', async () => {
       await next.render('/')
-      await check(() => next.cliOutput, /instrumentation hook on the edge/)
+      await retry(
+        () => {
+          expect(next.cliOutput).toMatch(/instrumentation hook on the edge/)
+        },
+        30000,
+        1000
+      )
     })
   })
 
   describeCase('with-node-api', ({ next }) => {
     it('with-node-api should run the instrumentation hook', async () => {
-      await check(() => next.cliOutput, /instrumentation hook on nodejs/)
+      await retry(
+        () => {
+          expect(next.cliOutput).toMatch(/instrumentation hook on nodejs/)
+        },
+        30000,
+        1000
+      )
     })
   })
 
   describeCase('with-node-page', ({ next }) => {
     it('with-node-page should run the instrumentation hook', async () => {
-      await check(() => next.cliOutput, /instrumentation hook on nodejs/)
+      await retry(
+        () => {
+          expect(next.cliOutput).toMatch(/instrumentation hook on nodejs/)
+        },
+        30000,
+        1000
+      )
     })
   })
 
@@ -87,14 +122,25 @@ describe('Instrumentation Hook', () => {
           './instrumentation.js',
           `export function register() {console.log('toast')}`
         )
-        await check(() => next.cliOutput, /toast/)
+        await retry(
+          () => {
+            expect(next.cliOutput).toMatch(/toast/)
+          },
+          30000,
+          1000
+        )
         await next.renameFile(
           './instrumentation.js',
           './instrumentation.js.bak'
         )
-        await check(
-          () => next.cliOutput,
-          /The instrumentation file has been removed/
+        await retry(
+          () => {
+            expect(next.cliOutput).toMatch(
+              /The instrumentation file has been removed/
+            )
+          },
+          30000,
+          1000
         )
         await next.patchFile(
           './instrumentation.js.bak',
@@ -104,8 +150,20 @@ describe('Instrumentation Hook', () => {
           './instrumentation.js.bak',
           './instrumentation.js'
         )
-        await check(() => next.cliOutput, /The instrumentation file was added/)
-        await check(() => next.cliOutput, /bread/)
+        await retry(
+          () => {
+            expect(next.cliOutput).toMatch(/The instrumentation file was added/)
+          },
+          30000,
+          1000
+        )
+        await retry(
+          () => {
+            expect(next.cliOutput).toMatch(/bread/)
+          },
+          30000,
+          1000
+        )
       })
     }
   })

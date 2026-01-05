@@ -8,7 +8,7 @@ import {
   findPort,
   nextBuild,
   nextStart,
-  check,
+  retry,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
@@ -21,16 +21,40 @@ const runTests = () => {
 
     await browser.elementByCss('#change-locale').click()
 
-    await check(() => browser.eval('window.location.pathname'), '/fr/about')
-    await check(() => browser.eval('window.location.hash'), '#hash')
+    await retry(
+      async () => {
+        expect(await browser.eval('window.location.pathname')).toBe('/fr/about')
+      },
+      30000,
+      1000
+    )
+    await retry(
+      async () => {
+        expect(await browser.eval('window.location.hash')).toBe('#hash')
+      },
+      30000,
+      1000
+    )
 
     expect(await browser.elementByCss('#router-locale').text()).toBe('fr')
     expect(await browser.elementByCss('#props-locale').text()).toBe('fr')
 
     await browser.elementByCss('#change-locale').click()
 
-    await check(() => browser.eval('window.location.pathname'), '/about')
-    await check(() => browser.eval('window.location.hash'), '#hash')
+    await retry(
+      async () => {
+        expect(await browser.eval('window.location.pathname')).toBe('/about')
+      },
+      30000,
+      1000
+    )
+    await retry(
+      async () => {
+        expect(await browser.eval('window.location.hash')).toBe('#hash')
+      },
+      30000,
+      1000
+    )
 
     expect(await browser.elementByCss('#router-locale').text()).toBe('en')
     expect(await browser.elementByCss('#props-locale').text()).toBe('en')
@@ -41,16 +65,42 @@ const runTests = () => {
 
     await browser.elementByCss('#change-locale').click()
 
-    await check(() => browser.eval('window.location.pathname'), '/fr/posts/a')
-    await check(() => browser.eval('window.location.hash'), '#hash')
+    await retry(
+      async () => {
+        expect(await browser.eval('window.location.pathname')).toBe(
+          '/fr/posts/a'
+        )
+      },
+      30000,
+      1000
+    )
+    await retry(
+      async () => {
+        expect(await browser.eval('window.location.hash')).toBe('#hash')
+      },
+      30000,
+      1000
+    )
 
     expect(await browser.elementByCss('#router-locale').text()).toBe('fr')
     expect(await browser.elementByCss('#props-locale').text()).toBe('fr')
 
     await browser.elementByCss('#change-locale').click()
 
-    await check(() => browser.eval('window.location.pathname'), '/posts/a')
-    await check(() => browser.eval('window.location.hash'), '#hash')
+    await retry(
+      async () => {
+        expect(await browser.eval('window.location.pathname')).toBe('/posts/a')
+      },
+      30000,
+      1000
+    )
+    await retry(
+      async () => {
+        expect(await browser.eval('window.location.hash')).toBe('#hash')
+      },
+      30000,
+      1000
+    )
 
     expect(await browser.elementByCss('#router-locale').text()).toBe('en')
     expect(await browser.elementByCss('#props-locale').text()).toBe('en')
@@ -59,14 +109,38 @@ const runTests = () => {
   it('should trigger hash change events', async () => {
     const browser = await webdriver(appPort, `/about#hash`)
 
-    await check(() => browser.eval('window.location.hash'), '#hash')
+    await retry(
+      async () => {
+        expect(await browser.eval('window.location.hash')).toBe('#hash')
+      },
+      30000,
+      1000
+    )
 
     await browser.elementByCss('#hash-change').click()
 
-    await check(() => browser.eval('window.hashChangeStart'), 'yes')
-    await check(() => browser.eval('window.hashChangeComplete'), 'yes')
+    await retry(
+      async () => {
+        expect(await browser.eval('window.hashChangeStart')).toBe('yes')
+      },
+      30000,
+      1000
+    )
+    await retry(
+      async () => {
+        expect(await browser.eval('window.hashChangeComplete')).toBe('yes')
+      },
+      30000,
+      1000
+    )
 
-    await check(() => browser.eval('window.location.hash'), '#newhash')
+    await retry(
+      async () => {
+        expect(await browser.eval('window.location.hash')).toBe('#newhash')
+      },
+      30000,
+      1000
+    )
   })
 }
 

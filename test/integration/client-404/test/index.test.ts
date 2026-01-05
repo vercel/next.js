@@ -12,7 +12,6 @@ import {
   getClientBuildManifestLoaderChunkUrlPath,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
-import { check } from 'next-test-utils'
 
 const clientNavigation = (context, isProd = false) => {
   describe('Client Navigation 404', () => {
@@ -40,7 +39,15 @@ const clientNavigation = (context, isProd = false) => {
       const browser = await webdriver(context.appPort, '/invalid-link')
       await browser.eval(() => ((window as any).beforeNav = 'hi'))
       await browser.elementByCss('#to-nonexistent').click()
-      await check(() => browser.elementByCss('#errorStatusCode').text(), /404/)
+      await retry(
+        async () => {
+          expect(await browser.elementByCss('#errorStatusCode').text()).toMatch(
+            /404/
+          )
+        },
+        30000,
+        1000
+      )
       expect(await browser.eval(() => (window as any).beforeNav)).not.toBe('hi')
     })
 

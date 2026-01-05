@@ -1,6 +1,6 @@
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import assert from 'assert'
@@ -49,48 +49,68 @@ describe('reload-scroll-back-restoration', () => {
 
     // check restore value on history index: 1
     await browser.back()
-    await check(
-      () => browser.eval(() => document.documentElement.innerHTML),
-      /routeChangeComplete/
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(() => document.documentElement.innerHTML)
+        ).toMatch(/routeChangeComplete/)
+      },
+      30000,
+      1000
     )
 
-    await check(async () => {
-      assert.equal(
-        scrollPositionMemories[1].x,
-        Math.floor(await browser.eval(() => window.scrollX))
-      )
-      assert.equal(
-        scrollPositionMemories[1].y,
-        Math.floor(await browser.eval(() => window.scrollY))
-      )
-      return 'success'
-    }, 'success')
+    await retry(
+      async () => {
+        assert.equal(
+          scrollPositionMemories[1].x,
+          Math.floor(await browser.eval(() => window.scrollX))
+        )
+        assert.equal(
+          scrollPositionMemories[1].y,
+          Math.floor(await browser.eval(() => window.scrollY))
+        )
+      },
+      30000,
+      1000
+    )
 
     await browser.refresh()
 
-    await check(async () => {
-      const isReady = await browser.eval('next.router.isReady')
-      return isReady ? 'success' : isReady
-    }, 'success')
+    await retry(
+      async () => {
+        const isReady = await browser.eval('next.router.isReady')
+        expect(isReady).toBe(true)
+      },
+      30000,
+      1000
+    )
 
     // check restore value on history index: 0
     await browser.back()
-    await check(
-      () => browser.eval(() => document.documentElement.innerHTML),
-      /routeChangeComplete/
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(() => document.documentElement.innerHTML)
+        ).toMatch(/routeChangeComplete/)
+      },
+      30000,
+      1000
     )
 
-    await check(async () => {
-      assert.equal(
-        scrollPositionMemories[0].x,
-        Math.floor(await browser.eval(() => window.scrollX))
-      )
-      assert.equal(
-        scrollPositionMemories[0].y,
-        Math.floor(await browser.eval(() => window.scrollY))
-      )
-      return 'success'
-    }, 'success')
+    await retry(
+      async () => {
+        assert.equal(
+          scrollPositionMemories[0].x,
+          Math.floor(await browser.eval(() => window.scrollX))
+        )
+        assert.equal(
+          scrollPositionMemories[0].y,
+          Math.floor(await browser.eval(() => window.scrollY))
+        )
+      },
+      30000,
+      1000
+    )
   })
 
   it('should restore the scroll position on navigating forward', async () => {
@@ -130,47 +150,67 @@ describe('reload-scroll-back-restoration', () => {
     await browser.back()
     await browser.back()
     await browser.forward()
-    await check(
-      () => browser.eval(() => document.documentElement.innerHTML),
-      /routeChangeComplete/
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(() => document.documentElement.innerHTML)
+        ).toMatch(/routeChangeComplete/)
+      },
+      30000,
+      1000
     )
 
-    await check(async () => {
-      assert.equal(
-        scrollPositionMemories[1].x,
-        Math.floor(await browser.eval(() => window.scrollX))
-      )
-      assert.equal(
-        scrollPositionMemories[1].y,
-        Math.floor(await browser.eval(() => window.scrollY))
-      )
-      return 'success'
-    }, 'success')
+    await retry(
+      async () => {
+        assert.equal(
+          scrollPositionMemories[1].x,
+          Math.floor(await browser.eval(() => window.scrollX))
+        )
+        assert.equal(
+          scrollPositionMemories[1].y,
+          Math.floor(await browser.eval(() => window.scrollY))
+        )
+      },
+      30000,
+      1000
+    )
 
     await browser.refresh()
 
-    await check(async () => {
-      const isReady = await browser.eval('next.router.isReady')
-      return isReady ? 'success' : isReady
-    }, 'success')
+    await retry(
+      async () => {
+        const isReady = await browser.eval('next.router.isReady')
+        expect(isReady).toBe(true)
+      },
+      30000,
+      1000
+    )
 
     // check restore value on history index: 2
     await browser.forward()
-    await check(
-      () => browser.eval(() => document.documentElement.innerHTML),
-      /routeChangeComplete/
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(() => document.documentElement.innerHTML)
+        ).toMatch(/routeChangeComplete/)
+      },
+      30000,
+      1000
     )
 
-    await check(async () => {
-      assert.equal(
-        scrollPositionMemories[2].x,
-        Math.floor(await browser.eval(() => window.scrollX))
-      )
-      assert.equal(
-        scrollPositionMemories[2].y,
-        Math.floor(await browser.eval(() => window.scrollY))
-      )
-      return 'success'
-    }, 'success')
+    await retry(
+      async () => {
+        assert.equal(
+          scrollPositionMemories[2].x,
+          Math.floor(await browser.eval(() => window.scrollX))
+        )
+        assert.equal(
+          scrollPositionMemories[2].y,
+          Math.floor(await browser.eval(() => window.scrollY))
+        )
+      },
+      30000,
+      1000
+    )
   })
 })

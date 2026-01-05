@@ -20,8 +20,8 @@ import {
   getBrowserBodyText,
   waitFor,
   normalizeRegEx,
-  check,
   normalizeManifest,
+  retry,
 } from 'next-test-utils'
 
 let appDir = join(__dirname, '..')
@@ -92,9 +92,10 @@ const runTests = (isDev = false) => {
       })
     })
 
-    await check(
+    await retry(
       () => (messages.length > 0 ? 'success' : JSON.stringify(messages)),
-      'success'
+      30000,
+      1000
     )
     ws.close()
     expect([...externalServerHits]).toEqual(['/_next/webpack-hmr?page=/about'])
@@ -192,9 +193,14 @@ const runTests = (isDev = false) => {
 
     const browser = await webdriver(appPort, '/nav')
     await browser.elementByCss('#to-before-files-overridden').click()
-    await check(
-      () => browser.eval('document.documentElement.innerHTML'),
-      /Example Domain/
+    await retry(
+      async () => {
+        expect(
+          await browser.eval('document.documentElement.innerHTML')
+        ).toMatch(/Example Domain/)
+      },
+      30000,
+      1000
     )
   })
 
@@ -211,9 +217,14 @@ const runTests = (isDev = false) => {
     const browser = await webdriver(appPort, '/nav')
     await browser.eval('window.beforeNav = 1')
     await browser.elementByCss('#to-before-files-dynamic').click()
-    await check(
-      () => browser.eval('document.documentElement.innerHTML'),
-      /_sport\/\[slug\]/
+    await retry(
+      async () => {
+        expect(
+          await browser.eval('document.documentElement.innerHTML')
+        ).toMatch(/_sport\/\[slug\]/)
+      },
+      30000,
+      1000
     )
     expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
       slug: 'nfl',
@@ -237,9 +248,14 @@ const runTests = (isDev = false) => {
     const browser = await webdriver(appPort, '/nav')
     await browser.eval('window.beforeNav = 1')
     await browser.elementByCss('#to-before-files-dynamic-again').click()
-    await check(
-      () => browser.eval('document.documentElement.innerHTML'),
-      /_sport\/\[slug\]\/test/
+    await retry(
+      async () => {
+        expect(
+          await browser.eval('document.documentElement.innerHTML')
+        ).toMatch(/_sport\/\[slug\]\/test/)
+      },
+      30000,
+      1000
     )
     expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
       slug: 'nfl',
@@ -326,9 +342,14 @@ const runTests = (isDev = false) => {
 
   it('should parse params correctly for rewrite to auto-export dynamic page', async () => {
     const browser = await webdriver(appPort, '/rewriting-to-auto-export')
-    await check(
-      () => browser.eval(() => document.documentElement.innerHTML),
-      /auto-export.*?hello/
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(() => document.documentElement.innerHTML)
+        ).toMatch(/auto-export.*?hello/)
+      },
+      30000,
+      1000
     )
     expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
       rewrite: '1',
@@ -2636,9 +2657,14 @@ describe('Custom routes', () => {
 
     it('should not error for no-op rewrite and auto export dynamic route', async () => {
       const browser = await webdriver(appPort, '/auto-export/my-slug')
-      await check(
-        () => browser.eval(() => document.documentElement.innerHTML),
-        /auto-export.*?my-slug/
+      await retry(
+        async () => {
+          expect(
+            await browser.eval(() => document.documentElement.innerHTML)
+          ).toMatch(/auto-export.*?my-slug/)
+        },
+        30000,
+        1000
       )
     })
   })

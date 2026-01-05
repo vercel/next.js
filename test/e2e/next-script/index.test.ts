@@ -1,7 +1,7 @@
 import webdriver, { Playwright } from 'next-webdriver'
 import { createNext } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('beforeInteractive in document Head', () => {
   let next: NextInstance
@@ -337,14 +337,18 @@ describe('empty strategy in document body', () => {
           browser = await webdriver(next.url, '/')
 
           // Partytown modifies type to "text/partytown-x" after it has been executed in the web worker
-          await check(async () => {
-            const processedWorkerScripts = await browser.eval(
-              `document.querySelectorAll('script[type="text/partytown-x"]').length`
-            )
-            return processedWorkerScripts > 0
-              ? 'success'
-              : processedWorkerScripts
-          }, 'success')
+          await retry(
+            async () => {
+              const processedWorkerScripts = await browser.eval(
+                `document.querySelectorAll('script[type="text/partytown-x"]').length`
+              )
+              return processedWorkerScripts > 0
+                ? 'success'
+                : processedWorkerScripts
+            },
+            30000,
+            1000
+          )
         } finally {
           if (browser) await browser.close()
         }
@@ -401,12 +405,16 @@ describe('empty strategy in document body', () => {
           browser = await webdriver(next.url, '/')
 
           // Partytown modifies type to "text/partytown-x" after it has been executed in the web worker
-          await check(async () => {
-            const processedWorkerScripts = await browser.eval(
-              `document.querySelectorAll('script[type="text/partytown-x"]').length`
-            )
-            return processedWorkerScripts + ''
-          }, '1')
+          await retry(
+            async () => {
+              const processedWorkerScripts = await browser.eval(
+                `document.querySelectorAll('script[type="text/partytown-x"]').length`
+              )
+              expect(processedWorkerScripts + '').toBe('1')
+            },
+            30000,
+            1000
+          )
 
           const text = await browser.elementById('text').text()
           expect(text).toBe('abc')
@@ -426,12 +434,16 @@ describe('empty strategy in document body', () => {
           browser = await webdriver(next.url, '/')
 
           // Partytown modifies type to "text/partytown-x" after it has been executed in the web worker
-          await check(async () => {
-            const processedWorkerScripts = await browser.eval(
-              `document.querySelectorAll('script[type="text/partytown-x"]').length`
-            )
-            return processedWorkerScripts + ''
-          }, '1')
+          await retry(
+            async () => {
+              const processedWorkerScripts = await browser.eval(
+                `document.querySelectorAll('script[type="text/partytown-x"]').length`
+              )
+              expect(processedWorkerScripts + '').toBe('1')
+            },
+            30000,
+            1000
+          )
 
           const text = await browser.elementById('text').text()
           expect(text).toBe('abcd')

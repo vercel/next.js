@@ -10,7 +10,7 @@ import {
   renderViaHTTP,
   nextStart,
   waitFor,
-  check,
+  retry,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
@@ -39,7 +39,13 @@ const runTests = () => {
       hello: 'world',
     })
 
-    await check(() => stdout, /asPath/)
+    await retry(
+      () => {
+        expect(stdout).toMatch(/asPath/)
+      },
+      30000,
+      1000
+    )
     const asPath = stdout.split('asPath: ').pop().split('\n').shift()
     expect(asPath).toBe('/')
   })
@@ -63,7 +69,13 @@ const runTests = () => {
       hello: 'world',
     })
 
-    await check(() => stdout, /asPath/)
+    await retry(
+      () => {
+        expect(stdout).toMatch(/asPath/)
+      },
+      30000,
+      1000
+    )
     const asPath = stdout.split('asPath: ').pop().split('\n').shift()
     expect(asPath).toBe('/another/index')
   })

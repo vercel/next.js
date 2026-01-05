@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check, retry, waitFor } from 'next-test-utils'
+import { retry, waitFor } from 'next-test-utils'
 import cheerio from 'cheerio'
 import stripAnsi from 'strip-ansi'
 import {
@@ -149,14 +149,18 @@ describe('app dir - basic', () => {
     it('should successfully detect app route during prefetch', async () => {
       const browser = await next.browser('/')
 
-      await check(async () => {
-        const found = await browser.eval(
-          '!!window.next.router.components["/dashboard"]'
-        )
-        return found
-          ? 'success'
-          : await browser.eval('Object.keys(window.next.router.components)')
-      }, 'success')
+      await retry(
+        async () => {
+          const found = await browser.eval(
+            '!!window.next.router.components["/dashboard"]'
+          )
+          return found
+            ? 'success'
+            : await browser.eval('Object.keys(window.next.router.components)')
+        },
+        30000,
+        1000
+      )
 
       await browser.elementByCss('a').click()
       await browser.waitForElementByCss('#from-dashboard')
@@ -203,10 +207,14 @@ describe('app dir - basic', () => {
       let browser = await next.browser('/')
 
       await browser.eval(`next.router.push("${pathname}")`)
-      await check(async () => {
-        const href = await browser.eval('location.href')
-        return href.includes('example.vercel.sh') ? 'yes' : href
-      }, 'yes')
+      await retry(
+        async () => {
+          const href = await browser.eval('location.href')
+          expect(href.includes('example.vercel.sh')).toBeTruthy()
+        },
+        30000,
+        1000
+      )
 
       if (pathname.includes('/blog')) {
         browser = await next.browser('/blog/first')
@@ -228,12 +236,18 @@ describe('app dir - basic', () => {
     const browser = await next.browser('/')
     await browser.eval('window.beforeNav = 1')
 
-    await check(async () => {
-      await browser.eval(
-        `window.next.router.push('/', '/redirect-1', { shallow: true })`
-      )
-      return await browser.eval('window.location.pathname')
-    }, '/redirect-1')
+    await retry(
+      async () => {
+        await browser.eval(
+          `window.next.router.push('/', '/redirect-1', { shallow: true })`
+        )
+        expect(await browser.eval('window.location.pathname')).toBe(
+          '/redirect-1'
+        )
+      },
+      30000,
+      1000
+    )
     expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
@@ -543,20 +557,23 @@ describe('app dir - basic', () => {
 
       try {
         // Click the link.
-        await check(async () => {
-          await browser.elementById('link-to-rewritten-path').click()
-          await browser.waitForElementByCss('#from-dashboard', 5000)
+        await retry(
+          async () => {
+            await browser.elementById('link-to-rewritten-path').click()
+            await browser.waitForElementByCss('#from-dashboard', 5000)
 
-          // Check to see that we were rewritten and not redirected.
-          // TODO-APP: rewrite url is broken
-          // expect(await browser.url()).toBe(`${next.url}/rewritten-to-dashboard`)
+            // Check to see that we were rewritten and not redirected.
+            // TODO-APP: rewrite url is broken
+            // expect(await browser.url()).toBe(`${next.url}/rewritten-to-dashboard`)
 
-          // Check to see that the page we navigated to is in fact the dashboard.
-          expect(await browser.elementByCss('#from-dashboard').text()).toBe(
-            'hello from app/dashboard'
-          )
-          return 'success'
-        }, 'success')
+            // Check to see that the page we navigated to is in fact the dashboard.
+            expect(await browser.elementByCss('#from-dashboard').text()).toBe(
+              'hello from app/dashboard'
+            )
+          },
+          30000,
+          1000
+        )
       } finally {
         await browser.close()
       }
@@ -826,20 +843,25 @@ describe('app dir - basic', () => {
 
       try {
         // Click the link.
-        await check(async () => {
-          await browser.elementById('pages-link').click()
+        await retry(
+          async () => {
+            await browser.elementById('pages-link').click()
 
-          expect(
-            await browser.waitForElementByCss('#app-text', 5000).text()
-          ).toBe('hello from app/dynamic-pages-route-app-overlap/app-dir/page')
+            expect(
+              await browser.waitForElementByCss('#app-text', 5000).text()
+            ).toBe(
+              'hello from app/dynamic-pages-route-app-overlap/app-dir/page'
+            )
 
-          // When refreshing the browser, the app page should be rendered
-          await browser.refresh()
-          expect(await browser.waitForElementByCss('#app-text').text()).toBe(
-            'hello from app/dynamic-pages-route-app-overlap/app-dir/page'
-          )
-          return 'success'
-        }, 'success')
+            // When refreshing the browser, the app page should be rendered
+            await browser.refresh()
+            expect(await browser.waitForElementByCss('#app-text').text()).toBe(
+              'hello from app/dynamic-pages-route-app-overlap/app-dir/page'
+            )
+          },
+          30000,
+          1000
+        )
       } finally {
         await browser.close()
       }
@@ -1103,9 +1125,14 @@ describe('app dir - basic', () => {
             .waitForElementByCss(`#navigate-${method}`)
             .elementById(`navigate-${method}`)
             .click()
-          await check(
-            async () => await browser.elementByCss('#success').text(),
-            /Success/
+          await retry(
+            async () => {
+              expect(await browser.elementByCss('#success').text()).toMatch(
+                /Success/
+              )
+            },
+            30000,
+            1000
           )
         }
       )
@@ -1178,7 +1205,15 @@ describe('app dir - basic', () => {
             origContent.replace('hello from', 'swapped from')
           )
 
-          await check(() => browser.elementByCss('p').text(), /swapped from/)
+          await retry(
+            async () => {
+              expect(await browser.elementByCss('p').text()).toMatch(
+                /swapped from/
+              )
+            },
+            30000,
+            1000
+          )
         } finally {
           await next.patchFile(filePath, origContent)
         }
@@ -1204,14 +1239,30 @@ describe('app dir - basic', () => {
             origContent.replace('hello from', 'swapped from')
           )
 
-          await check(() => browser.elementByCss('p').text(), /swapped from/)
+          await retry(
+            async () => {
+              expect(await browser.elementByCss('p').text()).toMatch(
+                /swapped from/
+              )
+            },
+            30000,
+            1000
+          )
 
           const ssrUpdated = await next.render('/client-component-route')
           expect(ssrUpdated).toContain('swapped from')
 
           await next.patchFile(filePath, origContent)
 
-          await check(() => browser.elementByCss('p').text(), /hello from/)
+          await retry(
+            async () => {
+              expect(await browser.elementByCss('p').text()).toMatch(
+                /hello from/
+              )
+            },
+            30000,
+            1000
+          )
           expect(await next.render('/client-component-route')).toContain(
             'hello from'
           )
@@ -1240,9 +1291,14 @@ describe('app dir - basic', () => {
               'hello dashboard/page in server component!'
             )
           )
-          await check(
-            () => browser.elementByCss('p').text(),
-            /in server component/
+          await retry(
+            async () => {
+              expect(await browser.elementByCss('p').text()).toMatch(
+                /in server component/
+              )
+            },
+            30000,
+            1000
           )
 
           // Change to client component
@@ -1255,9 +1311,14 @@ describe('app dir - basic', () => {
                 'hello dashboard/page in client component!'
               )
           )
-          await check(
-            () => browser.elementByCss('p').text(),
-            /in client component/
+          await retry(
+            async () => {
+              expect(await browser.elementByCss('p').text()).toMatch(
+                /in client component/
+              )
+            },
+            30000,
+            1000
           )
 
           // Change back to server component
@@ -1268,9 +1329,14 @@ describe('app dir - basic', () => {
               'hello dashboard/page in server component2!'
             )
           )
-          await check(
-            () => browser.elementByCss('p').text(),
-            /in server component2/
+          await retry(
+            async () => {
+              expect(await browser.elementByCss('p').text()).toMatch(
+                /in server component2/
+              )
+            },
+            30000,
+            1000
           )
 
           // Change to client component again
@@ -1283,9 +1349,14 @@ describe('app dir - basic', () => {
                 'hello dashboard/page in client component2!'
               )
           )
-          await check(
-            () => browser.elementByCss('p').text(),
-            /in client component2/
+          await retry(
+            async () => {
+              expect(await browser.elementByCss('p').text()).toMatch(
+                /in client component2/
+              )
+            },
+            30000,
+            1000
           )
         } finally {
           await next.patchFile(filePath, origContent)
@@ -1640,18 +1711,22 @@ describe('app dir - basic', () => {
         const browser = await next.browser('/script')
 
         // Wait for lazyOnload scripts to be ready.
-        await check(async () => {
-          expect(await browser.eval(`window._script_order`)).toStrictEqual([
-            1,
-            1.5,
-            2,
-            2.5,
-            'render',
-            3,
-            4,
-          ])
-          return 'yes'
-        }, 'yes')
+        await retry(
+          async () => {
+            expect(await browser.eval(`window._script_order`)).toStrictEqual([
+              1,
+              1.5,
+              2,
+              2.5,
+              'render',
+              3,
+              4,
+            ])
+            expect('yes').toBe('yes')
+          },
+          30000,
+          1000
+        )
       })
 
       it('should pass on extra props for beforeInteractive scripts with a src prop', async () => {

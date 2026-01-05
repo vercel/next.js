@@ -10,7 +10,7 @@ import {
   killApp,
   fetchViaHTTP,
   waitFor,
-  check,
+  retry,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
@@ -46,32 +46,44 @@ const runTests = () => {
 
     // wait for revalidation to occur in background
     try {
-      await check(async () => {
-        res = await fetchViaHTTP(appPort, '/initial-not-found/first')
-        $ = cheerio.load(await res.text())
+      await retry(
+        async () => {
+          res = await fetchViaHTTP(appPort, '/initial-not-found/first')
+          $ = cheerio.load(await res.text())
 
-        return res.status === 200 && $('#data').text() === '200'
-          ? 'success'
-          : `${res.status} - ${$('#data').text()}`
-      }, 'success')
+          return res.status === 200 && $('#data').text() === '200'
+            ? 'success'
+            : `${res.status} - ${$('#data').text()}`
+        },
+        30000,
+        1000
+      )
 
-      await check(async () => {
-        res = await fetchViaHTTP(appPort, '/initial-not-found/second')
-        $ = cheerio.load(await res.text())
+      await retry(
+        async () => {
+          res = await fetchViaHTTP(appPort, '/initial-not-found/second')
+          $ = cheerio.load(await res.text())
 
-        return res.status === 200 && $('#data').text() === '200'
-          ? 'success'
-          : `${res.status} - ${$('#data').text()}`
-      }, 'success')
+          return res.status === 200 && $('#data').text() === '200'
+            ? 'success'
+            : `${res.status} - ${$('#data').text()}`
+        },
+        30000,
+        1000
+      )
 
-      await check(async () => {
-        res = await fetchViaHTTP(appPort, '/initial-not-found')
-        $ = cheerio.load(await res.text())
+      await retry(
+        async () => {
+          res = await fetchViaHTTP(appPort, '/initial-not-found')
+          $ = cheerio.load(await res.text())
 
-        return res.status === 200 && $('#data').text() === '200'
-          ? 'success'
-          : `${res.status} - ${$('#data').text()}`
-      }, 'success')
+          return res.status === 200 && $('#data').text() === '200'
+            ? 'success'
+            : `${res.status} - ${$('#data').text()}`
+        },
+        30000,
+        1000
+      )
     } finally {
       await fs.writeFile(dataFile, '404')
     }

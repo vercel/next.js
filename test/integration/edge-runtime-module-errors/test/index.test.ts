@@ -3,7 +3,6 @@
 import { remove } from 'fs-extra'
 import { join } from 'path'
 import {
-  check,
   fetchViaHTTP,
   findPort,
   killApp,
@@ -183,14 +182,17 @@ describe('Edge runtime code with imports', () => {
             )
             const res = await fetchViaHTTP(context.appPort, url)
             expect(res.status).toBe(500)
-            await check(async () => {
-              expectUnsupportedModuleDevError(
-                moduleName,
-                importStatement,
-                await res.text()
-              )
-              return 'success'
-            }, 'success')
+            await retry(
+              async () => {
+                expectUnsupportedModuleDevError(
+                  moduleName,
+                  importStatement,
+                  await res.text()
+                )
+              },
+              30000,
+              1000
+            )
           })
         }
       )
@@ -260,10 +262,13 @@ describe('Edge runtime code with imports', () => {
       expect(res.status).toBe(500)
 
       const text = await res.text()
-      await check(async () => {
-        expectModuleNotFoundDevError(moduleName, importStatement, text)
-        return 'success'
-      }, 'success')
+      await retry(
+        async () => {
+          expectModuleNotFoundDevError(moduleName, importStatement, text)
+        },
+        30000,
+        1000
+      )
     })
     ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',

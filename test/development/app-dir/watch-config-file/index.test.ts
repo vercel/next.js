@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import { join } from 'path'
 
 describe('app-dir watch-config-file', () => {
@@ -8,12 +8,19 @@ describe('app-dir watch-config-file', () => {
   })
 
   it('should output config file change and restart server for app router', async () => {
-    await check(async () => next.cliOutput, /ready/i)
+    await retry(
+      async () => {
+        expect(next.cliOutput).toMatch(/ready/i)
+      },
+      30000,
+      1000
+    )
 
-    await check(async () => {
-      await next.patchFile(
-        'next.config.js',
-        `
+    await retry(
+      async () => {
+        await next.patchFile(
+          'next.config.js',
+          `
             console.log(${Date.now()})
             const nextConfig = {
               reactStrictMode: true,
@@ -28,10 +35,22 @@ describe('app-dir watch-config-file', () => {
                 },
             }
             module.exports = nextConfig`
-      )
-      return next.cliOutput
-    }, /Found a change in next\.config\.js\. Restarting the server to apply the changes\.\.\./)
+        )
+        expect(next.cliOutput).toMatch(
+          /Found a change in next\.config\.js\. Restarting the server to apply the changes\.\.\./
+        )
+      },
+      30000,
+      1000
+    )
 
-    await check(() => next.fetch('/about').then((res) => res.status), 200)
+    await retry(
+      async () => {
+        const res = await next.fetch('/about')
+        expect(res.status).toBe(200)
+      },
+      30000,
+      1000
+    )
   })
 })

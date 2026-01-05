@@ -1,6 +1,6 @@
 import webdriver, { type Playwright } from 'next-webdriver'
 import { nextTestSetup } from 'e2e-utils'
-import { check, assertNoConsoleErrors, retry } from 'next-test-utils'
+import { assertNoConsoleErrors, retry } from 'next-test-utils'
 
 describe('router autoscrolling on navigation', () => {
   const { next, isNextDev } = nextTestSetup({
@@ -186,7 +186,13 @@ describe('router autoscrolling on navigation', () => {
         .elementByCss('#to-invisible-first-element')
         .click()
         .waitForElementByCss('#content-that-is-visible')
-      await check(() => browser.eval('window.scrollY'), 0)
+      await retry(
+        async () => {
+          expect(await browser.eval('window.scrollY')).toBe(0)
+        },
+        30000,
+        1000
+      )
     })
 
     it('Should scroll to the top of the layout when the first child is position fixed', async () => {
@@ -196,7 +202,13 @@ describe('router autoscrolling on navigation', () => {
         .elementByCss('#to-fixed-first-element')
         .click()
         .waitForElementByCss('#content-that-is-visible')
-      await check(() => browser.eval('window.scrollY'), 0)
+      await retry(
+        async () => {
+          expect(await browser.eval('window.scrollY')).toBe(0)
+        },
+        30000,
+        1000
+      )
     })
 
     it('Should scroll to the top of the layout when the first child is position sticky', async () => {
@@ -206,7 +218,13 @@ describe('router autoscrolling on navigation', () => {
         .elementByCss('#to-sticky-first-element')
         .click()
         .waitForElementByCss('#content-that-is-visible')
-      await check(() => browser.eval('window.scrollY'), 0)
+      await retry(
+        async () => {
+          expect(await browser.eval('window.scrollY')).toBe(0)
+        },
+        30000,
+        1000
+      )
     })
 
     it('Should apply scroll when loading.js is used', async () => {
@@ -216,9 +234,21 @@ describe('router autoscrolling on navigation', () => {
         .elementByCss('#to-loading-scroll')
         .click()
         .waitForElementByCss('#loading-component')
-      await check(() => browser.eval('window.scrollY'), 0)
+      await retry(
+        async () => {
+          expect(await browser.eval('window.scrollY')).toBe(0)
+        },
+        30000,
+        1000
+      )
       await browser.waitForElementByCss('#content-that-is-visible')
-      await check(() => browser.eval('window.scrollY'), 0)
+      await retry(
+        async () => {
+          expect(await browser.eval('window.scrollY')).toBe(0)
+        },
+        30000,
+        1000
+      )
     })
 
     it('should scroll to top when navigating to same page with different search params', async () => {

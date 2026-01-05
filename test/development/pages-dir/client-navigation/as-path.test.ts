@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 
@@ -57,18 +57,28 @@ describe('Client navigation with asPath', () => {
     it('should navigate an absolute url on push', async () => {
       const browser = await next.browser(`/absolute-url?port=${next.appPort}`)
       await browser.waitForElementByCss('#router-push').click()
-      await check(
-        () => browser.eval(() => window.location.origin),
-        'https://vercel.com'
+      await retry(
+        async () => {
+          expect(await browser.eval(() => window.location.origin)).toBe(
+            'https://vercel.com'
+          )
+        },
+        30000,
+        1000
       )
     })
 
     it('should navigate an absolute url on replace', async () => {
       const browser = await next.browser(`/absolute-url?port=${next.appPort}`)
       await browser.waitForElementByCss('#router-replace').click()
-      await check(
-        () => browser.eval(() => window.location.origin),
-        'https://vercel.com'
+      await retry(
+        async () => {
+          expect(await browser.eval(() => window.location.origin)).toBe(
+            'https://vercel.com'
+          )
+        },
+        30000,
+        1000
       )
     })
 

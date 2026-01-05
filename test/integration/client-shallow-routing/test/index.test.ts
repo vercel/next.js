@@ -8,8 +8,8 @@ import {
   killApp,
   nextBuild,
   nextStart,
-  check,
   waitFor,
+  retry,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
@@ -38,7 +38,13 @@ const runTests = () => {
     await browser.elementByCss('#to-another').click()
     await waitFor(1000)
 
-    await check(() => browser.elementByCss('#props').text(), /another/)
+    await retry(
+      async () => {
+        expect(await browser.elementByCss('#props').text()).toMatch(/another/)
+      },
+      30000,
+      1000
+    )
 
     const props4 = JSON.parse(await browser.elementByCss('#props').text())
     expect(props4.params).toEqual({ slug: 'another' })

@@ -1,6 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
 import {
-  check,
   getTitle,
   createDomMatcher,
   createMultiHtmlMatcher,
@@ -316,9 +315,14 @@ describe('app dir - metadata', () => {
       await checkMetaNameContentPair(browser, 'keywords', 'parent,child')
 
       await browser.loadPage(next.url + '/dynamic/blog?q=xxx')
-      await check(
-        () => browser.elementByCss('p').text(),
-        /params - blog query - xxx/
+      await retry(
+        async () => {
+          expect(await browser.elementByCss('p').text()).toMatch(
+            /params - blog query - xxx/
+          )
+        },
+        30000,
+        1000
       )
     })
 
@@ -872,11 +876,15 @@ describe('app dir - metadata', () => {
             'app/icons/static/icon2.png'
           )
 
-          await check(async () => {
-            const $ = await next.render$('/icons/static')
-            const $icon = $('link[rel="icon"][type!="image/x-icon"]')
-            return $icon.attr('href')
-          }, /\/icons\/static\/icon2/)
+          await retry(
+            async () => {
+              const $ = await next.render$('/icons/static')
+              const $icon = $('link[rel="icon"][type!="image/x-icon"]')
+              expect($icon.attr('href')).toMatch(/\/icons\/static\/icon2/)
+            },
+            30000,
+            1000
+          )
 
           await next.renameFile(
             'app/icons/static/icon2.png',

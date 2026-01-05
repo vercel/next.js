@@ -5,7 +5,6 @@ import validateHTML from 'html-validator'
 import {
   waitForRedbox,
   waitForNoRedbox,
-  check,
   fetchViaHTTP,
   findPort,
   getRedboxHeader,
@@ -81,17 +80,19 @@ function runTests(mode) {
     try {
       browser = await webdriver(appPort, '/')
 
-      await check(async () => {
-        const result = await browser.eval(
-          `document.getElementById('basic-image').naturalWidth`
-        )
-
-        if (result === 0) {
-          throw new Error('Incorrectly loaded image')
-        }
-
-        return 'result-correct'
-      }, /result-correct/)
+      await retry(
+        async () => {
+          const result = await browser.eval(
+            `document.getElementById('basic-image').naturalWidth`
+          )
+          if (result === 0) {
+            throw new Error('Incorrectly loaded image')
+          }
+          expect('result-correct').toMatch(/result-correct/)
+        },
+        30000,
+        1000
+      )
 
       expect(
         await hasImageMatchingUrl(
@@ -111,17 +112,19 @@ function runTests(mode) {
     try {
       browser = await webdriver(appPort, '/priority')
 
-      await check(async () => {
-        const result = await browser.eval(
-          `document.getElementById('basic-image').naturalWidth`
-        )
-
-        if (result === 0) {
-          throw new Error('Incorrectly loaded image')
-        }
-
-        return 'result-correct'
-      }, /result-correct/)
+      await retry(
+        async () => {
+          const result = await browser.eval(
+            `document.getElementById('basic-image').naturalWidth`
+          )
+          if (result === 0) {
+            throw new Error('Incorrectly loaded image')
+          }
+          expect('result-correct').toMatch(/result-correct/)
+        },
+        30000,
+        1000
+      )
 
       const links = await browser.elementsByCss('link[rel=preload][as=image]')
       const entries = []
@@ -262,17 +265,19 @@ function runTests(mode) {
     try {
       browser = await webdriver(appPort, '/preload')
 
-      await check(async () => {
-        const result = await browser.eval(
-          `document.getElementById('basic-image').naturalWidth`
-        )
-
-        if (result === 0) {
-          throw new Error('Incorrectly loaded image')
-        }
-
-        return 'result-correct'
-      }, /result-correct/)
+      await retry(
+        async () => {
+          const result = await browser.eval(
+            `document.getElementById('basic-image').naturalWidth`
+          )
+          if (result === 0) {
+            throw new Error('Incorrectly loaded image')
+          }
+          expect('result-correct').toMatch(/result-correct/)
+        },
+        30000,
+        1000
+      )
 
       const links = await browser.elementsByCss('link[rel=preload][as=image]')
       const entries = []
@@ -431,16 +436,26 @@ function runTests(mode) {
     try {
       browser = await webdriver(appPort, '/update')
 
-      await check(
-        () => browser.eval(`document.getElementById("update-image").src`),
-        /test\.jpg/
+      await retry(
+        async () => {
+          expect(
+            await browser.eval(`document.getElementById("update-image").src`)
+          ).toMatch(/test\.jpg/)
+        },
+        30000,
+        1000
       )
 
       await browser.eval(`document.getElementById("toggle").click()`)
 
-      await check(
-        () => browser.eval(`document.getElementById("update-image").src`),
-        /test\.png/
+      await retry(
+        async () => {
+          expect(
+            await browser.eval(`document.getElementById("update-image").src`)
+          ).toMatch(/test\.png/)
+        },
+        30000,
+        1000
       )
     } finally {
       if (browser) {
@@ -456,84 +471,172 @@ function runTests(mode) {
       `document.getElementById("footer").scrollIntoView({behavior: "smooth"})`
     )
 
-    await check(
-      () => browser.eval(`document.getElementById("img1").currentSrc`),
-      /test(.*)jpg/
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(`document.getElementById("img1").currentSrc`)
+        ).toMatch(/test(.*)jpg/)
+      },
+      30000,
+      1000
     )
-    await check(
-      () => browser.eval(`document.getElementById("img2").currentSrc`),
-      /test(.*).png/
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(`document.getElementById("img2").currentSrc`)
+        ).toMatch(/test(.*).png/)
+      },
+      30000,
+      1000
     )
-    await check(
-      () => browser.eval(`document.getElementById("img3").currentSrc`),
-      /test\.svg/
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(`document.getElementById("img3").currentSrc`)
+        ).toMatch(/test\.svg/)
+      },
+      30000,
+      1000
     )
-    await check(
-      () => browser.eval(`document.getElementById("img4").currentSrc`),
-      /test(.*)ico/
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(`document.getElementById("img4").currentSrc`)
+        ).toMatch(/test(.*)ico/)
+      },
+      30000,
+      1000
     )
-    await check(
-      () => browser.eval(`document.getElementById("msg1").textContent`),
-      'loaded 1 img1 with dimensions 128x128'
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(`document.getElementById("msg1").textContent`)
+        ).toBe('loaded 1 img1 with dimensions 128x128')
+      },
+      30000,
+      1000
     )
-    await check(
-      () => browser.eval(`document.getElementById("msg2").textContent`),
-      'loaded 1 img2 with dimensions 400x400'
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(`document.getElementById("msg2").textContent`)
+        ).toBe('loaded 1 img2 with dimensions 400x400')
+      },
+      30000,
+      1000
     )
-    await check(
-      () => browser.eval(`document.getElementById("msg3").textContent`),
-      'loaded 1 img3 with dimensions 400x400'
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(`document.getElementById("msg3").textContent`)
+        ).toBe('loaded 1 img3 with dimensions 400x400')
+      },
+      30000,
+      1000
     )
-    await check(
-      () => browser.eval(`document.getElementById("msg4").textContent`),
-      'loaded 1 img4 with dimensions 32x32'
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(`document.getElementById("msg4").textContent`)
+        ).toBe('loaded 1 img4 with dimensions 32x32')
+      },
+      30000,
+      1000
     )
-    await check(
-      () => browser.eval(`document.getElementById("msg5").textContent`),
-      'loaded 1 img5 with dimensions 3x5'
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(`document.getElementById("msg5").textContent`)
+        ).toBe('loaded 1 img5 with dimensions 3x5')
+      },
+      30000,
+      1000
     )
-    await check(
-      () => browser.eval(`document.getElementById("msg6").textContent`),
-      'loaded 1 img6 with dimensions 3x5'
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(`document.getElementById("msg6").textContent`)
+        ).toBe('loaded 1 img6 with dimensions 3x5')
+      },
+      30000,
+      1000
     )
-    await check(
-      () => browser.eval(`document.getElementById("msg7").textContent`),
-      'loaded 1 img7 with dimensions 400x400'
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(`document.getElementById("msg7").textContent`)
+        ).toBe('loaded 1 img7 with dimensions 400x400')
+      },
+      30000,
+      1000
     )
-    await check(
-      () => browser.eval(`document.getElementById("msg8").textContent`),
-      'loaded 1 img8 with dimensions 640x373'
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(`document.getElementById("msg8").textContent`)
+        ).toBe('loaded 1 img8 with dimensions 640x373')
+      },
+      30000,
+      1000
     )
-    await check(
-      () =>
-        browser.eval(
-          `document.getElementById("img8").getAttribute("data-nimg")`
-        ),
-      '1'
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(
+            `document.getElementById("img8").getAttribute("data-nimg")`
+          )
+        ).toBe('1')
+      },
+      30000,
+      1000
     )
-    await check(
-      () => browser.eval(`document.getElementById("img8").currentSrc`),
-      /wide.png/
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(`document.getElementById("img8").currentSrc`)
+        ).toMatch(/wide.png/)
+      },
+      30000,
+      1000
     )
     await browser.eval('document.getElementById("toggle").click()')
-    await check(
-      () => browser.eval(`document.getElementById("msg8").textContent`),
-      'loaded 2 img8 with dimensions 400x300'
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(`document.getElementById("msg8").textContent`)
+        ).toBe('loaded 2 img8 with dimensions 400x300')
+      },
+      30000,
+      1000
     )
-    await check(
-      () =>
-        browser.eval(
-          `document.getElementById("img8").getAttribute("data-nimg")`
-        ),
-      '1'
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(
+            `document.getElementById("img8").getAttribute("data-nimg")`
+          )
+        ).toBe('1')
+      },
+      30000,
+      1000
     )
-    await check(
-      () => browser.eval(`document.getElementById("img8").currentSrc`),
-      /test-rect.jpg/
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(`document.getElementById("img8").currentSrc`)
+        ).toMatch(/test-rect.jpg/)
+      },
+      30000,
+      1000
     )
-    await check(
-      () => browser.eval(`document.getElementById("msg9").textContent`),
-      'loaded 1 img9 with dimensions 400x400'
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(`document.getElementById("msg9").textContent`)
+        ).toBe('loaded 1 img9 with dimensions 400x400')
+      },
+      30000,
+      1000
     )
 
     if (mode === 'dev') {
@@ -553,88 +656,184 @@ function runTests(mode) {
       `document.getElementById("msg1").scrollIntoView({behavior: "smooth"})`
     )
 
-    await check(
-      () => browser.eval(`document.getElementById("msg1").textContent`),
-      'loaded img1 with native onLoad, count 1'
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(`document.getElementById("msg1").textContent`)
+        ).toBe('loaded img1 with native onLoad, count 1')
+      },
+      30000,
+      1000
     )
-    await check(
-      () => browser.eval(`document.getElementById("msg2").textContent`),
-      'loaded img2 with native onLoad, count 1'
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(`document.getElementById("msg2").textContent`)
+        ).toBe('loaded img2 with native onLoad, count 1')
+      },
+      30000,
+      1000
     )
-    await check(
-      () => browser.eval(`document.getElementById("msg3").textContent`),
-      'loaded img3 with native onLoad, count 1'
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(`document.getElementById("msg3").textContent`)
+        ).toBe('loaded img3 with native onLoad, count 1')
+      },
+      30000,
+      1000
     )
-    await check(
-      () => browser.eval(`document.getElementById("msg4").textContent`),
-      'loaded img4 with native onLoad, count 1'
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(`document.getElementById("msg4").textContent`)
+        ).toBe('loaded img4 with native onLoad, count 1')
+      },
+      30000,
+      1000
     )
-    await check(
-      () => browser.eval(`document.getElementById("msg5").textContent`),
-      'loaded img5 with native onLoad, count 1'
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(`document.getElementById("msg5").textContent`)
+        ).toBe('loaded img5 with native onLoad, count 1')
+      },
+      30000,
+      1000
     )
-    await check(
-      () => browser.eval(`document.getElementById("msg6").textContent`),
-      'loaded img6 with native onLoad, count 1'
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(`document.getElementById("msg6").textContent`)
+        ).toBe('loaded img6 with native onLoad, count 1')
+      },
+      30000,
+      1000
     )
-    await check(
-      () =>
-        browser.eval(
-          `document.getElementById("img5").getAttribute("data-nimg")`
-        ),
-      '1'
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(
+            `document.getElementById("img5").getAttribute("data-nimg")`
+          )
+        ).toBe('1')
+      },
+      30000,
+      1000
     )
 
     await browser.eval('document.getElementById("toggle").click()')
 
-    await check(
-      () => browser.eval(`document.getElementById("msg1").textContent`),
-      'loaded img1 with native onLoad, count 2'
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(`document.getElementById("msg1").textContent`)
+        ).toBe('loaded img1 with native onLoad, count 2')
+      },
+      30000,
+      1000
     )
-    await check(
-      () => browser.eval(`document.getElementById("msg2").textContent`),
-      'loaded img2 with native onLoad, count 2'
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(`document.getElementById("msg2").textContent`)
+        ).toBe('loaded img2 with native onLoad, count 2')
+      },
+      30000,
+      1000
     )
-    await check(
-      () => browser.eval(`document.getElementById("msg3").textContent`),
-      'loaded img3 with native onLoad, count 2'
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(`document.getElementById("msg3").textContent`)
+        ).toBe('loaded img3 with native onLoad, count 2')
+      },
+      30000,
+      1000
     )
-    await check(
-      () => browser.eval(`document.getElementById("msg4").textContent`),
-      'loaded img4 with native onLoad, count 2'
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(`document.getElementById("msg4").textContent`)
+        ).toBe('loaded img4 with native onLoad, count 2')
+      },
+      30000,
+      1000
     )
-    await check(
-      () => browser.eval(`document.getElementById("msg5").textContent`),
-      'loaded img5 with native onLoad, count 1'
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(`document.getElementById("msg5").textContent`)
+        ).toBe('loaded img5 with native onLoad, count 1')
+      },
+      30000,
+      1000
     )
-    await check(
-      () => browser.eval(`document.getElementById("msg6").textContent`),
-      'loaded img6 with native onLoad, count 1'
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(`document.getElementById("msg6").textContent`)
+        ).toBe('loaded img6 with native onLoad, count 1')
+      },
+      30000,
+      1000
     )
 
-    await check(
-      () => browser.eval(`document.getElementById("img1").currentSrc`),
-      /test(.*)jpg/
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(`document.getElementById("img1").currentSrc`)
+        ).toMatch(/test(.*)jpg/)
+      },
+      30000,
+      1000
     )
-    await check(
-      () => browser.eval(`document.getElementById("img2").currentSrc`),
-      /test(.*).png/
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(`document.getElementById("img2").currentSrc`)
+        ).toMatch(/test(.*).png/)
+      },
+      30000,
+      1000
     )
-    await check(
-      () => browser.eval(`document.getElementById("img3").currentSrc`),
-      /test\.svg/
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(`document.getElementById("img3").currentSrc`)
+        ).toMatch(/test\.svg/)
+      },
+      30000,
+      1000
     )
-    await check(
-      () => browser.eval(`document.getElementById("img4").currentSrc`),
-      /test(.*)ico/
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(`document.getElementById("img4").currentSrc`)
+        ).toMatch(/test(.*)ico/)
+      },
+      30000,
+      1000
     )
-    await check(
-      () => browser.eval(`document.getElementById("img5").currentSrc`),
-      /wide.png/
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(`document.getElementById("img5").currentSrc`)
+        ).toMatch(/wide.png/)
+      },
+      30000,
+      1000
     )
-    await check(
-      () => browser.eval(`document.getElementById("img6").currentSrc`),
-      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mO8ysv7HwAEngHwC+JqOgAAAABJRU5ErkJggg=='
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(`document.getElementById("img6").currentSrc`)
+        ).toBe(
+          'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mO8ysv7HwAEngHwC+JqOgAAAABJRU5ErkJggg=='
+        )
+      },
+      30000,
+      1000
     )
   })
 
@@ -643,41 +842,76 @@ function runTests(mode) {
     await browser.eval(
       `document.getElementById("img1").scrollIntoView({behavior: "smooth"})`
     )
-    await check(
-      () => browser.eval(`document.getElementById("msg1").textContent`),
-      'no error occurred for img1'
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(`document.getElementById("msg1").textContent`)
+        ).toBe('no error occurred for img1')
+      },
+      30000,
+      1000
     )
-    await check(
-      () => browser.eval(`document.getElementById("img1").style.color`),
-      'transparent'
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(`document.getElementById("img1").style.color`)
+        ).toBe('transparent')
+      },
+      30000,
+      1000
     )
     await browser.eval(
       `document.getElementById("img2").scrollIntoView({behavior: "smooth"})`
     )
-    await check(
-      () => browser.eval(`document.getElementById("msg2").textContent`),
-      'no error occurred for img2'
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(`document.getElementById("msg2").textContent`)
+        ).toBe('no error occurred for img2')
+      },
+      30000,
+      1000
     )
-    await check(
-      () => browser.eval(`document.getElementById("img2").style.color`),
-      'transparent'
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(`document.getElementById("img2").style.color`)
+        ).toBe('transparent')
+      },
+      30000,
+      1000
     )
     await browser.eval(`document.getElementById("toggle").click()`)
-    await check(
-      () => browser.eval(`document.getElementById("msg2").textContent`),
-      'error occurred while loading img2'
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(`document.getElementById("msg2").textContent`)
+        ).toBe('error occurred while loading img2')
+      },
+      30000,
+      1000
     )
-    await check(
-      () => browser.eval(`document.getElementById("img2").style.color`),
-      ''
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(`document.getElementById("img2").style.color`)
+        ).toBe('')
+      },
+      30000,
+      1000
     )
   })
 
   it('should callback native onError even when error before hydration', async () => {
     let browser = await webdriver(appPort, '/on-error-before-hydration')
-    await check(
-      () => browser.eval(`document.getElementById("msg").textContent`),
-      'error state'
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(`document.getElementById("msg").textContent`)
+        ).toBe('error state')
+      },
+      30000,
+      1000
     )
   })
 
@@ -686,13 +920,23 @@ function runTests(mode) {
     try {
       browser = await webdriver(appPort, '/blob')
 
-      await check(
-        () => browser.eval(`document.getElementById("blob-image").src`),
-        /^blob:/
+      await retry(
+        async () => {
+          expect(
+            await browser.eval(`document.getElementById("blob-image").src`)
+          ).toMatch(/^blob:/)
+        },
+        30000,
+        1000
       )
-      await check(
-        () => browser.eval(`document.getElementById("blob-image").srcset`),
-        ''
+      await retry(
+        async () => {
+          expect(
+            await browser.eval(`document.getElementById("blob-image").srcset`)
+          ).toBe('')
+        },
+        30000,
+        1000
       )
     } finally {
       if (browser) {
@@ -705,16 +949,19 @@ function runTests(mode) {
     let browser
     try {
       browser = await webdriver(appPort, '/flex')
-      await check(async () => {
-        const result = await browser.eval(
-          `document.getElementById('basic-image').width`
-        )
-        if (result === 0) {
-          throw new Error('Incorrectly loaded image')
-        }
-
-        return 'result-correct'
-      }, /result-correct/)
+      await retry(
+        async () => {
+          const result = await browser.eval(
+            `document.getElementById('basic-image').width`
+          )
+          if (result === 0) {
+            throw new Error('Incorrectly loaded image')
+          }
+          expect('result-correct').toMatch(/result-correct/)
+        },
+        30000,
+        1000
+      )
     } finally {
       if (browser) {
         await browser.close()
@@ -724,24 +971,39 @@ function runTests(mode) {
 
   it('should work when using overrideSrc prop', async () => {
     const browser = await webdriver(appPort, '/override-src')
-    await check(async () => {
-      const result = await browser.eval(
-        `document.getElementById('override-src').width`
-      )
-      if (result === 0) {
-        throw new Error('Incorrectly loaded image')
-      }
-
-      return 'result-correct'
-    }, /result-correct/)
-
-    await check(
-      () => browser.eval(`document.getElementById('override-src').currentSrc`),
-      /test(.*)jpg/
+    await retry(
+      async () => {
+        const result = await browser.eval(
+          `document.getElementById('override-src').width`
+        )
+        if (result === 0) {
+          throw new Error('Incorrectly loaded image')
+        }
+        expect('result-correct').toMatch(/result-correct/)
+      },
+      30000,
+      1000
     )
-    await check(
-      () => browser.eval(`document.getElementById('override-src').src`),
-      /myoverride/
+
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(
+            `document.getElementById('override-src').currentSrc`
+          )
+        ).toMatch(/test(.*)jpg/)
+      },
+      30000,
+      1000
+    )
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(`document.getElementById('override-src').src`)
+        ).toMatch(/myoverride/)
+      },
+      30000,
+      1000
     )
   })
 
@@ -854,9 +1116,14 @@ function runTests(mode) {
     await browser.eval(
       `document.getElementById("blur1").scrollIntoView({behavior: "smooth"})`
     )
-    await check(
-      () => browser.eval(`document.getElementById("blur1").currentSrc`),
-      /test(.*)jpg/
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(`document.getElementById("blur1").currentSrc`)
+        ).toMatch(/test(.*)jpg/)
+      },
+      30000,
+      1000
     )
     expect(await browser.elementById('blur1').getAttribute('src')).toMatch(
       /\/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest\.(.*)\.jpg&w=828&q=75/
@@ -899,9 +1166,14 @@ function runTests(mode) {
     await browser.eval(
       `document.getElementById("blur2").scrollIntoView({behavior: "smooth"})`
     )
-    await check(
-      () => browser.eval(`document.getElementById("blur2").currentSrc`),
-      /test(.*)png/
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(`document.getElementById("blur2").currentSrc`)
+        ).toMatch(/test(.*)png/)
+      },
+      30000,
+      1000
     )
     expect(await browser.elementById('blur2').getAttribute('src')).toMatch(
       /\/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest\.(.*)\.png&w=3840&q=75/
@@ -999,17 +1271,19 @@ function runTests(mode) {
   it('should render picture via getImageProps', async () => {
     const browser = await webdriver(appPort, '/picture')
     // Wait for image to load:
-    await check(async () => {
-      const naturalWidth = await browser.eval(
-        `document.querySelector('img').naturalWidth`
-      )
-
-      if (naturalWidth === 0) {
-        throw new Error('Image did not load')
-      }
-
-      return 'ready'
-    }, 'ready')
+    await retry(
+      async () => {
+        const naturalWidth = await browser.eval(
+          `document.querySelector('img').naturalWidth`
+        )
+        if (naturalWidth === 0) {
+          throw new Error('Image did not load')
+        }
+        expect('ready').toBe('ready')
+      },
+      30000,
+      1000
+    )
     const img = await browser.elementByCss('img')
     expect(img).toBeDefined()
     expect(await img.getAttribute('alt')).toBe('Hero')
@@ -1038,9 +1312,15 @@ function runTests(mode) {
 
       await waitForNoRedbox(browser)
 
-      await check(async () => {
-        return (await browser.log()).map((log) => log.message).join('\n')
-      }, /Image is missing required "src" property/gm)
+      await retry(
+        async () => {
+          expect(
+            (await browser.log()).map((log) => log.message).join('\n')
+          ).toMatch(/Image is missing required "src" property/gm)
+        },
+        30000,
+        1000
+      )
     })
 
     it('should show empty string src error', async () => {
@@ -1048,9 +1328,15 @@ function runTests(mode) {
 
       await waitForNoRedbox(browser)
 
-      await check(async () => {
-        return (await browser.log()).map((log) => log.message).join('\n')
-      }, /Image is missing required "src" property/gm)
+      await retry(
+        async () => {
+          expect(
+            (await browser.log()).map((log) => log.message).join('\n')
+          ).toMatch(/Image is missing required "src" property/gm)
+        },
+        30000,
+        1000
+      )
     })
 
     it('should show null src error', async () => {
@@ -1140,9 +1426,15 @@ function runTests(mode) {
 
       await waitForNoRedbox(browser)
 
-      await check(async () => {
-        return (await browser.log()).map((log) => log.message).join('\n')
-      }, /Image is missing required "alt" property/gm)
+      await retry(
+        async () => {
+          expect(
+            (await browser.log()).map((log) => log.message).join('\n')
+          ).toMatch(/Image is missing required "alt" property/gm)
+        },
+        30000,
+        1000
+      )
     })
 
     it('should show error when missing width prop', async () => {
@@ -1234,15 +1526,19 @@ function runTests(mode) {
       let browser = await webdriver(appPort, '/preload-missing-warning')
       try {
         // Wait for image to load:
-        await check(async () => {
-          const result = await browser.eval(
-            `document.getElementById('responsive').naturalWidth`
-          )
-          if (result < 1) {
-            throw new Error('Image not ready')
-          }
-          return 'done'
-        }, 'done')
+        await retry(
+          async () => {
+            const result = await browser.eval(
+              `document.getElementById('responsive').naturalWidth`
+            )
+            if (result < 1) {
+              throw new Error('Image not ready')
+            }
+            expect('done').toBe('done')
+          },
+          30000,
+          1000
+        )
         await waitFor(1000)
         const warnings = (await browser.log())
           .map((log) => log.message)
@@ -1324,15 +1620,19 @@ function runTests(mode) {
         `document.querySelector("button").textContent`
       )
       expect(count).toBe('Count: 2')
-      await check(async () => {
-        const result = await browser.eval(
-          'document.getElementById("w").naturalWidth'
-        )
-        if (result < 1) {
-          throw new Error('Image not loaded')
-        }
-        return 'done'
-      }, 'done')
+      await retry(
+        async () => {
+          const result = await browser.eval(
+            'document.getElementById("w").naturalWidth'
+          )
+          if (result < 1) {
+            throw new Error('Image not loaded')
+          }
+          expect('done').toBe('done')
+        },
+        30000,
+        1000
+      )
       await waitFor(1000)
       const warnings = (await browser.log())
         .map((log) => log.message)
@@ -1394,17 +1694,19 @@ function runTests(mode) {
       const id = 'prose-image'
 
       // Wait for image to load:
-      await check(async () => {
-        const result = await browser.eval(
-          `document.getElementById(${JSON.stringify(id)}).naturalWidth`
-        )
-
-        if (result < 1) {
-          throw new Error('Image not ready')
-        }
-
-        return 'result-correct'
-      }, /result-correct/)
+      await retry(
+        async () => {
+          const result = await browser.eval(
+            `document.getElementById(${JSON.stringify(id)}).naturalWidth`
+          )
+          if (result < 1) {
+            throw new Error('Image not ready')
+          }
+          expect('result-correct').toMatch(/result-correct/)
+        },
+        30000,
+        1000
+      )
 
       await waitFor(1000)
 
@@ -1460,8 +1762,24 @@ function runTests(mode) {
 
   it('should apply filter style after image loads', async () => {
     const browser = await webdriver(appPort, '/style-filter')
-    await check(() => getSrc(browser, 'img-plain'), /^\/_next\/image/)
-    await check(() => getSrc(browser, 'img-blur'), /^\/_next\/image/)
+    await retry(
+      async () => {
+        await expect(getSrc(browser, 'img-plain')).resolves.toMatch(
+          /^\/_next\/image/
+        )
+      },
+      30000,
+      1000
+    )
+    await retry(
+      async () => {
+        await expect(getSrc(browser, 'img-blur')).resolves.toMatch(
+          /^\/_next\/image/
+        )
+      },
+      30000,
+      1000
+    )
     await waitFor(1000)
 
     expect(await getComputedStyle(browser, 'img-plain', 'filter')).toBe(
@@ -1585,17 +1903,19 @@ function runTests(mode) {
       const id = 'exif-rotation-image'
 
       // Wait for image to load:
-      await check(async () => {
-        const result = await browser.eval(
-          `document.getElementById(${JSON.stringify(id)}).naturalWidth`
-        )
-
-        if (result === 0) {
-          throw new Error('Image not ready')
-        }
-
-        return 'result-correct'
-      }, /result-correct/)
+      await retry(
+        async () => {
+          const result = await browser.eval(
+            `document.getElementById(${JSON.stringify(id)}).naturalWidth`
+          )
+          if (result === 0) {
+            throw new Error('Image not ready')
+          }
+          expect('result-correct').toMatch(/result-correct/)
+        },
+        30000,
+        1000
+      )
 
       await waitFor(500)
 
@@ -1629,14 +1949,18 @@ function runTests(mode) {
 
   it('should remove data url placeholder after image loads', async () => {
     const browser = await webdriver(appPort, '/data-url-placeholder')
-    await check(
-      async () =>
-        await getComputedStyle(
-          browser,
-          'data-url-placeholder-raw',
-          'background-image'
-        ),
-      'none'
+    await retry(
+      async () => {
+        expect(
+          await getComputedStyle(
+            browser,
+            'data-url-placeholder-raw',
+            'background-image'
+          )
+        ).toBe('none')
+      },
+      30000,
+      1000
     )
     expect(
       await getComputedStyle(
@@ -1650,14 +1974,18 @@ function runTests(mode) {
 
     await browser.eval('document.getElementById("spacer").remove()')
 
-    await check(
-      async () =>
-        await getComputedStyle(
-          browser,
-          'data-url-placeholder-with-lazy',
-          'background-image'
-        ),
-      'none'
+    await retry(
+      async () => {
+        expect(
+          await getComputedStyle(
+            browser,
+            'data-url-placeholder-with-lazy',
+            'background-image'
+          )
+        ).toBe('none')
+      },
+      30000,
+      1000
     )
   })
 
@@ -1695,14 +2023,18 @@ function runTests(mode) {
 
   it('should remove blurry placeholder after image loads', async () => {
     const browser = await webdriver(appPort, '/blurry-placeholder')
-    await check(
-      async () =>
-        await getComputedStyle(
-          browser,
-          'blurry-placeholder-raw',
-          'background-image'
-        ),
-      'none'
+    await retry(
+      async () => {
+        expect(
+          await getComputedStyle(
+            browser,
+            'blurry-placeholder-raw',
+            'background-image'
+          )
+        ).toBe('none')
+      },
+      30000,
+      1000
     )
     expect(
       await getComputedStyle(
@@ -1716,14 +2048,18 @@ function runTests(mode) {
 
     await browser.eval('document.getElementById("spacer").remove()')
 
-    await check(
-      async () =>
-        await getComputedStyle(
-          browser,
-          'blurry-placeholder-with-lazy',
-          'background-image'
-        ),
-      'none'
+    await retry(
+      async () => {
+        expect(
+          await getComputedStyle(
+            browser,
+            'blurry-placeholder-with-lazy',
+            'background-image'
+          )
+        ).toBe('none')
+      },
+      30000,
+      1000
     )
   })
 

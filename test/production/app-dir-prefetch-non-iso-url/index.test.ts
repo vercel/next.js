@@ -3,7 +3,7 @@ import { NextInstance } from 'e2e-utils'
 import { join } from 'path'
 import { Playwright } from 'next-webdriver'
 import webdriver from 'next-webdriver'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('app-dir-prefetch-non-iso-url', () => {
   let next: NextInstance
@@ -24,7 +24,13 @@ describe('app-dir-prefetch-non-iso-url', () => {
     try {
       browser = await webdriver(next.url, '/')
       await browser.elementByCss('#to-iso').click()
-      await check(() => browser.elementByCss('#page').text(), '/[slug]')
+      await retry(
+        async () => {
+          expect(await browser.elementByCss('#page').text()).toBe('/[slug]')
+        },
+        30000,
+        1000
+      )
     } finally {
       if (browser) {
         await browser.close()
@@ -38,7 +44,13 @@ describe('app-dir-prefetch-non-iso-url', () => {
     try {
       browser = await webdriver(next.url, '/')
       await browser.elementByCss('#to-non-iso').click()
-      await check(() => browser.elementByCss('#page').text(), '/[slug]')
+      await retry(
+        async () => {
+          expect(await browser.elementByCss('#page').text()).toBe('/[slug]')
+        },
+        30000,
+        1000
+      )
     } finally {
       if (browser) {
         await browser.close()

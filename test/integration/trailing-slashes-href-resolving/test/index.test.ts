@@ -3,12 +3,12 @@ import assert from 'assert'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import {
-  check,
   findPort,
   killApp,
   launchApp,
   nextBuild,
   nextStart,
+  retry,
 } from 'next-test-utils'
 
 let app
@@ -76,18 +76,23 @@ const runTests = (dev: boolean) => {
     it('should preload SSG routes correctly', async () => {
       const browser = await webdriver(appPort, '/')
 
-      await check(async () => {
-        const hrefs = await browser.eval(`Object.keys(window.next.router.sdc)`)
-        hrefs.sort()
-
-        assert.deepEqual(
-          hrefs.map((href) =>
-            new URL(href).pathname.replace(/^\/_next\/data\/[^/]+/, '')
-          ),
-          ['/top-level-slug.json', '/world.json']
-        )
-        return 'yes'
-      }, 'yes')
+      await retry(
+        async () => {
+          const hrefs = await browser.eval(
+            `Object.keys(window.next.router.sdc)`
+          )
+          hrefs.sort()
+          assert.deepEqual(
+            hrefs.map((href) =>
+              new URL(href).pathname.replace(/^\/_next\/data\/[^/]+/, '')
+            ),
+            ['/top-level-slug.json', '/world.json']
+          )
+          expect('yes').toBe('yes')
+        },
+        30000,
+        1000
+      )
     })
   }
 }

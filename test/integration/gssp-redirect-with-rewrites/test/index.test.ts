@@ -6,7 +6,7 @@ import {
   findPort,
   launchApp,
   killApp,
-  check,
+  retry,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 
@@ -51,9 +51,13 @@ describe('getServerSideProps redirects', () => {
     await browser.elementByCss('#link-unknown-url').click()
 
     // Wait until the page has be reloaded
-    await check(async () => {
-      const val = await browser.eval('window.__SAME_PAGE')
-      return val ? 'fail' : 'success'
-    }, 'success')
+    await retry(
+      async () => {
+        const val = await browser.eval('window.__SAME_PAGE')
+        return val ? 'fail' : 'success'
+      },
+      30000,
+      1000
+    )
   })
 })

@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import webdriver from 'next-webdriver'
 import cheerio from 'cheerio'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import { NextInstance } from 'e2e-utils'
 
 // These tests are similar to ../../basic/test/dynamic.js
@@ -45,7 +45,15 @@ export default (next: NextInstance, render) => {
         let browser
         try {
           browser = await webdriver(next.appPort, '/dynamic/pagechange1')
-          await check(() => browser.elementByCss('body').text(), /PageChange1/)
+          await retry(
+            async () => {
+              await expect(
+                browser.elementByCss('body').text()
+              ).resolves.toMatch(/PageChange1/)
+            },
+            30000,
+            1000
+          )
           const firstElement = await browser.elementById('with-css')
           const css1 = await firstElement.getComputedCss('display')
           expect(css1).toBe('flex')
@@ -53,7 +61,15 @@ export default (next: NextInstance, render) => {
             // @ts-expect-error window.next exists
             window.next.router.push('/dynamic/pagechange2')
           })
-          await check(() => browser.elementByCss('body').text(), /PageChange2/)
+          await retry(
+            async () => {
+              await expect(
+                browser.elementByCss('body').text()
+              ).resolves.toMatch(/PageChange2/)
+            },
+            30000,
+            1000
+          )
           const secondElement = await browser.elementById('with-css')
           const css2 = await secondElement.getComputedCss('display')
           expect(css2).toBe(css1)
@@ -68,13 +84,23 @@ export default (next: NextInstance, render) => {
         let browser
         try {
           browser = await webdriver(next.appPort, '/dynamic/shared-css-module')
-          await check(
-            () => browser.elementByCss('#with-css').getComputedCss('color'),
-            'rgb(0, 0, 0)'
+          await retry(
+            async () => {
+              await expect(
+                browser.elementByCss('#with-css').getComputedCss('color')
+              ).resolves.toBe('rgb(0, 0, 0)')
+            },
+            30000,
+            1000
           )
-          await check(
-            () => browser.elementByCss('#with-css-2').getComputedCss('color'),
-            'rgb(0, 0, 0)'
+          await retry(
+            async () => {
+              await expect(
+                browser.elementByCss('#with-css-2').getComputedCss('color')
+              ).resolves.toBe('rgb(0, 0, 0)')
+            },
+            30000,
+            1000
           )
         } finally {
           if (browser) {
@@ -93,13 +119,23 @@ export default (next: NextInstance, render) => {
         let browser
         try {
           browser = await webdriver(next.appPort, '/dynamic/no-chunk')
-          await check(
-            () => browser.elementByCss('body').text(),
-            /Welcome, normal/
+          await retry(
+            async () => {
+              await expect(
+                browser.elementByCss('body').text()
+              ).resolves.toMatch(/Welcome, normal/)
+            },
+            30000,
+            1000
           )
-          await check(
-            () => browser.elementByCss('body').text(),
-            /Welcome, dynamic/
+          await retry(
+            async () => {
+              await expect(
+                browser.elementByCss('body').text()
+              ).resolves.toMatch(/Welcome, dynamic/)
+            },
+            30000,
+            1000
           )
         } finally {
           if (browser) {
@@ -118,9 +154,14 @@ export default (next: NextInstance, render) => {
         let browser
         try {
           browser = await webdriver(next.appPort, '/dynamic/no-ssr')
-          await check(
-            () => browser.elementByCss('body').text(),
-            /Hello World 1/
+          await retry(
+            async () => {
+              await expect(
+                browser.elementByCss('body').text()
+              ).resolves.toMatch(/Hello World 1/)
+            },
+            30000,
+            1000
           )
         } finally {
           if (browser) {
@@ -140,9 +181,14 @@ export default (next: NextInstance, render) => {
         let browser
         try {
           browser = await webdriver(next.appPort, '/dynamic/ssr-true')
-          await check(
-            () => browser.elementByCss('body').text(),
-            /Hello World 1/
+          await retry(
+            async () => {
+              await expect(
+                browser.elementByCss('body').text()
+              ).resolves.toMatch(/Hello World 1/)
+            },
+            30000,
+            1000
           )
         } finally {
           if (browser) {
@@ -165,9 +211,14 @@ export default (next: NextInstance, render) => {
             next.appPort,
             '/dynamic/no-ssr-custom-loading'
           )
-          await check(
-            () => browser.elementByCss('body').text(),
-            /Hello World 1/
+          await retry(
+            async () => {
+              await expect(
+                browser.elementByCss('body').text()
+              ).resolves.toMatch(/Hello World 1/)
+            },
+            30000,
+            1000
           )
         } finally {
           if (browser) {

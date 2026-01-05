@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('shallow-routing', () => {
   const { next } = nextTestSetup({
@@ -22,9 +22,14 @@ describe('shallow-routing', () => {
         .waitForElementByCss('#state-updated', { state: 'attached' })
         .elementByCss('#get-latest')
         .click()
-      await check(
-        () => browser.elementByCss('#my-data').text(),
-        `{"foo":"bar"}`
+      await retry(
+        async () => {
+          expect(await browser.elementByCss('#my-data').text()).toBe(
+            `{"foo":"bar"}`
+          )
+        },
+        30000,
+        1000
       )
     })
 
@@ -41,9 +46,14 @@ describe('shallow-routing', () => {
       await browser.elementByCss('#push-pathname').click()
 
       // Check usePathname value is the new pathname
-      await check(
-        () => browser.elementByCss('#my-data').text(),
-        '/my-non-existent-path'
+      await retry(
+        async () => {
+          expect(await browser.elementByCss('#my-data').text()).toBe(
+            '/my-non-existent-path'
+          )
+        },
+        30000,
+        1000
       )
 
       // Check current url is the new pathname
@@ -63,7 +73,13 @@ describe('shallow-routing', () => {
       await browser.elementByCss('#push-searchparams').click()
 
       // Check useSearchParams value is the new searchparam
-      await check(() => browser.elementByCss('#my-data').text(), 'foo')
+      await retry(
+        async () => {
+          expect(await browser.elementByCss('#my-data').text()).toBe('foo')
+        },
+        30000,
+        1000
+      )
 
       // Check current url is the new searchparams
       expect(await browser.url()).toBe(
@@ -74,7 +90,15 @@ describe('shallow-routing', () => {
       await browser.elementByCss('#push-searchparams').click()
 
       // Check useSearchParams value is the new searchparam
-      await check(() => browser.elementByCss('#my-data').text(), 'foo-added')
+      await retry(
+        async () => {
+          expect(await browser.elementByCss('#my-data').text()).toBe(
+            'foo-added'
+          )
+        },
+        30000,
+        1000
+      )
 
       // Check current url is the new searchparams
       expect(await browser.url()).toBe(
@@ -95,7 +119,13 @@ describe('shallow-routing', () => {
       await browser.elementByCss('#push-string-url').click()
 
       // Check useSearchParams value is the new searchparam
-      await check(() => browser.elementByCss('#my-data').text(), 'foo')
+      await retry(
+        async () => {
+          expect(await browser.elementByCss('#my-data').text()).toBe('foo')
+        },
+        30000,
+        1000
+      )
 
       // Check current url is the new searchparams
       expect(await browser.url()).toBe(
@@ -106,7 +136,15 @@ describe('shallow-routing', () => {
       await browser.elementByCss('#push-string-url').click()
 
       // Check useSearchParams value is the new searchparam
-      await check(() => browser.elementByCss('#my-data').text(), 'foo-added')
+      await retry(
+        async () => {
+          expect(await browser.elementByCss('#my-data').text()).toBe(
+            'foo-added'
+          )
+        },
+        30000,
+        1000
+      )
 
       // Check current url is the new searchparams
       expect(await browser.url()).toBe(
@@ -127,7 +165,13 @@ describe('shallow-routing', () => {
       await browser.elementByCss('#push-string-url-null').click()
 
       // Check useSearchParams value is the new searchparam
-      await check(() => browser.elementByCss('#my-data').text(), 'foo')
+      await retry(
+        async () => {
+          expect(await browser.elementByCss('#my-data').text()).toBe('foo')
+        },
+        30000,
+        1000
+      )
 
       // Check current url is the new searchparams
       expect(await browser.url()).toBe(
@@ -138,7 +182,15 @@ describe('shallow-routing', () => {
       await browser.elementByCss('#push-string-url-null').click()
 
       // Check useSearchParams value is the new searchparam
-      await check(() => browser.elementByCss('#my-data').text(), 'foo-added')
+      await retry(
+        async () => {
+          expect(await browser.elementByCss('#my-data').text()).toBe(
+            'foo-added'
+          )
+        },
+        30000,
+        1000
+      )
 
       // Check current url is the new searchparams
       expect(await browser.url()).toBe(
@@ -160,7 +212,13 @@ describe('shallow-routing', () => {
     await browser.elementByCss('#push-string-url-undefined').click()
 
     // Check useSearchParams value is the new searchparam
-    await check(() => browser.elementByCss('#my-data').text(), 'foo')
+    await retry(
+      async () => {
+        expect(await browser.elementByCss('#my-data').text()).toBe('foo')
+      },
+      30000,
+      1000
+    )
 
     // Check current url is the new searchparams
     expect(await browser.url()).toBe(
@@ -171,7 +229,13 @@ describe('shallow-routing', () => {
     await browser.elementByCss('#push-string-url-undefined').click()
 
     // Check useSearchParams value is the new searchparam
-    await check(() => browser.elementByCss('#my-data').text(), 'foo-added')
+    await retry(
+      async () => {
+        expect(await browser.elementByCss('#my-data').text()).toBe('foo-added')
+      },
+      30000,
+      1000
+    )
 
     // Check current url is the new searchparams
     expect(await browser.url()).toBe(
@@ -195,9 +259,14 @@ describe('shallow-routing', () => {
         .waitForElementByCss('#state-updated', { state: 'attached' })
         .elementByCss('#get-latest')
         .click()
-      await check(
-        () => browser.elementByCss('#my-data').text(),
-        `{"foo":"bar"}`
+      await retry(
+        async () => {
+          expect(await browser.elementByCss('#my-data').text()).toBe(
+            `{"foo":"bar"}`
+          )
+        },
+        30000,
+        1000
       )
     })
 
@@ -214,9 +283,14 @@ describe('shallow-routing', () => {
       await browser.elementByCss('#replace-pathname').click()
 
       // Check usePathname value is the new pathname
-      await check(
-        () => browser.elementByCss('#my-data').text(),
-        '/my-non-existent-path'
+      await retry(
+        async () => {
+          expect(await browser.elementByCss('#my-data').text()).toBe(
+            '/my-non-existent-path'
+          )
+        },
+        30000,
+        1000
       )
 
       // Check current url is the new pathname
@@ -236,7 +310,13 @@ describe('shallow-routing', () => {
       await browser.elementByCss('#replace-searchparams').click()
 
       // Check useSearchParams value is the new searchparam
-      await check(() => browser.elementByCss('#my-data').text(), 'foo')
+      await retry(
+        async () => {
+          expect(await browser.elementByCss('#my-data').text()).toBe('foo')
+        },
+        30000,
+        1000
+      )
 
       // Check current url is the new searchparams
       expect(await browser.url()).toBe(
@@ -247,7 +327,15 @@ describe('shallow-routing', () => {
       await browser.elementByCss('#replace-searchparams').click()
 
       // Check useSearchParams value is the new searchparam
-      await check(() => browser.elementByCss('#my-data').text(), 'foo-added')
+      await retry(
+        async () => {
+          expect(await browser.elementByCss('#my-data').text()).toBe(
+            'foo-added'
+          )
+        },
+        30000,
+        1000
+      )
 
       // Check current url is the new searchparams
       expect(await browser.url()).toBe(
@@ -268,7 +356,13 @@ describe('shallow-routing', () => {
       await browser.elementByCss('#replace-string-url').click()
 
       // Check useSearchParams value is the new searchparam
-      await check(() => browser.elementByCss('#my-data').text(), 'foo')
+      await retry(
+        async () => {
+          expect(await browser.elementByCss('#my-data').text()).toBe('foo')
+        },
+        30000,
+        1000
+      )
 
       // Check current url is the new searchparams
       expect(await browser.url()).toBe(
@@ -279,7 +373,15 @@ describe('shallow-routing', () => {
       await browser.elementByCss('#replace-string-url').click()
 
       // Check useSearchParams value is the new searchparam
-      await check(() => browser.elementByCss('#my-data').text(), 'foo-added')
+      await retry(
+        async () => {
+          expect(await browser.elementByCss('#my-data').text()).toBe(
+            'foo-added'
+          )
+        },
+        30000,
+        1000
+      )
 
       // Check current url is the new searchparams
       expect(await browser.url()).toBe(
@@ -300,7 +402,13 @@ describe('shallow-routing', () => {
       await browser.elementByCss('#replace-string-url-null').click()
 
       // Check useSearchParams value is the new searchparam
-      await check(() => browser.elementByCss('#my-data').text(), 'foo')
+      await retry(
+        async () => {
+          expect(await browser.elementByCss('#my-data').text()).toBe('foo')
+        },
+        30000,
+        1000
+      )
 
       // Check current url is the new searchparams
       expect(await browser.url()).toBe(
@@ -311,7 +419,15 @@ describe('shallow-routing', () => {
       await browser.elementByCss('#replace-string-url-null').click()
 
       // Check useSearchParams value is the new searchparam
-      await check(() => browser.elementByCss('#my-data').text(), 'foo-added')
+      await retry(
+        async () => {
+          expect(await browser.elementByCss('#my-data').text()).toBe(
+            'foo-added'
+          )
+        },
+        30000,
+        1000
+      )
 
       // Check current url is the new searchparams
       expect(await browser.url()).toBe(
@@ -332,7 +448,13 @@ describe('shallow-routing', () => {
       await browser.elementByCss('#replace-string-url-undefined').click()
 
       // Check useSearchParams value is the new searchparam
-      await check(() => browser.elementByCss('#my-data').text(), 'foo')
+      await retry(
+        async () => {
+          expect(await browser.elementByCss('#my-data').text()).toBe('foo')
+        },
+        30000,
+        1000
+      )
 
       // Check current url is the new searchparams
       expect(await browser.url()).toBe(
@@ -343,7 +465,15 @@ describe('shallow-routing', () => {
       await browser.elementByCss('#replace-string-url-undefined').click()
 
       // Check useSearchParams value is the new searchparam
-      await check(() => browser.elementByCss('#my-data').text(), 'foo-added')
+      await retry(
+        async () => {
+          expect(await browser.elementByCss('#my-data').text()).toBe(
+            'foo-added'
+          )
+        },
+        30000,
+        1000
+      )
 
       // Check current url is the new searchparams
       expect(await browser.url()).toBe(
@@ -367,9 +497,14 @@ describe('shallow-routing', () => {
         await browser.elementByCss('#push-pathname').click()
 
         // Check usePathname value is the new pathname
-        await check(
-          () => browser.elementByCss('#my-data').text(),
-          '/my-non-existent-path'
+        await retry(
+          async () => {
+            expect(await browser.elementByCss('#my-data').text()).toBe(
+              '/my-non-existent-path'
+            )
+          },
+          30000,
+          1000
         )
 
         // Check current url is the new pathname
@@ -379,17 +514,27 @@ describe('shallow-routing', () => {
         await browser.back()
 
         // Check usePathname value is the old pathname
-        await check(
-          () => browser.elementByCss('#my-data').text(),
-          '/pushstate-new-pathname'
+        await retry(
+          async () => {
+            expect(await browser.elementByCss('#my-data').text()).toBe(
+              '/pushstate-new-pathname'
+            )
+          },
+          30000,
+          1000
         )
 
         await browser.forward()
 
         // Check usePathname value is the old pathname
-        await check(
-          () => browser.elementByCss('#my-data').text(),
-          '/my-non-existent-path'
+        await retry(
+          async () => {
+            expect(await browser.elementByCss('#my-data').text()).toBe(
+              '/my-non-existent-path'
+            )
+          },
+          30000,
+          1000
         )
       })
     })
@@ -412,9 +557,14 @@ describe('shallow-routing', () => {
           .elementByCss('#get-latest')
           .click()
 
-        await check(
-          () => browser.elementByCss('#my-data').text(),
-          `{"foo":"bar"}`
+        await retry(
+          async () => {
+            expect(await browser.elementByCss('#my-data').text()).toBe(
+              `{"foo":"bar"}`
+            )
+          },
+          30000,
+          1000
         )
 
         expect(
@@ -429,21 +579,30 @@ describe('shallow-routing', () => {
         await browser.back()
 
         // Check usePathname value is the old pathname
-        await check(
-          () => browser.elementByCss('#my-data').text(),
-          `{"foo":"bar"}`
+        await retry(
+          async () => {
+            expect(await browser.elementByCss('#my-data').text()).toBe(
+              `{"foo":"bar"}`
+            )
+          },
+          30000,
+          1000
         )
 
         await browser.forward()
 
-        await check(
-          () =>
-            browser
-              .elementByCss('#to-a-mpa')
-              .click()
-              .waitForElementByCss('#page-a')
-              .text(),
-          'Page A'
+        await retry(
+          async () => {
+            await expect(
+              browser
+                .elementByCss('#to-a-mpa')
+                .click()
+                .waitForElementByCss('#page-a')
+                .text()
+            ).resolves.toBe('Page A')
+          },
+          30000,
+          1000
         )
       })
 
@@ -467,7 +626,13 @@ describe('shallow-routing', () => {
         await browser.elementByCss('#push-string-url').click()
 
         // Check useSearchParams value is the new searchparam
-        await check(() => browser.elementByCss('#my-data').text(), 'foo')
+        await retry(
+          async () => {
+            expect(await browser.elementByCss('#my-data').text()).toBe('foo')
+          },
+          30000,
+          1000
+        )
 
         // Check current url is the new searchparams
         expect(await browser.url()).toBe(
@@ -478,7 +643,15 @@ describe('shallow-routing', () => {
         await browser.elementByCss('#push-string-url').click()
 
         // Check useSearchParams value is the new searchparam
-        await check(() => browser.elementByCss('#my-data').text(), 'foo-added')
+        await retry(
+          async () => {
+            expect(await browser.elementByCss('#my-data').text()).toBe(
+              'foo-added'
+            )
+          },
+          30000,
+          1000
+        )
 
         // Check current url is the new searchparams
         expect(await browser.url()).toBe(

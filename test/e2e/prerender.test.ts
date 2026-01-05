@@ -7,7 +7,6 @@ import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import {
   waitForRedbox,
-  check,
   fetchViaHTTP,
   getBrowserBodyText,
   getRedboxHeader,
@@ -932,9 +931,14 @@ describe('Prerender', () => {
       const text1 = await browser.elementByCss('#catchall').text()
       expect(text1).toBe('fallback')
 
-      await check(
-        () => browser.elementByCss('#catchall').text(),
-        /Hi.*?delayby3s/
+      await retry(
+        async () => {
+          expect(await browser.elementByCss('#catchall').text()).toMatch(
+            /Hi.*?delayby3s/
+          )
+        },
+        30000,
+        1000
       )
     })
 
@@ -953,9 +957,14 @@ describe('Prerender', () => {
       const text1 = await browser.elementByCss('#catchall').text()
       expect(text1).toBe('fallback')
 
-      await check(
-        () => browser.elementByCss('#catchall').text(),
-        /Hi.*?delayby3s nested/
+      await retry(
+        async () => {
+          expect(await browser.elementByCss('#catchall').text()).toMatch(
+            /Hi.*?delayby3s nested/
+          )
+        },
+        30000,
+        1000
       )
     })
 
@@ -997,7 +1006,13 @@ describe('Prerender', () => {
 
       await next.patchFile('resolve-static-props', '', async () => {
         // wait for fallback data to load
-        await check(() => browser.elementByCss('p').text(), /Post/)
+        await retry(
+          async () => {
+            expect(await browser.elementByCss('p').text()).toMatch(/Post/)
+          },
+          30000,
+          1000
+        )
 
         // check fallback data
         const post = await browser.elementByCss('p').text()
@@ -1068,18 +1083,22 @@ describe('Prerender', () => {
           document.querySelector('#to-rewritten-ssg').scrollIntoView()
         )
 
-        await check(async () => {
-          const hrefs = await browser.eval(
-            `Object.keys(window.next.router.sdc)`
-          )
-          hrefs.sort()
-          expect(
-            hrefs.map((href) =>
-              new URL(href).pathname.replace(/^\/_next\/data\/[^/]+/, '')
+        await retry(
+          async () => {
+            const hrefs = await browser.eval(
+              `Object.keys(window.next.router.sdc)`
             )
-          ).toContainEqual('/lang/en/about.json')
-          return 'yes'
-        }, 'yes')
+            hrefs.sort()
+            expect(
+              hrefs.map((href) =>
+                new URL(href).pathname.replace(/^\/_next\/data\/[^/]+/, '')
+              )
+            ).toContainEqual('/lang/en/about.json')
+            expect('yes').toBe('yes')
+          },
+          30000,
+          1000
+        )
       }
       await browser.eval('window.beforeNav = "hi"')
       await browser.elementByCss('#to-rewritten-ssg').click()
@@ -1093,9 +1112,14 @@ describe('Prerender', () => {
       const item = Math.round(Math.random() * 100)
       const browser = await webdriver(next.url, `/some-rewrite/${item}`)
 
-      await check(
-        () => browser.elementByCss('p').text(),
-        new RegExp(`Post: post-${item}`)
+      await retry(
+        async () => {
+          expect(await browser.elementByCss('p').text()).toMatch(
+            new RegExp(`Post: post-${item}`)
+          )
+        },
+        30000,
+        1000
       )
 
       expect(JSON.parse(await browser.elementByCss('#params').text())).toEqual({
@@ -1108,30 +1132,50 @@ describe('Prerender', () => {
 
     it('should show warning when large amount of page data is returned', async () => {
       await renderViaHTTP(next.url, '/large-page-data')
-      await check(
-        () => next.cliOutput,
-        /Warning: data for page "\/large-page-data" is 256 kB which exceeds the threshold of 128 kB, this amount of data can reduce performance/
+      await retry(
+        () => {
+          expect(next.cliOutput).toMatch(
+            /Warning: data for page "\/large-page-data" is 256 kB which exceeds the threshold of 128 kB, this amount of data can reduce performance/
+          )
+        },
+        30000,
+        1000
       )
       await renderViaHTTP(next.url, '/blocking-fallback/lots-of-data')
-      await check(
-        () => next.cliOutput,
-        /Warning: data for page "\/blocking-fallback\/\[slug\]" \(path "\/blocking-fallback\/lots-of-data"\) is 256 kB which exceeds the threshold of 128 kB, this amount of data can reduce performance/
+      await retry(
+        () => {
+          expect(next.cliOutput).toMatch(
+            /Warning: data for page "\/blocking-fallback\/\[slug\]" \(path "\/blocking-fallback\/lots-of-data"\) is 256 kB which exceeds the threshold of 128 kB, this amount of data can reduce performance/
+          )
+        },
+        30000,
+        1000
       )
     })
 
     if ((global as any).isNextDev) {
       it('should show warning every time page with large amount of page data is returned', async () => {
         await renderViaHTTP(next.url, '/large-page-data-ssr')
-        await check(
-          () => next.cliOutput,
-          /Warning: data for page "\/large-page-data-ssr" is 256 kB which exceeds the threshold of 128 kB, this amount of data can reduce performance/
+        await retry(
+          () => {
+            expect(next.cliOutput).toMatch(
+              /Warning: data for page "\/large-page-data-ssr" is 256 kB which exceeds the threshold of 128 kB, this amount of data can reduce performance/
+            )
+          },
+          30000,
+          1000
         )
 
         const outputIndex = next.cliOutput.length
         await renderViaHTTP(next.url, '/large-page-data-ssr')
-        await check(
-          () => next.cliOutput.slice(outputIndex),
-          /Warning: data for page "\/large-page-data-ssr" is 256 kB which exceeds the threshold of 128 kB, this amount of data can reduce performance/
+        await retry(
+          () => {
+            expect(next.cliOutput.slice(outputIndex)).toMatch(
+              /Warning: data for page "\/large-page-data-ssr" is 256 kB which exceeds the threshold of 128 kB, this amount of data can reduce performance/
+            )
+          },
+          30000,
+          1000
         )
       })
     }
@@ -1139,9 +1183,14 @@ describe('Prerender', () => {
     if ((global as any).isNextStart) {
       it('should only show warning once per page when large amount of page data is returned', async () => {
         await renderViaHTTP(next.url, '/large-page-data-ssr')
-        await check(
-          () => next.cliOutput,
-          /Warning: data for page "\/large-page-data-ssr" is 256 kB which exceeds the threshold of 128 kB, this amount of data can reduce performance/
+        await retry(
+          () => {
+            expect(next.cliOutput).toMatch(
+              /Warning: data for page "\/large-page-data-ssr" is 256 kB which exceeds the threshold of 128 kB, this amount of data can reduce performance/
+            )
+          },
+          30000,
+          1000
         )
 
         const outputIndex = next.cliOutput.length
@@ -1387,13 +1436,25 @@ describe('Prerender', () => {
       it('should not show error for invalid JSON returned from getStaticProps on SSR', async () => {
         const browser = await webdriver(next.url, '/non-json/direct')
 
-        await check(() => getBrowserBodyText(browser), /hello /)
+        await retry(
+          async () => {
+            await expect(getBrowserBodyText(browser)).resolves.toMatch(/hello /)
+          },
+          30000,
+          1000
+        )
       })
 
       it('should not show error for invalid JSON returned from getStaticProps on CST', async () => {
         const browser = await webdriver(next.url, '/')
         await browser.elementByCss('#non-json').click()
-        await check(() => getBrowserBodyText(browser), /hello /)
+        await retry(
+          async () => {
+            await expect(getBrowserBodyText(browser)).resolves.toMatch(/hello /)
+          },
+          30000,
+          1000
+        )
       })
 
       if ((global as any).isNextStart && !isDeploy) {
@@ -2050,12 +2111,15 @@ describe('Prerender', () => {
         await waitFor(2 * 1000)
         await renderViaHTTP(next.url, route)
 
-        await check(async () => {
-          newHtml = await renderViaHTTP(next.url, route)
-          return newHtml !== initialHtml ? 'success' : newHtml
-        }, 'success')
+        await retry(
+          async () => {
+            newHtml = await renderViaHTTP(next.url, route)
+            expect(newHtml).not.toBe(initialHtml)
+          },
+          30000,
+          1000
+        )
 
-        expect(newHtml === initialHtml).toBe(false)
         expect(newHtml).toMatch(/Post:.*?post-2/)
         expect(newHtml).toMatch(/Comment:.*?comment-2/)
       })
@@ -2076,12 +2140,15 @@ describe('Prerender', () => {
         await waitFor(2 * 1000)
         await renderViaHTTP(next.url, route)
 
-        await check(async () => {
-          newJson = await renderViaHTTP(next.url, route)
-          return newJson !== initialJson ? 'success' : newJson
-        }, 'success')
+        await retry(
+          async () => {
+            newJson = await renderViaHTTP(next.url, route)
+            expect(newJson).not.toBe(initialJson)
+          },
+          30000,
+          1000
+        )
 
-        expect(newJson === initialJson).toBe(false)
         expect(newJson).toMatch(/post-2/)
         expect(newJson).toMatch(/comment-3/)
       })
@@ -2100,12 +2167,15 @@ describe('Prerender', () => {
         await waitFor(2 * 1000)
         await renderViaHTTP(next.url, route)
 
-        await check(async () => {
-          newHtml = await renderViaHTTP(next.url, route)
-          return newHtml !== initialHtml ? 'success' : newHtml
-        }, 'success')
+        await retry(
+          async () => {
+            newHtml = await renderViaHTTP(next.url, route)
+            expect(newHtml).not.toBe(initialHtml)
+          },
+          30000,
+          1000
+        )
 
-        expect(newHtml === initialHtml).toBe(false)
         expect(newHtml).toMatch(/Post:.*?pewpew/)
       })
 
@@ -2123,12 +2193,15 @@ describe('Prerender', () => {
         await waitFor(2 * 1000)
         await renderViaHTTP(next.url, route)
 
-        await check(async () => {
-          newJson = await renderViaHTTP(next.url, route)
-          return newJson !== initialJson ? 'success' : newJson
-        }, 'success')
+        await retry(
+          async () => {
+            newJson = await renderViaHTTP(next.url, route)
+            expect(newJson).not.toBe(initialJson)
+          },
+          30000,
+          1000
+        )
 
-        expect(newJson === initialJson).toBe(false)
         expect(newJson).toMatch(/pewpewdata/)
       })
 
@@ -2148,12 +2221,15 @@ describe('Prerender', () => {
         await waitFor(2 * 1000)
         await renderViaHTTP(next.url, route)
 
-        await check(async () => {
-          newHtml = await renderViaHTTP(next.url, route)
-          return newHtml !== initialHtml ? 'success' : newHtml
-        }, 'success')
+        await retry(
+          async () => {
+            newHtml = await renderViaHTTP(next.url, route)
+            expect(newHtml).not.toBe(initialHtml)
+          },
+          30000,
+          1000
+        )
 
-        expect(newHtml === initialHtml).toBe(false)
         const $new = cheerio.load(newHtml)
         expect($new('p').text()).toBe('Post: a')
       })
@@ -2174,12 +2250,15 @@ describe('Prerender', () => {
         await waitFor(2 * 1000)
         await renderViaHTTP(next.url, route)
 
-        await check(async () => {
-          newJson = await renderViaHTTP(next.url, route)
-          return newJson !== initialJson ? 'success' : newJson
-        }, 'success')
+        await retry(
+          async () => {
+            newJson = await renderViaHTTP(next.url, route)
+            expect(newJson).not.toBe(initialJson)
+          },
+          30000,
+          1000
+        )
 
-        expect(newJson === initialJson).toBe(false)
         expect(JSON.parse(newJson)).toMatchObject({
           pageProps: { params: { slug: 'b' } },
         })

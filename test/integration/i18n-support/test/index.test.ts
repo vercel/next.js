@@ -12,7 +12,7 @@ import {
   fetchViaHTTP,
   File,
   launchApp,
-  check,
+  retry,
 } from 'next-test-utils'
 import assert from 'assert'
 
@@ -231,23 +231,31 @@ describe('i18n Support', () => {
             document.querySelector('#to-gsp-fr').scrollIntoView()
           })()`)
 
-          await check(async () => {
-            const hrefs = await browser.eval(
-              `Object.keys(window.next.router.sdc)`
-            )
-            hrefs.sort()
-
-            const baseURL = await browser.url()
-            assert.deepEqual(
-              hrefs.map((href) =>
-                new URL(href, baseURL).pathname
-                  .replace(ctx.basePath, '')
-                  .replace(/^\/_next\/data\/[^/]+/, '')
-              ),
-              ['/en-US/gsp.json', '/fr.json', '/fr/gsp.json', '/nl-NL/gsp.json']
-            )
-            return 'yes'
-          }, 'yes')
+          await retry(
+            async () => {
+              const hrefs = await browser.eval(
+                `Object.keys(window.next.router.sdc)`
+              )
+              hrefs.sort()
+              const baseURL = await browser.url()
+              assert.deepEqual(
+                hrefs.map((href) =>
+                  new URL(href, baseURL).pathname
+                    .replace(ctx.basePath, '')
+                    .replace(/^\/_next\/data\/[^/]+/, '')
+                ),
+                [
+                  '/en-US/gsp.json',
+                  '/fr.json',
+                  '/fr/gsp.json',
+                  '/nl-NL/gsp.json',
+                ]
+              )
+              expect('yes').toBe('yes')
+            },
+            30000,
+            1000
+          )
         })
 
         it('should have correct locale domain hrefs', async () => {
