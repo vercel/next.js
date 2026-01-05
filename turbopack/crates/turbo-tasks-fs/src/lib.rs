@@ -8,6 +8,7 @@
 // stdlib into our source tree
 #![feature(normalize_lexically)]
 #![feature(trivial_bounds)]
+#![feature(downcast_unchecked)]
 // Junction points are used on Windows. We could use a third-party crate for this if the junction
 // API isn't eventually stabilized.
 #![cfg_attr(windows, feature(junction_point))]
