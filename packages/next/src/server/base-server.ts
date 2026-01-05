@@ -449,6 +449,7 @@ export default abstract class Server<
     // TODO: should conf be normalized to prevent missing
     // values from causing issues as this can be user provided
     this.nextConfig = conf as NextConfigRuntime
+
     let deploymentId
     if (this.nextConfig.experimental.runtimeServerDeploymentId) {
       if (!process.env.NEXT_DEPLOYMENT_ID) {
@@ -462,11 +463,7 @@ export default abstract class Server<
         ? ''
         : this.nextConfig.deploymentId || ''
 
-      if (typeof id === 'string') {
-        deploymentId = id
-      } else {
-        deploymentId = id() as string
-      }
+      deploymentId = typeof id === 'function' ? id() || '' : id
       process.env.NEXT_DEPLOYMENT_ID = deploymentId
     }
 
