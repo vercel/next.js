@@ -1129,12 +1129,6 @@ export interface NextConfig {
    *
    * // Function that generates a unique ID per build
    * deploymentId: () => process.env.GIT_HASH || Date.now().toString()
-   *
-   * // Async function
-   * deploymentId: async () => {
-   *   const res = await fetch('https://api.example.com/id');
-   *   return res.text();
-   * }
    * ```
    */
   deploymentId?: string | (() => string)

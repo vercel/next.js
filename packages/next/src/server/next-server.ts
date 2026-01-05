@@ -725,10 +725,7 @@ export default class NextNodeServer extends BaseServer<
           renderOpts as LoadedRenderOpts<PagesModule>,
           {
             buildId: this.buildId,
-            deploymentId:
-              typeof this.nextConfig.deploymentId === 'string'
-                ? this.nextConfig.deploymentId
-                : undefined,
+            deploymentId: this.renderOpts.deploymentId,
             customServer: this.serverOptions.customServer || undefined,
           },
           {

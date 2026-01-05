@@ -508,7 +508,7 @@ export abstract class RouteModule<
   /** A more lightweight version of `prepare()` for only retrieving the config on edge */
   public getNextConfigEdge(req: NextIncomingMessage): {
     nextConfig: NextConfigRuntime
-    deploymentId: string | (() => string)
+    deploymentId: string
   } {
     if (process.env.NEXT_RUNTIME !== 'edge') {
       throw new Error(
@@ -540,6 +540,9 @@ export abstract class RouteModule<
       deploymentId = process.env.NEXT_DEPLOYMENT_ID
     } else {
       deploymentId = nextConfig.deploymentId || ''
+      if (typeof deploymentId === 'function') {
+        deploymentId = deploymentId() || ''
+      }
     }
 
     return { nextConfig, deploymentId }
@@ -558,7 +561,7 @@ export abstract class RouteModule<
   ): Promise<
     | {
         buildId: string
-        deploymentId: string | (() => string)
+        deploymentId: string
         locale?: string
         locales?: readonly string[]
         defaultLocale?: string
@@ -924,7 +927,7 @@ export abstract class RouteModule<
 
     resolvedPathname = removeTrailingSlash(resolvedPathname)
 
-    let deploymentId = nextConfig.deploymentId || ''
+    let deploymentId: string
     if (nextConfig.experimental?.runtimeServerDeploymentId) {
       if (!process.env.NEXT_DEPLOYMENT_ID) {
         throw new Error(
@@ -932,6 +935,15 @@ export abstract class RouteModule<
         )
       }
       deploymentId = process.env.NEXT_DEPLOYMENT_ID
+    } else {
+      const configDeploymentId = nextConfig.deploymentId
+      if (typeof configDeploymentId === 'function') {
+        deploymentId = configDeploymentId() || ''
+      } else if (typeof configDeploymentId === 'string') {
+        deploymentId = configDeploymentId
+      } else {
+        deploymentId = ''
+      }
     }
 
     return {
@@ -957,7 +969,7 @@ export abstract class RouteModule<
       nextConfig:
         nextConfig satisfies DeepReadonly<NextConfigRuntime> as NextConfigRuntime,
       routerServerContext,
-      deploymentId: deploymentId as string | (() => string),
+      deploymentId: deploymentId,
     }
   }
 

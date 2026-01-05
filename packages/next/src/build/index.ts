@@ -945,10 +945,8 @@ export default async function build(
       // Install the native bindings early so we can have synchronous access later.
       await installBindings(config.experimental?.useWasmBinary)
 
-      // Generate deploymentId - can be a string, function, or auto-generated if not provided
-      const deploymentId = await nextBuildSpan
-        .traceChild('generate-deploymentid')
-        .traceAsyncFn(() => generateDeploymentId(config.deploymentId, nanoid))
+      // Generate deploymentId - can be a string or  function
+      const deploymentId = generateDeploymentId(config.deploymentId) || ''
       process.env.NEXT_DEPLOYMENT_ID = deploymentId
       // Update config with the evaluated deploymentId so it's available as a string throughout the build
       config.deploymentId = deploymentId
