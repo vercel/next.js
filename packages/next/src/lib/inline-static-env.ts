@@ -21,7 +21,9 @@ export async function inlineStaticEnv({
     config,
     typeof config.deploymentId === 'string'
       ? config.deploymentId
-      : config.deploymentId()
+      : typeof config.deploymentId === 'function'
+        ? config.deploymentId()
+        : ''
   )
 
   const serverDir = path.join(distDir, 'server')
