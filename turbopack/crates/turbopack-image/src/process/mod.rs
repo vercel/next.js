@@ -132,12 +132,13 @@ fn load_image(
 /// Type of raw image buffer read by reader from `load_image`.
 /// If the image could not be decoded, the raw bytes are returned.
 enum ImageBuffer {
+    #[allow(unused)]
     Raw(Vec<u8>),
     Decoded(image::DynamicImage),
 }
 
 fn load_image_internal(
-    image: ResolvedVc<Box<dyn Source>>,
+    #[allow(unused_variables)] image: ResolvedVc<Box<dyn Source>>,
     bytes: &[u8],
     extension: &str,
 ) -> Result<(ImageBuffer, Option<ImageFormat>)> {
