@@ -18,27 +18,11 @@ const envSchema = z.object({
     .pipe(z.number().positive()),
 })
 
-let cachedEnv: z.infer<typeof envSchema> | null = null
-
-function getEnv() {
-  if (cachedEnv) {
-    return cachedEnv
-  }
-
-  cachedEnv = envSchema.parse({
+export const env = Object.freeze(
+  envSchema.parse({
     GITHUB_TOKEN: process.env.GITHUB_TOKEN,
     GITHUB_REPO: process.env.GITHUB_REPO,
     SIMILARITY_THRESHOLD: process.env.SIMILARITY_THRESHOLD,
     MAX_DISCUSSIONS_TO_FETCH: process.env.MAX_DISCUSSIONS_TO_FETCH,
   })
-
-  return cachedEnv
-}
-
-export const env = new Proxy({} as z.infer<typeof envSchema>, {
-  get(_target, prop) {
-    return getEnv()[prop as keyof z.infer<typeof envSchema>]
-  },
-})
-
-export type Env = z.infer<typeof envSchema>
+)
