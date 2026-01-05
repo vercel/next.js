@@ -424,7 +424,7 @@ impl TaskPriority {
 
     pub fn in_parent(&self, parent_priority: TaskPriority) -> Self {
         match self {
-            TaskPriority::Initial => Self::Initial,
+            TaskPriority::Initial => parent_priority,
             TaskPriority::Invalidation { priority } => {
                 if let TaskPriority::Invalidation {
                     priority: parent_priority,
