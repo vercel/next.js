@@ -372,6 +372,7 @@ export default abstract class Server<
       generateEtags: boolean
       poweredByHeader: boolean
       cacheControl: CacheControl | undefined
+      cdnCacheControlHeader?: string
     }
   ): Promise<void>
 
@@ -560,6 +561,8 @@ export default abstract class Server<
         dynamicOnHover: this.nextConfig.experimental.dynamicOnHover ?? false,
         inlineCss: this.nextConfig.experimental.inlineCss ?? false,
         authInterrupts: !!this.nextConfig.experimental.authInterrupts,
+        cdnCacheControlHeader:
+          this.nextConfig.experimental.cdnCacheControlHeader,
       },
       onInstrumentationRequestError:
         this.instrumentationOnRequestError.bind(this),
@@ -1762,6 +1765,8 @@ export default abstract class Server<
         generateEtags,
         poweredByHeader,
         cacheControl,
+        cdnCacheControlHeader:
+          this.nextConfig.experimental.cdnCacheControlHeader,
       })
       res.statusCode = originalStatus
     }
