@@ -345,7 +345,6 @@ jobs:
           npm i -g corepack@0.31
           corepack enable
 
-      # [ADD THIS BLOCK] Install Android NDK only if the target is Android
       - name: Setup Android NDK
         if: ${{ matrix.settings.target == 'aarch64-linux-android' }}
         uses: nttld/setup-ndk@v1
