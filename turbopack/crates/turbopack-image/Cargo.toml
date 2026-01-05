@@ -11,8 +11,8 @@ bench = false
 
 [features]
 
-# [NOTE]: Before enable this, ensure this can build all of the target platforms we support.
-avif = ["image/avif"]
+# [NOTE]: Before enabling this, ensure this can build all of the target platforms we support.
+avif = ["image/avif", "image/avif-native"]
 webp = ["image/webp"]
 
 [lints]
