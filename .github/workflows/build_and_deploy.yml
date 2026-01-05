@@ -300,21 +300,12 @@ jobs:
           - host: ubuntu-latest
             target: 'aarch64-linux-android'
             build: |
-              # 1. Setup Environment Variables
               export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER=$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang
               export CARGO_TARGET_AARCH64_LINUX_ANDROID_AR=$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar
-              
-              # 2. Set Rust Flags
               export RUSTFLAGS="--cfg tokio_unstable -Zshare-generics=y -Csymbol-mangling-version=v0 -Clink-arg=--sysroot=$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/sysroot"
-
-              # 3. Install CLI tools
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}"
-              
-              # 4. Build
               cd packages/next-swc
               npm run build-native-release -- --target aarch64-linux-android
-              
-              # 5. Strip the binary
               $ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip native/next-swc.*.node
 
     name: stable - ${{ matrix.settings.target }} - node@16
