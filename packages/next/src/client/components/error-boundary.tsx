@@ -6,6 +6,7 @@ import { isNextRouterError } from './is-next-router-error'
 import { handleHardNavError } from './nav-failure-handler'
 import { HandleISRError } from './handle-isr-error'
 import { isBot } from '../../shared/lib/router/utils/is-bot'
+import { getIsPageUnloading } from './router-reducer/fetch-server-response'
 
 const isBotUserAgent =
   typeof window !== 'undefined' && isBot(window.navigator.userAgent)
@@ -97,9 +98,11 @@ export class ErrorBoundaryHandler extends React.Component<
 
   // Explicit type is needed to avoid the generated `.d.ts` having a wide return type that could be specific to the `@types/react` version.
   render(): React.ReactNode {
-    //When it's bot request, segment level error boundary will keep rendering the children,
+    // When it's bot request, segment level error boundary will keep rendering the children,
     // the final error will be caught by the root error boundary and determine wether need to apply graceful degrade.
-    if (this.state.error && !isBotUserAgent) {
+    // Also suppress error rendering when the page is unloading (e.g., during manual refresh)
+    // to prevent a brief flash of the error boundary before the page reloads.
+    if (this.state.error && !isBotUserAgent && !getIsPageUnloading()) {
       return (
         <>
           <HandleISRError error={this.state.error} />
