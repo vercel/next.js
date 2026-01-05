@@ -160,7 +160,14 @@ function addRevalidationHeader(
   // TODO-APP: Currently paths are treated as tags, so the second element of the tuple
   // is always empty.
 
-  const isTagRevalidated = workStore.pendingRevalidatedTags?.length ? 1 : 0
+  // Only count tags without a profile (updateTag) as requiring client cache invalidation
+  // Tags with a profile (revalidateTag) use stale-while-revalidate and shouldn't
+  // trigger immediate client-side cache invalidation
+  const isTagRevalidated = workStore.pendingRevalidatedTags?.some(
+    (item) => item.profile === undefined
+  )
+    ? 1
+    : 0
   const isCookieRevalidated = getModifiedCookieValues(
     requestStore.mutableCookies
   ).length

@@ -13,6 +13,7 @@ const glob = promisify(_glob)
 const exec = promisify(execOrig)
 const core = require('@actions/core')
 const { getTestFilter } = require('./test/get-test-filter')
+const { checkBuildFreshness } = require('./test/lib/check-build-freshness')
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
@@ -218,6 +219,9 @@ async function getTestTimings() {
 async function main() {
   // Ensure we have the arguments awaited from yargs.
   argv = await argv
+
+  // Check for stale or missing build
+  await checkBuildFreshness()
 
   // `.github/workflows/build_reusable.yml` sets this, we should use it unless
   // it's overridden by an explicit `--concurrency` argument.
