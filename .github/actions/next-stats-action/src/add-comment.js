@@ -238,14 +238,17 @@ function formatChange(mainVal, diffVal, type = 'bytes') {
   const percentChange = mainVal > 0 ? (diff / mainVal) * 100 : 0
 
   // Thresholds: filter CI noise while catching real regressions
-  // For time: <50ms AND <10% = not worth mentioning (with 9 iterations for stable median)
+  // For time:
+  //   - (<50ms AND <10%) = insignificant for short ops (dev boot ~300ms)
+  //   - OR <2% = insignificant for long ops (builds ~13s where 70ms is noise)
   // For size: <1KB AND <1% = not worth mentioning
   // If mainVal is 0 and diff is non-zero, always consider it significant
   const isInsignificant =
     mainVal === 0 && diff !== 0
       ? false
       : type === 'ms'
-        ? Math.abs(diff) < 50 && Math.abs(percentChange) < 10
+        ? (Math.abs(diff) < 50 && Math.abs(percentChange) < 10) ||
+          Math.abs(percentChange) < 2
         : Math.abs(diff) < 1024 && Math.abs(percentChange) < 1
 
   if (isInsignificant) {
@@ -450,7 +453,7 @@ function generateGlossary() {
 - **Cached** = With existing .next directory
 
 **Change Thresholds:**
-- Time: Changes < 50ms AND < 10% are insignificant
+- Time: Changes < 50ms AND < 10%, OR < 2% are insignificant
 - Size: Changes < 1KB AND < 1% are insignificant
 - All other changes are flagged to catch regressions
 
