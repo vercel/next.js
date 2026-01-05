@@ -10,6 +10,8 @@ import {
   generateRouteTypesFile,
   generateLinkTypesFile,
   generateValidatorFile,
+  generateValidatorFileStrict,
+  generateRouteTypesFileStrict,
 } from './typegen'
 import { tryToParsePath } from '../../../lib/try-to-parse-path'
 import {
@@ -361,7 +363,12 @@ export async function writeRouteTypesManifest(
   }
 
   // Write the main routes.d.ts file
-  await fs.promises.writeFile(filePath, generateRouteTypesFile(manifest))
+  await fs.promises.writeFile(
+    filePath,
+    config.experimental.strictRouteTypes
+      ? generateRouteTypesFileStrict(manifest)
+      : generateRouteTypesFile(manifest)
+  )
 
   // Write the link.d.ts file if typedRoutes is enabled
   if (config.typedRoutes === true) {
@@ -372,7 +379,8 @@ export async function writeRouteTypesManifest(
 
 export async function writeValidatorFile(
   manifest: RouteTypesManifest,
-  filePath: string
+  filePath: string,
+  strict: boolean
 ) {
   const dirname = path.dirname(filePath)
 
@@ -380,5 +388,35 @@ export async function writeValidatorFile(
     await fs.promises.mkdir(dirname, { recursive: true })
   }
 
-  await fs.promises.writeFile(filePath, generateValidatorFile(manifest))
+  await fs.promises.writeFile(
+    filePath,
+    strict
+      ? generateValidatorFileStrict(manifest)
+      : generateValidatorFile(manifest)
+  )
+}
+
+/**
+ * Writes a proxy routes.d.ts file at the stable path that re-exports from
+ * the actual dev types location. This allows next-env.d.ts to always reference
+ * the same stable path regardless of dev/build mode.
+ *
+ * @param stableTypesDir - The stable types directory (e.g., .next/types)
+ * @param devTypesRelativePath - Relative path from stable dir to dev types (e.g., ../dev/types/routes.d.ts)
+ */
+export async function writeRouteTypesProxy(
+  stableTypesDir: string,
+  devTypesRelativePath: string
+) {
+  if (!fs.existsSync(stableTypesDir)) {
+    await fs.promises.mkdir(stableTypesDir, { recursive: true })
+  }
+
+  const proxyFilePath = path.join(stableTypesDir, 'routes.d.ts')
+  const proxyContent = `// This file re-exports route types from the dev types location.
+// This provides a stable import path for next-env.d.ts across dev/build modes.
+export * from '${devTypesRelativePath}';
+`
+
+  await fs.promises.writeFile(proxyFilePath, proxyContent)
 }

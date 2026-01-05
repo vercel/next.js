@@ -41,9 +41,8 @@ describe('chunk-load-failure', () => {
 
     await retry(async () => {
       const body = await browser.elementByCss('body')
-      expect(await body.text()).toMatch(
-        /Application error: a client-side exception has occurred while loading/
-      )
+      // Client errors show "This page crashed"
+      expect(await body.text()).toMatch(/This page crashed/)
     })
 
     expect(pageError).toBeDefined()

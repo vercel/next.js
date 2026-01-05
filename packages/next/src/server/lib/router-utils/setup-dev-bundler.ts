@@ -10,7 +10,6 @@ import type { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
 import { createDefineEnv } from '../../../build/swc'
 import { installBindings } from '../../../build/swc/install-bindings'
 import fs from 'fs'
-import url from 'url'
 import path from 'path'
 import qs from 'querystring'
 import Watchpack from 'next/dist/compiled/watchpack'
@@ -81,10 +80,12 @@ import {
   MIDDLEWARE_FILENAME,
   PROXY_FILENAME,
 } from '../../../lib/constants'
+import { parseUrl } from '../../../lib/url'
 import {
   createRouteTypesManifest,
   writeRouteTypesManifest,
   writeValidatorFile,
+  writeRouteTypesProxy,
 } from './route-types-utils'
 import { writeCacheLifeTypes } from './cache-life-type-utils'
 import { isParallelRouteSegment } from '../../../shared/lib/segment'
@@ -143,6 +144,7 @@ async function verifyTypeScript(opts: SetupOpts) {
   const verifyResult = await verifyTypeScriptSetup({
     dir: opts.dir,
     distDir: opts.nextConfig.distDir,
+    distDirRoot: opts.nextConfig.distDirRoot,
     typeCheckPreflight: false,
     tsconfigPath: opts.nextConfig.typescript.tsconfigPath,
     disableStaticImages: opts.nextConfig.images.disableStaticImages,
@@ -265,6 +267,17 @@ async function startWatcher(
     path.join(distTypesDir, 'routes.d.ts'),
     opts.nextConfig
   )
+
+  // When isolatedDevBuild is enabled, write a proxy file at the stable path
+  // that re-exports from the dev types location
+  if (opts.nextConfig.experimental.isolatedDevBuild) {
+    const stableTypesDir = path.join(
+      opts.dir,
+      opts.nextConfig.distDirRoot,
+      'types'
+    )
+    await writeRouteTypesProxy(stableTypesDir, '../dev/types/routes.d.ts')
+  }
 
   const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
   const routesManifest: DevRoutesManifest = {
@@ -1179,7 +1192,11 @@ async function startWatcher(
             routeTypesFilePath,
             opts.nextConfig
           )
-          await writeValidatorFile(routeTypesManifest, validatorFilePath)
+          await writeValidatorFile(
+            routeTypesManifest,
+            validatorFilePath,
+            Boolean(nextConfig.experimental.strictRouteTypes)
+          )
 
           // Generate cache-life types if cacheLife config exists
           const cacheLifeFilePath = path.join(distTypesDir, 'cache-life.d.ts')
@@ -1213,9 +1230,10 @@ async function startWatcher(
   opts.fsChecker.devVirtualFsItems.add(devTurbopackMiddlewareManifestPath)
 
   async function requestHandler(req: IncomingMessage, res: ServerResponse) {
-    const parsedUrl = url.parse(req.url || '/')
+    const parsedUrl = parseUrl(req.url || '/')
+    const pathname = parsedUrl !== undefined ? parsedUrl.pathname : null
 
-    if (parsedUrl.pathname?.includes(clientPagesManifestPath)) {
+    if (pathname !== null && pathname.includes(clientPagesManifestPath)) {
       res.statusCode = 200
       res.setHeader('Content-Type', JSON_CONTENT_TYPE_HEADER)
       res.end(
@@ -1229,8 +1247,9 @@ async function startWatcher(
     }
 
     if (
-      parsedUrl.pathname?.includes(devMiddlewareManifestPath) ||
-      parsedUrl.pathname?.includes(devTurbopackMiddlewareManifestPath)
+      pathname !== null &&
+      (pathname.includes(devMiddlewareManifestPath) ||
+        pathname.includes(devTurbopackMiddlewareManifestPath))
     ) {
       res.statusCode = 200
       res.setHeader('Content-Type', JSON_CONTENT_TYPE_HEADER)

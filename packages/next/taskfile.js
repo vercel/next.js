@@ -2684,6 +2684,16 @@ export async function build(task, opts) {
     ['precompile', 'compile', 'check_error_codes', 'generate_types'],
     opts
   )
+  // Write git commit hash to dist for stale build detection during tests
+  try {
+    const { stdout: commitHash } = await execa('git', ['rev-parse', 'HEAD'])
+    await fs.writeFile(
+      join(__dirname, 'dist', '.build-commit'),
+      commitHash.trim()
+    )
+  } catch (err) {
+    console.warn(`Warning: Could not write build commit hash: ${err.message}`)
+  }
 }
 
 export async function generate_types(task, opts) {

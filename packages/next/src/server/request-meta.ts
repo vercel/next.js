@@ -1,6 +1,5 @@
 import type { IncomingMessage } from 'http'
 import type { ParsedUrlQuery } from 'querystring'
-import type { UrlWithParsedQuery } from 'url'
 import type { BaseNextRequest } from './base-http'
 import type { CloneableBody } from './body-streams'
 import type { RouteMatch } from './route-matches/route-match'
@@ -357,6 +356,26 @@ type NextQueryMetadata = {
 
 export type NextParsedUrlQuery = ParsedUrlQuery & NextQueryMetadata
 
-export interface NextUrlWithParsedQuery extends UrlWithParsedQuery {
+/**
+ * subset of `url.parse` return value
+ */
+interface LegacyUrl {
+  auth?: string | null
+  hash: string | null
+  hostname: string | null
+  href: string
+  pathname: string | null
+  protocol: string | null
+  search: string | null
+  slashes: boolean | null
+  port: string | null
+  query: string | null | ParsedUrlQuery
+}
+interface LegacyUrlWithParsedQuery extends LegacyUrl {
+  query: ParsedUrlQuery
+}
+
+// TODO: Remove in favor of WHATWG URLs
+export interface NextUrlWithParsedQuery extends LegacyUrlWithParsedQuery {
   query: NextParsedUrlQuery
 }
