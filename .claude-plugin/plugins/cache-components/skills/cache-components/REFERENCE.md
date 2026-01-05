@@ -101,7 +101,7 @@ interface CacheLifeOptions {
 
 | Parameter    | Description                                             | Constraint            |
 | ------------ | ------------------------------------------------------- | --------------------- |
-| `stale`      | How long the client can cache without server validation | `stale ≤ revalidate`  |
+| `stale`      | How long the client can cache without server validation | None                  |
 | `revalidate` | When to start background refresh                        | `revalidate ≤ expire` |
 | `expire`     | Absolute expiration; deopts to dynamic if exceeded      | Must be largest       |
 
