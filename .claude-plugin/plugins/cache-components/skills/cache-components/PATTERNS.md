@@ -127,7 +127,7 @@ async function PostsList() {
 }
 
 // actions/posts.ts
-;('use server')
+'use server'
 import { updateTag } from 'next/cache'
 
 export async function createPost(formData: FormData) {
@@ -145,7 +145,7 @@ export async function createPost(formData: FormData) {
 }
 
 // components/create-post-form.tsx
-;('use client')
+'use client'
 import { createPost } from '@/actions/posts'
 import { useActionState } from 'react'
 
@@ -198,7 +198,7 @@ async function AuthorPosts({ authorId }: { authorId: string }) {
 }
 
 // Server actions with targeted invalidation
-;('use server')
+'use server'
 import { updateTag } from 'next/cache'
 
 export async function updatePost(postId: string, data: FormData) {
@@ -519,7 +519,7 @@ async function DashboardLoader() {
 }
 
 // Tenant-specific invalidation
-;('use server')
+'use server'
 import { updateTag } from 'next/cache'
 
 export async function updateTenantSettings(data: FormData) {

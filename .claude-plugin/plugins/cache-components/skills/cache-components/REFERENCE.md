@@ -956,7 +956,7 @@ export default async function BlogPost({
 }
 
 // actions/posts.ts
-;('use server')
+'use server'
 import { updateTag } from 'next/cache'
 
 export async function publishPost(slug: string) {
