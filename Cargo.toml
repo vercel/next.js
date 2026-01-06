@@ -288,7 +288,7 @@ debug = true
 next-api = { path = "crates/next-api" }
 next-build = { path = "crates/next-build" }
 next-core = { path = "crates/next-core" }
-next-custom-transforms = { path = "crates/next-custom-transforms" }
+next-custom-transforms = { path = "crates/next-custom-transforms", default-features = false }
 next-taskless = { path = "crates/next-taskless" }
 
 # Turbopack

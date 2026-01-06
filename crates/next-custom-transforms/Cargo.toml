@@ -5,6 +5,8 @@ version = "0.0.0"
 publish = false
 
 [features]
+default = ["plugin"]
+# [NOTE]: Be careful to explicitly enable this only for the supported platform / targets.
 plugin = [
   "swc_core/plugin_transform_host_native",
   "turbopack-ecmascript-plugins/swc_ecma_transform_plugin",
