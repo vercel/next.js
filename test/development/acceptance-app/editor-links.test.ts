@@ -1,4 +1,4 @@
-import { check, retry } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import type { Playwright } from 'next-webdriver'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
@@ -88,7 +88,13 @@ describe('Error overlay - editor links', () => {
 
     await session.waitForRedbox()
     await clickSourceFile(browser)
-    await check(() => editorRequestsCount, /1/)
+    await retry(
+      () => {
+        expect(editorRequestsCount).toBe(1)
+      },
+      30000,
+      1000
+    )
   })
   ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
     'opening links in import traces',
@@ -131,7 +137,13 @@ describe('Error overlay - editor links', () => {
 
         await session.waitForRedbox()
         await clickImportTraceFiles(browser)
-        await check(() => editorRequestsCount, /4/)
+        await retry(
+          () => {
+            expect(editorRequestsCount).toBe(4)
+          },
+          30000,
+          1000
+        )
       })
 
       it('should be possible to open import trace files on module not found error', async () => {
@@ -172,7 +184,13 @@ describe('Error overlay - editor links', () => {
 
         await session.waitForRedbox()
         await clickImportTraceFiles(browser)
-        await check(() => editorRequestsCount, /3/)
+        await retry(
+          () => {
+            expect(editorRequestsCount).toBe(3)
+          },
+          30000,
+          1000
+        )
       })
     }
   )

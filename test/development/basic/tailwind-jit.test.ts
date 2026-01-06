@@ -1,7 +1,7 @@
 import { join } from 'path'
 import webdriver, { Playwright } from 'next-webdriver'
 import { FileRef, nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 // [TODO]: It is unclear why turbopack takes longer to run this test
 // remove once it's fixed
@@ -49,9 +49,14 @@ describe('TailwindCSS JIT', () => {
       // change the content
       try {
         await next.patchFile(aboutPagePath, editedContent)
-        await check(
-          () => browser.elementByCss('#test-link').getComputedCss('color'),
-          /rgb\(220, 38, 38\)/
+        await retry(
+          async () => {
+            expect(
+              await browser.elementByCss('#test-link').getComputedCss('color')
+            ).toMatch(/rgb\(220, 38, 38\)/)
+          },
+          30000,
+          1000
         )
         expect(await browser.eval('window.REAL_HMR')).toBe(1)
       } finally {

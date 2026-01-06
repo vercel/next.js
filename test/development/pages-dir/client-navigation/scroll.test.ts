@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 
@@ -97,9 +97,13 @@ describe('Client navigation scroll', () => {
     expect(scrollPosition).toBeGreaterThan(3000)
 
     await browser.elementByCss('#increaseWithScroll').click()
-    await check(async () => {
-      const newScrollPosition = await browser.eval('window.pageYOffset')
-      return newScrollPosition === 0 ? 'success' : 'fail'
-    }, 'success')
+    await retry(
+      async () => {
+        const newScrollPosition = await browser.eval('window.pageYOffset')
+        expect(newScrollPosition).toBe(0)
+      },
+      30000,
+      1000
+    )
   })
 })

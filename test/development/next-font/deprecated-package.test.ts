@@ -1,6 +1,6 @@
 /* eslint-env jest */
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('Deprecated @next/font warning', () => {
   const { next, skipped } = nextTestSetup({
@@ -16,10 +16,21 @@ describe('Deprecated @next/font warning', () => {
 
   it('should warn if @next/font is in deps', async () => {
     await next.start()
-    await check(() => next.cliOutput, /ready/i)
-    await check(
-      () => next.cliOutput,
-      new RegExp('please use the built-in `next/font` instead')
+    await retry(
+      () => {
+        expect(next.cliOutput).toMatch(/ready/i)
+      },
+      30000,
+      1000
+    )
+    await retry(
+      () => {
+        expect(next.cliOutput).toMatch(
+          new RegExp('please use the built-in `next/font` instead')
+        )
+      },
+      30000,
+      1000
     )
 
     await next.stop()
@@ -33,7 +44,13 @@ describe('Deprecated @next/font warning', () => {
     await next.patchFile('package.json', JSON.stringify(packageJson))
 
     await next.start()
-    await check(() => next.cliOutput, /ready/i)
+    await retry(
+      () => {
+        expect(next.cliOutput).toMatch(/ready/i)
+      },
+      30000,
+      1000
+    )
     expect(next.cliOutput).not.toInclude(
       'please use the built-in `next/font` instead'
     )

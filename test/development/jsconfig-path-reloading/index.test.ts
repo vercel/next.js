@@ -3,9 +3,9 @@ import { NextInstance } from 'e2e-utils'
 import {
   waitForRedbox,
   waitForNoRedbox,
-  check,
   renderViaHTTP,
   getRedboxSource,
+  retry,
 } from 'next-test-utils'
 import cheerio from 'cheerio'
 import { join } from 'path'
@@ -113,13 +113,23 @@ describe('jsconfig-path-reloading', () => {
       } finally {
         await next.patchFile(indexPage, indexContent)
         await next.patchFile(tsConfigFile, tsconfigContent)
-        await check(async () => {
-          const html3 = await browser.eval('document.documentElement.innerHTML')
-          return html3.includes('id="first-data"') &&
-            !html3.includes('second-data')
-            ? 'success'
-            : html3
-        }, 'success')
+        await retry(
+          async () => {
+            const html3 = await browser.eval(
+              'document.documentElement.innerHTML'
+            )
+            if (
+              !html3.includes('id="first-data"') ||
+              html3.includes('second-data')
+            ) {
+              throw new Error(
+                'Expected html to contain first-data but not second-data'
+              )
+            }
+          },
+          30000,
+          1000
+        )
       }
     })
 
@@ -160,24 +170,39 @@ describe('jsconfig-path-reloading', () => {
 
         await waitForNoRedbox(browser)
 
-        await check(async () => {
-          const html2 = await browser.eval('document.documentElement.innerHTML')
-          expect(html2).toContain('first button')
-          expect(html2).not.toContain('second button')
-          expect(html2).toContain('third button')
-          expect(html2).toContain('first-data')
-          return 'success'
-        }, 'success')
+        await retry(
+          async () => {
+            const html2 = await browser.eval(
+              'document.documentElement.innerHTML'
+            )
+            expect(html2).toContain('first button')
+            expect(html2).not.toContain('second button')
+            expect(html2).toContain('third button')
+            expect(html2).toContain('first-data')
+          },
+          30000,
+          1000
+        )
       } finally {
         await next.patchFile(indexPage, indexContent)
         await next.patchFile(tsConfigFile, tsconfigContent)
-        await check(async () => {
-          const html3 = await browser.eval('document.documentElement.innerHTML')
-          return html3.includes('first button') &&
-            !html3.includes('third button')
-            ? 'success'
-            : html3
-        }, 'success')
+        await retry(
+          async () => {
+            const html3 = await browser.eval(
+              'document.documentElement.innerHTML'
+            )
+            if (
+              !html3.includes('first button') ||
+              html3.includes('third button')
+            ) {
+              throw new Error(
+                'Expected html to contain first button but not third button'
+              )
+            }
+          },
+          30000,
+          1000
+        )
       }
     })
   }
