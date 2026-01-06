@@ -27,8 +27,8 @@ use smallvec::{SmallVec, smallvec};
 use tokio::time::{Duration, Instant};
 use tracing::{Span, trace_span};
 use turbo_tasks::{
-    CellId, FxDashMap, FxIndexMap, KeyValuePair, RawVc, ReadCellOptions, ReadConsistency,
-    ReadOutputOptions, ReadTracking, TRANSIENT_TASK_BIT, TaskExecutionReason, TaskId, TraitTypeId,
+    CellId, FxDashMap, FxIndexMap, RawVc, ReadCellOptions, ReadConsistency, ReadOutputOptions,
+    ReadTracking, TRANSIENT_TASK_BIT, TaskExecutionReason, TaskId, TraitTypeId,
     TurboTasksBackendApi, ValueTypeId,
     backend::{
         Backend, CachedTaskType, CellContent, TaskExecutionSpec, TransientTaskRoot,
@@ -1011,76 +1011,72 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let snapshot_time = Instant::now();
         drop(snapshot_request);
 
+        // Preprocess result: either a shared snapshot (for both meta+data) or separate snapshots
+        enum PreprocessResult {
+            None,
+            MetaOnly(storage_schema::TypedStorage),
+            DataOnly(storage_schema::TypedStorage),
+            Both(storage_schema::TypedStorage),
+        }
         let preprocess = |task_id: TaskId, inner: &storage::InnerStorage| {
             if task_id.is_transient() {
-                return (None, None);
+                return PreprocessResult::None;
             }
-            let len = inner.len();
 
             let meta_restored = inner.flags().meta_restored();
             let data_restored = inner.flags().data_restored();
 
-            let mut meta = meta_restored.then(|| Vec::with_capacity(len));
-            let mut data = data_restored.then(|| Vec::with_capacity(len));
-            for (key, value) in inner.iter_all() {
-                if key.is_persistent() && value.is_persistent() {
-                    match key.category() {
-                        TaskDataCategory::Meta => {
-                            if let Some(meta) = &mut meta {
-                                meta.push(CachedDataItem::from_key_and_value_ref(key, value))
-                            }
-                        }
-                        TaskDataCategory::Data => {
-                            if let Some(data) = &mut data {
-                                data.push(CachedDataItem::from_key_and_value_ref(key, value))
-                            }
-                        }
-                        _ => {}
-                    }
+            match (meta_restored, data_restored) {
+                (true, true) => {
+                    // Both need snapshot - clone all persistent fields (skips transient)
+                    PreprocessResult::Both(inner.typed().clone_snapshot())
                 }
+                (true, false) => {
+                    // Only meta needs snapshot
+                    PreprocessResult::MetaOnly(inner.typed().clone_meta_snapshot())
+                }
+                (false, true) => {
+                    // Only data needs snapshot
+                    PreprocessResult::DataOnly(inner.typed().clone_data_snapshot())
+                }
+                (false, false) => PreprocessResult::None,
             }
-
-            (meta, data)
         };
-        let process = |task_id: TaskId, (meta, data): (Option<Vec<_>>, Option<Vec<_>>)| {
+        let process = |task_id: TaskId, result: PreprocessResult| {
             // TODO: perf: Instead of returning a `Vec` of individually allocated `SmallVec`s, it'd
             // be better to append everything to a flat per-task or per-shard `Vec<u8>`, and have
             // each `serialize` call return `(start_idx, end_idx)`.
-            (
-                task_id,
-                meta.map(|d| self.backing_storage.serialize(task_id, &d)),
-                data.map(|d| self.backing_storage.serialize(task_id, &d)),
-            )
+            match result {
+                PreprocessResult::None => (task_id, None, None),
+                PreprocessResult::MetaOnly(snapshot) => (
+                    task_id,
+                    Some(self.backing_storage.serialize_typed_meta(&snapshot)),
+                    None,
+                ),
+                PreprocessResult::DataOnly(snapshot) => (
+                    task_id,
+                    None,
+                    Some(self.backing_storage.serialize_typed_data(&snapshot)),
+                ),
+                PreprocessResult::Both(snapshot) => (
+                    task_id,
+                    Some(self.backing_storage.serialize_typed_meta(&snapshot)),
+                    Some(self.backing_storage.serialize_typed_data(&snapshot)),
+                ),
+            }
         };
         let process_snapshot = |task_id: TaskId, inner: Box<InnerStorageSnapshot>| {
             if task_id.is_transient() {
                 return (task_id, None, None);
             }
-            let len = inner.len();
-            let mut meta = inner.meta_modified.then(|| Vec::with_capacity(len));
-            let mut data = inner.data_modified.then(|| Vec::with_capacity(len));
-            for (key, value) in inner.iter_all() {
-                if key.is_persistent() && value.is_persistent() {
-                    match key.category() {
-                        TaskDataCategory::Meta => {
-                            if let Some(meta) = &mut meta {
-                                meta.push(CachedDataItem::from_key_and_value_ref(key, value));
-                            }
-                        }
-                        TaskDataCategory::Data => {
-                            if let Some(data) = &mut data {
-                                data.push(CachedDataItem::from_key_and_value_ref(key, value));
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-            }
-            (
-                task_id,
-                meta.map(|meta| self.backing_storage.serialize(task_id, &meta)),
-                data.map(|data| self.backing_storage.serialize(task_id, &data)),
-            )
+            // Use typed serialization directly - no intermediate Vec<CachedDataItem>
+            let meta = inner
+                .meta_modified
+                .then(|| self.backing_storage.serialize_typed_meta(&inner.typed));
+            let data = inner
+                .data_modified
+                .then(|| self.backing_storage.serialize_typed_data(&inner.typed));
+            (task_id, meta, data)
         };
 
         let snapshot = self
@@ -3499,4 +3495,3 @@ fn far_future() -> Instant {
     // 1000 years overflows on macOS, 100 years overflows on FreeBSD.
     Instant::now() + Duration::from_secs(86400 * 365 * 30)
 }
-mod task_storage_design;

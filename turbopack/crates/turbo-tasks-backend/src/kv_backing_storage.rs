@@ -18,9 +18,8 @@ use turbo_tasks::{
 
 use crate::{
     GitVersionInfo,
-    backend::{AnyOperation, TaskDataCategory},
+    backend::{AnyOperation, storage_schema::TypedStorage},
     backing_storage::{BackingStorage, BackingStorageSealed},
-    data::CachedDataItem,
     database::{
         db_invalidation::{StartupCacheState, check_db_invalidation_and_cleanup, invalidate_db},
         db_versioning::handle_db_versioning,
@@ -248,10 +247,6 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
             Ok(operations)
         }
         get(&self.inner.database).context("Unable to read uncompleted operations from database")
-    }
-
-    fn serialize(&self, task: TaskId, data: &Vec<CachedDataItem>) -> Result<TurboBincodeBuffer> {
-        encode_task_data(task, data)
     }
 
     fn save_snapshot<I>(
@@ -508,37 +503,62 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
             .with_context(|| format!("Looking up task type for {task_id} from database failed"))
     }
 
-    unsafe fn lookup_data(
+    unsafe fn lookup_typed_meta(
         &self,
         tx: Option<&T::ReadTransaction<'_>>,
         task_id: TaskId,
-        category: TaskDataCategory,
-    ) -> Result<Vec<CachedDataItem>> {
+        storage: &mut TypedStorage,
+    ) -> Result<()> {
         let inner = &*self.inner;
         fn lookup<D: KeyValueDatabase>(
             database: &D,
             tx: &D::ReadTransaction<'_>,
             task_id: TaskId,
-            category: TaskDataCategory,
-        ) -> Result<Vec<CachedDataItem>> {
-            let Some(bytes) = database.get(
-                tx,
-                match category {
-                    TaskDataCategory::Meta => KeySpace::TaskMeta,
-                    TaskDataCategory::Data => KeySpace::TaskData,
-                    TaskDataCategory::All => unreachable!(),
-                },
-                IntKey::new(*task_id).as_ref(),
-            )?
+            storage: &mut TypedStorage,
+        ) -> Result<()> {
+            let Some(bytes) =
+                database.get(tx, KeySpace::TaskMeta, IntKey::new(*task_id).as_ref())?
             else {
-                return Ok(Vec::new());
+                return Ok(());
             };
-            let result: Vec<CachedDataItem> = turbo_bincode_decode(bytes.borrow())?;
-            Ok(result)
+            let mut decoder = turbo_bincode::new_turbo_bincode_decoder(bytes.borrow());
+            storage
+                .decode_meta(&mut decoder)
+                .map_err(|e| anyhow::anyhow!("Failed to decode meta: {e:?}"))?;
+            Ok(())
         }
         inner
-            .with_tx(tx, |tx| lookup(&inner.database, tx, task_id, category))
-            .with_context(|| format!("Looking up data for {task_id} from database failed"))
+            .with_tx(tx, |tx| lookup(&inner.database, tx, task_id, storage))
+            .with_context(|| format!("Looking up typed meta for {task_id} from database failed"))
+    }
+
+    unsafe fn lookup_typed_data(
+        &self,
+        tx: Option<&T::ReadTransaction<'_>>,
+        task_id: TaskId,
+        storage: &mut TypedStorage,
+    ) -> Result<()> {
+        let inner = &*self.inner;
+        fn lookup<D: KeyValueDatabase>(
+            database: &D,
+            tx: &D::ReadTransaction<'_>,
+            task_id: TaskId,
+            storage: &mut TypedStorage,
+        ) -> Result<()> {
+            let Some(bytes) =
+                database.get(tx, KeySpace::TaskData, IntKey::new(*task_id).as_ref())?
+            else {
+                return Ok(());
+            };
+            let mut decoder = turbo_bincode::new_turbo_bincode_decoder(bytes.borrow());
+            storage
+                .decode_data(&mut decoder)
+                .map_err(|e| anyhow::anyhow!("Failed to decode data: {e:?}"))?;
+            Ok(())
+        }
+        inner
+            .with_tx(tx, |tx| lookup(&inner.database, tx, task_id, storage))
+            .with_context(|| format!("Looking up typed data for {task_id} from database failed"))
     }
 
     fn shutdown(&self) -> Result<()> {
@@ -719,49 +739,4 @@ where
 
         Ok(result)
     })
-}
-
-fn encode_task_data(task: TaskId, data: &Vec<CachedDataItem>) -> Result<TurboBincodeBuffer> {
-    let orig_result = turbo_bincode_encode(data);
-    if !cfg!(feature = "verify_serialization")
-        && let Ok(value) = orig_result
-    {
-        return Ok(value);
-    }
-
-    let mut error = Ok(());
-    let mut filtered_data = data.clone();
-    filtered_data.retain(|item| match turbo_bincode_encode(&item) {
-        Ok(buf) => {
-            if cfg!(feature = "verify_serialization") {
-                let deserialized = turbo_bincode_decode::<CachedDataItem>(&buf);
-                if let Err(err) = deserialized {
-                    println!("Data item would not be deserializable {task}: {err:?}\n{item:?}");
-                    return false;
-                }
-            }
-            true
-        }
-        Err(err) => {
-            if item.is_optional() {
-                if cfg!(feature = "verify_serialization") {
-                    println!(
-                        "Skipping non-encodable optional item for {task}: {item:?} due to {err}"
-                    );
-                }
-            } else {
-                error =
-                    Err(err).context(format!("Unable to encode data item for {task}: {item:?}"));
-            }
-            false
-        }
-    });
-    error?;
-
-    (if filtered_data.len() == data.len() {
-        orig_result
-    } else {
-        turbo_bincode_encode(&filtered_data)
-    })
-    .with_context(|| format!("Unable to serialize data items for {task}: {filtered_data:#?}"))
 }

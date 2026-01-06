@@ -112,19 +112,6 @@ impl From<&InnerStorage> for InnerStorageSnapshot {
     }
 }
 
-impl InnerStorageSnapshot {
-    pub fn iter_all(
-        &self,
-    ) -> impl Iterator<Item = (CachedDataItemKey, CachedDataItemValueRef<'_>)> {
-        // All CachedDataItem variants are now in typed storage
-        self.typed.iter_all()
-    }
-
-    pub fn len(&self) -> usize {
-        self.typed.len()
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct InnerStorage {
     // Typed storage - all CachedDataItem variants are now migrated
@@ -2847,19 +2834,6 @@ impl InnerStorage {
         let was_new = !map.contains_key(&cell);
         map.insert(cell, value);
         was_new
-    }
-}
-
-impl InnerStorage {
-    pub fn iter_all(
-        &self,
-    ) -> impl Iterator<Item = (CachedDataItemKey, CachedDataItemValueRef<'_>)> {
-        // All CachedDataItem variants are now in typed storage
-        self.typed.iter_all()
-    }
-
-    pub fn len(&self) -> usize {
-        self.typed.len()
     }
 }
 

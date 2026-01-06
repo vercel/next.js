@@ -284,6 +284,9 @@ fn generate_task_storage_impl(_ident: &Ident, grouped_fields: &GroupedFields) ->
     // Generate encode/decode methods for serialization
     let encode_decode_methods = generate_encode_decode_methods(grouped_fields);
 
+    // Generate snapshot clone and merge methods
+    let snapshot_merge_methods = generate_snapshot_merge_methods(grouped_fields);
+
     let expanded = quote! {
         // Generated TaskFlags bitfield
         #task_flags_bitfield
@@ -299,6 +302,9 @@ fn generate_task_storage_impl(_ident: &Ident, grouped_fields: &GroupedFields) ->
 
         // Generated encode/decode methods
         #encode_decode_methods
+
+        // Generated snapshot clone and merge methods
+        #snapshot_merge_methods
 
         // Generated TaskStorageAccessors trait
         #accessors_trait
@@ -1378,6 +1384,380 @@ fn generate_decode_lazy_fields(fields: &[&StorageFieldAttributes]) -> proc_macro
                 }
             };
             self.lazy.push(field);
+        }
+    }
+}
+
+/// Generate snapshot clone and merge methods for TypedStorage.
+///
+/// Generates:
+/// - `clone_meta_snapshot(&self) -> TypedStorage` - Clone only persistent meta fields
+/// - `clone_data_snapshot(&self) -> TypedStorage` - Clone only persistent data fields
+/// - `merge_from_restored(&mut self, source, category)` - Merge restored data by category
+/// - `merge_meta_from(&mut self, source)` - Merge meta fields from source
+/// - `merge_data_from(&mut self, source)` - Merge data fields from source
+/// - `merge_all_from(&mut self, source)` - Merge all fields from source
+fn generate_snapshot_merge_methods(grouped_fields: &GroupedFields) -> proc_macro2::TokenStream {
+    let has_flags = !grouped_fields.persisted_flag_fields.is_empty();
+
+    // Collect persistent inline fields by category
+    let persistent_inline_meta: Vec<_> = grouped_fields
+        .inline_meta_fields
+        .iter()
+        .filter(|f| !f.transient)
+        .collect();
+    let persistent_inline_data: Vec<_> = grouped_fields
+        .inline_data_fields
+        .iter()
+        .filter(|f| !f.transient)
+        .collect();
+
+    // Collect persistent lazy fields by category
+    let persistent_lazy_meta: Vec<_> = grouped_fields
+        .lazy_meta_fields
+        .iter()
+        .filter(|f| !f.transient)
+        .collect();
+    let persistent_lazy_data: Vec<_> = grouped_fields
+        .lazy_data_fields
+        .iter()
+        .filter(|f| !f.transient)
+        .collect();
+
+    // Generate clone_meta_snapshot inline field assignments
+    let clone_meta_inline: Vec<_> = persistent_inline_meta
+        .iter()
+        .map(|field| {
+            let field_name = &field.field_name;
+            quote! {
+                snapshot.#field_name = self.#field_name.clone();
+            }
+        })
+        .collect();
+
+    // Generate clone_meta_snapshot lazy field match arms
+    let clone_meta_lazy_arms: Vec<_> = persistent_lazy_meta
+        .iter()
+        .map(|field| {
+            let variant_name = syn::Ident::new(
+                &to_pascal_case(&field.field_name.to_string()),
+                field.field_name.span(),
+            );
+            quote! {
+                LazyField::#variant_name(data) => {
+                    snapshot.lazy.push(LazyField::#variant_name(data.clone()));
+                }
+            }
+        })
+        .collect();
+
+    // Generate clone_data_snapshot inline field assignments
+    let clone_data_inline: Vec<_> = persistent_inline_data
+        .iter()
+        .map(|field| {
+            let field_name = &field.field_name;
+            quote! {
+                snapshot.#field_name = self.#field_name.clone();
+            }
+        })
+        .collect();
+
+    // Generate clone_data_snapshot lazy field match arms
+    let clone_data_lazy_arms: Vec<_> = persistent_lazy_data
+        .iter()
+        .map(|field| {
+            let variant_name = syn::Ident::new(
+                &to_pascal_case(&field.field_name.to_string()),
+                field.field_name.span(),
+            );
+            quote! {
+                LazyField::#variant_name(data) => {
+                    snapshot.lazy.push(LazyField::#variant_name(data.clone()));
+                }
+            }
+        })
+        .collect();
+
+    // Generate merge_meta_from inline field assignments
+    let merge_meta_inline: Vec<_> = persistent_inline_meta
+        .iter()
+        .map(|field| {
+            let field_name = &field.field_name;
+            quote! {
+                self.#field_name = source.#field_name;
+            }
+        })
+        .collect();
+
+    // Generate merge_meta_from lazy field match arms
+    let merge_meta_lazy_arms: Vec<_> = persistent_lazy_meta
+        .iter()
+        .map(|field| {
+            let variant_name = syn::Ident::new(
+                &to_pascal_case(&field.field_name.to_string()),
+                field.field_name.span(),
+            );
+            quote! {
+                LazyField::#variant_name(_) => {
+                    self.lazy.push(field);
+                }
+            }
+        })
+        .collect();
+
+    // Generate merge_data_from inline field assignments
+    let merge_data_inline: Vec<_> = persistent_inline_data
+        .iter()
+        .map(|field| {
+            let field_name = &field.field_name;
+            quote! {
+                self.#field_name = source.#field_name;
+            }
+        })
+        .collect();
+
+    // Generate merge_data_from lazy field match arms
+    let merge_data_lazy_arms: Vec<_> = persistent_lazy_data
+        .iter()
+        .map(|field| {
+            let variant_name = syn::Ident::new(
+                &to_pascal_case(&field.field_name.to_string()),
+                field.field_name.span(),
+            );
+            quote! {
+                LazyField::#variant_name(_) => {
+                    self.lazy.push(field);
+                }
+            }
+        })
+        .collect();
+
+    // Generate merge_all_from inline field assignments (both meta and data)
+    let merge_all_inline_meta: Vec<_> = persistent_inline_meta
+        .iter()
+        .map(|field| {
+            let field_name = &field.field_name;
+            quote! {
+                self.#field_name = source.#field_name;
+            }
+        })
+        .collect();
+    let merge_all_inline_data: Vec<_> = persistent_inline_data
+        .iter()
+        .map(|field| {
+            let field_name = &field.field_name;
+            quote! {
+                self.#field_name = source.#field_name;
+            }
+        })
+        .collect();
+
+    // Generate merge_all_from lazy field match arms (both meta and data, combined)
+    let merge_all_lazy_arms: Vec<_> = persistent_lazy_meta
+        .iter()
+        .chain(persistent_lazy_data.iter())
+        .map(|field| {
+            let variant_name = syn::Ident::new(
+                &to_pascal_case(&field.field_name.to_string()),
+                field.field_name.span(),
+            );
+            quote! {
+                LazyField::#variant_name(_) => {
+                    self.lazy.push(field);
+                }
+            }
+        })
+        .collect();
+
+    // Generate flags handling for clone/merge
+    let clone_meta_flags = if has_flags {
+        quote! {
+            // Clone persisted flags
+            snapshot.flags.set_persisted_bits(self.flags.persisted_bits());
+        }
+    } else {
+        quote! {}
+    };
+
+    let merge_flags = if has_flags {
+        quote! {
+            // Merge persisted flags (preserve transient flags)
+            let persisted_bits = source.flags.persisted_bits();
+            self.flags.set_persisted_bits(persisted_bits);
+        }
+    } else {
+        quote! {}
+    };
+
+    // Collect all persistent lazy fields (both meta and data) for clone_snapshot
+    let clone_all_lazy_arms: Vec<_> = persistent_lazy_meta
+        .iter()
+        .chain(persistent_lazy_data.iter())
+        .map(|field| {
+            let variant_name = syn::Ident::new(
+                &to_pascal_case(&field.field_name.to_string()),
+                field.field_name.span(),
+            );
+            quote! {
+                LazyField::#variant_name(data) => {
+                    snapshot.lazy.push(LazyField::#variant_name(data.clone()));
+                }
+            }
+        })
+        .collect();
+
+    quote! {
+        impl TypedStorage {
+            /// Create a snapshot containing all persistent fields (both meta and data).
+            ///
+            /// This clones all persistent fields into a new TypedStorage, skipping
+            /// transient fields that may not be cloneable. Use this for the `Both`
+            /// snapshot case where both meta and data are dirty.
+            pub fn clone_snapshot(&self) -> TypedStorage {
+                let mut snapshot = TypedStorage::new();
+
+                // Clone inline meta fields
+                #(#clone_meta_inline)*
+
+                // Clone inline data fields
+                #(#clone_data_inline)*
+
+                #clone_meta_flags
+
+                // Clone all persistent lazy fields (both meta and data)
+                for field in &self.lazy {
+                    match field {
+                        #(#clone_all_lazy_arms)*
+                        // Skip transient fields
+                        _ => {}
+                    }
+                }
+
+                snapshot
+            }
+
+            /// Create a snapshot containing only meta category fields for serialization.
+            ///
+            /// This clones only the persistent meta fields into a new TypedStorage,
+            /// which can then be serialized outside the lock.
+            pub fn clone_meta_snapshot(&self) -> TypedStorage {
+                let mut snapshot = TypedStorage::new();
+
+                // Clone inline meta fields
+                #(#clone_meta_inline)*
+
+                #clone_meta_flags
+
+                // Clone lazy meta fields (only persistent ones)
+                for field in &self.lazy {
+                    match field {
+                        #(#clone_meta_lazy_arms)*
+                        // Skip transient and data fields
+                        _ => {}
+                    }
+                }
+
+                snapshot
+            }
+
+            /// Create a snapshot containing only data category fields for serialization.
+            ///
+            /// This clones only the persistent data fields into a new TypedStorage,
+            /// which can then be serialized outside the lock.
+            pub fn clone_data_snapshot(&self) -> TypedStorage {
+                let mut snapshot = TypedStorage::new();
+
+                // Clone inline data fields
+                #(#clone_data_inline)*
+
+                // Clone lazy data fields (only persistent ones)
+                for field in &self.lazy {
+                    match field {
+                        #(#clone_data_lazy_arms)*
+                        // Skip transient and meta fields
+                        _ => {}
+                    }
+                }
+
+                snapshot
+            }
+
+            /// Merge restored data from another TypedStorage.
+            ///
+            /// This is used during restore operations to merge decoded persisted data
+            /// into the task's existing storage. It preserves transient state (flags,
+            /// transient fields) while merging in the persisted data.
+            ///
+            /// Note: This assumes the target is unrestored and has empty persistent fields
+            /// for the specified category. The merge simply moves data from source to self.
+            ///
+            /// The `category` parameter specifies which category of data to merge:
+            /// - `Meta`: Merge meta fields (aggregation_number, output, upper, dirty, etc.)
+            /// - `Data`: Merge data fields (output_dependent, dependencies, cell_data, etc.)
+            /// - `All`: Merge both meta and data fields
+            pub fn merge_from_restored(
+                &mut self,
+                source: TypedStorage,
+                category: crate::backend::TaskDataCategory,
+            ) {
+                match category {
+                    crate::backend::TaskDataCategory::Meta => self.merge_meta_from(source),
+                    crate::backend::TaskDataCategory::Data => self.merge_data_from(source),
+                    crate::backend::TaskDataCategory::All => self.merge_all_from(source),
+                }
+            }
+
+            /// Merge meta category fields from source.
+            fn merge_meta_from(&mut self, source: TypedStorage) {
+                // Inline meta fields - direct move (target should be empty for unrestored category)
+                #(#merge_meta_inline)*
+
+                #merge_flags
+
+                // Move lazy meta fields from source
+                for field in source.lazy {
+                    match &field {
+                        #(#merge_meta_lazy_arms)*
+                        // Skip transient fields and data fields
+                        _ => {}
+                    }
+                }
+            }
+
+            /// Merge data category fields from source.
+            fn merge_data_from(&mut self, source: TypedStorage) {
+                // Inline data fields - direct move (target should be empty for unrestored category)
+                #(#merge_data_inline)*
+
+                // Move lazy data fields from source
+                for field in source.lazy {
+                    match &field {
+                        #(#merge_data_lazy_arms)*
+                        // Skip transient fields and meta fields
+                        _ => {}
+                    }
+                }
+            }
+
+            /// Merge all fields from source (both meta and data).
+            fn merge_all_from(&mut self, source: TypedStorage) {
+                // Inline meta fields - direct move
+                #(#merge_all_inline_meta)*
+
+                // Inline data fields - direct move
+                #(#merge_all_inline_data)*
+
+                #merge_flags
+
+                // Move all lazy fields (both meta and data, but skip transient)
+                for field in source.lazy {
+                    match &field {
+                        #(#merge_all_lazy_arms)*
+                        // Skip transient fields
+                        _ => {}
+                    }
+                }
+            }
         }
     }
 }

@@ -2,12 +2,11 @@ use std::{any::type_name, sync::Arc};
 
 use anyhow::Result;
 use either::Either;
-use smallvec::SmallVec;
+use turbo_bincode::TurboBincodeBuffer;
 use turbo_tasks::{TaskId, backend::CachedTaskType};
 
 use crate::{
-    backend::{AnyOperation, TaskDataCategory},
-    data::CachedDataItem,
+    backend::{AnyOperation, storage_schema::TypedStorage},
     utils::chunked_vec::ChunkedVec,
 };
 
@@ -44,8 +43,6 @@ pub trait BackingStorageSealed: 'static + Send + Sync {
     type ReadTransaction<'l>;
     fn next_free_task_id(&self) -> Result<TaskId>;
     fn uncompleted_operations(&self) -> Result<Vec<AnyOperation>>;
-    #[allow(clippy::ptr_arg)]
-    fn serialize(&self, task: TaskId, data: &Vec<CachedDataItem>) -> Result<SmallVec<[u8; 16]>>;
     fn save_snapshot<I>(
         &self,
         operations: Vec<Arc<AnyOperation>>,
@@ -56,8 +53,8 @@ pub trait BackingStorageSealed: 'static + Send + Sync {
         I: Iterator<
                 Item = (
                     TaskId,
-                    Option<SmallVec<[u8; 16]>>,
-                    Option<SmallVec<[u8; 16]>>,
+                    Option<TurboBincodeBuffer>,
+                    Option<TurboBincodeBuffer>,
                 ),
             > + Send
             + Sync;
@@ -78,15 +75,50 @@ pub trait BackingStorageSealed: 'static + Send + Sync {
         tx: Option<&Self::ReadTransaction<'_>>,
         task_id: TaskId,
     ) -> Result<Option<Arc<CachedTaskType>>>;
+
+    /// Serialize TypedStorage meta fields directly to bytes.
+    /// This uses the generated encode_meta method for efficient serialization.
+    fn serialize_typed_meta(&self, storage: &TypedStorage) -> Result<TurboBincodeBuffer> {
+        let mut buffer = TurboBincodeBuffer::new();
+        let mut encoder = turbo_bincode::new_turbo_bincode_encoder(&mut buffer);
+        storage
+            .encode_meta(&mut encoder)
+            .map_err(|e| anyhow::anyhow!("Failed to encode meta: {e:?}"))?;
+        Ok(buffer)
+    }
+
+    /// Serialize TypedStorage data fields directly to bytes.
+    /// This uses the generated encode_data method for efficient serialization.
+    fn serialize_typed_data(&self, storage: &TypedStorage) -> Result<TurboBincodeBuffer> {
+        let mut buffer = TurboBincodeBuffer::new();
+        let mut encoder = turbo_bincode::new_turbo_bincode_encoder(&mut buffer);
+        storage
+            .encode_data(&mut encoder)
+            .map_err(|e| anyhow::anyhow!("Failed to encode data: {e:?}"))?;
+        Ok(buffer)
+    }
+
+    /// Lookup and decode meta fields directly into TypedStorage.
     /// # Safety
     ///
     /// `tx` must be a transaction from this BackingStorage instance.
-    unsafe fn lookup_data(
+    unsafe fn lookup_typed_meta(
         &self,
         tx: Option<&Self::ReadTransaction<'_>>,
         task_id: TaskId,
-        category: TaskDataCategory,
-    ) -> Result<Vec<CachedDataItem>>;
+        storage: &mut TypedStorage,
+    ) -> Result<()>;
+
+    /// Lookup and decode data fields directly into TypedStorage.
+    /// # Safety
+    ///
+    /// `tx` must be a transaction from this BackingStorage instance.
+    unsafe fn lookup_typed_data(
+        &self,
+        tx: Option<&Self::ReadTransaction<'_>>,
+        task_id: TaskId,
+        storage: &mut TypedStorage,
+    ) -> Result<()>;
 
     fn shutdown(&self) -> Result<()> {
         Ok(())
@@ -118,10 +150,6 @@ where
         either::for_both!(self, this => this.uncompleted_operations())
     }
 
-    fn serialize(&self, task: TaskId, data: &Vec<CachedDataItem>) -> Result<SmallVec<[u8; 16]>> {
-        either::for_both!(self, this => this.serialize(task, data))
-    }
-
     fn save_snapshot<I>(
         &self,
         operations: Vec<Arc<AnyOperation>>,
@@ -132,8 +160,8 @@ where
         I: Iterator<
                 Item = (
                     TaskId,
-                    Option<SmallVec<[u8; 16]>>,
-                    Option<SmallVec<[u8; 16]>>,
+                    Option<TurboBincodeBuffer>,
+                    Option<TurboBincodeBuffer>,
                 ),
             > + Send
             + Sync,
@@ -186,20 +214,38 @@ where
         }
     }
 
-    unsafe fn lookup_data(
+    unsafe fn lookup_typed_meta(
         &self,
         tx: Option<&Self::ReadTransaction<'_>>,
         task_id: TaskId,
-        category: TaskDataCategory,
-    ) -> Result<Vec<CachedDataItem>> {
+        storage: &mut TypedStorage,
+    ) -> Result<()> {
         match self {
             Either::Left(this) => {
                 let tx = tx.map(|tx| read_transaction_left_or_panic(tx.as_ref()));
-                unsafe { this.lookup_data(tx, task_id, category) }
+                unsafe { this.lookup_typed_meta(tx, task_id, storage) }
             }
             Either::Right(this) => {
                 let tx = tx.map(|tx| read_transaction_right_or_panic(tx.as_ref()));
-                unsafe { this.lookup_data(tx, task_id, category) }
+                unsafe { this.lookup_typed_meta(tx, task_id, storage) }
+            }
+        }
+    }
+
+    unsafe fn lookup_typed_data(
+        &self,
+        tx: Option<&Self::ReadTransaction<'_>>,
+        task_id: TaskId,
+        storage: &mut TypedStorage,
+    ) -> Result<()> {
+        match self {
+            Either::Left(this) => {
+                let tx = tx.map(|tx| read_transaction_left_or_panic(tx.as_ref()));
+                unsafe { this.lookup_typed_data(tx, task_id, storage) }
+            }
+            Either::Right(this) => {
+                let tx = tx.map(|tx| read_transaction_right_or_panic(tx.as_ref()));
+                unsafe { this.lookup_typed_data(tx, task_id, storage) }
             }
         }
     }

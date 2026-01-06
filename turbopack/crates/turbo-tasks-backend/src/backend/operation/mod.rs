@@ -122,17 +122,20 @@ where
         }
     }
 
-    fn restore_task_data(
+    /// Restore task data directly into TypedStorage using typed serialization.
+    /// This bypasses the intermediate Vec<CachedDataItem> representation.
+    fn restore_task_data_typed(
         &mut self,
         task_id: TaskId,
         category: TaskDataCategory,
-    ) -> Vec<CachedDataItem> {
+        storage: &mut crate::backend::storage_schema::TypedStorage,
+    ) {
         if matches!(self.transaction, TransactionState::None) {
             let check_backing_storage = self.backend.should_restore()
                 && self.backend.local_is_partial.load(Ordering::Acquire);
             if !check_backing_storage {
-                // If we don't need to restore, we can just return an empty vector
-                return Vec::new();
+                // If we don't need to restore, nothing to do
+                return;
             }
             let tx = self.backend.backing_storage.start_read_transaction();
             let tx = tx.map(|tx| {
@@ -146,21 +149,47 @@ where
             TransactionState::Borrowed(tx) => *tx,
             TransactionState::Owned(tx) => tx.as_ref(),
         };
+
         // Safety: `tx` is a valid transaction from `self.backend.backing_storage`.
-        let result = unsafe {
-            self.backend
-                .backing_storage
-                .lookup_data(tx, task_id, category)
-        };
-        match result {
-            Ok(data) => data,
-            Err(e) => {
-                let task_name = self.backend.get_task_description(task_id);
-                panic!(
-                    "Failed to restore task data (corrupted database or bug): {:?}",
-                    e.context(format!("{category:?} for {task_name} ({task_id}))"))
-                )
+        let result = match category {
+            TaskDataCategory::Meta => unsafe {
+                self.backend
+                    .backing_storage
+                    .lookup_typed_meta(tx, task_id, storage)
+            },
+            TaskDataCategory::Data => unsafe {
+                self.backend
+                    .backing_storage
+                    .lookup_typed_data(tx, task_id, storage)
+            },
+            TaskDataCategory::All => {
+                // Restore both meta and data
+                let meta_result = unsafe {
+                    self.backend
+                        .backing_storage
+                        .lookup_typed_meta(tx, task_id, storage)
+                };
+                if let Err(e) = meta_result {
+                    let task_name = self.backend.get_task_description(task_id);
+                    panic!(
+                        "Failed to restore task meta (corrupted database or bug): {:?}",
+                        e.context(format!("Meta for {task_name} ({task_id})"))
+                    );
+                }
+                unsafe {
+                    self.backend
+                        .backing_storage
+                        .lookup_typed_data(tx, task_id, storage)
+                }
             }
+        };
+
+        if let Err(e) = result {
+            let task_name = self.backend.get_task_description(task_id);
+            panic!(
+                "Failed to restore task data (corrupted database or bug): {:?}",
+                e.context(format!("{category:?} for {task_name} ({task_id})"))
+            );
         }
     }
 }
@@ -200,12 +229,16 @@ where
                         // Avoid holding the lock too long since this can also affect other tasks
                         drop(task);
 
-                        let items = self.restore_task_data(task_id, category);
+                        // Create a temporary TypedStorage to decode into
+                        let mut restored_storage =
+                            crate::backend::storage_schema::TypedStorage::new();
+                        self.restore_task_data_typed(task_id, category, &mut restored_storage);
+
                         task = self.backend.storage.access_mut(task_id);
                         if !task.flags().is_restored(category) {
-                            for item in items {
-                                task.add(item);
-                            }
+                            // Merge the restored data into the task's storage
+                            task.typed_mut()
+                                .merge_from_restored(restored_storage, category);
                             task.flags_mut().set_restored(category);
                         }
                     }
@@ -257,22 +290,35 @@ where
                 drop(task1);
                 drop(task2);
 
-                let items1 = (!is_restored1).then(|| self.restore_task_data(task_id1, category));
-                let items2 = (!is_restored2).then(|| self.restore_task_data(task_id2, category));
+                // Restore using typed storage path
+                let restored1 = if !is_restored1 {
+                    let mut storage = crate::backend::storage_schema::TypedStorage::new();
+                    self.restore_task_data_typed(task_id1, category, &mut storage);
+                    Some(storage)
+                } else {
+                    None
+                };
+                let restored2 = if !is_restored2 {
+                    let mut storage = crate::backend::storage_schema::TypedStorage::new();
+                    self.restore_task_data_typed(task_id2, category, &mut storage);
+                    Some(storage)
+                } else {
+                    None
+                };
 
                 let (t1, t2) = self.backend.storage.access_pair_mut(task_id1, task_id2);
                 task1 = t1;
                 task2 = t2;
                 if !task1.flags().is_restored(category) {
-                    for item in items1.unwrap() {
-                        task1.add(item);
-                    }
+                    task1
+                        .typed_mut()
+                        .merge_from_restored(restored1.unwrap(), category);
                     task1.flags_mut().set_restored(category);
                 }
                 if !task2.flags().is_restored(category) {
-                    for item in items2.unwrap() {
-                        task2.add(item);
-                    }
+                    task2
+                        .typed_mut()
+                        .merge_from_restored(restored2.unwrap(), category);
                     task2.flags_mut().set_restored(category);
                 }
             }
@@ -1602,9 +1648,7 @@ impl<B: BackingStorage> Debug for TaskGuardImpl<'_, B> {
         if let Some(task_type) = self.backend.task_cache.lookup_reverse(&self.task_id) {
             d.field("task_type", &task_type);
         };
-        for (key, value) in self.task.iter_all() {
-            d.field(&format!("{key:?}"), &value);
-        }
+        d.field("storage", self.task.typed());
         d.finish()
     }
 }
