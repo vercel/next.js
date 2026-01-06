@@ -14,7 +14,7 @@ import {
   nextStart,
   getPageFileFromBuildManifest,
   getPageFileFromPagesManifest,
-  check,
+  retry,
 } from 'next-test-utils'
 import json from '../big.json'
 
@@ -89,9 +89,14 @@ function runTests(dev = false) {
     expect(res2.headers.get('transfer-encoding')).toBe(null)
 
     if (dev) {
-      await check(
-        () => stderr.slice(stderrIdx),
-        /A body was attempted to be set with a 204 statusCode/
+      await retry(
+        () => {
+          expect(stderr.slice(stderrIdx)).toMatch(
+            /A body was attempted to be set with a 204 statusCode/
+          )
+        },
+        30000,
+        1000
       )
     }
   })
@@ -342,23 +347,30 @@ function runTests(dev = false) {
   it('should show friendly error for invalid redirect', async () => {
     await fetchViaHTTP(appPort, '/api/redirect-error', null, {})
 
-    await check(() => {
-      expect(stderr).toContain(
-        `Invalid redirect arguments. Please use a single argument URL, e.g. res.redirect('/destination') or use a status code and URL, e.g. res.redirect(307, '/destination').`
-      )
-      return 'yes'
-    }, 'yes')
+    await retry(
+      () => {
+        expect(stderr).toContain(
+          `Invalid redirect arguments. Please use a single argument URL, e.g. res.redirect('/destination') or use a status code and URL, e.g. res.redirect(307, '/destination').`
+        )
+        expect('yes').toBe('yes')
+      },
+      30000,
+      1000
+    )
   })
 
   it('should show friendly error in case of passing null as first argument redirect', async () => {
     await fetchViaHTTP(appPort, '/api/redirect-null', null, {})
 
-    check(() => {
-      expect(stderr).toContain(
-        `Invalid redirect arguments. Please use a single argument URL, e.g. res.redirect('/destination') or use a status code and URL, e.g. res.redirect(307, '/destination').`
-      )
-      return 'yes'
-    }, 'yes')
+    await retry(
+      () => {
+        expect(stderr).toContain(
+          `Invalid redirect arguments. Please use a single argument URL, e.g. res.redirect('/destination') or use a status code and URL, e.g. res.redirect(307, '/destination').`
+        )
+      },
+      30000,
+      1000
+    )
   })
 
   it('should redirect with status code 307', async () => {
@@ -527,28 +539,34 @@ function runTests(dev = false) {
   })
 
   it('should not warn if response body is larger than 4MB with responseLimit config = false', async () => {
-    await check(async () => {
-      let res = await fetchViaHTTP(appPort, '/api/large-response-with-config')
-      expect(res.ok).toBeTruthy()
-      expect(stderr).not.toContain(
-        'API response for /api/large-response-with-config exceeds 4MB. API Routes are meant to respond quickly.'
-      )
-      return 'success'
-    }, 'success')
+    await retry(
+      async () => {
+        let res = await fetchViaHTTP(appPort, '/api/large-response-with-config')
+        expect(res.ok).toBeTruthy()
+        expect(stderr).not.toContain(
+          'API response for /api/large-response-with-config exceeds 4MB. API Routes are meant to respond quickly.'
+        )
+      },
+      30000,
+      1000
+    )
   })
 
   it('should warn with configured size if response body is larger than configured size', async () => {
-    await check(async () => {
-      let res = await fetchViaHTTP(
-        appPort,
-        '/api/large-response-with-config-size'
-      )
-      expect(res.ok).toBeTruthy()
-      expect(stderr).toContain(
-        'API response for /api/large-response-with-config-size exceeds 5MB. API Routes are meant to respond quickly.'
-      )
-      return 'success'
-    }, 'success')
+    await retry(
+      async () => {
+        let res = await fetchViaHTTP(
+          appPort,
+          '/api/large-response-with-config-size'
+        )
+        expect(res.ok).toBeTruthy()
+        expect(stderr).toContain(
+          'API response for /api/large-response-with-config-size exceeds 5MB. API Routes are meant to respond quickly.'
+        )
+      },
+      30000,
+      1000
+    )
   })
 
   if (dev) {
@@ -571,9 +589,14 @@ function runTests(dev = false) {
         signal: controller.signal,
       }).catch(() => {})
 
-      await check(
-        () => stderr,
-        /API resolved without sending a response for \/api\/test-no-end, this may result in stalled requests/
+      await retry(
+        () => {
+          expect(stderr).toMatch(
+            /API resolved without sending a response for \/api\/test-no-end, this may result in stalled requests/
+          )
+        },
+        30000,
+        1000
       )
     })
 
@@ -590,12 +613,15 @@ function runTests(dev = false) {
       const req = await fetchViaHTTP(appPort, apiURL)
       expect(await req.text()).toBe('hello world')
 
-      check(() => {
-        expect(stderr).toContain(
-          `API resolved without sending a response for ${apiURL}, this may result in stalled requests.`
-        )
-        return 'yes'
-      }, 'yes')
+      await retry(
+        () => {
+          expect(stderr).toContain(
+            `API resolved without sending a response for ${apiURL}, this may result in stalled requests.`
+          )
+        },
+        30000,
+        1000
+      )
     })
 
     it('should not show warning if using externalResolver flag', async () => {

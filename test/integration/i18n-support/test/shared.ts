@@ -12,7 +12,7 @@ import {
   renderViaHTTP,
   waitFor,
   normalizeRegEx,
-  check,
+  retry,
 } from 'next-test-utils'
 
 const domainLocales = ['go', 'go-BE', 'do', 'do-BE']
@@ -366,7 +366,15 @@ export function runTests(ctx) {
       )
     })()`)
 
-    await check(() => browser.eval('window.location.hostname'), /example\.com/)
+    await retry(
+      async () => {
+        await expect(browser.eval('window.location.hostname')).resolves.toMatch(
+          /example\.com/
+        )
+      },
+      30000,
+      1000
+    )
     expect(await browser.eval('window.location.pathname')).toBe(
       ctx.basePath || '/'
     )
@@ -387,7 +395,15 @@ export function runTests(ctx) {
       )
     })()`)
 
-    await check(() => browser.eval('window.location.hostname'), /example\.com/)
+    await retry(
+      async () => {
+        await expect(browser.eval('window.location.hostname')).resolves.toMatch(
+          /example\.com/
+        )
+      },
+      30000,
+      1000
+    )
     expect(await browser.eval('window.location.pathname')).toBe(
       `${ctx.basePath || ''}/go-BE/gssp`
     )
@@ -533,7 +549,15 @@ export function runTests(ctx) {
       )
     })()`)
 
-    await check(() => browser.elementByCss('#router-locale').text(), 'nl')
+    await retry(
+      async () => {
+        await expect(
+          browser.elementByCss('#router-locale').text()
+        ).resolves.toBe('nl')
+      },
+      30000,
+      1000
+    )
     expect(await browser.eval('window.beforeNav')).toBe(1)
 
     await browser.eval(`(function() {
@@ -542,18 +566,21 @@ export function runTests(ctx) {
       )
     })()`)
 
-    await check(async () => {
-      const html = await browser.eval('document.documentElement.innerHTML')
-      const props = JSON.parse(cheerio.load(html)('#props').text())
+    await retry(
+      async () => {
+        const html = await browser.eval('document.documentElement.innerHTML')
+        const props = JSON.parse(cheerio.load(html)('#props').text())
 
-      assert.deepEqual(props, {
-        locale: 'nl',
-        locales,
-        defaultLocale: 'en-US',
-        query: { page: '1' },
-      })
-      return 'success'
-    }, 'success')
+        assert.deepEqual(props, {
+          locale: 'nl',
+          locales,
+          defaultLocale: 'en-US',
+          query: { page: '1' },
+        })
+      },
+      30000,
+      1000
+    )
 
     await browser
       .back()
@@ -619,25 +646,30 @@ export function runTests(ctx) {
         document.querySelector('#to-gsp-default').scrollIntoView()
       })()`)
 
-      await check(async () => {
-        const hrefs = await browser.eval(`Object.keys(window.next.router.sdc)`)
-        hrefs.sort()
-
-        assert.deepEqual(
-          hrefs.map((href) =>
-            new URL(href).pathname
-              .replace(ctx.basePath, '')
-              .replace(/^\/_next\/data\/[^/]+/, '')
-          ),
-          [
-            '/en-US/gsp.json',
-            '/fr/gsp.json',
-            '/fr/gsp/fallback/first.json',
-            '/fr/gsp/fallback/hello.json',
-          ]
-        )
-        return 'yes'
-      }, 'yes')
+      await retry(
+        async () => {
+          const hrefs = await browser.eval(
+            `Object.keys(window.next.router.sdc)`
+          )
+          hrefs.sort()
+          assert.deepEqual(
+            hrefs.map((href) =>
+              new URL(href).pathname
+                .replace(ctx.basePath, '')
+                .replace(/^\/_next\/data\/[^/]+/, '')
+            ),
+            [
+              '/en-US/gsp.json',
+              '/fr/gsp.json',
+              '/fr/gsp/fallback/first.json',
+              '/fr/gsp/fallback/hello.json',
+            ]
+          )
+          expect('yes').toBe('yes')
+        },
+        30000,
+        1000
+      )
     }
 
     expect(await browser.eval('window.beforeNav')).toBe(1)
@@ -664,20 +696,25 @@ export function runTests(ctx) {
         document.querySelector('#to-gsp-fr').scrollIntoView()
       })()`)
 
-      await check(async () => {
-        const hrefs = await browser.eval(`Object.keys(window.next.router.sdc)`)
-        hrefs.sort()
-
-        assert.deepEqual(
-          hrefs.map((href) =>
-            new URL(href).pathname
-              .replace(ctx.basePath, '')
-              .replace(/^\/_next\/data\/[^/]+/, '')
-          ),
-          ['/en-US/gsp.json', '/fr.json', '/fr/gsp.json', '/nl-NL/gsp.json']
-        )
-        return 'yes'
-      }, 'yes')
+      await retry(
+        async () => {
+          const hrefs = await browser.eval(
+            `Object.keys(window.next.router.sdc)`
+          )
+          hrefs.sort()
+          assert.deepEqual(
+            hrefs.map((href) =>
+              new URL(href).pathname
+                .replace(ctx.basePath, '')
+                .replace(/^\/_next\/data\/[^/]+/, '')
+            ),
+            ['/en-US/gsp.json', '/fr.json', '/fr/gsp.json', '/nl-NL/gsp.json']
+          )
+          expect('yes').toBe('yes')
+        },
+        30000,
+        1000
+      )
     })
   }
 
@@ -2152,24 +2189,29 @@ export function runTests(ctx) {
         document.querySelector('#to-no-fallback-first').scrollIntoView()
       })()`)
 
-      await check(async () => {
-        const hrefs = await browser.eval(`Object.keys(window.next.router.sdc)`)
-        hrefs.sort()
-
-        assert.deepEqual(
-          hrefs.map((href) =>
-            new URL(href).pathname
-              .replace(ctx.basePath, '')
-              .replace(/^\/_next\/data\/[^/]+/, '')
-          ),
-          [
-            '/fr/gsp.json',
-            '/fr/gsp/fallback/first.json',
-            '/fr/gsp/fallback/hello.json',
-          ]
-        )
-        return 'yes'
-      }, 'yes')
+      await retry(
+        async () => {
+          const hrefs = await browser.eval(
+            `Object.keys(window.next.router.sdc)`
+          )
+          hrefs.sort()
+          assert.deepEqual(
+            hrefs.map((href) =>
+              new URL(href).pathname
+                .replace(ctx.basePath, '')
+                .replace(/^\/_next\/data\/[^/]+/, '')
+            ),
+            [
+              '/fr/gsp.json',
+              '/fr/gsp/fallback/first.json',
+              '/fr/gsp/fallback/hello.json',
+            ]
+          )
+          expect('yes').toBe('yes')
+        },
+        30000,
+        1000
+      )
     }
 
     expect(await browser.elementByCss('#router-pathname').text()).toBe('/links')
@@ -2367,25 +2409,30 @@ export function runTests(ctx) {
         document.querySelector('#to-no-fallback-first').scrollIntoView()
       })()`)
 
-      await check(async () => {
-        const hrefs = await browser.eval(`Object.keys(window.next.router.sdc)`)
-        hrefs.sort()
-
-        assert.deepEqual(
-          hrefs.map((href) =>
-            new URL(href).pathname
-              .replace(ctx.basePath, '')
-              .replace(/^\/_next\/data\/[^/]+/, '')
-          ),
-          [
-            '/en-US/gsp.json',
-            '/fr/gsp.json',
-            '/fr/gsp/fallback/first.json',
-            '/fr/gsp/fallback/hello.json',
-          ]
-        )
-        return 'yes'
-      }, 'yes')
+      await retry(
+        async () => {
+          const hrefs = await browser.eval(
+            `Object.keys(window.next.router.sdc)`
+          )
+          hrefs.sort()
+          assert.deepEqual(
+            hrefs.map((href) =>
+              new URL(href).pathname
+                .replace(ctx.basePath, '')
+                .replace(/^\/_next\/data\/[^/]+/, '')
+            ),
+            [
+              '/en-US/gsp.json',
+              '/fr/gsp.json',
+              '/fr/gsp/fallback/first.json',
+              '/fr/gsp/fallback/hello.json',
+            ]
+          )
+          expect('yes').toBe('yes')
+        },
+        30000,
+        1000
+      )
     }
 
     expect(await browser.elementByCss('#router-pathname').text()).toBe(

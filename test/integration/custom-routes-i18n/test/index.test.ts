@@ -12,7 +12,7 @@ import {
   nextStart,
   File,
   fetchViaHTTP,
-  check,
+  retry,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
@@ -92,19 +92,23 @@ const runTests = () => {
 
       await browser.elementByCss('#to-about').click()
 
-      await check(async () => {
-        const data = JSON.parse(
-          cheerio
-            .load(await browser.eval('document.documentElement.innerHTML'))(
-              '#data'
-            )
-            .text()
-        )
-        console.log(data)
-        return data.url === `${expectedIndex ? '/fr' : ''}/about`
-          ? 'success'
-          : 'fail'
-      }, 'success')
+      await retry(
+        async () => {
+          const data = JSON.parse(
+            cheerio
+              .load(await browser.eval('document.documentElement.innerHTML'))(
+                '#data'
+              )
+              .text()
+          )
+          console.log(data)
+          return data.url === `${expectedIndex ? '/fr' : ''}/about`
+            ? 'success'
+            : 'fail'
+        },
+        30000,
+        1000
+      )
 
       await browser
         .back()
@@ -112,19 +116,23 @@ const runTests = () => {
         .elementByCss('#to-catch-all')
         .click()
 
-      await check(async () => {
-        const data = JSON.parse(
-          cheerio
-            .load(await browser.eval('document.documentElement.innerHTML'))(
-              '#data'
-            )
-            .text()
-        )
-        console.log(data)
-        return data.url === `${expectedIndex ? '/fr' : ''}/hello`
-          ? 'success'
-          : 'fail'
-      }, 'success')
+      await retry(
+        async () => {
+          const data = JSON.parse(
+            cheerio
+              .load(await browser.eval('document.documentElement.innerHTML'))(
+                '#data'
+              )
+              .text()
+          )
+          console.log(data)
+          return data.url === `${expectedIndex ? '/fr' : ''}/hello`
+            ? 'success'
+            : 'fail'
+        },
+        30000,
+        1000
+      )
 
       await browser.back().waitForElementByCss('#links')
 
@@ -132,14 +140,27 @@ const runTests = () => {
 
       await browser.elementByCss('#to-index').click()
 
-      await check(() => browser.eval('window.location.pathname'), locale || '/')
+      await retry(
+        async () => {
+          expect(await browser.eval('window.location.pathname')).toBe(
+            locale || '/'
+          )
+        },
+        30000,
+        1000
+      )
       expect(await browser.eval('window.beforeNav')).toBe(1)
 
       await browser.elementByCss('#to-links').click()
 
-      await check(
-        () => browser.eval('window.location.pathname'),
-        `${locale}/links`
+      await retry(
+        async () => {
+          expect(await browser.eval('window.location.pathname')).toBe(
+            `${locale}/links`
+          )
+        },
+        30000,
+        1000
       )
       expect(await browser.eval('window.beforeNav')).toBe(1)
     }

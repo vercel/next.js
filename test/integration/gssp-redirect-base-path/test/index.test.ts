@@ -9,7 +9,7 @@ import {
   nextBuild,
   nextStart,
   fetchViaHTTP,
-  check,
+  retry,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
@@ -55,9 +55,14 @@ const runTests = (isDev: boolean) => {
 
     const browser = await webdriver(appPort, `${basePath}`)
     await browser.eval(`next.router.push('/gssp-blog/redirect-1-no-basepath-')`)
-    await check(
-      () => browser.eval('document.documentElement.innerHTML'),
-      /oops not found/
+    await retry(
+      async () => {
+        expect(
+          await browser.eval('document.documentElement.innerHTML')
+        ).toMatch(/oops not found/)
+      },
+      30000,
+      1000
     )
 
     const parsedUrl2 = new URL(await browser.eval('window.location.href'))
@@ -215,9 +220,14 @@ const runTests = (isDev: boolean) => {
       }
     )
 
-    await check(
-      () => browser.eval(() => document.documentElement.innerHTML),
-      /oops not found/
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(() => document.documentElement.innerHTML)
+        ).toMatch(/oops not found/)
+      },
+      30000,
+      1000
     )
 
     const initialHref = await browser.eval(() => (window as any).initialHref)
@@ -237,9 +247,14 @@ const runTests = (isDev: boolean) => {
       }
     )
 
-    await check(
-      () => browser.eval(() => document.location.hostname),
-      'example.vercel.sh'
+    await retry(
+      async () => {
+        expect(await browser.eval(() => document.location.hostname)).toBe(
+          'example.vercel.sh'
+        )
+      },
+      30000,
+      1000
     )
 
     const initialHref = await browser.eval(() => (window as any).initialHref)
@@ -255,9 +270,14 @@ const runTests = (isDev: boolean) => {
       }
     )
 
-    await check(
-      () => browser.eval(() => document.location.hostname),
-      'example.vercel.sh'
+    await retry(
+      async () => {
+        expect(await browser.eval(() => document.location.hostname)).toBe(
+          'example.vercel.sh'
+        )
+      },
+      30000,
+      1000
     )
 
     const initialHref = await browser.eval(() => (window as any).initialHref)

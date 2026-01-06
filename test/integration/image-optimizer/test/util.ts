@@ -1,10 +1,8 @@
 import http from 'http'
 import fs from 'fs-extra'
 import { join } from 'path'
-import assert from 'assert'
 import sizeOf from 'image-size'
 import {
-  check,
   fetchViaHTTP,
   File,
   findPort,
@@ -14,6 +12,7 @@ import {
   nextBuild,
   nextStart,
   waitFor,
+  retry,
 } from 'next-test-utils'
 import isAnimated from 'next/dist/compiled/is-animated'
 import type { RequestInit } from 'node-fetch'
@@ -1006,14 +1005,20 @@ export function runTests(ctx: RunTestsCtx) {
 
       let json1
 
-      await check(async () => {
-        json1 = await fsToJson(ctx.imagesDir)
-        return Object.keys(json1).some((dir) => {
-          return Object.keys(json1[dir]).some((file) => file.includes(etagOne))
-        })
-          ? 'success'
-          : 'fail'
-      }, 'success')
+      await retry(
+        async () => {
+          json1 = await fsToJson(ctx.imagesDir)
+          expect(
+            Object.keys(json1).some((dir) => {
+              return Object.keys(json1[dir]).some((file) =>
+                file.includes(etagOne)
+              )
+            })
+          ).toBe(true)
+        },
+        30000,
+        1000
+      )
 
       const two = await fetchWithDuration(
         ctx.appPort,
@@ -1055,15 +1060,15 @@ export function runTests(ctx: RunTestsCtx) {
           `${contentDispositionType}; filename="slow.webp"`
         )
 
-        await check(async () => {
-          const json4 = await fsToJson(ctx.imagesDir)
-          try {
-            assert.deepStrictEqual(json4, json1)
-            return 'fail'
-          } catch (err) {
-            return 'success'
-          }
-        }, 'success')
+        await retry(
+          async () => {
+            const json4 = await fsToJson(ctx.imagesDir)
+            // Wait for the cache to be updated (json4 should differ from json1)
+            expect(json4).not.toStrictEqual(json1)
+          },
+          30000,
+          1000
+        )
 
         const five = await fetchWithDuration(
           ctx.appPort,
@@ -1078,15 +1083,15 @@ export function runTests(ctx: RunTestsCtx) {
         expect(five.res.headers.get('Content-Disposition')).toBe(
           `${contentDispositionType}; filename="slow.webp"`
         )
-        await check(async () => {
-          const json5 = await fsToJson(ctx.imagesDir)
-          try {
-            assert.deepStrictEqual(json5, json1)
-            return 'fail'
-          } catch (err) {
-            return 'success'
-          }
-        }, 'success')
+        await retry(
+          async () => {
+            const json5 = await fsToJson(ctx.imagesDir)
+            // Wait for the cache to be updated (json5 should differ from json1)
+            expect(json5).not.toStrictEqual(json1)
+          },
+          30000,
+          1000
+        )
       }
     })
   }
@@ -1228,14 +1233,20 @@ export function runTests(ctx: RunTestsCtx) {
     const etagOne = one.res.headers.get('etag')
 
     let json1
-    await check(async () => {
-      json1 = await fsToJson(ctx.imagesDir)
-      return Object.keys(json1).some((dir) => {
-        return Object.keys(json1[dir]).some((file) => file.includes(etagOne))
-      })
-        ? 'success'
-        : 'fail'
-    }, 'success')
+    await retry(
+      async () => {
+        json1 = await fsToJson(ctx.imagesDir)
+        expect(
+          Object.keys(json1).some((dir) => {
+            return Object.keys(json1[dir]).some((file) =>
+              file.includes(etagOne)
+            )
+          })
+        ).toBe(true)
+      },
+      30000,
+      1000
+    )
 
     const two = await fetchWithDuration(
       ctx.appPort,
@@ -1274,15 +1285,15 @@ export function runTests(ctx: RunTestsCtx) {
       expect(four.res.headers.get('Content-Disposition')).toBe(
         `${contentDispositionType}; filename="test.webp"`
       )
-      await check(async () => {
-        const json3 = await fsToJson(ctx.imagesDir)
-        try {
-          assert.deepStrictEqual(json3, json1)
-          return 'fail'
-        } catch (err) {
-          return 'success'
-        }
-      }, 'success')
+      await retry(
+        async () => {
+          const json3 = await fsToJson(ctx.imagesDir)
+          // Wait for the cache to be updated (json3 should differ from json1)
+          expect(json3).not.toStrictEqual(json1)
+        },
+        30000,
+        1000
+      )
 
       const five = await fetchWithDuration(
         ctx.appPort,
@@ -1297,15 +1308,15 @@ export function runTests(ctx: RunTestsCtx) {
       expect(five.res.headers.get('Content-Disposition')).toBe(
         `${contentDispositionType}; filename="test.webp"`
       )
-      await check(async () => {
-        const json5 = await fsToJson(ctx.imagesDir)
-        try {
-          assert.deepStrictEqual(json5, json1)
-          return 'fail'
-        } catch (err) {
-          return 'success'
-        }
-      }, 'success')
+      await retry(
+        async () => {
+          const json5 = await fsToJson(ctx.imagesDir)
+          // Wait for the cache to be updated (json5 should differ from json1)
+          expect(json5).not.toStrictEqual(json1)
+        },
+        30000,
+        1000
+      )
     }
   })
 
@@ -1326,14 +1337,20 @@ export function runTests(ctx: RunTestsCtx) {
       const etagOne = res1.headers.get('etag')
 
       let json1
-      await check(async () => {
-        json1 = await fsToJson(ctx.imagesDir)
-        return Object.keys(json1).some((dir) => {
-          return Object.keys(json1[dir]).some((file) => file.includes(etagOne))
-        })
-          ? 'success'
-          : 'fail'
-      }, 'success')
+      await retry(
+        async () => {
+          json1 = await fsToJson(ctx.imagesDir)
+          expect(
+            Object.keys(json1).some((dir) => {
+              return Object.keys(json1[dir]).some((file) =>
+                file.includes(etagOne)
+              )
+            })
+          ).toBe(true)
+        },
+        30000,
+        1000
+      )
 
       const res2 = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
       expect(res2.status).toBe(200)
@@ -1365,10 +1382,14 @@ export function runTests(ctx: RunTestsCtx) {
     )
 
     let json1
-    await check(async () => {
-      json1 = await fsToJson(ctx.imagesDir)
-      return Object.keys(json1).length === 1 ? 'success' : 'fail'
-    }, 'success')
+    await retry(
+      async () => {
+        json1 = await fsToJson(ctx.imagesDir)
+        expect(Object.keys(json1).length).toBe(1)
+      },
+      30000,
+      1000
+    )
 
     const res2 = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
     expect(res2.status).toBe(200)
@@ -1459,14 +1480,14 @@ export function runTests(ctx: RunTestsCtx) {
       expect(json1).toEqual({})
       expect(await fsToJson(ctx.imagesDir)).toEqual({})
     } else {
-      await check(async () => {
-        try {
-          assert.deepStrictEqual(await fsToJson(ctx.imagesDir), json1)
-          return 'expected change, but matched'
-        } catch (_) {
-          return 'success'
-        }
-      }, 'success')
+      await retry(
+        async () => {
+          // Wait for the cache to be updated (should differ from json1)
+          expect(await fsToJson(ctx.imagesDir)).not.toStrictEqual(json1)
+        },
+        30000,
+        1000
+      )
     }
   })
 
@@ -1582,10 +1603,14 @@ export function runTests(ctx: RunTestsCtx) {
       const length =
         ctx.nextConfigExperimental?.isrFlushToDisk === false ? 0 : 1
 
-      await check(async () => {
-        const json1 = await fsToJson(ctx.imagesDir)
-        return Object.keys(json1).length === length ? 'success' : 'fail'
-      }, 'success')
+      await retry(
+        async () => {
+          const json1 = await fsToJson(ctx.imagesDir)
+          expect(Object.keys(json1).length).toBe(length)
+        },
+        30000,
+        1000
+      )
 
       const xCache = [res1, res2, res3]
         .map((r) => r.headers.get('X-Nextjs-Cache'))

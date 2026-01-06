@@ -11,7 +11,7 @@ import {
   launchApp,
   nextStart,
   fetchViaHTTP,
-  check,
+  retry,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
@@ -107,13 +107,23 @@ function runTests(isDev: boolean) {
             if (!isDev) {
               // we don't block on writing incremental data to the
               // disk so use check
-              await check(
-                () => fs.existsSync(join(pagesDir, mode, path + '.html')),
-                true
+              await retry(
+                () => {
+                  expect(
+                    fs.existsSync(join(pagesDir, mode, path + '.html'))
+                  ).toBe(true)
+                },
+                30000,
+                1000
               )
-              await check(
-                () => fs.existsSync(join(pagesDir, mode, path + '.json')),
-                true
+              await retry(
+                () => {
+                  expect(
+                    fs.existsSync(join(pagesDir, mode, path + '.json'))
+                  ).toBe(true)
+                },
+                30000,
+                1000
               )
             }
 
@@ -255,14 +265,18 @@ function runTests(isDev: boolean) {
           })
         })()`)
 
-        await check(async () => {
-          const browserRouter = JSON.parse(
-            await browser.elementByCss('#router').text()
-          )
-          return browserRouter.asPath === `/${mode}/${nextSlug}`
-            ? 'success'
-            : 'fail'
-        }, 'success')
+        await retry(
+          async () => {
+            const browserRouter = JSON.parse(
+              await browser.elementByCss('#router').text()
+            )
+            return browserRouter.asPath === `/${mode}/${nextSlug}`
+              ? 'success'
+              : 'fail'
+          },
+          30000,
+          1000
+        )
 
         expect(await browser.eval('window.beforeNav')).toBe(1)
       }
@@ -299,14 +313,18 @@ function runTests(isDev: boolean) {
           window.next.router.push('/${mode}/${nextSlug}')
         })()`)
 
-        await check(async () => {
-          const browserRouter = JSON.parse(
-            await browser.elementByCss('#router').text()
-          )
-          return browserRouter.asPath === `/${mode}/${nextSlug}`
-            ? 'success'
-            : 'fail'
-        }, 'success')
+        await retry(
+          async () => {
+            const browserRouter = JSON.parse(
+              await browser.elementByCss('#router').text()
+            )
+            return browserRouter.asPath === `/${mode}/${nextSlug}`
+              ? 'success'
+              : 'fail'
+          },
+          30000,
+          1000
+        )
 
         expect(await browser.eval('window.beforeNav')).toBe(1)
       }

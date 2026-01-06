@@ -1,5 +1,4 @@
 import {
-  check,
   fetchViaHTTP,
   File,
   findPort,
@@ -42,14 +41,17 @@ describe('Middleware development errors', () => {
   })
 
   async function assertMiddlewareFetch(hasMiddleware, path = '/') {
-    await check(async () => {
-      const res = await fetchViaHTTP(appPort, path)
-      expect(res.status).toBe(200)
-      expect(res.headers.get('x-from-middleware')).toBe(
-        hasMiddleware ? 'true' : null
-      )
-      return 'success'
-    }, 'success')
+    await retry(
+      async () => {
+        const res = await fetchViaHTTP(appPort, path)
+        expect(res.status).toBe(200)
+        expect(res.headers.get('x-from-middleware')).toBe(
+          hasMiddleware ? 'true' : null
+        )
+      },
+      30000,
+      1000
+    )
   }
 
   async function assertMiddlewareRender(hasMiddleware, path = '/') {

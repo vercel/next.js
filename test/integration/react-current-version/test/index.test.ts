@@ -4,11 +4,11 @@ import { join } from 'path'
 
 import cheerio from 'cheerio'
 import {
-  check,
   File,
   renderViaHTTP,
   runDevSuite,
   runProdSuite,
+  retry,
 } from 'next-test-utils'
 import webdriver, { type Playwright } from 'next-webdriver'
 
@@ -102,23 +102,31 @@ function runTestsAgainstRuntime(runtime) {
         expect(stylesOccurrence.length).toBe(1)
 
         await withBrowser('/use-flush-effect/styled-jsx', async (browser) => {
-          await check(
-            () =>
-              browser
-                .waitForElementByCss('style#__jsx-900f996af369fc74', {
-                  state: 'attached',
-                })
-                .text(),
-            /(?:blue|#00f)/
+          await retry(
+            async () => {
+              await expect(
+                browser
+                  .waitForElementByCss('style#__jsx-900f996af369fc74', {
+                    state: 'attached',
+                  })
+                  .text()
+              ).resolves.toMatch(/(?:blue|#00f)/)
+            },
+            30000,
+            1000
           )
-          await check(
-            () =>
-              browser
-                .waitForElementByCss('style#__jsx-8b0811664c4e575e', {
-                  state: 'attached',
-                })
-                .text(),
-            /red/
+          await retry(
+            async () => {
+              await expect(
+                browser
+                  .waitForElementByCss('style#__jsx-8b0811664c4e575e', {
+                    state: 'attached',
+                  })
+                  .text()
+              ).resolves.toMatch(/red/)
+            },
+            30000,
+            1000
           )
         })
       })
