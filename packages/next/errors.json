@@ -974,5 +974,6 @@
   "973": "Server Actions are not enabled for this application. This request might be from an older or newer deployment.\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action",
   "974": "Failed to find Server Action%s. This request might be from an older or newer deployment.\\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action",
   "975": "Failed to find Server Action. This request might be from an older or newer deployment.\\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action",
-  "976": "deploymentId function must return a string. https://nextjs.org/docs/messages/deploymentid-not-a-string"
+  "976": "deploymentId function must return a string. https://nextjs.org/docs/messages/deploymentid-not-a-string",
+  "977": "The deploymentId \"%s\" cannot start with the \"dpl_\" prefix. Please choose a different deploymentId in your next.config.js. https://vercel.com/docs/skew-protection#custom-skew-protection-deployment-id"
 }
