@@ -284,7 +284,7 @@ export async function writeConfigurationDefaults(
 
   if (!('include' in userTsConfig)) {
     const defaultInclude =
-      hasAppDir || strictRouteTypes
+      hasAppDir && !strictRouteTypes
         ? ['next-env.d.ts', ...nextTypes, '**/*.mts', '**/*.ts', '**/*.tsx']
         : ['next-env.d.ts', '**/*.mts', '**/*.ts', '**/*.tsx']
 
@@ -295,7 +295,7 @@ export async function writeConfigurationDefaults(
         bold(defaultInclude.map((type) => `'${type}'`).join(', ')) +
         ']'
     )
-  } else if (hasAppDir || strictRouteTypes) {
+  } else if (hasAppDir && !strictRouteTypes) {
     const missingFromResolved = []
     for (const type of nextTypes) {
       if (!userTsConfig.include.includes(type)) {

@@ -40,6 +40,7 @@ export async function verifyTypeScriptSetup({
   strictRouteTypes,
   tsconfigPath,
   typeCheckPreflight,
+  typedRoutes,
   disableStaticImages,
   hasAppDir,
   hasPagesDir,
@@ -54,6 +55,7 @@ export async function verifyTypeScriptSetup({
   strictRouteTypes: boolean
   tsconfigPath: string | undefined
   typeCheckPreflight: boolean
+  typedRoutes: boolean
   disableStaticImages: boolean
   hasAppDir: boolean
   hasPagesDir: boolean
@@ -149,6 +151,8 @@ export async function verifyTypeScriptSetup({
       imageImportsEnabled: !disableStaticImages,
       hasPagesDir,
       hasAppDir,
+      strictRouteTypes,
+      typedRoutes,
     })
 
     let result
