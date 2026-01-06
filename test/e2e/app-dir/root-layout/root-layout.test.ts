@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { waitForRedbox, check, getRedboxSource } from 'next-test-utils'
+import { waitForRedbox, getRedboxSource, retry } from 'next-test-utils'
 
 describe('app-dir root layout', () => {
   const {
@@ -118,23 +118,29 @@ describe('app-dir root layout', () => {
       await browser.eval('window.__TEST_NO_RELOAD = true')
 
       // Navigate to page with same root layout
-      await check(async () => {
-        await browser.elementByCss('a').click()
-        expect(
-          await browser.waitForElementByCss('#parallel-one-inner').text()
-        ).toBe('One inner')
-        expect(await browser.eval('window.__TEST_NO_RELOAD')).toBeTrue()
-        return 'success'
-      }, 'success')
+      await retry(
+        async () => {
+          await browser.elementByCss('a').click()
+          expect(
+            await browser.waitForElementByCss('#parallel-one-inner').text()
+          ).toBe('One inner')
+          expect(await browser.eval('window.__TEST_NO_RELOAD')).toBeTrue()
+        },
+        30000,
+        1000
+      )
 
       // Navigate to page with different root layout
-      await check(async () => {
-        await browser.elementByCss('a').click()
-        expect(await browser.waitForElementByCss('#dynamic-hello').text()).toBe(
-          'dynamic hello'
-        )
-        return 'success'
-      }, 'success')
+      await retry(
+        async () => {
+          await browser.elementByCss('a').click()
+          expect(
+            await browser.waitForElementByCss('#dynamic-hello').text()
+          ).toBe('dynamic hello')
+        },
+        30000,
+        1000
+      )
       expect(await browser.eval('window.__TEST_NO_RELOAD')).toBeUndefined()
     })
 

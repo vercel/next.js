@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check, waitFor } from 'next-test-utils'
+import { waitFor, retry } from 'next-test-utils'
 import path from 'path'
 
 describe('multi-zone', () => {
@@ -84,7 +84,15 @@ describe('multi-zone', () => {
       )
       await next.patchFile(filePath, patchedContent)
 
-      await check(() => browser.elementByCss('body').text(), /hmr content/)
+      await retry(
+        async () => {
+          expect(await browser.elementByCss('body').text()).toMatch(
+            /hmr content/
+          )
+        },
+        30000,
+        1000
+      )
 
       // restore original content
       await next.patchFile(filePath, content)

@@ -1,7 +1,7 @@
 import { join } from 'path'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 
 describe('i18n-data-fetching-redirect', () => {
@@ -41,9 +41,14 @@ describe('i18n-data-fetching-redirect', () => {
           `/${fromLocale}/${path}/${toLocale}`
         )
 
-        await check(
-          () => browser.eval('window.location.pathname'),
-          `/${toLocale}/home`
+        await retry(
+          async () => {
+            expect(await browser.eval('window.location.pathname')).toBe(
+              `/${toLocale}/home`
+            )
+          },
+          30000,
+          1000
         )
         expect(await browser.elementByCss('#router-locale').text()).toBe(
           toLocale
@@ -73,9 +78,14 @@ describe('i18n-data-fetching-redirect', () => {
 
         await browser.elementByCss(`#to-${path}-${toLocale}`).click()
 
-        await check(
-          () => browser.eval('window.location.pathname'),
-          `/${toLocale}/home`
+        await retry(
+          async () => {
+            expect(await browser.eval('window.location.pathname')).toBe(
+              `/${toLocale}/home`
+            )
+          },
+          30000,
+          1000
         )
 
         expect(await browser.eval('window.beforeNav')).toBe(1)

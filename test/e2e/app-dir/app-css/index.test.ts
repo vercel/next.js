@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('app dir - css', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
@@ -22,43 +22,59 @@ describe('app dir - css', () => {
         const browser = await next.browser('/dashboard')
 
         // Should body text in red
-        await check(
-          async () =>
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('.p')).color`
-            ),
-          'rgb(255, 0, 0)'
+        await retry(
+          async () => {
+            expect(
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('.p')).color`
+              )
+            ).toBe('rgb(255, 0, 0)')
+          },
+          30000,
+          1000
         )
 
         // Should inject global css for .green selectors
-        await check(
-          async () =>
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('.green')).color`
-            ),
-          'rgb(0, 128, 0)'
+        await retry(
+          async () => {
+            expect(
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('.green')).color`
+              )
+            ).toBe('rgb(0, 128, 0)')
+          },
+          30000,
+          1000
         )
       })
 
       it('should support css modules inside server layouts', async () => {
         const browser = await next.browser('/css/css-nested')
-        await check(
-          async () =>
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('#server-cssm')).color`
-            ),
-          'rgb(0, 128, 0)'
+        await retry(
+          async () => {
+            expect(
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('#server-cssm')).color`
+              )
+            ).toBe('rgb(0, 128, 0)')
+          },
+          30000,
+          1000
         )
       })
 
       it('should support external css imports', async () => {
         const browser = await next.browser('/css/css-external')
-        await check(
-          async () =>
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('main')).paddingTop`
-            ),
-          '80px'
+        await retry(
+          async () => {
+            expect(
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('main')).paddingTop`
+              )
+            ).toBe('80px')
+          },
+          30000,
+          1000
         )
       })
     })
@@ -66,23 +82,31 @@ describe('app dir - css', () => {
     describe('server pages', () => {
       it('should support global css inside server pages', async () => {
         const browser = await next.browser('/css/css-page')
-        await check(
-          async () =>
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('h1')).color`
-            ),
-          'rgb(255, 0, 0)'
+        await retry(
+          async () => {
+            expect(
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('h1')).color`
+              )
+            ).toBe('rgb(255, 0, 0)')
+          },
+          30000,
+          1000
         )
       })
 
       it('should support css modules inside server pages', async () => {
         const browser = await next.browser('/css/css-page')
-        await check(
-          async () =>
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('#cssm')).color`
-            ),
-          'rgb(0, 0, 255)'
+        await retry(
+          async () => {
+            expect(
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('#cssm')).color`
+              )
+            ).toBe('rgb(0, 0, 255)')
+          },
+          30000,
+          1000
         )
       })
 
@@ -93,12 +117,16 @@ describe('app dir - css', () => {
 
       it('should support css modules shared between server pages', async () => {
         const browser = await next.browser('/css/css-page-shared-loading')
-        await check(
-          async () =>
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('#cssm')).color`
-            ),
-          'rgb(0, 0, 255)'
+        await retry(
+          async () => {
+            expect(
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('#cssm')).color`
+              )
+            ).toBe('rgb(0, 0, 255)')
+          },
+          30000,
+          1000
         )
       })
     })
@@ -108,12 +136,16 @@ describe('app dir - css', () => {
         const browser = await next.browser('/client-nested')
 
         // Should render h1 in red
-        await check(
-          async () =>
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('h1')).color`
-            ),
-          'rgb(255, 0, 0)'
+        await retry(
+          async () => {
+            expect(
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('h1')).color`
+              )
+            ).toBe('rgb(255, 0, 0)')
+          },
+          30000,
+          1000
         )
       })
 
@@ -121,12 +153,16 @@ describe('app dir - css', () => {
         const browser = await next.browser('/client-nested')
 
         // Should render button in red
-        await check(
-          async () =>
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('button')).color`
-            ),
-          'rgb(255, 0, 0)'
+        await retry(
+          async () => {
+            expect(
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('button')).color`
+              )
+            ).toBe('rgb(255, 0, 0)')
+          },
+          30000,
+          1000
         )
       })
     })
@@ -136,12 +172,16 @@ describe('app dir - css', () => {
         const browser = await next.browser('/client-component-route')
 
         // Should render p in red
-        await check(
-          async () =>
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('p')).color`
-            ),
-          'rgb(255, 0, 0)'
+        await retry(
+          async () => {
+            expect(
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('p')).color`
+              )
+            ).toBe('rgb(255, 0, 0)')
+          },
+          30000,
+          1000
         )
       })
 
@@ -149,12 +189,16 @@ describe('app dir - css', () => {
         const browser = await next.browser('/client-component-route')
 
         // Should render `b` in blue
-        await check(
-          async () =>
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('b')).color`
-            ),
-          'rgb(0, 0, 255)'
+        await retry(
+          async () => {
+            expect(
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('b')).color`
+              )
+            ).toBe('rgb(0, 0, 255)')
+          },
+          30000,
+          1000
         )
       })
     })
@@ -163,24 +207,32 @@ describe('app dir - css', () => {
       it('should support css modules inside client page', async () => {
         const browser = await next.browser('/css/css-client')
 
-        await check(
-          async () =>
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('#css-modules')).fontSize`
-            ),
-          '100px'
+        await retry(
+          async () => {
+            expect(
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('#css-modules')).fontSize`
+              )
+            ).toBe('100px')
+          },
+          30000,
+          1000
         )
       })
 
       it('should support css modules inside client components', async () => {
         const browser = await next.browser('/css/css-client/inner')
 
-        await check(
-          async () =>
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('#client-component')).fontSize`
-            ),
-          '100px'
+        await retry(
+          async () => {
+            expect(
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('#client-component')).fontSize`
+              )
+            ).toBe('100px')
+          },
+          30000,
+          1000
         )
       })
     })
@@ -197,74 +249,102 @@ describe('app dir - css', () => {
 
       it('should include css imported in client template.js', async () => {
         const browser = await next.browser('/template/clientcomponent')
-        await check(
-          async () =>
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('button')).fontSize`
-            ),
-          '100px'
+        await retry(
+          async () => {
+            expect(
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('button')).fontSize`
+              )
+            ).toBe('100px')
+          },
+          30000,
+          1000
         )
       })
 
       it('should include css imported in server template.js', async () => {
         const browser = await next.browser('/template/servercomponent')
-        await check(
-          async () =>
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('h1')).color`
-            ),
-          'rgb(255, 0, 0)'
+        await retry(
+          async () => {
+            expect(
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('h1')).color`
+              )
+            ).toBe('rgb(255, 0, 0)')
+          },
+          30000,
+          1000
         )
       })
 
       it('should include css imported in client not-found.js', async () => {
         const browser = await next.browser('/not-found/clientcomponent')
-        await check(
-          async () =>
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('h1')).color`
-            ),
-          'rgb(255, 0, 0)'
+        await retry(
+          async () => {
+            expect(
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('h1')).color`
+              )
+            ).toBe('rgb(255, 0, 0)')
+          },
+          30000,
+          1000
         )
       })
 
       it('should include css imported in server not-found.js', async () => {
         const browser = await next.browser('/not-found/servercomponent')
-        await check(
-          async () =>
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('h1')).color`
-            ),
-          'rgb(255, 0, 0)'
+        await retry(
+          async () => {
+            expect(
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('h1')).color`
+              )
+            ).toBe('rgb(255, 0, 0)')
+          },
+          30000,
+          1000
         )
       })
 
       it('should include root layout css for root not-found.js', async () => {
         const browser = await next.browser('/this-path-does-not-exist')
-        await check(
-          async () =>
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('h1')).color`
-            ),
-          'rgb(210, 105, 30)'
+        await retry(
+          async () => {
+            expect(
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('h1')).color`
+              )
+            ).toBe('rgb(210, 105, 30)')
+          },
+          30000,
+          1000
         )
       })
 
       it('should include css imported in root not-found.js', async () => {
         const browser = await next.browser('/random-non-existing-path')
-        await check(
-          async () =>
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('h1')).color`
-            ),
-          'rgb(210, 105, 30)'
+        await retry(
+          async () => {
+            expect(
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('h1')).color`
+              )
+            ).toBe('rgb(210, 105, 30)')
+          },
+          30000,
+          1000
         )
-        await check(
-          async () =>
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('h1')).backgroundColor`
-            ),
-          'rgb(0, 0, 0)'
+        await retry(
+          async () => {
+            expect(
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('h1')).backgroundColor`
+              )
+            ).toBe('rgb(0, 0, 0)')
+          },
+          30000,
+          1000
         )
       })
 
@@ -275,12 +355,16 @@ describe('app dir - css', () => {
         // Wait for error page to render and CSS to be loaded
         await new Promise((resolve) => setTimeout(resolve, 2000))
 
-        await check(
-          async () =>
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('button')).fontSize`
-            ),
-          '50px'
+        await retry(
+          async () => {
+            expect(
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('button')).fontSize`
+              )
+            ).toBe('50px')
+          },
+          30000,
+          1000
         )
       })
     })
@@ -288,12 +372,16 @@ describe('app dir - css', () => {
     describe('page extensions', () => {
       it('should include css imported in MDX pages', async () => {
         const browser = await next.browser('/mdx')
-        await check(
-          async () =>
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('h1')).color`
-            ),
-          'rgb(255, 0, 0)'
+        await retry(
+          async () => {
+            expect(
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('h1')).color`
+              )
+            ).toBe('rgb(255, 0, 0)')
+          },
+          30000,
+          1000
         )
       })
     })
@@ -352,9 +440,14 @@ describe('app dir - css', () => {
           )
 
           // Wait for HMR to trigger
-          await check(
-            () => browser.eval(`document.querySelector('h1').textContent`),
-            'Hello!'
+          await retry(
+            async () => {
+              expect(
+                await browser.eval(`document.querySelector('h1').textContent`)
+              ).toBe('Hello!')
+            },
+            30000,
+            1000
           )
           expect(
             await browser.eval(
@@ -389,9 +482,14 @@ describe('app dir - css', () => {
             )
 
             // Wait for HMR to trigger
-            await check(
-              () => browser.elementByCss('body').text(),
-              'hello world!'
+            await retry(
+              async () => {
+                expect(await browser.elementByCss('body').text()).toBe(
+                  'hello world!'
+                )
+              },
+              30000,
+              1000
             )
 
             expect(
@@ -434,12 +532,16 @@ describe('app dir - css', () => {
           )
 
           // Wait for HMR to trigger
-          await check(
-            () =>
-              browser.eval(
-                `window.getComputedStyle(document.querySelector('body')).backgroundColor`
-              ),
-            'rgb(0, 0, 255)'
+          await retry(
+            async () => {
+              expect(
+                await browser.eval(
+                  `window.getComputedStyle(document.querySelector('body')).backgroundColor`
+                )
+              ).toBe('rgb(0, 0, 255)')
+            },
+            30000,
+            1000
           )
         } finally {
           await next.patchFile(filePath, origContent)
@@ -460,19 +562,27 @@ describe('app dir - css', () => {
 
         it('should deduplicate styles on the module level', async () => {
           const browser = await next.browser('/css/css-conflict-layers')
-          await check(
-            () =>
-              browser.eval(
-                `window.getComputedStyle(document.querySelector('.btn:not(.btn-blue)')).backgroundColor`
-              ),
-            'rgb(255, 255, 255)'
+          await retry(
+            async () => {
+              expect(
+                await browser.eval(
+                  `window.getComputedStyle(document.querySelector('.btn:not(.btn-blue)')).backgroundColor`
+                )
+              ).toBe('rgb(255, 255, 255)')
+            },
+            30000,
+            1000
           )
-          await check(
-            () =>
-              browser.eval(
-                `window.getComputedStyle(document.querySelector('.btn.btn-blue')).backgroundColor`
-              ),
-            'rgb(0, 0, 255)'
+          await retry(
+            async () => {
+              expect(
+                await browser.eval(
+                  `window.getComputedStyle(document.querySelector('.btn.btn-blue')).backgroundColor`
+                )
+              ).toBe('rgb(0, 0, 255)')
+            },
+            30000,
+            1000
           )
         })
 
@@ -647,20 +757,28 @@ describe('app dir - css', () => {
         const browser = await next.browser('/css/sass-client/inner')
 
         // .sass
-        await check(
-          () =>
-            browser.eval(
-              `window.getComputedStyle(document.querySelector('#sass-client-page')).color`
-            ),
-          'rgb(245, 222, 179)'
+        await retry(
+          async () => {
+            expect(
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('#sass-client-page')).color`
+              )
+            ).toBe('rgb(245, 222, 179)')
+          },
+          30000,
+          1000
         )
         // .scss
-        await check(
-          () =>
-            browser.eval(
-              `window.getComputedStyle(document.querySelector('#scss-client-page')).color`
-            ),
-          'rgb(255, 99, 71)'
+        await retry(
+          async () => {
+            expect(
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('#scss-client-page')).color`
+              )
+            ).toBe('rgb(255, 99, 71)')
+          },
+          30000,
+          1000
         )
       })
 
@@ -722,12 +840,16 @@ describe('app dir - css', () => {
           await next.patchFile(filePath, origContent.replace('red', 'blue'))
 
           // Wait for HMR to trigger
-          await check(
-            () =>
-              browser.eval(
-                `window.getComputedStyle(document.querySelector('h1')).color`
-              ),
-            'rgb(0, 0, 255)'
+          await retry(
+            async () => {
+              expect(
+                await browser.eval(
+                  `window.getComputedStyle(document.querySelector('h1')).color`
+                )
+              ).toBe('rgb(0, 0, 255)')
+            },
+            30000,
+            1000
           )
         } finally {
           await next.patchFile(filePath, origContent)
@@ -749,12 +871,16 @@ describe('app dir - css', () => {
         try {
           await next.patchFile(filePath, origContent.replace('red', 'blue'))
 
-          await check(
-            () =>
-              browser.eval(
-                `window.getComputedStyle(document.querySelector('h1')).color`
-              ),
-            'rgb(0, 0, 255)'
+          await retry(
+            async () => {
+              expect(
+                await browser.eval(
+                  `window.getComputedStyle(document.querySelector('h1')).color`
+                )
+              ).toBe('rgb(0, 0, 255)')
+            },
+            30000,
+            1000
           )
         } finally {
           await next.patchFile(filePath, origContent)
@@ -769,7 +895,13 @@ describe('app dir - css', () => {
         await browser.eval(`window.__v = 1`)
         try {
           await next.patchFile(filePath, origContent.replace('hello!', 'hmr!'))
-          await check(() => browser.elementByCss('body').text(), 'hmr!')
+          await retry(
+            async () => {
+              expect(await browser.elementByCss('body').text()).toBe('hmr!')
+            },
+            30000,
+            1000
+          )
 
           // Make sure it doesn't reload the page
           expect(await browser.eval(`window.__v`)).toBe(1)
@@ -788,18 +920,23 @@ describe('app dir - css', () => {
             filePath,
             origContent.replace('background: gray;', 'background: red;')
           )
-          await check(
-            () =>
-              browser.eval(
-                `window.getComputedStyle(document.querySelector('body')).backgroundColor`
-              ),
-            'rgb(255, 0, 0)'
+          await retry(
+            async () => {
+              expect(
+                await browser.eval(
+                  `window.getComputedStyle(document.querySelector('body')).backgroundColor`
+                )
+              ).toBe('rgb(255, 0, 0)')
+            },
+            30000,
+            1000
           )
 
-          await check(
-            () =>
-              browser.eval(
-                `(() => {
+          await retry(
+            async () => {
+              expect(
+                await browser.eval(
+                  `(() => {
                   const tags = document.querySelectorAll('link[rel="stylesheet"][href^="/_next/static"]')
                   const counts = new Map();
                   for (const tag of tags) {
@@ -807,8 +944,11 @@ describe('app dir - css', () => {
                   }
                   return Math.max(...counts.values())
                 })()`
-              ),
-            1
+                )
+              ).toBe(1)
+            },
+            30000,
+            1000
           )
         } finally {
           await next.patchFile(filePath, origContent)
@@ -840,12 +980,16 @@ describe('app dir - css', () => {
             filePath1,
             origContent1.replace('color: burlywood;', 'color: red;')
           )
-          await check(
-            () =>
-              browser.eval(
-                `window.getComputedStyle(document.querySelector('#scss-server-layout')).color`
-              ),
-            'rgb(255, 0, 0)'
+          await retry(
+            async () => {
+              expect(
+                await browser.eval(
+                  `window.getComputedStyle(document.querySelector('#scss-server-layout')).color`
+                )
+              ).toBe('rgb(255, 0, 0)')
+            },
+            30000,
+            1000
           )
         } finally {
           await next.patchFile(filePath1, origContent1)
@@ -856,12 +1000,16 @@ describe('app dir - css', () => {
             filePath2,
             origContent2.replace('color: brown', 'color: red')
           )
-          await check(
-            () =>
-              browser.eval(
-                `window.getComputedStyle(document.querySelector('#sass-server-layout')).color`
-              ),
-            'rgb(255, 0, 0)'
+          await retry(
+            async () => {
+              expect(
+                await browser.eval(
+                  `window.getComputedStyle(document.querySelector('#sass-server-layout')).color`
+                )
+              ).toBe('rgb(255, 0, 0)')
+            },
+            30000,
+            1000
           )
         } finally {
           await next.patchFile(filePath2, origContent2)
@@ -875,10 +1023,24 @@ describe('app dir - css', () => {
       it('should suspend on CSS imports if its slow on client navigation', async () => {
         const browser = await next.browser('/suspensey-css')
         await browser.elementByCss('#slow').click()
-        await check(() => browser.eval(`document.body.innerText`), 'Get back')
-        await check(async () => {
-          return await browser.eval(`window.__log`)
-        }, /background = rgb\(255, 255, 0\)/)
+        await retry(
+          async () => {
+            expect(await browser.eval(`document.body.innerText`)).toBe(
+              'Get back'
+            )
+          },
+          30000,
+          1000
+        )
+        await retry(
+          async () => {
+            expect(await browser.eval(`window.__log`)).toMatch(
+              /background = rgb\(255, 255, 0\)/
+            )
+          },
+          30000,
+          1000
+        )
       })
     })
   }

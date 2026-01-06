@@ -4,11 +4,11 @@ import webdriver from 'next-webdriver'
 import { nextTestSetup } from 'e2e-utils'
 import {
   waitForNoRedbox,
-  check,
   fetchViaHTTP,
   getClientBuildManifestLoaderChunkUrlPath,
   renderViaHTTP,
   waitFor,
+  retry,
 } from 'next-test-utils'
 
 describe('basePath', () => {
@@ -91,19 +91,43 @@ describe('basePath', () => {
     await browser.eval('window.beforeNav = 1')
 
     await browser.eval('window.next.router.push("/catchall/first")')
-    await check(() => browser.elementByCss('p').text(), /first/)
+    await retry(
+      async () => {
+        expect(await browser.elementByCss('p').text()).toMatch(/first/)
+      },
+      30000,
+      1000
+    )
     expect(await browser.eval('window.beforeNav')).toBe(1)
 
     await browser.eval('window.next.router.push("/catchall/second")')
-    await check(() => browser.elementByCss('p').text(), /second/)
+    await retry(
+      async () => {
+        expect(await browser.elementByCss('p').text()).toMatch(/second/)
+      },
+      30000,
+      1000
+    )
     expect(await browser.eval('window.beforeNav')).toBe(1)
 
     await browser.eval('window.next.router.back()')
-    await check(() => browser.elementByCss('p').text(), /first/)
+    await retry(
+      async () => {
+        expect(await browser.elementByCss('p').text()).toMatch(/first/)
+      },
+      30000,
+      1000
+    )
     expect(await browser.eval('window.beforeNav')).toBe(1)
 
     await browser.eval('window.history.forward()')
-    await check(() => browser.elementByCss('p').text(), /second/)
+    await retry(
+      async () => {
+        expect(await browser.elementByCss('p').text()).toMatch(/second/)
+      },
+      30000,
+      1000
+    )
     expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
@@ -125,72 +149,76 @@ describe('basePath', () => {
           '/gssp'
         )
 
-        await check(async () => {
-          const links = await browser.elementsByCss('link[rel=prefetch]')
-
-          for (const link of links) {
-            const href = await link.getAttribute('href')
-            if (href.includes(chunk)) {
-              return true
+        await retry(
+          async () => {
+            const links = await browser.elementsByCss('link[rel=prefetch]')
+            for (const link of links) {
+              const href = await link.getAttribute('href')
+              if (href.includes(chunk)) {
+                return true
+              }
             }
-          }
-
-          const scripts = await browser.elementsByCss('script')
-
-          for (const script of scripts) {
-            const src = await script.getAttribute('src')
-            if (src.includes(chunk)) {
-              return true
+            const scripts = await browser.elementsByCss('script')
+            for (const script of scripts) {
+              const src = await script.getAttribute('src')
+              if (src.includes(chunk)) {
+                return true
+              }
             }
-          }
-          return false
-        }, true)
+            expect(false).toBe(true)
+          },
+          30000,
+          1000
+        )
       })
 
       it('should prefetch pages correctly in viewport with <Link>', async () => {
         const browser = await webdriver(next.url, `${basePath}/hello`)
         await browser.eval('window.next.router.prefetch("/gssp")')
 
-        await check(async () => {
-          const hrefs = await browser.eval(
-            `Object.keys(window.next.router.sdc)`
-          )
-          hrefs.sort()
-
-          assert.deepEqual(
-            hrefs.map((href) =>
-              new URL(href).pathname.replace(/\/_next\/data\/[^/]+/, '')
-            ),
-            [
-              `${basePath}/gsp.json`,
-              `${basePath}/index.json`,
-              // `${basePath}/index/index.json`,
-            ]
-          )
-
-          let chunkGsp = getClientBuildManifestLoaderChunkUrlPath(
-            next.testDir,
-            '/gsp'
-          )
-          let chunkGssp = getClientBuildManifestLoaderChunkUrlPath(
-            next.testDir,
-            '/gssp'
-          )
-          let chunkOtherPage = getClientBuildManifestLoaderChunkUrlPath(
-            next.testDir,
-            '/other-page'
-          )
-
-          const prefetches = await browser.eval(
-            `[].slice.call(document.querySelectorAll("link[rel=prefetch]")).map((e) => new URL(e.href).pathname)`
-          )
-          expect(prefetches).toContainEqual(expect.stringContaining(chunkGsp))
-          expect(prefetches).toContainEqual(expect.stringContaining(chunkGssp))
-          expect(prefetches).toContainEqual(
-            expect.stringContaining(chunkOtherPage)
-          )
-          return 'yes'
-        }, 'yes')
+        await retry(
+          async () => {
+            const hrefs = await browser.eval(
+              `Object.keys(window.next.router.sdc)`
+            )
+            hrefs.sort()
+            assert.deepEqual(
+              hrefs.map((href) =>
+                new URL(href).pathname.replace(/\/_next\/data\/[^/]+/, '')
+              ),
+              [
+                `${basePath}/gsp.json`,
+                `${basePath}/index.json`,
+                // `${basePath}/index/index.json`,
+              ]
+            )
+            let chunkGsp = getClientBuildManifestLoaderChunkUrlPath(
+              next.testDir,
+              '/gsp'
+            )
+            let chunkGssp = getClientBuildManifestLoaderChunkUrlPath(
+              next.testDir,
+              '/gssp'
+            )
+            let chunkOtherPage = getClientBuildManifestLoaderChunkUrlPath(
+              next.testDir,
+              '/other-page'
+            )
+            const prefetches = await browser.eval(
+              `[].slice.call(document.querySelectorAll("link[rel=prefetch]")).map((e) => new URL(e.href).pathname)`
+            )
+            expect(prefetches).toContainEqual(expect.stringContaining(chunkGsp))
+            expect(prefetches).toContainEqual(
+              expect.stringContaining(chunkGssp)
+            )
+            expect(prefetches).toContainEqual(
+              expect.stringContaining(chunkOtherPage)
+            )
+            expect('yes').toBe('yes')
+          },
+          30000,
+          1000
+        )
       })
     }
   }
@@ -231,9 +259,14 @@ describe('basePath', () => {
 
   it('should update dynamic params after mount correctly', async () => {
     const browser = await webdriver(next.url, `${basePath}/hello-dynamic`)
-    await check(
-      () => browser.elementByCss('#slug').text(),
-      /slug: hello-dynamic/
+    await retry(
+      async () => {
+        expect(await browser.elementByCss('#slug').text()).toMatch(
+          /slug: hello-dynamic/
+        )
+      },
+      30000,
+      1000
     )
   })
 
@@ -304,24 +337,42 @@ describe('basePath', () => {
     const browser = await webdriver(next.url, `${basePath}/hello`)
     await browser.eval('window.next.router.push("/docs/another")')
 
-    await check(() => browser.elementByCss('p').text(), /hello from another/)
+    await retry(
+      async () => {
+        expect(await browser.elementByCss('p').text()).toMatch(
+          /hello from another/
+        )
+      },
+      30000,
+      1000
+    )
   })
 
   it('should work with normal dynamic page', async () => {
     const browser = await webdriver(next.url, `${basePath}/hello`)
     await browser.elementByCss('#dynamic-link').click()
-    await check(
-      () => browser.eval(() => document.documentElement.innerHTML),
-      /slug: first/
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(() => document.documentElement.innerHTML)
+        ).toMatch(/slug: first/)
+      },
+      30000,
+      1000
     )
   })
 
   it('should work with catch-all page', async () => {
     const browser = await webdriver(next.url, `${basePath}/hello`)
     await browser.elementByCss('#catchall-link').click()
-    await check(
-      () => browser.eval(() => document.documentElement.innerHTML),
-      /parts: hello\/world/
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(() => document.documentElement.innerHTML)
+        ).toMatch(/parts: hello\/world/)
+      },
+      30000,
+      1000
     )
   })
 
@@ -356,9 +407,14 @@ describe('basePath', () => {
   it('should navigate an absolute url', async () => {
     const browser = await webdriver(next.url, `${basePath}/absolute-url`)
     await browser.waitForElementByCss('#absolute-link').click()
-    await check(
-      () => browser.eval(() => window.location.origin),
-      'https://vercel.com'
+    await retry(
+      async () => {
+        expect(await browser.eval(() => window.location.origin)).toBe(
+          'https://vercel.com'
+        )
+      },
+      30000,
+      1000
     )
   })
 
@@ -384,9 +440,14 @@ describe('basePath', () => {
         `${basePath}/absolute-url-no-basepath?port=${next.appPort}`
       )
       await browser.waitForElementByCss('#absolute-link').click()
-      await check(
-        () => browser.eval(() => location.pathname),
-        '/rewrite-no-basepath'
+      await retry(
+        async () => {
+          expect(await browser.eval(() => location.pathname)).toBe(
+            '/rewrite-no-basepath'
+          )
+        },
+        30000,
+        1000
       )
       const text = await browser.elementByCss('body').text()
 

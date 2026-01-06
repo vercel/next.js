@@ -1,7 +1,7 @@
 import path from 'path'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
 // Skip on Turbopack because the user should create the layout manually
@@ -40,9 +40,14 @@ import stripAnsi from 'strip-ansi'
               'Hello world!'
             )
 
-            await check(
-              () => stripAnsi(next.cliOutput.slice(outputIndex)),
-              /did not have a root layout/
+            await retry(
+              () => {
+                expect(stripAnsi(next.cliOutput.slice(outputIndex))).toMatch(
+                  /did not have a root layout/
+                )
+              },
+              30000,
+              1000
             )
             expect(stripAnsi(next.cliOutput.slice(outputIndex))).toMatch(
               'Your page app/route/page.js did not have a root layout. We created app/layout.js for you.'
@@ -87,9 +92,14 @@ import stripAnsi from 'strip-ansi'
               'Hello world'
             )
 
-            await check(
-              () => stripAnsi(next.cliOutput.slice(outputIndex)),
-              /did not have a root layout/
+            await retry(
+              () => {
+                expect(stripAnsi(next.cliOutput.slice(outputIndex))).toMatch(
+                  /did not have a root layout/
+                )
+              },
+              30000,
+              1000
             )
             expect(stripAnsi(next.cliOutput.slice(outputIndex))).toInclude(
               'Your page app/(group)/page.js did not have a root layout. We created app/(group)/layout.js for you.'
@@ -137,9 +147,14 @@ import stripAnsi from 'strip-ansi'
               'Hello world'
             )
 
-            await check(
-              () => stripAnsi(next.cliOutput.slice(outputIndex)),
-              /did not have a root layout/
+            await retry(
+              () => {
+                expect(stripAnsi(next.cliOutput.slice(outputIndex))).toMatch(
+                  /did not have a root layout/
+                )
+              },
+              30000,
+              1000
             )
             expect(stripAnsi(next.cliOutput.slice(outputIndex))).toInclude(
               'Your page app/(group)/route/second/inner/page.js did not have a root layout. We created app/(group)/route/second/layout.js for you.'
@@ -188,9 +203,14 @@ import stripAnsi from 'strip-ansi'
             'Hello world!'
           )
 
-          await check(
-            () => stripAnsi(next.cliOutput.slice(outputIndex)),
-            /did not have a root layout/
+          await retry(
+            () => {
+              expect(stripAnsi(next.cliOutput.slice(outputIndex))).toMatch(
+                /did not have a root layout/
+              )
+            },
+            30000,
+            1000
           )
           expect(stripAnsi(next.cliOutput.slice(outputIndex))).toInclude(
             'Your page app/page.tsx did not have a root layout. We created app/layout.tsx for you.'

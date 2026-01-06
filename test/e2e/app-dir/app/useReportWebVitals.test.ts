@@ -1,6 +1,6 @@
 import { createNext } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('useReportWebVitals hook', () => {
   let next: NextInstance
@@ -40,9 +40,12 @@ describe('useReportWebVitals hook', () => {
     await browser.elementById('btn').click()
 
     // Make sure all registered events in performance-relayer has fired
-    await check(async () => {
-      expect(eventsCount).toBeGreaterThanOrEqual(6)
-      return 'success'
-    }, 'success')
+    await retry(
+      async () => {
+        expect(eventsCount).toBeGreaterThanOrEqual(6)
+      },
+      30000,
+      1000
+    )
   })
 })

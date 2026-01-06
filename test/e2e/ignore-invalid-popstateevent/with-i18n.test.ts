@@ -1,7 +1,7 @@
 import { join } from 'path'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
-import { check, waitFor } from 'next-test-utils'
+import { waitFor, retry } from 'next-test-utils'
 import webdriver, { Playwright } from 'next-webdriver'
 
 import type { HistoryState } from 'next/dist/shared/lib/router/router'
@@ -47,7 +47,13 @@ describe('i18n: Event with stale state - static route previously was dynamic', (
 
     // 2nd event isn't ignored
     await emitPopsStateEvent(browser, state)
-    await check(() => browser.elementByCss('#page-type').text(), 'dynamic')
+    await retry(
+      async () => {
+        expect(await browser.elementByCss('#page-type').text()).toBe('dynamic')
+      },
+      30000,
+      1000
+    )
   })
 
   test('Ignore event with query param', async () => {
@@ -70,7 +76,13 @@ describe('i18n: Event with stale state - static route previously was dynamic', (
 
     // 2nd event isn't ignored
     await emitPopsStateEvent(browser, state)
-    await check(() => browser.elementByCss('#page-type').text(), 'dynamic')
+    await retry(
+      async () => {
+        expect(await browser.elementByCss('#page-type').text()).toBe('dynamic')
+      },
+      30000,
+      1000
+    )
   })
 
   test("Don't ignore event with different locale", async () => {
@@ -87,6 +99,12 @@ describe('i18n: Event with stale state - static route previously was dynamic', (
     expect(await browser.elementByCss('#page-type').text()).toBe('static')
 
     await emitPopsStateEvent(browser, state)
-    await check(() => browser.elementByCss('#page-type').text(), 'dynamic')
+    await retry(
+      async () => {
+        expect(await browser.elementByCss('#page-type').text()).toBe('dynamic')
+      },
+      30000,
+      1000
+    )
   })
 })

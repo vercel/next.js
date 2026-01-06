@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('route-page-manifest-bug', () => {
   const { next } = nextTestSetup({
@@ -13,24 +13,44 @@ describe('route-page-manifest-bug', () => {
       'Page that would break'
     )
     await browser.eval('window.location.href = "/abc"')
-    await check(
-      () => browser.eval('document.body.textContent'),
-      '{"url":"https://www.example.com"}'
+    await retry(
+      async () => {
+        expect(await browser.eval('document.body.textContent')).toBe(
+          '{"url":"https://www.example.com"}'
+        )
+      },
+      30000,
+      1000
     )
     await browser.refresh()
-    await check(
-      () => browser.eval('document.body.textContent'),
-      '{"url":"https://www.example.com"}'
+    await retry(
+      async () => {
+        expect(await browser.eval('document.body.textContent')).toBe(
+          '{"url":"https://www.example.com"}'
+        )
+      },
+      30000,
+      1000
     )
     await browser.refresh()
-    await check(
-      () => browser.eval('document.body.textContent'),
-      '{"url":"https://www.example.com"}'
+    await retry(
+      async () => {
+        expect(await browser.eval('document.body.textContent')).toBe(
+          '{"url":"https://www.example.com"}'
+        )
+      },
+      30000,
+      1000
     )
     await browser.refresh()
-    await check(
-      () => browser.eval('document.body.textContent'),
-      '{"url":"https://www.example.com"}'
+    await retry(
+      async () => {
+        expect(await browser.eval('document.body.textContent')).toBe(
+          '{"url":"https://www.example.com"}'
+        )
+      },
+      30000,
+      1000
     )
 
     await browser.back()
