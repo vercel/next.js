@@ -778,6 +778,7 @@ export async function fetchExternalImage(
   }
 
   if (!res.body) {
+    Log.error('upstream image response is empty for', href)
     throw new ImageError(
       400,
       '"url" parameter is valid but upstream response is invalid'
