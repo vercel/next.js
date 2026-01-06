@@ -68,7 +68,7 @@ use swc_core::{
         },
         codegen::{Emitter, text_writer::JsWriter},
         utils::StmtLikeInjector,
-        visit::{VisitMut, VisitMutWith, VisitMutWithAstPath},
+        visit::{VisitMut, VisitMutWith, VisitMutWithAstPath, VisitWith},
     },
     quote,
 };
@@ -111,7 +111,7 @@ use crate::{
     },
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt, CodeGens, ModifiableAst},
     merged_module::MergedEcmascriptModule,
-    parse::{ParseResult, generate_js_source_map, parse},
+    parse::{IdentCollector, ParseResult, generate_js_source_map, parse},
     path_visitor::ApplyVisitors,
     references::{
         analyze_ecmascript_module,
@@ -2107,6 +2107,15 @@ async fn emit_content(
 
     let generate_source_map = source_map.is_some();
 
+    // Collect identifier names for source maps before emitting
+    let source_map_names = if generate_source_map {
+        let mut collector = IdentCollector::default();
+        program.visit_with(&mut collector);
+        collector.into_map()
+    } else {
+        Default::default()
+    };
+
     let mut bytes: Vec<u8> = vec![];
     // TODO: Insert this as a sourceless segment so that sourcemaps aren't affected.
     // = format!("/* {} */\n", self.module.path().to_string().await?).into_bytes();
@@ -2162,6 +2171,7 @@ async fn emit_content(
                 CodeGenResultOriginalSourceMap::Single(_)
             ),
             true,
+            source_map_names,
         )?)
     } else {
         None
