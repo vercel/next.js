@@ -103,6 +103,7 @@ function runTests(mode: 'server' | 'dev') {
             },
           ],
           maximumRedirects: 3,
+          maximumResponseBody: 300000000,
           minimumCacheTTL: 14400,
           path: '/_next/image',
           qualities: [75],

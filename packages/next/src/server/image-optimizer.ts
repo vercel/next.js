@@ -711,6 +711,7 @@ function isRedirect(statusCode: number) {
 export async function fetchExternalImage(
   href: string,
   dangerouslyAllowLocalIP: boolean,
+  maximumResponseBody: number,
   count = 3
 ): Promise<ImageUpstream> {
   if (!dangerouslyAllowLocalIP) {
@@ -766,7 +767,12 @@ export async function fetchExternalImage(
       )
     }
     const redirect = new URL(locationHeader, href).href
-    return fetchExternalImage(redirect, dangerouslyAllowLocalIP, count - 1)
+    return fetchExternalImage(
+      redirect,
+      dangerouslyAllowLocalIP,
+      maximumResponseBody,
+      count - 1
+    )
   }
 
   if (!res.ok) {
@@ -777,7 +783,35 @@ export async function fetchExternalImage(
     )
   }
 
-  const buffer = Buffer.from(await res.arrayBuffer())
+  if (!res.body) {
+    Log.error('upstream image response is empty for', href)
+    throw new ImageError(
+      400,
+      '"url" parameter is valid but upstream response is invalid'
+    )
+  }
+
+  const chunks: Buffer[] = []
+  let totalSize = 0
+
+  for await (const c of res.body) {
+    const chunk = Buffer.from(c)
+    totalSize += chunk.byteLength
+    if (totalSize > maximumResponseBody) {
+      Log.error(
+        'upstream image response exceeded maximum size for',
+        href,
+        totalSize
+      )
+      throw new ImageError(
+        413,
+        '"url" parameter is valid but upstream response is invalid'
+      )
+    }
+    chunks.push(chunk)
+  }
+
+  const buffer = Buffer.concat(chunks)
   const contentType = res.headers.get('Content-Type')
   const cacheControl = res.headers.get('Cache-Control')
   const etag = extractEtag(res.headers.get('ETag'), buffer)

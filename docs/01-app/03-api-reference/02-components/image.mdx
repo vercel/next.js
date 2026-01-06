@@ -837,6 +837,28 @@ module.exports = {
 }
 ```
 
+#### `maximumResponseBody`
+
+The default image optimization loader will fetch source images up to 300 MB in size.
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    maximumResponseBody: 300_000_000,
+  },
+}
+```
+
+If you know all your source images are small, you can protect memory constrained servers by reducing this to a smaller value such as 50 MB.
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    maximumResponseBody: 50_000_000,
+  },
+}
+```
+
 #### `dangerouslyAllowLocalIP`
 
 In rare cases when self-hosting Next.js on a private network, you may want to allow optimizing images from local IP addresses on the same network. This is not recommended for most users because it could allow malicious users to access content on your internal network.
@@ -1341,6 +1363,7 @@ export default function Home() {
 
 | Version    | Changes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `v16.1.2`  | `maximumResponseBody` configuration added.                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `v16.0.0`  | `qualities` default configuration changed to `[75]`, `preload` prop added, `priority` prop deprecated, `dangerouslyAllowLocalIP` config added, `maximumRedirects` config added.                                                                                                                                                                                                                                                                                                            |
 | `v15.3.0`  | `remotePatterns` added support for array of `URL` objects.                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `v15.0.0`  | `contentDispositionType` configuration default changed to `attachment`.                                                                                                                                                                                                                                                                                                                                                                                                                    |
