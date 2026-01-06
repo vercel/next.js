@@ -1896,12 +1896,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         // handle stateful
         if stateful {
-            let _ = task.mark_stateful();
+            task.set_stateful(true);
         }
 
         // handle invalidator flag
         if has_invalidator {
-            let _ = task.mark_invalidator();
+            task.set_invalidator(true);
         }
 
         // handle cell counters: update max index and remove cells that are no longer used
@@ -2313,7 +2313,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // If the task is not stateful and has no mutable children, it does not have a way to be
         // invalidated and we can mark it as immutable.
         if is_now_immutable {
-            let _ = task.mark_immutable();
+            task.set_immutable(true);
         }
 
         // Notify in progress cells and remove them
@@ -2328,7 +2328,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             None => (false, false),
             Some(Dirtyness::Dirty) => (true, false),
             Some(Dirtyness::SessionDependent) => {
-                let clean_in_current_session = task.is_current_session_clean();
+                let clean_in_current_session = task.current_session_clean();
                 (true, clean_in_current_session)
             }
         };
@@ -2350,9 +2350,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
         if old_current_session_self_clean != new_current_session_self_clean {
             if new_current_session_self_clean {
-                task.mark_current_session_clean();
+                task.set_current_session_clean(true);
             } else if old_current_session_self_clean {
-                task.clear_current_session_clean();
+                task.set_current_session_clean(false);
             }
         }
 

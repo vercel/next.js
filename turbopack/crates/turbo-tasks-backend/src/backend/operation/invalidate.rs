@@ -243,8 +243,9 @@ pub fn make_task_dirty_internal(
         }
         Some(Dirtyness::SessionDependent) => {
             // It was a session-dependent dirty before, so we need to remove that clean count
-            let was_current_session_clean = task.clear_current_session_clean();
+            let was_current_session_clean = task.current_session_clean();
             if was_current_session_clean {
+                task.set_current_session_clean(false);
                 // There was a clean count for a session. If it was the current session, we need to
                 // propagate that change.
                 (true, true)

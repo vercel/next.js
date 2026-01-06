@@ -291,6 +291,178 @@ impl TaskFlags {
     }
 }
 
+// =============================================================================
+// CounterMap Extension Trait
+// =============================================================================
+
+use std::{
+    collections::hash_map::Entry,
+    hash::Hash,
+    ops::{Add, AddAssign, Sub},
+};
+
+/// Extension trait for counter map operations.
+///
+/// Provides common operations for maps that track reference counts, where
+/// entries are automatically removed when their count reaches zero.
+pub trait CounterMapExt<K, V> {
+    /// Update a counter by the given delta, returning `true` if the count
+    /// crossed zero (became zero or became non-zero).
+    ///
+    /// This is useful for tracking state transitions where crossing zero
+    /// indicates a significant change (e.g., first reference added or last
+    /// reference removed).
+    fn update_count(&mut self, key: K, delta: V) -> bool;
+
+    /// Update a counter by the given delta and return the new value.
+    fn update_and_get(&mut self, key: K, delta: V) -> V;
+
+    /// Update a counter using a closure that receives the current value
+    /// (or None if not present) and returns the new value (or None to remove).
+    fn update_with<F>(&mut self, key: K, f: F)
+    where
+        F: FnOnce(Option<V>) -> Option<V>;
+
+    /// Add a new entry, panicking if the entry already exists.
+    fn add_entry(&mut self, key: K, value: V);
+
+    /// Update a signed counter by the given delta, returning `true` if the count
+    /// crossed the positive boundary (became positive or became non-positive).
+    ///
+    /// This is useful for tracking collectibles where positive counts indicate
+    /// presence and non-positive counts indicate absence.
+    fn update_positive_crossing(&mut self, key: K, delta: V) -> bool;
+}
+
+/// Trait for counter value types that support the required operations.
+pub trait CounterValue:
+    Copy + Default + PartialEq + PartialOrd + Add<Output = Self> + AddAssign + Sub<Output = Self>
+{
+    /// Check if this value is zero.
+    fn is_zero(&self) -> bool;
+
+    /// Check if this value is positive (> 0).
+    fn is_positive(&self) -> bool;
+}
+
+impl CounterValue for u32 {
+    fn is_zero(&self) -> bool {
+        *self == 0
+    }
+
+    fn is_positive(&self) -> bool {
+        *self > 0
+    }
+}
+
+impl CounterValue for i32 {
+    fn is_zero(&self) -> bool {
+        *self == 0
+    }
+
+    fn is_positive(&self) -> bool {
+        *self > 0
+    }
+}
+
+impl<K: Hash + Eq, V: CounterValue> CounterMapExt<K, V> for CounterMap<K, V> {
+    fn update_count(&mut self, key: K, delta: V) -> bool {
+        match self.entry(key) {
+            Entry::Occupied(mut e) => {
+                let old = *e.get();
+                let new = old + delta;
+                let state_change =
+                    (old.is_zero() && !new.is_zero()) || (!old.is_zero() && new.is_zero());
+                if new.is_zero() {
+                    e.remove();
+                } else {
+                    *e.get_mut() = new;
+                }
+                state_change
+            }
+            Entry::Vacant(e) => {
+                if !delta.is_zero() {
+                    e.insert(delta);
+                    true
+                } else {
+                    false
+                }
+            }
+        }
+    }
+
+    fn update_and_get(&mut self, key: K, delta: V) -> V {
+        match self.entry(key) {
+            Entry::Occupied(mut e) => {
+                let new_value = *e.get() + delta;
+                if new_value.is_zero() {
+                    e.remove();
+                } else {
+                    *e.get_mut() = new_value;
+                }
+                new_value
+            }
+            Entry::Vacant(e) => {
+                if !delta.is_zero() {
+                    e.insert(delta);
+                }
+                delta
+            }
+        }
+    }
+
+    fn update_with<F>(&mut self, key: K, f: F)
+    where
+        F: FnOnce(Option<V>) -> Option<V>,
+    {
+        match self.entry(key) {
+            Entry::Occupied(mut e) => match f(Some(*e.get())) {
+                Some(new) => {
+                    *e.get_mut() = new;
+                }
+                None => {
+                    e.remove();
+                }
+            },
+            Entry::Vacant(e) => {
+                if let Some(new) = f(None) {
+                    e.insert(new);
+                }
+            }
+        }
+    }
+
+    fn add_entry(&mut self, key: K, value: V) {
+        let old = self.insert(key, value);
+        assert!(old.is_none(), "Entry already exists");
+    }
+
+    fn update_positive_crossing(&mut self, key: K, delta: V) -> bool {
+        match self.entry(key) {
+            Entry::Occupied(mut e) => {
+                let old = *e.get();
+                let new = old + delta;
+                let state_change = (!old.is_positive() && new.is_positive())
+                    || (old.is_positive() && !new.is_positive());
+                if new.is_zero() {
+                    e.remove();
+                } else {
+                    *e.get_mut() = new;
+                }
+                state_change
+            }
+            Entry::Vacant(e) => {
+                if !delta.is_zero() {
+                    e.insert(delta);
+                    delta.is_positive()
+                } else {
+                    false
+                }
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::mem::size_of;
