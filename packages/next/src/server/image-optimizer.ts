@@ -777,7 +777,34 @@ export async function fetchExternalImage(
     )
   }
 
-  const buffer = Buffer.from(await res.arrayBuffer())
+  if (!res.body) {
+    throw new ImageError(
+      400,
+      '"url" parameter is valid but upstream response is invalid'
+    )
+  }
+
+  const chunks: Buffer[] = []
+  let totalSize = 0
+
+  for await (const c of res.body) {
+    const chunk = Buffer.from(c)
+    totalSize += chunk.byteLength
+    if (totalSize > 300_000_000) {
+      Log.error(
+        'upstream image response exceeded maximum size for',
+        href,
+        totalSize
+      )
+      throw new ImageError(
+        413,
+        '"url" parameter is valid but upstream response is invalid'
+      )
+    }
+    chunks.push(chunk)
+  }
+
+  const buffer = Buffer.concat(chunks)
   const contentType = res.headers.get('Content-Type')
   const cacheControl = res.headers.get('Cache-Control')
   const etag = extractEtag(res.headers.get('ETag'), buffer)
