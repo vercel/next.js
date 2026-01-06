@@ -2,6 +2,7 @@
   "private": true,
   "main": "src/index.js",
   "dependencies": {
+    "@vercel/kv": "^1.0.1",
     "async-sema": "^3.1.0",
     "execa": "2.0.3",
     "get-port": "^5.0.0",
