@@ -1,15 +1,16 @@
 use anyhow::{Result, bail};
 use indoc::formatdoc;
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueDefault, Vc};
 use turbopack_core::{
     chunk::{
         AsyncModuleInfo, ChunkData, ChunkItem, ChunkType, ChunkingContext, ChunkingContextExt,
-        ChunksData, availability_info::AvailabilityInfo,
+        ChunksData, EvaluatableAsset, EvaluatableAssets, availability_info::AvailabilityInfo,
     },
     ident::AssetIdent,
     module::Module,
     module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
-    output::{OutputAsset, OutputAssetsReference, OutputAssetsWithReferenced},
+    output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
 };
 
 use super::{module::WorkerLoaderModule, worker_type::WorkerType};
@@ -36,15 +37,55 @@ impl WorkerLoaderChunkItem {
     async fn chunk_group(&self) -> Result<Vc<OutputAssetsWithReferenced>> {
         let module = self.module.await?;
 
-        Ok(self.chunking_context.evaluated_chunk_group_assets(
-            module
-                .inner
-                .ident()
-                .with_modifier(self.worker_type.chunk_modifier_str()),
-            ChunkGroup::Isolated(ResolvedVc::upcast(module.inner)),
-            *self.module_graph,
-            AvailabilityInfo::root(),
-        ))
+        Ok(match self.worker_type {
+            WorkerType::WebWorker => self.chunking_context.evaluated_chunk_group_assets(
+                module
+                    .inner
+                    .ident()
+                    .with_modifier(self.worker_type.chunk_modifier_str()),
+                ChunkGroup::Isolated(ResolvedVc::upcast(module.inner)),
+                *self.module_graph,
+                AvailabilityInfo::root(),
+            ),
+            // WorkerThreads are treated as an entry point, webworkers probably should to but
+            // currently it would lead to a cascade that we need to address.
+            WorkerType::NodeWorkerThread => {
+                let Some(evaluatable) =
+                    ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(module.inner)
+                else {
+                    bail!("Worker module must be evaluatable");
+                };
+
+                let worker_path = self
+                    .chunking_context
+                    .chunk_path(
+                        None,
+                        module.inner.ident(),
+                        Some(rcstr!("[worker thread]")),
+                        rcstr!(".js"),
+                    )
+                    .owned()
+                    .await?;
+
+                let entry_result = self
+                    .chunking_context
+                    .root_entry_chunk_group(
+                        worker_path,
+                        EvaluatableAssets::one(*evaluatable),
+                        *self.module_graph,
+                        OutputAssets::empty(),
+                        OutputAssets::empty(),
+                    )
+                    .await?;
+
+                OutputAssetsWithReferenced {
+                    assets: ResolvedVc::cell(vec![entry_result.asset]),
+                    referenced_assets: ResolvedVc::cell(vec![]),
+                    references: ResolvedVc::cell(vec![]),
+                }
+                .cell()
+            }
+        })
     }
 
     #[turbo_tasks::function]

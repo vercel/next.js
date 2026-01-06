@@ -11,7 +11,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    chunk::{ChunkableModule, ChunkableModuleReference, ChunkingContext},
+    chunk::{ChunkableModule, ChunkableModuleReference, ChunkingContext, EvaluatableAsset},
     context::AssetContext,
     issue::{IssueExt, IssueSeverity, IssueSource, StyledString, code_gen::CodeGenerationIssue},
     reference::ModuleReference,
@@ -158,6 +158,28 @@ impl ModuleReference for WorkerAssetReference {
                         .emit();
                         continue;
                     };
+
+                    // For Node.js worker threads, the module must also be evaluatable since
+                    // it becomes an entry point
+                    if matches!(self.worker_type, WorkerType::NodeWorkerThread) {
+                        if ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(chunkable)
+                            .is_none()
+                        {
+                            CodeGenerationIssue {
+                                severity: IssueSeverity::Bug,
+                                title: StyledString::Text(rcstr!("non-evaluatable module"))
+                                    .resolved_cell(),
+                                message: StyledString::Text(rcstr!(
+                                    "Worker thread module must be evaluatable"
+                                ))
+                                .resolved_cell(),
+                                path: self.origin.origin_path().owned().await?,
+                            }
+                            .resolved_cell()
+                            .emit();
+                            continue;
+                        }
+                    }
 
                     let loader = WorkerLoaderModule::new(*chunkable, self.worker_type)
                         .to_resolved()

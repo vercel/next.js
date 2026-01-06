@@ -79,7 +79,7 @@ impl OutputAsset for NftJsonAsset {
 #[turbo_tasks::value(transparent)]
 pub struct OutputSpecifier(Option<RcStr>);
 
-fn get_output_specifier(
+async fn get_output_specifier(
     chunk: ResolvedVc<Box<dyn OutputAsset>>,
     chunk_path: &FileSystemPath,
     ident_folder: &FileSystemPath,
@@ -103,6 +103,7 @@ fn get_output_specifier(
     bail!(
         "NftJsonAsset: cannot handle filepath '{chunk_path}' for {chunk:?} it is not under the \
          output_root: '{output_root}' or the project_root: '{project_root}'",
+        chunk_path = chunk_path.value_to_string().await?
     );
 }
 
@@ -296,7 +297,8 @@ impl Asset for NftJsonAsset {
                     &ident_folder_in_project_fs,
                     &output_root_ref,
                     &project_root_ref,
-                )?;
+                )
+                .await?;
 
                 result.insert(specifier);
             }

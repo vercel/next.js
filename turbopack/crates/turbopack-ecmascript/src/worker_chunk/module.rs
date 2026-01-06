@@ -123,9 +123,12 @@ impl WorkerModuleReference {
 #[turbo_tasks::value_impl]
 impl ChunkableModuleReference for WorkerModuleReference {
     #[turbo_tasks::function]
-    fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
+    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
         Vc::cell(Some(ChunkingType::Isolated {
-            _ty: ChunkGroupType::Evaluated,
+            _ty: match self.worker_type {
+                WorkerType::WebWorker => ChunkGroupType::Evaluated,
+                WorkerType::NodeWorkerThread => ChunkGroupType::Entry,
+            },
             merge_tag: None,
         }))
     }

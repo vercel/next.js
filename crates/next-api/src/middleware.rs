@@ -138,7 +138,7 @@ impl MiddlewareEndpoint {
         };
 
         let EntryChunkGroupResult { asset: chunk, .. } = *chunking_context
-            .entry_chunk_group(
+            .root_entry_chunk_group(
                 this.project
                     .node_root()
                     .await?
@@ -147,7 +147,6 @@ impl MiddlewareEndpoint {
                 module_graph,
                 OutputAssets::empty(),
                 OutputAssets::empty(),
-                AvailabilityInfo::root(),
             )
             .await?;
         Ok(*chunk)
