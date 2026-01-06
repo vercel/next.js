@@ -32,7 +32,6 @@ use turbopack_ecmascript_runtime::RuntimeType;
 
 use crate::ecmascript::node::{
     chunk::EcmascriptBuildNodeChunk, entry::chunk::EcmascriptBuildNodeEntryChunk,
-    evaluate::chunk::EcmascriptBuildNodeEvaluateChunk,
 };
 
 /// A builder for [`Vc<NodeJsChunkingContext>`].
@@ -293,21 +292,6 @@ impl NodeJsChunkingContext {
                 bail!("Unable to generate output asset for chunk");
             },
         )
-    }
-    fn generate_evaluate_chunk(
-        self: Vc<Self>,
-        ident: Vc<AssetIdent>,
-        other_chunks: Vc<OutputAssets>,
-        evaluatable_assets: Vc<EvaluatableAssets>,
-        module_graph: Vc<ModuleGraph>,
-    ) -> Vc<Box<dyn OutputAsset>> {
-        Vc::upcast(EcmascriptBuildNodeEvaluateChunk::new(
-            self,
-            ident,
-            other_chunks,
-            evaluatable_assets,
-            module_graph,
-        ))
     }
 }
 
@@ -590,69 +574,14 @@ impl ChunkingContext for NodeJsChunkingContext {
     }
 
     #[turbo_tasks::function]
-    async fn evaluated_chunk_group(
-        self: ResolvedVc<Self>,
-        ident: Vc<AssetIdent>,
-        chunk_group: ChunkGroup,
-        module_graph: Vc<ModuleGraph>,
-        input_availability_info: AvailabilityInfo,
+    fn evaluated_chunk_group(
+        self: Vc<Self>,
+        _ident: Vc<AssetIdent>,
+        _chunk_group: ChunkGroup,
+        _module_graph: Vc<ModuleGraph>,
+        _availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
-        let span = tracing::info_span!(
-            "chunking",
-            name = display(ident.to_string().await?),
-            chunking_type = "evaluated",
-        );
-        async move {
-            let entries = chunk_group.entries();
-            let MakeChunkGroupResult {
-                chunks,
-                referenced_output_assets,
-                references,
-                availability_info,
-            } = make_chunk_group(
-                entries,
-                module_graph,
-                ResolvedVc::upcast(self),
-                input_availability_info,
-            )
-            .await?;
-
-            let mut assets: Vec<ResolvedVc<Box<dyn OutputAsset>>> = chunks.await?
-                .iter()
-                .map(|chunk| self.generate_chunk(*chunk))
-                .try_join()
-                .await?;
-
-            let other_assets = Vc::cell(assets.clone());
-
-            let entries = Vc::cell(
-                chunk_group
-                    .entries()
-                    .map(|m| {
-                        ResolvedVc::try_downcast::<
-                                Box<dyn turbopack_core::chunk::EvaluatableAsset>,
-                            >(m)
-                            .context("evaluated_chunk_group entries must be evaluatable assets")
-                    })
-                    .collect::<Result<Vec<_>>>()?,
-            );
-
-            assets.push(
-                self.generate_evaluate_chunk(ident, other_assets, entries, module_graph)
-                    .to_resolved()
-                    .await?,
-            );
-
-            Ok(ChunkGroupResult {
-                assets: ResolvedVc::cell(assets),
-                referenced_assets: ResolvedVc::cell(referenced_output_assets),
-                references: ResolvedVc::cell(references),
-                availability_info,
-            }
-            .cell())
-        }
-        .instrument(span)
-        .await
+        bail!("the Node.js chunking context does not support evaluated chunk groups")
     }
 
     #[turbo_tasks::function]
@@ -689,6 +618,8 @@ impl ChunkingContext for NodeJsChunkingContext {
         module: Vc<Box<dyn ChunkableModule>>,
     ) -> Result<Vc<AssetIdent>> {
         Ok(if self.await?.manifest_chunks {
+                
+
             ManifestLoaderChunkItem::asset_ident_for(module)
         } else {
             AsyncLoaderModule::asset_ident_for(module)

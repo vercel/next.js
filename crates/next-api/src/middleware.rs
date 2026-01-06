@@ -14,10 +14,7 @@ use turbo_tasks::{Completion, ResolvedVc, Vc};
 use turbo_tasks_fs::{self, File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
-    chunk::{
-        ChunkingContext, ChunkingContextExt, EntryChunkGroupResult,
-        availability_info::AvailabilityInfo,
-    },
+    chunk::{ChunkingContextExt, EntryChunkGroupResult, availability_info::AvailabilityInfo},
     context::AssetContext,
     module::Module,
     module_graph::{

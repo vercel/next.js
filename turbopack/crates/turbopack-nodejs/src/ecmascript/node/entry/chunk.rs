@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use indoc::writedoc;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
@@ -18,9 +18,7 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::{chunk::EcmascriptChunkPlaceable, utils::StringifyJs};
 
-use super::{
-    super::chunk_utils::generate_node_chunk_bootstrap, runtime::EcmascriptBuildNodeRuntimeChunk,
-};
+use super::runtime::EcmascriptBuildNodeRuntimeChunk;
 use crate::NodeJsChunkingContext;
 
 /// An Ecmascript chunk that loads a list of parallel chunks, then instantiates
@@ -67,8 +65,25 @@ impl EcmascriptBuildNodeEntryChunk {
     #[turbo_tasks::function]
     async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
         let this = self.await?;
+
+        let output_root = this.chunking_context.output_root().owned().await?;
         let chunk_path = self.path().owned().await?;
+        let chunk_directory = self.path().await?.parent();
         let runtime_path = self.runtime_chunk().path().owned().await?;
+        let runtime_relative_path =
+            if let Some(path) = chunk_directory.get_relative_path_to(&runtime_path) {
+                path
+            } else {
+                bail!(
+                    "cannot find a relative path from the chunk ({chunk_path}) to the runtime \
+                     chunk ({runtime_path})",
+                );
+            };
+        let chunk_public_path = if let Some(path) = output_root.get_path_to(&chunk_path) {
+            path
+        } else {
+            bail!("chunk path ({chunk_path}) is not in output root ({output_root})");
+        };
 
         let mut code = CodeBuilder::default();
 
@@ -116,7 +131,6 @@ impl EcmascriptBuildNodeEntryChunk {
             }
         }
 
-        // Add the module export (entry chunks export the last module)
         let runtime_module_id = this
             .exported_module
             .chunk_item_id(Vc::upcast(*this.chunking_context))
@@ -152,7 +166,7 @@ impl EcmascriptBuildNodeEntryChunk {
 impl ValueToString for EcmascriptBuildNodeEntryChunk {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(rcstr!("Ecmascript Build Node Entry Chunk"))
+        Vc::cell(rcstr!("Ecmascript Build Node Evaluate Chunk"))
     }
 }
 

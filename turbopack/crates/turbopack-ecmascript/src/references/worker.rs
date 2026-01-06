@@ -161,24 +161,23 @@ impl ModuleReference for WorkerAssetReference {
 
                     // For Node.js worker threads, the module must also be evaluatable since
                     // it becomes an entry point
-                    if matches!(self.worker_type, WorkerType::NodeWorkerThread) {
-                        if ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(chunkable)
+                    if matches!(self.worker_type, WorkerType::NodeWorkerThread)
+                        && ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(chunkable)
                             .is_none()
-                        {
-                            CodeGenerationIssue {
-                                severity: IssueSeverity::Bug,
-                                title: StyledString::Text(rcstr!("non-evaluatable module"))
-                                    .resolved_cell(),
-                                message: StyledString::Text(rcstr!(
-                                    "Worker thread module must be evaluatable"
-                                ))
+                    {
+                        CodeGenerationIssue {
+                            severity: IssueSeverity::Bug,
+                            title: StyledString::Text(rcstr!("non-evaluatable module"))
                                 .resolved_cell(),
-                                path: self.origin.origin_path().owned().await?,
-                            }
-                            .resolved_cell()
-                            .emit();
-                            continue;
+                            message: StyledString::Text(rcstr!(
+                                "Worker thread module must be evaluatable"
+                            ))
+                            .resolved_cell(),
+                            path: self.origin.origin_path().owned().await?,
                         }
+                        .resolved_cell()
+                        .emit();
+                        continue;
                     }
 
                     let loader = WorkerLoaderModule::new(*chunkable, self.worker_type)
