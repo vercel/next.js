@@ -924,16 +924,17 @@ function assignDefaultsAndValidate(
     typeof result.deploymentId === 'function'
   ) {
     result.deploymentId = evaluateDeploymentId(result.deploymentId)
-  } else if (
+  }
+
+  // Validate after evaluation (applies to both string and function cases)
+  if (
     result.deploymentId != null &&
-    typeof result.deploymentId === 'string'
+    typeof result.deploymentId === 'string' &&
+    result.deploymentId.startsWith('dpl_')
   ) {
-    // Already a string, but validate it doesn't start with dpl_
-    if (result.deploymentId.startsWith('dpl_')) {
-      throw new Error(
-        `The deploymentId "${result.deploymentId}" cannot start with the "dpl_" prefix. Please choose a different deploymentId in your next.config.js. https://vercel.com/docs/skew-protection#custom-skew-protection-deployment-id`
-      )
-    }
+    throw new Error(
+      `The deploymentId "${result.deploymentId}" cannot start with the "dpl_" prefix. Please choose a different deploymentId in your next.config.js. https://vercel.com/docs/skew-protection#custom-skew-protection-deployment-id`
+    )
   }
 
   if (
