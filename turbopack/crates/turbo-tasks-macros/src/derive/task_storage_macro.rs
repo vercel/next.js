@@ -942,10 +942,7 @@ fn generate_inline_trait_accessor_methods(
 
                 /// Set the field value, returning the old value if present
                 fn #set_name(&mut self, value: #inner_type) -> Option<#inner_type> {
-                    std::mem::replace(
-                        &mut self.typed_mut(#category_variant).#field_name,
-                        Some(value)
-                    )
+                    self.typed_mut(#category_variant).#field_name.replace(value)
                 }
 
                 /// Take the field value, leaving None
