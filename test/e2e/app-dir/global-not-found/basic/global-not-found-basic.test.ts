@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry, waitForNoRedbox } from 'next-test-utils'
+import { check, waitForNoRedbox } from 'next-test-utils'
 
 describe('global-not-found - basic', () => {
   const { next, isNextDev } = nextTestSetup({
@@ -53,16 +53,14 @@ describe('global-not-found - basic', () => {
     // Click button to trigger notFound()
     await browser.elementByCss('#trigger-not-found').click()
 
-    // Wait for global-not-found content to fully render
-    // Put all assertions inside retry to avoid race conditions in CI
-    await retry(async () => {
-      expect(await browser.elementByCss('#global-error-title').text()).toBe(
-        'global-not-found'
-      )
-      expect(
-        await browser.elementByCss('html').getAttribute('data-global-not-found')
-      ).toBe('true')
-    })
+    // Wait for global-not-found content to appear using check() for CI reliability
+    await check(
+      () => browser.elementByCss('#global-error-title').text(),
+      'global-not-found'
+    )
+    expect(
+      await browser.elementByCss('html').getAttribute('data-global-not-found')
+    ).toBe('true')
 
     // URL should remain unchanged
     expect(await browser.url()).toContain('/client-trigger')
