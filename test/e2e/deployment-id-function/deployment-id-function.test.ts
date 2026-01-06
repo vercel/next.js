@@ -133,9 +133,14 @@ describe('deploymentId function support', () => {
       errorThrown = true
       // The error is thrown in the child process, so we just verify that createNext fails
       // The actual error message "deploymentId function must return a string" is visible
-      // in the console output but wrapped in "next dev exited unexpectedly"
+      // in the console output but wrapped differently in dev vs production mode:
+      // - Dev mode: "next dev exited unexpectedly"
+      // - Start mode: "next build failed with code/signal 1"
       expect(err).toBeDefined()
-      expect(err.message).toContain('exited unexpectedly')
+      expect(
+        err.message.includes('exited unexpectedly') ||
+          err.message.includes('build failed')
+      ).toBe(true)
     }
     // Ensure an error was actually thrown
     expect(errorThrown).toBe(true)
