@@ -3,8 +3,8 @@ import { nextTestSetup } from 'e2e-utils'
 import {
   renderViaHTTP,
   startStaticServer,
-  check,
   getBrowserBodyText,
+  retry,
 } from 'next-test-utils'
 import { AddressInfo, Server } from 'net'
 import cheerio from 'cheerio'
@@ -283,9 +283,14 @@ describe('static export', () => {
         .click()
         .waitForElementByCss('#dynamic-imports-page')
 
-      await check(
-        () => getBrowserBodyText(browser),
-        /Welcome to dynamic imports/
+      await retry(
+        async () => {
+          await expect(getBrowserBodyText(browser)).resolves.toMatch(
+            /Welcome to dynamic imports/
+          )
+        },
+        30000,
+        1000
       )
 
       await browser.close()
@@ -306,7 +311,13 @@ describe('static export', () => {
 
         expect(text).toBe('Vercel is awesome')
 
-        await check(() => browser.elementByCss('#hash').text(), /cool/)
+        await retry(
+          async () => {
+            expect(await browser.elementByCss('#hash').text()).toMatch(/cool/)
+          },
+          30000,
+          1000
+        )
       } finally {
         if (browser) {
           await browser.close()
@@ -363,9 +374,14 @@ describe('static export', () => {
           'document.getElementById("level1-home-page").click()'
         )
 
-        await check(
-          () => getBrowserBodyText(browser),
-          /This is the Level1 home page/
+        await retry(
+          async () => {
+            await expect(getBrowserBodyText(browser)).resolves.toMatch(
+              /This is the Level1 home page/
+            )
+          },
+          30000,
+          1000
         )
 
         await browser.close()
@@ -378,9 +394,14 @@ describe('static export', () => {
           'document.getElementById("level1-about-page").click()'
         )
 
-        await check(
-          () => getBrowserBodyText(browser),
-          /This is the Level1 about page/
+        await retry(
+          async () => {
+            await expect(getBrowserBodyText(browser)).resolves.toMatch(
+              /This is the Level1 about page/
+            )
+          },
+          30000,
+          1000
         )
 
         await browser.close()
