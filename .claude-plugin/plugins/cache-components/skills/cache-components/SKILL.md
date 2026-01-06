@@ -111,7 +111,7 @@ When writing a React Server Component, ask these questions in order:
               (dynamic streaming)
 ```
 
-**Key insight**: The `'use cache'` directive is for data that's the _same across users_. User-specific data either uses `'use cache: private'` or stays dynamic with Suspense.
+**Key insight**: The `'use cache'` directive is for data that's the _same across users_. User-specific data stays dynamic with Suspense.
 
 ## Quick Start
 

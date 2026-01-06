@@ -84,18 +84,7 @@ async function UserContentLoader() {
 }
 ```
 
-**2. Use `'use cache: private'` for user-specific caches:**
-
-```tsx
-async function PrivateUserContent() {
-  'use cache: private'
-  // Can access cookies/headers in private cache
-  const session = await cookies()
-  return await fetchContent(session.get('userId')?.value)
-}
-```
-
-**3. Wrap in Suspense if truly dynamic:**
+**2. Wrap in Suspense if truly dynamic:**
 
 ```tsx
 export default function Page() {
@@ -321,18 +310,7 @@ async function CachedDashboard({ sessionId }: { sessionId: string }) {
 }
 ```
 
-Or use `'use cache: private'` for user-specific caches:
-
-```tsx
-// ✅ ALTERNATIVE: Private cache allows cookies
-async function UserDashboard() {
-  'use cache: private' // Private caches can access request data
-  const session = await cookies()
-  return await fetchDashboard(session.get('userId'))
-}
-```
-
-> **See also**: Pattern 2 (Parameter Extraction for Runtime Data) in PATTERNS.md. For guidance on choosing between parameter extraction and `'use cache: private'`, see the comparison table in REFERENCE.md under the `'use cache: private'` section.
+> **See also**: Pattern 2 (Parameter Extraction for Runtime Data) in PATTERNS.md.
 
 ---
 

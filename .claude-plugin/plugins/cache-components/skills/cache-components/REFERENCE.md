@@ -25,41 +25,10 @@ async function Component() {
 
 ### Variants
 
-| Directive              | Description              | Cache Storage            |
-| ---------------------- | ------------------------ | ------------------------ |
-| `'use cache'`          | Standard cache (default) | Default handler + Remote |
-| `'use cache: private'` | User-specific cache      | Resume Data Cache only   |
-| `'use cache: remote'`  | Platform remote cache    | Remote handler only      |
-
-### `'use cache: private'`
-
-Allows reading `cookies()` and `headers()` directly. Not included in static shell.
-
-```tsx
-async function UserSpecificContent() {
-  'use cache: private'
-
-  const userId = (await cookies()).get('userId')?.value
-  const data = await fetchUserData(userId)
-
-  return <div>{data.name}</div>
-}
-```
-
-**Limitations**:
-
-- Cannot be nested inside regular `'use cache'`
-- Not stored in persistent cache handlers
-- Dynamic at request time
-
-**When to use `'use cache: private'` vs parameter extraction**:
-
-| Approach                | Best For                                      | Trade-off                        |
-| ----------------------- | --------------------------------------------- | -------------------------------- |
-| `'use cache: private'`  | Complex user-specific data with many DB calls | Not in static shell, always runs |
-| Parameter extraction    | Simple user ID lookup, shared cache benefits  | Extra wrapper component          |
-
-> **Recommendation**: Prefer parameter extraction (Pattern 2 in PATTERNS.md) for most cases. Use `'use cache: private'` only when extracting parameters would require many round trips or complex logic.
+| Directive             | Description              | Cache Storage            |
+| --------------------- | ------------------------ | ------------------------ |
+| `'use cache'`         | Standard cache (default) | Default handler + Remote |
+| `'use cache: remote'` | Platform remote cache    | Remote handler only      |
 
 ### `'use cache: remote'`
 
@@ -74,12 +43,35 @@ async function HeavyComputation() {
 }
 ```
 
+### Understanding Cache Handlers
+
+Next.js uses **cache handlers** to store and retrieve cached data. The directive variant determines which handlers are used:
+
+| Handler   | Description                                                                 |
+| --------- | --------------------------------------------------------------------------- |
+| `default` | Local in-memory cache with optional persistence. Fast, single-server scope |
+| `remote`  | Platform-specific distributed cache. Network roundtrip, multi-server scope |
+
+**How variants map to handlers:**
+
+- `'use cache'` → Uses **both** default and remote handlers. Data is cached locally for fast access and remotely for sharing across instances
+- `'use cache: remote'` → Uses **only** the remote handler. Skips local cache, always fetches from distributed cache
+
+**When to use each:**
+
+| Use Case                              | Recommended Variant   |
+| ------------------------------------- | --------------------- |
+| Most cached data                      | `'use cache'`         |
+| Heavy computations to share globally  | `'use cache: remote'` |
+| Data that must be consistent globally | `'use cache: remote'` |
+
 ### Rules
 
 1. **Must be async** - All cached functions must return a Promise
 2. **First statement** - `'use cache'` must be the first statement in the function body
-3. **No runtime APIs** - Cannot call `cookies()`, `headers()`, `searchParams` directly (except in `'use cache: private'`)
+3. **No runtime APIs** - Cannot call `cookies()`, `headers()`, `searchParams` directly
 4. **Serializable arguments** - All arguments must be serializable (no functions, class instances)
+5. **Serializable return values** - Cached functions must return serializable data (no functions, class instances)
 
 ---
 
@@ -185,6 +177,15 @@ Cache entries with short expiration times are treated as **dynamic holes** durin
 | `revalidate === 0`      | Treated as dynamic (not in static shell) |
 | `expire >= 300` seconds | Included in static shell                 |
 
+**Why `expire`, not `stale`?**
+
+The threshold uses `expire` (absolute expiration) because:
+
+- `expire` defines the **maximum lifetime** of the cache entry
+- If `expire` is very short, the cached content would immediately become invalid in the static shell
+- `stale` only affects **client-side freshness perception** - how long before the browser revalidates
+- Including short-lived content in the static shell would serve guaranteed-stale data
+
 **Practical implications:**
 
 - `cacheLife('seconds')` (expire=60) → **Dynamic** - streams at request time
@@ -285,18 +286,7 @@ cacheTag('products', `product-${id}`, `category-${category}`)
 
 ### Implicit Tags (Automatic)
 
-In addition to explicit `cacheTag()` calls, Next.js automatically applies **implicit tags** based on the route hierarchy:
-
-| Route             | Implicit Tags Applied                                           |
-| ----------------- | --------------------------------------------------------------- |
-| `/blog/my-post`   | `_N_T_/layout`, `_N_T_/blog/layout`, `_N_T_/blog/my-post`       |
-| `/products/shoes` | `_N_T_/layout`, `_N_T_/products/layout`, `_N_T_/products/shoes` |
-
-**Why this matters:**
-
-- `revalidatePath('/blog', 'layout')` works without explicit `cacheTag()` calls
-- It invalidates via the implicit `_N_T_/blog/layout` tag
-- All nested routes under `/blog/*` are affected
+In addition to explicit `cacheTag()` calls, Next.js automatically applies **implicit tags** based on the route hierarchy. This means `revalidatePath()` works without any explicit `cacheTag()` calls:
 
 ```tsx
 'use server'
@@ -307,23 +297,25 @@ export async function publishBlogPost() {
     /* ... */
   })
 
-  // This works because of implicit tags - no explicit cacheTag() needed
+  // Works without explicit cacheTag() - uses implicit route-based tags
   revalidatePath('/blog', 'layout') // Invalidates all /blog/* routes
 }
 ```
 
-> **Note:** Implicit tags are prefixed with `_N_T_` internally. You don't need to use this prefix - just use `revalidatePath()`.
+**How it works:**
+
+- Each route segment (layout, page) automatically receives an internal tag
+- `revalidatePath('/blog', 'layout')` invalidates the `/blog` layout and all nested routes
+- `revalidatePath('/blog/my-post')` invalidates only that specific page
 
 **Choosing between implicit and explicit tags**:
 
-| Use Case                                   | Approach                              |
-| ------------------------------------------ | ------------------------------------- |
-| Invalidate all cached data under a route   | `revalidatePath()` (uses implicit)    |
-| Invalidate specific entity across routes   | `cacheTag()` + `updateTag()`          |
-| Invalidate on user mutation (immediate)    | `updateTag()` with explicit tag       |
-| Invalidate on background job (SWR)         | `revalidateTag()` with explicit tag   |
-
-> **Best practice**: Use `revalidatePath()` for route-level invalidation (e.g., after publishing). Use explicit `cacheTag()` + `updateTag()` for entity-level invalidation (e.g., after editing a specific post).
+| Use Case                                 | Approach                            |
+| ---------------------------------------- | ----------------------------------- |
+| Invalidate all cached data under a route | `revalidatePath()` (uses implicit)  |
+| Invalidate specific entity across routes | `cacheTag()` + `updateTag()`        |
+| User needs to see their change (eager)   | `updateTag()` with explicit tag     |
+| Background update, eventual OK (lazy)    | `revalidateTag()` with explicit tag |
 
 ---
 
@@ -355,15 +347,15 @@ Cache keys are composed of multiple parts:
 | `hmrRefreshHash` | (Dev only) Invalidates cache on file changes                    |
 
 ```tsx
-// These create THREE separate cache entries:
+// These create TWO separate cache entries (third call is a cache hit):
 async function getProduct(id: string) {
   'use cache'
   return db.products.findUnique({ where: { id } })
 }
 
-await getProduct('prod-1') // Cache key: [buildId, getProduct, "prod-1"]
-await getProduct('prod-2') // Cache key: [buildId, getProduct, "prod-2"]
-await getProduct('prod-1') // HIT! Same as first call
+await getProduct('prod-1') // Cache entry 1: [buildId, getProduct, "prod-1"]
+await getProduct('prod-2') // Cache entry 2: [buildId, getProduct, "prod-2"]
+await getProduct('prod-1') // Cache HIT on entry 1
 ```
 
 ### Object Arguments and Cache Keys
@@ -423,8 +415,8 @@ import { updateTag } from 'next/cache'
 export async function createPost(formData: FormData) {
   const post = await db.posts.create({ data: formData })
 
-  updateTag('posts') // Invalidate all posts
-  updateTag(`user-${userId}`) // Invalidate user's cache
+  updateTag('posts') // Update all cache entries tagged with 'posts'
+  updateTag(`user-${userId}`) // Update all cache entries tagged with this user
 
   // Client immediately sees fresh data
 }
@@ -451,15 +443,15 @@ import { revalidateTag } from 'next/cache'
 ### Signature
 
 ```tsx
-function revalidateTag(tag: string, profile?: string | CacheLifeOptions): void
+function revalidateTag(tag: string, profile: string | CacheLifeOptions): void
 ```
 
 ### Parameters
 
-| Parameter | Type                         | Description                                                 |
-| --------- | ---------------------------- | ----------------------------------------------------------- |
-| `tag`     | `string`                     | The cache tag to invalidate                                 |
-| `profile` | `string \| CacheLifeOptions` | Optional. Cache profile for stale-while-revalidate behavior |
+| Parameter | Type                         | Description                                        |
+| --------- | ---------------------------- | -------------------------------------------------- |
+| `tag`     | `string`                     | The cache tag to invalidate                        |
+| `profile` | `string \| CacheLifeOptions` | Cache profile for stale-while-revalidate behavior  |
 
 ### Usage
 
@@ -470,10 +462,7 @@ import { revalidateTag } from 'next/cache'
 export async function updateSettings(data: FormData) {
   await db.settings.update({ data })
 
-  // Basic usage - immediate invalidation
-  revalidateTag('settings')
-
-  // With profile - stale-while-revalidate behavior
+  // With predefined profile
   revalidateTag('settings', 'hours')
 
   // With custom options
@@ -483,16 +472,20 @@ export async function updateSettings(data: FormData) {
 
 ### Behavior
 
-- **Without profile**: Immediate invalidation (similar to `updateTag`)
-- **With profile**: Stale-while-revalidate - serves cached content while refreshing in background
-- **Background refresh**: New cache populated asynchronously
-- **Broader context**: Can be called from Route Handlers, Server Actions, and API routes
+- **Stale-while-revalidate**: Serves cached content while refreshing in background
+- **Background refresh**: Cache entry is refreshed in the background after the next visit
+- **Broader context**: Can be called from Route Handlers and Server Actions
 
 ---
 
 ## updateTag() vs revalidateTag(): When to Use Each
 
-This is one of the most common questions. Here's a decision guide:
+The key distinction is **eager vs lazy** invalidation:
+
+- **`updateTag()`** - Eager invalidation. Cache is immediately invalidated, and the next read fetches fresh data synchronously. Use when the user who triggered the action needs to see the result.
+- **`revalidateTag()`** - Lazy (SWR-style) invalidation. Stale data may be served while fresh data is fetched in the background. Use when eventual consistency is acceptable.
+
+Here's a decision guide:
 
 | Scenario                   | Use               | Why                                        |
 | -------------------------- | ----------------- | ------------------------------------------ |
@@ -836,11 +829,10 @@ export default async function ProductsPage() {
 
 ```tsx
 // app/products/page.tsx
-import { cacheLife, cacheTag } from 'next/cache'
+import { cacheLife } from 'next/cache'
 
 async function getProducts() {
   'use cache'
-  cacheTag('products')
   cacheLife('hours') // Roughly equivalent to revalidate = 3600
 
   return db.products.findMany()
@@ -875,31 +867,22 @@ export default async function Dashboard() {
 }
 ```
 
-**After (Partial Prerendering):**
+**After:**
 
 ```tsx
 // app/dashboard/page.tsx
 import { Suspense } from 'react'
-import { cacheLife, cacheTag } from 'next/cache'
 
-// Stats can be cached - same for all users
-async function CachedStats() {
-  'use cache'
-  cacheTag('stats')
-  cacheLife('minutes')
-
-  const stats = await getStats()
-  return <Stats data={stats} />
-}
-
-// User-specific content streams in
-async function UserContent() {
+// All data is dynamic - fetches user-specific content
+async function DashboardContent() {
   const user = await getCurrentUser()
+  const stats = await getStats()
   const notifications = await getNotifications(user.id)
 
   return (
     <>
       <UserHeader user={user} />
+      <Stats data={stats} />
       <Notifications items={notifications} />
     </>
   )
@@ -908,16 +891,15 @@ async function UserContent() {
 export default function Dashboard() {
   return (
     <div>
-      <CachedStats /> {/* In static shell */}
       <Suspense fallback={<DashboardSkeleton />}>
-        <UserContent /> {/* Streams dynamically */}
+        <DashboardContent /> {/* Streams dynamically */}
       </Suspense>
     </div>
   )
 }
 ```
 
-**Key improvement:** Stats now load instantly from cache while user content streams in.
+**Key difference:** No `export const dynamic` needed. Components are dynamic by default - just wrap in Suspense to enable streaming.
 
 ### Scenario 3: ISR with `revalidate` + On-Demand Revalidation
 
@@ -975,21 +957,21 @@ export default async function BlogPost({
   return <Article post={post} />
 }
 
-// actions/posts.ts
-'use server'
-import { updateTag } from 'next/cache'
+// app/api/revalidate/route.ts
+import { revalidatePath } from 'next/cache'
 
-export async function publishPost(slug: string) {
-  await db.posts.update({ where: { slug }, data: { published: true } })
-  updateTag(`post-${slug}`) // Immediate invalidation via Server Action
+export async function POST(request: Request) {
+  const { slug } = await request.json()
+  revalidatePath(`/blog/${slug}`)
+  return Response.json({ revalidated: true })
 }
 ```
 
 **Key improvements:**
 
-- Cache configuration co-located with data fetching
-- Server Action replaces API route for invalidation
-- `updateTag` provides immediate consistency
+- Cache configuration co-located with data fetching via `'use cache'`
+- Explicit cache tags enable targeted invalidation
+- Route Handler pattern preserved for external webhook integration
 
 ---
 
