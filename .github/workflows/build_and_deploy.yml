@@ -680,37 +680,6 @@ jobs:
       - run: exit 1
         if: ${{ always() && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) }}
 
-  releaseStats:
-    name: Release Stats
-    runs-on:
-      - 'self-hosted'
-      - 'linux'
-      - 'x64'
-      - 'metal'
-    timeout-minutes: 25
-    needs: [publishRelease]
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 25
-
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: next-swc-binaries-*
-          merge-multiple: true
-          path: packages/next-swc/native
-
-      - run: cp -r packages/next-swc/native .github/actions/next-stats-action/native
-
-      - run: ./scripts/release-stats.sh
-      - uses: ./.github/actions/next-stats-action
-        env:
-          PR_STATS_COMMENT_TOKEN: ${{ secrets.PR_STATS_COMMENT_TOKEN }}
-          NEXT_SKIP_NATIVE_POSTINSTALL: 1
-          # This uses the webpack bundle analyzer and for consistent results we need to use webpack.
-          # Once there is an equivalent analyzer for turbopack, we can remove this.
-          IS_WEBPACK_TEST: 1
-
   upload_turbopack_bytesize:
     if: ${{ needs.deploy-target.outputs.value != 'automated-preview'}}
     name: Upload Turbopack Bytesize metrics to Datadog

@@ -1,8 +1,11 @@
 on:
   pull_request:
     types: [opened, synchronize]
+  push:
+    branches:
+      - canary
 
-name: Generate Pull Request Stats
+name: Generate Stats
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -36,7 +39,7 @@ jobs:
       uploadAnalyzerArtifacts: 'yes'
 
   stats:
-    name: PR Stats (${{ matrix.bundler }})
+    name: Stats (${{ matrix.bundler }})
     needs: build
     timeout-minutes: 25
     strategy:
@@ -85,7 +88,7 @@ jobs:
           retention-days: 1
 
   stats-aggregate:
-    name: Aggregate PR Stats
+    name: Aggregate Stats
     needs: stats
     if: always() && needs.stats.result != 'cancelled'
     runs-on: ubuntu-latest
