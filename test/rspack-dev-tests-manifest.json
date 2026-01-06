@@ -1080,14 +1080,13 @@
       "server-components-hmr-cache node runtime in after() should not use cached fetch calls for intentional refresh requests",
       "server-components-hmr-cache node runtime in after() should use cached fetch calls for fast refresh requests",
       "server-components-hmr-cache node runtime should not use cached fetch calls for intentional refresh requests",
-      "server-components-hmr-cache node runtime should use cached fetch calls for fast refresh requests"
-    ],
-    "failed": [
+      "server-components-hmr-cache node runtime should use cached fetch calls for fast refresh requests",
       "server-components-hmr-cache node runtime with cacheMaxMemorySize set to 0 should not warn about \"Single item size exceeds maxSize\"",
       "server-components-hmr-cache node runtime with cacheMaxMemorySize set to 0 should still use cached fetch calls for fast refresh requests",
       "server-components-hmr-cache node runtime with experimental.serverComponentsHmrCache disabled in after() should not use cached fetch calls for fast refresh requests",
       "server-components-hmr-cache node runtime with experimental.serverComponentsHmrCache disabled should not use cached fetch calls for fast refresh requests"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9827,8 +9826,8 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/with-babel/with-babel.test.ts": {
-    "passed": [],
-    "failed": ["with babel should support babel in app dir"],
+    "passed": ["with babel should support babel in app dir"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
