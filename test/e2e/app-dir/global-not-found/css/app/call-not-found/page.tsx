@@ -2,6 +2,6 @@
 
 import { notFound } from 'next/navigation'
 
-export default function Page() {
+export default function Page(): never {
   notFound()
 }
