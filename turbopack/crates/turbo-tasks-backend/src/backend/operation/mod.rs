@@ -189,6 +189,7 @@ where
         task_ids: &[TaskId],
         category: TaskDataCategory,
     ) -> Option<Vec<Vec<CachedDataItem>>> {
+        debug_assert!(task_ids.len() > 1, "Use restore_task_data for single task");
         if !self.ensure_transaction() {
             // If we don't need to restore, we return None
             return None;
@@ -301,33 +302,51 @@ where
             return;
         }
 
-        if !tasks_to_restore_for_data.is_empty() {
-            if let Some(data) =
-                self.restore_task_data_batch(&tasks_to_restore_for_data, TaskDataCategory::Data)
-            {
-                data.into_iter()
-                    .zip(tasks_to_restore_for_data_indicies)
-                    .for_each(|(items, idx)| {
-                        tasks[idx].2 = Some(items);
-                    });
-            } else {
-                for idx in tasks_to_restore_for_data_indicies {
-                    tasks[idx].2 = Some(Vec::new());
+        match tasks_to_restore_for_data.len() {
+            0 => {}
+            1 => {
+                let task_id = tasks_to_restore_for_data[0];
+                let data = self.restore_task_data(task_id, TaskDataCategory::Data);
+                let idx = tasks_to_restore_for_data_indicies[0];
+                tasks[idx].2 = Some(data);
+            }
+            _ => {
+                if let Some(data) =
+                    self.restore_task_data_batch(&tasks_to_restore_for_data, TaskDataCategory::Data)
+                {
+                    data.into_iter()
+                        .zip(tasks_to_restore_for_data_indicies)
+                        .for_each(|(items, idx)| {
+                            tasks[idx].2 = Some(items);
+                        });
+                } else {
+                    for idx in tasks_to_restore_for_data_indicies {
+                        tasks[idx].2 = Some(Vec::new());
+                    }
                 }
             }
         }
-        if !tasks_to_restore_for_meta.is_empty() {
-            if let Some(data) =
-                self.restore_task_data_batch(&tasks_to_restore_for_meta, TaskDataCategory::Meta)
-            {
-                data.into_iter()
-                    .zip(tasks_to_restore_for_meta_indicies)
-                    .for_each(|(items, idx)| {
-                        tasks[idx].3 = Some(items);
-                    });
-            } else {
-                for idx in tasks_to_restore_for_meta_indicies {
-                    tasks[idx].3 = Some(Vec::new());
+        match tasks_to_restore_for_meta.len() {
+            0 => {}
+            1 => {
+                let task_id = tasks_to_restore_for_meta[0];
+                let data = self.restore_task_data(task_id, TaskDataCategory::Meta);
+                let idx = tasks_to_restore_for_meta_indicies[0];
+                tasks[idx].3 = Some(data);
+            }
+            _ => {
+                if let Some(data) =
+                    self.restore_task_data_batch(&tasks_to_restore_for_meta, TaskDataCategory::Meta)
+                {
+                    data.into_iter()
+                        .zip(tasks_to_restore_for_meta_indicies)
+                        .for_each(|(items, idx)| {
+                            tasks[idx].3 = Some(items);
+                        });
+                } else {
+                    for idx in tasks_to_restore_for_meta_indicies {
+                        tasks[idx].3 = Some(Vec::new());
+                    }
                 }
             }
         }
