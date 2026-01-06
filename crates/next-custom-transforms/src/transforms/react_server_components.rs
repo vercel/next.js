@@ -11,19 +11,19 @@ use regex::Regex;
 use rustc_hash::FxHashMap;
 use serde::Deserialize;
 use swc_core::{
-    atoms::{atom, Atom, Wtf8Atom},
+    atoms::{Atom, Wtf8Atom, atom},
     common::{
+        DUMMY_SP, FileName, Span, Spanned,
         comments::{Comment, CommentKind, Comments},
         errors::HANDLER,
         util::take::Take,
-        FileName, Span, Spanned, DUMMY_SP,
     },
     ecma::{
         ast::*,
-        utils::{prepend_stmts, quote_ident, quote_str, ExprFactory},
+        utils::{ExprFactory, prepend_stmts, quote_ident, quote_str},
         visit::{
-            noop_visit_mut_type, noop_visit_type, visit_mut_pass, Visit, VisitMut, VisitMutWith,
-            VisitWith,
+            Visit, VisitMut, VisitMutWith, VisitWith, noop_visit_mut_type, noop_visit_type,
+            visit_mut_pass,
         },
     },
 };
@@ -329,7 +329,7 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
             )
         },
         RSCErrorKind::NextRscErrClientMetadataExport((source, span)) => {
-            (format!("You are attempting to export \"{source}\" from a component marked with \"use client\", which is disallowed. Either remove the export, or the \"use client\" directive. Read more: https://nextjs.org/docs/app/api-reference/directives/use-client\n\n"), vec![span])
+            (format!("You are attempting to export \"{source}\" from a component marked with \"use client\", which is disallowed. \"{source}\" must be resolved on the server before the page component is rendered. Keep your page as a Server Component and move Client Component logic to a separate file. Read more: https://nextjs.org/docs/app/api-reference/functions/generate-metadata#why-generatemetadata-is-server-component-only\n\n"), vec![span])
         },
         RSCErrorKind::NextRscErrConflictMetadataExport((span1, span2)) => (
             "\"metadata\" and \"generateMetadata\" cannot be exported at the same time, please keep one of them. Read more: https://nextjs.org/docs/app/api-reference/file-conventions/metadata\n\n".to_string(),
