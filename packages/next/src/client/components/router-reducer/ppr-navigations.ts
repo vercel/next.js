@@ -137,6 +137,42 @@ export function createInitialCacheNodeForHydration(
   return task
 }
 
+/**
+ * Creates a cache node for global-not-found content.
+ * This bypasses the normal navigation compatibility checks because
+ * global-not-found intentionally replaces the entire root.
+ */
+export function createCacheNodeForGlobalNotFound(
+  tree: FlightRouterState,
+  seedData: CacheNodeSeedData | null,
+  seedHead: HeadData | null
+): { cacheNode: CacheNode; flightRouterState: FlightRouterState } {
+  const navigatedAt = Date.now()
+  const accumulation: NavigationRequestAccumulation = {
+    scrollableSegments: null,
+    separateRefreshUrls: null,
+  }
+  const task = createCacheNodeOnNavigation(
+    navigatedAt,
+    tree,
+    undefined,
+    FreshnessPolicy.Default,
+    seedData,
+    seedHead,
+    null,
+    null,
+    false,
+    null,
+    null,
+    false,
+    accumulation
+  )
+  return {
+    cacheNode: task.node,
+    flightRouterState: task.route,
+  }
+}
+
 // Creates a new Cache Node tree (i.e. copy-on-write) that represents the
 // optimistic result of a navigation, using both the current Cache Node tree and
 // data that was prefetched prior to navigation.

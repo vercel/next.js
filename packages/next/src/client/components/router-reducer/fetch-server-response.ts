@@ -200,7 +200,9 @@ export async function fetchServerResponse(
 
     // If fetch returns something different than flight response handle it like a mpa navigation
     // If the fetch was not 200, we also handle it like a mpa navigation
-    if (!isFlightResponse || !res.ok || !res.body) {
+    // Exception: 404 with RSC content is valid (e.g., /_not-found for global-not-found)
+    const isValidErrorResponse = res.status === 404 && isFlightResponse
+    if (!isFlightResponse || (!res.ok && !isValidErrorResponse) || !res.body) {
       // in case the original URL came with a hash, preserve it before redirecting to the new URL
       if (url.hash) {
         responseUrl.hash = url.hash

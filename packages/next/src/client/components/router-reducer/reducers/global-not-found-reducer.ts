@@ -1,3 +1,4 @@
+import type { FlightRouterState } from '../../../../shared/lib/app-router-types'
 import type {
   Mutable,
   GlobalNotFoundAction,
@@ -5,14 +6,27 @@ import type {
   ReducerState,
 } from '../router-reducer-types'
 import { handleMutable } from '../handle-mutable'
-import { navigate as navigateUsingSegmentCache } from '../../segment-cache/navigation'
-import { NavigationResultTag } from '../../segment-cache/types'
-import { FreshnessPolicy } from '../ppr-navigations'
+import { fetchServerResponse } from '../fetch-server-response'
+import { createCacheNodeForGlobalNotFound } from '../ppr-navigations'
+import { convertServerPatchToFullTree } from '../../segment-cache/navigation'
+
+// Special tree that requests all data for a route (used when we don't know
+// the target route's structure)
+const DynamicRequestTreeForEntireRoute: FlightRouterState = [
+  '',
+  {},
+  null,
+  'refetch',
+]
 
 /**
  * Handles the ACTION_GLOBAL_NOT_FOUND action.
  * Fetches the global-not-found page and replaces the current content
  * WITHOUT changing the URL.
+ *
+ * This bypasses the normal navigation logic that would trigger MPA navigation
+ * for global-not-found (because it has a different root layout). Instead, we
+ * directly fetch the RSC payload and create a new cache node.
  */
 export function globalNotFoundReducer(
   state: ReadonlyReducerState,
@@ -20,66 +34,55 @@ export function globalNotFoundReducer(
 ): ReducerState {
   const { url } = action
   const notFoundUrl = new URL(url, location.origin)
-  const currentUrl = new URL(state.canonicalUrl, location.origin)
   const mutable: Mutable = {}
 
   // Don't update history state - keep the current URL
   mutable.preserveCustomHistoryState = true
   mutable.pendingPush = false
 
-  const result = navigateUsingSegmentCache(
-    notFoundUrl,
-    currentUrl,
-    state.cache,
-    state.tree,
-    state.nextUrl,
-    FreshnessPolicy.Default,
-    true, // shouldScroll
-    mutable
-  )
+  // Fetch the global-not-found RSC payload directly
+  // Use the special "refetch entire route" tree since we don't know
+  // the structure of /_not-found
+  return fetchServerResponse(notFoundUrl, {
+    flightRouterState: DynamicRequestTreeForEntireRoute,
+    nextUrl: state.nextUrl,
+  }).then(
+    (result) => {
+      if (typeof result === 'string') {
+        // Server returned MPA navigation URL - this shouldn't happen for
+        // /_not-found but if it does, just return current state
+        return state
+      }
 
-  switch (result.tag) {
-    case NavigationResultTag.MPA: {
-      // For global-not-found, we should NOT do MPA navigation as that would
-      // change the URL. Just return current state - the error boundary will
-      // handle showing appropriate content.
-      return state
-    }
-    case NavigationResultTag.Success: {
-      // Apply the not-found content
-      mutable.cache = result.data.cacheNode
-      mutable.patchedTree = result.data.flightRouterState
-      mutable.renderedSearch = result.data.renderedSearch
-      // Intentionally NOT setting mutable.canonicalUrl to keep the URL unchanged
-      mutable.scrollableSegments = result.data.scrollableSegments ?? undefined
-      mutable.shouldScroll = result.data.shouldScroll
-      mutable.hashFragment = result.data.hash
-      return handleMutable(state, mutable)
-    }
-    case NavigationResultTag.Async: {
-      return result.data.then(
-        (asyncResult) => {
-          if (asyncResult.tag === NavigationResultTag.Success) {
-            mutable.cache = asyncResult.data.cacheNode
-            mutable.patchedTree = asyncResult.data.flightRouterState
-            mutable.renderedSearch = asyncResult.data.renderedSearch
-            // Intentionally NOT setting mutable.canonicalUrl
-            mutable.scrollableSegments =
-              asyncResult.data.scrollableSegments ?? undefined
-            mutable.shouldScroll = asyncResult.data.shouldScroll
-            mutable.hashFragment = asyncResult.data.hash
-            return handleMutable(state, mutable)
-          } else if (asyncResult.tag === NavigationResultTag.MPA) {
-            // For global-not-found, don't do MPA navigation
-            return state
-          }
-          return state
-        },
-        () => state
+      const { flightData, renderedSearch } = result
+
+      // Convert the server response to a full tree
+      // Use the same tree we sent in the request
+      const navigationSeed = convertServerPatchToFullTree(
+        DynamicRequestTreeForEntireRoute,
+        flightData,
+        renderedSearch
       )
-    }
-    default: {
+
+      // Create cache node directly, bypassing navigation compatibility checks
+      const { cacheNode, flightRouterState } = createCacheNodeForGlobalNotFound(
+        navigationSeed.tree,
+        navigationSeed.data,
+        navigationSeed.head
+      )
+
+      // Apply the new content without changing the URL
+      mutable.cache = cacheNode
+      mutable.patchedTree = flightRouterState
+      mutable.renderedSearch = renderedSearch
+      // Intentionally NOT setting mutable.canonicalUrl to keep the URL unchanged
+      mutable.shouldScroll = true
+
+      return handleMutable(state, mutable)
+    },
+    () => {
+      // Fetch failed - return current state
       return state
     }
-  }
+  )
 }
