@@ -1,7 +1,7 @@
 export default async function Page({
   searchParams,
 }: {
-  searchParams: Promise<{ id: string }>
+  searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
   const { id } = await searchParams
   return <p>hello world {id}</p>

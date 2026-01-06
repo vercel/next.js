@@ -1,7 +1,10 @@
-export function withSlug<P extends { params: Promise<{ slug: string }> }>(
+export function withSlug(
   Component: React.ComponentType<{ slug: string }>
-): React.ComponentType<{ params: Promise<{ slug: string }> }> {
-  return async function ComponentWithSlug(props: P) {
+): // TODO(NXT-127): Use ComponentType
+React.JSXElementConstructor<{ params: Promise<{ slug: string }> }> {
+  return async function ComponentWithSlug(props: {
+    params: Promise<{ slug: string }>
+  }) {
     const params = await props.params
     const slug = params.slug
 

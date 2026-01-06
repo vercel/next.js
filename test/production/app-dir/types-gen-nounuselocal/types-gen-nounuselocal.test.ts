@@ -55,7 +55,7 @@ describe('types-gen-nounuselocal', () => {
        }
 
 
-       export type { AppRoutes, PageRoutes, LayoutRoutes, RedirectRoutes, RewriteRoutes, ParamMap }
+       export type { AppRoutes, PageProps, PageRoutes, LayoutRoutes, RedirectRoutes, RewriteRoutes, ParamMap }
 
        declare global {
          /**
