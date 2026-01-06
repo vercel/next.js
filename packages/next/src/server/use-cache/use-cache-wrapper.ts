@@ -1249,21 +1249,6 @@ export async function cache(
           existingEntry.expire < DYNAMIC_EXPIRE
         ) {
           switch (workUnitStore.type) {
-            case 'prerender':
-              // In a Dynamic I/O prerender, if the cache entry has
-              // revalidate: 0 or if the expire time is under 5 minutes,
-              // then we consider this cache entry dynamic as it's not worth
-              // generating static pages for such data. It's better to leave
-              // a dynamic hole that can be filled in during the resume with
-              // a potentially cached entry.
-              if (cacheSignal) {
-                cacheSignal.endRead()
-              }
-              return makeHangingPromise(
-                workUnitStore.renderSignal,
-                workStore.route,
-                'dynamic "use cache"'
-              )
             case 'prerender-runtime': {
               // In the final phase of a runtime prerender, we have to make
               // sure that APIs that would hang during a static prerender
@@ -1289,6 +1274,7 @@ export async function cache(
               }
               break
             }
+            case 'prerender':
             case 'prerender-ppr':
             case 'prerender-legacy':
             case 'cache':
