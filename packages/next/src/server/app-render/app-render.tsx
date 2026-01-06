@@ -3146,7 +3146,8 @@ async function renderToStream(
       } catch (finalErr: any) {
         if (
           process.env.NODE_ENV === 'development' &&
-          isHTTPAccessFallbackError(finalErr)
+          isHTTPAccessFallbackError(finalErr) &&
+          !tree[2]['global-not-found']
         ) {
           const { bailOnRootNotFound } =
             require('../../client/components/dev-root-http-access-fallback-boundary') as typeof import('../../client/components/dev-root-http-access-fallback-boundary')
@@ -5516,7 +5517,8 @@ async function prerenderToStream(
     } catch (finalErr: any) {
       if (
         process.env.NODE_ENV === 'development' &&
-        isHTTPAccessFallbackError(finalErr)
+        isHTTPAccessFallbackError(finalErr) &&
+        !tree[2]['global-not-found']
       ) {
         const { bailOnRootNotFound } =
           require('../../client/components/dev-root-http-access-fallback-boundary') as typeof import('../../client/components/dev-root-http-access-fallback-boundary')

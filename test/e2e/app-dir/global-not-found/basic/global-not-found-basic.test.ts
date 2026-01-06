@@ -65,4 +65,17 @@ describe('global-not-found - basic', () => {
     // URL should remain unchanged
     expect(await browser.url()).toContain('/client-trigger')
   })
+
+  it('should allow notFound() in layout when globalNotFound is enabled', async () => {
+    const browser = await next.browser('/layout-not-found')
+    if (isNextDev) {
+      await waitForNoRedbox(browser)
+    }
+
+    // Should render the not-found content within root layout (not throw error)
+    expect(await browser.elementByCss('html').getAttribute('lang')).toBe('en')
+    expect(await browser.elementByCss('body').text()).toContain(
+      'This page could not be found.'
+    )
+  })
 })
