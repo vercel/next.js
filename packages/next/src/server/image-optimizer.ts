@@ -711,6 +711,7 @@ function isRedirect(statusCode: number) {
 export async function fetchExternalImage(
   href: string,
   dangerouslyAllowLocalIP: boolean,
+  maximumResponseBody: number,
   count = 3
 ): Promise<ImageUpstream> {
   if (!dangerouslyAllowLocalIP) {
@@ -766,7 +767,12 @@ export async function fetchExternalImage(
       )
     }
     const redirect = new URL(locationHeader, href).href
-    return fetchExternalImage(redirect, dangerouslyAllowLocalIP, count - 1)
+    return fetchExternalImage(
+      redirect,
+      dangerouslyAllowLocalIP,
+      maximumResponseBody,
+      count - 1
+    )
   }
 
   if (!res.ok) {
@@ -791,7 +797,7 @@ export async function fetchExternalImage(
   for await (const c of res.body) {
     const chunk = Buffer.from(c)
     totalSize += chunk.byteLength
-    if (totalSize > 300_000_000) {
+    if (totalSize > maximumResponseBody) {
       Log.error(
         'upstream image response exceeded maximum size for',
         href,
