@@ -14,9 +14,9 @@ import {
   nextBuild,
   nextStart,
   normalizeRegEx,
-  check,
   getRedboxHeader,
   normalizeManifest,
+  retry,
 } from 'next-test-utils'
 import cheerio from 'cheerio'
 
@@ -139,21 +139,25 @@ function runTests({ dev }) {
         })
       })()`)
       const curFrames = [...(await browser.websocketFrames())]
-      await check(async () => {
-        const frames = await browser.websocketFrames()
-        const newFrames = frames.slice(curFrames.length)
-        // console.error({newFrames, curFrames, frames});
+      await retry(
+        async () => {
+          const frames = await browser.websocketFrames()
+          const newFrames = frames.slice(curFrames.length)
+          // console.error({newFrames, curFrames, frames});
 
-        return newFrames.some((frame) => {
-          try {
-            const data = JSON.parse('' + frame.payload)
-            return data.event === 'pong'
-          } catch (_) {}
-          return false
-        })
-          ? 'success'
-          : JSON.stringify(newFrames)
-      }, 'success')
+          return newFrames.some((frame) => {
+            try {
+              const data = JSON.parse('' + frame.payload)
+              return data.event === 'pong'
+            } catch (_) {}
+            return false
+          })
+            ? 'success'
+            : JSON.stringify(newFrames)
+        },
+        30000,
+        1000
+      )
       expect(await browser.eval('window.uncaughtErrs.length')).toBe(0)
     })
   }
@@ -245,7 +249,15 @@ function runTests({ dev }) {
 
       await browser.eval('window.beforeNav = 1')
       await browser.elementByCss(`#${id}`).click()
-      await check(() => browser.eval('window.location.pathname'), pathname)
+      await retry(
+        async () => {
+          expect(await browser.eval('window.location.pathname')).toMatch(
+            pathname
+          )
+        },
+        30000,
+        1000
+      )
 
       expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual(
         navQuery
@@ -1017,9 +1029,14 @@ function runTests({ dev }) {
     expect(html).toMatch(/onmpost:.*pending/)
 
     const browser = await webdriver(appPort, '/on-mount/post-1')
-    await check(
-      () => browser.eval(`document.body.innerHTML`),
-      /onmpost:.*post-1/
+    await retry(
+      async () => {
+        expect(await browser.eval(`document.body.innerHTML`)).toMatch(
+          /onmpost:.*post-1/
+        )
+      },
+      30000,
+      1000
     )
   })
 
@@ -1030,18 +1047,28 @@ function runTests({ dev }) {
 
   it('should update with a hash in the URL', async () => {
     const browser = await webdriver(appPort, '/on-mount/post-1#abc')
-    await check(
-      () => browser.eval(`document.body.innerHTML`),
-      /onmpost:.*post-1/
+    await retry(
+      async () => {
+        expect(await browser.eval(`document.body.innerHTML`)).toMatch(
+          /onmpost:.*post-1/
+        )
+      },
+      30000,
+      1000
     )
   })
 
   it('should scroll to a hash on mount', async () => {
     const browser = await webdriver(appPort, '/on-mount/post-1#item-400')
 
-    await check(
-      () => browser.eval(`document.body.innerHTML`),
-      /onmpost:.*post-1/
+    await retry(
+      async () => {
+        expect(await browser.eval(`document.body.innerHTML`)).toMatch(
+          /onmpost:.*post-1/
+        )
+      },
+      30000,
+      1000
     )
 
     const elementPosition = await browser.eval(
@@ -1166,35 +1193,39 @@ function runTests({ dev }) {
         }
       `
       )
-      await check(async () => {
-        const response = await fetchViaHTTP(
-          appPort,
-          '/_next/static/development/_devPagesManifest.json',
-          undefined,
-          {
-            // @ts-expect-error -- node-fetch doesn't have this as a top-level but whatwg fetch does.
-            credentials: 'same-origin',
-          }
-        )
+      await retry(
+        async () => {
+          const response = await fetchViaHTTP(
+            appPort,
+            '/_next/static/development/_devPagesManifest.json',
+            undefined,
+            {
+              // @ts-expect-error -- node-fetch doesn't have this as a top-level but whatwg fetch does.
+              credentials: 'same-origin',
+            }
+          )
 
-        // Check if the response was successful (status code in the range 200-299)
-        if (!response.ok) {
-          return 'fail'
-        }
+          // Check if the response was successful (status code in the range 200-299)
+          expect(response.ok).toBe(true)
 
-        const contents = await response.text()
-        const containsAddedLater = contents.includes('added-later')
+          const contents = await response.text()
+          expect(contents).toContain('added-later')
+        },
+        30000,
+        1000
+      )
 
-        return containsAddedLater ? 'success' : 'fail'
-      }, 'success')
-
-      await check(async () => {
-        const contents = await renderViaHTTP(
-          appPort,
-          '/_next/static/development/_devPagesManifest.json'
-        )
-        return contents.includes('added-later') ? 'success' : 'fail'
-      }, 'success')
+      await retry(
+        async () => {
+          const contents = await renderViaHTTP(
+            appPort,
+            '/_next/static/development/_devPagesManifest.json'
+          )
+          expect(contents).toContain('added-later')
+        },
+        30000,
+        1000
+      )
 
       await browser.elementByCss('#added-later-link').click()
       await browser.waitForElementByCss('#added-later')

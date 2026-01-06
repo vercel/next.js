@@ -2,7 +2,6 @@
 import cheerio from 'cheerio'
 import { readFile, remove } from 'fs-extra'
 import {
-  check,
   File,
   findPort,
   killApp,
@@ -11,6 +10,7 @@ import {
   nextStart,
   renderViaHTTP,
   waitFor,
+  retry,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
@@ -283,19 +283,27 @@ useLightningcss: ${useLightningcss}
         const cssFile = new File(join(appDir, 'pages/index.module.css'))
         try {
           cssFile.replace('color: yellow;', 'color: rgb(1, 1, 1);')
-          await check(
-            () =>
-              browser.eval(
-                `window.getComputedStyle(document.querySelector('#yellowText')).color`
-              ),
-            'rgb(1, 1, 1)'
+          await retry(
+            async () => {
+              expect(
+                await browser.eval(
+                  `window.getComputedStyle(document.querySelector('#yellowText')).color`
+                )
+              ).toBe('rgb(1, 1, 1)')
+            },
+            30000,
+            1000
           )
-          await check(
-            () =>
-              browser.eval(
-                `window.getComputedStyle(document.querySelector('#blueText')).color`
-              ),
-            'rgb(0, 0, 255)'
+          await retry(
+            async () => {
+              expect(
+                await browser.eval(
+                  `window.getComputedStyle(document.querySelector('#blueText')).color`
+                )
+              ).toBe('rgb(0, 0, 255)')
+            },
+            30000,
+            1000
           )
         } finally {
           cssFile.restore()

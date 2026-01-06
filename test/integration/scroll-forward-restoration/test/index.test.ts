@@ -8,7 +8,7 @@ import {
   launchApp,
   nextStart,
   nextBuild,
-  check,
+  retry,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
@@ -20,9 +20,14 @@ const runTests = () => {
     const browser = await webdriver(appPort, '/another')
     await browser.elementByCss('#to-index').click()
 
-    await check(
-      () => browser.eval(() => document.documentElement.innerHTML),
-      /the end/
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(() => document.documentElement.innerHTML)
+        ).toMatch(/the end/)
+      },
+      30000,
+      1000
     )
 
     await browser.eval(() =>
@@ -42,15 +47,26 @@ const runTests = () => {
 
     await browser.eval(() => window.history.back())
 
-    await check(
-      () => browser.eval(() => document.documentElement.innerHTML),
-      /hi from another/
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(() => document.documentElement.innerHTML)
+        ).toMatch(/hi from another/)
+      },
+      30000,
+      1000
     )
 
     await browser.eval(() => ((window as any).didHydrate = false))
     await browser.eval(() => window.history.forward())
 
-    await check(() => browser.eval(() => (window as any).didHydrate), true)
+    await retry(
+      async () => {
+        expect(await browser.eval(() => (window as any).didHydrate)).toBe(true)
+      },
+      30000,
+      1000
+    )
 
     const newScrollX = Math.floor(await browser.eval(() => window.scrollX))
     const newScrollY = Math.floor(await browser.eval(() => window.scrollY))

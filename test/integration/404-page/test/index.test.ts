@@ -12,7 +12,7 @@ import {
   fetchViaHTTP,
   waitFor,
   getPageFileFromPagesManifest,
-  check,
+  retry,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
@@ -116,7 +116,13 @@ describe('404 Page Support', () => {
       })
       await renderViaHTTP(appPort, '/abc')
       try {
-        await check(() => stderr, gip404Err)
+        await retry(
+          () => {
+            expect(stderr).toMatch(gip404Err)
+          },
+          30000,
+          1000
+        )
       } finally {
         await killApp(app)
 

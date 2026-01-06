@@ -10,8 +10,8 @@ import {
   nextBuild,
   nextStart,
   renderViaHTTP,
-  check,
   waitFor,
+  retry,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
@@ -45,7 +45,13 @@ function runTests(testMode: 'start' | 'dev') {
     try {
       await browser.elementByCss('#link1').click()
       await waitFor(1000)
-      await check(() => browser.elementByCss('#page').text(), /^index$/)
+      await retry(
+        async () => {
+          expect(await browser.elementByCss('#page').text()).toMatch(/^index$/)
+        },
+        30000,
+        1000
+      )
     } finally {
       await browser.close()
     }
@@ -73,7 +79,15 @@ function runTests(testMode: 'start' | 'dev') {
     try {
       await browser.elementByCss('#link2').click()
       await waitFor(1000)
-      await check(() => browser.elementByCss('#page').text(), /^index > index$/)
+      await retry(
+        async () => {
+          expect(await browser.elementByCss('#page').text()).toMatch(
+            /^index > index$/
+          )
+        },
+        30000,
+        1000
+      )
     } finally {
       await browser.close()
     }
@@ -101,7 +115,15 @@ function runTests(testMode: 'start' | 'dev') {
     try {
       await browser.elementByCss('#link5').click()
       await waitFor(1000)
-      await check(() => browser.elementByCss('#page').text(), /^index > user$/)
+      await retry(
+        async () => {
+          expect(await browser.elementByCss('#page').text()).toMatch(
+            /^index > user$/
+          )
+        },
+        30000,
+        1000
+      )
     } finally {
       await browser.close()
     }
@@ -129,9 +151,14 @@ function runTests(testMode: 'start' | 'dev') {
     try {
       await browser.elementByCss('#link6').click()
       await waitFor(1000)
-      await check(
-        () => browser.elementByCss('#page').text(),
-        /^index > project$/
+      await retry(
+        async () => {
+          expect(await browser.elementByCss('#page').text()).toMatch(
+            /^index > project$/
+          )
+        },
+        30000,
+        1000
       )
     } finally {
       await browser.close()
@@ -160,9 +187,14 @@ function runTests(testMode: 'start' | 'dev') {
     try {
       await browser.elementByCss('#link3').click()
       await waitFor(1000)
-      await check(
-        () => browser.elementByCss('#page').text(),
-        /^index > index > index$/
+      await retry(
+        async () => {
+          expect(await browser.elementByCss('#page').text()).toMatch(
+            /^index > index > index$/
+          )
+        },
+        30000,
+        1000
       )
     } finally {
       await browser.close()
@@ -179,7 +211,13 @@ function runTests(testMode: 'start' | 'dev') {
     try {
       await browser.elementByCss('#link4').click()
       await waitFor(1000)
-      await check(() => browser.elementByCss('h1').text(), /404/)
+      await retry(
+        async () => {
+          expect(await browser.elementByCss('h1').text()).toMatch(/404/)
+        },
+        30000,
+        1000
+      )
     } finally {
       await browser.close()
     }

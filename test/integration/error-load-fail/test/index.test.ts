@@ -7,8 +7,8 @@ import {
   nextStart,
   findPort,
   killApp,
-  check,
   getClientBuildManifestLoaderChunkUrlPath,
+  retry,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
@@ -39,11 +39,17 @@ describe('Failing to load _error', () => {
         await browser.eval(`window.beforeNavigate = true`)
         await browser.elementByCss('#to-broken').click()
 
-        await check(async () => {
-          return !(await browser.eval('window.beforeNavigate'))
-            ? 'reloaded'
-            : 'fail'
-        }, /reloaded/)
+        await retry(
+          async () => {
+            expect(
+              !(await browser.eval('window.beforeNavigate'))
+                ? 'reloaded'
+                : 'fail'
+            ).toMatch(/reloaded/)
+          },
+          30000,
+          1000
+        )
       })
     }
   )

@@ -2,12 +2,12 @@
 
 import fs from 'fs-extra'
 import {
-  check,
   findPort,
   killApp,
   launchApp,
   nextBuild,
   nextStart,
+  retry,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
@@ -21,7 +21,13 @@ function runTests() {
     const browser = await webdriver(appPort, '/')
     try {
       await browser.waitForElementByCss('#success')
-      await check(() => browser.elementByCss('#success').text(), /yay/)
+      await retry(
+        async () => {
+          expect(await browser.elementByCss('#success').text()).toMatch(/yay/)
+        },
+        30000,
+        1000
+      )
     } finally {
       await browser.close()
     }
@@ -31,7 +37,13 @@ function runTests() {
     const browser = await webdriver(appPort, '/one')
     try {
       await browser.waitForElementByCss('#success')
-      await check(() => browser.elementByCss('#success').text(), /one/)
+      await retry(
+        async () => {
+          expect(await browser.elementByCss('#success').text()).toMatch(/one/)
+        },
+        30000,
+        1000
+      )
     } finally {
       await browser.close()
     }
@@ -41,7 +53,15 @@ function runTests() {
     const browser = await webdriver(appPort, '/one/two')
     try {
       await browser.waitForElementByCss('#success')
-      await check(() => browser.elementByCss('#success').text(), /one,two/)
+      await retry(
+        async () => {
+          expect(await browser.elementByCss('#success').text()).toMatch(
+            /one,two/
+          )
+        },
+        30000,
+        1000
+      )
     } finally {
       await browser.close()
     }

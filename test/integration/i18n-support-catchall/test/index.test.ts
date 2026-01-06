@@ -11,7 +11,7 @@ import {
   launchApp,
   nextBuild,
   nextStart,
-  check,
+  retry,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
@@ -80,7 +80,13 @@ function runTests(isDev: boolean) {
 
     await browser.elementByCss('#to-locale-index').click()
 
-    await check(() => browser.eval('window.location.pathname'), '/nl-NL')
+    await retry(
+      async () => {
+        expect(await browser.eval('window.location.pathname')).toBe('/nl-NL')
+      },
+      30000,
+      1000
+    )
 
     expect(await browser.elementByCss('#router-locale').text()).toBe('nl-NL')
     expect(await browser.elementByCss('#router-default-locale').text()).toBe(
@@ -102,7 +108,15 @@ function runTests(isDev: boolean) {
 
     await browser.back()
 
-    await check(() => browser.elementByCss('#router-locale').text(), 'en-US')
+    await retry(
+      async () => {
+        expect(await browser.elementByCss('#router-locale').text()).toBe(
+          'en-US'
+        )
+      },
+      30000,
+      1000
+    )
 
     expect(await browser.elementByCss('#router-locale').text()).toBe('en-US')
     expect(await browser.elementByCss('#router-default-locale').text()).toBe(
@@ -128,9 +142,14 @@ function runTests(isDev: boolean) {
 
     await browser.elementByCss('#to-locale-another').click()
 
-    await check(
-      () => browser.eval('window.location.pathname'),
-      '/nl-NL/another'
+    await retry(
+      async () => {
+        expect(await browser.eval('window.location.pathname')).toBe(
+          '/nl-NL/another'
+        )
+      },
+      30000,
+      1000
     )
 
     expect(await browser.elementByCss('#router-locale').text()).toBe('nl-NL')
@@ -157,7 +176,15 @@ function runTests(isDev: boolean) {
 
     await browser.back()
 
-    await check(() => browser.elementByCss('#router-locale').text(), 'en-US')
+    await retry(
+      async () => {
+        expect(await browser.elementByCss('#router-locale').text()).toBe(
+          'en-US'
+        )
+      },
+      30000,
+      1000
+    )
 
     expect(await browser.elementByCss('#router-locale').text()).toBe('en-US')
     expect(await browser.elementByCss('#router-default-locale').text()).toBe(
@@ -191,27 +218,31 @@ function runTests(isDev: boolean) {
         document.querySelector('#to-fr-locale-index').scrollIntoView()
       })()`)
 
-      await check(async () => {
-        const hrefs = await browser.eval(`Object.keys(window.next.router.sdc)`)
-        hrefs.sort()
-
-        console.log({ hrefs })
-
-        assert.deepEqual(
-          hrefs.map((href) =>
-            new URL(href).pathname.replace(/^\/_next\/data\/[^/]+/, '')
-          ),
-          [
-            '/en-US.json',
-            '/en-US/another.json',
-            '/fr.json',
-            '/fr/another.json',
-            '/nl-NL.json',
-            '/nl-NL/another.json',
-          ]
-        )
-        return 'yes'
-      }, 'yes')
+      await retry(
+        async () => {
+          const hrefs = await browser.eval(
+            `Object.keys(window.next.router.sdc)`
+          )
+          hrefs.sort()
+          console.log({ hrefs })
+          assert.deepEqual(
+            hrefs.map((href) =>
+              new URL(href).pathname.replace(/^\/_next\/data\/[^/]+/, '')
+            ),
+            [
+              '/en-US.json',
+              '/en-US/another.json',
+              '/fr.json',
+              '/fr/another.json',
+              '/nl-NL.json',
+              '/nl-NL/another.json',
+            ]
+          )
+          expect('yes').toBe('yes')
+        },
+        30000,
+        1000
+      )
     })
   }
 }
