@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { waitForNoRedbox } from 'next-test-utils'
+import { retry, waitForNoRedbox } from 'next-test-utils'
 
 describe('global-not-found - basic', () => {
   const { next, isNextDev } = nextTestSetup({
@@ -54,16 +54,16 @@ describe('global-not-found - basic', () => {
     await browser.elementByCss('#trigger-not-found').click()
 
     // Should render global-not-found content without changing URL
-    await browser.waitForElementByCss('#global-error-title')
-    expect(await browser.elementByCss('#global-error-title').text()).toBe(
-      'global-not-found'
-    )
-    expect(
-      await browser.elementByCss('html').getAttribute('data-global-not-found')
-    ).toBe('true')
-
-    // URL should remain unchanged
-    expect(await browser.url()).toContain('/client-trigger')
+    await retry(async () => {
+      expect(await browser.elementByCss('#global-error-title').text()).toBe(
+        'global-not-found'
+      )
+      expect(
+        await browser.elementByCss('html').getAttribute('data-global-not-found')
+      ).toBe('true')
+      // URL should remain unchanged
+      expect(await browser.url()).toContain('/client-trigger')
+    })
   })
 
   it('should allow notFound() in layout when globalNotFound is enabled', async () => {
