@@ -30,9 +30,7 @@ use crate::{
         operation::{ExecuteContext, Operation, TaskGuard, invalidate::make_task_dirty},
         storage_schema::TaskStorageAccessors,
     },
-    data::{
-        ActivenessState, AggregationNumber, CachedDataItem, CachedDataItemType, CollectibleRef,
-    },
+    data::{ActivenessState, AggregationNumber, CollectibleRef},
     utils::swap_retain,
 };
 
@@ -2459,12 +2457,9 @@ impl AggregationUpdateQueue {
                 // When converted from leaf to aggregating node, all children become
                 // followers
                 let children: Vec<_> = task.iter_children().collect();
-                task.extend_new_internal(
-                    CachedDataItemType::Follower,
-                    children
-                        .iter()
-                        .map(|&task| CachedDataItem::Follower { task, value: 1 }),
-                );
+                for child in children {
+                    task.add_follower(child, 1);
+                }
             }
 
             if is_aggregating_node(aggregation_number) {

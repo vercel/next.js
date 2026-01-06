@@ -15,7 +15,7 @@ use std::{
 
 use bincode::{Decode, Encode};
 use turbo_tasks::{
-    CellId, FxIndexMap, KeyValuePair, SharedReference, TaskExecutionReason, TaskId, TraitTypeId,
+    CellId, FxIndexMap, SharedReference, TaskExecutionReason, TaskId, TraitTypeId,
     TurboTasksBackendApi, TypedSharedReference, ValueTypeId,
 };
 
@@ -28,9 +28,8 @@ use crate::{
     },
     backing_storage::BackingStorage,
     data::{
-        ActivenessState, CachedDataItem, CachedDataItemKey, CachedDataItemType,
-        CachedDataItemValue, CachedDataItemValueRef, CachedDataItemValueRefMut, CellRef,
-        CollectibleRef, CollectiblesRef, Dirtyness, InProgressCellState, InProgressState,
+        ActivenessState, CellRef, CollectibleRef, CollectiblesRef, Dirtyness, InProgressCellState,
+        InProgressState,
     },
 };
 
@@ -406,101 +405,6 @@ impl<'e, B: BackingStorage> ChildExecuteContext<'e> for ChildExecuteContextImpl<
 
 pub trait TaskGuard: Debug + TaskStorageAccessors {
     fn id(&self) -> TaskId;
-
-    // ============ Generic CachedDataItem APIs - FOR SERIALIZATION/INTERNAL USE ONLY ============
-    // These methods provide low-level access to CachedDataItem. They should ONLY be used for:
-    // 1. Serialization/deserialization (restore_task_data paths)
-    // 2. As implementation details within typed APIs
-    // All other code should use the typed APIs below instead.
-
-    /// Adds a new item to the task if the key is not already present.
-    /// Returns `true` if the item was added.
-    /// Returns `false` if an item with the same key was already present.
-    ///
-    /// **FOR INTERNAL USE ONLY** - Use typed APIs instead.
-    #[must_use]
-    fn add_internal(&mut self, item: CachedDataItem) -> bool;
-
-    /// Adds a new item to the task. The key must not be already present.
-    /// Might panic if the key is already present.
-    ///
-    /// **FOR INTERNAL USE ONLY** - Use typed APIs instead.
-    fn add_new_internal(&mut self, item: CachedDataItem);
-
-    /// Extends the task with items from the iterator.
-    /// Overwrites existing keys.
-    /// Returns `true` if all items were new and added.
-    /// Returns `false` if any item had a key that was already present.
-    ///
-    /// **FOR INTERNAL USE ONLY** - Use typed APIs instead.
-    fn extend_internal(
-        &mut self,
-        ty: CachedDataItemType,
-        items: impl Iterator<Item = CachedDataItem>,
-    ) -> bool;
-
-    /// Extends the task with items from the iterator.
-    /// Might panic if any item has a key that is already present.
-    ///
-    /// **FOR INTERNAL USE ONLY** - Use typed APIs instead.
-    fn extend_new_internal(
-        &mut self,
-        ty: CachedDataItemType,
-        items: impl Iterator<Item = CachedDataItem>,
-    );
-
-    /// **FOR INTERNAL USE ONLY** - Use typed APIs instead.
-    fn insert_internal(&mut self, item: CachedDataItem) -> Option<CachedDataItemValue>;
-
-    /// **FOR INTERNAL USE ONLY** - Use typed APIs instead.
-    fn update_internal(
-        &mut self,
-        key: CachedDataItemKey,
-        update: impl FnOnce(Option<CachedDataItemValue>) -> Option<CachedDataItemValue>,
-    );
-
-    /// **FOR INTERNAL USE ONLY** - Use typed APIs instead.
-    fn remove_internal(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValue>;
-
-    /// **FOR INTERNAL USE ONLY** - Use typed APIs instead.
-    fn get_internal(&self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRef<'_>>;
-
-    /// **FOR INTERNAL USE ONLY** - Use typed APIs instead.
-    fn get_mut_internal(
-        &mut self,
-        key: &CachedDataItemKey,
-    ) -> Option<CachedDataItemValueRefMut<'_>>;
-
-    /// **FOR INTERNAL USE ONLY** - Use typed APIs instead.
-    fn get_mut_or_insert_with_internal(
-        &mut self,
-        key: CachedDataItemKey,
-        insert: impl FnOnce() -> CachedDataItemValue,
-    ) -> CachedDataItemValueRefMut<'_>;
-
-    /// **FOR INTERNAL USE ONLY** - Use typed APIs instead.
-    fn has_key_internal(&self, key: &CachedDataItemKey) -> bool;
-
-    /// **FOR INTERNAL USE ONLY** - Use typed APIs instead.
-    fn count_internal(&self, ty: CachedDataItemType) -> usize;
-
-    /// **FOR INTERNAL USE ONLY** - Use typed APIs instead.
-    fn iter_internal(
-        &self,
-        ty: CachedDataItemType,
-    ) -> impl Iterator<Item = (CachedDataItemKey, CachedDataItemValueRef<'_>)>;
-
-    /// **FOR INTERNAL USE ONLY** - Use typed APIs instead.
-    fn shrink_to_fit_internal(&mut self, ty: CachedDataItemType);
-
-    /// **FOR INTERNAL USE ONLY** - Use typed APIs instead.
-    fn extract_if_internal<'l, F>(
-        &'l mut self,
-        ty: CachedDataItemType,
-        f: F,
-    ) -> impl Iterator<Item = CachedDataItem>
-    where
-        F: for<'a> FnMut(CachedDataItemKey, CachedDataItemValueRef<'a>) -> bool + 'l;
 
     // ============ Typed Child APIs ============
 
@@ -960,6 +864,9 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     /// Get mutable reference to the in-progress state
     fn get_in_progress_mut(&mut self) -> Option<&mut InProgressState>;
 
+    /// Add an in-progress state if not already present. Returns true if newly added.
+    fn add_in_progress(&mut self, value: InProgressState) -> bool;
+
     /// Get the in-progress cell state for a specific cell
     fn get_in_progress_cell(&self, cell: CellId) -> Option<&InProgressCellState> {
         self.in_progress_cells().and_then(|map| map.get(&cell))
@@ -1278,7 +1185,7 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     where
         InnerFn: Fn() -> String + Sync + Send + 'static,
     {
-        self.add_internal(CachedDataItem::new_scheduled(reason, description))
+        self.add_in_progress(InProgressState::new_scheduled(reason, description))
     }
 
     // ============ Outdated Dependency APIs ============
@@ -1556,34 +1463,25 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     // Callers should use iter_* methods and call .collect() if they need a Vec.
 
     // ============ Extract-If APIs ============
-    // These replace extract_if_internal with typed filter/extract operations
+    // These remove items matching the predicate from the typed storage
 
-    /// Extract cell data matching the predicate. Returns removed items.
-    fn extract_cell_data_if<'l, F>(&'l mut self, f: F) -> impl Iterator<Item = CachedDataItem>
+    /// Remove cell data matching the predicate.
+    fn remove_cell_data_if<F>(&mut self, f: F)
     where
-        F: for<'a> FnMut(CachedDataItemKey, CachedDataItemValueRef<'a>) -> bool + 'l;
+        F: FnMut(&CellId) -> bool;
 
-    /// Extract transient cell data matching the predicate. Returns removed items.
-    fn extract_transient_cell_data_if<'l, F>(
-        &'l mut self,
-        f: F,
-    ) -> impl Iterator<Item = CachedDataItem>
+    /// Remove transient cell data matching the predicate.
+    fn remove_transient_cell_data_if<F>(&mut self, f: F)
     where
-        F: for<'a> FnMut(CachedDataItemKey, CachedDataItemValueRef<'a>) -> bool + 'l;
+        F: FnMut(&CellId) -> bool;
 
-    /// Extract in-progress cells matching the predicate. Returns removed items.
-    fn extract_in_progress_cells_if<'l, F>(
-        &'l mut self,
-        f: F,
-    ) -> impl Iterator<Item = CachedDataItem>
+    /// Remove in-progress cells matching the predicate, notifying waiters.
+    fn remove_in_progress_cells_if<F>(&mut self, f: F)
     where
-        F: for<'a> FnMut(CachedDataItemKey, CachedDataItemValueRef<'a>) -> bool + 'l;
+        F: FnMut(&CellId, &InProgressCellState) -> bool;
 
     // ============ Memory Management APIs ============
-
-    /// Shrink all relevant storage data structures to fit their current contents.
-    /// This includes cell data, dependencies, and indices.
-    fn shrink_to_fit(&mut self);
+    // shrink_to_fit is provided by the TaskStorageAccessors trait
 }
 
 pub struct TaskGuardImpl<'a, B: BackingStorage> {
@@ -1658,281 +1556,69 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         self.task_id
     }
 
-    #[track_caller]
-    fn add_internal(&mut self, item: CachedDataItem) -> bool {
-        let category = item.category();
-        self.check_access(category);
-        if !self.task_id.is_transient() && item.is_persistent() {
-            if self.task.contains_key(&item.key()) {
-                return false;
-            }
-            self.task.track_modification(category.into_specific());
-        }
-        self.task.add(item)
-    }
-
-    #[track_caller]
-    fn add_new_internal(&mut self, item: CachedDataItem) {
-        let category = item.category();
-        self.check_access(category);
-        if !self.task_id.is_transient() && item.is_persistent() {
-            self.task.track_modification(category.into_specific());
-        }
-        let added = self.task.add(item);
-        assert!(added, "Item already exists");
-    }
-
-    #[track_caller]
-    fn extend_internal(
-        &mut self,
-        ty: CachedDataItemType,
-        items: impl Iterator<Item = CachedDataItem>,
-    ) -> bool {
-        let category = ty.category();
-        self.check_access(category);
-        if !self.task_id.is_transient() && ty.is_persistent() {
-            let mut items = items.peekable();
-            // Check if the iterator is empty
-            if items.peek().is_none() {
-                return true;
-            }
-            // TODO this is not optimal as we always track a modification even if nothing is changed
-            self.task.track_modification(category.into_specific());
-            self.task.extend(ty, items)
-        } else {
-            self.task.extend(ty, items)
-        }
-    }
-
-    #[track_caller]
-    fn extend_new_internal(
-        &mut self,
-        ty: CachedDataItemType,
-        items: impl Iterator<Item = CachedDataItem>,
-    ) {
-        let category = ty.category();
-        self.check_access(category);
-        if !self.task_id.is_transient() && ty.is_persistent() {
-            self.task.track_modification(category.into_specific());
-        }
-
-        let added = self.task.extend(ty, items);
-        assert!(added, "At least one item already exists");
-    }
-
-    #[track_caller]
-    fn insert_internal(&mut self, item: CachedDataItem) -> Option<CachedDataItemValue> {
-        let category = item.category();
-        self.check_access(category);
-        if !self.task_id.is_transient() && item.is_persistent() {
-            self.task.track_modification(category.into_specific());
-        }
-        self.task.insert(item)
-    }
-
-    #[track_caller]
-    fn update_internal(
-        &mut self,
-        key: CachedDataItemKey,
-        update: impl FnOnce(Option<CachedDataItemValue>) -> Option<CachedDataItemValue>,
-    ) {
-        let category = key.category();
-        self.check_access(category);
-        if !self.task_id.is_transient() && key.is_persistent() {
-            self.task.track_modification(category.into_specific());
-        }
-        self.task.update(key, update);
-    }
-
-    #[track_caller]
-    fn remove_internal(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValue> {
-        let category = key.category();
-        self.check_access(category);
-        if !self.task_id.is_transient() && key.is_persistent() {
-            self.task.track_modification(category.into_specific());
-        }
-        self.task.remove(key)
-    }
-
-    fn get_internal(&self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRef<'_>> {
-        self.check_access(key.category());
-        self.task.get(key)
-    }
-
-    #[track_caller]
-    fn get_mut_internal(
-        &mut self,
-        key: &CachedDataItemKey,
-    ) -> Option<CachedDataItemValueRefMut<'_>> {
-        let category = key.category();
-        self.check_access(category);
-        if !self.task_id.is_transient() && key.is_persistent() {
-            self.task.track_modification(category.into_specific());
-        }
-        self.task.get_mut(key)
-    }
-
-    #[track_caller]
-    fn get_mut_or_insert_with_internal(
-        &mut self,
-        key: CachedDataItemKey,
-        insert: impl FnOnce() -> CachedDataItemValue,
-    ) -> CachedDataItemValueRefMut<'_> {
-        let category = key.category();
-        self.check_access(category);
-        if !self.task_id.is_transient() && key.is_persistent() {
-            self.task.track_modification(category.into_specific());
-        }
-        self.task.get_mut_or_insert_with(key, insert)
-    }
-
-    #[track_caller]
-    fn has_key_internal(&self, key: &CachedDataItemKey) -> bool {
-        self.check_access(key.category());
-        self.task.contains_key(key)
-    }
-
-    #[track_caller]
-    fn count_internal(&self, ty: CachedDataItemType) -> usize {
-        self.check_access(ty.category());
-        self.task.count(ty)
-    }
-
-    fn iter_internal(
-        &self,
-        ty: CachedDataItemType,
-    ) -> impl Iterator<Item = (CachedDataItemKey, CachedDataItemValueRef<'_>)> {
-        self.check_access(ty.category());
-        self.task.iter(ty)
-    }
-
-    fn shrink_to_fit_internal(&mut self, ty: CachedDataItemType) {
-        self.task.shrink_to_fit(ty)
-    }
-
-    #[track_caller]
-    fn extract_if_internal<'l, F>(
-        &'l mut self,
-        ty: CachedDataItemType,
-        f: F,
-    ) -> impl Iterator<Item = CachedDataItem>
+    fn remove_cell_data_if<F>(&mut self, mut f: F)
     where
-        F: for<'a> FnMut(CachedDataItemKey, CachedDataItemValueRef<'a>) -> bool + 'l,
+        F: FnMut(&CellId) -> bool,
     {
-        self.check_access(ty.category());
-        if !self.task_id.is_transient() && ty.is_persistent() {
-            self.task.track_modification(ty.category().into_specific());
-        }
-        self.task.extract_if(ty, f)
-    }
-
-    fn extract_cell_data_if<'l, F>(&'l mut self, mut f: F) -> impl Iterator<Item = CachedDataItem>
-    where
-        F: for<'a> FnMut(CachedDataItemKey, CachedDataItemValueRef<'a>) -> bool + 'l,
-    {
-        use crate::data::{CachedDataItemKey, CachedDataItemValueRef};
         self.check_access(TaskDataCategory::Data);
         if !self.task_id.is_transient() {
             self.task.track_modification(SpecificTaskDataCategory::Data);
         }
-        // Collect items to extract first, then remove them
-        let to_extract: Vec<_> = self
+        // Collect items to remove first, then remove them
+        let to_remove: Vec<_> = self
             .cell_data()
             .into_iter()
-            .flat_map(|m| m.iter())
-            .filter_map(|(&cell, value)| {
-                let key = CachedDataItemKey::CellData { cell };
-                let value_ref = CachedDataItemValueRef::CellData { value };
-                if f(key, value_ref) { Some(cell) } else { None }
-            })
+            .flat_map(|m| m.keys())
+            .filter(|cell| f(cell))
+            .copied()
             .collect();
 
         let map = self.cell_data_mut();
-        to_extract
-            .into_iter()
-            .filter_map(move |cell| {
-                map.remove(&cell)
-                    .map(|value| CachedDataItem::CellData { cell, value })
-            })
-            .collect::<Vec<_>>()
-            .into_iter()
+        for cell in to_remove {
+            map.remove(&cell);
+        }
     }
 
-    fn extract_transient_cell_data_if<'l, F>(
-        &'l mut self,
-        mut f: F,
-    ) -> impl Iterator<Item = CachedDataItem>
+    fn remove_transient_cell_data_if<F>(&mut self, mut f: F)
     where
-        F: for<'a> FnMut(CachedDataItemKey, CachedDataItemValueRef<'a>) -> bool + 'l,
+        F: FnMut(&CellId) -> bool,
     {
-        use crate::data::{CachedDataItemKey, CachedDataItemValueRef};
         self.check_access(TaskDataCategory::Data);
         // transient cell data doesn't track modification (it's transient)
-        // Collect items to extract first, then remove them
-        let to_extract: Vec<_> = self
+        // Collect items to remove first, then remove them
+        let to_remove: Vec<_> = self
             .transient_cell_data()
             .into_iter()
-            .flat_map(|m| m.iter())
-            .filter_map(|(&cell, value)| {
-                let key = CachedDataItemKey::TransientCellData { cell };
-                let value_ref = CachedDataItemValueRef::TransientCellData { value };
-                if f(key, value_ref) { Some(cell) } else { None }
-            })
+            .flat_map(|m| m.keys())
+            .filter(|cell| f(cell))
+            .copied()
             .collect();
 
         let map = self.transient_cell_data_mut();
-        to_extract
-            .into_iter()
-            .filter_map(move |cell| {
-                map.remove(&cell)
-                    .map(|value| CachedDataItem::TransientCellData { cell, value })
-            })
-            .collect::<Vec<_>>()
-            .into_iter()
+        for cell in to_remove {
+            map.remove(&cell);
+        }
     }
 
-    fn extract_in_progress_cells_if<'l, F>(
-        &'l mut self,
-        mut f: F,
-    ) -> impl Iterator<Item = CachedDataItem>
+    fn remove_in_progress_cells_if<F>(&mut self, mut f: F)
     where
-        F: for<'a> FnMut(CachedDataItemKey, CachedDataItemValueRef<'a>) -> bool + 'l,
+        F: FnMut(&CellId, &InProgressCellState) -> bool,
     {
-        use crate::data::{CachedDataItemKey, CachedDataItemValueRef};
         self.check_access(TaskDataCategory::Meta);
         // in_progress_cells is transient, doesn't track modification
-        // Collect items to extract first, then remove them
-        let to_extract: Vec<_> = self
+        // Collect items to remove first, then remove them
+        let to_remove: Vec<_> = self
             .in_progress_cells()
             .into_iter()
             .flat_map(|m| m.iter())
-            .filter_map(|(&cell, value)| {
-                let key = CachedDataItemKey::InProgressCell { cell };
-                let value_ref = CachedDataItemValueRef::InProgressCell { value };
-                if f(key, value_ref) { Some(cell) } else { None }
-            })
+            .filter(|(cell, state)| f(cell, state))
+            .map(|(cell, _)| *cell)
             .collect();
 
         let map = self.in_progress_cells_mut();
-        to_extract
-            .into_iter()
-            .filter_map(move |cell| {
-                map.remove(&cell)
-                    .map(|value| CachedDataItem::InProgressCell { cell, value })
-            })
-            .collect::<Vec<_>>()
-            .into_iter()
-    }
-
-    fn shrink_to_fit(&mut self) {
-        // Cells group - use typed accessors
-        self.cell_data_mut().shrink_to_fit();
-        self.transient_cell_data_mut().shrink_to_fit();
-        self.cell_type_max_index_mut().shrink_to_fit();
-        // Dependencies - still use dynamic storage
-        self.shrink_to_fit_internal(CachedDataItemType::CellDependency);
-        self.shrink_to_fit_internal(CachedDataItemType::OutputDependency);
-        self.shrink_to_fit_internal(CachedDataItemType::CollectiblesDependency);
+        for cell in to_remove {
+            map.remove(&cell);
+        }
     }
 
     fn invalidate_serialization(&mut self) {
@@ -2141,6 +1827,23 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
             crate::backend::storage_schema::LazyField::InProgress(opt) => opt.as_mut(),
             _ => None,
         })
+    }
+
+    fn add_in_progress(&mut self, value: InProgressState) -> bool {
+        // Check if already present - in_progress is a lazy field
+        self.check_access(TaskDataCategory::Meta);
+        let typed = self.typed_mut(SpecificTaskDataCategory::Meta);
+        // Check if the in_progress lazy field exists and has a value
+        let already_present = typed
+            .get_in_progress()
+            .and_then(|opt| opt.as_ref())
+            .is_some();
+        if already_present {
+            false
+        } else {
+            typed.set_in_progress(Some(value));
+            true
+        }
     }
 }
 

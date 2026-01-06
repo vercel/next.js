@@ -1,25 +1,19 @@
 use bincode::{Decode, Encode};
 use rustc_hash::FxHashSet;
 use turbo_tasks::{
-    CellId, KeyValuePair, SharedReference, TaskExecutionReason, TaskId, TraitTypeId,
-    TypedSharedReference, ValueTypeId,
+    CellId, TaskExecutionReason, TaskId, TraitTypeId,
     backend::TurboTasksExecutionError,
     event::{Event, EventListener},
 };
 
-use crate::{
-    backend::TaskDataCategory,
-    data_storage::{AutoMapStorage, OptionStorage, Storage},
-};
-
-// this traits are needed for the transient variants of `CachedDataItem`
+// this traits are needed for transient state types that contain Event
 // transient variants are never cloned or compared
 macro_rules! transient_traits {
     ($name:ident) => {
         impl Clone for $name {
             fn clone(&self) -> Self {
-                // this impl is needed for the transient variants of `CachedDataItem`
-                // transient variants are never cloned
+                // this impl is needed for transient state types
+                // transient types are never cloned
                 panic!(concat!(stringify!($name), " cannot be cloned"));
             }
         }
@@ -38,10 +32,24 @@ pub struct CellRef {
     pub cell: CellId,
 }
 
+impl CellRef {
+    /// Returns true if this cell reference points to a transient task.
+    pub fn is_transient(&self) -> bool {
+        self.task.is_transient()
+    }
+}
+
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Encode, Decode)]
 pub struct CollectibleRef {
     pub collectible_type: TraitTypeId,
     pub cell: CellRef,
+}
+
+impl CollectibleRef {
+    /// Returns true if this collectible reference points to a transient task.
+    pub fn is_transient(&self) -> bool {
+        self.cell.is_transient()
+    }
 }
 
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Encode, Decode)]
@@ -50,14 +58,26 @@ pub struct CollectiblesRef {
     pub collectible_type: TraitTypeId,
 }
 
+impl CollectiblesRef {
+    /// Returns true if this collectibles reference points to a transient task.
+    pub fn is_transient(&self) -> bool {
+        self.task.is_transient()
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Encode, Decode)]
 pub enum OutputValue {
     Cell(CellRef),
     Output(TaskId),
     Error(TurboTasksExecutionError),
 }
+
 impl OutputValue {
-    fn is_transient(&self) -> bool {
+    /// Returns true if this output value references a transient task.
+    ///
+    /// Transient values should not be persisted to disk since they reference
+    /// tasks that will not exist after restart.
+    pub fn is_transient(&self) -> bool {
         match self {
             OutputValue::Cell(cell) => cell.task.is_transient(),
             OutputValue::Output(task) => task.is_transient(),
@@ -245,475 +265,4 @@ pub struct AggregationNumber {
     pub base: u32,
     pub distance: u32,
     pub effective: u32,
-}
-
-#[derive(Debug, Clone, KeyValuePair, Encode, Decode)]
-pub enum CachedDataItem {
-    // Output
-    Output {
-        value: OutputValue,
-    },
-    Collectible {
-        collectible: CollectibleRef,
-        value: i32,
-    },
-
-    // State
-    Dirty {
-        value: Dirtyness,
-    },
-    CurrentSessionClean {
-        // TODO: bgw: Add a way to skip the entire enum variant in bincode (generating an error
-        // upon attempted serialization) similar to #[serde(skip)] on variants
-        #[bincode(skip, default = "unreachable_decode")]
-        value: (),
-    },
-
-    // Children
-    Child {
-        task: TaskId,
-        value: (),
-    },
-
-    // Cells
-    CellData {
-        cell: CellId,
-        value: TypedSharedReference,
-    },
-    TransientCellData {
-        #[bincode(skip, default = "unreachable_decode")]
-        cell: CellId,
-        #[bincode(skip, default = "unreachable_decode")]
-        value: SharedReference,
-    },
-    CellTypeMaxIndex {
-        cell_type: ValueTypeId,
-        value: u32,
-    },
-
-    // Dependencies
-    OutputDependency {
-        target: TaskId,
-        value: (),
-    },
-    CellDependency {
-        target: CellRef,
-        value: (),
-    },
-    CollectiblesDependency {
-        target: CollectiblesRef,
-        value: (),
-    },
-
-    // Dependent
-    OutputDependent {
-        task: TaskId,
-        value: (),
-    },
-    CellDependent {
-        cell: CellId,
-        task: TaskId,
-        value: (),
-    },
-    CollectiblesDependent {
-        collectible_type: TraitTypeId,
-        task: TaskId,
-        value: (),
-    },
-
-    // Aggregation Graph
-    AggregationNumber {
-        value: AggregationNumber,
-    },
-    Follower {
-        task: TaskId,
-        value: u32,
-    },
-    Upper {
-        task: TaskId,
-        value: u32,
-    },
-
-    // Aggregated Data
-    AggregatedDirtyContainer {
-        task: TaskId,
-        value: i32,
-    },
-    AggregatedCurrentSessionCleanContainer {
-        #[bincode(skip, default = "unreachable_decode")]
-        task: TaskId,
-        #[bincode(skip, default = "unreachable_decode")]
-        value: i32,
-    },
-    AggregatedCollectible {
-        collectible: CollectibleRef,
-        value: i32,
-    },
-    AggregatedDirtyContainerCount {
-        value: i32,
-    },
-    AggregatedCurrentSessionCleanContainerCount {
-        #[bincode(skip, default = "unreachable_decode")]
-        value: i32,
-    },
-
-    // Flags
-    Stateful {
-        value: (),
-    },
-    HasInvalidator {
-        value: (),
-    },
-    Immutable {
-        value: (),
-    },
-
-    // Transient Root Type
-    Activeness {
-        #[bincode(skip, default = "unreachable_decode")]
-        value: ActivenessState,
-    },
-
-    // Transient In Progress state
-    InProgress {
-        #[bincode(skip, default = "unreachable_decode")]
-        value: InProgressState,
-    },
-    InProgressCell {
-        #[bincode(skip, default = "unreachable_decode")]
-        cell: CellId,
-        #[bincode(skip, default = "unreachable_decode")]
-        value: InProgressCellState,
-    },
-    OutdatedCollectible {
-        #[bincode(skip, default = "unreachable_decode")]
-        collectible: CollectibleRef,
-        #[bincode(skip, default = "unreachable_decode")]
-        value: i32,
-    },
-    OutdatedOutputDependency {
-        #[bincode(skip, default = "unreachable_decode")]
-        target: TaskId,
-        #[bincode(skip, default = "unreachable_decode")]
-        value: (),
-    },
-    OutdatedCellDependency {
-        #[bincode(skip, default = "unreachable_decode")]
-        target: CellRef,
-        #[bincode(skip, default = "unreachable_decode")]
-        value: (),
-    },
-    OutdatedCollectiblesDependency {
-        #[bincode(skip, default = "unreachable_decode")]
-        target: CollectiblesRef,
-        #[bincode(skip, default = "unreachable_decode")]
-        value: (),
-    },
-}
-
-fn unreachable_decode<T>() -> T {
-    unreachable!("CachedDataItem variant should not have been encoded, cannot decode")
-}
-
-impl CachedDataItem {
-    pub fn cell_data(
-        is_serializable_cell_content: bool,
-        cell: CellId,
-        value: TypedSharedReference,
-    ) -> Self {
-        if is_serializable_cell_content {
-            CachedDataItem::CellData { cell, value }
-        } else {
-            CachedDataItem::TransientCellData {
-                cell,
-                value: value.into_untyped(),
-            }
-        }
-    }
-
-    pub fn is_persistent(&self) -> bool {
-        match self {
-            CachedDataItem::Output { value } => value.is_transient(),
-            CachedDataItem::Collectible { collectible, .. } => {
-                !collectible.cell.task.is_transient()
-            }
-            CachedDataItem::Dirty { .. } => true,
-            CachedDataItem::CurrentSessionClean { .. } => false,
-            CachedDataItem::Child { task, .. } => !task.is_transient(),
-            CachedDataItem::CellData { .. } => true,
-            CachedDataItem::TransientCellData { .. } => false,
-            CachedDataItem::CellTypeMaxIndex { .. } => true,
-            CachedDataItem::OutputDependency { target, .. } => !target.is_transient(),
-            CachedDataItem::CellDependency { target, .. } => !target.task.is_transient(),
-            CachedDataItem::CollectiblesDependency { target, .. } => !target.task.is_transient(),
-            CachedDataItem::OutputDependent { task, .. } => !task.is_transient(),
-            CachedDataItem::CellDependent { task, .. } => !task.is_transient(),
-            CachedDataItem::CollectiblesDependent { task, .. } => !task.is_transient(),
-            CachedDataItem::AggregationNumber { .. } => true,
-            CachedDataItem::Follower { task, .. } => !task.is_transient(),
-            CachedDataItem::Upper { task, .. } => !task.is_transient(),
-            CachedDataItem::AggregatedDirtyContainer { task, .. } => !task.is_transient(),
-            CachedDataItem::AggregatedCurrentSessionCleanContainer { .. } => false,
-            CachedDataItem::AggregatedCollectible { collectible, .. } => {
-                !collectible.cell.task.is_transient()
-            }
-            CachedDataItem::AggregatedDirtyContainerCount { .. } => true,
-            CachedDataItem::AggregatedCurrentSessionCleanContainerCount { .. } => false,
-            CachedDataItem::Stateful { .. } => true,
-            CachedDataItem::HasInvalidator { .. } => true,
-            CachedDataItem::Immutable { .. } => true,
-            CachedDataItem::Activeness { .. } => false,
-            CachedDataItem::InProgress { .. } => false,
-            CachedDataItem::InProgressCell { .. } => false,
-            CachedDataItem::OutdatedCollectible { .. } => false,
-            CachedDataItem::OutdatedOutputDependency { .. } => false,
-            CachedDataItem::OutdatedCellDependency { .. } => false,
-            CachedDataItem::OutdatedCollectiblesDependency { .. } => false,
-        }
-    }
-
-    pub fn new_scheduled<InnerFnDescription>(
-        reason: TaskExecutionReason,
-        description: impl FnOnce() -> InnerFnDescription,
-    ) -> Self
-    where
-        InnerFnDescription: Fn() -> String + Sync + Send + 'static,
-    {
-        let done_event = Event::new(move || {
-            let inner = description();
-            move || format!("{} done_event", inner())
-        });
-        CachedDataItem::InProgress {
-            value: InProgressState::Scheduled { done_event, reason },
-        }
-    }
-
-    pub fn new_scheduled_with_listener<InnerFnDescription, InnerFnNote>(
-        reason: TaskExecutionReason,
-        description: impl FnOnce() -> InnerFnDescription,
-        note: impl FnOnce() -> InnerFnNote,
-    ) -> (Self, EventListener)
-    where
-        InnerFnDescription: Fn() -> String + Sync + Send + 'static,
-        InnerFnNote: Fn() -> String + Sync + Send + 'static,
-    {
-        let done_event = Event::new(move || {
-            let inner = description();
-            move || format!("{} done_event", inner())
-        });
-        let listener = done_event.listen_with_note(note);
-        (
-            CachedDataItem::InProgress {
-                value: InProgressState::Scheduled { done_event, reason },
-            },
-            listener,
-        )
-    }
-
-    pub fn category(&self) -> TaskDataCategory {
-        match self {
-            Self::CellData { .. }
-            | Self::CellTypeMaxIndex { .. }
-            | Self::OutputDependency { .. }
-            | Self::CellDependency { .. }
-            | Self::CollectiblesDependency { .. }
-            | Self::OutputDependent { .. }
-            | Self::CellDependent { .. } => TaskDataCategory::Data,
-
-            Self::Collectible { .. }
-            | Self::Output { .. }
-            | Self::AggregationNumber { .. }
-            | Self::Dirty { .. }
-            | Self::Follower { .. }
-            | Self::Child { .. }
-            | Self::Upper { .. }
-            | Self::AggregatedDirtyContainer { .. }
-            | Self::AggregatedCollectible { .. }
-            | Self::AggregatedDirtyContainerCount { .. }
-            | Self::Stateful { .. }
-            | Self::HasInvalidator { .. }
-            | Self::Immutable { .. }
-            | Self::CollectiblesDependent { .. } => TaskDataCategory::Meta,
-
-            Self::OutdatedCollectible { .. }
-            | Self::OutdatedOutputDependency { .. }
-            | Self::OutdatedCellDependency { .. }
-            | Self::OutdatedCollectiblesDependency { .. }
-            | Self::TransientCellData { .. }
-            | Self::CurrentSessionClean { .. }
-            | Self::AggregatedCurrentSessionCleanContainer { .. }
-            | Self::AggregatedCurrentSessionCleanContainerCount { .. }
-            | Self::InProgressCell { .. }
-            | Self::InProgress { .. }
-            | Self::Activeness { .. } => TaskDataCategory::All,
-        }
-    }
-
-    pub fn is_optional(&self) -> bool {
-        matches!(self, CachedDataItem::CellData { .. })
-    }
-}
-
-impl CachedDataItemKey {
-    pub fn cell_data(is_serializable_cell_content: bool, cell: CellId) -> Self {
-        if is_serializable_cell_content {
-            CachedDataItemKey::CellData { cell }
-        } else {
-            CachedDataItemKey::TransientCellData { cell }
-        }
-    }
-
-    pub fn is_persistent(&self) -> bool {
-        match self {
-            CachedDataItemKey::Output { .. } => true,
-            CachedDataItemKey::Collectible { collectible, .. } => {
-                !collectible.cell.task.is_transient()
-            }
-            CachedDataItemKey::Dirty { .. } => true,
-            CachedDataItemKey::CurrentSessionClean { .. } => false,
-            CachedDataItemKey::Child { task, .. } => !task.is_transient(),
-            CachedDataItemKey::CellData { .. } => true,
-            CachedDataItemKey::TransientCellData { .. } => false,
-            CachedDataItemKey::CellTypeMaxIndex { .. } => true,
-            CachedDataItemKey::OutputDependency { target, .. } => !target.is_transient(),
-            CachedDataItemKey::CellDependency { target, .. } => !target.task.is_transient(),
-            CachedDataItemKey::CollectiblesDependency { target, .. } => !target.task.is_transient(),
-            CachedDataItemKey::OutputDependent { task, .. } => !task.is_transient(),
-            CachedDataItemKey::CellDependent { task, .. } => !task.is_transient(),
-            CachedDataItemKey::CollectiblesDependent { task, .. } => !task.is_transient(),
-            CachedDataItemKey::AggregationNumber { .. } => true,
-            CachedDataItemKey::Follower { task, .. } => !task.is_transient(),
-            CachedDataItemKey::Upper { task, .. } => !task.is_transient(),
-            CachedDataItemKey::AggregatedDirtyContainer { task, .. } => !task.is_transient(),
-            CachedDataItemKey::AggregatedCurrentSessionCleanContainer { .. } => false,
-            CachedDataItemKey::AggregatedCollectible { collectible, .. } => {
-                !collectible.cell.task.is_transient()
-            }
-            CachedDataItemKey::AggregatedDirtyContainerCount { .. } => true,
-            CachedDataItemKey::AggregatedCurrentSessionCleanContainerCount { .. } => false,
-            CachedDataItemKey::Stateful { .. } => true,
-            CachedDataItemKey::HasInvalidator { .. } => true,
-            CachedDataItemKey::Immutable { .. } => true,
-            CachedDataItemKey::Activeness { .. } => false,
-            CachedDataItemKey::InProgress { .. } => false,
-            CachedDataItemKey::InProgressCell { .. } => false,
-            CachedDataItemKey::OutdatedCollectible { .. } => false,
-            CachedDataItemKey::OutdatedOutputDependency { .. } => false,
-            CachedDataItemKey::OutdatedCellDependency { .. } => false,
-            CachedDataItemKey::OutdatedCollectiblesDependency { .. } => false,
-        }
-    }
-
-    pub fn category(&self) -> TaskDataCategory {
-        self.ty().category()
-    }
-}
-
-impl CachedDataItemType {
-    pub fn category(&self) -> TaskDataCategory {
-        match self {
-            Self::CellData { .. }
-            | Self::CellTypeMaxIndex { .. }
-            | Self::OutputDependency { .. }
-            | Self::CellDependency { .. }
-            | Self::CollectiblesDependency { .. }
-            | Self::OutputDependent { .. }
-            | Self::CellDependent { .. } => TaskDataCategory::Data,
-
-            Self::Collectible { .. }
-            | Self::Output { .. }
-            | Self::AggregationNumber { .. }
-            | Self::Dirty { .. }
-            | Self::Follower { .. }
-            | Self::Child { .. }
-            | Self::Upper { .. }
-            | Self::AggregatedDirtyContainer { .. }
-            | Self::AggregatedCollectible { .. }
-            | Self::AggregatedDirtyContainerCount { .. }
-            | Self::Stateful { .. }
-            | Self::HasInvalidator { .. }
-            | Self::Immutable { .. }
-            | Self::CollectiblesDependent { .. } => TaskDataCategory::Meta,
-
-            Self::OutdatedCollectible { .. }
-            | Self::OutdatedOutputDependency { .. }
-            | Self::OutdatedCellDependency { .. }
-            | Self::OutdatedCollectiblesDependency { .. }
-            | Self::TransientCellData { .. }
-            | Self::CurrentSessionClean { .. }
-            | Self::AggregatedCurrentSessionCleanContainer { .. }
-            | Self::AggregatedCurrentSessionCleanContainerCount { .. }
-            | Self::InProgressCell { .. }
-            | Self::InProgress { .. }
-            | Self::Activeness { .. } => TaskDataCategory::All,
-        }
-    }
-
-    pub fn is_persistent(&self) -> bool {
-        match self {
-            Self::Output
-            | Self::Collectible
-            | Self::Dirty
-            | Self::Child
-            | Self::CellData
-            | Self::CellTypeMaxIndex
-            | Self::OutputDependency
-            | Self::CellDependency
-            | Self::CollectiblesDependency
-            | Self::OutputDependent
-            | Self::CellDependent
-            | Self::CollectiblesDependent
-            | Self::AggregationNumber
-            | Self::Follower
-            | Self::Upper
-            | Self::AggregatedDirtyContainer
-            | Self::AggregatedCollectible
-            | Self::AggregatedDirtyContainerCount
-            | Self::Stateful
-            | Self::HasInvalidator
-            | Self::Immutable => true,
-
-            Self::Activeness
-            | Self::InProgress
-            | Self::InProgressCell
-            | Self::CurrentSessionClean
-            | Self::AggregatedCurrentSessionCleanContainer
-            | Self::AggregatedCurrentSessionCleanContainerCount
-            | Self::TransientCellData
-            | Self::OutdatedCollectible
-            | Self::OutdatedOutputDependency
-            | Self::OutdatedCellDependency
-            | Self::OutdatedCollectiblesDependency => false,
-        }
-    }
-}
-
-/// Used by the [`get_mut`][crate::backend::storage::get_mut] macro to restrict mutable access to a
-/// subset of types. No mutable access should be allowed for persisted data, since that would break
-/// persisting.
-#[allow(non_upper_case_globals, dead_code)]
-pub mod allow_mut_access {
-    pub const InProgress: () = ();
-    pub const Activeness: () = ();
-}
-
-impl CachedDataItemValueRef<'_> {
-    pub fn is_persistent(&self) -> bool {
-        match self {
-            CachedDataItemValueRef::Output { value } => !value.is_transient(),
-            _ => true,
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-
-    #[test]
-    fn test_sizes() {
-        assert_eq!(std::mem::size_of::<super::CachedDataItem>(), 40);
-        assert_eq!(std::mem::size_of::<super::CachedDataItemKey>(), 20);
-        assert_eq!(std::mem::size_of::<super::CachedDataItemValue>(), 32);
-        assert_eq!(std::mem::size_of::<super::CachedDataItemStorage>(), 48);
-    }
 }

@@ -82,6 +82,14 @@ struct StorageFieldAttributes {
     transient: bool,
     /// If true, field is a boolean flag stored in the TaskFlags bitfield
     flag: bool,
+    /// If true, filter out values that reference transient tasks during encoding.
+    /// For direct fields: skip encoding if value.is_transient() returns true.
+    /// For collections: filter out entries where key/value is_transient() returns true.
+    filter_transient: bool,
+    /// If true, filter transient entries from nested collections in map values.
+    /// Used for fields like `AutoMap<CellId, FxHashSet<TaskId>>` where the key doesn't
+    /// need filtering but the set values do.
+    filter_transient_values: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -109,6 +117,8 @@ fn parse_field_storage_attributes(field: &syn::Field) -> StorageFieldAttributes 
     let mut lazy = false;
     let mut transient = false;
     let mut flag = false;
+    let mut filter_transient = false;
+    let mut filter_transient_values = false;
 
     // Parse attributes
     for attr in &field.attrs {
@@ -140,45 +150,43 @@ fn parse_field_storage_attributes(field: &syn::Field) -> StorageFieldAttributes 
                         continue;
                     };
 
-                    if *ident == "storage" {
-                        if let syn::Expr::Lit(syn::ExprLit {
+                    if *ident == "storage"
+                        && let syn::Expr::Lit(syn::ExprLit {
                             lit: syn::Lit::Str(lit_str),
                             ..
                         }) = &nv.value
-                        {
-                            storage_type = match lit_str.value().as_str() {
-                                "direct" => StorageType::Direct,
-                                "auto_set" => StorageType::AutoSet,
-                                "auto_map" => StorageType::AutoMap,
-                                "counter_map" => StorageType::CounterMap,
-                                "indexed_vec" => StorageType::IndexedVec,
-                                other => {
-                                    meta.span()
-                                        .unwrap()
-                                        .error(format!("unknown storage type: {other}"))
-                                        .emit();
-                                    continue;
-                                }
-                            };
-                        }
-                    } else if *ident == "category" {
-                        if let syn::Expr::Lit(syn::ExprLit {
+                    {
+                        storage_type = match lit_str.value().as_str() {
+                            "direct" => StorageType::Direct,
+                            "auto_set" => StorageType::AutoSet,
+                            "auto_map" => StorageType::AutoMap,
+                            "counter_map" => StorageType::CounterMap,
+                            "indexed_vec" => StorageType::IndexedVec,
+                            other => {
+                                meta.span()
+                                    .unwrap()
+                                    .error(format!("unknown storage type: {other}"))
+                                    .emit();
+                                continue;
+                            }
+                        };
+                    } else if *ident == "category"
+                        && let syn::Expr::Lit(syn::ExprLit {
                             lit: syn::Lit::Str(lit_str),
                             ..
                         }) = &nv.value
-                        {
-                            category = match lit_str.value().as_str() {
-                                "data" => Category::Data,
-                                "meta" => Category::Meta,
-                                other => {
-                                    meta.span()
-                                        .unwrap()
-                                        .error(format!("unknown category: {other}"))
-                                        .emit();
-                                    continue;
-                                }
-                            };
-                        }
+                    {
+                        category = match lit_str.value().as_str() {
+                            "data" => Category::Data,
+                            "meta" => Category::Meta,
+                            other => {
+                                meta.span()
+                                    .unwrap()
+                                    .error(format!("unknown category: {other}"))
+                                    .emit();
+                                continue;
+                            }
+                        };
                     }
                 }
                 Meta::Path(path) => {
@@ -189,6 +197,10 @@ fn parse_field_storage_attributes(field: &syn::Field) -> StorageFieldAttributes 
                             transient = true;
                         } else if *ident == "flag" {
                             flag = true;
+                        } else if *ident == "filter_transient" {
+                            filter_transient = true;
+                        } else if *ident == "filter_transient_values" {
+                            filter_transient_values = true;
                         }
                     }
                 }
@@ -205,6 +217,8 @@ fn parse_field_storage_attributes(field: &syn::Field) -> StorageFieldAttributes 
         lazy,
         transient,
         flag,
+        filter_transient,
+        filter_transient_values,
     }
 }
 
@@ -287,6 +301,9 @@ fn generate_task_storage_impl(_ident: &Ident, grouped_fields: &GroupedFields) ->
     // Generate snapshot clone and merge methods
     let snapshot_merge_methods = generate_snapshot_merge_methods(grouped_fields);
 
+    // Generate shrink_to_fit method
+    let shrink_to_fit_method = generate_shrink_to_fit_method(grouped_fields);
+
     let expanded = quote! {
         // Generated TaskFlags bitfield
         #task_flags_bitfield
@@ -305,6 +322,9 @@ fn generate_task_storage_impl(_ident: &Ident, grouped_fields: &GroupedFields) ->
 
         // Generated snapshot clone and merge methods
         #snapshot_merge_methods
+
+        // Generated shrink_to_fit method
+        #shrink_to_fit_method
 
         // Generated TaskStorageAccessors trait
         #accessors_trait
@@ -852,6 +872,20 @@ fn generate_task_storage_accessors_trait(
             /// so it can track dirty state appropriately.
             fn typed_mut(&mut self, category: crate::backend::storage::SpecificTaskDataCategory) -> &mut TypedStorage;
 
+            /// Shrink all collection fields to fit their current contents.
+            ///
+            /// This releases excess memory from hash maps and hash sets that may have
+            /// grown larger than needed during task execution.
+            ///
+            /// Note: This method modifies both meta and data categories, so implementations
+            /// should track modifications for both categories.
+            fn shrink_to_fit(&mut self) {
+                // Track modifications for both categories since collections exist in both
+                self.typed_mut(crate::backend::storage::SpecificTaskDataCategory::Meta);
+                self.typed_mut(crate::backend::storage::SpecificTaskDataCategory::Data)
+                    .shrink_to_fit();
+            }
+
             #trait_methods
         }
     }
@@ -950,17 +984,15 @@ fn generate_inline_trait_accessor_methods(
 /// Extract the inner type from Option<T>
 fn extract_option_inner_type(ty: &Type) -> proc_macro2::TokenStream {
     // Try to parse as Option<T> and extract T
-    if let Type::Path(type_path) = ty {
-        if let Some(segment) = type_path.path.segments.last() {
-            if segment.ident == "Option" {
-                if let syn::PathArguments::AngleBracketed(args) = &segment.arguments {
-                    if let Some(syn::GenericArgument::Type(inner)) = args.args.first() {
-                        return quote! { #inner };
-                    }
-                }
-            }
-        }
+    if let Type::Path(type_path) = ty
+        && let Some(segment) = type_path.path.segments.last()
+        && segment.ident == "Option"
+        && let syn::PathArguments::AngleBracketed(args) = &segment.arguments
+        && let Some(syn::GenericArgument::Type(inner)) = args.args.first()
+    {
+        return quote! { #inner };
     }
+
     // Fallback: just use the whole type (shouldn't happen for properly annotated fields)
     quote! { #ty }
 }
@@ -975,9 +1007,7 @@ fn capitalize(s: &str) -> String {
 
 /// Convert snake_case to PascalCase (e.g., "in_progress" -> "InProgress")
 fn to_pascal_case(s: &str) -> String {
-    s.split('_')
-        .map(|word| capitalize(word))
-        .collect::<String>()
+    s.split('_').map(capitalize).collect::<String>()
 }
 
 /// Generate trait accessor methods for a lazy field (stored in Vec<LazyField>)
@@ -1162,12 +1192,7 @@ fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> proc_macro2
     // Generate encode_meta body
     let encode_meta_inline: Vec<_> = persistent_inline_meta
         .iter()
-        .map(|field| {
-            let field_name = &field.field_name;
-            quote! {
-                bincode::Encode::encode(&self.#field_name, encoder)?;
-            }
-        })
+        .map(|field| generate_encode_inline_field(field))
         .collect();
 
     let encode_meta_flags = if has_flags {
@@ -1185,12 +1210,7 @@ fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> proc_macro2
     // Generate encode_data body
     let encode_data_inline: Vec<_> = persistent_inline_data
         .iter()
-        .map(|field| {
-            let field_name = &field.field_name;
-            quote! {
-                bincode::Encode::encode(&self.#field_name, encoder)?;
-            }
-        })
+        .map(|field| generate_encode_inline_field(field))
         .collect();
 
     let encode_data_lazy = generate_encode_lazy_fields(&persistent_lazy_data);
@@ -1306,6 +1326,133 @@ fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> proc_macro2
 /// Must be a value that cannot be a valid discriminant (discriminants start at 0).
 const LAZY_FIELD_SENTINEL: u8 = 0x00;
 
+/// Generate code to encode an inline field to bincode.
+///
+/// For fields with `filter_transient`, checks if the value is transient and skips encoding if so.
+/// For direct fields, this means encoding None if the value is transient.
+/// For collection fields, this filters out entries with transient keys/values.
+///
+/// For fields with `filter_transient_values`, the map keys are preserved but values
+/// (which are expected to be sets) have their transient elements filtered out.
+fn generate_encode_inline_field(field: &StorageFieldAttributes) -> proc_macro2::TokenStream {
+    let field_name = &field.field_name;
+
+    // Handle filter_transient_values for AutoMap with set values
+    if field.filter_transient_values {
+        return match field.storage_type {
+            StorageType::AutoMap => {
+                // For maps with set values, filter transient entries from the inner sets
+                quote! {
+                    {
+                        // Count entries where filtered set is non-empty
+                        let count = self.#field_name.iter()
+                            .filter(|(_, v)| v.iter().any(|item| !item.is_transient()))
+                            .count();
+                        bincode::Encode::encode(&count, encoder)?;
+                        for (key, value) in &self.#field_name {
+                            let filtered: Vec<_> = value.iter()
+                                .filter(|item| !item.is_transient())
+                                .collect();
+                            if !filtered.is_empty() {
+                                bincode::Encode::encode(key, encoder)?;
+                                bincode::Encode::encode(&filtered.len(), encoder)?;
+                                for item in filtered {
+                                    bincode::Encode::encode(item, encoder)?;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            _ => {
+                // filter_transient_values only makes sense for AutoMap
+                quote! {
+                    bincode::Encode::encode(&self.#field_name, encoder)?;
+                }
+            }
+        };
+    }
+
+    if !field.filter_transient {
+        // No filtering needed, just encode normally
+        return quote! {
+            bincode::Encode::encode(&self.#field_name, encoder)?;
+        };
+    }
+
+    // Generate filtering code based on storage type
+    match field.storage_type {
+        StorageType::Direct => {
+            // For Option<T>, check if the value is transient and encode None if so
+            quote! {
+                {
+                    let filtered_value = self.#field_name.as_ref().filter(|v| !v.is_transient());
+                    bincode::Encode::encode(&filtered_value, encoder)?;
+                }
+            }
+        }
+        StorageType::AutoSet => {
+            // For AutoSet<K>, filter out transient keys
+            quote! {
+                {
+                    let count = self.#field_name.iter().filter(|k| !k.is_transient()).count();
+                    bincode::Encode::encode(&count, encoder)?;
+                    for key in self.#field_name.iter().filter(|k| !k.is_transient()) {
+                        bincode::Encode::encode(key, encoder)?;
+                    }
+                }
+            }
+        }
+        StorageType::CounterMap => {
+            // For counter maps, filter out entries with transient keys
+            // (values are just counts, not references)
+            quote! {
+                {
+                    let count = self.#field_name.iter()
+                        .filter(|(k, _)| !k.is_transient())
+                        .count();
+                    bincode::Encode::encode(&count, encoder)?;
+                    for (key, value) in self.#field_name.iter()
+                        .filter(|(k, _)| !k.is_transient())
+                    {
+                        bincode::Encode::encode(key, encoder)?;
+                        bincode::Encode::encode(value, encoder)?;
+                    }
+                }
+            }
+        }
+        StorageType::AutoMap => {
+            // For maps, filter out entries with transient keys or values
+            quote! {
+                {
+                    let count = self.#field_name.iter()
+                        .filter(|(k, v)| !k.is_transient() && !v.is_transient())
+                        .count();
+                    bincode::Encode::encode(&count, encoder)?;
+                    for (key, value) in self.#field_name.iter()
+                        .filter(|(k, v)| !k.is_transient() && !v.is_transient())
+                    {
+                        bincode::Encode::encode(key, encoder)?;
+                        bincode::Encode::encode(value, encoder)?;
+                    }
+                }
+            }
+        }
+        StorageType::IndexedVec => {
+            // For IndexedVec, filter out transient entries
+            quote! {
+                {
+                    let filtered: Vec<_> = self.#field_name.iter()
+                        .filter(|v| !v.is_transient())
+                        .cloned()
+                        .collect();
+                    bincode::Encode::encode(&filtered, encoder)?;
+                }
+            }
+        }
+    }
+}
+
 /// Generate code to encode lazy fields to bincode.
 /// Uses sentinel-terminated format: [discriminant, data]... [sentinel]
 fn generate_encode_lazy_fields(fields: &[&StorageFieldAttributes]) -> proc_macro2::TokenStream {
@@ -1323,12 +1470,7 @@ fn generate_encode_lazy_fields(fields: &[&StorageFieldAttributes]) -> proc_macro
                 field.field_name.span(),
             );
             let discriminant = idx as u8 + 1;
-            quote! {
-                LazyField::#variant_name(data) => {
-                    bincode::Encode::encode(&#discriminant, encoder)?;
-                    bincode::Encode::encode(data, encoder)?;
-                }
-            }
+            generate_encode_lazy_field_arm(field, &variant_name, discriminant)
         })
         .collect();
 
@@ -1342,6 +1484,155 @@ fn generate_encode_lazy_fields(fields: &[&StorageFieldAttributes]) -> proc_macro
         }
         // Write sentinel to mark end of lazy fields
         bincode::Encode::encode(&#LAZY_FIELD_SENTINEL, encoder)?;
+    }
+}
+
+/// Generate a match arm for encoding a lazy field.
+///
+/// For fields with `filter_transient`, generates code to filter out transient entries.
+/// For fields with `filter_transient_values`, filters transient entries from nested set values.
+fn generate_encode_lazy_field_arm(
+    field: &StorageFieldAttributes,
+    variant_name: &syn::Ident,
+    discriminant: u8,
+) -> proc_macro2::TokenStream {
+    // Handle filter_transient_values for AutoMap with set values
+    if field.filter_transient_values {
+        return match field.storage_type {
+            StorageType::AutoMap => {
+                // For maps with set values, filter transient entries from the inner sets
+                quote! {
+                    LazyField::#variant_name(data) => {
+                        // Count entries where filtered set is non-empty
+                        let filtered_count = data.iter()
+                            .filter(|(_, v)| v.iter().any(|item| !item.is_transient()))
+                            .count();
+                        if filtered_count > 0 {
+                            bincode::Encode::encode(&#discriminant, encoder)?;
+                            bincode::Encode::encode(&filtered_count, encoder)?;
+                            for (key, value) in data {
+                                let filtered: Vec<_> = value.iter()
+                                    .filter(|item| !item.is_transient())
+                                    .collect();
+                                if !filtered.is_empty() {
+                                    bincode::Encode::encode(key, encoder)?;
+                                    bincode::Encode::encode(&filtered.len(), encoder)?;
+                                    for item in filtered {
+                                        bincode::Encode::encode(item, encoder)?;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            _ => {
+                // filter_transient_values only makes sense for AutoMap
+                quote! {
+                    LazyField::#variant_name(data) => {
+                        bincode::Encode::encode(&#discriminant, encoder)?;
+                        bincode::Encode::encode(data, encoder)?;
+                    }
+                }
+            }
+        };
+    }
+
+    if !field.filter_transient {
+        // No filtering needed, just encode normally
+        return quote! {
+            LazyField::#variant_name(data) => {
+                bincode::Encode::encode(&#discriminant, encoder)?;
+                bincode::Encode::encode(data, encoder)?;
+            }
+        };
+    }
+
+    // Generate filtering code based on storage type
+    match field.storage_type {
+        StorageType::Direct => {
+            // For Option<T>, check if the value is transient and skip if so
+            quote! {
+                LazyField::#variant_name(data) => {
+                    let filtered_value = data.as_ref().filter(|v| !v.is_transient());
+                    if filtered_value.is_some() {
+                        bincode::Encode::encode(&#discriminant, encoder)?;
+                        bincode::Encode::encode(&filtered_value, encoder)?;
+                    }
+                }
+            }
+        }
+        StorageType::AutoSet => {
+            // For AutoSet<K>, filter out transient keys
+            quote! {
+                LazyField::#variant_name(data) => {
+                    let filtered_count = data.iter().filter(|k| !k.is_transient()).count();
+                    if filtered_count > 0 {
+                        bincode::Encode::encode(&#discriminant, encoder)?;
+                        bincode::Encode::encode(&filtered_count, encoder)?;
+                        for key in data.iter().filter(|k| !k.is_transient()) {
+                            bincode::Encode::encode(key, encoder)?;
+                        }
+                    }
+                }
+            }
+        }
+        StorageType::CounterMap => {
+            // For counter maps, filter out entries with transient keys
+            // (values are just counts, not references)
+            quote! {
+                LazyField::#variant_name(data) => {
+                    let filtered_count = data.iter()
+                        .filter(|(k, _)| !k.is_transient())
+                        .count();
+                    if filtered_count > 0 {
+                        bincode::Encode::encode(&#discriminant, encoder)?;
+                        bincode::Encode::encode(&filtered_count, encoder)?;
+                        for (key, value) in data.iter()
+                            .filter(|(k, _)| !k.is_transient())
+                        {
+                            bincode::Encode::encode(key, encoder)?;
+                            bincode::Encode::encode(value, encoder)?;
+                        }
+                    }
+                }
+            }
+        }
+        StorageType::AutoMap => {
+            // For maps, filter out entries with transient keys or values
+            quote! {
+                LazyField::#variant_name(data) => {
+                    let filtered_count = data.iter()
+                        .filter(|(k, v)| !k.is_transient() && !v.is_transient())
+                        .count();
+                    if filtered_count > 0 {
+                        bincode::Encode::encode(&#discriminant, encoder)?;
+                        bincode::Encode::encode(&filtered_count, encoder)?;
+                        for (key, value) in data.iter()
+                            .filter(|(k, v)| !k.is_transient() && !v.is_transient())
+                        {
+                            bincode::Encode::encode(key, encoder)?;
+                            bincode::Encode::encode(value, encoder)?;
+                        }
+                    }
+                }
+            }
+        }
+        StorageType::IndexedVec => {
+            // For IndexedVec, filter out transient entries
+            quote! {
+                LazyField::#variant_name(data) => {
+                    let filtered: Vec<_> = data.iter()
+                        .filter(|v| !v.is_transient())
+                        .cloned()
+                        .collect();
+                    if !filtered.is_empty() {
+                        bincode::Encode::encode(&#discriminant, encoder)?;
+                        bincode::Encode::encode(&filtered, encoder)?;
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -1757,6 +2048,84 @@ fn generate_snapshot_merge_methods(grouped_fields: &GroupedFields) -> proc_macro
                         _ => {}
                     }
                 }
+            }
+        }
+    }
+}
+
+/// Generate shrink_to_fit method for TypedStorage.
+///
+/// This generates a method that calls shrink_to_fit() on all collection-type fields
+/// (auto_set, counter_map, auto_map) to release excess memory.
+fn generate_shrink_to_fit_method(grouped_fields: &GroupedFields) -> proc_macro2::TokenStream {
+    // Helper to check if a storage type supports shrink_to_fit
+    fn supports_shrink_to_fit(storage_type: &StorageType) -> bool {
+        matches!(
+            storage_type,
+            StorageType::AutoSet | StorageType::CounterMap | StorageType::AutoMap
+        )
+    }
+
+    // Collect inline fields that support shrink_to_fit
+    let inline_shrink_calls: Vec<_> = grouped_fields
+        .inline_meta_fields
+        .iter()
+        .chain(grouped_fields.inline_data_fields.iter())
+        .filter(|f| supports_shrink_to_fit(&f.storage_type))
+        .map(|field| {
+            let field_name = &field.field_name;
+            quote! {
+                self.#field_name.shrink_to_fit();
+            }
+        })
+        .collect();
+
+    // Collect lazy fields that support shrink_to_fit
+    let lazy_shrink_arms: Vec<_> = grouped_fields
+        .lazy_meta_fields
+        .iter()
+        .chain(grouped_fields.lazy_data_fields.iter())
+        .filter(|f| supports_shrink_to_fit(&f.storage_type))
+        .map(|field| {
+            let variant_name = syn::Ident::new(
+                &to_pascal_case(&field.field_name.to_string()),
+                field.field_name.span(),
+            );
+            quote! {
+                LazyField::#variant_name(data) => {
+                    data.shrink_to_fit();
+                }
+            }
+        })
+        .collect();
+
+    // Only generate lazy field shrinking if there are lazy fields to shrink
+    let lazy_shrink_block = if lazy_shrink_arms.is_empty() {
+        quote! {}
+    } else {
+        quote! {
+            // Shrink lazy collection fields
+            for field in &mut self.lazy {
+                match field {
+                    #(#lazy_shrink_arms)*
+                    // Skip fields that don't support shrink_to_fit
+                    _ => {}
+                }
+            }
+        }
+    };
+
+    quote! {
+        impl TypedStorage {
+            /// Shrink all collection fields to fit their current contents.
+            ///
+            /// This releases excess memory from hash maps and hash sets that may have
+            /// grown larger than needed during task execution.
+            pub fn shrink_to_fit(&mut self) {
+                // Shrink inline collection fields
+                #(#inline_shrink_calls)*
+
+                #lazy_shrink_block
             }
         }
     }

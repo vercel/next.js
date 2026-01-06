@@ -59,10 +59,8 @@ use crate::{
     },
     backing_storage::BackingStorage,
     data::{
-        ActivenessState, AggregationNumber, CachedDataItem, CachedDataItemKey, CachedDataItemType,
-        CachedDataItemValue, CachedDataItemValueRef, CellRef, CollectibleRef, CollectiblesRef,
-        Dirtyness, InProgressCellState, InProgressState, InProgressStateInner, OutputValue,
-        RootType,
+        ActivenessState, AggregationNumber, CellRef, CollectibleRef, CollectiblesRef, Dirtyness,
+        InProgressCellState, InProgressState, InProgressStateInner, OutputValue, RootType,
     },
     utils::{
         bi_map::BiMap, chunked_vec::ChunkedVec, dash_map_drop_contents::drop_contents,
@@ -424,7 +422,6 @@ impl<B: BackingStorage> Drop for OperationGuard<'_, B> {
 /// Intermediate result of step 1 of task execution completion.
 struct TaskExecutionCompletePrepareResult {
     pub new_children: FxHashSet<TaskId>,
-    pub removed_data: Vec<CachedDataItem>,
     pub is_now_immutable: bool,
     #[cfg(feature = "verify_determinism")]
     pub no_output_set: bool,
@@ -1753,7 +1750,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         let Some(TaskExecutionCompletePrepareResult {
             new_children,
-            mut removed_data,
             is_now_immutable,
             #[cfg(feature = "verify_determinism")]
             no_output_set,
@@ -1814,7 +1810,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             #[cfg(feature = "verify_determinism")]
             no_output_set,
             new_output,
-            &mut removed_data,
             is_now_immutable,
         ) {
             // Task was stale and has been rescheduled
@@ -1822,8 +1817,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             span.record("stale", "true");
             return true;
         }
-
-        drop(removed_data);
 
         self.task_execution_completed_cleanup(&mut ctx, task_id);
 
@@ -1847,7 +1840,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         if matches!(in_progress, InProgressState::Canceled) {
             return Some(TaskExecutionCompletePrepareResult {
                 new_children: Default::default(),
-                removed_data: Default::default(),
                 is_now_immutable: false,
                 #[cfg(feature = "verify_determinism")]
                 no_output_set: false,
@@ -1916,33 +1908,23 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let old_counters: FxHashMap<_, _> = task.iter_cell_type_max_indices().collect();
         let mut counters_to_remove = old_counters.clone();
 
-        task.extend_internal(
-            CachedDataItemType::CellTypeMaxIndex,
-            cell_counters.iter().filter_map(|(&cell_type, &max_index)| {
-                if let Some(old_max_index) = counters_to_remove.remove(&cell_type) {
-                    if old_max_index != max_index {
-                        Some(CachedDataItem::CellTypeMaxIndex {
-                            cell_type,
-                            value: max_index,
-                        })
-                    } else {
-                        None
-                    }
-                } else {
-                    Some(CachedDataItem::CellTypeMaxIndex {
-                        cell_type,
-                        value: max_index,
-                    })
+        // Update or add cell type max indices using the typed accessor
+        let cell_type_max_index_map = task.cell_type_max_index_mut();
+        for (&cell_type, &max_index) in cell_counters.iter() {
+            if let Some(old_max_index) = counters_to_remove.remove(&cell_type) {
+                if old_max_index != max_index {
+                    cell_type_max_index_map.insert(cell_type, max_index);
                 }
-            }),
-        );
+            } else {
+                cell_type_max_index_map.insert(cell_type, max_index);
+            }
+        }
         for (cell_type, _) in counters_to_remove {
             task.remove_cell_type_max_index(cell_type);
         }
 
         let mut queue = AggregationUpdateQueue::new();
 
-        let mut removed_data = Vec::new();
         let mut old_edges = Vec::new();
 
         let has_children = !new_children.is_empty();
@@ -1982,9 +1964,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             old_edges.extend(task.iter_children().map(OutdatedEdge::Child));
         }
 
-        // Remove no longer existing cells and
-        // find all outdated data items (removed cells, outdated edges)
-        // Note: For persistent tasks we only want to call extract_if when there are actual cells to
+        // Remove no longer existing cells
+        // Note: For persistent tasks we only want to call remove_if when there are actual cells to
         // remove to avoid tracking that as modification.
         if task_id.is_transient()
             || task
@@ -1997,10 +1978,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 .count()
                 > 0
         {
-            removed_data.extend(task.extract_cell_data_if(|key, _| {
-                matches!(key, CachedDataItemKey::CellData { cell } if cell_counters
-                            .get(&cell.type_id).is_none_or(|start_index| cell.index >= *start_index))
-            }));
+            task.remove_cell_data_if(|cell| {
+                cell_counters
+                    .get(&cell.type_id)
+                    .is_none_or(|start_index| cell.index >= *start_index)
+            });
         }
         if task_id.is_transient()
             || task
@@ -2013,10 +1995,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 .count()
                 > 0
         {
-            removed_data.extend(task.extract_transient_cell_data_if(|key, _| {
-                matches!(key, CachedDataItemKey::TransientCellData { cell } if cell_counters
-                            .get(&cell.type_id).is_none_or(|start_index| cell.index >= *start_index))
-            }));
+            task.remove_transient_cell_data_if(|cell| {
+                cell_counters
+                    .get(&cell.type_id)
+                    .is_none_or(|start_index| cell.index >= *start_index)
+            });
         }
 
         old_edges.extend(
@@ -2124,7 +2107,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         Some(TaskExecutionCompletePrepareResult {
             new_children,
-            removed_data,
             is_now_immutable,
             #[cfg(feature = "verify_determinism")]
             no_output_set,
@@ -2289,7 +2271,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         task_id: TaskId,
         #[cfg(feature = "verify_determinism")] no_output_set: bool,
         new_output: Option<OutputValue>,
-        removed_data: &mut Vec<CachedDataItem>,
         is_now_immutable: bool,
     ) -> bool {
         let mut task = ctx.task(task_id, TaskDataCategory::All);
@@ -2324,11 +2305,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
 
         // Set the output if it has changed
-        let mut old_content = None;
+        let mut old_output = None;
         if let Some(value) = new_output {
-            old_content = task
-                .set_output(value)
-                .map(|value| CachedDataItemValue::Output { value });
+            old_output = task.set_output(value);
         }
 
         // If the task is not stateful and has no mutable children, it does not have a way to be
@@ -2337,19 +2316,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             let _ = task.mark_immutable();
         }
 
-        // Notify in progress cells
-        removed_data.extend(
-            task.extract_in_progress_cells_if(|key, value| match (key, value) {
-                (
-                    CachedDataItemKey::InProgressCell { .. },
-                    CachedDataItemValueRef::InProgressCell { value },
-                ) => {
-                    value.event.notify(usize::MAX);
-                    true
-                }
-                _ => false,
-            }),
-        );
+        // Notify in progress cells and remove them
+        task.remove_in_progress_cells_if(|_cell, state| {
+            state.event.notify(usize::MAX);
+            true // Remove all in-progress cells
+        });
 
         // Grab the old dirty state
         let old_dirtyness = task.get_dirty_ref().cloned();
@@ -2445,7 +2416,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             done_event.notify(usize::MAX);
         }
 
-        drop(old_content);
+        drop(old_output);
 
         if let Some(data_update) = data_update {
             AggregationUpdateQueue::run(data_update, ctx);
@@ -2838,19 +2809,16 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         );
         {
             let mut task = self.storage.access_mut(task_id);
-            task.add(CachedDataItem::AggregationNumber {
-                value: AggregationNumber {
-                    base: u32::MAX,
-                    distance: 0,
-                    effective: u32::MAX,
-                },
-            });
+            let typed = task.typed_mut();
+            typed.set_aggregation_number(Some(AggregationNumber {
+                base: u32::MAX,
+                distance: 0,
+                effective: u32::MAX,
+            }));
             if self.should_track_activeness() {
-                task.add(CachedDataItem::Activeness {
-                    value: ActivenessState::new_root(root_type, task_id),
-                });
+                typed.set_activeness(Some(ActivenessState::new_root(root_type, task_id)));
             }
-            task.add(CachedDataItem::new_scheduled(
+            typed.set_in_progress(Some(InProgressState::new_scheduled(
                 TaskExecutionReason::Initial,
                 move || {
                     move || match root_type {
@@ -2858,7 +2826,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         RootType::OnceTask => "Once Task".to_string(),
                     }
                 },
-            ));
+            )));
         }
         #[cfg(feature = "verify_aggregation_graph")]
         self.root_tasks.lock().insert(task_id);

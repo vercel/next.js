@@ -41,18 +41,6 @@ pub type CounterMap<K, V> = rustc_hash::FxHashMap<K, V>;
 /// Auto-map storage for key-value pairs.
 pub type AutoMap<K, V> = rustc_hash::FxHashMap<K, V>;
 
-/// Indexed map storage for cell-keyed data.
-/// Uses CellId as the key type.
-pub type IndexedMap<V> = rustc_hash::FxHashMap<CellId, V>;
-
-/// Indexed auto-set for cell-keyed sets with secondary keys.
-/// Maps CellId -> Set<SecondaryKey>
-pub type IndexedAutoSet<K> = rustc_hash::FxHashMap<CellId, FxHashSet<K>>;
-
-/// Trait-indexed auto-set for collectibles dependents.
-/// Maps TraitTypeId -> Set<TaskId>
-pub type TraitIndexedAutoSet = rustc_hash::FxHashMap<TraitTypeId, FxHashSet<TaskId>>;
-
 /// The complete task storage schema.
 ///
 /// This struct defines all storage fields for a task. The TaskStorage macro
@@ -60,7 +48,11 @@ pub type TraitIndexedAutoSet = rustc_hash::FxHashMap<TraitTypeId, FxHashSet<Task
 ///
 /// Fields without `lazy` are stored inline on TypedStorage.
 /// Fields with `lazy` are stored in a Vec<LazyField> for memory efficiency.
+///
+/// Note: This struct is only used as a schema definition for the macro.
+/// The macro generates `TypedStorage`, `LazyField`, and `TaskFlags` from this.
 #[derive(TaskStorage)]
+#[allow(dead_code)]
 pub struct TaskStorageSchema {
     // =========================================================================
     // INLINE FIELDS (hot path, always allocated inline)
@@ -70,26 +62,27 @@ pub struct TaskStorageSchema {
     pub aggregation_number: Option<AggregationNumber>,
 
     /// Tasks that depend on this task's output.
-    #[task_storage(storage = "auto_set", category = "data")]
+    #[task_storage(storage = "auto_set", category = "data", filter_transient)]
     pub output_dependent: AutoSet<TaskId>,
 
     /// The task's output value.
-    #[task_storage(storage = "direct", category = "meta")]
+    /// Filtered during serialization to skip transient outputs (referencing transient tasks).
+    #[task_storage(storage = "direct", category = "meta", filter_transient)]
     pub output: Option<OutputValue>,
 
     /// Upper nodes in the aggregation tree (reference counted).
-    #[task_storage(storage = "counter_map", category = "meta")]
+    #[task_storage(storage = "counter_map", category = "meta", filter_transient)]
     pub upper: CounterMap<TaskId, u32>,
 
     // =========================================================================
     // COLLECTIBLES (meta, lazy)
     // =========================================================================
     /// Collectibles emitted by this task (reference counted).
-    #[task_storage(storage = "counter_map", category = "meta", lazy)]
+    #[task_storage(storage = "counter_map", category = "meta", lazy, filter_transient)]
     pub collectibles: CounterMap<CollectibleRef, i32>,
 
     /// Aggregated collectibles from the subgraph.
-    #[task_storage(storage = "counter_map", category = "meta", lazy)]
+    #[task_storage(storage = "counter_map", category = "meta", lazy, filter_transient)]
     pub aggregated_collectibles: CounterMap<CollectibleRef, i32>,
 
     /// Outdated collectibles to be cleaned up (transient).
@@ -108,7 +101,7 @@ pub struct TaskStorageSchema {
     pub aggregated_dirty_container_count: Option<i32>,
 
     /// Individual dirty containers in the aggregated subgraph.
-    #[task_storage(storage = "counter_map", category = "meta")]
+    #[task_storage(storage = "counter_map", category = "meta", filter_transient)]
     pub aggregated_dirty_containers: CounterMap<TaskId, i32>,
 
     /// Whether clean in current session (transient flag).
@@ -175,26 +168,26 @@ pub struct TaskStorageSchema {
     // CHILDREN & AGGREGATION (meta, lazy)
     // =========================================================================
     /// Child tasks of this task.
-    #[task_storage(storage = "auto_set", category = "meta", lazy)]
+    #[task_storage(storage = "auto_set", category = "meta", lazy, filter_transient)]
     pub children: AutoSet<TaskId>,
 
     /// Follower nodes in the aggregation tree (reference counted).
-    #[task_storage(storage = "counter_map", category = "meta", lazy)]
+    #[task_storage(storage = "counter_map", category = "meta", lazy, filter_transient)]
     pub followers: CounterMap<TaskId, u32>,
 
     // =========================================================================
     // DEPENDENCIES (data, lazy)
     // =========================================================================
     /// Tasks whose output this task depends on.
-    #[task_storage(storage = "auto_set", category = "data", lazy)]
+    #[task_storage(storage = "auto_set", category = "data", lazy, filter_transient)]
     pub output_dependencies: AutoSet<TaskId>,
 
     /// Cells this task depends on.
-    #[task_storage(storage = "auto_set", category = "data", lazy)]
+    #[task_storage(storage = "auto_set", category = "data", lazy, filter_transient)]
     pub cell_dependencies: AutoSet<CellRef>,
 
     /// Collectibles this task depends on.
-    #[task_storage(storage = "auto_set", category = "data", lazy)]
+    #[task_storage(storage = "auto_set", category = "data", lazy, filter_transient)]
     pub collectibles_dependencies: AutoSet<CollectiblesRef>,
 
     /// Outdated output dependencies to be cleaned up (transient).
@@ -214,12 +207,14 @@ pub struct TaskStorageSchema {
     // =========================================================================
     /// Tasks that depend on specific cells of this task.
     /// Maps CellId -> Set<TaskId>
-    #[task_storage(storage = "auto_map", category = "data", lazy)]
+    /// The set values need filtering for transient TaskIds.
+    #[task_storage(storage = "auto_map", category = "data", lazy, filter_transient_values)]
     pub cell_dependents: AutoMap<CellId, FxHashSet<TaskId>>,
 
     /// Tasks that depend on collectibles of a specific type from this task.
     /// Maps TraitTypeId -> Set<TaskId>
-    #[task_storage(storage = "auto_map", category = "meta", lazy)]
+    /// The set values need filtering for transient TaskIds.
+    #[task_storage(storage = "auto_map", category = "meta", lazy, filter_transient_values)]
     pub collectibles_dependents: AutoMap<TraitTypeId, FxHashSet<TaskId>>,
 
     // =========================================================================
@@ -303,7 +298,7 @@ mod tests {
     use turbo_tasks::TaskId;
 
     use super::*;
-    use crate::data::{AggregationNumber, CachedDataItemKey, OutputValue};
+    use crate::data::{AggregationNumber, OutputValue};
 
     #[test]
     fn test_schema_size() {
