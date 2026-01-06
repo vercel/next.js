@@ -10,13 +10,9 @@ mod database;
 mod kv_backing_storage;
 mod utils;
 
-// Storage implementation prototypes and macro tests
+// Macro tests for the TaskStorage derive macro
 #[cfg(test)]
 mod storage_macro_test;
-#[cfg(test)]
-mod storage_prototype;
-#[cfg(test)]
-mod storage_types;
 
 use std::path::Path;
 

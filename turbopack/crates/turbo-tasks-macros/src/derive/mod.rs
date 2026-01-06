@@ -1,5 +1,4 @@
 mod deterministic_hash_macro;
-mod key_value_pair_macro;
 mod non_local_value_macro;
 mod operation_value_macro;
 mod task_input_macro;
@@ -9,7 +8,6 @@ mod value_debug_format_macro;
 mod value_debug_macro;
 
 pub use deterministic_hash_macro::derive_deterministic_hash;
-pub use key_value_pair_macro::derive_key_value_pair;
 pub use non_local_value_macro::derive_non_local_value;
 pub use operation_value_macro::derive_operation_value;
 use syn::{Attribute, Meta, Token, punctuated::Punctuated, spanned::Spanned};
