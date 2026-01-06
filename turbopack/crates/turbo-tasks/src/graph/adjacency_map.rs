@@ -136,12 +136,7 @@ where
     pub fn into_breadth_first_edges(self) -> IntoBreadthFirstEdges<T, E> {
         IntoBreadthFirstEdges {
             adjacency_map: self.adjacency_map,
-            queue: self
-                .roots
-                .into_iter()
-                .rev()
-                .map(|root| (None, root))
-                .collect(),
+            queue: self.roots.into_iter().map(|root| (None, root)).collect(),
             expanded: FxHashSet::default(),
         }
     }
