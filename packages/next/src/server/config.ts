@@ -45,6 +45,7 @@ import { djb2Hash } from '../shared/lib/hash'
 import type { NextAdapter } from '../build/adapter/build-complete'
 import { HardDeprecatedConfigError } from '../shared/lib/errors/hard-deprecated-config-error'
 import { NextInstanceErrorState } from './mcp/tools/next-instance-error-state'
+import { evaluateDeploymentId } from '../build/generate-deployment-id'
 
 export { normalizeConfig } from './config-shared'
 export type { DomainLocale, NextConfig } from './config-shared'
@@ -916,12 +917,32 @@ function assignDefaultsAndValidate(
     }
   }
 
+  // Evaluate deploymentId early if it's a function, so it's available as a string
+  // This needs to happen before validation checks
+  if (
+    result.deploymentId != null &&
+    typeof result.deploymentId === 'function'
+  ) {
+    result.deploymentId = evaluateDeploymentId(result.deploymentId)
+  } else if (
+    result.deploymentId != null &&
+    typeof result.deploymentId === 'string'
+  ) {
+    // Already a string, but validate it doesn't start with dpl_
+    if (result.deploymentId.startsWith('dpl_')) {
+      throw new Error(
+        `The deploymentId "${result.deploymentId}" cannot start with the "dpl_" prefix. Please choose a different deploymentId in your next.config.js. https://vercel.com/docs/skew-protection#custom-skew-protection-deployment-id`
+      )
+    }
+  }
+
   if (
     result.experimental.runtimeServerDeploymentId == null &&
     phase === PHASE_PRODUCTION_BUILD &&
     ciEnvironment.hasNextSupport &&
     process.env.NEXT_DEPLOYMENT_ID
   ) {
+    // Now result.deploymentId should be a string (already evaluated above)
     if (
       result.deploymentId != null &&
       result.deploymentId !== process.env.NEXT_DEPLOYMENT_ID
