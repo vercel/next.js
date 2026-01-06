@@ -37,7 +37,6 @@ The root `conductor.json` defines:
   - Disables telemetry for cleaner development
 
 - **`worktree`**: Git worktree configuration
-  - Default base path for new worktrees
   - Default branch to create worktrees from
 
 ## Usage
