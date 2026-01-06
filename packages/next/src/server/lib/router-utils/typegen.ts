@@ -574,7 +574,7 @@ export function generateValidatorFile(
   default: (req: any, res: any) => ReturnType<NextApiHandler>
   config?: {
     api?: {
-      bodyParser?: boolean | { sizeLimit?: string }
+      bodyParser?: boolean | { sizeLimit?: number | string }
       responseLimit?: string | number | boolean
       externalResolver?: boolean
     }
@@ -688,18 +688,12 @@ export function generateValidatorFileStrict(
             ? `${type}<${JSON.stringify(route)}>`
             : type
 
-        // NOTE: we previously used `satisfies` here, but it's not supported by TypeScript 4.8 and below.
-        // If we ever raise the TS minimum version, we can switch back.
-
         return `// Validate ${filePath}
 {
-  type __IsExpected<Specific extends ${typeWithRoute}> = Specific
   const handler = {} as typeof import(${JSON.stringify(
     importPath.replace(/\.tsx?$/, '.js')
   )})
-  type __Check = __IsExpected<typeof handler>
-  // @ts-ignore
-  type __Unused = __Check
+  handler satisfies ${typeWithRoute}
 }`
       })
       .join('\n\n')
@@ -739,14 +733,14 @@ export function generateValidatorFileStrict(
 
   if (appPageValidations) {
     typeDefinitions += `type AppPageConfig<Route extends AppRoutes = AppRoutes> = {
-  default: React.ComponentType<{ params: Promise<ParamMap[Route]> } & any> | ((props: { params: Promise<ParamMap[Route]> } & any) => React.ReactNode | Promise<React.ReactNode> | never | void | Promise<void>)
+  default: React.JSXElementConstructor<PageProps<Route>>
   generateStaticParams?: (props: { params: ParamMap[Route] }) => Promise<any[]> | any[]
   generateMetadata?: (
-    props: { params: Promise<ParamMap[Route]> } & any,
+    props: PageProps<Route>,
     parent: ResolvingMetadata
   ) => Promise<any> | any
   generateViewport?: (
-    props: { params: Promise<ParamMap[Route]> } & any,
+    props: PageProps<Route>,
     parent: ResolvingViewport
   ) => Promise<any> | any
   metadata?: any
@@ -815,7 +809,7 @@ export function generateValidatorFileStrict(
   default: (req: any, res: any) => ReturnType<NextApiHandler>
   config?: {
     api?: {
-      bodyParser?: boolean | { sizeLimit?: string }
+      bodyParser?: boolean | { sizeLimit?: number | string }
       responseLimit?: string | number | boolean
       externalResolver?: boolean
     }
@@ -994,6 +988,7 @@ export function generateRouteTypesFileStrict(
   // Build export statement based on what's actually generated
   const routeExports = [
     'AppRoutes',
+    'PageProps',
     'PageRoutes',
     'LayoutRoutes',
     'RedirectRoutes',

@@ -395,28 +395,3 @@ export async function writeValidatorFile(
       : generateValidatorFile(manifest)
   )
 }
-
-/**
- * Writes a proxy routes.d.ts file at the stable path that re-exports from
- * the actual dev types location. This allows next-env.d.ts to always reference
- * the same stable path regardless of dev/build mode.
- *
- * @param stableTypesDir - The stable types directory (e.g., .next/types)
- * @param devTypesRelativePath - Relative path from stable dir to dev types (e.g., ../dev/types/routes.d.ts)
- */
-export async function writeRouteTypesProxy(
-  stableTypesDir: string,
-  devTypesRelativePath: string
-) {
-  if (!fs.existsSync(stableTypesDir)) {
-    await fs.promises.mkdir(stableTypesDir, { recursive: true })
-  }
-
-  const proxyFilePath = path.join(stableTypesDir, 'routes.d.ts')
-  const proxyContent = `// This file re-exports route types from the dev types location.
-// This provides a stable import path for next-env.d.ts across dev/build modes.
-export * from '${devTypesRelativePath}';
-`
-
-  await fs.promises.writeFile(proxyFilePath, proxyContent)
-}

@@ -36,10 +36,11 @@ const requiredPackages = [
 export async function verifyTypeScriptSetup({
   dir,
   distDir,
-  distDirRoot,
   cacheDir,
+  strictRouteTypes,
   tsconfigPath,
   typeCheckPreflight,
+  typedRoutes,
   disableStaticImages,
   hasAppDir,
   hasPagesDir,
@@ -50,11 +51,11 @@ export async function verifyTypeScriptSetup({
 }: {
   dir: string
   distDir: string
-  /** The original distDir before any modifications (e.g., for isolatedDevBuild). */
-  distDirRoot?: string
   cacheDir?: string
+  strictRouteTypes: boolean
   tsconfigPath: string | undefined
   typeCheckPreflight: boolean
+  typedRoutes: boolean
   disableStaticImages: boolean
   hasAppDir: boolean
   hasPagesDir: boolean
@@ -139,17 +140,19 @@ export async function verifyTypeScriptSetup({
       hasAppDir,
       distDir,
       hasPagesDir,
-      isolatedDevBuild
+      isolatedDevBuild,
+      strictRouteTypes
     )
     // Write out the necessary `next-env.d.ts` file to correctly register
     // Next.js' types:
     await writeAppTypeDeclarations({
       baseDir: dir,
       distDir,
-      distDirRoot,
       imageImportsEnabled: !disableStaticImages,
       hasPagesDir,
       hasAppDir,
+      strictRouteTypes,
+      typedRoutes,
     })
 
     let result
