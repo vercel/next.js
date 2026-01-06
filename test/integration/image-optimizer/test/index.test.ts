@@ -12,6 +12,9 @@ import {
   waitFor,
   getDistDir,
 } from 'next-test-utils'
+import { createServer } from 'http'
+import { readFile } from 'fs/promises'
+import { type AddressInfo } from 'net'
 import { join } from 'path'
 import { cleanImagesDir, expectWidth, fsToJson } from './util'
 
@@ -862,6 +865,130 @@ describe('Image Optimizer', () => {
       const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
       expect(res.status).toBe(200)
       expect(res.headers.get('Content-Type')).toBe('image/jpeg')
+    })
+  })
+
+  describe('experimental.imgFetchTimeoutInSeconds in next.config.js', () => {
+    let upstreamServer: ReturnType<typeof createServer>
+    let upstreamPort: number
+    let responseDelayMs = 0
+    let imageBuffer: Buffer
+
+    beforeAll(async () => {
+      imageBuffer = await readFile(join(appDir, 'public', 'test.jpg'))
+      upstreamServer = createServer((_req, res) => {
+        const delay = responseDelayMs
+        setTimeout(() => {
+          res.statusCode = 200
+          res.setHeader('Content-Type', 'image/jpeg')
+          res.end(imageBuffer)
+        }, delay)
+      })
+      await new Promise<void>((resolve) =>
+        upstreamServer.listen(0, '127.0.0.1', () => resolve())
+      )
+      upstreamPort = (upstreamServer.address() as AddressInfo).port
+    })
+
+    afterAll(async () => {
+      await new Promise<void>((resolve) =>
+        upstreamServer.close(() => resolve())
+      )
+    })
+
+    describe('when timeout is configured', () => {
+      let app
+      let appPort
+
+      beforeAll(async () => {
+        responseDelayMs = 1500
+        await nextConfig.replace(
+          '{ /* replaceme */ }',
+          JSON.stringify({
+            experimental: {
+              imgFetchTimeoutInSeconds: 1,
+            },
+            images: {
+              dangerouslyAllowLocalIP: true,
+              remotePatterns: [
+                {
+                  protocol: 'http',
+                  hostname: '127.0.0.1',
+                  port: String(upstreamPort),
+                },
+              ],
+            },
+          })
+        )
+        await cleanImagesDir(imagesDir)
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
+
+      afterAll(async () => {
+        await killApp(app)
+        nextConfig.restore()
+      })
+
+      it('should return 504 for upstream timeouts with diagnostics', async () => {
+        const query = {
+          w: 256,
+          q: 75,
+          url: `http://127.0.0.1:${upstreamPort}/slow.jpg`,
+        }
+        const res = await fetchViaHTTP(appPort, '/_next/image', query, {})
+        expect(res.status).toBe(504)
+        const text = await res.text()
+        expect(text).toContain('imgFetchTimeoutInSeconds')
+        expect(text).toContain('unoptimized')
+        expect(text).toContain('custom loader')
+      })
+    })
+
+    describe('when timeout is disabled', () => {
+      let app
+      let appPort
+
+      beforeAll(async () => {
+        responseDelayMs = 1500
+        await nextConfig.replace(
+          '{ /* replaceme */ }',
+          JSON.stringify({
+            experimental: {
+              imgFetchTimeoutInSeconds: 0,
+            },
+            images: {
+              dangerouslyAllowLocalIP: true,
+              remotePatterns: [
+                {
+                  protocol: 'http',
+                  hostname: '127.0.0.1',
+                  port: String(upstreamPort),
+                },
+              ],
+            },
+          })
+        )
+        await cleanImagesDir(imagesDir)
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
+
+      afterAll(async () => {
+        await killApp(app)
+        nextConfig.restore()
+      })
+
+      it('should allow slow upstream responses without a timeout', async () => {
+        const query = {
+          w: 256,
+          q: 75,
+          url: `http://127.0.0.1:${upstreamPort}/slow.jpg?disabled=1`,
+        }
+        const res = await fetchViaHTTP(appPort, '/_next/image', query, {})
+        expect(res.status).toBe(200)
+        expect(res.headers.get('Content-Type')).toBe('image/jpeg')
+      })
     })
   })
 
