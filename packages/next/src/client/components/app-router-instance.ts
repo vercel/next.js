@@ -6,6 +6,7 @@ import {
   ACTION_SERVER_ACTION,
   ACTION_NAVIGATE,
   ACTION_RESTORE,
+  ACTION_GLOBAL_NOT_FOUND,
   type NavigateAction,
   ACTION_HMR_REFRESH,
   PrefetchKind,
@@ -369,6 +370,19 @@ function gesturePush(href: string, options?: NavigateOptions): void {
     )
     dispatchGestureState(forkedGestureState)
   }
+}
+
+/**
+ * Dispatches an action to render the global-not-found page without changing the URL.
+ * Used when notFound() is triggered on the client side.
+ */
+export function dispatchGlobalNotFoundAction(notFoundUrl: string) {
+  startTransition(() => {
+    dispatchAppRouterAction({
+      type: ACTION_GLOBAL_NOT_FOUND,
+      url: notFoundUrl,
+    })
+  })
 }
 
 /**

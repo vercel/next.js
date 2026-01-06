@@ -11,8 +11,9 @@
  *
  */
 
-import React, { useContext } from 'react'
+import React, { useContext, useEffect } from 'react'
 import { useUntrackedPathname } from '../navigation-untracked'
+import { dispatchGlobalNotFoundAction } from '../app-router-instance'
 import {
   HTTPAccessErrorStatus,
   getAccessFallbackHTTPStatus,
@@ -29,6 +30,7 @@ interface HTTPAccessFallbackBoundaryProps {
   // TODO: Make this required once `React.createElement` understands that positional args go into children
   children?: React.ReactNode
   missingSlots?: Set<string>
+  globalNotFoundPath?: string
 }
 
 interface HTTPAccessFallbackErrorBoundaryProps
@@ -46,12 +48,20 @@ class HTTPAccessFallbackErrorBoundary extends React.Component<
   HTTPAccessFallbackErrorBoundaryProps,
   HTTPAccessBoundaryState
 > {
+  // Track if this component has been mounted on the client
+  // Used to distinguish between SSR/hydration errors and client-side interaction errors
+  private hasBeenMounted = false
+
   constructor(props: HTTPAccessFallbackErrorBoundaryProps) {
     super(props)
     this.state = {
       triggeredStatus: undefined,
       previousPathname: props.pathname,
     }
+  }
+
+  componentDidMount(): void {
+    this.hasBeenMounted = true
   }
 
   componentDidCatch(): void {
@@ -129,6 +139,15 @@ class HTTPAccessFallbackErrorBoundary extends React.Component<
 
       // If there's no matched boundary in this layer, keep throwing the error by rendering the children
       if (!(isNotFound || isForbidden || isUnauthorized)) {
+        // Check for global-not-found: only trigger fetch after component has mounted
+        // (i.e., for client-side interactions, not SSR/hydration)
+        if (
+          triggeredStatus === HTTPAccessErrorStatus.NOT_FOUND &&
+          this.props.globalNotFoundPath &&
+          this.hasBeenMounted
+        ) {
+          return <TriggerGlobalNotFound url={this.props.globalNotFoundPath} />
+        }
         return children
       }
 
@@ -150,11 +169,20 @@ class HTTPAccessFallbackErrorBoundary extends React.Component<
   }
 }
 
+function TriggerGlobalNotFound({ url }: { url: string }) {
+  useEffect(() => {
+    dispatchGlobalNotFoundAction(url)
+  }, [url])
+
+  return null
+}
+
 export function HTTPAccessFallbackBoundary({
   notFound,
   forbidden,
   unauthorized,
   children,
+  globalNotFoundPath,
 }: HTTPAccessFallbackBoundaryProps) {
   // When we're rendering the missing params shell, this will return null. This
   // is because we won't be rendering any not found boundaries or error
@@ -164,7 +192,7 @@ export function HTTPAccessFallbackBoundary({
   const missingSlots = useContext(MissingSlotContext)
   const hasErrorFallback = !!(notFound || forbidden || unauthorized)
 
-  if (hasErrorFallback) {
+  if (hasErrorFallback || globalNotFoundPath) {
     return (
       <HTTPAccessFallbackErrorBoundary
         pathname={pathname}
@@ -172,6 +200,7 @@ export function HTTPAccessFallbackBoundary({
         forbidden={forbidden}
         unauthorized={unauthorized}
         missingSlots={missingSlots}
+        globalNotFoundPath={globalNotFoundPath}
       >
         {children}
       </HTTPAccessFallbackErrorBoundary>

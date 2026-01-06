@@ -41,4 +41,28 @@ describe('global-not-found - basic', () => {
       '404\nThis page could not be found.'
     )
   })
+
+  it('should render global-not-found when notFound() is triggered via client interaction', async () => {
+    const browser = await next.browser('/client-trigger')
+
+    // Page should render initially
+    expect(await browser.elementByCss('#page-title').text()).toBe(
+      'Client Trigger Not Found Page'
+    )
+
+    // Click button to trigger notFound()
+    await browser.elementByCss('#trigger-not-found').click()
+
+    // Should render global-not-found content without changing URL
+    await browser.waitForElementByCss('#global-error-title')
+    expect(await browser.elementByCss('#global-error-title').text()).toBe(
+      'global-not-found'
+    )
+    expect(
+      await browser.elementByCss('html').getAttribute('data-global-not-found')
+    ).toBe('true')
+
+    // URL should remain unchanged
+    expect(await browser.url()).toContain('/client-trigger')
+  })
 })

@@ -5,6 +5,7 @@ import {
   ACTION_REFRESH,
   ACTION_HMR_REFRESH,
   ACTION_SERVER_ACTION,
+  ACTION_GLOBAL_NOT_FOUND,
 } from './router-reducer-types'
 import type {
   ReducerActions,
@@ -17,6 +18,7 @@ import { restoreReducer } from './reducers/restore-reducer'
 import { refreshReducer } from './reducers/refresh-reducer'
 import { hmrRefreshReducer } from './reducers/hmr-refresh-reducer'
 import { serverActionReducer } from './reducers/server-action-reducer'
+import { globalNotFoundReducer } from './reducers/global-not-found-reducer'
 
 /**
  * Reducer that handles the app-router state updates.
@@ -43,6 +45,9 @@ function clientReducer(
     }
     case ACTION_SERVER_ACTION: {
       return serverActionReducer(state, action)
+    }
+    case ACTION_GLOBAL_NOT_FOUND: {
+      return globalNotFoundReducer(state, action)
     }
     // This case should never be hit as dispatch is strongly typed.
     default:

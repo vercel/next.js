@@ -12,6 +12,7 @@ export const ACTION_RESTORE = 'restore'
 export const ACTION_SERVER_PATCH = 'server-patch'
 export const ACTION_HMR_REFRESH = 'hmr-refresh'
 export const ACTION_SERVER_ACTION = 'server-action'
+export const ACTION_GLOBAL_NOT_FOUND = 'global-not-found'
 
 export type RouterChangeByServerResponse = ({
   navigatedAt,
@@ -231,6 +232,16 @@ export type ReadonlyReducerState = Readonly<AppRouterState>
 export type ReducerState =
   | (Promise<AppRouterState> & { _debugInfo?: Array<unknown> })
   | AppRouterState
+
+/**
+ * GlobalNotFound action renders the global-not-found page without changing the URL.
+ * Used when notFound() is triggered on the client side.
+ */
+export interface GlobalNotFoundAction {
+  type: typeof ACTION_GLOBAL_NOT_FOUND
+  url: string
+}
+
 export type ReducerActions = Readonly<
   | RefreshAction
   | NavigateAction
@@ -238,4 +249,5 @@ export type ReducerActions = Readonly<
   | ServerPatchAction
   | HmrRefreshAction
   | ServerActionAction
+  | GlobalNotFoundAction
 >
