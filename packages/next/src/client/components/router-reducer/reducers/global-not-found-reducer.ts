@@ -40,11 +40,10 @@ export function globalNotFoundReducer(
 
   switch (result.tag) {
     case NavigationResultTag.MPA: {
-      // If we can't do a client-side navigation, fall back to MPA
-      mutable.mpaNavigation = true
-      mutable.canonicalUrl = notFoundUrl.toString()
-      mutable.pendingPush = false
-      return handleMutable(state, mutable)
+      // For global-not-found, we should NOT do MPA navigation as that would
+      // change the URL. Just return current state - the error boundary will
+      // handle showing appropriate content.
+      return state
     }
     case NavigationResultTag.Success: {
       // Apply the not-found content
@@ -71,9 +70,8 @@ export function globalNotFoundReducer(
             mutable.hashFragment = asyncResult.data.hash
             return handleMutable(state, mutable)
           } else if (asyncResult.tag === NavigationResultTag.MPA) {
-            mutable.mpaNavigation = true
-            mutable.canonicalUrl = notFoundUrl.toString()
-            return handleMutable(state, mutable)
+            // For global-not-found, don't do MPA navigation
+            return state
           }
           return state
         },
