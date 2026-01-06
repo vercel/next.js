@@ -1264,44 +1264,6 @@ impl<B: BackingStorage> Drop for TaskGuardImpl<'_, B> {
     }
 }
 
-impl<B: BackingStorage> TaskGuardImpl<'_, B> {
-    /// Verify that the task guard restored the correct category
-    /// before accessing the data.
-    #[inline]
-    #[track_caller]
-    fn check_access(&self, category: TaskDataCategory) {
-        {
-            match category {
-                TaskDataCategory::All => {
-                    // This category is used for non-persisted data
-                }
-                TaskDataCategory::Data => {
-                    #[cfg(debug_assertions)]
-                    debug_assert!(
-                        self.category == TaskDataCategory::Data
-                            || self.category == TaskDataCategory::All,
-                        "To read data of {:?} the task need to be accessed with this category \
-                         (It's accessed with {:?})",
-                        category,
-                        self.category
-                    );
-                }
-                TaskDataCategory::Meta => {
-                    #[cfg(debug_assertions)]
-                    debug_assert!(
-                        self.category == TaskDataCategory::Meta
-                            || self.category == TaskDataCategory::All,
-                        "To read data of {:?} the task need to be accessed with this category \
-                         (It's accessed with {:?})",
-                        category,
-                        self.category
-                    );
-                }
-            }
-        }
-    }
-}
-
 impl<B: BackingStorage> Debug for TaskGuardImpl<'_, B> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let mut d = f.debug_struct("TaskGuard");
@@ -1323,7 +1285,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
     where
         F: FnMut(&CellId) -> bool,
     {
-        self.check_access(TaskDataCategory::Data);
+        // Uses cell_data() and cell_data_mut() accessors
         if !self.task_id.is_transient() {
             self.task.track_modification(SpecificTaskDataCategory::Data);
         }
@@ -1346,7 +1308,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
     where
         F: FnMut(&CellId) -> bool,
     {
-        self.check_access(TaskDataCategory::Data);
+        // Uses transient_cell_data() and transient_cell_data_mut() accessors
         // transient cell data doesn't track modification (it's transient)
         // Collect items to remove first, then remove them
         let to_remove: Vec<_> = self
@@ -1367,7 +1329,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
     where
         F: FnMut(&CellId, &InProgressCellState) -> bool,
     {
-        self.check_access(TaskDataCategory::Meta);
+        // Uses in_progress_cells() and in_progress_cells_mut() accessors
         // in_progress_cells is transient, doesn't track modification
         // Collect items to remove first, then remove them
         let to_remove: Vec<_> = self
@@ -1422,9 +1384,8 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
     }
 
     fn add_output_dependent(&mut self, task: TaskId) -> bool {
-        // Uses typed storage directly - output_dependent is a migrated auto_set
-        self.check_access(TaskDataCategory::Data);
         // Check if already exists before tracking modification
+        // Uses output_dependent() accessor
         if self.output_dependent().contains(&task) {
             return false;
         }
@@ -1435,9 +1396,8 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
     }
 
     fn remove_output_dependent(&mut self, task: TaskId) -> bool {
-        // Uses typed storage directly - output_dependent is a migrated auto_set
-        self.check_access(TaskDataCategory::Data);
         // Check if exists before tracking modification
+        // Uses output_dependent() accessor
         if !self.output_dependent().contains(&task) {
             return false;
         }
@@ -1448,9 +1408,8 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
     }
 
     fn add_cell_dependent(&mut self, cell: CellId, task: TaskId) -> bool {
-        // Uses typed storage directly - cell_dependents is a migrated auto_map
-        self.check_access(TaskDataCategory::Data);
         // Check if already exists before tracking modification
+        // Uses cell_dependents() accessor
         if self
             .cell_dependents()
             .is_some_and(|m| m.get(&cell).is_some_and(|s| s.contains(&task)))
@@ -1467,9 +1426,8 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
     }
 
     fn remove_cell_dependent(&mut self, cell: CellId, task: TaskId) -> bool {
-        // Uses typed storage directly - cell_dependents is a migrated auto_map
-        self.check_access(TaskDataCategory::Data);
         // Check if exists before tracking modification
+        // Uses cell_dependents() accessor
         let exists = self
             .cell_dependents()
             .is_some_and(|m| m.get(&cell).is_some_and(|s| s.contains(&task)));
@@ -1493,9 +1451,8 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
     }
 
     fn add_collectibles_dependent(&mut self, collectible_type: TraitTypeId, task: TaskId) -> bool {
-        // Uses typed storage directly - collectibles_dependents is a migrated auto_map
-        self.check_access(TaskDataCategory::Meta);
         // Check if already exists before tracking modification
+        // Uses collectibles_dependents() accessor
         if self
             .collectibles_dependents()
             .is_some_and(|m| m.get(&collectible_type).is_some_and(|s| s.contains(&task)))
@@ -1516,9 +1473,8 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         collectible_type: TraitTypeId,
         task: TaskId,
     ) -> bool {
-        // Uses typed storage directly - collectibles_dependents is a migrated auto_map
-        self.check_access(TaskDataCategory::Meta);
         // Check if exists before tracking modification
+        // Uses collectibles_dependents() accessor
         let exists = self
             .collectibles_dependents()
             .is_some_and(|m| m.get(&collectible_type).is_some_and(|s| s.contains(&task)));
@@ -1542,10 +1498,12 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
     }
 
     // ============ Execution fields (lazy_vec) ============
+    // Note: activeness and in_progress are transient fields, so no `check_category` call
+    // is needed - transient fields are never persisted and can be accessed regardless
+    // of how the task was accessed.
 
     fn get_activeness_mut(&mut self) -> Option<&mut ActivenessState> {
         // Access the typed storage directly - activeness is a lazy_vec field
-        self.check_access(TaskDataCategory::Meta);
         let typed = self.typed_mut(SpecificTaskDataCategory::Meta);
         // For lazy_vec direct fields, the type is Option<T> stored in Vec<LazyField>
         // The accessor get_activeness() returns Option<&Option<ActivenessState>>
@@ -1561,7 +1519,6 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         F: FnOnce() -> ActivenessState,
     {
         // Access the typed storage directly - activeness is a lazy_vec field
-        self.check_access(TaskDataCategory::Meta);
         let typed = self.typed_mut(SpecificTaskDataCategory::Meta);
         // Check if we already have the field with a value
         let has_value = typed
@@ -1582,7 +1539,6 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
 
     fn get_in_progress_mut(&mut self) -> Option<&mut InProgressState> {
         // Access the typed storage directly - in_progress is a lazy_vec field
-        self.check_access(TaskDataCategory::Meta);
         let typed = self.typed_mut(SpecificTaskDataCategory::Meta);
         // InProgress variant holds Option<InProgressState>
         // We need to find the variant and then get mutable access to the inner value
@@ -1594,7 +1550,6 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
 
     fn add_in_progress(&mut self, value: InProgressState) -> bool {
         // Check if already present - in_progress is a lazy field
-        self.check_access(TaskDataCategory::Meta);
         let typed = self.typed_mut(SpecificTaskDataCategory::Meta);
         // Check if the in_progress lazy field exists and has a value
         let already_present = typed
@@ -1624,6 +1579,29 @@ impl<B: BackingStorage> TaskStorageAccessors for TaskGuardImpl<'_, B> {
             self.task.track_modification(category);
         }
         self.task.typed_mut()
+    }
+
+    #[inline]
+    #[track_caller]
+    fn check_access(&self, _category: TaskDataCategory) {
+        #[cfg(debug_assertions)]
+        {
+            match _category {
+                TaskDataCategory::All => {
+                    // This category is used for non-persisted/transient data - no check needed
+                }
+                TaskDataCategory::Data | TaskDataCategory::Meta => {
+                    debug_assert!(
+                        self.category == _category || self.category == TaskDataCategory::All,
+                        "To access {:?} data of task {:?}, the task needs to be accessed with \
+                         that category (it was accessed with {:?})",
+                        _category,
+                        self.task_id,
+                        self.category
+                    );
+                }
+            }
+        }
     }
 }
 

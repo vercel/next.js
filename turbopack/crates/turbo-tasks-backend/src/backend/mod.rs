@@ -816,6 +816,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         } = options;
 
         let mut ctx = self.execute_context(turbo_tasks);
+        // We use All category because this function needs to:
+        // - Read cell data (Data)
+        // - Check immutable flag (Meta)
+        // - Add cell dependencies (Data)
+        // - Read in_progress state (Meta, transient)
         let (mut task, reader_task) = if self.should_track_dependencies()
             && !matches!(tracking, ReadTracking::Untracked)
             && let Some(reader_id) = reader
@@ -824,10 +829,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             // Having a task_pair here is not optimal, but otherwise this would lead to a race
             // condition. See below.
             // TODO(sokra): solve that in a more performant way.
-            let (task, reader) = ctx.task_pair(task_id, reader_id, TaskDataCategory::Data);
+            let (task, reader) = ctx.task_pair(task_id, reader_id, TaskDataCategory::All);
             (task, Some(reader))
         } else {
-            (ctx.task(task_id, TaskDataCategory::Data), None)
+            (ctx.task(task_id, TaskDataCategory::All), None)
         };
 
         let content = if final_read_hint {
@@ -2089,7 +2094,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         if let Some(dependencies) = task_dependencies_for_immutable
             && dependencies
                 .iter()
-                .all(|&task_id| ctx.task(task_id, TaskDataCategory::Data).is_immutable())
+                .all(|&task_id| ctx.task(task_id, TaskDataCategory::Meta).is_immutable())
         {
             is_now_immutable = true;
         }
