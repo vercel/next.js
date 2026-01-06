@@ -2299,6 +2299,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/cdn-cache-control-header/cdn-cache-control-header.test.ts": {
+    "passed": [
+      "cdn-cache-control-header should use custom CDN cache control header name from experimental config"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/client-module-with-package-type/index.test.ts": {
     "passed": [
       "esm-client-module-without-exports \"type\": \"commonjs\" in package.json should render without errors: import cjs",
@@ -2661,6 +2670,19 @@
       "dedupe-rsc-error-log should only log RSC error once for nodejs runtime",
       "dedupe-rsc-error-log should only log SSR error once for edge runtime",
       "dedupe-rsc-error-log should only log SSR error once for nodejs runtime"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/default-error-page-ui/default-error-page-ui.test.ts": {
+    "passed": [
+      "app dir - default error page UI should display server error page with Error reference",
+      "app dir - default error page UI should have left-aligned text in error page",
+      "app dir - default error page UI should have proper styling in the default error page",
+      "app dir - default error page UI should reload the page when Reload page button is clicked",
+      "app dir - default error page UI should render client error page with correct UI elements"
     ],
     "failed": [],
     "pending": [],
@@ -7643,6 +7665,7 @@
       "use-cache can reference server actions in \"use cache\" functions",
       "use-cache renders the not-found page when `notFound()` is used",
       "use-cache shares caches between the page/layout and generateMetadata",
+      "use-cache should NOT update immediately after revalidateTag with profile (stale-while-revalidate)",
       "use-cache should be able to revalidate a page using revalidateTag",
       "use-cache should cache complex args",
       "use-cache should cache fetch without no-store",
@@ -22153,6 +22176,15 @@
   },
   "test/production/typescript-basic/typechecking.test.ts": {
     "passed": ["typechecking should typecheck"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/typescript-build-output/typescript-build-output.test.ts": {
+    "passed": [
+      "typescript-build-output should show \"Finished TypeScript\" message in build output"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
