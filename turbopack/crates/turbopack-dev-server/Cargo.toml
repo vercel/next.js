@@ -18,6 +18,7 @@ workspace = true
 [dependencies]
 anyhow = { workspace = true }
 auto-hash-map = { workspace = true }
+bincode = { workspace = true }
 flate2 = { workspace = true }
 futures = { workspace = true }
 hyper = { version = "0.14", features = ["full"] }
@@ -35,6 +36,7 @@ tokio = { workspace = true }
 tokio-stream = "0.1.9"
 tokio-util = { workspace = true }
 tracing = { workspace = true }
+turbo-bincode = { workspace = true }
 turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-bytes = { workspace = true }

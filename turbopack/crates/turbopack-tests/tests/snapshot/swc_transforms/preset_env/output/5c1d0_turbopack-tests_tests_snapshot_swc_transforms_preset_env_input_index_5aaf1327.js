@@ -474,9 +474,29 @@ function commonJsRequire(id) {
 }
 contextPrototype.r = commonJsRequire;
 /**
+ * Remove fragments and query parameters since they are never part of the context map keys
+ *
+ * This matches how we parse patterns at resolving time.  Arguably we should only do this for
+ * strings passed to `import` but the resolve does it for `import` and `require` and so we do
+ * here as well.
+ */ function parseRequest(request) {
+    // Per the URI spec fragments can contain `?` characters, so we should trim it off first
+    // https://datatracker.ietf.org/doc/html/rfc3986#section-3.5
+    var hashIndex = request.indexOf('#');
+    if (hashIndex !== -1) {
+        request = request.substring(0, hashIndex);
+    }
+    var queryIndex = request.indexOf('?');
+    if (queryIndex !== -1) {
+        request = request.substring(0, queryIndex);
+    }
+    return request;
+}
+/**
  * `require.context` and require/import expression runtime.
  */ function moduleContext(map) {
     function moduleContext(id) {
+        id = parseRequest(id);
         if (hasOwnProperty.call(map, id)) {
             return map[id].module();
         }
@@ -488,6 +508,7 @@ contextPrototype.r = commonJsRequire;
         return Object.keys(map);
     };
     moduleContext.resolve = function(id) {
+        id = parseRequest(id);
         if (hasOwnProperty.call(map, id)) {
             return map[id].id();
         }
@@ -733,7 +754,7 @@ function applyModuleFactoryName(factory) {
 }
 /**
  * This file contains runtime types and functions that are shared between all
- * Turbopack *development* ECMAScript runtimes.
+ * Turbopack *browser* ECMAScript runtimes.
  *
  * It will be appended to the runtime code of each runtime right after the
  * shared runtime utils.
@@ -1273,13 +1294,6 @@ function registerChunk(registration) {
     }
     return BACKEND.registerChunk(chunkPath, runtimeParams);
 }
-/**
- * This file contains the runtime code specific to the Turbopack development
- * ECMAScript DOM runtime.
- *
- * It will be appended to the base development runtime code.
- */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../../../browser/runtime/base/runtime-base.ts" />
-/// <reference path="../../../shared/runtime-types.d.ts" />
 function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
     try {
         var info = gen[key](arg);
@@ -1399,6 +1413,18 @@ function _ts_generator(thisArg, body) {
             done: true
         };
     }
+}
+/**
+ * This file contains the runtime code specific to the Turbopack ECMAScript DOM runtime.
+ *
+ * It will be appended to the base runtime code.
+ */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../../../browser/runtime/base/runtime-base.ts" />
+/// <reference path="../../../shared/runtime-types.d.ts" />
+function getChunkSuffixFromScriptSrc() {
+    var _document_currentScript_getAttribute, _document_currentScript_getAttribute1, _document_currentScript, _document;
+    var _self_TURBOPACK_CHUNK_SUFFIX;
+    // TURBOPACK_CHUNK_SUFFIX is set in web workers
+    return ((_self_TURBOPACK_CHUNK_SUFFIX = self.TURBOPACK_CHUNK_SUFFIX) !== null && _self_TURBOPACK_CHUNK_SUFFIX !== void 0 ? _self_TURBOPACK_CHUNK_SUFFIX : (_document = document) === null || _document === void 0 ? void 0 : (_document_currentScript = _document.currentScript) === null || _document_currentScript === void 0 ? void 0 : (_document_currentScript_getAttribute1 = _document_currentScript.getAttribute) === null || _document_currentScript_getAttribute1 === void 0 ? void 0 : (_document_currentScript_getAttribute = _document_currentScript_getAttribute1.call(_document_currentScript, 'src')) === null || _document_currentScript_getAttribute === void 0 ? void 0 : _document_currentScript_getAttribute.replace(/^(.*(?=\?)|^.*$)/, '')) || '';
 }
 var BACKEND;
 /**

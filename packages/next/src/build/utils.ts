@@ -1,4 +1,7 @@
-import type { NextConfigComplete } from '../server/config-shared'
+import type {
+  NextConfigComplete,
+  NextConfigRuntime,
+} from '../server/config-shared'
 import type { ExperimentalPPRConfig } from '../server/lib/experimental/ppr'
 import { checkIsRoutePPREnabled } from '../server/lib/experimental/ppr'
 import type { AssetBinding } from './webpack/loaders/get-module-build-info'
@@ -1211,7 +1214,7 @@ export async function copyTracedFiles(
   pageKeys: readonly string[],
   appPageKeys: readonly string[] | undefined,
   tracingRoot: string,
-  serverConfig: NextConfigComplete,
+  serverConfig: NextConfigRuntime,
   middlewareManifest: MiddlewareManifest,
   hasNodeMiddleware: boolean,
   hasInstrumentationHook: boolean,
@@ -1271,9 +1274,29 @@ export async function copyTracedFiles(
           if (symlink) {
             try {
               await fs.symlink(symlink, fileOutputPath)
-            } catch (e: any) {
-              if (e.code !== 'EEXIST') {
-                throw e
+            } catch (err: any) {
+              // Windows doesn't support creating symlinks without elevated privileges, unless
+              // "Developer Mode" is turned on. If we failed to create a symlink due to EPERM, try
+              // creating a junction point instead.
+              //
+              // Ideally we'd just preserve the input file type (junction point or symlink), but
+              // there's no API in node.js to differentiate between a junction point and a symlink,
+              // so we just try making a symlink first. Symlinks are preferred because they support
+              // relative paths and non-directory (file) targets.
+              if (
+                process.platform === 'win32' &&
+                err.code === 'EPERM' &&
+                path.isAbsolute(symlink)
+              ) {
+                try {
+                  await fs.symlink(symlink, fileOutputPath, 'junction')
+                } catch (junctionErr: any) {
+                  if (junctionErr.code !== 'EEXIST') {
+                    throw junctionErr
+                  }
+                }
+              } else if (err.code !== 'EEXIST') {
+                throw err
               }
             }
           } else {

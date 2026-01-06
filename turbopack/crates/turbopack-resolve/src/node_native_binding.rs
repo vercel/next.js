@@ -2,7 +2,7 @@ use std::sync::LazyLock;
 
 use anyhow::{Result, bail};
 use regex::Regex;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{
@@ -19,16 +19,16 @@ use turbopack_core::{
     target::{CompileTarget, Platform},
 };
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 struct NodePreGypConfigJson {
     binary: NodePreGypConfig,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 struct NodePreGypConfig {
     module_name: String,
     module_path: String,
-    napi_versions: Vec<u8>,
+    napi_versions: Vec<u32>,
 }
 
 #[turbo_tasks::value]
@@ -124,7 +124,7 @@ async fn resolve_node_pre_gyp_files(
         for version in node_pre_gyp_config.binary.napi_versions.iter() {
             let native_binding_path = NAPI_VERSION_TEMPLATE.replace(
                 node_pre_gyp_config.binary.module_path.as_str(),
-                format!("{version}"),
+                version.to_string(),
             );
             let platform = compile_target.platform;
             let native_binding_path =

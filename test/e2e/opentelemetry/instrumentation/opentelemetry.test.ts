@@ -613,6 +613,129 @@ describe('opentelemetry', () => {
               },
             ])
           })
+
+          it('should handle error inside Suspense boundary', async () => {
+            await next.fetch('/app/param/loading/error', env.fetchInit)
+
+            await expectTrace(getCollector(), [
+              {
+                name: 'GET /app/[param]/loading/error',
+                attributes: {
+                  'http.method': 'GET',
+                  'http.route': '/app/[param]/loading/error',
+                  // The response starts streaming before the error,
+                  // so HTTP status is 200 (unlike synchronous errors which get 500)
+                  'http.status_code': 200,
+                  'http.target': '/app/param/loading/error',
+                  'next.route': '/app/[param]/loading/error',
+                  'next.rsc': false,
+                  'next.span_name': 'GET /app/[param]/loading/error',
+                  'next.span_type': 'BaseServer.handleRequest',
+                },
+                kind: 1,
+                status: { code: 0 },
+                traceId: env.span.traceId,
+                parentId: env.span.rootParentId,
+                spans: [
+                  {
+                    name: 'render route (app) /app/[param]/loading/error',
+                    attributes: {
+                      'next.route': '/app/[param]/loading/error',
+                      'next.span_name':
+                        'render route (app) /app/[param]/loading/error',
+                      'next.span_type': 'AppRender.getBodyResult',
+                      'error.type': 'Error',
+                    },
+                    kind: 0,
+                    // The render span should have error status because an error
+                    // was thrown inside a Suspense boundary during streaming
+                    status: {
+                      code: 2,
+                      message: 'Error inside Suspense boundary',
+                    },
+                    spans: [
+                      {
+                        name: 'build component tree',
+                        attributes: {
+                          'next.span_name': 'build component tree',
+                          'next.span_type':
+                            'NextNodeServer.createComponentTree',
+                        },
+                        kind: 0,
+                        status: { code: 0 },
+                        spans: [
+                          {
+                            name: 'resolve segment modules',
+                            attributes: {
+                              'next.segment': '__PAGE__',
+                              'next.span_name': 'resolve segment modules',
+                              'next.span_type':
+                                'NextNodeServer.getLayoutOrPageModule',
+                            },
+                            kind: 0,
+                            status: { code: 0 },
+                          },
+                          {
+                            name: 'resolve segment modules',
+                            attributes: {
+                              'next.segment': '[param]',
+                              'next.span_name': 'resolve segment modules',
+                              'next.span_type':
+                                'NextNodeServer.getLayoutOrPageModule',
+                            },
+                            kind: 0,
+                            status: { code: 0 },
+                          },
+                        ],
+                      },
+                      {
+                        name: 'generateMetadata /app/[param]/layout',
+                        attributes: {
+                          'next.page': '/app/[param]/layout',
+                          'next.span_name':
+                            'generateMetadata /app/[param]/layout',
+                          'next.span_type': 'ResolveMetadata.generateMetadata',
+                        },
+                        kind: 0,
+                        status: { code: 0 },
+                      },
+                      {
+                        attributes: {
+                          'next.clientComponentLoadCount': isNextDev ? 7 : 6,
+                          'next.span_type':
+                            'NextNodeServer.clientComponentLoading',
+                        },
+                        kind: 0,
+                        name: 'NextNodeServer.clientComponentLoading',
+                        status: {
+                          code: 0,
+                        },
+                      },
+                      {
+                        name: 'start response',
+                        attributes: {
+                          'next.span_name': 'start response',
+                          'next.span_type': 'NextNodeServer.startResponse',
+                        },
+                        kind: 0,
+                        status: { code: 0 },
+                      },
+                    ],
+                  },
+                  {
+                    name: 'resolve page components',
+                    attributes: {
+                      'next.route': '/app/[param]/loading/error',
+                      'next.span_name': 'resolve page components',
+                      'next.span_type': 'NextNodeServer.findPageComponents',
+                    },
+                    kind: 0,
+                    status: { code: 0 },
+                  },
+                ],
+              },
+            ])
+          })
         })
 
         describe('pages', () => {
@@ -1303,6 +1426,14 @@ async function expectTrace(
   match: SpanMatch[],
   edgeOnly?: boolean
 ) {
+  // Extract expected http.target values from the match to filter out extra spans
+  // that may be generated in production mode (e.g., RSC prefetch requests)
+  const expectedTargets = new Set(
+    match
+      .map((m) => m.attributes?.['http.target'] as string | undefined)
+      .filter(Boolean)
+  )
+
   await check(async () => {
     const traces = collector.getSpans()
 
@@ -1358,7 +1489,19 @@ async function expectTrace(
       })
     }
 
-    tree.sort((a, b) => {
+    // Filter root spans to only those matching expected http.target values
+    // This prevents flakiness from extra spans in prod mode (RSC prefetch, etc.)
+    const filteredTree =
+      expectedTargets.size > 0
+        ? tree.filter((span) => {
+            const target = span.attributes?.['http.target'] as
+              | string
+              | undefined
+            return target && expectedTargets.has(target)
+          })
+        : tree
+
+    filteredTree.sort((a, b) => {
       const runtimeDiff = (a.runtime ?? '').localeCompare(b.runtime ?? '')
       if (runtimeDiff !== 0) {
         return runtimeDiff
@@ -1366,7 +1509,7 @@ async function expectTrace(
       return a.name.localeCompare(b.name)
     })
 
-    expect(tree).toMatchObject(match)
+    expect(filteredTree).toMatchObject(match)
     return 'success'
   }, 'success')
 }

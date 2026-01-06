@@ -1,4 +1,5 @@
 use anyhow::{Result, bail};
+use bincode::{Decode, Encode};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
@@ -6,10 +7,12 @@ use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Upcast, Vc, trace::Trace
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::DeterministicHash;
 
-use super::{ChunkableModule, EvaluatableAssets, availability_info::AvailabilityInfo};
 use crate::{
     asset::Asset,
-    chunk::{ChunkItem, ChunkType, ModuleId},
+    chunk::{
+        ChunkItem, ChunkType, ChunkableModule, EvaluatableAssets, ModuleId,
+        availability_info::AvailabilityInfo,
+    },
     environment::Environment,
     ident::AssetIdent,
     module::Module,
@@ -32,11 +35,12 @@ use crate::{
     PartialEq,
     Eq,
     Hash,
-    Serialize,
     Deserialize,
     TraceRawVcs,
     DeterministicHash,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum MangleType {
@@ -45,7 +49,7 @@ pub enum MangleType {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Debug, TaskInput, Clone, Copy, Hash, DeterministicHash)]
+#[derive(Debug, TaskInput, Clone, Copy, Hash, DeterministicHash, Deserialize)]
 pub enum MinifyType {
     // TODO instead of adding a new property here,
     // refactor that to Minify(MinifyOptions) to allow defaults on MinifyOptions
@@ -86,6 +90,8 @@ pub enum SourceMapsType {
     TraceRawVcs,
     DeterministicHash,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub enum ChunkGroupType {
     Entry,
@@ -221,11 +227,11 @@ pub struct EntryChunkGroupResult {
     PartialEq,
     Eq,
     Hash,
-    Serialize,
-    Deserialize,
     TraceRawVcs,
     NonLocalValue,
     TaskInput,
+    Encode,
+    Decode,
 )]
 pub struct ChunkingConfig {
     /// Try to avoid creating more than 1 chunk smaller than this size.
@@ -248,7 +254,7 @@ pub struct ChunkingConfig {
 pub struct ChunkingConfigs(FxHashMap<ResolvedVc<Box<dyn ChunkType>>, ChunkingConfig>);
 
 #[turbo_tasks::value(shared)]
-#[derive(Debug, Clone, Copy, Hash, TaskInput, Default)]
+#[derive(Debug, Clone, Copy, Hash, TaskInput, Default, Deserialize)]
 pub enum SourceMapSourceType {
     AbsoluteFileUri,
     RelativeUri,

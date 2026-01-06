@@ -1,6 +1,7 @@
 use anyhow::{Context, Result, bail};
+use bincode::{Decode, Encode};
 use indoc::formatdoc;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, Completions, NonLocalValue, ResolvedVc, TaskInput, TryFlatJoinIterExt, Vc,
@@ -25,18 +26,19 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::runtime_functions::TURBOPACK_EXTERNAL_IMPORT;
 
-use super::{
-    util::{EmittedAsset, emitted_assets_to_virtual_sources},
-    webpack::WebpackLoaderContext,
-};
 use crate::{
-    embed_js::embed_file_path, evaluate::get_evaluate_entries, execution_context::ExecutionContext,
-    transforms::webpack::evaluate_webpack_loader,
+    embed_js::embed_file_path,
+    evaluate::get_evaluate_entries,
+    execution_context::ExecutionContext,
+    transforms::{
+        util::{EmittedAsset, emitted_assets_to_virtual_sources},
+        webpack::{WebpackLoaderContext, evaluate_webpack_loader},
+    },
 };
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Clone, Deserialize)]
+#[turbo_tasks::value]
 #[serde(rename_all = "camelCase")]
-#[turbo_tasks::value(serialization = "custom")]
 struct PostCssProcessingResult {
     css: String,
     map: Option<String>,
@@ -52,10 +54,10 @@ struct PostCssProcessingResult {
     Hash,
     Debug,
     TraceRawVcs,
-    Serialize,
-    Deserialize,
     TaskInput,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub enum PostCssConfigLocation {
     #[default]

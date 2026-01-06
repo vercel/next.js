@@ -1,6 +1,7 @@
 use std::ops::Deref;
 
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
+use serde::Serialize;
 use swc_core::{
     common::{DUMMY_SP, SyntaxContext},
     ecma::{
@@ -178,13 +179,21 @@ format_iter!(std::fmt::Pointer);
 format_iter!(std::fmt::UpperExp);
 format_iter!(std::fmt::UpperHex);
 
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, Debug, NonLocalValue, Hash)]
+#[derive(Clone, PartialEq, Eq, TraceRawVcs, Debug, NonLocalValue, Hash, Encode, Decode)]
 pub enum AstPathRange {
     /// The ast path to the block or expression.
-    Exact(#[turbo_tasks(trace_ignore)] Vec<AstParentKind>),
+    Exact(
+        #[bincode(with_serde)]
+        #[turbo_tasks(trace_ignore)]
+        Vec<AstParentKind>,
+    ),
     /// The ast path to a expression just before the range in the parent of the
     /// specific ast path.
-    StartAfter(#[turbo_tasks(trace_ignore)] Vec<AstParentKind>),
+    StartAfter(
+        #[bincode(with_serde)]
+        #[turbo_tasks(trace_ignore)]
+        Vec<AstParentKind>,
+    ),
 }
 
 /// Converts a module value (ie an import) to a well known object,
@@ -226,8 +235,12 @@ pub fn module_value_to_well_known_object(module_value: &ModuleValue) -> Option<J
     })
 }
 
-#[derive(Hash, Debug, Clone, Copy, Eq, Serialize, Deserialize, PartialEq, TraceRawVcs)]
-pub struct AstSyntaxContext(#[turbo_tasks(trace_ignore)] SyntaxContext);
+#[derive(Hash, Debug, Clone, Copy, Eq, PartialEq, TraceRawVcs, Encode, Decode)]
+pub struct AstSyntaxContext(
+    #[turbo_tasks(trace_ignore)]
+    #[bincode(with_serde)]
+    SyntaxContext,
+);
 
 impl TaskInput for AstSyntaxContext {
     fn is_transient(&self) -> bool {

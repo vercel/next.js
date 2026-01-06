@@ -13,6 +13,14 @@ const { cloneRepo, mergeBranch, getCommitId, linkPackages, getLastStable } =
 
 const allowedActions = new Set(['synchronize', 'opened'])
 
+// Get bundler filter from action input (set by GitHub Actions as INPUT_BUNDLER)
+const bundlerInput = (process.env.INPUT_BUNDLER || 'both').toLowerCase()
+const isShardedRun = bundlerInput !== 'both'
+
+if (isShardedRun) {
+  logger(`Running in sharded mode for bundler: ${bundlerInput}`)
+}
+
 if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
   logger(
     `Not running for ${actionInfo.actionName} event action on repo: ${actionInfo.prRepo} and ref ${actionInfo.prRef}`
@@ -141,14 +149,37 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
       else diffRepoPkgPaths = pkgPaths
     }
 
-    // run the configs and post the comment
+    // run the configs and collect results
     const results = await runConfigs(statsConfig.configs, {
       statsConfig,
       mainRepoPkgPaths,
       diffRepoPkgPaths,
       relativeStatsAppDir,
+      bundlerFilter: isShardedRun ? bundlerInput : null,
     })
-    await addComment(results, actionInfo, statsConfig)
+
+    if (isShardedRun) {
+      // In sharded mode, save results to JSON for later aggregation
+      const resultsPath = path.join(
+        process.env.GITHUB_WORKSPACE || process.cwd(),
+        `pr-stats-${bundlerInput}.json`
+      )
+      // Exclude sensitive fields (githubToken) before serializing to JSON
+      const { githubToken, ...safeActionInfo } = actionInfo
+      await fs.writeFile(
+        resultsPath,
+        JSON.stringify(
+          { results, actionInfo: safeActionInfo, statsConfig },
+          null,
+          2
+        )
+      )
+      logger(`Saved results to ${resultsPath}`)
+    } else {
+      // In non-sharded mode, post comment directly
+      await addComment(results, actionInfo, statsConfig)
+    }
+
     logger('finished')
     process.exit(0)
   } catch (err) {

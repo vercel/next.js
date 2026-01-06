@@ -5,7 +5,7 @@ import type {
 } from './load-components'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { Params } from './request/params'
-import type { NextConfig, NextConfigComplete } from './config-shared'
+import type { NextConfig, NextConfigRuntime } from './config-shared'
 import type {
   NextParsedUrlQuery,
   NextUrlWithParsedQuery,
@@ -18,7 +18,6 @@ import type {
   ServerOnInstrumentationRequestError,
 } from './app-render/types'
 import type { ServerComponentsHmrCache } from './response-cache'
-import type { UrlWithParsedQuery } from 'url'
 import {
   NormalizeError,
   DecodeError,
@@ -46,7 +45,7 @@ import type { PathnameNormalizer } from './normalizers/request/pathname-normaliz
 import type { InstrumentationModule } from './instrumentation/types'
 
 import * as path from 'path'
-import { format as formatUrl, parse as parseUrl } from 'url'
+import { format as formatUrl } from 'url'
 import { formatHostname } from './lib/format-hostname'
 import {
   APP_PATHS_MANIFEST,
@@ -75,7 +74,10 @@ import {
 import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { getHostname } from '../shared/lib/get-hostname'
-import { parseUrl as parseUrlUtil } from '../shared/lib/router/utils/parse-url'
+import {
+  parseUrl,
+  parseUrl as parseUrlUtil,
+} from '../shared/lib/router/utils/parse-url'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
 import {
   RSC_HEADER,
@@ -311,7 +313,7 @@ export default abstract class Server<
   public readonly port?: number
   protected readonly dir: string
   protected readonly quiet: boolean
-  protected readonly nextConfig: NextConfigComplete
+  protected readonly nextConfig: NextConfigRuntime
   protected readonly distDir: string
   protected readonly publicDir: string
   protected readonly hasStaticDir: boolean
@@ -370,6 +372,7 @@ export default abstract class Server<
       generateEtags: boolean
       poweredByHeader: boolean
       cacheControl: CacheControl | undefined
+      cdnCacheControlHeader?: string
     }
   ): Promise<void>
 
@@ -446,7 +449,25 @@ export default abstract class Server<
 
     // TODO: should conf be normalized to prevent missing
     // values from causing issues as this can be user provided
-    this.nextConfig = conf as NextConfigComplete
+    this.nextConfig = conf as NextConfigRuntime
+
+    let deploymentId
+    if (this.nextConfig.experimental.runtimeServerDeploymentId) {
+      if (!process.env.NEXT_DEPLOYMENT_ID) {
+        throw new Error(
+          'process.env.NEXT_DEPLOYMENT_ID is missing but runtimeServerDeploymentId is enabled'
+        )
+      }
+      deploymentId = process.env.NEXT_DEPLOYMENT_ID
+    } else {
+      let id = this.nextConfig.experimental.useSkewCookie
+        ? ''
+        : this.nextConfig.deploymentId || ''
+
+      deploymentId = id
+      process.env.NEXT_DEPLOYMENT_ID = id
+    }
+
     this.hostname = hostname
     if (this.hostname) {
       // we format the hostname so that it can be fetched
@@ -501,13 +522,12 @@ export default abstract class Server<
     }
 
     this.nextFontManifest = this.getNextFontManifest()
-    process.env.NEXT_DEPLOYMENT_ID = this.nextConfig.deploymentId || ''
 
     this.renderOpts = {
       dir: this.dir,
       supportsDynamicResponse: true,
       trailingSlash: this.nextConfig.trailingSlash,
-      deploymentId: this.nextConfig.deploymentId,
+      deploymentId: deploymentId,
       poweredByHeader: this.nextConfig.poweredByHeader,
       generateEtags,
       previewProps: this.getPrerenderManifest().preview,
@@ -541,6 +561,8 @@ export default abstract class Server<
         dynamicOnHover: this.nextConfig.experimental.dynamicOnHover ?? false,
         inlineCss: this.nextConfig.experimental.inlineCss ?? false,
         authInterrupts: !!this.nextConfig.experimental.authInterrupts,
+        cdnCacheControlHeader:
+          this.nextConfig.experimental.cdnCacheControlHeader,
       },
       onInstrumentationRequestError:
         this.instrumentationOnRequestError.bind(this),
@@ -936,7 +958,7 @@ export default abstract class Server<
           throw new Error('Invariant: url can not be undefined')
         }
 
-        parsedUrl = parseUrl(req.url!, true)
+        parsedUrl = parseUrl(req.url)
       }
 
       if (!parsedUrl.pathname) {
@@ -1664,7 +1686,7 @@ export default abstract class Server<
   protected async run(
     req: ServerRequest,
     res: ServerResponse,
-    parsedUrl: UrlWithParsedQuery
+    parsedUrl: NextUrlWithParsedQuery
   ): Promise<void> {
     return getTracer().trace(BaseServerSpan.run, async () =>
       this.runImpl(req, res, parsedUrl)
@@ -1674,7 +1696,7 @@ export default abstract class Server<
   private async runImpl(
     req: ServerRequest,
     res: ServerResponse,
-    parsedUrl: UrlWithParsedQuery
+    parsedUrl: NextUrlWithParsedQuery
   ): Promise<void> {
     await this.handleCatchallRenderRequest(req, res, parsedUrl)
   }
@@ -1743,6 +1765,8 @@ export default abstract class Server<
         generateEtags,
         poweredByHeader,
         cacheControl,
+        cdnCacheControlHeader:
+          this.nextConfig.experimental.cdnCacheControlHeader,
       })
       res.statusCode = originalStatus
     }
@@ -2946,7 +2970,7 @@ export default abstract class Server<
     parsedUrl?: Pick<NextUrlWithParsedQuery, 'pathname' | 'query'>,
     setHeaders = true
   ): Promise<void> {
-    const { pathname, query } = parsedUrl ? parsedUrl : parseUrl(req.url!, true)
+    const { pathname, query } = parsedUrl ? parsedUrl : parseUrl(req.url)
 
     // Ensure the locales are provided on the request meta.
     if (this.nextConfig.i18n) {

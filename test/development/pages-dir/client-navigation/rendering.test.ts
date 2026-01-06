@@ -6,7 +6,6 @@ import { fetchViaHTTP, getDistDir, renderViaHTTP } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST } from 'next/constants'
 import path from 'path'
-import url from 'url'
 
 const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 
@@ -47,7 +46,7 @@ describe('Client Navigation rendering', () => {
     it('should should not contain scripts that are not js', async () => {
       const $ = await get$('/')
       $('script[src]').each((_index, element) => {
-        const parsedUrl = url.parse($(element).attr('src'))
+        const parsedUrl = new URL($(element).attr('src'), next.url)
         if (!parsedUrl.pathname.endsWith('.js')) {
           throw new Error(
             `Page includes script that is not a javascript file ${parsedUrl.pathname}`
@@ -241,6 +240,20 @@ describe('Client Navigation rendering', () => {
              |         ^",
            "stack": [
              "{default export} pages/error-inside-page.js (2:9)",
+           ],
+         }
+        `)
+      } else if (isRspack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "This is an expected error",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "pages/error-inside-page.js (2:9) @ __rspack_default_export
+         > 2 |   throw new Error('This is an expected error')
+             |         ^",
+           "stack": [
+             "__rspack_default_export pages/error-inside-page.js (2:9)",
            ],
          }
         `)

@@ -14,6 +14,7 @@ use std::fmt::Display;
 
 use anyhow::Result;
 use auto_hash_map::AutoSet;
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
@@ -22,7 +23,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_hash::DeterministicHash;
 
-pub use self::{
+pub use crate::chunk::{
     chunk_item_batch::{
         ChunkItemBatchGroup, ChunkItemBatchWithAsyncModuleInfo,
         ChunkItemOrBatchWithAsyncModuleInfo, batch_info,
@@ -51,7 +52,7 @@ use crate::{
 
 /// A module id, which can be a number or string
 #[turbo_tasks::value(shared, operation)]
-#[derive(Debug, Clone, Hash, Ord, PartialOrd, DeterministicHash)]
+#[derive(Debug, Clone, Hash, Ord, PartialOrd, DeterministicHash, Serialize)]
 #[serde(untagged)]
 pub enum ModuleId {
     Number(u64),
@@ -148,17 +149,7 @@ impl MergeableModules {
 
 /// Whether a given module needs to be exposed (depending on how it is imported by other modules)
 #[derive(
-    Copy,
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    TaskInput,
-    Hash,
+    Copy, Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, TaskInput, Hash, Encode, Decode,
 )]
 pub enum MergeableModuleExposure {
     // This module is only used from within the current group, and only individual exports are
@@ -265,6 +256,8 @@ pub trait OutputChunk: Asset {
     PartialEq,
     ValueDebugFormat,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub enum ChunkingType {
     /// The referenced module is placed in the same chunk group and is loaded in parallel.
@@ -508,7 +501,7 @@ impl AsyncModuleInfo {
 }
 
 #[derive(
-    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, TaskInput, NonLocalValue,
+    Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, TaskInput, NonLocalValue, Encode, Decode,
 )]
 pub struct ChunkItemWithAsyncModuleInfo {
     pub chunk_item: ResolvedVc<Box<dyn ChunkItem>>,

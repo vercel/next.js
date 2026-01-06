@@ -122,8 +122,11 @@ pub enum StorageMode {
     /// Queries the storage for cache entries that don't exist locally.
     ReadOnly,
     /// Queries the storage for cache entries that don't exist locally.
-    /// Keeps a log of all changes and regularly push them to the backing storage.
+    /// Regularly pushes changes to the backing storage.
     ReadWrite,
+    /// Queries the storage for cache entries that don't exist locally.
+    /// On shutdown, pushes all changes to the backing storage.
+    ReadWriteOnShutdown,
 }
 
 pub struct BackendOptions {
@@ -242,7 +245,10 @@ impl<B: BackingStorage> TurboTasksBackend<B> {
 impl<B: BackingStorage> TurboTasksBackendInner<B> {
     pub fn new(mut options: BackendOptions, backing_storage: B) -> Self {
         let shard_amount = compute_shard_amount(options.num_workers, options.small_preallocation);
-        let need_log = matches!(options.storage_mode, Some(StorageMode::ReadWrite));
+        let need_log = matches!(
+            options.storage_mode,
+            Some(StorageMode::ReadWrite) | Some(StorageMode::ReadWriteOnShutdown)
+        );
         if !options.dependency_tracking {
             options.active_tracking = false;
         }
@@ -369,7 +375,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     }
 
     fn should_persist(&self) -> bool {
-        matches!(self.options.storage_mode, Some(StorageMode::ReadWrite))
+        matches!(
+            self.options.storage_mode,
+            Some(StorageMode::ReadWrite) | Some(StorageMode::ReadWriteOnShutdown)
+        )
     }
 
     fn should_restore(&self) -> bool {
@@ -1057,6 +1066,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             (meta, data)
         };
         let process = |task_id: TaskId, (meta, data): (Option<Vec<_>>, Option<Vec<_>>)| {
+            // TODO: perf: Instead of returning a `Vec` of individually allocated `SmallVec`s, it'd
+            // be better to append everything to a flat per-task or per-shard `Vec<u8>`, and have
+            // each `serialize` call return `(start_idx, end_idx)`.
             (
                 task_id,
                 meta.map(|d| self.backing_storage.serialize(task_id, &d)),
@@ -1259,7 +1271,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             }
         }
 
-        if self.should_persist() {
+        // Only when it should write regularly to the storage, we schedule the initial snapshot
+        // job.
+        if matches!(self.options.storage_mode, Some(StorageMode::ReadWrite)) {
             // Schedule the snapshot job
             let _span = trace_span!("persisting background job").entered();
             let _span = tracing::info_span!("thread").entered();
@@ -2173,15 +2187,17 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 span.record("result", "once task");
                 continue;
             }
+            let mut make_stale = true;
             let dependent = ctx.task(dependent_task_id, TaskDataCategory::All);
             if dependent.has_key(&CachedDataItemKey::OutdatedOutputDependency { target: task_id }) {
-                // output dependency is outdated, so it hasn't read the output yet
-                // and doesn't need to be invalidated
                 #[cfg(feature = "trace_task_output_dependencies")]
                 span.record("result", "outdated dependency");
-                continue;
-            }
-            if !dependent.has_key(&CachedDataItemKey::OutputDependency { target: task_id }) {
+                // output dependency is outdated, so it hasn't read the output yet
+                // and doesn't need to be invalidated
+                // But importantly we still need to make the task dirty as it should no longer
+                // be considered as "recomputation".
+                make_stale = false;
+            } else if !dependent.has_key(&CachedDataItemKey::OutputDependency { target: task_id }) {
                 // output dependency has been removed, so the task doesn't depend on the
                 // output anymore and doesn't need to be invalidated
                 #[cfg(feature = "trace_task_output_dependencies")]
@@ -2191,7 +2207,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             make_task_dirty_internal(
                 dependent,
                 dependent_task_id,
-                true,
+                make_stale,
                 #[cfg(feature = "trace_task_dirty")]
                 TaskDirtyCause::OutputChange { task_id },
                 &mut queue,

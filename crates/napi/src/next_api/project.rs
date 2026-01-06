@@ -1,6 +1,7 @@
 use std::{borrow::Cow, io::Write, path::PathBuf, sync::Arc, thread, time::Duration};
 
 use anyhow::{Context, Result, anyhow, bail};
+use bincode::{Decode, Encode};
 use flate2::write::GzEncoder;
 use futures_util::TryFutureExt;
 use napi::{
@@ -29,7 +30,7 @@ use next_core::tracing_presets::{
 };
 use once_cell::sync::Lazy;
 use rand::Rng;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use tokio::{io::AsyncWriteExt, runtime::Handle, time::Instant};
 use tracing::Instrument;
 use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
@@ -1519,15 +1520,15 @@ pub fn project_compilation_events_subscribe(
 #[derive(
     Clone,
     Debug,
-    Deserialize,
     Eq,
     Hash,
     NonLocalValue,
     OperationValue,
     PartialEq,
-    Serialize,
     TaskInput,
     TraceRawVcs,
+    Encode,
+    Decode,
 )]
 pub struct StackFrame {
     pub is_server: bool,

@@ -1,6 +1,6 @@
 use std::mem::take;
 
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use smallvec::SmallVec;
 #[cfg(not(feature = "verify_determinism"))]
 use turbo_tasks::backend::VerificationMode;
@@ -20,7 +20,7 @@ use crate::{
     data::{CachedDataItem, CachedDataItemKey, CellRef},
 };
 
-#[derive(Serialize, Deserialize, Clone, Default)]
+#[derive(Encode, Decode, Clone, Default)]
 #[allow(clippy::large_enum_variant)]
 pub enum UpdateCellOperation {
     InvalidateWhenCellDependency {
@@ -165,12 +165,29 @@ impl UpdateCellOperation {
             in_progress.event.notify(usize::MAX);
         }
     }
+
+    fn is_serializable(&self) -> bool {
+        match self {
+            UpdateCellOperation::InvalidateWhenCellDependency {
+                is_serializable_cell_content,
+                ..
+            } => *is_serializable_cell_content,
+            UpdateCellOperation::FinalCellChange {
+                is_serializable_cell_content,
+                ..
+            } => *is_serializable_cell_content,
+            UpdateCellOperation::AggregationUpdate { .. } => true,
+            UpdateCellOperation::Done => true,
+        }
+    }
 }
 
 impl Operation for UpdateCellOperation {
     fn execute(mut self, ctx: &mut impl ExecuteContext) {
         loop {
-            ctx.operation_suspend_point(&self);
+            if self.is_serializable() {
+                ctx.operation_suspend_point(&self);
+            }
             match self {
                 UpdateCellOperation::InvalidateWhenCellDependency {
                     is_serializable_cell_content,
@@ -184,15 +201,17 @@ impl Operation for UpdateCellOperation {
                             // once tasks are never invalidated
                             continue;
                         }
+                        let mut make_stale = true;
                         let dependent = ctx.task(dependent_task_id, TaskDataCategory::All);
                         if dependent.has_key(&CachedDataItemKey::OutdatedCellDependency {
                             target: cell_ref,
                         }) {
                             // cell dependency is outdated, so it hasn't read the cell yet
-                            // and doesn't need to be invalidated
-                            continue;
-                        }
-                        if !dependent
+                            // and doesn't need to be invalidated.
+                            // But importantly we still need to make the task dirty as it should no
+                            // longer be considered as "recomputation".
+                            make_stale = false;
+                        } else if !dependent
                             .has_key(&CachedDataItemKey::CellDependency { target: cell_ref })
                         {
                             // cell dependency has been removed, so the task doesn't depend on the
@@ -203,7 +222,7 @@ impl Operation for UpdateCellOperation {
                         make_task_dirty_internal(
                             dependent,
                             dependent_task_id,
-                            true,
+                            make_stale,
                             #[cfg(feature = "trace_task_dirty")]
                             TaskDirtyCause::CellChange {
                                 value_type: cell_ref.cell.type_id,

@@ -1,6 +1,6 @@
 ---
 title: use cache
-description: Learn how to use the use cache directive to cache data in your Next.js application.
+description: Learn how to use the "use cache" directive to cache data in your Next.js application.
 related:
   title: Related
   description: View related API references.
@@ -517,6 +517,24 @@ export default function ClientComponent({ action }) {
 ```
 
 ## Troubleshooting
+
+### Debugging cache behavior
+
+#### Verbose logging
+
+Set `NEXT_PRIVATE_DEBUG_CACHE=1` for verbose cache logging:
+
+```bash
+NEXT_PRIVATE_DEBUG_CACHE=1 npm run dev
+# or for production
+NEXT_PRIVATE_DEBUG_CACHE=1 npm run start
+```
+
+> **Good to know:** This environment variable also logs ISR and other caching mechanisms. See [Verifying correct production behavior](/docs/app/guides/incremental-static-regeneration#verifying-correct-production-behavior) for more details.
+
+#### Console log replays
+
+In development, console logs from cached functions appear with a `Cache` prefix.
 
 ### Build Hangs (Cache Timeout)
 

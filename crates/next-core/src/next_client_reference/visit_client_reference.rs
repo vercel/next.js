@@ -1,7 +1,7 @@
 use std::future::Future;
 
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use tracing::{Instrument, Level, Span};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
@@ -30,12 +30,12 @@ use crate::{
     Eq,
     PartialEq,
     Hash,
-    Serialize,
-    Deserialize,
     Debug,
     ValueDebugFormat,
     TraceRawVcs,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub struct ClientReference {
     pub server_component: Option<ResolvedVc<NextServerComponentModule>>,
@@ -48,12 +48,12 @@ pub struct ClientReference {
     Eq,
     PartialEq,
     Hash,
-    Serialize,
-    Deserialize,
     Debug,
     ValueDebugFormat,
     TraceRawVcs,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub enum ClientReferenceType {
     EcmascriptClientReference(ResolvedVc<EcmascriptClientReferenceModule>),
@@ -86,7 +86,6 @@ pub async fn find_server_entries(
     async move {
         let emit_spans = tracing::enabled!(Level::INFO);
         let graph = AdjacencyMap::new()
-            .skip_duplicates()
             .visit(
                 vec![FindServerEntriesNode::Internal(
                     entry,
@@ -104,8 +103,7 @@ pub async fn find_server_entries(
                 },
             )
             .await
-            .completed()?
-            .into_inner();
+            .completed()?;
 
         let mut server_component_entries = vec![];
         let mut server_utils = vec![];
@@ -139,18 +137,7 @@ struct FindServerEntries {
     include_binding_usage: bool,
 }
 
-#[derive(
-    Clone,
-    Eq,
-    PartialEq,
-    Hash,
-    Serialize,
-    Deserialize,
-    Debug,
-    ValueDebugFormat,
-    TraceRawVcs,
-    NonLocalValue,
-)]
+#[derive(Clone, Eq, PartialEq, Hash, Debug, ValueDebugFormat, TraceRawVcs, NonLocalValue)]
 enum FindServerEntriesNode {
     ClientReference,
     ServerComponentEntry(
@@ -162,16 +149,15 @@ enum FindServerEntriesNode {
 }
 
 impl Visit<FindServerEntriesNode> for FindServerEntries {
-    type Edge = FindServerEntriesNode;
-    type EdgesIntoIter = Vec<Self::Edge>;
+    type EdgesIntoIter = Vec<(FindServerEntriesNode, ())>;
     type EdgesFuture = impl Future<Output = Result<Self::EdgesIntoIter>>;
 
-    fn visit(&mut self, edge: Self::Edge) -> VisitControlFlow<FindServerEntriesNode> {
-        match edge {
-            FindServerEntriesNode::Internal(..) => VisitControlFlow::Continue(edge),
+    fn visit(&mut self, node: &FindServerEntriesNode, _edge: Option<&()>) -> VisitControlFlow {
+        match node {
+            FindServerEntriesNode::Internal(..) => VisitControlFlow::Continue,
             FindServerEntriesNode::ClientReference
             | FindServerEntriesNode::ServerUtilEntry(..)
-            | FindServerEntriesNode::ServerComponentEntry(..) => VisitControlFlow::Skip(edge),
+            | FindServerEntriesNode::ServerComponentEntry(..) => VisitControlFlow::Skip,
         }
     }
 
@@ -213,29 +199,48 @@ impl Visit<FindServerEntriesNode> for FindServerEntries {
                         || ResolvedVc::try_downcast_type::<CssClientReferenceModule>(*module)
                             .is_some()
                     {
-                        return Ok(FindServerEntriesNode::ClientReference);
+                        return Ok((FindServerEntriesNode::ClientReference, ()));
                     }
 
                     if let Some(server_component_asset) =
                         ResolvedVc::try_downcast_type::<NextServerComponentModule>(*module)
                     {
-                        return Ok(FindServerEntriesNode::ServerComponentEntry(
-                            server_component_asset,
-                            if emit_spans {
-                                // INVALIDATION: we don't need to invalidate when the span name
-                                // changes
-                                Some(server_component_asset.ident_string().untracked().await?)
-                            } else {
-                                None
-                            },
+                        return Ok((
+                            FindServerEntriesNode::ServerComponentEntry(
+                                server_component_asset,
+                                if emit_spans {
+                                    // INVALIDATION: we don't need to invalidate when the span name
+                                    // changes
+                                    Some(server_component_asset.ident_string().untracked().await?)
+                                } else {
+                                    None
+                                },
+                            ),
+                            (),
                         ));
                     }
 
                     if let Some(server_util_module) =
                         ResolvedVc::try_downcast_type::<NextServerUtilityModule>(*module)
                     {
-                        return Ok(FindServerEntriesNode::ServerUtilEntry(
-                            server_util_module,
+                        return Ok((
+                            FindServerEntriesNode::ServerUtilEntry(
+                                server_util_module,
+                                if emit_spans {
+                                    // INVALIDATION: we don't need to invalidate when the span name
+                                    // changes
+                                    Some(module.ident_string().untracked().await?)
+                                } else {
+                                    None
+                                },
+                            ),
+                            (),
+                        ));
+                    }
+
+                    Ok((
+                        FindServerEntriesNode::Internal(
+                            *module,
                             if emit_spans {
                                 // INVALIDATION: we don't need to invalidate when the span name
                                 // changes
@@ -243,17 +248,8 @@ impl Visit<FindServerEntriesNode> for FindServerEntries {
                             } else {
                                 None
                             },
-                        ));
-                    }
-
-                    Ok(FindServerEntriesNode::Internal(
-                        *module,
-                        if emit_spans {
-                            // INVALIDATION: we don't need to invalidate when the span name changes
-                            Some(module.ident_string().untracked().await?)
-                        } else {
-                            None
-                        },
+                        ),
+                        (),
                     ))
                 });
 
@@ -263,9 +259,9 @@ impl Visit<FindServerEntriesNode> for FindServerEntries {
         }
     }
 
-    fn span(&mut self, node: &FindServerEntriesNode) -> tracing::Span {
+    fn span(&mut self, node: &FindServerEntriesNode, _edge: Option<&()>) -> tracing::Span {
         if !self.emit_spans {
-            return Span::current();
+            return Span::none();
         }
         match node {
             FindServerEntriesNode::ClientReference => {

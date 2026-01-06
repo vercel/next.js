@@ -13,6 +13,7 @@ use std::{
 
 use anyhow::{Result, anyhow};
 use auto_hash_map::AutoMap;
+use bincode::{Decode, Encode};
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 use tokio::{select, sync::mpsc::Receiver, task_local};
@@ -268,7 +269,7 @@ pub struct UpdateInfo {
     placeholder_for_future_fields: (),
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Serialize, Deserialize, Encode, Decode)]
 pub enum TaskPersistence {
     /// Tasks that may be persisted across sessions using serialization.
     Persistent,
@@ -1737,7 +1738,7 @@ pub(crate) async fn read_task_cell(
 ///
 /// Mutations should not outside of the task that that owns this cell. Doing so
 /// is a logic error, and may lead to incorrect caching behavior.
-#[derive(Clone, Copy, Serialize, Deserialize)]
+#[derive(Clone, Copy)]
 pub struct CurrentCellRef {
     current_task: TaskId,
     index: CellId,

@@ -5,6 +5,7 @@ use std::{
 };
 
 use anyhow::{Context, Result, bail};
+use bincode::{Decode, Encode};
 use either::Either;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
@@ -48,7 +49,10 @@ pub struct ModuleBatchesGraphEdge {
     pub module: Option<ResolvedVc<Box<dyn Module>>>,
 }
 
-type EntriesList = FxIndexSet<ResolvedVc<Box<dyn Module>>>;
+#[derive(Debug, Clone, TraceRawVcs, NonLocalValue, Encode, Decode)]
+struct EntriesList(
+    #[bincode(with = "turbo_bincode::indexset")] pub FxIndexSet<ResolvedVc<Box<dyn Module>>>,
+);
 
 #[turbo_tasks::value(cell = "new", eq = "manual")]
 pub struct ModuleBatchesGraph {
@@ -61,6 +65,7 @@ pub struct ModuleBatchesGraph {
     //
     // This contains Vcs, but they are already contained in the graph, so no need to trace this.
     #[turbo_tasks(trace_ignore)]
+    #[bincode(with_serde)]
     entries: FxHashMap<ResolvedVc<Box<dyn Module>>, NodeIndex>,
     batch_groups: FxHashMap<ModuleOrBatch, ResolvedVc<ModuleBatchGroup>>,
 
@@ -92,7 +97,7 @@ impl ModuleBatchesGraph {
         chunk_group_info: &'l ChunkGroupInfo,
         idx: usize,
     ) -> impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + 'l {
-        if let Some(ordered_entries) = self
+        if let Some(EntriesList(ordered_entries)) = self
             .ordered_entries
             .get(idx)
             .as_ref()
@@ -284,7 +289,7 @@ impl PreBatches {
             this: self,
         };
         let mut visited = FxHashSet::default();
-        module_graph.traverse_edges_from_entries_dfs(
+        module_graph.traverse_edges_dfs(
             std::iter::once(entry),
             &mut state,
             |parent_info, node, state| {
@@ -350,7 +355,7 @@ pub async fn compute_module_batches(
 
         // Walk the module graph and mark all modules that are boundary modules (referenced from a
         // different chunk group bitmap)
-        module_graph.traverse_all_edges_unordered(|parent, node| {
+        module_graph.traverse_edges_unordered(|parent, node| {
             if let Some((parent, ty)) = parent {
                 let std::collections::hash_set::Entry::Vacant(entry) =
                     pre_batches.boundary_modules.entry(node)
@@ -446,7 +451,7 @@ pub async fn compute_module_batches(
                 .as_ref()
                 .map_or_else(
                     || Either::Left(chunk_group.entries()),
-                    |v| Either::Right(v.iter().copied()),
+                    |v| Either::Right(v.0.iter().copied()),
                 )
                 .map(|module| {
                     let idx = *pre_batches
@@ -505,7 +510,7 @@ pub async fn compute_module_batches(
                         .chunk_group_keys
                         .get_index_of(&chunk_group_key)
                         .context("could not find chunk group key for merged chunk group")?;
-                    ordered_entries[idx] = Some(merged_modules);
+                    ordered_entries[idx] = Some(EntriesList(merged_modules));
                 }
             }
         }

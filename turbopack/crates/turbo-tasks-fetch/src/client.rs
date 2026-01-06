@@ -2,23 +2,14 @@ use std::{hash::Hash, sync::LazyLock};
 
 use anyhow::Result;
 use quick_cache::sync::Cache;
-use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{
-    NonLocalValue, ReadRef, Vc, duration_span, mark_session_dependent, trace::TraceRawVcs,
-};
+use turbo_tasks::{ReadRef, Vc, duration_span, mark_session_dependent};
 
 use crate::{FetchError, FetchResult, HttpResponse, HttpResponseBody};
 
 const MAX_CLIENTS: usize = 16;
 static CLIENT_CACHE: LazyLock<Cache<ReadRef<FetchClientConfig>, reqwest::Client>> =
     LazyLock::new(|| Cache::new(MAX_CLIENTS));
-
-#[derive(Hash, PartialEq, Eq, Serialize, Deserialize, NonLocalValue, Debug, TraceRawVcs)]
-pub enum ProxyConfig {
-    Http(RcStr),
-    Https(RcStr),
-}
 
 /// Represents the configuration needed to construct a [`reqwest::Client`].
 ///

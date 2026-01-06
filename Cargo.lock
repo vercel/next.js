@@ -394,6 +394,7 @@ checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
 name = "auto-hash-map"
 version = "0.1.0"
 dependencies = [
+ "bincode 2.0.1",
  "hashbrown 0.14.5",
  "rustc-hash 2.1.1",
  "serde",
@@ -3642,6 +3643,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "libmimalloc-sys"
+version = "0.1.44"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "667f4fec20f29dfc6bc7357c582d91796c169ad7e2fce709468aefeb2c099870"
+dependencies = [
+ "cc",
+ "cty",
+ "libc",
+]
+
+[[package]]
 name = "libunwind"
 version = "1.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3996,12 +4008,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "mimalloc-rspack"
-version = "0.2.4"
+name = "mimalloc"
+version = "0.1.48"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "de20bb33bf95d9c060030d53bcb5d5dc03cbbedfbd1dcda5f6f285b946dae2c0"
+checksum = "e1ee66a4b64c74f4ef288bcbb9192ad9c3feaad75193129ac8509af543894fd8"
 dependencies = [
- "rspack-libmimalloc-sys",
+ "libmimalloc-sys",
 ]
 
 [[package]]
@@ -4261,6 +4273,7 @@ name = "next-api"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bincode 2.0.1",
  "byteorder",
  "either",
  "futures",
@@ -4275,6 +4288,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "tracing",
+ "turbo-bincode",
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-backend",
@@ -4337,6 +4351,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "base64 0.21.4",
+ "bincode 2.0.1",
  "either",
  "futures",
  "indexmap 2.9.0",
@@ -4361,6 +4376,7 @@ dependencies = [
  "swc_sourcemap",
  "thiserror 1.0.69",
  "tracing",
+ "turbo-bincode",
  "turbo-esregex",
  "turbo-rcstr",
  "turbo-tasks",
@@ -4425,6 +4441,7 @@ name = "next-swc-napi"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "bincode 2.0.1",
  "console-subscriber",
  "dhat",
  "either",
@@ -4505,6 +4522,12 @@ dependencies = [
  "cfg_aliases",
  "libc",
 ]
+
+[[package]]
+name = "nohash-hasher"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2bf50223579dc7cdcfb3bfcacf7069ff68243f8c363f62ffa99cf000a6b9c451"
 
 [[package]]
 name = "nom"
@@ -6031,17 +6054,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rspack-libmimalloc-sys"
-version = "0.2.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4c741844b1fbe0cfbae8dfeb73b5e5fdc95daf7be58bdd72afb3fd85c86bccdb"
-dependencies = [
- "cc",
- "cty",
- "libc",
-]
-
-[[package]]
 name = "rstest"
 version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6531,15 +6543,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde_test"
-version = "1.0.177"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f901ee573cab6b3060453d2d5f0bae4e6d628c23c0a962ff9b5f1d7c8d4f1ed"
-dependencies = [
- "serde",
-]
-
-[[package]]
 name = "serde_urlencoded"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6762,7 +6765,9 @@ version = "1.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "67b1b7a3b5fe4f1376887184045fcf45c69e92af734b7aaddc05fb777b6fbd03"
 dependencies = [
+ "bincode 2.0.1",
  "serde",
+ "unty",
 ]
 
 [[package]]
@@ -9094,7 +9099,6 @@ dependencies = [
  "mime",
  "ringmap",
  "serde",
- "serde_json",
  "smallvec",
  "unty",
 ]
@@ -9108,11 +9112,19 @@ name = "turbo-esregex"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bincode 2.0.1",
  "regex",
  "regress",
- "serde",
- "serde_json",
  "turbo-tasks",
+]
+
+[[package]]
+name = "turbo-frozenmap"
+version = "0.1.0"
+dependencies = [
+ "bincode 2.0.1",
+ "indexmap 2.9.0",
+ "serde",
 ]
 
 [[package]]
@@ -9120,11 +9132,15 @@ name = "turbo-persistence"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bincode 2.0.1",
+ "bitfield",
  "byteorder",
+ "dashmap 6.1.0",
  "either",
  "jiff",
  "lzzzz",
  "memmap2 0.9.5",
+ "nohash-hasher",
  "parking_lot",
  "pot",
  "qfilter",
@@ -9136,6 +9152,7 @@ dependencies = [
  "tempfile",
  "thread_local",
  "tracing",
+ "turbo-bincode",
  "twox-hash 2.1.0",
  "zstd",
 ]
@@ -9156,6 +9173,7 @@ version = "0.1.0"
 name = "turbo-rcstr"
 version = "0.1.0"
 dependencies = [
+ "bincode 2.0.1",
  "bytes-str",
  "codspeed-criterion-compat",
  "napi",
@@ -9195,6 +9213,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "auto-hash-map",
+ "bincode 2.0.1",
  "codspeed-criterion-compat",
  "concurrent-queue",
  "dashmap 6.1.0",
@@ -9219,7 +9238,9 @@ dependencies = [
  "tokio-util",
  "tracing",
  "triomphe 0.1.12",
+ "turbo-bincode",
  "turbo-dyn-eq-hash",
+ "turbo-frozenmap",
  "turbo-rcstr",
  "turbo-tasks-hash",
  "turbo-tasks-macros",
@@ -9234,6 +9255,7 @@ dependencies = [
  "anyhow",
  "arc-swap",
  "auto-hash-map",
+ "bincode 2.0.1",
  "bitfield",
  "byteorder",
  "codspeed-criterion-compat",
@@ -9245,7 +9267,6 @@ dependencies = [
  "lmdb-rkv",
  "once_cell",
  "parking_lot",
- "pot",
  "rand 0.9.0",
  "regex",
  "ringmap",
@@ -9259,6 +9280,7 @@ dependencies = [
  "thread_local",
  "tokio",
  "tracing",
+ "turbo-bincode",
  "turbo-persistence",
  "turbo-rcstr",
  "turbo-tasks",
@@ -9273,6 +9295,7 @@ dependencies = [
  "afl",
  "anyhow",
  "arbitrary",
+ "bincode 2.0.1",
  "libfuzzer-sys",
  "once_cell",
  "serde",
@@ -9287,11 +9310,10 @@ name = "turbo-tasks-bytes"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bincode 2.0.1",
  "bytes",
  "futures",
  "serde",
- "serde_bytes",
- "serde_test",
  "turbo-tasks",
 ]
 
@@ -9301,6 +9323,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "dotenvs",
+ "turbo-bincode",
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-fs",
@@ -9331,6 +9354,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "auto-hash-map",
+ "bincode 2.0.1",
  "bitflags 1.3.2",
  "bytes",
  "codspeed-criterion-compat",
@@ -9348,7 +9372,6 @@ dependencies = [
  "rstest",
  "rustc-hash 2.1.1",
  "serde",
- "serde_bytes",
  "serde_json",
  "serde_path_to_error",
  "sha2",
@@ -9356,6 +9379,7 @@ dependencies = [
  "tokio",
  "tracing",
  "triomphe 0.1.12",
+ "turbo-bincode",
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-backend",
@@ -9407,6 +9431,7 @@ name = "turbo-tasks-macros-tests"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bincode 2.0.1",
  "serde",
  "tokio",
  "trybuild",
@@ -9419,8 +9444,7 @@ dependencies = [
 name = "turbo-tasks-malloc"
 version = "0.1.0"
 dependencies = [
- "mimalloc-rspack",
- "rspack-libmimalloc-sys",
+ "mimalloc",
 ]
 
 [[package]]
@@ -9446,6 +9470,7 @@ name = "turbopack"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bincode 2.0.1",
  "either",
  "regex",
  "rustc-hash 2.1.1",
@@ -9478,6 +9503,8 @@ name = "turbopack-analyze"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bincode 2.0.1",
+ "flate2",
  "rustc-hash 2.1.1",
  "serde",
  "serde_json",
@@ -9521,12 +9548,14 @@ name = "turbopack-browser"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bincode 2.0.1",
  "either",
  "indoc",
  "serde",
  "serde_json",
  "serde_qs",
  "tracing",
+ "turbo-bincode",
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-fs",
@@ -9543,6 +9572,7 @@ name = "turbopack-cli"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bincode 2.0.1",
  "clap",
  "codspeed-criterion-compat",
  "console-subscriber",
@@ -9604,6 +9634,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "auto-hash-map",
+ "bincode 2.0.1",
  "bitfield",
  "browserslist-rs",
  "bytes-str",
@@ -9620,13 +9651,15 @@ dependencies = [
  "rstest",
  "rustc-hash 2.1.1",
  "serde",
- "serde_bytes",
  "serde_json",
  "smallvec",
  "swc_core",
  "swc_sourcemap",
+ "tempfile",
  "tokio",
  "tracing",
+ "turbo-bincode",
+ "turbo-frozenmap",
  "turbo-prehash",
  "turbo-rcstr",
  "turbo-tasks",
@@ -9659,6 +9692,7 @@ name = "turbopack-css"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bincode 2.0.1",
  "indoc",
  "lightningcss",
  "parcel_selectors",
@@ -9669,6 +9703,7 @@ dependencies = [
  "swc_core",
  "tokio",
  "tracing",
+ "turbo-bincode",
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-fs",
@@ -9683,6 +9718,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "auto-hash-map",
+ "bincode 2.0.1",
  "flate2",
  "futures",
  "hyper 0.14.32",
@@ -9700,6 +9736,7 @@ dependencies = [
  "tokio-stream",
  "tokio-util",
  "tracing",
+ "turbo-bincode",
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-backend",
@@ -9720,6 +9757,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "auto-hash-map",
+ "bincode 2.0.1",
  "bytes-str",
  "codspeed-criterion-compat",
  "dashmap 6.1.0",
@@ -9733,6 +9771,7 @@ dependencies = [
  "once_cell",
  "parking_lot",
  "petgraph 0.8.3",
+ "phf",
  "regex",
  "rustc-hash 2.1.1",
  "serde",
@@ -9743,6 +9782,7 @@ dependencies = [
  "swc_sourcemap",
  "tokio",
  "tracing",
+ "turbo-bincode",
  "turbo-esregex",
  "turbo-rcstr",
  "turbo-tasks",
@@ -9775,6 +9815,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "bincode 2.0.1",
  "indexmap 2.9.0",
  "rustc-hash 2.1.1",
  "serde",
@@ -9827,13 +9868,14 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "base64 0.21.4",
+ "bincode 2.0.1",
  "image",
  "mime",
  "once_cell",
  "regex",
  "rustc-hash 2.1.1",
  "serde",
- "serde_with",
+ "turbo-bincode",
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-fs",
@@ -9860,6 +9902,7 @@ dependencies = [
  "anyhow",
  "markdown",
  "mdxjs",
+ "serde",
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-fs",
@@ -9902,6 +9945,7 @@ dependencies = [
  "async-stream",
  "async-trait",
  "base64 0.21.4",
+ "bincode 2.0.1",
  "const_format",
  "either",
  "futures",
@@ -9917,6 +9961,7 @@ dependencies = [
  "serde_with",
  "tokio",
  "tracing",
+ "turbo-bincode",
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-bytes",
@@ -9933,8 +9978,10 @@ name = "turbopack-nodejs"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bincode 2.0.1",
  "indoc",
  "tracing",
+ "turbo-bincode",
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-fs",
@@ -9992,6 +10039,7 @@ name = "turbopack-test-utils"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bincode 2.0.1",
  "once_cell",
  "regex",
  "rustc-hash 2.1.1",
@@ -10010,6 +10058,7 @@ name = "turbopack-tests"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bincode 2.0.1",
  "dunce",
  "once_cell",
  "rustc-hash 2.1.1",
@@ -10109,6 +10158,7 @@ name = "turbopack-wasm"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bincode 2.0.1",
  "indoc",
  "serde",
  "turbo-rcstr",
@@ -10465,8 +10515,7 @@ dependencies = [
 [[package]]
 name = "virtue"
 version = "0.0.18"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "051eb1abcf10076295e815102942cc58f9d5e3b4560e46e53c21e8ff6f3af7b1"
+source = "git+https://github.com/bgw/virtue.git?branch=bgw%2Ffix-generic-default-parsing#e386f35cf7f22d04a4db32231904cbe5dc52c01d"
 
 [[package]]
 name = "vlq"

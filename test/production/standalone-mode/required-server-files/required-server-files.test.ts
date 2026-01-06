@@ -44,6 +44,9 @@ describe('required server files', () => {
               : 'middleware.js'
           )
         ),
+        'instrumentation.js': new FileRef(
+          join(__dirname, 'instrumentation.js')
+        ),
         'cache-handler.js': new FileRef(join(__dirname, 'cache-handler.js')),
         'data.txt': new FileRef(join(__dirname, 'data.txt')),
         '.env': new FileRef(join(__dirname, '.env')),
@@ -84,8 +87,11 @@ describe('required server files', () => {
           }
         },
       },
+      skipStart: true,
     })
-    await next.stop()
+
+    let { exitCode } = await next.build()
+    expect(exitCode).toBe(0)
 
     requiredFilesManifest = JSON.parse(
       await next.readFile('.next/required-server-files.json')
@@ -214,16 +220,18 @@ describe('required server files', () => {
       path: '/optional-ssg/redirect-1',
       dest: '/somewhere',
       cacheControl: 's-maxage=31536000',
+      cdnCacheControl: 'max-age=31536000',
     },
     {
       case: 'redirect with revalidate',
       path: '/optional-ssg/redirect-2',
       dest: '/somewhere-else',
-      cacheControl: 's-maxage=5, stale-while-revalidate=31535995',
+      cacheControl: 's-maxage=5',
+      cdnCacheControl: 'max-age=5, stale-while-revalidate=31535995',
     },
   ])(
     `should have correct cache-control for $case`,
-    async ({ path, dest, cacheControl }) => {
+    async ({ path, dest, cacheControl, cdnCacheControl }) => {
       const res = await fetchViaHTTP(appPort, path, undefined, {
         redirect: 'manual',
       })
@@ -232,6 +240,7 @@ describe('required server files', () => {
         dest
       )
       expect(res.headers.get('cache-control')).toBe(cacheControl)
+      expect(res.headers.get('cdn-cache-control')).toBe(cdnCacheControl)
 
       const dataRes = await fetchViaHTTP(
         appPort,
@@ -242,10 +251,12 @@ describe('required server files', () => {
         }
       )
       expect(dataRes.headers.get('cache-control')).toBe(cacheControl)
+      expect(dataRes.headers.get('cdn-cache-control')).toBe(cdnCacheControl)
       expect((await dataRes.json()).pageProps).toEqual({
         __N_REDIRECT: dest,
         __N_REDIRECT_STATUS: 307,
       })
+      expect(dataRes.headers.get('cache-control')).toBe(cacheControl)
     }
   )
 
@@ -291,21 +302,24 @@ describe('required server files', () => {
       path: '/optional-ssg/not-found-1',
       dest: '/somewhere',
       cacheControl: 's-maxage=31536000',
+      cdnCacheControl: 'max-age=31536000',
     },
     {
       case: 'notFound with revalidate',
       path: '/optional-ssg/not-found-2',
       dest: '/somewhere-else',
-      cacheControl: 's-maxage=5, stale-while-revalidate=31535995',
+      cacheControl: 's-maxage=5',
+      cdnCacheControl: 'max-age=5, stale-while-revalidate=31535995',
     },
   ])(
     `should have correct cache-control for $case`,
-    async ({ path, dest, cacheControl }) => {
+    async ({ path, dest, cacheControl, cdnCacheControl }) => {
       const res = await fetchViaHTTP(appPort, path, undefined, {
         redirect: 'manual',
       })
       expect(res.status).toBe(404)
       expect(res.headers.get('cache-control')).toBe(cacheControl)
+      expect(res.headers.get('cdn-cache-control')).toBe(cdnCacheControl)
 
       const dataRes = await fetchViaHTTP(
         appPort,
@@ -316,6 +330,7 @@ describe('required server files', () => {
         }
       )
       expect(dataRes.headers.get('cache-control')).toBe(cacheControl)
+      expect(dataRes.headers.get('cdn-cache-control')).toBe(cdnCacheControl)
     }
   )
 
@@ -323,6 +338,7 @@ describe('required server files', () => {
     const res = await fetchViaHTTP(appPort, '/optional-ssg/props-no-revalidate')
     expect(res.status).toBe(200)
     expect(res.headers.get('cache-control')).toBe('s-maxage=31536000')
+    expect(res.headers.get('cdn-cache-control')).toBe('max-age=31536000')
     const $ = cheerio.load(await res.text())
     expect(JSON.parse($('#props').text()).params).toEqual({
       rest: ['props-no-revalidate'],
@@ -335,6 +351,7 @@ describe('required server files', () => {
     )
     expect(dataRes.status).toBe(200)
     expect(res.headers.get('cache-control')).toBe('s-maxage=31536000')
+    expect(res.headers.get('cdn-cache-control')).toBe('max-age=31536000')
     expect((await dataRes.json()).pageProps.params).toEqual({
       rest: ['props-no-revalidate'],
     })
@@ -415,6 +432,12 @@ describe('required server files', () => {
     expect(typeof requiredFilesManifest.appDir).toBe('string')
     // not in a monorepo so relative app dir is empty string
     expect(requiredFilesManifest.relativeAppDir).toBe('')
+
+    expect(
+      requiredFilesManifest.files.filter(
+        (f) => !fs.pathExistsSync(join(next.testDir, 'standalone', f))
+      )
+    ).toBeEmpty()
   })
 
   it('should de-dupe HTML/data requests', async () => {
@@ -521,8 +544,9 @@ describe('required server files', () => {
       redirect: 'manual',
     })
     expect(res.status).toBe(200)
-    expect(res.headers.get('cache-control')).toBe(
-      's-maxage=1, stale-while-revalidate=31535999'
+    expect(res.headers.get('cache-control')).toBe('s-maxage=1')
+    expect(res.headers.get('cdn-cache-control')).toBe(
+      'max-age=1, stale-while-revalidate=31535999'
     )
 
     await waitFor(2000)
@@ -532,8 +556,9 @@ describe('required server files', () => {
       redirect: 'manual',
     })
     expect(res2.status).toBe(404)
-    expect(res2.headers.get('cache-control')).toBe(
-      's-maxage=1, stale-while-revalidate=31535999'
+    expect(res2.headers.get('cache-control')).toBe('s-maxage=1')
+    expect(res2.headers.get('cdn-cache-control')).toBe(
+      'max-age=1, stale-while-revalidate=31535999'
     )
   })
 

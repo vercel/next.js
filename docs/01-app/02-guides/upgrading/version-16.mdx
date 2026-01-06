@@ -363,8 +363,8 @@ export async function generateSitemaps() {
 
 // Next.js 16 - asynchronous id access
 export default async function sitemap({ id }) {
-  const resolvedId = await id // id is now Promise<number>
-  const start = resolvedId * 50000
+  const resolvedId = await id // id is now Promise<string>
+  const start = Number(resolvedId) * 50000
   // ...
 }
 ```

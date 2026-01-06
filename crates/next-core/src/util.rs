@@ -1,13 +1,12 @@
 use std::{fmt::Display, str::FromStr};
 
 use anyhow::{Result, anyhow, bail};
+use bincode::{Decode, Encode};
 use next_taskless::{expand_next_js_template, expand_next_js_template_no_imports};
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use serde::{Deserialize, de::DeserializeOwned};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, NonLocalValue, TaskInput, Vc, trace::TraceRawVcs};
-use turbo_tasks_fs::{
-    self, File, FileContent, FileJsonContent, FileSystem, FileSystemPath, rope::Rope,
-};
+use turbo_tasks_fs::{File, FileContent, FileJsonContent, FileSystem, FileSystemPath, rope::Rope};
 use turbopack::module_options::RuleCondition;
 use turbopack_core::{
     asset::AssetContent,
@@ -27,7 +26,11 @@ const NEXT_TEMPLATE_PATH: &str = "dist/esm/build/templates";
 /// As opposed to [`EnvMap`], this map allows for `None` values, which means that the variables
 /// should be replace with undefined.
 #[turbo_tasks::value(transparent)]
-pub struct OptionEnvMap(#[turbo_tasks(trace_ignore)] FxIndexMap<RcStr, Option<RcStr>>);
+pub struct OptionEnvMap(
+    #[turbo_tasks(trace_ignore)]
+    #[bincode(with = "turbo_bincode::indexmap")]
+    FxIndexMap<RcStr, Option<RcStr>>,
+);
 
 pub fn defines(define_env: &FxIndexMap<RcStr, Option<RcStr>>) -> CompileTimeDefines {
     let mut defines = FxIndexMap::default();
@@ -55,9 +58,7 @@ pub fn defines(define_env: &FxIndexMap<RcStr, Option<RcStr>>) -> CompileTimeDefi
     CompileTimeDefines(defines)
 }
 
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, TaskInput, Serialize, Deserialize, TraceRawVcs,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, Encode, Decode)]
 pub enum PathType {
     PagesPage,
     PagesApi,
@@ -191,13 +192,14 @@ pub fn pages_function_name(page: impl Display) -> String {
     Copy,
     Debug,
     TraceRawVcs,
-    Serialize,
     Deserialize,
     Hash,
     PartialOrd,
     Ord,
     TaskInput,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "lowercase")]
 pub enum NextRuntime {
@@ -228,7 +230,7 @@ impl NextRuntime {
     }
 }
 
-#[derive(PartialEq, Eq, Clone, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
+#[derive(PartialEq, Eq, Clone, Debug, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub enum MiddlewareMatcherKind {
     Str(String),
     Matcher(ProxyMatcher),
@@ -236,12 +238,12 @@ pub enum MiddlewareMatcherKind {
 
 /// Loads a next.js template, replaces `replacements` and `injections` and makes
 /// sure there are none left over.
-pub async fn load_next_js_template(
-    template_path: &str,
+pub async fn load_next_js_template<'b>(
+    template_path: &'b str,
     project_path: FileSystemPath,
-    replacements: &[(&str, &str)],
-    injections: &[(&str, &str)],
-    imports: &[(&str, Option<&str>)],
+    replacements: impl IntoIterator<Item = (&'b str, &'b str)>,
+    injections: impl IntoIterator<Item = (&'b str, &'b str)>,
+    imports: impl IntoIterator<Item = (&'b str, Option<&'b str>)>,
 ) -> Result<Vc<Box<dyn Source>>> {
     let template_path = virtual_next_js_template_path(project_path.clone(), template_path).await?;
 
@@ -254,9 +256,9 @@ pub async fn load_next_js_template(
         &content,
         &template_path.path,
         &package_root.path,
-        replacements.iter().copied(),
-        injections.iter().copied(),
-        imports.iter().copied(),
+        replacements,
+        injections,
+        imports,
     )?;
 
     let file = File::from(content);

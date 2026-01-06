@@ -107,7 +107,9 @@ pub struct ExpandedOutputAssets(Vec<ResolvedVc<Box<dyn OutputAsset>>>);
 
 /// A set of [OutputAsset]s
 #[turbo_tasks::value(transparent)]
-pub struct OutputAssetsSet(FxIndexSet<ResolvedVc<Box<dyn OutputAsset>>>);
+pub struct OutputAssetsSet(
+    #[bincode(with = "turbo_bincode::indexset")] FxIndexSet<ResolvedVc<Box<dyn OutputAsset>>>,
+);
 
 #[turbo_tasks::value(shared)]
 #[derive(Clone)]
@@ -264,13 +266,11 @@ pub async fn expand_output_assets(
     inner_output_assets: bool,
 ) -> Result<Vec<ResolvedVc<Box<dyn OutputAsset>>>> {
     let edges = AdjacencyMap::new()
-        .skip_duplicates()
         .visit(inputs, async |input| {
             get_referenced_assets(inner_output_assets, input).await
         })
         .await
         .completed()?
-        .into_inner()
         .into_postorder_topological();
 
     let mut assets = Vec::new();

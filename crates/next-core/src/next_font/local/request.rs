@@ -1,3 +1,4 @@
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
@@ -21,10 +22,11 @@ pub(super) struct NextFontLocalRequest {
     Ord,
     Hash,
     TaskInput,
-    Serialize,
     Deserialize,
     TraceRawVcs,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub(super) struct NextFontLocalDeclaration {
     pub prop: RcStr,
@@ -79,6 +81,8 @@ pub(super) struct SrcDescriptor {
     TraceRawVcs,
     NonLocalValue,
     TaskInput,
+    Encode,
+    Decode,
 )]
 pub(super) enum AdjustFontFallback {
     Arial,
