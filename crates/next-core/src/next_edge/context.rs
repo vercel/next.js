@@ -27,10 +27,7 @@ use crate::{
     next_font::local::NextFontLocalResolvePlugin,
     next_import_map::{get_next_edge_and_server_fallback_import_map, get_next_edge_import_map},
     next_server::context::ServerContextType,
-    next_shared::resolve::{
-        ModuleFeatureReportResolvePlugin, NextSharedRuntimeResolvePlugin,
-        get_invalid_client_only_resolve_plugin, get_invalid_styled_jsx_resolve_plugin,
-    },
+    next_shared::resolve::{ModuleFeatureReportResolvePlugin, NextSharedRuntimeResolvePlugin},
     util::{
         NextRuntime, OptionEnvMap, defines, foreign_code_context_condition,
         free_var_references_with_vercel_system_env_warnings, worker_forwarded_globals,
@@ -129,25 +126,6 @@ pub async fn get_edge_resolve_options_context(
                 .await?,
         ));
     };
-
-    if matches!(
-        ty,
-        ServerContextType::AppRSC { .. }
-            | ServerContextType::AppRoute { .. }
-            | ServerContextType::Middleware { .. }
-            | ServerContextType::Instrumentation { .. }
-    ) {
-        before_resolve_plugins.push(ResolvedVc::upcast(
-            get_invalid_client_only_resolve_plugin(project_path.clone())
-                .to_resolved()
-                .await?,
-        ));
-        before_resolve_plugins.push(ResolvedVc::upcast(
-            get_invalid_styled_jsx_resolve_plugin(project_path.clone())
-                .to_resolved()
-                .await?,
-        ));
-    }
 
     let after_resolve_plugins = vec![ResolvedVc::upcast(
         NextSharedRuntimeResolvePlugin::new(project_path.clone())
