@@ -110,6 +110,7 @@ function runTests(url: string, mode: 'dev' | 'server') {
           loaderFile: '',
           remotePatterns: [],
           localPatterns: undefined,
+          maximumResponseBody: 300000000,
           minimumCacheTTL: 60,
           path: '/_next/image',
           qualities: undefined,

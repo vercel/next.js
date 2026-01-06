@@ -30,6 +30,7 @@
     "disableStaticImages": false,
     "minimumCacheTTL": 60,
     "formats": ["image/avif", "image/webp"],
+    "maximumResponseBody": 300000000,
     "dangerouslyAllowSVG": false,
     "contentSecurityPolicy": "script-src 'none'; frame-src 'none'; sandbox;",
     "contentDispositionType": "inline",

@@ -786,7 +786,10 @@ export default class NextNodeServer extends BaseServer<
       const { isAbsolute, href } = paramsResult
 
       const imageUpstream = isAbsolute
-        ? await fetchExternalImage(href)
+        ? await fetchExternalImage(
+            href,
+            this.nextConfig.images.maximumResponseBody
+          )
         : await fetchInternalImage(
             href,
             req.originalRequest,

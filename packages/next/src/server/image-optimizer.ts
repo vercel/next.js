@@ -694,7 +694,10 @@ export async function optimizeImage({
   return optimizedBuffer
 }
 
-export async function fetchExternalImage(href: string): Promise<ImageUpstream> {
+export async function fetchExternalImage(
+  href: string,
+  maximumResponseBody: number
+): Promise<ImageUpstream> {
   const res = await fetch(href, {
     signal: AbortSignal.timeout(7_000),
   }).catch((err) => err as Error)
@@ -719,7 +722,35 @@ export async function fetchExternalImage(href: string): Promise<ImageUpstream> {
     )
   }
 
-  const buffer = Buffer.from(await res.arrayBuffer())
+  if (!res.body) {
+    Log.error('upstream image response is empty for', href)
+    throw new ImageError(
+      400,
+      '"url" parameter is valid but upstream response is invalid'
+    )
+  }
+
+  const chunks: Buffer[] = []
+  let totalSize = 0
+
+  for await (const c of res.body) {
+    const chunk = Buffer.from(c)
+    totalSize += chunk.byteLength
+    if (totalSize > maximumResponseBody) {
+      Log.error(
+        'upstream image response exceeded maximum size for',
+        href,
+        totalSize
+      )
+      throw new ImageError(
+        413,
+        '"url" parameter is valid but upstream response is invalid'
+      )
+    }
+    chunks.push(chunk)
+  }
+
+  const buffer = Buffer.concat(chunks)
   const contentType = res.headers.get('Content-Type')
   const cacheControl = res.headers.get('Cache-Control')
   const etag = extractEtag(res.headers.get('ETag'), buffer)
