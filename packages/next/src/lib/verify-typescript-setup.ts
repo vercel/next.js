@@ -37,6 +37,7 @@ export async function verifyTypeScriptSetup({
   dir,
   distDir,
   cacheDir,
+  strictRouteTypes,
   tsconfigPath,
   typeCheckPreflight,
   disableStaticImages,
@@ -50,6 +51,7 @@ export async function verifyTypeScriptSetup({
   dir: string
   distDir: string
   cacheDir?: string
+  strictRouteTypes: boolean
   tsconfigPath: string | undefined
   typeCheckPreflight: boolean
   disableStaticImages: boolean
@@ -136,7 +138,8 @@ export async function verifyTypeScriptSetup({
       hasAppDir,
       distDir,
       hasPagesDir,
-      isolatedDevBuild
+      isolatedDevBuild,
+      strictRouteTypes
     )
     // Write out the necessary `next-env.d.ts` file to correctly register
     // Next.js' types:
