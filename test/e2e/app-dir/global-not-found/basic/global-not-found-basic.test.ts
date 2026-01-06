@@ -55,15 +55,16 @@ describe('global-not-found - basic', () => {
 
     // Should render global-not-found content without changing URL
     await retry(async () => {
-      expect(await browser.elementByCss('#global-error-title').text()).toBe(
-        'global-not-found'
-      )
-      expect(
-        await browser.elementByCss('html').getAttribute('data-global-not-found')
-      ).toBe('true')
-      // URL should remain unchanged
-      expect(await browser.url()).toContain('/client-trigger')
+      await browser.waitForElementByCss('#global-error-title')
     })
+    expect(await browser.elementByCss('#global-error-title').text()).toBe(
+      'global-not-found'
+    )
+    expect(
+      await browser.elementByCss('html').getAttribute('data-global-not-found')
+    ).toBe('true')
+    // URL should remain unchanged
+    expect(await browser.url()).toContain('/client-trigger')
   })
 
   it('should allow notFound() in layout when globalNotFound is enabled', async () => {
