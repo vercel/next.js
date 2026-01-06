@@ -6,7 +6,6 @@
     "run": "./scripts/run.sh"
   },
   "worktree": {
-    "base_path": "../next.js-worktrees",
     "default_branch": "canary"
   },
   "environment": {
