@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="daa7096d-88eb-4aef-8d70-6aae41560fce")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="ae0c8767-ff94-abb9-fa13-d8c5ded28f9e")}catch(e){}}();
 (globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push([
     "output/ba425_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0151fefb.js",
     {"otherChunks":["output/aaf3a_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0b8736b3.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -515,7 +515,7 @@ function applyModuleFactoryName(factory) {
 }
 /**
  * This file contains runtime types and functions that are shared between all
- * Turbopack *development* ECMAScript runtimes.
+ * Turbopack *browser* ECMAScript runtimes.
  *
  * It will be appended to the runtime code of each runtime right after the
  * shared runtime utils.
@@ -1595,12 +1595,15 @@ function registerChunk(registration) {
 }
 globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS ??= [];
 /**
- * This file contains the runtime code specific to the Turbopack development
- * ECMAScript DOM runtime.
+ * This file contains the runtime code specific to the Turbopack ECMAScript DOM runtime.
  *
- * It will be appended to the base development runtime code.
+ * It will be appended to the base runtime code.
  */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../../../browser/runtime/base/runtime-base.ts" />
 /// <reference path="../../../shared/runtime-types.d.ts" />
+function getChunkSuffixFromScriptSrc() {
+    // TURBOPACK_CHUNK_SUFFIX is set in web workers
+    return (self.TURBOPACK_CHUNK_SUFFIX ?? document?.currentScript?.getAttribute?.('src')?.replace(/^(.*(?=\?)|^.*$)/, '')) || '';
+}
 let BACKEND;
 /**
  * Maps chunk paths to the corresponding resolver.
@@ -1858,5 +1861,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=daa7096d-88eb-4aef-8d70-6aae41560fce
+//# debugId=ae0c8767-ff94-abb9-fa13-d8c5ded28f9e
 //# sourceMappingURL=aaf3a_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0151fefb.js.map

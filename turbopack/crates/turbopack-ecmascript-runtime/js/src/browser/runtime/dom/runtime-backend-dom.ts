@@ -1,14 +1,24 @@
 /**
- * This file contains the runtime code specific to the Turbopack development
- * ECMAScript DOM runtime.
+ * This file contains the runtime code specific to the Turbopack ECMAScript DOM runtime.
  *
- * It will be appended to the base development runtime code.
+ * It will be appended to the base runtime code.
  */
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 /// <reference path="../../../browser/runtime/base/runtime-base.ts" />
 /// <reference path="../../../shared/runtime-types.d.ts" />
+
+function getChunkSuffixFromScriptSrc() {
+  // TURBOPACK_CHUNK_SUFFIX is set in web workers
+  return (
+    (self.TURBOPACK_CHUNK_SUFFIX ??
+      document?.currentScript
+        ?.getAttribute?.('src')
+        ?.replace(/^(.*(?=\?)|^.*$)/, '')) ||
+    ''
+  )
+}
 
 type ChunkResolver = {
   resolved: boolean

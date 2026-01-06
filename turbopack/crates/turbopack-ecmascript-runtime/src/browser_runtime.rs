@@ -120,10 +120,13 @@ pub async fn get_browser_runtime_code(
             )?;
         }
         ChunkSuffix::FromScriptSrc => {
+            if chunk_loading == &ChunkLoading::Edge {
+                panic!("ChunkSuffix::FromScriptSrc is not supported in Edge runtimes");
+            }
             writedoc!(
                 code,
                 r#"
-                    const CHUNK_SUFFIX = (self.TURBOPACK_CHUNK_SUFFIX ?? document?.currentScript?.getAttribute?.('src')?.replace(/^(.*(?=\?)|^.*$)/, "")) || "";
+                    const CHUNK_SUFFIX = getChunkSuffixFromScriptSrc();
                 "#
             )?;
         }

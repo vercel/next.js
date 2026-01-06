@@ -514,7 +514,7 @@ function applyModuleFactoryName(factory) {
 }
 /**
  * This file contains runtime types and functions that are shared between all
- * Turbopack *development* ECMAScript runtimes.
+ * Turbopack *browser* ECMAScript runtimes.
  *
  * It will be appended to the runtime code of each runtime right after the
  * shared runtime utils.
@@ -1594,12 +1594,15 @@ function registerChunk(registration) {
 }
 globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS ??= [];
 /**
- * This file contains the runtime code specific to the Turbopack development
- * ECMAScript DOM runtime.
+ * This file contains the runtime code specific to the Turbopack ECMAScript DOM runtime.
  *
- * It will be appended to the base development runtime code.
+ * It will be appended to the base runtime code.
  */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../../../browser/runtime/base/runtime-base.ts" />
 /// <reference path="../../../shared/runtime-types.d.ts" />
+function getChunkSuffixFromScriptSrc() {
+    // TURBOPACK_CHUNK_SUFFIX is set in web workers
+    return (self.TURBOPACK_CHUNK_SUFFIX ?? document?.currentScript?.getAttribute?.('src')?.replace(/^(.*(?=\?)|^.*$)/, '')) || '';
+}
 let BACKEND;
 /**
  * Maps chunk paths to the corresponding resolver.
