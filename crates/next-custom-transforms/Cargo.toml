@@ -72,5 +72,7 @@ remove_console = { workspace = true }
 preset_env_base = { workspace = true }
 
 [dev-dependencies]
-swc_core = { workspace = true, features = ["testing_transform", "plugin_backend_wasmer"] }
 testing = { workspace = true }
+# effectively enable the "plugin" feature for tests, plus swc_core/plugin_backend_wasmer
+swc_core = { workspace = true, features = ["testing_transform", "plugin_transform_host_native", "plugin_backend_wasmer"] }
+turbopack-ecmascript-plugins = { workspace = true, features = ["swc_ecma_transform_plugin"] }
