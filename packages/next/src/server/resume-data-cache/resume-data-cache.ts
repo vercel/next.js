@@ -206,11 +206,29 @@ export function createRenderResumeDataCache(
     // synchronous inflateSync function.
     const { inflateSync } = require('node:zlib') as typeof import('node:zlib')
 
-    const json: ResumeStoreSerialized = JSON.parse(
-      inflateSync(
-        Buffer.from(resumeDataCacheOrPersistedCache, 'base64')
-      ).toString('utf-8')
-    )
+    // Limit decompressed size to prevent zipbomb attacks. This is 5x the
+    // default maxPostponedStateSize (10MB), allowing reasonable compression
+    // ratios while preventing extreme decompression bombs.
+    const maxDecompressedSize = 50 * 1024 * 1024 // 50MB
+
+    let json: ResumeStoreSerialized
+    try {
+      json = JSON.parse(
+        inflateSync(Buffer.from(resumeDataCacheOrPersistedCache, 'base64'), {
+          maxOutputLength: maxDecompressedSize,
+        }).toString('utf-8')
+      )
+    } catch (err: unknown) {
+      if (
+        err instanceof RangeError &&
+        (err as NodeJS.ErrnoException).code === 'ERR_BUFFER_TOO_LARGE'
+      ) {
+        throw new Error(
+          `Decompressed resume data cache exceeded ${maxDecompressedSize} byte limit`
+        )
+      }
+      throw err
+    }
 
     return {
       cache: parseUseCacheCacheStore(Object.entries(json.store.cache)),
