@@ -2,7 +2,7 @@ import { join } from 'path'
 import webdriver from 'next-webdriver'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('Legacy decorators SWC option', () => {
   describe('with extended tsconfig', () => {
@@ -34,9 +34,14 @@ describe('Legacy decorators SWC option', () => {
         const text = await browser.elementByCss('#count').text()
         expect(text).toBe('Current number: 0')
         await browser.elementByCss('#increase').click()
-        await check(
-          () => browser.elementByCss('#count').text(),
-          /Current number: 1/
+        await retry(
+          async () => {
+            expect(await browser.elementByCss('#count').text()).toMatch(
+              /Current number: 1/
+            )
+          },
+          30000,
+          1000
         )
       } finally {
         if (browser) {
@@ -71,9 +76,14 @@ describe('Legacy decorators SWC option', () => {
         const text = await browser.elementByCss('#count').text()
         expect(text).toBe('Current number: 0')
         await browser.elementByCss('#increase').click()
-        await check(
-          () => browser.elementByCss('#count').text(),
-          /Current number: 1/
+        await retry(
+          async () => {
+            expect(await browser.elementByCss('#count').text()).toMatch(
+              /Current number: 1/
+            )
+          },
+          30000,
+          1000
         )
       } finally {
         if (browser) {
