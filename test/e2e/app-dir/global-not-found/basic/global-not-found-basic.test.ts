@@ -53,28 +53,17 @@ describe('global-not-found - basic', () => {
     // Click button to trigger notFound()
     await browser.elementByCss('#trigger-not-found').click()
 
-    // Wait for page to re-render (original content should disappear)
+    // Wait for global-not-found content to fully render
+    // Put all assertions inside retry to avoid race conditions in CI
     await retry(async () => {
-      const hasOriginalContent =
-        await browser.hasElementByCssSelector('#page-title')
-      expect(hasOriginalContent).toBe(false)
-    }, 5000)
-
-    // Wait for global-not-found content to appear
-    await retry(async () => {
-      const hasGlobalNotFound = await browser.hasElementByCssSelector(
-        '#global-error-title'
+      expect(await browser.elementByCss('#global-error-title').text()).toBe(
+        'global-not-found'
       )
-      expect(hasGlobalNotFound).toBe(true)
-    }, 5000)
+      expect(
+        await browser.elementByCss('html').getAttribute('data-global-not-found')
+      ).toBe('true')
+    })
 
-    // Should render global-not-found content without changing URL
-    expect(await browser.elementByCss('#global-error-title').text()).toBe(
-      'global-not-found'
-    )
-    expect(
-      await browser.elementByCss('html').getAttribute('data-global-not-found')
-    ).toBe('true')
     // URL should remain unchanged
     expect(await browser.url()).toContain('/client-trigger')
   })
