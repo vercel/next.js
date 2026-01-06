@@ -32,9 +32,10 @@ export function globalNotFoundReducer(
     currentUrl,
     state.cache,
     state.tree,
-    FreshnessPolicy.StaleIfCached,
     state.nextUrl,
-    true // shouldScroll
+    FreshnessPolicy.Default,
+    true, // shouldScroll
+    mutable
   )
 
   switch (result.tag) {
