@@ -56,7 +56,7 @@ import type { CacheControl } from '../../server/lib/cache-control'
 import { ENCODED_TAGS } from '../../server/stream-utils/encoded-tags'
 import { sendRenderResult } from '../../server/send-payload'
 import { NoFallbackError } from '../../shared/lib/no-fallback-error.external'
-import { parseMaxPostponedStateSize } from '../../server/config-shared'
+import { parseMaxPostponedStateSize } from '../../shared/lib/size-limit'
 
 // These are injected by the loader afterwards.
 

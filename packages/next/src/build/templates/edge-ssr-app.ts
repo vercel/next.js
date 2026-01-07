@@ -26,7 +26,7 @@ import { interopDefault } from '../../lib/interop-default'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { checkIsOnDemandRevalidate } from '../../server/api-utils'
 import { CloseController } from '../../server/web/web-on-close'
-import { parseMaxPostponedStateSize } from '../../server/config-shared'
+import { parseMaxPostponedStateSize } from '../../shared/lib/size-limit'
 
 declare const incrementalCacheHandler: any
 // OPTIONAL_IMPORT:incrementalCacheHandler
