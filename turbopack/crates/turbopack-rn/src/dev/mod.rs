@@ -184,7 +184,7 @@ impl Svc {
 
                     // Spawn a task to handle the websocket connection.
                     tokio::spawn(async move {
-                        if let Err(e) = serve_websocket(websocket).await {
+                        if let Err(e) = serve_debug_websocket(websocket, true).await {
                             eprintln!("Error in websocket connection: {e}");
                         }
                     });
@@ -199,7 +199,7 @@ impl Svc {
 
                     // Spawn a task to handle the websocket connection.
                     tokio::spawn(async move {
-                        if let Err(e) = serve_websocket(websocket).await {
+                        if let Err(e) = serve_debug_websocket(websocket, true).await {
                             eprintln!("Error in websocket connection: {e}");
                         }
                     });
@@ -215,7 +215,23 @@ impl Svc {
 
                     // Spawn a task to handle the websocket connection.
                     tokio::spawn(async move {
-                        if let Err(e) = serve_websocket(websocket).await {
+                        if let Err(e) = serve_debug_websocket(websocket, true).await {
+                            eprintln!("Error in websocket connection: {e}");
+                        }
+                    });
+
+                    return Ok(response.map(|b| BoxBody::new(b.map_err(|never| match never {}))));
+                }
+            }
+            (&Method::GET, "/inspector/network") => {
+                // query
+                // Check if the request is a websocket upgrade request.
+                if hyper_tungstenite::is_upgrade_request(&req) {
+                    let (response, websocket) = hyper_tungstenite::upgrade(&mut req, None).unwrap();
+
+                    // Spawn a task to handle the websocket connection.
+                    tokio::spawn(async move {
+                        if let Err(e) = serve_debug_websocket(websocket, false).await {
                             eprintln!("Error in websocket connection: {e}");
                         }
                     });
@@ -663,9 +679,12 @@ async fn get_rn_content_source(
 // }
 
 /// Handle a websocket connection.
-async fn serve_websocket(websocket: HyperWebsocket) -> Result<(), Error> {
+async fn serve_debug_websocket(websocket: HyperWebsocket, log_messages: bool) -> Result<(), Error> {
     let mut websocket = websocket.await?;
     while let Some(message) = websocket.next().await {
+        if !log_messages {
+            continue;
+        }
         match message? {
             Message::Text(msg) => {
                 println!("Received text message: {msg}");
