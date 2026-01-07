@@ -1,6 +1,6 @@
 use std::{
     cell::RefCell,
-    collections::{hash_map, BTreeMap},
+    collections::{BTreeMap, hash_map},
     convert::{TryFrom, TryInto},
     mem::{replace, take},
     path::{Path, PathBuf},
@@ -16,23 +16,23 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Deserialize;
 use sha1::{Digest, Sha1};
 use swc_core::{
-    atoms::{atom, Atom, Wtf8Atom},
+    atoms::{Atom, Wtf8Atom, atom},
     common::{
+        BytePos, DUMMY_SP, FileName, Mark, SourceMap, Span, SyntaxContext,
         comments::{Comment, CommentKind, Comments, SingleThreadedComments},
         errors::HANDLER,
-        source_map::{SourceMapGenConfig, PURE_SP},
+        source_map::{PURE_SP, SourceMapGenConfig},
         util::take::Take,
-        BytePos, FileName, Mark, SourceMap, Span, SyntaxContext, DUMMY_SP,
     },
     ecma::{
         ast::*,
-        codegen::{self, text_writer::JsWriter, Emitter},
-        utils::{private_ident, quote_ident, ExprFactory},
-        visit::{noop_visit_mut_type, visit_mut_pass, VisitMut, VisitMutWith},
+        codegen::{self, Emitter, text_writer::JsWriter},
+        utils::{ExprFactory, private_ident, quote_ident},
+        visit::{VisitMut, VisitMutWith, noop_visit_mut_type, visit_mut_pass},
     },
     quote,
 };
-use turbo_rcstr::{rcstr, RcStr};
+use turbo_rcstr::{RcStr, rcstr};
 
 use crate::FxIndexMap;
 
@@ -76,6 +76,23 @@ struct ServerReferenceExport {
     export_name: ModuleExportName,
     reference_id: Atom,
     needs_cache_runtime_wrapper: bool,
+    /// The span for source location info (may differ from ident.span)
+    source_span: Span,
+}
+
+/// Location info for a server reference (1-indexed line and column)
+#[derive(Clone, Debug, serde::Serialize)]
+struct ServerReferenceLocation {
+    line: u32,
+    col: u32,
+}
+
+/// Export info with location for serialization
+#[derive(Clone, Debug, serde::Serialize)]
+struct ServerReferenceExportInfo {
+    name: Atom,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    loc: Option<ServerReferenceLocation>,
 }
 
 #[derive(Clone, Debug)]
@@ -199,21 +216,19 @@ pub fn server_actions<C: Comments>(
 /// Serializes the Server References into a magic comment prefixed by
 /// `__next_internal_action_entry_do_not_use__`.
 fn generate_server_references_comment(
-    export_names_ordered_by_reference_id: &BTreeMap<&Atom, &ModuleExportName>,
+    export_infos_ordered_by_reference_id: &BTreeMap<&Atom, ServerReferenceExportInfo>,
     entry_path_query: Option<(&str, &str)>,
 ) -> String {
-    // Convert ModuleExportName to string for serialization
-    let export_map: BTreeMap<_, _> = export_names_ordered_by_reference_id
-        .iter()
-        .map(|(ref_id, export_name)| (*ref_id, export_name.atom()))
-        .collect();
-
     format!(
         " __next_internal_action_entry_do_not_use__ {} ",
         if let Some(entry_path_query) = entry_path_query {
-            serde_json::to_string(&(&export_map, entry_path_query.0, entry_path_query.1))
+            serde_json::to_string(&(
+                &export_infos_ordered_by_reference_id,
+                entry_path_query.0,
+                entry_path_query.1,
+            ))
         } else {
-            serde_json::to_string(&export_map)
+            serde_json::to_string(&export_infos_ordered_by_reference_id)
         }
         .unwrap()
     )
@@ -384,6 +399,18 @@ impl<C: Comments> ServerActions<C> {
         let id: Atom = format!("$$RSC_SERVER_CACHE_{0}", self.reference_index).into();
         self.reference_index += 1;
         id
+    }
+
+    /// Get location info (1-indexed line and column) from a span
+    fn get_location(&self, span: Span) -> Option<ServerReferenceLocation> {
+        if span.is_dummy() {
+            return None;
+        }
+        let loc = self.cm.lookup_char_pos(span.lo);
+        Some(ServerReferenceLocation {
+            line: loc.line as u32,
+            col: (loc.col_display + 1) as u32, // 1-indexed
+        })
     }
 
     fn create_bound_action_args_array_pat(&mut self, arg_len: usize) -> Pat {
@@ -1024,6 +1051,7 @@ impl<C: Comments> ServerActions<C> {
                 export_name: export_name.clone(),
                 reference_id: reference_id.clone(),
                 needs_cache_runtime_wrapper: false,
+                source_span: fn_name.span,
             });
         } else if self.is_default_export() {
             let action_ident = Ident::new(self.gen_action_ident(), span, self.private_ctxt);
@@ -1038,6 +1066,7 @@ impl<C: Comments> ServerActions<C> {
                 export_name: export_name.clone(),
                 reference_id: reference_id.clone(),
                 needs_cache_runtime_wrapper: false,
+                source_span: span,
             });
 
             // For the server layer, also hoist the function and rewrite the default export.
@@ -1087,6 +1116,7 @@ impl<C: Comments> ServerActions<C> {
                 export_name: export_name.clone(),
                 reference_id: reference_id.clone(),
                 needs_cache_runtime_wrapper: false,
+                source_span: fn_name.span,
             });
         } else if self.is_default_export() {
             let cache_ident = Ident::new(self.gen_cache_ident(), span, self.private_ctxt);
@@ -1101,6 +1131,7 @@ impl<C: Comments> ServerActions<C> {
                 export_name: export_name.clone(),
                 reference_id: reference_id.clone(),
                 needs_cache_runtime_wrapper: false,
+                source_span: span,
             });
         }
     }
@@ -1146,6 +1177,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     export_name: export_name.clone(),
                     reference_id: action_id.clone(),
                     needs_cache_runtime_wrapper: false,
+                    source_span: expr.span,
                 });
 
                 self.hoisted_extra_items
@@ -2176,6 +2208,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         None,
                     ),
                     needs_cache_runtime_wrapper: in_cache_file,
+                    // No span info available in post-pass; will result in no loc in output
+                    source_span: DUMMY_SP,
                 });
             }
         }
@@ -2252,6 +2286,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 export_name,
                 reference_id: ref_id,
                 needs_cache_runtime_wrapper,
+                ..
             } in &server_reference_exports
             {
                 if !self.config.is_react_server_layer {
@@ -2684,12 +2719,31 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         }
 
         if self.has_action || self.has_cache {
-            // Flip the map and convert it to a BTreeMap for deterministic
-            // ordering in the server references comment.
-            let export_names_ordered_by_reference_id = self
+            // Build a map of reference_id -> export info with location
+            // First, create a lookup map from export_name (as Atom) to source span
+            // We use the atom representation to avoid span comparison issues in ModuleExportName
+            let span_by_export_name: FxHashMap<_, _> = self
+                .server_reference_exports
+                .iter()
+                .map(|export| (export.export_name.atom().into_owned(), export.source_span))
+                .collect();
+
+            // Build export info map with locations
+            let export_infos_ordered_by_reference_id = self
                 .reference_ids_by_export_name
                 .iter()
-                .map(|(export_name, reference_id)| (reference_id, export_name))
+                .map(|(export_name, reference_id)| {
+                    let name_atom = export_name.atom().into_owned();
+                    let span = span_by_export_name.get(&name_atom).copied();
+                    let loc = span.and_then(|s| self.get_location(s));
+                    (
+                        reference_id,
+                        ServerReferenceExportInfo {
+                            name: name_atom,
+                            loc,
+                        },
+                    )
+                })
                 .collect::<BTreeMap<_, _>>();
 
             if self.config.is_react_server_layer {
@@ -2700,10 +2754,13 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         span: DUMMY_SP,
                         kind: CommentKind::Block,
                         text: generate_server_references_comment(
-                            &export_names_ordered_by_reference_id,
+                            &export_infos_ordered_by_reference_id,
                             match self.mode {
                                 ServerActionsMode::Webpack => None,
-                                ServerActionsMode::Turbopack => Some(("", "")),
+                                ServerActionsMode::Turbopack => Some((
+                                    &self.file_name,
+                                    self.file_query.as_ref().map_or("", |v| v),
+                                )),
                             },
                         )
                         .into(),
@@ -2718,7 +2775,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 span: DUMMY_SP,
                                 kind: CommentKind::Block,
                                 text: generate_server_references_comment(
-                                    &export_names_ordered_by_reference_id,
+                                    &export_infos_ordered_by_reference_id,
                                     None,
                                 )
                                 .into(),
@@ -2756,6 +2813,17 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             // re-exports since the actual source maps are in the data URLs.
                             let stripped_export_name = strip_export_name_span(&export_name);
 
+                            // Get location for this export (use atom key for lookup)
+                            let name_atom = export_name.atom().into_owned();
+                            let loc = span_by_export_name
+                                .get(&name_atom)
+                                .copied()
+                                .and_then(|s| self.get_location(s));
+                            let export_info = ServerReferenceExportInfo {
+                                name: name_atom,
+                                loc,
+                            };
+
                             new.push(ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(
                                 NamedExport {
                                     specifiers: vec![ExportSpecifier::Named(
@@ -2775,7 +2843,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                                 span: DUMMY_SP,
                                                 kind: CommentKind::Block,
                                                 text: generate_server_references_comment(
-                                                    &std::iter::once((&ref_id, &export_name))
+                                                    &std::iter::once((&ref_id, export_info))
                                                         .collect(),
                                                     Some((
                                                         &self.file_name,

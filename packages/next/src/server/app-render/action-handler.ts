@@ -1080,6 +1080,185 @@ export async function handleAction({
             actionId!
           ]
 
+        // Log server action call in development
+        if (process.env.NODE_ENV === 'development') {
+          const serverActionsManifest = getServerActionsManifest()
+          const runtime = process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
+          const actionInfo = serverActionsManifest[runtime]?.[actionId!]
+
+          if (actionInfo) {
+            const INLINE_ACTION_PREFIX = '$$RSC_SERVER_ACTION_'
+            const isInlineAction =
+              actionInfo.exportedName?.startsWith(INLINE_ACTION_PREFIX)
+            // Format function name for display
+            let functionName: string
+            if (isInlineAction) {
+              functionName = '<inline action>'
+            } else if (actionInfo.exportedName === 'default') {
+              functionName = 'default'
+            } else {
+              functionName = actionInfo.exportedName || '<inline action>'
+            }
+            const filename = actionInfo.filename || 'unknown'
+
+            // Build location string with line:col if available
+            let location = filename
+            if (actionInfo.line != null) {
+              location += `:${actionInfo.line}`
+              if (actionInfo.col != null) {
+                location += `:${actionInfo.col}`
+              }
+            }
+
+            // Format arguments for display
+            const formatArg = (arg: unknown, depth = 0): string => {
+              const maxDepth = 2
+              const maxStringLen = 50
+              const maxArrayItems = 3
+              const maxObjectKeys = 3
+
+              if (arg === null) return 'null'
+              if (arg === undefined) return 'undefined'
+
+              if (typeof arg === 'string') {
+                const truncated =
+                  arg.length > maxStringLen
+                    ? arg.slice(0, maxStringLen) + '...'
+                    : arg
+                return `"${truncated}"`
+              }
+
+              if (typeof arg === 'number' || typeof arg === 'boolean') {
+                return String(arg)
+              }
+
+              if (typeof arg === 'bigint') {
+                return `${arg}n`
+              }
+
+              if (typeof arg === 'symbol') {
+                return arg.toString()
+              }
+
+              if (typeof arg === 'function') {
+                return `[Function${arg.name ? `: ${arg.name}` : ''}]`
+              }
+
+              if (arg instanceof Date) {
+                return `Date(${arg.toISOString()})`
+              }
+
+              if (arg instanceof RegExp) {
+                return arg.toString()
+              }
+
+              if (typeof FormData !== 'undefined' && arg instanceof FormData) {
+                const keys = Array.from(arg.keys())
+                if (keys.length <= maxObjectKeys) {
+                  return `FormData { ${keys.join(', ')} }`
+                }
+                return `FormData { ${keys.slice(0, maxObjectKeys).join(', ')}, ... }`
+              }
+
+              if (ArrayBuffer.isView(arg) || arg instanceof ArrayBuffer) {
+                const len =
+                  arg instanceof ArrayBuffer ? arg.byteLength : arg.byteLength
+                return `[Buffer(${len})]`
+              }
+
+              if (Array.isArray(arg)) {
+                if (depth >= maxDepth) {
+                  return `[Array(${arg.length})]`
+                }
+                if (arg.length === 0) {
+                  return '[]'
+                }
+                if (arg.length <= maxArrayItems) {
+                  const items = arg
+                    .map((item) => formatArg(item, depth + 1))
+                    .join(', ')
+                  return `[${items}]`
+                }
+                const items = arg
+                  .slice(0, maxArrayItems)
+                  .map((item) => formatArg(item, depth + 1))
+                  .join(', ')
+                return `[${items}, ...(${arg.length - maxArrayItems} more)]`
+              }
+
+              if (typeof arg === 'object') {
+                // Check for React/RSC special objects (client/server references)
+                const obj = arg as Record<string, unknown>
+
+                // Filter out internal RSC flight protocol structures
+                if (
+                  'status' in obj &&
+                  (obj.status === 'resolved_model' ||
+                    obj.status === 'resolved_module' ||
+                    obj.status === 'pending' ||
+                    obj.status === 'blocked' ||
+                    obj.status === 'cyclic')
+                ) {
+                  return '[RSC]'
+                }
+
+                if ('$$typeof' in obj) {
+                  // React element or special type
+                  const typeName = obj.$$typeof?.toString() || ''
+                  if (typeName.includes('client.reference')) {
+                    return '[Client Reference]'
+                  }
+                  if (typeName.includes('server.reference')) {
+                    return '[Server Reference]'
+                  }
+                  if (typeName.includes('react.element')) {
+                    return '[React Element]'
+                  }
+                  return '[React Object]'
+                }
+                // Check for bound action arguments (has $$id marker)
+                if ('$$id' in obj) {
+                  return '[Server Reference]'
+                }
+
+                if (depth >= maxDepth) {
+                  return '{...}'
+                }
+                const keys = Object.keys(arg)
+                if (keys.length === 0) {
+                  return '{}'
+                }
+                if (keys.length <= maxObjectKeys) {
+                  const pairs = keys
+                    .map(
+                      (k) =>
+                        `${k}: ${formatArg((arg as Record<string, unknown>)[k], depth + 1)}`
+                    )
+                    .join(', ')
+                  return `{ ${pairs} }`
+                }
+                const pairs = keys
+                  .slice(0, maxObjectKeys)
+                  .map(
+                    (k) =>
+                      `${k}: ${formatArg((arg as Record<string, unknown>)[k], depth + 1)}`
+                  )
+                  .join(', ')
+                return `{ ${pairs}, ... }`
+              }
+
+              return String(arg)
+            }
+
+            const argsStr = boundActionArguments
+              .map((a) => formatArg(a))
+              .join(', ')
+            console.log(
+              ` \x1b[36m○\x1b[0m ${functionName}(${argsStr}) \x1b[2m${location}\x1b[0m`
+            )
+          }
+        }
+
         const { actionResult, skipPageRendering } =
           await executeActionAndPrepareForRender(
             actionHandler,

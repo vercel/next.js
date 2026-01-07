@@ -68,6 +68,9 @@ type Actions = {
   [actionId: string]: {
     exportedName?: string
     filename?: string
+    /** Source location (1-indexed line and column) */
+    line?: number
+    col?: number
     workers: {
       [name: string]: {
         moduleId: string | number
@@ -81,7 +84,13 @@ type Actions = {
   }
 }
 
-type ActionIdNamePair = { id: string; exportedName?: string; filename?: string }
+type ActionIdNamePair = {
+  id: string
+  exportedName?: string
+  filename?: string
+  line?: number
+  col?: number
+}
 
 export type ActionManifest = {
   // Assign a unique encryption key during production build.
@@ -658,11 +667,20 @@ export class FlightClientEntryPlugin {
         if (actionIds) {
           collectedActions.set(
             modResource,
-            Object.entries(actionIds).map(([id, exportedName]) => ({
-              id,
-              exportedName,
-              filename: path.posix.relative(this.projectDir, modResource),
-            }))
+            Object.entries(actionIds).map(([id, actionInfo]) => {
+              // Handle both old format (string) and new format (object with name and loc)
+              const isNewFormat =
+                typeof actionInfo === 'object' && actionInfo !== null
+              const exportedName = isNewFormat ? actionInfo.name : actionInfo
+              const loc = isNewFormat ? actionInfo.loc : undefined
+              return {
+                id,
+                exportedName,
+                filename: path.posix.relative(this.projectDir, modResource),
+                line: loc?.line,
+                col: loc?.col,
+              }
+            })
           )
         }
 
@@ -759,11 +777,20 @@ export class FlightClientEntryPlugin {
       if (actionIds) {
         actionImports.push([
           modResource,
-          Object.entries(actionIds).map(([id, exportedName]) => ({
-            id,
-            exportedName,
-            filename: path.posix.relative(this.projectDir, modResource),
-          })),
+          Object.entries(actionIds).map(([id, actionInfo]) => {
+            // Handle both old format (string) and new format (object with name and loc)
+            const isNewFormat =
+              typeof actionInfo === 'object' && actionInfo !== null
+            const exportedName = isNewFormat ? actionInfo.name : actionInfo
+            const loc = isNewFormat ? actionInfo.loc : undefined
+            return {
+              id,
+              exportedName,
+              filename: path.posix.relative(this.projectDir, modResource),
+              line: loc?.line,
+              col: loc?.col,
+            }
+          }),
         ])
       }
 
@@ -984,13 +1011,21 @@ export class FlightClientEntryPlugin {
       : pluginState.serverActions
 
     for (const [, actionsFromModule] of actionsArray) {
-      for (const { id, exportedName, filename } of actionsFromModule) {
+      for (const {
+        id,
+        exportedName,
+        filename,
+        line,
+        col,
+      } of actionsFromModule) {
         if (typeof currentCompilerServerActions[id] === 'undefined') {
           currentCompilerServerActions[id] = {
             workers: {},
             layer: {},
             filename,
             exportedName,
+            line,
+            col,
           }
         }
         currentCompilerServerActions[id].workers[bundlePath] = {
