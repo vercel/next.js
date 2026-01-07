@@ -2,8 +2,8 @@
   "name": "next.js",
   "description": "Next.js framework development workspace",
   "scripts": {
-    "setup": "./scripts/setup.sh",
-    "run": "./scripts/run.sh"
+    "setup": "./.conductor/scripts/setup.sh",
+    "run": "./.conductor/scripts/run.sh"
   },
   "worktree": {
     "default_branch": "canary"

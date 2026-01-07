@@ -6,6 +6,10 @@ import type {
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { Params } from './request/params'
 import type { NextConfig, NextConfigRuntime } from './config-shared'
+import {
+  DEFAULT_MAX_POSTPONED_STATE_SIZE,
+  parseMaxPostponedStateSize,
+} from './config-shared'
 import type {
   NextParsedUrlQuery,
   NextUrlWithParsedQuery,
@@ -564,6 +568,9 @@ export default abstract class Server<
         authInterrupts: !!this.nextConfig.experimental.authInterrupts,
         cdnCacheControlHeader:
           this.nextConfig.experimental.cdnCacheControlHeader,
+        maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
+          this.nextConfig.experimental.maxPostponedStateSize
+        ),
       },
       onInstrumentationRequestError:
         this.instrumentationOnRequestError.bind(this),
@@ -1055,11 +1062,34 @@ export default abstract class Server<
             req.headers[NEXT_RESUME_HEADER] === '1' &&
             req.method === 'POST'
           ) {
+            // Get the configured max postponed state size.
+            const maxPostponedStateSize =
+              this.nextConfig.experimental.maxPostponedStateSize ??
+              DEFAULT_MAX_POSTPONED_STATE_SIZE
+            const maxPostponedStateSizeBytes = parseMaxPostponedStateSize(
+              this.nextConfig.experimental.maxPostponedStateSize
+            )
+            if (maxPostponedStateSizeBytes === undefined) {
+              throw new Error(
+                'maxPostponedStateSize must be a valid number (bytes) or filesize format string (e.g., "5mb")'
+              )
+            }
+
             // Decode the postponed state from the request body, it will come as
             // an array of buffers, so collect them and then concat them to form
             // the string.
             const body: Array<Buffer> = []
+            let size = 0
             for await (const chunk of req.body) {
+              size += Buffer.byteLength(chunk)
+              if (size > maxPostponedStateSizeBytes) {
+                res.statusCode = 413
+                const errorMessage =
+                  `Postponed state exceeded ${maxPostponedStateSize} limit. ` +
+                  `To configure the limit, see: https://nextjs.org/docs/app/api-reference/config/next-config-js/max-postponed-state-size`
+                res.body(errorMessage).send()
+                return
+              }
               body.push(chunk)
             }
             const postponed = Buffer.concat(body).toString('utf8')
@@ -1753,7 +1783,12 @@ export default abstract class Server<
 
       // In dev, we should not cache pages for any reason.
       if (dev) {
-        res.setHeader('Cache-Control', 'no-store, must-revalidate')
+        res.setHeader(
+          'Cache-Control',
+          this.nextConfig.experimental.devCacheControlNoCache
+            ? 'no-cache, must-revalidate'
+            : 'no-store, must-revalidate'
+        )
         cacheControl = undefined
       }
 

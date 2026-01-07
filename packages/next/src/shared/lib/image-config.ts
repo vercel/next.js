@@ -106,6 +106,9 @@ export type ImageConfigComplete = {
   /** @see [Maximum Redirects](https://nextjs.org/docs/api-reference/next/image#maximumredirects) */
   maximumRedirects: number
 
+  /** @see [Maximum Response Body](https://nextjs.org/docs/api-reference/next/image#maximumresponsebody) */
+  maximumResponseBody: number
+
   /** @see [Dangerously Allow Local IP](https://nextjs.org/docs/api-reference/next/image#dangerously-allow-local-ip) */
   dangerouslyAllowLocalIP: boolean
 
@@ -147,6 +150,7 @@ export const imageConfigDefault: ImageConfigComplete = {
   minimumCacheTTL: 14400, // 4 hours
   formats: ['image/webp'],
   maximumRedirects: 3,
+  maximumResponseBody: 300_000_000, // 300MB
   dangerouslyAllowLocalIP: false,
   dangerouslyAllowSVG: false,
   contentSecurityPolicy: `script-src 'none'; frame-src 'none'; sandbox;`,

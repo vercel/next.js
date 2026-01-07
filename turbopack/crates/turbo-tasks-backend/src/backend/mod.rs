@@ -4,12 +4,10 @@ mod storage;
 
 use std::{
     borrow::Cow,
-    cmp::min,
     fmt::{self, Write},
     future::Future,
     hash::BuildHasherDefault,
     mem::take,
-    ops::Range,
     pin::Pin,
     sync::{
         Arc, LazyLock,
@@ -26,8 +24,8 @@ use smallvec::{SmallVec, smallvec};
 use tokio::time::{Duration, Instant};
 use tracing::{Span, trace_span};
 use turbo_tasks::{
-    CellId, FxDashMap, FxIndexMap, KeyValuePair, RawVc, ReadCellOptions, ReadConsistency,
-    ReadOutputOptions, ReadTracking, TRANSIENT_TASK_BIT, TaskExecutionReason, TaskId, TraitTypeId,
+    CellId, FxDashMap, KeyValuePair, RawVc, ReadCellOptions, ReadConsistency, ReadOutputOptions,
+    ReadTracking, TRANSIENT_TASK_BIT, TaskExecutionReason, TaskId, TraitTypeId,
     TurboTasksBackendApi, ValueTypeId,
     backend::{
         Backend, CachedTaskType, CellContent, TaskExecutionSpec, TransientTaskRoot,
@@ -39,7 +37,7 @@ use turbo_tasks::{
     task_statistics::TaskStatisticsApi,
     trace::TraceRawVcs,
     turbo_tasks,
-    util::{IdFactoryWithReuse, good_chunk_size},
+    util::IdFactoryWithReuse,
 };
 
 pub use self::{operation::AnyOperation, storage::TaskDataCategory};
@@ -169,10 +167,6 @@ impl Default for BackendOptions {
 pub enum TurboTasksBackendJob {
     InitialSnapshot,
     FollowUpSnapshot,
-    Prefetch {
-        data: Arc<FxIndexMap<TaskId, bool>>,
-        range: Option<Range<usize>>,
-    },
 }
 
 pub struct TurboTasksBackend<B: BackingStorage>(Arc<TurboTasksBackendInner<B>>);
@@ -1643,6 +1637,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         {
             let mut ctx = self.execute_context(turbo_tasks);
             let mut task = ctx.task(task_id, TaskDataCategory::All);
+            if let Some(tasks) = task.prefetch() {
+                drop(task);
+                ctx.prepare_tasks(tasks);
+                task = ctx.task(task_id, TaskDataCategory::All);
+            }
             let in_progress = remove!(task, InProgress)?;
             let InProgressState::Scheduled { done_event, reason } = in_progress else {
                 task.add_new(CachedDataItem::InProgress { value: in_progress });
@@ -2171,6 +2170,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     ) {
         debug_assert!(!output_dependent_tasks.is_empty());
 
+        if output_dependent_tasks.len() > 1 {
+            ctx.prepare_tasks(
+                output_dependent_tasks
+                    .iter()
+                    .map(|&id| (id, TaskDataCategory::All)),
+            );
+        }
+
         let mut queue = AggregationUpdateQueue::new();
         for dependent_task_id in output_dependent_tasks {
             #[cfg(feature = "trace_task_output_dependencies")]
@@ -2228,9 +2235,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         debug_assert!(!new_children.is_empty());
 
         let mut queue = AggregationUpdateQueue::new();
-        for &child_id in new_children {
-            let child_task = ctx.task(child_id, TaskDataCategory::Meta);
+        ctx.for_each_task_meta(new_children.iter().copied(), |child_task, ctx| {
             if !child_task.has_key(&CachedDataItemKey::Output {}) {
+                let child_id = child_task.id();
                 make_task_dirty_internal(
                     child_task,
                     child_id,
@@ -2241,7 +2248,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     ctx,
                 );
             }
-        }
+        });
 
         queue.execute(ctx);
     }
@@ -2577,41 +2584,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             );
                             return;
                         }
-                    }
-                }
-                TurboTasksBackendJob::Prefetch { data, range } => {
-                    let range: Range<usize> = if let Some(range) = range {
-                        range
-                    } else {
-                        if data.len() > 128 {
-                            let chunk_size = good_chunk_size(data.len());
-                            let chunks = data.len().div_ceil(chunk_size);
-                            for i in 0..chunks {
-                                turbo_tasks.schedule_backend_background_job(
-                                    TurboTasksBackendJob::Prefetch {
-                                        data: data.clone(),
-                                        range: Some(
-                                            (i * chunk_size)..min(data.len(), (i + 1) * chunk_size),
-                                        ),
-                                    },
-                                );
-                            }
-                            return;
-                        }
-                        0..data.len()
-                    };
-
-                    let _span = trace_span!("prefetching").entered();
-                    let mut ctx = self.execute_context(turbo_tasks);
-                    for i in range {
-                        let (&task, &with_data) = data.get_index(i).unwrap();
-                        let category = if with_data {
-                            TaskDataCategory::All
-                        } else {
-                            TaskDataCategory::Meta
-                        };
-                        // Prefetch the task
-                        drop(ctx.task(task, category));
                     }
                 }
             }
