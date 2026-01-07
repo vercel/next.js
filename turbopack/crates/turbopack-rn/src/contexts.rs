@@ -105,6 +105,7 @@ pub async fn get_client_resolve_options_context(
         enable_react_native_infix: platform,
         browser: false,
         module: true,
+        react_native: true,
         enable_react: true,
         // The ecosystem relies on Typescript in node_modules, e.g.
         // - node_modules/@expo/metro-runtime/src/index.ts

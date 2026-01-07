@@ -82,6 +82,9 @@ async fn base_resolve_options(
         ]
         .into_iter()
         .collect();
+        if opt.react_native {
+            conditions.insert(rcstr!("react-native"), ConditionValue::Set);
+        }
         if opt.browser {
             conditions.insert(rcstr!("browser"), ConditionValue::Set);
         }
@@ -185,6 +188,11 @@ async fn base_resolve_options(
                 conditions: conditions.clone(),
                 unspecified_conditions: ConditionValue::Unset,
             }];
+            if opt.react_native {
+                resolve_into.push(ResolveIntoPackage::MainField {
+                    field: rcstr!("react-native"),
+                });
+            }
             if opt.browser {
                 resolve_into.push(ResolveIntoPackage::MainField {
                     field: rcstr!("browser"),
