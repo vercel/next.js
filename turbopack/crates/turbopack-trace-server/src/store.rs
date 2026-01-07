@@ -16,6 +16,10 @@ use crate::{
 
 pub type SpanId = NonZeroUsize;
 
+/// This max depth is used to avoid deep recursion in the span tree,
+/// which can lead to stack overflows and performance issues.
+/// Spans deeper than this depth will be re-parented to an ancestor
+/// at the cut-off depth (Flattening).
 const CUT_OFF_DEPTH: u32 = 80;
 
 pub struct Store {
