@@ -333,6 +333,77 @@ fn group_fields(fields: &[FieldInfo]) -> GroupedFields {
     }
 }
 
+// =============================================================================
+// Code Generation Helpers
+// =============================================================================
+
+/// Generate inline field clone assignments: `snapshot.field = self.field.clone();`
+fn gen_clone_inline_fields<'a>(
+    fields: impl Iterator<Item = &'a FieldInfo>,
+) -> Vec<proc_macro2::TokenStream> {
+    fields
+        .map(|field| {
+            let field_name = &field.field_name;
+            quote! {
+                snapshot.#field_name = self.#field_name.clone();
+            }
+        })
+        .collect()
+}
+
+/// Generate inline field restore assignments: `self.field = source.field;`
+fn gen_restore_inline_fields<'a>(
+    fields: impl Iterator<Item = &'a FieldInfo>,
+) -> Vec<proc_macro2::TokenStream> {
+    fields
+        .map(|field| {
+            let field_name = &field.field_name;
+            quote! {
+                self.#field_name = source.#field_name;
+            }
+        })
+        .collect()
+}
+
+/// Generate lazy field clone match arms:
+/// `LazyField::Variant(data) => { snapshot.lazy.push(LazyField::Variant(data.clone())); }`
+fn gen_clone_lazy_arms<'a>(
+    fields: impl Iterator<Item = &'a FieldInfo>,
+) -> Vec<proc_macro2::TokenStream> {
+    fields
+        .map(|field| {
+            let variant_name = &field.variant_name;
+            quote! {
+                LazyField::#variant_name(data) => {
+                    snapshot.lazy.push(LazyField::#variant_name(data.clone()));
+                }
+            }
+        })
+        .collect()
+}
+
+/// Generate lazy field match arms with a custom body.
+/// `LazyField::Variant(data) => { <body> }`
+///
+/// The `body_fn` receives the field and returns the body TokenStream.
+/// The body can use `data` to reference the matched value.
+fn gen_lazy_match_arms<'a>(
+    fields: impl Iterator<Item = &'a FieldInfo>,
+    body_fn: impl Fn(&FieldInfo) -> proc_macro2::TokenStream,
+) -> Vec<proc_macro2::TokenStream> {
+    fields
+        .map(|field| {
+            let variant_name = &field.variant_name;
+            let body = body_fn(field);
+            quote! {
+                LazyField::#variant_name(data) => {
+                    #body
+                }
+            }
+        })
+        .collect()
+}
+
 fn generate_task_storage_impl(_ident: &Ident, grouped_fields: &GroupedFields) -> TokenStream {
     // Generate TaskFlags bitfield if there are flag fields
     let task_flags_bitfield = generate_task_flags_bitfield(grouped_fields);
@@ -1560,101 +1631,19 @@ fn generate_decode_lazy_fields(fields: &[&FieldInfo]) -> proc_macro2::TokenStrea
 fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> proc_macro2::TokenStream {
     let has_flags = !grouped_fields.persisted_flag_fields.is_empty();
 
-    // Collect persistent fields by category using helpers
-    let persistent_inline_meta: Vec<_> = grouped_fields.persistent_inline_meta().collect();
-    let persistent_inline_data: Vec<_> = grouped_fields.persistent_inline_data().collect();
-    let persistent_lazy_meta: Vec<_> = grouped_fields.persistent_lazy_meta().collect();
-    let persistent_lazy_data: Vec<_> = grouped_fields.persistent_lazy_data().collect();
+    // Use helper functions to generate field operations
+    let clone_meta_inline = gen_clone_inline_fields(grouped_fields.persistent_inline_meta());
+    let clone_data_inline = gen_clone_inline_fields(grouped_fields.persistent_inline_data());
+    let clone_meta_lazy_arms = gen_clone_lazy_arms(grouped_fields.persistent_lazy_meta());
+    let clone_data_lazy_arms = gen_clone_lazy_arms(grouped_fields.persistent_lazy_data());
+    let clone_all_lazy_arms = gen_clone_lazy_arms(
+        grouped_fields
+            .persistent_lazy_meta()
+            .chain(grouped_fields.persistent_lazy_data()),
+    );
 
-    // Generate clone_meta_snapshot inline field assignments
-    let clone_meta_inline: Vec<_> = persistent_inline_meta
-        .iter()
-        .map(|field| {
-            let field_name = &field.field_name;
-            quote! {
-                snapshot.#field_name = self.#field_name.clone();
-            }
-        })
-        .collect();
-
-    // Generate clone_meta_snapshot lazy field match arms
-    let clone_meta_lazy_arms: Vec<_> = persistent_lazy_meta
-        .iter()
-        .map(|field| {
-            let variant_name = &field.variant_name;
-            quote! {
-                LazyField::#variant_name(data) => {
-                    snapshot.lazy.push(LazyField::#variant_name(data.clone()));
-                }
-            }
-        })
-        .collect();
-
-    // Generate clone_data_snapshot inline field assignments
-    let clone_data_inline: Vec<_> = persistent_inline_data
-        .iter()
-        .map(|field| {
-            let field_name = &field.field_name;
-            quote! {
-                snapshot.#field_name = self.#field_name.clone();
-            }
-        })
-        .collect();
-
-    // Generate clone_data_snapshot lazy field match arms
-    let clone_data_lazy_arms: Vec<_> = persistent_lazy_data
-        .iter()
-        .map(|field| {
-            let variant_name = &field.variant_name;
-            quote! {
-                LazyField::#variant_name(data) => {
-                    snapshot.lazy.push(LazyField::#variant_name(data.clone()));
-                }
-            }
-        })
-        .collect();
-
-    // Generate restore_meta_from inline field assignments
-    let restore_meta_inline: Vec<_> = persistent_inline_meta
-        .iter()
-        .map(|field| {
-            let field_name = &field.field_name;
-            quote! {
-                self.#field_name = source.#field_name;
-            }
-        })
-        .collect();
-
-    // Generate restore_data_from inline field assignments
-    let restore_data_inline: Vec<_> = persistent_inline_data
-        .iter()
-        .map(|field| {
-            let field_name = &field.field_name;
-            quote! {
-                self.#field_name = source.#field_name;
-            }
-        })
-        .collect();
-
-    // Generate restore_all_from inline field assignments (both meta and data)
-    let restore_all_inline_meta: Vec<_> = persistent_inline_meta
-        .iter()
-        .map(|field| {
-            let field_name = &field.field_name;
-            quote! {
-                self.#field_name = source.#field_name;
-            }
-        })
-        .collect();
-    let restore_all_inline_data: Vec<_> = persistent_inline_data
-        .iter()
-        .map(|field| {
-            let field_name = &field.field_name;
-            quote! {
-                self.#field_name = source.#field_name;
-            }
-        })
-        .collect();
+    let restore_meta_inline = gen_restore_inline_fields(grouped_fields.persistent_inline_meta());
+    let restore_data_inline = gen_restore_inline_fields(grouped_fields.persistent_inline_data());
 
     // Generate flags handling for clone/merge
     let clone_meta_flags = if has_flags {
@@ -1675,20 +1664,6 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> proc_mac
     } else {
         quote! {}
     };
-
-    // Collect all persistent lazy fields (both meta and data) for clone_snapshot
-    let clone_all_lazy_arms: Vec<_> = persistent_lazy_meta
-        .iter()
-        .chain(persistent_lazy_data.iter())
-        .map(|field| {
-            let variant_name = &field.variant_name;
-            quote! {
-                LazyField::#variant_name(data) => {
-                    snapshot.lazy.push(LazyField::#variant_name(data.clone()));
-                }
-            }
-        })
-        .collect();
 
     quote! {
         impl TypedStorage {
@@ -1849,10 +1824,10 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> proc_mac
                 );
 
                 // Inline meta fields - direct assignment
-                #(#restore_all_inline_meta)*
+                #(#restore_meta_inline)*
 
                 // Inline data fields - direct assignment
-                #(#restore_all_inline_data)*
+                #(#restore_data_inline)*
 
                 #restore_flags
 
@@ -1892,21 +1867,15 @@ fn generate_shrink_to_fit_method(grouped_fields: &GroupedFields) -> proc_macro2:
         })
         .collect();
 
-    // Collect lazy fields that support shrink_to_fit
-    let lazy_shrink_arms: Vec<_> = grouped_fields
-        .lazy_meta_fields
-        .iter()
-        .chain(grouped_fields.lazy_data_fields.iter())
-        .filter(|f| supports_shrink_to_fit(&f.storage_type))
-        .map(|field| {
-            let variant_name = &field.variant_name;
-            quote! {
-                LazyField::#variant_name(data) => {
-                    data.shrink_to_fit();
-                }
-            }
-        })
-        .collect();
+    // Collect lazy fields that support shrink_to_fit using the helper
+    let lazy_shrink_arms = gen_lazy_match_arms(
+        grouped_fields
+            .lazy_meta_fields
+            .iter()
+            .chain(grouped_fields.lazy_data_fields.iter())
+            .filter(|f| supports_shrink_to_fit(&f.storage_type)),
+        |_| quote! { data.shrink_to_fit(); },
+    );
 
     // Only generate lazy field shrinking if there are lazy fields to shrink
     let lazy_shrink_block = if lazy_shrink_arms.is_empty() {
