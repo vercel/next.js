@@ -34,6 +34,7 @@ use crate::{
         },
         exports_info::{ExportsInfoBinding, ExportsInfoRef},
         ident::IdentReplacement,
+        import_meta_glob::ImportMetaGlobAssetReferenceCodeGen,
         member::MemberReplacement,
         require_context::RequireContextAssetReferenceCodeGen,
         unreachable::Unreachable,
@@ -199,6 +200,7 @@ pub enum CodeGen {
     RequireContextAssetReferenceCodeGen(RequireContextAssetReferenceCodeGen),
     UrlAssetReferenceCodeGen(UrlAssetReferenceCodeGen),
     WorkerAssetReferenceCodeGen(WorkerAssetReferenceCodeGen),
+    ImportMetaGlobAssetReferenceCodeGen(ImportMetaGlobAssetReferenceCodeGen),
 }
 
 impl CodeGen {
@@ -231,6 +233,7 @@ impl CodeGen {
             Self::RequireContextAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
             Self::UrlAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
             Self::WorkerAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
+            Self::ImportMetaGlobAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
         }
     }
 }

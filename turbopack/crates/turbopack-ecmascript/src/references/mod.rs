@@ -9,6 +9,7 @@ pub mod esm;
 pub mod exports_info;
 pub mod external_module;
 pub mod ident;
+pub mod import_meta_glob;
 pub mod member;
 pub mod node;
 pub mod pattern_mapping;
@@ -139,6 +140,7 @@ use crate::{
         },
         exports_info::{ExportsInfoBinding, ExportsInfoRef},
         ident::IdentReplacement,
+        import_meta_glob::ImportMetaGlobAssetReference,
         member::MemberReplacement,
         node::{FilePathModuleReference, PackageJsonReference},
         raw::{DirAssetReference, FileSourceReference},
@@ -2181,6 +2183,28 @@ where
                     options.dir,
                     options.include_subdirs,
                     options.filter.cell(),
+                    Some(issue_source(source, span)),
+                    in_try,
+                )
+                .await?,
+                ast_path.to_vec().into(),
+            );
+        }
+
+        WellKnownFunctionKind::ImportMetaGlob => {
+            let _args = linked_args().await?;
+
+            let pattern = rcstr!("**");
+            let eager = false;
+            let import = None;
+
+            analysis.add_reference_code_gen(
+                ImportMetaGlobAssetReference::new(
+                    source,
+                    origin,
+                    pattern,
+                    eager,
+                    import,
                     Some(issue_source(source, span)),
                     in_try,
                 )

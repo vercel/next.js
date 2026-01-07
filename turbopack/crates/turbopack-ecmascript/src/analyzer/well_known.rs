@@ -624,6 +624,7 @@ async fn well_known_object_member(
         WellKnownObjectKind::NodePreGyp => node_pre_gyp(prop),
         WellKnownObjectKind::NodeExpressApp => express(prop),
         WellKnownObjectKind::NodeProtobufLoader => protobuf_loader(prop),
+        WellKnownObjectKind::ImportMeta => import_meta(prop),
         #[allow(unreachable_patterns)]
         _ => {
             return Ok((
@@ -927,5 +928,21 @@ fn protobuf_loader(prop: JsValue) -> JsValue {
             true,
             "unsupported property on require('@grpc/proto-loader') object",
         ),
+    }
+}
+
+fn import_meta(prop: JsValue) -> JsValue {
+    if let Some("glob") = prop.as_str() {
+        JsValue::WellKnownFunction(WellKnownFunctionKind::ImportMetaGlob)
+    } else {
+        // other cases like "url" should already have been transformed
+        JsValue::unknown(
+            JsValue::member(
+                Box::new(JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta)),
+                Box::new(prop),
+            ),
+            true,
+            "unsupported property on import.meta object",
+        )
     }
 }

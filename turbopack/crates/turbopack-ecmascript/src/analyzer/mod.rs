@@ -1974,6 +1974,10 @@ impl JsValue {
                       "URL".to_string(),
                       "The standard URL constructor: https://developer.mozilla.org/en-US/docs/Web/API/URL/URL"
                     ),
+                    WellKnownFunctionKind::ImportMetaGlob => (
+                        "import.meta.glob()".to_string(),
+                        "ESM method that imports a dynamic set of files based on a matched pattern"
+                    ),
                 };
                 if depth > 0 {
                     let i = hints.len();
@@ -3638,6 +3642,7 @@ pub enum WellKnownFunctionKind {
     // The worker_threads Worker class
     NodeWorkerConstructor,
     URLConstructor,
+    ImportMetaGlob,
 }
 
 impl WellKnownFunctionKind {
@@ -3648,6 +3653,7 @@ impl WellKnownFunctionKind {
             Self::RequireResolve => Some(&["require", "resolve"]),
             Self::RequireContext => Some(&["require", "context"]),
             Self::Define => Some(&["define"]),
+            Self::ImportMetaGlob => Some(&["import", "meta", "glob"]),
             _ => None,
         }
     }
