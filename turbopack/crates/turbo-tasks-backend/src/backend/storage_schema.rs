@@ -550,15 +550,39 @@ mod tests {
 
     #[test]
     fn test_schema_size() {
-        // Unified TypedStorage - all fields directly on one struct
-        // Size will be larger than separate TaskData + TaskMeta because fields
-        // aren't split, but simpler access patterns
-        println!("TypedStorage size: {} bytes", size_of::<TypedStorage>());
-        // Size check - unified storage is approximately the sum of what was data + meta
-        // Note: The exact size may vary due to alignment/padding in unified struct
-        assert!(
-            size_of::<TypedStorage>() <= 128,
-            "TypedStorage should not exceed 128 bytes"
+        // AggregationNumber uses NonZeroU32 for `effective` field to enable niche optimization.
+        // This allows Option<AggregationNumber> to be 12 bytes instead of 16 bytes.
+        assert_eq!(
+            size_of::<AggregationNumber>(),
+            12,
+            "AggregationNumber size changed! Was 12 bytes, now {} bytes.",
+            size_of::<AggregationNumber>()
+        );
+        assert_eq!(
+            size_of::<Option<AggregationNumber>>(),
+            12,
+            "Option<AggregationNumber> size changed! Was 12 bytes (niche optimization), now {} \
+             bytes.",
+            size_of::<Option<AggregationNumber>>()
+        );
+
+        // TypedStorage uses lazy storage for most fields, keeping inline storage minimal.
+        // Current layout (128 bytes):
+        //   - output_dependent (AutoSet<TaskId>): 24 bytes
+        //   - aggregation_number (Option<AggregationNumber>): 12 bytes (NonZeroU32 niche)
+        //   - output (Option<OutputValue>): 32 bytes
+        //   - upper (CounterMap<TaskId, u32>): 24 bytes
+        //   - flags (TaskFlags): 8 bytes
+        //   - lazy (Vec<LazyField>): 24 bytes
+        //   - padding: 4 bytes
+        //
+        // Use exact size check to catch regressions in either direction.
+        assert_eq!(
+            size_of::<TypedStorage>(),
+            128,
+            "TypedStorage size changed! Was 128 bytes, now {} bytes. If this is intentional, \
+             update this test.",
+            size_of::<TypedStorage>()
         );
     }
 
