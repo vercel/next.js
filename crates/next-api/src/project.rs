@@ -420,7 +420,7 @@ impl ProjectContainer {
             if let Some(old_options) = &*this.options_state.get_untracked() {
                 span.record(
                     "env_diff",
-                    &define_env_diff_report(&old_options.define_env, &options.define_env).as_str(),
+                    define_env_diff_report(&old_options.define_env, &options.define_env).as_str(),
                 );
             }
             this.options_state.set(Some(options));
