@@ -404,6 +404,29 @@ fn gen_lazy_match_arms<'a>(
         .collect()
 }
 
+/// Generate lazy field match arms with a custom body that also receives the index.
+/// `LazyField::Variant(data) => { <body> }`
+///
+/// The `body_fn` receives the index and field, returning the body TokenStream.
+/// The body can use `data` to reference the matched value.
+fn gen_lazy_match_arms_indexed<'a>(
+    fields: impl Iterator<Item = &'a FieldInfo>,
+    body_fn: impl Fn(usize, &FieldInfo) -> proc_macro2::TokenStream,
+) -> Vec<proc_macro2::TokenStream> {
+    fields
+        .enumerate()
+        .map(|(idx, field)| {
+            let variant_name = &field.variant_name;
+            let body = body_fn(idx, field);
+            quote! {
+                LazyField::#variant_name(data) => {
+                    #body
+                }
+            }
+        })
+        .collect()
+}
+
 fn generate_task_storage_impl(_ident: &Ident, grouped_fields: &GroupedFields) -> TokenStream {
     // Generate TaskFlags bitfield if there are flag fields
     let task_flags_bitfield = generate_task_flags_bitfield(grouped_fields);
@@ -1343,6 +1366,69 @@ fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> proc_macro2
 /// Must be a value that cannot be a valid discriminant (discriminants start at 0).
 const LAZY_FIELD_SENTINEL: u8 = 0x00;
 
+// =============================================================================
+// Transient Filtering Helpers
+// =============================================================================
+
+/// Filter predicate type for transient filtering.
+///
+/// Describes what type of value the filter applies to:
+/// - `Option`: filter predicate for Option inner value
+/// - `Set`: filter predicate for set elements
+/// - `Map`: filter predicate for map entries (key, value)
+/// - `CounterMap`: filter predicate for counter map entries (key only)
+/// - `MapWithSetValues`: filter predicate for map values that are sets
+#[derive(Clone, Copy)]
+enum FilterPredicateType {
+    Option,
+    Set,
+    Map,
+    CounterMap,
+    MapWithSetValues,
+}
+
+/// Generate the filter predicate closure for a field.
+///
+/// Returns the predicate expression (e.g., `|k| !k.is_transient()`) and the predicate type.
+/// Returns `None` if no filtering is needed.
+fn generate_filter_predicate(
+    field: &FieldInfo,
+) -> Option<(proc_macro2::TokenStream, FilterPredicateType)> {
+    if field.filter_transient_values {
+        return match field.storage_type {
+            StorageType::AutoMap => {
+                // For maps with set values, predicate checks if inner set has any non-transient
+                // items
+                Some((
+                    quote! { |(_, v)| v.iter().any(|item| !item.is_transient()) },
+                    FilterPredicateType::MapWithSetValues,
+                ))
+            }
+            _ => None,
+        };
+    }
+
+    if !field.filter_transient {
+        return None;
+    }
+
+    match field.storage_type {
+        StorageType::Direct => Some((
+            quote! { |v| !v.is_transient() },
+            FilterPredicateType::Option,
+        )),
+        StorageType::AutoSet => Some((quote! { |k| !k.is_transient() }, FilterPredicateType::Set)),
+        StorageType::CounterMap => Some((
+            quote! { |(k, _)| !k.is_transient() },
+            FilterPredicateType::CounterMap,
+        )),
+        StorageType::AutoMap => Some((
+            quote! { |(k, v)| !k.is_transient() && !v.is_transient() },
+            FilterPredicateType::Map,
+        )),
+    }
+}
+
 /// Generate code to encode a value with transient filtering based on field configuration.
 ///
 /// This is a shared helper used by both inline field encoding and lazy field encoding.
@@ -1353,103 +1439,77 @@ fn generate_encode_value(
     field: &FieldInfo,
     value_ref: proc_macro2::TokenStream,
 ) -> proc_macro2::TokenStream {
-    // Handle filter_transient_values for AutoMap with set values
-    if field.filter_transient_values {
-        return match field.storage_type {
-            StorageType::AutoMap => {
-                // For maps with set values, filter transient entries from the inner sets
-                quote! {
-                    {
-                        // Count entries where filtered set is non-empty
-                        let count = (#value_ref).iter()
-                            .filter(|(_, v)| v.iter().any(|item| !item.is_transient()))
-                            .count();
-                        bincode::Encode::encode(&count, encoder)?;
-                        for (key, value) in #value_ref {
-                            let filtered: Vec<_> = value.iter()
-                                .filter(|item| !item.is_transient())
-                                .collect();
-                            if !filtered.is_empty() {
-                                bincode::Encode::encode(key, encoder)?;
-                                bincode::Encode::encode(&filtered.len(), encoder)?;
-                                for item in filtered {
-                                    bincode::Encode::encode(item, encoder)?;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            _ => {
-                // filter_transient_values only makes sense for AutoMap
-                quote! {
-                    bincode::Encode::encode(#value_ref, encoder)?;
-                }
-            }
-        };
-    }
-
-    if !field.filter_transient {
+    let Some((predicate, pred_type)) = generate_filter_predicate(field) else {
         // No filtering needed, just encode normally
         return quote! {
             bincode::Encode::encode(#value_ref, encoder)?;
         };
-    }
+    };
 
-    // Generate filtering code based on storage type
-    match field.storage_type {
-        StorageType::Direct => {
+    match pred_type {
+        FilterPredicateType::Option => {
             // For Option<T>, check if the value is transient and encode None if so
             quote! {
                 {
-                    let filtered_value = (#value_ref).as_ref().filter(|v| !v.is_transient());
+                    let filtered_value = (#value_ref).as_ref().filter(#predicate);
                     bincode::Encode::encode(&filtered_value, encoder)?;
                 }
             }
         }
-        StorageType::AutoSet => {
+        FilterPredicateType::Set => {
             // For AutoSet<K>, filter out transient keys
             quote! {
                 {
-                    let count = (#value_ref).iter().filter(|k| !k.is_transient()).count();
+                    let count = (#value_ref).iter().filter(#predicate).count();
                     bincode::Encode::encode(&count, encoder)?;
-                    for key in (#value_ref).iter().filter(|k| !k.is_transient()) {
+                    for key in (#value_ref).iter().filter(#predicate) {
                         bincode::Encode::encode(key, encoder)?;
                     }
                 }
             }
         }
-        StorageType::CounterMap => {
+        FilterPredicateType::CounterMap => {
             // For counter maps, filter out entries with transient keys
-            // (values are just counts, not references)
             quote! {
                 {
-                    let count = (#value_ref).iter()
-                        .filter(|(k, _)| !k.is_transient())
-                        .count();
+                    let count = (#value_ref).iter().filter(#predicate).count();
                     bincode::Encode::encode(&count, encoder)?;
-                    for (key, value) in (#value_ref).iter()
-                        .filter(|(k, _)| !k.is_transient())
-                    {
+                    for (key, value) in (#value_ref).iter().filter(#predicate) {
                         bincode::Encode::encode(key, encoder)?;
                         bincode::Encode::encode(value, encoder)?;
                     }
                 }
             }
         }
-        StorageType::AutoMap => {
+        FilterPredicateType::Map => {
             // For maps, filter out entries with transient keys or values
             quote! {
                 {
-                    let count = (#value_ref).iter()
-                        .filter(|(k, v)| !k.is_transient() && !v.is_transient())
-                        .count();
+                    let count = (#value_ref).iter().filter(#predicate).count();
                     bincode::Encode::encode(&count, encoder)?;
-                    for (key, value) in (#value_ref).iter()
-                        .filter(|(k, v)| !k.is_transient() && !v.is_transient())
-                    {
+                    for (key, value) in (#value_ref).iter().filter(#predicate) {
                         bincode::Encode::encode(key, encoder)?;
                         bincode::Encode::encode(value, encoder)?;
+                    }
+                }
+            }
+        }
+        FilterPredicateType::MapWithSetValues => {
+            // For maps with set values, filter transient entries from the inner sets
+            quote! {
+                {
+                    // Count entries where filtered set is non-empty
+                    let count = (#value_ref).iter().filter(#predicate).count();
+                    bincode::Encode::encode(&count, encoder)?;
+                    for (key, value) in (#value_ref).iter().filter(#predicate) {
+                        let filtered: Vec<_> = value.iter()
+                            .filter(|item| !item.is_transient())
+                            .collect();
+                        bincode::Encode::encode(key, encoder)?;
+                        bincode::Encode::encode(&filtered.len(), encoder)?;
+                        for item in filtered {
+                            bincode::Encode::encode(item, encoder)?;
+                        }
                     }
                 }
             }
@@ -1462,7 +1522,7 @@ fn generate_encode_value(
 /// For non-filtered fields, encoding always produces output.
 /// For filtered fields, the result might be empty (skip discriminant).
 fn field_needs_empty_check(field: &FieldInfo) -> bool {
-    field.filter_transient || field.filter_transient_values
+    generate_filter_predicate(field).is_some()
 }
 
 /// Generate an expression that checks if a value is non-empty after transient filtering.
@@ -1472,40 +1532,22 @@ fn generate_non_empty_check(
     field: &FieldInfo,
     value_expr: proc_macro2::TokenStream,
 ) -> proc_macro2::TokenStream {
-    if field.filter_transient_values {
-        return match field.storage_type {
-            StorageType::AutoMap => {
-                quote! {
-                    (#value_expr).iter().any(|(_, v)| v.iter().any(|item| !item.is_transient()))
-                }
-            }
-            _ => quote! { true },
-        };
-    }
-
-    if !field.filter_transient {
+    let Some((predicate, pred_type)) = generate_filter_predicate(field) else {
         return quote! { true };
-    }
+    };
 
-    match field.storage_type {
-        StorageType::Direct => {
+    match pred_type {
+        FilterPredicateType::Option => {
             quote! {
-                (#value_expr).as_ref().map_or(false, |v| !v.is_transient())
+                (#value_expr).as_ref().map_or(false, #predicate)
             }
         }
-        StorageType::AutoSet => {
+        FilterPredicateType::Set
+        | FilterPredicateType::CounterMap
+        | FilterPredicateType::Map
+        | FilterPredicateType::MapWithSetValues => {
             quote! {
-                (#value_expr).iter().any(|k| !k.is_transient())
-            }
-        }
-        StorageType::CounterMap => {
-            quote! {
-                (#value_expr).iter().any(|(k, _)| !k.is_transient())
-            }
-        }
-        StorageType::AutoMap => {
-            quote! {
-                (#value_expr).iter().any(|(k, v)| !k.is_transient() && !v.is_transient())
+                (#value_expr).iter().any(#predicate)
             }
         }
     }
@@ -1527,14 +1569,27 @@ fn generate_encode_lazy_fields(fields: &[&FieldInfo]) -> proc_macro2::TokenStrea
     }
 
     // Generate match arms for encoding each field variant
-    let encode_arms: Vec<_> = fields
-        .iter()
-        .enumerate()
-        .map(|(idx, field)| {
-            let discriminant = idx as u8 + 1;
-            generate_encode_lazy_field_arm(field, discriminant)
-        })
-        .collect();
+    let encode_arms = gen_lazy_match_arms_indexed(fields.iter().copied(), |idx, field| {
+        let discriminant = idx as u8 + 1;
+        let encode_body = generate_encode_value(field, quote! { data });
+
+        if field_needs_empty_check(field) {
+            // For fields with transient filtering, check if non-empty before writing discriminant
+            let non_empty_check = generate_non_empty_check(field, quote! { data });
+            quote! {
+                if #non_empty_check {
+                    bincode::Encode::encode(&#discriminant, encoder)?;
+                    #encode_body
+                }
+            }
+        } else {
+            // No filtering, always encode
+            quote! {
+                bincode::Encode::encode(&#discriminant, encoder)?;
+                #encode_body
+            }
+        }
+    });
 
     quote! {
         // Encode each persistent lazy field in this category
@@ -1546,36 +1601,6 @@ fn generate_encode_lazy_fields(fields: &[&FieldInfo]) -> proc_macro2::TokenStrea
         }
         // Write sentinel to mark end of lazy fields
         bincode::Encode::encode(&#LAZY_FIELD_SENTINEL, encoder)?;
-    }
-}
-
-/// Generate a match arm for encoding a lazy field.
-///
-/// Uses `generate_encode_value` for the encoding logic, wrapped with a conditional
-/// discriminant write for fields that might filter to empty.
-fn generate_encode_lazy_field_arm(field: &FieldInfo, discriminant: u8) -> proc_macro2::TokenStream {
-    let variant_name = &field.variant_name;
-    let encode_body = generate_encode_value(field, quote! { data });
-
-    if field_needs_empty_check(field) {
-        // For fields with transient filtering, check if non-empty before writing discriminant
-        let non_empty_check = generate_non_empty_check(field, quote! { data });
-        quote! {
-            LazyField::#variant_name(data) => {
-                if #non_empty_check {
-                    bincode::Encode::encode(&#discriminant, encoder)?;
-                    #encode_body
-                }
-            }
-        }
-    } else {
-        // No filtering, always encode
-        quote! {
-            LazyField::#variant_name(data) => {
-                bincode::Encode::encode(&#discriminant, encoder)?;
-                #encode_body
-            }
-        }
     }
 }
 
