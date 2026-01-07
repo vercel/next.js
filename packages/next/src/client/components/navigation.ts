@@ -1,6 +1,13 @@
 import type { Params } from '../../server/request/params'
 
-import React, { useContext, useMemo, use } from 'react'
+import React, {
+  useContext,
+  useMemo,
+  use,
+  useRef,
+  useEffect,
+  useCallback,
+} from 'react'
 import {
   AppRouterContext,
   LayoutRouterContext,
@@ -122,56 +129,75 @@ export function usePathname(): string {
 
 /**
  * A [Client Component](https://nextjs.org/docs/app/building-your-application/rendering/client-components) hook
- * that lets you read the canonical route structure including route groups, parallel routes, and dynamic parameters.
+ * that returns a getter function to read the canonical route structure including route groups,
+ * parallel routes, and dynamic parameters.
  *
- * Unlike `usePathname()` which returns the actual URL path, `useRoute()` returns the file-system structure
- * of the route, preserving route groups `(group)`, parallel routes `@slot`, and dynamic parameters `[param]`. When
- * an intercepted route is active, the route will be the path of the intercepted route.
+ * Unlike `usePathname()` which returns the actual URL path, the route returned by this hook's getter
+ * represents the file-system structure of the route, preserving route groups `(group)`, parallel routes
+ * `@slot`, and dynamic parameters `[param]`. When an intercepted route is active, the route will be
+ * the path of the intercepted route.
+ *
+ * **Important:** The getter function can only be called during the effect phase (inside `useEffect`,
+ * `useLayoutEffect`, or event handlers). Calling it during render will throw an error in development.
+ * This restriction exists to prevent route structure from leaking into rendering decisions.
  *
  * @example
  * ```ts
  * "use client"
- * import { useRoute } from 'next/navigation'
+ * import { unstable_useRoute } from 'next/navigation'
+ * import { useEffect, useState } from 'react'
  *
  * export default function Page() {
- *   const route = useRoute()
- *   // On /blog/my-post, returns "/blog/[slug]"
- *   // On /dashboard with @modal slot active, returns "/dashboard/@modal/..."
- *   // With route group (marketing), returns "/(marketing)/about"
- *   // ...
+ *   const getRoute = unstable_useRoute()
+ *   const [route, setRoute] = useState<string | undefined>(undefined)
+ *
+ *   useEffect(() => {
+ *     // Call the getter inside useEffect
+ *     setRoute(getRoute())
+ *     // On /blog/my-post, returns "/blog/[slug]"
+ *     // On /dashboard with @modal slot active, returns "/dashboard/@modal/..."
+ *     // With route group (marketing), returns "/(marketing)/about"
+ *   }, [getRoute])
+ *
+ *   return <div>Route: {route}</div>
  * }
  * ```
  */
 // Client components API
-export function useRoute(): string {
-  useDynamicRouteParams?.('useRoute()')
+/* eslint-disable react-hooks/rules-of-hooks -- unstable_ prefix for experimental API */
+export function unstable_useRoute(): () => string {
+  useDynamicRouteParams?.('unstable_useRoute()')
 
+  const hasMounted = useRef(false)
   const pathname = useContext(PathnameContext)
   const globalContext = useContext(GlobalLayoutRouterContext)
   const tree = globalContext?.tree
 
-  // Compute the canonical route from the tree
-  // The tree structure itself represents the active route state,
-  // so we just traverse it to build the canonical path
-  // Memoized to avoid expensive tree traversal on every render
-  const route = useMemo(() => {
+  useEffect(() => {
+    hasMounted.current = true
+    return () => {
+      hasMounted.current = false
+    }
+  }, [])
+
+  const getRoute = useCallback(() => {
+    if (!hasMounted.current && process.env.NODE_ENV !== 'production') {
+      throw new Error(
+        'unstable_useRoute: Cannot access route during render. ' +
+          'Call getRoute() inside useEffect, useLayoutEffect, or event handlers.'
+      )
+    }
+
     if (!tree || !pathname) {
       return '/'
     }
+
     return extractRouteFromFlightRouterState(pathname, tree) ?? '/'
   }, [pathname, tree])
 
-  // Instrument with Suspense DevTools (dev-only)
-  if (process.env.NODE_ENV !== 'production' && 'use' in React) {
-    const navigationPromises = use(NavigationPromisesContext)
-    if (navigationPromises) {
-      // TODO: Add instrumented promise for route if needed for DevTools
-      // For now, return the computed value directly
-    }
-  }
-
-  return route
+  return getRoute
 }
+/* eslint-enable react-hooks/rules-of-hooks */
 
 // Client components API
 export {
