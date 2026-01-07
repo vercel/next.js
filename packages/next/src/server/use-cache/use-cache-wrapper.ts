@@ -1256,6 +1256,20 @@ export async function cache(
               // generating static pages for such data. It's better to leave
               // a dynamic hole that can be filled in during the resume with
               // a potentially cached entry.
+              if (existingEntry.revalidate === 0) {
+                debug?.(
+                  'omitting entry',
+                  serializedCacheKey,
+                  'from static shell due to revalidate: 0'
+                )
+              } else {
+                debug?.(
+                  'omitting entry',
+                  serializedCacheKey,
+                  'from static shell due to short expire value:',
+                  existingEntry.expire
+                )
+              }
               if (cacheSignal) {
                 cacheSignal.endRead()
               }
@@ -1307,6 +1321,12 @@ export async function cache(
               // stale in less then 30 seconds, we consider this cache entry
               // dynamic as it's not worth prefetching. It's better to leave
               // a dynamic hole that can be filled during the navigation.
+              debug?.(
+                'omitting entry',
+                serializedCacheKey,
+                'from runtime shell due to short stale value:',
+                existingEntry.stale
+              )
               if (cacheSignal) {
                 cacheSignal.endRead()
               }
@@ -1344,6 +1364,8 @@ export async function cache(
         }
       }
 
+      debug?.('Resume Data Cache entry found', serializedCacheKey)
+
       // We want to make sure we only propagate cache life & tags if the
       // entry was *not* omitted from the prerender. So we only do this
       // after the above early returns.
@@ -1360,6 +1382,8 @@ export async function cache(
         stream = streamA
       }
     } else {
+      debug?.('Resume Data Cache entry not found', serializedCacheKey)
+
       if (cacheSignal) {
         cacheSignal.endRead()
       }
@@ -1481,6 +1505,20 @@ export async function cache(
           // pages for such data. It's better to leave a dynamic hole that
           // can be filled in during the resume with a potentially cached
           // entry.
+          if (entry.revalidate === 0) {
+            debug?.(
+              'omitting entry',
+              serializedCacheKey,
+              'from static shell due to revalidate: 0'
+            )
+          } else {
+            debug?.(
+              'omitting entry',
+              serializedCacheKey,
+              'from static shell due to short expire value:',
+              entry.expire
+            )
+          }
           if (cacheSignal) {
             cacheSignal.endRead()
           }
