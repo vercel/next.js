@@ -14,13 +14,14 @@ describe('pnpm-workspace-root', () => {
         }
       `,
       'app/page.tsx': `
+        import { message } from '../../shared/utils'
         export default function Page() {
-          return <p>hello world</p>
+          return <p>{message}</p>
         }
       `,
-      // Write a package-lock.json (npm lockfile, ignored by pnpm) to the parent
+      // Write a package-lock.json (npm lockfile, ignored by pnpm) to the application directory
       // directory to create the scenario where multiple "lockfiles" exist.
-      '../package-lock.json': JSON.stringify({
+      'package-lock.json': JSON.stringify({
         name: 'parent-workspace',
         version: '1.0.0',
         lockfileVersion: 3,
@@ -34,6 +35,12 @@ describe('pnpm-workspace-root', () => {
         name: 'workspace-root',
         private: true,
       }),
+      // Shared file outside of the test directory (in the workspace root)
+      // This tests that files outside the Next.js app directory but inside
+      // the pnpm workspace root can be imported correctly.
+      '../shared/utils.ts': `
+        export const message = 'hello world'
+      `,
     },
     // So that parent files don't leave the isolated testDir
     subDir: 'test',
@@ -44,8 +51,10 @@ describe('pnpm-workspace-root', () => {
     return
   }
 
-  it('should detect root directory from pnpm-workspace.yaml', async () => {
+  it('should detect root directory from pnpm-workspace.yaml and allow imports from outside app dir', async () => {
     // The app should start successfully when pnpm-workspace.yaml is present
+    // and correctly resolve imports from outside the Next.js app directory
+    // (e.g., from ../shared/utils.ts which is in the workspace root)
     const browser = await next.browser('/')
     expect(await browser.elementByCss('p').text()).toBe('hello world')
   })
