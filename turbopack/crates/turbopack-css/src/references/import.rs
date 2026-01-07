@@ -155,16 +155,15 @@ impl ValueToString for ImportAssetReference {
 impl CodeGenerateable for ImportAssetReference {
     #[turbo_tasks::function]
     async fn code_generation(
-        self: Vc<Self>,
+        &self,
         _context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
-        let this = &*self.await?;
         let mut imports = vec![];
         if let Request::Uri {
             protocol,
             remainder,
             ..
-        } = &*this.request.await?
+        } = &*self.request.await?
         {
             imports.push(CssImport::External(ResolvedVc::cell(
                 format!("{protocol}{remainder}").into(),

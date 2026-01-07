@@ -158,8 +158,8 @@ impl Module for EcmascriptModuleFacadeModule {
     }
 
     #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
-        let (part_references, esm_references) = self.await?.specific_references().await?;
+    async fn references(&self) -> Result<Vc<ModuleReferences>> {
+        let (part_references, esm_references) = self.specific_references().await?;
         let references = part_references
             .iter()
             .map(|r| ResolvedVc::upcast(*r))

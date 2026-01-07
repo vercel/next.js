@@ -66,15 +66,15 @@ impl OptionAsyncModule {
     }
 
     #[turbo_tasks::function]
-    pub async fn module_options(
-        self: Vc<Self>,
+    pub fn module_options(
+        &self,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
-    ) -> Result<Vc<OptionAsyncModuleOptions>> {
-        if let Some(async_module) = &*self.await? {
-            return Ok(async_module.module_options(async_module_info));
+    ) -> Vc<OptionAsyncModuleOptions> {
+        if let Some(async_module) = &self.0 {
+            return async_module.module_options(async_module_info);
         }
 
-        Ok(OptionAsyncModuleOptions::none())
+        OptionAsyncModuleOptions::none()
     }
 }
 

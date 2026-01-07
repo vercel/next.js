@@ -500,17 +500,16 @@ impl ModuleTypeResult {
 #[turbo_tasks::value_impl]
 impl EcmascriptParsable for EcmascriptModuleAsset {
     #[turbo_tasks::function]
-    async fn failsafe_parse(self: Vc<Self>) -> Result<Vc<ParseResult>> {
-        let this = self.await?;
-        let real_result = this.parse().await?;
-        if this.options.await?.keep_last_successful_parse {
+    async fn failsafe_parse(&self) -> Result<Vc<ParseResult>> {
+        let real_result = self.parse().await?;
+        if self.options.await?.keep_last_successful_parse {
             let real_result_value = real_result.await?;
             let result_value = if matches!(*real_result_value, ParseResult::Ok { .. }) {
-                this.last_successful_parse
+                self.last_successful_parse
                     .set_unconditionally(real_result_value.clone());
                 real_result_value
             } else {
-                let state_ref = this.last_successful_parse.get();
+                let state_ref = self.last_successful_parse.get();
                 state_ref.as_ref().unwrap_or(&real_result_value).clone()
             };
             Ok(ReadRef::cell(result_value))

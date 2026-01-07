@@ -51,8 +51,8 @@ pub struct RouteTrees(Vec<ResolvedVc<RouteTree>>);
 impl RouteTrees {
     /// Merges the list of RouteTrees into one RouteTree.
     #[turbo_tasks::function]
-    pub async fn merge(self: Vc<Self>) -> Result<Vc<RouteTree>> {
-        let trees = &*self.await?;
+    pub async fn merge(&self) -> Result<Vc<RouteTree>> {
+        let trees = &self.0;
         if trees.is_empty() {
             return Ok(RouteTree::default().cell());
         }

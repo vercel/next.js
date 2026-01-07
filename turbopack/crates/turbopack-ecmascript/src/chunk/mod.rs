@@ -206,11 +206,10 @@ impl Introspectable for EcmascriptChunk {
     }
 
     #[turbo_tasks::function]
-    async fn details(self: Vc<Self>) -> Result<Vc<RcStr>> {
+    async fn details(&self) -> Result<Vc<RcStr>> {
         let mut details = String::new();
-        let this = self.await?;
         details += "Chunk items:\n\n";
-        for chunk_item in this.content.included_chunk_items().await? {
+        for chunk_item in self.content.included_chunk_items().await? {
             writeln!(details, "- {}", chunk_item.asset_ident().to_string().await?)?;
         }
         Ok(Vc::cell(details.into()))

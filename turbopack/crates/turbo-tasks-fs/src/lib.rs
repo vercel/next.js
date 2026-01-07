@@ -2296,21 +2296,18 @@ impl FileContent {
     }
 
     #[turbo_tasks::function]
-    pub async fn parse_json_with_comments(self: Vc<Self>) -> Result<Vc<FileJsonContent>> {
-        let this = self.await?;
-        Ok(this.parse_json_with_comments_ref().cell())
+    pub fn parse_json_with_comments(&self) -> Vc<FileJsonContent> {
+        self.parse_json_with_comments_ref().cell()
     }
 
     #[turbo_tasks::function]
-    pub async fn parse_json5(self: Vc<Self>) -> Result<Vc<FileJsonContent>> {
-        let this = self.await?;
-        Ok(this.parse_json5_ref().cell())
+    pub fn parse_json5(&self) -> Vc<FileJsonContent> {
+        self.parse_json5_ref().cell()
     }
 
     #[turbo_tasks::function]
-    pub async fn lines(self: Vc<Self>) -> Result<Vc<FileLinesContent>> {
-        let this = self.await?;
-        Ok(this.lines_ref().cell())
+    pub fn lines(&self) -> Vc<FileLinesContent> {
+        self.lines_ref().cell()
     }
 
     #[turbo_tasks::function]
