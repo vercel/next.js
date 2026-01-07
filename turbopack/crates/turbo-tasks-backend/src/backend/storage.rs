@@ -81,29 +81,6 @@ impl Iterator for TaskDataCategoryIterator {
     }
 }
 
-// Note: InnerStorageState has been replaced by TaskFlags in TypedStorage.
-// The flags are now part of the typed storage and include both persisted flags
-// (stateful, invalidator, immutable) and transient internal state flags
-// (meta_restored, data_restored, meta_modified, data_modified,
-// meta_snapshot, data_snapshot, prefetched, current_session_clean).
-
-pub struct InnerStorageSnapshot {
-    // Typed storage data for persistence - all CachedDataItem variants are now migrated
-    pub typed: TypedStorage,
-    pub meta_modified: bool,
-    pub data_modified: bool,
-}
-
-impl From<&InnerStorage> for InnerStorageSnapshot {
-    fn from(inner: &InnerStorage) -> Self {
-        Self {
-            typed: inner.typed.clone(),
-            meta_modified: inner.typed.flags.meta_modified(),
-            data_modified: inner.typed.flags.data_modified(),
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct InnerStorage {
     // Typed storage - all CachedDataItem variants are now migrated
@@ -150,10 +127,12 @@ enum ModifiedState {
     /// Snapshot(Some):
     /// It was modified before snapshot mode was entered and it was accessed again during snapshot
     /// mode. A copy of the version of the item when snapshot mode was entered is stored here.
+    /// The `TypedStorage` contains only persistent fields (via `clone_snapshot()`), and has
+    /// `meta_modified`/`data_modified` flags set to indicate which categories need serializing.
     /// Snapshot(None):
     /// It was not modified before snapshot mode was entered, but it was accessed during snapshot
     /// mode. Or the snapshot was already taken out by the snapshot operation.
-    Snapshot(Option<Box<InnerStorageSnapshot>>),
+    Snapshot(Option<Box<TypedStorage>>),
 }
 
 pub struct Storage {
@@ -196,7 +175,7 @@ impl Storage {
         R,
         PP: for<'a> Fn(TaskId, &'a InnerStorage) -> T + Sync,
         P: Fn(TaskId, T) -> R + Sync,
-        PS: Fn(TaskId, Box<InnerStorageSnapshot>) -> R + Sync,
+        PS: Fn(TaskId, Box<TypedStorage>) -> R + Sync,
     >(
         &'l self,
         preprocess: &'l PP,
@@ -212,7 +191,7 @@ impl Storage {
         // The number of shards is much larger than the number of threads, so the effect of the
         // locks held is negligible.
         parallel::map_collect::<_, _, Vec<_>>(self.modified.shards(), |shard| {
-            let mut direct_snapshots: Vec<(TaskId, Box<InnerStorageSnapshot>)> = Vec::new();
+            let mut direct_snapshots: Vec<(TaskId, Box<TypedStorage>)> = Vec::new();
             let mut modified: SmallVec<[TaskId; 4]> = SmallVec::new();
             {
                 // Take the snapshots from the modified map
@@ -414,9 +393,13 @@ impl StorageWriteGuard<'_> {
                     // In snapshot mode and item is modified (so it's part of the snapshot)
                     // We need to store the original version that is part of the snapshot
                     if !state.any_snapshot() {
+                        // Clone persistent fields and preserve the modified flags
+                        let mut snapshot = self.inner.typed().clone_snapshot();
+                        snapshot.flags.set_meta_modified(state.meta_modified());
+                        snapshot.flags.set_data_modified(state.data_modified());
                         self.storage.modified.insert(
                             *self.inner.key(),
-                            ModifiedState::Snapshot(Some(Box::new((&**self.inner).into()))),
+                            ModifiedState::Snapshot(Some(Box::new(snapshot))),
                         );
                     }
                     let state = self.inner.flags_mut();
@@ -455,7 +438,7 @@ impl Drop for SnapshotGuard<'_> {
 }
 
 pub struct SnapshotShard<'l, PP, P, PS> {
-    direct_snapshots: Vec<(TaskId, Box<InnerStorageSnapshot>)>,
+    direct_snapshots: Vec<(TaskId, Box<TypedStorage>)>,
     modified: SmallVec<[TaskId; 4]>,
     storage: &'l Storage,
     guard: Option<Arc<SnapshotGuard<'l>>>,
@@ -468,7 +451,7 @@ impl<'l, T, R, PP, P, PS> Iterator for SnapshotShard<'l, PP, P, PS>
 where
     PP: for<'a> Fn(TaskId, &'a InnerStorage) -> T + Sync,
     P: Fn(TaskId, T) -> R + Sync,
-    PS: Fn(TaskId, Box<InnerStorageSnapshot>) -> R + Sync,
+    PS: Fn(TaskId, Box<TypedStorage>) -> R + Sync,
 {
     type Item = R;
 

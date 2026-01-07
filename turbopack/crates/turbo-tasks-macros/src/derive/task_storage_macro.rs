@@ -21,7 +21,6 @@ use syn::{
 ///   - `auto_set` - Uses AutoSet for small collections
 ///   - `auto_map` - Uses AutoMap for key-value pairs
 ///   - `counter_map` - Uses CounterMap for reference counting
-///   - `indexed_vec` - Uses IndexedVec for direct index access
 ///
 /// - `#[task_storage(category = "...")]` - Data vs Meta categorization:
 ///   - `data` - Frequently changed, bulk I/O
@@ -122,7 +121,6 @@ enum StorageType {
     AutoSet,
     AutoMap,
     CounterMap,
-    IndexedVec,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -188,7 +186,6 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
                             "auto_set" => StorageType::AutoSet,
                             "auto_map" => StorageType::AutoMap,
                             "counter_map" => StorageType::CounterMap,
-                            "indexed_vec" => StorageType::IndexedVec,
                             other => {
                                 meta.span()
                                     .unwrap()
@@ -811,7 +808,6 @@ fn generate_task_storage_accessors_trait(
             /// - `All`: Used for transient data - no check is performed
             ///
             /// Implementors should check that the provided category matches how the task was accessed.
-            #[inline]
             fn check_access(&self, category: crate::backend::TaskDataCategory);
 
             /// Shrink all collection fields to fit their current contents.
@@ -906,10 +902,7 @@ fn generate_inline_trait_accessor_methods(
                 }
             }
         }
-        StorageType::AutoSet
-        | StorageType::AutoMap
-        | StorageType::CounterMap
-        | StorageType::IndexedVec => {
+        StorageType::AutoSet | StorageType::AutoMap | StorageType::CounterMap => {
             // For collection types, generate immutable and mutable accessors
             let ref_name =
                 syn::Ident::new(&format!("{}", field_name), proc_macro2::Span::call_site());
@@ -1390,18 +1383,6 @@ fn generate_encode_value(
                 }
             }
         }
-        StorageType::IndexedVec => {
-            // For IndexedVec, filter out transient entries
-            quote! {
-                {
-                    let filtered: Vec<_> = (#value_ref).iter()
-                        .filter(|v| !v.is_transient())
-                        .cloned()
-                        .collect();
-                    bincode::Encode::encode(&filtered, encoder)?;
-                }
-            }
-        }
     }
 }
 
@@ -1454,11 +1435,6 @@ fn generate_non_empty_check(
         StorageType::AutoMap => {
             quote! {
                 (#value_expr).iter().any(|(k, v)| !k.is_transient() && !v.is_transient())
-            }
-        }
-        StorageType::IndexedVec => {
-            quote! {
-                (#value_expr).iter().any(|v| !v.is_transient())
             }
         }
     }

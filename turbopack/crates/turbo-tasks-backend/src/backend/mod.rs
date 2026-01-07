@@ -53,7 +53,7 @@ use crate::{
             Operation, OutdatedEdge, TaskGuard, connect_children, get_aggregation_number,
             get_uppers, is_root_node, make_task_dirty_internal, prepare_new_children,
         },
-        storage::{InnerStorageSnapshot, Storage},
+        storage::Storage,
         storage_schema::TaskStorageAccessors,
     },
     backing_storage::BackingStorage,
@@ -1066,17 +1066,19 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 ),
             }
         };
-        let process_snapshot = |task_id: TaskId, inner: Box<InnerStorageSnapshot>| {
+        let process_snapshot = |task_id: TaskId, snapshot: Box<storage_schema::TypedStorage>| {
             if task_id.is_transient() {
                 return (task_id, None, None);
             }
-            // Use typed serialization directly - no intermediate Vec<CachedDataItem>
-            let meta = inner
-                .meta_modified
-                .then(|| self.backing_storage.serialize_typed_meta(&inner.typed));
-            let data = inner
-                .data_modified
-                .then(|| self.backing_storage.serialize_typed_data(&inner.typed));
+            // Use typed serialization directly - the snapshot's flags tell us what was modified
+            let meta = snapshot
+                .flags
+                .meta_modified()
+                .then(|| self.backing_storage.serialize_typed_meta(&snapshot));
+            let data = snapshot
+                .flags
+                .data_modified()
+                .then(|| self.backing_storage.serialize_typed_data(&snapshot));
             (task_id, meta, data)
         };
 
