@@ -3942,7 +3942,7 @@ dependencies = [
 [[package]]
 name = "mdxjs"
 version = "1.0.4"
-source = "git+https://github.com/mischnic/mdxjs-rs.git?branch=turbopack#c91839ba4365c4f41458a35132b81523db12c7ef"
+source = "git+https://github.com/vercel-labs/mdxjs-rs-turbopack.git?branch=turbopack#c91839ba4365c4f41458a35132b81523db12c7ef"
 dependencies = [
  "markdown",
  "rustc-hash 2.1.1",
