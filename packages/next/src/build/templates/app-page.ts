@@ -51,6 +51,7 @@ import {
   HTML_CONTENT_TYPE_HEADER,
   NEXT_CACHE_TAGS_HEADER,
   NEXT_RESUME_HEADER,
+  NEXT_RESUME_STATE_LENGTH_HEADER,
 } from '../../lib/constants'
 import type { CacheControl } from '../../server/lib/cache-control'
 import { ENCODED_TAGS } from '../../server/stream-utils/encoded-tags'
@@ -218,6 +219,40 @@ export async function handler(
   const couldSupportPPR: boolean = checkIsAppPPREnabled(
     nextConfig.experimental.ppr
   )
+
+  // Stash postponed state for server actions when in minimal mode.
+  // We extract it here so the RDC is available for the re-render after the action completes.
+  const resumeStateLengthHeader = req.headers[NEXT_RESUME_STATE_LENGTH_HEADER]
+  if (
+    !getRequestMeta(req, 'postponed') &&
+    isMinimalMode &&
+    couldSupportPPR &&
+    isPossibleServerAction &&
+    resumeStateLengthHeader &&
+    typeof resumeStateLengthHeader === 'string'
+  ) {
+    const stateLength = parseInt(resumeStateLengthHeader, 10)
+    if (!isNaN(stateLength) && stateLength > 0) {
+      // Read the entire body
+      const bodyChunks: Array<Buffer> = []
+      for await (const chunk of req) {
+        bodyChunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
+      }
+      const fullBody = Buffer.concat(bodyChunks)
+
+      if (fullBody.length >= stateLength) {
+        // Extract postponed state from the beginning
+        const postponedState = fullBody
+          .subarray(0, stateLength)
+          .toString('utf8')
+        addRequestMeta(req, 'postponed', postponedState)
+
+        // Store the remaining action body for the action handler
+        const actionBody = fullBody.subarray(stateLength)
+        addRequestMeta(req, 'actionBody', actionBody)
+      }
+    }
+  }
 
   if (
     !getRequestMeta(req, 'postponed') &&

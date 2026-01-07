@@ -3,7 +3,7 @@ import { retry } from 'next-test-utils'
 import { computeCacheBustingSearchParam } from 'next/dist/shared/lib/router/utils/cache-busting-search-param'
 
 describe('resume-data-cache', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
   })
 
@@ -132,36 +132,39 @@ describe('resume-data-cache', () => {
     }
   )
 
-  it('should use RDC for server action re-renders', async () => {
-    const browser = await next.browser('/server-action')
+  // TODO: Re-enable this test once necessary upstream changes are merged to support this
+  if (!isNextDeploy) {
+    it('should use RDC for server action re-renders', async () => {
+      const browser = await next.browser('/server-action')
 
-    // Get the initial values
-    const initialCachedValue = await browser
-      .elementByCss('#cached-random')
-      .text()
-    const initialUncachedValue = await browser
-      .elementByCss('#uncached-random')
-      .text()
-
-    await browser.elementByCss('#refresh-button').click()
-
-    // Wait for the action to complete and verify:
-    // 1. The uncached value should change
-    // 2. The cached value should remain the same (proving RDC is being used)
-    await retry(async () => {
-      const cachedValueAfterAction = await browser
+      // Get the initial values
+      const initialCachedValue = await browser
         .elementByCss('#cached-random')
         .text()
-      const uncachedValueAfterAction = await browser
+      const initialUncachedValue = await browser
         .elementByCss('#uncached-random')
         .text()
 
-      // Uncached value should have changed - this proves the action caused a re-render
-      expect(uncachedValueAfterAction).not.toBe(initialUncachedValue)
+      await browser.elementByCss('#refresh-button').click()
 
-      // Cached value should remain the same - this proves the RDC is being used
-      // to maintain consistency during server action re-renders
-      expect(cachedValueAfterAction).toBe(initialCachedValue)
+      // Wait for the action to complete and verify:
+      // 1. The uncached value should change
+      // 2. The cached value should remain the same (proving RDC is being used)
+      await retry(async () => {
+        const cachedValueAfterAction = await browser
+          .elementByCss('#cached-random')
+          .text()
+        const uncachedValueAfterAction = await browser
+          .elementByCss('#uncached-random')
+          .text()
+
+        // Uncached value should have changed - this proves the action caused a re-render
+        expect(uncachedValueAfterAction).not.toBe(initialUncachedValue)
+
+        // Cached value should remain the same - this proves the RDC is being used
+        // to maintain consistency during server action re-renders
+        expect(cachedValueAfterAction).toBe(initialCachedValue)
+      })
     })
-  })
+  }
 })
