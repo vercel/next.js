@@ -1,7 +1,7 @@
 import {
   toNodeOutgoingHttpHeaders,
   encodeHeaderValue,
-  decodeHeaderValue,
+  decodeNodeHeaderValue,
 } from './utils'
 
 describe('toNodeHeaders', () => {
@@ -80,35 +80,37 @@ describe('encodeHeaderValue', () => {
   })
 })
 
-describe('decodeHeaderValue', () => {
+describe('decodeNodeHeaderValue', () => {
   it('should return unencoded values unchanged', () => {
-    expect(decodeHeaderValue('hello-world')).toBe('hello-world')
-    expect(decodeHeaderValue('test_value')).toBe('test_value')
-    expect(decodeHeaderValue('123')).toBe('123')
+    expect(decodeNodeHeaderValue('hello-world')).toBe('hello-world')
+    expect(decodeNodeHeaderValue('test_value')).toBe('test_value')
+    expect(decodeNodeHeaderValue('123')).toBe('123')
   })
 
   it('should decode percent-encoded values', () => {
-    expect(decodeHeaderValue('Montr%C3%A9al')).toBe('Montréal')
-    expect(decodeHeaderValue('caf%C3%A9')).toBe('café')
-    expect(decodeHeaderValue('%E5%8C%97%E4%BA%AC')).toBe('北京')
+    expect(decodeNodeHeaderValue('Montr%C3%A9al')).toBe('Montréal')
+    expect(decodeNodeHeaderValue('caf%C3%A9')).toBe('café')
+    expect(decodeNodeHeaderValue('%E5%8C%97%E4%BA%AC')).toBe('北京')
     expect(
-      decodeHeaderValue('%D1%80%D1%83%D1%81%D1%81%D0%BA%D0%B8%D0%B9')
+      decodeNodeHeaderValue('%D1%80%D1%83%D1%81%D1%81%D0%BA%D0%B8%D0%B9')
     ).toBe('русский')
   })
 
   it('should handle spaces correctly', () => {
-    expect(decodeHeaderValue('hello world')).toBe('hello world')
-    expect(decodeHeaderValue('Montr%C3%A9al%20city')).toBe('Montréal city')
+    expect(decodeNodeHeaderValue('hello world')).toBe('hello world')
+    expect(decodeNodeHeaderValue('Montr%C3%A9al%20city')).toBe('Montréal city')
   })
 
   it('should handle mixed encoded and unencoded values', () => {
-    expect(decodeHeaderValue('City%3A%20Montr%C3%A9al')).toBe('City: Montréal')
+    expect(decodeNodeHeaderValue('City%3A%20Montr%C3%A9al')).toBe(
+      'City: Montréal'
+    )
   })
 
   it('should return original value if decoding fails', () => {
-    expect(decodeHeaderValue('invalid%')).toBe('invalid%')
-    expect(decodeHeaderValue('invalid%2')).toBe('invalid%2')
-    expect(decodeHeaderValue('%XX')).toBe('%XX')
+    expect(decodeNodeHeaderValue('invalid%')).toBe('invalid%')
+    expect(decodeNodeHeaderValue('invalid%2')).toBe('invalid%2')
+    expect(decodeNodeHeaderValue('%XX')).toBe('%XX')
   })
 
   it('should round-trip encode/decode correctly', () => {
@@ -122,7 +124,7 @@ describe('decodeHeaderValue', () => {
     ]
 
     for (const value of testValues) {
-      expect(decodeHeaderValue(encodeHeaderValue(value))).toBe(value)
+      expect(decodeNodeHeaderValue(encodeHeaderValue(value))).toBe(value)
     }
   })
 })
