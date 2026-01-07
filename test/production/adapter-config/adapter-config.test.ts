@@ -25,7 +25,7 @@ describe('adapter-config', () => {
 
     const {
       outputs,
-      routes,
+      routing,
       config,
       ...ctx
     }: Parameters<NextAdapter['onBuildComplete']>[0] = await next.readJSON(
@@ -94,9 +94,13 @@ describe('adapter-config', () => {
 
       if (output.filePath.endsWith('.html')) {
         expect(output.pathname.endsWith('.html')).toBe(false)
+      } else if (output.pathname.endsWith('.rsc')) {
+        expect(output.filePath.endsWith('rsc-fallback.json')).toBe(true)
       } else {
-        expect(output.pathname).toStartWith('/_next/static')
+        expect(output.pathname).toStartWith('/docs/_next/static')
       }
+      // ensure / -> /index normalizing is correct
+      expect(output.pathname.includes('/.')).toBe(false)
 
       const stats = await fs.promises.stat(output.filePath)
       expect(stats.isFile()).toBe(true)
@@ -106,21 +110,41 @@ describe('adapter-config', () => {
       try {
         expect(prerenderOutput.parentOutputId).toBeTruthy()
         if (prerenderOutput.fallback) {
-          const stats = await fs.promises.stat(
+          if (
+            'filePath' in prerenderOutput.fallback &&
             prerenderOutput.fallback.filePath
-          )
-          expect(stats.isFile()).toBe(true)
+          ) {
+            const stats = await fs.promises.stat(
+              prerenderOutput.fallback.filePath
+            )
+            expect(stats.isFile()).toBe(true)
+          }
           expect(prerenderOutput.fallback.initialRevalidate).toBeDefined()
         }
 
         expect(typeof prerenderOutput.config.bypassToken).toBe('string')
         expect(Array.isArray(prerenderOutput.config.allowHeader)).toBe(true)
         expect(Array.isArray(prerenderOutput.config.allowQuery)).toBe(true)
+        // ensure / -> /index normalizing is correct
+        expect(prerenderOutput.pathname.includes('/.')).toBe(false)
       } catch (err) {
         require('console').error(`invalid prerender ${prerenderOutput.id}`, err)
         throw err
       }
     }
+
+    const indexPrerender = prerenderOutputs.find(
+      (item) => item.pathname === '/docs'
+    )
+
+    expect(indexPrerender?.fallback?.initialHeaders).toEqual({
+      'content-type': 'text/html; charset=utf-8',
+      vary: 'rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch',
+      'x-next-cache-tags': '_N_T_/layout,_N_T_/page,_N_T_/,_N_T_/index',
+      'x-nextjs-prerender': '1',
+      'x-nextjs-stale-time': '300',
+    })
+    expect(indexPrerender?.fallback?.initialRevalidate).toBe(false)
 
     for (const route of nodeOutputs) {
       try {
@@ -128,6 +152,8 @@ describe('adapter-config', () => {
         expect(route.config).toBeObject()
         expect(route.pathname).toBeString()
         expect(route.runtime).toBe('nodejs')
+        // ensure / -> /index normalizing is correct
+        expect(route.pathname.includes('/.')).toBe(false)
 
         const stats = await fs.promises.stat(route.filePath)
         expect(stats.isFile()).toBe(true)
@@ -152,7 +178,18 @@ describe('adapter-config', () => {
         expect(route.id).toBeString()
         expect(route.config).toBeObject()
         expect(route.pathname).toBeString()
+        // ensure / -> /index normalizing is correct
+        expect(route.pathname.includes('/.')).toBe(false)
         expect(route.runtime).toBe('edge')
+        expect(route.config.env).toEqual(
+          expect.objectContaining({
+            NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: expect.toBeString(),
+            __NEXT_BUILD_ID: expect.toBeString(),
+            __NEXT_PREVIEW_MODE_ENCRYPTION_KEY: expect.toBeString(),
+            __NEXT_PREVIEW_MODE_ID: expect.toBeString(),
+            __NEXT_PREVIEW_MODE_SIGNING_KEY: expect.toBeString(),
+          })
+        )
 
         const stats = await fs.promises.stat(route.filePath)
         expect(stats.isFile()).toBe(true)
@@ -172,11 +209,14 @@ describe('adapter-config', () => {
       }
     }
 
-    expect(routes).toEqual({
+    expect(routing).toEqual({
+      beforeMiddleware: expect.toBeArray(),
+      beforeFiles: expect.toBeArray(),
+      afterFiles: expect.toBeArray(),
       dynamicRoutes: expect.toBeArray(),
-      rewrites: expect.toBeObject(),
-      redirects: expect.toBeArray(),
-      headers: expect.toBeArray(),
+      onMatch: expect.toBeArray(),
+      fallback: expect.toBeArray(),
+      shouldNormalizeNextData: expect.toBeBoolean(),
     })
   })
 })

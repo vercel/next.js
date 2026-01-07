@@ -6,8 +6,7 @@ import { createPrerenderResumeDataCache } from './resume-data-cache'
 import { streamFromString } from '../stream-utils/node-web-streams-helper'
 import { inflateSync } from 'node:zlib'
 
-const isCacheComponentsEnabled =
-  process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
+const isCacheComponentsEnabled = process.env.__NEXT_CACHE_COMPONENTS === 'true'
 
 function createMockedCache() {
   const cache = createPrerenderResumeDataCache()
@@ -126,7 +125,7 @@ describe('stringifyResumeDataCache', () => {
 
 describe('parseResumeDataCache', () => {
   it('parses an empty cache', () => {
-    expect(createRenderResumeDataCache('null')).toEqual(
+    expect(createRenderResumeDataCache('null', undefined)).toEqual(
       createPrerenderResumeDataCache()
     )
   })
@@ -138,7 +137,7 @@ describe('parseResumeDataCache', () => {
       isCacheComponentsEnabled
     )
 
-    const parsed = createRenderResumeDataCache(serialized)
+    const parsed = createRenderResumeDataCache(serialized, undefined)
 
     expect(parsed.cache.size).toBe(isCacheComponentsEnabled ? 1 : 3)
     expect(parsed.fetch.size).toBe(0)

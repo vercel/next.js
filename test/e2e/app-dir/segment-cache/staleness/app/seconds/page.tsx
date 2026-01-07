@@ -1,5 +1,5 @@
 import { Suspense } from 'react'
-import { unstable_cacheLife } from 'next/cache'
+import { cacheLife } from 'next/cache'
 
 export default function Page() {
   return (
@@ -21,12 +21,12 @@ export default function Page() {
 
 async function ShortLivedContent() {
   'use cache'
-  unstable_cacheLife('seconds')
+  cacheLife('seconds')
   return <div>Short-lived cached content</div>
 }
 
 async function LongerLivedContent() {
   'use cache'
-  unstable_cacheLife('minutes')
+  cacheLife('minutes')
   return <div>Longer-lived cached content</div>
 }

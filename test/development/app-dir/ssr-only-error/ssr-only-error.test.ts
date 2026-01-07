@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertNoRedbox, hasErrorToast } from 'next-test-utils'
+import { waitForNoRedbox, hasErrorToast } from 'next-test-utils'
 
 describe('ssr-only-error', () => {
   const { next } = nextTestSetup({
@@ -30,7 +30,7 @@ describe('ssr-only-error', () => {
       pushErrorAsConsoleLog: true,
     })
 
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
     expect(await hasErrorToast(browser)).toBe(false)
 
     const text = await browser.elementByCss('body').text()

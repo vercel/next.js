@@ -1,16 +1,18 @@
 #!/usr/bin/env node
 
 import '../server/lib/cpu-profile'
+import { saveCpuProfile } from '../server/lib/cpu-profile'
 import type { StartServerOptions } from '../server/lib/start-server'
 import {
   RESTART_EXIT_CODE,
   getNodeDebugType,
   getParsedDebugAddress,
   getMaxOldSpaceSize,
-  getParsedNodeOptionsWithoutInspect,
   printAndExit,
   formatNodeOptions,
   formatDebugAddress,
+  getParsedNodeOptions,
+  type DebugAddress,
 } from '../server/lib/utils'
 import * as Log from '../build/output/log'
 import { getProjectDir } from '../lib/get-project-dir'
@@ -46,6 +48,8 @@ import {
 
 export type NextDevOptions = {
   disableSourceMaps: boolean
+  // Commander is not putting `--inspect` through the arg parser
+  inspect?: DebugAddress | true
   turbo?: boolean
   turbopack?: boolean
   webpack?: boolean
@@ -56,6 +60,8 @@ export type NextDevOptions = {
   experimentalHttpsCert?: string
   experimentalHttpsCa?: string
   experimentalUploadTrace?: string
+  experimentalNextConfigStripTypes?: boolean
+  experimentalCpuProf?: boolean
 }
 
 type PortSource = 'cli' | 'default' | 'env'
@@ -158,6 +164,9 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
     })
   }
 
+  // Save CPU profile if it was enabled (before exiting)
+  saveCpuProfile()
+
   // ensure we re-enable the terminal cursor before exiting
   // the program, or the cursor could remain hidden
   process.stdout.write('\x1B[?25h')
@@ -183,6 +192,12 @@ const nextDev = async (
   // Check if pages dir exists and warn if not
   if (!(await fileExists(dir, FileType.Directory))) {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
+  }
+
+  if (options.experimentalCpuProf) {
+    Log.info(
+      `CPU profiling enabled. Profile will be saved to .next/cpu-profiles/ on exit (Ctrl+C).`
+    )
   }
 
   async function preflight(skipOnReboot: boolean) {
@@ -258,8 +273,7 @@ const nextDev = async (
       let resolved = false
       const defaultEnv = (initialEnv || process.env) as typeof process.env
 
-      const nodeOptions = getParsedNodeOptionsWithoutInspect()
-      const nodeDebugType = getNodeDebugType()
+      const nodeOptions = getParsedNodeOptions()
 
       let maxOldSpaceSize: string | number | undefined = getMaxOldSpaceSize()
       if (!maxOldSpaceSize && !process.env.NEXT_DISABLE_MEM_OVERRIDE) {
@@ -279,10 +293,22 @@ const nextDev = async (
         nodeOptions['enable-source-maps'] = true
       }
 
-      if (nodeDebugType) {
-        const address = getParsedDebugAddress()
-        address.port = address.port + 1
+      const nodeDebugType = getNodeDebugType(nodeOptions)
+      const originalAddress =
+        nodeDebugType === undefined ? undefined : nodeOptions[nodeDebugType]
+      delete nodeOptions.inspect
+      delete nodeOptions['inspect-brk']
+      delete nodeOptions['inspect_brk']
+      if (nodeDebugType !== undefined) {
+        const address = getParsedDebugAddress(originalAddress)
+        address.port = address.port === 0 ? 0 : address.port + 1
         nodeOptions[nodeDebugType] = formatDebugAddress(address)
+      } else if (options.inspect) {
+        const address: DebugAddress =
+          options.inspect === true
+            ? getParsedDebugAddress(true)
+            : options.inspect
+        nodeOptions.inspect = formatDebugAddress(address)
       }
 
       child = fork(startServerPath, {
@@ -303,6 +329,14 @@ const nextDev = async (
           // https://github.com/nodejs/node/issues/29949
           WATCHPACK_WATCHER_LIMIT:
             os.platform() === 'darwin' ? '20' : undefined,
+          // Enable CPU profiling if requested
+          ...(options.experimentalCpuProf
+            ? {
+                NEXT_CPU_PROF: '1',
+                NEXT_CPU_PROF_DIR: path.join(dir, '.next', 'cpu-profiles'),
+                __NEXT_PRIVATE_CPU_PROFILE: 'dev-server',
+              }
+            : undefined),
         },
       })
 

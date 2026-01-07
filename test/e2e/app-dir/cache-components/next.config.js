@@ -2,8 +2,9 @@
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
+  cacheComponents: true,
   experimental: {
-    cacheComponents: true,
+    adapterPath: require.resolve('./my-adapter.mjs'),
   },
 }
 

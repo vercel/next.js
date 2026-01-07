@@ -22,11 +22,14 @@ import type { Params } from './request/params'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { RouteMatch } from './route-matches/route-match'
 import type { IncomingMessage, ServerResponse } from 'http'
-import type { UrlWithParsedQuery } from 'url'
 import type { ParsedUrlQuery } from 'querystring'
 import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
 import type { CacheControl } from './lib/cache-control'
 import type { WaitUntil } from './after/builtin-request-context'
+import type { AppPageModule } from './route-modules/app-page/module'
+import type { AppRouteModule } from './route-modules/app-route/module.compiled'
+import type { ErrorModule } from './load-default-error-components'
+import type { PagesModule } from './route-modules/pages/module.compiled'
 
 import fs from 'fs'
 import { join, relative } from 'path'
@@ -123,6 +126,7 @@ import {
   RouterServerContextSymbol,
   routerServerGlobal,
 } from './lib/router-utils/router-server-context'
+import { installGlobalBehaviors } from './node-environment-extensions/global-behaviors'
 
 export * from './base-server'
 
@@ -273,6 +277,8 @@ export default class NextNodeServer extends BaseServer<
     // Initialize super class
     super(options)
 
+    installGlobalBehaviors(this.nextConfig)
+
     const isDev = options.dev ?? false
     this.isDev = isDev
     this.sriEnabled = Boolean(options.conf.experimental?.sri?.algorithm)
@@ -288,9 +294,6 @@ export default class NextNodeServer extends BaseServer<
     if (this.renderOpts.nextScriptWorkers) {
       process.env.__NEXT_SCRIPT_WORKERS = JSON.stringify(true)
     }
-    process.env.NEXT_DEPLOYMENT_ID = this.nextConfig.experimental.useSkewCookie
-      ? ''
-      : this.nextConfig.deploymentId || ''
 
     if (!this.minimalMode) {
       this.imageResponseCache = new ResponseCache(this.minimalMode)
@@ -349,7 +352,7 @@ export default class NextNodeServer extends BaseServer<
     // when using compile mode static env isn't inlined so we
     // need to populate in normal runtime env
     if (this.renderOpts.isExperimentalCompile) {
-      populateStaticEnv(this.nextConfig)
+      populateStaticEnv(this.nextConfig, this.renderOpts.deploymentId || '')
     }
 
     const shouldRemoveUncaughtErrorAndRejectionListeners = Boolean(
@@ -384,7 +387,9 @@ export default class NextNodeServer extends BaseServer<
 
     for (const page of Object.keys(appPathsManifest || {})) {
       try {
-        const { ComponentMod } = await loadComponents({
+        const { ComponentMod } = await loadComponents<
+          AppPageModule | AppRouteModule
+        >({
           distDir: this.distDir,
           page,
           isAppPath: true,
@@ -456,12 +461,12 @@ export default class NextNodeServer extends BaseServer<
   }
 
   private async loadCustomCacheHandlers() {
-    const { cacheHandlers } = this.nextConfig.experimental
+    const { cacheMaxMemorySize, cacheHandlers } = this.nextConfig
     if (!cacheHandlers) return
 
     // If we've already initialized the cache handlers interface, don't do it
     // again.
-    if (!initializeCacheHandlers()) return
+    if (!initializeCacheHandlers(cacheMaxMemorySize)) return
 
     for (const [kind, handler] of Object.entries(cacheHandlers)) {
       if (!handler) continue
@@ -514,10 +519,6 @@ export default class NextNodeServer extends BaseServer<
       getPrerenderManifest: () => this.getPrerenderManifest(),
       CurCacheHandler: CacheHandler,
     })
-  }
-
-  protected getResponseCache() {
-    return new ResponseCache(this.minimalMode)
   }
 
   protected getPublicDir(): string {
@@ -604,6 +605,7 @@ export default class NextNodeServer extends BaseServer<
       generateEtags: boolean
       poweredByHeader: boolean
       cacheControl: CacheControl | undefined
+      cdnCacheControlHeader?: string
     }
   ): Promise<void> {
     return sendRenderResult({
@@ -613,6 +615,7 @@ export default class NextNodeServer extends BaseServer<
       generateEtags: options.generateEtags,
       poweredByHeader: options.poweredByHeader,
       cacheControl: options.cacheControl,
+      cdnCacheControlHeader: options.cdnCacheControlHeader,
     })
   }
 
@@ -706,38 +709,37 @@ export default class NextNodeServer extends BaseServer<
           // This code path does not service revalidations for unknown param
           // shells. As a result, we don't need to pass in the unknown params.
           null,
-          renderOpts,
+          renderOpts as LoadedRenderOpts<AppPageModule>,
           this.getServerComponentsHmrCache(),
-          false,
           {
             buildId: this.buildId,
           }
         )
+      } else {
+        // TODO: re-enable this once we've refactored to use implicit matches
+        // throw new Error('Invariant: render should have used routeModule')
+
+        return lazyRenderPagesPage(
+          req.originalRequest,
+          res.originalResponse,
+          pathname,
+          query,
+          renderOpts as LoadedRenderOpts<PagesModule>,
+          {
+            buildId: this.buildId,
+            deploymentId: this.renderOpts.deploymentId,
+            customServer: this.serverOptions.customServer || undefined,
+          },
+          {
+            isFallback: false,
+            isDraftMode: renderOpts.isDraftMode,
+            developmentNotFoundSourcePage: getRequestMeta(
+              req,
+              'developmentNotFoundSourcePage'
+            ),
+          }
+        )
       }
-
-      // TODO: re-enable this once we've refactored to use implicit matches
-      // throw new Error('Invariant: render should have used routeModule')
-
-      return lazyRenderPagesPage(
-        req.originalRequest,
-        res.originalResponse,
-        pathname,
-        query,
-        renderOpts,
-        {
-          buildId: this.buildId,
-          deploymentId: this.nextConfig.deploymentId,
-          customServer: this.serverOptions.customServer || undefined,
-        },
-        {
-          isFallback: false,
-          isDraftMode: renderOpts.isDraftMode,
-          developmentNotFoundSourcePage: getRequestMeta(
-            req,
-            'developmentNotFoundSourcePage'
-          ),
-        }
-      )
     }
   }
 
@@ -780,7 +782,12 @@ export default class NextNodeServer extends BaseServer<
       const { isAbsolute, href } = paramsResult
 
       const imageUpstream = isAbsolute
-        ? await fetchExternalImage(href)
+        ? await fetchExternalImage(
+            href,
+            this.nextConfig.images.dangerouslyAllowLocalIP,
+            this.nextConfig.images.maximumResponseBody,
+            this.nextConfig.images.maximumRedirects
+          )
         : await fetchInternalImage(
             href,
             req.originalRequest,
@@ -1154,13 +1161,19 @@ export default class NextNodeServer extends BaseServer<
           })
           if (handled) return true
         } catch (apiError) {
-          await this.instrumentationOnRequestError(apiError, req, {
-            routePath: match.definition.page,
-            routerKind: 'Pages Router',
-            routeType: 'route',
-            // Edge runtime does not support ISR
-            revalidateReason: undefined,
-          })
+          const silenceLog = false
+          await this.instrumentationOnRequestError(
+            apiError,
+            req,
+            {
+              routePath: match.definition.page,
+              routerKind: 'Pages Router',
+              routeType: 'route',
+              // Edge runtime does not support ISR
+              revalidateReason: undefined,
+            },
+            silenceLog
+          )
           throw apiError
         }
       }
@@ -1625,7 +1638,7 @@ export default class NextNodeServer extends BaseServer<
     request: NodeNextRequest
     response: NodeNextResponse
     parsedUrl: ParsedUrl
-    parsed: UrlWithParsedQuery
+    parsed: NextUrlWithParsedQuery
     onWarning?: (warning: Error) => void
   }) {
     if (process.env.NEXT_MINIMAL) {
@@ -1646,7 +1659,7 @@ export default class NextNodeServer extends BaseServer<
 
     let url: string
 
-    if (this.nextConfig.skipMiddlewareUrlNormalize) {
+    if (this.nextConfig.skipProxyUrlNormalize) {
       url = getRequestMeta(params.request, 'initURL')!
     } else {
       // For middleware to "fetch" we must always provide an absolute URL
@@ -1730,7 +1743,10 @@ export default class NextNodeServer extends BaseServer<
 
       try {
         result = await adapterFn({
-          handler: middlewareModule.middleware || middlewareModule,
+          handler:
+            middlewareModule.proxy ||
+            middlewareModule.middleware ||
+            middlewareModule,
           request: {
             ...requestData,
             body: hasRequestBody
@@ -1741,7 +1757,7 @@ export default class NextNodeServer extends BaseServer<
         })
       } finally {
         if (hasRequestBody) {
-          requestData.body.finalize()
+          await requestData.body.finalize()
         }
       }
     } else {
@@ -1950,7 +1966,13 @@ export default class NextNodeServer extends BaseServer<
     addRequestMeta(req, 'initProtocol', protocol)
 
     if (!isUpgradeReq) {
-      addRequestMeta(req, 'clonableBody', getCloneableBody(req.originalRequest))
+      const bodySizeLimit = this.nextConfig.experimental
+        ?.proxyClientMaxBodySize as number | undefined
+      addRequestMeta(
+        req,
+        'clonableBody',
+        getCloneableBody(req.originalRequest, bodySizeLimit)
+      )
     }
   }
 
@@ -2095,7 +2117,7 @@ export default class NextNodeServer extends BaseServer<
 
   protected async getFallbackErrorComponents(
     _url?: string
-  ): Promise<LoadComponentsReturnType | null> {
+  ): Promise<LoadComponentsReturnType<ErrorModule> | null> {
     // Not implemented for production use cases, this is implemented on the
     // development server.
     return null
@@ -2108,7 +2130,10 @@ export default class NextNodeServer extends BaseServer<
 
     // For Node.js runtime production logs, in dev it will be overridden by next-dev-server
     if (!this.renderOpts.dev) {
-      this.logError(args[0] as Error)
+      const [err, , , silenceLog] = args
+      if (!silenceLog) {
+        this.logError(err)
+      }
     }
   }
 

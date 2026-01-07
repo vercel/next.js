@@ -1,3 +1,5 @@
+// Import cpu-profile first to start profiling early if enabled
+import { saveCpuProfile } from '../../server/lib/cpu-profile'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { stringBufferUtils } from 'next/dist/compiled/webpack-sources3'
 import { red } from '../../lib/picocolors'
@@ -40,14 +42,10 @@ import type { UnwrapPromise } from '../../lib/coalesced-function'
 
 import origDebug from 'next/dist/compiled/debug'
 import { Telemetry } from '../../telemetry/storage'
-import { durationToString } from '../duration-to-string'
+import { durationToString, hrtimeToSeconds } from '../duration-to-string'
+import { installBindings } from '../swc/install-bindings'
 
 const debug = origDebug('next:build:webpack-build')
-
-function hrtimeToSeconds(hrtime: [number, number]): number {
-  // hrtime is a tuple of [seconds, nanoseconds]
-  return hrtime[0] + hrtime[1] / 1e9
-}
 
 type CompilerResult = {
   errors: webpack.StatsError[]
@@ -388,11 +386,15 @@ export async function workerMain(workerData: {
   resumePluginState(NextBuildContext.pluginState)
 
   /// load the config because it's not serializable
-  NextBuildContext.config = await loadConfig(
+  const config = (NextBuildContext.config = await loadConfig(
     PHASE_PRODUCTION_BUILD,
     NextBuildContext.dir!,
-    { debugPrerender: NextBuildContext.debugPrerender }
-  )
+    {
+      debugPrerender: NextBuildContext.debugPrerender,
+      reactProductionProfiling: NextBuildContext.reactProductionProfiling,
+    }
+  ))
+  await installBindings(config.experimental?.useWasmBinary)
   NextBuildContext.nextBuildSpan = trace(
     `worker-main-${workerData.compilerName}`
   )
@@ -414,5 +416,10 @@ export async function workerMain(workerData: {
     result.buildTraceContext!.chunksTrace!.entryNameFilesMap = entryNameFilesMap
   }
   NextBuildContext.nextBuildSpan.stop()
+  await telemetry.flush()
+
+  // Save CPU profile before worker exits
+  await saveCpuProfile()
+
   return { ...result, debugTraceEvents: getTraceEvents() }
 }

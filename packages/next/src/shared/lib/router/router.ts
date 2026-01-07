@@ -1,4 +1,3 @@
-// tslint:disable:no-console
 import type { ComponentType } from 'react'
 import type { DomainLocale } from '../../../server/config'
 import type { MittEmitter } from '../mitt'
@@ -44,6 +43,7 @@ import { interpolateAs } from './utils/interpolate-as'
 import { disableSmoothScrollDuringRouteTransition } from './utils/disable-smooth-scroll'
 import type { Params } from '../../../server/request/params'
 import { MATCHED_PATH_HEADER } from '../../../lib/constants'
+import { getDeploymentId } from '../deployment-id'
 
 let resolveRewrites: typeof import('./utils/resolve-rewrites').default
 if (process.env.__NEXT_HAS_REWRITES) {
@@ -423,7 +423,6 @@ const manualScrollRestoration =
   !!(function () {
     try {
       let v = '__next'
-      // eslint-disable-next-line no-sequences
       return (sessionStorage.setItem(v, v), sessionStorage.removeItem(v), true)
     } catch (n) {}
   })()
@@ -499,15 +498,14 @@ function fetchNextData({
   unstable_skipClientCache,
 }: FetchNextDataParams): Promise<FetchDataOutput> {
   const { href: cacheKey } = new URL(dataHref, window.location.href)
+  const deploymentId = getDeploymentId()
   const getData = (params?: { method?: 'HEAD' | 'GET' }) =>
     fetchRetry(dataHref, isServerRender ? 3 : 1, {
       headers: Object.assign(
         {} as HeadersInit,
         isPrefetch ? { purpose: 'prefetch' } : {},
         isPrefetch && hasMiddleware ? { 'x-middleware-prefetch': '1' } : {},
-        process.env.NEXT_DEPLOYMENT_ID
-          ? { 'x-deployment-id': process.env.NEXT_DEPLOYMENT_ID }
-          : {}
+        deploymentId ? { 'x-deployment-id': deploymentId } : {}
       ),
       method: params?.method ?? 'GET',
     })

@@ -5,12 +5,12 @@ use tokio::sync::Mutex as TokioMutex;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::Vc;
 use turbo_tasks_fetch::{
-    __test_only_reqwest_client_cache_clear, __test_only_reqwest_client_cache_len, FetchClient,
-    FetchErrorKind,
+    __test_only_reqwest_client_cache_clear, __test_only_reqwest_client_cache_len,
+    FetchClientConfig, FetchErrorKind,
 };
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath};
 use turbo_tasks_testing::{Registration, register, run_once};
-use turbopack_core::issue::{Issue, IssueSeverity, StyledString};
+use turbopack_core::issue::{Issue, IssueSeverity};
 
 static REGISTRATION: Registration = register!(turbo_tasks_fetch::register);
 
@@ -29,7 +29,7 @@ async fn basic_get() {
             .create_async()
             .await;
 
-        let client_vc = FetchClient::default().cell();
+        let client_vc = FetchClientConfig::default().cell();
         let response = &*client_vc
             .fetch(
                 RcStr::from(format!("{}/foo.woff", server.url())),
@@ -61,9 +61,7 @@ async fn sends_user_agent() {
             .create_async()
             .await;
 
-        eprintln!("{}", server.url());
-
-        let client_vc = FetchClient::default().cell();
+        let client_vc = FetchClientConfig::default().cell();
         let response = &*client_vc
             .fetch(
                 RcStr::from(format!("{}/foo.woff", server.url())),
@@ -98,7 +96,7 @@ async fn invalidation_does_not_invalidate() {
             .await;
 
         let url = RcStr::from(format!("{}/foo.woff", server.url()));
-        let client_vc = FetchClient::default().cell();
+        let client_vc = FetchClientConfig::default().cell();
         let response = &*client_vc
             .fetch(url.clone(), /* user_agent */ None)
             .await?
@@ -138,22 +136,30 @@ async fn errors_on_failed_connection() {
         // `ECONNREFUSED`.
         // Other values (e.g. domain name, reserved IP address block) may result in long timeouts.
         let url = rcstr!("http://127.0.0.1:0/foo.woff");
-        let client_vc = FetchClient::default().cell();
+        let client_vc = FetchClientConfig::default().cell();
         let response_vc = client_vc.fetch(url.clone(), None);
         let err_vc = &*response_vc.await?.unwrap_err();
         let err = err_vc.await?;
 
-        assert_eq!(*err.kind.await?, FetchErrorKind::Connect);
+        assert!(matches!(
+            *err.kind.await?,
+            FetchErrorKind::Connect {
+                has_rustls_cause: false,
+                ..
+            }
+        ));
         assert_eq!(*err.url.await?, url);
 
         let issue = err_vc.to_issue(IssueSeverity::Error, get_issue_context().owned().await?);
         assert_eq!(issue.await?.severity(), IssueSeverity::Error);
         assert_eq!(
-            *issue.description().await?.unwrap().await?,
-            StyledString::Text(rcstr!(
-                "There was an issue establishing a connection while requesting \
-                http://127.0.0.1:0/foo.woff."
-            ))
+            issue
+                .description()
+                .await?
+                .unwrap()
+                .await?
+                .to_unstyled_string(),
+            "There was an issue establishing a connection while requesting http://127.0.0.1:0/foo.woff"
         );
         anyhow::Ok(())
     })
@@ -173,7 +179,7 @@ async fn errors_on_404() {
             .await;
 
         let url = RcStr::from(server.url());
-        let client_vc = FetchClient::default().cell();
+        let client_vc = FetchClientConfig::default().cell();
         let response_vc = client_vc.fetch(url.clone(), None);
         let err_vc = &*response_vc.await?.unwrap_err();
         let err = err_vc.await?;
@@ -185,11 +191,67 @@ async fn errors_on_404() {
         let issue = err_vc.to_issue(IssueSeverity::Error, get_issue_context().owned().await?);
         assert_eq!(issue.await?.severity(), IssueSeverity::Error);
         assert_eq!(
-            *issue.description().await?.unwrap().await?,
-            StyledString::Text(RcStr::from(format!(
-                "Received response with status 404 when requesting {url}"
-            )))
+            issue
+                .description()
+                .await?
+                .unwrap()
+                .await?
+                .to_unstyled_string(),
+            format!("Received response with status 404 when requesting {url}")
         );
+        anyhow::Ok(())
+    })
+    .await
+    .unwrap()
+}
+
+#[cfg(not(any(
+    all(target_os = "windows", target_arch = "aarch64"),
+    target_arch = "wasm32"
+)))]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn errors_on_tls_connection() {
+    let _guard = GLOBAL_TEST_LOCK.lock().await;
+    run_once(&REGISTRATION, || async {
+        let mut server = mockito::Server::new_async().await;
+        let _resource_mock = server
+            .mock("GET", "/")
+            .with_body("responsebody")
+            .create_async()
+            .await;
+
+        // construct an HTTPS url, but mockito runs an HTTP server, so this should fail to connect
+        let url = RcStr::from(format!("https://{}", server.socket_address()));
+
+        let client_vc = FetchClientConfig {
+            tls_built_in_webpki_certs: true,
+            tls_built_in_native_certs: false,
+        }
+        .cell();
+
+        let response_vc = client_vc.fetch(url.clone(), None);
+        let err_vc = &*response_vc.await?.unwrap_err();
+        let err = err_vc.await?;
+
+        assert_eq!(
+            *err.kind.await?,
+            FetchErrorKind::Connect {
+                has_rustls_cause: true,
+                has_system_certs: false,
+            }
+        );
+
+        let issue = err_vc.to_issue(IssueSeverity::Error, get_issue_context().owned().await?);
+        let description = issue
+            .description()
+            .await?
+            .unwrap()
+            .await?
+            .to_unstyled_string();
+
+        assert!(description.contains("NEXT_TURBOPACK_EXPERIMENTAL_USE_SYSTEM_TLS_CERTS=1"));
+        assert!(description.contains("experimental.turbopackUseSystemTlsCerts"));
+
         anyhow::Ok(())
     })
     .await
@@ -199,7 +261,7 @@ async fn errors_on_404() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn client_cache() {
     // a simple fetch that should always succeed
-    async fn simple_fetch(path: &str, client: FetchClient) -> anyhow::Result<()> {
+    async fn simple_fetch(path: &str, client: FetchClientConfig) -> anyhow::Result<()> {
         let mut server = mockito::Server::new_async().await;
         let _resource_mock = server
             .mock("GET", &*format!("/{path}"))
@@ -233,7 +295,7 @@ async fn client_cache() {
 
         simple_fetch(
             "/foo",
-            FetchClient {
+            FetchClientConfig {
                 tls_built_in_native_certs: false,
                 ..Default::default()
             },
@@ -245,7 +307,7 @@ async fn client_cache() {
         // the client is reused if the config is the same (by equality)
         simple_fetch(
             "/bar",
-            FetchClient {
+            FetchClientConfig {
                 tls_built_in_native_certs: false,
                 ..Default::default()
             },
@@ -257,7 +319,7 @@ async fn client_cache() {
         // the client is recreated if the config is different
         simple_fetch(
             "/bar",
-            FetchClient {
+            FetchClientConfig {
                 tls_built_in_native_certs: true,
                 ..Default::default()
             },

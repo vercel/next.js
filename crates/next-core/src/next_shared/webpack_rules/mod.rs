@@ -1,7 +1,8 @@
 use std::{collections::BTreeSet, str::FromStr};
 
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
+use serde::Deserialize;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{NonLocalValue, OperationValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
@@ -41,11 +42,12 @@ pub(crate) mod sass;
     Ord,
     Hash,
     Deserialize,
-    Serialize,
     TaskInput,
     TraceRawVcs,
     NonLocalValue,
     OperationValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum WebpackLoaderBuiltinCondition {

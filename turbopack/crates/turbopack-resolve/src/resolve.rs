@@ -207,7 +207,7 @@ async fn base_resolve_options(
         collect_affecting_sources: opt.collect_affecting_sources,
         ..Default::default()
     }
-    .into())
+    .cell())
 }
 
 #[turbo_tasks::function]

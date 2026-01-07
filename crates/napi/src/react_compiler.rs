@@ -1,6 +1,7 @@
 use std::{path::PathBuf, sync::Arc};
 
 use napi::bindgen_prelude::*;
+use napi_derive::napi;
 use next_custom_transforms::react_compiler;
 use swc_core::{
     common::{GLOBALS, SourceMap},

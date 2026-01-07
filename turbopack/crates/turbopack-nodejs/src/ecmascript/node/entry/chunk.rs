@@ -4,14 +4,17 @@ use anyhow::{Result, bail};
 use indoc::writedoc;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::{File, FileSystemPath};
+use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkingContext, EvaluatableAssets, ModuleChunkItemIdExt},
     code_builder::{Code, CodeBuilder},
     module_graph::ModuleGraph,
-    output::{OutputAsset, OutputAssets},
-    source_map::{GenerateSourceMap, OptionStringifiedSourceMap, SourceMapAsset},
+    output::{
+        OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsReferences,
+        OutputAssetsWithReferenced,
+    },
+    source_map::{GenerateSourceMap, SourceMapAsset},
 };
 use turbopack_ecmascript::{chunk::EcmascriptChunkPlaceable, utils::StringifyJs};
 
@@ -27,6 +30,7 @@ pub(crate) struct EcmascriptBuildNodeEntryChunk {
     evaluatable_assets: ResolvedVc<EvaluatableAssets>,
     exported_module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     referenced_output_assets: ResolvedVc<OutputAssets>,
+    references: ResolvedVc<OutputAssetsReferences>,
     module_graph: ResolvedVc<ModuleGraph>,
     chunking_context: ResolvedVc<NodeJsChunkingContext>,
 }
@@ -41,6 +45,7 @@ impl EcmascriptBuildNodeEntryChunk {
         evaluatable_assets: ResolvedVc<EvaluatableAssets>,
         exported_module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
         referenced_output_assets: ResolvedVc<OutputAssets>,
+        references: ResolvedVc<OutputAssetsReferences>,
         module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<NodeJsChunkingContext>,
     ) -> Vc<Self> {
@@ -50,6 +55,7 @@ impl EcmascriptBuildNodeEntryChunk {
             evaluatable_assets,
             exported_module,
             referenced_output_assets,
+            references,
             module_graph,
             chunking_context,
         }
@@ -69,19 +75,14 @@ impl EcmascriptBuildNodeEntryChunk {
                 path
             } else {
                 bail!(
-                    "cannot find a relative path from the chunk ({}) to the runtime chunk ({})",
-                    chunk_path.to_string(),
-                    runtime_path.to_string(),
+                    "cannot find a relative path from the chunk ({chunk_path}) to the runtime \
+                     chunk ({runtime_path})",
                 );
             };
         let chunk_public_path = if let Some(path) = output_root.get_path_to(&chunk_path) {
             path
         } else {
-            bail!(
-                "chunk path ({}) is not in output root ({})",
-                chunk_path.to_string(),
-                output_root.to_string()
-            );
+            bail!("chunk path ({chunk_path}) is not in output root ({output_root})");
         };
 
         let mut code = CodeBuilder::default();
@@ -170,16 +171,11 @@ impl ValueToString for EcmascriptBuildNodeEntryChunk {
 }
 
 #[turbo_tasks::value_impl]
-impl OutputAsset for EcmascriptBuildNodeEntryChunk {
+impl OutputAssetsReference for EcmascriptBuildNodeEntryChunk {
     #[turbo_tasks::function]
-    fn path(&self) -> Vc<FileSystemPath> {
-        self.path.clone().cell()
-    }
-
-    #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
+    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssetsWithReferenced>> {
         let this = self.await?;
-        let mut references = vec![ResolvedVc::upcast(
+        let mut assets = vec![ResolvedVc::upcast(
             self.runtime_chunk().to_resolved().await?,
         )];
 
@@ -188,18 +184,26 @@ impl OutputAsset for EcmascriptBuildNodeEntryChunk {
             .reference_chunk_source_maps(Vc::upcast(self))
             .await?
         {
-            references.push(ResolvedVc::upcast(self.source_map().to_resolved().await?))
+            assets.push(ResolvedVc::upcast(self.source_map().to_resolved().await?))
         }
 
         let other_chunks = this.other_chunks.await?;
-        references.extend(other_chunks.iter().copied());
+        assets.extend(other_chunks.iter().copied());
 
-        let referenced_output_assets = this.referenced_output_assets.await?;
-        for &referenced_output_asset in &*referenced_output_assets {
-            references.push(referenced_output_asset);
+        Ok(OutputAssetsWithReferenced {
+            assets: ResolvedVc::cell(assets),
+            referenced_assets: this.referenced_output_assets,
+            references: this.references,
         }
+        .cell())
+    }
+}
 
-        Ok(Vc::cell(references))
+#[turbo_tasks::value_impl]
+impl OutputAsset for EcmascriptBuildNodeEntryChunk {
+    #[turbo_tasks::function]
+    fn path(&self) -> Vc<FileSystemPath> {
+        self.path.clone().cell()
     }
 }
 
@@ -209,7 +213,7 @@ impl Asset for EcmascriptBuildNodeEntryChunk {
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         let code = self.code().await?;
         Ok(AssetContent::file(
-            File::from(code.source_code().clone()).into(),
+            FileContent::Content(File::from(code.source_code().clone())).cell(),
         ))
     }
 }
@@ -217,7 +221,7 @@ impl Asset for EcmascriptBuildNodeEntryChunk {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptBuildNodeEntryChunk {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>) -> Vc<OptionStringifiedSourceMap> {
+    fn generate_source_map(self: Vc<Self>) -> Vc<FileContent> {
         self.code().generate_source_map()
     }
 }

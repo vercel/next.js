@@ -9,14 +9,12 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
 };
-use turbo_tasks_fs::{File, FileSystemPath};
+use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{
-        ChunkGroupResult, ChunkingContext, ModuleChunkItemIdExt, ModuleId as TurbopackModuleId,
-    },
+    chunk::{ChunkingContext, ModuleChunkItemIdExt, ModuleId as TurbopackModuleId},
     module_graph::async_module_info::AsyncModulesInfo,
-    output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
+    output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
 };
 use turbopack_ecmascript::utils::StringifyJs;
 
@@ -108,6 +106,16 @@ pub struct ClientReferenceManifest {
 }
 
 #[turbo_tasks::value_impl]
+impl OutputAssetsReference for ClientReferenceManifest {
+    #[turbo_tasks::function]
+    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssetsWithReferenced>> {
+        Ok(OutputAssetsWithReferenced::from_assets(
+            *build_manifest(self).await?.references,
+        ))
+    }
+}
+
+#[turbo_tasks::value_impl]
 impl OutputAsset for ClientReferenceManifest {
     #[turbo_tasks::function]
     async fn path(&self) -> Result<Vc<FileSystemPath>> {
@@ -118,11 +126,6 @@ impl OutputAsset for ClientReferenceManifest {
                 "server/app{normalized_manifest_entry}_client-reference-manifest.js",
             ))?
             .cell())
-    }
-
-    #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
-        Ok(*build_manifest(self).await?.references)
     }
 }
 
@@ -165,21 +168,13 @@ async fn build_manifest(
         let mut entry_manifest: SerializedClientReferenceManifest = Default::default();
         let mut references = FxIndexSet::default();
         let chunk_suffix_path = next_config.chunk_suffix_path().owned().await?;
-        let prefix_path = next_config
-            .computed_asset_prefix()
-            .owned()
-            .await?
-            .unwrap_or_default();
+        let prefix_path = next_config.computed_asset_prefix().owned().await?;
         let suffix_path = chunk_suffix_path.unwrap_or_default();
 
         // TODO: Add `suffix` to the manifest for React to use.
         // entry_manifest.module_loading.prefix = prefix_path;
 
-        entry_manifest.module_loading.cross_origin = next_config
-            .await?
-            .cross_origin
-            .as_ref()
-            .map(|p| p.to_owned());
+        entry_manifest.module_loading.cross_origin = next_config.cross_origin().owned().await?;
         let ClientReferencesChunks {
             client_component_client_chunks,
             layout_segment_client_chunks,
@@ -193,7 +188,7 @@ async fn build_manifest(
             .client_references
             .iter()
             .map(async |r| {
-                Ok(match r.ty() {
+                Ok(match r.ty {
                     ClientReferenceType::EcmascriptClientReference(r) => Some((r, r.await?)),
                     ClientReferenceType::CssClientReference(_) => None,
                 })
@@ -261,15 +256,11 @@ async fn build_manifest(
                 .chunk_item_id(**client_chunking_context)
                 .await?;
 
-            let (client_chunks_paths, client_is_async) = if let Some(ChunkGroupResult {
-                assets: client_chunks,
-                referenced_assets: client_referenced_assets,
-                availability_info: _,
-            }) =
+            let (client_chunks_paths, client_is_async) = if let Some(client_assets) =
                 client_component_client_chunks.get(&app_client_reference_ty)
             {
-                let client_chunks = client_chunks.await?;
-                let client_referenced_assets = client_referenced_assets.await?;
+                let client_chunks = client_assets.primary_assets().await?;
+                let client_referenced_assets = client_assets.referenced_assets().await?;
                 references.extend(client_chunks.iter());
                 references.extend(client_referenced_assets.iter());
 
@@ -318,14 +309,11 @@ async fn build_manifest(
                     // edge runtime doesn't support dynamically
                     // loading chunks.
                     (Vec::new(), false)
-                } else if let Some(ChunkGroupResult {
-                    assets: ssr_chunks,
-                    referenced_assets: ssr_referenced_assets,
-                    availability_info: _,
-                }) = client_component_ssr_chunks.get(&app_client_reference_ty)
+                } else if let Some(ssr_assets) =
+                    client_component_ssr_chunks.get(&app_client_reference_ty)
                 {
-                    let ssr_chunks = ssr_chunks.await?;
-                    let ssr_referenced_assets = ssr_referenced_assets.await?;
+                    let ssr_chunks = ssr_assets.primary_assets().await?;
+                    let ssr_referenced_assets = ssr_assets.referenced_assets().await?;
                     references.extend(ssr_chunks.iter());
                     references.extend(ssr_referenced_assets.iter());
 
@@ -413,14 +401,7 @@ async fn build_manifest(
         }
 
         // per layout segment chunks need to be emitted into the manifest too
-        for (
-            server_component,
-            OutputAssetsWithReferenced {
-                assets: client_chunks,
-                referenced_assets: _,
-            },
-        ) in layout_segment_client_chunks.iter()
-        {
+        for (server_component, client_assets) in layout_segment_client_chunks.iter() {
             let server_component_name = server_component
                 .server_path()
                 .await?
@@ -437,13 +418,12 @@ async fn build_manifest(
                 .entry(server_component_name)
                 .or_default();
 
-            let client_chunks = &client_chunks.await?;
+            let client_chunks = client_assets.primary_assets().await?;
             let client_chunks_with_path =
                 cached_chunk_paths(&mut client_chunk_path_cache, client_chunks.iter().copied())
                     .await?;
             // Inlining breaks HMR so it is always disabled in dev.
-            let inlined_css =
-                next_config.await?.experimental.inline_css.unwrap_or(false) && mode.is_production();
+            let inlined_css = *next_config.inline_css().await? && mode.is_production();
 
             for (chunk, chunk_path) in client_chunks_with_path {
                 if let Some(path) = client_relative_path.get_path_to(&chunk_path) {
@@ -486,15 +466,15 @@ async fn build_manifest(
         let normalized_manifest_entry = entry_name.replace("%5F", "_");
         Ok(ClientReferenceManifestResult {
             content: AssetContent::file(
-                File::from(formatdoc! {
+                FileContent::Content(File::from(formatdoc! {
                     r#"
                         globalThis.__RSC_MANIFEST = globalThis.__RSC_MANIFEST || {{}};
                         globalThis.__RSC_MANIFEST[{entry_name}] = {manifest}
                     "#,
                     entry_name = StringifyJs(&normalized_manifest_entry),
                     manifest = &client_reference_manifest_json
-                })
-                .into(),
+                }))
+                .cell(),
             )
             .to_resolved()
             .await?,

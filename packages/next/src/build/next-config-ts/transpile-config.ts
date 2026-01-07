@@ -116,7 +116,7 @@ export async function transpileConfig({
 }) {
   try {
     // envs are passed to the workers and preserve the flag
-    if (process.env.__NEXT_NODE_NATIVE_TS_LOADER_FAILED !== '1') {
+    if (process.env.__NEXT_NODE_NATIVE_TS_LOADER_ENABLED === 'true') {
       try {
         // Node.js v22.10.0+
         // Value is 'strip' or 'transform' based on how the feature is enabled.
@@ -139,7 +139,7 @@ export async function transpileConfig({
         }
 
         // Feature is not enabled, fallback to legacy resolution for current session.
-        process.env.__NEXT_NODE_NATIVE_TS_LOADER_FAILED = '1'
+        process.env.__NEXT_NODE_NATIVE_TS_LOADER_ENABLED = 'false'
       } catch (cause) {
         warnOnce(
           `Failed to import "${configFileName}" using Node.js native TypeScript resolution.` +
@@ -148,7 +148,7 @@ export async function transpileConfig({
           { cause }
         )
         // Once failed, fallback to legacy resolution for current session.
-        process.env.__NEXT_NODE_NATIVE_TS_LOADER_FAILED = '1'
+        process.env.__NEXT_NODE_NATIVE_TS_LOADER_ENABLED = 'false'
       }
     }
 
@@ -177,8 +177,9 @@ async function handleCJS({
     const nextConfigString = await readFile(nextConfigPath, 'utf8')
     // lazy require swc since it loads React before even setting NODE_ENV
     // resulting loading Development React on Production
-    const { transform } = require('../swc') as typeof import('../swc')
-    const { code } = await transform(nextConfigString, swcOptions)
+    const { loadBindings } = require('../swc') as typeof import('../swc')
+    const bindings = await loadBindings()
+    const { code } = await bindings.transform(nextConfigString, swcOptions)
 
     // register require hook only if require exists
     if (code.includes('require(')) {
@@ -187,7 +188,21 @@ async function handleCJS({
     }
 
     // filename & extension don't matter here
-    return requireFromString(code, resolve(cwd, 'next.config.compiled.js'))
+    const config = requireFromString(
+      code,
+      resolve(cwd, 'next.config.compiled.js')
+    )
+    // At this point we have already loaded the bindings without this configuration setting due to the `transform` call above.
+    // Possibly we fell back to wasm in which case, it all works out but if not we need to warn
+    // that the configuration was ignored.
+    if (config?.experimental?.useWasmBinary && !bindings.isWasm) {
+      warn(
+        'Using a next.config.ts file is incompatible with `experimental.useWasmBinary` unless ' +
+          '`--experimental-next-config-strip-types` is also passed.\nSetting `useWasmBinary` to `false'
+      )
+      config.experimental.useWasmBinary = false
+    }
+    return config
   } catch (error) {
     throw error
   } finally {

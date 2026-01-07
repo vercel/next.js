@@ -103,6 +103,15 @@ export type ImageConfigComplete = {
   /** @see [Acceptable formats](https://nextjs.org/docs/api-reference/next/image#acceptable-formats) */
   formats: ImageFormat[]
 
+  /** @see [Maximum Redirects](https://nextjs.org/docs/api-reference/next/image#maximumredirects) */
+  maximumRedirects: number
+
+  /** @see [Maximum Response Body](https://nextjs.org/docs/api-reference/next/image#maximumresponsebody) */
+  maximumResponseBody: number
+
+  /** @see [Dangerously Allow Local IP](https://nextjs.org/docs/api-reference/next/image#dangerously-allow-local-ip) */
+  dangerouslyAllowLocalIP: boolean
+
   /** @see [Dangerously Allow SVG](https://nextjs.org/docs/api-reference/next/image#dangerously-allow-svg) */
   dangerouslyAllowSVG: boolean
 
@@ -129,14 +138,20 @@ export type ImageConfig = Partial<ImageConfigComplete>
 
 export const imageConfigDefault: ImageConfigComplete = {
   deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
-  imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+  imageSizes: [32, 48, 64, 96, 128, 256, 384],
   path: '/_next/image',
   loader: 'default',
   loaderFile: '',
+  /**
+   * @deprecated Use `remotePatterns` instead to protect your application from malicious users.
+   */
   domains: [],
   disableStaticImages: false,
   minimumCacheTTL: 14400, // 4 hours
   formats: ['image/webp'],
+  maximumRedirects: 3,
+  maximumResponseBody: 300_000_000, // 300MB
+  dangerouslyAllowLocalIP: false,
   dangerouslyAllowSVG: false,
   contentSecurityPolicy: `script-src 'none'; frame-src 'none'; sandbox;`,
   contentDispositionType: 'attachment',

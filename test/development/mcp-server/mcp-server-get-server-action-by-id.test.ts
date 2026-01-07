@@ -1,6 +1,7 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import fs from 'fs/promises'
+import { getDistDir } from 'next-test-utils'
 
 describe('mcp-server get_server_action_by_id tool', () => {
   const { next } = nextTestSetup({
@@ -16,7 +17,7 @@ describe('mcp-server get_server_action_by_id tool', () => {
     // Read the manifest to get a valid action ID
     const manifestPath = path.join(
       next.testDir,
-      '.next',
+      getDistDir(),
       'server',
       'server-reference-manifest.json'
     )
@@ -114,7 +115,7 @@ describe('mcp-server get_server_action_by_id tool', () => {
     // Read the manifest to get inline action ID
     const manifestPath = path.join(
       next.testDir,
-      '.next',
+      getDistDir(),
       'server',
       'server-reference-manifest.json'
     )

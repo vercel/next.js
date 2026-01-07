@@ -1,153 +1,67 @@
-import { fetchServerResponse } from '../fetch-server-response'
-import { createHrefFromUrl } from '../create-href-from-url'
-import { applyRouterStatePatchToTree } from '../apply-router-state-patch-to-tree'
-import { isNavigatingToNewRootLayout } from '../is-navigating-to-new-root-layout'
 import type {
   Mutable,
   ReadonlyReducerState,
   ReducerState,
-  RefreshAction,
 } from '../router-reducer-types'
-import { handleExternalUrl } from './navigate-reducer'
-import { handleMutable } from '../handle-mutable'
-import type { CacheNode } from '../../../../shared/lib/app-router-types'
-import { fillLazyItemsTillLeafWithHead } from '../fill-lazy-items-till-leaf-with-head'
-import { createEmptyCacheNode } from '../../app-router'
-import { handleSegmentMismatch } from '../handle-segment-mismatch'
+import { handleNavigationResult } from './navigate-reducer'
+import { navigateToSeededRoute } from '../../segment-cache/navigation'
+import { revalidateEntireCache } from '../../segment-cache/cache'
 import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
-import { refreshInactiveParallelSegments } from '../refetch-inactive-parallel-segments'
-import { revalidateEntireCache } from '../../segment-cache'
+import { FreshnessPolicy } from '../ppr-navigations'
 
-export function refreshReducer(
+export function refreshReducer(state: ReadonlyReducerState): ReducerState {
+  // TODO: Currently, all refreshes purge the prefetch cache. In the future,
+  // only client-side refreshes will have this behavior; the server-side
+  // `refresh` should send new data without purging the prefetch cache.
+  const currentNextUrl = state.nextUrl
+  const currentRouterState = state.tree
+  revalidateEntireCache(currentNextUrl, currentRouterState)
+  return refreshDynamicData(state, FreshnessPolicy.RefreshAll)
+}
+
+export function refreshDynamicData(
   state: ReadonlyReducerState,
-  action: RefreshAction
+  freshnessPolicy: FreshnessPolicy.RefreshAll | FreshnessPolicy.HMRRefresh
 ): ReducerState {
-  const { origin } = action
+  const currentNextUrl = state.nextUrl
+
+  // We always send the last next-url, not the current when performing a dynamic
+  // request. This is because we update the next-url after a navigation, but we
+  // want the same interception route to be matched that used the last next-url.
+  const nextUrlForRefresh = hasInterceptionRouteInCurrentTree(state.tree)
+    ? state.previousNextUrl || currentNextUrl
+    : null
+
+  // A refresh is modeled as a navigation to the current URL, but where any
+  // existing dynamic data (including in shared layouts) is re-fetched.
+  const currentCanonicalUrl = state.canonicalUrl
+  const currentUrl = new URL(currentCanonicalUrl, location.origin)
+  const currentFlightRouterState = state.tree
+  const shouldScroll = true
+
+  const navigationSeed = {
+    tree: state.tree,
+    renderedSearch: state.renderedSearch,
+    data: null,
+    head: null,
+  }
+
+  const now = Date.now()
+  const result = navigateToSeededRoute(
+    now,
+    currentUrl,
+    currentCanonicalUrl,
+    navigationSeed,
+    currentUrl,
+    state.cache,
+    currentFlightRouterState,
+    freshnessPolicy,
+    nextUrlForRefresh,
+    shouldScroll
+  )
+
   const mutable: Mutable = {}
-  const href = state.canonicalUrl
-
-  let currentTree = state.tree
-
   mutable.preserveCustomHistoryState = false
 
-  const cache: CacheNode = createEmptyCacheNode()
-
-  // If the current tree was intercepted, the nextUrl should be included in the request.
-  // This is to ensure that the refresh request doesn't get intercepted, accidentally triggering the interception route.
-  const includeNextUrl = hasInterceptionRouteInCurrentTree(state.tree)
-
-  // TODO-APP: verify that `href` is not an external url.
-  // Fetch data from the root of the tree.
-  cache.lazyData = fetchServerResponse(new URL(href, origin), {
-    flightRouterState: [
-      currentTree[0],
-      currentTree[1],
-      currentTree[2],
-      'refetch',
-    ],
-    nextUrl: includeNextUrl ? state.nextUrl : null,
-  })
-
-  const navigatedAt = Date.now()
-  return cache.lazyData.then(
-    async ({ flightData, canonicalUrl: canonicalUrlOverride }) => {
-      // Handle case when navigating to page in `pages` from `app`
-      if (typeof flightData === 'string') {
-        return handleExternalUrl(
-          state,
-          mutable,
-          flightData,
-          state.pushRef.pendingPush
-        )
-      }
-
-      // Remove cache.lazyData as it has been resolved at this point.
-      cache.lazyData = null
-
-      for (const normalizedFlightData of flightData) {
-        const {
-          tree: treePatch,
-          seedData: cacheNodeSeedData,
-          head,
-          isRootRender,
-        } = normalizedFlightData
-
-        if (!isRootRender) {
-          // TODO-APP: handle this case better
-          console.log('REFRESH FAILED')
-          return state
-        }
-
-        const newTree = applyRouterStatePatchToTree(
-          // TODO-APP: remove ''
-          [''],
-          currentTree,
-          treePatch,
-          state.canonicalUrl
-        )
-
-        if (newTree === null) {
-          return handleSegmentMismatch(state, action, treePatch)
-        }
-
-        if (isNavigatingToNewRootLayout(currentTree, newTree)) {
-          return handleExternalUrl(
-            state,
-            mutable,
-            href,
-            state.pushRef.pendingPush
-          )
-        }
-
-        const canonicalUrlOverrideHref = canonicalUrlOverride
-          ? createHrefFromUrl(canonicalUrlOverride)
-          : undefined
-
-        if (canonicalUrlOverride) {
-          mutable.canonicalUrl = canonicalUrlOverrideHref
-        }
-
-        // Handles case where prefetch only returns the router tree patch without rendered components.
-        if (cacheNodeSeedData !== null) {
-          const rsc = cacheNodeSeedData[1]
-          const loading = cacheNodeSeedData[3]
-          cache.rsc = rsc
-          cache.prefetchRsc = null
-          cache.loading = loading
-          fillLazyItemsTillLeafWithHead(
-            navigatedAt,
-            cache,
-            // Existing cache is not passed in as `router.refresh()` has to invalidate the entire cache.
-            undefined,
-            treePatch,
-            cacheNodeSeedData,
-            head,
-            undefined
-          )
-          if (process.env.__NEXT_CLIENT_SEGMENT_CACHE) {
-            revalidateEntireCache(state.nextUrl, newTree)
-          } else {
-            mutable.prefetchCache = new Map()
-          }
-        }
-
-        await refreshInactiveParallelSegments({
-          navigatedAt,
-          state,
-          updatedTree: newTree,
-          updatedCache: cache,
-          includeNextUrl,
-          canonicalUrl: mutable.canonicalUrl || state.canonicalUrl,
-        })
-
-        mutable.cache = cache
-        mutable.patchedTree = newTree
-
-        currentTree = newTree
-      }
-
-      return handleMutable(state, mutable)
-    },
-    () => state
-  )
+  return handleNavigationResult(currentUrl, state, mutable, false, result)
 }

@@ -39,7 +39,7 @@ pub trait VersionedContent {
 
         // Fast path: versions are the same.
         if TraitRef::ptr_eq(&from_ref, &to_ref) {
-            return Ok(Update::None.into());
+            return Ok(Update::None.cell());
         }
 
         // The fast path might not always work since `self` might have been converted
@@ -51,9 +51,9 @@ pub trait VersionedContent {
         let from_id = from_id.await?;
         let to_id = to_id.await?;
         Ok(if *from_id == *to_id {
-            Update::None.into()
+            Update::None.cell()
         } else {
-            Update::Total(TotalUpdate { to: to_ref }).into()
+            Update::Total(TotalUpdate { to: to_ref }).cell()
         })
     }
 }

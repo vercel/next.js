@@ -4,7 +4,7 @@
  * This file contains type definitions that can be safely imported
  * by both client-side and server-side code without circular dependencies.
  */
-import type { FetchServerResponseResult } from '../../client/components/router-reducer/fetch-server-response'
+
 import type React from 'react'
 
 export type LoadingModuleData =
@@ -19,68 +19,15 @@ export type ChildSegmentMap = Map<string, CacheNode>
 /**
  * Cache node used in app-router / layout-router.
  */
-export type CacheNode = ReadyCacheNode | LazyCacheNode
 
-export type LazyCacheNode = {
-  /**
-   * When rsc is null, this is a lazily-initialized cache node.
-   *
-   * If the app attempts to render it, it triggers a lazy data fetch,
-   * postpones the render, and schedules an update to a new tree.
-   *
-   * TODO: This mechanism should not be used when PPR is enabled, though it
-   * currently is in some cases until we've implemented partial
-   * segment fetching.
-   */
-  rsc: null
-
-  /**
-   * A prefetched version of the segment data. See explanation in corresponding
-   * field of ReadyCacheNode (below).
-   *
-   * Since LazyCacheNode mostly only exists in the non-PPR implementation, this
-   * will usually be null, but it could have been cloned from a previous
-   * CacheNode that was created by the PPR implementation. Eventually we want
-   * to migrate everything away from LazyCacheNode entirely.
-   */
-  prefetchRsc: React.ReactNode
-
-  /**
-   * A pending response for the lazy data fetch. If this is not present
-   * during render, it is lazily created.
-   */
-  lazyData: Promise<FetchServerResponseResult> | null
-
-  prefetchHead: HeadData | null
-
-  head: HeadData
-
-  loading: LoadingModuleData | Promise<LoadingModuleData>
-
-  /**
-   * Child parallel routes.
-   */
-  parallelRoutes: Map<string, ChildSegmentMap>
-
-  /**
-   * The timestamp of the navigation that last updated the CacheNode's data. If
-   * a CacheNode is reused from a previous navigation, this value is not
-   * updated. Used to track the staleness of the data.
-   */
-  navigatedAt: number
-}
-
-export type ReadyCacheNode = {
+export type CacheNode = {
   /**
    * When rsc is not null, it represents the RSC data for the
    * corresponding segment.
    *
    * `null` is a valid React Node but because segment data is always a
-   * <LayoutRouter> component, we can use `null` to represent empty.
-   *
-   * TODO: For additional type safety, update this type to
-   * Exclude<React.ReactNode, null>. Need to update createEmptyCacheNode to
-   * accept rsc as an argument, or just inline the callers.
+   * <LayoutRouter> component, we can use `null` to represent empty. When it is
+   * null, it represents missing data, and rendering should suspend.
    */
   rsc: React.ReactNode
 
@@ -97,10 +44,6 @@ export type ReadyCacheNode = {
    */
   prefetchRsc: React.ReactNode
 
-  /**
-   * There should never be a lazy data request in this case.
-   */
-  lazyData: null
   prefetchHead: HeadData | null
 
   head: HeadData
@@ -109,17 +52,39 @@ export type ReadyCacheNode = {
 
   parallelRoutes: Map<string, ChildSegmentMap>
 
+  /**
+   * The timestamp of the navigation that last updated the CacheNode's data. If
+   * a CacheNode is reused from a previous navigation, this value is not
+   * updated. Used to track the staleness of the data.
+   */
   navigatedAt: number
 }
 
 export type DynamicParamTypes =
   | 'catchall'
-  | 'catchall-intercepted'
+  | 'catchall-intercepted-(..)(..)'
+  | 'catchall-intercepted-(.)'
+  | 'catchall-intercepted-(..)'
+  | 'catchall-intercepted-(...)'
   | 'optional-catchall'
   | 'dynamic'
-  | 'dynamic-intercepted'
+  | 'dynamic-intercepted-(..)(..)'
+  | 'dynamic-intercepted-(.)'
+  | 'dynamic-intercepted-(..)'
+  | 'dynamic-intercepted-(...)'
 
-export type DynamicParamTypesShort = 'c' | 'ci' | 'oc' | 'd' | 'di'
+export type DynamicParamTypesShort =
+  | 'c'
+  | 'ci(..)(..)'
+  | 'ci(.)'
+  | 'ci(..)'
+  | 'ci(...)'
+  | 'oc'
+  | 'd'
+  | 'di(..)(..)'
+  | 'di(.)'
+  | 'di(..)'
+  | 'di(...)'
 
 export type Segment =
   | string
@@ -221,7 +186,6 @@ export type FlightSegmentPath =
  * likely change.
  */
 export type CacheNodeSeedData = [
-  segment: Segment,
   node: React.ReactNode | null,
   parallelRoutes: {
     [parallelRouterKey: string]: CacheNodeSeedData | null
@@ -262,6 +226,8 @@ export type InitialRSCPayload = {
   b: string
   /** initialCanonicalUrlParts */
   c: string[]
+  /** initialRenderedSearch */
+  q: string
   /** couldBeIntercepted */
   i: boolean
   /** initialFlightData */
@@ -270,8 +236,6 @@ export type InitialRSCPayload = {
   m: Set<string> | undefined
   /** GlobalError */
   G: [React.ComponentType<any>, React.ReactNode | undefined]
-  /** postponed */
-  s: boolean
   /** prerendered */
   S: boolean
 }
@@ -284,6 +248,12 @@ export type NavigationFlightResponse = {
   f: FlightData
   /** prerendered */
   S: boolean
+  /** renderedSearch */
+  q: string
+  /** couldBeIntercepted */
+  i: boolean
+  /** runtimePrefetch - [isPartial, staleTime]. Only present in runtime prefetch responses. */
+  rp?: [boolean, number]
 }
 
 // Response from `createFromFetch` for server actions. Action's flight data can be null
@@ -294,6 +264,10 @@ export type ActionFlightResponse = {
   b: string
   /** flightData */
   f: FlightData
+  /** renderedSearch */
+  q: string
+  /** couldBeIntercepted */
+  i: boolean
 }
 
 export type RSCPayload =

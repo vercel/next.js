@@ -16,6 +16,7 @@ import {
   type TransformIpc,
 } from './transforms'
 import fs from 'fs'
+import path from 'path'
 
 export type IpcInfoMessage =
   | {
@@ -301,6 +302,22 @@ const transform = (
               request: string,
               callback?: (err?: Error, result?: string) => void
             ) => {
+              if (path.isAbsolute(request)) {
+                // Relativize absolute requests. Turbopack disallow them in JS code, but here it's
+                // generated programatically and there is a smaller problem of
+                // non-cacheable/non-portable builds.
+                request = path.relative(lookupPath, request)
+
+                // On Windows, the path might be still absolute if it's on a different drive. Just
+                // let the resolver throw the error in that case.
+                if (
+                  !path.isAbsolute(request) &&
+                  request.split(path.sep)[0] !== '..'
+                ) {
+                  request = './' + request
+                }
+              }
+
               const promise = ipc
                 .sendRequest({
                   type: 'resolve',

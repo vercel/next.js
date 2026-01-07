@@ -64,7 +64,7 @@ impl Issue for InvalidImportModuleIssue {
 
     #[turbo_tasks::function]
     fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Resolve.into()
+        IssueStage::Resolve.cell()
     }
 
     #[turbo_tasks::function]
@@ -254,6 +254,7 @@ impl AfterResolvePlugin for NextExternalResolvePlugin {
                 name: specifier.clone(),
                 ty: ExternalType::CommonJs,
                 traced: ExternalTraced::Traced,
+                target: None,
             },
         ))))
     }

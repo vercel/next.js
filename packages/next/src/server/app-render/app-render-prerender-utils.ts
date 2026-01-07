@@ -1,8 +1,13 @@
 import { InvariantError } from '../../shared/lib/invariant-error'
+import { createAtomicTimerGroup } from './app-render-scheduling'
+import {
+  DANGEROUSLY_runPendingImmediatesAfterCurrentTask,
+  expectNoPendingImmediates,
+} from '../node-environment-extensions/fast-set-immediate.external'
 
 /**
  * This is a utility function to make scheduling sequential tasks that run back to back easier.
- * We schedule on the same queue (setImmediate) at the same time to ensure no other events can sneak in between.
+ * We schedule on the same queue (setTimeout) at the same time to ensure no other events can sneak in between.
  */
 export function prerenderAndAbortInSequentialTasks<R>(
   prerender: () => Promise<R>,
@@ -14,18 +19,26 @@ export function prerenderAndAbortInSequentialTasks<R>(
     )
   } else {
     return new Promise((resolve, reject) => {
+      const scheduleTimeout = createAtomicTimerGroup()
+
       let pendingResult: Promise<R>
-      setImmediate(() => {
+      scheduleTimeout(() => {
         try {
+          DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
           pendingResult = prerender()
           pendingResult.catch(() => {})
         } catch (err) {
           reject(err)
         }
       })
-      setImmediate(() => {
-        abort()
-        resolve(pendingResult)
+      scheduleTimeout(() => {
+        try {
+          expectNoPendingImmediates()
+          abort()
+          resolve(pendingResult)
+        } catch (err) {
+          reject(err)
+        }
       })
     })
   }
@@ -46,21 +59,34 @@ export function prerenderAndAbortInSequentialTasksWithStages<R>(
     )
   } else {
     return new Promise((resolve, reject) => {
+      const scheduleTimeout = createAtomicTimerGroup()
+
       let pendingResult: Promise<R>
-      setImmediate(() => {
+      scheduleTimeout(() => {
         try {
+          DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
           pendingResult = prerender()
           pendingResult.catch(() => {})
         } catch (err) {
           reject(err)
         }
       })
-      setImmediate(() => {
-        advanceStage()
+      scheduleTimeout(() => {
+        try {
+          DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
+          advanceStage()
+        } catch (err) {
+          reject(err)
+        }
       })
-      setImmediate(() => {
-        abort()
-        resolve(pendingResult)
+      scheduleTimeout(() => {
+        try {
+          expectNoPendingImmediates()
+          abort()
+          resolve(pendingResult)
+        } catch (err) {
+          reject(err)
+        }
       })
     })
   }

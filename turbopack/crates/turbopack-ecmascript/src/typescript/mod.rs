@@ -6,15 +6,11 @@ use turbo_tasks_fs::DirectoryContent;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     ident::AssetIdent,
-    module::Module,
+    module::{Module, ModuleSideEffects},
     raw_module::RawModule,
     reference::{ModuleReference, ModuleReferences},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
-    resolve::{
-        ModuleResolveResult,
-        origin::{ResolveOrigin, ResolveOriginExt},
-        parse::Request,
-    },
+    resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request},
     source::Source,
 };
 // TODO remove this
@@ -49,6 +45,11 @@ impl Module for TsConfigModuleAsset {
     }
 
     #[turbo_tasks::function]
+    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
+        Vc::cell(Some(self.source))
+    }
+
+    #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         let mut references = Vec::new();
         let configs = read_tsconfigs(
@@ -56,8 +57,7 @@ impl Module for TsConfigModuleAsset {
             self.source,
             apply_cjs_specific_options(
                 self.origin
-                    .resolve_options(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined))
-                    .await?,
+                    .resolve_options(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined)),
             ),
         )
         .await?;
@@ -172,6 +172,11 @@ impl Module for TsConfigModuleAsset {
             }
         }
         Ok(Vc::cell(references))
+    }
+
+    #[turbo_tasks::function]
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        ModuleSideEffects::SideEffectful.cell()
     }
 }
 

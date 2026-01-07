@@ -28,7 +28,7 @@ if (process.env.NEXT_RUNTIME === 'edge') {
     }
   } catch {
     console.error(
-      `Failed to install ${randomUUIDExpression} extension. When using \`experimental.cacheComponents\` calling this function will not correctly trigger dynamic behavior.`
+      `Failed to install ${randomUUIDExpression} extension. When using \`cacheComponents\` calling this function will not correctly trigger dynamic behavior.`
     )
   }
 
@@ -45,7 +45,7 @@ if (process.env.NEXT_RUNTIME === 'edge') {
     }
   } catch {
     console.error(
-      `Failed to install ${randomBytesExpression} extension. When using \`experimental.cacheComponents\` calling this function without a callback argument will not correctly trigger dynamic behavior.`
+      `Failed to install ${randomBytesExpression} extension. When using \`cacheComponents\` calling this function without a callback argument will not correctly trigger dynamic behavior.`
     )
   }
 
@@ -60,7 +60,7 @@ if (process.env.NEXT_RUNTIME === 'edge') {
     }
   } catch {
     console.error(
-      `Failed to install ${randomFillSyncExpression} extension. When using \`experimental.cacheComponents\` calling this function will not correctly trigger dynamic behavior.`
+      `Failed to install ${randomFillSyncExpression} extension. When using \`cacheComponents\` calling this function will not correctly trigger dynamic behavior.`
     )
   }
 
@@ -77,7 +77,7 @@ if (process.env.NEXT_RUNTIME === 'edge') {
     }
   } catch {
     console.error(
-      `Failed to install ${randomBytesExpression} extension. When using \`experimental.cacheComponents\` calling this function without a callback argument will not correctly trigger dynamic behavior.`
+      `Failed to install ${randomBytesExpression} extension. When using \`cacheComponents\` calling this function without a callback argument will not correctly trigger dynamic behavior.`
     )
   }
 
@@ -92,7 +92,7 @@ if (process.env.NEXT_RUNTIME === 'edge') {
     }
   } catch {
     console.error(
-      `Failed to install ${generatePrimeSyncExpression} extension. When using \`experimental.cacheComponents\` calling this function will not correctly trigger dynamic behavior.`
+      `Failed to install ${generatePrimeSyncExpression} extension. When using \`cacheComponents\` calling this function will not correctly trigger dynamic behavior.`
     )
   }
 
@@ -107,7 +107,7 @@ if (process.env.NEXT_RUNTIME === 'edge') {
     }
   } catch {
     console.error(
-      `Failed to install ${generateKeyPairSyncExpression} extension. When using \`experimental.cacheComponents\` calling this function will not correctly trigger dynamic behavior.`
+      `Failed to install ${generateKeyPairSyncExpression} extension. When using \`cacheComponents\` calling this function will not correctly trigger dynamic behavior.`
     )
   }
 
@@ -121,7 +121,7 @@ if (process.env.NEXT_RUNTIME === 'edge') {
     }
   } catch {
     console.error(
-      `Failed to install ${generateKeySyncExpression} extension. When using \`experimental.cacheComponents\` calling this function will not correctly trigger dynamic behavior.`
+      `Failed to install ${generateKeySyncExpression} extension. When using \`cacheComponents\` calling this function will not correctly trigger dynamic behavior.`
     )
   }
 }

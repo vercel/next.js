@@ -41,7 +41,7 @@ impl<T> ChunkedVec<T> {
         }
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &T> {
+    pub fn iter(&self) -> impl ExactSizeIterator<Item = &T> {
         ExactSizeIter {
             iter: self.chunks.iter().flat_map(|chunk| chunk.iter()),
             len: self.len(),
@@ -102,5 +102,30 @@ impl<I: Iterator> Iterator for ExactSizeIter<I> {
 impl<I: Iterator> ExactSizeIterator for ExactSizeIter<I> {
     fn len(&self) -> usize {
         self.len
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ChunkedVec;
+
+    #[test]
+    fn test_chunked_vec() {
+        for i in 0..1000 {
+            let mut vec = ChunkedVec::new();
+            for j in 0..i {
+                vec.push(j);
+            }
+            assert_eq!(vec.len(), i);
+            assert_eq!(
+                vec.iter().copied().collect::<Vec<_>>(),
+                (0..i).collect::<Vec<_>>()
+            );
+            assert_eq!(vec.iter().len(), i);
+            assert_eq!(vec.is_empty(), i == 0);
+            let iter = vec.into_iter();
+            assert_eq!(iter.len(), i);
+            assert_eq!(iter.collect::<Vec<_>>(), (0..i).collect::<Vec<_>>());
+        }
     }
 }

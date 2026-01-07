@@ -19,6 +19,7 @@ import type { ImplicitTags } from '../lib/implicit-tags'
 import type { WorkStore } from './work-async-storage.external'
 import { NEXT_HMR_REFRESH_HASH_COOKIE } from '../../client/components/app-router-headers'
 import { InvariantError } from '../../shared/lib/invariant-error'
+import type { StagedRenderingController } from './staged-rendering'
 
 export type WorkUnitPhase = 'action' | 'render' | 'after'
 
@@ -67,8 +68,22 @@ export interface RequestStore extends CommonWorkUnitStore {
 
   // DEV-only
   usedDynamic?: boolean
-  prerenderPhase?: boolean
   devFallbackParams?: OpaqueFallbackRouteParams | null
+  stagedRendering?: StagedRenderingController | null
+  asyncApiPromises?: DevAsyncApiPromises
+  cacheSignal?: CacheSignal | null
+  prerenderResumeDataCache?: PrerenderResumeDataCache | null
+}
+
+type DevAsyncApiPromises = {
+  cookies: Promise<ReadonlyRequestCookies>
+  mutableCookies: Promise<ReadonlyRequestCookies>
+  headers: Promise<ReadonlyHeaders>
+
+  sharedParamsParent: Promise<string>
+  sharedSearchParamsParent: Promise<string>
+
+  connection: Promise<undefined>
 }
 
 /**
@@ -192,11 +207,6 @@ interface PrerenderStoreModernCommon
    * subsequent dynamic render.
    */
   readonly hmrRefreshHash: string | undefined
-
-  /**
-   * Only available in dev mode.
-   */
-  readonly captureOwnerStack: undefined | (() => string | null)
 }
 
 interface StaticPrerenderStoreCommon {
@@ -351,8 +361,14 @@ export function getPrerenderResumeDataCache(
       // TODO eliminate fetch caching in client scope and stop exposing this data
       // cache during SSR.
       return workUnitStore.prerenderResumeDataCache
+    case 'request': {
+      // In dev, we might fill caches even during a dynamic request.
+      if (workUnitStore.prerenderResumeDataCache) {
+        return workUnitStore.prerenderResumeDataCache
+      }
+      // fallthrough
+    }
     case 'prerender-legacy':
-    case 'request':
     case 'cache':
     case 'private-cache':
     case 'unstable-cache':
@@ -367,7 +383,6 @@ export function getRenderResumeDataCache(
 ): RenderResumeDataCache | null {
   switch (workUnitStore.type) {
     case 'request':
-      return workUnitStore.renderResumeDataCache
     case 'prerender':
     case 'prerender-runtime':
     case 'prerender-client':
@@ -380,7 +395,7 @@ export function getRenderResumeDataCache(
     case 'prerender-ppr':
       // Otherwise we return the mutable resume data cache here as an immutable
       // version of the cache as it can also be used for reading.
-      return workUnitStore.prerenderResumeDataCache
+      return workUnitStore.prerenderResumeDataCache ?? null
     case 'cache':
     case 'private-cache':
     case 'unstable-cache':
@@ -503,9 +518,15 @@ export function getCacheSignal(
     case 'prerender-client':
     case 'prerender-runtime':
       return workUnitStore.cacheSignal
+    case 'request': {
+      // In dev, we might fill caches even during a dynamic request.
+      if (workUnitStore.cacheSignal) {
+        return workUnitStore.cacheSignal
+      }
+      // fallthrough
+    }
     case 'prerender-ppr':
     case 'prerender-legacy':
-    case 'request':
     case 'cache':
     case 'private-cache':
     case 'unstable-cache':

@@ -1,4 +1,4 @@
-import { unstable_cacheLife } from 'next/cache'
+import { cacheLife } from 'next/cache'
 import { connection } from 'next/server'
 import { Suspense } from 'react'
 
@@ -19,7 +19,7 @@ async function innermost(id: string) {
 
 async function Short({ id }: { id: string }) {
   'use cache'
-  unstable_cacheLife('seconds')
+  cacheLife('seconds')
   return id
 }
 

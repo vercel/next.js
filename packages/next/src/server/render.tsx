@@ -1,3 +1,4 @@
+/* eslint-disable @next/internal/no-ambiguous-jsx -- Pages router doesn't use react-server */
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { ParsedUrlQuery } from 'querystring'
 import type { ReactDOMServerReadableStream } from 'react-dom/server'
@@ -100,7 +101,7 @@ import {
 import { getTracer } from './lib/trace/tracer'
 import { RenderSpan } from './lib/trace/constants'
 import { ReflectAdapter } from './web/spec-extension/adapters/reflect'
-import { getCacheControlHeader } from './lib/cache-control'
+import { setResponseCacheControlHeaders } from './lib/cache-control'
 import { getErrorSource } from '../shared/lib/error-source'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import type { PagesDevOverlayBridgeType } from '../next-devtools/userspace/pages/pages-dev-overlay-setup'
@@ -240,7 +241,6 @@ function renderPageTree(
 }
 
 export type RenderOptsPartial = {
-  runtimeConfig?: { [key: string]: any }
   assetPrefix?: string
   err?: Error | null
   nextExport?: boolean
@@ -258,7 +258,7 @@ export type RenderOptsPartial = {
   assetQueryString?: string
   resolvedUrl?: string
   resolvedAsPath?: string
-  setIsrStatus?: (key: string, value: boolean) => void
+  setIsrStatus?: (key: string, value: boolean | undefined) => void
   clientReferenceManifest?: DeepReadonly<ClientReferenceManifest>
   nextFontManifest?: DeepReadonly<NextFontManifest>
   distDir?: string
@@ -287,6 +287,7 @@ export type RenderOptsPartial = {
   expireTime?: number
   experimental: {
     clientTraceMetadata?: string[]
+    cdnCacheControlHeader?: string
   }
 }
 
@@ -555,9 +556,10 @@ export async function renderToHTMLImpl(
   // ensure we set cache header so it's not rendered on-demand
   // every request
   if (isAutoExport && !dev && isExperimentalCompile) {
-    res.setHeader(
-      'Cache-Control',
-      getCacheControlHeader({ revalidate: false, expire: expireTime })
+    setResponseCacheControlHeaders(
+      res,
+      { revalidate: false, expire: expireTime },
+      renderOpts.experimental.cdnCacheControlHeader
     )
     isAutoExport = false
   }
@@ -1465,7 +1467,6 @@ export async function renderToHTMLImpl(
     domainLocales,
     locale,
     locales,
-    runtimeConfig,
   } = renderOpts
   const htmlProps: HtmlProps = {
     __NEXT_DATA__: {
@@ -1474,7 +1475,6 @@ export async function renderToHTMLImpl(
       query, // querystring parsed / passed by the user
       buildId: sharedContext.buildId,
       assetPrefix: assetPrefix === '' ? undefined : assetPrefix, // send assetPrefix to the client side when configured, otherwise don't sent in the resulting HTML
-      runtimeConfig, // runtimeConfig if provided, otherwise don't sent in the resulting HTML
       nextExport: nextExport === true ? true : undefined, // If this is a page exported by `next export`
       autoExport: isAutoExport === true ? true : undefined, // If this is an auto exported page
       isFallback,

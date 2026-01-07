@@ -250,9 +250,29 @@ function commonJsRequire(id) {
 }
 contextPrototype.r = commonJsRequire;
 /**
+ * Remove fragments and query parameters since they are never part of the context map keys
+ *
+ * This matches how we parse patterns at resolving time.  Arguably we should only do this for
+ * strings passed to `import` but the resolve does it for `import` and `require` and so we do
+ * here as well.
+ */ function parseRequest(request) {
+    // Per the URI spec fragments can contain `?` characters, so we should trim it off first
+    // https://datatracker.ietf.org/doc/html/rfc3986#section-3.5
+    const hashIndex = request.indexOf('#');
+    if (hashIndex !== -1) {
+        request = request.substring(0, hashIndex);
+    }
+    const queryIndex = request.indexOf('?');
+    if (queryIndex !== -1) {
+        request = request.substring(0, queryIndex);
+    }
+    return request;
+}
+/**
  * `require.context` and require/import expression runtime.
  */ function moduleContext(map) {
     function moduleContext(id) {
+        id = parseRequest(id);
         if (hasOwnProperty.call(map, id)) {
             return map[id].module();
         }
@@ -264,6 +284,7 @@ contextPrototype.r = commonJsRequire;
         return Object.keys(map);
     };
     moduleContext.resolve = (id)=>{
+        id = parseRequest(id);
         if (hasOwnProperty.call(map, id)) {
             return map[id].id();
         }
@@ -478,10 +499,10 @@ contextPrototype.g = globalThis;
 function applyModuleFactoryName(factory) {
     // Give the module factory a nice name to improve stack traces.
     Object.defineProperty(factory, 'name', {
-        value: '__TURBOPACK__module__evaluation__'
+        value: 'module evaluation'
     });
 }
-/* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../shared/runtime-utils.ts" />
+/// <reference path="../shared/runtime-utils.ts" />
 /// A 'base' utilities to support runtime can have externals.
 /// Currently this is for node.js / edge runtime both.
 /// If a fn requires node.js specific behavior, it should be placed in `node-external-utils` instead.
@@ -628,14 +649,16 @@ function loadRuntimeChunkPath(sourcePath, chunkPath) {
         const chunkModules = require(resolved);
         installCompressedModuleFactories(chunkModules, 0, moduleFactories);
         loadedChunks.add(chunkPath);
-    } catch (e) {
+    } catch (cause) {
         let errorMessage = `Failed to load chunk ${chunkPath}`;
         if (sourcePath) {
             errorMessage += ` from runtime for chunk ${sourcePath}`;
         }
-        throw new Error(errorMessage, {
-            cause: e
+        const error = new Error(errorMessage, {
+            cause
         });
+        error.name = 'ChunkLoadError';
+        throw error;
     }
 }
 function loadChunkAsync(chunkData) {
@@ -655,12 +678,14 @@ function loadChunkAsync(chunkData) {
             const chunkModules = require(resolved);
             installCompressedModuleFactories(chunkModules, 0, moduleFactories);
             entry = loadedChunk;
-        } catch (e) {
+        } catch (cause) {
             const errorMessage = `Failed to load chunk ${chunkPath} from module ${this.m.id}`;
+            const error = new Error(errorMessage, {
+                cause
+            });
+            error.name = 'ChunkLoadError';
             // Cache the failure promise, future requests will also get this same rejection
-            entry = Promise.reject(new Error(errorMessage, {
-                cause: e
-            }));
+            entry = Promise.reject(error);
         }
         chunkCache.set(chunkPath, entry);
     }

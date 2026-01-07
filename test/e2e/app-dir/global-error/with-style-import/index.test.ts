@@ -1,8 +1,8 @@
-import { assertHasRedbox, getRedboxHeader } from 'next-test-utils'
+import { waitForRedbox, getRedboxHeader } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
 async function testDev(browser, errorRegex) {
-  await assertHasRedbox(browser)
+  await waitForRedbox(browser)
   expect(await getRedboxHeader(browser)).toMatch(errorRegex)
 }
 

@@ -3,7 +3,7 @@ use std::{any::type_name, sync::Arc};
 use anyhow::Result;
 use either::Either;
 use smallvec::SmallVec;
-use turbo_tasks::{SessionId, TaskId, backend::CachedTaskType};
+use turbo_tasks::{TaskId, backend::CachedTaskType};
 
 use crate::{
     backend::{AnyOperation, TaskDataCategory},
@@ -43,13 +43,11 @@ pub trait BackingStorage: BackingStorageSealed {
 pub trait BackingStorageSealed: 'static + Send + Sync {
     type ReadTransaction<'l>;
     fn next_free_task_id(&self) -> Result<TaskId>;
-    fn next_session_id(&self) -> Result<SessionId>;
     fn uncompleted_operations(&self) -> Result<Vec<AnyOperation>>;
     #[allow(clippy::ptr_arg)]
     fn serialize(&self, task: TaskId, data: &Vec<CachedDataItem>) -> Result<SmallVec<[u8; 16]>>;
     fn save_snapshot<I>(
         &self,
-        session_id: SessionId,
         operations: Vec<Arc<AnyOperation>>,
         task_cache_updates: Vec<ChunkedVec<(Arc<CachedTaskType>, TaskId)>>,
         snapshots: Vec<I>,
@@ -89,6 +87,23 @@ pub trait BackingStorageSealed: 'static + Send + Sync {
         task_id: TaskId,
         category: TaskDataCategory,
     ) -> Result<Vec<CachedDataItem>>;
+    /// # Safety
+    ///
+    /// `tx` must be a transaction from this BackingStorage instance.
+    unsafe fn batch_lookup_data(
+        &self,
+        tx: Option<&Self::ReadTransaction<'_>>,
+        task_ids: &[TaskId],
+        category: TaskDataCategory,
+    ) -> Result<Vec<Vec<CachedDataItem>>> {
+        let mut results = Vec::with_capacity(task_ids.len());
+        for &task_id in task_ids {
+            // TODO more efficient batch implementation
+            let data = unsafe { self.lookup_data(tx, task_id, category)? };
+            results.push(data);
+        }
+        Ok(results)
+    }
 
     fn shutdown(&self) -> Result<()> {
         Ok(())
@@ -116,10 +131,6 @@ where
         either::for_both!(self, this => this.next_free_task_id())
     }
 
-    fn next_session_id(&self) -> Result<SessionId> {
-        either::for_both!(self, this => this.next_session_id())
-    }
-
     fn uncompleted_operations(&self) -> Result<Vec<AnyOperation>> {
         either::for_both!(self, this => this.uncompleted_operations())
     }
@@ -130,7 +141,6 @@ where
 
     fn save_snapshot<I>(
         &self,
-        session_id: SessionId,
         operations: Vec<Arc<AnyOperation>>,
         task_cache_updates: Vec<ChunkedVec<(Arc<CachedTaskType>, TaskId)>>,
         snapshots: Vec<I>,
@@ -146,7 +156,6 @@ where
             + Sync,
     {
         either::for_both!(self, this => this.save_snapshot(
-            session_id,
             operations,
             task_cache_updates,
             snapshots,
@@ -208,6 +217,24 @@ where
             Either::Right(this) => {
                 let tx = tx.map(|tx| read_transaction_right_or_panic(tx.as_ref()));
                 unsafe { this.lookup_data(tx, task_id, category) }
+            }
+        }
+    }
+
+    unsafe fn batch_lookup_data(
+        &self,
+        tx: Option<&Self::ReadTransaction<'_>>,
+        task_ids: &[TaskId],
+        category: TaskDataCategory,
+    ) -> Result<Vec<Vec<CachedDataItem>>> {
+        match self {
+            Either::Left(this) => {
+                let tx = tx.map(|tx| read_transaction_left_or_panic(tx.as_ref()));
+                unsafe { this.batch_lookup_data(tx, task_ids, category) }
+            }
+            Either::Right(this) => {
+                let tx = tx.map(|tx| read_transaction_right_or_panic(tx.as_ref()));
+                unsafe { this.batch_lookup_data(tx, task_ids, category) }
             }
         }
     }

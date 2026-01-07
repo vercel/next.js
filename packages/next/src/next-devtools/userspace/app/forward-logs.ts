@@ -12,8 +12,11 @@ import {
   type LogMethod,
   patchConsoleMethod,
 } from '../../shared/forward-logs-shared'
-import { preLogSerializationClone, logStringify } from './forward-logs-utils'
-import { safeStringify } from '../../../lib/is-error'
+import {
+  preLogSerializationClone,
+  logStringify,
+  safeStringifyWithDepth,
+} from './forward-logs-utils'
 
 // Client-side file logger for browser logs
 class ClientFileLogger {
@@ -46,7 +49,11 @@ class ClientFileLogger {
           return String(arg)
         if (arg === null) return 'null'
         if (arg === undefined) return 'undefined'
-        return safeStringify(arg)
+        // Handle DOM nodes - only log the tag name to avoid React proxied elements
+        if (arg instanceof Element) {
+          return `<${arg.tagName.toLowerCase()}>`
+        }
+        return safeStringifyWithDepth(arg)
       })
       .join(' ')
 

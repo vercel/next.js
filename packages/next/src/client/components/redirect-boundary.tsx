@@ -48,6 +48,13 @@ export class RedirectErrorBoundary extends React.Component<
     if (isRedirectError(error)) {
       const url = getURLFromRedirectError(error)
       const redirectType = getRedirectTypeFromError(error)
+      if ('handled' in error) {
+        // The redirect was already handled. We'll still catch the redirect error
+        // so that we can remount the subtree, but we don't actually need to trigger the
+        // router.push.
+        return { redirect: null, redirectType: null }
+      }
+
       return { redirect: url, redirectType }
     }
     // Re-throw if error is not for redirect

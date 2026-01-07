@@ -73,6 +73,7 @@ function getBaseSWCOptions({
   isCacheComponents,
   cacheHandlers,
   useCacheEnabled,
+  taintEnabled,
   trackDynamicImports,
 }: {
   filename: string
@@ -92,8 +93,9 @@ function getBaseSWCOptions({
   serverReferenceHashSalt: string
   bundleLayer?: WebpackLayerName
   isCacheComponents?: boolean
-  cacheHandlers?: ExperimentalConfig['cacheHandlers']
+  cacheHandlers?: NextConfig['cacheHandlers']
   useCacheEnabled?: boolean
+  taintEnabled?: boolean
   trackDynamicImports?: boolean
 }) {
   const isReactServerLayer = shouldUseReactServerCondition(bundleLayer)
@@ -205,9 +207,7 @@ function getBaseSWCOptions({
     },
     // Disable css-in-js libs (without client-only integration) transform on server layer for server components
     ...(!isReactServerLayer && {
-      // eslint-disable-next-line @typescript-eslint/no-use-before-define
       emotion: getEmotionOptions(compilerOptions?.emotion, development),
-      // eslint-disable-next-line @typescript-eslint/no-use-before-define
       styledComponents: getStyledComponentsOptions(
         compilerOptions?.styledComponents,
         development
@@ -219,6 +219,7 @@ function getBaseSWCOptions({
             isReactServerLayer,
             cacheComponentsEnabled: isCacheComponents,
             useCacheEnabled,
+            taintEnabled,
           }
         : undefined,
     serverActions:
@@ -389,6 +390,7 @@ export function getLoaderSWCOptions({
   esm,
   cacheHandlers,
   useCacheEnabled,
+  taintEnabled,
   trackDynamicImports,
 }: {
   filename: string
@@ -414,8 +416,9 @@ export function getLoaderSWCOptions({
   serverComponents?: boolean
   serverReferenceHashSalt: string
   bundleLayer?: WebpackLayerName
-  cacheHandlers: ExperimentalConfig['cacheHandlers']
+  cacheHandlers: NextConfig['cacheHandlers']
   useCacheEnabled?: boolean
+  taintEnabled?: boolean
   trackDynamicImports?: boolean
 }) {
   let baseOptions: any = getBaseSWCOptions({
@@ -437,6 +440,7 @@ export function getLoaderSWCOptions({
     isCacheComponents,
     cacheHandlers,
     useCacheEnabled,
+    taintEnabled,
     trackDynamicImports,
   })
   baseOptions.fontLoaders = {

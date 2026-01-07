@@ -32,7 +32,6 @@ async function withRequestMetrics(
         const url = response.request().url()
         const status = response.status()
         const extension =
-          // eslint-disable-next-line prefer-named-capture-group -- TODO: address lint
           /^[^?#]+\.([a-z0-9]+)(?:[?#]|$)/i.exec(url)?.[1] ?? 'none'
         const currentRequests = requestsByExtension.get(extension) ?? 0
         requestsByExtension.set(extension, currentRequests + 1)
@@ -174,7 +173,6 @@ function networkIdle(
 
     const fullTimeout = setTimeout(() => {
       cleanup()
-      // eslint-disable-next-line no-console -- logging
       console.error(
         `Timeout while waiting for network idle. These requests are still pending: ${Array.from(
           requests
@@ -210,7 +208,6 @@ function networkIdle(
       lastRequest = Date.now()
       const currentCount = requests.get(request.url())
       if (currentCount === undefined) {
-        // eslint-disable-next-line no-console -- basic logging
         console.error(
           `Unexpected untracked but completed request ${request.url()}`
         )

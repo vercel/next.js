@@ -42,7 +42,18 @@ fn main() {
             });
         });
 
-    let worker_threads = available_parallelism().map(|n| n.get()).unwrap_or(1);
+    let args = Arguments::parse();
+
+    let worker_threads = args
+        .worker_threads()
+        .map(|v| {
+            if v == 0 {
+                panic!("--worker-threads=0 is invalid, you must use at least one thread.");
+            } else {
+                v
+            }
+        })
+        .unwrap_or_else(|| available_parallelism().map(|n| n.get()).unwrap_or(1));
 
     rt.worker_threads(worker_threads);
     rt.max_blocking_threads(usize::MAX - worker_threads);
@@ -50,7 +61,6 @@ fn main() {
     #[cfg(not(codspeed))]
     rt.disable_lifo_slot();
 
-    let args = Arguments::parse();
     rt.build().unwrap().block_on(main_inner(args)).unwrap();
 }
 

@@ -22,7 +22,6 @@ var REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
   REACT_MEMO_TYPE = Symbol.for("react.memo"),
   REACT_LAZY_TYPE = Symbol.for("react.lazy"),
   REACT_ACTIVITY_TYPE = Symbol.for("react.activity"),
-  REACT_POSTPONE_TYPE = Symbol.for("react.postpone"),
   REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
   MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 function getIteratorFn(maybeIterable) {
@@ -32,7 +31,8 @@ function getIteratorFn(maybeIterable) {
     maybeIterable["@@iterator"];
   return "function" === typeof maybeIterable ? maybeIterable : null;
 }
-var ReactNoopUpdateQueue = {
+var REACT_OPTIMISTIC_KEY = Symbol.for("react.optimistic_key"),
+  ReactNoopUpdateQueue = {
     isMounted: function () {
       return !1;
     },
@@ -111,7 +111,9 @@ function escape(key) {
 var userProvidedKeyEscapeRegex = /\/+/g;
 function getElementKey(element, index) {
   return "object" === typeof element && null !== element && null != element.key
-    ? escape("" + element.key)
+    ? element.key === REACT_OPTIMISTIC_KEY
+      ? index.toString(36)
+      : escape("" + element.key)
     : index.toString(36);
 }
 function resolveThenable(thenable) {
@@ -390,6 +392,7 @@ exports.Profiler = REACT_PROFILER_TYPE;
 exports.PureComponent = PureComponent;
 exports.StrictMode = REACT_STRICT_MODE_TYPE;
 exports.Suspense = REACT_SUSPENSE_TYPE;
+exports.ViewTransition = REACT_VIEW_TRANSITION_TYPE;
 exports.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE =
   ReactSharedInternals;
 exports.__COMPILER_RUNTIME = {
@@ -398,6 +401,7 @@ exports.__COMPILER_RUNTIME = {
     return ReactSharedInternals.H.useMemoCache(size);
   }
 };
+exports.addTransitionType = addTransitionType;
 exports.cache = function (fn) {
   return function () {
     return fn.apply(null, arguments);
@@ -414,7 +418,12 @@ exports.cloneElement = function (element, config, children) {
   var props = assign({}, element.props),
     key = element.key;
   if (null != config)
-    for (propName in (void 0 !== config.key && (key = "" + config.key), config))
+    for (propName in (void 0 !== config.key &&
+      (key =
+        config.key === REACT_OPTIMISTIC_KEY
+          ? REACT_OPTIMISTIC_KEY
+          : "" + config.key),
+    config))
       !hasOwnProperty.call(config, propName) ||
         "key" === propName ||
         "__self" === propName ||
@@ -451,7 +460,12 @@ exports.createElement = function (type, config, children) {
     props = {},
     key = null;
   if (null != config)
-    for (propName in (void 0 !== config.key && (key = "" + config.key), config))
+    for (propName in (void 0 !== config.key &&
+      (key =
+        config.key === REACT_OPTIMISTIC_KEY
+          ? REACT_OPTIMISTIC_KEY
+          : "" + config.key),
+    config))
       hasOwnProperty.call(config, propName) &&
         "key" !== propName &&
         "__self" !== propName &&
@@ -494,19 +508,13 @@ exports.memo = function (type, compare) {
     compare: void 0 === compare ? null : compare
   };
 };
+exports.optimisticKey = REACT_OPTIMISTIC_KEY;
 exports.startTransition = startTransition;
 exports.unstable_Activity = REACT_ACTIVITY_TYPE;
 exports.unstable_SuspenseList = REACT_SUSPENSE_LIST_TYPE;
-exports.unstable_ViewTransition = REACT_VIEW_TRANSITION_TYPE;
-exports.unstable_addTransitionType = addTransitionType;
 exports.unstable_getCacheForType = function (resourceType) {
   var dispatcher = ReactSharedInternals.A;
   return dispatcher ? dispatcher.getCacheForType(resourceType) : resourceType();
-};
-exports.unstable_postpone = function (reason) {
-  reason = Error(reason);
-  reason.$$typeof = REACT_POSTPONE_TYPE;
-  throw reason;
 };
 exports.unstable_startGestureTransition = function (provider, scope, options) {
   if (null == provider)
@@ -597,4 +605,4 @@ exports.useSyncExternalStore = function (
 exports.useTransition = function () {
   return ReactSharedInternals.H.useTransition();
 };
-exports.version = "19.3.0-experimental-a757cb76-20251002";
+exports.version = "19.3.0-experimental-65eec428-20251218";

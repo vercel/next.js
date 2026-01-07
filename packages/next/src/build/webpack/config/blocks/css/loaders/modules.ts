@@ -20,6 +20,7 @@ export function getCssModuleLoader(
         isAppDir: ctx.isAppDir,
         isDevelopment: ctx.isDevelopment,
         assetPrefix: ctx.assetPrefix,
+        experimentalInlineCss: ctx.experimental.inlineCss,
       })
     )
   }

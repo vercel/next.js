@@ -13,7 +13,7 @@ import { getImageBlurSvg } from '../shared/lib/image-blur-svg'
 import type { ImageConfigComplete } from '../shared/lib/image-config'
 import { hasLocalMatch } from '../shared/lib/match-local-pattern'
 import { hasRemoteMatch } from '../shared/lib/match-remote-pattern'
-import type { NextConfigComplete } from './config-shared'
+import type { NextConfigComplete, NextConfigRuntime } from './config-shared'
 import { createRequestResponseMocks } from './lib/mock-request'
 import type { NextUrlWithParsedQuery } from './request-meta'
 import {
@@ -27,9 +27,13 @@ import { sendEtagResponse } from './send-payload'
 import { getContentType, getExtension } from './serve-static'
 import * as Log from '../build/output/log'
 import isError from '../lib/is-error'
+import { isPrivateIp } from './is-private-ip'
 import { parseUrl } from '../lib/url'
 import type { CacheControl } from './lib/cache-control'
 import { InvariantError } from '../shared/lib/invariant-error'
+import { lookup } from 'dns/promises'
+import { isIP } from 'net'
+import { ALL } from 'dns'
 
 type XCacheHeader = 'MISS' | 'HIT' | 'STALE'
 
@@ -310,12 +314,12 @@ export async function detectContentType(
 
 export class ImageOptimizerCache {
   private cacheDir: string
-  private nextConfig: NextConfigComplete
+  private nextConfig: NextConfigRuntime
 
   static validateParams(
     req: IncomingMessage,
     query: UrlWithParsedQuery['query'],
-    nextConfig: NextConfigComplete,
+    nextConfig: NextConfigRuntime,
     isDev: boolean
   ): ImageParamsResult | { errorMessage: string } {
     const imageData = nextConfig.images
@@ -493,7 +497,7 @@ export class ImageOptimizerCache {
     nextConfig,
   }: {
     distDir: string
-    nextConfig: NextConfigComplete
+    nextConfig: NextConfigRuntime
   }) {
     this.cacheDir = join(/* turbopackIgnore: true */ distDir, 'cache', 'images')
     this.nextConfig = nextConfig
@@ -700,9 +704,41 @@ export async function optimizeImage({
   return optimizedBuffer
 }
 
-export async function fetchExternalImage(href: string): Promise<ImageUpstream> {
+function isRedirect(statusCode: number) {
+  return [301, 302, 303, 307, 308].includes(statusCode)
+}
+
+export async function fetchExternalImage(
+  href: string,
+  dangerouslyAllowLocalIP: boolean,
+  maximumResponseBody: number,
+  count = 3
+): Promise<ImageUpstream> {
+  if (!dangerouslyAllowLocalIP) {
+    const { hostname } = new URL(href)
+    let ips = [hostname]
+    if (!isIP(hostname)) {
+      const records = await lookup(hostname, {
+        family: 0,
+        all: true,
+        hints: ALL,
+      }).catch((_) => [{ address: hostname }])
+      ips = records.map((record) => record.address)
+    }
+    const privateIps = ips.filter((ip) => isPrivateIp(ip))
+    if (privateIps.length > 0) {
+      Log.error(
+        'upstream image',
+        href,
+        'resolved to private ip',
+        JSON.stringify(privateIps)
+      )
+      throw new ImageError(400, '"url" parameter is not allowed')
+    }
+  }
   const res = await fetch(href, {
     signal: AbortSignal.timeout(7_000),
+    redirect: 'manual',
   }).catch((err) => err as Error)
 
   if (res instanceof Error) {
@@ -717,6 +753,28 @@ export async function fetchExternalImage(href: string): Promise<ImageUpstream> {
     throw err
   }
 
+  const locationHeader = res.headers.get('Location')
+  if (
+    isRedirect(res.status) &&
+    locationHeader &&
+    URL.canParse(locationHeader, href)
+  ) {
+    if (count === 0) {
+      Log.error('upstream image response had too many redirects', href)
+      throw new ImageError(
+        508,
+        '"url" parameter is valid but upstream response is invalid'
+      )
+    }
+    const redirect = new URL(locationHeader, href).href
+    return fetchExternalImage(
+      redirect,
+      dangerouslyAllowLocalIP,
+      maximumResponseBody,
+      count - 1
+    )
+  }
+
   if (!res.ok) {
     Log.error('upstream image response failed for', href, res.status)
     throw new ImageError(
@@ -725,7 +783,35 @@ export async function fetchExternalImage(href: string): Promise<ImageUpstream> {
     )
   }
 
-  const buffer = Buffer.from(await res.arrayBuffer())
+  if (!res.body) {
+    Log.error('upstream image response is empty for', href)
+    throw new ImageError(
+      400,
+      '"url" parameter is valid but upstream response is invalid'
+    )
+  }
+
+  const chunks: Buffer[] = []
+  let totalSize = 0
+
+  for await (const c of res.body) {
+    const chunk = Buffer.from(c)
+    totalSize += chunk.byteLength
+    if (totalSize > maximumResponseBody) {
+      Log.error(
+        'upstream image response exceeded maximum size for',
+        href,
+        totalSize
+      )
+      throw new ImageError(
+        413,
+        '"url" parameter is valid but upstream response is invalid'
+      )
+    }
+    chunks.push(chunk)
+  }
+
+  const buffer = Buffer.concat(chunks)
   const contentType = res.headers.get('Content-Type')
   const cacheControl = res.headers.get('Cache-Control')
   const etag = extractEtag(res.headers.get('ETag'), buffer)

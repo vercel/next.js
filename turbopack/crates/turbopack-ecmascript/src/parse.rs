@@ -2,8 +2,9 @@ use std::{future::Future, sync::Arc};
 
 use anyhow::{Context, Result, anyhow};
 use bytes_str::BytesStr;
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
+    atoms::Atom,
     base::SwcComments,
     common::{
         BytePos, FileName, GLOBALS, Globals, LineCol, Mark, SyntaxContext,
@@ -12,12 +13,15 @@ use swc_core::{
         source_map::{Files, SourceMapGenConfig, build_source_map},
     },
     ecma::{
-        ast::{EsVersion, Id, ObjectPatProp, Pat, Program, VarDecl},
-        lints::{config::LintConfig, rules::LintParams},
+        ast::{EsVersion, Id, Ident, IdentName, ObjectPatProp, Pat, Program, VarDecl},
+        lints::{self, config::LintConfig, rules::LintParams},
         parser::{EsSyntax, Parser, Syntax, TsSyntax, lexer::Lexer},
-        transforms::base::{
-            helpers::{HELPERS, Helpers},
-            resolver,
+        transforms::{
+            base::{
+                helpers::{HELPERS, Helpers},
+                resolver,
+            },
+            proposal::explicit_resource_management::explicit_resource_management,
         },
         visit::{Visit, VisitMutWith, VisitWith, noop_visit_type},
     },
@@ -44,11 +48,103 @@ use super::EcmascriptModuleAssetType;
 use crate::{
     EcmascriptInputTransform,
     analyzer::graph::EvalContext,
+    magic_identifier,
     swc_comments::ImmutableComments,
     transform::{EcmascriptInputTransforms, TransformContext},
 };
 
-#[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
+/// Collects identifier names and their byte positions from an AST.
+/// This is used to populate the `names` field in source maps.
+/// Based on swc_compiler_base::IdentCollector.
+pub struct IdentCollector {
+    names_vec: Vec<(BytePos, Atom)>,
+    /// Stack of current class names for mapping constructors to class names
+    class_stack: Vec<Atom>,
+}
+
+impl IdentCollector {
+    /// Converts the collected identifiers into a map keyed by the start position of the identifier
+    pub fn into_map(self) -> FxHashMap<BytePos, Atom> {
+        FxHashMap::from_iter(self.names_vec)
+    }
+}
+impl Default for IdentCollector {
+    fn default() -> Self {
+        Self {
+            names_vec: Vec::with_capacity(128),
+            class_stack: Vec::new(),
+        }
+    }
+}
+
+/// Unmangles a Turbopack magic identifier, returning the original name or the input if not mangled
+fn unmangle_atom(name: &Atom) -> Atom {
+    magic_identifier::unmangle(name)
+        .map(Atom::from)
+        .unwrap_or_else(|| name.clone())
+}
+
+impl Visit for IdentCollector {
+    noop_visit_type!();
+
+    fn visit_ident(&mut self, ident: &Ident) {
+        // Skip dummy spans - these are synthetic/generated identifiers
+        if !ident.span.lo.is_dummy() {
+            // we can get away with just the `lo` positions since identifiers cannot overlap.
+            self.names_vec
+                .push((ident.span.lo, unmangle_atom(&ident.sym)));
+        }
+    }
+
+    fn visit_ident_name(&mut self, ident: &IdentName) {
+        if ident.span.lo.is_dummy() {
+            return;
+        }
+
+        // Map constructor names to the class name
+        let mut sym = &ident.sym;
+        if ident.sym == "constructor" {
+            if let Some(class_name) = self.class_stack.last() {
+                sym = class_name;
+            } else {
+                // If no class name in stack, skip the constructor mapping
+                return;
+            }
+        }
+
+        self.names_vec.push((ident.span.lo, unmangle_atom(sym)));
+    }
+
+    fn visit_class_decl(&mut self, decl: &swc_core::ecma::ast::ClassDecl) {
+        // Push class name onto stack
+        self.class_stack.push(decl.ident.sym.clone());
+
+        // Visit the identifier and class
+        self.visit_ident(&decl.ident);
+        self.visit_class(&decl.class);
+
+        // Pop class name from stack
+        self.class_stack.pop();
+    }
+
+    fn visit_class_expr(&mut self, expr: &swc_core::ecma::ast::ClassExpr) {
+        // Push class name onto stack if it exists
+        if let Some(ref ident) = expr.ident {
+            self.class_stack.push(ident.sym.clone());
+            self.visit_ident(ident);
+        }
+
+        // Visit the class body
+        self.visit_class(&expr.class);
+
+        // Pop class name from stack if it was pushed
+        if expr.ident.is_some() {
+            self.class_stack.pop();
+        }
+    }
+}
+
+#[turbo_tasks::value(shared, serialization = "none", eq = "manual", cell = "new")]
 #[allow(clippy::large_enum_variant)]
 pub enum ParseResult {
     // Note: Ok must not contain any Vc as it's snapshot by failsafe_parse
@@ -70,15 +166,6 @@ pub enum ParseResult {
     NotFound,
 }
 
-impl PartialEq for ParseResult {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::Ok { .. }, Self::Ok { .. }) => false,
-            _ => core::mem::discriminant(self) == core::mem::discriminant(other),
-        }
-    }
-}
-
 /// `original_source_maps_complete` indicates whether the `original_source_maps` cover the whole
 /// map, i.e. whether every module that ended up in `mappings` had an original sourcemap.
 #[instrument(level = "info", name = "generate source map", skip_all)]
@@ -88,6 +175,7 @@ pub fn generate_js_source_map<'a>(
     original_source_maps: impl IntoIterator<Item = &'a Rope>,
     original_source_maps_complete: bool,
     inline_sources_content: bool,
+    names: FxHashMap<BytePos, Atom>,
 ) -> Result<Rope> {
     let original_source_maps = original_source_maps
         .into_iter()
@@ -113,6 +201,7 @@ pub fn generate_js_source_map<'a>(
             // We only need the source content of `A`, and a way to map the content of `B` back to
             // `A`, while constructing the final source map, `C`.
             inline_sources_content: inline_sources_content && !fast_path_single_original_source_map,
+            names,
         },
     );
 
@@ -151,6 +240,7 @@ pub fn generate_js_source_map<'a>(
 /// sourcemap, so we need to provide a custom config to do it.
 pub struct InlineSourcesContentConfig {
     inline_sources_content: bool,
+    names: FxHashMap<BytePos, Atom>,
 }
 
 impl SourceMapGenConfig for InlineSourcesContentConfig {
@@ -166,6 +256,10 @@ impl SourceMapGenConfig for InlineSourcesContentConfig {
     fn inline_sources_content(&self, _f: &FileName) -> bool {
         self.inline_sources_content
     }
+
+    fn name_for_bytepos(&self, pos: BytePos) -> Option<&str> {
+        self.names.get(&pos).map(|v| &**v)
+    }
 }
 
 #[turbo_tasks::function]
@@ -174,6 +268,7 @@ pub async fn parse(
     ty: EcmascriptModuleAssetType,
     transforms: ResolvedVc<EcmascriptInputTransforms>,
     is_external_tracing: bool,
+    inline_helpers: bool,
 ) -> Result<Vc<ParseResult>> {
     let span = tracing::info_span!(
         "parse ecmascript",
@@ -181,14 +276,9 @@ pub async fn parse(
         ty = display(&ty)
     );
 
-    match parse_internal(
-        source,
-        ty,
-        transforms,
-        is_external_tracing && matches!(ty, EcmascriptModuleAssetType::EcmascriptExtensionless),
-    )
-    .instrument(span)
-    .await
+    match parse_internal(source, ty, transforms, is_external_tracing, inline_helpers)
+        .instrument(span)
+        .await
     {
         Ok(result) => Ok(result),
         Err(error) => Err(error.context(format!(
@@ -203,6 +293,7 @@ async fn parse_internal(
     ty: EcmascriptModuleAssetType,
     transforms: ResolvedVc<EcmascriptInputTransforms>,
     loose_errors: bool,
+    inline_helpers: bool,
 ) -> Result<Vc<ParseResult>> {
     let content = source.content();
     let fs_path = source.ident().path().owned().await?;
@@ -247,6 +338,7 @@ async fn parse_internal(
                             ty,
                             transforms,
                             loose_errors,
+                            inline_helpers,
                         )
                         .await
                         {
@@ -302,6 +394,7 @@ async fn parse_file_content(
     ty: EcmascriptModuleAssetType,
     transforms: &[EcmascriptInputTransform],
     loose_errors: bool,
+    inline_helpers: bool,
 ) -> Result<Vc<ParseResult>> {
     let source_map: Arc<swc_core::common::SourceMap> = Default::default();
     let (emitter, collector) = IssueEmitter::new(
@@ -331,35 +424,34 @@ async fn parse_file_content(
                 let lexer = Lexer::new(
                     match ty {
                         EcmascriptModuleAssetType::Ecmascript
-                        | EcmascriptModuleAssetType::EcmascriptExtensionless
-                        => Syntax::Es(EsSyntax {
-                            jsx: true,
-                            fn_bind: true,
-                            decorators: true,
-                            decorators_before_export: true,
-                            export_default_from: true,
-                            import_attributes: true,
-                            allow_super_outside_method: true,
-                            allow_return_outside_function: true,
-                            auto_accessors: true,
-                            explicit_resource_management: true,
-                        }),
+                        | EcmascriptModuleAssetType::EcmascriptExtensionless => {
+                            Syntax::Es(EsSyntax {
+                                jsx: true,
+                                fn_bind: true,
+                                decorators: true,
+                                decorators_before_export: true,
+                                export_default_from: true,
+                                import_attributes: true,
+                                allow_super_outside_method: true,
+                                allow_return_outside_function: true,
+                                auto_accessors: true,
+                                explicit_resource_management: true,
+                            })
+                        }
                         EcmascriptModuleAssetType::Typescript { tsx, .. } => {
                             Syntax::Typescript(TsSyntax {
                                 decorators: true,
                                 dts: false,
-                                no_early_errors: true,
                                 tsx,
-                                disallow_ambiguous_jsx_like: false,
+                                ..Default::default()
                             })
                         }
                         EcmascriptModuleAssetType::TypescriptDeclaration => {
                             Syntax::Typescript(TsSyntax {
                                 decorators: true,
                                 dts: true,
-                                no_early_errors: true,
                                 tsx: false,
-                                disallow_ambiguous_jsx_like: false,
+                                ..Default::default()
                             })
                         }
                     },
@@ -410,7 +502,7 @@ async fn parse_file_content(
                     | EcmascriptModuleAssetType::TypescriptDeclaration
             );
 
-            let helpers=Helpers::new(true);
+            let helpers = Helpers::new(!inline_helpers);
             let span = tracing::trace_span!("swc_resolver").entered();
 
             parsed_program.visit_mut_with(&mut resolver(
@@ -423,7 +515,7 @@ async fn parse_file_content(
             let span = tracing::trace_span!("swc_lint").entered();
 
             let lint_config = LintConfig::default();
-            let rules = swc_core::ecma::lints::rules::all(LintParams {
+            let rules = lints::rules::all(LintParams {
                 program: &parsed_program,
                 lint_config: &lint_config,
                 unresolved_ctxt: SyntaxContext::empty().apply_mark(unresolved_mark),
@@ -432,13 +524,11 @@ async fn parse_file_content(
                 source_map: source_map.clone(),
             });
 
-            parsed_program.mutate(swc_core::ecma::lints::rules::lint_pass(rules));
+            parsed_program.mutate(lints::rules::lint_pass(rules));
             drop(span);
 
             HELPERS.set(&helpers, || {
-                parsed_program.mutate(
-                    swc_core::ecma::transforms::proposal::explicit_resource_management::explicit_resource_management(),
-                );
+                parsed_program.mutate(explicit_resource_management());
             });
 
             let var_with_ts_declare = if is_typescript {
@@ -458,7 +548,7 @@ async fn parse_file_content(
                 file_name_hash: file_path_hash,
                 query_str: query,
                 file_path: fs_path.clone(),
-                source
+                source,
             };
             let span = tracing::trace_span!("transforms");
             async {
@@ -469,8 +559,8 @@ async fn parse_file_content(
                 }
                 anyhow::Ok(())
             }
-                .instrument(span)
-                .await?;
+            .instrument(span)
+            .await?;
 
             if parser_handler.has_errors() {
                 let messages = if let Some(error) = collector_parse.last_emitted_issue() {
@@ -483,16 +573,15 @@ async fn parse_file_content(
                 } else {
                     None
                 };
-                let messages =
-                    Some(messages.unwrap_or_else(|| vec![fm.src.clone().into()]));
+                let messages = Some(messages.unwrap_or_else(|| vec![fm.src.clone().into()]));
                 return Ok(ParseResult::Unparsable { messages });
             }
 
             let helpers = Helpers::from_data(helpers);
             HELPERS.set(&helpers, || {
-                parsed_program.mutate(
-                    swc_core::ecma::transforms::base::helpers::inject_helpers(unresolved_mark),
-                );
+                parsed_program.mutate(swc_core::ecma::transforms::base::helpers::inject_helpers(
+                    unresolved_mark,
+                ));
             });
 
             let eval_context = EvalContext::new(
@@ -514,13 +603,9 @@ async fn parse_file_content(
                 source_map,
             })
         },
-        |f, cx| {
-            GLOBALS.set(globals_ref, || {
-                HANDLER.set(&handler, || f.poll(cx))
-            })
-        },
+        |f, cx| GLOBALS.set(globals_ref, || HANDLER.set(&handler, || f.poll(cx))),
     )
-        .await?;
+    .await?;
     if let ParseResult::Ok {
         globals: ref mut g, ..
     } = result

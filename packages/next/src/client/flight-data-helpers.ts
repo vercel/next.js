@@ -6,8 +6,18 @@ import type {
   FlightSegmentPath,
   Segment,
   HeadData,
+  InitialRSCPayload,
 } from '../shared/lib/app-router-types'
 import { PAGE_SEGMENT_KEY } from '../shared/lib/segment'
+import type { NormalizedSearch } from './components/segment-cache/cache-key'
+import {
+  getCacheKeyForDynamicParam,
+  parseDynamicParamFromURLPart,
+  doesStaticSegmentAppearInURL,
+  getRenderedPathname,
+  getRenderedSearch,
+} from './route-params'
+import { createHrefFromUrl } from './components/router-reducer/create-href-from-url'
 
 export type NormalizedFlightData = {
   /**
@@ -56,6 +66,128 @@ export function getFlightDataPartsFromPath(
     isHeadPartial,
     isRootRender: flightDataPath.length === flightDataPathLength,
   }
+}
+
+export function createInitialRSCPayloadFromFallbackPrerender(
+  response: Response,
+  fallbackInitialRSCPayload: InitialRSCPayload
+): InitialRSCPayload {
+  // This is a static fallback page. In order to hydrate the page, we need to
+  // parse the client params from the URL, but to account for the possibility
+  // that the page was rewritten, we need to check the response headers
+  // for x-nextjs-rewritten-path or x-nextjs-rewritten-query headers. Since
+  // we can't access the headers of the initial document response, the client
+  // performs a fetch request to the current location. Since it's possible that
+  // the fetch request will be dynamically rewritten to a different path than
+  // the initial document, this fetch request delivers _all_ the hydration data
+  // for the page; it was not inlined into the document, like it normally
+  // would be.
+  //
+  // TODO: Consider treating the case where fetch is rewritten to a different
+  // path from the document as a special deopt case. We should optimistically
+  // assume this won't happen, inline the data into the document, and perform
+  // a minimal request (like a HEAD or range request) to verify that the
+  // response matches. Tricky to get right because we need to account for
+  // all the different deployment environments we support, like output:
+  // "export" mode, where we currently don't assume that custom response
+  // headers are present.
+
+  // Patch the Flight data sent by the server with the correct params parsed
+  // from the URL + response object.
+  const renderedPathname = getRenderedPathname(response)
+  const renderedSearch = getRenderedSearch(response)
+  const canonicalUrl = createHrefFromUrl(new URL(location.href))
+  const originalFlightDataPath = fallbackInitialRSCPayload.f[0]
+  const originalFlightRouterState = originalFlightDataPath[0]
+  return {
+    b: fallbackInitialRSCPayload.b,
+    c: canonicalUrl.split('/'),
+    q: renderedSearch,
+    i: fallbackInitialRSCPayload.i,
+    f: [
+      [
+        fillInFallbackFlightRouterState(
+          originalFlightRouterState,
+          renderedPathname,
+          renderedSearch as NormalizedSearch
+        ),
+        originalFlightDataPath[1],
+        originalFlightDataPath[2],
+        originalFlightDataPath[2],
+      ],
+    ],
+    m: fallbackInitialRSCPayload.m,
+    G: fallbackInitialRSCPayload.G,
+    S: fallbackInitialRSCPayload.S,
+  }
+}
+
+function fillInFallbackFlightRouterState(
+  flightRouterState: FlightRouterState,
+  renderedPathname: string,
+  renderedSearch: NormalizedSearch
+): FlightRouterState {
+  const pathnameParts = renderedPathname.split('/').filter((p) => p !== '')
+  const index = 0
+  return fillInFallbackFlightRouterStateImpl(
+    flightRouterState,
+    renderedSearch,
+    pathnameParts,
+    index
+  )
+}
+
+function fillInFallbackFlightRouterStateImpl(
+  flightRouterState: FlightRouterState,
+  renderedSearch: NormalizedSearch,
+  pathnameParts: Array<string>,
+  pathnamePartsIndex: number
+): FlightRouterState {
+  const originalSegment = flightRouterState[0]
+  let newSegment: Segment
+  let doesAppearInURL: boolean
+  if (typeof originalSegment === 'string') {
+    newSegment = originalSegment
+    doesAppearInURL = doesStaticSegmentAppearInURL(originalSegment)
+  } else {
+    const paramName = originalSegment[0]
+    const paramType = originalSegment[2]
+    const paramValue = parseDynamicParamFromURLPart(
+      paramType,
+      pathnameParts,
+      pathnamePartsIndex
+    )
+    const cacheKey = getCacheKeyForDynamicParam(paramValue, renderedSearch)
+    newSegment = [paramName, cacheKey, paramType]
+    doesAppearInURL = true
+  }
+
+  // Only increment the index if the segment appears in the URL. If it's a
+  // "virtual" segment, like a route group, it remains the same.
+  const childPathnamePartsIndex = doesAppearInURL
+    ? pathnamePartsIndex + 1
+    : pathnamePartsIndex
+
+  const children = flightRouterState[1]
+  const newChildren: { [key: string]: FlightRouterState } = {}
+  for (let key in children) {
+    const childFlightRouterState = children[key]
+    newChildren[key] = fillInFallbackFlightRouterStateImpl(
+      childFlightRouterState,
+      renderedSearch,
+      pathnameParts,
+      childPathnamePartsIndex
+    )
+  }
+
+  const newState: FlightRouterState = [
+    newSegment,
+    newChildren,
+    null,
+    flightRouterState[3],
+    flightRouterState[4],
+  ]
+  return newState
 }
 
 export function getNextFlightSegmentPath(

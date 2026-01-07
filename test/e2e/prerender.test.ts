@@ -6,7 +6,7 @@ import escapeRegex from 'escape-string-regexp'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import {
-  assertHasRedbox,
+  waitForRedbox,
   check,
   fetchViaHTTP,
   getBrowserBodyText,
@@ -371,19 +371,19 @@ describe('Prerender', () => {
 
   const navigateTest = (isDev = false) => {
     it('should navigate between pages successfully', async () => {
-      const toBuild = [
-        '/',
-        '/another',
-        '/something',
-        '/normal',
-        '/blog/post-1',
-        '/blog/post-1/comment-1',
-        '/catchall/first',
+      // TODO: Compiling this many pages in parallel hits some race condition
+      // causing "SyntaxError: Unexpected non-whitespace character after JSON at position 614"
+      // which persists throughout Next.js Server instance lifetime.
+      // Compiling in batches to avoid that unknown bug.
+      const toBuildBatches = [
+        ['/', '/another', '/something', '/normal'],
+        ['/blog/post-1', '/blog/post-1/comment-1', '/catchall/first'],
       ]
 
-      await waitFor(2500)
-
-      await Promise.all(toBuild.map((pg) => renderViaHTTP(next.url, pg)))
+      for (const toBuild of toBuildBatches) {
+        // eslint-disable-next-line no-loop-func -- we're not accessing `next` after the loop was exited.
+        await Promise.all(toBuild.map((pg) => renderViaHTTP(next.url, pg)))
+      }
 
       const browser = await webdriver(next.url, '/')
       let text = await browser.elementByCss('p').text()
@@ -412,7 +412,6 @@ describe('Prerender', () => {
       await goFromAnotherToHome()
 
       // Client-side SSG data caching test
-      // eslint-disable-next-line no-lone-blocks
       {
         // Let revalidation period lapse
         await waitFor(2000)
@@ -677,21 +676,25 @@ describe('Prerender', () => {
     if (!isDev) {
       it('should use correct caching headers for a revalidate page', async () => {
         const initialRes = await fetchViaHTTP(next.url, '/')
-        expect(initialRes.headers.get('cache-control')).toBe(
-          isDeploy
-            ? 'public, max-age=0, must-revalidate'
-            : 's-maxage=2, stale-while-revalidate=31535998'
-        )
+        expect(initialRes.headers.get('cache-control')).toBe('s-maxage=2')
+        if (!isDeploy) {
+          expect(initialRes.headers.get('cdn-cache-control')).toBe(
+            'max-age=2, stale-while-revalidate=31535998'
+          )
+        }
       })
 
       it('should use correct caching headers for a fallback-true page (prerendered)', async () => {
         const initialRes = await fetchViaHTTP(next.url, '/fallback-true/first')
         expect(initialRes.status).toBe(200)
         expect(initialRes.headers.get('cache-control')).toBe(
-          isDeploy
-            ? 'public, max-age=0, must-revalidate'
-            : 's-maxage=2, stale-while-revalidate=31535998'
+          isDeploy ? 'public, max-age=0, must-revalidate' : 's-maxage=2'
         )
+        if (!isDeploy) {
+          expect(initialRes.headers.get('cdn-cache-control')).toBe(
+            'max-age=2, stale-while-revalidate=31535998'
+          )
+        }
         expect(await initialRes.text()).not.toContain('hi fallback')
 
         const dataRes = await fetchViaHTTP(
@@ -700,19 +703,23 @@ describe('Prerender', () => {
         )
         expect(dataRes.status).toBe(200)
         expect(dataRes.headers.get('cache-control')).toBe(
-          isDeploy
-            ? 'public, max-age=0, must-revalidate'
-            : 's-maxage=2, stale-while-revalidate=31535998'
+          isDeploy ? 'public, max-age=0, must-revalidate' : 's-maxage=2'
         )
+        if (!isDeploy) {
+          expect(dataRes.headers.get('cdn-cache-control')).toBe(
+            'max-age=2, stale-while-revalidate=31535998'
+          )
+        }
 
         await retry(async () => {
           const finalRes = await fetchViaHTTP(next.url, `/fallback-true/first`)
           expect(finalRes.status).toBe(200)
-          expect(finalRes.headers.get('cache-control')).toBe(
-            isDeploy
-              ? 'public, max-age=0, must-revalidate'
-              : 's-maxage=2, stale-while-revalidate=31535998'
-          )
+          expect(finalRes.headers.get('cache-control')).toBe('s-maxage=2')
+          if (!isDeploy) {
+            expect(finalRes.headers.get('cdn-cache-control')).toBe(
+              'max-age=2, stale-while-revalidate=31535998'
+            )
+          }
           expect(await finalRes.text()).not.toContain('hi fallback')
         })
       })
@@ -732,20 +739,22 @@ describe('Prerender', () => {
           `/_next/data/${next.buildId}/fallback-true/second.json`
         )
         expect(dataRes.status).toBe(200)
-        expect(dataRes.headers.get('cache-control')).toBe(
-          isDeploy
-            ? 'public, max-age=0, must-revalidate'
-            : 's-maxage=2, stale-while-revalidate=31535998'
-        )
+        expect(dataRes.headers.get('cache-control')).toBe('s-maxage=2')
+        if (!isDeploy) {
+          expect(dataRes.headers.get('cdn-cache-control')).toBe(
+            'max-age=2, stale-while-revalidate=31535998'
+          )
+        }
 
         await retry(async () => {
           const finalRes = await fetchViaHTTP(next.url, `/fallback-true/second`)
           expect(finalRes.status).toBe(200)
-          expect(finalRes.headers.get('cache-control')).toBe(
-            isDeploy
-              ? 'public, max-age=0, must-revalidate'
-              : 's-maxage=2, stale-while-revalidate=31535998'
-          )
+          expect(finalRes.headers.get('cache-control')).toBe('s-maxage=2')
+          if (!isDeploy) {
+            expect(finalRes.headers.get('cdn-cache-control')).toBe(
+              'max-age=2, stale-while-revalidate=31535998'
+            )
+          }
           expect(await finalRes.text()).not.toContain('hi fallback')
         })
       })
@@ -773,13 +782,9 @@ describe('Prerender', () => {
       const browser = await webdriver(next.url, '/')
       await browser.eval('window.beforeClick = "abc"')
       await browser.elementByCss('#broken-post').click()
-      expect(
-        await check(() => browser.eval('window.beforeClick'), {
-          test(v) {
-            return v !== 'abc'
-          },
-        })
-      ).toBe(true)
+      await retry(async () => {
+        expect(await browser.eval('window.beforeClick')).not.toEqual('abc')
+      })
     })
 
     it('should SSR dynamic page with brackets in param as object', async () => {
@@ -907,13 +912,9 @@ describe('Prerender', () => {
         const browser = await webdriver(next.url, '/')
         await browser.eval('window.beforeClick = "abc"')
         await browser.elementByCss('#broken-at-first-post').click()
-        expect(
-          await check(() => browser.eval('window.beforeClick'), {
-            test(v) {
-              return v !== 'abc'
-            },
-          })
-        ).toBe(true)
+        await retry(async () => {
+          expect(await browser.eval('window.beforeClick')).not.toEqual('abc')
+        })
 
         const text = await browser.elementByCss('#params').text()
         expect(text).toMatch(/post.*?post-999/)
@@ -1357,7 +1358,7 @@ describe('Prerender', () => {
         // )
 
         // FIXME: disable this
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
         expect(await getRedboxHeader(browser)).toMatch(
           /Failed to load static props/
         )
@@ -1373,7 +1374,7 @@ describe('Prerender', () => {
         // )
 
         // FIXME: disable this
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
         expect(await getRedboxHeader(browser)).toMatch(
           /Failed to load static props/
         )
@@ -1389,6 +1390,11 @@ describe('Prerender', () => {
         expect(initialRes.headers.get('cache-control')).toBe(
           isDeploy ? 'public, max-age=0, must-revalidate' : 's-maxage=31536000'
         )
+        if (!isDeploy) {
+          expect(initialRes.headers.get('cdn-cache-control')).toBe(
+            'max-age=31536000'
+          )
+        }
         const initialHtml = await initialRes.text()
         expect(initialHtml).toMatch(/hello.*?world/)
       })
