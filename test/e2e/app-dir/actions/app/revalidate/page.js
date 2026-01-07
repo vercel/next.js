@@ -26,7 +26,9 @@ export default async function Page() {
       <h1 id="title">revalidate</h1>
       <p>
         {' '}
-        revalidate (tags: thankyounext): <span id="thankyounext">{data}</span>{' '}
+        revalidate (tags: thankyounext): <span id="thankyounext">
+          {data}
+        </span>{' '}
         <span>
           <Link href="/revalidate-2" id="another">
             /revalidate-2

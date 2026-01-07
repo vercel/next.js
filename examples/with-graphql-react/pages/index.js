@@ -1,10 +1,7 @@
 import { useGraphQL } from "graphql-react";
 
 export default function IndexPage() {
-  const {
-    loading,
-    cacheValue: { data } = {},
-  } = useGraphQL({
+  const { loading, cacheValue: { data } = {} } = useGraphQL({
     fetchOptionsOverride(options) {
       options.url = "https://graphql-pokemon.vercel.app";
     },
