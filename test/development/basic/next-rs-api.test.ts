@@ -207,7 +207,6 @@ async function main() {
     defineEnv: createDefineEnv({
       projectPath: __dirname,
       isTurbopack: true,
-      clientRouterFilters: undefined,
       config: nextConfig,
       dev: true,
       distDir: path.join(rootPath, distDir),
@@ -365,7 +364,6 @@ describe('next.rs api', () => {
       defineEnv: createDefineEnv({
         projectPath: next.testDir,
         isTurbopack: true,
-        clientRouterFilters: undefined,
         config: nextConfig,
         dev: true,
         distDir: path.join(rootPath, distDir),
