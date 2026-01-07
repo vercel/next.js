@@ -166,9 +166,13 @@ export async function getRequestHandlers({
   })
 }
 
+export type StartServerResult = {
+  distDir: string
+}
+
 export async function startServer(
   serverOptions: StartServerOptions
-): Promise<void> {
+): Promise<StartServerResult> {
   const {
     dir,
     isDev,
@@ -301,7 +305,7 @@ export async function startServer(
 
   let cleanupListeners = isDev ? new AsyncCallbackSet() : undefined
 
-  await new Promise<void>((resolve) => {
+  const distDir = await new Promise<string>((resolve) => {
     server.on('listening', async () => {
       const addr = server.address()
       const actualHostname = formatHostname(
@@ -482,14 +486,14 @@ export async function startServer(
             configPhase: PHASE_DEVELOPMENT_SERVER,
           })
         }
+
+        resolve(initResult.distDir)
       } catch (err) {
         // fatal error if we can't setup
         handlersError()
         console.error(err)
         process.exit(1)
       }
-
-      resolve()
     })
     server.listen(port, hostname)
   })
@@ -521,6 +525,8 @@ export async function startServer(
       process.exit(RESTART_EXIT_CODE)
     })
   }
+
+  return { distDir }
 }
 
 if (process.env.NEXT_PRIVATE_WORKER && process.send) {
@@ -538,7 +544,7 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
         'memory.totalMem': String(os.totalmem()),
         'memory.heapSizeLimit': String(v8.getHeapStatistics().heap_size_limit),
       })
-      await startServerSpan.traceAsyncFn(() =>
+      const result = await startServerSpan.traceAsyncFn(() =>
         startServer(msg.nextWorkerOptions)
       )
       const memoryUsage = process.memoryUsage()
@@ -551,7 +557,11 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
         'memory.heapUsed',
         String(memoryUsage.heapUsed)
       )
-      process.send({ nextServerReady: true, port: process.env.PORT })
+      process.send({
+        nextServerReady: true,
+        port: process.env.PORT,
+        distDir: result.distDir,
+      })
     }
   })
   process.send({ nextWorkerReady: true })
