@@ -352,6 +352,7 @@ export const experimentalSchema = {
   lockDistDir: z.boolean().optional(),
   hideLogsAfterAbort: z.boolean().optional(),
   runtimeServerDeploymentId: z.boolean().optional(),
+  devCacheControlNoCache: z.boolean().optional(),
 }
 
 export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
