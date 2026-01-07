@@ -839,10 +839,8 @@ export async function cache(
   id: string,
   boundArgsLength: number,
   originalFn: (...args: unknown[]) => Promise<unknown>,
-  argsObj: IArguments
+  args: unknown[]
 ) {
-  let args = Array.prototype.slice.call(argsObj)
-
   const isPrivate = kind === 'private'
 
   // Private caches are currently only stored in the Resume Data Cache (RDC),
@@ -1124,7 +1122,7 @@ export async function cache(
       )
     }
 
-    const encryptedBoundArgs = args.shift()
+    const encryptedBoundArgs = args.shift() as Promise<string>
     const boundArgs = await decryptActionBoundArgs(id, encryptedBoundArgs)
 
     if (!Array.isArray(boundArgs)) {

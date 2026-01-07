@@ -12,7 +12,7 @@ Object["defineProperty"]($$RSC_SERVER_CACHE_0_INNER, "name", {
     value: ""
 });
 export var $$RSC_SERVER_CACHE_0 = $$reactCache__(function() {
-    return $$cache__("default", "f03128060c414d59f8552e4788b846c0d2b7f74743", 0, $$RSC_SERVER_CACHE_0_INNER, arguments);
+    return $$cache__("default", "f03128060c414d59f8552e4788b846c0d2b7f74743", 0, $$RSC_SERVER_CACHE_0_INNER, Array.prototype.slice.call(arguments, 0, 3));
 });
 registerServerReference($$RSC_SERVER_CACHE_0, "f03128060c414d59f8552e4788b846c0d2b7f74743", null);
 Object["defineProperty"]($$RSC_SERVER_CACHE_0, "name", {

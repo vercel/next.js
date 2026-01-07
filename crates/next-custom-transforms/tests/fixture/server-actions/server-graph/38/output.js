@@ -5,7 +5,7 @@ const $$RSC_SERVER_CACHE_0_INNER = async function foo() {
     return 'data';
 };
 export var $$RSC_SERVER_CACHE_0 = $$reactCache__(function foo() {
-    return $$cache__("x", "803128060c414d59f8552e4788b846c0d2b7f74743", 0, $$RSC_SERVER_CACHE_0_INNER, arguments);
+    return $$cache__("x", "803128060c414d59f8552e4788b846c0d2b7f74743", 0, $$RSC_SERVER_CACHE_0_INNER, []);
 });
 registerServerReference($$RSC_SERVER_CACHE_0, "803128060c414d59f8552e4788b846c0d2b7f74743", null);
 Object["defineProperty"]($$RSC_SERVER_CACHE_0, "name", {
