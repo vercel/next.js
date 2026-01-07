@@ -540,14 +540,8 @@ export abstract class RouteModule<
       }
       deploymentId = process.env.NEXT_DEPLOYMENT_ID
     } else {
-      const configDeploymentId = nextConfig.deploymentId
-      if (typeof configDeploymentId === 'string') {
-        deploymentId = evaluateDeploymentId(configDeploymentId)
-      } else if (typeof configDeploymentId === 'function') {
-        deploymentId = evaluateDeploymentId(configDeploymentId)
-      } else {
-        deploymentId = evaluateDeploymentId(undefined)
-      }
+      // evaluateDeploymentId handles string, function, and undefined cases
+      deploymentId = evaluateDeploymentId(nextConfig.deploymentId)
     }
 
     return { nextConfig, deploymentId }
@@ -941,14 +935,8 @@ export abstract class RouteModule<
       }
       deploymentId = process.env.NEXT_DEPLOYMENT_ID
     } else {
-      const configDeploymentId = nextConfig.deploymentId
-      if (typeof configDeploymentId === 'string') {
-        deploymentId = evaluateDeploymentId(configDeploymentId)
-      } else if (typeof configDeploymentId === 'function') {
-        deploymentId = evaluateDeploymentId(configDeploymentId as () => string)
-      } else {
-        deploymentId = evaluateDeploymentId(undefined)
-      }
+      // evaluateDeploymentId handles string, function, and undefined cases
+      deploymentId = evaluateDeploymentId(nextConfig.deploymentId)
     }
 
     return {

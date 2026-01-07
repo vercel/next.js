@@ -149,6 +149,7 @@ import type { DynamicManifestRoute, PageInfo, PageInfos } from './utils'
 import type { FallbackRouteParam, PrerenderedRoute } from './static-paths/types'
 import type { AppSegmentConfig } from './segment-config/app/app-segment-config'
 import { writeBuildId } from './write-build-id'
+import { writeDeploymentId } from './write-deployment-id'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import isError from '../lib/is-error'
 import type { NextError } from '../lib/is-error'
@@ -2749,6 +2750,12 @@ export default async function build(
       }
 
       await writeBuildId(distDir, buildId)
+
+      // Write deploymentId to .next/deployment-id.txt if present
+      // This allows the Vercel builder to read it and include it in the build output
+      if (config.deploymentId) {
+        await writeDeploymentId(distDir, config.deploymentId)
+      }
 
       const features: EventBuildFeatureUsage[] = [
         {
