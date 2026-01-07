@@ -49,11 +49,7 @@ const Draft: React.FC = () => {
             rows={8}
             value={content}
           />
-          <input
-            disabled={!content || !title || !authorName}
-            type="submit"
-            value="Create"
-          />
+          <input disabled={!content || !title || !authorName} type="submit" value="Create" />
           <Link href="/" className="back">
             Cancel
           </Link>

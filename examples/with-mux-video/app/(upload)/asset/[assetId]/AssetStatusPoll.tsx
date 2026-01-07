@@ -15,10 +15,7 @@ type Props = {
   initialStatus: Status;
   checkAssetStatus: () => Promise<Status>;
 };
-export default function AssetStatusPoll({
-  initialStatus,
-  checkAssetStatus,
-}: Props) {
+export default function AssetStatusPoll({ initialStatus, checkAssetStatus }: Props) {
   const [{ status, errors }, setStatus] = useState<Status>(() => initialStatus);
 
   useEffect(() => {
@@ -48,8 +45,7 @@ export default function AssetStatusPoll({
       return (
         <div>
           <p className="mb-4">
-            Asset is ready. The app really should've redirected you to it by
-            now.
+            Asset is ready. The app really should've redirected you to it by now.
           </p>
           <Oops />
         </div>

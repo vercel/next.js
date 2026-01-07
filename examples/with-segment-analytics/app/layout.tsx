@@ -4,11 +4,7 @@ import Analytics from "@/components/analytics";
 
 const inter = Inter({ subsets: ["latin"] });
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html>
       <body className={inter.className}>

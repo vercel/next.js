@@ -6,10 +6,7 @@ import Layout from "../components/Layout";
 import Clock from "../components/Clock";
 import Counter from "../components/Counter";
 import Submit from "../components/Submit";
-import PostList, {
-  ALL_POSTS_QUERY,
-  allPostsQueryVars,
-} from "../components/PostList";
+import PostList, { ALL_POSTS_QUERY, allPostsQueryVars } from "../components/PostList";
 
 const IndexPage = () => {
   // Tick the time every second

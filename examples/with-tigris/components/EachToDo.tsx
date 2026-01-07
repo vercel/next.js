@@ -25,9 +25,7 @@ const EachTodo = ({ toDoItem, deleteHandler, updateHandler }: Props) => {
             height={20}
             alt="Check Image"
           />
-          <span
-            style={toDoItem.completed ? { textDecoration: "line-through" } : {}}
-          >
+          <span style={toDoItem.completed ? { textDecoration: "line-through" } : {}}>
             {toDoItem.text}
           </span>
         </button>

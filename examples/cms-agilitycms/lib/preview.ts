@@ -17,10 +17,7 @@ export function generatePreviewKey() {
   //convert byte array to buffer
   const strBuffer = Buffer.from(data);
   //encode it!
-  const previewKey = crypto
-    .createHash("sha512")
-    .update(strBuffer)
-    .digest("base64");
+  const previewKey = crypto.createHash("sha512").update(strBuffer).digest("base64");
 
   return previewKey;
 }

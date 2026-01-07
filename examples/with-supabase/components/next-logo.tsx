@@ -1,12 +1,6 @@
 export function NextLogo() {
   return (
-    <svg
-      aria-label="Next.js logotype"
-      height="68"
-      role="img"
-      viewBox="0 0 394 79"
-      width="100"
-    >
+    <svg aria-label="Next.js logotype" height="68" role="img" viewBox="0 0 394 79" width="100">
       <path
         d="M261.919 0.0330722H330.547V12.7H303.323V79.339H289.71V12.7H261.919V0.0330722Z"
         fill="currentColor"

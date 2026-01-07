@@ -29,8 +29,7 @@ const Home = (props: Props) => {
         <h2 className="subtitle">You are connected to CosmosDB</h2>
       ) : (
         <h2 className="subtitle">
-          You are NOT connected to CosmosDB. Check the <code>README.md</code>{" "}
-          for instructions.
+          You are NOT connected to CosmosDB. Check the <code>README.md</code> for instructions.
         </h2>
       )}
 

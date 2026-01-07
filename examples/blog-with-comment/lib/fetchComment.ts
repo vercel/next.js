@@ -3,10 +3,7 @@ import type { Comment } from "../interfaces";
 import redis from "./redis";
 import clearUrl from "./clearUrl";
 
-export default async function fetchComment(
-  req: NextApiRequest,
-  res: NextApiResponse,
-) {
+export default async function fetchComment(req: NextApiRequest, res: NextApiResponse) {
   const url = clearUrl(req.headers.referer);
 
   if (!redis) {

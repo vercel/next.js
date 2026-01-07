@@ -39,10 +39,7 @@ export async function checkAndDecrementInventory(
   return true;
 }
 
-export async function incrementInventory(
-  itemId: string,
-  quantity: number,
-): Promise<boolean> {
+export async function incrementInventory(itemId: string, quantity: number): Promise<boolean> {
   // TODO increment inventory:
   // const result = await db.collection('items').updateOne(
   //   { _id: itemId },

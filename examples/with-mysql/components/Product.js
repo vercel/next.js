@@ -4,18 +4,8 @@ export default function Product({ product }) {
   const { name, description, price, image, category } = product;
 
   return (
-    <div
-      className="max-w-[250px] rounded overflow-hidden shadow-lg"
-      key={product.id}
-    >
-      <Image
-        className="w-full"
-        width={250}
-        height={250}
-        objectFit="cover"
-        src={image}
-        alt={name}
-      />
+    <div className="max-w-[250px] rounded overflow-hidden shadow-lg" key={product.id}>
+      <Image className="w-full" width={250} height={250} objectFit="cover" src={image} alt={name} />
       <div className="px-6 py-4">
         <div className="font-bold text-xl mb-2">{name}</div>
         <p className="text-gray-700 text-base">{description}</p>

@@ -27,18 +27,12 @@ export default function Nav({ user, setUser }) {
         {!user ? (
           <>
             <li>
-              <button
-                className="font-bold mx-2"
-                onClick={() => openModal("logIn")}
-              >
+              <button className="font-bold mx-2" onClick={() => openModal("logIn")}>
                 Log In
               </button>
             </li>
             <li>
-              <button
-                className="btn-yellow mx-2"
-                onClick={() => openModal("signUp")}
-              >
+              <button className="btn-yellow mx-2" onClick={() => openModal("signUp")}>
                 Sign Up
               </button>
             </li>
@@ -53,11 +47,7 @@ export default function Nav({ user, setUser }) {
       </ul>
       {open && (
         <div className="w-4/5 md:w-1/2 mx-auto">
-          <LoginModal
-            toggle={setOpen}
-            modalType={modalType}
-            setUser={setUser}
-          />
+          <LoginModal toggle={setOpen} modalType={modalType} setUser={setUser} />
         </div>
       )}
     </nav>

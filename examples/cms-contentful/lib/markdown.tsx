@@ -21,13 +21,7 @@ interface Content {
   };
 }
 
-function RichTextAsset({
-  id,
-  assets,
-}: {
-  id: string;
-  assets: Asset[] | undefined;
-}) {
+function RichTextAsset({ id, assets }: { id: string; assets: Asset[] | undefined }) {
   const asset = assets?.find((asset) => asset.sys.id === id);
 
   if (asset?.url) {
@@ -41,10 +35,7 @@ export function Markdown({ content }: { content: Content }) {
   return documentToReactComponents(content.json, {
     renderNode: {
       [BLOCKS.EMBEDDED_ASSET]: (node: any) => (
-        <RichTextAsset
-          id={node.data.target.sys.id}
-          assets={content.links.assets.block}
-        />
+        <RichTextAsset id={node.data.target.sys.id} assets={content.links.assets.block} />
       ),
     },
   });

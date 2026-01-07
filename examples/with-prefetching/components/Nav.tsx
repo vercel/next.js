@@ -6,10 +6,7 @@ export default function Nav() {
   return (
     <div className="root">
       <h2>Default</h2>
-      <p>
-        Automatically prefetch pages in the background as soon the Link appears
-        in the view:
-      </p>
+      <p>Automatically prefetch pages in the background as soon the Link appears in the view:</p>
       <Link href="/">Home</Link> <Link href="/features">Features</Link>
       <h2>Imperative</h2>
       <p>Prefetch on onMouseEnter or on other events:</p>

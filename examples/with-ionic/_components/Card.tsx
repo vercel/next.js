@@ -7,21 +7,10 @@ type CardProps = {
   content: string;
 };
 
-export default function Card({
-  imageSrc,
-  title,
-  subtitle,
-  content,
-}: CardProps) {
+export default function Card({ imageSrc, title, subtitle, content }: CardProps) {
   return (
     <ion-card>
-      <Image
-        src={imageSrc}
-        alt={`Image of ${title}`}
-        width={320}
-        height={320}
-        priority={true}
-      />
+      <Image src={imageSrc} alt={`Image of ${title}`} width={320} height={320} priority={true} />
       <ion-card-header>
         <ion-card-subtitle>{subtitle}</ion-card-subtitle>
         <ion-card-title>{title}</ion-card-title>

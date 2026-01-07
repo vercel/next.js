@@ -12,13 +12,9 @@ export default function Counter({
   return (
     <p>
       This component is rendered on client:
-      <button onClick={() => setCount((n) => n - 1)}>
-        {dictionary.decrement}
-      </button>
+      <button onClick={() => setCount((n) => n - 1)}>{dictionary.decrement}</button>
       {count}
-      <button onClick={() => setCount((n) => n + 1)}>
-        {dictionary.increment}
-      </button>
+      <button onClick={() => setCount((n) => n + 1)}>{dictionary.increment}</button>
     </p>
   );
 }

@@ -34,10 +34,8 @@ const Blocks: React.FC<{
             const prevBlock = blocks[index - 1];
             const nextBlock = blocks[index + 1];
 
-            const prevBlockBackground =
-              prevBlock?.[`${prevBlock.blockType}BackgroundColor`];
-            const nextBlockBackground =
-              nextBlock?.[`${nextBlock.blockType}BackgroundColor`];
+            const prevBlockBackground = prevBlock?.[`${prevBlock.blockType}BackgroundColor`];
+            const nextBlockBackground = nextBlock?.[`${nextBlock.blockType}BackgroundColor`];
 
             let paddingTop: VerticalPaddingOptions = "large";
             let paddingBottom: VerticalPaddingOptions = "large";

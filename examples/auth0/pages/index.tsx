@@ -16,9 +16,8 @@ const Home = () => {
             To test the login click in <i>Login</i>
           </p>
           <p>
-            Once you have logged in you should be able to navigate between
-            protected routes: client rendered, server rendered profile pages,
-            and <i>Logout</i>
+            Once you have logged in you should be able to navigate between protected routes: client
+            rendered, server rendered profile pages, and <i>Logout</i>
           </p>
         </>
       )}

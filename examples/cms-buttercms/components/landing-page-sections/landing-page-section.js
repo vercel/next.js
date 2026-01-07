@@ -8,10 +8,7 @@ import MissingSection from "./missing-section";
 export default function LandingPageSection({ type, sectionData }) {
   const sectionsComponentPaths = () => ({
     hero: dynamic(
-      () =>
-        import("@/components/landing-page-sections/hero").catch(
-          () => () => MissingSection,
-        ),
+      () => import("@/components/landing-page-sections/hero").catch(() => () => MissingSection),
       {
         loading: Preloader,
       },
@@ -26,19 +23,14 @@ export default function LandingPageSection({ type, sectionData }) {
       },
     ),
     features: dynamic(
-      () =>
-        import("@/components/landing-page-sections/features").catch(
-          () => () => MissingSection,
-        ),
+      () => import("@/components/landing-page-sections/features").catch(() => () => MissingSection),
       {
         loading: Preloader,
       },
     ),
     testimonials: dynamic(
       () =>
-        import("@/components/landing-page-sections/testimonials").catch(
-          () => () => MissingSection,
-        ),
+        import("@/components/landing-page-sections/testimonials").catch(() => () => MissingSection),
       {
         loading: Preloader,
       },

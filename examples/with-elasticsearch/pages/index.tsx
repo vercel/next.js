@@ -62,26 +62,15 @@ export default function Home({ isConnected }: HomePageProps) {
             priority
           />
           <div className={styles.thirteen}>
-            <Image
-              src="/thirteen.svg"
-              alt="13"
-              width={40}
-              height={31}
-              priority
-            />
+            <Image src="/thirteen.svg" alt="13" width={40} height={31} priority />
           </div>
         </div>
 
-        <div
-          className={`${styles.center} ${inter.className}`}
-          style={{ paddingBlock: 20 }}
-        >
+        <div className={`${styles.center} ${inter.className}`} style={{ paddingBlock: 20 }}>
           <h2>with Elasticsearch</h2>
         </div>
 
-        <div className={`${styles.center} ${styles.status}`}>
-          {connectionStatus}
-        </div>
+        <div className={`${styles.center} ${styles.status}`}>{connectionStatus}</div>
 
         <div className={styles.grid}>
           <a
@@ -136,8 +125,7 @@ export default function Home({ isConnected }: HomePageProps) {
               Deploy <span>-&gt;</span>
             </h2>
             <p className={inter.className}>
-              Instantly deploy your Next.js site to a shareable URL
-              with&nbsp;Vercel.
+              Instantly deploy your Next.js site to a shareable URL with&nbsp;Vercel.
             </p>
           </a>
         </div>

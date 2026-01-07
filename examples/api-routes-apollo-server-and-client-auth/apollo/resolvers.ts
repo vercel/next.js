@@ -13,14 +13,11 @@ export const resolvers = {
           return findUser({ email: session.email });
         }
       } catch (error) {
-        throw new GraphQLError(
-          "Authentication token is invalid, please log in",
-          {
-            extensions: {
-              code: "UNAUTHENTICATED",
-            },
+        throw new GraphQLError("Authentication token is invalid, please log in", {
+          extensions: {
+            code: "UNAUTHENTICATED",
           },
-        );
+        });
       }
     },
   },

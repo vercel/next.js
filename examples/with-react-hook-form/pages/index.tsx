@@ -21,11 +21,7 @@ export default function Page() {
     formState: { errors },
   } = useForm<LoginFormValues>();
 
-  const onSubmit: SubmitHandler<LoginFormValues> = ({
-    username,
-    password,
-    remember,
-  }) => {
+  const onSubmit: SubmitHandler<LoginFormValues> = ({ username, password, remember }) => {
     setUser({ name: username });
   };
 
@@ -59,9 +55,7 @@ export default function Page() {
               placeholder="Enter your username"
             />
             {errors.username && (
-              <span className={styles.errorMessage}>
-                {errors.username.message}
-              </span>
+              <span className={styles.errorMessage}>{errors.username.message}</span>
             )}
           </div>
           <div className={styles.field}>
@@ -74,9 +68,7 @@ export default function Page() {
               placeholder="Enter your password"
             />
             {errors.password && (
-              <span className={styles.errorMessage}>
-                {errors.password.message}
-              </span>
+              <span className={styles.errorMessage}>{errors.password.message}</span>
             )}
           </div>
           <div className={styles.rememberMe}>

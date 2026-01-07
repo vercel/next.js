@@ -65,11 +65,7 @@ export interface Page {
       }
     | {
         contentBackgroundColor?: "white" | "black";
-        layout?:
-          | "oneColumn"
-          | "twoThirdsOneThird"
-          | "halfAndHalf"
-          | "threeColumns";
+        layout?: "oneColumn" | "twoThirdsOneThird" | "halfAndHalf" | "threeColumns";
         columnOne: {
           richText: {
             [k: string]: unknown;

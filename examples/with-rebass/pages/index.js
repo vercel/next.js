@@ -10,12 +10,7 @@ function HomePage() {
         textAlign: "center",
       }}
     >
-      <Heading
-        as="h1"
-        children="Next.js + Rebass"
-        mb={3}
-        fontSize={[4, 5, 6]}
-      />
+      <Heading as="h1" children="Next.js + Rebass" mb={3} fontSize={[4, 5, 6]} />
 
       <Box>
         <Flex px={2} color="white" bg="black" alignItems="center">
@@ -47,14 +42,12 @@ function HomePage() {
 
         <Box>
           <Text center fontSize={3} py={4}>
-            "Next.js is a minimalistic framework for server-rendered React
-            applications."
+            "Next.js is a minimalistic framework for server-rendered React applications."
           </Text>
         </Box>
         <Box>
           <Text center fontSize={3} py={2}>
-            "Functional React UI component library, built with
-            styled-components"
+            "Functional React UI component library, built with styled-components"
           </Text>
         </Box>
       </Box>

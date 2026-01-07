@@ -1,11 +1,7 @@
 const globby = require("globby");
 
 function addPage(page: string) {
-  const path = page
-    .replace("app", "")
-    .replace(".tsx", "")
-    .replace(".mdx", "")
-    .replace("/page", "");
+  const path = page.replace("app", "").replace(".tsx", "").replace(".mdx", "").replace("/page", "");
   return path;
 }
 export default async function sitemap() {

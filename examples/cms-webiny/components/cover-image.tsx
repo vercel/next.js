@@ -10,13 +10,7 @@ export type TCoverImage = {
   width: number;
 };
 
-const CoverImage: React.FC<TCoverImage> = ({
-  title,
-  src,
-  slug,
-  height,
-  width,
-}) => {
+const CoverImage: React.FC<TCoverImage> = ({ title, src, slug, height, width }) => {
   const image = (
     <Image
       src={src}

@@ -2,11 +2,7 @@ import Image from "next/image";
 const DEFAULT_QUALITY = 20;
 
 // https://dotcms.com/docs/latest/image-resizing-and-processing
-const getUrlWithResizingParameters = ({
-  src,
-  width,
-  quality = DEFAULT_QUALITY,
-}) => {
+const getUrlWithResizingParameters = ({ src, width, quality = DEFAULT_QUALITY }) => {
   const urlParams = [];
   const lastSeparatorIdx = src.lastIndexOf("/");
   const imageIdentifierAndField = src.slice(0, lastSeparatorIdx);

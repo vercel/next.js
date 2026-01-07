@@ -35,8 +35,7 @@
 }
 
 [data-mode="dark"] .switch {
-  box-shadow: calc(var(--size) / 4) calc(var(--size) / -4) calc(var(--size) / 8)
-    inset #fff;
+  box-shadow: calc(var(--size) / 4) calc(var(--size) / -4) calc(var(--size) / 8) inset #fff;
   border: none;
   background: transparent;
   animation: n linear 0.5s;

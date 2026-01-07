@@ -1,11 +1,5 @@
 import React from "react";
-import {
-  setCookie,
-  getCookies,
-  getCookie,
-  deleteCookie,
-  hasCookie,
-} from "cookies-next";
+import { setCookie, getCookies, getCookie, deleteCookie, hasCookie } from "cookies-next";
 
 const Home = () => {
   const handleSetCookie = () => setCookie("client-cookie", "mock client value");

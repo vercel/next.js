@@ -20,9 +20,7 @@ export default function Home() {
             <Card className="sml-card">
               <Card.Body>
                 <Card.Title>Documentation</Card.Title>
-                <Card.Text>
-                  Find in-depth information about Next.js features and API.
-                </Card.Text>
+                <Card.Text>Find in-depth information about Next.js features and API.</Card.Text>
                 <Button variant="primary" href="https://nextjs.org/docs">
                   More &rarr;
                 </Button>
@@ -31,9 +29,7 @@ export default function Home() {
             <Card className="sml-card">
               <Card.Body>
                 <Card.Title>Learn</Card.Title>
-                <Card.Text>
-                  Learn about Next.js in an interactive course with quizzes!
-                </Card.Text>
+                <Card.Text>Learn about Next.js in an interactive course with quizzes!</Card.Text>
                 <Button variant="primary" href="https://nextjs.org/learn">
                   More &rarr;
                 </Button>
@@ -44,9 +40,7 @@ export default function Home() {
             <Card className="sml-card">
               <Card.Body>
                 <Card.Title>Examples</Card.Title>
-                <Card.Text>
-                  Discover and deploy boilerplate example Next.js projects.
-                </Card.Text>
+                <Card.Text>Discover and deploy boilerplate example Next.js projects.</Card.Text>
                 <Button
                   variant="primary"
                   href="https://github.com/vercel/next.js/tree/canary/examples"
@@ -59,8 +53,7 @@ export default function Home() {
               <Card.Body>
                 <Card.Title>Deploy</Card.Title>
                 <Card.Text>
-                  Instantly deploy your Next.js site to a public URL with
-                  Vercel.
+                  Instantly deploy your Next.js site to a public URL with Vercel.
                 </Card.Text>
                 <Button
                   variant="primary"
@@ -80,8 +73,7 @@ export default function Home() {
           target="_blank"
           rel="noopener noreferrer"
         >
-          Powered by{" "}
-          <img src="/vercel.svg" alt="Vercel Logo" className="sml-logo" />
+          Powered by <img src="/vercel.svg" alt="Vercel Logo" className="sml-logo" />
         </a>
       </footer>
     </Container>

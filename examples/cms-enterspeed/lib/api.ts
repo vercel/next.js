@@ -1,5 +1,4 @@
-const PRODUCTION_API_KEY =
-  process.env.ENTERSPEED_PRODUCTION_ENVIRONMENT_API_KEY;
+const PRODUCTION_API_KEY = process.env.ENTERSPEED_PRODUCTION_ENVIRONMENT_API_KEY;
 const PREVIEW_API_KEY = process.env.ENTERSPEED_PREVIEW_ENVIRONMENT_API_KEY;
 
 const call = async (query: string, preview: boolean) => {

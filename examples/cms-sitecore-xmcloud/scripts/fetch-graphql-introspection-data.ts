@@ -18,9 +18,7 @@ try {
   process.exit(1);
 }
 
-console.log(
-  `Fetch graphql introspection data from ${jssConfig.graphQLEndpoint}...`,
-);
+console.log(`Fetch graphql introspection data from ${jssConfig.graphQLEndpoint}...`);
 
 const client = new GraphQLRequestClient(jssConfig.graphQLEndpoint, {
   apiKey: jssConfig.sitecoreApiKey,

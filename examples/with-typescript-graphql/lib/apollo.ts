@@ -1,10 +1,6 @@
 import { IncomingMessage, ServerResponse } from "http";
 import { useMemo } from "react";
-import {
-  ApolloClient,
-  InMemoryCache,
-  NormalizedCacheObject,
-} from "@apollo/client";
+import { ApolloClient, InMemoryCache, NormalizedCacheObject } from "@apollo/client";
 import resolvers from "./resolvers";
 import typeDefs from "./schema";
 

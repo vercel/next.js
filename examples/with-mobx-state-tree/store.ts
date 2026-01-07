@@ -1,11 +1,5 @@
 import { useMemo } from "react";
-import {
-  applySnapshot,
-  Instance,
-  SnapshotIn,
-  SnapshotOut,
-  types,
-} from "mobx-state-tree";
+import { applySnapshot, Instance, SnapshotIn, SnapshotOut, types } from "mobx-state-tree";
 
 let store: IStore | undefined;
 

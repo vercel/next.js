@@ -39,9 +39,7 @@ export const APIRequest = () => {
       const body = await res.json();
       setResponse(JSON.stringify(body, null, "  "));
     } catch (e) {
-      setResponse(
-        "// There was an error with the request. Please contact support@clerk.dev",
-      );
+      setResponse("// There was an error with the request. Please contact support@clerk.dev");
     }
   };
 
@@ -49,18 +47,11 @@ export const APIRequest = () => {
     <div className={styles.backend}>
       <h2>API request example</h2>
       <div className={styles.card}>
-        <button
-          rel="noreferrer"
-          className={styles.cardContent}
-          onClick={() => makeRequest()}
-        >
+        <button rel="noreferrer" className={styles.cardContent} onClick={() => makeRequest()}>
           <img src="/icons/server.svg" />
           <div>
             <h3>fetch('/api/getAuthenticatedUserId')</h3>
-            <p>
-              Retrieve the user ID of the signed in user, or null if there is no
-              user
-            </p>
+            <p>Retrieve the user ID of the signed in user, or null if there is no user</p>
           </div>
           <div className={styles.arrow}>
             <img src="/icons/download.svg" />
@@ -70,12 +61,8 @@ export const APIRequest = () => {
       <h4>
         Response
         <em>
-          <SignedIn>
-            You are signed in, so the request will return your user ID
-          </SignedIn>
-          <SignedOut>
-            You are signed out, so the request will return null
-          </SignedOut>
+          <SignedIn>You are signed in, so the request will return your user ID</SignedIn>
+          <SignedOut>You are signed out, so the request will return null</SignedOut>
         </em>
       </h4>
       <pre>

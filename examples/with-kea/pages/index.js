@@ -19,11 +19,7 @@ const logic = kea({
     ],
   }),
   selectors: ({ selectors }) => ({
-    doubleCounter: [
-      () => [selectors.counter],
-      (counter) => counter * 2,
-      PropTypes.number,
-    ],
+    doubleCounter: [() => [selectors.counter], (counter) => counter * 2, PropTypes.number],
   }),
 });
 

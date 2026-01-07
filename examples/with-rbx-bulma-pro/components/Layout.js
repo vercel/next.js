@@ -1,14 +1,5 @@
 import Link from "next/link";
-import {
-  Generic,
-  Container,
-  Content,
-  Navbar,
-  Section,
-  Hero,
-  Title,
-  Footer,
-} from "rbx";
+import { Generic, Container, Content, Navbar, Section, Hero, Title, Footer } from "rbx";
 
 const Layout = ({ children }) => {
   return (

@@ -18,10 +18,7 @@ type Data = {
 };
 
 export default function Index() {
-  const { data, error, isLoading } = useSWR<Data>(
-    "{ users { name } }",
-    fetcher,
-  );
+  const { data, error, isLoading } = useSWR<Data>("{ users { name } }", fetcher);
 
   if (error) return <div>Failed to load</div>;
   if (isLoading) return <div>Loading...</div>;

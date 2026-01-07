@@ -198,9 +198,7 @@ const Home: NextPage = () => {
         {/* Results section */}
         <div className={styles.results}>
           {/* Loader, Errors and Back to List mode */}
-          {isError && (
-            <p className={styles.errorText}>Something went wrong.. </p>
-          )}
+          {isError && <p className={styles.errorText}>Something went wrong.. </p>}
           {isLoading && <LoaderWave />}
           {viewMode === "search" && (
             <button
@@ -238,12 +236,7 @@ const Home: NextPage = () => {
         </div>
 
         <a href="https://tigrisdata.com/">
-          <Image
-            src="/tigris_logo.svg"
-            alt="Tigris Logo"
-            width={100}
-            height={100}
-          />
+          <Image src="/tigris_logo.svg" alt="Tigris Logo" width={100} height={100} />
         </a>
       </div>
     </div>

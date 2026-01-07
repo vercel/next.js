@@ -28,11 +28,7 @@ function Clock() {
     tick(Date.now());
   }, 1000);
 
-  return (
-    <div className={`clock ${light ? "light" : ""}`}>
-      {formatTime(lastUpdate)}
-    </div>
-  );
+  return <div className={`clock ${light ? "light" : ""}`}>{formatTime(lastUpdate)}</div>;
 }
 
 export default Clock;

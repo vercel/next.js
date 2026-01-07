@@ -1,8 +1,7 @@
 import { initPlasmicLoader } from "@plasmicapp/loader-nextjs";
 
 const PLASMIC_PROJECT_ID = process.env["NEXT_PUBLIC_PLASMIC_PROJECT_ID"];
-const PLASMIC_PROJECT_API_TOKEN =
-  process.env["NEXT_PUBLIC_PLASMIC_PROJECT_API_TOKEN"];
+const PLASMIC_PROJECT_API_TOKEN = process.env["NEXT_PUBLIC_PLASMIC_PROJECT_API_TOKEN"];
 
 const PLASMIC_CONFIG = {
   projects: [

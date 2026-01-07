@@ -75,12 +75,7 @@ export async function HomePage() {
   const { accessTokenPayload, hasToken, error } = await getSSRSessionHelper();
 
   if (error) {
-    return (
-      <div>
-        Something went wrong while trying to get the session. Error -{" "}
-        {error.message}
-      </div>
-    );
+    return <div>Something went wrong while trying to get the session. Error - {error.message}</div>;
   }
 
   // `accessTokenPayload` will be undefined if it the session does not exist or has expired
@@ -110,30 +105,18 @@ export async function HomePage() {
     <SessionAuthForNextJS>
       <div className={styles.homeContainer}>
         <div className={styles.mainContainer}>
-          <div
-            className={`${styles.topBand} ${styles.successTitle} ${styles.bold500}`}
-          >
-            <Image
-              src={CelebrateIcon}
-              alt="Login successful"
-              className={styles.successIcon}
-            />{" "}
+          <div className={`${styles.topBand} ${styles.successTitle} ${styles.bold500}`}>
+            <Image src={CelebrateIcon} alt="Login successful" className={styles.successIcon} />{" "}
             Login successful
           </div>
           <div className={styles.innerContent}>
             <div>Your userID is:</div>
-            <div className={`${styles.truncate} ${styles.userId}`}>
-              {accessTokenPayload.sub}
-            </div>
+            <div className={`${styles.truncate} ${styles.userId}`}>{accessTokenPayload.sub}</div>
             <CallAPIButton />
           </div>
         </div>
         <LinksComponent />
-        <Image
-          className={styles.separatorLine}
-          src={SeparatorLine}
-          alt="separator"
-        />
+        <Image className={styles.separatorLine} src={SeparatorLine} alt="separator" />
       </div>
     </SessionAuthForNextJS>
   );

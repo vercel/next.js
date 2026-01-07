@@ -16,12 +16,7 @@ type PostHeaderProps = {
   author: AuthorContentRelationshipField;
 };
 
-export default function PostHeader({
-  title,
-  coverImage,
-  date,
-  author,
-}: PostHeaderProps) {
+export default function PostHeader({ title, coverImage, date, author }: PostHeaderProps) {
   return (
     <>
       <PostTitle>
@@ -29,10 +24,7 @@ export default function PostHeader({
       </PostTitle>
       <div className="hidden md:block md:mb-12">
         {isFilled.contentRelationship(author) && (
-          <Avatar
-            name={asText(author.data.name)}
-            picture={author.data.picture}
-          />
+          <Avatar name={asText(author.data.name)} picture={author.data.picture} />
         )}
       </div>
       <div className="mb-8 md:mb-16 sm:mx-0">
@@ -41,10 +33,7 @@ export default function PostHeader({
       <div className="max-w-2xl mx-auto">
         <div className="block md:hidden mb-6">
           {isFilled.contentRelationship(author) && (
-            <Avatar
-              name={asText(author.data.name)}
-              picture={author.data.picture}
-            />
+            <Avatar name={asText(author.data.name)} picture={author.data.picture} />
           )}
         </div>
         <div className="mb-6 text-lg">

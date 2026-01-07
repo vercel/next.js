@@ -9,7 +9,5 @@ export function ClientContextProvider({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return (
-    <ClientContext.Provider value={client}>{children}</ClientContext.Provider>
-  );
+  return <ClientContext.Provider value={client}>{children}</ClientContext.Provider>;
 }

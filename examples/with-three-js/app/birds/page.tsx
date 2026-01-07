@@ -9,13 +9,10 @@ export default function BirdsPage() {
   const birds = useMemo(
     () =>
       new Array(10).fill(undefined).map((_, index) => {
-        const x =
-          (15 + Math.random() * 30) * (Math.round(Math.random()) ? -1 : 1);
+        const x = (15 + Math.random() * 30) * (Math.round(Math.random()) ? -1 : 1);
         const y = -10 + Math.random() * 20;
         const z = -5 + Math.random() * 10;
-        const bird = ["stork", "parrot", "flamingo"][
-          Math.round(Math.random() * 2)
-        ];
+        const bird = ["stork", "parrot", "flamingo"][Math.round(Math.random() * 2)];
         const speed = bird === "stork" ? 0.5 : bird === "flamingo" ? 2 : 5;
         const factor =
           bird === "stork"

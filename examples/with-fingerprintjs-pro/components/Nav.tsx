@@ -3,10 +3,7 @@ import { useRouter } from "next/router";
 import Link from "next/link";
 import { RouterProps } from "./types";
 
-const CustomLink: React.FC<PropsWithChildren<{ to: string }>> = ({
-  to,
-  children,
-}) => {
+const CustomLink: React.FC<PropsWithChildren<{ to: string }>> = ({ to, children }) => {
   const router = useRouter();
   const { pathname } = router;
   const { cacheStrategy } = router.query as RouterProps;

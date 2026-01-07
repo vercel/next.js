@@ -1,8 +1,4 @@
-import {
-  GraphQLSitemapService,
-  StaticPath,
-  constants,
-} from "@sitecore-jss/sitecore-jss-nextjs";
+import { GraphQLSitemapService, StaticPath, constants } from "@sitecore-jss/sitecore-jss-nextjs";
 import config from "temp/config";
 import { SitemapFetcherPlugin } from "..";
 import { GetStaticPathsContext } from "next";

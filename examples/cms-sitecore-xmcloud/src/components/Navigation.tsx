@@ -25,9 +25,7 @@ type NavigationProps = {
   relativeLevel: number;
 };
 
-const getNavigationText = function (
-  props: NavigationProps,
-): JSX.Element | string {
+const getNavigationText = function (props: NavigationProps): JSX.Element | string {
   let text;
 
   if (props.fields.NavigationTitle) {
@@ -79,9 +77,7 @@ const NavigationList = (props: NavigationProps) => {
 
   return (
     <li
-      className={props.fields.Styles.concat(
-        "rel-level" + props.relativeLevel,
-      ).join(" ")}
+      className={props.fields.Styles.concat("rel-level" + props.relativeLevel).join(" ")}
       key={props.fields.Id}
       tabIndex={0}
     >
@@ -110,19 +106,13 @@ export const Default = (props: NavigationProps): JSX.Element => {
 
   if (!Object.values(props.fields).length) {
     return (
-      <div
-        className={`component navigation ${styles}`}
-        id={id ? id : undefined}
-      >
+      <div className={`component navigation ${styles}`} id={id ? id : undefined}>
         <div className="component-content">[Navigation]</div>
       </div>
     );
   }
 
-  const handleToggleMenu = (
-    event?: React.MouseEvent<HTMLElement>,
-    flag?: boolean,
-  ): void => {
+  const handleToggleMenu = (event?: React.MouseEvent<HTMLElement>, flag?: boolean): void => {
     if (event && sitecoreContext?.pageEditing) {
       event.preventDefault();
     }
@@ -140,9 +130,7 @@ export const Default = (props: NavigationProps): JSX.Element => {
       <NavigationList
         key={`${key}${element.Id}`}
         fields={element}
-        handleClick={(event: React.MouseEvent<HTMLElement>) =>
-          handleToggleMenu(event, false)
-        }
+        handleClick={(event: React.MouseEvent<HTMLElement>) => handleToggleMenu(event, false)}
         relativeLevel={1}
       />
     ));

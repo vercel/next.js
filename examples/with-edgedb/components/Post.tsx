@@ -11,9 +11,7 @@ const Post: React.FC<{ post: PostProps }> = ({ post }) => {
         <small>By {post.authorName}</small>
         <br />
         <br />
-        <ReactMarkdown className={"react-markdown"}>
-          {post.content || ""}
-        </ReactMarkdown>
+        <ReactMarkdown className={"react-markdown"}>{post.content || ""}</ReactMarkdown>
         <style jsx>{`
           div {
             color: inherit;

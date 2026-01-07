@@ -38,20 +38,14 @@ export default function Post({ post, morePosts, preview }) {
                 />
               </Head>
 
-              <PostHeader
-                title={post.title}
-                coverImage={post.image}
-                author={post.author}
-              />
+              <PostHeader title={post.title} coverImage={post.image} author={post.author} />
 
               <PostBody content={post} />
             </article>
 
             <SectionSeparator />
 
-            {morePosts && morePosts.length > 0 && (
-              <MoreStories posts={morePosts} />
-            )}
+            {morePosts && morePosts.length > 0 && <MoreStories posts={morePosts} />}
           </>
         )}
       </Container>

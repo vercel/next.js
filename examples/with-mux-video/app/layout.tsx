@@ -42,9 +42,7 @@ export default function RootLayout({
       <body
         className={`min-h-screen flex flex-col font-sans ${dmSans.variable} ${jetBrainsMono.variable}`}
       >
-        <main className="px-4 py-8 sm:px-8 lg:py-16 w-full max-w-2xl mx-auto">
-          {children}
-        </main>
+        <main className="px-4 py-8 sm:px-8 lg:py-16 w-full max-w-2xl mx-auto">{children}</main>
         <footer className="mt-auto w-full h-24 border-t border-gray-500 flex items-center justify-center">
           Powered by
           <a href={MUX_HOME_PAGE_URL} target="_blank" rel="noopener noreferrer">

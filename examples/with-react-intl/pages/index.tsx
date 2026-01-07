@@ -3,10 +3,7 @@ import { FormattedMessage, FormattedNumber, useIntl } from "react-intl";
 import loadIntlMessages from "../helper/loadIntlMessages";
 import Layout from "../components/Layout";
 
-export async function getStaticProps({
-  defaultLocale,
-  locale,
-}: GetStaticPropsContext) {
+export async function getStaticProps({ defaultLocale, locale }: GetStaticPropsContext) {
   return {
     props: {
       intlMessages: await loadIntlMessages(locale as string, defaultLocale),
@@ -28,10 +25,7 @@ export default function IndexPage() {
       })}
     >
       <p>
-        <FormattedMessage
-          defaultMessage="Hello, World!"
-          description="Index Page: Content"
-        />
+        <FormattedMessage defaultMessage="Hello, World!" description="Index Page: Content" />
       </p>
       <p>
         <FormattedNumber value={1000} />

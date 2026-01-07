@@ -20,8 +20,7 @@ async function main() {
   const userIdMapping = {
     alice: userRecords.find((user) => user.email === "alice@example.com")?.id,
     bob: userRecords.find((user) => user.email === "bob@example.com")?.id,
-    charlie: userRecords.find((user) => user.email === "charlie@example.com")
-      ?.id,
+    charlie: userRecords.find((user) => user.email === "charlie@example.com")?.id,
     diana: userRecords.find((user) => user.email === "diana@example.com")?.id,
     edward: userRecords.find((user) => user.email === "edward@example.com")?.id,
   };

@@ -3,14 +3,10 @@ import { revalidatePath, revalidateTag } from "next/cache";
 
 export async function PUT(request: NextRequest) {
   const requestBody = await request.text();
-  const { paths, tags } = requestBody
-    ? JSON.parse(requestBody)
-    : { paths: [], tags: [] };
+  const { paths, tags } = requestBody ? JSON.parse(requestBody) : { paths: [], tags: [] };
   let revalidated = false;
 
-  if (
-    request.headers.get("X-Headless-Secret-Key") !== process.env.HEADLESS_SECRET
-  ) {
+  if (request.headers.get("X-Headless-Secret-Key") !== process.env.HEADLESS_SECRET) {
     return NextResponse.json({ message: "Invalid secret" }, { status: 401 });
   }
 
@@ -34,9 +30,6 @@ export async function PUT(request: NextRequest) {
       tags: tags,
     });
   } catch (error) {
-    return NextResponse.json(
-      { message: "Error revalidating paths or tags" },
-      { status: 500 },
-    );
+    return NextResponse.json({ message: "Error revalidating paths or tags" }, { status: 500 });
   }
 }

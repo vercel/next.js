@@ -56,9 +56,7 @@ export default function Home() {
       {incomingMessages.map((m) => (
         <p key={Math.random()}>{m.payload.toString()}</p>
       ))}
-      <button onClick={() => publishMessages(mqttClientRef.current)}>
-        Publish Test Messages
-      </button>
+      <button onClick={() => publishMessages(mqttClientRef.current)}>Publish Test Messages</button>
       <button onClick={() => clearMessages()}>Clear Test Messages</button>
     </div>
   );

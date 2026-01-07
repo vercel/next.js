@@ -10,11 +10,7 @@ const srcIsKontentAsset = (src: string) => {
   }
 };
 
-const kontentImageLoader = ({
-  src,
-  width,
-  quality = 75,
-}: ImageLoaderProps): string => {
+const kontentImageLoader = ({ src, width, quality = 75 }: ImageLoaderProps): string => {
   return transformImageUrl(src)
     .withWidth(width)
     .withQuality(quality)

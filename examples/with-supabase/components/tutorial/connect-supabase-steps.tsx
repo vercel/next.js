@@ -52,10 +52,7 @@ export function ConnectSupabaseSteps() {
       </TutorialStep>
 
       <TutorialStep title="Refresh the page">
-        <p>
-          You may need to refresh the page for Next.js to load the new
-          environment variables.
-        </p>
+        <p>You may need to refresh the page for Next.js to load the new environment variables.</p>
       </TutorialStep>
     </ol>
   );

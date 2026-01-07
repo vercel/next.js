@@ -16,27 +16,22 @@ export default function Home({ isConnected }) {
         </h1>
 
         {isConnected ? (
-          <h2 className={`${styles.subtitle} ${styles.green}`}>
-            You are connected to Couchbase
-          </h2>
+          <h2 className={`${styles.subtitle} ${styles.green}`}>You are connected to Couchbase</h2>
         ) : (
           <>
             <h2 className={`${styles.subtitle} ${styles.red}`}>
-              You are NOT connected to Couchbase. Try refreshing the page, and
-              if this error persists check the <code>README.md</code> for
-              instructions.
+              You are NOT connected to Couchbase. Try refreshing the page, and if this error
+              persists check the <code>README.md</code> for instructions.
             </h2>
             <em className={styles.center}>
-              Note: if the database was recently started, you might have to
-              re-start the app (in dev mode) or re-deploy to your serverless
-              environment for changes to take effect.
+              Note: if the database was recently started, you might have to re-start the app (in dev
+              mode) or re-deploy to your serverless environment for changes to take effect.
             </em>
           </>
         )}
 
         <p className={styles.description}>
-          Get started by editing{" "}
-          <code className={styles.code}>pages/index.js</code>
+          Get started by editing <code className={styles.code}>pages/index.js</code>
         </p>
       </main>
 
@@ -46,8 +41,7 @@ export default function Home({ isConnected }) {
           target="_blank"
           rel="noopener noreferrer"
         >
-          Powered by{" "}
-          <img src="/vercel.svg" alt="Vercel Logo" className={styles.logo} />
+          Powered by <img src="/vercel.svg" alt="Vercel Logo" className={styles.logo} />
         </a>
       </footer>
     </div>

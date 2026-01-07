@@ -54,11 +54,7 @@ function InsertItem() {
     <div style={{ padding: "10px" }}>
       <form onSubmit={handleFormSubmit}>
         <div>
-          <input
-            type="name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
+          <input type="name" value={name} onChange={(e) => setName(e.target.value)} />
         </div>
         <div>
           <button type="submit">Insert item</button>
@@ -100,8 +96,7 @@ function ListItems() {
       {items.map((item) => {
         return (
           <li key={item.id}>
-            {item.name} [
-            <span onClick={() => handleDeleteItem(item.id)}>delete</span>]
+            {item.name} [<span onClick={() => handleDeleteItem(item.id)}>delete</span>]
           </li>
         );
       })}

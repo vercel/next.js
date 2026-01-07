@@ -3,22 +3,11 @@ import Avatar from "../components/avatar";
 import Date from "../components/date";
 import CoverImage from "../components/cover-image";
 
-export default function HeroPost({
-  title,
-  coverImage,
-  date,
-  excerpt,
-  author,
-  slug,
-}) {
+export default function HeroPost({ title, coverImage, date, excerpt, author, slug }) {
   return (
     <section>
       <div className="mb-8 md:mb-16">
-        <CoverImage
-          title={title}
-          responsiveImage={coverImage.responsiveImage}
-          slug={slug}
-        />
+        <CoverImage title={title} responsiveImage={coverImage.responsiveImage} slug={slug} />
       </div>
       <div className="md:grid md:grid-cols-2 md:gap-x-16 lg:gap-x-8 mb-20 md:mb-28">
         <div>

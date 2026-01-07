@@ -8,11 +8,7 @@ import { extractCss } from "goober";
 // `createElement` function and prefixer function.
 setup(createElement, prefix);
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   const css = extractCss();
 
   return (

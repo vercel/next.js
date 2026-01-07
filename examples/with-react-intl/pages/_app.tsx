@@ -3,10 +3,7 @@ import type { MessageConfig } from "../helper/loadIntlMessages";
 import { IntlProvider } from "react-intl";
 import { useRouter } from "next/router";
 
-export default function MyApp({
-  Component,
-  pageProps,
-}: AppProps<{ intlMessages: MessageConfig }>) {
+export default function MyApp({ Component, pageProps }: AppProps<{ intlMessages: MessageConfig }>) {
   const { locale, defaultLocale } = useRouter();
   return (
     <IntlProvider

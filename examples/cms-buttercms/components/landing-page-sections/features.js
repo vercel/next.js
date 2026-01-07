@@ -1,11 +1,6 @@
 import Feature from "./feature";
 
-export default function Features({
-  headline,
-  subheadline,
-  features,
-  scrollAnchorId,
-}) {
+export default function Features({ headline, subheadline, features, scrollAnchorId }) {
   return (
     <section id={scrollAnchorId} className="feature-section">
       <div className="container">

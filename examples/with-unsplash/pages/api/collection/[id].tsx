@@ -1,10 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import Unsplash, { toJson } from "unsplash-js";
 
-export default function getCollection(
-  req: NextApiRequest,
-  res: NextApiResponse,
-) {
+export default function getCollection(req: NextApiRequest, res: NextApiResponse) {
   const {
     query: { id },
   } = req;

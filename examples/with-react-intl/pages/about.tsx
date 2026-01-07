@@ -3,10 +3,7 @@ import { FormattedRelativeTime, useIntl } from "react-intl";
 import loadIntlMessages from "../helper/loadIntlMessages";
 import Layout from "../components/Layout";
 
-export async function getStaticProps({
-  locale,
-  defaultLocale,
-}: GetServerSidePropsContext) {
+export async function getStaticProps({ locale, defaultLocale }: GetServerSidePropsContext) {
   return {
     props: {
       intlMessages: await loadIntlMessages(locale as string, defaultLocale),

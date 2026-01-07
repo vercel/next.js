@@ -4,10 +4,7 @@ import { type PropsWithChildren, useRef } from "react";
 import type { StoreInterface, StoreType } from "./store";
 import { initializeStore, Provider } from "./store";
 
-export interface PreloadedStoreInterface extends Pick<
-  StoreInterface,
-  "lastUpdate"
-> {}
+export interface PreloadedStoreInterface extends Pick<StoreInterface, "lastUpdate"> {}
 
 export default function StoreProvider({
   children,

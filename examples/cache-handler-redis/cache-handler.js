@@ -48,9 +48,7 @@ CacheHandler.onCreation(async () => {
           console.info("Redis client disconnected.");
         })
         .catch(() => {
-          console.warn(
-            "Failed to quit the Redis client after failing to connect.",
-          );
+          console.warn("Failed to quit the Redis client after failing to connect.");
         });
     }
   }
@@ -68,9 +66,7 @@ CacheHandler.onCreation(async () => {
   // Fallback to LRU handler if Redis client is not available.
   // The application will still work, but the cache will be in memory only and not shared.
   const LRUHandler = createLruHandler();
-  console.warn(
-    "Falling back to LRU handler because Redis client is not available.",
-  );
+  console.warn("Falling back to LRU handler because Redis client is not available.");
 
   return {
     handlers: [redisHandler, LRUHandler],

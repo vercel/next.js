@@ -31,14 +31,8 @@ const Home: NextPage = ({ images }: { images: ImageProps[] }) => {
     <>
       <Head>
         <title>Next.js Conf 2022 Photos</title>
-        <meta
-          property="og:image"
-          content="https://nextjsconf-pics.vercel.app/og-image.png"
-        />
-        <meta
-          name="twitter:image"
-          content="https://nextjsconf-pics.vercel.app/og-image.png"
-        />
+        <meta property="og:image" content="https://nextjsconf-pics.vercel.app/og-image.png" />
+        <meta name="twitter:image" content="https://nextjsconf-pics.vercel.app/og-image.png" />
       </Head>
       <main className="mx-auto max-w-[1960px] p-4">
         {photoId && (
@@ -62,8 +56,8 @@ const Home: NextPage = ({ images }: { images: ImageProps[] }) => {
               2022 Event Photos
             </h1>
             <p className="max-w-[40ch] text-white/75 sm:max-w-[32ch]">
-              Our incredible Next.js community got together in San Francisco for
-              our first ever in-person conference!
+              Our incredible Next.js community got together in San Francisco for our first ever
+              in-person conference!
             </p>
             <a
               className="pointer z-10 mt-6 rounded-lg border border-white bg-white px-3 py-2 text-sm font-semibold text-black transition hover:bg-white/10 hover:text-white md:mt-4"

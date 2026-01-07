@@ -38,10 +38,7 @@ const renderHeader = (block) => {
       return (
         <h1
           {...props}
-          className={classNames(
-            props.className,
-            "rte-block-heading rte-block-heading--h1",
-          )}
+          className={classNames(props.className, "rte-block-heading rte-block-heading--h1")}
           dangerouslySetInnerHTML={{ __html: block.data.text }}
         />
       );
@@ -50,10 +47,7 @@ const renderHeader = (block) => {
       return (
         <h2
           {...props}
-          className={classNames(
-            props.className,
-            "rte-block-heading rte-block-heading--h2",
-          )}
+          className={classNames(props.className, "rte-block-heading rte-block-heading--h2")}
           dangerouslySetInnerHTML={{ __html: block.data.text }}
         />
       );
@@ -62,10 +56,7 @@ const renderHeader = (block) => {
       return (
         <h3
           {...props}
-          className={classNames(
-            props.className,
-            "rte-block-heading rte-block-heading--h3",
-          )}
+          className={classNames(props.className, "rte-block-heading rte-block-heading--h3")}
           dangerouslySetInnerHTML={{ __html: block.data.text }}
         />
       );
@@ -74,10 +65,7 @@ const renderHeader = (block) => {
       return (
         <h4
           {...props}
-          className={classNames(
-            props.className,
-            "rte-block-heading rte-block-heading--h4",
-          )}
+          className={classNames(props.className, "rte-block-heading rte-block-heading--h4")}
           dangerouslySetInnerHTML={{ __html: block.data.text }}
         />
       );
@@ -86,10 +74,7 @@ const renderHeader = (block) => {
       return (
         <h5
           {...props}
-          className={classNames(
-            props.className,
-            "rte-block-heading rte-block-heading--h5",
-          )}
+          className={classNames(props.className, "rte-block-heading rte-block-heading--h5")}
           dangerouslySetInnerHTML={{ __html: block.data.text }}
         />
       );
@@ -98,10 +83,7 @@ const renderHeader = (block) => {
       return (
         <h6
           {...props}
-          className={classNames(
-            props.className,
-            "rte-block-heading rte-block-heading--h6",
-          )}
+          className={classNames(props.className, "rte-block-heading rte-block-heading--h6")}
           dangerouslySetInnerHTML={{ __html: block.data.text }}
         />
       );
@@ -111,13 +93,7 @@ const renderHeader = (block) => {
 };
 
 function renderImage(block) {
-  return (
-    <img
-      className={"rte-block-image"}
-      alt={block.data.caption}
-      src={block.data.file}
-    />
-  );
+  return <img className={"rte-block-image"} alt={block.data.caption} src={block.data.file} />;
 }
 
 function renderList(block) {

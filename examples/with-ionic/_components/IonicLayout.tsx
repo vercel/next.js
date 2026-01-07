@@ -3,11 +3,7 @@
 import React, { useEffect } from "react";
 import { defineCustomElements as ionDefineCustomElements } from "@ionic/core/loader";
 
-export default function IonicLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function IonicLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     ionDefineCustomElements(window);
   }, []);

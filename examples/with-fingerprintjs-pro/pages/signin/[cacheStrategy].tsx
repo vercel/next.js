@@ -20,15 +20,13 @@ function SignInPage() {
       <h3>Sign in</h3>
       <div>
         <p>
-          Another common use-case is when you want to only fingerprint a user
-          after they perform some action, in this case - submit a form. For this
-          purpose <code>useVisitorData</code> hook should be called with{" "}
-          <code>immediate</code> flag set to <code>false</code> and call the{" "}
-          <code>getData</code> function on form submission.
+          Another common use-case is when you want to only fingerprint a user after they perform
+          some action, in this case - submit a form. For this purpose <code>useVisitorData</code>{" "}
+          hook should be called with <code>immediate</code> flag set to <code>false</code> and call
+          the <code>getData</code> function on form submission.
         </p>
         <p>
-          Try submitting the form with any values and notice that a fingerprint
-          will be calculated.
+          Try submitting the form with any values and notice that a fingerprint will be calculated.
         </p>
       </div>
       <div className="form-control checkbox">

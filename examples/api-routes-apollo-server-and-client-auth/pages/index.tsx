@@ -32,8 +32,7 @@ const Index = () => {
   if (viewer) {
     return (
       <div>
-        You're signed in as {viewer.email}. Go to{" "}
-        <Link href="/about">about</Link> page or{" "}
+        You're signed in as {viewer.email}. Go to <Link href="/about">about</Link> page or{" "}
         <Link href="/signout">signout</Link>.
       </div>
     );

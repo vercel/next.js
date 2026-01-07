@@ -24,10 +24,7 @@ export default function HeaderSection({ mainMenu }) {
 
   return (
     <header className="header">
-      <div
-        ref={navbarAreaEl}
-        className={`navbar-area ${isNavbarSticky ? "sticky" : ""}`}
-      >
+      <div ref={navbarAreaEl} className={`navbar-area ${isNavbarSticky ? "sticky" : ""}`}>
         <div className="container">
           <div className="row align-items-center">
             <div className="col-lg-12">

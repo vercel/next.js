@@ -16,13 +16,9 @@ const Home = () => {
       <h3>The count is {counter}</h3>
       <p>
         <button onClick={dispatch.counter.increment}>increment</button>
-        <button onClick={() => increment(1)}>
-          increment (using dispatch function)
-        </button>
+        <button onClick={() => increment(1)}>increment (using dispatch function)</button>
         <button onClick={() => increment(5)}>increment by 5</button>
-        <button onClick={dispatch.counter.incrementAsync}>
-          incrementAsync
-        </button>
+        <button onClick={dispatch.counter.incrementAsync}>incrementAsync</button>
       </p>
       <br />
     </div>

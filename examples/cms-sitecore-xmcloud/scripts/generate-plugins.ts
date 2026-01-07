@@ -89,11 +89,7 @@ function getPluginList(path: string, pluginName: string): PluginFile[] {
  * new plugin to the factory).
  * Modify this function to use a different convention.
  */
-function writePlugins(
-  listPath: string,
-  rootPath: string,
-  moduleType: ModuleType,
-) {
+function writePlugins(listPath: string, rootPath: string, moduleType: ModuleType) {
   const segments = rootPath.split("/");
   const pluginName = segments[segments.length - 2];
   const plugins = getPluginList(rootPath, pluginName);
@@ -109,10 +105,7 @@ function writePlugins(
     .concat("\r\n");
 
   if (!plugins.length) {
-    fileContent =
-      moduleType === ModuleType.CJS
-        ? "module.exports = {};\r\n"
-        : "export {};\r\n";
+    fileContent = moduleType === ModuleType.CJS ? "module.exports = {};\r\n" : "export {};\r\n";
   }
 
   const filePath = path.resolve(listPath);
@@ -124,11 +117,7 @@ function writePlugins(
 
 function run(definitions: PluginDefinition[]) {
   definitions.forEach((definition) => {
-    writePlugins(
-      definition.listPath,
-      definition.rootPath,
-      definition.moduleType,
-    );
+    writePlugins(definition.listPath, definition.rootPath, definition.moduleType);
   });
 }
 
