@@ -110,7 +110,68 @@ pnpm test-dev-turbo test/development/
 
 - `pnpm test-unit` - Run unit tests only (fast, no browser)
 - `pnpm testonly <path>` - Run tests without rebuilding (faster iteration)
-- `pnpm new-test` - Generate a new test file from template
+- `pnpm new-test` - Generate a new test file from template (interactive)
+
+**Generate tests non-interactively (for AI agents):**
+
+```bash
+# Use --args for non-interactive mode
+# Format: pnpm new-test --args <appDir> <name> <type>
+# appDir: true/false (is this for app directory?)
+# name: test name (e.g. "my-feature")
+# type: e2e | production | development | unit
+
+pnpm new-test --args true my-feature e2e
+```
+
+## Writing Tests
+
+**Test writing expectations:**
+
+- **Use `pnpm new-test` to generate new test suites** - it creates proper structure with fixture files
+
+- **Use `retry()` from `next-test-utils` instead of `setTimeout` for waiting**
+
+  ```typescript
+  // Good - use retry() for polling/waiting
+  import { retry } from 'next-test-utils'
+  await retry(async () => {
+    const text = await browser.elementByCss('p').text()
+    expect(text).toBe('expected value')
+  })
+
+  // Bad - don't use setTimeout for waiting
+  await new Promise((resolve) => setTimeout(resolve, 1000))
+  ```
+
+- **Do NOT use `check()` - it is deprecated. Use `retry()` + `expect()` instead**
+
+  ```typescript
+  // Deprecated - don't use check()
+  await check(() => browser.elementByCss('p').text(), /expected/)
+
+  // Good - use retry() with expect()
+  await retry(async () => {
+    const text = await browser.elementByCss('p').text()
+    expect(text).toMatch(/expected/)
+  })
+  ```
+
+- **Prefer real fixture directories over inline `files` objects**
+
+  ```typescript
+  // Good - use a real directory with fixture files
+  const { next } = nextTestSetup({
+    files: __dirname, // points to directory containing test fixtures
+  })
+
+  // Avoid - inline file definitions are harder to maintain
+  const { next } = nextTestSetup({
+    files: {
+      'app/page.tsx': `export default function Page() { ... }`,
+    },
+  })
+  ```
 
 ## Linting and Types
 
