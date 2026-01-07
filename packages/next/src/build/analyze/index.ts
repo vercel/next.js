@@ -57,7 +57,11 @@ export default async function analyze({
     // Generate deploymentId - can be a string or function
     // Call the function once and cache the result to ensure consistency throughout the analyze process
     const deploymentId = generateDeploymentId(config.deploymentId) || ''
-    process.env.NEXT_DEPLOYMENT_ID = deploymentId
+    // Only set NEXT_DEPLOYMENT_ID if it's not already set (null or undefined) - prebuild scenario
+    // This ensures we never overwrite a Vercel-generated deployment ID
+    if (process.env.NEXT_DEPLOYMENT_ID == null) {
+      process.env.NEXT_DEPLOYMENT_ID = deploymentId
+    }
     // Update config with the evaluated deploymentId so it's available as a string throughout
     config.deploymentId = deploymentId
 

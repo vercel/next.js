@@ -1,6 +1,5 @@
 import { createNext } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
-import { renderViaHTTP } from 'next-test-utils'
 
 describe('deploymentId function support', () => {
   let next: NextInstance | undefined
@@ -17,7 +16,11 @@ describe('deploymentId function support', () => {
       files: {
         'app/layout.jsx': `
           export default function Layout({ children }) {
-            return children
+            return (
+              <html>
+                <body>{children}</body>
+              </html>
+            )
           }
         `,
         'app/page.jsx': `
@@ -34,7 +37,8 @@ describe('deploymentId function support', () => {
       dependencies: {},
     })
 
-    const html = await renderViaHTTP(next.url, '/')
+    const res = await next.fetch('/')
+    const html = await res.text()
     expect(html).toContain('hello world')
   })
 
@@ -43,7 +47,11 @@ describe('deploymentId function support', () => {
       files: {
         'app/layout.jsx': `
           export default function Layout({ children }) {
-            return children
+            return (
+              <html>
+                <body>{children}</body>
+              </html>
+            )
           }
         `,
         'app/page.jsx': `
@@ -62,7 +70,8 @@ describe('deploymentId function support', () => {
       dependencies: {},
     })
 
-    const html = await renderViaHTTP(next.url, '/')
+    const res = await next.fetch('/')
+    const html = await res.text()
     expect(html).toContain('hello world')
   })
 
@@ -71,7 +80,11 @@ describe('deploymentId function support', () => {
       files: {
         'app/layout.jsx': `
           export default function Layout({ children }) {
-            return children
+            return (
+              <html>
+                <body>{children}</body>
+              </html>
+            )
           }
         `,
         'app/page.jsx': `
@@ -93,7 +106,8 @@ describe('deploymentId function support', () => {
       dependencies: {},
     })
 
-    const html = await renderViaHTTP(next.url, '/')
+    const res = await next.fetch('/')
+    const html = await res.text()
     expect(html).toContain('hello world')
   })
 
@@ -102,7 +116,11 @@ describe('deploymentId function support', () => {
       files: {
         'app/layout.jsx': `
           export default function Layout({ children }) {
-            return children
+            return (
+              <html>
+                <body>{children}</body>
+              </html>
+            )
           }
         `,
         'app/page.jsx': `
@@ -158,13 +176,15 @@ describe('deploymentId function support', () => {
       errorThrown = true
       // The error is thrown in the child process, so we just verify that createNext fails
       // The actual error message "deploymentId function must return a string" is visible
-      // in the console output but wrapped differently in dev vs production mode:
+      // in the console output but wrapped differently in different modes:
       // - Dev mode: "next dev exited unexpectedly"
       // - Start mode: "next build failed with code/signal 1"
+      // - Deploy mode: "Failed to deploy project"
       expect(err).toBeDefined()
       expect(
         err.message.includes('exited unexpectedly') ||
-          err.message.includes('build failed')
+          err.message.includes('build failed') ||
+          err.message.includes('Failed to deploy')
       ).toBe(true)
     }
     // Ensure an error was actually thrown

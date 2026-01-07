@@ -951,21 +951,19 @@ function assignDefaultsAndValidate(
     ciEnvironment.hasNextSupport &&
     process.env.NEXT_DEPLOYMENT_ID
   ) {
-    // Now result.deploymentId should be a string (already evaluated above)
-    if (
-      result.deploymentId != null &&
-      result.deploymentId !== process.env.NEXT_DEPLOYMENT_ID
-    ) {
-      throw new Error(
-        `The NEXT_DEPLOYMENT_ID environment variable value "${process.env.NEXT_DEPLOYMENT_ID}" does not match the provided deploymentId "${result.deploymentId}" in the config.`
-      )
-    }
     result.experimental.runtimeServerDeploymentId = true
   }
 
-  // only leverage deploymentId
-  if (process.env.NEXT_DEPLOYMENT_ID) {
+  // NEXT_DEPLOYMENT_ID takes precedence when set (e.g., by Vercel platform)
+  // Only set it from user config if not already set (prebuild scenario)
+  if (process.env.NEXT_DEPLOYMENT_ID != null) {
     result.deploymentId = process.env.NEXT_DEPLOYMENT_ID
+  } else if (result.deploymentId) {
+    // Only set NEXT_DEPLOYMENT_ID from user config if it's not already set (null or undefined)
+    // This ensures we never overwrite a Vercel-generated deployment ID
+    if (process.env.NEXT_DEPLOYMENT_ID == null) {
+      process.env.NEXT_DEPLOYMENT_ID = result.deploymentId
+    }
   }
 
   const tracingRoot = result?.outputFileTracingRoot
