@@ -68,8 +68,7 @@ export async function middleware(request) {
       'req-url-pathname': request.nextUrl.pathname,
       'req-url-query': request.nextUrl.searchParams.get('foo'),
       'req-url-locale': request.nextUrl.locale,
-      'req-url-params':
-        url.pathname !== '/static' ? JSON.stringify(params(request.url)) : '{}',
+      'req-url-params': url.pathname !== '/static' ? JSON.stringify(params(request.url)) : '{}',
     },
   })
 }

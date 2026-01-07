@@ -6,12 +6,7 @@ const Page = () => {
     <div>
       <p>Hello World</p>
       <div style={{ visibility: 'hidden' }}>
-        <Image
-          id="hidden-image"
-          src="/docs/test.jpg"
-          width="400"
-          height="400"
-        ></Image>
+        <Image id="hidden-image" src="/docs/test.jpg" width="400" height="400"></Image>
       </div>
       <p id="stubtext">This is the hidden parent page</p>
     </div>

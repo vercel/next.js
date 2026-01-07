@@ -2,11 +2,7 @@ import { Suspense } from 'react'
 import DynamicWrapper from './dynamic-wrapper'
 import { SimpleWrapper } from './simple-wrapper'
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <SimpleWrapper>
       <Suspense>

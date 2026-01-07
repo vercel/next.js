@@ -1,7 +1,4 @@
-import type {
-  DevToolsIndicatorPosition,
-  DevToolsScale,
-} from '../../../../shared'
+import type { DevToolsIndicatorPosition, DevToolsScale } from '../../../../shared'
 
 import { useDevOverlayContext } from '../../../../../dev-overlay.browser'
 import { css } from '../../../../utils/css'
@@ -74,9 +71,7 @@ export function UserPreferencesBody({
       <div className="preference-section">
         <div className="preference-header">
           <label htmlFor="theme">Theme</label>
-          <p className="preference-description">
-            Select your theme preference.
-          </p>
+          <p className="preference-description">Select your theme preference.</p>
         </div>
         <Select
           id="theme"
@@ -94,16 +89,9 @@ export function UserPreferencesBody({
       <div className="preference-section">
         <div className="preference-header">
           <label htmlFor="position">Position</label>
-          <p className="preference-description">
-            Adjust the placement of your dev tools.
-          </p>
+          <p className="preference-description">Adjust the placement of your dev tools.</p>
         </div>
-        <Select
-          id="position"
-          name="position"
-          value={position}
-          onChange={handlePositionChange}
-        >
+        <Select id="position" name="position" value={position} onChange={handlePositionChange}>
           <option value="bottom-left">Bottom Left</option>
           <option value="bottom-right">Bottom Right</option>
           <option value="top-left">Top Left</option>
@@ -114,9 +102,7 @@ export function UserPreferencesBody({
       <div className="preference-section">
         <div className="preference-header">
           <label htmlFor="size">Size</label>
-          <p className="preference-description">
-            Adjust the size of your dev tools.
-          </p>
+          <p className="preference-description">Adjust the size of your dev tools.</p>
         </div>
         <Select id="size" name="size" value={scale} onChange={handleSizeChange}>
           {Object.entries(NEXT_DEV_TOOLS_SCALE).map(([key, value]) => {
@@ -158,10 +144,7 @@ export function UserPreferencesBody({
           </p>
         </div>
         <div className="preference-control">
-          <ShortcutRecorder
-            value={hideShortcut?.split('+') ?? null}
-            onChange={setHideShortcut}
-          />
+          <ShortcutRecorder value={hideShortcut?.split('+') ?? null} onChange={setHideShortcut} />
         </div>
       </div>
 
@@ -170,8 +153,8 @@ export function UserPreferencesBody({
           <label>Disable Dev Tools for this project</label>
           <p className="preference-description">
             To disable this UI completely, set{' '}
-            <code className="dev-tools-info-code">devIndicators: false</code> in
-            your <code className="dev-tools-info-code">next.config</code> file.
+            <code className="dev-tools-info-code">devIndicators: false</code> in your{' '}
+            <code className="dev-tools-info-code">next.config</code> file.
           </p>
         </div>
       </div>
@@ -180,8 +163,7 @@ export function UserPreferencesBody({
         <div className="preference-header">
           <label id="restart-dev-server">Restart Dev Server</label>
           <p className="preference-description">
-            Restarts the development server without needing to leave the
-            browser.
+            Restarts the development server without needing to leave the browser.
           </p>
         </div>
         <div className="preference-control">
@@ -204,8 +186,8 @@ export function UserPreferencesBody({
           <div className="preference-header">
             <label id="reset-bundler-cache">Reset Bundler Cache</label>
             <p className="preference-description">
-              Clears the bundler cache and restarts the dev server. Helpful if
-              you are seeing stale errors or changes are not appearing.
+              Clears the bundler cache and restarts the dev server. Helpful if you are seeing stale
+              errors or changes are not appearing.
             </p>
           </div>
           <div className="preference-control">

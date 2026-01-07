@@ -64,8 +64,7 @@ export const pure1 = EXPORT
 export const pure2 = /*#__PURE__*/ f6()
 const pure3 = /*#__PURE__*/ g5()
 const pure4 = /*#__PURE__*/ f7(f8())
-const pure5 =
-  ('fefef', 1123, /*#__PURE__*/ f2('fwefe'), /*#__PURE__*/ f2('efwefa'))
+const pure5 = ('fefef', 1123, /*#__PURE__*/ f2('fwefe'), /*#__PURE__*/ f2('efwefa'))
 const pure6 = /*#__PURE__*/ f2(/*#__PURE__*/ f2(), /*#__PURE__*/ f2())
 const pure7 = /*#__PURE__*/ f2(
   class {

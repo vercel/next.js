@@ -7,9 +7,7 @@ export default async function Page({ params }) {
       <ul>
         {Array.from({ length: 10 }).map((_, i) => (
           <li key={i}>
-            <Link href={`/intercepting-parallel-modal/photo/${i}`}>
-              Link {i}
-            </Link>
+            <Link href={`/intercepting-parallel-modal/photo/${i}`}>Link {i}</Link>
           </li>
         ))}
       </ul>

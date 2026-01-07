@@ -6,13 +6,7 @@ const Page = () => {
     <div>
       <p>Wrapper Div</p>
       <div id="image-container1">
-        <Image
-          id="img1"
-          src="/wide.png"
-          width="1200"
-          height="700"
-          loading="eager"
-        />
+        <Image id="img1" src="/wide.png" width="1200" height="700" loading="eager" />
       </div>
       <div id="image-container2">
         <Image
@@ -29,13 +23,7 @@ const Page = () => {
         />
       </div>
       <div id="image-container3">
-        <Image
-          id="img3"
-          src="/test.png"
-          width="400"
-          height="400"
-          loading="eager"
-        />
+        <Image id="img3" src="/test.png" width="400" height="400" loading="eager" />
       </div>
       <div id="image-container4">
         <Image

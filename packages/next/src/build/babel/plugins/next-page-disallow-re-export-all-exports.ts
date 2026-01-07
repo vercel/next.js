@@ -10,8 +10,7 @@ export default function NextPageDisallowReExportAllExports(): PluginObj<any> {
             `Read more: https://nextjs.org/docs/messages/export-all-in-page`
         )
         ;(err as any).code = 'BABEL_PARSE_ERROR'
-        ;(err as any).loc =
-          path.node.loc?.start ?? path.node.loc?.end ?? path.node.loc
+        ;(err as any).loc = path.node.loc?.start ?? path.node.loc?.end ?? path.node.loc
         throw err
       },
     },

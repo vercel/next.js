@@ -106,13 +106,9 @@ describe('ReactRefreshRegression', () => {
       `
     )
 
-    expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('0')
+    expect(await session.evaluate(() => document.querySelector('p').textContent)).toBe('0')
     await session.evaluate(() => document.querySelector('button').click())
-    expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('1')
+    expect(await session.evaluate(() => document.querySelector('p').textContent)).toBe('1')
 
     await session.patch(
       'pages/index.js',
@@ -132,13 +128,9 @@ describe('ReactRefreshRegression', () => {
       `
     )
 
-    expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('Count: 1')
+    expect(await session.evaluate(() => document.querySelector('p').textContent)).toBe('Count: 1')
     await session.evaluate(() => document.querySelector('button').click())
-    expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('Count: 2')
+    expect(await session.evaluate(() => document.querySelector('p').textContent)).toBe('Count: 2')
   })
 
   // https://github.com/vercel/next.js/issues/13978
@@ -168,13 +160,9 @@ describe('ReactRefreshRegression', () => {
       `
     )
 
-    expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('0')
+    expect(await session.evaluate(() => document.querySelector('p').textContent)).toBe('0')
     await session.evaluate(() => document.querySelector('button').click())
-    expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('1')
+    expect(await session.evaluate(() => document.querySelector('p').textContent)).toBe('1')
 
     await session.patch(
       'pages/index.js',
@@ -194,13 +182,9 @@ describe('ReactRefreshRegression', () => {
       `
     )
 
-    expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('Count: 1')
+    expect(await session.evaluate(() => document.querySelector('p').textContent)).toBe('Count: 1')
     await session.evaluate(() => document.querySelector('button').click())
-    expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('Count: 2')
+    expect(await session.evaluate(() => document.querySelector('p').textContent)).toBe('Count: 2')
   })
 
   // https://github.com/vercel/next.js/issues/13978
@@ -228,15 +212,10 @@ describe('ReactRefreshRegression', () => {
       `
     )
 
-    await check(
-      () => session.evaluate(() => document.querySelector('p').textContent),
-      '0'
-    )
+    await check(() => session.evaluate(() => document.querySelector('p').textContent), '0')
 
     await session.evaluate(() => document.querySelector('button').click())
-    expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('1')
+    expect(await session.evaluate(() => document.querySelector('p').textContent)).toBe('1')
 
     await session.patch(
       'pages/index.js',
@@ -256,13 +235,9 @@ describe('ReactRefreshRegression', () => {
       `
     )
 
-    expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('Count: 1')
+    expect(await session.evaluate(() => document.querySelector('p').textContent)).toBe('Count: 1')
     await session.evaluate(() => document.querySelector('button').click())
-    expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('Count: 2')
+    expect(await session.evaluate(() => document.querySelector('p').textContent)).toBe('Count: 2')
   })
 
   // https://github.com/vercel/next.js/issues/11504
@@ -347,28 +322,22 @@ describe('ReactRefreshRegression', () => {
       '/mdx'
     )
     const { session } = sandbox
-    expect(
-      await session.evaluate(
-        () => document.querySelector('#__next').textContent
-      )
-    ).toBe('Hello World!')
+    expect(await session.evaluate(() => document.querySelector('#__next').textContent)).toBe(
+      'Hello World!'
+    )
 
     let didNotReload = await session.patch('pages/mdx.mdx', `Hello Foo!`)
     expect(didNotReload).toBe(true)
     await session.waitForNoRedbox()
-    expect(
-      await session.evaluate(
-        () => document.querySelector('#__next').textContent
-      )
-    ).toBe('Hello Foo!')
+    expect(await session.evaluate(() => document.querySelector('#__next').textContent)).toBe(
+      'Hello Foo!'
+    )
 
     didNotReload = await session.patch('pages/mdx.mdx', `Hello Bar!`)
     expect(didNotReload).toBe(true)
     await session.waitForNoRedbox()
-    expect(
-      await session.evaluate(
-        () => document.querySelector('#__next').textContent
-      )
-    ).toBe('Hello Bar!')
+    expect(await session.evaluate(() => document.querySelector('#__next').textContent)).toBe(
+      'Hello Bar!'
+    )
   })
 })

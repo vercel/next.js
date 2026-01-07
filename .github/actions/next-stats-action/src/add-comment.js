@@ -61,8 +61,7 @@ const METRIC_LABELS = {
 const METRIC_GROUPS = {
   'Dev Server': {
     icon: '⚡',
-    description:
-      'Boot time for `next dev` (Turbopack). Cold = fresh build, Warm = with cache.',
+    description: 'Boot time for `next dev` (Turbopack). Cold = fresh build, Warm = with cache.',
     metrics: [
       {
         label: 'Cold (Listen)',
@@ -90,8 +89,7 @@ const METRIC_GROUPS = {
   'Dev Server (Webpack)': {
     icon: '📦',
     isLegacy: true,
-    description:
-      'Boot time for `next dev` (Webpack). Cold = fresh build, Warm = with cache.',
+    description: 'Boot time for `next dev` (Webpack). Cold = fresh build, Warm = with cache.',
     metrics: [
       {
         label: 'Cold (Listen)',
@@ -253,9 +251,7 @@ const round = (num, places) => {
 }
 
 const shortenLabel = (itemKey) =>
-  itemKey.length > 24
-    ? `${itemKey.slice(0, 12)}..${itemKey.slice(-12)}`
-    : itemKey
+  itemKey.length > 24 ? `${itemKey.slice(0, 12)}..${itemKey.slice(-12)}` : itemKey
 
 function getMetricLabel(key) {
   return METRIC_LABELS[key] || shortenLabel(key)
@@ -271,9 +267,7 @@ function formatChange(mainVal, diffVal, type = 'bytes', metricKey = null) {
 
   // Get threshold config: prefer metric-specific, then type-based, then default to bytes
   const threshold =
-    METRIC_THRESHOLDS[metricKey] ||
-    METRIC_THRESHOLDS[type] ||
-    METRIC_THRESHOLDS.bytes
+    METRIC_THRESHOLDS[metricKey] || METRIC_THRESHOLDS[type] || METRIC_THRESHOLDS.bytes
 
   // A change is insignificant if:
   //   - (absoluteDiff < absoluteMin AND percentDiff < percentMin), OR
@@ -324,10 +318,7 @@ function generateTrendBar(values) {
   return recent
     .map((v) => {
       const normalized = (v - min) / range
-      const index = Math.min(
-        Math.floor(normalized * bars.length),
-        bars.length - 1
-      )
+      const index = Math.min(Math.floor(normalized * bars.length), bars.length - 1)
       return bars[index]
     })
     .join('')
@@ -374,9 +365,7 @@ function computeBundleGroupTotals(stats) {
         .split(/\s+/)
         .filter((w) => w.length > 0)
         .map((w, i) =>
-          i === 0
-            ? w.toLowerCase()
-            : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
+          i === 0 ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
         )
         .join('') + 'Total'
 
@@ -585,14 +574,7 @@ function generatePerformanceSection(mainStats, diffStats, history) {
     if (config.isLegacy) continue
 
     // Render Turbopack/main group prominently
-    content += generateMetricsTable(
-      groupName,
-      config,
-      mainGroup,
-      diffGroup,
-      history,
-      false
-    )
+    content += generateMetricsTable(groupName, config, mainGroup, diffGroup, history, false)
 
     // If this group has a corresponding Webpack group, render it collapsed
     if (config.webpackGroup) {
@@ -615,11 +597,7 @@ function generatePerformanceSection(mainStats, diffStats, history) {
 
 // Base group names (without bundler suffix)
 const BASE_BUNDLE_GROUPS = {
-  client: [
-    'Client Bundles (main)',
-    'Client Pages',
-    'Legacy Client Bundles (polyfills)',
-  ],
+  client: ['Client Bundles (main)', 'Client Pages', 'Legacy Client Bundles (polyfills)'],
   server: ['Edge SSR bundle Size', 'Middleware size'],
   // Next Runtimes are built independently of Turbopack/Webpack
   shared: ['Next Runtimes'],
@@ -651,10 +629,7 @@ function generateBundleGroup(groupKey, result, tableHead) {
   const gzipIgnoreRegex = new RegExp(`(General|^Serverless|${benchTitle})`)
   const mainRepoGroup = result.mainRepoStats[groupKey] || {}
   const diffRepoGroup = result.diffRepoStats[groupKey] || {}
-  const itemKeys = new Set([
-    ...Object.keys(mainRepoGroup),
-    ...Object.keys(diffRepoGroup),
-  ])
+  const itemKeys = new Set([...Object.keys(mainRepoGroup), ...Object.keys(diffRepoGroup)])
 
   // Detect pure-hash filenames (Turbopack uses content-hash only, can't be matched)
   // Pattern: 16 hex chars followed by .js or .css (with optional .map or gzip suffix)
@@ -674,8 +649,7 @@ function generateBundleGroup(groupKey, result, tableHead) {
   })
 
   // If more than 50% of items are pure-hash files, show totals only
-  const isPureHashGroup =
-    totalGzipItems > 0 && pureHashCount / totalGzipItems > 0.5
+  const isPureHashGroup = totalGzipItems > 0 && pureHashCount / totalGzipItems > 0.5
 
   let groupTable = tableHead
   let mainRepoTotal = 0
@@ -960,11 +934,7 @@ function generateDiffsSection(result) {
 // Hidden marker to identify stats comments (invisible in rendered markdown)
 const STATS_COMMENT_MARKER = '<!-- __NEXT_STATS_COMMENT__ -->'
 
-module.exports = async function addComment(
-  results = [],
-  actionInfo,
-  statsConfig
-) {
+module.exports = async function addComment(results = [], actionInfo, statsConfig) {
   // Load historical data
   const history = await loadHistory()
 
@@ -983,11 +953,7 @@ module.exports = async function addComment(
 
     // Add summary showing only significant changes (not collapsed)
     if (i === 0) {
-      comment += generateChangeSummary(
-        result.mainRepoStats,
-        result.diffRepoStats,
-        history
-      )
+      comment += generateChangeSummary(result.mainRepoStats, result.diffRepoStats, history)
     }
 
     // Add performance section (collapsed by default)
@@ -1043,10 +1009,7 @@ module.exports = async function addComment(
     logger('\n--stats start--\n', comment, '\n--stats end--\n')
   }
 
-  if (
-    actionInfo.customCommentEndpoint ||
-    (actionInfo.githubToken && actionInfo.commentEndpoint)
-  ) {
+  if (actionInfo.customCommentEndpoint || (actionInfo.githubToken && actionInfo.commentEndpoint)) {
     const body = {
       body: comment,
       ...(!actionInfo.githubToken
@@ -1065,8 +1028,7 @@ module.exports = async function addComment(
     try {
       // Try to find existing stats comment to update
       let existingCommentId = null
-      const commentHeading =
-        statsConfig.commentHeading || 'Stats from current PR'
+      const commentHeading = statsConfig.commentHeading || 'Stats from current PR'
 
       if (actionInfo.githubToken && actionInfo.commentEndpoint) {
         try {
@@ -1138,9 +1100,7 @@ module.exports = async function addComment(
           /* no-op */
         }
       } else {
-        logger(
-          `Successfully ${method === 'PATCH' ? 'updated' : 'posted'} results`
-        )
+        logger(`Successfully ${method === 'PATCH' ? 'updated' : 'posted'} results`)
       }
     } catch (err) {
       logger.error(`Error occurred posting results`, err)

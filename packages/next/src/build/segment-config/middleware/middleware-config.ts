@@ -74,9 +74,7 @@ const MiddlewareConfigMatcherInputSchema = z.union([
 /**
  * @internal - required to exclude zod types from the build
  */
-export type MiddlewareConfigMatcherInput = z.infer<
-  typeof MiddlewareConfigMatcherInputSchema
->
+export type MiddlewareConfigMatcherInput = z.infer<typeof MiddlewareConfigMatcherInputSchema>
 
 const GlobSchema = z.string().superRefine((val, ctx) => {
   try {
@@ -143,5 +141,4 @@ export type MiddlewareConfigInput = {
  *
  * @internal - required to exclude zod types from the build
  */
-export const MiddlewareConfigInputSchemaKeys =
-  MiddlewareConfigInputSchema.keyof().options
+export const MiddlewareConfigInputSchemaKeys = MiddlewareConfigInputSchema.keyof().options

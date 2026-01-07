@@ -10,8 +10,6 @@ export interface PagesAPIRouteMatch extends RouteMatch<PagesAPIRouteDefinition> 
  * @param match the match to check
  * @returns true if the match is a Pages API route match, false otherwise
  */
-export function isPagesAPIRouteMatch(
-  match: RouteMatch
-): match is PagesAPIRouteMatch {
+export function isPagesAPIRouteMatch(match: RouteMatch): match is PagesAPIRouteMatch {
   return match.definition.kind === RouteKind.PAGES_API
 }

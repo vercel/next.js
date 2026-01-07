@@ -26,11 +26,7 @@ module.exports = (opts = {}, postcss = require('postcss')) => {
     }
   }
 
-  const options = Object.assign(
-    {},
-    excludeAll ? { rawCache: true } : undefined,
-    userOpts
-  )
+  const options = Object.assign({}, excludeAll ? { rawCache: true } : undefined, userOpts)
 
   const plugins = []
   createSimplePreset(options).plugins.forEach((plugin) => {
@@ -44,15 +40,9 @@ module.exports = (opts = {}, postcss = require('postcss')) => {
         // Short-hand enabled:
         (typeof pluginOpts === 'boolean' && pluginOpts) ||
         // Include all plugins:
-        (!excludeAll &&
-          pluginOpts &&
-          typeof pluginOpts === 'object' &&
-          !pluginOpts.exclude) ||
+        (!excludeAll && pluginOpts && typeof pluginOpts === 'object' && !pluginOpts.exclude) ||
         // Exclude all plugins:
-        (excludeAll &&
-          pluginOpts &&
-          typeof pluginOpts === 'object' &&
-          pluginOpts.exclude === false)
+        (excludeAll && pluginOpts && typeof pluginOpts === 'object' && pluginOpts.exclude === false)
 
       if (isEnabled) {
         plugins.push(processor(pluginOpts))

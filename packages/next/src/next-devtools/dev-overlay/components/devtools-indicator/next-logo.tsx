@@ -7,10 +7,7 @@ import { css } from '../../utils/css'
 import { useDevOverlayContext } from '../../../dev-overlay.browser'
 import { useRenderErrorContext } from '../../dev-overlay'
 import { useDelayedRender } from '../../hooks/use-delayed-render'
-import {
-  ACTION_ERROR_OVERLAY_CLOSE,
-  ACTION_ERROR_OVERLAY_OPEN,
-} from '../../shared'
+import { ACTION_ERROR_OVERLAY_CLOSE, ACTION_ERROR_OVERLAY_OPEN } from '../../shared'
 import { usePanelRouterContext } from '../../menu/context'
 import { BASE_LOGO_SIZE } from '../../utils/indicator-metrics'
 import { StatusIndicator, Status, getCurrentStatus } from './status-indicator'
@@ -36,18 +33,14 @@ export function NextLogo({
     setIsErrorExpanded(hasError)
   }
   const [dismissed, setDismissed] = useState(false)
-  const newErrorDetected = useUpdateAnimation(
-    totalErrorCount,
-    SHORT_DURATION_MS
-  )
+  const newErrorDetected = useUpdateAnimation(totalErrorCount, SHORT_DURATION_MS)
 
   // Cache indicator state management
   const isCacheFilling = state.cacheIndicator === 'filling'
   const isCacheBypassing = state.cacheIndicator === 'bypass'
 
   // Determine if we should show any status (excluding cache bypass, which renders like error badge)
-  const shouldShowStatus =
-    state.buildingIndicator || state.renderingIndicator || isCacheFilling
+  const shouldShowStatus = state.buildingIndicator || state.renderingIndicator || isCacheFilling
 
   // Delay showing for 400ms to catch fast operations,
   // and keep visible for minimum time (longer for warnings)
@@ -69,10 +62,7 @@ export function NextLogo({
   const displayStatus = showStatusIndicator ? currentStatus : Status.None
 
   const isExpanded =
-    isErrorExpanded ||
-    isCacheBypassing ||
-    showStatusIndicator ||
-    state.disableDevIndicator
+    isErrorExpanded || isCacheBypassing || showStatusIndicator || state.disableDevIndicator
   const width = measuredWidth === 0 ? 'auto' : measuredWidth
 
   return (
@@ -84,10 +74,7 @@ export function NextLogo({
           '--duration-short': `${SHORT_DURATION_MS}ms`,
           // if the indicator is disabled, hide the badge
           // also allow the "disabled" state be dismissed, as long as there are no build errors
-          display:
-            state.disableDevIndicator && (!hasError || dismissed)
-              ? 'none'
-              : 'block',
+          display: state.disableDevIndicator && (!hasError || dismissed) ? 'none' : 'block',
         } as React.CSSProperties
       }
     >
@@ -398,10 +385,7 @@ export function NextLogo({
               aria-label={`${isMenuOpen ? 'Close' : 'Open'} Next.js Dev Tools`}
               data-nextjs-dev-tools-button
               style={{
-                display:
-                  showStatusIndicator && !hasError && !isCacheBypassing
-                    ? 'none'
-                    : 'flex',
+                display: showStatusIndicator && !hasError && !isCacheBypassing ? 'none' : 'flex',
               }}
               {...buttonProps}
             >
@@ -448,9 +432,7 @@ export function NextLogo({
                           data-issues-count-plural
                           // This only needs to animate once the count changes from 1 -> 2,
                           // otherwise it should stay static between re-renders.
-                          data-animate={
-                            newErrorDetected && totalErrorCount === 2
-                          }
+                          data-animate={newErrorDetected && totalErrorCount === 2}
                         >
                           s
                         </span>
@@ -478,20 +460,14 @@ export function NextLogo({
               )}
               {/* Cache bypass badge shown when cache is being bypassed */}
               {isCacheBypassing && !hasError && !state.disableDevIndicator && (
-                <CacheBypassBadge
-                  onTriggerClick={onTriggerClick}
-                  triggerRef={triggerRef}
-                />
+                <CacheBypassBadge onTriggerClick={onTriggerClick} triggerRef={triggerRef} />
               )}
               {/* Status indicator shown when no errors and no cache bypass */}
               {showStatusIndicator &&
                 !hasError &&
                 !isCacheBypassing &&
                 !state.disableDevIndicator && (
-                  <StatusIndicator
-                    status={displayStatus}
-                    onClick={onTriggerClick}
-                  />
+                  <StatusIndicator status={displayStatus} onClick={onTriggerClick} />
                 )}
             </>
           )}

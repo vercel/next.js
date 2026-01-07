@@ -7,10 +7,7 @@ import { useRouter } from 'next/router'
 export async function getServerSideProps({ res }) {
   res.setHeader('cache-control', 's-maxage=1, stale-while-revalidate=31535999')
 
-  const data = await fs.promises.readFile(
-    path.join(process.cwd(), 'data.txt'),
-    'utf8'
-  )
+  const data = await fs.promises.readFile(path.join(process.cwd(), 'data.txt'), 'utf8')
 
   if (data.trim() === 'hide') {
     return {
@@ -24,9 +21,7 @@ export async function getServerSideProps({ res }) {
       data,
       random: Math.random(),
       // make sure fetch if polyfilled
-      example: await fetch('https://example.vercel.sh').then((res) =>
-        res.text()
-      ),
+      example: await fetch('https://example.vercel.sh').then((res) => res.text()),
     },
   }
 }

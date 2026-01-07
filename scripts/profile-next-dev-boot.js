@@ -41,8 +41,7 @@ const getArg = (name, defaultValue) => {
 const hasFlag = (name) => args.includes(`--${name}`)
 
 const testDir = getArg('test-dir', '/private/tmp/next-boot-test')
-const baseOutputDir =
-  getArg('output-dir', null) || path.join(process.cwd(), 'profiles')
+const baseOutputDir = getArg('output-dir', null) || path.join(process.cwd(), 'profiles')
 const useWebpack = hasFlag('webpack')
 const duration = parseInt(getArg('duration', '1000'), 10)
 const profileCli = hasFlag('cli')
@@ -70,9 +69,7 @@ console.log('')
 
 // Verify test directory (only for dev server profiling)
 if (!profileCli && !fs.existsSync(testDir)) {
-  console.error(
-    `\x1b[31mError: Test directory does not exist: ${testDir}\x1b[0m`
-  )
+  console.error(`\x1b[31mError: Test directory does not exist: ${testDir}\x1b[0m`)
   process.exit(1)
 }
 
@@ -135,9 +132,7 @@ async function runProfile() {
       if (output.includes('Ready in') && !resolved) {
         resolved = true
         console.log('')
-        console.log(
-          `\x1b[33mServer ready, profiling for ${duration}ms more...\x1b[0m`
-        )
+        console.log(`\x1b[33mServer ready, profiling for ${duration}ms more...\x1b[0m`)
 
         // Wait a bit then stop
         setTimeout(() => {
@@ -201,16 +196,10 @@ async function runProfile() {
           resolve(profiles[0].path)
         } else {
           console.log('')
-          console.log(
-            '\x1b[33mNo profiles found. Trying alternative method...\x1b[0m'
-          )
+          console.log('\x1b[33mNo profiles found. Trying alternative method...\x1b[0m')
           console.log('')
-          console.log(
-            'To profile the child process, modify next-dev.ts to add profiling flags.'
-          )
-          console.log(
-            'Or use: node --cpu-prof --cpu-prof-dir=./profiles ./dist/bin/next dev'
-          )
+          console.log('To profile the child process, modify next-dev.ts to add profiling flags.')
+          console.log('Or use: node --cpu-prof --cpu-prof-dir=./profiles ./dist/bin/next dev')
           reject(new Error('Profile file not found'))
         }
       }, 500)
@@ -270,9 +259,7 @@ async function runCliProfile() {
           console.log('  2. Click "Load profile" and select the file')
           console.log('  3. Or use https://www.speedscope.app/')
           console.log('')
-          console.log(
-            '\x1b[33mTip:\x1b[0m Look for heavy modules loaded at startup'
-          )
+          console.log('\x1b[33mTip:\x1b[0m Look for heavy modules loaded at startup')
           resolve(finalFile)
         } else if (fs.existsSync(finalFile)) {
           const size = fs.statSync(finalFile).size

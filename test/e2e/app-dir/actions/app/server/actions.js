@@ -16,14 +16,8 @@ export default dec
 
 export async function redirectAction(formData) {
   'use server'
-  redirect(
-    '/header?name=' +
-      formData.get('name') +
-      '&hidden-info=' +
-      formData.get('hidden-info')
-  )
+  redirect('/header?name=' + formData.get('name') + '&hidden-info=' + formData.get('hidden-info'))
 }
 
 // Test case for https://github.com/vercel/next.js/issues/61183
-export const dummyServerAction = async () =>
-  new Promise((r) => setTimeout(r, 2000))
+export const dummyServerAction = async () => new Promise((r) => setTimeout(r, 2000))

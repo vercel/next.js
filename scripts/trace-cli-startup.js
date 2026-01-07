@@ -98,10 +98,7 @@ session.post('Profiler.enable', () => {
       if (err) {
         console.error('Error stopping profiler:', err)
       } else {
-        const profilePath = path.join(
-          outputDir,
-          `cli-startup-${Date.now()}.cpuprofile`
-        )
+        const profilePath = path.join(outputDir, `cli-startup-${Date.now()}.cpuprofile`)
         fs.writeFileSync(profilePath, JSON.stringify(profile))
         console.log(`\x1b[32mProfile saved:\x1b[0m ${profilePath}`)
       }
@@ -116,10 +113,7 @@ session.post('Profiler.enable', () => {
       // Sort by load time
       moduleLoadTimes.sort((a, b) => b.time - a.time)
       moduleLoadTimes.slice(0, 30).forEach((m, i) => {
-        const timeStr =
-          m.time > 1
-            ? `${m.time.toFixed(1)}ms`
-            : `${(m.time * 1000).toFixed(0)}μs`
+        const timeStr = m.time > 1 ? `${m.time.toFixed(1)}ms` : `${(m.time * 1000).toFixed(0)}μs`
         console.log(`${String(i + 1).padStart(2)}. ${m.module} (${timeStr})`)
       })
 

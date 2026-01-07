@@ -62,9 +62,7 @@ export function Delay({ active = false, fallback }) {
 
   return (
     <>
-      <pre>
-        delay: {fallback ? 'loading...' : active ? 'enabled' : 'disabled'}
-      </pre>
+      <pre>delay: {fallback ? 'loading...' : active ? 'enabled' : 'disabled'}</pre>
       <button
         id="login"
         className="bg-gray-400 hover:bg-gray-500 px-4 py-2 text-white rounded-md"

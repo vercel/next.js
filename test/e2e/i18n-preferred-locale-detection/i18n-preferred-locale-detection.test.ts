@@ -37,10 +37,7 @@ describe('i18-preferred-locale-redirect', () => {
       locale: 'id',
     })
 
-    await browser
-      .waitForElementByCss('#to-index')
-      .click()
-      .waitForElementByCss('#index')
+    await browser.waitForElementByCss('#to-index').click().waitForElementByCss('#index')
 
     expect(await browser.elementByCss('#index').text()).toBe('Index')
     expect(await browser.elementByCss('#current-locale').text()).toBe('en')
@@ -51,10 +48,7 @@ describe('i18-preferred-locale-redirect', () => {
       locale: 'id',
     })
 
-    await browser
-      .waitForElementByCss('#to-index')
-      .click()
-      .waitForElementByCss('#index')
+    await browser.waitForElementByCss('#to-index').click().waitForElementByCss('#index')
 
     expect(await browser.elementByCss('#index').text()).toBe('Index')
     expect(await browser.elementByCss('#current-locale').text()).toBe('id')

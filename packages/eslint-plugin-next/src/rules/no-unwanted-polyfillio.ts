@@ -95,11 +95,7 @@ export default defineRule({
         }
       },
       JSXOpeningElement(node) {
-        if (
-          node.name &&
-          node.name.name !== 'script' &&
-          node.name.name !== scriptImport
-        ) {
+        if (node.name && node.name.name !== 'script' && node.name.name !== scriptImport) {
           return
         }
         if (node.attributes.length === 0) {

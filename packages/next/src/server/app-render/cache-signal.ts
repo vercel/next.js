@@ -113,9 +113,7 @@ export class CacheSignal {
 
   endRead() {
     if (this.count === 0) {
-      throw new InvariantError(
-        'CacheSignal got more endRead() calls than beginRead() calls'
-      )
+      throw new InvariantError('CacheSignal got more endRead() calls than beginRead() calls')
     }
 
     // If this is the last read we need to wait a task before we can claim the cache is settled.

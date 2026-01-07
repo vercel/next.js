@@ -50,10 +50,7 @@ export function createDefaultCacheHandler(maxSize: number): CacheHandler {
     }
   }
 
-  const memoryCache = new LRUCache<PrivateCacheEntry>(
-    maxSize,
-    (entry) => entry.size
-  )
+  const memoryCache = new LRUCache<PrivateCacheEntry>(maxSize, (entry) => entry.size)
   const pendingSets = new Map<string, Promise<void>>()
 
   const debug = process.env.NEXT_PRIVATE_DEBUG_CACHE
@@ -77,10 +74,7 @@ export function createDefaultCacheHandler(maxSize: number): CacheHandler {
       }
 
       const entry = privateEntry.entry
-      if (
-        performance.timeOrigin + performance.now() >
-        entry.timestamp + entry.revalidate * 1000
-      ) {
+      if (performance.timeOrigin + performance.now() > entry.timestamp + entry.revalidate * 1000) {
         // In-memory caches should expire after revalidate time because it is
         // unlikely that a new entry will be able to be used before it is dropped
         // from the cache.

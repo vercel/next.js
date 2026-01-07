@@ -68,9 +68,7 @@ function formatTimespanWithSeconds(seconds: undefined | number): string {
  * This creates overloaded function signatures for the cacheLife() function
  * that provide autocomplete and documentation for each profile.
  */
-export function generateCacheLifeTypes(cacheLife: {
-  [profile: string]: CacheLife
-}): string {
+export function generateCacheLifeTypes(cacheLife: { [profile: string]: CacheLife }): string {
   let overloads = ''
 
   const profileNames = Object.keys(cacheLife)

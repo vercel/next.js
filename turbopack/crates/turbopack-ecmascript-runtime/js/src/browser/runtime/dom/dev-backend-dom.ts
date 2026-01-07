@@ -84,8 +84,7 @@ let DEV_BACKEND: DevRuntimeBackend
           // First load the new CSS, then remove the old ones. This prevents visible
           // flickering that would happen in-between removing the previous CSS and
           // loading the new one.
-          for (const previousLink of Array.from(previousLinks))
-            previousLink.remove()
+          for (const previousLink of Array.from(previousLinks)) previousLink.remove()
 
           // CSS chunks do not register themselves, and as such must be marked as
           // loaded instantly.
@@ -94,10 +93,7 @@ let DEV_BACKEND: DevRuntimeBackend
 
         // Make sure to insert the new CSS right after the previous one, so that
         // its precedence is higher.
-        previousLinks[0].parentElement!.insertBefore(
-          link,
-          previousLinks[0].nextSibling
-        )
+        previousLinks[0].parentElement!.insertBefore(link, previousLinks[0].nextSibling)
       })
     },
 

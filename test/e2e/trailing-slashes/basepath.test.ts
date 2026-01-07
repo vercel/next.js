@@ -1,9 +1,6 @@
 /* eslint-env jest */
 
-import {
-  testShouldRedirect,
-  testLinkShouldRewriteTo,
-} from './shared-tests.util'
+import { testShouldRedirect, testLinkShouldRewriteTo } from './shared-tests.util'
 import { nextTestSetup, isNextDev } from 'e2e-utils'
 
 // we don't need to exhaustively test this, just do some basic sanity checks

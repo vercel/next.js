@@ -9,10 +9,7 @@ import {
   styles as toolbarStyles,
 } from '../error-overlay-toolbar/error-overlay-toolbar'
 import { ErrorOverlayFooter } from '../error-overlay-footer/error-overlay-footer'
-import {
-  ErrorMessage,
-  styles as errorMessageStyles,
-} from '../error-message/error-message'
+import { ErrorMessage, styles as errorMessageStyles } from '../error-message/error-message'
 import {
   ErrorTypeLabel,
   styles as errorTypeLabelStyles,
@@ -23,10 +20,7 @@ import {
 } from '../error-overlay-nav/error-overlay-nav'
 
 import { ErrorOverlayDialog, DIALOG_STYLES } from '../dialog/dialog'
-import {
-  ErrorOverlayDialogHeader,
-  DIALOG_HEADER_STYLES,
-} from '../dialog/header'
+import { ErrorOverlayDialogHeader, DIALOG_HEADER_STYLES } from '../dialog/header'
 import { ErrorOverlayDialogBody, DIALOG_BODY_STYLES } from '../dialog/body'
 import { OVERLAY_STYLES, ErrorOverlayOverlay } from '../overlay/overlay'
 import { ErrorOverlayBottomStack } from '../error-overlay-bottom-stack'
@@ -85,9 +79,7 @@ export function ErrorOverlayLayout({
     } as React.CSSProperties,
   }
 
-  const [animating, setAnimating] = React.useState(
-    Boolean(transitionDurationMs)
-  )
+  const [animating, setAnimating] = React.useState(Boolean(transitionDurationMs))
 
   const faderRef = React.useRef<HTMLDivElement | null>(null)
   const hasFooter = Boolean(errorCode)
@@ -132,11 +124,7 @@ export function ErrorOverlayLayout({
           onScroll={onScroll}
           footer={hasFooter && <ErrorOverlayFooter errorCode={errorCode} />}
         >
-          <Resizer
-            ref={dialogResizerRef}
-            measure={!animating}
-            data-nextjs-dialog-sizer
-          >
+          <Resizer ref={dialogResizerRef} measure={!animating} data-nextjs-dialog-sizer>
             <DialogContent>
               <ErrorOverlayDialogHeader>
                 <div
@@ -147,9 +135,7 @@ export function ErrorOverlayLayout({
                   <span data-nextjs-error-label-group>
                     <ErrorTypeLabel errorType={errorType} />
                     {error.environmentName && (
-                      <EnvironmentNameLabel
-                        environmentName={error.environmentName}
-                      />
+                      <EnvironmentNameLabel environmentName={error.environmentName} />
                     )}
                   </span>
                   <ErrorOverlayToolbar
@@ -158,20 +144,14 @@ export function ErrorOverlayLayout({
                     generateErrorInfo={generateErrorInfo}
                   />
                 </div>
-                <ErrorMessage
-                  errorMessage={errorMessage}
-                  errorType={errorType}
-                />
+                <ErrorMessage errorMessage={errorMessage} errorType={errorType} />
               </ErrorOverlayDialogHeader>
 
               <ErrorOverlayDialogBody>{children}</ErrorOverlayDialogBody>
             </DialogContent>
           </Resizer>
 
-          <ErrorOverlayBottomStack
-            errorCount={errorCount}
-            activeIdx={activeIdx ?? 0}
-          />
+          <ErrorOverlayBottomStack errorCount={errorCount} activeIdx={activeIdx ?? 0} />
         </ErrorOverlayDialog>
         <Fader ref={faderRef} side="top" stop="50%" blur="4px" height={48} />
       </div>

@@ -21,9 +21,7 @@ describe('externals-transitive', () => {
       let isLodashBundled = false
       let isStorybookGlobalBundled = false
       for (const file of files) {
-        const content = await next.readFile(
-          path.join(next.distDir, 'server', file)
-        )
+        const content = await next.readFile(path.join(next.distDir, 'server', file))
         isLodashBundled =
           isLodashBundled ||
           // Code
@@ -44,25 +42,19 @@ describe('externals-transitive', () => {
         expect(isStorybookGlobalBundled).toBe(false)
 
         let lodashSymlinks = (
-          await fs.readdir(
-            path.join(next.testDir, next.distDir, 'node_modules')
-          )
+          await fs.readdir(path.join(next.testDir, next.distDir, 'node_modules'))
         ).filter((file) => file.startsWith('lodash-'))
         // There are two symlinks created, one for each lodash version
         expect(lodashSymlinks.length).toBe(2)
 
         let storybookGlobalSymlinks = (
-          await fs.readdir(
-            path.join(next.testDir, next.distDir, 'node_modules', '@storybook')
-          )
+          await fs.readdir(path.join(next.testDir, next.distDir, 'node_modules', '@storybook'))
         ).filter((file) => file.startsWith('global-'))
         expect(storybookGlobalSymlinks.length).toBe(1)
 
         if (isNextStart) {
           // Lists the two symlinks in the NFT
-          const trace = (await next.readJSON(
-            '.next/server/app/page.js.nft.json'
-          )) as {
+          const trace = (await next.readJSON('.next/server/app/page.js.nft.json')) as {
             files: string[]
           }
 
@@ -70,9 +62,7 @@ describe('externals-transitive', () => {
             expect(trace.files).toContain(`../../node_modules/${symlink}`)
           }
           for (let symlink of storybookGlobalSymlinks) {
-            expect(trace.files).toContain(
-              `../../node_modules/@storybook/${symlink}`
-            )
+            expect(trace.files).toContain(`../../node_modules/@storybook/${symlink}`)
           }
         }
       } else {

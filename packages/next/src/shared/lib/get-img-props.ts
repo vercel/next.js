@@ -88,13 +88,7 @@ export type ImgProps = Omit<ImageProps, 'src' | 'loader'> & {
 const VALID_LOADING_VALUES = ['lazy', 'eager', undefined] as const
 
 // Object-fit values that are not valid background-size values
-const INVALID_BACKGROUND_SIZE_VALUES = [
-  '-moz-initial',
-  'fill',
-  'none',
-  'scale-down',
-  undefined,
-]
+const INVALID_BACKGROUND_SIZE_VALUES = ['-moz-initial', 'fill', 'none', 'scale-down', undefined]
 type LoadingValue = (typeof VALID_LOADING_VALUES)[number]
 type ImageConfig = ImageConfigComplete & {
   allSizes: number[]
@@ -115,22 +109,15 @@ export type OnLoadingComplete = (img: HTMLImageElement) => void
 export type PlaceholderStyle = Partial<
   Pick<
     CSSProperties,
-    | 'backgroundSize'
-    | 'backgroundPosition'
-    | 'backgroundRepeat'
-    | 'backgroundImage'
+    'backgroundSize' | 'backgroundPosition' | 'backgroundRepeat' | 'backgroundImage'
   >
 >
 
-function isStaticRequire(
-  src: StaticRequire | StaticImageData
-): src is StaticRequire {
+function isStaticRequire(src: StaticRequire | StaticImageData): src is StaticRequire {
   return (src as StaticRequire).default !== undefined
 }
 
-function isStaticImageData(
-  src: StaticRequire | StaticImageData
-): src is StaticImageData {
+function isStaticImageData(src: StaticRequire | StaticImageData): src is StaticImageData {
   return (src as StaticImageData).src !== undefined
 }
 
@@ -138,8 +125,7 @@ function isStaticImport(src: string | StaticImport): src is StaticImport {
   return (
     !!src &&
     typeof src === 'object' &&
-    (isStaticRequire(src as StaticImport) ||
-      isStaticImageData(src as StaticImport))
+    (isStaticRequire(src as StaticImport) || isStaticImageData(src as StaticImport))
   )
 }
 
@@ -246,8 +232,7 @@ function generateImgAttrs({
     sizes: !sizes && kind === 'w' ? '100vw' : sizes,
     srcSet: widths
       .map(
-        (w, i) =>
-          `${loader({ config, src, quality, width: w })} ${kind === 'w' ? w : i + 1}${kind}`
+        (w, i) => `${loader({ config, src, quality, width: w })} ${kind === 'w' ? w : i + 1}${kind}`
       )
       .join(', '),
 
@@ -417,10 +402,7 @@ export function getImgProps(
   }
   src = typeof src === 'string' ? src : staticSrc
 
-  let isLazy =
-    !priority &&
-    !preload &&
-    (loading === 'lazy' || typeof loading === 'undefined')
+  let isLazy = !priority && !preload && (loading === 'lazy' || typeof loading === 'undefined')
   if (!src || src.startsWith('data:') || src.startsWith('blob:')) {
     // https://developer.mozilla.org/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
     unoptimized = true
@@ -429,11 +411,7 @@ export function getImgProps(
   if (config.unoptimized) {
     unoptimized = true
   }
-  if (
-    isDefaultLoader &&
-    !config.dangerouslyAllowSVG &&
-    src.split('?', 1)[0].endsWith('.svg')
-  ) {
+  if (isDefaultLoader && !config.dangerouslyAllowSVG && src.split('?', 1)[0].endsWith('.svg')) {
     // Special case to make svg serve as-is to avoid proxying
     // through the built-in Image Optimization API.
     unoptimized = true
@@ -485,18 +463,14 @@ export function getImgProps(
         }
       } else {
         if (typeof widthInt === 'undefined') {
-          throw new Error(
-            `Image with src "${src}" is missing required "width" property.`
-          )
+          throw new Error(`Image with src "${src}" is missing required "width" property.`)
         } else if (isNaN(widthInt)) {
           throw new Error(
             `Image with src "${src}" has invalid "width" property. Expected a numeric value in pixels but received "${width}".`
           )
         }
         if (typeof heightInt === 'undefined') {
-          throw new Error(
-            `Image with src "${src}" is missing required "height" property.`
-          )
+          throw new Error(`Image with src "${src}" is missing required "height" property.`)
         } else if (isNaN(heightInt)) {
           throw new Error(
             `Image with src "${src}" has invalid "height" property. Expected a numeric value in pixels but received "${height}".`
@@ -554,11 +528,7 @@ export function getImgProps(
         )
       }
     }
-    if (
-      qualityInt &&
-      config.qualities &&
-      !config.qualities.includes(qualityInt)
-    ) {
+    if (qualityInt && config.qualities && !config.qualities.includes(qualityInt)) {
       warnOnce(
         `Image with src "${src}" is using quality "${qualityInt}" which is not configured in images.qualities [${config.qualities.join(', ')}]. Please update your config to [${[...config.qualities, qualityInt].sort().join(', ')}].` +
           `\nRead more: https://nextjs.org/docs/messages/next-image-unconfigured-qualities`
@@ -624,11 +594,7 @@ export function getImgProps(
       }
     }
 
-    if (
-      typeof window !== 'undefined' &&
-      !perfObserver &&
-      window.PerformanceObserver
-    ) {
+    if (typeof window !== 'undefined' && !perfObserver && window.PerformanceObserver) {
       perfObserver = new PerformanceObserver((entryList) => {
         for (const entry of entryList.getEntries()) {
           // @ts-ignore - missing "LargestContentfulPaint" class with "element" prop
@@ -692,9 +658,7 @@ export function getImgProps(
         : `url("${placeholder}")` // assume `data:image/`
       : null
 
-  const backgroundSize = !INVALID_BACKGROUND_SIZE_VALUES.includes(
-    imgStyle.objectFit
-  )
+  const backgroundSize = !INVALID_BACKGROUND_SIZE_VALUES.includes(imgStyle.objectFit)
     ? imgStyle.objectFit
     : imgStyle.objectFit === 'fill'
       ? '100% 100%' // the background-size equivalent of `fill`

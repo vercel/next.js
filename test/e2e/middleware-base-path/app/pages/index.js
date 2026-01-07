@@ -24,10 +24,7 @@ export default function Main({ message }) {
           <Link href="/redirect-me-to-about">redirect me to about</Link>
         </li>
         <li>
-          <Link
-            href="/dynamic-routes/hello-world"
-            id="go-to-hello-world-anchor"
-          >
+          <Link href="/dynamic-routes/hello-world" id="go-to-hello-world-anchor">
             Hello World
           </Link>
         </li>

@@ -2,14 +2,7 @@
 
 import { useState } from 'react'
 
-import double, {
-  inc,
-  dec,
-  redirectAction,
-  getHeaders,
-  renamed,
-  slowInc,
-} from './actions'
+import double, { inc, dec, redirectAction, getHeaders, renamed, slowInc } from './actions'
 import { test } from './actions-lib'
 
 export default function Counter() {
@@ -57,10 +50,7 @@ export default function Counter() {
         *2
       </button>
       <form>
-        <button
-          id="redirect-pages"
-          formAction={() => redirectAction('/pages-dir')}
-        >
+        <button id="redirect-pages" formAction={() => redirectAction('/pages-dir')}>
           redirect to a pages route
         </button>
       </form>

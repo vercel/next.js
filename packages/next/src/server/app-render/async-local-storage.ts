@@ -4,9 +4,7 @@ const sharedAsyncLocalStorageNotAvailableError = new Error(
   'Invariant: AsyncLocalStorage accessed in runtime where it is not available'
 )
 
-class FakeAsyncLocalStorage<
-  Store extends {},
-> implements AsyncLocalStorage<Store> {
+class FakeAsyncLocalStorage<Store extends {}> implements AsyncLocalStorage<Store> {
   disable(): void {
     throw sharedAsyncLocalStorageNotAvailableError
   }
@@ -36,9 +34,7 @@ class FakeAsyncLocalStorage<
 const maybeGlobalAsyncLocalStorage =
   typeof globalThis !== 'undefined' && (globalThis as any).AsyncLocalStorage
 
-export function createAsyncLocalStorage<
-  Store extends {},
->(): AsyncLocalStorage<Store> {
+export function createAsyncLocalStorage<Store extends {}>(): AsyncLocalStorage<Store> {
   if (maybeGlobalAsyncLocalStorage) {
     return new maybeGlobalAsyncLocalStorage()
   }

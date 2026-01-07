@@ -1,8 +1,6 @@
 import Link from 'next/link'
 
-export default async function Page(props: {
-  params: Promise<{ foo_id: string; bar_id: string }>
-}) {
+export default async function Page(props: { params: Promise<{ foo_id: string; bar_id: string }> }) {
   const params = await props.params
   return (
     <>

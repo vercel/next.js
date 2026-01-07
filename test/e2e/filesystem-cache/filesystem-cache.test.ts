@@ -250,14 +250,10 @@ for (const cacheEnabled of [false, true]) {
     } as const
 
     // Checking only single change and all combined for performance reasons.
-    const combinations = Object.entries(POTENTIAL_CHANGES).map(([k, v]) => [
-      k,
-      [v],
-    ]) as Array<[string, Array<Change>]>
-    combinations.push([
-      Object.keys(POTENTIAL_CHANGES).join(', '),
-      Object.values(POTENTIAL_CHANGES),
-    ])
+    const combinations = Object.entries(POTENTIAL_CHANGES).map(([k, v]) => [k, [v]]) as Array<
+      [string, Array<Change>]
+    >
+    combinations.push([Object.keys(POTENTIAL_CHANGES).join(', '), Object.values(POTENTIAL_CHANGES)])
 
     for (const [name, changes] of combinations) {
       // Very flakey with Webpack enabled

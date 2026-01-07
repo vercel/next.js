@@ -1,10 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import {
-  waitForRedbox,
-  getRedboxDescription,
-  getRedboxSource,
-  openRedbox,
-} from 'next-test-utils'
+import { waitForRedbox, getRedboxDescription, getRedboxSource, openRedbox } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
 describe('use-cache-close-over-function', () => {
@@ -110,10 +105,7 @@ describe('use-cache-close-over-function', () => {
               '\n    at <unknown> (rsc)'
       )
       expect(cliOutput).toContain(
-        '' +
-          '\n> 6 |   return async () => {' +
-          '\n    |   ^' +
-          "\n  7 |     'use cache'"
+        '' + '\n> 6 |   return async () => {' + '\n    |   ^' + "\n  7 |     'use cache'"
       )
     })
   } else {
@@ -125,9 +117,7 @@ Error: Functions cannot be passed directly to Client Components unless you expli
   [function]
    ^^^^^^^^`)
 
-      expect(cliOutput).toMatch(
-        /Error occurred prerendering page "\/(client|server)"/
-      )
+      expect(cliOutput).toMatch(/Error occurred prerendering page "\/(client|server)"/)
     })
   }
 })

@@ -20,12 +20,8 @@ function getSourceMapUrl(fileContents: string): string | null {
   return match[1].toString()
 }
 
-export async function getSourceMapFromFile(
-  filename: string
-): Promise<RawSourceMap | undefined> {
-  filename = filename.startsWith('file://')
-    ? url.fileURLToPath(filename)
-    : filename
+export async function getSourceMapFromFile(filename: string): Promise<RawSourceMap | undefined> {
+  filename = filename.startsWith('file://') ? url.fileURLToPath(filename) : filename
 
   let fileContents: string
 
@@ -55,9 +51,7 @@ export async function getSourceMapFromFile(
     }
 
     if (buffer.type !== 'application/json') {
-      throw new Error(
-        `Unknown source map type for ${filename}: ${buffer.typeFull}.`
-      )
+      throw new Error(`Unknown source map type for ${filename}: ${buffer.typeFull}.`)
     }
 
     try {
@@ -69,10 +63,7 @@ export async function getSourceMapFromFile(
     }
   }
 
-  const sourceMapFilename = path.resolve(
-    path.dirname(filename),
-    decodeURIComponent(sourceUrl)
-  )
+  const sourceMapFilename = path.resolve(path.dirname(filename), decodeURIComponent(sourceUrl))
 
   try {
     const sourceMapContents = await fs.readFile(sourceMapFilename, 'utf-8')

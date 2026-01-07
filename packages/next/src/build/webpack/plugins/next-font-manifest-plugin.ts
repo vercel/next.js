@@ -24,9 +24,7 @@ const PLUGIN_NAME = 'NextFontManifestPlugin'
  * This function returns those files from an array that can include both preloaded and non-preloaded files.
  */
 function getPreloadedFontFiles(fontFiles: string[]) {
-  return fontFiles.filter((file: string) =>
-    /\.p\.(woff|woff2|eot|ttf|otf)$/.test(file)
-  )
+  return fontFiles.filter((file: string) => /\.p\.(woff|woff2|eot|ttf|otf)$/.test(file))
 }
 
 /**
@@ -85,10 +83,7 @@ export class NextFontManifestPlugin {
                 if (mod?.request?.includes('/next-font-loader/index.js?')) {
                   if (!mod.buildInfo?.assets) return
 
-                  const chunkEntryName = (appDirBase + chunkGroup.name).replace(
-                    /[\\/]/g,
-                    path.sep
-                  )
+                  const chunkEntryName = (appDirBase + chunkGroup.name).replace(/[\\/]/g, path.sep)
 
                   const modAssets = Object.keys(mod.buildInfo.assets)
                   const fontFiles: string[] = modAssets.filter((file: string) =>
@@ -97,8 +92,7 @@ export class NextFontManifestPlugin {
 
                   // Look if size-adjust fallback font is being used
                   if (!nextFontManifest.appUsingSizeAdjust) {
-                    nextFontManifest.appUsingSizeAdjust =
-                      getPageIsUsingSizeAdjust(fontFiles)
+                    nextFontManifest.appUsingSizeAdjust = getPageIsUsingSizeAdjust(fontFiles)
                   }
 
                   const preloadedFontFiles = getPreloadedFontFiles(fontFiles)
@@ -110,9 +104,7 @@ export class NextFontManifestPlugin {
                     if (!nextFontManifest.app[chunkEntryName]) {
                       nextFontManifest.app[chunkEntryName] = []
                     }
-                    nextFontManifest.app[chunkEntryName].push(
-                      ...preloadedFontFiles
-                    )
+                    nextFontManifest.app[chunkEntryName].push(...preloadedFontFiles)
                   }
                 }
               },
@@ -134,14 +126,11 @@ export class NextFontManifestPlugin {
             // Get font files from the chunks included in the entrypoint.
             const fontFiles: string[] = entrypoint.chunks
               .flatMap((chunk: any) => [...chunk.auxiliaryFiles])
-              .filter((file: string) =>
-                /\.(woff|woff2|eot|ttf|otf)$/.test(file)
-              )
+              .filter((file: string) => /\.(woff|woff2|eot|ttf|otf)$/.test(file))
 
             // Look if size-adjust fallback font is being used
             if (!nextFontManifest.pagesUsingSizeAdjust) {
-              nextFontManifest.pagesUsingSizeAdjust =
-                getPageIsUsingSizeAdjust(fontFiles)
+              nextFontManifest.pagesUsingSizeAdjust = getPageIsUsingSizeAdjust(fontFiles)
             }
 
             const preloadedFontFiles = getPreloadedFontFiles(fontFiles)
@@ -166,9 +155,7 @@ export class NextFontManifestPlugin {
           // Create manifest for server
           compilation.emitAsset(
             `server/${NEXT_FONT_MANIFEST}.json`,
-            new sources.RawSource(
-              manifest
-            ) as unknown as webpack.sources.RawSource
+            new sources.RawSource(manifest) as unknown as webpack.sources.RawSource
           )
         }
       )

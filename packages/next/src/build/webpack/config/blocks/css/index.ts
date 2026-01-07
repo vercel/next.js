@@ -81,11 +81,7 @@ export async function lazyPostCSS(
           },
         })
 
-        creator.process = function (
-          css: any,
-          processOpts: any,
-          pluginOpts: any
-        ) {
+        creator.process = function (css: any, processOpts: any, pluginOpts: any) {
           return postcss([creator(pluginOpts)]).process(css, processOpts)
         }
 
@@ -196,10 +192,8 @@ export const css = curry(async function css(
 
   const fns: ConfigurationFn[] = []
 
-  const googleLoader =
-    require.resolve('next/dist/compiled/@next/font/google/loader')
-  const localLoader =
-    require.resolve('next/dist/compiled/@next/font/local/loader')
+  const googleLoader = require.resolve('next/dist/compiled/@next/font/google/loader')
+  const localLoader = require.resolve('next/dist/compiled/@next/font/local/loader')
   const nextFontLoaders: Array<[string | RegExp, string, any?]> = [
     [require.resolve('next/font/google/target.css'), googleLoader],
     [require.resolve('next/font/local/target.css'), localLoader],
@@ -241,8 +235,7 @@ export const css = curry(async function css(
     })
   )
 
-  const shouldIncludeExternalCSSImports =
-    !!ctx.experimental.craCompat || !!ctx.transpilePackages
+  const shouldIncludeExternalCSSImports = !!ctx.experimental.craCompat || !!ctx.transpilePackages
 
   // CSS modules & SASS modules support. They are allowed to be imported in anywhere.
   fns.push(
@@ -260,16 +253,12 @@ export const css = curry(async function css(
               issuerLayer: APP_LAYER_RULE,
               use: [
                 {
-                  loader:
-                    require.resolve('../../../loaders/next-flight-css-loader'),
+                  loader: require.resolve('../../../loaders/next-flight-css-loader'),
                   options: {
                     cssModules: true,
                   },
                 },
-                ...getCssModuleLoader(
-                  { ...ctx, isAppDir: true },
-                  lazyPostCSSInitializer
-                ),
+                ...getCssModuleLoader({ ...ctx, isAppDir: true }, lazyPostCSSInitializer),
               ],
             })
           : null,
@@ -277,10 +266,7 @@ export const css = curry(async function css(
           sideEffects: true,
           test: regexCssModules,
           issuerLayer: PAGES_LAYER_RULE,
-          use: getCssModuleLoader(
-            { ...ctx, isAppDir: false },
-            lazyPostCSSInitializer
-          ),
+          use: getCssModuleLoader({ ...ctx, isAppDir: false }, lazyPostCSSInitializer),
         }),
       ].filter(nonNullable),
     }),
@@ -299,8 +285,7 @@ export const css = curry(async function css(
               issuerLayer: APP_LAYER_RULE,
               use: [
                 {
-                  loader:
-                    require.resolve('../../../loaders/next-flight-css-loader'),
+                  loader: require.resolve('../../../loaders/next-flight-css-loader'),
                   options: {
                     cssModules: true,
                   },
@@ -352,8 +337,7 @@ export const css = curry(async function css(
                 test: [regexCssGlobal, regexSassGlobal],
                 issuerLayer: APP_LAYER_RULE,
                 use: {
-                  loader:
-                    require.resolve('../../../loaders/next-flight-css-loader'),
+                  loader: require.resolve('../../../loaders/next-flight-css-loader'),
                   options: {
                     cssModules: false,
                   },
@@ -409,16 +393,12 @@ export const css = curry(async function css(
                   issuerLayer: APP_LAYER_RULE,
                   use: [
                     {
-                      loader:
-                        require.resolve('../../../loaders/next-flight-css-loader'),
+                      loader: require.resolve('../../../loaders/next-flight-css-loader'),
                       options: {
                         cssModules: false,
                       },
                     },
-                    ...getGlobalCssLoader(
-                      { ...ctx, isAppDir: true },
-                      lazyPostCSSInitializer
-                    ),
+                    ...getGlobalCssLoader({ ...ctx, isAppDir: true }, lazyPostCSSInitializer),
                   ],
                 }),
                 markRemovable({
@@ -427,8 +407,7 @@ export const css = curry(async function css(
                   issuerLayer: APP_LAYER_RULE,
                   use: [
                     {
-                      loader:
-                        require.resolve('../../../loaders/next-flight-css-loader'),
+                      loader: require.resolve('../../../loaders/next-flight-css-loader'),
                       options: {
                         cssModules: false,
                       },
@@ -448,10 +427,7 @@ export const css = curry(async function css(
             include: allowedPagesGlobalCSSPath,
             issuer: allowedPagesGlobalCSSIssuer,
             issuerLayer: PAGES_LAYER_RULE,
-            use: getGlobalCssLoader(
-              { ...ctx, isAppDir: false },
-              lazyPostCSSInitializer
-            ),
+            use: getGlobalCssLoader({ ...ctx, isAppDir: false }, lazyPostCSSInitializer),
           }),
           markRemovable({
             sideEffects: true,
@@ -477,10 +453,7 @@ export const css = curry(async function css(
               sideEffects: true,
               test: regexCssGlobal,
               issuer: { and: [ctx.customAppFile] },
-              use: getGlobalCssLoader(
-                { ...ctx, isAppDir: false },
-                lazyPostCSSInitializer
-              ),
+              use: getGlobalCssLoader({ ...ctx, isAppDir: false }, lazyPostCSSInitializer),
             }),
           ],
         }),
@@ -557,12 +530,7 @@ export const css = curry(async function css(
             // This should only be applied to CSS files
             issuer: regexLikeCss,
             // Exclude extensions that webpack handles by default
-            exclude: [
-              /\.(js|mjs|jsx|ts|tsx)$/,
-              /\.html$/,
-              /\.json$/,
-              /\.webpack\[[^\]]+\]$/,
-            ],
+            exclude: [/\.(js|mjs|jsx|ts|tsx)$/, /\.html$/, /\.json$/, /\.webpack\[[^\]]+\]$/],
             // `asset/resource` always emits a URL reference, where `asset`
             // might inline the asset as a data URI
             type: 'asset/resource',
@@ -585,9 +553,7 @@ export const css = curry(async function css(
       plugin(
         // @ts-ignore webpack 5 compat
         new MiniCssExtractPlugin({
-          filename: ctx.isProduction
-            ? 'static/css/[contenthash].css'
-            : 'static/css/[name].css',
+          filename: ctx.isProduction ? 'static/css/[contenthash].css' : 'static/css/[name].css',
           chunkFilename: ctx.isProduction
             ? 'static/css/[contenthash].css'
             : 'static/css/[name].css',
@@ -607,9 +573,7 @@ export const css = curry(async function css(
             if (typeof _N_E_STYLE_LOAD === 'function') {
               const { href, onload, onerror } = linkTag
               _N_E_STYLE_LOAD(
-                href.indexOf(window.location.origin) === 0
-                  ? new URL(href).pathname
-                  : href
+                href.indexOf(window.location.origin) === 0 ? new URL(href).pathname : href
               ).then(
                 () => onload?.call(linkTag, { type: 'load' } as Event),
                 () => onerror?.call(linkTag, {} as Event)

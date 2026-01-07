@@ -22,8 +22,7 @@ let initializations: Record<string, Promise<ServerInitResult> | undefined> = {}
 let sandboxContext: undefined | typeof import('../web/sandbox/context')
 
 if (process.env.NODE_ENV !== 'production') {
-  sandboxContext =
-    require('../web/sandbox/context') as typeof import('../web/sandbox/context')
+  sandboxContext = require('../web/sandbox/context') as typeof import('../web/sandbox/context')
 }
 
 export function clearAllModuleContexts() {
@@ -34,10 +33,7 @@ export function clearModuleContext(target: string) {
   return sandboxContext?.clearModuleContext(target)
 }
 
-export async function getServerField(
-  dir: string,
-  field: PropagateToWorkersField
-) {
+export async function getServerField(dir: string, field: PropagateToWorkersField) {
   const initialization = await initializations[dir]
   if (!initialization) {
     throw new Error('Invariant cant propagate server field, no app initialized')
@@ -63,10 +59,7 @@ export async function propagateServerField(
   if (wrappedServer) {
     if (typeof wrappedServer[_field] === 'function') {
       // @ts-expect-error
-      await wrappedServer[_field].apply(
-        wrappedServer,
-        Array.isArray(value) ? value : []
-      )
+      await wrappedServer[_field].apply(wrappedServer, Array.isArray(value) ? value : [])
     } else {
       // @ts-expect-error
       wrappedServer[_field] = value
@@ -110,18 +103,12 @@ async function initializeImpl(opts: {
 
   // If we're in test mode and there's a debug cache entry handler available,
   // then use it to wrap the request handler instead of using the default one.
-  if (
-    process.env.__NEXT_TEST_MODE &&
-    process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS
-  ) {
+  if (process.env.__NEXT_TEST_MODE && process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS) {
     // This mirrors the sole implementation of this over in:
     // test/production/standalone-mode/required-server-files/cache-entry-handler.js
     const createOnCacheEntryHandlers = interopDefault(
       await import(
-        formatDynamicImportPath(
-          opts.dir,
-          process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS
-        )
+        formatDynamicImportPath(opts.dir, process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS)
       )
     ) as (res: ServerResponse) => {
       // TODO: remove onCacheEntry once onCacheEntryV2 is the default.

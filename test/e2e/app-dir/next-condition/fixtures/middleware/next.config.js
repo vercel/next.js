@@ -3,10 +3,7 @@
  */
 
 const nextConfig = {
-  serverExternalPackages: [
-    'my-external-esm-package',
-    'my-external-cjs-package',
-  ],
+  serverExternalPackages: ['my-external-esm-package', 'my-external-cjs-package'],
 }
 
 module.exports = nextConfig

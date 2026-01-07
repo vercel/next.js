@@ -26,10 +26,7 @@ const getErrorTextFromBuildErrorMessage = (multiLineMessage: string) => {
   )
 }
 
-export const BuildError: React.FC<BuildErrorProps> = function BuildError({
-  message,
-  ...props
-}) {
+export const BuildError: React.FC<BuildErrorProps> = function BuildError({ message, ...props }) {
   const noop = useCallback(() => {}, [])
   const error = new Error(message)
   const formattedMessage = useMemo(

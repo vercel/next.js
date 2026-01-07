@@ -41,16 +41,10 @@ type EsmImport = (
   allowExportDefault: boolean
 ) => EsmNamespaceObject | Promise<EsmNamespaceObject>
 type InvokeAsyncLoader = (moduleId: ModuleId) => Promise<Exports>
-type EsmExport = (
-  exportGetters: Record<string, () => any>,
-  id: ModuleId | undefined
-) => void
+type EsmExport = (exportGetters: Record<string, () => any>, id: ModuleId | undefined) => void
 type ExportValue = (value: any, id: ModuleId | undefined) => void
 type ExportNamespace = (namespace: any, id: ModuleId | undefined) => void
-type DynamicExport = (
-  object: Record<string, any>,
-  id: ModuleId | undefined
-) => void
+type DynamicExport = (object: Record<string, any>, id: ModuleId | undefined) => void
 
 type LoadChunk = (chunkPath: ChunkPath) => Promise<any> | undefined
 type LoadChunkByUrl = (chunkUrl: ChunkUrl) => Promise<any> | undefined
@@ -77,9 +71,7 @@ type ResolvePathFromModule = (moduleId: string) => string
 
 type AsyncModule = (
   body: (
-    handleAsyncDependencies: (
-      deps: Dep[]
-    ) => Exports[] | Promise<() => Exports[]>,
+    handleAsyncDependencies: (deps: Dep[]) => Exports[] | Promise<() => Exports[]>,
     asyncResult: (err?: any) => void
   ) => void,
   hasAwait: boolean
@@ -93,9 +85,7 @@ type ExternalRequire = (
   thunk: () => any,
   esm?: boolean
 ) => Exports | EsmNamespaceObject
-type ExternalImport = (
-  id: DependencySpecifier
-) => Promise<Exports | EsmNamespaceObject>
+type ExternalImport = (id: DependencySpecifier) => Promise<Exports | EsmNamespaceObject>
 
 interface Module {
   exports: Function | Exports | Promise<Exports> | AsyncModulePromise

@@ -5,8 +5,7 @@ export default function Root({ children }: { children: ReactNode }) {
     <html>
       <body>
         <nav>
-          <Link href="/">/index</Link> |{' '}
-          <Link href="/navigation">/navigation</Link>
+          <Link href="/">/index</Link> | <Link href="/navigation">/navigation</Link>
         </nav>
         {children}
       </body>

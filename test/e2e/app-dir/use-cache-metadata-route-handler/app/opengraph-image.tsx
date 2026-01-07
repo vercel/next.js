@@ -27,9 +27,7 @@ export default async function Image() {
       }}
     >
       <h1>{post.title}</h1>
-      <p style={{ fontSize: 32 }}>
-        {new Date(post.created).toLocaleTimeString()}
-      </p>
+      <p style={{ fontSize: 32 }}>{new Date(post.created).toLocaleTimeString()}</p>
     </div>,
     size
   )

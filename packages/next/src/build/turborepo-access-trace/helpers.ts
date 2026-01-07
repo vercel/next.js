@@ -99,11 +99,7 @@ async function withTurborepoTraceAccess<T>(
     restoreEnv()
   }
 
-  const traceResult = new TurborepoAccessTraceResult(
-    envVars,
-    addresses,
-    fsPaths
-  )
+  const traceResult = new TurborepoAccessTraceResult(envVars, addresses, fsPaths)
 
   return [functionResult, traceResult]
 }

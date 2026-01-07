@@ -31,20 +31,13 @@ import uploadTrace from '../trace/upload-trace'
 import { initialEnv } from '@next/env'
 import { fork } from 'child_process'
 import type { ChildProcess } from 'child_process'
-import {
-  getReservedPortExplanation,
-  isPortIsReserved,
-} from '../lib/helpers/get-reserved-port'
+import { getReservedPortExplanation, isPortIsReserved } from '../lib/helpers/get-reserved-port'
 import os from 'os'
 import { once } from 'node:events'
 import { clearTimeout } from 'timers'
 import { flushAllTraces, trace } from '../trace'
 import { traceId } from '../trace/shared'
-import {
-  Bundler,
-  finalizeBundlerFromConfig,
-  parseBundlerArgs,
-} from '../lib/bundler'
+import { Bundler, finalizeBundlerFromConfig, parseBundlerArgs } from '../lib/bundler'
 
 export type NextDevOptions = {
   disableSourceMaps: boolean
@@ -78,10 +71,7 @@ const sessionSpan = trace('next-dev')
 
 // How long should we wait for the child to cleanly exit after sending
 // SIGINT/SIGTERM to the child process before sending SIGKILL?
-const CHILD_EXIT_TIMEOUT_MS = parseInt(
-  process.env.NEXT_EXIT_TIMEOUT_MS ?? '100',
-  10
-)
+const CHILD_EXIT_TIMEOUT_MS = parseInt(process.env.NEXT_EXIT_TIMEOUT_MS ?? '100', 10)
 
 const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
   if (signal != null && child?.pid) child.kill(signal)
@@ -92,12 +82,7 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
   // session stop (via the 'exit' event), otherwise assume success (0).
   const exitCode = child?.exitCode || 0
 
-  if (
-    signal != null &&
-    child?.pid &&
-    child.exitCode === null &&
-    child.signalCode === null
-  ) {
+  if (signal != null && child?.pid && child.exitCode === null && child.signalCode === null) {
     let exitTimeout = setTimeout(() => {
       child?.kill('SIGKILL')
     }, CHILD_EXIT_TIMEOUT_MS)
@@ -124,9 +109,7 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
       pagesDir = !!pagesResult.pagesDir
     }
 
-    config =
-      config ||
-      (await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, { silent: true }))
+    config = config || (await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, { silent: true }))
 
     let telemetry =
       (traceGlobals.get('telemetry') as InstanceType<
@@ -180,11 +163,7 @@ process.on('SIGTERM', () => handleSessionStop('SIGTERM'))
 // exit event must be synchronous
 process.on('exit', () => child?.kill('SIGKILL'))
 
-const nextDev = async (
-  options: NextDevOptions,
-  portSource: PortSource,
-  directory?: string
-) => {
+const nextDev = async (options: NextDevOptions, portSource: PortSource, directory?: string) => {
   bundler = parseBundlerArgs(options)
 
   dir = getProjectDir(process.env.NEXT_PRIVATE_DEV_DIR || directory)
@@ -225,8 +204,7 @@ const nextDev = async (
       // Warn if @next/font is installed as a dependency. Ignore `workspace:*` to not warn in the Next.js monorepo.
       if (
         dependencies['@next/font'] ||
-        (devDependencies['@next/font'] &&
-          devDependencies['@next/font'] !== 'workspace:*')
+        (devDependencies['@next/font'] && devDependencies['@next/font'] !== 'workspace:*')
       ) {
         const command = getNpxCommand(dir)
         Log.warn(
@@ -251,10 +229,7 @@ const nextDev = async (
   // some set-ups that rely on listening on other interfaces
   const host = options.hostname
 
-  if (
-    options.experimentalUploadTrace &&
-    !process.env.NEXT_TRACE_UPLOAD_DISABLED
-  ) {
+  if (options.experimentalUploadTrace && !process.env.NEXT_TRACE_UPLOAD_DISABLED) {
     traceUploadUrl = options.experimentalUploadTrace
   }
 
@@ -294,8 +269,7 @@ const nextDev = async (
       }
 
       const nodeDebugType = getNodeDebugType(nodeOptions)
-      const originalAddress =
-        nodeDebugType === undefined ? undefined : nodeOptions[nodeDebugType]
+      const originalAddress = nodeDebugType === undefined ? undefined : nodeOptions[nodeDebugType]
       delete nodeOptions.inspect
       delete nodeOptions['inspect-brk']
       delete nodeOptions['inspect_brk']
@@ -305,9 +279,7 @@ const nextDev = async (
         nodeOptions[nodeDebugType] = formatDebugAddress(address)
       } else if (options.inspect) {
         const address: DebugAddress =
-          options.inspect === true
-            ? getParsedDebugAddress(true)
-            : options.inspect
+          options.inspect === true ? getParsedDebugAddress(true) : options.inspect
         nodeOptions.inspect = formatDebugAddress(address)
       }
 
@@ -315,9 +287,7 @@ const nextDev = async (
         stdio: 'inherit',
         env: {
           ...defaultEnv,
-          ...(bundler === Bundler.Turbopack
-            ? { TURBOPACK: process.env.TURBOPACK }
-            : undefined),
+          ...(bundler === Bundler.Turbopack ? { TURBOPACK: process.env.TURBOPACK } : undefined),
           NEXT_PRIVATE_WORKER: '1',
           NEXT_PRIVATE_TRACE_ID: traceId,
           NODE_EXTRA_CA_CERTS: startServerOptions.selfSignedCertificate
@@ -327,8 +297,7 @@ const nextDev = async (
           // There is a node.js bug on MacOS which causes closing file watchers to be really slow.
           // This limits the number of watchers to mitigate the issue.
           // https://github.com/nodejs/node/issues/29949
-          WATCHPACK_WATCHER_LIMIT:
-            os.platform() === 'darwin' ? '20' : undefined,
+          WATCHPACK_WATCHER_LIMIT: os.platform() === 'darwin' ? '20' : undefined,
           // Enable CPU profiling if requested
           ...(options.experimentalCpuProf
             ? {

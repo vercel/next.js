@@ -37,9 +37,7 @@ describe('PrefixPathnameNormalizer', () => {
       const normalizer = new PrefixPathnameNormalizer('/foo')
       const pathnames = ['/foo', '/foo/bar', '/foo/bar/baz']
       for (const pathname of pathnames) {
-        expect(normalizer.normalize(pathname)).toBe(
-          pathname.substring(4) || '/'
-        )
+        expect(normalizer.normalize(pathname)).toBe(pathname.substring(4) || '/')
       }
     })
   })

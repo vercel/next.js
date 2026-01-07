@@ -20,9 +20,7 @@ export async function POST(req) {
 
   const payload = JSON.parse(payloadString)
 
-  const json = fs.existsSync(logPath)
-    ? JSON.parse(await fsp.readFile(logPath, 'utf8'))
-    : {}
+  const json = fs.existsSync(logPath) ? JSON.parse(await fsp.readFile(logPath, 'utf8')) : {}
 
   if (!json[payload.message]) {
     json[payload.message] = {

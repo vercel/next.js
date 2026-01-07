@@ -13,11 +13,10 @@ type PreviewData = {
   title: string
 }
 
-export const getServerSideProps: GetServerSideProps<
-  Props,
-  Params,
-  PreviewData
-> = async ({ params, previewData }) => {
+export const getServerSideProps: GetServerSideProps<Props, Params, PreviewData> = async ({
+  params,
+  previewData,
+}) => {
   return {
     props: { data: params!.slug, title: previewData?.title || 'default title' },
   }

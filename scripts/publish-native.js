@@ -15,9 +15,7 @@ const cwd = process.cwd()
 
     // Copy binaries to package folders, update version, and publish
     let nativePackagesDir = path.join(cwd, 'crates/napi/npm')
-    let platforms = (await readdir(nativePackagesDir)).filter(
-      (name) => !name.startsWith('.')
-    )
+    let platforms = (await readdir(nativePackagesDir)).filter((name) => !name.startsWith('.'))
 
     await Promise.all(
       platforms.map(async (platform) => {
@@ -31,9 +29,7 @@ const cwd = process.cwd()
             path.join(nativePackagesDir, platform, binaryName)
           )
           let pkg = JSON.parse(
-            await readFile(
-              path.join(nativePackagesDir, platform, 'package.json')
-            )
+            await readFile(path.join(nativePackagesDir, platform, 'package.json'))
           )
           pkg.version = version
           await writeFile(
@@ -62,11 +58,7 @@ const cwd = process.cwd()
           // don't block publishing other versions on single platform error
           console.error(`Failed to publish`, platform, err)
 
-          if (
-            output.includes(
-              'cannot publish over the previously published versions'
-            )
-          ) {
+          if (output.includes('cannot publish over the previously published versions')) {
             console.error('Ignoring already published error', platform, err)
           } else {
             // throw err
@@ -114,9 +106,7 @@ const cwd = process.cwd()
           console.error(`Failed to publish`, wasmTarget, err)
           if (
             err.message &&
-            err.message.includes(
-              'You cannot publish over the previously published versions'
-            )
+            err.message.includes('You cannot publish over the previously published versions')
           ) {
             console.error('Ignoring already published error', wasmTarget)
           } else {
@@ -129,9 +119,7 @@ const cwd = process.cwd()
     )
 
     // Update optional dependencies versions
-    let nextPkg = JSON.parse(
-      await readFile(path.join(cwd, 'packages/next/package.json'))
-    )
+    let nextPkg = JSON.parse(await readFile(path.join(cwd, 'packages/next/package.json')))
     for (let platform of platforms) {
       let optionalDependencies = nextPkg.optionalDependencies || {}
       optionalDependencies['@next/swc-' + platform] = version

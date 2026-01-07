@@ -31,12 +31,7 @@ describe('streaming SSR with custom next configs', () => {
 
   it('should redirect paths without trailing-slash and render when slash is appended', async () => {
     const page = '/hello'
-    const redirectRes = await fetchViaHTTP(
-      next.url,
-      page,
-      {},
-      { redirect: 'manual' }
-    )
+    const redirectRes = await fetchViaHTTP(next.url, page, {}, { redirect: 'manual' })
     const res = await fetchViaHTTP(next.url, page + '/')
     const html = await res.text()
 

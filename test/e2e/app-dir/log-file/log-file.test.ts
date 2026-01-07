@@ -14,12 +14,7 @@ describe('log-file', () => {
   }
 
   function getLogFilePath(): string {
-    const logFilePath = path.join(
-      next.testDir,
-      next.distDir,
-      'logs',
-      'next-development.log'
-    )
+    const logFilePath = path.join(next.testDir, next.distDir, 'logs', 'next-development.log')
     return logFilePath
   }
 

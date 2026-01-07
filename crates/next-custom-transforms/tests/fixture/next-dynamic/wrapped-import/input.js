@@ -1,11 +1,8 @@
 import dynamic from 'next/dynamic'
-const DynamicComponent1 = dynamic(
-  () => handleImport(import('./components/hello1')),
-  {
-    loading: () => null,
-    ssr: false,
-  }
-)
+const DynamicComponent1 = dynamic(() => handleImport(import('./components/hello1')), {
+  loading: () => null,
+  ssr: false,
+})
 
 const DynamicComponent2 = dynamic(() =>
   import('./components/hello2').then((mod) => {

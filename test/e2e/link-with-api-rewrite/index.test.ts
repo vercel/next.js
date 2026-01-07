@@ -36,9 +36,7 @@ describe('link-with-api-rewrite', () => {
       expect(pathname).toBe('/some/route/for')
 
       // Check to see that the resulting data is coming from the right endpoint.
-      const text = await browser.eval(
-        'window.document.documentElement.innerText'
-      )
+      const text = await browser.eval('window.document.documentElement.innerText')
       expect(text).toBe('{"from":"/some/route/for"}')
     } finally {
       await browser.close()
@@ -63,9 +61,7 @@ describe('link-with-api-rewrite', () => {
       expect(pathname).toBe('/api/json')
 
       // Check to see that the resulting data is coming from the right endpoint.
-      const text = await browser.eval(
-        'window.document.documentElement.innerText'
-      )
+      const text = await browser.eval('window.document.documentElement.innerText')
       expect(text).toBe('{"from":""}')
     } finally {
       await browser.close()

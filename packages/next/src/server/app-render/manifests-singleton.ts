@@ -22,10 +22,7 @@ export interface ServerModuleMap {
 const MANIFESTS_SINGLETON = Symbol.for('next.server.manifests')
 
 interface ManifestsSingleton {
-  readonly clientReferenceManifestsPerRoute: Map<
-    string,
-    DeepReadonly<ClientReferenceManifest>
-  >
+  readonly clientReferenceManifestsPerRoute: Map<string, DeepReadonly<ClientReferenceManifest>>
   readonly proxiedClientReferenceManifest: DeepReadonly<ClientReferenceManifest>
   serverActionsManifest: DeepReadonly<ActionManifest>
   serverModuleMap: ServerModuleMap
@@ -45,10 +42,7 @@ type ClientReferenceManifestMappingProp =
 const globalThisWithManifests = globalThis as GlobalThisWithManifests
 
 function createProxiedClientReferenceManifest(
-  clientReferenceManifestsPerRoute: Map<
-    string,
-    DeepReadonly<ClientReferenceManifest>
-  >
+  clientReferenceManifestsPerRoute: Map<string, DeepReadonly<ClientReferenceManifest>>
 ): DeepReadonly<ClientReferenceManifest> {
   const createMappingProxy = (prop: ClientReferenceManifestMappingProp) => {
     return new Proxy(
@@ -58,9 +52,7 @@ function createProxiedClientReferenceManifest(
           const workStore = workAsyncStorage.getStore()
 
           if (workStore) {
-            const currentManifest = clientReferenceManifestsPerRoute.get(
-              workStore.route
-            )
+            const currentManifest = clientReferenceManifestsPerRoute.get(workStore.route)
 
             if (currentManifest?.[prop][id]) {
               return currentManifest[prop][id]
@@ -77,10 +69,7 @@ function createProxiedClientReferenceManifest(
             // client references across pages (e.g. by storing them in a global
             // variable), which would then only be caught in production.
             if (process.env.NODE_ENV !== 'production') {
-              for (const [
-                route,
-                manifest,
-              ] of clientReferenceManifestsPerRoute) {
+              for (const [route, manifest] of clientReferenceManifestsPerRoute) {
                 if (route === workStore.route) {
                   continue
                 }
@@ -130,14 +119,10 @@ function createProxiedClientReferenceManifest(
           case 'entryCSSFiles':
           case 'entryJSFiles': {
             if (!workStore) {
-              throw new InvariantError(
-                `Cannot access "${prop}" without a work store.`
-              )
+              throw new InvariantError(`Cannot access "${prop}" without a work store.`)
             }
 
-            const currentManifest = clientReferenceManifestsPerRoute.get(
-              workStore.route
-            )
+            const currentManifest = clientReferenceManifestsPerRoute.get(workStore.route)
 
             if (!currentManifest) {
               throw new InvariantError(
@@ -184,9 +169,8 @@ function createServerModuleMap(): ServerModuleMap {
     {
       get: (_, id: string) => {
         const workers =
-          getServerActionsManifest()[
-            process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
-          ]?.[id]?.workers
+          getServerActionsManifest()[process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node']?.[id]
+            ?.workers
 
         if (!workers) {
           return undefined
@@ -194,9 +178,7 @@ function createServerModuleMap(): ServerModuleMap {
 
         const workStore = workAsyncStorage.getStore()
 
-        let workerEntry:
-          | { moduleId: string | number; async: boolean }
-          | undefined
+        let workerEntry: { moduleId: string | number; async: boolean } | undefined
 
         if (workStore) {
           workerEntry = workers[normalizeWorkerPageName(workStore.page)]
@@ -247,15 +229,10 @@ function denormalizeWorkerPageName(bundlePath: string) {
  * Checks if the requested action has a worker for the current page.
  * If not, it returns the first worker that has a handler for the action.
  */
-export function selectWorkerForForwarding(
-  actionId: string,
-  pageName: string
-): string | undefined {
+export function selectWorkerForForwarding(actionId: string, pageName: string): string | undefined {
   const serverActionsManifest = getServerActionsManifest()
   const workers =
-    serverActionsManifest[
-      process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
-    ][actionId]?.workers
+    serverActionsManifest[process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'][actionId]?.workers
 
   // There are no workers to handle this action, nothing to forward to.
   if (!workers) {
@@ -290,10 +267,9 @@ export function setManifestsSingleton({
 
     existingSingleton.serverActionsManifest = serverActionsManifest
   } else {
-    const clientReferenceManifestsPerRoute = new Map<
-      string,
-      DeepReadonly<ClientReferenceManifest>
-    >([[normalizeAppPath(page), clientReferenceManifest]])
+    const clientReferenceManifestsPerRoute = new Map<string, DeepReadonly<ClientReferenceManifest>>(
+      [[normalizeAppPath(page), clientReferenceManifest]]
+    )
 
     const proxiedClientReferenceManifest = createProxiedClientReferenceManifest(
       clientReferenceManifestsPerRoute

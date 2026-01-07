@@ -31,10 +31,7 @@ export const Resizer = forwardRef(function Resizer(
   )
 })
 
-function useMeasureHeight(
-  element: HTMLDivElement | null,
-  measure: boolean
-): [number, boolean] {
+function useMeasureHeight(element: HTMLDivElement | null, measure: boolean): [number, boolean] {
   const [height, setHeight] = useState<number>(0)
   const [measuring, setMeasuring] = useState<boolean>(true)
 

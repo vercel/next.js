@@ -26,21 +26,13 @@ export default class extends Component {
         <Link href="/nav/about" id="about-link" style={linkStyle}>
           About
         </Link>
-        <Link
-          href="/empty-get-initial-props"
-          id="empty-props"
-          style={linkStyle}
-        >
+        <Link href="/empty-get-initial-props" id="empty-props" style={linkStyle}>
           Empty Props
         </Link>
         <Link href="/nav/self-reload" id="self-reload-link" style={linkStyle}>
           Self Reload
         </Link>
-        <Link
-          href="/nav/shallow-routing"
-          id="shallow-routing-link"
-          style={linkStyle}
-        >
+        <Link href="/nav/shallow-routing" id="shallow-routing-link" style={linkStyle}>
           Shallow Routing
         </Link>
         <Link href="/nav/redirect" id="redirect-link" style={linkStyle}>
@@ -54,30 +46,16 @@ export default class extends Component {
         >
           QueryString
         </Link>
-        <Link
-          href="/nav/about"
-          replace
-          id="about-replace-link"
-          style={linkStyle}
-        >
+        <Link href="/nav/about" replace id="about-replace-link" style={linkStyle}>
           Replace state
         </Link>
-        <Link
-          href="/nav/as-path"
-          as="/as/path"
-          id="as-path-link"
-          style={linkStyle}
-        >
+        <Link href="/nav/as-path" as="/as/path" id="as-path-link" style={linkStyle}>
           As Path
         </Link>
         <Link href="/nav/as-path" id="as-path-link-no-as" style={linkStyle}>
           As Path (No as)
         </Link>
-        <Link
-          href="/nav/as-path-using-router"
-          id="as-path-using-router-link"
-          style={linkStyle}
-        >
+        <Link href="/nav/as-path-using-router" id="as-path-using-router-link" style={linkStyle}>
           As Path (Using Router)
         </Link>
         <Link href="/nav/on-click?count=1" id="on-click-link" style={linkStyle}>
@@ -87,12 +65,7 @@ export default class extends Component {
           An element with target
         </Link>
 
-        <svg
-          width={24}
-          height={24}
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
+        <svg width={24} height={24} fill="none" xmlns="http://www.w3.org/2000/svg">
           <Link href="/nav/about" id="in-svg-link" style={{ display: 'block' }}>
             <path
               fillRule="evenodd"

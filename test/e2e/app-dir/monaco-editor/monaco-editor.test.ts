@@ -12,8 +12,6 @@ describe('monaco-editor', () => {
   it('should load monaco-editor', async () => {
     const browser = await next.browser('/')
     expect(await browser.elementByCss('h1').text()).toBe('Editor Page')
-    expect(
-      await browser.waitForElementByCss('.monaco-editor').getAttribute('role')
-    ).toBe('code')
+    expect(await browser.waitForElementByCss('.monaco-editor').getAttribute('role')).toBe('code')
   })
 })

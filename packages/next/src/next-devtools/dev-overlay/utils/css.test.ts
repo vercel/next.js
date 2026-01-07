@@ -22,7 +22,7 @@ describe('css template literal tag', () => {
     const result = css`
       color: blue; /* this is a comment */
       /* multi-line
-                     comment */
+               comment */
       /** jsdoc */
       margin: 10px;
     `
@@ -33,9 +33,9 @@ describe('css template literal tag', () => {
     const result = css`
       color: blue;
       /*
-                   * This is multi-line comment.
-                   * Is should be removed.
-                   */
+             * This is multi-line comment.
+             * Is should be removed.
+             */
       margin: 10px;
     `
     expect(result).toBe('color:blue;margin:10px;')

@@ -40,9 +40,7 @@ export function redirect(
   url: string,
   type?: RedirectType
 ): never {
-  type ??= actionAsyncStorage?.getStore()?.isAction
-    ? RedirectType.push
-    : RedirectType.replace
+  type ??= actionAsyncStorage?.getStore()?.isAction ? RedirectType.push : RedirectType.replace
 
   throw getRedirectError(url, type, RedirectStatusCode.TemporaryRedirect)
 }

@@ -37,8 +37,7 @@ describe('segment cache (deployment skew)', () => {
   })
 
   it(
-    'does not crash when prefetching a dynamic, non-PPR page ' +
-      'on a different deployment',
+    'does not crash when prefetching a dynamic, non-PPR page ' + 'on a different deployment',
     async () => {
       // Reproduces a bug that occurred when prefetching a dynamic page
       // from a different deployment, when PPR is disabled. Once PPR is the
@@ -59,9 +58,7 @@ describe('segment cache (deployment skew)', () => {
       })
 
       // Navigate to the target page
-      const link = await browser.elementByCss(
-        'a[href="/dynamic-page?deployment=2"]'
-      )
+      const link = await browser.elementByCss('a[href="/dynamic-page?deployment=2"]')
       await link.click()
 
       // Should have performed a full-page navigation to the new deployment.
@@ -91,9 +88,7 @@ describe('segment cache (deployment skew)', () => {
       })
 
       // Navigate to the target page
-      const link = await browser.elementByCss(
-        'a[href="/static-page?deployment=2"]'
-      )
+      const link = await browser.elementByCss('a[href="/static-page?deployment=2"]')
       await link.click()
 
       // Should have performed a full-page navigation to the new deployment.

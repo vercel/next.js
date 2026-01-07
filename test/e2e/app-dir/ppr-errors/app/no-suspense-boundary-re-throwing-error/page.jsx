@@ -5,9 +5,7 @@ export default async function Page() {
   try {
     await cookies()
   } catch (err) {
-    throw new Error(
-      "Throwing a new error from 'no-suspense-boundary-re-throwing-error'"
-    )
+    throw new Error("Throwing a new error from 'no-suspense-boundary-re-throwing-error'")
   }
   return <div>Hello World</div>
 }

@@ -10,9 +10,7 @@ export class UseCacheTimeoutError extends Error {
   }
 }
 
-export function isUseCacheTimeoutError(
-  err: unknown
-): err is UseCacheTimeoutError {
+export function isUseCacheTimeoutError(err: unknown): err is UseCacheTimeoutError {
   if (
     typeof err !== 'object' ||
     err === null ||

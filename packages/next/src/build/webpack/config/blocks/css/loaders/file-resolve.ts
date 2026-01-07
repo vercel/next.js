@@ -1,8 +1,4 @@
-export function cssFileResolve(
-  url: string,
-  _resourcePath: string,
-  urlImports: any
-) {
+export function cssFileResolve(url: string, _resourcePath: string, urlImports: any) {
   if (url.startsWith('/')) {
     return false
   }

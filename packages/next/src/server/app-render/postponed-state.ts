@@ -51,10 +51,7 @@ export type DynamicHTMLPostponedState = {
   /**
    * The postponed data used by React.
    */
-  readonly data: [
-    preludeState: DynamicHTMLPreludeState,
-    postponed: ReactPostponed,
-  ]
+  readonly data: [preludeState: DynamicHTMLPreludeState, postponed: ReactPostponed]
 
   /**
    * The immutable resume data cache.
@@ -67,13 +64,9 @@ export const enum DynamicHTMLPreludeState {
   Full = 1,
 }
 
-type ReactPostponed = NonNullable<
-  import('react-dom/static').PrerenderResult['postponed']
->
+type ReactPostponed = NonNullable<import('react-dom/static').PrerenderResult['postponed']>
 
-export type PostponedState =
-  | DynamicDataPostponedState
-  | DynamicHTMLPostponedState
+export type PostponedState = DynamicDataPostponedState | DynamicHTMLPostponedState
 
 export async function getDynamicHTMLPostponedState(
   postponed: ReactPostponed,
@@ -95,9 +88,7 @@ export async function getDynamicHTMLPostponedState(
     )}`
   }
 
-  const replacements: OpaqueFallbackRouteParamEntries = Array.from(
-    fallbackRouteParams.entries()
-  )
+  const replacements: OpaqueFallbackRouteParamEntries = Array.from(fallbackRouteParams.entries())
   const replacementsString = JSON.stringify(replacements)
 
   // Serialized as `<replacements.length><replacements><data>`
@@ -135,9 +126,7 @@ export function parsePostponedState(
     )
 
     const renderResumeDataCache = createRenderResumeDataCache(
-      state.slice(
-        postponedStringLengthMatch.length + postponedStringLength + 1
-      ),
+      state.slice(postponedStringLengthMatch.length + postponedStringLength + 1),
       maxPostponedStateSizeBytes
     )
 
@@ -149,9 +138,7 @@ export function parsePostponedState(
       if (/^[0-9]/.test(postponedString)) {
         const match = postponedString.match(/^([0-9]*)/)?.[1]
         if (!match) {
-          throw new Error(
-            `Invariant: invalid postponed state ${JSON.stringify(postponedString)}`
-          )
+          throw new Error(`Invariant: invalid postponed state ${JSON.stringify(postponedString)}`)
         }
 
         // This is the length of the replacements entries.
@@ -165,10 +152,7 @@ export function parsePostponedState(
         ) as OpaqueFallbackRouteParamEntries
 
         let postponed = postponedString.slice(match.length + length)
-        for (const [
-          segmentKey,
-          [searchValue, dynamicParamType],
-        ] of replacements) {
+        for (const [segmentKey, [searchValue, dynamicParamType]] of replacements) {
           const {
             treeSegment: [
               ,
@@ -177,12 +161,7 @@ export function parsePostponedState(
               // replacement value.
               value,
             ],
-          } = getDynamicParam(
-            interpolatedParams,
-            segmentKey,
-            dynamicParamType,
-            null
-          )
+          } = getDynamicParam(interpolatedParams, segmentKey, dynamicParamType, null)
 
           postponed = postponed.replaceAll(searchValue, value)
         }

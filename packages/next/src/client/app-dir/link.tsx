@@ -18,10 +18,7 @@ import {
   type LinkInstance,
 } from '../components/links'
 import { isLocalURL } from '../../shared/lib/router/utils/is-local-url'
-import {
-  FetchStrategy,
-  type PrefetchTaskFetchStrategy,
-} from '../components/segment-cache/types'
+import { FetchStrategy, type PrefetchTaskFetchStrategy } from '../components/segment-cache/types'
 import { errorOnce } from '../../shared/lib/utils/error-once'
 
 type Url = string | UrlObject
@@ -250,10 +247,7 @@ function linkClicked(
 
     // anchors inside an svg have a lowercase nodeName
     const isAnchorNodeName = nodeName.toUpperCase() === 'A'
-    if (
-      (isAnchorNodeName && isModifiedEvent(e)) ||
-      e.currentTarget.hasAttribute('download')
-    ) {
+    if ((isAnchorNodeName && isModifiedEvent(e)) || e.currentTarget.hasAttribute('download')) {
       // ignore click for browser’s default behavior
       return
     }
@@ -351,10 +345,7 @@ export default function LinkComponent(
 
   children = childrenProp
 
-  if (
-    legacyBehavior &&
-    (typeof children === 'string' || typeof children === 'number')
-  ) {
+  if (legacyBehavior && (typeof children === 'string' || typeof children === 'number')) {
     children = <a>{children}</a>
   }
 
@@ -369,11 +360,7 @@ export default function LinkComponent(
         FetchStrategy.PPR
 
   if (process.env.NODE_ENV !== 'production') {
-    function createPropError(args: {
-      key: string
-      expected: string
-      actual: string
-    }) {
+    function createPropError(args: { key: string; expected: string; actual: string }) {
       return new Error(
         `Failed prop type: The prop \`${args.key}\` expects a ${args.expected} in \`<Link>\`, but got \`${args.actual}\` instead.` +
           (typeof window !== 'undefined'
@@ -465,11 +452,7 @@ export default function LinkComponent(
           })
         }
       } else if (key === 'prefetch') {
-        if (
-          props[key] != null &&
-          valType !== 'boolean' &&
-          props[key] !== 'auto'
-        ) {
+        if (props[key] != null && valType !== 'boolean' && props[key] !== 'auto') {
           throw createPropError({
             key,
             expected: '`boolean | "auto"`',
@@ -493,10 +476,7 @@ export default function LinkComponent(
       let href: string | undefined
       if (typeof hrefProp === 'string') {
         href = hrefProp
-      } else if (
-        typeof hrefProp === 'object' &&
-        typeof hrefProp.pathname === 'string'
-      ) {
+      } else if (typeof hrefProp === 'object' && typeof hrefProp.pathname === 'string') {
         href = hrefProp.pathname
       }
 
@@ -625,11 +605,7 @@ export default function LinkComponent(
         onClick(e)
       }
 
-      if (
-        legacyBehavior &&
-        child.props &&
-        typeof child.props.onClick === 'function'
-      ) {
+      if (legacyBehavior && child.props && typeof child.props.onClick === 'function') {
         child.props.onClick(e)
       }
 
@@ -646,11 +622,7 @@ export default function LinkComponent(
         onMouseEnterProp(e)
       }
 
-      if (
-        legacyBehavior &&
-        child.props &&
-        typeof child.props.onMouseEnter === 'function'
-      ) {
+      if (legacyBehavior && child.props && typeof child.props.onMouseEnter === 'function') {
         child.props.onMouseEnter(e)
       }
 
@@ -674,11 +646,7 @@ export default function LinkComponent(
             onTouchStartProp(e)
           }
 
-          if (
-            legacyBehavior &&
-            child.props &&
-            typeof child.props.onTouchStart === 'function'
-          ) {
+          if (legacyBehavior && child.props && typeof child.props.onTouchStart === 'function') {
             child.props.onTouchStart(e)
           }
 
@@ -700,11 +668,7 @@ export default function LinkComponent(
   // If the url is absolute, we can bypass the logic to prepend the basePath.
   if (isAbsoluteUrl(as)) {
     childProps.href = as
-  } else if (
-    !legacyBehavior ||
-    passHref ||
-    (child.type === 'a' && !('href' in child.props))
-  ) {
+  } else if (!legacyBehavior || passHref || (child.type === 'a' && !('href' in child.props))) {
     childProps.href = addBasePath(as)
   }
 
@@ -728,16 +692,12 @@ export default function LinkComponent(
     )
   }
 
-  return (
-    <LinkStatusContext.Provider value={linkStatus}>
-      {link}
-    </LinkStatusContext.Provider>
-  )
+  return <LinkStatusContext.Provider value={linkStatus}>{link}</LinkStatusContext.Provider>
 }
 
-const LinkStatusContext = createContext<
-  typeof PENDING_LINK_STATUS | typeof IDLE_LINK_STATUS
->(IDLE_LINK_STATUS)
+const LinkStatusContext = createContext<typeof PENDING_LINK_STATUS | typeof IDLE_LINK_STATUS>(
+  IDLE_LINK_STATUS
+)
 
 export const useLinkStatus = () => {
   return useContext(LinkStatusContext)

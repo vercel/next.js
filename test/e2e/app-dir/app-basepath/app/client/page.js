@@ -6,10 +6,7 @@ export default function Page() {
   return (
     <div>
       <form>
-        <button
-          id="redirect-relative"
-          formAction={() => redirectAction('/another')}
-        >
+        <button id="redirect-relative" formAction={() => redirectAction('/another')}>
           redirect internal with relative path
         </button>
       </form>
@@ -24,9 +21,7 @@ export default function Page() {
       <form>
         <button
           id="redirect-absolute-external"
-          formAction={() =>
-            redirectAction(location.origin + '/outsideBasePath')
-          }
+          formAction={() => redirectAction(location.origin + '/outsideBasePath')}
         >
           redirect external with domain (excluding basePath)
         </button>

@@ -247,10 +247,7 @@ const pluginState = getProxiedPluginState({
       static: [],
       dynamic: [],
     },
-  } as Record<
-    'edge' | 'node' | 'extra',
-    Record<'static' | 'dynamic', string[]>
-  >,
+  } as Record<'edge' | 'node' | 'extra', Record<'static' | 'dynamic', string[]>>,
 })
 
 function formatRouteToRouteType(route: string) {
@@ -335,13 +332,10 @@ function isSubpath(parentLayoutPath: string, potentialChildLayoutPath: string) {
   const childSegments = potentialChildLayoutPath.split('/').slice(1, -1)
 
   // child segments should be shorter or equal to parent segments to be a subpath
-  if (childSegments.length > parentSegments.length || !childSegments.length)
-    return false
+  if (childSegments.length > parentSegments.length || !childSegments.length) return false
 
   // Verify all segment values are equal
-  return childSegments.every(
-    (childSegment, index) => childSegment === parentSegments[index]
-  )
+  return childSegments.every((childSegment, index) => childSegment === parentSegments[index])
 }
 
 function createServerDefinitions() {
@@ -391,10 +385,7 @@ export class NextTypesPlugin {
   }
 
   getRelativePathFromAppTypesDir(moduleRelativePathToAppDir: string) {
-    const moduleAbsolutePath = path.join(
-      this.appDir,
-      moduleRelativePathToAppDir
-    )
+    const moduleAbsolutePath = path.join(this.appDir, moduleRelativePathToAppDir)
 
     const moduleInAppTypesAbsolutePath = path.join(
       this.distDirAbsolutePath,
@@ -402,10 +393,7 @@ export class NextTypesPlugin {
       moduleRelativePathToAppDir
     )
 
-    return path.relative(
-      moduleInAppTypesAbsolutePath + '/..',
-      moduleAbsolutePath
-    )
+    return path.relative(moduleInAppTypesAbsolutePath + '/..', moduleAbsolutePath)
   }
 
   collectPage(filePath: string) {
@@ -422,10 +410,7 @@ export class NextTypesPlugin {
     }
 
     // Filter out non-page files in pages dir
-    if (
-      isPages &&
-      /[/\\](?:_app|_document|_error|404|500)\.[^.]+$/.test(filePath)
-    ) {
+    if (isPages && /[/\\](?:_app|_document|_error|404|500)\.[^.]+$/.test(filePath)) {
       return
     }
 
@@ -447,21 +432,12 @@ export class NextTypesPlugin {
 
   apply(compiler: webpack.Compiler) {
     // From asset root to dist root
-    const assetDirRelative = this.dev
-      ? '..'
-      : this.isEdgeServer
-        ? '..'
-        : '../..'
+    const assetDirRelative = this.dev ? '..' : this.isEdgeServer ? '..' : '../..'
 
-    const handleModule = async (
-      mod: webpack.NormalModule,
-      compilation: webpack.Compilation
-    ) => {
+    const handleModule = async (mod: webpack.NormalModule, compilation: webpack.Compilation) => {
       if (!mod.resource) return
 
-      const pageExtensionsRegex = new RegExp(
-        `\\.(${this.pageExtensions.join('|')})$`
-      )
+      const pageExtensionsRegex = new RegExp(`\\.(${this.pageExtensions.join('|')})$`)
 
       if (!pageExtensionsRegex.test(mod.resource)) return
 
@@ -477,9 +453,7 @@ export class NextTypesPlugin {
 
       // skip for /app/_private dir convention
       // matches <app-dir>/**/_*
-      const IS_PRIVATE = /(?:\/[^/]+)*\/_.*$/.test(
-        mod.resource.replace(this.appDir, '')
-      )
+      const IS_PRIVATE = /(?:\/[^/]+)*\/_.*$/.test(mod.resource.replace(this.appDir, ''))
       if (IS_PRIVATE) return
 
       const IS_LAYOUT = /[/\\]layout\.[^./\\]+$/.test(mod.resource)
@@ -513,17 +487,11 @@ export class NextTypesPlugin {
       if (IS_LAYOUT) {
         const rootLayoutPath = normalizeAppPath(
           ensureLeadingSlash(
-            getPageFromPath(
-              path.relative(this.appDir, mod.resource),
-              this.pageExtensions
-            )
+            getPageFromPath(path.relative(this.appDir, mod.resource), this.pageExtensions)
           )
         )
 
-        const foundParams = Array.from(
-          rootLayoutPath.matchAll(/\[(.*?)\]/g),
-          (match) => match[1]
-        )
+        const foundParams = Array.from(rootLayoutPath.matchAll(/\[(.*?)\]/g), (match) => match[1])
 
         pluginState.collectedRootParams[rootLayoutPath] = foundParams
 
@@ -585,17 +553,15 @@ export class NextTypesPlugin {
                 !chunk.name.startsWith('pages/') &&
                 !(
                   chunk.name.startsWith('app/') &&
-                  (chunk.name.endsWith('/page') ||
-                    chunk.name.endsWith('/route'))
+                  (chunk.name.endsWith('/page') || chunk.name.endsWith('/route'))
                 )
               ) {
                 return
               }
 
-              const chunkModules =
-                compilation.chunkGraph.getChunkModulesIterable(
-                  chunk
-                ) as Iterable<webpack.NormalModule>
+              const chunkModules = compilation.chunkGraph.getChunkModulesIterable(
+                chunk
+              ) as Iterable<webpack.NormalModule>
               for (const mod of chunkModules) {
                 promises.push(handleModule(mod, compilation))
 
@@ -614,16 +580,11 @@ export class NextTypesPlugin {
 
           await Promise.all(promises)
 
-          const rootParams = getRootParamsFromLayouts(
-            pluginState.collectedRootParams
-          )
+          const rootParams = getRootParamsFromLayouts(pluginState.collectedRootParams)
           // If we discovered rootParams, we'll override the `next/server` types
           // since we're able to determine the root params at build time.
           if (rootParams.length > 0) {
-            const serverTypesPath = path.join(
-              assetDirRelative,
-              'types/server.d.ts'
-            )
+            const serverTypesPath = path.join(assetDirRelative, 'types/server.d.ts')
 
             compilation.emitAsset(
               serverTypesPath,
@@ -635,16 +596,11 @@ export class NextTypesPlugin {
 
           // Support `"moduleResolution": "Node16" | "NodeNext"` with `"type": "module"`
 
-          const packageJsonAssetPath = path.join(
-            assetDirRelative,
-            'types/package.json'
-          )
+          const packageJsonAssetPath = path.join(assetDirRelative, 'types/package.json')
 
           compilation.emitAsset(
             packageJsonAssetPath,
-            new sources.RawSource(
-              '{"type": "module"}'
-            ) as unknown as webpack.sources.RawSource
+            new sources.RawSource('{"type": "module"}') as unknown as webpack.sources.RawSource
           )
 
           callback()

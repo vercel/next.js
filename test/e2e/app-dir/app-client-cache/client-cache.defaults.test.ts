@@ -42,12 +42,10 @@ describe('app dir client cache semantics (default semantics)', () => {
       })
 
       it('should prefetch the full page', async () => {
-        const { getRequests, clearRequests } =
-          await createRequestsListener(browser)
+        const { getRequests, clearRequests } = await createRequestsListener(browser)
         await check(() => {
           return getRequests().some(
-            ([url, didPartialPrefetch]) =>
-              getPathname(url) === '/0' && !didPartialPrefetch
+            ([url, didPartialPrefetch]) => getPathname(url) === '/0' && !didPartialPrefetch
           )
             ? 'success'
             : 'fail'
@@ -60,9 +58,7 @@ describe('app dir client cache semantics (default semantics)', () => {
           .click()
           .waitForElementByCss('#random-number')
 
-        expect(
-          getRequests().every(([url]) => getPathname(url) !== '/0')
-        ).toEqual(true)
+        expect(getRequests().every(([url]) => getPathname(url) !== '/0')).toEqual(true)
       })
       it('should re-use the cache for the full page, only for 5 mins', async () => {
         const randomNumber = await browser
@@ -95,13 +91,11 @@ describe('app dir client cache semantics (default semantics)', () => {
       })
 
       it('should prefetch again after 5 mins if the link is visible again', async () => {
-        const { getRequests, clearRequests } =
-          await createRequestsListener(browser)
+        const { getRequests, clearRequests } = await createRequestsListener(browser)
 
         await check(() => {
           return getRequests().some(
-            ([url, didPartialPrefetch]) =>
-              getPathname(url) === '/0' && !didPartialPrefetch
+            ([url, didPartialPrefetch]) => getPathname(url) === '/0' && !didPartialPrefetch
           )
             ? 'success'
             : 'fail'
@@ -120,8 +114,7 @@ describe('app dir client cache semantics (default semantics)', () => {
 
         await check(() => {
           return getRequests().some(
-            ([url, didPartialPrefetch]) =>
-              getPathname(url) === '/0' && !didPartialPrefetch
+            ([url, didPartialPrefetch]) => getPathname(url) === '/0' && !didPartialPrefetch
           )
             ? 'success'
             : 'fail'
@@ -145,19 +138,13 @@ describe('app dir client cache semantics (default semantics)', () => {
       it('should not prefetch the page at all', async () => {
         const { getRequests } = await createRequestsListener(browser)
 
-        await browser
-          .elementByCss('[href="/2"]')
-          .click()
-          .waitForElementByCss('#random-number')
+        await browser.elementByCss('[href="/2"]').click().waitForElementByCss('#random-number')
 
-        expect(
-          getRequests().filter(([url]) => getPathname(url) === '/2')
-        ).toHaveLength(1)
+        expect(getRequests().filter(([url]) => getPathname(url) === '/2')).toHaveLength(1)
 
         expect(
           getRequests().some(
-            ([url, didPartialPrefetch]) =>
-              getPathname(url) === '/2' && didPartialPrefetch
+            ([url, didPartialPrefetch]) => getPathname(url) === '/2' && didPartialPrefetch
           )
         ).toBe(false)
       })
@@ -199,13 +186,11 @@ describe('app dir client cache semantics (default semantics)', () => {
       })
 
       it('should prefetch partially a dynamic page', async () => {
-        const { getRequests, clearRequests } =
-          await createRequestsListener(browser)
+        const { getRequests, clearRequests } = await createRequestsListener(browser)
 
         await check(() => {
           return getRequests().some(
-            ([url, didPartialPrefetch]) =>
-              getPathname(url) === '/1' && didPartialPrefetch
+            ([url, didPartialPrefetch]) => getPathname(url) === '/1' && didPartialPrefetch
           )
             ? 'success'
             : 'fail'
@@ -213,15 +198,11 @@ describe('app dir client cache semantics (default semantics)', () => {
 
         clearRequests()
 
-        await browser
-          .elementByCss('[href="/1"]')
-          .click()
-          .waitForElementByCss('#random-number')
+        await browser.elementByCss('[href="/1"]').click().waitForElementByCss('#random-number')
 
         expect(
           getRequests().some(
-            ([url, didPartialPrefetch]) =>
-              getPathname(url) === '/1' && !didPartialPrefetch
+            ([url, didPartialPrefetch]) => getPathname(url) === '/1' && !didPartialPrefetch
           )
         ).toBe(true)
       })
@@ -277,9 +258,7 @@ describe('app dir client cache semantics (default semantics)', () => {
           .waitForElementByCss('#loading')
           .text()
 
-        const randomNumber = await browser
-          .waitForElementByCss('#random-number')
-          .text()
+        const randomNumber = await browser.waitForElementByCss('#random-number').text()
 
         await browser.eval(fastForwardTo, 5 * 60 * 1000)
 
@@ -298,9 +277,7 @@ describe('app dir client cache semantics (default semantics)', () => {
           .waitForElementByCss('#loading')
           .text()
 
-        const newNumber = await browser
-          .waitForElementByCss('#random-number')
-          .text()
+        const newNumber = await browser.waitForElementByCss('#random-number').text()
 
         expect(newLoadingNumber).not.toBe(randomLoadingNumber)
 
@@ -312,9 +289,7 @@ describe('app dir client cache semantics (default semantics)', () => {
 
         // the page content should disappear immediately
         await retry(async () => {
-          expect(
-            await browser.hasElementByCssSelector('[href="/null-loading"]')
-          ).toBe(false)
+          expect(await browser.hasElementByCssSelector('[href="/null-loading"]')).toBe(false)
         })
 
         // the root layout should still be visible
@@ -322,17 +297,12 @@ describe('app dir client cache semantics (default semantics)', () => {
 
         // the dynamic content should eventually appear
         await browser.waitForElementByCss('#random-number')
-        expect(await browser.hasElementByCssSelector('#random-number')).toBe(
-          true
-        )
+        expect(await browser.hasElementByCssSelector('#random-number')).toBe(true)
       })
     })
 
     it('should renew the initial seeded data after expiration time', async () => {
-      const browser = await next.browser(
-        '/without-loading/1',
-        browserConfigWithFixedTime
-      )
+      const browser = await next.browser('/without-loading/1', browserConfigWithFixedTime)
 
       const initialNumber = await browser.elementById('random-number').text()
 

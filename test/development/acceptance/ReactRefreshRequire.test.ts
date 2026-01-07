@@ -14,15 +14,9 @@ describe('ReactRefreshRequire', () => {
     await using sandbox = await createSandbox(next)
     const { session } = sandbox
 
-    await session.patch(
-      'index.js',
-      `export default function Noop() { return null; };`
-    )
+    await session.patch('index.js', `export default function Noop() { return null; };`)
 
-    await session.write(
-      './foo.js',
-      `window.log.push('init FooV1'); require('./bar');`
-    )
+    await session.write('./foo.js', `window.log.push('init FooV1'); require('./bar');`)
     await session.write(
       './bar.js',
       `window.log.push('init BarV1'); export default function Bar() { return null; };`
@@ -33,10 +27,7 @@ describe('ReactRefreshRequire', () => {
       'index.js',
       `require('./foo'); export default function Noop() { return null; };`
     )
-    expect(await session.evaluate(() => (window as any).log)).toEqual([
-      'init FooV1',
-      'init BarV1',
-    ])
+    expect(await session.evaluate(() => (window as any).log)).toEqual(['init FooV1', 'init BarV1'])
 
     // We only edited Bar, and it accepted.
     // So we expect it to re-run alone.
@@ -45,9 +36,7 @@ describe('ReactRefreshRequire', () => {
       './bar.js',
       `window.log.push('init BarV2'); export default function Bar() { return null; };`
     )
-    expect(await session.evaluate(() => (window as any).log)).toEqual([
-      'init BarV2',
-    ])
+    expect(await session.evaluate(() => (window as any).log)).toEqual(['init BarV2'])
 
     // We only edited Bar, and it accepted.
     // So we expect it to re-run alone.
@@ -56,9 +45,7 @@ describe('ReactRefreshRequire', () => {
       './bar.js',
       `window.log.push('init BarV3'); export default function Bar() { return null; };`
     )
-    expect(await session.evaluate(() => (window as any).log)).toEqual([
-      'init BarV3',
-    ])
+    expect(await session.evaluate(() => (window as any).log)).toEqual(['init BarV3'])
 
     // TODO:
     // expect(Refresh.performReactRefresh).toHaveBeenCalled();
@@ -70,10 +57,7 @@ describe('ReactRefreshRequire', () => {
     await using sandbox = await createSandbox(next)
     const { session } = sandbox
 
-    await session.patch(
-      'index.js',
-      `export default function Noop() { return null; };`
-    )
+    await session.patch('index.js', `export default function Noop() { return null; };`)
 
     await session.write(
       './foo.js',
@@ -94,10 +78,7 @@ describe('ReactRefreshRequire', () => {
       `require('./foo'); export default function Noop() { return null; };`
     )
 
-    expect(await session.evaluate(() => (window as any).log)).toEqual([
-      'init FooV1',
-      'init BarV1',
-    ])
+    expect(await session.evaluate(() => (window as any).log)).toEqual(['init FooV1', 'init BarV1'])
 
     // We edited Bar, but it doesn't accept.
     // So we expect it to re-run together with Foo which does.
@@ -160,9 +141,7 @@ describe('ReactRefreshRequire', () => {
       export default function Bar() {};
       `
     )
-    expect(await session.evaluate(() => (window as any).log)).toEqual([
-      'init BarV4',
-    ])
+    expect(await session.evaluate(() => (window as any).log)).toEqual(['init BarV4'])
 
     // TODO:
     // expect(Refresh.performReactRefresh).toHaveBeenCalled();
@@ -173,10 +152,7 @@ describe('ReactRefreshRequire', () => {
     await using sandbox = await createSandbox(next)
     const { session } = sandbox
 
-    await session.patch(
-      'index.js',
-      `export default function Noop() { return null; };`
-    )
+    await session.patch('index.js', `export default function Noop() { return null; };`)
 
     // This is the module graph:
     //        MiddleA*
@@ -224,16 +200,10 @@ describe('ReactRefreshRequire', () => {
     )
     // This one doesn't import leaf and also doesn't export a component (so it
     // doesn't accept updates).
-    await session.write(
-      'middleC.js',
-      `log.push('init MiddleCV1'); export default {};`
-    )
+    await session.write('middleC.js', `log.push('init MiddleCV1'); export default {};`)
 
     // Doesn't accept its own updates; they will propagate.
-    await session.write(
-      'leaf.js',
-      `log.push('init LeafV1'); export default {};`
-    )
+    await session.write('leaf.js', `log.push('init LeafV1'); export default {};`)
 
     // Bootstrap:
     await session.evaluate(() => ((window as any).log = []))
@@ -253,10 +223,7 @@ describe('ReactRefreshRequire', () => {
     // We edited Leaf, but it doesn't accept.
     // So we expect it to re-run together with MiddleA and MiddleB which do.
     await session.evaluate(() => ((window as any).log = []))
-    await session.patch(
-      'leaf.js',
-      `log.push('init LeafV2'); export default {};`
-    )
+    await session.patch('leaf.js', `log.push('init LeafV2'); export default {};`)
     expect(await session.evaluate(() => (window as any).log)).toEqual([
       'init LeafV2',
       'init MiddleAV1',
@@ -265,10 +232,7 @@ describe('ReactRefreshRequire', () => {
 
     // Let's try the same one more time.
     await session.evaluate(() => ((window as any).log = []))
-    await session.patch(
-      'leaf.js',
-      `log.push('init LeafV3'); export default {};`
-    )
+    await session.patch('leaf.js', `log.push('init LeafV3'); export default {};`)
     expect(await session.evaluate(() => (window as any).log)).toEqual([
       'init LeafV3',
       'init MiddleAV1',
@@ -287,17 +251,12 @@ describe('ReactRefreshRequire', () => {
       export default function MiddleB() {};
       `
     )
-    expect(await session.evaluate(() => (window as any).log)).toEqual([
-      'init MiddleBV2',
-    ])
+    expect(await session.evaluate(() => (window as any).log)).toEqual(['init MiddleBV2'])
 
     // Finally, edit MiddleC. It didn't accept so it should bubble to Root.
     await session.evaluate(() => ((window as any).log = []))
 
-    await session.patch(
-      'middleC.js',
-      `log.push('init MiddleCV2'); export default {};`
-    )
+    await session.patch('middleC.js', `log.push('init MiddleCV2'); export default {};`)
     expect(await session.evaluate(() => (window as any).log)).toEqual([
       'init MiddleCV2',
       'init RootV1',
@@ -384,10 +343,7 @@ describe('ReactRefreshRequire', () => {
       'index.js',
       `;(typeof global !== 'undefined' ? global : window).log = []; require('./foo'); export default () => null;`
     )
-    expect(await session.evaluate(() => (window as any).log)).toEqual([
-      'init BarV1',
-      'init FooV1',
-    ])
+    expect(await session.evaluate(() => (window as any).log)).toEqual(['init BarV1', 'init FooV1'])
 
     let didFullRefresh = false
     // Verify the child can accept itself:
@@ -398,9 +354,7 @@ describe('ReactRefreshRequire', () => {
         './bar.js',
         `window.log.push('init BarV1.1'); export default function Bar() {};`
       ))
-    expect(await session.evaluate(() => (window as any).log)).toEqual([
-      'init BarV1.1',
-    ])
+    expect(await session.evaluate(() => (window as any).log)).toEqual(['init BarV1.1'])
 
     // Now let's change the child to *not* accept itself.
     // We'll expect that now the parent will handle the evaluation.
@@ -439,10 +393,7 @@ describe('ReactRefreshRequire', () => {
       ))
     // Since the export list changed, we have to re-run both the parent
     // and the child.
-    expect(await session.evaluate(() => (window as any).log)).toEqual([
-      'init BarV2',
-      'init FooV1',
-    ])
+    expect(await session.evaluate(() => (window as any).log)).toEqual(['init BarV2', 'init FooV1'])
 
     // TODO:
     // expect(Refresh.performReactRefresh).toHaveBeenCalled();
@@ -458,9 +409,7 @@ describe('ReactRefreshRequire', () => {
         './bar.js',
         `window.log.push('init BarV3'); export default function Bar() {};`
       ))
-    expect(await session.evaluate(() => (window as any).log)).toEqual([
-      'init BarV3',
-    ])
+    expect(await session.evaluate(() => (window as any).log)).toEqual(['init BarV3'])
 
     // Finally, edit the parent in a way that changes the export.
     // It would still be accepted on its own -- but it's incompatible
@@ -479,9 +428,7 @@ describe('ReactRefreshRequire', () => {
       ))
 
     // Check that we attempted to evaluate, but had to fall back to full refresh.
-    expect(
-      await session.evaluate(() => window.localStorage.getItem('init'))
-    ).toEqual('init FooV2')
+    expect(await session.evaluate(() => window.localStorage.getItem('init'))).toEqual('init FooV2')
 
     // expect(Refresh.performFullRefresh).toHaveBeenCalled();
     expect(didFullRefresh).toBe(true)

@@ -91,9 +91,7 @@ describe.skip('ppr-full', () => {
   describe('Test Setup', () => {
     it('has all the test pathnames listed in the links component', () => {
       for (const { pathname } of pages) {
-        expect(links).toContainEqual(
-          expect.objectContaining({ href: pathname })
-        )
+        expect(links).toContainEqual(expect.objectContaining({ href: pathname }))
       }
     })
   })
@@ -112,178 +110,163 @@ describe.skip('ppr-full', () => {
   })
 
   describe('HTML Response', () => {
-    describe.each(pages)(
-      'for $pathname',
-      ({ pathname, dynamic, revalidate, emptyStaticPart }) => {
-        beforeAll(async () => {
-          // Hit the page once to populate the cache.
-          const res = await next.fetch(pathname)
+    describe.each(pages)('for $pathname', ({ pathname, dynamic, revalidate, emptyStaticPart }) => {
+      beforeAll(async () => {
+        // Hit the page once to populate the cache.
+        const res = await next.fetch(pathname)
 
-          // Consume the response body to ensure the cache is populated.
-          await res.text()
-        })
+        // Consume the response body to ensure the cache is populated.
+        await res.text()
+      })
 
-        it('should allow soft navigations to and from the / page', async () => {
-          const browser = await next.browser('/')
+      it('should allow soft navigations to and from the / page', async () => {
+        const browser = await next.browser('/')
 
-          await browser.waitForElementByCss(`[data-pathname="/"]`)
+        await browser.waitForElementByCss(`[data-pathname="/"]`)
+
+        // Add a window var so we can detect if there was a full navigation.
+        const now = Date.now()
+        await browser.eval(`window.beforeNav = ${now}`)
+
+        // Navigate to the page and wait for the page to load.
+        await browser.elementByCss(`a[href="${pathname}"]`).click()
+        await browser.waitForElementByCss(`[data-pathname="${pathname}"]`)
+
+        // Ensure we did a client navigation and not a full page navigation.
+        let beforeNav = await browser.eval('window.beforeNav')
+        expect(beforeNav).toBe(now)
+
+        // Navigate back to the home page and wait for the page to load.
+        await browser.elementByCss(`a[href="/"]`).click()
+        await browser.waitForElementByCss(`[data-pathname="/"]`)
+
+        // Ensure we did a client navigation and not a full page navigation.
+        beforeNav = await browser.eval('window.beforeNav')
+        expect(beforeNav).toBe(now)
+      })
+
+      it('should allow navigations to and from a pages/ page', async () => {
+        const browser = await next.browser(pathname)
+
+        try {
+          await browser.waitForElementByCss(`[data-pathname="${pathname}"]`)
 
           // Add a window var so we can detect if there was a full navigation.
           const now = Date.now()
-          await browser.eval(`window.beforeNav = ${now}`)
+          await browser.eval(`window.beforeNav = ${now.toString()}`)
 
-          // Navigate to the page and wait for the page to load.
+          // Navigate to the pages page and wait for the page to load.
+          await browser.elementByCss(`a[href="/pages"]`).click()
+          await browser.waitForElementByCss('[data-pathname="/pages"]')
+
+          // Ensure we did a full page navigation, and not a client navigation.
+          let beforeNav = await browser.eval('window.beforeNav')
+          expect(beforeNav).not.toBe(now)
+
+          await browser.eval(`window.beforeNav = ${now.toString()}`)
+
+          // Navigate back and wait for the page to load.
           await browser.elementByCss(`a[href="${pathname}"]`).click()
           await browser.waitForElementByCss(`[data-pathname="${pathname}"]`)
 
-          // Ensure we did a client navigation and not a full page navigation.
-          let beforeNav = await browser.eval('window.beforeNav')
-          expect(beforeNav).toBe(now)
-
-          // Navigate back to the home page and wait for the page to load.
-          await browser.elementByCss(`a[href="/"]`).click()
-          await browser.waitForElementByCss(`[data-pathname="/"]`)
-
-          // Ensure we did a client navigation and not a full page navigation.
+          // Ensure we did a full page navigation, and not a client navigation.
           beforeNav = await browser.eval('window.beforeNav')
-          expect(beforeNav).toBe(now)
-        })
+          expect(beforeNav).not.toBe(now)
+        } finally {
+          await browser.close()
+        }
+      })
 
-        it('should allow navigations to and from a pages/ page', async () => {
-          const browser = await next.browser(pathname)
+      it('should have correct headers', async () => {
+        const res = await next.fetch(pathname)
+        expect(res.status).toEqual(200)
+        expect(res.headers.get('content-type')).toEqual('text/html; charset=utf-8')
 
-          try {
-            await browser.waitForElementByCss(`[data-pathname="${pathname}"]`)
-
-            // Add a window var so we can detect if there was a full navigation.
-            const now = Date.now()
-            await browser.eval(`window.beforeNav = ${now.toString()}`)
-
-            // Navigate to the pages page and wait for the page to load.
-            await browser.elementByCss(`a[href="/pages"]`).click()
-            await browser.waitForElementByCss('[data-pathname="/pages"]')
-
-            // Ensure we did a full page navigation, and not a client navigation.
-            let beforeNav = await browser.eval('window.beforeNav')
-            expect(beforeNav).not.toBe(now)
-
-            await browser.eval(`window.beforeNav = ${now.toString()}`)
-
-            // Navigate back and wait for the page to load.
-            await browser.elementByCss(`a[href="${pathname}"]`).click()
-            await browser.waitForElementByCss(`[data-pathname="${pathname}"]`)
-
-            // Ensure we did a full page navigation, and not a client navigation.
-            beforeNav = await browser.eval('window.beforeNav')
-            expect(beforeNav).not.toBe(now)
-          } finally {
-            await browser.close()
-          }
-        })
-
-        it('should have correct headers', async () => {
-          const res = await next.fetch(pathname)
-          expect(res.status).toEqual(200)
-          expect(res.headers.get('content-type')).toEqual(
-            'text/html; charset=utf-8'
+        const cacheControl = res.headers.get('cache-control')
+        if (isNextDeploy) {
+          expect(cacheControl).toEqual('public, max-age=0, must-revalidate')
+        } else if (isNextDev) {
+          expect(cacheControl).toEqual('no-store, must-revalidate')
+        } else if (dynamic === false || dynamic === 'force-static') {
+          expect(cacheControl).toEqual(
+            revalidate === undefined
+              ? `s-maxage=31536000`
+              : `s-maxage=${revalidate}, stale-while-revalidate=${31536000 - revalidate}`
           )
+        } else {
+          expect(cacheControl).toEqual('private, no-cache, no-store, max-age=0, must-revalidate')
+        }
 
-          const cacheControl = res.headers.get('cache-control')
-          if (isNextDeploy) {
-            expect(cacheControl).toEqual('public, max-age=0, must-revalidate')
-          } else if (isNextDev) {
-            expect(cacheControl).toEqual('no-store, must-revalidate')
-          } else if (dynamic === false || dynamic === 'force-static') {
-            expect(cacheControl).toEqual(
-              revalidate === undefined
-                ? `s-maxage=31536000`
-                : `s-maxage=${revalidate}, stale-while-revalidate=${31536000 - revalidate}`
-            )
+        // The cache header is not relevant in development and is not
+        // deterministic enough for this table test to verify.
+        if (isNextDev) return
+
+        if (!isNextDeploy && (dynamic === false || dynamic === 'force-static')) {
+          expect(res.headers.get('x-nextjs-cache')).toEqual('HIT')
+        } else {
+          expect(res.headers.get('x-nextjs-cache')).toEqual(null)
+        }
+      })
+
+      if (dynamic === true && !isNextDev && !isNextDeploy) {
+        it('should cache the static part', async () => {
+          const dynamicValue = `${Date.now()}:${Math.random()}`
+
+          const [staticPart, dynamicPart] = await splitResponseWithPPRSentinel(async () => {
+            const res = await next.fetch(pathname, {
+              headers: {
+                'X-Test-Input': dynamicValue,
+              },
+            })
+            expect(res.status).toBe(200)
+
+            return res.body
+          })
+
+          // The dynamic part should contain the dynamic input.
+          expect(dynamicPart).toContain(dynamicValue)
+
+          // The static part should not contain the dynamic input.
+          if (emptyStaticPart) {
+            expect(staticPart).toBe('')
           } else {
-            expect(cacheControl).toEqual(
-              'private, no-cache, no-store, max-age=0, must-revalidate'
-            )
-          }
-
-          // The cache header is not relevant in development and is not
-          // deterministic enough for this table test to verify.
-          if (isNextDev) return
-
-          if (
-            !isNextDeploy &&
-            (dynamic === false || dynamic === 'force-static')
-          ) {
-            expect(res.headers.get('x-nextjs-cache')).toEqual('HIT')
-          } else {
-            expect(res.headers.get('x-nextjs-cache')).toEqual(null)
+            expect(staticPart).toContain('Dynamic Loading...')
+            expect(staticPart).not.toContain(dynamicValue)
           }
         })
-
-        if (dynamic === true && !isNextDev && !isNextDeploy) {
-          it('should cache the static part', async () => {
-            const dynamicValue = `${Date.now()}:${Math.random()}`
-
-            const [staticPart, dynamicPart] =
-              await splitResponseWithPPRSentinel(async () => {
-                const res = await next.fetch(pathname, {
-                  headers: {
-                    'X-Test-Input': dynamicValue,
-                  },
-                })
-                expect(res.status).toBe(200)
-
-                return res.body
-              })
-
-            // The dynamic part should contain the dynamic input.
-            expect(dynamicPart).toContain(dynamicValue)
-
-            // The static part should not contain the dynamic input.
-            if (emptyStaticPart) {
-              expect(staticPart).toBe('')
-            } else {
-              expect(staticPart).toContain('Dynamic Loading...')
-              expect(staticPart).not.toContain(dynamicValue)
-            }
-          })
-        }
-
-        if (dynamic === true || dynamic === 'force-dynamic') {
-          it('should resume with dynamic content', async () => {
-            const expected = `${Date.now()}:${Math.random()}`
-            const res = await next.fetch(pathname, {
-              headers: { 'X-Test-Input': expected },
-            })
-            expect(res.status).toEqual(200)
-            expect(res.headers.get('content-type')).toEqual(
-              'text/html; charset=utf-8'
-            )
-            const html = await res.text()
-            expect(html).toContain(expected)
-            expect(html).not.toContain('MISSING:USER-AGENT')
-            expect(html).toContain('</html>')
-          })
-        } else {
-          it('should not contain dynamic content', async () => {
-            const unexpected = `${Date.now()}:${Math.random()}`
-            const res = await next.fetch(pathname, {
-              headers: { 'X-Test-Input': unexpected },
-            })
-            expect(res.status).toEqual(200)
-            expect(res.headers.get('content-type')).toEqual(
-              'text/html; charset=utf-8'
-            )
-            const html = await res.text()
-            expect(html).not.toContain(unexpected)
-            if (dynamic !== false) {
-              expect(html).toContain('MISSING:USER-AGENT')
-              expect(html).toContain('MISSING:X-TEST-INPUT')
-            }
-            expect(html).toContain('</html>')
-          })
-        }
       }
-    )
+
+      if (dynamic === true || dynamic === 'force-dynamic') {
+        it('should resume with dynamic content', async () => {
+          const expected = `${Date.now()}:${Math.random()}`
+          const res = await next.fetch(pathname, {
+            headers: { 'X-Test-Input': expected },
+          })
+          expect(res.status).toEqual(200)
+          expect(res.headers.get('content-type')).toEqual('text/html; charset=utf-8')
+          const html = await res.text()
+          expect(html).toContain(expected)
+          expect(html).not.toContain('MISSING:USER-AGENT')
+          expect(html).toContain('</html>')
+        })
+      } else {
+        it('should not contain dynamic content', async () => {
+          const unexpected = `${Date.now()}:${Math.random()}`
+          const res = await next.fetch(pathname, {
+            headers: { 'X-Test-Input': unexpected },
+          })
+          expect(res.status).toEqual(200)
+          expect(res.headers.get('content-type')).toEqual('text/html; charset=utf-8')
+          const html = await res.text()
+          expect(html).not.toContain(unexpected)
+          if (dynamic !== false) {
+            expect(html).toContain('MISSING:USER-AGENT')
+            expect(html).toContain('MISSING:X-TEST-INPUT')
+          }
+          expect(html).toContain('</html>')
+        })
+      }
+    })
   })
 
   if (!isNextDev) {
@@ -300,29 +283,13 @@ describe.skip('ppr-full', () => {
         [(slug) => `/fallback/params/${slug}`, false, false],
         [(slug) => `/fallback/use-pathname/${slug}`, true, false],
         [(slug) => `/fallback/use-params/${slug}`, true, false],
-        [
-          (slug) => `/fallback/use-selected-layout-segment/${slug}`,
-          true,
-          false,
-        ],
-        [
-          (slug) => `/fallback/use-selected-layout-segments/${slug}`,
-          true,
-          false,
-        ],
+        [(slug) => `/fallback/use-selected-layout-segment/${slug}`, true, false],
+        [(slug) => `/fallback/use-selected-layout-segments/${slug}`, true, false],
         [(slug) => `/fallback/nested/params/${slug}`, false, true],
         [(slug) => `/fallback/nested/use-pathname/${slug}`, true, true],
         [(slug) => `/fallback/nested/use-params/${slug}`, true, true],
-        [
-          (slug) => `/fallback/nested/use-selected-layout-segment/${slug}`,
-          true,
-          true,
-        ],
-        [
-          (slug) => `/fallback/nested/use-selected-layout-segments/${slug}`,
-          true,
-          true,
-        ],
+        [(slug) => `/fallback/nested/use-selected-layout-segment/${slug}`, true, true],
+        [(slug) => `/fallback/nested/use-selected-layout-segments/${slug}`, true, true],
       ]
       const pad = (num: number) => String(num).padStart(2, '0')
       for (let i = 1; i < 2; i++) {
@@ -342,55 +309,49 @@ describe.skip('ppr-full', () => {
         }
       }
 
-      describe.each(pathnames)(
-        'for $pathname',
-        ({ pathname, slug, client }) => {
-          it('should render the fallback HTML immediately', async () => {
-            const [staticPart, dynamicPart] =
-              await splitResponseWithPPRSentinel(async () => {
-                const res = await next.fetch(pathname)
-                expect(res.status).toBe(200)
+      describe.each(pathnames)('for $pathname', ({ pathname, slug, client }) => {
+        it('should render the fallback HTML immediately', async () => {
+          const [staticPart, dynamicPart] = await splitResponseWithPPRSentinel(async () => {
+            const res = await next.fetch(pathname)
+            expect(res.status).toBe(200)
 
-                return res.body
-              })
-
-            // Expect that there is a static part of the response, implying that
-            // the fallback shell was sent immediately.
-            expect(staticPart.length).toBeGreaterThan(0)
-
-            // Expect that there is a dynamic part of the response, implying that
-            // the dynamic part was sent after the static part.
-            expect(dynamicPart.length).toBeGreaterThan(0)
-
-            if (client) {
-              const browser = await next.browser(pathname)
-              try {
-                await browser.waitForElementByCss('[data-slug]')
-                expect(
-                  await browser.elementByCss('[data-slug]').text()
-                ).toContain(slug)
-              } finally {
-                await browser.close()
-              }
-            } else {
-              // The static part should not contain the dynamic parameter.
-              let $ = cheerio.load(staticPart)
-              let data = $('[data-slug]').text()
-              expect(data).not.toContain(slug)
-              expect($('[data-slug]').closest('[hidden]').length).toBe(0)
-
-              // The dynamic part should contain the dynamic parameter.
-              $ = cheerio.load(dynamicPart)
-              data = $('[data-slug]').text()
-              expect(data).toContain(slug)
-              expect($('[data-slug]').closest('[hidden]').length).toBe(1)
-
-              // The static part should contain the fallback shell.
-              expect(staticPart).toContain('data-fallback')
-            }
+            return res.body
           })
-        }
-      )
+
+          // Expect that there is a static part of the response, implying that
+          // the fallback shell was sent immediately.
+          expect(staticPart.length).toBeGreaterThan(0)
+
+          // Expect that there is a dynamic part of the response, implying that
+          // the dynamic part was sent after the static part.
+          expect(dynamicPart.length).toBeGreaterThan(0)
+
+          if (client) {
+            const browser = await next.browser(pathname)
+            try {
+              await browser.waitForElementByCss('[data-slug]')
+              expect(await browser.elementByCss('[data-slug]').text()).toContain(slug)
+            } finally {
+              await browser.close()
+            }
+          } else {
+            // The static part should not contain the dynamic parameter.
+            let $ = cheerio.load(staticPart)
+            let data = $('[data-slug]').text()
+            expect(data).not.toContain(slug)
+            expect($('[data-slug]').closest('[hidden]').length).toBe(0)
+
+            // The dynamic part should contain the dynamic parameter.
+            $ = cheerio.load(dynamicPart)
+            data = $('[data-slug]').text()
+            expect(data).toContain(slug)
+            expect($('[data-slug]').closest('[hidden]').length).toBe(1)
+
+            // The static part should contain the fallback shell.
+            expect(staticPart).toContain('data-fallback')
+          }
+        })
+      })
 
       describe('Dynamic Shell', () => {
         it('should render the fallback shell on first visit', async () => {
@@ -438,9 +399,7 @@ describe.skip('ppr-full', () => {
           const fallbackID = $('[data-layout]').data('layout') as string
 
           // Now let's revalidate the page.
-          await next.fetch(
-            `/api/revalidate?pathname=${encodeURIComponent(pathname)}`
-          )
+          await next.fetch(`/api/revalidate?pathname=${encodeURIComponent(pathname)}`)
 
           // We expect to get the fallback shell again.
           $ = await next.render$(pathname)
@@ -470,9 +429,7 @@ describe.skip('ppr-full', () => {
       it('should allow client layouts without postponing fallback if params are not accessed', async () => {
         const $ = await next.render$('/fallback/client/params/page/slug-01')
 
-        let selector = $(
-          '[data-file="app/fallback/client/params/[slug]/loading"]'
-        )
+        let selector = $('[data-file="app/fallback/client/params/[slug]/loading"]')
         expect(selector.length).toBe(1)
         expect(selector.closest('[hidden]').length).toBe(0)
 
@@ -522,14 +479,10 @@ describe.skip('ppr-full', () => {
             redirect: 'manual',
           })
           expect(res.status).toEqual(signal === 'redirect()' ? 307 : 404)
-          expect(res.headers.get('content-type')).toEqual(
-            'text/html; charset=utf-8'
-          )
+          expect(res.headers.get('content-type')).toEqual('text/html; charset=utf-8')
 
           if (isNextStart) {
-            expect(res.headers.get('cache-control')).toEqual(
-              's-maxage=31536000'
-            )
+            expect(res.headers.get('cache-control')).toEqual('s-maxage=31536000')
           }
 
           if (isNextDeploy) {
@@ -554,16 +507,15 @@ describe.skip('ppr-full', () => {
 
         if (pathname.endsWith('/dynamic') && !isNextDeploy) {
           it('should cache the static part', async () => {
-            const [staticPart, dynamicPart] =
-              await splitResponseWithPPRSentinel(async () => {
-                const res = await next.fetch(pathname, {
-                  redirect: 'manual',
-                })
-
-                expect(res.status).toBe(statusCode)
-
-                return res.body
+            const [staticPart, dynamicPart] = await splitResponseWithPPRSentinel(async () => {
+              const res = await next.fetch(pathname, {
+                redirect: 'manual',
               })
+
+              expect(res.status).toBe(statusCode)
+
+              return res.body
+            })
 
             expect(staticPart.length).toBeGreaterThan(0)
             expect(dynamicPart.length).toEqual(0)
@@ -582,10 +534,7 @@ describe.skip('ppr-full', () => {
               rsc: '1',
               'next-router-prefetch': '1',
             }
-            const urlWithCacheBusting = addCacheBustingSearchParam(
-              pathname,
-              headers
-            )
+            const urlWithCacheBusting = addCacheBustingSearchParam(pathname, headers)
 
             const res = await next.fetch(urlWithCacheBusting, {
               headers,
@@ -623,10 +572,7 @@ describe.skip('ppr-full', () => {
             'next-router-prefetch': '1',
             'X-Test-Input': unexpected,
           }
-          const urlWithCacheBusting = addCacheBustingSearchParam(
-            pathname,
-            headers
-          )
+          const urlWithCacheBusting = addCacheBustingSearchParam(pathname, headers)
 
           const res = await next.fetch(urlWithCacheBusting, {
             headers,
@@ -643,10 +589,7 @@ describe.skip('ppr-full', () => {
       describe.each(pages)('for $pathname', ({ pathname, dynamic }) => {
         it('should have correct headers', async () => {
           const headers = { rsc: '1' }
-          const urlWithCacheBusting = addCacheBustingSearchParam(
-            pathname,
-            headers
-          )
+          const urlWithCacheBusting = addCacheBustingSearchParam(pathname, headers)
 
           let res = await next.fetch(urlWithCacheBusting, {
             headers,
@@ -662,9 +605,7 @@ describe.skip('ppr-full', () => {
           ])
 
           if (isNextDeploy) {
-            expect(res.headers.get('x-vercel-cache')).toMatch(
-              /MISS|HIT|PRERENDER/
-            )
+            expect(res.headers.get('x-vercel-cache')).toMatch(/MISS|HIT|PRERENDER/)
           } else {
             expect(res.headers.get('x-nextjs-cache')).toEqual(null)
           }
@@ -677,10 +618,7 @@ describe.skip('ppr-full', () => {
               rsc: '1',
               'X-Test-Input': expected,
             }
-            const urlWithCacheBusting = addCacheBustingSearchParam(
-              pathname,
-              headers
-            )
+            const urlWithCacheBusting = addCacheBustingSearchParam(pathname, headers)
 
             const res = await next.fetch(urlWithCacheBusting, {
               headers,
@@ -697,10 +635,7 @@ describe.skip('ppr-full', () => {
               rsc: '1',
               'X-Test-Input': unexpected,
             }
-            const urlWithCacheBusting = addCacheBustingSearchParam(
-              pathname,
-              headers
-            )
+            const urlWithCacheBusting = addCacheBustingSearchParam(pathname, headers)
 
             const res = await next.fetch(urlWithCacheBusting, {
               headers,
@@ -734,11 +669,9 @@ describe.skip('ppr-full', () => {
           const browser = await next.browser('/dynamic-data?foo=bar')
           try {
             await browser.waitForElementByCss('#foosearch')
-            expect(
-              await browser.eval(
-                'document.getElementById("foosearch").textContent'
-              )
-            ).toEqual('foo search: bar')
+            expect(await browser.eval('document.getElementById("foosearch").textContent')).toEqual(
+              'foo search: bar'
+            )
           } finally {
             await browser.close()
           }
@@ -759,16 +692,12 @@ describe.skip('ppr-full', () => {
           expect($('#foosearch').text()).toEqual('foo search: ')
 
           // There is no hydration mismatch, we continue to have empty searchParams
-          const browser = await next.browser(
-            '/dynamic-data/force-static?foo=bar'
-          )
+          const browser = await next.browser('/dynamic-data/force-static?foo=bar')
           try {
             await browser.waitForElementByCss('#foosearch')
-            expect(
-              await browser.eval(
-                'document.getElementById("foosearch").textContent'
-              )
-            ).toEqual('foo search: ')
+            expect(await browser.eval('document.getElementById("foosearch").textContent')).toEqual(
+              'foo search: '
+            )
           } finally {
             await browser.close()
           }
@@ -790,9 +719,7 @@ describe.skip('ppr-full', () => {
 
       describe('Incidental postpones', () => {
         it('should initially render with optimistic UI', async () => {
-          const $ = await next.render$(
-            '/dynamic-data/incidental-postpone?foo=bar'
-          )
+          const $ = await next.render$('/dynamic-data/incidental-postpone?foo=bar')
 
           // We defined some server html let's make sure it flushed both in the head
           // There may be additional flushes in the body but we want to ensure that
@@ -806,24 +733,18 @@ describe.skip('ppr-full', () => {
 
           // We expect hydration to patch up the render with dynamic data
           // from the resume
-          const browser = await next.browser(
-            '/dynamic-data/incidental-postpone?foo=bar'
-          )
+          const browser = await next.browser('/dynamic-data/incidental-postpone?foo=bar')
           try {
             await browser.waitForElementByCss('#foosearch')
-            expect(
-              await browser.eval(
-                'document.getElementById("foosearch").textContent'
-              )
-            ).toEqual('foo search: bar')
+            expect(await browser.eval('document.getElementById("foosearch").textContent')).toEqual(
+              'foo search: bar'
+            )
           } finally {
             await browser.close()
           }
         })
         it('should render entirely statically with force-static', async () => {
-          const $ = await next.render$(
-            '/dynamic-data/incidental-postpone/force-static?foo=bar'
-          )
+          const $ = await next.render$('/dynamic-data/incidental-postpone/force-static?foo=bar')
 
           // We defined some server html let's make sure it flushed both in the head
           // There may be additional flushes in the body but we want to ensure that
@@ -843,19 +764,15 @@ describe.skip('ppr-full', () => {
           )
           try {
             await browser.waitForElementByCss('#foosearch')
-            expect(
-              await browser.eval(
-                'document.getElementById("foosearch").textContent'
-              )
-            ).toEqual('foo search: ')
+            expect(await browser.eval('document.getElementById("foosearch").textContent')).toEqual(
+              'foo search: '
+            )
           } finally {
             await browser.close()
           }
         })
         it('should render entirely dynamically when force-dynamic', async () => {
-          const $ = await next.render$(
-            '/dynamic-data/incidental-postpone/force-dynamic?foo=bar'
-          )
+          const $ = await next.render$('/dynamic-data/incidental-postpone/force-dynamic?foo=bar')
 
           // We defined some server html let's make sure it flushed both in the head
           // There may be additional flushes in the body but we want to ensure that

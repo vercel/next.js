@@ -17,20 +17,14 @@ async function checkBuildFreshness() {
 
   if (!existsSync(distPath)) {
     console.warn(`${YELLOW}⚠️  WARNING: No build found!${RESET}`)
-    console.warn(
-      `${YELLOW}   The packages/next/dist directory does not exist.${RESET}`
-    )
-    console.warn(
-      `${YELLOW}   Run \`pnpm build\` before running tests.\n${RESET}`
-    )
+    console.warn(`${YELLOW}   The packages/next/dist directory does not exist.${RESET}`)
+    console.warn(`${YELLOW}   Run \`pnpm build\` before running tests.\n${RESET}`)
     return
   }
 
   if (!existsSync(buildCommitPath)) {
     console.warn(`${YELLOW}⚠️  WARNING: Build may be stale!${RESET}`)
-    console.warn(
-      `${YELLOW}   Unable to verify build freshness (no .build-commit marker).${RESET}`
-    )
+    console.warn(`${YELLOW}   Unable to verify build freshness (no .build-commit marker).${RESET}`)
     console.warn(`${YELLOW}   Run \`pnpm build\` to rebuild.\n${RESET}`)
     return
   }
@@ -43,12 +37,8 @@ async function checkBuildFreshness() {
 
     if (buildCommit !== currentCommit) {
       console.warn(`${YELLOW}⚠️  WARNING: Build is stale!${RESET}`)
-      console.warn(
-        `${YELLOW}   Build was compiled at commit: ${buildCommit.slice(0, 8)}${RESET}`
-      )
-      console.warn(
-        `${YELLOW}   Current HEAD is at commit:    ${currentCommit.slice(0, 8)}${RESET}`
-      )
+      console.warn(`${YELLOW}   Build was compiled at commit: ${buildCommit.slice(0, 8)}${RESET}`)
+      console.warn(`${YELLOW}   Current HEAD is at commit:    ${currentCommit.slice(0, 8)}${RESET}`)
       console.warn(`${YELLOW}   Run \`pnpm build\` to rebuild.\n${RESET}`)
     }
   } catch (err) {

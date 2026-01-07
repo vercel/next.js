@@ -1,10 +1,7 @@
 import type { Metadata } from '../types/metadata-interface'
 import type { AbsoluteTemplateString } from '../types/metadata-types'
 
-function resolveTitleTemplate(
-  template: string | null | undefined,
-  title: string
-) {
+function resolveTitleTemplate(template: string | null | undefined, title: string) {
   return template ? template.replace(/%s/g, title) : title
 }
 
@@ -13,10 +10,7 @@ export function resolveTitle(
   stashedTemplate: string | null | undefined
 ): AbsoluteTemplateString {
   let resolved
-  const template =
-    typeof title !== 'string' && title && 'template' in title
-      ? title.template
-      : null
+  const template = typeof title !== 'string' && title && 'template' in title ? title.template : null
 
   if (typeof title === 'string') {
     resolved = resolveTitleTemplate(stashedTemplate, title)

@@ -19,10 +19,7 @@ describe('jsconfig-path-reloading', () => {
 
   function runTests({ addAfterStart }: { addAfterStart?: boolean }) {
     beforeAll(async () => {
-      let tsConfigContent = await fs.readFile(
-        join(__dirname, 'app/jsconfig.json'),
-        'utf8'
-      )
+      let tsConfigContent = await fs.readFile(join(__dirname, 'app/jsconfig.json'), 'utf8')
 
       next = await createNext({
         files: {
@@ -115,8 +112,7 @@ describe('jsconfig-path-reloading', () => {
         await next.patchFile(tsConfigFile, tsconfigContent)
         await check(async () => {
           const html3 = await browser.eval('document.documentElement.innerHTML')
-          return html3.includes('id="first-data"') &&
-            !html3.includes('second-data')
+          return html3.includes('id="first-data"') && !html3.includes('second-data')
             ? 'success'
             : html3
         }, 'success')
@@ -153,10 +149,7 @@ describe('jsconfig-path-reloading', () => {
             2
           )
         )
-        await next.patchFile(
-          indexPage,
-          indexContent.replace('@mybutton', '@myotherbutton')
-        )
+        await next.patchFile(indexPage, indexContent.replace('@mybutton', '@myotherbutton'))
 
         await waitForNoRedbox(browser)
 
@@ -173,8 +166,7 @@ describe('jsconfig-path-reloading', () => {
         await next.patchFile(tsConfigFile, tsconfigContent)
         await check(async () => {
           const html3 = await browser.eval('document.documentElement.innerHTML')
-          return html3.includes('first button') &&
-            !html3.includes('third button')
+          return html3.includes('first button') && !html3.includes('third button')
             ? 'success'
             : html3
         }, 'success')

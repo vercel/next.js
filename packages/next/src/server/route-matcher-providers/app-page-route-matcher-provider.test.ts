@@ -69,8 +69,7 @@ describe('AppPageRouteMatcherProvider', () => {
       {
         manifest: {
           '/dashboard/users/page': 'app/dashboard/users/page.js',
-          '/(marketing)/dashboard/users/page':
-            'app/(marketing)/dashboard/users/page.js',
+          '/(marketing)/dashboard/users/page': 'app/(marketing)/dashboard/users/page.js',
         },
         route: {
           kind: RouteKind.APP_PAGE,
@@ -78,29 +77,23 @@ describe('AppPageRouteMatcherProvider', () => {
           filename: `<root>/${SERVER_DIRECTORY}/app/dashboard/users/page.js`,
           page: '/dashboard/users/page',
           bundlePath: 'app/dashboard/users/page',
-          appPaths: [
-            '/dashboard/users/page',
-            '/(marketing)/dashboard/users/page',
-          ],
+          appPaths: ['/dashboard/users/page', '/(marketing)/dashboard/users/page'],
         },
       },
-    ])(
-      'returns the correct routes for $route.pathname',
-      async ({ manifest, route }) => {
-        const loader: ManifestLoader = {
-          load: jest.fn(() => ({
-            '/users/[id]/route': 'app/users/[id]/route.js',
-            '/users/route': 'app/users/route.js',
-            ...manifest,
-          })),
-        }
-        const matcher = new AppPageRouteMatcherProvider('<root>', loader)
-        const matchers = await matcher.matchers()
-
-        expect(loader.load).toHaveBeenCalled()
-        expect(matchers).toHaveLength(1)
-        expect(matchers[0].definition).toEqual(route)
+    ])('returns the correct routes for $route.pathname', async ({ manifest, route }) => {
+      const loader: ManifestLoader = {
+        load: jest.fn(() => ({
+          '/users/[id]/route': 'app/users/[id]/route.js',
+          '/users/route': 'app/users/route.js',
+          ...manifest,
+        })),
       }
-    )
+      const matcher = new AppPageRouteMatcherProvider('<root>', loader)
+      const matchers = await matcher.matchers()
+
+      expect(loader.load).toHaveBeenCalled()
+      expect(matchers).toHaveLength(1)
+      expect(matchers[0].definition).toEqual(route)
+    })
   })
 })

@@ -1,9 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import {
-  getSegmentExplorerContent,
-  getSegmentExplorerRoute,
-  retry,
-} from 'next-test-utils'
+import { getSegmentExplorerContent, getSegmentExplorerRoute, retry } from 'next-test-utils'
 
 describe('segment-explorer', () => {
   const { next } = nextTestSetup({
@@ -101,9 +97,7 @@ describe('segment-explorer', () => {
      "app/ [layout.tsx]
      boundary/ [layout.tsx, not-found.tsx]"
     `)
-    expect(await getSegmentExplorerRoute(browser)).toBe(
-      '/boundary?name=not-found'
-    )
+    expect(await getSegmentExplorerRoute(browser)).toBe('/boundary?name=not-found')
 
     await browser.loadPage(`${next.url}/boundary?name=forbidden`)
     expect(await getSegmentExplorerContent(browser)).toMatchInlineSnapshot(`
@@ -141,9 +135,7 @@ describe('segment-explorer', () => {
      "app/ [layout.tsx]
      runtime-error / boundary/ [error.tsx]"
     `)
-    expect(await getSegmentExplorerRoute(browser)).toBe(
-      '/runtime-error/boundary'
-    )
+    expect(await getSegmentExplorerRoute(browser)).toBe('/runtime-error/boundary')
   })
 
   it('should display parallel routes default page when present', async () => {
@@ -155,9 +147,7 @@ describe('segment-explorer', () => {
      subroute/ [page.tsx]
      @foo/ [default.tsx]"
     `)
-    expect(await getSegmentExplorerRoute(browser)).toBe(
-      '/parallel-default/subroute'
-    )
+    expect(await getSegmentExplorerRoute(browser)).toBe('/parallel-default/subroute')
   })
 
   it('should display boundary selector when a segment has only boundary files', async () => {
@@ -168,9 +158,7 @@ describe('segment-explorer', () => {
      framework/ [layout.tsx]
      blog/ [layout.tsx, page.tsx]"
     `)
-    expect(await getSegmentExplorerRoute(browser)).toBe(
-      '/no-layout/framework/blog'
-    )
+    expect(await getSegmentExplorerRoute(browser)).toBe('/no-layout/framework/blog')
   })
 
   it('should render route for index page', async () => {

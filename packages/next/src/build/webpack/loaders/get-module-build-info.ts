@@ -1,8 +1,4 @@
-import type {
-  ProxyConfig,
-  ProxyMatcher,
-  RSCModuleType,
-} from '../../analysis/get-page-static-info'
+import type { ProxyConfig, ProxyMatcher, RSCModuleType } from '../../analysis/get-page-static-info'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 
 export type ModuleBuildInfo = {

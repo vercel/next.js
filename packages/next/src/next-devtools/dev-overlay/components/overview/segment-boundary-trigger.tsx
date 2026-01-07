@@ -49,8 +49,7 @@ export function SegmentBoundaryTrigger({
   )
 
   const firstDefinedBoundary = Object.values(boundaries).find((v) => v !== null)
-  const possibleExtension =
-    (firstDefinedBoundary || '').split('.').pop() || 'js'
+  const possibleExtension = (firstDefinedBoundary || '').split('.').pop() || 'js'
 
   const fileNames = useMemo(() => {
     return Object.fromEntries(
@@ -65,9 +64,7 @@ export function SegmentBoundaryTrigger({
 
   const fileName = (pagePath || '').split('/').pop() || ''
   const pageFileName = normalizeBoundaryFilename(
-    boundaryType
-      ? `page.${possibleExtension}`
-      : fileName || `page.${possibleExtension}`
+    boundaryType ? `page.${possibleExtension}` : fileName || `page.${possibleExtension}`
   )
 
   const triggerOptions = [
@@ -142,11 +139,8 @@ export function SegmentBoundaryTrigger({
   }
 
   const hasBoundary = useMemo(() => {
-    const hasPageOrBoundary =
-      nodeState.type !== 'layout' && nodeState.type !== 'template'
-    return (
-      hasPageOrBoundary && Object.values(boundaries).some((v) => v !== null)
-    )
+    const hasPageOrBoundary = nodeState.type !== 'layout' && nodeState.type !== 'template'
+    return hasPageOrBoundary && Object.values(boundaries).some((v) => v !== null)
   }, [nodeState.type, boundaries])
 
   return (
@@ -226,12 +220,7 @@ function LoadingIcon() {
       </g>
       <defs>
         <clipPath id="clip0_2759_1866">
-          <rect
-            width="16"
-            height="16"
-            fill="white"
-            transform="translate(2 2)"
-          />
+          <rect width="16" height="16" fill="white" transform="translate(2 2)" />
         </clipPath>
       </defs>
     </svg>
@@ -240,13 +229,7 @@ function LoadingIcon() {
 
 function ErrorIcon() {
   return (
-    <svg
-      width="20"
-      height="20"
-      viewBox="0 0 20 20"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
       <g clipPath="url(#clip0_2759_1881)">
         <path
           fillRule="evenodd"
@@ -257,12 +240,7 @@ function ErrorIcon() {
       </g>
       <defs>
         <clipPath id="clip0_2759_1881">
-          <rect
-            width="16"
-            height="16"
-            fill="white"
-            transform="translate(2 2)"
-          />
+          <rect width="16" height="16" fill="white" transform="translate(2 2)" />
         </clipPath>
       </defs>
     </svg>
@@ -290,13 +268,7 @@ function NotFoundIcon() {
 
 function ResetIcon() {
   return (
-    <svg
-      width="20"
-      height="20"
-      viewBox="0 0 20 20"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path
         d="M9.96484 3C13.8463 3.00018 17 6.13012 17 10C17 13.8699 13.8463 16.9998 9.96484 17C7.62404 17 5.54877 15.8617 4.27051 14.1123L3.82812 13.5068L5.03906 12.6221L5.48145 13.2275C6.48815 14.6053 8.12092 15.5 9.96484 15.5C13.0259 15.4998 15.5 13.0335 15.5 10C15.5 6.96654 13.0259 4.50018 9.96484 4.5C7.42905 4.5 5.29544 6.19429 4.63867 8.5H8V10H2.75C2.33579 10 2 9.66421 2 9.25V4H3.5V7.2373C4.57781 4.74376 7.06749 3 9.96484 3Z"
         fill="currentColor"

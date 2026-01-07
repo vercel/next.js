@@ -46,21 +46,16 @@ export default function MemoryPressure() {
   return (
     <form>
       <h1>Memory pressure</h1>
+      <p>Tests that prefetch data is evicted once the cache size grows too large, using an LRU.</p>
       <p>
-        Tests that prefetch data is evicted once the cache size grows too large,
-        using an LRU.
-      </p>
-      <p>
-        On page load, the first link is preloaded. When you switch to the second
-        tab, the first link is replaced by a large number of a new links.
+        On page load, the first link is preloaded. When you switch to the second tab, the first link
+        is replaced by a large number of a new links.
       </p>
       <p>The payload for each link's prefetch is about 1MB.</p>
       <p>
         Switching tabs causes the cache size to exceed the limit{' '}
-        <em>
-          (currently hardcoded to 50MB, but we will make this configurable)
-        </em>
-        , and the prefetch for the first link will be evicted.
+        <em>(currently hardcoded to 50MB, but we will make this configurable)</em>, and the prefetch
+        for the first link will be evicted.
       </p>
       <div>
         <button

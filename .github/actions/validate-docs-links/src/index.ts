@@ -93,9 +93,7 @@ async function getAllMdxFilePaths(
 }
 
 // Returns the slugs of all headings in a tree
-function getHeadingsFromMarkdownTree(
-  tree: ReturnType<typeof markdownProcessor.parse>
-): string[] {
+function getHeadingsFromMarkdownTree(tree: ReturnType<typeof markdownProcessor.parse>): string[] {
   const headings: string[] = []
   slugger.reset()
 
@@ -166,9 +164,7 @@ let documentMap: Map<string, Document>
 // The key varies between doc pages and error pages
 // error pages: `/docs/messages/example`
 // doc pages: `api/example`
-async function prepareDocumentMapEntry(
-  filePath: string
-): Promise<[string, Document]> {
+async function prepareDocumentMapEntry(filePath: string): Promise<[string, Document]> {
   try {
     const mdxContent = await fs.readFile(filePath, 'utf8')
     const { content, data } = matter(mdxContent)
@@ -176,10 +172,7 @@ async function prepareDocumentMapEntry(
     const headings = getHeadingsFromMarkdownTree(tree)
     const normalizedUrlPath = normalizePath(filePath)
 
-    return [
-      normalizedUrlPath,
-      { body: content, path: filePath, headings, ...data },
-    ]
+    return [normalizedUrlPath, { body: content, path: filePath, headings, ...data }]
   } catch (error) {
     setFailed(`Error preparing document map for file ${filePath}: ${error}`)
     return ['', {} as Document]
@@ -207,9 +200,7 @@ function validateInternalLink(errors: Errors, href: string): void {
     errors.link.push(href)
   } else if (hash && !EXCLUDED_HASHES.includes(hash)) {
     // Account for documents that pull their content from another document
-    const foundPageSource = foundPage.source
-      ? documentMap.get(foundPage.source)
-      : undefined
+    const foundPageSource = foundPage.source ? documentMap.get(foundPage.source) : undefined
 
     // Check if the hash link points to an existing section within the document
     const hashFound = (foundPageSource || foundPage).headings.includes(hash)
@@ -296,10 +287,7 @@ async function findBotComment(): Promise<Comment | undefined> {
   }
 }
 
-async function updateComment(
-  comment: string,
-  botComment: Comment
-): Promise<string> {
+async function updateComment(comment: string, botComment: Comment): Promise<string> {
   try {
     const { data } = await octokit.rest.issues.updateComment({
       owner,
@@ -339,25 +327,17 @@ async function createComment(comment: string): Promise<string> {
   }
 }
 
-const formatTableRow = (
-  link: string,
-  errorType: ErrorType,
-  docPath: string
-) => {
+const formatTableRow = (link: string, errorType: ErrorType, docPath: string) => {
   return `| ${link} | ${errorType} | [/${docPath}](https://github.com/vercel/next.js/blob/${sha}/${docPath}) | \n`
 }
 
-async function updateCheckStatus(
-  errorsExist: boolean,
-  commentUrl?: string
-): Promise<void> {
+async function updateCheckStatus(errorsExist: boolean, commentUrl?: string): Promise<void> {
   const checkName = 'Docs Link Validation'
 
   let summary, text
 
   if (errorsExist) {
-    summary =
-      'This PR introduces broken links to the docs. Click details for a list.'
+    summary = 'This PR introduces broken links to the docs. Click details for a list.'
     text = `[See the comment for details](${commentUrl})`
   } else {
     summary = 'No broken links found'
@@ -399,9 +379,7 @@ async function validateAllInternalLinks(): Promise<void> {
   try {
     const allMdxFilePaths = await getAllMdxFilePaths([DOCS_PATH, ERRORS_PATH])
 
-    documentMap = new Map(
-      await Promise.all(allMdxFilePaths.map(prepareDocumentMapEntry))
-    )
+    documentMap = new Map(await Promise.all(allMdxFilePaths.map(prepareDocumentMapEntry)))
 
     const docProcessingPromises = allMdxFilePaths.map(async (filePath) => {
       const doc = documentMap.get(normalizePath(filePath))

@@ -7,9 +7,7 @@ describe('chrome-devtools-workspace custom disable', () => {
   })
 
   it('can be disabled by providing your own endpoint', async () => {
-    const devtoolsResponse = await next.fetch(
-      '/.well-known/appspecific/com.chrome.devtools.json'
-    )
+    const devtoolsResponse = await next.fetch('/.well-known/appspecific/com.chrome.devtools.json')
     const json = await devtoolsResponse.json()
     expect(json).toEqual('Go away, Chrome DevTools!')
   })

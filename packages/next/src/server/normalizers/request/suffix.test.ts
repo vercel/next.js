@@ -33,9 +33,7 @@ describe('SuffixPathnameNormalizer', () => {
       const pathnames = ['/foo.rsc', '/foo/bar.rsc', '/fooo/bar.rsc']
       const expected = ['/foo', '/foo/bar', '/fooo/bar']
       for (const pathname of pathnames) {
-        expect(normalizer.normalize(pathname)).toBe(
-          expected[pathnames.indexOf(pathname)]
-        )
+        expect(normalizer.normalize(pathname)).toBe(expected[pathnames.indexOf(pathname)])
       }
     })
   })

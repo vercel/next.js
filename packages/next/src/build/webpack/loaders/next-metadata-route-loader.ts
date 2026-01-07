@@ -18,16 +18,10 @@ async function createReExportsCode(
   resourcePath: string,
   loaderContext: webpack.LoaderContext<any>
 ) {
-  const exportNames = await getLoaderModuleNamedExports(
-    resourcePath,
-    loaderContext
-  )
+  const exportNames = await getLoaderModuleNamedExports(resourcePath, loaderContext)
   // Re-export configs but avoid conflicted exports
   const reExportNames = exportNames.filter(
-    (name) =>
-      name !== 'default' &&
-      name !== 'generateSitemaps' &&
-      name !== 'dynamicParams'
+    (name) => name !== 'default' && name !== 'generateSitemaps' && name !== 'dynamicParams'
   )
 
   return reExportNames.length > 0
@@ -71,14 +65,9 @@ function getContentType(resourcePath: string) {
   return 'text/plain'
 }
 
-async function getStaticAssetRouteCode(
-  resourcePath: string,
-  fileBaseName: string
-) {
+async function getStaticAssetRouteCode(resourcePath: string, fileBaseName: string) {
   const cache =
-    process.env.NODE_ENV !== 'production'
-      ? CACHE_HEADERS.NO_CACHE
-      : CACHE_HEADERS.REVALIDATE
+    process.env.NODE_ENV !== 'production' ? CACHE_HEADERS.NO_CACHE : CACHE_HEADERS.REVALIDATE
 
   const isTwitter = fileBaseName === 'twitter-image'
   const isOpenGraph = fileBaseName === 'opengraph-image'
@@ -228,14 +217,8 @@ export async function GET(_, ctx) {
 }
 
 // <metadata-image>/[id]/route.js
-async function getImageRouteCode(
-  resourcePath: string,
-  loaderContext: webpack.LoaderContext<any>
-) {
-  const exportNames = await getLoaderModuleNamedExports(
-    resourcePath,
-    loaderContext
-  )
+async function getImageRouteCode(resourcePath: string, loaderContext: webpack.LoaderContext<any>) {
+  const exportNames = await getLoaderModuleNamedExports(resourcePath, loaderContext)
 
   const hasGenerateParamsExport = exportNames.includes('generateImageMetadata')
 
@@ -352,10 +335,7 @@ async function getSitemapRouteCode(
   resourcePath: string,
   loaderContext: webpack.LoaderContext<any>
 ) {
-  const exportNames = await getLoaderModuleNamedExports(
-    resourcePath,
-    loaderContext
-  )
+  const exportNames = await getLoaderModuleNamedExports(resourcePath, loaderContext)
 
   const hasGenerateSitemaps = exportNames.includes('generateSitemaps')
 

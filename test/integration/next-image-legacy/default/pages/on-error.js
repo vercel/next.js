@@ -5,9 +5,7 @@ const Page = () => {
   return (
     <div>
       <h1>Test onError</h1>
-      <p>
-        If error occurred while loading image, native onError should be called.
-      </p>
+      <p>If error occurred while loading image, native onError should be called.</p>
       <ImageWithMessage id="1" src="/test.png" layout="fill" />
 
       <ImageWithMessage id="2" src="/nonexistent-img.png" layout="fill" />
@@ -19,9 +17,7 @@ const Page = () => {
 function ImageWithMessage({ id, ...props }) {
   const [msg, setMsg] = useState('no error occurred')
   const style =
-    props.layout === 'fill'
-      ? { position: 'relative', width: '64px', height: '64px' }
-      : {}
+    props.layout === 'fill' ? { position: 'relative', width: '64px', height: '64px' } : {}
 
   return (
     <>

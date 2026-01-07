@@ -28,9 +28,7 @@ describe('accepts plugin configuration', () => {
       }
     `
 
-    const res = await postcss([
-      mod({ discardComments: { removeAll: true } }),
-    ]).process(input, {
+    const res = await postcss([mod({ discardComments: { removeAll: true } })]).process(input, {
       from: 'input.css',
       to: 'output.css',
     })

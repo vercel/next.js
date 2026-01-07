@@ -12,9 +12,7 @@ export function createConsoleError(
   message: string | Error,
   environmentName?: string | null
 ): ConsoleError {
-  const error = (
-    typeof message === 'string' ? new Error(message) : message
-  ) as ConsoleError
+  const error = (typeof message === 'string' ? new Error(message) : message) as ConsoleError
   error[digestSym] = 'NEXT_CONSOLE_ERROR'
 
   if (environmentName && !error.environmentName) {

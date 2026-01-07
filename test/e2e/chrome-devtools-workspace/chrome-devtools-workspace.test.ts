@@ -7,9 +7,7 @@ describe('chrome-devtools-workspace default', () => {
   })
 
   it('should be able to connect to Chrome DevTools in dev', async () => {
-    const devtoolsResponse = await next.fetch(
-      '/.well-known/appspecific/com.chrome.devtools.json'
-    )
+    const devtoolsResponse = await next.fetch('/.well-known/appspecific/com.chrome.devtools.json')
     if (isNextDev) {
       const json = await devtoolsResponse.json()
       expect(json).toEqual({
@@ -19,9 +17,7 @@ describe('chrome-devtools-workspace default', () => {
         },
       })
 
-      const pageReload = await next.fetch(
-        '/.well-known/appspecific/com.chrome.devtools.json'
-      )
+      const pageReload = await next.fetch('/.well-known/appspecific/com.chrome.devtools.json')
       // The UUID should be stable across reloads.
       // Otherwise you'd have to reconnect every-time.
       expect(await pageReload.json()).toEqual(json)
@@ -37,9 +33,7 @@ describe('chrome-devtools-workspace proxy', () => {
   })
 
   it('should be able to connect to Chrome DevTools in dev', async () => {
-    const devtoolsResponse = await next.fetch(
-      '/.well-known/appspecific/com.chrome.devtools.json'
-    )
+    const devtoolsResponse = await next.fetch('/.well-known/appspecific/com.chrome.devtools.json')
     if (isNextDev) {
       const json = await devtoolsResponse.json()
       expect(json).toEqual({
@@ -49,9 +43,7 @@ describe('chrome-devtools-workspace proxy', () => {
         },
       })
 
-      const pageReload = await next.fetch(
-        '/.well-known/appspecific/com.chrome.devtools.json'
-      )
+      const pageReload = await next.fetch('/.well-known/appspecific/com.chrome.devtools.json')
       // The UUID should be stable across reloads.
       // Otherwise you'd have to reconnect every-time.
       expect(await pageReload.json()).toEqual(json)

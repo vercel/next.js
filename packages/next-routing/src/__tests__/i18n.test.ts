@@ -26,9 +26,7 @@ describe('i18n utilities', () => {
 
     it('should detect locale by detected locale', () => {
       expect(detectDomainLocale(domains, 'other.com', 'fr')).toEqual(domains[1])
-      expect(detectDomainLocale(domains, 'other.com', 'en-US')).toEqual(
-        domains[0]
-      )
+      expect(detectDomainLocale(domains, 'other.com', 'en-US')).toEqual(domains[0])
     })
 
     it('should return undefined for no match', () => {
@@ -105,9 +103,7 @@ describe('i18n utilities', () => {
     })
 
     it('should handle multiple locales', () => {
-      expect(getAcceptLanguageLocale('ja,en;q=0.9,fr;q=0.8', locales)).toBe(
-        'ja'
-      )
+      expect(getAcceptLanguageLocale('ja,en;q=0.9,fr;q=0.8', locales)).toBe('ja')
     })
 
     it('should match prefix for regional variants', () => {
@@ -134,9 +130,7 @@ describe('i18n utilities', () => {
     })
 
     it('should handle multiple cookies', () => {
-      expect(
-        getCookieLocale('session=abc123; NEXT_LOCALE=fr; theme=dark', locales)
-      ).toBe('fr')
+      expect(getCookieLocale('session=abc123; NEXT_LOCALE=fr; theme=dark', locales)).toBe('fr')
     })
 
     it('should be case-insensitive for locale value', () => {

@@ -1,8 +1,5 @@
 import type { RouteMatcher } from '../route-matchers/route-matcher'
-import type {
-  Manifest,
-  ManifestLoader,
-} from './helpers/manifest-loaders/manifest-loader'
+import type { Manifest, ManifestLoader } from './helpers/manifest-loaders/manifest-loader'
 import { CachedRouteMatcherProvider } from './helpers/cached-route-matcher-provider'
 
 export abstract class ManifestRouteMatcherProvider<

@@ -23,9 +23,7 @@ export function getOrCreateDebugChannelReadableWriterPair(
   return pair
 }
 
-export function createDebugChannel(
-  requestHeaders: Record<string, string> | undefined
-): {
+export function createDebugChannel(requestHeaders: Record<string, string> | undefined): {
   writable?: WritableStream
   readable?: ReadableStream
 } {

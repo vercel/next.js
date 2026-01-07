@@ -20,11 +20,7 @@ export function resolveHref(
   href: Url,
   resolveAs: true
 ): [string, string] | [string]
-export function resolveHref(
-  router: NextRouter,
-  href: Url,
-  resolveAs?: false
-): string
+export function resolveHref(router: NextRouter, href: Url, resolveAs?: false): string
 export function resolveHref(
   router: NextRouter,
   href: Url,
@@ -101,18 +97,10 @@ export function resolveHref(
     finalUrl.pathname = normalizePathTrailingSlash(finalUrl.pathname)
     let interpolatedAs = ''
 
-    if (
-      isDynamicRoute(finalUrl.pathname) &&
-      finalUrl.searchParams &&
-      resolveAs
-    ) {
+    if (isDynamicRoute(finalUrl.pathname) && finalUrl.searchParams && resolveAs) {
       const query = searchParamsToUrlQuery(finalUrl.searchParams)
 
-      const { result, params } = interpolateAs(
-        finalUrl.pathname,
-        finalUrl.pathname,
-        query
-      )
+      const { result, params } = interpolateAs(finalUrl.pathname, finalUrl.pathname, query)
 
       if (result) {
         interpolatedAs = formatWithValidation({
@@ -125,13 +113,9 @@ export function resolveHref(
 
     // if the origin didn't change, it means we received a relative href
     const resolvedHref =
-      finalUrl.origin === base.origin
-        ? finalUrl.href.slice(finalUrl.origin.length)
-        : finalUrl.href
+      finalUrl.origin === base.origin ? finalUrl.href.slice(finalUrl.origin.length) : finalUrl.href
 
-    return resolveAs
-      ? [resolvedHref, interpolatedAs || resolvedHref]
-      : resolvedHref
+    return resolveAs ? [resolvedHref, interpolatedAs || resolvedHref] : resolvedHref
   } catch (_) {
     return resolveAs ? [urlAsString] : urlAsString
   }

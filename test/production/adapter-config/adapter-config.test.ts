@@ -23,22 +23,14 @@ describe('adapter-config', () => {
   it('should call onBuildComplete with correct context', async () => {
     expect(next.cliOutput).toContain('onBuildComplete called')
 
-    const {
-      outputs,
-      routing,
-      config,
-      ...ctx
-    }: Parameters<NextAdapter['onBuildComplete']>[0] = await next.readJSON(
-      'build-complete.json'
-    )
+    const { outputs, routing, config, ...ctx }: Parameters<NextAdapter['onBuildComplete']>[0] =
+      await next.readJSON('build-complete.json')
 
     for (const field of ['distDir', 'projectDir', 'repoRoot']) {
       expect(ctx[field]).toBeString()
 
       if (!fs.existsSync(ctx[field])) {
-        throw new Error(
-          `Invalid dir value provided for ${field} value ${ctx[field]}`
-        )
+        throw new Error(`Invalid dir value provided for ${field} value ${ctx[field]}`)
       }
     }
 
@@ -110,13 +102,8 @@ describe('adapter-config', () => {
       try {
         expect(prerenderOutput.parentOutputId).toBeTruthy()
         if (prerenderOutput.fallback) {
-          if (
-            'filePath' in prerenderOutput.fallback &&
-            prerenderOutput.fallback.filePath
-          ) {
-            const stats = await fs.promises.stat(
-              prerenderOutput.fallback.filePath
-            )
+          if ('filePath' in prerenderOutput.fallback && prerenderOutput.fallback.filePath) {
+            const stats = await fs.promises.stat(prerenderOutput.fallback.filePath)
             expect(stats.isFile()).toBe(true)
           }
           expect(prerenderOutput.fallback.initialRevalidate).toBeDefined()
@@ -133,9 +120,7 @@ describe('adapter-config', () => {
       }
     }
 
-    const indexPrerender = prerenderOutputs.find(
-      (item) => item.pathname === '/docs'
-    )
+    const indexPrerender = prerenderOutputs.find((item) => item.pathname === '/docs')
 
     expect(indexPrerender?.fallback?.initialHeaders).toEqual({
       'content-type': 'text/html; charset=utf-8',

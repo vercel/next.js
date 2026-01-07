@@ -116,8 +116,7 @@ function replaceFlatCompatInConfig(configPath: string): boolean {
 
   // Check if FlatCompat is used
   const hasFlatCompat =
-    configContent.includes('FlatCompat') ||
-    configContent.includes('@eslint/eslintrc')
+    configContent.includes('FlatCompat') || configContent.includes('@eslint/eslintrc')
 
   if (!hasFlatCompat) {
     console.log('   No FlatCompat usage found, no changes needed')
@@ -183,10 +182,7 @@ function replaceFlatCompatInConfig(configPath: string): boolean {
             ) {
               // Process the extends array
               prop.value.elements?.forEach((element: any) => {
-                if (
-                  element.type === 'Literal' ||
-                  element.type === 'StringLiteral'
-                ) {
+                if (element.type === 'Literal' || element.type === 'StringLiteral') {
                   if (element.value === 'next') {
                     needsNext = true
                   } else if (element.value === 'next/core-web-vitals') {
@@ -206,16 +202,8 @@ function replaceFlatCompatInConfig(configPath: string): boolean {
     }
   })
 
-  if (
-    !needsNext &&
-    !needsNextVitals &&
-    !needsNextTs &&
-    otherConfigs.length === 0
-  ) {
-    console.warn(
-      prefixes.warn,
-      '   No ESLint configs found in FlatCompat usage'
-    )
+  if (!needsNext && !needsNextVitals && !needsNextTs && otherConfigs.length === 0) {
+    console.warn(prefixes.warn, '   No ESLint configs found in FlatCompat usage')
     return false
   }
 
@@ -228,10 +216,7 @@ function replaceFlatCompatInConfig(configPath: string): boolean {
     // Remove FlatCompat imports and setup
     root.find(j.ImportDeclaration).forEach((astPath) => {
       const node = astPath.value
-      if (
-        node.source.value === '@eslint/eslintrc' ||
-        node.source.value === '@eslint/js'
-      ) {
+      if (node.source.value === '@eslint/eslintrc' || node.source.value === '@eslint/js') {
         // Only remove FlatCompat-specific imports
         j(astPath).remove()
       }
@@ -336,9 +321,7 @@ function replaceFlatCompatInConfig(configPath: string): boolean {
           if (arg.value === 'next') {
             replacements.push(j.spreadElement(j.identifier('next')))
           } else if (arg.value === 'next/core-web-vitals') {
-            replacements.push(
-              j.spreadElement(j.identifier('nextCoreWebVitals'))
-            )
+            replacements.push(j.spreadElement(j.identifier('nextCoreWebVitals')))
           } else if (arg.value === 'next/typescript') {
             replacements.push(j.spreadElement(j.identifier('nextTypescript')))
           } else if (typeof arg.value === 'string') {
@@ -346,10 +329,7 @@ function replaceFlatCompatInConfig(configPath: string): boolean {
             replacements.push(
               j.spreadElement(
                 j.callExpression(
-                  j.memberExpression(
-                    j.identifier('compat'),
-                    j.identifier('extends')
-                  ),
+                  j.memberExpression(j.identifier('compat'), j.identifier('extends')),
                   [j.literal(arg.value)]
                 )
               )
@@ -398,20 +378,13 @@ function replaceFlatCompatInConfig(configPath: string): boolean {
 
               // Process extends array
               prop.value.elements?.forEach((element: any) => {
-                if (
-                  element.type === 'Literal' ||
-                  element.type === 'StringLiteral'
-                ) {
+                if (element.type === 'Literal' || element.type === 'StringLiteral') {
                   if (element.value === 'next') {
                     replacements.push(j.spreadElement(j.identifier('next')))
                   } else if (element.value === 'next/core-web-vitals') {
-                    replacements.push(
-                      j.spreadElement(j.identifier('nextCoreWebVitals'))
-                    )
+                    replacements.push(j.spreadElement(j.identifier('nextCoreWebVitals')))
                   } else if (element.value === 'next/typescript') {
-                    replacements.push(
-                      j.spreadElement(j.identifier('nextTypescript'))
-                    )
+                    replacements.push(j.spreadElement(j.identifier('nextTypescript')))
                   } else if (typeof element.value === 'string') {
                     // Keep non-Next.js configs
                     nonNextConfigs.push(element)
@@ -422,11 +395,7 @@ function replaceFlatCompatInConfig(configPath: string): boolean {
               // If there are non-Next.js configs, preserve the extends property with them
               if (nonNextConfigs.length > 0) {
                 updatedProperties.push(
-                  j.property(
-                    'init',
-                    j.identifier('extends'),
-                    j.arrayExpression(nonNextConfigs)
-                  )
+                  j.property('init', j.identifier('extends'), j.arrayExpression(nonNextConfigs))
                 )
               }
             } else {
@@ -440,10 +409,7 @@ function replaceFlatCompatInConfig(configPath: string): boolean {
             preservedConfigs.push(
               j.spreadElement(
                 j.callExpression(
-                  j.memberExpression(
-                    j.identifier('compat'),
-                    j.identifier('config')
-                  ),
+                  j.memberExpression(j.identifier('compat'), j.identifier('config')),
                   [j.objectExpression(updatedProperties)]
                 )
               )
@@ -490,9 +456,7 @@ function replaceFlatCompatInConfig(configPath: string): boolean {
             if (arg.value === 'next') {
               replacements.push(j.spreadElement(j.identifier('next')))
             } else if (arg.value === 'next/core-web-vitals') {
-              replacements.push(
-                j.spreadElement(j.identifier('nextCoreWebVitals'))
-              )
+              replacements.push(j.spreadElement(j.identifier('nextCoreWebVitals')))
             } else if (arg.value === 'next/typescript') {
               replacements.push(j.spreadElement(j.identifier('nextTypescript')))
             } else if (typeof arg.value === 'string') {
@@ -500,10 +464,7 @@ function replaceFlatCompatInConfig(configPath: string): boolean {
               replacements.push(
                 j.spreadElement(
                   j.callExpression(
-                    j.memberExpression(
-                      j.identifier('compat'),
-                      j.identifier('extends')
-                    ),
+                    j.memberExpression(j.identifier('compat'), j.identifier('extends')),
                     [j.literal(arg.value)]
                   )
                 )
@@ -556,9 +517,7 @@ function replaceFlatCompatInConfig(configPath: string): boolean {
           unlinkSync(backupPath)
         }
       } catch (cleanupError) {
-        console.warn(
-          `   Warning: Could not remove backup file ${backupPath}: ${cleanupError}`
-        )
+        console.warn(`   Warning: Could not remove backup file ${backupPath}: ${cleanupError}`)
       }
 
       return true
@@ -582,10 +541,7 @@ function replaceFlatCompatInConfig(configPath: string): boolean {
   return true
 }
 
-function updateExistingFlatConfig(
-  configPath: string,
-  isTypeScript: boolean = false
-): boolean {
+function updateExistingFlatConfig(configPath: string, isTypeScript: boolean = false): boolean {
   let configContent: string
   try {
     configContent = readFileSync(configPath, 'utf8')
@@ -596,9 +552,7 @@ function updateExistingFlatConfig(
 
   // Check if Next.js configs are already imported directly
   const hasNext = configContent.includes('eslint-config-next')
-  const hasNextVitals = configContent.includes(
-    'eslint-config-next/core-web-vitals'
-  )
+  const hasNextVitals = configContent.includes('eslint-config-next/core-web-vitals')
   const hasNextTs = configContent.includes('eslint-config-next/typescript')
   const hasNextConfigs = hasNextVitals || hasNextTs
 
@@ -783,9 +737,7 @@ function updateExistingFlatConfig(
 
     try {
       writeFileSync(configPath, updatedContent)
-      console.log(
-        `   Updated ${path.basename(configPath)} with Next.js configurations`
-      )
+      console.log(`   Updated ${path.basename(configPath)} with Next.js configurations`)
 
       // Remove backup on success
       try {
@@ -793,9 +745,7 @@ function updateExistingFlatConfig(
           unlinkSync(backupPath)
         }
       } catch (cleanupError) {
-        console.warn(
-          `   Warning: Could not remove backup file ${backupPath}: ${cleanupError}`
-        )
+        console.warn(`   Warning: Could not remove backup file ${backupPath}: ${cleanupError}`)
       }
 
       return true
@@ -840,10 +790,7 @@ function updatePackageJsonScripts(packageJsonContent: string): {
     // Process all scripts that contain "next lint"
     for (const scriptName in packageJson.scripts) {
       const scriptValue = packageJson.scripts[scriptName]
-      if (
-        typeof scriptValue === 'string' &&
-        scriptValue.includes('next lint')
-      ) {
+      if (typeof scriptValue === 'string' && scriptValue.includes('next lint')) {
         // Replace "next lint" with "eslint" and handle special arguments
         const updatedScript = scriptValue.replace(
           /\bnext\s+lint\b([^&|;]*)/gi,
@@ -871,10 +818,7 @@ function updatePackageJsonScripts(packageJsonContent: string): {
 
             for (let j = 0; j < args.length; j++) {
               const char = args[j]
-              if (
-                (char === '"' || char === "'") &&
-                (j === 0 || args[j - 1] !== '\\')
-              ) {
+              if ((char === '"' || char === "'") && (j === 0 || args[j - 1] !== '\\')) {
                 if (!inQuotes) {
                   inQuotes = true
                   quoteChar = char
@@ -920,10 +864,7 @@ function updatePackageJsonScripts(packageJsonContent: string): {
               } else if (token.startsWith('--')) {
                 // Keep other flags and their values
                 eslintArgs.push(token)
-                if (
-                  i + 1 < argTokens.length &&
-                  !argTokens[i + 1].startsWith('--')
-                ) {
+                if (i + 1 < argTokens.length && !argTokens[i + 1].startsWith('--')) {
                   eslintArgs.push(argTokens[++i])
                 }
               } else {
@@ -958,9 +899,7 @@ function updatePackageJsonScripts(packageJsonContent: string): {
         if (updatedScript !== scriptValue) {
           packageJson.scripts[scriptName] = updatedScript
           needsUpdate = true
-          console.log(
-            `   Updated script "${scriptName}": "${scriptValue}" → "${updatedScript}"`
-          )
+          console.log(`   Updated script "${scriptName}": "${scriptValue}" → "${updatedScript}"`)
 
           // Note about unsupported flags
           if (scriptValue.includes('--rulesdir')) {
@@ -979,10 +918,7 @@ function updatePackageJsonScripts(packageJsonContent: string): {
     }
 
     // Check if eslint exists in either dependencies or devDependencies
-    if (
-      !packageJson.devDependencies.eslint &&
-      !packageJson.dependencies?.eslint
-    ) {
+    if (!packageJson.devDependencies.eslint && !packageJson.dependencies?.eslint) {
       packageJson.devDependencies.eslint = '^9'
       needsUpdate = true
     }
@@ -993,21 +929,15 @@ function updatePackageJsonScripts(packageJsonContent: string): {
       !packageJson.dependencies?.['eslint-config-next']
     ) {
       // Use the same version as next if available
-      const nextVersion =
-        packageJson.dependencies?.next || packageJson.devDependencies?.next
-      packageJson.devDependencies['eslint-config-next'] =
-        nextVersion || 'latest'
+      const nextVersion = packageJson.dependencies?.next || packageJson.devDependencies?.next
+      packageJson.devDependencies['eslint-config-next'] = nextVersion || 'latest'
       needsUpdate = true
     }
 
     // Bump eslint to v9 for full Flat config support
     if (
       packageJson.dependencies?.['eslint'] &&
-      semver.lt(
-        semver.minVersion(packageJson.dependencies['eslint'])?.version ??
-          '0.0.0',
-        '9.0.0'
-      )
+      semver.lt(semver.minVersion(packageJson.dependencies['eslint'])?.version ?? '0.0.0', '9.0.0')
     ) {
       packageJson.dependencies['eslint'] = '^9'
       needsUpdate = true
@@ -1015,8 +945,7 @@ function updatePackageJsonScripts(packageJsonContent: string): {
     if (
       packageJson.devDependencies?.['eslint'] &&
       semver.lt(
-        semver.minVersion(packageJson.devDependencies['eslint'])?.version ??
-          '0.0.0',
+        semver.minVersion(packageJson.devDependencies['eslint'])?.version ?? '0.0.0',
         '9.0.0'
       )
     ) {
@@ -1042,10 +971,7 @@ function updatePackageJsonScripts(packageJsonContent: string): {
   }
 }
 
-export default function transformer(
-  files: string[],
-  options: TransformerOptions = {}
-): void {
+export default function transformer(files: string[], options: TransformerOptions = {}): void {
   // The codemod CLI passes arguments as an array for consistency with file-based transforms,
   // but project-level transforms like this one only process a single directory.
   // Usage: npx @next/codemod next-lint-to-eslint-cli <project-directory>
@@ -1160,9 +1086,7 @@ export default function transformer(
 
       // Check for new devDependencies
       if (updatedPackageJson.devDependencies) {
-        for (const [pkg, version] of Object.entries(
-          updatedPackageJson.devDependencies
-        )) {
+        for (const [pkg, version] of Object.entries(updatedPackageJson.devDependencies)) {
           if (
             !originalPackageJson.devDependencies?.[pkg] &&
             !originalPackageJson.dependencies?.[pkg]
@@ -1193,9 +1117,7 @@ export default function transformer(
             console.log('   Dependencies installed successfully!')
           } catch (_error) {
             console.error('   Failed to install dependencies automatically.')
-            console.error(
-              `   Please run: ${getPkgManager(projectRoot)} install`
-            )
+            console.error(`   Please run: ${getPkgManager(projectRoot)} install`)
           }
         }
       }

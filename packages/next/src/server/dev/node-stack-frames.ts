@@ -1,9 +1,6 @@
 import { parse } from 'next/dist/compiled/stacktrace-parser'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
-import {
-  decorateServerError,
-  type ErrorSourceType,
-} from '../../shared/lib/error-source'
+import { decorateServerError, type ErrorSourceType } from '../../shared/lib/error-source'
 
 function getFilesystemFrame(frame: StackFrame): StackFrame {
   const f: StackFrame = { ...frame }

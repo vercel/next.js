@@ -41,7 +41,5 @@ async function _getProjectIdByGit() {
 }
 
 export async function getRawProjectId(): Promise<string> {
-  return (
-    (await _getProjectIdByGit()) || process.env.REPOSITORY_URL || process.cwd()
-  )
+  return (await _getProjectIdByGit()) || process.env.REPOSITORY_URL || process.cwd()
 }

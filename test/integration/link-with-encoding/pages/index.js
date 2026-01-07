@@ -2,19 +2,11 @@ import Link from 'next/link'
 
 const Home = () => (
   <div>
-    <Link
-      href="/single/[slug]"
-      as={encodeURI('/single/hello world ')}
-      id="single-spaces"
-    >
+    <Link href="/single/[slug]" as={encodeURI('/single/hello world ')} id="single-spaces">
       Single: Spaces
     </Link>
     <br />
-    <Link
-      href="/single/[slug]"
-      as={encodeURI('/single/hello%world')}
-      id="single-percent"
-    >
+    <Link href="/single/[slug]" as={encodeURI('/single/hello%world')} id="single-percent">
       Single: Percent
     </Link>
     <br />

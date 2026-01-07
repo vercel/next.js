@@ -7,9 +7,7 @@ describe('app dir - front redirect issue', () => {
 
   it('should redirect', async () => {
     const browser = await next.browser('/vercel-user')
-    expect(
-      await browser.waitForElementByCss('#home-page').elementByCss('h1').text()
-    ).toBe('Hello!')
+    expect(await browser.waitForElementByCss('#home-page').elementByCss('h1').text()).toBe('Hello!')
     expect(await browser.url()).toBe(`${next.url}/vercel-user`)
   })
 })

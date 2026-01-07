@@ -1,12 +1,6 @@
 import { NextInstance } from 'e2e-utils'
 import { createNext, FileRef } from 'e2e-utils'
-import {
-  check,
-  fetchViaHTTP,
-  renderViaHTTP,
-  retry,
-  waitFor,
-} from 'next-test-utils'
+import { check, fetchViaHTTP, renderViaHTTP, retry, waitFor } from 'next-test-utils'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import assert from 'assert'
@@ -14,11 +8,7 @@ import assert from 'assert'
 describe('Prerender prefetch', () => {
   let next: NextInstance
 
-  const runTests = ({
-    optimisticClientCache,
-  }: {
-    optimisticClientCache?: boolean
-  }) => {
+  const runTests = ({ optimisticClientCache }: { optimisticClientCache?: boolean }) => {
     it('should not revalidate during prefetching', async () => {
       const cliOutputStart = next.cliOutput.length
 
@@ -40,23 +30,16 @@ describe('Prerender prefetch', () => {
         // to go over revalidate period
         await waitFor(1000)
       }
-      expect(next.cliOutput.substring(cliOutputStart)).not.toContain(
-        'revalidating /blog'
-      )
+      expect(next.cliOutput.substring(cliOutputStart)).not.toContain('revalidating /blog')
     })
 
     it('should trigger revalidation after navigation', async () => {
       const getData = () =>
-        fetchViaHTTP(
-          next.url,
-          `/_next/data/${next.buildId}/blog/first.json`,
-          undefined,
-          {
-            headers: {
-              purpose: 'prefetch',
-            },
-          }
-        )
+        fetchViaHTTP(next.url, `/_next/data/${next.buildId}/blog/first.json`, undefined, {
+          headers: {
+            purpose: 'prefetch',
+          },
+        })
       const initialDataRes = await getData()
       const initialData = await initialDataRes.json()
       const browser = await webdriver(next.url, '/')
@@ -90,9 +73,7 @@ describe('Prerender prefetch', () => {
 
       await check(() => browser.elementByCss('#page').text(), 'blog/[slug]')
 
-      expect(JSON.parse(await browser.elementByCss('#props').text()).now).toBe(
-        startTime
-      )
+      expect(JSON.parse(await browser.elementByCss('#props').text()).now).toBe(startTime)
       await browser.back().waitForElementByCss('#to-blog-first')
 
       // trigger revalidation of /blog/first
@@ -126,9 +107,7 @@ describe('Prerender prefetch', () => {
       await browser.elementByCss('#to-blog-first').click()
       await check(() => browser.elementByCss('#page').text(), 'blog/[slug]')
 
-      const newTime = JSON.parse(
-        await browser.elementByCss('#props').text()
-      ).now
+      const newTime = JSON.parse(await browser.elementByCss('#props').text()).now
       expect(newTime).not.toBe(startTime)
       expect(isNaN(newTime)).toBe(false)
     })
@@ -153,9 +132,7 @@ describe('Prerender prefetch', () => {
 
       await check(() => browser.elementByCss('#page').text(), 'blog/[slug]')
 
-      expect(JSON.parse(await browser.elementByCss('#props').text()).now).toBe(
-        startTime
-      )
+      expect(JSON.parse(await browser.elementByCss('#props').text()).now).toBe(startTime)
       await browser.back().waitForElementByCss('#to-blog-first')
 
       // trigger revalidation of /blog/first
@@ -188,9 +165,7 @@ describe('Prerender prefetch', () => {
 
       await check(() => browser.elementByCss('#page').text(), 'blog/[slug]')
 
-      const newTime = JSON.parse(
-        await browser.elementByCss('#props').text()
-      ).now
+      const newTime = JSON.parse(await browser.elementByCss('#props').text()).now
       expect(newTime).not.toBe(startTime)
       expect(isNaN(newTime)).toBe(false)
     })
@@ -214,9 +189,7 @@ describe('Prerender prefetch', () => {
         await browser.elementByCss('#to-blog-first').click()
         await check(() => browser.elementByCss('#page').text(), 'blog/[slug]')
 
-        expect(
-          JSON.parse(await browser.elementByCss('#props').text()).now
-        ).toBe(startTime)
+        expect(JSON.parse(await browser.elementByCss('#props').text()).now).toBe(startTime)
         await browser.back().waitForElementByCss('#to-blog-first')
         const requests = []
 
@@ -233,9 +206,7 @@ describe('Prerender prefetch', () => {
             await browser.elementByCss('#to-blog-second').moveTo()
             await browser.elementByCss('#to-blog-first').moveTo()
           }
-          return requests.some((url) => url.includes('/blog/first.json'))
-            ? 'success'
-            : requests
+          return requests.some((url) => url.includes('/blog/first.json')) ? 'success' : requests
         }, 'success')
       })
     } else {
@@ -248,9 +219,7 @@ describe('Prerender prefetch', () => {
         })
 
         await check(async () => {
-          const cacheKeys = await browser.eval(
-            'Object.keys(window.next.router.sdc)'
-          )
+          const cacheKeys = await browser.eval('Object.keys(window.next.router.sdc)')
           return cacheKeys.some((url) => url.includes('/blog/first')) &&
             cacheKeys.some((url) => url.includes('/blog/second'))
             ? 'success'

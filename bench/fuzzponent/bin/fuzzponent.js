@@ -74,9 +74,7 @@ function* generateModules(name, remainingDepth, seqGenerator, opts) {
     ast = generateFunctionalComponentModule(name)
   } else {
     const numChildren = seqGenerator.intBetween(opts.minChild, opts.maxChild)
-    const children = arrayUntil(numChildren).map(() =>
-      generateComponentName(seqGenerator, opts)
-    )
+    const children = arrayUntil(numChildren).map(() => generateComponentName(seqGenerator, opts))
     ast = generateFunctionalComponentModule(name, children)
 
     for (const child of children) {
@@ -94,16 +92,9 @@ function generateFuzzponents(outdir, seed, depth, opts) {
   const seqGenerator = getSequenceGenerator(seed)
 
   const filenames = new Set()
-  for (const { filename, content } of generateModules(
-    'index',
-    depth,
-    seqGenerator,
-    opts
-  )) {
+  for (const { filename, content } of generateModules('index', depth, seqGenerator, opts)) {
     if (filenames.has(filename)) {
-      throw new Error(
-        `Seed "${seed}" generates output with filename collisions.`
-      )
+      throw new Error(`Seed "${seed}" generates output with filename collisions.`)
     } else {
       filenames.add(filename)
     }

@@ -55,24 +55,16 @@ const nextFontLocalFontLoader: FontLoader = async ({
       }
 
       // Check if `font-family` is explicitly defined in `declarations`
-      const hasCustomFontFamily = declarations?.some(
-        ({ prop }) => prop === 'font-family'
-      )
+      const hasCustomFontFamily = declarations?.some(({ prop }) => prop === 'font-family')
 
       // Get all values that should be added to the @font-face declaration
       const fontFaceProperties = [
-        ...(declarations
-          ? declarations.map(({ prop, value }) => [prop, value])
-          : []),
+        ...(declarations ? declarations.map(({ prop, value }) => [prop, value]) : []),
         ...(hasCustomFontFamily ? [] : [['font-family', variableName]]),
         ['src', `url(${fontUrl}) format('${format}')`],
         ['font-display', display],
-        ...((weight ?? defaultWeight)
-          ? [['font-weight', weight ?? defaultWeight]]
-          : []),
-        ...((style ?? defaultStyle)
-          ? [['font-style', style ?? defaultStyle]]
-          : []),
+        ...((weight ?? defaultWeight) ? [['font-weight', weight ?? defaultWeight]] : []),
+        ...((style ?? defaultStyle) ? [['font-style', style ?? defaultStyle]] : []),
       ]
 
       // Generate the @font-face CSS from the font-face properties

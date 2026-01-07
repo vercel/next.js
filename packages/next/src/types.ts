@@ -142,13 +142,7 @@ export type PageConfig = {
   unstable_JsPreload?: false
 }
 
-export type {
-  NextPageContext,
-  NextComponentType,
-  NextApiResponse,
-  NextApiRequest,
-  NextApiHandler,
-}
+export type { NextPageContext, NextComponentType, NextApiResponse, NextApiRequest, NextApiHandler }
 
 export type PreviewData = string | false | object | undefined
 
@@ -212,9 +206,7 @@ export type GetStaticPathsContext = {
  * The return type of `getStaticPaths`.
  * @link https://nextjs.org/docs/api-reference/data-fetching/get-static-paths#getstaticpaths-return-values
  */
-export type GetStaticPathsResult<
-  Params extends ParsedUrlQuery = ParsedUrlQuery,
-> = {
+export type GetStaticPathsResult<Params extends ParsedUrlQuery = ParsedUrlQuery> = {
   paths: Array<string | { params: Params; locale?: string }>
   fallback: GetStaticPathsFallback
 }

@@ -26,9 +26,7 @@ export function autoImplementMethods(
   // Get all the methods that could be automatically implemented that were not
   // implemented by the userland module.
   const implemented = new Set(HTTP_METHODS.filter((method) => handlers[method]))
-  const missing = AUTOMATIC_ROUTE_METHODS.filter(
-    (method) => !implemented.has(method)
-  )
+  const missing = AUTOMATIC_ROUTE_METHODS.filter((method) => !implemented.has(method))
 
   // Loop over the missing methods to automatically implement them if we can.
   for (const method of missing) {

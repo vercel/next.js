@@ -156,41 +156,18 @@ describe('matchRemotePattern', () => {
     expect(m(p, new URL('https://example.com:81/path/to/file'))).toBe(false)
     expect(m(p, new URL('https://example.com:81/path/to/file?q=1'))).toBe(false)
     expect(m(p, new URL('https://example.com:42/path/to/file?q=1'))).toBe(false)
-    expect(m(p, new URL('https://example.com:42/path/to/file?q=1&a=two'))).toBe(
-      false
-    )
+    expect(m(p, new URL('https://example.com:42/path/to/file?q=1&a=two'))).toBe(false)
+    expect(m(p, new URL('https://example.com:42/path/to/file?q=1&a=two&s'))).toBe(false)
+    expect(m(p, new URL('https://example.com:42/path/to/file?q=1&a=two&s='))).toBe(false)
+    expect(m(p, new URL('https://example.com:42/path/to/file?q=1&a=two&s=!@'))).toBe(false)
     expect(
-      m(p, new URL('https://example.com:42/path/to/file?q=1&a=two&s'))
-    ).toBe(false)
-    expect(
-      m(p, new URL('https://example.com:42/path/to/file?q=1&a=two&s='))
-    ).toBe(false)
-    expect(
-      m(p, new URL('https://example.com:42/path/to/file?q=1&a=two&s=!@'))
-    ).toBe(false)
-    expect(
-      m(
-        p,
-        new URL(
-          'https://example.com:42/path/to/file?q=1&a=two&s=!@$^&-_+/()[]{};:~'
-        )
-      )
+      m(p, new URL('https://example.com:42/path/to/file?q=1&a=two&s=!@$^&-_+/()[]{};:~'))
     ).toBe(true)
     expect(
-      m(
-        p,
-        new URL(
-          'https://example.com:42/path/to/file?q=1&s=!@$^&-_+/()[]{};:~&a=two'
-        )
-      )
+      m(p, new URL('https://example.com:42/path/to/file?q=1&s=!@$^&-_+/()[]{};:~&a=two'))
     ).toBe(false)
     expect(
-      m(
-        p,
-        new URL(
-          'https://example.com:42/path/to/file?a=two&q=1&s=!@$^&-_+/()[]{};:~'
-        )
-      )
+      m(p, new URL('https://example.com:42/path/to/file?a=two&q=1&s=!@$^&-_+/()[]{};:~'))
     ).toBe(false)
   })
 
@@ -288,9 +265,7 @@ describe('matchRemotePattern', () => {
     expect(m(p, new URL('https://example.com/act123/team/pic.jpg'))).toBe(true)
     expect(m(p, new URL('https://example.com/act456/team/pic.jpg'))).toBe(false)
     expect(m(p, new URL('https://example.com/act123/.a/pic.jpg'))).toBe(true)
-    expect(m(p, new URL('https://example.com/act123/team/usr4/pic.jpg'))).toBe(
-      false
-    )
+    expect(m(p, new URL('https://example.com/act123/team/usr4/pic.jpg'))).toBe(false)
     expect(m(p, new URL('https://example.com/team/pic.jpg'))).toBe(false)
   })
 
@@ -310,9 +285,7 @@ describe('matchRemotePattern', () => {
     expect(m(p, new URL('https://example.com/act123/usr4/pic.jpg'))).toBe(true)
     expect(m(p, new URL('https://example.com/act123/usr5/pic.jpg'))).toBe(false)
     expect(m(p, new URL('https://example.com/act123/team4/pic.jpg'))).toBe(true)
-    expect(m(p, new URL('https://example.com/act456/team5/pic.jpg'))).toBe(
-      false
-    )
+    expect(m(p, new URL('https://example.com/act456/team5/pic.jpg'))).toBe(false)
     expect(m(p, new URL('https://example.com/team/pic.jpg'))).toBe(false)
     expect(m(p, new URL('https://example.com/act123/4/pic.jpg'))).toBe(true)
   })
@@ -333,12 +306,8 @@ describe('matchRemotePattern', () => {
     expect(m(p, new URL('https://example.com/act123/usr4/pic.jpg'))).toBe(true)
     expect(m(p, new URL('https://example.com/act123/usr5/pic.jpg'))).toBe(true)
     expect(m(p, new URL('https://example.com/act123/.sr6/pic.jpg'))).toBe(true)
-    expect(m(p, new URL('https://example.com/act123/team4/pic.jpg'))).toBe(
-      false
-    )
-    expect(m(p, new URL('https://example.com/act123/team5/pic.jpg'))).toBe(
-      false
-    )
+    expect(m(p, new URL('https://example.com/act123/team4/pic.jpg'))).toBe(false)
+    expect(m(p, new URL('https://example.com/act123/team5/pic.jpg'))).toBe(false)
     expect(m(p, new URL('https://example.com/team/pic.jpg'))).toBe(false)
     expect(m(p, new URL('https://example.com/act123/sr/pic.jpg'))).toBe(true)
   })
@@ -359,16 +328,10 @@ describe('matchRemotePattern', () => {
     expect(m(p, new URL('https://example.com/act123/usr4/pic.jpg'))).toBe(true)
     expect(m(p, new URL('https://example.com/act123/usr5/pic.jpg'))).toBe(true)
     expect(m(p, new URL('https://example.com/act123/usr/pic.jpg'))).toBe(true)
-    expect(m(p, new URL('https://example.com/act123/team4/pic.jpg'))).toBe(
-      false
-    )
-    expect(m(p, new URL('https://example.com/act456/team5/pic.jpg'))).toBe(
-      false
-    )
+    expect(m(p, new URL('https://example.com/act123/team4/pic.jpg'))).toBe(false)
+    expect(m(p, new URL('https://example.com/act456/team5/pic.jpg'))).toBe(false)
     expect(m(p, new URL('https://example.com/team/pic.jpg'))).toBe(false)
-    expect(m(p, new URL('https://sub.example.com/act123/usr6/pic.jpg'))).toBe(
-      false
-    )
+    expect(m(p, new URL('https://sub.example.com/act123/usr6/pic.jpg'))).toBe(false)
   })
 
   it('should match pathname pattern with double asterisk', () => {
@@ -389,9 +352,7 @@ describe('matchRemotePattern', () => {
     expect(m(p, new URL('https://example.com/act123/team/.pic.jpg'))).toBe(true)
     expect(m(p, new URL('https://example.com/act456/team/pic.jpg'))).toBe(false)
     expect(m(p, new URL('https://example.com/team/pic.jpg'))).toBe(false)
-    expect(m(p, new URL('https://sub.example.com/act123/team/pic.jpg'))).toBe(
-      false
-    )
+    expect(m(p, new URL('https://sub.example.com/act123/team/pic.jpg'))).toBe(false)
   })
 
   it('should throw when hostname is missing', () => {
@@ -411,38 +372,16 @@ describe('matchRemotePattern', () => {
     expect(hasMatch(['*.example.com'], [], url)).toBe(false)
     expect(hasMatch(['*.example.com'], [], url)).toBe(false)
     expect(hasMatch([], [{ hostname: 'foo.com' }], url)).toBe(false)
+    expect(hasMatch([], [{ hostname: 'foo.com' }, { hostname: 'example.com' }], url)).toBe(true)
+    expect(hasMatch([], [{ hostname: 'example.com', pathname: '/act123/**' }], url)).toBe(false)
     expect(
-      hasMatch([], [{ hostname: 'foo.com' }, { hostname: 'example.com' }], url)
+      hasMatch(['example.com'], [{ hostname: 'example.com', pathname: '/act123/**' }], url)
     ).toBe(true)
-    expect(
-      hasMatch([], [{ hostname: 'example.com', pathname: '/act123/**' }], url)
-    ).toBe(false)
-    expect(
-      hasMatch(
-        ['example.com'],
-        [{ hostname: 'example.com', pathname: '/act123/**' }],
-        url
-      )
-    ).toBe(true)
-    expect(
-      hasMatch([], [{ protocol: 'https', hostname: 'example.com' }], url)
-    ).toBe(true)
-    expect(
-      hasMatch([], [{ protocol: 'http', hostname: 'example.com' }], url)
-    ).toBe(false)
-    expect(
-      hasMatch(
-        ['example.com'],
-        [{ protocol: 'http', hostname: 'example.com' }],
-        url
-      )
-    ).toBe(true)
-    expect(
-      hasMatch(
-        ['foo.com'],
-        [{ protocol: 'http', hostname: 'example.com' }],
-        url
-      )
-    ).toBe(false)
+    expect(hasMatch([], [{ protocol: 'https', hostname: 'example.com' }], url)).toBe(true)
+    expect(hasMatch([], [{ protocol: 'http', hostname: 'example.com' }], url)).toBe(false)
+    expect(hasMatch(['example.com'], [{ protocol: 'http', hostname: 'example.com' }], url)).toBe(
+      true
+    )
+    expect(hasMatch(['foo.com'], [{ protocol: 'http', hostname: 'example.com' }], url)).toBe(false)
   })
 })

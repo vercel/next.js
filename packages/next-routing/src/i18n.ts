@@ -36,9 +36,7 @@ export function detectDomainLocale(
     if (
       normalizedHostname === domainHostname ||
       normalizedLocale === domain.defaultLocale.toLowerCase() ||
-      domain.locales?.some(
-        (locale) => locale.toLowerCase() === normalizedLocale
-      )
+      domain.locales?.some((locale) => locale.toLowerCase() === normalizedLocale)
     ) {
       return domain
     }
@@ -204,8 +202,7 @@ export function detectLocale(params: {
   pathnameWithoutLocale: string
   localeInPath: boolean
 } {
-  const { pathname, hostname, cookieHeader, acceptLanguageHeader, i18n } =
-    params
+  const { pathname, hostname, cookieHeader, acceptLanguageHeader, i18n } = params
 
   // 1. Check if locale is in the pathname
   const pathLocaleResult = normalizeLocalePath(pathname, i18n.locales)
@@ -238,10 +235,7 @@ export function detectLocale(params: {
   }
 
   // 3. Check accept-language header (priority over domain when locale detection is enabled)
-  const acceptLocale = getAcceptLanguageLocale(
-    acceptLanguageHeader || '',
-    i18n.locales
-  )
+  const acceptLocale = getAcceptLanguageLocale(acceptLanguageHeader || '', i18n.locales)
   if (acceptLocale) {
     return {
       locale: acceptLocale,

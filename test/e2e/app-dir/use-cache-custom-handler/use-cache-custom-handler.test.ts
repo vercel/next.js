@@ -116,10 +116,7 @@ describe('use-cache-custom-handler', () => {
     await retry(async () => {
       const cliOutput = next.cliOutput.slice(outputIndex)
       expect(cliOutput).not.toInclude('ModernCustomCacheHandler::getExpiration')
-      expect(cliOutput).toIncludeRepeated(
-        `ModernCustomCacheHandler::updateTags`,
-        1
-      )
+      expect(cliOutput).toIncludeRepeated(`ModernCustomCacheHandler::updateTags`, 1)
     })
   })
 

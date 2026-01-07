@@ -40,8 +40,7 @@ const url = 'https://nextjs.org/docs/messages/no-html-link-for-pages'
 export default defineRule({
   meta: {
     docs: {
-      description:
-        'Prevent usage of `<a>` elements to navigate to internal Next.js pages.',
+      description: 'Prevent usage of `<a>` elements to navigate to internal Next.js pages.',
       category: 'HTML',
       recommended: true,
       url,
@@ -77,10 +76,7 @@ export default defineRule({
     const pagesDirs = (
       customPagesDirectory
         ? [customPagesDirectory]
-        : rootDirs.map((dir) => [
-            path.join(dir, 'pages'),
-            path.join(dir, 'src', 'pages'),
-          ])
+        : rootDirs.map((dir) => [path.join(dir, 'pages'), path.join(dir, 'src', 'pages')])
     ).flat()
 
     const foundPagesDirs = pagesDirs.filter((dir) => {
@@ -138,8 +134,7 @@ export default defineRule({
         }
 
         const hasDownloadAttr = node.attributes.find(
-          (attr) =>
-            attr.type === 'JSXAttribute' && attr.name.name === 'download'
+          (attr) => attr.type === 'JSXAttribute' && attr.name.name === 'download'
         )
 
         if (hasDownloadAttr) {

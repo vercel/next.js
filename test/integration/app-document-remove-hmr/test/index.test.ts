@@ -32,9 +32,7 @@ describe('_app removal HMR', () => {
 
       await check(async () => {
         const html = await browser.eval('document.documentElement.innerHTML')
-        return html.includes('index page') && !html.includes('custom _app')
-          ? 'success'
-          : html
+        return html.includes('index page') && !html.includes('custom _app') ? 'success' : html
       }, 'success')
 
       await fs.writeFile(
@@ -48,8 +46,7 @@ describe('_app removal HMR', () => {
 
       await check(async () => {
         const html = await browser.eval('document.documentElement.innerHTML')
-        return html.includes('index page updated') &&
-          !html.includes('custom _app')
+        return html.includes('index page updated') && !html.includes('custom _app')
           ? 'success'
           : html
       }, 'success')
@@ -58,8 +55,7 @@ describe('_app removal HMR', () => {
 
       await check(async () => {
         const html = await browser.eval('document.documentElement.innerHTML')
-        return html.includes('index page updated') &&
-          html.includes('custom _app')
+        return html.includes('index page updated') && html.includes('custom _app')
           ? 'success'
           : html
       }, 'success')
@@ -84,9 +80,7 @@ describe('_app removal HMR', () => {
 
       await check(async () => {
         const html = await browser.eval('document.documentElement.innerHTML')
-        return html.includes('index page') && !html.includes('custom _document')
-          ? 'success'
-          : html
+        return html.includes('index page') && !html.includes('custom _document') ? 'success' : html
       }, 'success')
 
       await fs.writeFile(
@@ -100,8 +94,7 @@ describe('_app removal HMR', () => {
 
       await check(async () => {
         const html = await browser.eval('document.documentElement.innerHTML')
-        return html.includes('index page updated') &&
-          !html.includes('custom _document')
+        return html.includes('index page updated') && !html.includes('custom _document')
           ? 'success'
           : html
       }, 'success')
@@ -110,8 +103,7 @@ describe('_app removal HMR', () => {
 
       await check(async () => {
         const html = await browser.eval('document.documentElement.innerHTML')
-        return html.includes('index page updated') &&
-          html.includes('custom _document')
+        return html.includes('index page updated') && html.includes('custom _document')
           ? 'success'
           : html
       }, 'success')

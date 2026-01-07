@@ -19,10 +19,7 @@ export default function Component() {
       <Link href="/gsp-blocking-redirect/sv" id="to-gsp-blocking-redirect-sv">
         to /gsp-blocking-redirect/sv"
       </Link>
-      <Link
-        href="/gsp-blocking-redirect/from-ctx"
-        id="to-gsp-blocking-redirect-from-ctx"
-      >
+      <Link href="/gsp-blocking-redirect/from-ctx" id="to-gsp-blocking-redirect-from-ctx">
         to /gsp-blocking-redirect/from-ctx
       </Link>
 
@@ -32,10 +29,7 @@ export default function Component() {
       <Link href="/gsp-fallback-redirect/sv" id="to-gsp-fallback-redirect-sv">
         to /gsp-fallback-redirect/sv"
       </Link>
-      <Link
-        href="/gsp-fallback-redirect/from-ctx"
-        id="to-gsp-fallback-redirect-from-ctx"
-      >
+      <Link href="/gsp-fallback-redirect/from-ctx" id="to-gsp-fallback-redirect-from-ctx">
         to /gsp-fallback-redirect/from-ctx
       </Link>
     </>

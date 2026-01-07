@@ -31,9 +31,7 @@ describe('client-max-body-size', () => {
       // Should only buffer up to 10MB, not the full 11MB
       expect(responseBody.bodySize).toBeLessThanOrEqual(10 * 1024 * 1024)
       expect(responseBody.bodySize).toBeLessThan(bodySize)
-      expect(next.cliOutput).toContain(
-        'Request body exceeded 10MB for /api/echo'
-      )
+      expect(next.cliOutput).toContain('Request body exceeded 10MB for /api/echo')
     })
 
     it('should accept request body at exactly 10MB', async () => {
@@ -110,9 +108,7 @@ describe('client-max-body-size', () => {
       // Should only buffer up to 5MB, not the full 6MB
       expect(responseBody.bodySize).toBeLessThanOrEqual(5 * 1024 * 1024)
       expect(responseBody.bodySize).toBeLessThan(bodySize)
-      expect(next.cliOutput).toContain(
-        'Request body exceeded 5MB for /api/echo'
-      )
+      expect(next.cliOutput).toContain('Request body exceeded 5MB for /api/echo')
     })
 
     it('should accept request body under custom 5MB limit', async () => {
@@ -169,9 +165,7 @@ describe('client-max-body-size', () => {
       // Should only buffer up to 2MB, not the full 3MB
       expect(responseBody.bodySize).toBeLessThanOrEqual(2 * 1024 * 1024)
       expect(responseBody.bodySize).toBeLessThan(bodySize)
-      expect(next.cliOutput).toContain(
-        'Request body exceeded 2MB for /api/echo'
-      )
+      expect(next.cliOutput).toContain('Request body exceeded 2MB for /api/echo')
     })
 
     it('should accept request body under custom 2MB limit', async () => {
@@ -248,9 +242,7 @@ describe('client-max-body-size', () => {
       // Should only buffer up to 50MB, not the full 51MB
       expect(responseBody.bodySize).toBeLessThanOrEqual(50 * 1024 * 1024)
       expect(responseBody.bodySize).toBeLessThan(bodySize)
-      expect(next.cliOutput).toContain(
-        'Request body exceeded 50MB for /api/echo'
-      )
+      expect(next.cliOutput).toContain('Request body exceeded 50MB for /api/echo')
     })
   })
 })

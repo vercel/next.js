@@ -8,10 +8,7 @@ const SubCategoryNav = ({ category }) => {
 
   return (
     <div style={{ display: 'flex' }}>
-      <TabNavItem
-        href={`/nested-navigation/${category.slug}`}
-        isActive={!selectedLayoutSegment}
-      >
+      <TabNavItem href={`/nested-navigation/${category.slug}`} isActive={!selectedLayoutSegment}>
         All
       </TabNavItem>
 

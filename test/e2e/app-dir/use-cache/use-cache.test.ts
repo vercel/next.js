@@ -1,9 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import {
-  assertNoConsoleErrors,
-  waitForNoErrorToast,
-  retry,
-} from 'next-test-utils'
+import { assertNoConsoleErrors, waitForNoErrorToast, retry } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 import { format } from 'util'
 import { Playwright } from 'next-webdriver'
@@ -19,12 +15,10 @@ const GENERIC_RSC_ERROR =
 const withCacheComponents = process.env.__NEXT_CACHE_COMPONENTS === 'true'
 
 describe('use-cache', () => {
-  const { next, isNextDev, isNextDeploy, isNextStart, skipped } = nextTestSetup(
-    {
-      files: __dirname,
-      skipDeployment: true,
-    }
-  )
+  const { next, isNextDev, isNextDeploy, isNextStart, skipped } = nextTestSetup({
+    files: __dirname,
+    skipDeployment: true,
+  })
 
   if (skipped) {
     return
@@ -65,9 +59,7 @@ describe('use-cache', () => {
     expect(await browser.waitForElementByCss('#x').text()).toBe('2')
     const random2 = await browser.waitForElementByCss('#y').text()
 
-    await browser.loadPage(
-      new URL(`/custom-handler?n=1&unrelated`, next.url).toString()
-    )
+    await browser.loadPage(new URL(`/custom-handler?n=1&unrelated`, next.url).toString())
     expect(await browser.waitForElementByCss('#x').text()).toBe('1')
     const random1b = await browser.waitForElementByCss('#y').text()
 
@@ -118,22 +110,15 @@ describe('use-cache', () => {
     expect(await browser.elementById('same-arg').text()).toBe('true')
     expect(await browser.elementById('different-args').text()).toBe('true')
     expect(await browser.elementById('same-bound-arg').text()).toBe('true')
-    expect(await browser.elementById('different-bound-args').text()).toBe(
-      'true'
-    )
+    expect(await browser.elementById('different-bound-args').text()).toBe('true')
   })
 
   it('should dedupe cached data in the RSC payload', async () => {
-    const text = await next
-      .fetch('/rsc-payload')
-      .then((response) => response.text())
+    const text = await next.fetch('/rsc-payload').then((response) => response.text())
 
     // The cached data is passed to two client components, but should appear
     // only once in the RSC payload that's included in the HTML document.
-    expect(text).toIncludeRepeated(
-      '{\\\\"data\\\\":{\\\\"hello\\\\":\\\\"world\\\\"}',
-      1
-    )
+    expect(text).toIncludeRepeated('{\\\\"data\\\\":{\\\\"hello\\\\":\\\\"world\\\\"}', 1)
   })
 
   it('should cache results in route handlers', async () => {
@@ -146,9 +131,7 @@ describe('use-cache', () => {
   it('should revalidate before redirecting in a route handler', async () => {
     const initialValues = await next.fetch('/api').then((res) => res.json())
 
-    const values = await next
-      .fetch('/api/revalidate-redirect')
-      .then((res) => res.json())
+    const values = await next.fetch('/api/revalidate-redirect').then((res) => res.json())
 
     if (isNextDeploy) {
       try {
@@ -163,9 +146,7 @@ describe('use-cache', () => {
         // eventually the revalidation will be propagated, and a refresh should
         // show fresh data.
         await retry(async () => {
-          const refreshedValues = await next
-            .fetch('/api')
-            .then((res) => res.json())
+          const refreshedValues = await next.fetch('/api').then((res) => res.json())
 
           expect(refreshedValues).not.toEqual(initialValues)
         })
@@ -320,9 +301,7 @@ describe('use-cache', () => {
 
     expect(valueA).toBe(valueB)
 
-    await browser
-      .elementByCss('a[href="/revalidate-and-redirect/redirect"]')
-      .click()
+    await browser.elementByCss('a[href="/revalidate-and-redirect/redirect"]').click()
 
     await browser.elementById('revalidate-tag-redirect').click()
 
@@ -333,9 +312,7 @@ describe('use-cache', () => {
     expect(newValueA).not.toBe(valueA)
     expect(newValueB).toBe(newValueB)
 
-    await browser
-      .elementByCss('a[href="/revalidate-and-redirect/redirect"]')
-      .click()
+    await browser.elementByCss('a[href="/revalidate-and-redirect/redirect"]').click()
     await browser.elementById('revalidate-path-redirect').click()
 
     const finalValueA = await browser.elementById('a').text()
@@ -408,19 +385,13 @@ describe('use-cache', () => {
     await browser.elementById('revalidate-tag').click()
     await browser.waitForElementByCss('#revalidate-tag:enabled')
 
-    const useCacheValueBeforeRevalidation = await browser
-      .elementById('use-cache-value-1')
-      .text()
-    const useCacheValueAfterRevalidation = await browser
-      .elementById('use-cache-value-2')
-      .text()
+    const useCacheValueBeforeRevalidation = await browser.elementById('use-cache-value-1').text()
+    const useCacheValueAfterRevalidation = await browser.elementById('use-cache-value-2').text()
     const newFetchedValue = await browser.elementById('fetched-value').text()
 
     expect(useCacheValueBeforeRevalidation).toBe(useCacheValue1)
     expect(useCacheValueBeforeRevalidation).toBe(useCacheValue2)
-    expect(useCacheValueBeforeRevalidation).not.toBe(
-      useCacheValueAfterRevalidation
-    )
+    expect(useCacheValueBeforeRevalidation).not.toBe(useCacheValueAfterRevalidation)
     expect(newFetchedValue).not.toBe(fetchedValue)
 
     await browser.elementById('revalidate-path').click()
@@ -435,9 +406,7 @@ describe('use-cache', () => {
     expect(await browser.elementById('use-cache-value-1').text()).not.toBe(
       await browser.elementById('use-cache-value-2').text()
     )
-    expect(await browser.elementById('fetched-value').text()).not.toBe(
-      newFetchedValue
-    )
+    expect(await browser.elementById('fetched-value').text()).not.toBe(newFetchedValue)
   })
 
   if (isNextStart) {
@@ -458,15 +427,11 @@ describe('use-cache', () => {
             return true
           }
 
-          return next
-            .readFileSync(`.next/server/app/${filename}.html`)
-            .endsWith('</html>')
+          return next.readFileSync(`.next/server/app/${filename}.html`).endsWith('</html>')
         })
       }
 
-      const prerenderedRouteKeys = prerenderedRoutes
-        .map(([routeKey]) => routeKey)
-        .sort()
+      const prerenderedRouteKeys = prerenderedRoutes.map(([routeKey]) => routeKey).sort()
 
       expect(prerenderedRouteKeys).toEqual(
         [
@@ -518,12 +483,8 @@ describe('use-cache', () => {
       expect(routes['/cache-life'].initialExpireSeconds).toBe(300)
 
       if (withCacheComponents) {
-        expect(
-          routes['/cache-life-with-dynamic'].initialRevalidateSeconds
-        ).toBe(100)
-        expect(routes['/cache-life-with-dynamic'].initialExpireSeconds).toBe(
-          300
-        )
+        expect(routes['/cache-life-with-dynamic'].initialRevalidateSeconds).toBe(100)
+        expect(routes['/cache-life-with-dynamic'].initialExpireSeconds).toBe(300)
       }
 
       // default expireTime
@@ -535,18 +496,14 @@ describe('use-cache', () => {
     })
 
     it('should match the expected stale config in the page header', async () => {
-      const cacheLifeMeta = JSON.parse(
-        await next.readFile('.next/server/app/cache-life.meta')
-      )
+      const cacheLifeMeta = JSON.parse(await next.readFile('.next/server/app/cache-life.meta'))
       expect(cacheLifeMeta.headers['x-nextjs-stale-time']).toBe('19')
 
       if (withCacheComponents) {
         const cacheLifeWithDynamicMeta = JSON.parse(
           await next.readFile('.next/server/app/cache-life-with-dynamic.meta')
         )
-        expect(cacheLifeWithDynamicMeta.headers['x-nextjs-stale-time']).toBe(
-          '19'
-        )
+        expect(cacheLifeWithDynamicMeta.headers['x-nextjs-stale-time']).toBe('19')
       }
     })
 
@@ -594,9 +551,7 @@ describe('use-cache', () => {
     })
 
     it('should propagate unstable_cache tags correctly', async () => {
-      const meta = JSON.parse(
-        await next.readFile('.next/server/app/cache-tag.meta')
-      )
+      const meta = JSON.parse(await next.readFile('.next/server/app/cache-tag.meta'))
       expect(meta.headers['x-next-cache-tags']).toContain('a,c,b,f,r')
     })
   }
@@ -869,16 +824,12 @@ describe('use-cache', () => {
 
       if (isNextDeploy) {
         // Wait for the background revalidation after the deployment to settle.
-        const initialTopLevelValue = await browser
-          .elementById('top-level')
-          .text()
+        const initialTopLevelValue = await browser.elementById('top-level').text()
 
         await retry(async () => {
           await browser.refresh()
 
-          expect(await browser.elementById('top-level').text()).not.toBe(
-            initialTopLevelValue
-          )
+          expect(await browser.elementById('top-level').text()).not.toBe(initialTopLevelValue)
         })
       }
 
@@ -893,9 +844,7 @@ describe('use-cache', () => {
         }
       }
 
-      expect(await browser.elementByCss('button#toggle').text()).toBe(
-        'Enable Draft Mode'
-      )
+      expect(await browser.elementByCss('button#toggle').text()).toBe('Enable Draft Mode')
 
       const initialTopLevelValue = await browser.elementById('top-level').text()
 
@@ -905,12 +854,8 @@ describe('use-cache', () => {
 
       await browser.refresh()
 
-      expect(await browser.elementById('top-level').text()).toBe(
-        initialTopLevelValue
-      )
-      expect(await browser.elementById('closure').text()).toBe(
-        initialClosureValue
-      )
+      expect(await browser.elementById('top-level').text()).toBe(initialTopLevelValue)
+      expect(await browser.elementById('closure').text()).toBe(initialClosureValue)
 
       // Enable draft mode.
       await browser.elementByCss('button#toggle').click()
@@ -928,18 +873,14 @@ describe('use-cache', () => {
               : GENERIC_RSC_ERROR
 
           expect(logs).toMatchObject(
-            expect.arrayContaining([
-              { source: 'error', message: expectedErrorMessage },
-            ])
+            expect.arrayContaining([{ source: 'error', message: expectedErrorMessage }])
           )
         })
       }
 
       await browser.waitForElementByCss('button#toggle:enabled')
 
-      expect(await browser.elementByCss('button#toggle').text()).toBe(
-        'Disable Draft Mode'
-      )
+      expect(await browser.elementByCss('button#toggle').text()).toBe('Disable Draft Mode')
 
       // Draft mode is now enabled, no cached data should be returned on refresh.
 
@@ -952,21 +893,15 @@ describe('use-cache', () => {
 
       await refreshAfterServerAction()
 
-      expect(await browser.elementById('top-level').text()).not.toBe(
-        newTopLevelValue
-      )
+      expect(await browser.elementById('top-level').text()).not.toBe(newTopLevelValue)
       console.log(await browser.elementById('top-level').text())
 
-      expect(await browser.elementById('closure').text()).not.toBe(
-        newClosureValue
-      )
+      expect(await browser.elementById('closure').text()).not.toBe(newClosureValue)
 
       await browser.elementByCss('button#toggle').click()
       await browser.waitForElementByCss('button#toggle:enabled')
 
-      expect(await browser.elementByCss('button#toggle').text()).toBe(
-        'Enable Draft Mode'
-      )
+      expect(await browser.elementByCss('button#toggle').text()).toBe('Enable Draft Mode')
 
       // Draft mode is disabled again, the initially cached data should be
       // returned again.
@@ -977,12 +912,8 @@ describe('use-cache', () => {
 
       console.log(await browser.elementById('top-level').text())
 
-      expect(await browser.elementById('top-level').text()).toBe(
-        initialTopLevelValue
-      )
-      expect(await browser.elementById('closure').text()).toBe(
-        initialClosureValue
-      )
+      expect(await browser.elementById('top-level').text()).toBe(initialTopLevelValue)
+      expect(await browser.elementById('closure').text()).toBe(initialClosureValue)
     })
   })
 
@@ -1026,9 +957,7 @@ describe('use-cache', () => {
           ])
         )
 
-        logMessageWithCachedDate = initialLogs.find((log) =>
-          logMessageWithDateRegexp.test(log)
-        )
+        logMessageWithCachedDate = initialLogs.find((log) => logMessageWithDateRegexp.test(log))
 
         expect(logMessageWithCachedDate).toBeDefined()
       })
@@ -1085,17 +1014,13 @@ describe('use-cache', () => {
 
   describe('usage in node_modules', () => {
     it('should cache results when using a directive without a handler', async () => {
-      const browser = await next.browser(
-        '/directive-in-node-modules/without-handler'
-      )
+      const browser = await next.browser('/directive-in-node-modules/without-handler')
       const randomOne = await browser.elementByCss('#one').text()
       const randomTwo = await browser.elementByCss('#two').text()
       expect(randomOne).toBe(randomTwo)
     })
     it('should cache results when using a directive with a handler', async () => {
-      const browser = await next.browser(
-        '/directive-in-node-modules/with-handler'
-      )
+      const browser = await next.browser('/directive-in-node-modules/with-handler')
       const randomOne = await browser.elementByCss('#one').text()
       const randomTwo = await browser.elementByCss('#two').text()
       expect(randomOne).toBe(randomTwo)
@@ -1139,9 +1064,7 @@ describe('use-cache', () => {
       })
 
       // The title must be in the head if it was prerendered.
-      const title = await browser
-        .elementByCss('head title', { state: 'attached' })
-        .text()
+      const title = await browser.elementByCss('head title', { state: 'attached' }).text()
       expect(title).toBeDateString()
 
       await browser.close()
@@ -1165,17 +1088,12 @@ describe('use-cache', () => {
       it('can resume a cached generateMetadata function that does not read params', async () => {
         // First load the page with JavaScript disabled, to ensure that the
         // generateMetadata result was included in the prerendered shell.
-        let browser = await next.browser(
-          '/generate-metadata-resume/params-unused/foo',
-          {
-            disableJavaScript: true,
-          }
-        )
+        let browser = await next.browser('/generate-metadata-resume/params-unused/foo', {
+          disableJavaScript: true,
+        })
 
         // The metadata must be in the head if it was prerendered.
-        const title = await browser
-          .elementByCss('head title', { state: 'attached' })
-          .text()
+        const title = await browser.elementByCss('head title', { state: 'attached' }).text()
         expect(title).toBeDateString()
         const description = await browser
           .elementByCss('head meta[name="description"]', { state: 'attached' })
@@ -1185,9 +1103,7 @@ describe('use-cache', () => {
         await browser.close()
 
         // Load the page again, now with JavaScript enabled.
-        browser = await next.browser(
-          '/generate-metadata-resume/params-unused/foo'
-        )
+        browser = await next.browser('/generate-metadata-resume/params-unused/foo')
 
         // If there was no cache hit from the RDC during the resume, we'd observe
         // different metadata.
@@ -1228,12 +1144,9 @@ describe('use-cache', () => {
     it('makes a cached generateMetadata function that implicitly depends on params dynamic during prerendering', async () => {
       // First load the page with JavaScript disabled, to ensure that no
       // generateMetadata result was included in the prerendered shell.
-      let browser = await next.browser(
-        '/generate-metadata-resume/canonical/foo',
-        {
-          disableJavaScript: true,
-        }
-      )
+      let browser = await next.browser('/generate-metadata-resume/canonical/foo', {
+        disableJavaScript: true,
+      })
 
       // The metadata would be in the head if it was prerendered.
       expect(
@@ -1243,9 +1156,9 @@ describe('use-cache', () => {
       ).toBe(false)
 
       // However, it should have been added to the body during the resume.
-      expect(
-        await browser.elementByCss('link[rel="canonical"]').getAttribute('href')
-      ).toBe('https://example.com/baz/qux')
+      expect(await browser.elementByCss('link[rel="canonical"]').getAttribute('href')).toBe(
+        'https://example.com/baz/qux'
+      )
 
       await browser.close()
 
@@ -1259,18 +1172,13 @@ describe('use-cache', () => {
     it('makes a cached generateMetadata function that reads params dynamic during prerendering', async () => {
       // First load the page with JavaScript disabled, to ensure that no
       // generateMetadata result was included in the prerendered shell.
-      let browser = await next.browser(
-        '/generate-metadata-resume/params-used/foo',
-        {
-          disableJavaScript: true,
-        }
-      )
+      let browser = await next.browser('/generate-metadata-resume/params-used/foo', {
+        disableJavaScript: true,
+      })
 
       // The metadata would be in the head if it was prerendered.
       expect(
-        await browser
-          .elementByCss('head', { state: 'attached' })
-          .hasElementByCss('title')
+        await browser.elementByCss('head', { state: 'attached' }).hasElementByCss('title')
       ).toBe(false)
       expect(
         await browser
@@ -1294,11 +1202,9 @@ describe('use-cache', () => {
 
       // We should see the same cached metadata again.
       expect(await browser.eval('document.title')).toBe(title)
-      expect(
-        await browser
-          .elementByCss('meta[name="description"]')
-          .getAttribute('content')
-      ).toBe(description)
+      expect(await browser.elementByCss('meta[name="description"]').getAttribute('content')).toBe(
+        description
+      )
     })
 
     it('can resume a cached generateViewport function', async () => {
@@ -1335,12 +1241,9 @@ describe('use-cache', () => {
     it('can resume a cached generateViewport function that does not read params', async () => {
       // First load the page with JavaScript disabled, to ensure that the
       // generateViewport result was included in the prerendered shell.
-      let browser = await next.browser(
-        '/generate-viewport-resume/params-unused/red',
-        {
-          disableJavaScript: true,
-        }
-      )
+      let browser = await next.browser('/generate-viewport-resume/params-unused/red', {
+        disableJavaScript: true,
+      })
 
       // The meta tag must be in the head if it was prerendered.
       const viewport = await browser
@@ -1354,9 +1257,7 @@ describe('use-cache', () => {
       await browser.close()
 
       // Load the page again, now with JavaScript enabled.
-      browser = await next.browser(
-        '/generate-viewport-resume/params-unused/red'
-      )
+      browser = await next.browser('/generate-viewport-resume/params-unused/red')
 
       // If there was no cache hit from the RDC during the resume, we'd observe
       // a different meta tag.
@@ -1385,9 +1286,7 @@ describe('use-cache', () => {
     it('makes a cached generateViewport function that reads params dynamic during prerendering', async () => {
       // The page is fully dynamic, so we can only observe that the values are
       // cached on subsequent requests.
-      let browser = await next.browser(
-        '/generate-viewport-resume/params-used/red'
-      )
+      let browser = await next.browser('/generate-viewport-resume/params-used/red')
 
       const viewport = await browser
         .elementByCss('meta[name="viewport"]', { state: 'attached' })
@@ -1424,15 +1323,11 @@ async function getSanitizedLogs(browser: Playwright): Promise<string[]> {
   const logs = await browser.log({ includeArgs: true })
 
   return logs.map(({ args }) =>
-    format(
-      ...args.map((arg) => (typeof arg === 'string' ? stripAnsi(arg) : arg))
-    )
+    format(...args.map((arg) => (typeof arg === 'string' ? stripAnsi(arg) : arg)))
   )
 }
 
-function extractResumeDataCacheFromPostponedState(
-  state: string
-): RenderResumeDataCache {
+function extractResumeDataCacheFromPostponedState(state: string): RenderResumeDataCache {
   const postponedStringLengthMatch = state.match(/^([0-9]*):/)![1]
   const postponedStringLength = parseInt(postponedStringLengthMatch)
 

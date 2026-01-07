@@ -4,14 +4,7 @@ import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
-import {
-  killApp,
-  findPort,
-  nextBuild,
-  nextStart,
-  launchApp,
-  fetchViaHTTP,
-} from 'next-test-utils'
+import { killApp, findPort, nextBuild, nextStart, launchApp, fetchViaHTTP } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
 let appPort
@@ -107,31 +100,25 @@ const runTests = () => {
 }
 
 describe('fallback: false rewrite', () => {
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
-    'development mode',
-    () => {
-      beforeAll(async () => {
-        await fs.remove(join(appDir, '.next'))
-        appPort = await findPort()
-        app = await launchApp(appDir, appPort)
-      })
-      afterAll(() => killApp(app))
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
+    beforeAll(async () => {
+      await fs.remove(join(appDir, '.next'))
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(() => killApp(app))
 
-      runTests()
-    }
-  )
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      beforeAll(async () => {
-        await fs.remove(join(appDir, '.next'))
-        await nextBuild(appDir, [])
-        appPort = await findPort()
-        app = await nextStart(appDir, appPort)
-      })
-      afterAll(() => killApp(app))
+    runTests()
+  })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
+    beforeAll(async () => {
+      await fs.remove(join(appDir, '.next'))
+      await nextBuild(appDir, [])
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(() => killApp(app))
 
-      runTests()
-    }
-  )
+    runTests()
+  })
 })

@@ -94,10 +94,7 @@ function RouteTable({ section }: { section: RouteSection }) {
         <thead>
           <tr className="bg-gray-100">
             {section.columns.map((column) => (
-              <th
-                key={column}
-                className="border border-gray-300 px-2 py-0.5 text-left w-1/2"
-              >
+              <th key={column} className="border border-gray-300 px-2 py-0.5 text-left w-1/2">
                 {column}
               </th>
             ))}

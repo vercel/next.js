@@ -4,8 +4,7 @@ const url = 'https://nextjs.org/docs/messages/no-title-in-document-head'
 export default defineRule({
   meta: {
     docs: {
-      description:
-        'Prevent usage of `<title>` with `Head` component from `next/document`.',
+      description: 'Prevent usage of `<title>` with `Head` component from `next/document`.',
       recommended: true,
       url,
     },

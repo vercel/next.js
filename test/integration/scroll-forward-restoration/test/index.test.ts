@@ -2,14 +2,7 @@
 
 import { join } from 'path'
 import webdriver from 'next-webdriver'
-import {
-  killApp,
-  findPort,
-  launchApp,
-  nextStart,
-  nextBuild,
-  check,
-} from 'next-test-utils'
+import { killApp, findPort, launchApp, nextStart, nextBuild, check } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
 let appPort
@@ -20,17 +13,10 @@ const runTests = () => {
     const browser = await webdriver(appPort, '/another')
     await browser.elementByCss('#to-index').click()
 
-    await check(
-      () => browser.eval(() => document.documentElement.innerHTML),
-      /the end/
-    )
+    await check(() => browser.eval(() => document.documentElement.innerHTML), /the end/)
 
-    await browser.eval(() =>
-      document.querySelector('#to-another').scrollIntoView()
-    )
-    const scrollRestoration = await browser.eval(
-      () => window.history.scrollRestoration
-    )
+    await browser.eval(() => document.querySelector('#to-another').scrollIntoView())
+    const scrollRestoration = await browser.eval(() => window.history.scrollRestoration)
 
     expect(scrollRestoration).toBe('manual')
 
@@ -42,10 +28,7 @@ const runTests = () => {
 
     await browser.eval(() => window.history.back())
 
-    await check(
-      () => browser.eval(() => document.documentElement.innerHTML),
-      /hi from another/
-    )
+    await check(() => browser.eval(() => document.documentElement.innerHTML), /hi from another/)
 
     await browser.eval(() => ((window as any).didHydrate = false))
     await browser.eval(() => window.history.forward())
@@ -68,29 +51,23 @@ const runTests = () => {
 }
 
 describe('Scroll Forward Restoration Support', () => {
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
-    'development mode',
-    () => {
-      beforeAll(async () => {
-        appPort = await findPort()
-        app = await launchApp(appDir, appPort)
-      })
-      afterAll(() => killApp(app))
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
+    beforeAll(async () => {
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(() => killApp(app))
 
-      runTests()
-    }
-  )
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      beforeAll(async () => {
-        await nextBuild(appDir)
-        appPort = await findPort()
-        app = await nextStart(appDir, appPort)
-      })
-      afterAll(() => killApp(app))
+    runTests()
+  })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
+    beforeAll(async () => {
+      await nextBuild(appDir)
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(() => killApp(app))
 
-      runTests()
-    }
-  )
+    runTests()
+  })
 })

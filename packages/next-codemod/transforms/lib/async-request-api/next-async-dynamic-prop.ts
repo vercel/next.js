@@ -1,10 +1,4 @@
-import type {
-  API,
-  Collection,
-  ASTPath,
-  ObjectPattern,
-  Identifier,
-} from 'jscodeshift'
+import type { API, Collection, ASTPath, ObjectPattern, Identifier } from 'jscodeshift'
 import {
   determineClientDirective,
   generateUniqueIdentifier,
@@ -55,8 +49,7 @@ function awaitMemberAccessOfProp(
 
     const memberProperty = member.property
     const isAccessingMatchedProperty =
-      j.Identifier.check(memberProperty) &&
-      TARGET_PROP_NAMES.has(memberProperty.name)
+      j.Identifier.check(memberProperty) && TARGET_PROP_NAMES.has(memberProperty.name)
 
     if (!isAccessingMatchedProperty) {
       return
@@ -71,10 +64,7 @@ function awaitMemberAccessOfProp(
       return
     }
 
-    const parentScopeOfMemberAccess = findClosetParentFunctionScope(
-      memberAccessPath,
-      j
-    )
+    const parentScopeOfMemberAccess = findClosetParentFunctionScope(memberAccessPath, j)
 
     // When the parent scope is sync, and it's also not the function itself, which means it's not able to convert to async.
     if (
@@ -96,10 +86,7 @@ function awaitMemberAccessOfProp(
     hasAwaited = true
   })
 
-  const hasReactHooksUsage = containsReactHooksCallExpressions(
-    path.get('body'),
-    j
-  )
+  const hasReactHooksUsage = containsReactHooksCallExpressions(path.get('body'), j)
 
   // If there's any awaited member access, we need to make the function async
   if (hasAwaited) {
@@ -155,10 +142,7 @@ function applyUseAndRenameAccessedProp(
   // e.g. ['params'] => insert `const params = use(props.params)`
   if (accessedNames.length > 0) {
     const accessedPropId = j.identifier(propIdName)
-    const accessedProp = j.memberExpression(
-      accessedPropId,
-      j.identifier(accessedNames[0])
-    )
+    const accessedProp = j.memberExpression(accessedPropId, j.identifier(accessedNames[0]))
 
     const useCall = j.callExpression(j.identifier('use'), [accessedProp])
     const useDeclaration = j.variableDeclaration('const', [
@@ -174,10 +158,7 @@ function applyUseAndRenameAccessedProp(
   return modified
 }
 
-function commentOnMatchedReExports(
-  root: Collection<any>,
-  j: API['jscodeshift']
-): boolean {
+function commentOnMatchedReExports(root: Collection<any>, j: API['jscodeshift']): boolean {
   let modified = false
   root.find(j.ExportNamedDeclaration).forEach((path) => {
     if (j.ExportSpecifier.check(path.value.specifiers[0])) {
@@ -202,13 +183,11 @@ function commentOnMatchedReExports(
             const localIdentifier = specifier.local
             const localName = localIdentifier.name
             // search if local identifier is from imports
-            const importDeclaration = root
-              .find(j.ImportDeclaration)
-              .filter((importPath) => {
-                return importPath.value.specifiers.some(
-                  (importSpecifier) => importSpecifier.local.name === localName
-                )
-              })
+            const importDeclaration = root.find(j.ImportDeclaration).filter((importPath) => {
+              return importPath.value.specifiers.some(
+                (importSpecifier) => importSpecifier.local.name === localName
+              )
+            })
             if (importDeclaration.size() > 0) {
               const commentInserted = insertCommentOnce(
                 specifier,
@@ -249,8 +228,7 @@ function modifyTypes(
             member.typeAnnotation &&
             member.typeAnnotation.typeAnnotation &&
             member.typeAnnotation.typeAnnotation.type === 'TSTypeReference' &&
-            member.typeAnnotation.typeAnnotation.typeName.type ===
-              'Identifier' &&
+            member.typeAnnotation.typeAnnotation.typeName.type === 'Identifier' &&
             member.typeAnnotation.typeAnnotation.typeName.name === 'Promise'
           ) {
             return
@@ -264,9 +242,7 @@ function modifyTypes(
           ) {
             member.typeAnnotation.typeAnnotation = j.tsTypeReference(
               j.identifier('Promise'),
-              j.tsTypeParameterInstantiation([
-                member.typeAnnotation.typeAnnotation,
-              ])
+              j.tsTypeParameterInstantiation([member.typeAnnotation.typeAnnotation])
             )
             modified = true
           }
@@ -300,8 +276,7 @@ function modifyTypes(
                 if (
                   member.typeAnnotation &&
                   member.typeAnnotation.typeAnnotation &&
-                  member.typeAnnotation?.typeAnnotation?.typeName?.name ===
-                    'Promise'
+                  member.typeAnnotation?.typeAnnotation?.typeName?.name === 'Promise'
                 ) {
                   return
                 }
@@ -315,9 +290,7 @@ function modifyTypes(
                 ) {
                   member.typeAnnotation.typeAnnotation = j.tsTypeReference(
                     j.identifier('Promise'),
-                    j.tsTypeParameterInstantiation([
-                      member.typeAnnotation.typeAnnotation,
-                    ])
+                    j.tsTypeParameterInstantiation([member.typeAnnotation.typeAnnotation])
                   )
                   modified = true
                 }
@@ -331,10 +304,7 @@ function modifyTypes(
           const typeAliasDeclaration = foundTypes.typeAliases[0]
           if (j.TSTypeAliasDeclaration.check(typeAliasDeclaration)) {
             const typeAlias = typeAliasDeclaration.typeAnnotation
-            if (
-              j.TSTypeLiteral.check(typeAlias) &&
-              typeAlias.members.length > 0
-            ) {
+            if (j.TSTypeLiteral.check(typeAlias) && typeAlias.members.length > 0) {
               const typeLiteral = typeAlias
               typeLiteral.members.forEach((member) => {
                 if (
@@ -346,12 +316,9 @@ function modifyTypes(
                   if (
                     member.typeAnnotation &&
                     member.typeAnnotation.typeAnnotation &&
-                    member.typeAnnotation.typeAnnotation.type ===
-                      'TSTypeReference' &&
-                    member.typeAnnotation.typeAnnotation.typeName.type ===
-                      'Identifier' &&
-                    member.typeAnnotation.typeAnnotation.typeName.name ===
-                      'Promise'
+                    member.typeAnnotation.typeAnnotation.type === 'TSTypeReference' &&
+                    member.typeAnnotation.typeAnnotation.typeName.type === 'Identifier' &&
+                    member.typeAnnotation.typeAnnotation.typeName.name === 'Promise'
                   ) {
                     return
                   }
@@ -363,9 +330,7 @@ function modifyTypes(
                   ) {
                     member.typeAnnotation.typeAnnotation = j.tsTypeReference(
                       j.identifier('Promise'),
-                      j.tsTypeParameterInstantiation([
-                        member.typeAnnotation.typeAnnotation,
-                      ])
+                      j.tsTypeParameterInstantiation([member.typeAnnotation.typeAnnotation])
                     )
                     modified = true
                   }
@@ -380,11 +345,7 @@ function modifyTypes(
           // If it's React PropsWithChildren
           if (typeReference.typeName.name === 'PropsWithChildren') {
             const propType = typeReference.typeParameters?.params[0]
-            if (
-              propType &&
-              j.TSTypeLiteral.check(propType) &&
-              propType.members.length > 0
-            ) {
+            if (propType && j.TSTypeLiteral.check(propType) && propType.members.length > 0) {
               const typeLiteral = propType
               typeLiteral.members.forEach((member) => {
                 if (
@@ -396,12 +357,9 @@ function modifyTypes(
                   if (
                     member.typeAnnotation &&
                     member.typeAnnotation.typeAnnotation &&
-                    member.typeAnnotation.typeAnnotation.type ===
-                      'TSTypeReference' &&
-                    member.typeAnnotation.typeAnnotation.typeName.type ===
-                      'Identifier' &&
-                    member.typeAnnotation.typeAnnotation.typeName.name ===
-                      'Promise'
+                    member.typeAnnotation.typeAnnotation.type === 'TSTypeReference' &&
+                    member.typeAnnotation.typeAnnotation.typeName.type === 'Identifier' &&
+                    member.typeAnnotation.typeAnnotation.typeName.name === 'Promise'
                   ) {
                     return
                   }
@@ -413,9 +371,7 @@ function modifyTypes(
                   ) {
                     member.typeAnnotation.typeAnnotation = j.tsTypeReference(
                       j.identifier('Promise'),
-                      j.tsTypeParameterInstantiation([
-                        member.typeAnnotation.typeAnnotation,
-                      ])
+                      j.tsTypeParameterInstantiation([member.typeAnnotation.typeAnnotation])
                     )
                     modified = true
                   }
@@ -433,11 +389,7 @@ function modifyTypes(
   return modified
 }
 
-export function transformDynamicProps(
-  source: string,
-  _api: API,
-  filePath: string
-) {
+export function transformDynamicProps(source: string, _api: API, filePath: string) {
   const isEntryFile = NEXTJS_ENTRY_FILES.test(filePath)
   if (!isEntryFile) {
     return null
@@ -456,10 +408,7 @@ export function transformDynamicProps(
 
   function processAsyncPropOfEntryFile(isClientComponent: boolean) {
     // find `params` and `searchParams` in file, and transform the access to them
-    function renameAsyncPropIfExisted(
-      path: ASTPath<FunctionScope>,
-      isDefaultExport: boolean
-    ) {
+    function renameAsyncPropIfExisted(path: ASTPath<FunctionScope>, isDefaultExport: boolean) {
       const decl = path.value
       const params = decl.params
       let functionName = decl.id?.name
@@ -538,12 +487,7 @@ export function transformDynamicProps(
           modified ||= awaited
         }
 
-        modified ||= modifyTypes(
-          currentParam.typeAnnotation,
-          propsIdentifier,
-          root,
-          j
-        )
+        modified ||= modifyTypes(currentParam.typeAnnotation, propsIdentifier, root, j)
 
         // cases of passing down `props` into any function
         // Page(props) { callback(props) }
@@ -552,11 +496,7 @@ export function transformDynamicProps(
         const callExpressions = j(path).find(j.CallExpression, {
           arguments: (args) => {
             return args.some((arg) => {
-              return (
-                j.Identifier.check(arg) &&
-                arg.name === argName &&
-                arg.type === 'Identifier'
-              )
+              return j.Identifier.check(arg) && arg.name === argName && arg.type === 'Identifier'
             })
           },
         })
@@ -600,12 +540,7 @@ export function transformDynamicProps(
         // When the prop argument is not destructured, we need to add comments to the spread properties
         if (j.Identifier.check(currentParam)) {
           const commented = commentSpreadProps(path, currentParam.name, j)
-          const modifiedTypes = modifyTypes(
-            currentParam.typeAnnotation,
-            propsIdentifier,
-            root,
-            j
-          )
+          const modifiedTypes = modifyTypes(currentParam.typeAnnotation, propsIdentifier, root, j)
           modified ||= commented || modifiedTypes
         }
       }
@@ -625,10 +560,7 @@ export function transformDynamicProps(
 
       // If it's sync default export, and it's also server component, make the function async
       if (isDefaultExport && !isClientComponent) {
-        const hasReactHooksUsage = containsReactHooksCallExpressions(
-          path.get('body'),
-          j
-        )
+        const hasReactHooksUsage = containsReactHooksCallExpressions(path.get('body'), j)
         if (node.async === false && !hasReactHooksUsage) {
           node.async = true
           turnFunctionReturnTypeToAsync(node, j)
@@ -636,10 +568,7 @@ export function transformDynamicProps(
       }
 
       // If it's arrow function and function body is not block statement, check if the properties are used there
-      if (
-        j.ArrowFunctionExpression.check(path.node) &&
-        !j.BlockStatement.check(path.node.body)
-      ) {
+      if (j.ArrowFunctionExpression.check(path.node) && !j.BlockStatement.check(path.node.body)) {
         const objectExpression = path.node.body
         let hasUsedProps = false
         j(objectExpression)
@@ -654,9 +583,7 @@ export function transformDynamicProps(
 
         // Turn the function body to block statement, return the object expression
         if (hasUsedProps) {
-          path.node.body = j.blockStatement([
-            j.returnStatement(objectExpression),
-          ])
+          path.node.body = j.blockStatement([j.returnStatement(objectExpression)])
         }
       }
 
@@ -664,10 +591,7 @@ export function transformDynamicProps(
       const functionName = path.value.id?.name || 'default'
       const functionBody = findFunctionBody(path)
       const functionBodyPath = path.get('body')
-      const hasReactHooksUsage = containsReactHooksCallExpressions(
-        functionBodyPath,
-        j
-      )
+      const hasReactHooksUsage = containsReactHooksCallExpressions(functionBodyPath, j)
       const hasOtherProperties = allProperties.length > propertiesMap.size
 
       function createDestructuringDeclaration(
@@ -728,13 +652,13 @@ export function transformDynamicProps(
          */
         const restProperties = allProperties.filter((prop) => {
           const isTargetProps =
-            'key' in prop &&
-            prop.key.type === 'Identifier' &&
-            TARGET_PROP_NAMES.has(prop.key.name)
+            'key' in prop && prop.key.type === 'Identifier' && TARGET_PROP_NAMES.has(prop.key.name)
           return !isTargetProps
         })
-        const destructionOtherPropertiesDeclaration =
-          createDestructuringDeclaration(restProperties, propsIdentifierName)
+        const destructionOtherPropertiesDeclaration = createDestructuringDeclaration(
+          restProperties,
+          propsIdentifierName
+        )
         if (functionBody && destructionOtherPropertiesDeclaration) {
           functionBody.unshift(destructionOtherPropertiesDeclaration)
         }
@@ -766,9 +690,7 @@ export function transformDynamicProps(
           }
         }
 
-        const paramsPropertyName = j.Identifier.check(paramsProperty)
-          ? paramsProperty.name
-          : null
+        const paramsPropertyName = j.Identifier.check(paramsProperty) ? paramsProperty.name : null
         const paramPropertyName = paramsPropertyName || matchedPropName
 
         // If propName is an identifier and not used in lower scope,
@@ -793,8 +715,7 @@ export function transformDynamicProps(
           let hasMissingAwaited = false
           propUsages.forEach((propUsage) => {
             // If the parent is not AwaitExpression, it's not awaited
-            const isAwaited =
-              propUsage.parentPath?.value.type === 'AwaitExpression'
+            const isAwaited = propUsage.parentPath?.value.type === 'AwaitExpression'
             const isAwaitedByUse = isParentUseCallExpression(propUsage, j)
             if (!isAwaited && !isAwaitedByUse) {
               hasMissingAwaited = true
@@ -811,10 +732,7 @@ export function transformDynamicProps(
 
         const propNameIdentifier = j.identifier(matchedPropName)
         const propsIdentifier = j.identifier(propsIdentifierName)
-        const accessedPropIdExpr = j.memberExpression(
-          propsIdentifier,
-          propNameIdentifier
-        )
+        const accessedPropIdExpr = j.memberExpression(propsIdentifier, propNameIdentifier)
         // Check param property value, if it's destructed, we need to destruct it as well
         // e.g.
         // input: Page({ params: { slug } })
@@ -830,10 +748,7 @@ export function transformDynamicProps(
             j.variableDeclarator(
               j.objectPattern(
                 objectPatternProperties.map((prop) => {
-                  if (
-                    prop.type === 'Property' &&
-                    prop.key.type === 'Identifier'
-                  ) {
+                  if (prop.type === 'Property' && prop.key.type === 'Identifier') {
                     return j.objectProperty(
                       j.identifier(prop.key.name),
                       j.identifier(prop.key.name)
@@ -865,11 +780,7 @@ export function transformDynamicProps(
             insertedRenamedPropFunctionNames.add(uid)
           }
         } else {
-          if (
-            !isClientComponent &&
-            isFunctionType(node.type) &&
-            !hasReactHooksUsage
-          ) {
+          if (!isClientComponent && isFunctionType(node.type) && !hasReactHooksUsage) {
             // If it's export function, populate the function to async
             node.async = true
             turnFunctionReturnTypeToAsync(node, j)
@@ -907,12 +818,7 @@ export function transformDynamicProps(
     const defaultExportsDeclarations = root.find(j.ExportDefaultDeclaration)
 
     defaultExportsDeclarations.forEach((path) => {
-      const functionPath = getFunctionPathFromExportPath(
-        path,
-        j,
-        root,
-        () => true
-      )
+      const functionPath = getFunctionPathFromExportPath(path, j, root, () => true)
       if (functionPath) {
         renameAsyncPropIfExisted(functionPath, true)
       }
@@ -924,11 +830,8 @@ export function transformDynamicProps(
     const namedExportDeclarations = root.find(j.ExportNamedDeclaration)
 
     namedExportDeclarations.forEach((path) => {
-      const functionPath = getFunctionPathFromExportPath(
-        path,
-        j,
-        root,
-        (idName) => TARGET_NAMED_EXPORTS.has(idName)
+      const functionPath = getFunctionPathFromExportPath(path, j, root, (idName) =>
+        TARGET_NAMED_EXPORTS.has(idName)
       )
 
       if (functionPath) {
@@ -953,11 +856,7 @@ export function transformDynamicProps(
   return modified ? root.toSource() : null
 }
 
-function findAllTypes(
-  root: Collection<any>,
-  j: API['jscodeshift'],
-  typeName: string
-) {
+function findAllTypes(root: Collection<any>, j: API['jscodeshift'], typeName: string) {
   const types = {
     interfaces: [],
     typeAliases: [],
@@ -1025,12 +924,9 @@ function commentSpreadProps(
   const functionBody = findFunctionBody(path)
   const functionBodyCollection = j(functionBody)
   // Find all the usage of spreading properties of `props`
-  const jsxSpreadProperties = functionBodyCollection.find(
-    j.JSXSpreadAttribute,
-    {
-      argument: { name: propsIdentifierName },
-    }
-  )
+  const jsxSpreadProperties = functionBodyCollection.find(j.JSXSpreadAttribute, {
+    argument: { name: propsIdentifierName },
+  })
   const objSpreadProperties = functionBodyCollection.find(j.SpreadElement, {
     argument: { name: propsIdentifierName },
   })

@@ -87,11 +87,7 @@ export async function validateTurboNextConfig({
 
         const pre = prefix.length ? `${prefix}.` : ''
 
-        if (
-          typeof value === 'object' &&
-          !Array.isArray(value) &&
-          value !== null
-        ) {
+        if (typeof value === 'object' && !Array.isArray(value) && value !== null) {
           keys = keys.concat(flattenKeys(value, pre + key))
         } else {
           keys.push(pre + key)
@@ -128,10 +124,8 @@ export async function validateTurboNextConfig({
             // | foo     | foo            |
             // | foo.bar | foo            |
             // | foo     | foo.bar        |
-            key.startsWith(unsupportedKey) ||
-            unsupportedKey.startsWith(`${key}.`)
-        ) &&
-        getDeepValue(rawNextConfig, key) !== getDeepValue(defaultConfig, key)
+            key.startsWith(unsupportedKey) || unsupportedKey.startsWith(`${key}.`)
+        ) && getDeepValue(rawNextConfig, key) !== getDeepValue(defaultConfig, key)
 
       if (isUnsupported) {
         unsupportedConfig.push(key)
@@ -181,9 +175,7 @@ export async function validateTurboNextConfig({
 
     Log.warn(
       'Learn more about how to configure Turbopack with Next.js:\n' +
-        underline(
-          'https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack'
-        )
+        underline('https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack')
     )
   }
 

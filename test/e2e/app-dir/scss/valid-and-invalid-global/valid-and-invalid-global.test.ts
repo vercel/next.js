@@ -21,9 +21,7 @@ describe('Valid and Invalid Global CSS with Custom App', () => {
       expect(exitCode).not.toBe(0)
       expect(cliOutput).toContain('Failed to compile')
       expect(cliOutput).toContain('styles/global.scss')
-      expect(cliOutput).toContain(
-        'Please move all first-party global CSS imports'
-      )
+      expect(cliOutput).toContain('Please move all first-party global CSS imports')
       // Skip: Rspack loaders cannot access module issuer info for location details
       if (!process.env.NEXT_RSPACK) {
         expect(cliOutput).toMatch(/Location:.*pages[\\/]index\.js/)

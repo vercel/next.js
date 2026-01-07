@@ -50,9 +50,7 @@ describe('required server files i18n', () => {
       },
       packageJson: {
         scripts: {
-          build: wasmPkgIsAvailable
-            ? 'rm -rfv node_modules/@next/swc && next build'
-            : 'next build',
+          build: wasmPkgIsAvailable ? 'rm -rfv node_modules/@next/swc && next build' : 'next build',
         },
       },
       installCommand: 'pnpm i',
@@ -79,13 +77,8 @@ describe('required server files i18n', () => {
     })
     await next.stop()
 
-    requiredFilesManifest = JSON.parse(
-      await next.readFile('.next/required-server-files.json')
-    )
-    await fs.move(
-      join(next.testDir, '.next/standalone'),
-      join(next.testDir, 'standalone')
-    )
+    requiredFilesManifest = JSON.parse(await next.readFile('.next/required-server-files.json'))
+    await fs.move(join(next.testDir, '.next/standalone'), join(next.testDir, 'standalone'))
     for (const file of await fs.readdir(next.testDir)) {
       if (file !== 'standalone') {
         await fs.remove(join(next.testDir, file))
@@ -106,10 +99,7 @@ describe('required server files i18n', () => {
     const testServer = join(next.testDir, 'standalone/server.js')
     await fs.writeFile(
       testServer,
-      (await fs.readFile(testServer, 'utf8')).replace(
-        'port:',
-        'minimalMode: true,port:'
-      )
+      (await fs.readFile(testServer, 'utf8')).replace('port:', 'minimalMode: true,port:')
     )
     appPort = await findPort()
     server = await initNextServerScript(
@@ -175,9 +165,7 @@ describe('required server files i18n', () => {
     })
     expect(res.status).toBe(200)
     expect(res.headers.get('cache-control')).toBe('s-maxage=1')
-    expect(res.headers.get('cdn-cache-control')).toBe(
-      'max-age=1, stale-while-revalidate=31535999'
-    )
+    expect(res.headers.get('cdn-cache-control')).toBe('max-age=1, stale-while-revalidate=31535999')
 
     await waitFor(2000)
     await next.patchFile('standalone/data.txt', 'hide')
@@ -187,9 +175,7 @@ describe('required server files i18n', () => {
     })
     expect(res2.status).toBe(404)
     expect(res2.headers.get('cache-control')).toBe('s-maxage=1')
-    expect(res2.headers.get('cdn-cache-control')).toBe(
-      'max-age=1, stale-while-revalidate=31535999'
-    )
+    expect(res2.headers.get('cdn-cache-control')).toBe('max-age=1, stale-while-revalidate=31535999')
   })
 
   it('should set correct SWR headers with notFound gssp', async () => {
@@ -199,9 +185,7 @@ describe('required server files i18n', () => {
       redirect: 'manual',
     })
     expect(res.status).toBe(200)
-    expect(res.headers.get('cache-control')).toBe(
-      's-maxage=1, stale-while-revalidate=31535999'
-    )
+    expect(res.headers.get('cache-control')).toBe('s-maxage=1, stale-while-revalidate=31535999')
 
     await next.patchFile('standalone/data.txt', 'hide')
 
@@ -211,9 +195,7 @@ describe('required server files i18n', () => {
     await next.patchFile('standalone/data.txt', 'show')
 
     expect(res2.status).toBe(404)
-    expect(res2.headers.get('cache-control')).toBe(
-      's-maxage=1, stale-while-revalidate=31535999'
-    )
+    expect(res2.headers.get('cache-control')).toBe('s-maxage=1, stale-while-revalidate=31535999')
   })
 
   it('should render SSR page correctly', async () => {
@@ -280,10 +262,7 @@ describe('required server files i18n', () => {
     expect(isNaN(data3.random)).toBe(false)
 
     const { pageProps: data4 } = JSON.parse(
-      await renderViaHTTP(
-        appPort,
-        `/_next/data/${next.buildId}/en/fallback/third.json`
-      )
+      await renderViaHTTP(appPort, `/_next/data/${next.buildId}/en/fallback/third.json`)
     )
     expect(data4.hello).toBe('world')
     expect(data4.slug).toBe('third')
@@ -315,16 +294,11 @@ describe('required server files i18n', () => {
   })
 
   it('should render dynamic SSR page correctly with x-matched-path', async () => {
-    const html = await renderViaHTTP(
-      appPort,
-      '/some-other-path?nxtPslug=first',
-      undefined,
-      {
-        headers: {
-          'x-matched-path': '/dynamic/[slug]',
-        },
-      }
-    )
+    const html = await renderViaHTTP(appPort, '/some-other-path?nxtPslug=first', undefined, {
+      headers: {
+        'x-matched-path': '/dynamic/[slug]',
+      },
+    })
     const $ = cheerio.load(html)
     const data = JSON.parse($('#props').text())
 
@@ -332,16 +306,11 @@ describe('required server files i18n', () => {
     expect($('#slug').text()).toBe('first')
     expect(data.hello).toBe('world')
 
-    const html2 = await renderViaHTTP(
-      appPort,
-      '/some-other-path?nxtPslug=second',
-      undefined,
-      {
-        headers: {
-          'x-matched-path': '/dynamic/[slug]',
-        },
-      }
-    )
+    const html2 = await renderViaHTTP(appPort, '/some-other-path?nxtPslug=second', undefined, {
+      headers: {
+        'x-matched-path': '/dynamic/[slug]',
+      },
+    })
     const $2 = cheerio.load(html2)
     const data2 = JSON.parse($2('#props').text())
 
@@ -350,16 +319,11 @@ describe('required server files i18n', () => {
     expect(isNaN(data2.random)).toBe(false)
     expect(data2.random).not.toBe(data.random)
 
-    const html3 = await renderViaHTTP(
-      appPort,
-      '/some-other-path?nxtPslug=second',
-      undefined,
-      {
-        headers: {
-          'x-matched-path': '/dynamic/[slug]?slug=%5Bslug%5D.json',
-        },
-      }
-    )
+    const html3 = await renderViaHTTP(appPort, '/some-other-path?nxtPslug=second', undefined, {
+      headers: {
+        'x-matched-path': '/dynamic/[slug]?slug=%5Bslug%5D.json',
+      },
+    })
     const $3 = cheerio.load(html3)
     const data3 = JSON.parse($3('#props').text())
 
@@ -405,11 +369,9 @@ describe('required server files i18n', () => {
   it('should return data correctly with x-matched-path', async () => {
     const res = await fetchViaHTTP(
       appPort,
-      `/_next/data/${next.buildId}/en/dynamic/first.json?${createNowRouteMatches(
-        {
-          slug: 'first',
-        }
-      ).toString()}`,
+      `/_next/data/${next.buildId}/en/dynamic/first.json?${createNowRouteMatches({
+        slug: 'first',
+      }).toString()}`,
       undefined,
       {
         headers: {
@@ -444,17 +406,12 @@ describe('required server files i18n', () => {
   })
 
   it('should render fallback optional catch-all route correctly with x-matched-path and routes-matches', async () => {
-    const html = await renderViaHTTP(
-      appPort,
-      '/catch-all/[[...rest]]',
-      undefined,
-      {
-        headers: {
-          'x-matched-path': '/catch-all/[[...rest]]',
-          'x-now-route-matches': '',
-        },
-      }
-    )
+    const html = await renderViaHTTP(appPort, '/catch-all/[[...rest]]', undefined, {
+      headers: {
+        'x-matched-path': '/catch-all/[[...rest]]',
+        'x-now-route-matches': '',
+      },
+    })
     const $ = cheerio.load(html)
     const data = JSON.parse($('#props').text())
 
@@ -462,19 +419,14 @@ describe('required server files i18n', () => {
     expect(data.params).toEqual({})
     expect(data.hello).toBe('world')
 
-    const html2 = await renderViaHTTP(
-      appPort,
-      '/catch-all/[[...rest]]',
-      undefined,
-      {
-        headers: {
-          'x-matched-path': '/catch-all/[[...rest]]',
-          'x-now-route-matches': createNowRouteMatches({
-            rest: 'hello',
-          }).toString(),
-        },
-      }
-    )
+    const html2 = await renderViaHTTP(appPort, '/catch-all/[[...rest]]', undefined, {
+      headers: {
+        'x-matched-path': '/catch-all/[[...rest]]',
+        'x-now-route-matches': createNowRouteMatches({
+          rest: 'hello',
+        }).toString(),
+      },
+    })
     const $2 = cheerio.load(html2)
     const data2 = JSON.parse($2('#props').text())
 
@@ -483,19 +435,14 @@ describe('required server files i18n', () => {
     expect(isNaN(data2.random)).toBe(false)
     expect(data2.random).not.toBe(data.random)
 
-    const html3 = await renderViaHTTP(
-      appPort,
-      '/catch-all/[[...rest]]',
-      undefined,
-      {
-        headers: {
-          'x-matched-path': '/catch-all/[[...rest]]',
-          'x-now-route-matches': createNowRouteMatches({
-            rest: 'hello/world',
-          }).toString(),
-        },
-      }
-    )
+    const html3 = await renderViaHTTP(appPort, '/catch-all/[[...rest]]', undefined, {
+      headers: {
+        'x-matched-path': '/catch-all/[[...rest]]',
+        'x-now-route-matches': createNowRouteMatches({
+          rest: 'hello/world',
+        }).toString(),
+      },
+    })
     const $3 = cheerio.load(html3)
     const data3 = JSON.parse($3('#props').text())
 
@@ -593,10 +540,7 @@ describe('required server files i18n', () => {
       }
     )
     const $ = cheerio.load(html)
-    expect(JSON.parse($('#router').text()).query.path).toEqual([
-      'hello',
-      'world',
-    ])
+    expect(JSON.parse($('#router').text()).query.path).toEqual(['hello', 'world'])
   })
 
   it('should handle bad request correctly with rewrite', async () => {
@@ -624,10 +568,7 @@ describe('required server files i18n', () => {
     expect(await res.text()).toBe('Internal Server Error')
 
     await check(
-      () =>
-        errors.join('').includes('gip hit an oops')
-          ? 'success'
-          : errors.join('\n'),
+      () => (errors.join('').includes('gip hit an oops') ? 'success' : errors.join('\n')),
       'success'
     )
   })
@@ -637,10 +578,7 @@ describe('required server files i18n', () => {
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
     await check(
-      () =>
-        errors.join('\n').includes('gssp hit an oops')
-          ? 'success'
-          : errors.join('\n'),
+      () => (errors.join('\n').includes('gssp hit an oops') ? 'success' : errors.join('\n')),
       'success'
     )
   })
@@ -650,10 +588,7 @@ describe('required server files i18n', () => {
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
     await check(
-      () =>
-        errors.join('\n').includes('gsp hit an oops')
-          ? 'success'
-          : errors.join('\n'),
+      () => (errors.join('\n').includes('gsp hit an oops') ? 'success' : errors.join('\n')),
       'success'
     )
   })
@@ -665,9 +600,7 @@ describe('required server files i18n', () => {
     expect(await res.text()).toBe('Internal Server Error')
     await check(
       () =>
-        errors.join('\n').includes('some error from /api/error')
-          ? 'success'
-          : errors.join('\n'),
+        errors.join('\n').includes('some error from /api/error') ? 'success' : errors.join('\n'),
       'success'
     )
   })
@@ -701,22 +634,17 @@ describe('required server files i18n', () => {
   })
 
   it('should normalize optional values correctly for SSG page', async () => {
-    const res = await fetchViaHTTP(
-      appPort,
-      '/en/optional-ssg/[[...rest]]',
-      undefined,
-      {
-        headers: {
-          'x-matched-path': '/en/optional-ssg/[[...rest]]',
-          'x-now-route-matches': createNowRouteMatches(
-            {},
-            {
-              nextLocale: 'en',
-            }
-          ).toString(),
-        },
-      }
-    )
+    const res = await fetchViaHTTP(appPort, '/en/optional-ssg/[[...rest]]', undefined, {
+      headers: {
+        'x-matched-path': '/en/optional-ssg/[[...rest]]',
+        'x-now-route-matches': createNowRouteMatches(
+          {},
+          {
+            nextLocale: 'en',
+          }
+        ).toString(),
+      },
+    })
 
     const html = await res.text()
     const $ = cheerio.load(html)
@@ -725,20 +653,15 @@ describe('required server files i18n', () => {
   })
 
   it('should normalize optional values correctly for nested optional SSG page', async () => {
-    const res = await fetchViaHTTP(
-      appPort,
-      '/en/[slug]/social/[[...rest]]',
-      undefined,
-      {
-        headers: {
-          'x-matched-path': '/en/[slug]/social/[[...rest]]',
-          'x-now-route-matches': createNowRouteMatches(
-            { slug: 'user-123' },
-            { nextLocale: 'en' }
-          ).toString(),
-        },
-      }
-    )
+    const res = await fetchViaHTTP(appPort, '/en/[slug]/social/[[...rest]]', undefined, {
+      headers: {
+        'x-matched-path': '/en/[slug]/social/[[...rest]]',
+        'x-now-route-matches': createNowRouteMatches(
+          { slug: 'user-123' },
+          { nextLocale: 'en' }
+        ).toString(),
+      },
+    })
 
     const html = await res.text()
     const $ = cheerio.load(html)
@@ -750,17 +673,12 @@ describe('required server files i18n', () => {
   })
 
   it('should normalize optional values correctly for SSG page with encoded slash', async () => {
-    const res = await fetchViaHTTP(
-      appPort,
-      '/optional-ssg/[[...rest]]',
-      undefined,
-      {
-        headers: {
-          'x-matched-path': '/optional-ssg/[[...rest]]',
-          'x-now-route-matches': 'nxtPrest=en%2Fes%2Fhello%252Fworld',
-        },
-      }
-    )
+    const res = await fetchViaHTTP(appPort, '/optional-ssg/[[...rest]]', undefined, {
+      headers: {
+        'x-matched-path': '/optional-ssg/[[...rest]]',
+        'x-now-route-matches': 'nxtPrest=en%2Fes%2Fhello%252Fworld',
+      },
+    })
 
     const html = await res.text()
     const $ = cheerio.load(html)

@@ -11,11 +11,7 @@ function reactElementToDOM({ type, props }: JSX.Element): HTMLElement {
     el.innerHTML = dangerouslySetInnerHTML.__html || ''
   } else if (children) {
     el.textContent =
-      typeof children === 'string'
-        ? children
-        : Array.isArray(children)
-          ? children.join('')
-          : ''
+      typeof children === 'string' ? children : Array.isArray(children) ? children.join('') : ''
   }
   return el
 }
@@ -89,10 +85,7 @@ function updateElements(type: string, components: JSX.Element[]) {
 
   for (const newTag of newTags) {
     // meta[charset] must be first element so special case
-    if (
-      newTag.tagName.toLowerCase() === 'meta' &&
-      newTag.getAttribute('charset') !== null
-    ) {
+    if (newTag.tagName.toLowerCase() === 'meta' && newTag.getAttribute('charset') !== null) {
       headEl.prepend(newTag)
     }
     headEl.appendChild(newTag)
@@ -115,9 +108,7 @@ export default function initHeadManager(): {
           h.type === 'link' &&
           h.props['data-optimized-fonts']
         ) {
-          if (
-            document.querySelector(`style[data-href="${h.props['data-href']}"]`)
-          ) {
+          if (document.querySelector(`style[data-href="${h.props['data-href']}"]`)) {
             return
           } else {
             h.props.href = h.props['data-href']
@@ -135,11 +126,7 @@ export default function initHeadManager(): {
       if (titleComponent) {
         const { children } = titleComponent.props
         title =
-          typeof children === 'string'
-            ? children
-            : Array.isArray(children)
-              ? children.join('')
-              : ''
+          typeof children === 'string' ? children : Array.isArray(children) ? children.join('') : ''
       }
       if (title !== document.title) document.title = title
       ;['meta', 'base', 'link', 'style', 'script'].forEach((type) => {

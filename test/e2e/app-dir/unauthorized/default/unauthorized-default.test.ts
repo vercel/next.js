@@ -1,9 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import {
-  waitForRedbox,
-  waitForNoRedbox,
-  getRedboxDescription,
-} from 'next-test-utils'
+import { waitForRedbox, waitForNoRedbox, getRedboxDescription } from 'next-test-utils'
 
 describe('app dir - unauthorized with default unauthorized boundary', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
@@ -67,9 +63,7 @@ describe('app dir - unauthorized with default unauthorized boundary', () => {
 
   it('should render default unauthorized for group routes if unauthorized is not defined', async () => {
     const browser = await next.browser('/group-dynamic/123')
-    expect(await browser.elementByCss('#page').text()).toBe(
-      'group-dynamic [id]'
-    )
+    expect(await browser.elementByCss('#page').text()).toBe('group-dynamic [id]')
 
     await browser.loadPage(next.url + '/group-dynamic/401')
     await waitForNoRedbox(browser)

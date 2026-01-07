@@ -15,10 +15,9 @@ export default function LinkCancellationPage() {
   return (
     <>
       <p>
-        This page is used to test that a prefetch scheduled when a Link enters
-        the viewport is cancelled when the Link exits. The visibility toggle
-        does not affect whether the links are mounted, only whether they are
-        visible (using the `hidden` attribute).
+        This page is used to test that a prefetch scheduled when a Link enters the viewport is
+        cancelled when the Link exits. The visibility toggle does not affect whether the links are
+        mounted, only whether they are visible (using the `hidden` attribute).
       </p>
       <label>
         <input
@@ -35,10 +34,7 @@ export default function LinkCancellationPage() {
         ) : (
           <li>
             <form>
-              <button
-                id="show-more-links"
-                formAction={() => setShowMoreLinks(true)}
-              >
+              <button id="show-more-links" formAction={() => setShowMoreLinks(true)}>
                 Show more links
               </button>
             </form>
@@ -54,9 +50,7 @@ function Links({ start, end }: PaginationConfig) {
   for (let pageNumber = start; pageNumber <= end; pageNumber++) {
     links.push(
       <li key={pageNumber}>
-        <Link href={'/cancellation/' + pageNumber}>
-          Link to page {pageNumber}
-        </Link>
+        <Link href={'/cancellation/' + pageNumber}>Link to page {pageNumber}</Link>
       </li>
     )
   }

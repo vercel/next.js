@@ -37,8 +37,6 @@ describe('normalizedAssetPrefix', () => {
   })
 
   it('should not leave a trailing slash when assetPrefix is a URL with no pathname', () => {
-    expect(normalizedAssetPrefix('https://example.com')).toBe(
-      'https://example.com'
-    )
+    expect(normalizedAssetPrefix('https://example.com')).toBe('https://example.com')
   })
 })

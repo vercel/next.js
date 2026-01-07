@@ -1,9 +1,7 @@
 import type { FetchHandlerResult, ProxyServer } from '../proxy'
 import { createProxyServer } from '../proxy'
 
-export type FetchHandler = (
-  request: Request
-) => FetchHandlerResult | Promise<FetchHandlerResult>
+export type FetchHandler = (request: Request) => FetchHandlerResult | Promise<FetchHandlerResult>
 
 export interface NextWorkerFixture {
   proxyPort: number
@@ -40,10 +38,7 @@ class NextWorkerFixtureImpl implements NextWorkerFixture {
     this.proxyFetchMap.set(testId, handler)
   }
 
-  private async handleProxyFetch(
-    testId: string,
-    request: Request
-  ): Promise<FetchHandlerResult> {
+  private async handleProxyFetch(testId: string, request: Request): Promise<FetchHandlerResult> {
     const handler = this.proxyFetchMap.get(testId)
     return handler?.(request)
   }

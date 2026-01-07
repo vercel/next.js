@@ -14,9 +14,8 @@ export default async function Page() {
     <main>
       <DebugRenderKind />
       <p>
-        This page uses root params and some uncached IO. Root params should
-        always be available in static prerenders, so a runtime prefetch should
-        have them too.
+        This page uses root params and some uncached IO. Root params should always be available in
+        static prerenders, so a runtime prefetch should have them too.
       </p>
       <Suspense fallback="Loading 1...">
         <RuntimePrefetchable />

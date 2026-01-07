@@ -153,9 +153,7 @@ export interface IncrementalFetchCacheEntry {
   value: CachedFetchValue
 }
 
-export type IncrementalCacheEntry =
-  | IncrementalResponseCacheEntry
-  | IncrementalFetchCacheEntry
+export type IncrementalCacheEntry = IncrementalResponseCacheEntry | IncrementalFetchCacheEntry
 
 export type IncrementalCacheValue =
   | CachedRedirectValue
@@ -284,8 +282,5 @@ export interface IncrementalCache extends IncrementalResponseCache {
     data: Exclude<IncrementalCacheValue, CachedFetchValue> | null,
     ctx: SetIncrementalResponseCacheContext
   ): Promise<void>
-  revalidateTag(
-    tags: string | string[],
-    durations?: { expire?: number }
-  ): Promise<void>
+  revalidateTag(tags: string | string[], durations?: { expire?: number }): Promise<void>
 }

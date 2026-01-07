@@ -50,5 +50,4 @@ const handlers = new Map([
   ],
 ])
 
-const defaultHandler = async () =>
-  new Response('Invalid handler', { status: 400 })
+const defaultHandler = async () => new Response('Invalid handler', { status: 400 })

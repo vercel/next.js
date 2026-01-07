@@ -12,9 +12,7 @@ describe('app-dir - action-in-pages-router', () => {
     await button.click()
 
     await retry(async () => {
-      const browserLogText = (await browser.log())
-        .map((item) => item.message)
-        .join('')
+      const browserLogText = (await browser.log()).map((item) => item.message).join('')
       // This is a fake server action, a simple function so it can still work
       expect(browserLogText).toContain('action:foo')
       await waitForNoRedbox(browser)
@@ -38,9 +36,7 @@ describe('app-dir - action-in-pages-router', () => {
         )
         expect(Object.keys(manifest.node).length).toBe(0)
       } else {
-        expect(
-          await next.hasFile('.next/server/server-reference-manifest.json')
-        ).toBe(false)
+        expect(await next.hasFile('.next/server/server-reference-manifest.json')).toBe(false)
       }
     })
   }

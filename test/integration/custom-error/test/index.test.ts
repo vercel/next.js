@@ -18,8 +18,7 @@ const page404 = join(appDir, 'pages/404.js')
 let appPort
 let app
 
-const customErrNo404Match =
-  /You have added a custom \/_error page without a custom \/404 page/
+const customErrNo404Match = /You have added a custom \/_error page without a custom \/404 page/
 
 describe('Custom _error', () => {
   describe('development mode 1', () => {
@@ -91,31 +90,28 @@ describe('Custom _error', () => {
       expect(html).toContain('An error 404 occurred on server')
     })
   })
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      let buildOutput = ''
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
+    let buildOutput = ''
 
-      beforeAll(async () => {
-        const { stdout, stderr } = await nextBuild(appDir, undefined, {
-          stdout: true,
-          stderr: true,
-        })
-        buildOutput = (stdout || '') + (stderr || '')
-        appPort = await findPort()
-        app = await nextStart(appDir, appPort)
+    beforeAll(async () => {
+      const { stdout, stderr } = await nextBuild(appDir, undefined, {
+        stdout: true,
+        stderr: true,
       })
-      afterAll(() => killApp(app))
+      buildOutput = (stdout || '') + (stderr || '')
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(() => killApp(app))
 
-      it('should not contain /_error in build output', async () => {
-        expect(buildOutput).toMatch(/ƒ .*?\/404/)
-        expect(buildOutput).not.toMatch(/ƒ .*?\/_error/)
-      })
+    it('should not contain /_error in build output', async () => {
+      expect(buildOutput).toMatch(/ƒ .*?\/404/)
+      expect(buildOutput).not.toMatch(/ƒ .*?\/_error/)
+    })
 
-      it('renders custom _error successfully', async () => {
-        const html = await renderViaHTTP(appPort, '/')
-        expect(html).toMatch(/Custom error/)
-      })
-    }
-  )
+    it('renders custom _error successfully', async () => {
+      const html = await renderViaHTTP(appPort, '/')
+      expect(html).toMatch(/Custom error/)
+    })
+  })
 })

@@ -66,9 +66,7 @@ export function resetMcpTelemetry(): void {
 /**
  * Record MCP telemetry usage to the telemetry instance
  */
-export function recordMcpTelemetry(telemetry: {
-  record: (event: any) => void
-}): void {
+export function recordMcpTelemetry(telemetry: { record: (event: any) => void }): void {
   const mcpUsages = getMcpTelemetryUsage()
   if (mcpUsages.length === 0) {
     return

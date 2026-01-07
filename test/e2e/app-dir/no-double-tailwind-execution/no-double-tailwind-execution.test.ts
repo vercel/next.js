@@ -24,11 +24,7 @@ describe('no-double-tailwind-execution', () => {
     expect(await browser.elementByCss('p').text()).toBe('hello world')
 
     function getTailwindProcessingCount() {
-      return [
-        ...next.cliOutput.matchAll(
-          /\[@tailwindcss\/postcss\] app\/globals.css/g
-        ),
-      ].length
+      return [...next.cliOutput.matchAll(/\[@tailwindcss\/postcss\] app\/globals.css/g)].length
     }
 
     expect(getTailwindProcessingCount()).toBe(1) // initial

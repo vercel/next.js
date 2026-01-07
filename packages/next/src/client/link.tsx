@@ -138,12 +138,7 @@ type PrefetchOptions = RouterPrefetchOptions & {
   bypassPrefetchedCheck?: boolean
 }
 
-function prefetch(
-  router: NextRouter,
-  href: string,
-  as: string,
-  options: PrefetchOptions
-): void {
+function prefetch(router: NextRouter, href: string, as: string, options: PrefetchOptions): void {
   if (typeof window === 'undefined') {
     return
   }
@@ -216,10 +211,7 @@ function linkClicked(
   // anchors inside an svg have a lowercase nodeName
   const isAnchorNodeName = nodeName.toUpperCase() === 'A'
 
-  if (
-    (isAnchorNodeName && isModifiedEvent(e)) ||
-    e.currentTarget.hasAttribute('download')
-  ) {
+  if ((isAnchorNodeName && isModifiedEvent(e)) || e.currentTarget.hasAttribute('download')) {
     // ignore click for browser’s default behavior
     return
   }
@@ -272,8 +264,7 @@ function linkClicked(
 }
 
 type LinkPropsReal = React.PropsWithChildren<
-  Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, keyof LinkProps> &
-    LinkProps
+  Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, keyof LinkProps> & LinkProps
 >
 
 function formatStringOrUrl(urlObjOrString: UrlObject | string): string {
@@ -316,10 +307,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
 
     children = childrenProp
 
-    if (
-      legacyBehavior &&
-      (typeof children === 'string' || typeof children === 'number')
-    ) {
+    if (legacyBehavior && (typeof children === 'string' || typeof children === 'number')) {
       children = <a>{children}</a>
     }
 
@@ -328,11 +316,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
     const prefetchEnabled = prefetchProp !== false
 
     if (process.env.NODE_ENV !== 'production') {
-      function createPropError(args: {
-        key: string
-        expected: string
-        actual: string
-      }) {
+      function createPropError(args: { key: string; expected: string; actual: string }) {
         return new Error(
           `Failed prop type: The prop \`${args.key}\` expects a ${args.expected} in \`<Link>\`, but got \`${args.actual}\` instead.` +
             (typeof window !== 'undefined'
@@ -432,11 +416,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
             })
           }
         } else if (key === 'prefetch') {
-          if (
-            props[key] != null &&
-            valType !== 'boolean' &&
-            props[key] !== 'auto'
-          ) {
+          if (props[key] != null && valType !== 'boolean' && props[key] !== 'auto') {
             throw createPropError({
               key,
               expected: '`boolean | "auto"`',
@@ -576,11 +556,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           onClick(e)
         }
 
-        if (
-          legacyBehavior &&
-          child.props &&
-          typeof child.props.onClick === 'function'
-        ) {
+        if (legacyBehavior && child.props && typeof child.props.onClick === 'function') {
           child.props.onClick(e)
         }
 
@@ -592,28 +568,14 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           return
         }
 
-        linkClicked(
-          e,
-          router,
-          href,
-          as,
-          replace,
-          shallow,
-          scroll,
-          locale,
-          onNavigate
-        )
+        linkClicked(e, router, href, as, replace, shallow, scroll, locale, onNavigate)
       },
       onMouseEnter(e) {
         if (!legacyBehavior && typeof onMouseEnterProp === 'function') {
           onMouseEnterProp(e)
         }
 
-        if (
-          legacyBehavior &&
-          child.props &&
-          typeof child.props.onMouseEnter === 'function'
-        ) {
+        if (legacyBehavior && child.props && typeof child.props.onMouseEnter === 'function') {
           child.props.onMouseEnter(e)
         }
 
@@ -635,11 +597,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
               onTouchStartProp(e)
             }
 
-            if (
-              legacyBehavior &&
-              child.props &&
-              typeof child.props.onTouchStart === 'function'
-            ) {
+            if (legacyBehavior && child.props && typeof child.props.onTouchStart === 'function') {
               child.props.onTouchStart(e)
             }
 
@@ -659,11 +617,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
     // If the url is absolute, we can bypass the logic to prepend the domain and locale.
     if (isAbsoluteUrl(as)) {
       childProps.href = as
-    } else if (
-      !legacyBehavior ||
-      passHref ||
-      (child.type === 'a' && !('href' in child.props))
-    ) {
+    } else if (!legacyBehavior || passHref || (child.type === 'a' && !('href' in child.props))) {
       const curLocale = typeof locale !== 'undefined' ? locale : router?.locale
 
       // we only render domain locales if we are currently on a domain locale
@@ -672,9 +626,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         router?.isLocaleDomain &&
         getDomainLocale(as, curLocale, router?.locales, router?.domainLocales)
 
-      childProps.href =
-        localeDomain ||
-        addBasePath(addLocale(as, curLocale, router?.defaultLocale))
+      childProps.href = localeDomain || addBasePath(addLocale(as, curLocale, router?.defaultLocale))
     }
 
     if (legacyBehavior) {

@@ -61,9 +61,7 @@ describe('sub-shell-generation', () => {
         if (isNextDeploy) {
           expect(res.headers.get('x-matched-path')).toBe(shell)
         } else {
-          expect(res.headers.get('x-nextjs-postponed')).toBe(
-            isPostponed ? '1' : null
-          )
+          expect(res.headers.get('x-nextjs-postponed')).toBe(isPostponed ? '1' : null)
         }
 
         const html = await res.text()

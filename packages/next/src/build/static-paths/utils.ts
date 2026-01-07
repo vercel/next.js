@@ -4,10 +4,7 @@ import type { AppPageRouteModule } from '../../server/route-modules/app-page/mod
 import type { AppRouteRouteModule } from '../../server/route-modules/app-route/module.compiled'
 import { isAppPageRouteModule } from '../../server/route-modules/checks'
 import type { DynamicParamTypes } from '../../shared/lib/app-router-types'
-import {
-  parseAppRouteSegment,
-  type NormalizedAppRoute,
-} from '../../shared/lib/router/routes/app'
+import { parseAppRouteSegment, type NormalizedAppRoute } from '../../shared/lib/router/routes/app'
 import { parseLoaderTree } from '../../shared/lib/router/utils/parse-loader-tree'
 import type { AppSegment } from '../segment-config/app/app-segments'
 import { extractPathnameRouteParamSegmentsFromLoaderTree } from './app/extract-pathname-route-param-segments-from-loader-tree'
@@ -21,10 +18,7 @@ import type { FallbackRouteParam } from './types'
  * @param encoder - The encoder to use.
  * @returns The encoded value.
  */
-export function encodeParam(
-  value: string | string[],
-  encoder: (value: string) => string
-) {
+export function encodeParam(value: string | string[], encoder: (value: string) => string) {
   let replaceValue: string
   if (Array.isArray(value)) {
     replaceValue = value.map(encoder).join('/')
@@ -66,11 +60,10 @@ export function extractPathnameRouteParamSegments(
 }> {
   // For AppPageRouteModule, use the loaderTree traversal approach
   if (isAppPageRouteModule(routeModule)) {
-    const { pathnameRouteParamSegments } =
-      extractPathnameRouteParamSegmentsFromLoaderTree(
-        routeModule.userland.loaderTree,
-        route
-      )
+    const { pathnameRouteParamSegments } = extractPathnameRouteParamSegmentsFromLoaderTree(
+      routeModule.userland.loaderTree,
+      route
+    )
     return pathnameRouteParamSegments
   }
 
@@ -149,19 +142,11 @@ export function resolveRouteParamsFromTree(
     if (
       appSegment?.type === 'dynamic' &&
       !params.hasOwnProperty(appSegment.param.paramName) &&
-      !fallbackRouteParams.some(
-        (param) => param.paramName === appSegment.param.paramName
-      )
+      !fallbackRouteParams.some((param) => param.paramName === appSegment.param.paramName)
     ) {
       const { paramName, paramType } = appSegment.param
 
-      const paramValue = resolveParamValue(
-        paramName,
-        paramType,
-        depth,
-        route,
-        params
-      )
+      const paramValue = resolveParamValue(paramName, paramType, depth, route, params)
 
       if (paramValue !== undefined) {
         params[paramName] = paramValue
@@ -173,11 +158,7 @@ export function resolveRouteParamsFromTree(
 
     // Calculate next depth - increment if this is not a route group and not empty
     let nextDepth = depth
-    if (
-      appSegment &&
-      appSegment.type !== 'route-group' &&
-      appSegment.type !== 'parallel-route'
-    ) {
+    if (appSegment && appSegment.type !== 'route-group' && appSegment.type !== 'parallel-route') {
       nextDepth++
     }
 

@@ -33,29 +33,14 @@ describe('i18n-data-fetching-redirect', () => {
       ${'gsp-blocking-redirect'} | ${'sv'}    | ${'en'}
       ${'gsp-fallback-redirect'} | ${'en'}    | ${'sv'}
       ${'gsp-fallback-redirect'} | ${'sv'}    | ${'en'}
-    `(
-      '$path $fromLocale -> $toLocale',
-      async ({ path, fromLocale, toLocale }) => {
-        const browser = await webdriver(
-          next.url,
-          `/${fromLocale}/${path}/${toLocale}`
-        )
+    `('$path $fromLocale -> $toLocale', async ({ path, fromLocale, toLocale }) => {
+      const browser = await webdriver(next.url, `/${fromLocale}/${path}/${toLocale}`)
 
-        await check(
-          () => browser.eval('window.location.pathname'),
-          `/${toLocale}/home`
-        )
-        expect(await browser.elementByCss('#router-locale').text()).toBe(
-          toLocale
-        )
-        expect(await browser.elementByCss('#router-pathname').text()).toBe(
-          '/home'
-        )
-        expect(await browser.elementByCss('#router-as-path').text()).toBe(
-          '/home'
-        )
-      }
-    )
+      await check(() => browser.eval('window.location.pathname'), `/${toLocale}/home`)
+      expect(await browser.elementByCss('#router-locale').text()).toBe(toLocale)
+      expect(await browser.elementByCss('#router-pathname').text()).toBe('/home')
+      expect(await browser.elementByCss('#router-as-path').text()).toBe('/home')
+    })
 
     test.each`
       path                       | fromLocale | toLocale
@@ -65,30 +50,18 @@ describe('i18n-data-fetching-redirect', () => {
       ${'gsp-blocking-redirect'} | ${'sv'}    | ${'en'}
       ${'gsp-fallback-redirect'} | ${'en'}    | ${'sv'}
       ${'gsp-fallback-redirect'} | ${'sv'}    | ${'en'}
-    `(
-      'next/link $path $fromLocale -> $toLocale',
-      async ({ path, fromLocale, toLocale }) => {
-        const browser = await webdriver(next.url, `/${fromLocale}`)
-        await browser.eval('window.beforeNav = 1')
+    `('next/link $path $fromLocale -> $toLocale', async ({ path, fromLocale, toLocale }) => {
+      const browser = await webdriver(next.url, `/${fromLocale}`)
+      await browser.eval('window.beforeNav = 1')
 
-        await browser.elementByCss(`#to-${path}-${toLocale}`).click()
+      await browser.elementByCss(`#to-${path}-${toLocale}`).click()
 
-        await check(
-          () => browser.eval('window.location.pathname'),
-          `/${toLocale}/home`
-        )
+      await check(() => browser.eval('window.location.pathname'), `/${toLocale}/home`)
 
-        expect(await browser.eval('window.beforeNav')).toBe(1)
-        expect(await browser.elementByCss('#router-locale').text()).toBe(
-          toLocale
-        )
-        expect(await browser.elementByCss('#router-pathname').text()).toBe(
-          '/home'
-        )
-        expect(await browser.elementByCss('#router-as-path').text()).toBe(
-          '/home'
-        )
-      }
-    )
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+      expect(await browser.elementByCss('#router-locale').text()).toBe(toLocale)
+      expect(await browser.elementByCss('#router-pathname').text()).toBe('/home')
+      expect(await browser.elementByCss('#router-as-path').text()).toBe('/home')
+    })
   })
 })

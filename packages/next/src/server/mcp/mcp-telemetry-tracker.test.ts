@@ -57,9 +57,7 @@ describe('MCP Telemetry Tracker', () => {
     // Find each tool in the results
     const errorsUsage = usages.find((u) => u.featureName === 'mcp/get_errors')
     const logsUsage = usages.find((u) => u.featureName === 'mcp/get_logs')
-    const pageMetadataUsage = usages.find(
-      (u) => u.featureName === 'mcp/get_page_metadata'
-    )
+    const pageMetadataUsage = usages.find((u) => u.featureName === 'mcp/get_page_metadata')
 
     expect(errorsUsage).toEqual({
       featureName: 'mcp/get_errors',
@@ -119,9 +117,7 @@ describe('MCP Telemetry Tracker', () => {
     const usages = mcpTelemetryTracker.getUsages()
     expect(usages).toHaveLength(4)
 
-    const counts = new Map(
-      usages.map((u) => [u.featureName, u.invocationCount])
-    )
+    const counts = new Map(usages.map((u) => [u.featureName, u.invocationCount]))
 
     expect(counts.get('mcp/get_errors')).toBe(3)
     expect(counts.get('mcp/get_page_metadata')).toBe(2)

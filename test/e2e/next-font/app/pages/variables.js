@@ -27,10 +27,7 @@ export default function WithFonts() {
       >
         With variables
       </div>
-      <div
-        id="without-variables-fira-code"
-        style={{ fontFamily: 'var(--fira-code)' }}
-      >
+      <div id="without-variables-fira-code" style={{ fontFamily: 'var(--fira-code)' }}>
         Without variables
       </div>
 
@@ -57,10 +54,7 @@ export default function WithFonts() {
       >
         With variables
       </div>
-      <div
-        id="without-variables-local-font"
-        style={{ fontFamily: 'var(--my-font)' }}
-      >
+      <div id="without-variables-local-font" style={{ fontFamily: 'var(--my-font)' }}>
         Without variables
       </div>
     </>

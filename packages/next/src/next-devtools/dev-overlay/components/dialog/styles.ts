@@ -29,9 +29,7 @@ export const styles = css`
   
     [data-nextjs-scroll-fader][data-side='top'] {
       left: 1px;
-      top: calc(
-        var(--next-dialog-notch-height) + var(--next-dialog-border-width)
-      );
+      top: calc(var(--next-dialog-notch-height) + var(--next-dialog-border-width));
       width: calc(100% - var(--next-dialog-padding));
       opacity: 0;
     }
@@ -50,8 +48,7 @@ export const styles = css`
     margin: 8px;
   }
   
-  [data-nextjs-dialog-overlay][data-rendered='true']
-    [data-nextjs-dialog-backdrop] {
+  [data-nextjs-dialog-overlay][data-rendered='true'] [data-nextjs-dialog-backdrop] {
     opacity: 1;
   }
   

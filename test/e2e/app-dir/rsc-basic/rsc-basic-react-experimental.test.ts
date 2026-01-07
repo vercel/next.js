@@ -16,13 +16,7 @@ describe('react@experimental', () => {
 
   it('should opt into the react@experimental when enabling $flag', async () => {
     const resPages$ = await next.render$('/app-react')
-    const [
-      ssrReact,
-      ssrReactDOM,
-      ssrClientReact,
-      ssrClientReactDOM,
-      ssrClientReactDOMServer,
-    ] = [
+    const [ssrReact, ssrReactDOM, ssrClientReact, ssrClientReactDOM, ssrClientReactDOMServer] = [
       resPages$('#react').text(),
       resPages$('#react-dom').text(),
       resPages$('#client-react').text(),

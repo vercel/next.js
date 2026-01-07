@@ -22,13 +22,12 @@ export default async function getChangedTests() {
 
   const diffRevision = await getDiffRevision()
 
-  const changesResult = await execa(
-    `git diff ${diffRevision} --name-only`,
-    EXECA_OPTS
-  ).catch((err) => {
-    console.error(err)
-    return { stdout: '', stderr: '' }
-  })
+  const changesResult = await execa(`git diff ${diffRevision} --name-only`, EXECA_OPTS).catch(
+    (err) => {
+      console.error(err)
+      return { stdout: '', stderr: '' }
+    }
+  )
   console.log(
     {
       branchName,
@@ -54,10 +53,7 @@ export default async function getChangedTests() {
       .catch(() => false)
 
     if (fileExists && file.match(/^test\/.*?\.test\.(js|ts|tsx)$/)) {
-      if (
-        file.startsWith('test/e2e/') ||
-        file.startsWith('test/integration/')
-      ) {
+      if (file.startsWith('test/e2e/') || file.startsWith('test/integration/')) {
         devTests.push(file)
         prodTests.push(file)
       } else if (file.startsWith('test/prod')) {

@@ -5,12 +5,8 @@ type ErrorOverlayDialogBodyProps = {
   onClose?: () => void
 }
 
-export function ErrorOverlayDialogBody({
-  children,
-}: ErrorOverlayDialogBodyProps) {
-  return (
-    <DialogBody className="nextjs-container-errors-body">{children}</DialogBody>
-  )
+export function ErrorOverlayDialogBody({ children }: ErrorOverlayDialogBodyProps) {
+  return <DialogBody className="nextjs-container-errors-body">{children}</DialogBody>
 }
 
 export const DIALOG_BODY_STYLES = ``

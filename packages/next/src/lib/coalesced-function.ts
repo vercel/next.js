@@ -9,10 +9,7 @@ const globalInvokeCache = new Map<string, Promise<CoalescedInvoke<unknown>>>()
 
 export function withCoalescedInvoke<F extends (...args: any) => any>(
   func: F
-): (
-  key: string,
-  args: Parameters<F>
-) => Promise<CoalescedInvoke<UnwrapPromise<ReturnType<F>>>> {
+): (key: string, args: Parameters<F>) => Promise<CoalescedInvoke<UnwrapPromise<ReturnType<F>>>> {
   return async function (key: string, args: Parameters<F>) {
     const entry = globalInvokeCache.get(key)
     if (entry) {

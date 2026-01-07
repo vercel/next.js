@@ -63,9 +63,7 @@ export default class MyDocument extends Document {
     return (
       <Html className="test-html-props">
         <Head nonce="test-nonce">
-          {csp ? (
-            <meta httpEquiv="Content-Security-Policy" content={csp} />
-          ) : null}
+          {csp ? <meta httpEquiv="Content-Security-Policy" content={csp} /> : null}
           <style>{`body { margin: 0 } /* custom! */`}</style>
         </Head>
         <body className="custom_class">

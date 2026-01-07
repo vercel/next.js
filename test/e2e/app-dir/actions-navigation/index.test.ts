@@ -11,9 +11,7 @@ describe('app-dir action handling', () => {
 
     await browser.elementByCss('#middleware-redirect').click()
 
-    expect(await browser.elementByCss('#form').text()).not.toContain(
-      'Loading...'
-    )
+    expect(await browser.elementByCss('#form').text()).not.toContain('Loading...')
 
     await browser.elementByCss('#submit').click()
 
@@ -24,13 +22,9 @@ describe('app-dir action handling', () => {
     // wait for 2 seconds, since the action takes a second to resolve
     await waitFor(2000)
 
-    expect(await browser.elementByCss('#form').text()).not.toContain(
-      'Loading...'
-    )
+    expect(await browser.elementByCss('#form').text()).not.toContain('Loading...')
 
-    expect(await browser.elementByCss('#result').text()).toContain(
-      'RESULT FROM SERVER ACTION'
-    )
+    expect(await browser.elementByCss('#result').text()).toContain('RESULT FROM SERVER ACTION')
   })
 
   it('should handle actions correctly after following a relative link', async () => {

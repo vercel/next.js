@@ -12,8 +12,7 @@ export function Page({ suspense = false }) {
     <>
       <h2>Dynamic Component</h2>
       <p>
-        This shows the dynamic component based on the existence of the{' '}
-        <code>session</code>
+        This shows the dynamic component based on the existence of the <code>session</code>
         cookie.
       </p>
       <div id="container">{slot}</div>

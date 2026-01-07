@@ -5,9 +5,7 @@ import { getBindingsSync } from './swc'
 // NOTE: this should be updated if this loader file is moved.
 const PACKAGE_ROOT = path.normalize(path.join(__dirname, '../..'))
 const TEMPLATE_SRC_FOLDER = path.normalize(path.join(__dirname, './templates'))
-const TEMPLATES_ESM_FOLDER = path.normalize(
-  path.join(__dirname, '../../dist/esm/build/templates')
-)
+const TEMPLATES_ESM_FOLDER = path.normalize(path.join(__dirname, '../../dist/esm/build/templates'))
 
 /**
  * Load the entrypoint file from the ESM directory and performs string
@@ -39,9 +37,7 @@ export async function loadEntrypoint(
   injections?: Record<string, string>,
   imports?: Record<string, string | null>
 ): Promise<string> {
-  const templatePath = path.resolve(
-    path.join(TEMPLATES_ESM_FOLDER, `${entrypoint}.js`)
-  )
+  const templatePath = path.resolve(path.join(TEMPLATES_ESM_FOLDER, `${entrypoint}.js`))
   let content = await fs.readFile(templatePath)
 
   return getBindingsSync().expandNextJsTemplate(

@@ -2,11 +2,7 @@
 
 import { useActionState } from 'react'
 
-export function Form({
-  echoAction,
-}: {
-  echoAction: (value: string) => Promise<string>
-}) {
+export function Form({ echoAction }: { echoAction: (value: string) => Promise<string> }) {
   let [result, formAction] = useActionState(
     () => echoAction(new Array(100000).fill('あ').join('')),
     null
@@ -18,8 +14,7 @@ export function Form({
     <form action={formAction}>
       {result && (
         <p>
-          Server responded with {aCount} あ characters and{' '}
-          {result.length - aCount} � characters.
+          Server responded with {aCount} あ characters and {result.length - aCount} � characters.
         </p>
       )}
       <button>Submit</button>

@@ -11,9 +11,7 @@ describe('server-actions-relative-redirect', () => {
     await browser.waitForElementByCss('#relative-redirect').click()
 
     await retry(async () => {
-      expect(await browser.waitForElementByCss('#page-loaded').text()).toBe(
-        'hello nested page'
-      )
+      expect(await browser.waitForElementByCss('#page-loaded').text()).toBe('hello nested page')
     })
   })
 
@@ -22,9 +20,7 @@ describe('server-actions-relative-redirect', () => {
     await browser.waitForElementByCss('#absolute-redirect').click()
 
     await retry(async () => {
-      expect(await browser.waitForElementByCss('#page-loaded').text()).toBe(
-        'hello nested page'
-      )
+      expect(await browser.waitForElementByCss('#page-loaded').text()).toBe('hello nested page')
     })
   })
 
@@ -44,9 +40,7 @@ describe('server-actions-relative-redirect', () => {
     await browser.waitForElementByCss('#absolute-subdir-redirect').click()
 
     await retry(async () => {
-      expect(await browser.waitForElementByCss('#page-loaded').text()).toBe(
-        'hello nested page'
-      )
+      expect(await browser.waitForElementByCss('#page-loaded').text()).toBe('hello nested page')
     })
   })
 
@@ -56,9 +50,7 @@ describe('server-actions-relative-redirect', () => {
     await browser.waitForElementByCss('#multi-relative-subdir-redirect').click()
 
     await retry(async () => {
-      expect(await browser.waitForElementByCss('#page-loaded').text()).toBe(
-        'hello nested page'
-      )
+      expect(await browser.waitForElementByCss('#page-loaded').text()).toBe('hello nested page')
     })
 
     expect(await browser.eval('window.notReloaded')).toBe(true)

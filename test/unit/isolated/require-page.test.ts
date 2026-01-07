@@ -62,17 +62,13 @@ describe('getPagePath', () => {
   })
 
   it('Should throw with paths containing ../', () => {
-    expect(() =>
-      getPagePath('/../../package.json', distDir, undefined, false)
-    ).toThrow()
+    expect(() => getPagePath('/../../package.json', distDir, undefined, false)).toThrow()
   })
 })
 
 describe('requirePage', () => {
   it('Should not find page /index when using /', async () => {
-    await expect(requirePage('/', distDir, false)).rejects.toThrow(
-      'Cannot find module for page: /'
-    )
+    await expect(requirePage('/', distDir, false)).rejects.toThrow('Cannot find module for page: /')
   })
 
   it('Should require /index.js when using /index', async () => {

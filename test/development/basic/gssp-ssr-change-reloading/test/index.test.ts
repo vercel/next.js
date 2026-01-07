@@ -66,24 +66,13 @@ describe('GS(S)P Server-Side Change Reloading', () => {
 
     const page = 'pages/gsp-blog/[post].js'
     const originalContent = await next.readFile(page)
-    await next.patchFile(
-      page,
-      originalContent.replace('count = 1', 'count = 2')
-    )
+    await next.patchFile(page, originalContent.replace('count = 1', 'count = 2'))
 
-    await check(
-      async () =>
-        JSON.parse(await browser.elementByCss('#props').text()).count + '',
-      '2'
-    )
+    await check(async () => JSON.parse(await browser.elementByCss('#props').text()).count + '', '2')
     expect(await browser.eval(`window.beforeChange`)).toBe('hi')
     await next.patchFile(page, originalContent)
 
-    await check(
-      async () =>
-        JSON.parse(await browser.elementByCss('#props').text()).count + '',
-      '1'
-    )
+    await check(async () => JSON.parse(await browser.elementByCss('#props').text()).count + '', '1')
   })
 
   it('should show indicator when re-fetching data', async () => {
@@ -96,25 +85,14 @@ describe('GS(S)P Server-Side Change Reloading', () => {
 
     const page = 'pages/gsp-blog/[post].js'
     const originalContent = await next.readFile(page)
-    await next.patchFile(
-      page,
-      originalContent.replace('count = 1', 'count = 2')
-    )
+    await next.patchFile(page, originalContent.replace('count = 1', 'count = 2'))
 
-    await check(
-      async () =>
-        JSON.parse(await browser.elementByCss('#props').text()).count + '',
-      '2'
-    )
+    await check(async () => JSON.parse(await browser.elementByCss('#props').text()).count + '', '2')
     expect(await browser.eval(`window.beforeChange`)).toBe('hi')
     expect(await browser.eval(`window.showedBuilder`)).toBe(true)
 
     await next.patchFile(page, originalContent)
-    await check(
-      async () =>
-        JSON.parse(await browser.elementByCss('#props').text()).count + '',
-      '1'
-    )
+    await check(async () => JSON.parse(await browser.elementByCss('#props').text()).count + '', '1')
   })
 
   it('should update page when getStaticPaths is changed only', async () => {
@@ -126,10 +104,7 @@ describe('GS(S)P Server-Side Change Reloading', () => {
 
     const page = 'pages/gsp-blog/[post].js'
     const originalContent = await next.readFile(page)
-    await next.patchFile(
-      page,
-      originalContent.replace('paths = 1', 'paths = 2')
-    )
+    await next.patchFile(page, originalContent.replace('paths = 1', 'paths = 2'))
 
     expect(await browser.eval('window.beforeChange')).toBe('hi')
     await next.patchFile(page, originalContent)
@@ -144,10 +119,7 @@ describe('GS(S)P Server-Side Change Reloading', () => {
 
     const page = 'pages/index.js'
     const originalContent = await next.readFile(page)
-    await next.patchFile(
-      page,
-      originalContent.replace('count = 1', 'count = 2')
-    )
+    await next.patchFile(page, originalContent.replace('count = 1', 'count = 2'))
 
     expect(await browser.eval('window.beforeChange')).toBe('hi')
     await next.patchFile(page, originalContent)
@@ -162,28 +134,17 @@ describe('GS(S)P Server-Side Change Reloading', () => {
 
     const page = 'pages/another/index.js'
     const originalContent = await next.readFile(page)
-    await next.patchFile(
-      page,
-      originalContent.replace('count = 1', 'count = 2')
-    )
+    await next.patchFile(page, originalContent.replace('count = 1', 'count = 2'))
 
-    await check(
-      async () =>
-        JSON.parse(await browser.elementByCss('#props').text()).count + '',
-      '2'
-    )
+    await check(async () => JSON.parse(await browser.elementByCss('#props').text()).count + '', '2')
     expect(await browser.eval('window.beforeChange')).toBe('hi')
     await next.patchFile(page, originalContent)
   })
 
   it('should keep scroll position when updating from change in getStaticProps', async () => {
     const browser = await webdriver(next.url, '/another')
-    await browser.eval(
-      'document.getElementById("scroll-target").scrollIntoView()'
-    )
-    const scrollPosition = await browser.eval(
-      'document.documentElement.scrollTop'
-    )
+    await browser.eval('document.getElementById("scroll-target").scrollIntoView()')
+    const scrollPosition = await browser.eval('document.documentElement.scrollTop')
     await browser.eval(`window.beforeChange = 'hi'`)
 
     const props = JSON.parse(await browser.elementByCss('#props').text())
@@ -191,20 +152,11 @@ describe('GS(S)P Server-Side Change Reloading', () => {
 
     const page = 'pages/another/index.js'
     const originalContent = await next.readFile(page)
-    await next.patchFile(
-      page,
-      originalContent.replace('count = 1', 'count = 2')
-    )
+    await next.patchFile(page, originalContent.replace('count = 1', 'count = 2'))
 
-    await check(
-      async () =>
-        JSON.parse(await browser.elementByCss('#props').text()).count + '',
-      '2'
-    )
+    await check(async () => JSON.parse(await browser.elementByCss('#props').text()).count + '', '2')
     expect(await browser.eval('window.beforeChange')).toBe('hi')
-    expect(await browser.eval('document.documentElement.scrollTop')).toBe(
-      scrollPosition
-    )
+    expect(await browser.eval('document.documentElement.scrollTop')).toBe(scrollPosition)
     await next.patchFile(page, originalContent)
   })
 
@@ -231,11 +183,7 @@ describe('GS(S)P Server-Side Change Reloading', () => {
 
   it('should update page when getServerSideProps is changed only', async () => {
     const browser = await webdriver(next.url, '/gssp-blog/first')
-    await check(
-      async () =>
-        JSON.parse(await browser.elementByCss('#props').text()).count + '',
-      '1'
-    )
+    await check(async () => JSON.parse(await browser.elementByCss('#props').text()).count + '', '1')
     await browser.eval(`window.beforeChange = 'hi'`)
 
     const props = JSON.parse(await browser.elementByCss('#props').text())
@@ -243,24 +191,13 @@ describe('GS(S)P Server-Side Change Reloading', () => {
 
     const page = 'pages/gssp-blog/[post].js'
     const originalContent = await next.readFile(page)
-    await next.patchFile(
-      page,
-      originalContent.replace('count = 1', 'count = 2')
-    )
+    await next.patchFile(page, originalContent.replace('count = 1', 'count = 2'))
 
-    await check(
-      async () =>
-        JSON.parse(await browser.elementByCss('#props').text()).count + '',
-      '2'
-    )
+    await check(async () => JSON.parse(await browser.elementByCss('#props').text()).count + '', '2')
     expect(await browser.eval(`window.beforeChange`)).toBe('hi')
     await next.patchFile(page, originalContent)
 
-    await check(
-      async () =>
-        JSON.parse(await browser.elementByCss('#props').text()).count + '',
-      '1'
-    )
+    await check(async () => JSON.parse(await browser.elementByCss('#props').text()).count + '', '1')
   })
 
   it('should update on props error in getStaticProps', async () => {
@@ -311,10 +248,7 @@ describe('GS(S)P Server-Side Change Reloading', () => {
     try {
       await next.patchFile(
         page,
-        originalContent.replace(
-          'const count',
-          'throw new Error("custom oops"); const count'
-        )
+        originalContent.replace('const count', 'throw new Error("custom oops"); const count')
       )
 
       await expect(browser).toDisplayRedbox(`
@@ -363,9 +297,7 @@ describe('GS(S)P Server-Side Change Reloading', () => {
       await next.patchFile(page, originalContent)
       await check(async () => {
         const props = JSON.parse(await browser.elementByCss('#props').text())
-        return props.count === 1 && props.data.hello === 'world'
-          ? 'success'
-          : JSON.stringify(props)
+        return props.count === 1 && props.data.hello === 'world' ? 'success' : JSON.stringify(props)
       }, 'success')
     } finally {
       await next.patchFile(page, originalContent)

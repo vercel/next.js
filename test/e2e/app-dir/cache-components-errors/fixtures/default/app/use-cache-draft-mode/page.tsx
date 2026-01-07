@@ -3,9 +3,7 @@ import { draftMode } from 'next/headers'
 export default async function Page() {
   return (
     <>
-      <p>
-        This page enables draft mode in `'use cache'`, which triggers an error.
-      </p>
+      <p>This page enables draft mode in `'use cache'`, which triggers an error.</p>
       <DraftModeEnablingComponent />
     </>
   )

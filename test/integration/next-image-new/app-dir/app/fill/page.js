@@ -27,13 +27,7 @@ const Page = () => {
           overflow: 'hidden',
         }}
       >
-        <Image
-          id="fill-image-blur"
-          src={test}
-          sizes="300px"
-          placeholder="blur"
-          fill
-        />
+        <Image id="fill-image-blur" src={test} sizes="300px" placeholder="blur" fill />
       </div>
     </div>
   )

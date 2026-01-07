@@ -10,8 +10,7 @@ import { hasNecessaryDependencies } from '../lib/has-necessary-dependencies'
 let TSCONFIG_WARNED = false
 
 export function parseJsonFile(filePath: string) {
-  const JSON5 =
-    require('next/dist/compiled/json5') as typeof import('next/dist/compiled/json5')
+  const JSON5 = require('next/dist/compiled/json5') as typeof import('next/dist/compiled/json5')
   const contents = readFileSync(filePath, 'utf8')
 
   // Special case an empty file
@@ -39,9 +38,7 @@ export function parseJsonFile(filePath: string) {
   }
 }
 
-export type ResolvedBaseUrl =
-  | { baseUrl: string; isImplicit: boolean }
-  | undefined
+export type ResolvedBaseUrl = { baseUrl: string; isImplicit: boolean } | undefined
 
 export type JsConfig = { compilerOptions: Record<string, any> } | undefined
 
@@ -78,9 +75,7 @@ export default async function loadJsConfig(
       Log.info(`Using tsconfig file: ${tsConfigFileName}`)
     }
 
-    const ts = (await Promise.resolve(
-      require(typeScriptPath!)
-    )) as typeof import('typescript')
+    const ts = (await Promise.resolve(require(typeScriptPath!))) as typeof import('typescript')
     const tsConfig = await getTypeScriptConfiguration(ts, tsConfigPath, true)
     jsConfig = { compilerOptions: tsConfig.options }
     implicitBaseurl = path.dirname(tsConfigPath)

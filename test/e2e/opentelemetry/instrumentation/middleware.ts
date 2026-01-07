@@ -7,9 +7,6 @@ export const config: {
   matcher: ['/behind-middleware', '/behind-middleware/:path*'],
 }
 
-export async function middleware(
-  request: NextRequest,
-  event?: NextFetchEvent
-): Promise<Response> {
+export async function middleware(request: NextRequest, event?: NextFetchEvent): Promise<Response> {
   return NextResponse.next()
 }

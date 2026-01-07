@@ -8,10 +8,7 @@ export type CompilerResult = {
   stats: webpack.Stats | undefined
 }
 
-function generateStats(
-  result: CompilerResult,
-  stat: webpack.Stats
-): CompilerResult {
+function generateStats(result: CompilerResult, stat: webpack.Stats): CompilerResult {
   const { errors, warnings } = stat.toJson({
     preset: 'errors-warnings',
     moduleTrace: true,
@@ -45,12 +42,7 @@ export function runCompiler(
     runWebpackSpan: Span
     inputFileSystem?: webpack.Compiler['inputFileSystem']
   }
-): Promise<
-  [
-    result: CompilerResult,
-    inputFileSystem?: webpack.Compiler['inputFileSystem'],
-  ]
-> {
+): Promise<[result: CompilerResult, inputFileSystem?: webpack.Compiler['inputFileSystem']]> {
   return new Promise((resolve, reject) => {
     const compiler = getWebpackBundler()(config)
 
@@ -83,9 +75,7 @@ export function runCompiler(
 
           const result = webpackCloseSpan
             .traceChild('webpack-generate-error-stats')
-            .traceFn(() =>
-              generateStats({ errors: [], warnings: [], stats }, stats)
-            )
+            .traceFn(() => generateStats({ errors: [], warnings: [], stats }, stats))
           return resolve([result, compiler.inputFileSystem])
         })
     })

@@ -9,10 +9,7 @@ import { RouteModule, type RouteModuleHandleContext } from '../route-module'
 import { apiResolver } from '../../api-utils/node/api-resolver'
 import type { RevalidateFn } from '../../lib/router-utils/router-server-context'
 
-type PagesAPIHandleFn = (
-  req: IncomingMessage,
-  res: ServerResponse
-) => Promise<void>
+type PagesAPIHandleFn = (req: IncomingMessage, res: ServerResponse) => Promise<void>
 
 /**
  * The PagesAPIModule is the type of the module exported by the bundled Pages
@@ -116,15 +113,10 @@ export class PagesAPIRouteModule extends RouteModule<
     super(options)
 
     if (typeof options.userland.default !== 'function') {
-      throw new Error(
-        `Page ${options.definition.page} does not export a default function.`
-      )
+      throw new Error(`Page ${options.definition.page} does not export a default function.`)
     }
 
-    this.apiResolverWrapped = wrapApiHandler(
-      options.definition.page,
-      apiResolver
-    )
+    this.apiResolverWrapped = wrapApiHandler(options.definition.page, apiResolver)
   }
 
   /**

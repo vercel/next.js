@@ -28,19 +28,18 @@ async function nextBabelLoader(
   }
 
   const loaderSpanInner = parentTrace.traceChild('next-babel-turbo-transform')
-  const { code: transformedSource, map: outputSourceMap } =
-    await loaderSpanInner.traceAsyncFn(
-      async () =>
-        await transform(
-          ctx,
-          inputSource,
-          inputSourceMap,
-          loaderOptions,
-          filename,
-          target,
-          loaderSpanInner
-        )
-    )
+  const { code: transformedSource, map: outputSourceMap } = await loaderSpanInner.traceAsyncFn(
+    async () =>
+      await transform(
+        ctx,
+        inputSource,
+        inputSourceMap,
+        loaderOptions,
+        filename,
+        target,
+        loaderSpanInner
+      )
+  )
 
   return [transformedSource, outputSourceMap]
 }
@@ -55,16 +54,10 @@ function nextBabelLoaderOuter(
 
   const loaderSpan = this.currentTraceSpan.traceChild('next-babel-turbo-loader')
   loaderSpan
-    .traceAsyncFn(() =>
-      nextBabelLoader(this, loaderSpan, inputSource, inputSourceMap)
-    )
+    .traceAsyncFn(() => nextBabelLoader(this, loaderSpan, inputSource, inputSourceMap))
     .then(
       ([transformedSource, outputSourceMap]) =>
-        callback?.(
-          /* err */ null,
-          transformedSource,
-          outputSourceMap ?? inputSourceMap
-        ),
+        callback?.(/* err */ null, transformedSource, outputSourceMap ?? inputSourceMap),
       (err) => {
         callback?.(err)
       }
@@ -74,9 +67,7 @@ function nextBabelLoaderOuter(
 // check this type matches `webpack.LoaderDefinitionFunction`, but be careful
 // not to publicly rely on the webpack type since the generated typescript
 // declarations will be wrong.
-const _nextBabelLoaderOuter: webpack.LoaderDefinitionFunction<
-  {},
-  NextJsLoaderContext
-> = nextBabelLoaderOuter
+const _nextBabelLoaderOuter: webpack.LoaderDefinitionFunction<{}, NextJsLoaderContext> =
+  nextBabelLoaderOuter
 
 export default nextBabelLoaderOuter

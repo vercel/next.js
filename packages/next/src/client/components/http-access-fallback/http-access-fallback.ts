@@ -19,9 +19,7 @@ export type HTTPAccessFallbackError = Error & {
  * @param error the error that may reference a HTTP access error
  * @returns true if the error is a HTTP access error
  */
-export function isHTTPAccessFallbackError(
-  error: unknown
-): error is HTTPAccessFallbackError {
+export function isHTTPAccessFallbackError(error: unknown): error is HTTPAccessFallbackError {
   if (
     typeof error !== 'object' ||
     error === null ||
@@ -32,15 +30,10 @@ export function isHTTPAccessFallbackError(
   }
   const [prefix, httpStatus] = error.digest.split(';')
 
-  return (
-    prefix === HTTP_ERROR_FALLBACK_ERROR_CODE &&
-    ALLOWED_CODES.has(Number(httpStatus))
-  )
+  return prefix === HTTP_ERROR_FALLBACK_ERROR_CODE && ALLOWED_CODES.has(Number(httpStatus))
 }
 
-export function getAccessFallbackHTTPStatus(
-  error: HTTPAccessFallbackError
-): number {
+export function getAccessFallbackHTTPStatus(error: HTTPAccessFallbackError): number {
   const httpStatus = error.digest.split(';')[1]
   return Number(httpStatus)
 }

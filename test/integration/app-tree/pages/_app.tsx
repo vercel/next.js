@@ -49,8 +49,6 @@ export default class MyApp extends App<{ html: string }> {
         <Component {...pageProps} />
       )
 
-    return (
-      <DummyContext.Provider value={'::ctx::'}>{child}</DummyContext.Provider>
-    )
+    return <DummyContext.Provider value={'::ctx::'}>{child}</DummyContext.Provider>
   }
 }

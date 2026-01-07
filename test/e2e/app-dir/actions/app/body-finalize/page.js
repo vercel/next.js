@@ -6,10 +6,7 @@ import { submitLargePayload } from './actions'
 export default function Page() {
   const [result, setResult] = useState(null)
 
-  const largePayload = useMemo(
-    () => new Array(10 * 1024).fill(null).map((_, idx) => idx),
-    []
-  )
+  const largePayload = useMemo(() => new Array(10 * 1024).fill(null).map((_, idx) => idx), [])
 
   const handleSubmit = async () => {
     const res = await submitLargePayload(largePayload)

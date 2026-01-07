@@ -40,9 +40,7 @@ describe('stale-dev-types', () => {
     const { exitCode, cliOutput } = await next.build()
 
     // Build should succeed - stale dev types should be excluded from type checking
-    expect(cliOutput).not.toContain(
-      "Cannot find module '../../../app/temp-route/page"
-    )
+    expect(cliOutput).not.toContain("Cannot find module '../../../app/temp-route/page")
     expect(exitCode).toBe(0)
   })
 })

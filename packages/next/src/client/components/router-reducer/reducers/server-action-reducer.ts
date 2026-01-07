@@ -1,7 +1,4 @@
-import type {
-  ActionFlightResponse,
-  ActionResult,
-} from '../../../../shared/lib/app-router-types'
+import type { ActionFlightResponse, ActionResult } from '../../../../shared/lib/app-router-types'
 import { callServer } from '../../../app-call-server'
 import { findSourceMapURL } from '../../../app-find-source-map-url'
 import {
@@ -66,14 +63,9 @@ import { FreshnessPolicy } from '../ppr-navigations'
 const createFromFetch =
   createFromFetchBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromFetch']
 
-let createDebugChannel:
-  | typeof import('../../../dev/debug-channel').createDebugChannel
-  | undefined
+let createDebugChannel: typeof import('../../../dev/debug-channel').createDebugChannel | undefined
 
-if (
-  process.env.NODE_ENV !== 'production' &&
-  process.env.__NEXT_REACT_DEBUG_CHANNEL
-) {
+if (process.env.NODE_ENV !== 'production' && process.env.__NEXT_REACT_DEBUG_CHANNEL) {
   createDebugChannel = (
     require('../../../dev/debug-channel') as typeof import('../../../dev/debug-channel')
   ).createDebugChannel
@@ -104,17 +96,14 @@ async function fetchServerAction(
   // TODO: Currently, we're only omitting unused args for the experimental "use
   // cache" functions. Once the server reference info byte feature is stable, we
   // should apply this to server actions as well.
-  const usedArgs =
-    info.type === 'use-cache' ? omitUnusedArgs(actionArgs, info) : actionArgs
+  const usedArgs = info.type === 'use-cache' ? omitUnusedArgs(actionArgs, info) : actionArgs
 
   const body = await encodeReply(usedArgs, { temporaryReferences })
 
   const headers: Record<string, string> = {
     Accept: RSC_CONTENT_TYPE_HEADER,
     [ACTION_HEADER]: actionId,
-    [NEXT_ROUTER_STATE_TREE_HEADER]: prepareFlightRouterStateForRequest(
-      state.tree
-    ),
+    [NEXT_ROUTER_STATE_TREE_HEADER]: prepareFlightRouterStateForRequest(state.tree),
   }
 
   const deploymentId = getDeploymentId()
@@ -134,9 +123,7 @@ async function fetchServerAction(
     // Create a new request ID for the server action request. The server uses
     // this to tag debug information sent via WebSocket to the client, which
     // then routes those chunks to the debug channel associated with this ID.
-    headers[NEXT_REQUEST_ID_HEADER] = crypto
-      .getRandomValues(new Uint32Array(1))[0]
-      .toString(16)
+    headers[NEXT_REQUEST_ID_HEADER] = crypto.getRandomValues(new Uint32Array(1))[0].toString(16)
   }
 
   const res = await fetch(state.canonicalUrl, { method: 'POST', headers, body })
@@ -180,16 +167,11 @@ async function fetchServerAction(
   } catch {}
 
   const redirectLocation = location
-    ? assignLocation(
-        location,
-        new URL(state.canonicalUrl, window.location.href)
-      )
+    ? assignLocation(location, new URL(state.canonicalUrl, window.location.href))
     : undefined
 
   const contentType = res.headers.get('content-type')
-  const isRscResponse = !!(
-    contentType && contentType.startsWith(RSC_CONTENT_TYPE_HEADER)
-  )
+  const isRscResponse = !!(contentType && contentType.startsWith(RSC_CONTENT_TYPE_HEADER))
 
   // Handle invalid server action responses.
   // A valid response must have `content-type: text/x-component`, unless it's an external redirect.
@@ -211,15 +193,12 @@ async function fetchServerAction(
   let actionFlightDataCouldBeIntercepted: FetchServerActionResult['actionFlightDataCouldBeIntercepted']
 
   if (isRscResponse) {
-    const response: ActionFlightResponse = await createFromFetch(
-      Promise.resolve(res),
-      {
-        callServer,
-        findSourceMapURL,
-        temporaryReferences,
-        debugChannel: createDebugChannel && createDebugChannel(headers),
-      }
-    )
+    const response: ActionFlightResponse = await createFromFetch(Promise.resolve(res), {
+      callServer,
+      findSourceMapURL,
+      temporaryReferences,
+      debugChannel: createDebugChannel && createDebugChannel(headers),
+    })
 
     // An internal redirect can send an RSC response, but does not have a useful `actionResult`.
     actionResult = redirectLocation ? undefined : response.a
@@ -272,8 +251,7 @@ export function serverActionReducer(
     // the next-url after a navigation, but we want the same
     // interception route to be matched that used the last
     // next-url.
-    (state.previousNextUrl || state.nextUrl) &&
-    hasInterceptionRouteInCurrentTree(state.tree)
+    (state.previousNextUrl || state.nextUrl) && hasInterceptionRouteInCurrentTree(state.tree)
       ? state.previousNextUrl || state.nextUrl
       : null
 
@@ -317,25 +295,16 @@ export function serverActionReducer(
         if (isExternalURL(redirectLocation)) {
           // External redirect. Triggers an MPA navigation.
           const redirectHref = redirectLocation.href
-          const redirectError = createRedirectErrorForAction(
-            redirectHref,
-            resolvedRedirectType
-          )
+          const redirectError = createRedirectErrorForAction(redirectHref, resolvedRedirectType)
           reject(redirectError)
           return handleExternalUrl(state, mutable, redirectHref, pendingPush)
         } else {
           // Internal redirect. Triggers an SPA navigation.
-          const redirectWithBasepath = createHrefFromUrl(
-            redirectLocation,
-            false
-          )
+          const redirectWithBasepath = createHrefFromUrl(redirectLocation, false)
           const redirectHref = hasBasePath(redirectWithBasepath)
             ? removeBasePath(redirectWithBasepath)
             : redirectWithBasepath
-          const redirectError = createRedirectErrorForAction(
-            redirectHref,
-            resolvedRedirectType
-          )
+          const redirectError = createRedirectErrorForAction(redirectHref, resolvedRedirectType)
           reject(redirectError)
         }
       } else {
@@ -362,12 +331,7 @@ export function serverActionReducer(
         // an external redirect.
         // TODO: We should refactor the action response type to be more explicit
         // about the various response types.
-        return handleExternalUrl(
-          state,
-          mutable,
-          redirectLocation.href,
-          pendingPush
-        )
+        return handleExternalUrl(state, mutable, redirectLocation.href, pendingPush)
       }
 
       if (typeof flightData === 'string') {
@@ -382,8 +346,7 @@ export function serverActionReducer(
       // If there was no redirect, then the target URL is the same as the
       // current URL.
       const currentUrl = new URL(state.canonicalUrl, location.origin)
-      const redirectUrl =
-        redirectLocation !== undefined ? redirectLocation : currentUrl
+      const redirectUrl = redirectLocation !== undefined ? redirectLocation : currentUrl
       const currentFlightRouterState = state.tree
       const shouldScroll = true
 
@@ -431,13 +394,7 @@ export function serverActionReducer(
             nextUrl,
             shouldScroll
           )
-          return handleNavigationResult(
-            redirectUrl,
-            state,
-            mutable,
-            pendingPush,
-            result
-          )
+          return handleNavigationResult(redirectUrl, state, mutable, pendingPush, result)
         }
       }
 
@@ -453,13 +410,7 @@ export function serverActionReducer(
         shouldScroll,
         mutable
       )
-      return handleNavigationResult(
-        redirectUrl,
-        state,
-        mutable,
-        pendingPush,
-        result
-      )
+      return handleNavigationResult(redirectUrl, state, mutable, pendingPush, result)
     },
     (e: any) => {
       // When the server action is rejected we don't update the state and instead call the reject handler of the promise.
@@ -470,10 +421,7 @@ export function serverActionReducer(
   )
 }
 
-function createRedirectErrorForAction(
-  redirectHref: string,
-  resolvedRedirectType: RedirectType
-) {
+function createRedirectErrorForAction(redirectHref: string, resolvedRedirectType: RedirectType) {
   const redirectError = getRedirectError(redirectHref, resolvedRedirectType)
   // We mark the error as handled because we don't want the redirect to be tried later by
   // the RedirectBoundary, in case the user goes back and `Activity` triggers the redirect

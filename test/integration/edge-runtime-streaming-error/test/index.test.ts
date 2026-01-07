@@ -66,23 +66,20 @@ describe('development mode', () => {
 })
 
 // This test setups fails for unrelated reasons when TURBOPACK_DEV is set
-;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-  'production mode',
-  () => {
-    const context = createContext()
+;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
+  const context = createContext()
 
-    beforeAll(async () => {
-      await remove(path.join(appDir, '.next'))
-      await nextBuild(appDir, undefined, {
-        stderr: true,
-        stdout: true,
-      })
-      context.appPort = await findPort()
-      context.app = await nextStart(appDir, context.appPort, {
-        ...context.handler,
-      })
+  beforeAll(async () => {
+    await remove(path.join(appDir, '.next'))
+    await nextBuild(appDir, undefined, {
+      stderr: true,
+      stdout: true,
     })
-    afterAll(() => killApp(context.app))
-    it('logs the error correctly', test(context))
-  }
-)
+    context.appPort = await findPort()
+    context.app = await nextStart(appDir, context.appPort, {
+      ...context.handler,
+    })
+  })
+  afterAll(() => killApp(context.app))
+  it('logs the error correctly', test(context))
+})

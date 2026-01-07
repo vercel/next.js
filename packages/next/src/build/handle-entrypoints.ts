@@ -1,10 +1,5 @@
 import type { TurbopackManifestLoader } from '../shared/lib/turbopack/manifest-loader'
-import type {
-  Entrypoints,
-  PageRoute,
-  AppRoute,
-  RawEntrypoints,
-} from './swc/types'
+import type { Entrypoints, PageRoute, AppRoute, RawEntrypoints } from './swc/types'
 import { getEntryKey } from '../shared/lib/turbopack/entry-key'
 import * as Log from './output/log'
 
@@ -73,8 +68,7 @@ export async function handleRouteType({
       await manifestLoader.loadBuildManifest(page)
       await manifestLoader.loadPagesManifest(page)
 
-      const middlewareManifestWritten =
-        await manifestLoader.loadMiddlewareManifest(page, 'pages')
+      const middlewareManifestWritten = await manifestLoader.loadMiddlewareManifest(page, 'pages')
       if (!middlewareManifestWritten) {
         manifestLoader.deleteMiddlewareManifest(serverKey)
       }
@@ -92,8 +86,7 @@ export async function handleRouteType({
       const key = getEntryKey('pages', 'server', page)
 
       await manifestLoader.loadPagesManifest(page)
-      const middlewareManifestWritten =
-        await manifestLoader.loadMiddlewareManifest(page, 'pages')
+      const middlewareManifestWritten = await manifestLoader.loadMiddlewareManifest(page, 'pages')
       if (!middlewareManifestWritten) {
         manifestLoader.deleteMiddlewareManifest(key)
       }
@@ -103,8 +96,7 @@ export async function handleRouteType({
     case 'app-page': {
       const key = getEntryKey('app', 'server', page)
 
-      const middlewareManifestWritten =
-        await manifestLoader.loadMiddlewareManifest(page, 'app')
+      const middlewareManifestWritten = await manifestLoader.loadMiddlewareManifest(page, 'app')
       if (!middlewareManifestWritten) {
         manifestLoader.deleteMiddlewareManifest(key)
       }
@@ -125,10 +117,7 @@ export async function handleRouteType({
 
       manifestLoader.loadAppPathsManifest(page)
 
-      const middlewareManifestWritten = manifestLoader.loadMiddlewareManifest(
-        page,
-        'app'
-      )
+      const middlewareManifestWritten = manifestLoader.loadMiddlewareManifest(page, 'app')
 
       if (!middlewareManifestWritten) {
         manifestLoader.deleteMiddlewareManifest(key)

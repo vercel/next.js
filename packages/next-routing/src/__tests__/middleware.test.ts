@@ -145,12 +145,8 @@ describe('responseToMiddlewareResult', () => {
 
       const result = responseToMiddlewareResult(response, requestHeaders, url)
 
-      expect(
-        result.responseHeaders?.get('x-middleware-override-headers')
-      ).toBeNull()
-      expect(
-        result.responseHeaders?.get('x-middleware-request-authorization')
-      ).toBeNull()
+      expect(result.responseHeaders?.get('x-middleware-override-headers')).toBeNull()
+      expect(result.responseHeaders?.get('x-middleware-request-authorization')).toBeNull()
     })
   })
 
@@ -170,9 +166,7 @@ describe('responseToMiddlewareResult', () => {
       expect(result.rewrite).toBeDefined()
       expect(result.rewrite?.pathname).toBe('/new-path')
       expect(result.rewrite?.origin).toBe('https://example.com')
-      expect(result.responseHeaders?.get('x-middleware-rewrite')).toBe(
-        '/new-path'
-      )
+      expect(result.responseHeaders?.get('x-middleware-rewrite')).toBe('/new-path')
     })
 
     it('should handle x-middleware-rewrite with absolute same-origin URL', () => {
@@ -190,9 +184,7 @@ describe('responseToMiddlewareResult', () => {
       expect(result.rewrite).toBeDefined()
       expect(result.rewrite?.pathname).toBe('/new-path')
       expect(result.rewrite?.search).toBe('?query=value')
-      expect(result.responseHeaders?.get('x-middleware-rewrite')).toBe(
-        '/new-path?query=value'
-      )
+      expect(result.responseHeaders?.get('x-middleware-rewrite')).toBe('/new-path?query=value')
     })
 
     it('should handle x-middleware-rewrite with external URL', () => {
@@ -210,9 +202,7 @@ describe('responseToMiddlewareResult', () => {
       expect(result.rewrite).toBeDefined()
       expect(result.rewrite?.origin).toBe('https://external.com')
       expect(result.bodySent).toBeUndefined()
-      expect(result.responseHeaders?.get('x-middleware-rewrite')).toBe(
-        'https://external.com/path'
-      )
+      expect(result.responseHeaders?.get('x-middleware-rewrite')).toBe('https://external.com/path')
     })
 
     it('should not include x-middleware-rewrite in final response headers', () => {
@@ -229,9 +219,7 @@ describe('responseToMiddlewareResult', () => {
       const result = responseToMiddlewareResult(response, requestHeaders, url)
 
       // x-middleware-rewrite should be filtered out
-      expect(result.responseHeaders?.get('x-middleware-rewrite')).toBe(
-        '/new-path'
-      )
+      expect(result.responseHeaders?.get('x-middleware-rewrite')).toBe('/new-path')
       expect(result.responseHeaders?.get('content-type')).toBe('text/html')
     })
   })
@@ -309,9 +297,7 @@ describe('responseToMiddlewareResult', () => {
       expect(result.redirect).toBeDefined()
       expect(result.redirect?.url.origin).toBe('https://external.com')
       expect(result.redirect?.url.pathname).toBe('/path')
-      expect(result.responseHeaders?.get('location')).toBe(
-        'https://external.com/path'
-      )
+      expect(result.responseHeaders?.get('location')).toBe('https://external.com/path')
     })
 
     it('should convert same-origin absolute URL to relative', () => {
@@ -380,9 +366,7 @@ describe('responseToMiddlewareResult', () => {
 
       const result = responseToMiddlewareResult(response, requestHeaders, url)
 
-      expect(requestHeaders.get('x-middleware-set-cookie')).toBe(
-        'session=abc123; Path=/'
-      )
+      expect(requestHeaders.get('x-middleware-set-cookie')).toBe('session=abc123; Path=/')
       expect(result.responseHeaders?.get('x-middleware-set-cookie')).toBeNull()
     })
 
@@ -517,9 +501,7 @@ describe('responseToMiddlewareResult', () => {
       expect(result.rewrite?.pathname).toBe('/api/v2/endpoint')
       expect(requestHeaders.get('authorization')).toBe('Bearer new-token')
       expect(requestHeaders.get('user-agent')).toBeNull()
-      expect(result.responseHeaders?.get('x-custom-header')).toBe(
-        'custom-value'
-      )
+      expect(result.responseHeaders?.get('x-custom-header')).toBe('custom-value')
     })
 
     it('should prioritize redirect over rewrite', () => {

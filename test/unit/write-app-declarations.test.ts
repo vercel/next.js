@@ -19,9 +19,7 @@ describe('find config', () => {
     const content =
       '/// <reference types="next" />' +
       eol +
-      (imageImportsEnabled
-        ? '/// <reference types="next/image-types/global" />' + eol
-        : '') +
+      (imageImportsEnabled ? '/// <reference types="next/image-types/global" />' + eol : '') +
       `import "./.next/types/routes.d.ts";` +
       eol +
       eol +
@@ -49,9 +47,7 @@ describe('find config', () => {
     const content =
       '/// <reference types="next" />' +
       eol +
-      (imageImportsEnabled
-        ? '/// <reference types="next/image-types/global" />' + eol
-        : '') +
+      (imageImportsEnabled ? '/// <reference types="next/image-types/global" />' + eol : '') +
       `import "./.next/types/routes.d.ts";` +
       eol +
       eol +
@@ -79,9 +75,7 @@ describe('find config', () => {
     const content =
       '/// <reference types="next" />' +
       eol +
-      (imageImportsEnabled
-        ? '/// <reference types="next/image-types/global" />' + eol
-        : '') +
+      (imageImportsEnabled ? '/// <reference types="next/image-types/global" />' + eol : '') +
       `import "./.next/types/routes.d.ts";` +
       eol +
       eol +

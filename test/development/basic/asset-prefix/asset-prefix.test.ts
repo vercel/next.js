@@ -15,9 +15,7 @@ describe('asset-prefix', () => {
 
     await check(async () => {
       const logs = await browser.log()
-      const hasError = logs.some((log) =>
-        log.message.includes('Failed to fetch')
-      )
+      const hasError = logs.some((log) => log.message.includes('Failed to fetch'))
       return hasError ? 'error' : 'success'
     }, 'success')
 

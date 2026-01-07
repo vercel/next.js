@@ -36,8 +36,6 @@ describe('experimental-https-server (generated certificate)', () => {
     await next.stop()
     await next.start()
     expect(next.url).toInclude('https://')
-    expect(next.cliOutput).toContain(
-      'Using already generated self signed certificate'
-    )
+    expect(next.cliOutput).toContain('Using already generated self signed certificate')
   })
 })

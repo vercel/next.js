@@ -102,10 +102,7 @@ const IGNORE_CONTENT = new RegExp(
       for (const [fileName, content1] of run1Map) {
         const content2 = run2Map.get(fileName)
         if (content1 !== content2) {
-          errors.push(
-            `File content mismatch for ${fileName}\n\n` +
-              diff(content1, content2)
-          )
+          errors.push(`File content mismatch for ${fileName}\n\n` + diff(content1, content2))
         }
       }
       if (errors.length > 0) {

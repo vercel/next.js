@@ -20,10 +20,7 @@ import type {
   OnLoadingComplete,
   PlaceholderValue,
 } from '../shared/lib/get-img-props'
-import type {
-  ImageConfigComplete,
-  ImageLoaderProps,
-} from '../shared/lib/image-config'
+import type { ImageConfigComplete, ImageLoaderProps } from '../shared/lib/image-config'
 import { imageConfigDefault } from '../shared/lib/image-config'
 import { ImageConfigContext } from '../shared/lib/image-config-context.shared-runtime'
 import { warnOnce } from '../shared/lib/utils/warn-once'
@@ -119,8 +116,7 @@ function handleLoading(
       const origSrc = new URL(src, 'http://n').searchParams.get('url') || src
       if (img.getAttribute('data-nimg') === 'fill') {
         if (!unoptimized && (!sizesInput || sizesInput === '100vw')) {
-          let widthViewportRatio =
-            img.getBoundingClientRect().width / window.innerWidth
+          let widthViewportRatio = img.getBoundingClientRect().width / window.innerWidth
           if (widthViewportRatio < 0.6) {
             if (sizesInput === '100vw') {
               warnOnce(
@@ -151,13 +147,9 @@ function handleLoading(
         }
       }
 
-      const heightModified =
-        img.height.toString() !== img.getAttribute('height')
+      const heightModified = img.height.toString() !== img.getAttribute('height')
       const widthModified = img.width.toString() !== img.getAttribute('width')
-      if (
-        (heightModified && !widthModified) ||
-        (!heightModified && widthModified)
-      ) {
+      if ((heightModified && !widthModified) || (!heightModified && widthModified)) {
         warnOnce(
           `Image with src "${origSrc}" has either width or height modified, but not the other. If you use CSS to change the size of your image, also include the styles 'width: "auto"' or 'height: "auto"' to maintain the aspect ratio.`
         )
@@ -166,9 +158,7 @@ function handleLoading(
   })
 }
 
-function getDynamicProps(
-  fetchPriority?: string
-): Record<string, string | undefined> {
+function getDynamicProps(fetchPriority?: string): Record<string, string | undefined> {
   if (Boolean(use)) {
     // In React 19.0.0 or newer, we must use camelCase
     // prop to avoid "Warning: Invalid DOM property".
@@ -331,12 +321,7 @@ function ImagePreload({
   return (
     <Head>
       <link
-        key={
-          '__nimg-' +
-          imgAttributes.src +
-          imgAttributes.srcSet +
-          imgAttributes.sizes
-        }
+        key={'__nimg-' + imgAttributes.src + imgAttributes.srcSet + imgAttributes.sizes}
         rel="preload"
         // Note how we omit the `href` attribute, as it would only be relevant
         // for browsers that do not support `imagesrcset`, and in those cases
@@ -355,80 +340,72 @@ function ImagePreload({
  *
  * Read more: [Next.js docs: `Image`](https://nextjs.org/docs/app/api-reference/components/image)
  */
-export const Image = forwardRef<HTMLImageElement | null, ImageProps>(
-  (props, forwardedRef) => {
-    const pagesRouter = useContext(RouterContext)
-    // We're in the app directory if there is no pages router.
-    const isAppRouter = !pagesRouter
+export const Image = forwardRef<HTMLImageElement | null, ImageProps>((props, forwardedRef) => {
+  const pagesRouter = useContext(RouterContext)
+  // We're in the app directory if there is no pages router.
+  const isAppRouter = !pagesRouter
 
-    const configContext = useContext(ImageConfigContext)
-    const config = useMemo(() => {
-      const c = configEnv || configContext || imageConfigDefault
+  const configContext = useContext(ImageConfigContext)
+  const config = useMemo(() => {
+    const c = configEnv || configContext || imageConfigDefault
 
-      const allSizes = [...c.deviceSizes, ...c.imageSizes].sort((a, b) => a - b)
-      const deviceSizes = c.deviceSizes.sort((a, b) => a - b)
-      const qualities = c.qualities?.sort((a, b) => a - b)
-      return {
-        ...c,
-        allSizes,
-        deviceSizes,
-        qualities,
-        // During the SSR, configEnv (__NEXT_IMAGE_OPTS) does not include
-        // security sensitive configs like `localPatterns`, which is needed
-        // during the server render to ensure it's validated. Therefore use
-        // configContext, which holds the config from the server for validation.
-        localPatterns:
-          typeof window === 'undefined'
-            ? configContext?.localPatterns
-            : c.localPatterns,
+    const allSizes = [...c.deviceSizes, ...c.imageSizes].sort((a, b) => a - b)
+    const deviceSizes = c.deviceSizes.sort((a, b) => a - b)
+    const qualities = c.qualities?.sort((a, b) => a - b)
+    return {
+      ...c,
+      allSizes,
+      deviceSizes,
+      qualities,
+      // During the SSR, configEnv (__NEXT_IMAGE_OPTS) does not include
+      // security sensitive configs like `localPatterns`, which is needed
+      // during the server render to ensure it's validated. Therefore use
+      // configContext, which holds the config from the server for validation.
+      localPatterns: typeof window === 'undefined' ? configContext?.localPatterns : c.localPatterns,
+    }
+  }, [configContext])
+
+  const { onLoad, onLoadingComplete } = props
+  const onLoadRef = useRef(onLoad)
+
+  useEffect(() => {
+    onLoadRef.current = onLoad
+  }, [onLoad])
+
+  const onLoadingCompleteRef = useRef(onLoadingComplete)
+
+  useEffect(() => {
+    onLoadingCompleteRef.current = onLoadingComplete
+  }, [onLoadingComplete])
+
+  const [blurComplete, setBlurComplete] = useState(false)
+  const [showAltText, setShowAltText] = useState(false)
+  const { props: imgAttributes, meta: imgMeta } = getImgProps(props, {
+    defaultLoader,
+    imgConf: config,
+    blurComplete,
+    showAltText,
+  })
+
+  return (
+    <>
+      {
+        <ImageElement
+          {...imgAttributes}
+          unoptimized={imgMeta.unoptimized}
+          placeholder={imgMeta.placeholder}
+          fill={imgMeta.fill}
+          onLoadRef={onLoadRef}
+          onLoadingCompleteRef={onLoadingCompleteRef}
+          setBlurComplete={setBlurComplete}
+          setShowAltText={setShowAltText}
+          sizesInput={props.sizes}
+          ref={forwardedRef}
+        />
       }
-    }, [configContext])
-
-    const { onLoad, onLoadingComplete } = props
-    const onLoadRef = useRef(onLoad)
-
-    useEffect(() => {
-      onLoadRef.current = onLoad
-    }, [onLoad])
-
-    const onLoadingCompleteRef = useRef(onLoadingComplete)
-
-    useEffect(() => {
-      onLoadingCompleteRef.current = onLoadingComplete
-    }, [onLoadingComplete])
-
-    const [blurComplete, setBlurComplete] = useState(false)
-    const [showAltText, setShowAltText] = useState(false)
-    const { props: imgAttributes, meta: imgMeta } = getImgProps(props, {
-      defaultLoader,
-      imgConf: config,
-      blurComplete,
-      showAltText,
-    })
-
-    return (
-      <>
-        {
-          <ImageElement
-            {...imgAttributes}
-            unoptimized={imgMeta.unoptimized}
-            placeholder={imgMeta.placeholder}
-            fill={imgMeta.fill}
-            onLoadRef={onLoadRef}
-            onLoadingCompleteRef={onLoadingCompleteRef}
-            setBlurComplete={setBlurComplete}
-            setShowAltText={setShowAltText}
-            sizesInput={props.sizes}
-            ref={forwardedRef}
-          />
-        }
-        {imgMeta.preload ? (
-          <ImagePreload
-            isAppRouter={isAppRouter}
-            imgAttributes={imgAttributes}
-          />
-        ) : null}
-      </>
-    )
-  }
-)
+      {imgMeta.preload ? (
+        <ImagePreload isAppRouter={isAppRouter} imgAttributes={imgAttributes} />
+      ) : null}
+    </>
+  )
+})

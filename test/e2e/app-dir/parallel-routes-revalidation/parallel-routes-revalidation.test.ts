@@ -46,9 +46,7 @@ describe('parallel-routes-revalidation', () => {
   it('should handle router.refresh() when called in a slot', async () => {
     const browser = await next.browser('/')
     await check(() => browser.hasElementByCssSelector('#refresh-router'), false)
-    const currentRandomNumber = (
-      await browser.elementById('random-number')
-    ).text()
+    const currentRandomNumber = (await browser.elementById('random-number')).text()
     await browser.elementByCss("[href='/refresh-modal']").click()
     await check(() => browser.hasElementByCssSelector('#refresh-router'), true)
     await browser.elementById('refresh-router').click()
@@ -86,9 +84,7 @@ describe('parallel-routes-revalidation', () => {
       const browser = await next.browser(route.path)
 
       // directly loaded the detail page, so it should not be intercepted.
-      expect(await browser.elementById('detail-title').text()).toBe(
-        'Detail Page (Non-Intercepted)'
-      )
+      expect(await browser.elementById('detail-title').text()).toBe('Detail Page (Non-Intercepted)')
       const randomNumber = (await browser.elementById('random-number')).text()
 
       // confirm that if the route contained a dynamic parameter, that it's reflected in the UI
@@ -100,9 +96,7 @@ describe('parallel-routes-revalidation', () => {
       await browser.elementByCss('button').click()
 
       await retry(async () => {
-        const newRandomNumber = await browser
-          .elementById('random-number')
-          .text()
+        const newRandomNumber = await browser.elementById('random-number').text()
 
         // we should have received a new random number, indicating the non-intercepted page was refreshed
         expect(randomNumber).not.toBe(newRandomNumber)
@@ -125,9 +119,7 @@ describe('parallel-routes-revalidation', () => {
     await browser.elementByCss('a').click()
 
     // we soft-navigated to the route, so it should be intercepted
-    expect(await browser.elementById('detail-title').text()).toBe(
-      'Detail Page (Intercepted)'
-    )
+    expect(await browser.elementById('detail-title').text()).toBe('Detail Page (Intercepted)')
     const randomNumber = (await browser.elementById('random-number')).text()
 
     // confirm the dynamic param is reflected in the UI
@@ -143,9 +135,7 @@ describe('parallel-routes-revalidation', () => {
       // confirm that the page is still intercepted
       expect(randomNumber).not.toBe(newRandomNumber)
 
-      expect(await browser.elementById('detail-title').text()).toBe(
-        'Detail Page (Intercepted)'
-      )
+      expect(await browser.elementById('detail-title').text()).toBe('Detail Page (Intercepted)')
 
       // confirm the paramsare still present
       expect(await browser.elementById('params').text()).toBe('foobar')
@@ -159,17 +149,13 @@ describe('parallel-routes-revalidation', () => {
     await browser.elementByCss("[href='/detail-page']").click()
 
     // we should see the intercepted page
-    expect(await browser.elementById('detail-title').text()).toBe(
-      'Detail Page (Intercepted)'
-    )
+    expect(await browser.elementById('detail-title').text()).toBe('Detail Page (Intercepted)')
 
     // refresh the page
     await browser.refresh()
 
     // we should see the detail page
-    expect(await browser.elementById('detail-title').text()).toBe(
-      'Detail Page (Non-Intercepted)'
-    )
+    expect(await browser.elementById('detail-title').text()).toBe('Detail Page (Non-Intercepted)')
 
     // go back to the previous page
     await browser.back()
@@ -181,9 +167,7 @@ describe('parallel-routes-revalidation', () => {
     // go forward, this will trigger a lazy fetch for the missing data, and should restore the detail page
     await browser.forward()
 
-    expect(await browser.elementById('detail-title').text()).toBe(
-      'Detail Page (Non-Intercepted)'
-    )
+    expect(await browser.elementById('detail-title').text()).toBe('Detail Page (Non-Intercepted)')
   })
 
   // This test is skipped when deployed as it relies on a shared data store
@@ -239,33 +223,23 @@ describe('parallel-routes-revalidation', () => {
           await browser.elementById('update-search-params').click()
 
           await retry(async () => {
-            initialSearchParams = await browser
-              .elementById('search-params')
-              .text()
+            initialSearchParams = await browser.elementById('search-params').text()
             expect(initialSearchParams).toMatch(/^Params: "0\.\d+"$/)
           })
         }
 
-        let initialRandomNumber = await browser
-          .elementById('random-number')
-          .text()
+        let initialRandomNumber = await browser.elementById('random-number').text()
         await browser.elementByCss(`[href='${basePath}/login']`).click()
 
         // interception modal should be visible
-        let initialModalRandomNumber = await browser
-          .elementById('modal-random')
-          .text()
+        let initialModalRandomNumber = await browser.elementById('modal-random').text()
 
         // trigger a refresh
         await browser.elementById('refresh-button').click()
 
         await retry(async () => {
-          const newRandomNumber = await browser
-            .elementById('random-number')
-            .text()
-          const newModalRandomNumber = await browser
-            .elementById('modal-random')
-            .text()
+          const newRandomNumber = await browser.elementById('random-number').text()
+          const newModalRandomNumber = await browser.elementById('modal-random').text()
           expect(initialRandomNumber).not.toBe(newRandomNumber)
           expect(initialModalRandomNumber).not.toBe(newModalRandomNumber)
 
@@ -278,47 +252,35 @@ describe('parallel-routes-revalidation', () => {
         await browser.elementById('revalidate-button').click()
 
         await retry(async () => {
-          const newRandomNumber = await browser
-            .elementById('random-number')
-            .text()
-          const newModalRandomNumber = await browser
-            .elementById('modal-random')
-            .text()
+          const newRandomNumber = await browser.elementById('random-number').text()
+          const newModalRandomNumber = await browser.elementById('modal-random').text()
           expect(initialRandomNumber).not.toBe(newRandomNumber)
           expect(initialModalRandomNumber).not.toBe(newModalRandomNumber)
 
           if (withSearchParams) {
             // add additional search params in the new modal
             await browser.elementById('update-search-params-modal').click()
-            expect(
-              await browser.elementById('search-params-modal').text()
-            ).toMatch(/^Params: "0\.\d+"$/)
+            expect(await browser.elementById('search-params-modal').text()).toMatch(
+              /^Params: "0\.\d+"$/
+            )
 
             // make sure the old params are still there too
-            expect(await browser.elementById('search-params').text()).toBe(
-              initialSearchParams
-            )
+            expect(await browser.elementById('search-params').text()).toBe(initialSearchParams)
           }
         })
 
         // reload the page, triggering which will remove the interception route and show the full page
         await browser.refresh()
 
-        const initialLoginPageRandomNumber = await browser
-          .elementById('login-page-random')
-          .text()
+        const initialLoginPageRandomNumber = await browser.elementById('login-page-random').text()
 
         // trigger a refresh
         await browser.elementById('refresh-button').click()
 
         await retry(async () => {
-          const newLoginPageRandomNumber = await browser
-            .elementById('login-page-random')
-            .text()
+          const newLoginPageRandomNumber = await browser.elementById('login-page-random').text()
 
-          expect(newLoginPageRandomNumber).not.toBe(
-            initialLoginPageRandomNumber
-          )
+          expect(newLoginPageRandomNumber).not.toBe(initialLoginPageRandomNumber)
         })
       })
 
@@ -328,32 +290,22 @@ describe('parallel-routes-revalidation', () => {
         await browser.elementByCss(`[href='${basePath}/login']`).click()
 
         // interception modal should be visible
-        let initialModalRandomNumber = await browser
-          .elementById('modal-random')
-          .text()
+        let initialModalRandomNumber = await browser.elementById('modal-random').text()
 
         await browser.elementByCss(`[href='${basePath}/other']`).click()
         // data for the /other page should be visible
 
-        let initialOtherPageRandomNumber = await browser
-          .elementById('other-page-random')
-          .text()
+        let initialOtherPageRandomNumber = await browser.elementById('other-page-random').text()
 
         // trigger a refresh
         await browser.elementById('refresh-button').click()
 
         await retry(async () => {
-          const newModalRandomNumber = await browser
-            .elementById('modal-random')
-            .text()
+          const newModalRandomNumber = await browser.elementById('modal-random').text()
 
-          const newOtherPageRandomNumber = await browser
-            .elementById('other-page-random')
-            .text()
+          const newOtherPageRandomNumber = await browser.elementById('other-page-random').text()
           expect(initialModalRandomNumber).not.toBe(newModalRandomNumber)
-          expect(initialOtherPageRandomNumber).not.toBe(
-            newOtherPageRandomNumber
-          )
+          expect(initialOtherPageRandomNumber).not.toBe(newOtherPageRandomNumber)
           // reset the initial values to be the new values, so that we can verify the revalidate case below.
           initialOtherPageRandomNumber = newOtherPageRandomNumber
           initialModalRandomNumber = newModalRandomNumber
@@ -363,17 +315,11 @@ describe('parallel-routes-revalidation', () => {
         await browser.elementById('revalidate-button').click()
 
         await retry(async () => {
-          const newModalRandomNumber = await browser
-            .elementById('modal-random')
-            .text()
+          const newModalRandomNumber = await browser.elementById('modal-random').text()
 
-          const newOtherPageRandomNumber = await browser
-            .elementById('other-page-random')
-            .text()
+          const newOtherPageRandomNumber = await browser.elementById('other-page-random').text()
           expect(initialModalRandomNumber).not.toBe(newModalRandomNumber)
-          expect(initialOtherPageRandomNumber).not.toBe(
-            newOtherPageRandomNumber
-          )
+          expect(initialOtherPageRandomNumber).not.toBe(newOtherPageRandomNumber)
         })
       })
     }
@@ -414,14 +360,10 @@ describe('parallel-routes-revalidation', () => {
         expect(await browser.hasElementByCssSelector('#drawer')).toBe(true)
 
         // And the drawer should have a new time
-        expect(await browser.elementById('drawer-now').text()).not.toEqual(
-          currentDrawerTime
-        )
+        expect(await browser.elementById('drawer-now').text()).not.toEqual(currentDrawerTime)
 
         // And the underlying page should have a new time
-        expect(await browser.elementById('page-now').text()).not.toEqual(
-          currentPageTime
-        )
+        expect(await browser.elementById('page-now').text()).not.toEqual(currentPageTime)
       })
     })
 

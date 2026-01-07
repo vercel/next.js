@@ -50,9 +50,7 @@ describe('next/dynamic with CSP nonce', () => {
     if (global.browserName === 'chrome') {
       const logs = await browser.log()
       const cspViolations = logs.filter(
-        (log) =>
-          log.source === 'security' &&
-          log.message.includes('Content Security Policy')
+        (log) => log.source === 'security' && log.message.includes('Content Security Policy')
       )
 
       expect(cspViolations).toEqual([])

@@ -23,9 +23,7 @@ describe.skip('ppr-metadata-blocking-ppr-fallback', () => {
   })
 
   it('should include viewport metadata in partial shell when metadata is dynamic under suspense', async () => {
-    const $ = await next.render$(
-      '/dynamic-metadata/partial?__nextppronly=fallback'
-    )
+    const $ = await next.render$('/dynamic-metadata/partial?__nextppronly=fallback')
     expect(countSubstring($.html(), '<title>')).toBe(0)
     expect(countSubstring($.html(), '<meta name="viewport"')).toBe(1)
   })

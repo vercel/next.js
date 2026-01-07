@@ -30,9 +30,7 @@ describe('fatal-render-error', () => {
 
     const html = await browser.eval('document.documentElement.innerHTML')
     expect(html).not.toContain('from _app')
-    expect(html).toContain(
-      'Application error: a client-side exception has occurred'
-    )
+    expect(html).toContain('Application error: a client-side exception has occurred')
   })
 
   it('should handle fatal error in _app and _error without loop on client-transition', async () => {
@@ -48,8 +46,6 @@ describe('fatal-render-error', () => {
 
     const html = await browser.eval('document.documentElement.innerHTML')
     expect(html).not.toContain('from _app')
-    expect(html).toContain(
-      'Application error: a client-side exception has occurred'
-    )
+    expect(html).toContain('Application error: a client-side exception has occurred')
   })
 })

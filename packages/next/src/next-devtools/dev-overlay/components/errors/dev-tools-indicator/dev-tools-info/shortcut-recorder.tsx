@@ -70,9 +70,7 @@ export function ShortcutRecorder({
       // Handle non-modifier keys (action keys)
       if (!modifierKeys.includes(e.key)) {
         // Replace existing non-modifier key if present
-        const existingNonModifierIndex = prev.findIndex(
-          (key) => !modifierKeys.includes(key)
-        )
+        const existingNonModifierIndex = prev.findIndex((key) => !modifierKeys.includes(key))
         if (existingNonModifierIndex !== -1) {
           const next = [...prev]
           next[existingNonModifierIndex] = e.code
@@ -178,10 +176,7 @@ export function ShortcutRecorder({
       </button>
       <div className="shortcut-recorder-tooltip" data-show={show}>
         <div className="shortcut-recorder-status">
-          <div
-            className="shortcut-recorder-status-icon"
-            data-success={success}
-          />
+          <div className="shortcut-recorder-status-icon" data-success={success} />
           {success ? 'Shortcut set' : 'Recording'}
         </div>
         <BottomArrow />
@@ -192,13 +187,7 @@ export function ShortcutRecorder({
 
 function BottomArrow() {
   return (
-    <svg
-      fill="none"
-      height="6"
-      viewBox="0 0 14 6"
-      width="14"
-      xmlns="http://www.w3.org/2000/svg"
-    >
+    <svg fill="none" height="6" viewBox="0 0 14 6" width="14" xmlns="http://www.w3.org/2000/svg">
       <path
         d="M13.8284 0H0.17157C0.702003 0 1.21071 0.210714 1.58578 0.585787L5.58578 4.58579C6.36683 5.36684 7.63316 5.36683 8.41421 4.58579L12.4142 0.585786C12.7893 0.210714 13.298 0 13.8284 0Z"
         fill="var(--background)"
@@ -316,9 +305,7 @@ function MetaKey() {
       // Other keyboard-intensive apps like Linear do this
       'Ctrl'
 
-  return (
-    <span style={{ minWidth: '1em', display: 'inline-block' }}>{label}</span>
-  )
+  return <span style={{ minWidth: '1em', display: 'inline-block' }}>{label}</span>
 }
 
 function IconCross() {
@@ -487,9 +474,7 @@ export const SHORTCUT_RECORDER_STYLES = css`
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 function testPlatform(re: RegExp): boolean | undefined {
-  return window.navigator != null
-    ? re.test(window.navigator.platform)
-    : undefined
+  return window.navigator != null ? re.test(window.navigator.platform) : undefined
 }
 
 function isMac(): boolean | undefined {

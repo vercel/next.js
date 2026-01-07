@@ -10,9 +10,5 @@ export const getStaticPaths = () => ({
 export const getStaticProps = ({ params }) => ({ props: { params } })
 
 export default function Page({ params }) {
-  return (
-    <div id="success">
-      {params.optionalName ? params.optionalName.join(',') : 'yay'}
-    </div>
-  )
+  return <div id="success">{params.optionalName ? params.optionalName.join(',') : 'yay'}</div>
 }

@@ -2,10 +2,7 @@
 
 import { ElementType } from 'react'
 
-async function getImport(
-  slug: string,
-  exportName: string
-): Promise<ElementType> {
+async function getImport(slug: string, exportName: string): Promise<ElementType> {
   const moduleExports = await import(`./${slug}`)
   return moduleExports[exportName]
 }

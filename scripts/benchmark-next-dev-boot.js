@@ -45,9 +45,7 @@ console.log('')
 
 // Verify test directory exists
 if (!fs.existsSync(testDir)) {
-  console.error(
-    `\x1b[31mError: Test directory does not exist: ${testDir}\x1b[0m`
-  )
+  console.error(`\x1b[31mError: Test directory does not exist: ${testDir}\x1b[0m`)
   console.log('Create a test project first:')
   console.log(`  mkdir -p ${testDir} && cd ${testDir}`)
   console.log('  pnpm init && pnpm add next@canary react react-dom')
@@ -133,9 +131,7 @@ async function runBenchmark(name) {
       const { reportedTime, actualTime } = await runIteration()
       reportedTimes.push(reportedTime)
       actualTimes.push(actualTime)
-      console.log(
-        `  Run ${i}: ${reportedTime}ms (reported) / ${actualTime}ms (actual)`
-      )
+      console.log(`  Run ${i}: ${reportedTime}ms (reported) / ${actualTime}ms (actual)`)
     } catch (err) {
       console.log(`  Run ${i}: Failed - ${err.message}`)
     }
@@ -224,8 +220,7 @@ async function main() {
     // Print comparison
     console.log('\x1b[34m=== Comparison ===\x1b[0m')
     if (bundledResults && unbundledResults) {
-      const reportedDiff =
-        bundledResults.reported.avg - unbundledResults.reported.avg
+      const reportedDiff = bundledResults.reported.avg - unbundledResults.reported.avg
       const actualDiff = bundledResults.actual.avg - unbundledResults.actual.avg
 
       console.log(

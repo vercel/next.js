@@ -1,13 +1,8 @@
 // @ts-ignore avoid ts errors during manual testing
 import { type NextInstance } from 'e2e-utils'
 
-async function getActionsMappingByRuntime(
-  next: NextInstance,
-  runtime: 'node' | 'edge'
-) {
-  const manifest = JSON.parse(
-    await next.readFile('.next/server/server-reference-manifest.json')
-  )
+async function getActionsMappingByRuntime(next: NextInstance, runtime: 'node' | 'edge') {
+  const manifest = JSON.parse(await next.readFile('.next/server/server-reference-manifest.json'))
 
   return manifest[runtime]
 }
@@ -16,10 +11,7 @@ export function markLayoutAsEdge(next: NextInstance) {
   beforeAll(async () => {
     await next.stop()
     const layoutContent = await next.readFile('app/layout.js')
-    await next.patchFile(
-      'app/layout.js',
-      layoutContent + `\nexport const runtime = 'edge'`
-    )
+    await next.patchFile('app/layout.js', layoutContent + `\nexport const runtime = 'edge'`)
     await next.start()
   })
 }
@@ -45,9 +37,7 @@ type ActionState = {
   }
 }
 
-function getActionsRoutesState(
-  actionsMappingOfRuntime: ActionsMappingOfRuntime
-): ActionState {
+function getActionsRoutesState(actionsMappingOfRuntime: ActionsMappingOfRuntime): ActionState {
   const state: ActionState = {}
   Object.keys(actionsMappingOfRuntime).forEach((actionId) => {
     const action = actionsMappingOfRuntime[actionId]

@@ -104,9 +104,7 @@ export async function stringifyResumeDataCache(
   isCacheComponentsEnabled: boolean
 ): Promise<string> {
   if (process.env.NEXT_RUNTIME === 'edge') {
-    throw new InvariantError(
-      '`stringifyResumeDataCache` should not be called in edge runtime.'
-    )
+    throw new InvariantError('`stringifyResumeDataCache` should not be called in edge runtime.')
   } else {
     if (resumeDataCache.fetch.size === 0 && resumeDataCache.cache.size === 0) {
       return 'null'
@@ -121,10 +119,7 @@ export async function stringifyResumeDataCache(
               resumeDataCache.cache.entries(),
               isCacheComponentsEnabled
             )
-          ).filter(
-            (entry): entry is [string, UseCacheCacheStoreSerialized] =>
-              entry !== null
-          )
+          ).filter((entry): entry is [string, UseCacheCacheStoreSerialized] => entry !== null)
         ),
         encryptedBoundArgs: Object.fromEntries(
           Array.from(resumeDataCache.encryptedBoundArgs.entries())
@@ -178,16 +173,11 @@ export function createRenderResumeDataCache(
   maxPostponedStateSizeBytes: number | undefined
 ): RenderResumeDataCache
 export function createRenderResumeDataCache(
-  resumeDataCacheOrPersistedCache:
-    | RenderResumeDataCache
-    | PrerenderResumeDataCache
-    | string,
+  resumeDataCacheOrPersistedCache: RenderResumeDataCache | PrerenderResumeDataCache | string,
   maxPostponedStateSizeBytes?: number | undefined
 ): RenderResumeDataCache {
   if (process.env.NEXT_RUNTIME === 'edge') {
-    throw new InvariantError(
-      '`createRenderResumeDataCache` should not be called in edge runtime.'
-    )
+    throw new InvariantError('`createRenderResumeDataCache` should not be called in edge runtime.')
   } else {
     if (typeof resumeDataCacheOrPersistedCache !== 'string') {
       // If the cache is already a prerender or render cache, we can return it
@@ -229,9 +219,7 @@ export function createRenderResumeDataCache(
         err instanceof RangeError &&
         (err as NodeJS.ErrnoException).code === 'ERR_BUFFER_TOO_LARGE'
       ) {
-        throw new Error(
-          `Decompressed resume data cache exceeded ${maxDecompressedSize} byte limit`
-        )
+        throw new Error(`Decompressed resume data cache exceeded ${maxDecompressedSize} byte limit`)
       }
       throw err
     }
@@ -239,9 +227,7 @@ export function createRenderResumeDataCache(
     return {
       cache: parseUseCacheCacheStore(Object.entries(json.store.cache)),
       fetch: new Map(Object.entries(json.store.fetch)),
-      encryptedBoundArgs: new Map(
-        Object.entries(json.store.encryptedBoundArgs)
-      ),
+      encryptedBoundArgs: new Map(Object.entries(json.store.encryptedBoundArgs)),
       decryptedBoundArgs: new Map(),
     }
   }

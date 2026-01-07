@@ -95,35 +95,23 @@ const runTests = () => {
       await check(async () => {
         const data = JSON.parse(
           cheerio
-            .load(await browser.eval('document.documentElement.innerHTML'))(
-              '#data'
-            )
+            .load(await browser.eval('document.documentElement.innerHTML'))('#data')
             .text()
         )
         console.log(data)
-        return data.url === `${expectedIndex ? '/fr' : ''}/about`
-          ? 'success'
-          : 'fail'
+        return data.url === `${expectedIndex ? '/fr' : ''}/about` ? 'success' : 'fail'
       }, 'success')
 
-      await browser
-        .back()
-        .waitForElementByCss('#links')
-        .elementByCss('#to-catch-all')
-        .click()
+      await browser.back().waitForElementByCss('#links').elementByCss('#to-catch-all').click()
 
       await check(async () => {
         const data = JSON.parse(
           cheerio
-            .load(await browser.eval('document.documentElement.innerHTML'))(
-              '#data'
-            )
+            .load(await browser.eval('document.documentElement.innerHTML'))('#data')
             .text()
         )
         console.log(data)
-        return data.url === `${expectedIndex ? '/fr' : ''}/hello`
-          ? 'success'
-          : 'fail'
+        return data.url === `${expectedIndex ? '/fr' : ''}/hello` ? 'success' : 'fail'
       }, 'success')
 
       await browser.back().waitForElementByCss('#links')
@@ -137,10 +125,7 @@ const runTests = () => {
 
       await browser.elementByCss('#to-links').click()
 
-      await check(
-        () => browser.eval('window.location.pathname'),
-        `${locale}/links`
-      )
+      await check(() => browser.eval('window.location.pathname'), `${locale}/links`)
       expect(await browser.eval('window.beforeNav')).toBe(1)
     }
   })
@@ -166,27 +151,21 @@ describe('Custom routes i18n', () => {
     server.close()
     nextConfig.restore()
   })
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
-    'development mode',
-    () => {
-      beforeAll(async () => {
-        appPort = await findPort()
-        app = await launchApp(appDir, appPort)
-      })
-      afterAll(() => killApp(app))
-      runTests()
-    }
-  )
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      beforeAll(async () => {
-        await nextBuild(appDir)
-        appPort = await findPort()
-        app = await nextStart(appDir, appPort)
-      })
-      afterAll(() => killApp(app))
-      runTests()
-    }
-  )
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
+    beforeAll(async () => {
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(() => killApp(app))
+    runTests()
+  })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
+    beforeAll(async () => {
+      await nextBuild(appDir)
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(() => killApp(app))
+    runTests()
+  })
 })

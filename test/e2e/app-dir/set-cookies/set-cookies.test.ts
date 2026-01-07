@@ -4,10 +4,7 @@ import type { Response } from 'node-fetch'
 import cookies, { nextConfigHeaders } from './cookies.mjs'
 
 function getSetCookieHeaders(res: Response): ReadonlyArray<string> {
-  return (
-    (res.headers as any).getSetCookie?.() ??
-    (res.headers as any).raw()['set-cookie']
-  )
+  return (res.headers as any).getSetCookie?.() ?? (res.headers as any).raw()['set-cookie']
 }
 
 describe('set-cookies', () => {
@@ -34,9 +31,7 @@ describe('set-cookies', () => {
         expect(headers).toHaveLength(2)
         expect(headers).toEqual(cookies)
 
-        res = await next.fetch(
-          `/api/${dir}/${runtime}?next-config-headers=true`
-        )
+        res = await next.fetch(`/api/${dir}/${runtime}?next-config-headers=true`)
 
         headers = getSetCookieHeaders(res)
 

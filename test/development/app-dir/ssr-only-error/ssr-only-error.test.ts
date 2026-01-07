@@ -37,16 +37,12 @@ describe('ssr-only-error', () => {
     expect(text).toBe('404\nThis page could not be found.')
 
     // Assert there's only one console.error from browser itself
-    const errorLogs = (await browser.log()).filter(
-      (log) => log.source === 'error'
-    )
+    const errorLogs = (await browser.log()).filter((log) => log.source === 'error')
 
     expect(errorLogs).toEqual([
       expect.objectContaining({
         source: 'error',
-        message: expect.stringContaining(
-          'the server responded with a status of 404'
-        ),
+        message: expect.stringContaining('the server responded with a status of 404'),
       }),
     ])
   })

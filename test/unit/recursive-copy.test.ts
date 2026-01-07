@@ -11,14 +11,7 @@ const srcDir = join(testDir, 'src')
 const destDir = join(testDir, 'dest')
 
 const setupTestDir = async (numFiles = 100) => {
-  const paths = [
-    '.hidden',
-    'file',
-    'folder1/file1',
-    'folder1/file2',
-    'link',
-    'linkfolder',
-  ]
+  const paths = ['.hidden', 'file', 'folder1/file1', 'folder1/file2', 'link', 'linkfolder']
 
   await fs.ensureDir(testDir)
 
@@ -66,9 +59,7 @@ describe('recursiveCopy', () => {
 
     expect(readFileSync(join(destDir, 'file'), 'utf8')).toBe('file')
     expect(readFileSync(join(destDir, 'link'), 'utf8')).toBe('file')
-    expect(readFileSync(join(destDir, 'linkfolder', 'file1'), 'utf8')).toBe(
-      'file1'
-    )
+    expect(readFileSync(join(destDir, 'linkfolder', 'file1'), 'utf8')).toBe('file1')
   })
 
   it('should work with content existing in dest', async () => {

@@ -96,17 +96,11 @@ export function generateRoutesManifest(
     appType,
     caseSensitive: !!config.experimental.caseSensitiveRoutes,
     basePath: config.basePath,
-    redirects: redirects.map((r) =>
-      buildCustomRoute('redirect', r, restrictedRedirectPaths)
-    ),
+    redirects: redirects.map((r) => buildCustomRoute('redirect', r, restrictedRedirectPaths)),
     headers: headers.map((r) => buildCustomRoute('header', r)),
     rewrites: {
-      beforeFiles: rewrites.beforeFiles.map((r) =>
-        buildCustomRoute('rewrite', r)
-      ),
-      afterFiles: rewrites.afterFiles.map((r) =>
-        buildCustomRoute('rewrite', r)
-      ),
+      beforeFiles: rewrites.beforeFiles.map((r) => buildCustomRoute('rewrite', r)),
+      afterFiles: rewrites.afterFiles.map((r) => buildCustomRoute('rewrite', r)),
       fallback: rewrites.fallback.map((r) => buildCustomRoute('rewrite', r)),
     },
     dynamicRoutes,

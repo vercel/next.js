@@ -78,20 +78,14 @@ declare global {
 }
 
 type CustomHmrEventHandler = (
-  message:
-    | AddedPageMessage
-    | RemovedPageMessage
-    | ReloadPageMessage
-    | DevPagesManifestUpdateMessage
+  message: AddedPageMessage | RemovedPageMessage | ReloadPageMessage | DevPagesManifestUpdateMessage
 ) => void
 
 window.__nextDevClientId = Math.round(Math.random() * 100 + Date.now())
 
 let customHmrEventHandler: CustomHmrEventHandler | undefined
 
-let turbopackMessageListeners: ((
-  message: TurbopackMessageSentToBrowser
-) => void)[] = []
+let turbopackMessageListeners: ((message: TurbopackMessageSentToBrowser) => void)[] = []
 export default function connect() {
   register()
 
@@ -110,9 +104,7 @@ export default function connect() {
     onUnrecoverableError() {
       RuntimeErrorHandler.hadRuntimeError = true
     },
-    addTurbopackMessageListener(
-      cb: (msg: TurbopackMessageSentToBrowser) => void
-    ) {
+    addTurbopackMessageListener(cb: (msg: TurbopackMessageSentToBrowser) => void) {
       turbopackMessageListeners.push(cb)
     },
     sendTurbopackMessage(msg: string) {
@@ -157,8 +149,7 @@ function handleSuccess() {
     dispatcher.onBuildOk()
   } else {
     const isHotUpdate =
-      !isFirstCompilation ||
-      (window.__NEXT_DATA__.page !== '/_error' && isUpdateAvailable())
+      !isFirstCompilation || (window.__NEXT_DATA__.page !== '/_error' && isUpdateAvailable())
 
     // Attempt to apply hot updates or reload.
     if (isHotUpdate) {
@@ -241,9 +232,7 @@ function handleErrors(errors: any) {
 }
 
 let webpackStartMsSinceEpoch: number | null = null
-const turbopackHmr: TurbopackHmr | null = process.env.TURBOPACK
-  ? new TurbopackHmr()
-  : null
+const turbopackHmr: TurbopackHmr | null = process.env.TURBOPACK ? new TurbopackHmr() : null
 let isrManifest: Record<string, boolean> = {}
 
 // There is a newer version of the code available.
@@ -257,15 +246,13 @@ export function handleStaticIndicator() {
     const routeInfo = window.next.router.components[window.next.router.pathname]
     const pageComponent = routeInfo?.Component
     const appComponent = window.next.router.components['/_app']?.Component
-    const isDynamicPage =
-      Boolean(pageComponent?.getInitialProps) || Boolean(routeInfo?.__N_SSP)
+    const isDynamicPage = Boolean(pageComponent?.getInitialProps) || Boolean(routeInfo?.__N_SSP)
     const hasAppGetInitialProps =
       Boolean(appComponent?.getInitialProps) &&
       appComponent?.getInitialProps !== appComponent?.origGetInitialProps
 
     const isPageStatic =
-      isrManifest[window.location.pathname] ||
-      (!isDynamicPage && !hasAppGetInitialProps)
+      isrManifest[window.location.pathname] || (!isDynamicPage && !hasAppGetInitialProps)
 
     dispatcher.onStaticIndicator(isPageStatic ? 'static' : 'dynamic')
   }
@@ -299,12 +286,9 @@ function processMessage(message: HmrMessageSentToBrowser) {
       const { errors, warnings } = message
 
       // Is undefined when it's a 'built' event
-      if ('versionInfo' in message)
-        dispatcher.onVersionInfo(message.versionInfo)
-      if ('devIndicator' in message)
-        dispatcher.onDevIndicator(message.devIndicator)
-      if ('devToolsConfig' in message)
-        dispatcher.onDevToolsConfig(message.devToolsConfig)
+      if ('versionInfo' in message) dispatcher.onVersionInfo(message.versionInfo)
+      if ('devIndicator' in message) dispatcher.onDevIndicator(message.devIndicator)
+      if ('devToolsConfig' in message) dispatcher.onDevToolsConfig(message.devToolsConfig)
 
       const hasErrors = Boolean(errors && errors.length)
       if (hasErrors) {
@@ -469,10 +453,7 @@ function tryApplyUpdatesWebpack() {
     return
   }
 
-  function handleApplyUpdates(
-    err: any,
-    updatedModules: (string | number)[] | null
-  ) {
+  function handleApplyUpdates(err: any, updatedModules: (string | number)[] | null) {
     if (err || RuntimeErrorHandler.hadRuntimeError || updatedModules == null) {
       if (err) {
         console.warn(REACT_REFRESH_FULL_RELOAD)
@@ -492,12 +473,7 @@ function tryApplyUpdatesWebpack() {
     }
 
     dispatcher.onRefresh()
-    reportHmrLatency(
-      sendMessage,
-      updatedModules,
-      webpackStartMsSinceEpoch!,
-      Date.now()
-    )
+    reportHmrLatency(sendMessage, updatedModules, webpackStartMsSinceEpoch!, Date.now())
 
     if (process.env.__NEXT_TEST_MODE) {
       afterApplyUpdates(() => {
@@ -536,10 +512,7 @@ function tryApplyUpdatesWebpack() {
 
 export function performFullReload(err: any) {
   const stackTrace =
-    err &&
-    ((err.stack && err.stack.split('\n').slice(0, 5).join('\n')) ||
-      err.message ||
-      err + '')
+    err && ((err.stack && err.stack.split('\n').slice(0, 5).join('\n')) || err.message || err + '')
 
   sendMessage(
     JSON.stringify({

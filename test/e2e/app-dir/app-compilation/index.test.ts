@@ -37,9 +37,7 @@ describe('app dir', () => {
         )
 
         await retry(async () => {
-          expect(next.cliOutput.slice(cliOutputLength)).toInclude(
-            'GET /page-with-loading 200'
-          )
+          expect(next.cliOutput.slice(cliOutputLength)).toInclude('GET /page-with-loading 200')
         })
 
         // It should not have an error
@@ -48,8 +46,7 @@ describe('app dir', () => {
         // HMR should still work
         await next.patchFile(
           'app/page-with-loading/page.js',
-          (content) =>
-            content.replace('hello from slow page', 'hello from new page'),
+          (content) => content.replace('hello from slow page', 'hello from new page'),
           async () =>
             retry(async () => {
               const headline = await browser.elementByCss('h1').text()

@@ -34,9 +34,7 @@ describe('Error recovery app', () => {
     )
 
     await browser.elementByCss('button').click()
-    expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('1')
+    expect(await session.evaluate(() => document.querySelector('p').textContent)).toBe('1')
 
     await session.patch('index.js', `export default () => <div/`)
 
@@ -115,10 +113,7 @@ describe('Error recovery app', () => {
 
     await session.waitForNoRedbox()
 
-    await check(
-      () => session.evaluate(() => document.querySelector('p').textContent),
-      /Count: 1/
-    )
+    await check(() => session.evaluate(() => document.querySelector('p').textContent), /Count: 1/)
   })
 
   test('server component can recover from syntax error', async () => {
@@ -313,13 +308,9 @@ describe('Error recovery app', () => {
       `
     )
 
-    expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('0')
+    expect(await session.evaluate(() => document.querySelector('p').textContent)).toBe('0')
     await browser.elementByCss('button').click()
-    expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('1')
+    expect(await session.evaluate(() => document.querySelector('p').textContent)).toBe('1')
 
     if (isTurbopack) {
       // TODO(veil): Location of Page should be app/page.js
@@ -383,13 +374,9 @@ describe('Error recovery app', () => {
     await session.waitForNoRedbox()
     expect(await session.hasErrorToast()).toBe(false)
 
-    expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('Count: 1')
+    expect(await session.evaluate(() => document.querySelector('p').textContent)).toBe('Count: 1')
     await browser.elementByCss('button').click()
-    expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('Count: 2')
+    expect(await session.evaluate(() => document.querySelector('p').textContent)).toBe('Count: 2')
 
     await session.waitForNoRedbox()
     expect(await session.hasErrorToast()).toBe(false)
@@ -469,9 +456,7 @@ describe('Error recovery app', () => {
     // TODO-APP: re-enable when error recovery doesn't reload the page.
     // expect(didNotReload).toBe(true)
     await session.waitForNoRedbox()
-    expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('Hello')
+    expect(await session.evaluate(() => document.querySelector('p').textContent)).toBe('Hello')
   })
 
   test('client component can recover from a component error', async () => {
@@ -563,9 +548,7 @@ describe('Error recovery app', () => {
     // TODO-APP: re-enable when error recovery doesn't reload the page.
     // expect(didNotReload).toBe(true)
     await session.waitForNoRedbox()
-    expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('Hello')
+    expect(await session.evaluate(() => document.querySelector('p').textContent)).toBe('Hello')
   })
 
   // https://github.com/pmmmwh/react-refresh-webpack-plugin/pull/3#issuecomment-554150098
@@ -885,9 +868,9 @@ describe('Error recovery app', () => {
       `
     )
 
-    expect(
-      await session.evaluate(() => document.querySelector('h1').textContent)
-    ).toBe('Default Export')
+    expect(await session.evaluate(() => document.querySelector('h1').textContent)).toBe(
+      'Default Export'
+    )
 
     // Break it with a syntax error:
     await session.patch(
@@ -1107,10 +1090,7 @@ describe('Error recovery app', () => {
   })
 
   test('displays build error on initial page load', async () => {
-    await using sandbox = await createSandbox(
-      next,
-      new Map([['app/page.js', '{{{']])
-    )
+    await using sandbox = await createSandbox(next, new Map([['app/page.js', '{{{']]))
     const { browser } = sandbox
 
     if (isTurbopack) {

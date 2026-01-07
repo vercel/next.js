@@ -12,13 +12,10 @@ describe('i18n-disallow-multiple-locales', () => {
     ['/es/first/non-existent'],
     ['/first/second/non-existent'],
     ['/es/first/second/non-existent'],
-  ])(
-    'should 404 properly for fallback: false non-prerendered %s',
-    async (pathname) => {
-      const res = await next.fetch(pathname)
-      expect(res.status).toBe(404)
-    }
-  )
+  ])('should 404 properly for fallback: false non-prerendered %s', async (pathname) => {
+    const res = await next.fetch(pathname)
+    expect(res.status).toBe(404)
+  })
 
   it.each([
     { urlPath: '/first', page: '/[first]' },

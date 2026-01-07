@@ -1,7 +1,4 @@
-import {
-  getOwnerStack,
-  setOwnerStackIfAvailable,
-} from './errors/stitched-error'
+import { getOwnerStack, setOwnerStackIfAvailable } from './errors/stitched-error'
 import { getErrorSource } from '../../../shared/lib/error-source'
 import { getIsTerminalLoggingEnabled } from './terminal-logging-config'
 import {
@@ -45,8 +42,7 @@ class ClientFileLogger {
     const message = args
       .map((arg) => {
         if (typeof arg === 'string') return arg
-        if (typeof arg === 'number' || typeof arg === 'boolean')
-          return String(arg)
+        if (typeof arg === 'number' || typeof arg === 'boolean') return String(arg)
         if (arg === null) return 'null'
         if (arg === undefined) return 'undefined'
         // Handle DOM nodes - only log the tag name to avoid React proxied elements
@@ -411,11 +407,7 @@ export const forwardErrorLog = (args: any[]) => {
   logQueue.scheduleLogSend(entry)
 }
 
-const createUncaughtErrorEntry = (
-  errorName: string,
-  errorMessage: string,
-  fullStack: string
-) => {
+const createUncaughtErrorEntry = (errorName: string, errorMessage: string, fullStack: string) => {
   const entry: FormattedErrorEntry = {
     kind: 'formatted-error',
     prefix: `Uncaught ${errorName}: ${errorMessage}`,
@@ -437,9 +429,7 @@ const stackWithOwners = (error: Error) => {
 export function logUnhandledRejection(reason: unknown) {
   // Always log to client file logger
   const message =
-    reason instanceof Error
-      ? `${reason.name}: ${reason.message}`
-      : JSON.stringify(reason)
+    reason instanceof Error ? `${reason.name}: ${reason.message}` : JSON.stringify(reason)
   clientFileLogger.log('error', [`unhandledRejection: ${message}`])
 
   // Only forward to terminal if enabled
@@ -454,10 +444,7 @@ export function logUnhandledRejection(reason: unknown) {
   createUnhandledRejectionNonErrorEntry(reason)
 }
 
-const createUnhandledRejectionErrorEntry = (
-  error: Error,
-  fullStack: string
-) => {
+const createUnhandledRejectionErrorEntry = (error: Error, fullStack: string) => {
   const source = getErrorSource(error)
   if (source) {
     logQueue.sourceType = source
@@ -521,11 +508,7 @@ const isReactServerReplayedLog = (args: any[]) => {
 
   const [format, styles, label] = args
 
-  if (
-    typeof format !== 'string' ||
-    typeof styles !== 'string' ||
-    typeof label !== 'string'
-  ) {
+  if (typeof format !== 'string' || typeof styles !== 'string' || typeof label !== 'string') {
     return false
   }
 
@@ -534,9 +517,7 @@ const isReactServerReplayedLog = (args: any[]) => {
 
 export function forwardUnhandledError(error: Error) {
   // Always log to client file logger
-  clientFileLogger.log('error', [
-    `uncaughtError: ${error.name}: ${error.message}`,
-  ])
+  clientFileLogger.log('error', [`uncaughtError: ${error.name}: ${error.message}`])
 
   // Only forward to terminal if enabled
   if (!isTerminalLoggingEnabled) {

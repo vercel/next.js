@@ -7,16 +7,12 @@ import type { Rewrite } from './load-custom-routes'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 
-export function generateInterceptionRoutesRewrites(
-  appPaths: string[],
-  basePath = ''
-): Rewrite[] {
+export function generateInterceptionRoutesRewrites(appPaths: string[], basePath = ''): Rewrite[] {
   const rewrites: Rewrite[] = []
 
   for (const appPath of appPaths) {
     if (isInterceptionRouteAppPath(appPath)) {
-      const { interceptingRoute, interceptedRoute } =
-        extractInterceptionRouteInformation(appPath)
+      const { interceptingRoute, interceptedRoute } = extractInterceptionRouteInformation(appPath)
 
       const destination = getNamedRouteRegex(basePath + appPath, {
         prefixRouteKeys: true,

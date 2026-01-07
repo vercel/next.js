@@ -23,8 +23,6 @@ const fetchRandomCached = async (entropy: string) => {
 }
 
 const fetchRandomUncached = async (entropy: string) => {
-  const response = await fetch(
-    'https://next-data-api-endpoint.vercel.app/api/random?b=' + entropy
-  )
+  const response = await fetch('https://next-data-api-endpoint.vercel.app/api/random?b=' + entropy)
   return response.text()
 }

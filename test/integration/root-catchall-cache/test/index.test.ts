@@ -2,14 +2,7 @@
 
 import { join } from 'path'
 import cheerio from 'cheerio'
-import {
-  killApp,
-  findPort,
-  nextBuild,
-  nextStart,
-  renderViaHTTP,
-  waitFor,
-} from 'next-test-utils'
+import { killApp, findPort, nextBuild, nextStart, renderViaHTTP, waitFor } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
 let app
@@ -47,17 +40,14 @@ const runTests = () => {
 }
 
 describe('Root Catch-all Cache', () => {
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      beforeAll(async () => {
-        await nextBuild(appDir)
-        appPort = await findPort()
-        app = await nextStart(appDir, appPort)
-      })
-      afterAll(() => killApp(app))
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
+    beforeAll(async () => {
+      await nextBuild(appDir)
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(() => killApp(app))
 
-      runTests()
-    }
-  )
+    runTests()
+  })
 })

@@ -6,9 +6,7 @@ import { PreloadChunks } from './preload-chunks'
 // Normalize loader to return the module as form { default: Component } for `React.lazy`.
 // Also for backward compatible since next/dynamic allows to resolve a component directly with loader
 // Client component reference proxy need to be converted to a module.
-function convertModule<P>(
-  mod: React.ComponentType<P> | ComponentModule<P> | undefined
-): {
+function convertModule<P>(mod: React.ComponentType<P> | ComponentModule<P> | undefined): {
   default: React.ComponentType<P>
 } {
   // Check "default" prop before accessing it, as it could be client reference proxy that could break it reference.
@@ -19,9 +17,7 @@ function convertModule<P>(
   // mod: proxy(Component)
   const hasDefault = mod && 'default' in mod
   return {
-    default: hasDefault
-      ? (mod as ComponentModule<P>).default
-      : (mod as React.ComponentType<P>),
+    default: hasDefault ? (mod as ComponentModule<P>).default : (mod as React.ComponentType<P>),
   }
 }
 
@@ -55,9 +51,7 @@ function Loadable(options: LoadableOptions) {
     const children = opts.ssr ? (
       <>
         {/* During SSR, we need to preload the CSS from the dynamic component to avoid flash of unstyled content */}
-        {typeof window === 'undefined' ? (
-          <PreloadChunks moduleIds={opts.modules} />
-        ) : null}
+        {typeof window === 'undefined' ? <PreloadChunks moduleIds={opts.modules} /> : null}
         <Lazy {...props} />
       </>
     ) : (

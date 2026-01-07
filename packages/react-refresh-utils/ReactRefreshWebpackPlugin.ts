@@ -7,10 +7,7 @@ import type {
 } from 'webpack'
 
 // Shared between webpack 4 and 5:
-function injectRefreshFunctions(
-  compilation: WebpackCompilation,
-  Template: typeof WebpackTemplate
-) {
+function injectRefreshFunctions(compilation: WebpackCompilation, Template: typeof WebpackTemplate) {
   const hookVars: any = (compilation.mainTemplate.hooks as any).localVars
 
   hookVars.tap('ReactFreshWebpackPlugin', (source: string) =>
@@ -53,9 +50,7 @@ function webpack4(this: ReactFreshWebpackPlugin, compiler: WebpackCompiler) {
 
       const lines = source.split('\n')
       // @ts-ignore webpack 5 types compat
-      const evalIndex = lines.findIndex((l) =>
-        l.includes('modules[moduleId].call(')
-      )
+      const evalIndex = lines.findIndex((l) => l.includes('modules[moduleId].call('))
       // Unable to find the module execution, that's OK:
       if (evalIndex === -1) {
         return source
@@ -121,9 +116,7 @@ function webpack5(this: ReactFreshWebpackPlugin, compiler: WebpackCompiler) {
                 `${
                   runtimeTemplate.supportsConst() ? 'const' : 'var'
                 } cleanup = hasRefresh ? self.$RefreshInterceptModuleExecution$(moduleObject.id) : ${
-                  runtimeTemplate.supportsArrowFunction()
-                    ? '() => {}'
-                    : 'function() {}'
+                  runtimeTemplate.supportsArrowFunction() ? '() => {}' : 'function() {}'
                 };`,
                 'try {',
                 Template.indent(

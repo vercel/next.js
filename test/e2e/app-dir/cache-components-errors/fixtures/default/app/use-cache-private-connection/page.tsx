@@ -5,8 +5,8 @@ export default async function Page() {
   return (
     <>
       <p>
-        This page uses `connection()` inside `'use cache: private'`, which
-        triggers an error at runtime.
+        This page uses `connection()` inside `'use cache: private'`, which triggers an error at
+        runtime.
       </p>
       <Suspense fallback={<p>Loading...</p>}>
         <Private />

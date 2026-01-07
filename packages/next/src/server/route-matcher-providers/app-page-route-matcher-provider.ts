@@ -4,10 +4,7 @@ import { APP_PATHS_MANIFEST } from '../../shared/lib/constants'
 import { AppNormalizers } from '../normalizers/built/app'
 import { RouteKind } from '../route-kind'
 import { AppPageRouteMatcher } from '../route-matchers/app-page-route-matcher'
-import type {
-  Manifest,
-  ManifestLoader,
-} from './helpers/manifest-loaders/manifest-loader'
+import type { Manifest, ManifestLoader } from './helpers/manifest-loaders/manifest-loader'
 import { ManifestRouteMatcherProvider } from './manifest-route-matcher-provider'
 
 export class AppPageRouteMatcherProvider extends ManifestRouteMatcherProvider<AppPageRouteMatcher> {
@@ -19,9 +16,7 @@ export class AppPageRouteMatcherProvider extends ManifestRouteMatcherProvider<Ap
     this.normalizers = new AppNormalizers(distDir)
   }
 
-  protected async transform(
-    manifest: Manifest
-  ): Promise<ReadonlyArray<AppPageRouteMatcher>> {
+  protected async transform(manifest: Manifest): Promise<ReadonlyArray<AppPageRouteMatcher>> {
     // This matcher only matches app pages.
     const pages = Object.keys(manifest).filter((page) => isAppPageRoute(page))
 

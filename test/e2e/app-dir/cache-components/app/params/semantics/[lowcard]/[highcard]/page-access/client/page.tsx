@@ -12,8 +12,8 @@ export default function Page({
   return (
     <section>
       <p>
-        This Page access params in a page component inside a high cardinality
-        and low cardinality dynamic params
+        This Page access params in a page component inside a high cardinality and low cardinality
+        dynamic params
       </p>
       <div>
         page lowcard: <span id="param-lowcard">{use(params).lowcard}</span>

@@ -76,9 +76,7 @@ describe('middleware RSC external rewrite', () => {
       )
 
       // Find requests that contain _rsc parameter
-      const rscRequests = receivedRequests.filter((req) =>
-        req.url.includes('_rsc=')
-      )
+      const rscRequests = receivedRequests.filter((req) => req.url.includes('_rsc='))
       console.log(
         'RSC requests:',
         rscRequests.map((r) => r.url)
@@ -89,9 +87,7 @@ describe('middleware RSC external rewrite', () => {
 
       // Verify the external server response is displayed
       const externalResponse = await browser.elementById('external-response')
-      expect(await externalResponse.text()).toBe(
-        'External server handled the request'
-      )
+      expect(await externalResponse.text()).toBe('External server handled the request')
     } finally {
       if (browser) {
         await browser.close()

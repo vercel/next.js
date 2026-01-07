@@ -6,18 +6,12 @@ import { createSandbox } from 'development-sandbox'
 import { outdent } from 'outdent'
 
 async function clickSourceFile(browser: Playwright) {
-  await browser.waitForElementByCss(
-    '[data-with-open-in-editor-link-source-file]'
-  )
-  await browser
-    .elementByCss('[data-with-open-in-editor-link-source-file]')
-    .click()
+  await browser.waitForElementByCss('[data-with-open-in-editor-link-source-file]')
+  await browser.elementByCss('[data-with-open-in-editor-link-source-file]').click()
 }
 
 async function clickImportTraceFiles(browser: Playwright) {
-  await browser.waitForElementByCss(
-    '[data-with-open-in-editor-link-import-trace]'
-  )
+  await browser.waitForElementByCss('[data-with-open-in-editor-link-import-trace]')
   const collapsedFrameworkGroups = await browser.elementsByCss(
     '[data-with-open-in-editor-link-import-trace]'
   )
@@ -70,17 +64,14 @@ describe('Error overlay - editor links', () => {
     await retry(async () => {
       const loaded = await browser.eval(() => {
         return Boolean(
-          [].slice
-            .call(document.querySelectorAll('nextjs-portal'))
-            .find((p) => {
-              const badge = p.shadowRoot.querySelector('[data-next-badge]')
-              // Check if badge exists and is not showing any loading status
-              return (
-                badge &&
-                (badge.getAttribute('data-status') === 'none' ||
-                  !badge.getAttribute('data-status'))
-              )
-            })
+          [].slice.call(document.querySelectorAll('nextjs-portal')).find((p) => {
+            const badge = p.shadowRoot.querySelector('[data-next-badge]')
+            // Check if badge exists and is not showing any loading status
+            return (
+              badge &&
+              (badge.getAttribute('data-status') === 'none' || !badge.getAttribute('data-status'))
+            )
+          })
         )
       })
       expect(loaded).toBe(true)

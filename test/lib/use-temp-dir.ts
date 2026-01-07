@@ -10,10 +10,7 @@ export async function useTempDir(
   fn: (folder: string) => void | Promise<void>,
   mode?: string | number
 ) {
-  const folder = path.join(
-    os.tmpdir(),
-    'next-test-' + Math.random().toString(36).slice(2)
-  )
+  const folder = path.join(os.tmpdir(), 'next-test-' + Math.random().toString(36).slice(2))
   await fs.mkdirp(folder)
 
   if (mode) {

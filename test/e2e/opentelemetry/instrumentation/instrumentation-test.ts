@@ -1,11 +1,6 @@
 import './instrumentation-polyfill'
 
-import type {
-  Context,
-  TextMapGetter,
-  TextMapSetter,
-  TextMapPropagator,
-} from '@opentelemetry/api'
+import type { Context, TextMapGetter, TextMapSetter, TextMapPropagator } from '@opentelemetry/api'
 import { Resource } from '@opentelemetry/resources'
 import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions'
 import { BasicTracerProvider } from '@opentelemetry/sdk-trace-base'
@@ -48,10 +43,7 @@ const serializeSpan = (span: ReadableSpan): SavedSpan => ({
 class TestExporter implements SpanExporter {
   constructor(private port: number) {}
 
-  async export(
-    spans: ReadableSpan[],
-    resultCallback: (result: ExportResult) => void
-  ) {
+  async export(spans: ReadableSpan[], resultCallback: (result: ExportResult) => void) {
     try {
       const response = await fetch(`http://localhost:${this.port}`, {
         method: 'POST',

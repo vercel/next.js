@@ -22,11 +22,7 @@ export interface ParsedRelativeUrl {
  * Absolute urls are rejected with one exception, in the browser, absolute urls that are on
  * the current origin will be parsed as relative
  */
-export function parseRelativeUrl(
-  url: string,
-  base?: string,
-  parseQuery?: true
-): ParsedRelativeUrl
+export function parseRelativeUrl(url: string, base?: string, parseQuery?: true): ParsedRelativeUrl
 export function parseRelativeUrl(
   url: string,
   base: string | undefined,
@@ -37,21 +33,15 @@ export function parseRelativeUrl(
   base?: string,
   parseQuery = true
 ): ParsedRelativeUrl | Omit<ParsedRelativeUrl, 'query'> {
-  const globalBase = new URL(
-    typeof window === 'undefined' ? 'http://n' : getLocationOrigin()
-  )
+  const globalBase = new URL(typeof window === 'undefined' ? 'http://n' : getLocationOrigin())
 
   const resolvedBase = base
     ? new URL(base, globalBase)
     : url.startsWith('.')
-      ? new URL(
-          typeof window === 'undefined' ? 'http://n' : window.location.href
-        )
+      ? new URL(typeof window === 'undefined' ? 'http://n' : window.location.href)
       : globalBase
 
-  const { pathname, searchParams, search, hash, href, origin } = url.startsWith(
-    '/'
-  )
+  const { pathname, searchParams, search, hash, href, origin } = url.startsWith('/')
     ? // 'http://localhost:3000///' would be received as '///' in Node.js' IncomingMessage
       // See https://nodejs.org/api/http.html#messageurl
       // Not using `origin` to support other protocols

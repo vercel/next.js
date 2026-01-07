@@ -80,9 +80,7 @@ export function fallbackModeToFallbackField(
  * @param result The result from the static paths function.
  * @returns The fallback mode.
  */
-export function parseStaticPathsResult(
-  result: GetStaticPathsFallback
-): FallbackMode {
+export function parseStaticPathsResult(result: GetStaticPathsFallback): FallbackMode {
   if (result === true) {
     return FallbackMode.PRERENDER
   } else if (result === 'blocking') {

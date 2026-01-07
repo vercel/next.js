@@ -26,12 +26,8 @@ describe('middleware-static-rewrite', () => {
       // Get the sentinel value that was generated at build time or runtime.
       expect($('[data-layout="/"]').data('sentinel')).toBe('buildtime')
       expect($('[data-layout="/[first]"]').data('sentinel')).toBe('buildtime')
-      expect($('[data-layout="/[first]/[second]"]').data('sentinel')).toBe(
-        'buildtime'
-      )
-      expect(
-        $('[data-layout="/[first]/[second]/[third]"]').data('sentinel')
-      ).toBe('buildtime')
+      expect($('[data-layout="/[first]/[second]"]').data('sentinel')).toBe('buildtime')
+      expect($('[data-layout="/[first]/[second]/[third]"]').data('sentinel')).toBe('buildtime')
 
       // Then we try to load a page that'll use the `/first/second/[third]`
       // fallback.
@@ -41,12 +37,8 @@ describe('middleware-static-rewrite', () => {
 
       expect($('[data-layout="/"]').data('sentinel')).toBe('buildtime')
       expect($('[data-layout="/[first]"]').data('sentinel')).toBe('buildtime')
-      expect($('[data-layout="/[first]/[second]"]').data('sentinel')).toBe(
-        'buildtime'
-      )
-      expect(
-        $('[data-layout="/[first]/[second]/[third]"]').data('sentinel')
-      ).toBe('runtime')
+      expect($('[data-layout="/[first]/[second]"]').data('sentinel')).toBe('buildtime')
+      expect($('[data-layout="/[first]/[second]/[third]"]').data('sentinel')).toBe('runtime')
 
       // Then we try to load a page that'll use the `/first/[second]/[third]`
       $ = await next.render$('/first/not-second/not-third')
@@ -55,28 +47,18 @@ describe('middleware-static-rewrite', () => {
 
       expect($('[data-layout="/"]').data('sentinel')).toBe('buildtime')
       expect($('[data-layout="/[first]"]').data('sentinel')).toBe('buildtime')
-      expect($('[data-layout="/[first]/[second]"]').data('sentinel')).toBe(
-        'runtime'
-      )
-      expect(
-        $('[data-layout="/[first]/[second]/[third]"]').data('sentinel')
-      ).toBe('runtime')
+      expect($('[data-layout="/[first]/[second]"]').data('sentinel')).toBe('runtime')
+      expect($('[data-layout="/[first]/[second]/[third]"]').data('sentinel')).toBe('runtime')
 
       // Then we try to load a page that'll use the `/[first]/[second]/[third]`
       $ = await next.render$('/not-first/not-second/not-third')
 
-      expect($('[data-slug]').data('slug')).toBe(
-        'not-first/not-second/not-third'
-      )
+      expect($('[data-slug]').data('slug')).toBe('not-first/not-second/not-third')
 
       expect($('[data-layout="/"]').data('sentinel')).toBe('buildtime')
       expect($('[data-layout="/[first]"]').data('sentinel')).toBe('runtime')
-      expect($('[data-layout="/[first]/[second]"]').data('sentinel')).toBe(
-        'runtime'
-      )
-      expect(
-        $('[data-layout="/[first]/[second]/[third]"]').data('sentinel')
-      ).toBe('runtime')
+      expect($('[data-layout="/[first]/[second]"]').data('sentinel')).toBe('runtime')
+      expect($('[data-layout="/[first]/[second]/[third]"]').data('sentinel')).toBe('runtime')
     })
 
     it('should handle middleware rewrites as well', async () => {
@@ -95,9 +77,7 @@ describe('middleware-static-rewrite', () => {
 
       expect($('[data-layout="/"]').data('sentinel')).toBe('buildtime')
       expect($('[data-layout="/rewrite"]').data('sentinel')).toBe('buildtime')
-      expect($('[data-layout="/rewrite/[slug]"]').data('sentinel')).toBe(
-        'runtime'
-      )
+      expect($('[data-layout="/rewrite/[slug]"]').data('sentinel')).toBe('runtime')
 
       await retry(async () => {
         res = await next.fetch('/not-broken')
@@ -117,19 +97,12 @@ describe('middleware-static-rewrite', () => {
 
       expect($('[data-layout="/"]').data('sentinel')).toBe('buildtime')
       expect($('[data-layout="/rewrite"]').data('sentinel')).toBe('buildtime')
-      expect($('[data-layout="/rewrite/[slug]"]').data('sentinel')).toBe(
-        'runtime'
-      )
+      expect($('[data-layout="/rewrite/[slug]"]').data('sentinel')).toBe('runtime')
     })
 
     it('should revalidate the overview page without replacing it with a 404', async () => {
       const url = new URL('/my-team', 'http://localhost')
-      const rsc = computeCacheBustingSearchParam(
-        '1',
-        '/_head',
-        undefined,
-        undefined
-      )
+      const rsc = computeCacheBustingSearchParam('1', '/_head', undefined, undefined)
 
       url.searchParams.set('_rsc', rsc)
 
@@ -148,9 +121,7 @@ describe('middleware-static-rewrite', () => {
 
       // Now, let's verify that we both got rewritten to the correct page, and
       // that we're being served the prerender shell.
-      expect(res.headers.get('x-nextjs-rewritten-path')).toBe(
-        '/my-team/~/overview/grid'
-      )
+      expect(res.headers.get('x-nextjs-rewritten-path')).toBe('/my-team/~/overview/grid')
       expect(res.headers.get('x-nextjs-postponed')).toBe('2')
       expect(res.headers.get('x-nextjs-prerender')).toBe('1')
 
@@ -191,9 +162,7 @@ describe('middleware-static-rewrite', () => {
       // Now that the revalidation has been completed, let's also verify that
       // it revalidated correctly.
       expect(res.headers.get('x-nextjs-postponed')).toBe('2')
-      expect(res.headers.get('x-nextjs-rewritten-path')).toBe(
-        '/my-team/~/overview/grid'
-      )
+      expect(res.headers.get('x-nextjs-rewritten-path')).toBe('/my-team/~/overview/grid')
 
       // We expect that the only difference between the two RSC contents is the
       // title.
@@ -213,26 +182,22 @@ describe('middleware-static-rewrite', () => {
       let res = await next.fetch('/not-broken')
 
       expect(res.status).toBe(200)
-      expect(
-        res.headers.get(isNextDeploy ? 'x-vercel-cache' : 'x-nextjs-cache')
-      ).toMatch(/MISS|HIT|PRERENDER/)
+      expect(res.headers.get(isNextDeploy ? 'x-vercel-cache' : 'x-nextjs-cache')).toMatch(
+        /MISS|HIT|PRERENDER/
+      )
 
       let html = await res.text()
       let $ = cheerio.load(html)
 
       expect($('[data-layout="/"]').data('sentinel')).toBe('runtime')
       expect($('[data-layout="/rewrite"]').data('sentinel')).toBe('runtime')
-      expect($('[data-layout="/rewrite/[slug]"]').data('sentinel')).toBe(
-        'runtime'
-      )
+      expect($('[data-layout="/rewrite/[slug]"]').data('sentinel')).toBe('runtime')
 
       await retry(async () => {
         res = await next.fetch('/not-broken')
 
         expect(res.status).toBe(200)
-        expect(
-          res.headers.get(isNextDeploy ? 'x-vercel-cache' : 'x-nextjs-cache')
-        ).toBe('HIT')
+        expect(res.headers.get(isNextDeploy ? 'x-vercel-cache' : 'x-nextjs-cache')).toBe('HIT')
       })
 
       html = await res.text()
@@ -242,9 +207,7 @@ describe('middleware-static-rewrite', () => {
 
       expect($('[data-layout="/"]').data('sentinel')).toBe('runtime')
       expect($('[data-layout="/rewrite"]').data('sentinel')).toBe('runtime')
-      expect($('[data-layout="/rewrite/[slug]"]').data('sentinel')).toBe(
-        'runtime'
-      )
+      expect($('[data-layout="/rewrite/[slug]"]').data('sentinel')).toBe('runtime')
     })
   }
 })

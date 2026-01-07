@@ -1,7 +1,4 @@
-import {
-  COMPILER_NAMES,
-  type CompilerNameValues,
-} from '../../shared/lib/constants'
+import { COMPILER_NAMES, type CompilerNameValues } from '../../shared/lib/constants'
 
 export const edgeConditionName = 'edge-light'
 
@@ -13,10 +10,7 @@ const mainFieldsPerCompiler = {
   'server-esm': ['module', 'main'],
 }
 
-export function getMainField(
-  compilerType: CompilerNameValues,
-  preferEsm: boolean
-) {
+export function getMainField(compilerType: CompilerNameValues, preferEsm: boolean) {
   if (compilerType === COMPILER_NAMES.edgeServer) {
     return ['edge-light', '...']
   } else if (compilerType === COMPILER_NAMES.client) {

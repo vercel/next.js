@@ -7,11 +7,7 @@ import { getProxyAgent } from './get-proxy-agent'
  * - Throws if the response status is not 200.
  * - Applies a 3000 ms timeout when `isDev` is `true`.
  */
-export function fetchResource(
-  url: string,
-  isDev: boolean,
-  errorMessage?: string
-): Promise<Buffer> {
+export function fetchResource(url: string, isDev: boolean, errorMessage?: string): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const { protocol } = new URL(url)
     const client = protocol === 'https:' ? https : http
@@ -31,12 +27,7 @@ export function fetchResource(
       },
       (res) => {
         if (res.statusCode !== 200) {
-          reject(
-            new Error(
-              errorMessage ||
-                `Request failed: ${url} (status: ${res.statusCode})`
-            )
-          )
+          reject(new Error(errorMessage || `Request failed: ${url} (status: ${res.statusCode})`))
           return
         }
         const chunks: Buffer[] = []

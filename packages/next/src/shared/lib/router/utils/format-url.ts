@@ -53,10 +53,7 @@ export function formatUrl(urlObj: UrlObject) {
 
   if (protocol && !protocol.endsWith(':')) protocol += ':'
 
-  if (
-    urlObj.slashes ||
-    ((!protocol || slashedProtocols.test(protocol)) && host !== false)
-  ) {
+  if (urlObj.slashes || ((!protocol || slashedProtocols.test(protocol)) && host !== false)) {
     host = '//' + (host || '')
     if (pathname && pathname[0] !== '/') pathname = '/' + pathname
   } else if (!host) {
@@ -92,9 +89,7 @@ export function formatWithValidation(url: UrlObject): string {
     if (url !== null && typeof url === 'object') {
       Object.keys(url).forEach((key) => {
         if (!urlObjectKeys.includes(key)) {
-          console.warn(
-            `Unknown key passed via urlObject into url.format: ${key}`
-          )
+          console.warn(`Unknown key passed via urlObject into url.format: ${key}`)
         }
       })
     }

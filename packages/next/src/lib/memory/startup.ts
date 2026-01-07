@@ -31,9 +31,7 @@ export function enableMemoryDebuggingMode(): void {
   startObservingGc()
   startPeriodicMemoryUsageTracing()
 
-  warn(
-    `Memory debugging mode is enabled. ${italic('Note: This will affect performance.')}`
-  )
+  warn(`Memory debugging mode is enabled. ${italic('Note: This will affect performance.')}`)
   info(
     ' - Heap snapshots will be automatically generated when the process reaches more than 70% of the memory limit and again when the process is just about to run out of memory.'
   )

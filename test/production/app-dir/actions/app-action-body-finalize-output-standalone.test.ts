@@ -1,11 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import {
-  findPort,
-  getFullUrl,
-  initNextServerScript,
-  killApp,
-  retry,
-} from 'next-test-utils'
+import { findPort, getFullUrl, initNextServerScript, killApp, retry } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import path from 'node:path'
 import fs from 'fs-extra'
@@ -38,10 +32,7 @@ describe('app-dir action body finalize with nodejs middleware and output-standal
 
     const distFolder = path.join(tmpFolder, 'test')
     await fs.move(path.join(next.testDir, '.next/standalone'), distFolder)
-    await fs.move(
-      path.join(next.testDir, '.next/static'),
-      path.join(distFolder, '.next/static')
-    )
+    await fs.move(path.join(next.testDir, '.next/static'), path.join(distFolder, '.next/static'))
 
     const testServer = path.join(distFolder, 'server.js')
     appPort = await findPort()

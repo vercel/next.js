@@ -6,13 +6,12 @@ export default async function Page() {
     <main>
       <section>
         <p>
-          This page has has a slow to fill cache. When not bypassing the dev
-          cache the initial load should be slow while the cache warms up. You
-          won't see the Suspense fallback because the entire response is blocked
-          until the cache warms up. Subsequent loads should be fast because the
-          cache is warm and nothing needs to Suspend When bypassing caches in
-          dev with "disable cache" the request should instantly show a fallback
-          UI and show the final content after the delay.
+          This page has has a slow to fill cache. When not bypassing the dev cache the initial load
+          should be slow while the cache warms up. You won't see the Suspense fallback because the
+          entire response is blocked until the cache warms up. Subsequent loads should be fast
+          because the cache is warm and nothing needs to Suspend When bypassing caches in dev with
+          "disable cache" the request should instantly show a fallback UI and show the final content
+          after the delay.
         </p>
       </section>
       <section>

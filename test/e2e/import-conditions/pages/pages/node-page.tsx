@@ -13,9 +13,7 @@ let server = {
   serverFavoringEdge: serverFavoringEdge.condition,
 }
 if (typeof window !== 'undefined') {
-  server = JSON.parse(
-    document.querySelector('[data-testid="server"]')!.textContent!
-  )
+  server = JSON.parse(document.querySelector('[data-testid="server"]')!.textContent!)
 }
 
 export default function Page() {

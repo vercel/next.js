@@ -11,9 +11,9 @@ export default async function Page({ searchParams }) {
     <div>
       <PageSentinel />
       <section>
-        This example uses headers/cookies/connection/searchParams directly in a
-        Page configured with `dynamic = 'force-static'`. This should cause the
-        page to always statically render but without exposing dynamic data
+        This example uses headers/cookies/connection/searchParams directly in a Page configured with
+        `dynamic = 'force-static'`. This should cause the page to always statically render but
+        without exposing dynamic data
       </section>
       <section id="headers">
         <h3>headers</h3>

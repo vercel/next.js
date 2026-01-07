@@ -39,9 +39,7 @@ describe('AwaiterOnce/AwaiterMulti', () => {
       const awaiter = new AwaiterImpl({ onError })
 
       awaiter.waitUntil(Promise.reject('error 1'))
-      awaiter.waitUntil(
-        sleep(100).then(() => awaiter.waitUntil(Promise.reject('error 2')))
-      )
+      awaiter.waitUntil(sleep(100).then(() => awaiter.waitUntil(Promise.reject('error 2'))))
 
       await awaiter.awaiting()
 

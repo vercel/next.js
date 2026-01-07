@@ -24,9 +24,7 @@ async function updateRules(newRules) {
   )
 
   if (!res.ok) {
-    throw new Error(
-      `Failed to check for rule ${res.status} ${await res.text()}`
-    )
+    throw new Error(`Failed to check for rule ${res.status} ${await res.text()}`)
   }
 }
 
@@ -43,9 +41,7 @@ async function getCurrentRules() {
   )
 
   if (!res.ok) {
-    throw new Error(
-      `Failed to check for rule ${res.status} ${await res.text()}`
-    )
+    throw new Error(`Failed to check for rule ${res.status} ${await res.text()}`)
   }
   const data = await res.json()
 
@@ -57,12 +53,9 @@ async function getCurrentRules() {
     },
     enforce_admins: data.enforce_admins.enabled,
     required_pull_request_reviews: {
-      dismiss_stale_reviews:
-        data.required_pull_request_reviews.dismiss_stale_reviews,
-      require_code_owner_reviews:
-        data.required_pull_request_reviews.require_code_owner_reviews,
-      require_last_push_approval:
-        data.required_pull_request_reviews.require_last_push_approval,
+      dismiss_stale_reviews: data.required_pull_request_reviews.dismiss_stale_reviews,
+      require_code_owner_reviews: data.required_pull_request_reviews.require_code_owner_reviews,
+      require_last_push_approval: data.required_pull_request_reviews.require_last_push_approval,
       required_approving_review_count:
         data.required_pull_request_reviews.required_approving_review_count,
     },
@@ -103,9 +96,7 @@ async function main() {
       return
     }
     currentRules.required_status_checks.contexts =
-      currentRules.required_status_checks.contexts.filter(
-        (ctx) => ctx !== codeFreezeRule.context
-      )
+      currentRules.required_status_checks.contexts.filter((ctx) => ctx !== codeFreezeRule.context)
     await updateRules(currentRules)
     console.log('Disabled code freeze')
   }

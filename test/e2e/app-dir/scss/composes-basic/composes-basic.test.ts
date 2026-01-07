@@ -13,25 +13,20 @@ describe.each([
       },
     },
   },
-])(
-  'CSS Module Composes Usage (Basic) ($dependencies)',
-  ({ dependencies, nextConfig }) => {
-    const { next } = nextTestSetup({
-      files: __dirname,
-      dependencies,
-      nextConfig,
-    })
+])('CSS Module Composes Usage (Basic) ($dependencies)', ({ dependencies, nextConfig }) => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    dependencies,
+    nextConfig,
+  })
 
-    it('should render the module', async () => {
-      const browser = await next.browser('/')
-      expect(
-        await browser.elementByCss('#verify-yellow').getComputedCss('color')
-      ).toBe(colorToRgb('yellow'))
-      expect(
-        await browser
-          .elementByCss('#verify-yellow')
-          .getComputedCss('background-color')
-      ).toBe(colorToRgb('blue'))
-    })
-  }
-)
+  it('should render the module', async () => {
+    const browser = await next.browser('/')
+    expect(await browser.elementByCss('#verify-yellow').getComputedCss('color')).toBe(
+      colorToRgb('yellow')
+    )
+    expect(await browser.elementByCss('#verify-yellow').getComputedCss('background-color')).toBe(
+      colorToRgb('blue')
+    )
+  })
+})

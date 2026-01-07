@@ -21,15 +21,11 @@ export type NavigationPromises = {
   searchParams: InstrumentedPromise<ReadonlyURLSearchParams>
   params: InstrumentedPromise<Params>
   // Layout segment hooks (updated at each layout boundary)
-  selectedLayoutSegmentPromises?: Map<
-    string,
-    InstrumentedPromise<string | null>
-  >
+  selectedLayoutSegmentPromises?: Map<string, InstrumentedPromise<string | null>>
   selectedLayoutSegmentsPromises?: Map<string, InstrumentedPromise<string[]>>
 }
 
-export const NavigationPromisesContext =
-  createContext<NavigationPromises | null>(null)
+export const NavigationPromisesContext = createContext<NavigationPromises | null>(null)
 
 // Creates an instrumented promise for Suspense DevTools
 // These promises are always fulfilled and exist purely for

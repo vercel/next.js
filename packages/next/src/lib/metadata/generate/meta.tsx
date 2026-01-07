@@ -24,9 +24,7 @@ export function Meta({
   return null
 }
 
-export function MetaFilter<T extends {} | {}[]>(
-  items: (T | null)[]
-): NonNullable<T>[] {
+export function MetaFilter<T extends {} | {}[]>(items: (T | null)[]): NonNullable<T>[] {
   const acc: NonNullable<T>[] = []
   for (const item of items) {
     if (Array.isArray(item)) {
@@ -42,10 +40,7 @@ type ExtendMetaContent = Record<
   string,
   undefined | string | URL | number | boolean | null | undefined
 >
-type MultiMetaContent =
-  | (ExtendMetaContent | string | URL | number)[]
-  | null
-  | undefined
+type MultiMetaContent = (ExtendMetaContent | string | URL | number)[] | null | undefined
 
 function camelToSnake(camelCaseStr: string) {
   return camelCaseStr.replace(/([A-Z])/g, function (match) {
@@ -53,12 +48,7 @@ function camelToSnake(camelCaseStr: string) {
   })
 }
 
-const aliasPropPrefixes = new Set([
-  'og:image',
-  'twitter:image',
-  'og:video',
-  'og:audio',
-])
+const aliasPropPrefixes = new Set(['og:image', 'twitter:image', 'og:video', 'og:audio'])
 function getMetaKey(prefix: string, key: string) {
   // Use `twitter:image` and `og:image` instead of `twitter:image:url` and `og:image:url`
   // to be more compatible as it's a more common format.
@@ -110,15 +100,9 @@ export function MultiMeta({
 
   return MetaFilter(
     contents.map((content) => {
-      if (
-        typeof content === 'string' ||
-        typeof content === 'number' ||
-        content instanceof URL
-      ) {
+      if (typeof content === 'string' || typeof content === 'number' || content instanceof URL) {
         return Meta({
-          ...(propertyPrefix
-            ? { property: propertyPrefix }
-            : { name: namePrefix }),
+          ...(propertyPrefix ? { property: propertyPrefix } : { name: namePrefix }),
           content,
         })
       } else {

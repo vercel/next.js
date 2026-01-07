@@ -11,14 +11,8 @@ import React, {
 } from 'react'
 import * as ReactDOM from 'react-dom'
 import Head from '../../shared/lib/head'
-import {
-  imageConfigDefault,
-  VALID_LOADERS,
-} from '../../shared/lib/image-config'
-import type {
-  ImageConfigComplete,
-  LoaderValue,
-} from '../../shared/lib/image-config'
+import { imageConfigDefault, VALID_LOADERS } from '../../shared/lib/image-config'
+import type { ImageConfigComplete, LoaderValue } from '../../shared/lib/image-config'
 import { useIntersection } from '../use-intersection'
 import { ImageConfigContext } from '../../shared/lib/image-config-context.shared-runtime'
 import { warnOnce } from '../../shared/lib/utils/warn-once'
@@ -32,10 +26,7 @@ function normalizeSrc(src: string): string {
 const supportsFloat = typeof ReactDOM.preload === 'function'
 const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
 const loadedImageURLs = new Set<string>()
-const allImgs = new Map<
-  string,
-  { src: string; priority: boolean; placeholder: string }
->()
+const allImgs = new Map<string, { src: string; priority: boolean; placeholder: string }>()
 let perfObserver: PerformanceObserver | undefined
 const emptyDataURL =
   'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
@@ -58,19 +49,12 @@ export type ImageLoaderProps = {
 // Do not export - this is an internal type only
 // because `next.config.js` is only meant for the
 // built-in loaders, not for a custom loader() prop.
-type ImageLoaderWithConfig = (
-  resolverProps: ImageLoaderPropsWithConfig
-) => string
+type ImageLoaderWithConfig = (resolverProps: ImageLoaderPropsWithConfig) => string
 type ImageLoaderPropsWithConfig = ImageLoaderProps & {
   config: Readonly<ImageConfig>
 }
 
-function imgixLoader({
-  config,
-  src,
-  width,
-  quality,
-}: ImageLoaderPropsWithConfig): string {
+function imgixLoader({ config, src, width, quality }: ImageLoaderPropsWithConfig): string {
   // Demo: https://static.imgix.net/daisy.png?auto=format&fit=max&w=300
   const url = new URL(`${config.path}${normalizeSrc(src)}`)
   const params = url.searchParams
@@ -87,20 +71,11 @@ function imgixLoader({
   return url.href
 }
 
-function akamaiLoader({
-  config,
-  src,
-  width,
-}: ImageLoaderPropsWithConfig): string {
+function akamaiLoader({ config, src, width }: ImageLoaderPropsWithConfig): string {
   return `${config.path}${normalizeSrc(src)}?imwidth=${width}`
 }
 
-function cloudinaryLoader({
-  config,
-  src,
-  width,
-  quality,
-}: ImageLoaderPropsWithConfig): string {
+function cloudinaryLoader({ config, src, width, quality }: ImageLoaderPropsWithConfig): string {
   // Demo: https://res.cloudinary.com/demo/image/upload/w_300,c_limit,q_auto/turtles.jpg
   const params = ['f_auto', 'c_limit', 'w_' + width, 'q_' + (quality || 'auto')]
   const paramsString = params.join(',') + '/'
@@ -114,12 +89,7 @@ function customLoader({ src }: ImageLoaderProps): string {
   )
 }
 
-function defaultLoader({
-  config,
-  src,
-  width,
-  quality,
-}: ImageLoaderPropsWithConfig): string {
+function defaultLoader({ config, src, width, quality }: ImageLoaderPropsWithConfig): string {
   if (!config.dangerouslyAllowSVG && src.split('?', 1)[0].endsWith('.svg')) {
     // Special case to make svg serve as-is to avoid proxying
     // through the built-in Image Optimization API.
@@ -216,10 +186,7 @@ function defaultLoader({
   )}&w=${width}&q=${q}`
 }
 
-const loaders = new Map<
-  LoaderValue,
-  (props: ImageLoaderPropsWithConfig) => string
->([
+const loaders = new Map<LoaderValue, (props: ImageLoaderPropsWithConfig) => string>([
   ['default', defaultLoader],
   ['imgix', imgixLoader],
   ['cloudinary', cloudinaryLoader],
@@ -227,21 +194,12 @@ const loaders = new Map<
   ['custom', customLoader],
 ])
 
-const VALID_LAYOUT_VALUES = [
-  'fill',
-  'fixed',
-  'intrinsic',
-  'responsive',
-  undefined,
-] as const
+const VALID_LAYOUT_VALUES = ['fill', 'fixed', 'intrinsic', 'responsive', undefined] as const
 type LayoutValue = (typeof VALID_LAYOUT_VALUES)[number]
 
 type PlaceholderValue = 'blur' | 'empty'
 
-type OnLoadingComplete = (result: {
-  naturalWidth: number
-  naturalHeight: number
-}) => void
+type OnLoadingComplete = (result: { naturalWidth: number; naturalHeight: number }) => void
 
 type ImgElementStyle = NonNullable<JSX.IntrinsicElements['img']['style']>
 
@@ -264,23 +222,18 @@ type StaticImport = StaticRequire | StaticImageData
 
 type SafeNumber = number | `${number}`
 
-function isStaticRequire(
-  src: StaticRequire | StaticImageData
-): src is StaticRequire {
+function isStaticRequire(src: StaticRequire | StaticImageData): src is StaticRequire {
   return (src as StaticRequire).default !== undefined
 }
 
-function isStaticImageData(
-  src: StaticRequire | StaticImageData
-): src is StaticImageData {
+function isStaticImageData(src: StaticRequire | StaticImageData): src is StaticImageData {
   return (src as StaticImageData).src !== undefined
 }
 
 function isStaticImport(src: string | StaticImport): src is StaticImport {
   return (
     typeof src === 'object' &&
-    (isStaticRequire(src as StaticImport) ||
-      isStaticImageData(src as StaticImport))
+    (isStaticRequire(src as StaticImport) || isStaticImageData(src as StaticImport))
   )
 }
 
@@ -350,11 +303,7 @@ function getWidths(
     }
     return { widths: allSizes, kind: 'w' }
   }
-  if (
-    typeof width !== 'number' ||
-    layout === 'fill' ||
-    layout === 'responsive'
-  ) {
+  if (typeof width !== 'number' || layout === 'fill' || layout === 'responsive') {
     return { widths: deviceSizes, kind: 'w' }
   }
 
@@ -414,8 +363,7 @@ function generateImgAttrs({
     sizes: !sizes && kind === 'w' ? '100vw' : sizes,
     srcSet: widths
       .map(
-        (w, i) =>
-          `${loader({ config, src, quality, width: w })} ${kind === 'w' ? w : i + 1}${kind}`
+        (w, i) => `${loader({ config, src, quality, width: w })} ${kind === 'w' ? w : i + 1}${kind}`
       )
       .join(', '),
 
@@ -564,25 +512,11 @@ const ImageElement = ({
               )
             }
           },
-          [
-            setIntersection,
-            srcString,
-            layout,
-            placeholder,
-            onLoadingCompleteRef,
-            setBlurComplete,
-          ]
+          [setIntersection, srcString, layout, placeholder, onLoadingCompleteRef, setBlurComplete]
         )}
         onLoad={(event) => {
           const img = event.currentTarget as ImgElementWithDataProp
-          handleLoading(
-            img,
-            srcString,
-            layout,
-            placeholder,
-            onLoadingCompleteRef,
-            setBlurComplete
-          )
+          handleLoading(img, srcString, layout, placeholder, onLoadingCompleteRef, setBlurComplete)
           if (onLoad) {
             onLoad(event)
           }
@@ -664,10 +598,7 @@ export default function Image({
       // security sensitive configs like `localPatterns`, which is needed
       // during the server render to ensure it's validated. Therefore use
       // configContext, which holds the config from the server for validation.
-      localPatterns:
-        typeof window === 'undefined'
-          ? configContext?.localPatterns
-          : c.localPatterns,
+      localPatterns: typeof window === 'undefined' ? configContext?.localPatterns : c.localPatterns,
     }
   }, [configContext])
 
@@ -727,8 +658,7 @@ export default function Image({
     `Image with src "${src}" is using next/legacy/image which is deprecated and will be removed in a future version of Next.js.`
   )
 
-  let isLazy =
-    !priority && (loading === 'lazy' || typeof loading === 'undefined')
+  let isLazy = !priority && (loading === 'lazy' || typeof loading === 'undefined')
   if (src.startsWith('data:') || src.startsWith('blob:')) {
     // https://developer.mozilla.org/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
     unoptimized = true
@@ -742,12 +672,11 @@ export default function Image({
   }
 
   const [blurComplete, setBlurComplete] = useState(false)
-  const [setIntersection, isIntersected, resetIntersected] =
-    useIntersection<HTMLImageElement>({
-      rootRef: lazyRoot,
-      rootMargin: lazyBoundary || '200px',
-      disabled: !isLazy,
-    })
+  const [setIntersection, isIntersected, resetIntersected] = useIntersection<HTMLImageElement>({
+    rootRef: lazyRoot,
+    rootMargin: lazyBoundary || '200px',
+    disabled: !isLazy,
+  })
   const isVisible = !isLazy || isIntersected
 
   const wrapperStyle: JSX.IntrinsicElements['span']['style'] = {
@@ -877,11 +806,7 @@ export default function Image({
         )
       }
 
-      if (
-        qualityInt &&
-        config.qualities &&
-        !config.qualities.includes(qualityInt)
-      ) {
+      if (qualityInt && config.qualities && !config.qualities.includes(qualityInt)) {
         warnOnce(
           `Image with src "${src}" is using quality "${qualityInt}" which is not configured in images.qualities [${config.qualities.join(', ')}]. Please update your config to [${[...config.qualities, qualityInt].sort().join(', ')}].` +
             `\nRead more: https://nextjs.org/docs/messages/next-image-unconfigured-qualities`
@@ -908,9 +833,7 @@ export default function Image({
       }
 
       if (style) {
-        let overwrittenStyles = Object.keys(style).filter(
-          (key) => key in layoutStyle
-        )
+        let overwrittenStyles = Object.keys(style).filter((key) => key in layoutStyle)
         if (overwrittenStyles.length) {
           warnOnce(
             `Image with src ${src} is assigned the following styles, which are overwritten by automatically-generated styles: ${overwrittenStyles.join(
@@ -920,11 +843,7 @@ export default function Image({
         }
       }
 
-      if (
-        typeof window !== 'undefined' &&
-        !perfObserver &&
-        window.PerformanceObserver
-      ) {
+      if (typeof window !== 'undefined' && !perfObserver && window.PerformanceObserver) {
         perfObserver = new PerformanceObserver((entryList) => {
           for (const entry of entryList.getEntries()) {
             // @ts-ignore - missing "LargestContentfulPaint" class with "element" prop
@@ -975,10 +894,7 @@ export default function Image({
     wrapperStyle.left = 0
     wrapperStyle.bottom = 0
     wrapperStyle.right = 0
-  } else if (
-    typeof widthInt !== 'undefined' &&
-    typeof heightInt !== 'undefined'
-  ) {
+  } else if (typeof widthInt !== 'undefined' && typeof heightInt !== 'undefined') {
     // <Image src="i.png" width="100" height="100" />
     const quotient = heightInt / widthInt
     const paddingTop = isNaN(quotient) ? '100%' : `${quotient * 100}%`
@@ -1046,10 +962,7 @@ export default function Image({
   }
 
   const linkProps:
-    | React.DetailedHTMLProps<
-        React.LinkHTMLAttributes<HTMLLinkElement>,
-        HTMLLinkElement
-      >
+    | React.DetailedHTMLProps<React.LinkHTMLAttributes<HTMLLinkElement>, HTMLLinkElement>
     | undefined = supportsFloat
     ? undefined
     : {
@@ -1059,8 +972,7 @@ export default function Image({
         referrerPolicy: rest.referrerPolicy,
       }
 
-  const useLayoutEffect =
-    typeof window === 'undefined' ? React.useEffect : React.useLayoutEffect
+  const useLayoutEffect = typeof window === 'undefined' ? React.useEffect : React.useLayoutEffect
   const onLoadingCompleteRef = useRef(onLoadingComplete)
 
   const previousImageSrc = useRef<string | StaticImport>(src)
@@ -1133,12 +1045,7 @@ export default function Image({
         // https://html.spec.whatwg.org/multipage/semantics.html#attr-link-imagesrcset
         <Head>
           <link
-            key={
-              '__nimg-' +
-              imgAttributes.src +
-              imgAttributes.srcSet +
-              imgAttributes.sizes
-            }
+            key={'__nimg-' + imgAttributes.src + imgAttributes.srcSet + imgAttributes.sizes}
             rel="preload"
             as="image"
             href={imgAttributes.srcSet ? undefined : imgAttributes.src}

@@ -100,8 +100,7 @@ export const IMAGES_MANIFEST = 'images-manifest.json'
 export const SERVER_FILES_MANIFEST = 'required-server-files'
 export const DEV_CLIENT_PAGES_MANIFEST = '_devPagesManifest.json'
 export const MIDDLEWARE_MANIFEST = 'middleware-manifest.json'
-export const TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST =
-  '_clientMiddlewareManifest.json'
+export const TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST = '_clientMiddlewareManifest.json'
 export const TURBOPACK_CLIENT_BUILD_MANIFEST = 'client-build-manifest.json'
 export const DEV_CLIENT_MIDDLEWARE_MANIFEST = '_devMiddlewareManifest.json'
 export const REACT_LOADABLE_MANIFEST = 'react-loadable-manifest.json'
@@ -129,11 +128,9 @@ export const SERVER_REFERENCE_MANIFEST = 'server-reference-manifest'
 // server/middleware-build-manifest.js
 export const MIDDLEWARE_BUILD_MANIFEST = 'middleware-build-manifest'
 // server/middleware-react-loadable-manifest.js
-export const MIDDLEWARE_REACT_LOADABLE_MANIFEST =
-  'middleware-react-loadable-manifest'
+export const MIDDLEWARE_REACT_LOADABLE_MANIFEST = 'middleware-react-loadable-manifest'
 // server/interception-route-rewrite-manifest.js
-export const INTERCEPTION_ROUTE_REWRITE_MANIFEST =
-  'interception-route-rewrite-manifest'
+export const INTERCEPTION_ROUTE_REWRITE_MANIFEST = 'interception-route-rewrite-manifest'
 // server/dynamic-css-manifest.js
 export const DYNAMIC_CSS_MANIFEST = 'dynamic-css-manifest'
 

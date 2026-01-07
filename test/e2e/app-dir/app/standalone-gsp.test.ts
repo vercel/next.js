@@ -2,12 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import fs from 'fs-extra'
 import os from 'os'
 import path from 'path'
-import {
-  findPort,
-  initNextServerScript,
-  killApp,
-  fetchViaHTTP,
-} from 'next-test-utils'
+import { findPort, initNextServerScript, killApp, fetchViaHTTP } from 'next-test-utils'
 
 if (!(globalThis as any).isNextStart) {
   it('should skip for non-next start', () => {})

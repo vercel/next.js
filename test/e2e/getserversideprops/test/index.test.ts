@@ -25,21 +25,15 @@ let next: NextInstance
 
 const expectedManifestRoutes = () => [
   {
-    dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/index\\.json$`
-    ),
+    dataRouteRegex: normalizeRegEx(`^\\/_next\\/data\\/${escapeRegex(buildId)}\\/index\\.json$`),
     page: '/',
   },
   {
-    dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/another\\.json$`
-    ),
+    dataRouteRegex: normalizeRegEx(`^\\/_next\\/data\\/${escapeRegex(buildId)}\\/another\\.json$`),
     page: '/another',
   },
   {
-    dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/blog\\.json$`
-    ),
+    dataRouteRegex: normalizeRegEx(`^\\/_next\\/data\\/${escapeRegex(buildId)}\\/blog\\.json$`),
     page: '/blog',
   },
   {
@@ -92,9 +86,7 @@ const expectedManifestRoutes = () => [
     page: '/early-request-end',
   },
   {
-    dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/enoent\\.json$`
-    ),
+    dataRouteRegex: normalizeRegEx(`^\\/_next\\/data\\/${escapeRegex(buildId)}\\/enoent\\.json$`),
     page: '/enoent',
   },
   {
@@ -104,9 +96,7 @@ const expectedManifestRoutes = () => [
     page: '/invalid-keys',
   },
   {
-    dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/non-json\\.json$`
-    ),
+    dataRouteRegex: normalizeRegEx(`^\\/_next\\/data\\/${escapeRegex(buildId)}\\/non-json\\.json$`),
     page: '/non-json',
   },
   {
@@ -124,9 +114,7 @@ const expectedManifestRoutes = () => [
     },
   },
   {
-    dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/promise\\.json$`
-    ),
+    dataRouteRegex: normalizeRegEx(`^\\/_next\\/data\\/${escapeRegex(buildId)}\\/promise\\.json$`),
     page: '/promise',
   },
   {
@@ -148,9 +136,7 @@ const expectedManifestRoutes = () => [
     page: '/promise/mutate-res-props',
   },
   {
-    dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/refresh\\.json$`
-    ),
+    dataRouteRegex: normalizeRegEx(`^\\/_next\\/data\\/${escapeRegex(buildId)}\\/refresh\\.json$`),
     page: '/refresh',
   },
   {
@@ -160,9 +146,7 @@ const expectedManifestRoutes = () => [
     page: '/rewrite-target',
   },
   {
-    dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/slow\\.json$`
-    ),
+    dataRouteRegex: normalizeRegEx(`^\\/_next\\/data\\/${escapeRegex(buildId)}\\/slow\\.json$`),
     page: '/slow',
   },
   {
@@ -309,9 +293,7 @@ const runTests = (isDev = false, isDeploy = false) => {
     })()`)
 
     await browser.waitForElementByCss('h1')
-    expect(await browser.elementByCss('html').text()).toContain(
-      'This page could not be found'
-    )
+    expect(await browser.elementByCss('html').text()).toContain('This page could not be found')
     expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
@@ -338,9 +320,7 @@ const runTests = (isDev = false, isDeploy = false) => {
     })()`)
 
     await browser.waitForElementByCss('h1')
-    expect(await browser.elementByCss('html').text()).toContain(
-      'This page could not be found'
-    )
+    expect(await browser.elementByCss('html').text()).toContain('This page could not be found')
     expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
@@ -397,10 +377,7 @@ const runTests = (isDev = false, isDeploy = false) => {
     expect(JSON.parse(query)).toEqual({ path: ['first'] })
 
     const data = JSON.parse(
-      await renderViaHTTP(
-        next.url,
-        `/_next/data/${buildId}/catchall/first.json`
-      )
+      await renderViaHTTP(next.url, `/_next/data/${buildId}/catchall/first.json`)
     )
 
     expect(data.pageProps.params).toEqual({ path: ['first'] })
@@ -539,18 +516,13 @@ const runTests = (isDev = false, isDeploy = false) => {
   })
 
   it('should return data correctly', async () => {
-    const data = JSON.parse(
-      await renderViaHTTP(next.url, `/_next/data/${buildId}/something.json`)
-    )
+    const data = JSON.parse(await renderViaHTTP(next.url, `/_next/data/${buildId}/something.json`))
     expect(data.pageProps.world).toBe('world')
   })
 
   it('should pass query for data request', async () => {
     const data = JSON.parse(
-      await renderViaHTTP(
-        next.url,
-        `/_next/data/${buildId}/something.json?another=thing`
-      )
+      await renderViaHTTP(next.url, `/_next/data/${buildId}/something.json?another=thing`)
     )
     expect(data.pageProps.query.another).toBe('thing')
   })
@@ -586,10 +558,7 @@ const runTests = (isDev = false, isDeploy = false) => {
   })
 
   it('should provide correct query value for dynamic page', async () => {
-    const html = await renderViaHTTP(
-      next.url,
-      '/blog/post-1?post=something-else'
-    )
+    const html = await renderViaHTTP(next.url, '/blog/post-1?post=something-else')
     const $ = cheerio.load(html)
     const query = JSON.parse($('#query').text())
     expect(query.post).toBe('post-1')
@@ -608,9 +577,7 @@ const runTests = (isDev = false, isDeploy = false) => {
     await browser.eval('window.beforeNav = true')
     await browser.elementByCss('#something-query').click()
     await browser.waitForElementByCss('#initial-query')
-    const query = JSON.parse(
-      await browser.elementByCss('#initial-query').text()
-    )
+    const query = JSON.parse(await browser.elementByCss('#initial-query').text())
     expect(await browser.eval('window.beforeNav')).toBe(true)
     expect(query.another).toBe('thing')
   })
@@ -730,16 +697,12 @@ const runTests = (isDev = false, isDeploy = false) => {
       expect(html).toContain(
         `Additional keys were returned from \`getServerSideProps\`. Properties intended for your component must be nested under the \`props\` key, e.g.:`
       )
-      expect(html).toContain(
-        `Keys that need to be moved: world, query, params, time, random`
-      )
+      expect(html).toContain(`Keys that need to be moved: world, query, params, time, random`)
     })
 
     it('should show error for invalid JSON returned from getServerSideProps', async () => {
       const html = await renderViaHTTP(next.url, '/non-json')
-      expect(html).toContain(
-        'Error serializing `.time` returned from `getServerSideProps`'
-      )
+      expect(html).toContain('Error serializing `.time` returned from `getServerSideProps`')
     })
 
     it('should show error for invalid JSON returned from getStaticProps on CST', async () => {
@@ -754,26 +717,17 @@ const runTests = (isDev = false, isDeploy = false) => {
 
     it('should show error for accessing res after gssp returns', async () => {
       const html = await renderViaHTTP(next.url, '/promise/mutate-res')
-      expect(html).toContain(
-        `You should not access 'res' after getServerSideProps resolves`
-      )
+      expect(html).toContain(`You should not access 'res' after getServerSideProps resolves`)
     })
 
     it('should show error for accessing res through props promise after gssp returns', async () => {
       const html = await renderViaHTTP(next.url, '/promise/mutate-res-props')
-      expect(html).toContain(
-        `You should not access 'res' after getServerSideProps resolves`
-      )
+      expect(html).toContain(`You should not access 'res' after getServerSideProps resolves`)
     })
 
     it('should only warn for accessing res if not streaming', async () => {
-      const html = await renderViaHTTP(
-        next.url,
-        '/promise/mutate-res-no-streaming'
-      )
-      expect(html).not.toContain(
-        `You should not access 'res' after getServerSideProps resolves`
-      )
+      const html = await renderViaHTTP(next.url, '/promise/mutate-res-no-streaming')
+      expect(html).not.toContain(`You should not access 'res' after getServerSideProps resolves`)
       expect(next.cliOutput).toContain(
         `You should not access 'res' after getServerSideProps resolves`
       )
@@ -789,9 +743,7 @@ const runTests = (isDev = false, isDeploy = false) => {
 
     if (!isDeploy) {
       it('should output routes-manifest correctly', async () => {
-        const { dataRoutes } = JSON.parse(
-          await next.readFile('.next/routes-manifest.json')
-        )
+        const { dataRoutes } = JSON.parse(await next.readFile('.next/routes-manifest.json'))
         for (const route of dataRoutes) {
           route.dataRouteRegex = normalizeRegEx(route.dataRouteRegex)
         }
@@ -806,10 +758,7 @@ const runTests = (isDev = false, isDeploy = false) => {
         'private, no-cache, no-store, max-age=0, must-revalidate'
       )
 
-      const resData = await fetchViaHTTP(
-        next.url,
-        `/_next/data/${buildId}/something.json`
-      )
+      const resData = await fetchViaHTTP(next.url, `/_next/data/${buildId}/something.json`)
       expect(resData.headers.get('cache-control')).toBe(
         'private, no-cache, no-store, max-age=0, must-revalidate'
       )
@@ -819,10 +768,7 @@ const runTests = (isDev = false, isDeploy = false) => {
       const resPage = await fetchViaHTTP(next.url, `/custom-cache`)
       expect(resPage.headers.get('cache-control')).toBe('public, max-age=3600')
 
-      const resData = await fetchViaHTTP(
-        next.url,
-        `/_next/data/${buildId}/custom-cache.json`
-      )
+      const resData = await fetchViaHTTP(next.url, `/_next/data/${buildId}/custom-cache.json`)
       expect(resData.headers.get('cache-control')).toBe('public, max-age=3600')
     })
 

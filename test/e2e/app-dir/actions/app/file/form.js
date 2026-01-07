@@ -3,8 +3,7 @@ import { useActionState } from 'react'
 import { accountForOverhead } from '../../account-for-overhead'
 
 export default function Form({ action }) {
-  const submit = (megaBytes) =>
-    action('a'.repeat(accountForOverhead(megaBytes)))
+  const submit = (megaBytes) => action('a'.repeat(accountForOverhead(megaBytes)))
   const [, submit1] = useActionState(() => submit(1), undefined)
   const [, submit3] = useActionState(() => submit(3), undefined)
   return (

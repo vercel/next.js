@@ -6,10 +6,7 @@ const glob = require('../util/glob')
 const logger = require('../util/logger')
 const { statsAppDir, diffingDir } = require('../constants')
 
-module.exports = async function collectDiffs(
-  filesToTrack = [],
-  initial = false
-) {
+module.exports = async function collectDiffs(filesToTrack = [], initial = false) {
   if (initial) {
     logger('Setting up directory for diffing')
     // set-up diffing directory
@@ -21,9 +18,7 @@ module.exports = async function collectDiffs(
     const toRemove = await glob('!(.git)', { cwd: diffingDir, dot: true })
 
     await Promise.all(
-      toRemove.map((file) =>
-        fs.rm(path.join(diffingDir, file), { recursive: true, force: true })
-      )
+      toRemove.map((file) => fs.rm(path.join(diffingDir, file), { recursive: true, force: true }))
     )
   }
   const diffs = {}
@@ -55,10 +50,7 @@ module.exports = async function collectDiffs(
       }
 
       if (curFiles.length > 0) {
-        const prettierPath = path.join(
-          __dirname,
-          '../../node_modules/.bin/prettier'
-        )
+        const prettierPath = path.join(__dirname, '../../node_modules/.bin/prettier')
         await exec(
           `cd "${process.env.LOCAL_STATS ? process.cwd() : diffingDir}" && ` +
             `${prettierPath} --write --no-error-on-unmatched-pattern ${curFiles
@@ -74,9 +66,7 @@ module.exports = async function collectDiffs(
   if (initial) {
     await exec(`cd ${diffingDir} && git commit -m 'initial commit'`)
   } else {
-    let { stdout: renamedFiles } = await exec(
-      `cd ${diffingDir} && git diff --name-status HEAD`
-    )
+    let { stdout: renamedFiles } = await exec(`cd ${diffingDir} && git diff --name-status HEAD`)
     renamedFiles = renamedFiles
       .trim()
       .split('\n')
@@ -95,9 +85,7 @@ module.exports = async function collectDiffs(
 
     await exec(`cd ${diffingDir} && git add .`)
 
-    let { stdout: changedFiles } = await exec(
-      `cd ${diffingDir} && git diff --name-only HEAD`
-    )
+    let { stdout: changedFiles } = await exec(`cd ${diffingDir} && git diff --name-only HEAD`)
     changedFiles = changedFiles.trim().split('\n')
 
     for (const file of changedFiles) {
@@ -110,9 +98,7 @@ module.exports = async function collectDiffs(
       }
 
       try {
-        let { stdout } = await exec(
-          `cd ${diffingDir} && git diff --minimal HEAD ${file}`
-        )
+        let { stdout } = await exec(`cd ${diffingDir} && git diff --minimal HEAD ${file}`)
         stdout = (stdout.split(file).pop() || '').trim()
         if (stdout.length > 0 && !isLikelyHashOrIDChange(stdout)) {
           diffs[fileKey] = stdout
@@ -151,9 +137,7 @@ function isLikelyHashOrIDChange(diff) {
     const deletionTokens = deletions[i]
 
     // Identify differing tokens
-    const differingTokens = additionTokens.filter(
-      (token, index) => token !== deletionTokens[index]
-    )
+    const differingTokens = additionTokens.filter((token, index) => token !== deletionTokens[index])
 
     // Analyze differing tokens
     for (const token of differingTokens) {

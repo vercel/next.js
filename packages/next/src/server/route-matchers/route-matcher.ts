@@ -3,10 +3,7 @@ import type { RouteDefinition } from '../route-definitions/route-definition'
 import type { Params } from '../request/params'
 
 import { isDynamicRoute } from '../../shared/lib/router/utils'
-import {
-  getRouteMatcher,
-  type RouteMatchFn,
-} from '../../shared/lib/router/utils/route-matcher'
+import { getRouteMatcher, type RouteMatchFn } from '../../shared/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
 
 type RouteMatchResult = {

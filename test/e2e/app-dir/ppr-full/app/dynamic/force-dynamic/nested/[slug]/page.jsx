@@ -13,11 +13,7 @@ export default async (props) => {
   const { slug } = params
 
   return (
-    <Suspense
-      fallback={
-        <Dynamic pathname={`/dynamic/force-dynamic/nested/${slug}`} fallback />
-      }
-    >
+    <Suspense fallback={<Dynamic pathname={`/dynamic/force-dynamic/nested/${slug}`} fallback />}>
       <Dynamic pathname={`/dynamic/force-dynamic/nested/${slug}`} />
     </Suspense>
   )

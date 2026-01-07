@@ -30,14 +30,8 @@ const listModules = hasFlag('list-modules')
 const listExternals = hasFlag('list-externals')
 
 const nextDir = path.join(__dirname, '..', 'packages', 'next')
-const bundlePath = path.join(
-  nextDir,
-  'dist/compiled/dev-server/start-server.js'
-)
-const reportPath = path.join(
-  nextDir,
-  'dist/compiled/dev-server/bundle-report.html'
-)
+const bundlePath = path.join(nextDir, 'dist/compiled/dev-server/start-server.js')
+const reportPath = path.join(nextDir, 'dist/compiled/dev-server/bundle-report.html')
 
 console.log('\x1b[34m=== Dev Server Bundle Analyzer ===\x1b[0m')
 console.log('')
@@ -95,9 +89,7 @@ if (listExternals) {
 
   // Find external requires
   const externalMatches =
-    content.match(
-      /require\("(next\/dist\/[^"]+|@next\/[^"]+|styled-jsx[^"]*)"\)/g
-    ) || []
+    content.match(/require\("(next\/dist\/[^"]+|@next\/[^"]+|styled-jsx[^"]*)"\)/g) || []
   const externals = [...new Set(externalMatches)]
     .map((m) => m.match(/require\("([^"]+)"\)/)[1])
     .sort()
@@ -109,10 +101,7 @@ if (listExternals) {
 
 // Output JSON stats
 if (outputJson) {
-  const statsJsonPath = path.join(
-    nextDir,
-    'dist/compiled/dev-server/stats.json'
-  )
+  const statsJsonPath = path.join(nextDir, 'dist/compiled/dev-server/stats.json')
   console.log(`Stats JSON: ${statsJsonPath}`)
   console.log('(Run with ANALYZE_REASONS=1 for detailed stats)')
 }
@@ -121,11 +110,7 @@ if (outputJson) {
 if (openBrowser) {
   console.log('Opening report in browser...')
   const opener =
-    process.platform === 'darwin'
-      ? 'open'
-      : process.platform === 'win32'
-        ? 'start'
-        : 'xdg-open'
+    process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open'
   try {
     execSync(`${opener} "${reportPath}"`, { stdio: 'ignore' })
   } catch {

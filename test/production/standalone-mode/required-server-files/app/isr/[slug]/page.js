@@ -7,14 +7,11 @@ export function generateStaticParams() {
 export default async function Page({ params }) {
   console.log('rendering /isr/[slug]')
 
-  const data = await fetch(
-    'https://next-data-api-endpoint.vercel.app/api/random',
-    {
-      next: {
-        tags: ['isr-page'],
-      },
-    }
-  ).then((res) => res.text())
+  const data = await fetch('https://next-data-api-endpoint.vercel.app/api/random', {
+    next: {
+      tags: ['isr-page'],
+    },
+  }).then((res) => res.text())
 
   return (
     <>

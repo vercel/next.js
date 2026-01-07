@@ -1,10 +1,4 @@
-import {
-  check,
-  findPort,
-  killApp,
-  launchApp,
-  renderViaHTTP,
-} from 'next-test-utils'
+import { check, findPort, killApp, launchApp, renderViaHTTP } from 'next-test-utils'
 import fs from 'fs-extra'
 import { join } from 'path'
 
@@ -27,9 +21,7 @@ describe('turbopack unsupported features log', () => {
       try {
         expect(await renderViaHTTP(appPort, '/')).toContain('hello world')
         expect(output).toContain('(Turbopack)')
-        expect(output).not.toContain(
-          'You are using configuration and/or tools that are not yet'
-        )
+        expect(output).not.toContain('You are using configuration and/or tools that are not yet')
       } finally {
         await killApp(app).catch(() => {})
       }
@@ -51,9 +43,7 @@ describe('turbopack unsupported features log', () => {
 
       try {
         expect(output).toContain('(Turbopack)')
-        expect(output).not.toContain(
-          'You are using configuration and/or tools that are not yet'
-        )
+        expect(output).not.toContain('You are using configuration and/or tools that are not yet')
 
         expect(await renderViaHTTP(appPort, '/')).toContain('hello world')
       } finally {
@@ -85,9 +75,7 @@ describe('turbopack unsupported features log', () => {
       try {
         await check(() => {
           expect(output).toContain('(Turbopack)')
-          expect(output).toContain(
-            'You are using configuration and/or tools that are not yet'
-          )
+          expect(output).toContain('You are using configuration and/or tools that are not yet')
           return 'success'
         }, /success/)
       } finally {

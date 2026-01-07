@@ -16,12 +16,8 @@ let hydrationErrorState: HydrationErrorState = {}
 
 const squashedHydrationErrorDetails = new WeakMap<Error, HydrationErrorState>()
 
-export function getSquashedHydrationErrorDetails(
-  error: Error
-): HydrationErrorState | null {
-  return squashedHydrationErrorDetails.has(error)
-    ? squashedHydrationErrorDetails.get(error)!
-    : null
+export function getSquashedHydrationErrorDetails(error: Error): HydrationErrorState | null {
+  return squashedHydrationErrorDetails.has(error) ? squashedHydrationErrorDetails.get(error)! : null
 }
 
 export function attachHydrationErrorState(error: Error) {
@@ -163,8 +159,7 @@ function generateHydrationDiffReact18(
     const matchFirstContent =
       hydrationWarningType === 'tag' && i === components.length - firstIndex - 1
     const matchSecondContent =
-      hydrationWarningType === 'tag' &&
-      i === components.length - secondIndex - 1
+      hydrationWarningType === 'tag' && i === components.length - secondIndex - 1
     if (matchFirstContent || matchSecondContent) {
       const spaces = ' '.repeat(Math.max(i * 2 - 2, 0) + 2)
       diff += `> ${spaces}<${component}>\n`

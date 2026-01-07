@@ -63,10 +63,7 @@ describe('404-page-router', () => {
         if (options.middleware) {
           await next.patchFile(
             'middleware.js',
-            await fs.readFile(
-              path.join(__dirname, 'app', 'middleware.js'),
-              'utf8'
-            )
+            await fs.readFile(path.join(__dirname, 'app', 'middleware.js'), 'utf8')
           )
         }
 
@@ -74,9 +71,7 @@ describe('404-page-router', () => {
           .replace('BASE_PATH', options.basePath ? "basePath: '/docs'," : '')
           .replace(
             'I18N',
-            options.i18n
-              ? "i18n: { defaultLocale: 'en-ca', locales: ['en-ca', 'en-fr'] },"
-              : ''
+            options.i18n ? "i18n: { defaultLocale: 'en-ca', locales: ['en-ca', 'en-fr'] }," : ''
           )
 
         await next.patchFile('next.config.js', curNextConfig)
@@ -124,10 +119,7 @@ describe('404-page-router', () => {
           const query = url.split('?', 2)[1] ?? '<empty>'
           const browser = await next.browser(url)
 
-          await check(
-            () => browser.eval('next.router.isReady ? "yes" : "no"'),
-            'yes'
-          )
+          await check(() => browser.eval('next.router.isReady ? "yes" : "no"'), 'yes')
           expect(await browser.elementById('pathname').text()).toEqual(pathname)
           expect(await browser.elementById('asPath').text()).toEqual(asPath)
           expect(await browser.elementById('query').text()).toEqual(query)
@@ -138,10 +130,7 @@ describe('404-page-router', () => {
       // https://github.com/vercel/next.js/issues/44293
       it('should not throw any errors when re-fetching the route info', async () => {
         const browser = await next.browser('/?test=1')
-        await check(
-          () => browser.eval('next.router.isReady ? "yes" : "no"'),
-          'yes'
-        )
+        await check(() => browser.eval('next.router.isReady ? "yes" : "no"'), 'yes')
 
         await retry(async () => {
           expect(await browser.elementById('query').text()).toEqual('test=1')

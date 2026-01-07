@@ -13,9 +13,8 @@ export default async function Page() {
     <main>
       <DebugRenderKind />
       <p id="intro">
-        This page errors after a cookies call, so we should only see the error
-        in a runtime prefetch or a navigation (and not during prerendering /
-        prefetching)
+        This page errors after a cookies call, so we should only see the error in a runtime prefetch
+        or a navigation (and not during prerendering / prefetching)
       </p>
       <Suspense fallback={<div style={{ color: 'grey' }}>Loading 1...</div>}>
         <ErrorBoundary>

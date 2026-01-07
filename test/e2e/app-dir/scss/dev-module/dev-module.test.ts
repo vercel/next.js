@@ -24,9 +24,9 @@ describe.each([
 
     it('should have CSS for page', async () => {
       const browser = await next.browser('/')
-      expect(
-        await browser.elementByCss('#verify-red').getComputedCss('color')
-      ).toBe(colorToRgb('red'))
+      expect(await browser.elementByCss('#verify-red').getComputedCss('color')).toBe(
+        colorToRgb('red')
+      )
     })
   }
 )

@@ -7,14 +7,9 @@ describe('pages-to-app-routing', () => {
 
   it('should work using browser', async () => {
     const browser = await next.browser('/abc')
-    expect(await browser.elementByCss('#params').text()).toBe(
-      'Params: {"slug":"abc"}'
-    )
+    expect(await browser.elementByCss('#params').text()).toBe('Params: {"slug":"abc"}')
 
-    await browser
-      .elementByCss('#to-about-link')
-      .click()
-      .waitForElementByCss('#app-page')
+    await browser.elementByCss('#to-about-link').click().waitForElementByCss('#app-page')
 
     expect(await browser.elementByCss('#app-page').text()).toBe('About')
   })

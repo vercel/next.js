@@ -150,53 +150,35 @@ describe('app dir - next/font', () => {
 
         // layout
         expect(
-          await browser.eval(
-            'getComputedStyle(document.querySelector("#root-layout")).fontFamily'
-          )
+          await browser.eval('getComputedStyle(document.querySelector("#root-layout")).fontFamily')
         ).toMatch(/^font1, "font1 Fallback"$/)
         expect(
-          await browser.eval(
-            'getComputedStyle(document.querySelector("#root-layout")).fontWeight'
-          )
+          await browser.eval('getComputedStyle(document.querySelector("#root-layout")).fontWeight')
         ).toBe('400')
         expect(
-          await browser.eval(
-            'getComputedStyle(document.querySelector("#root-layout")).fontStyle'
-          )
+          await browser.eval('getComputedStyle(document.querySelector("#root-layout")).fontStyle')
         ).toBe('normal')
 
         // page
         expect(
-          await browser.eval(
-            'getComputedStyle(document.querySelector("#root-page")).fontFamily'
-          )
+          await browser.eval('getComputedStyle(document.querySelector("#root-page")).fontFamily')
         ).toMatch(/^font2, "font2 Fallback"$/)
         expect(
-          await browser.eval(
-            'getComputedStyle(document.querySelector("#root-page")).fontWeight'
-          )
+          await browser.eval('getComputedStyle(document.querySelector("#root-page")).fontWeight')
         ).toBe('400')
         expect(
-          await browser.eval(
-            'getComputedStyle(document.querySelector("#root-page")).fontStyle'
-          )
+          await browser.eval('getComputedStyle(document.querySelector("#root-page")).fontStyle')
         ).toBe('normal')
 
         // Comp
         expect(
-          await browser.eval(
-            'getComputedStyle(document.querySelector("#root-comp")).fontFamily'
-          )
+          await browser.eval('getComputedStyle(document.querySelector("#root-comp")).fontFamily')
         ).toMatch(/^font3, "font3 Fallback"$$/)
         expect(
-          await browser.eval(
-            'getComputedStyle(document.querySelector("#root-comp")).fontWeight'
-          )
+          await browser.eval('getComputedStyle(document.querySelector("#root-comp")).fontWeight')
         ).toBe('900')
         expect(
-          await browser.eval(
-            'getComputedStyle(document.querySelector("#root-comp")).fontStyle'
-          )
+          await browser.eval('getComputedStyle(document.querySelector("#root-comp")).fontStyle')
         ).toBe('italic')
       })
 
@@ -205,19 +187,13 @@ describe('app dir - next/font', () => {
 
         // root layout
         expect(
-          await browser.eval(
-            'getComputedStyle(document.querySelector("#root-layout")).fontFamily'
-          )
+          await browser.eval('getComputedStyle(document.querySelector("#root-layout")).fontFamily')
         ).toMatch(/^font1, "font1 Fallback"$/)
         expect(
-          await browser.eval(
-            'getComputedStyle(document.querySelector("#root-layout")).fontWeight'
-          )
+          await browser.eval('getComputedStyle(document.querySelector("#root-layout")).fontWeight')
         ).toBe('400')
         expect(
-          await browser.eval(
-            'getComputedStyle(document.querySelector("#root-layout")).fontStyle'
-          )
+          await browser.eval('getComputedStyle(document.querySelector("#root-layout")).fontStyle')
         ).toBe('normal')
 
         // layout
@@ -232,43 +208,29 @@ describe('app dir - next/font', () => {
           )
         ).toBe('100')
         expect(
-          await browser.eval(
-            'getComputedStyle(document.querySelector("#client-layout")).fontStyle'
-          )
+          await browser.eval('getComputedStyle(document.querySelector("#client-layout")).fontStyle')
         ).toBe('normal')
 
         // page
         expect(
-          await browser.eval(
-            'getComputedStyle(document.querySelector("#client-page")).fontFamily'
-          )
+          await browser.eval('getComputedStyle(document.querySelector("#client-page")).fontFamily')
         ).toMatch(/^font5, "font5 Fallback"$/)
         expect(
-          await browser.eval(
-            'getComputedStyle(document.querySelector("#client-page")).fontWeight'
-          )
+          await browser.eval('getComputedStyle(document.querySelector("#client-page")).fontWeight')
         ).toBe('400')
         expect(
-          await browser.eval(
-            'getComputedStyle(document.querySelector("#client-page")).fontStyle'
-          )
+          await browser.eval('getComputedStyle(document.querySelector("#client-page")).fontStyle')
         ).toBe('italic')
 
         // Comp
         expect(
-          await browser.eval(
-            'getComputedStyle(document.querySelector("#client-comp")).fontFamily'
-          )
+          await browser.eval('getComputedStyle(document.querySelector("#client-comp")).fontFamily')
         ).toMatch(/^font6, "font6 Fallback"$$/)
         expect(
-          await browser.eval(
-            'getComputedStyle(document.querySelector("#client-comp")).fontWeight'
-          )
+          await browser.eval('getComputedStyle(document.querySelector("#client-comp")).fontWeight')
         ).toBe('400')
         expect(
-          await browser.eval(
-            'getComputedStyle(document.querySelector("#client-comp")).fontStyle'
-          )
+          await browser.eval('getComputedStyle(document.querySelector("#client-comp")).fontStyle')
         ).toBe('normal')
       })
     })
@@ -314,13 +276,9 @@ describe('app dir - next/font', () => {
             expect(link.as).toBe('font')
             expect(link.crossorigin).toBe('')
             if (process.env.IS_TURBOPACK_TEST) {
-              expect(link.href).toMatch(
-                /\/_next\/static\/media\/(.*)-s.p.(.*)\.woff2/
-              )
+              expect(link.href).toMatch(/\/_next\/static\/media\/(.*)-s.p.(.*)\.woff2/)
             } else {
-              expect(link.href).toMatch(
-                /\/_next\/static\/media\/(.*)-s.p.woff2/
-              )
+              expect(link.href).toMatch(/\/_next\/static\/media\/(.*)-s.p.woff2/)
             }
             expect(link.rel).toBe('preload')
             expect(link.type).toBe('font/woff2')
@@ -339,13 +297,9 @@ describe('app dir - next/font', () => {
             expect(link.as).toBe('font')
             expect(link.crossorigin).toBe('')
             if (process.env.IS_TURBOPACK_TEST) {
-              expect(link.href).toMatch(
-                /\/_next\/static\/media\/(.*)-s.p.(.*)\.woff2/
-              )
+              expect(link.href).toMatch(/\/_next\/static\/media\/(.*)-s.p.(.*)\.woff2/)
             } else {
-              expect(link.href).toMatch(
-                /\/_next\/static\/media\/(.*)-s.p.woff2/
-              )
+              expect(link.href).toMatch(/\/_next\/static\/media\/(.*)-s.p.woff2/)
             }
             expect(link.rel).toBe('preload')
             expect(link.type).toBe('font/woff2')
@@ -364,13 +318,9 @@ describe('app dir - next/font', () => {
             expect(link.as).toBe('font')
             expect(link.crossorigin).toBe('')
             if (process.env.IS_TURBOPACK_TEST) {
-              expect(link.href).toMatch(
-                /\/_next\/static\/media\/(.*)-s.p.(.*)\.woff2/
-              )
+              expect(link.href).toMatch(/\/_next\/static\/media\/(.*)-s.p.(.*)\.woff2/)
             } else {
-              expect(link.href).toMatch(
-                /\/_next\/static\/media\/(.*)-s.p.woff2/
-              )
+              expect(link.href).toMatch(/\/_next\/static\/media\/(.*)-s.p.woff2/)
             }
             expect(link.rel).toBe('preload')
             expect(link.type).toBe('font/woff2')
@@ -389,13 +339,9 @@ describe('app dir - next/font', () => {
             expect(link.as).toBe('font')
             expect(link.crossorigin).toBe('')
             if (process.env.IS_TURBOPACK_TEST) {
-              expect(link.href).toMatch(
-                /\/_next\/static\/media\/(.*)-s.p.(.*)\.woff2/
-              )
+              expect(link.href).toMatch(/\/_next\/static\/media\/(.*)-s.p.(.*)\.woff2/)
             } else {
-              expect(link.href).toMatch(
-                /\/_next\/static\/media\/(.*)-s.p.woff2/
-              )
+              expect(link.href).toMatch(/\/_next\/static\/media\/(.*)-s.p.woff2/)
             }
             expect(link.rel).toBe('preload')
             expect(link.type).toBe('font/woff2')
@@ -437,8 +383,7 @@ describe('app dir - next/font', () => {
         const browser = await next.browser('/navigation')
 
         // Before navigation, root layout imports the font
-        const preloadBeforeNavigation =
-          await browser.elementsByCss('link[as="font"]')
+        const preloadBeforeNavigation = await browser.elementsByCss('link[as="font"]')
         expect(preloadBeforeNavigation.length).toBe(1)
         const href = await preloadBeforeNavigation[0].getAttribute('href')
         if (process.env.IS_TURBOPACK_TEST) {
@@ -452,15 +397,12 @@ describe('app dir - next/font', () => {
         await browser.waitForElementByCss('#page-with-same-font')
 
         // After navigating
-        const preloadAfterNavigation =
-          await browser.elementsByCss('link[as="font"]')
+        const preloadAfterNavigation = await browser.elementsByCss('link[as="font"]')
         expect(preloadAfterNavigation.length).toBe(1)
 
         const href2 = await preloadAfterNavigation[0].getAttribute('href')
         if (process.env.IS_TURBOPACK_TEST) {
-          expect(href2).toMatch(
-            /\/_next\/static\/media\/(.*)-s\.p\.(.*)\.woff2/
-          )
+          expect(href2).toMatch(/\/_next\/static\/media\/(.*)-s\.p\.(.*)\.woff2/)
         } else {
           expect(href2).toMatch(/\/_next\/static\/media\/(.*)-s\.p\.woff2/)
         }
@@ -476,15 +418,10 @@ describe('app dir - next/font', () => {
           // Break file
           await next.patchFile(
             'fonts/index.js',
-            font1Content.replace(
-              './font1_roboto.woff2',
-              './does-not-exist.woff2'
-            )
+            font1Content.replace('./font1_roboto.woff2', './does-not-exist.woff2')
           )
           await waitForRedbox(browser)
-          expect(await getRedboxSource(browser)).toInclude(
-            "Can't resolve './does-not-exist.woff2'"
-          )
+          expect(await getRedboxSource(browser)).toInclude("Can't resolve './does-not-exist.woff2'")
 
           // Fix file
           await next.patchFile('fonts/index.js', font1Content)

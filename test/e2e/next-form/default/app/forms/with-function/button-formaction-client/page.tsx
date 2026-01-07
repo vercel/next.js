@@ -9,11 +9,7 @@ export default function Page() {
   const [query, setQuery] = useState('')
   return (
     <Form action="/search" id="search-form">
-      <input
-        name="query"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-      />
+      <input name="query" value={query} onChange={(e) => setQuery(e.target.value)} />
 
       <NavigateButton to={destination + '?' + new URLSearchParams({ query })}>
         Submit (client action)
@@ -22,10 +18,7 @@ export default function Page() {
   )
 }
 
-function NavigateButton({
-  to,
-  ...props
-}: { to: string } & ComponentProps<'button'>) {
+function NavigateButton({ to, ...props }: { to: string } & ComponentProps<'button'>) {
   const router = useRouter()
   const [, dispatch] = useActionState(() => router.push(to), undefined)
   return <button type="submit" formAction={dispatch} {...props} />

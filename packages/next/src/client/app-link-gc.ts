@@ -5,10 +5,7 @@ export function linkGc() {
       for (const mutation of mutationList) {
         if (mutation.type === 'childList') {
           for (const node of mutation.addedNodes) {
-            if (
-              'tagName' in node &&
-              (node as HTMLLinkElement).tagName === 'LINK'
-            ) {
+            if ('tagName' in node && (node as HTMLLinkElement).tagName === 'LINK') {
               const link = node as HTMLLinkElement
               if (link.dataset.precedence?.startsWith('next')) {
                 const href = link.getAttribute('href')
@@ -17,9 +14,7 @@ export function linkGc() {
                   if (version) {
                     const currentOrigin = window.location.origin
                     const allLinks = [
-                      ...document.querySelectorAll(
-                        'link[href^="' + resource + '"]'
-                      ),
+                      ...document.querySelectorAll('link[href^="' + resource + '"]'),
                       // It's possible that the resource is a full URL or only pathname,
                       // so we need to remove the alternative href as well.
                       ...document.querySelectorAll(

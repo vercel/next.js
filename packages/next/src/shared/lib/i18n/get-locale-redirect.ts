@@ -23,12 +23,8 @@ function getLocaleFromCookie(
   i18n: I18NConfig,
   headers: { [key: string]: string | string[] | undefined } = {}
 ) {
-  const nextLocale = getCookieParser(
-    headers || {}
-  )()?.NEXT_LOCALE?.toLowerCase()
-  return nextLocale
-    ? i18n.locales.find((locale) => nextLocale === locale.toLowerCase())
-    : undefined
+  const nextLocale = getCookieParser(headers || {})()?.NEXT_LOCALE?.toLowerCase()
+  return nextLocale ? i18n.locales.find((locale) => nextLocale === locale.toLowerCase()) : undefined
 }
 
 function detectLocale({
@@ -57,10 +53,7 @@ function getAcceptPreferredLocale(
   i18n: I18NConfig,
   headers?: { [key: string]: string | string[] | undefined }
 ) {
-  if (
-    headers?.['accept-language'] &&
-    !Array.isArray(headers['accept-language'])
-  ) {
+  if (headers?.['accept-language'] && !Array.isArray(headers['accept-language'])) {
     try {
       return acceptLanguage(headers['accept-language'], i18n.locales)
     } catch (err) {}
@@ -89,11 +82,7 @@ export function getLocaleRedirect({
       domainLocale,
     })
 
-    const preferredDomain = detectDomainLocale(
-      nextConfig.i18n.domains,
-      undefined,
-      preferredLocale
-    )
+    const preferredDomain = detectDomainLocale(nextConfig.i18n.domains, undefined, preferredLocale)
 
     if (domainLocale && preferredDomain) {
       const isPDomain = preferredDomain.domain === domainLocale.domain

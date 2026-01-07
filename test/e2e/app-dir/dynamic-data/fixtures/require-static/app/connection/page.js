@@ -7,8 +7,8 @@ export default async function Page(props) {
   return (
     <div>
       <section>
-        This example uses `connection()` but is configured with `dynamic =
-        'error'` which should cause the page to fail to build
+        This example uses `connection()` but is configured with `dynamic = 'error'` which should
+        cause the page to fail to build
       </section>
     </div>
   )

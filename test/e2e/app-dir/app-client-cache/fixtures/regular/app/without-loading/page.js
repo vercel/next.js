@@ -27,9 +27,7 @@ export default function Page() {
         </Link>
       </div>
       <div>
-        <Link href="/without-loading/1?timeout=1000">
-          To Random Number - prefetch: auto, slow
-        </Link>
+        <Link href="/without-loading/1?timeout=1000">To Random Number - prefetch: auto, slow</Link>
       </div>
     </>
   )

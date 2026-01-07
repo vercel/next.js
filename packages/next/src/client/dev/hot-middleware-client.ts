@@ -1,8 +1,5 @@
 import { HMR_MESSAGE_SENT_TO_BROWSER } from '../../server/dev/hot-reloader-types'
-import type {
-  NextRouter,
-  PrivateRouteInfo,
-} from '../../shared/lib/router/router'
+import type { NextRouter, PrivateRouteInfo } from '../../shared/lib/router/router'
 import connect from './hot-reloader/pages/hot-reloader-pages'
 import { sendMessage } from './hot-reloader/pages/websocket'
 
@@ -31,8 +28,7 @@ export default () => {
     const router = window.next?.router
 
     // Determine if we're on an error page or the router is not initialized
-    const isOnErrorPage =
-      !router || router.pathname === '/404' || router.pathname === '/_error'
+    const isOnErrorPage = !router || router.pathname === '/404' || router.pathname === '/_error'
 
     switch (message.type) {
       case HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE: {
@@ -72,8 +68,7 @@ export default () => {
         const isCurrentPage = page === router?.pathname
 
         // Check if the page component is not yet loaded
-        const isPageNotLoaded =
-          page !== null && typeof router?.components?.[page] === 'undefined'
+        const isPageNotLoaded = page !== null && typeof router?.components?.[page] === 'undefined'
 
         // We enter this block if the newly added page is the one currently being viewed
         // but hasn't been loaded yet, or if we're on an error page.

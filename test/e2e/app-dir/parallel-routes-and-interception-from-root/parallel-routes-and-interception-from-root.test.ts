@@ -23,9 +23,7 @@ describe('parallel-routes-and-interception-from-root', () => {
     await browser.elementByCss('a').click()
 
     await retry(async () => {
-      expect(await browser.elementByCss('h2').text()).toBe(
-        'Page intercepted from root'
-      )
+      expect(await browser.elementByCss('h2').text()).toBe('Page intercepted from root')
     })
 
     // Ensure that the locale is still correctly rendered in the root layout.

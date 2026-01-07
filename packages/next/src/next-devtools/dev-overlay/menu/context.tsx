@@ -1,15 +1,6 @@
-import {
-  createContext,
-  useContext,
-  type Dispatch,
-  type SetStateAction,
-} from 'react'
+import { createContext, useContext, type Dispatch, type SetStateAction } from 'react'
 
-export type PanelStateKind =
-  | 'preferences'
-  | 'route-type'
-  | 'segment-explorer'
-  | 'panel-selector'
+export type PanelStateKind = 'preferences' | 'route-type' | 'segment-explorer' | 'panel-selector'
 
 export const PanelRouterContext = createContext<{
   panel: PanelStateKind | null

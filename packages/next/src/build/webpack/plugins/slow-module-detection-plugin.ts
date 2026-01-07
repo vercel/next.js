@@ -26,9 +26,7 @@ const getModuleIdentifier = (module: Module): string => {
 
 const getModuleDisplayName = (module: Module): string | undefined => {
   const resourcePath =
-    'resource' in module && typeof module.resource === 'string'
-      ? module.resource
-      : undefined
+    'resource' in module && typeof module.resource === 'string' ? module.resource : undefined
 
   if (!resourcePath) {
     return undefined
@@ -141,10 +139,7 @@ class ModuleBuildTimeAnalyzer {
             parentChildren = new Map()
             this.moduleChildren.set(currentModule, parentChildren)
           }
-          parentChildren.set(
-            getModuleIdentifier(previousModule),
-            previousModule
-          )
+          parentChildren.set(getModuleIdentifier(previousModule), previousModule)
         }
 
         previousModule = currentModule
@@ -159,9 +154,7 @@ class ModuleBuildTimeAnalyzer {
     }
 
     // Find root modules (those with no parents)
-    const rootModules = [...this.modules.values()].filter(
-      (node) => !this.moduleParents.has(node)
-    )
+    const rootModules = [...this.modules.values()].filter((node) => !this.moduleParents.has(node))
 
     const formatModuleNode = (node: Module, depth: number): string => {
       const moduleName = getModuleDisplayName(node) || ''
@@ -170,43 +163,28 @@ class ModuleBuildTimeAnalyzer {
         return formatChildModules(node, depth)
       }
 
-      const prefix =
-        ' ' + TreeSymbols.VERTICAL_LINE.repeat(depth) + TreeSymbols.BRANCH
+      const prefix = ' ' + TreeSymbols.VERTICAL_LINE.repeat(depth) + TreeSymbols.BRANCH
 
-      const moduleText = blue(
-        truncatePath(moduleName, PATH_TRUNCATION_LENGTH - prefix.length)
-      )
+      const moduleText = blue(truncatePath(moduleName, PATH_TRUNCATION_LENGTH - prefix.length))
 
       const buildTimeMs = this.moduleBuildTimes.get(node)
-      const duration = buildTimeMs
-        ? yellow(` (${Math.ceil(buildTimeMs)}ms)`)
-        : ''
+      const duration = buildTimeMs ? yellow(` (${Math.ceil(buildTimeMs)}ms)`) : ''
 
-      return (
-        prefix +
-        moduleText +
-        duration +
-        '\n' +
-        formatChildModules(node, depth + 1)
-      )
+      return prefix + moduleText + duration + '\n' + formatChildModules(node, depth + 1)
     }
 
     const formatChildModules = (node: Module, depth: number): string => {
       const children = this.moduleChildren.get(node)
       if (!children) return ''
 
-      return [...children]
-        .map(([_, child]) => formatModuleNode(child, depth))
-        .join('')
+      return [...children].map(([_, child]) => formatModuleNode(child, depth)).join('')
     }
 
     const report = rootModules.map((root) => formatModuleNode(root, 0)).join('')
 
     if (report) {
       console.log(
-        green(
-          `🐌 Detected slow modules while compiling ${this.options.compilerType}:`
-        ) +
+        green(`🐌 Detected slow modules while compiling ${this.options.compilerType}:`) +
           '\n' +
           report
       )

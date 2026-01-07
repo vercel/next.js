@@ -9,13 +9,9 @@ export default function Home({ message }) {
       <Link href="/stream-long">Stream a long response</Link>
       <Link href="/stream-end-stream">Test streaming after response ends</Link>
       <div />
-      <Link href="/stream-header-end">
-        Attempt to add a header after stream ends
-      </Link>
+      <Link href="/stream-header-end">Attempt to add a header after stream ends</Link>
       <div />
-      <Link href="/redirect-stream">
-        Redirect to Google and attempt to stream after
-      </Link>
+      <Link href="/redirect-stream">Redirect to Google and attempt to stream after</Link>
       <div />
       <Link href="/header">Respond with a header</Link>
       <div />
@@ -25,9 +21,7 @@ export default function Home({ message }) {
       <div />
       <Link href="/body-end-header">Respond with body, end, set a header</Link>
       <div />
-      <Link href="/body-end-body">
-        Respond with body, end, send another body
-      </Link>
+      <Link href="/body-end-body">Respond with body, end, send another body</Link>
       <div />
       <Link href="/send-response">Respond with body</Link>
       <div />

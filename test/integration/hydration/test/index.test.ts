@@ -3,14 +3,7 @@
 import path from 'path'
 import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
-import {
-  nextBuild,
-  nextStart,
-  findPort,
-  killApp,
-  launchApp,
-  check,
-} from 'next-test-utils'
+import { nextBuild, nextStart, findPort, killApp, launchApp, check } from 'next-test-utils'
 
 const appDir = path.join(__dirname, '..')
 let app
@@ -31,40 +24,31 @@ const runTests = () => {
     const browser = await webdriver(appPort, '//')
     await browser.eval('window.beforeNav = true')
     await browser.eval('window.next.router.push("/details")')
-    await check(
-      () => browser.eval('document.documentElement.innerHTML'),
-      /details/
-    )
+    await check(() => browser.eval('document.documentElement.innerHTML'), /details/)
     expect(await browser.eval('window.beforeNav')).toBe(true)
   })
 }
 
 describe('Hydration', () => {
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
-    'development mode',
-    () => {
-      beforeAll(async () => {
-        await fs.remove(path.join(appDir, '.next'))
-        appPort = await findPort()
-        app = await launchApp(appDir, appPort)
-      })
-      afterAll(() => killApp(app))
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
+    beforeAll(async () => {
+      await fs.remove(path.join(appDir, '.next'))
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(() => killApp(app))
 
-      runTests()
-    }
-  )
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      beforeAll(async () => {
-        await fs.remove(path.join(appDir, '.next'))
-        await nextBuild(appDir)
-        appPort = await findPort()
-        app = await nextStart(appDir, appPort)
-      })
-      afterAll(() => killApp(app))
+    runTests()
+  })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
+    beforeAll(async () => {
+      await fs.remove(path.join(appDir, '.next'))
+      await nextBuild(appDir)
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(() => killApp(app))
 
-      runTests()
-    }
-  )
+    runTests()
+  })
 })

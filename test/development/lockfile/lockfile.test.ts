@@ -13,11 +13,7 @@ describe('lockfile', () => {
 
     const { stdout, stderr, exitCode } = await execa(
       'pnpm',
-      [
-        'next',
-        'dev',
-        ...(isRspack ? [] : [isTurbopack ? '--turbopack' : '--webpack']),
-      ],
+      ['next', 'dev', ...(isRspack ? [] : [isTurbopack ? '--turbopack' : '--webpack'])],
       {
         cwd: next.testDir,
         env: next.env as NodeJS.ProcessEnv,

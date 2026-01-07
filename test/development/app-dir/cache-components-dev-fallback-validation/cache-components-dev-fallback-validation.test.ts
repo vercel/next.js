@@ -9,9 +9,7 @@ describe('Cache Components Fallback Validation', () => {
   it('should not warn about missing Suspense when accessing params if static params are completely known at build time', async () => {
     // when the params are complete we don't expect to see any errors await params regarless of where there
     // are Suspense boundaries.
-    const browser = await next.browser(
-      '/complete/prerendered/wrapped/prerendered'
-    )
+    const browser = await next.browser('/complete/prerendered/wrapped/prerendered')
     await waitForNoRedbox(browser)
 
     await browser.loadPage(`${next.url}/complete/prerendered/wrapped/novel`)
@@ -20,9 +18,7 @@ describe('Cache Components Fallback Validation', () => {
     await browser.loadPage(`${next.url}/complete/novel/wrapped/novel`)
     await waitForNoRedbox(browser)
 
-    await browser.loadPage(
-      `${next.url}/complete/prerendered/unwrapped/prerendered`
-    )
+    await browser.loadPage(`${next.url}/complete/prerendered/unwrapped/prerendered`)
     await waitForNoRedbox(browser)
 
     await browser.loadPage(`${next.url}/complete/prerendered/unwrapped/novel`)
@@ -35,9 +31,7 @@ describe('Cache Components Fallback Validation', () => {
   it('should warn about missing Suspense when accessing params if static params are partially known at build time', async () => {
     // when the params are partially complete we don't expect to see any errors awaiting the params that are known
     // but do expect errors awaiting the params that are not known if not inside a Suspense boundary.
-    const browser = await next.browser(
-      '/partial/prerendered/wrapped/prerendered'
-    )
+    const browser = await next.browser('/partial/prerendered/wrapped/prerendered')
     await waitForNoRedbox(browser)
 
     await browser.loadPage(`${next.url}/partial/prerendered/wrapped/novel`)
@@ -46,9 +40,7 @@ describe('Cache Components Fallback Validation', () => {
     await browser.loadPage(`${next.url}/partial/novel/wrapped/novel`)
     await waitForNoRedbox(browser)
 
-    await browser.loadPage(
-      `${next.url}/partial/prerendered/unwrapped/prerendered`
-    )
+    await browser.loadPage(`${next.url}/partial/prerendered/unwrapped/prerendered`)
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {

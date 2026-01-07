@@ -62,9 +62,7 @@ describe('Middleware custom matchers with root', () => {
     next = await createNext({
       files: {
         pages: new FileRef(join(__dirname, '../app', 'pages')),
-        'next.config.js': new FileRef(
-          join(__dirname, '../app', 'next.config.js')
-        ),
+        'next.config.js': new FileRef(join(__dirname, '../app', 'next.config.js')),
         'middleware.js': `
         import { NextResponse } from 'next/server'
         
@@ -88,10 +86,7 @@ describe('Middleware custom matchers with root', () => {
   afterAll(() => next.destroy())
 
   it('should not match', async () => {
-    const res = await fetchViaHTTP(
-      next.url,
-      `/_next/static/${next.buildId}/_buildManifest.js`
-    )
+    const res = await fetchViaHTTP(next.url, `/_next/static/${next.buildId}/_buildManifest.js`)
     expect(res.status).toBe(200)
     expect(res.headers.get('x-from-middleware')).toBeFalsy()
   })

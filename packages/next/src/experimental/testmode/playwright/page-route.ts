@@ -1,8 +1,4 @@
-import type {
-  Page,
-  Route,
-  Request as PlaywrightRequest,
-} from '@playwright/test'
+import type { Page, Route, Request as PlaywrightRequest } from '@playwright/test'
 import type { FetchHandler } from './next-worker-fixture'
 
 function continueRoute(

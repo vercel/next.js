@@ -27,20 +27,13 @@ export class RspackProfilingPlugin {
           this.runWebpackSpan.traceChild('compilation-' + compilation.name)
         )
 
-        const compilationSpan = this.runWebpackSpan.traceChild(
-          `compilation-${compilation.name}`
-        )
+        const compilationSpan = this.runWebpackSpan.traceChild(`compilation-${compilation.name}`)
 
         const moduleHooks = rspack.NormalModule.getCompilationHooks(compilation)
-        moduleHooks.loader.tap(
-          pluginName,
-          (loaderContext: any, module: any) => {
-            const moduleSpan = moduleSpansByCompilation
-              .get(compilation)
-              ?.get(module)
-            loaderContext.currentTraceSpan = moduleSpan
-          }
-        )
+        moduleHooks.loader.tap(pluginName, (loaderContext: any, module: any) => {
+          const moduleSpan = moduleSpansByCompilation.get(compilation)?.get(module)
+          loaderContext.currentTraceSpan = moduleSpan
+        })
 
         compilation.hooks.buildModule.tap(pluginName, (module: any) => {
           const span = compilationSpan.traceChild('build-module')

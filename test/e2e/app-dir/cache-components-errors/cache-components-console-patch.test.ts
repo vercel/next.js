@@ -55,12 +55,9 @@ describe('Cache Components Errors', () => {
             await next.build()
           } catch {}
 
-          const output = getPrerenderOutput(
-            next.cliOutput.slice(cliOutputLength),
-            {
-              isMinified: true,
-            }
-          )
+          const output = getPrerenderOutput(next.cliOutput.slice(cliOutputLength), {
+            isMinified: true,
+          })
 
           if (isTurbopack) {
             expect(output).toMatchInlineSnapshot(`

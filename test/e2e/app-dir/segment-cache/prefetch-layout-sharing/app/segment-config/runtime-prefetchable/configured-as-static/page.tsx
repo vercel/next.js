@@ -12,9 +12,8 @@ export default function Page() {
     <main>
       <h1 style={{ color: 'green' }}>Statically prefetchable</h1>
       <p id="static-content-page">
-        This page is a child of a runtime-prefetchable layout that is not
-        configured as runtime-prefetchable. We should not use a runtime prefetch
-        for it.
+        This page is a child of a runtime-prefetchable layout that is not configured as
+        runtime-prefetchable. We should not use a runtime prefetch for it.
       </p>
       <Suspense fallback="Loading...">
         <RuntimePrefetchable />
@@ -28,11 +27,7 @@ export default function Page() {
 
 async function RuntimePrefetchable() {
   await cookies()
-  return (
-    <div id="runtime-prefetchable-content-page">
-      Runtime-prefetchable content from page
-    </div>
-  )
+  return <div id="runtime-prefetchable-content-page">Runtime-prefetchable content from page</div>
 }
 
 async function DynamicContent() {

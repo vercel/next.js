@@ -48,10 +48,7 @@ type InternalFormProps = {
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export type FormProps<RouteInferType = any> = InternalFormProps
 
-export function createFormSubmitDestinationUrl(
-  action: string,
-  formElement: HTMLFormElement
-) {
+export function createFormSubmitDestinationUrl(action: string, formElement: HTMLFormElement) {
   let targetUrl: URL
   try {
     // NOTE: It might be more correct to resolve URLs relative to `document.baseURI`,
@@ -100,19 +97,14 @@ export function createFormSubmitDestinationUrl(
   return targetUrl
 }
 
-export function checkFormActionUrl(
-  action: string,
-  source: 'action' | 'formAction'
-) {
+export function checkFormActionUrl(action: string, source: 'action' | 'formAction') {
   const aPropName = source === 'action' ? `an \`action\`` : `a \`formAction\``
 
   let testUrl: URL
   try {
     testUrl = new URL(action, 'http://n')
   } catch (err) {
-    console.error(
-      `<Form> received ${aPropName} that cannot be parsed as a URL: "${action}".`
-    )
+    console.error(`<Form> received ${aPropName} that cannot be parsed as a URL: "${action}".`)
     return
   }
 
@@ -130,9 +122,7 @@ export const isSupportedFormEncType = (value: string) =>
 export const isSupportedFormMethod = (value: string) => value === 'get'
 export const isSupportedFormTarget = (value: string) => value === '_self'
 
-export function hasUnsupportedSubmitterAttributes(
-  submitter: HTMLElement
-): boolean {
+export function hasUnsupportedSubmitterAttributes(submitter: HTMLElement): boolean {
   // A submitter can override `encType` for the form.
   const formEncType = submitter.getAttribute('formEncType')
   if (formEncType !== null && !isSupportedFormEncType(formEncType)) {

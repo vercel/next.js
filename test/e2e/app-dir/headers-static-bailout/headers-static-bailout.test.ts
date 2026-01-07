@@ -55,8 +55,6 @@ describe('headers-static-bailout', () => {
         `
     )
     const { cliOutput } = await next.build()
-    expect(cliOutput).toContain(
-      'https://nextjs.org/docs/messages/dynamic-server-error'
-    )
+    expect(cliOutput).toContain('https://nextjs.org/docs/messages/dynamic-server-error')
   })
 })

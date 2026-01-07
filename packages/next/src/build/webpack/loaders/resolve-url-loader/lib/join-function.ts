@@ -108,10 +108,8 @@ function createJoinForPredicate(
       baseOrIteratorOrAbsent: any
     ) {
       const iterator =
-        (typeof baseOrIteratorOrAbsent === 'undefined' &&
-          createIterator([options.root])) ||
-        (typeof baseOrIteratorOrAbsent === 'string' &&
-          createIterator([baseOrIteratorOrAbsent])) ||
+        (typeof baseOrIteratorOrAbsent === 'undefined' && createIterator([options.root])) ||
+        (typeof baseOrIteratorOrAbsent === 'string' && createIterator([baseOrIteratorOrAbsent])) ||
         baseOrIteratorOrAbsent
 
       const result = runIterator([])
@@ -123,13 +121,7 @@ function createJoinForPredicate(
         const nextItem = iterator.next()
         var base = !nextItem.done && nextItem.value
         if (typeof base === 'string') {
-          const element = predicate(
-            filename,
-            uri,
-            base,
-            accumulator.length,
-            next
-          )
+          const element = predicate(filename, uri, base, accumulator.length, next)
 
           if (typeof element === 'string' && path.isAbsolute(element)) {
             return Object.assign(accumulator.concat(base), {
@@ -208,9 +200,7 @@ function createJoinMsg(
       const relative = path.relative(process.cwd(), absolute).split(path.sep)
 
       return (
-        relative[0] === '..'
-          ? absolute.split(path.sep)
-          : ['.'].concat(relative).filter(Boolean)
+        relative[0] === '..' ? absolute.split(path.sep) : ['.'].concat(relative).filter(Boolean)
       ).join('/')
     }
   }

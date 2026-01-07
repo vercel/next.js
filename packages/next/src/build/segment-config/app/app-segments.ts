@@ -1,22 +1,13 @@
 import type { Params } from '../../../server/request/params'
 import type { AppPageRouteModule } from '../../../server/route-modules/app-page/module.compiled'
 import type { AppRouteRouteModule } from '../../../server/route-modules/app-route/module.compiled'
-import {
-  type AppSegmentConfig,
-  parseAppSegmentConfig,
-} from './app-segment-config'
+import { type AppSegmentConfig, parseAppSegmentConfig } from './app-segment-config'
 
 import { InvariantError } from '../../../shared/lib/invariant-error'
-import {
-  isAppRouteRouteModule,
-  isAppPageRouteModule,
-} from '../../../server/route-modules/checks'
+import { isAppRouteRouteModule, isAppPageRouteModule } from '../../../server/route-modules/checks'
 import { isClientReference } from '../../../lib/client-and-server-references'
 import { getSegmentParam } from '../../../shared/lib/router/utils/get-segment-param'
-import {
-  getLayoutOrPageModule,
-  type LoaderTree,
-} from '../../../server/lib/app-dir-module'
+import { getLayoutOrPageModule, type LoaderTree } from '../../../server/lib/app-dir-module'
 import type { DynamicParamTypes } from '../../../shared/lib/app-router-types'
 
 type GenerateStaticParams = (options: { params?: Params }) => Promise<Params[]>
@@ -38,18 +29,12 @@ function attach(segment: AppSegment, userland: unknown, route: string) {
     segment.config = config
   }
 
-  if (
-    'generateStaticParams' in userland &&
-    typeof userland.generateStaticParams === 'function'
-  ) {
-    segment.generateStaticParams =
-      userland.generateStaticParams as GenerateStaticParams
+  if ('generateStaticParams' in userland && typeof userland.generateStaticParams === 'function') {
+    segment.generateStaticParams = userland.generateStaticParams as GenerateStaticParams
 
     // Validate that `generateStaticParams` makes sense in this context.
     if (segment.config?.runtime === 'edge') {
-      throw new Error(
-        'Edge runtime is not supported with `generateStaticParams`.'
-      )
+      throw new Error('Edge runtime is not supported with `generateStaticParams`.')
     }
   }
 }
@@ -131,9 +116,7 @@ async function collectAppPageSegments(routeModule: AppPageRouteModule) {
  * @param routeModule the app route module
  * @returns the segments for the app route module
  */
-function collectAppRouteSegments(
-  routeModule: AppRouteRouteModule
-): AppSegment[] {
+function collectAppRouteSegments(routeModule: AppRouteRouteModule): AppSegment[] {
   // Get the pathname parts, slice off the first element (which is empty).
   const parts = routeModule.definition.pathname.split('/').slice(1)
   if (parts.length === 0) {
@@ -183,7 +166,5 @@ export function collectSegments(
     return collectAppPageSegments(routeModule)
   }
 
-  throw new InvariantError(
-    'Expected a route module to be one of app route or page'
-  )
+  throw new InvariantError('Expected a route module to be one of app route or page')
 }

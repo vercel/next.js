@@ -1,15 +1,10 @@
 import { getSegmentParam } from '../../../shared/lib/router/utils/get-segment-param'
 import type AppPageRouteModule from '../../../server/route-modules/app-page/module'
-import {
-  isAppPageRouteModule,
-  isAppRouteRouteModule,
-} from '../../../server/route-modules/checks'
+import { isAppPageRouteModule, isAppRouteRouteModule } from '../../../server/route-modules/checks'
 import type { RouteModule } from '../../../server/route-modules/route-module'
 import { InvariantError } from '../../../shared/lib/invariant-error'
 
-function collectAppPageRootParamKeys(
-  routeModule: AppPageRouteModule
-): readonly string[] {
+function collectAppPageRootParamKeys(routeModule: AppPageRouteModule): readonly string[] {
   let rootParams: string[] = []
 
   let current = routeModule.userland.loaderTree
@@ -44,9 +39,7 @@ function collectAppPageRootParamKeys(
  * @param components the loaded components
  * @returns the segments for the route module
  */
-export function collectRootParamKeys(
-  routeModule: RouteModule
-): readonly string[] {
+export function collectRootParamKeys(routeModule: RouteModule): readonly string[] {
   if (isAppRouteRouteModule(routeModule)) {
     return []
   }
@@ -55,7 +48,5 @@ export function collectRootParamKeys(
     return collectAppPageRootParamKeys(routeModule)
   }
 
-  throw new InvariantError(
-    'Expected a route module to be one of app route or page'
-  )
+  throw new InvariantError('Expected a route module to be one of app route or page')
 }

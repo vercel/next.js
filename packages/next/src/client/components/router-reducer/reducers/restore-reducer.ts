@@ -1,9 +1,5 @@
 import { createHrefFromUrl } from '../create-href-from-url'
-import type {
-  ReadonlyReducerState,
-  ReducerState,
-  RestoreAction,
-} from '../router-reducer-types'
+import type { ReadonlyReducerState, ReducerState, RestoreAction } from '../router-reducer-types'
 import { extractPathFromFlightRouterState } from '../compute-changed-path'
 import {
   FreshnessPolicy,
@@ -15,10 +11,7 @@ import type { FlightRouterState } from '../../../../shared/lib/app-router-types'
 import { handleExternalUrl } from './navigate-reducer'
 import type { Mutable } from '../router-reducer-types'
 
-export function restoreReducer(
-  state: ReadonlyReducerState,
-  action: RestoreAction
-): ReducerState {
+export function restoreReducer(state: ReadonlyReducerState, action: RestoreAction): ReducerState {
   // This action is used to restore the router state from the history state.
   // However, it's possible that the history state no longer contains the `FlightRouterState`.
   // We will copy over the internal state on pushState/replaceState events, but if a history entry
@@ -39,8 +32,7 @@ export function restoreReducer(
   const currentUrl = new URL(state.canonicalUrl, location.origin)
   const restoredUrl = action.url
   const restoredCanonicalUrl = createHrefFromUrl(restoredUrl)
-  const restoredNextUrl =
-    extractPathFromFlightRouterState(treeToRestore) ?? restoredUrl.pathname
+  const restoredNextUrl = extractPathFromFlightRouterState(treeToRestore) ?? restoredUrl.pathname
 
   const now = Date.now()
   const accumulation: NavigationRequestAccumulation = {

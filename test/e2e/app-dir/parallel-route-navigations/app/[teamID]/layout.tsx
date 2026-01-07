@@ -1,9 +1,6 @@
 import Link from 'next/link'
 
-export default function Layout(props: {
-  slot: React.ReactNode
-  children: React.ReactNode
-}) {
+export default function Layout(props: { slot: React.ReactNode; children: React.ReactNode }) {
   return (
     <div>
       <ul>

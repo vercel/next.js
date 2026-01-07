@@ -5,11 +5,7 @@ export default async function InterceptedPhotoPage({
 }) {
   const { id } = await params
 
-  return (
-    <div id="intercepted-photo-page">
-      Intercepted photo page for id {JSON.stringify(id)}
-    </div>
-  )
+  return <div id="intercepted-photo-page">Intercepted photo page for id {JSON.stringify(id)}</div>
 }
 
 export function generateStaticParams() {

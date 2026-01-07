@@ -19,24 +19,15 @@ export default function Page({ port }) {
         https://vercel.com/
       </Link>
       <br />
-      <button
-        id="router-push"
-        onClick={() => router.push('https://vercel.com/')}
-      >
+      <button id="router-push" onClick={() => router.push('https://vercel.com/')}>
         push https://vercel.com/
       </button>
       <br />
-      <button
-        id="router-replace"
-        onClick={() => router.replace('https://vercel.com/')}
-      >
+      <button id="router-replace" onClick={() => router.replace('https://vercel.com/')}>
         replace https://vercel.com/
       </button>
       <br />
-      <Link
-        href={`http://localhost:${port}/nav/about`}
-        id="absolute-local-link"
-      >
+      <Link href={`http://localhost:${port}/nav/about`} id="absolute-local-link">
         http://localhost:{port}/nav/about
       </Link>
       <br />

@@ -9,8 +9,10 @@ export function getDynamicCodeEvaluationError(
   compiler: webpack.Compiler
 ): SimpleWebpackError {
   const { moduleTrace } = getModuleTrace(module, compilation, compiler)
-  const { formattedModuleTrace, lastInternalFileName, invalidImportMessage } =
-    formatModuleTrace(compiler, moduleTrace)
+  const { formattedModuleTrace, lastInternalFileName, invalidImportMessage } = formatModuleTrace(
+    compiler,
+    moduleTrace
+  )
 
   return new SimpleWebpackError(
     lastInternalFileName,

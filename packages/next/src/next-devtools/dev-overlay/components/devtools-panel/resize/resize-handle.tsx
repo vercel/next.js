@@ -190,19 +190,13 @@ const getNewDimensions = (
   switch (direction) {
     case 'right':
       return {
-        newWidth: Math.min(
-          effectiveMaxWidth,
-          Math.max(minWidth, initialRect.width + deltaX)
-        ),
+        newWidth: Math.min(effectiveMaxWidth, Math.max(minWidth, initialRect.width + deltaX)),
         newHeight: initialRect.height,
       }
 
     case 'left': {
       return {
-        newWidth: Math.min(
-          effectiveMaxWidth,
-          Math.max(minWidth, initialRect.width - deltaX)
-        ),
+        newWidth: Math.min(effectiveMaxWidth, Math.max(minWidth, initialRect.width - deltaX)),
         newHeight: initialRect.height,
       }
     }
@@ -210,71 +204,41 @@ const getNewDimensions = (
     case 'bottom':
       return {
         newWidth: initialRect.width,
-        newHeight: Math.min(
-          effectiveMaxHeight,
-          Math.max(minHeight, initialRect.height + deltaY)
-        ),
+        newHeight: Math.min(effectiveMaxHeight, Math.max(minHeight, initialRect.height + deltaY)),
       }
 
     case 'top': {
       return {
         newWidth: initialRect.width,
-        newHeight: Math.min(
-          effectiveMaxHeight,
-          Math.max(minHeight, initialRect.height - deltaY)
-        ),
+        newHeight: Math.min(effectiveMaxHeight, Math.max(minHeight, initialRect.height - deltaY)),
       }
     }
 
     case 'top-left': {
       return {
-        newWidth: Math.min(
-          effectiveMaxWidth,
-          Math.max(minWidth, initialRect.width - deltaX)
-        ),
-        newHeight: Math.min(
-          effectiveMaxHeight,
-          Math.max(minHeight, initialRect.height - deltaY)
-        ),
+        newWidth: Math.min(effectiveMaxWidth, Math.max(minWidth, initialRect.width - deltaX)),
+        newHeight: Math.min(effectiveMaxHeight, Math.max(minHeight, initialRect.height - deltaY)),
       }
     }
 
     case 'top-right': {
       return {
-        newWidth: Math.min(
-          effectiveMaxWidth,
-          Math.max(minWidth, initialRect.width + deltaX)
-        ),
-        newHeight: Math.min(
-          effectiveMaxHeight,
-          Math.max(minHeight, initialRect.height - deltaY)
-        ),
+        newWidth: Math.min(effectiveMaxWidth, Math.max(minWidth, initialRect.width + deltaX)),
+        newHeight: Math.min(effectiveMaxHeight, Math.max(minHeight, initialRect.height - deltaY)),
       }
     }
 
     case 'bottom-left': {
       return {
-        newWidth: Math.min(
-          effectiveMaxWidth,
-          Math.max(minWidth, initialRect.width - deltaX)
-        ),
-        newHeight: Math.min(
-          effectiveMaxHeight,
-          Math.max(minHeight, initialRect.height + deltaY)
-        ),
+        newWidth: Math.min(effectiveMaxWidth, Math.max(minWidth, initialRect.width - deltaX)),
+        newHeight: Math.min(effectiveMaxHeight, Math.max(minHeight, initialRect.height + deltaY)),
       }
     }
 
     case 'bottom-right':
       return {
-        newWidth: Math.min(
-          effectiveMaxWidth,
-          Math.max(minWidth, initialRect.width + deltaX)
-        ),
-        newHeight: Math.min(
-          effectiveMaxHeight,
-          Math.max(minHeight, initialRect.height + deltaY)
-        ),
+        newWidth: Math.min(effectiveMaxWidth, Math.max(minWidth, initialRect.width + deltaX)),
+        newHeight: Math.min(effectiveMaxHeight, Math.max(minHeight, initialRect.height + deltaY)),
       }
     default: {
       direction satisfies never

@@ -1,9 +1,7 @@
 export default function Page() {
   return (
     <p>
-      {typeof globalThis.crypto === 'object'
-        ? 'crypto is available'
-        : 'crypto is not available'}
+      {typeof globalThis.crypto === 'object' ? 'crypto is available' : 'crypto is not available'}
     </p>
   )
 }

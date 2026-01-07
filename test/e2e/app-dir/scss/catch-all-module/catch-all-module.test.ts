@@ -13,20 +13,17 @@ describe.each([
       },
     },
   },
-])(
-  'Catch-all Route CSS Module Usage ($dependencies)',
-  ({ dependencies, nextConfig }) => {
-    const { next } = nextTestSetup({
-      files: __dirname,
-      dependencies,
-      nextConfig,
-    })
+])('Catch-all Route CSS Module Usage ($dependencies)', ({ dependencies, nextConfig }) => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    dependencies,
+    nextConfig,
+  })
 
-    it('should render the module', async () => {
-      const browser = await next.browser('/post')
-      expect(
-        await browser.elementByCss('#my-div').getComputedCss('background-color')
-      ).toBe(colorToRgb('red'))
-    })
-  }
-)
+  it('should render the module', async () => {
+    const browser = await next.browser('/post')
+    expect(await browser.elementByCss('#my-div').getComputedCss('background-color')).toBe(
+      colorToRgb('red')
+    )
+  })
+})

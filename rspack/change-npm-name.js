@@ -30,9 +30,7 @@ function updatePackageJson(filePath, packageName) {
       const githubRepo = process.env.GITHUB_REPOSITORY
       if (githubRepo) {
         packageJson.repository.url = `git+https://github.com/${githubRepo}.git`
-        console.log(
-          `📝 Updated repository URL to: ${packageJson.repository.url}`
-        )
+        console.log(`📝 Updated repository URL to: ${packageJson.repository.url}`)
       } else {
         console.log(
           `⚠️  GITHUB_REPOSITORY not found, keeping original repository URL: ${packageJson.repository.url}`
@@ -57,8 +55,7 @@ function updateBindingIndex(filePath, packageName) {
     let content = fs.readFileSync(filePath, 'utf8')
 
     // Replace all require('@next/rspack-binding-*') with the new package name pattern
-    const requireRegex =
-      /require\(['"`]@next\/rspack-binding(-[^'"`]*)?['"`]\)/g
+    const requireRegex = /require\(['"`]@next\/rspack-binding(-[^'"`]*)?['"`]\)/g
     let updateCount = 0
 
     content = content.replace(requireRegex, (match, suffix) => {
@@ -72,9 +69,7 @@ function updateBindingIndex(filePath, packageName) {
         `✅ Updated ${filePath} with ${updateCount} require statements using package name: ${packageName}`
       )
     } else {
-      console.warn(
-        `⚠️  No require statements with @next/rspack-binding found in ${filePath}`
-      )
+      console.warn(`⚠️  No require statements with @next/rspack-binding found in ${filePath}`)
     }
   } catch (error) {
     console.error(`❌ Error updating ${filePath}:`, error.message)
@@ -87,10 +82,7 @@ function main() {
   const rootPackageJsonPath = path.join(rootDir, 'package.json')
   updatePackageJson(rootPackageJsonPath, newPackageName)
 
-  const bindingPackageJsonPath = path.join(
-    rootDir,
-    'crates/binding/package.json'
-  )
+  const bindingPackageJsonPath = path.join(rootDir, 'crates/binding/package.json')
   updatePackageJson(bindingPackageJsonPath, bindingPackageName)
 
   const bindingIndexPath = path.join(rootDir, 'crates/binding/index.js')

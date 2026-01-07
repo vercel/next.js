@@ -2,10 +2,7 @@ import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { ProxyConfig } from '../../../analysis/get-page-static-info'
 
 import { stringify } from 'querystring'
-import {
-  type ModuleBuildInfo,
-  getModuleBuildInfo,
-} from '../get-module-build-info'
+import { type ModuleBuildInfo, getModuleBuildInfo } from '../get-module-build-info'
 import { RouteKind } from '../../../../server/route-kind'
 import { normalizePagePath } from '../../../../shared/lib/page-path/normalize-page-path'
 import { decodeFromBase64, encodeToBase64 } from '../utils'
@@ -30,9 +27,7 @@ type RouteLoaderOptionsPagesInput = {
   middlewareConfig: ProxyConfig
 }
 
-type RouteLoaderOptionsInput =
-  | RouteLoaderOptionsPagesInput
-  | RouteLoaderOptionsPagesAPIInput
+type RouteLoaderOptionsInput = RouteLoaderOptionsPagesInput | RouteLoaderOptionsPagesAPIInput
 
 type RouteLoaderPagesAPIOptions = {
   kind: RouteKind.PAGES_API
@@ -177,12 +172,7 @@ const loadPages = async (
 }
 
 const loadPagesAPI = async (
-  {
-    page,
-    absolutePagePath,
-    preferredRegion,
-    middlewareConfigBase64,
-  }: RouteLoaderPagesAPIOptions,
+  { page, absolutePagePath, preferredRegion, middlewareConfigBase64 }: RouteLoaderPagesAPIOptions,
   buildInfo: ModuleBuildInfo
 ) => {
   const middlewareConfig: ProxyConfig = decodeFromBase64(middlewareConfigBase64)
@@ -206,26 +196,25 @@ const loadPagesAPI = async (
  * Handles the `next-route-loader` options.
  * @returns the loader definition function
  */
-const loader: webpack.LoaderDefinitionFunction<RouteLoaderOptions> =
-  async function () {
-    if (!this._module) {
-      throw new Error('Invariant: expected this to reference a module')
+const loader: webpack.LoaderDefinitionFunction<RouteLoaderOptions> = async function () {
+  if (!this._module) {
+    throw new Error('Invariant: expected this to reference a module')
+  }
+
+  const buildInfo = getModuleBuildInfo(this._module)
+  const opts = this.getOptions()
+
+  switch (opts.kind) {
+    case RouteKind.PAGES: {
+      return await loadPages(opts, buildInfo)
     }
-
-    const buildInfo = getModuleBuildInfo(this._module)
-    const opts = this.getOptions()
-
-    switch (opts.kind) {
-      case RouteKind.PAGES: {
-        return await loadPages(opts, buildInfo)
-      }
-      case RouteKind.PAGES_API: {
-        return await loadPagesAPI(opts, buildInfo)
-      }
-      default: {
-        throw new Error('Invariant: Unexpected route kind')
-      }
+    case RouteKind.PAGES_API: {
+      return await loadPagesAPI(opts, buildInfo)
+    }
+    default: {
+      throw new Error('Invariant: Unexpected route kind')
     }
   }
+}
 
 export default loader

@@ -43,9 +43,7 @@ describe('app-dir edge SSR invalid reexport', () => {
       }
     }
 
-    expect(next.cliOutput).toInclude(
-      `Next.js can't recognize the exported \`runtime\` field in`
-    )
+    expect(next.cliOutput).toInclude(`Next.js can't recognize the exported \`runtime\` field in`)
     expect(next.cliOutput).toInclude(
       `Next.js can't recognize the exported \`preferredRegion\` field in`
     )

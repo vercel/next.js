@@ -130,11 +130,8 @@ export class MemoryWithGcCachePlugin {
         return undefined
       }
     )
-    compiler.cache.hooks.shutdown.tap(
-      { name: PLUGIN_NAME, stage: CACHE_STAGE_MEMORY },
-      () => {
-        cache.clear()
-      }
-    )
+    compiler.cache.hooks.shutdown.tap({ name: PLUGIN_NAME, stage: CACHE_STAGE_MEMORY }, () => {
+      cache.clear()
+    })
   }
 }

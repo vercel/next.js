@@ -37,8 +37,7 @@ export function responseToMiddlewareResult(
   // This special header contains a comma-separated list of header keys that should be overridden
   if (middlewareHeaders['x-middleware-override-headers']) {
     const overriddenHeaders: Set<string> = new Set()
-    let overrideHeaders: string | string[] =
-      middlewareHeaders['x-middleware-override-headers']
+    let overrideHeaders: string | string[] = middlewareHeaders['x-middleware-override-headers']
 
     if (typeof overrideHeaders === 'string') {
       overrideHeaders = overrideHeaders.split(',')

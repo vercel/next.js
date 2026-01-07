@@ -91,9 +91,7 @@ export class CssChunkingPlugin {
           orderedModules.sort((a, b) => a.sum - b.sum)
 
           // A queue of modules that still need to be processed
-          const remainingModules = new Set(
-            orderedModules.map(({ module }) => module)
-          )
+          const remainingModules = new Set(orderedModules.map(({ module }) => module))
 
           // In loose mode we guess the dependents of modules from the order
           // assuming that when a module is a dependency of another module
@@ -143,10 +141,7 @@ export class CssChunkingPlugin {
             // A pool of potential modules where the next module is selected from.
             // It's filled from the next module of the selected modules in every chunk.
             // It also keeps some metadata to improve performance [size, chunkStates].
-            const potentialNextModules = new Map<
-              Module,
-              [number, Map<ChunkState, number>]
-            >()
+            const potentialNextModules = new Map<Module, [number, Map<ChunkState, number>]>()
             for (const [chunkState, i] of allChunkStates) {
               const nextModule = chunkState.modules[i + 1]
               if (nextModule && remainingModules.has(nextModule)) {
@@ -164,10 +159,7 @@ export class CssChunkingPlugin {
               // We try to select a module that reduces request count and
               // has the highest number of requests
               const orderedPotentialNextModules = []
-              for (const [
-                nextModule,
-                [size, nextChunkStates],
-              ] of potentialNextModules) {
+              for (const [nextModule, [size, nextChunkStates]] of potentialNextModules) {
                 let maxRequests = 0
                 for (const chunkState of nextChunkStates.keys()) {
                   // There is always some overlap
@@ -184,17 +176,11 @@ export class CssChunkingPlugin {
                 ] as const)
               }
               orderedPotentialNextModules.sort(
-                (a, b) =>
-                  b[3] - a[3] ||
-                  (a[0].identifier() < b[0].identifier() ? -1 : 1)
+                (a, b) => b[3] - a[3] || (a[0].identifier() < b[0].identifier() ? -1 : 1)
               )
 
               // Try every potential module
-              loop: for (const [
-                nextModule,
-                size,
-                nextChunkStates,
-              ] of orderedPotentialNextModules) {
+              loop: for (const [nextModule, size, nextChunkStates] of orderedPotentialNextModules) {
                 if (currentSize + size > MAX_CSS_CHUNK_SIZE) {
                   // Chunk would be too large
                   continue
@@ -312,10 +298,7 @@ export class CssChunkingPlugin {
             console.log('Top 20 chunks by request count:')
             const orderedChunkStates = [...chunkStates.values()]
             orderedChunkStates.sort((a, b) => b.requests - a.requests)
-            for (const { chunk, modules, requests } of orderedChunkStates.slice(
-              0,
-              20
-            )) {
+            for (const { chunk, modules, requests } of orderedChunkStates.slice(0, 20)) {
               console.log(
                 `- ${requests} requests for ${chunk.name} (has ${modules.length} modules)`
               )

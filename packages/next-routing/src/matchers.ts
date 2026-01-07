@@ -40,11 +40,7 @@ function matchesCondition(
 /**
  * Extracts the value for a RouteHas condition from the request context
  */
-function getConditionValue(
-  condition: RouteHas,
-  url: URL,
-  headers: Headers
-): string | undefined {
+function getConditionValue(condition: RouteHas, url: URL, headers: Headers): string | undefined {
   switch (condition.type) {
     case 'header':
       return headers.get(condition.key) || undefined

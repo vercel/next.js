@@ -5,10 +5,7 @@ import { saveCpuProfile } from '../server/lib/cpu-profile'
 import { startServer } from '../server/lib/start-server'
 import { printAndExit } from '../server/lib/utils'
 import { getProjectDir } from '../lib/get-project-dir'
-import {
-  getReservedPortExplanation,
-  isPortIsReserved,
-} from '../lib/helpers/get-reserved-port'
+import { getReservedPortExplanation, isPortIsReserved } from '../lib/helpers/get-reserved-port'
 import * as Log from '../build/output/log'
 
 export type NextStartOptions = {

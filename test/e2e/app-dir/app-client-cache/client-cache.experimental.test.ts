@@ -29,9 +29,7 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
           .click()
           .waitForElementByCss('#loading')
 
-        const initialRandomNumber = await browser
-          .waitForElementByCss('#random-number')
-          .text()
+        const initialRandomNumber = await browser.waitForElementByCss('#random-number').text()
 
         await browser.elementByCss('[href="/"]').click()
 
@@ -48,10 +46,7 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
 
       describe('without a loading boundary', () => {
         it('should get fresh data on every subsequent navigation', async () => {
-          const browser = await next.browser(
-            '/without-loading',
-            browserConfigWithFixedTime
-          )
+          const browser = await next.browser('/without-loading', browserConfigWithFixedTime)
 
           const initialRandomNumber = await browser
             .elementByCss('[href="/without-loading/1?timeout=1000"]')
@@ -136,9 +131,7 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
           .click()
           .waitForElementByCss('#loading')
 
-        const initialRandomNumber = await browser
-          .waitForElementByCss('#random-number')
-          .text()
+        const initialRandomNumber = await browser.waitForElementByCss('#random-number').text()
 
         await browser.elementByCss('[href="/"]').click()
 
@@ -191,9 +184,7 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
           .click()
           .waitForElementByCss('#loading')
 
-        const initialRandomNumber = await browser
-          .waitForElementByCss('#random-number')
-          .text()
+        const initialRandomNumber = await browser.waitForElementByCss('#random-number').text()
 
         await browser.elementByCss('[href="/"]').click()
 
@@ -210,10 +201,7 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
 
       describe('without a loading boundary', () => {
         it('should get fresh data on every subsequent navigation', async () => {
-          const browser = await next.browser(
-            '/without-loading',
-            browserConfigWithFixedTime
-          )
+          const browser = await next.browser('/without-loading', browserConfigWithFixedTime)
 
           const initialRandomNumber = await browser
             .elementByCss('[href="/without-loading/1?timeout=1000"]')
@@ -237,10 +225,7 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
     if (!isNextDeploy) {
       describe('telemetry', () => {
         it('should send staleTimes feature usage event', async () => {
-          const events = findAllTelemetryEvents(
-            next.cliOutput,
-            'NEXT_CLI_SESSION_STARTED'
-          )
+          const events = findAllTelemetryEvents(next.cliOutput, 'NEXT_CLI_SESSION_STARTED')
 
           expect(events).toEqual(
             expect.arrayContaining([
@@ -371,10 +356,7 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
     if (!isNextDeploy) {
       describe('telemetry', () => {
         it('should send staleTimes feature usage event', async () => {
-          const events = findAllTelemetryEvents(
-            next.cliOutput,
-            'NEXT_CLI_SESSION_STARTED'
-          )
+          const events = findAllTelemetryEvents(next.cliOutput, 'NEXT_CLI_SESSION_STARTED')
           expect(events).toEqual(
             expect.arrayContaining([
               expect.objectContaining({
@@ -407,14 +389,9 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
       await browser.waitForIdleNetwork()
 
       // this test introduces an artificial delay in rendering the requested page, so we verify a loading state is rendered
-      await browser
-        .elementByCss('[href="/1?timeout=1000"]')
-        .click()
-        .waitForElementByCss('#loading')
+      await browser.elementByCss('[href="/1?timeout=1000"]').click().waitForElementByCss('#loading')
 
-      const initialRandomNumber = await browser
-        .waitForElementByCss('#random-number')
-        .text()
+      const initialRandomNumber = await browser.waitForElementByCss('#random-number').text()
 
       await browser.elementByCss('[href="/"]').click()
 
@@ -431,10 +408,7 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
 
     describe('without a loading boundary', () => {
       it('should get fresh data on every subsequent navigation', async () => {
-        const browser = await next.browser(
-          '/without-loading',
-          browserConfigWithFixedTime
-        )
+        const browser = await next.browser('/without-loading', browserConfigWithFixedTime)
 
         const initialRandomNumber = await browser
           .elementByCss('[href="/without-loading/1?timeout=1000"]')

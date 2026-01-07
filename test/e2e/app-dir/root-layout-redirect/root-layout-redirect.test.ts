@@ -9,11 +9,7 @@ describe('root-layout-redirect', () => {
     const browser = await next.browser('/')
 
     expect(
-      await browser
-        .elementByCss('#trigger-redirect')
-        .click()
-        .waitForElementByCss('#result')
-        .text()
+      await browser.elementByCss('#trigger-redirect').click().waitForElementByCss('#result').text()
     ).toBe('Result Page')
 
     const browserLogs = await browser.log()

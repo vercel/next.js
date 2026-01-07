@@ -54,45 +54,33 @@ describe('i18n-ignore-redirect-source-locale with basepath', () => {
   })
   afterAll(() => next.destroy())
 
-  test.each(locales)(
-    'get redirected to the new page, from: %s to: sv',
-    async (locale) => {
-      const browser = await webdriver(next.url, `basepath/${locale}/to-sv`)
-      await retry(async () => {
-        expect(await browser.elementById('current-locale').text()).toBe('sv')
-      })
-    }
-  )
+  test.each(locales)('get redirected to the new page, from: %s to: sv', async (locale) => {
+    const browser = await webdriver(next.url, `basepath/${locale}/to-sv`)
+    await retry(async () => {
+      expect(await browser.elementById('current-locale').text()).toBe('sv')
+    })
+  })
 
-  test.each(locales)(
-    'get redirected to the new page, from: %s to: en',
-    async (locale) => {
-      const browser = await webdriver(next.url, `basepath/${locale}/to-en`)
-      await retry(async () => {
-        expect(await browser.elementById('current-locale').text()).toBe('en')
-      })
-    }
-  )
+  test.each(locales)('get redirected to the new page, from: %s to: en', async (locale) => {
+    const browser = await webdriver(next.url, `basepath/${locale}/to-en`)
+    await retry(async () => {
+      expect(await browser.elementById('current-locale').text()).toBe('en')
+    })
+  })
 
-  test.each(locales)(
-    'get redirected to the new page, from: %s to: /',
-    async (locale) => {
-      const browser = await webdriver(next.url, `basepath/${locale}/to-slash`)
-      await retry(async () => {
-        expect(await browser.elementById('current-locale').text()).toBe('en')
-      })
-    }
-  )
+  test.each(locales)('get redirected to the new page, from: %s to: /', async (locale) => {
+    const browser = await webdriver(next.url, `basepath/${locale}/to-slash`)
+    await retry(async () => {
+      expect(await browser.elementById('current-locale').text()).toBe('en')
+    })
+  })
 
-  test.each(locales)(
-    'get redirected to the new page, from and to: %s',
-    async (locale) => {
-      const browser = await webdriver(next.url, `basepath/${locale}/to-same`)
-      await retry(async () => {
-        expect(await browser.elementById('current-locale').text()).toBe(
-          locale === '' ? 'en' : locale.slice(1)
-        )
-      })
-    }
-  )
+  test.each(locales)('get redirected to the new page, from and to: %s', async (locale) => {
+    const browser = await webdriver(next.url, `basepath/${locale}/to-same`)
+    await retry(async () => {
+      expect(await browser.elementById('current-locale').text()).toBe(
+        locale === '' ? 'en' : locale.slice(1)
+      )
+    })
+  })
 })

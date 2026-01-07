@@ -1,10 +1,7 @@
 import type { Params } from '../../../../server/request/params'
 import type { DynamicParamTypes } from '../../app-router-types'
 import { InvariantError } from '../../invariant-error'
-import type {
-  NormalizedAppRoute,
-  NormalizedAppRouteSegment,
-} from '../routes/app'
+import type { NormalizedAppRoute, NormalizedAppRouteSegment } from '../routes/app'
 import { interceptionPrefixFromParamType } from './interception-prefix-from-param-type'
 
 /**
@@ -132,10 +129,7 @@ export function resolveParamValue(
         const pathSegment = route.segments[depth]
 
         // Check if the segment at this depth is a placeholder for an unknown param
-        if (
-          pathSegment.type === 'dynamic' &&
-          !params.hasOwnProperty(pathSegment.param.paramName)
-        ) {
+        if (pathSegment.type === 'dynamic' && !params.hasOwnProperty(pathSegment.param.paramName)) {
           // The segment is a placeholder like [category] and we don't have the value
           return undefined
         }

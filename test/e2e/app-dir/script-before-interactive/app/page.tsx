@@ -15,9 +15,7 @@ export default function Page() {
           `,
         }}
       />
-      <p>
-        This page tests the beforeInteractive script strategy with CSS classes.
-      </p>
+      <p>This page tests the beforeInteractive script strategy with CSS classes.</p>
     </div>
   )
 }

@@ -18,9 +18,7 @@ function useCopyLegacy(content: string) {
   const [copyState, dispatch] = React.useReducer(
     (
       state: CopyState,
-      action:
-        | { type: 'reset' | 'copied' | 'copying' }
-        | { type: 'error'; error: unknown }
+      action: { type: 'reset' | 'copied' | 'copying' } | { type: 'error'; error: unknown }
     ): CopyState => {
       if (action.type === 'reset') {
         return { state: 'initial' }
@@ -83,10 +81,7 @@ function useCopyModern(content: string) {
     | { state: 'success' }
 
   const [copyState, dispatch, isPending] = React.useActionState(
-    (
-      state: CopyState,
-      action: 'reset' | 'copy'
-    ): CopyState | Promise<CopyState> => {
+    (state: CopyState, action: 'reset' | 'copy'): CopyState | Promise<CopyState> => {
       if (action === 'reset') {
         return { state: 'initial' }
       }
@@ -130,8 +125,7 @@ function useCopyModern(content: string) {
   return [copyState, copy, reset, isPending] as const
 }
 
-const useCopy =
-  typeof React.useActionState === 'function' ? useCopyModern : useCopyLegacy
+const useCopy = typeof React.useActionState === 'function' ? useCopyModern : useCopyLegacy
 
 type CopyButtonProps = React.HTMLProps<HTMLButtonElement> & {
   actionLabel: string
@@ -142,15 +136,7 @@ type CopyButtonProps = React.HTMLProps<HTMLButtonElement> & {
 export function CopyButton(
   props: CopyButtonProps & { content?: string; getContent?: () => string }
 ) {
-  const {
-    content,
-    getContent,
-    actionLabel,
-    successLabel,
-    icon,
-    disabled,
-    ...rest
-  } = props
+  const { content, getContent, actionLabel, successLabel, icon, disabled, ...rest } = props
   const getContentString = (): string => {
     if (content) {
       return content
@@ -190,13 +176,7 @@ export function CopyButton(
     copyState.state === 'success' ? (
       <CopySuccessIcon />
     ) : (
-      icon || (
-        <CopyIcon
-          width={14}
-          height={14}
-          className="error-overlay-toolbar-button-icon"
-        />
-      )
+      icon || <CopyIcon width={14} height={14} className="error-overlay-toolbar-button-icon" />
     )
 
   return (

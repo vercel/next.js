@@ -17,13 +17,10 @@ async function getCachedWithTag({
   // fetch cache. If both are not used, the fetch is not cached at all in the
   // fetch cache, and is included in the cached result of `getCachedWithTag`
   // instead, thus also affected by revalidating 'c'.
-  const response = await fetch(
-    `https://next-data-api-endpoint.vercel.app/api/random?tag=${tag}`,
-    {
-      cache: fetchCache === 'force' ? 'force-cache' : undefined,
-      next: { revalidate: fetchCache === 'revalidate' ? 42 : undefined },
-    }
-  )
+  const response = await fetch(`https://next-data-api-endpoint.vercel.app/api/random?tag=${tag}`, {
+    cache: fetchCache === 'force' ? 'force-cache' : undefined,
+    next: { revalidate: fetchCache === 'revalidate' ? 42 : undefined },
+  })
 
   const fetchedValue = await response.text()
 

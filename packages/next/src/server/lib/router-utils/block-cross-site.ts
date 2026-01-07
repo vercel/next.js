@@ -41,8 +41,7 @@ function isInternalDevEndpoint(req: IncomingMessage): boolean {
     // Static media requests are excluded, as they might be loaded via CSS and would fail
     // CORS checks.
     const isIgnoredRequest =
-      req.url.includes('/_next/image') ||
-      req.url.includes('/_next/static/media')
+      req.url.includes('/_next/image') || req.url.includes('/_next/static/media')
 
     return !isIgnoredRequest && (isInternalAsset || isMiddlewareRequest)
   } catch (err) {
@@ -60,11 +59,7 @@ export const blockCrossSite = (
   // for now, we warn when allowed origins aren't configured
   const mode = typeof allowedDevOrigins === 'undefined' ? 'warn' : 'block'
 
-  const allowedOrigins = [
-    '*.localhost',
-    'localhost',
-    ...(allowedDevOrigins || []),
-  ]
+  const allowedOrigins = ['*.localhost', 'localhost', ...(allowedDevOrigins || [])]
   if (hostname) {
     allowedOrigins.push(hostname)
   }

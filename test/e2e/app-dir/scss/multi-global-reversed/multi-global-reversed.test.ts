@@ -13,20 +13,17 @@ describe.each([
       },
     },
   },
-])(
-  '(SCSS) Multi Global Support (reversed) ($dependencies)',
-  ({ dependencies, nextConfig }) => {
-    const { next } = nextTestSetup({
-      files: __dirname,
-      dependencies,
-      nextConfig,
-    })
+])('(SCSS) Multi Global Support (reversed) ($dependencies)', ({ dependencies, nextConfig }) => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    dependencies,
+    nextConfig,
+  })
 
-    it('should render the page', async () => {
-      const browser = await next.browser('/')
-      expect(
-        await browser.elementByCss('#verify-blue').getComputedCss('color')
-      ).toBe(colorToRgb('blue'))
-    })
-  }
-)
+  it('should render the page', async () => {
+    const browser = await next.browser('/')
+    expect(await browser.elementByCss('#verify-blue').getComputedCss('color')).toBe(
+      colorToRgb('blue')
+    )
+  })
+})

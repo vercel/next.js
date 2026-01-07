@@ -1,18 +1,11 @@
 import { computeChangedPath } from './compute-changed-path'
-import type {
-  Mutable,
-  ReadonlyReducerState,
-  ReducerState,
-} from './router-reducer-types'
+import type { Mutable, ReadonlyReducerState, ReducerState } from './router-reducer-types'
 
 function isNotUndefined<T>(value: T): value is Exclude<T, undefined> {
   return typeof value !== 'undefined'
 }
 
-export function handleMutable(
-  state: ReadonlyReducerState,
-  mutable: Mutable
-): ReducerState {
+export function handleMutable(state: ReadonlyReducerState, mutable: Mutable): ReducerState {
   // shouldScroll is true by default, can override to false.
   const shouldScroll = mutable.shouldScroll ?? true
 
@@ -44,9 +37,7 @@ export function handleMutable(
       mpaNavigation: isNotUndefined(mutable.mpaNavigation)
         ? mutable.mpaNavigation
         : state.pushRef.mpaNavigation,
-      preserveCustomHistoryState: isNotUndefined(
-        mutable.preserveCustomHistoryState
-      )
+      preserveCustomHistoryState: isNotUndefined(mutable.preserveCustomHistoryState)
         ? mutable.preserveCustomHistoryState
         : state.pushRef.preserveCustomHistoryState,
     },
@@ -76,9 +67,7 @@ export function handleMutable(
     // Apply cache.
     cache: mutable.cache ? mutable.cache : state.cache,
     // Apply patched router state.
-    tree: isNotUndefined(mutable.patchedTree)
-      ? mutable.patchedTree
-      : state.tree,
+    tree: isNotUndefined(mutable.patchedTree) ? mutable.patchedTree : state.tree,
     nextUrl,
     previousNextUrl: previousNextUrl,
     debugInfo: mutable.collectedDebugInfo ?? null,

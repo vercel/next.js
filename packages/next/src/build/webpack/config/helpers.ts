@@ -11,8 +11,7 @@ export const loader = curry(function loader(
 
   if (rule.oneOf) {
     const existing = config.module.rules?.find(
-      (arrayRule) =>
-        arrayRule && typeof arrayRule === 'object' && arrayRule.oneOf
+      (arrayRule) => arrayRule && typeof arrayRule === 'object' && arrayRule.oneOf
     )
     if (existing && typeof existing === 'object') {
       existing.oneOf!.push(...rule.oneOf)
@@ -34,8 +33,7 @@ export const unshiftLoader = curry(function unshiftLoader(
 
   if (rule.oneOf) {
     const existing = config.module.rules?.find(
-      (arrayRule) =>
-        arrayRule && typeof arrayRule === 'object' && arrayRule.oneOf
+      (arrayRule) => arrayRule && typeof arrayRule === 'object' && arrayRule.oneOf
     )
     if (existing && typeof existing === 'object') {
       existing.oneOf?.unshift(...rule.oneOf)

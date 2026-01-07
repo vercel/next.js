@@ -28,9 +28,7 @@ describe('<Link prefetch="auto">', () => {
 
     // Reveal the link to trigger a prefetch
     await act(async () => {
-      const linkToggle = await browser.elementByCss(
-        'input[data-link-accordion="/dynamic"]'
-      )
+      const linkToggle = await browser.elementByCss('input[data-link-accordion="/dynamic"]')
       await linkToggle.click()
     }, [
       // Should prefetch the loading boundary

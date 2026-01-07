@@ -122,9 +122,7 @@ describe.skip('cache-components - Console Dimming - Validation', () => {
           args: ['--debug-build-paths', `app${path}/page.tsx`],
         })
       } catch (err) {
-        const error = new Error(
-          'Expected build to complete successfully, but it failed'
-        )
+        const error = new Error('Expected build to complete successfully, but it failed')
         error.cause = err
         throw error
       }
@@ -310,9 +308,7 @@ describe.skip('cache-components - Logging after Abort', () => {
             args: ['--debug-build-paths', `app${path}/page.tsx`],
           })
         } catch (err) {
-          const error = new Error(
-            'Expected build to complete successfully, but it failed'
-          )
+          const error = new Error('Expected build to complete successfully, but it failed')
           error.cause = err
           throw error
         }
@@ -479,9 +475,7 @@ describe.skip('cache-components - Logging after Abort', () => {
             args: ['--debug-build-paths', `app${path}/page.tsx`],
           })
         } catch (err) {
-          const error = new Error(
-            'Expected build to complete successfully, but it failed'
-          )
+          const error = new Error('Expected build to complete successfully, but it failed')
           error.cause = err
           throw error
         }
@@ -629,9 +623,7 @@ describe.skip('cache-components - Logging after Abort', () => {
             args: ['--debug-build-paths', `app${path}/page.tsx`],
           })
         } catch (err) {
-          const error = new Error(
-            'Expected build to complete successfully, but it failed'
-          )
+          const error = new Error('Expected build to complete successfully, but it failed')
           error.cause = err
           throw error
         }
@@ -723,9 +715,7 @@ describe.skip('cache-components - Logging after Abort', () => {
             args: ['--debug-build-paths', `app${path}/page.tsx`],
           })
         } catch (err) {
-          const error = new Error(
-            'Expected build to complete successfully, but it failed'
-          )
+          const error = new Error('Expected build to complete successfully, but it failed')
           error.cause = err
           throw error
         }
@@ -754,9 +744,7 @@ type Lines = Array<string>
 function reorderLinesByBadge(selectedOutput: string) {
   const unorderedLines = selectedOutput
     .split('\n')
-    .filter(
-      (l) => !(l.includes('Generating static pages') || l.includes(' GET '))
-    )
+    .filter((l) => !(l.includes('Generating static pages') || l.includes(' GET ')))
     .map((l) => l.replace(/( at .*):\d+:\d+/, '$1:<line>:<col>'))
 
   let currentLines: Lines = []
@@ -783,9 +771,7 @@ function reorderLinesByBadge(selectedOutput: string) {
   }
 
   const orderedRenders = Array.from(renderGroups.values())
-  const orderedStreams = orderedRenders.map((s) =>
-    Array.from(s.values()).flat()
-  )
+  const orderedStreams = orderedRenders.map((s) => Array.from(s.values()).flat())
 
   return orderedStreams.flat().join('\n')
 }

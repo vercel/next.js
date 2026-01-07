@@ -10,8 +10,6 @@ describe('getSegmentValue', () => {
   })
 
   it('should support catch all segment', () => {
-    expect(getSegmentValue(['slug', 'blog/hello-world', 'c'])).toEqual(
-      'blog/hello-world'
-    )
+    expect(getSegmentValue(['slug', 'blog/hello-world', 'c'])).toEqual('blog/hello-world')
   })
 })

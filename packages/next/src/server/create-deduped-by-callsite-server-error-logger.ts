@@ -3,17 +3,12 @@ import * as React from 'react'
 const errorRef: { current: null | Error } = { current: null }
 
 // React.cache is currently only available in canary/experimental React channels.
-const cache =
-  typeof React.cache === 'function'
-    ? React.cache
-    : (fn: (key: unknown) => void) => fn
+const cache = typeof React.cache === 'function' ? React.cache : (fn: (key: unknown) => void) => fn
 
 // When Cache Components is enabled, we record these as errors so that they
 // are captured by the dev overlay as it's more critical to fix these
 // when enabled.
-const logErrorOrWarn = process.env.__NEXT_CACHE_COMPONENTS
-  ? console.error
-  : console.warn
+const logErrorOrWarn = process.env.__NEXT_CACHE_COMPONENTS ? console.error : console.warn
 
 // We don't want to dedupe across requests.
 // The developer might've just attempted to fix the warning so we should warn again if it still happens.

@@ -4,8 +4,8 @@ export default async function Page({ searchParams }) {
   return (
     <div>
       <section>
-        This example uses `searchParams` but is configured with `dynamic =
-        'error'` which should cause the page to fail to build
+        This example uses `searchParams` but is configured with `dynamic = 'error'` which should
+        cause the page to fail to build
       </section>
       <section id="searchparams">
         <h3>searchParams</h3>

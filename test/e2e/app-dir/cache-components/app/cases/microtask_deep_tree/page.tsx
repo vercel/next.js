@@ -5,8 +5,8 @@ export default async function Page() {
   return (
     <>
       <p>
-        This page renders a deep tree of deeply async components that still
-        resolve within microtasks.
+        This page renders a deep tree of deeply async components that still resolve within
+        microtasks.
       </p>
       <p>With PPR this page should be entirely static.</p>
       <p>Without PPR this page should be static.</p>

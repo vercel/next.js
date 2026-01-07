@@ -2,11 +2,7 @@
 
 import { useTransition } from 'react'
 
-export function RevalidateButtons({
-  revalidatePath,
-}: {
-  revalidatePath: () => Promise<void>
-}) {
+export function RevalidateButtons({ revalidatePath }: { revalidatePath: () => Promise<void> }) {
   const [isPending, startTransition] = useTransition()
 
   return (

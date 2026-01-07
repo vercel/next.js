@@ -122,12 +122,8 @@ describe('segment cache (basic tests)', () => {
 
         // We should be able to render the page with the dynamic param, because
         // it is lazily generated
-        const target = await browser.elementById(
-          'target-page-with-lazily-generated-param'
-        )
-        expect(await target.innerHTML()).toMatchInlineSnapshot(
-          `"Param: some-param-value"`
-        )
+        const target = await browser.elementById('target-page-with-lazily-generated-param')
+        expect(await target.innerHTML()).toMatchInlineSnapshot(`"Param: some-param-value"`)
       },
       // No additional requests were required, because everything was prefetched
       'no-requests'
@@ -245,9 +241,7 @@ describe('segment cache (basic tests)', () => {
     const link = await act(
       async () => {
         await reveal.click()
-        return await browser.elementByCss(
-          'a[href="/partially-static/target-page"]'
-        )
+        return await browser.elementByCss('a[href="/partially-static/target-page"]')
       },
       // The static layout should not be included in the dynamic response,
       // because it was already prefetched.
@@ -285,15 +279,9 @@ describe('segment cache (basic tests)', () => {
       },
     })
 
-    const linkWithNoHash = await browser.elementByCss(
-      'a[href="/same-page-nav"]'
-    )
-    const linkWithHashA = await browser.elementByCss(
-      'a[href="/same-page-nav#hash-a"]'
-    )
-    const linkWithHashB = await browser.elementByCss(
-      'a[href="/same-page-nav#hash-b"]'
-    )
+    const linkWithNoHash = await browser.elementByCss('a[href="/same-page-nav"]')
+    const linkWithHashA = await browser.elementByCss('a[href="/same-page-nav#hash-a"]')
+    const linkWithHashB = await browser.elementByCss('a[href="/same-page-nav#hash-b"]')
 
     async function readRandomNumberFromPage() {
       const randomNumber = await browser.elementById('random-number')
@@ -356,9 +344,7 @@ describe('segment cache (basic tests)', () => {
     const link = await act(
       async () => {
         await reveal.click()
-        return await browser.elementByCss(
-          'a[href="/with-server-action/target-page"]'
-        )
+        return await browser.elementByCss('a[href="/with-server-action/target-page"]')
       },
       { includes: 'Target' }
     )

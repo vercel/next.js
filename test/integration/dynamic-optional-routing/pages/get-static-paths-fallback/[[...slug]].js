@@ -26,9 +26,7 @@ export default function Index(props) {
   return (
     <div id="route">
       gsp fallback route:{' '}
-      {props.params?.slug === undefined
-        ? 'undefined'
-        : `[${props.params.slug.join('|')}]`}
+      {props.params?.slug === undefined ? 'undefined' : `[${props.params.slug.join('|')}]`}
       {router.isFallback ? ' is fallback' : ' is not fallback'}
     </div>
   )

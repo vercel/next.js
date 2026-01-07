@@ -27,8 +27,7 @@ export function getStaticProps({ params }) {
       params,
       now: Date.now(),
     },
-    revalidate:
-      !process.env.TEST_EXPORT && params.slug === 'first' ? 60 : undefined,
+    revalidate: !process.env.TEST_EXPORT && params.slug === 'first' ? 60 : undefined,
   }
 }
 

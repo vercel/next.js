@@ -7,9 +7,7 @@
 
 import type React from 'react'
 
-export type LoadingModuleData =
-  | [React.JSX.Element, React.ReactNode, React.ReactNode]
-  | null
+export type LoadingModuleData = [React.JSX.Element, React.ReactNode, React.ReactNode] | null
 
 /** viewport metadata node */
 export type HeadData = React.ReactNode
@@ -137,12 +135,7 @@ export type FlightRouterState = [
    *   make sense for the client to send a FlightRouterState, since this type is
    *   overloaded with concerns.
    */
-  refresh?:
-    | 'refetch'
-    | 'refresh'
-    | 'inside-shared-layout'
-    | 'metadata-only'
-    | null,
+  refresh?: 'refetch' | 'refresh' | 'inside-shared-layout' | 'metadata-only' | null,
   isRootLayout?: boolean,
   /**
    * Only present when responding to a tree prefetch request. Indicates whether
@@ -270,7 +263,4 @@ export type ActionFlightResponse = {
   i: boolean
 }
 
-export type RSCPayload =
-  | InitialRSCPayload
-  | NavigationFlightResponse
-  | ActionFlightResponse
+export type RSCPayload = InitialRSCPayload | NavigationFlightResponse | ActionFlightResponse

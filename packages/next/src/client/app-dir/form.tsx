@@ -15,10 +15,7 @@ import {
   hasUnsupportedSubmitterAttributes,
   type FormProps,
 } from '../form-shared'
-import {
-  mountFormInstance,
-  unmountPrefetchableInstance,
-} from '../components/links'
+import { mountFormInstance, unmountPrefetchableInstance } from '../components/links'
 import { FetchStrategy } from '../components/segment-cache/types'
 
 export type { FormProps }
@@ -44,26 +41,17 @@ export default function Form({
 
   // Validate `prefetch`
   if (process.env.NODE_ENV === 'development') {
-    if (
-      !(
-        prefetchProp === undefined ||
-        prefetchProp === false ||
-        prefetchProp === null
-      )
-    ) {
+    if (!(prefetchProp === undefined || prefetchProp === false || prefetchProp === null)) {
       console.error('The `prefetch` prop of <Form> must be `false` or `null`')
     }
 
     if (prefetchProp !== undefined && !isNavigatingForm) {
-      console.error(
-        'Passing `prefetch` to a <Form> whose `action` is a function has no effect.'
-      )
+      console.error('Passing `prefetch` to a <Form> whose `action` is a function has no effect.')
     }
   }
 
   // TODO(runtime-ppr): allow runtime prefetches in Form
-  const prefetch =
-    prefetchProp === false || prefetchProp === null ? prefetchProp : null
+  const prefetch = prefetchProp === false || prefetchProp === null ? prefetchProp : null
 
   // Validate `scroll` and `replace`
   if (process.env.NODE_ENV === 'development') {
@@ -115,10 +103,7 @@ export default function Form({
     [isPrefetchEnabled, actionProp, router]
   )
 
-  const mergedRef = useMergedRef(
-    observeFormVisibilityOnMount,
-    externalRef ?? null
-  )
+  const mergedRef = useMergedRef(observeFormVisibilityOnMount, externalRef ?? null)
 
   if (!isNavigatingForm) {
     return <form {...props} ref={mergedRef} />
@@ -226,7 +211,5 @@ function onFormSubmit(
 function hasReactServerActionAttributes(submitter: HTMLElement) {
   // https://github.com/facebook/react/blob/942eb80381b96f8410eab1bef1c539bed1ab0eb1/packages/react-client/src/ReactFlightReplyClient.js#L931-L934
   const name = submitter.getAttribute('name')
-  return (
-    name && (name.startsWith('$ACTION_ID_') || name.startsWith('$ACTION_REF_'))
-  )
+  return name && (name.startsWith('$ACTION_ID_') || name.startsWith('$ACTION_REF_'))
 }

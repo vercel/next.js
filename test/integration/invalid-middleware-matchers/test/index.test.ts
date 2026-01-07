@@ -91,9 +91,7 @@ const runTests = (getStderr, isDev) => {
       matches += stderr.includes('Missing `source` in `matcher[0]` object')
       matches += stderr.includes('Missing `source` in `matcher[1]` object')
       matches += stderr.includes('Unexpected property in `matcher[3]` object')
-      matches += stderr.includes(
-        'Entry `matcher[4]` need to be static strings or static objects.'
-      )
+      matches += stderr.includes('Entry `matcher[4]` need to be static strings or static objects.')
       matches += stderr.includes(
         "`matcher[5].has[0].type` must be one of the strings: 'header', 'cookie', 'query', 'host'"
       )
@@ -101,9 +99,7 @@ const runTests = (getStderr, isDev) => {
         "`matcher[6].has[0].type` must be one of the strings: 'header', 'cookie', 'query', 'host'"
       )
       matches += stderr.includes('Unexpected property in `matcher[7]` object')
-      matches += stderr.includes(
-        '`locale` in `matcher[8]` object must be false or undefined'
-      )
+      matches += stderr.includes('`locale` in `matcher[8]` object must be false or undefined')
 
       // TODO somehow stderr is doesn't contain everything. It does print 10 messages when running next standalone
       if (matches < 4) {
@@ -113,12 +109,8 @@ const runTests = (getStderr, isDev) => {
       expect(stderr).toContain(
         'Expected string, received object at "matcher[0]", or source is required at "matcher[0].source"'
       )
-      expect(stderr).toContain(
-        'Expected string, received number at "matcher[1].source"'
-      )
-      expect(stderr).toContain(
-        'Unrecognized key(s) in object: \'destination\' at "matcher[3]"'
-      )
+      expect(stderr).toContain('Expected string, received number at "matcher[1].source"')
+      expect(stderr).toContain('Unrecognized key(s) in object: \'destination\' at "matcher[3]"')
       expect(stderr).toContain('Expected string, received null at "matcher[4]"')
       expect(stderr).toContain(
         "Expected 'header' | 'query' | 'cookie' | 'host' at \"matcher[6].has[1].type\""
@@ -133,9 +125,7 @@ const runTests = (getStderr, isDev) => {
       expect(stderr).toContain(
         "Expected 'header' | 'query' | 'cookie' | 'host' at \"matcher[6].has[1].type\""
       )
-      expect(stderr).toContain(
-        'Unrecognized key(s) in object: \'basePath\' at "matcher[7]"'
-      )
+      expect(stderr).toContain('Unrecognized key(s) in object: \'basePath\' at "matcher[7]"')
       expect(stderr).toContain(
         'Expected string, received object at "matcher[8]", or Invalid literal value, expected false at "matcher[8].locale", or Expected undefined, received boolean at "matcher[8].locale"'
       )
@@ -148,30 +138,24 @@ const runTests = (getStderr, isDev) => {
 
 describe('Errors on invalid custom middleware matchers', () => {
   afterAll(() => fs.remove(middlewarePath))
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
-    'development mode',
-    () => {
-      runTests(async () => {
-        let stderr = ''
-        const port = await findPort()
-        await launchApp(appDir, port, {
-          onStderr(msg) {
-            stderr += msg
-          },
-        })
-        await fetchViaHTTP(port, '/').catch(() => {})
-        return stderr
-      }, true)
-    }
-  )
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      runTests(async () => {
-        const { stderr } = await nextBuild(appDir, [], { stderr: true })
-        console.log(stderr)
-        return stderr
-      }, false)
-    }
-  )
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
+    runTests(async () => {
+      let stderr = ''
+      const port = await findPort()
+      await launchApp(appDir, port, {
+        onStderr(msg) {
+          stderr += msg
+        },
+      })
+      await fetchViaHTTP(port, '/').catch(() => {})
+      return stderr
+    }, true)
+  })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
+    runTests(async () => {
+      const { stderr } = await nextBuild(appDir, [], { stderr: true })
+      console.log(stderr)
+      return stderr
+    }, false)
+  })
 })

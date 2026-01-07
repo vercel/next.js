@@ -29,9 +29,7 @@ describe('next-link', () => {
       `)
     }
     // Client errors show "This page crashed"
-    expect(await browser.elementByCss('body').text()).toContain(
-      'This page crashed'
-    )
+    expect(await browser.elementByCss('body').text()).toContain('This page crashed')
   })
 
   it('invalid `prefetch` causes runtime error (dev-only)', async () => {
@@ -53,9 +51,7 @@ describe('next-link', () => {
        }
       `)
       // Client errors show "This page crashed"
-      expect(await browser.elementByCss('body').text()).toContain(
-        'This page crashed'
-      )
+      expect(await browser.elementByCss('body').text()).toContain('This page crashed')
     } else {
       expect(await browser.elementByCss('body').text()).toMatchInlineSnapshot(
         `"Link with unknown \`prefetch\` renders in prod."`

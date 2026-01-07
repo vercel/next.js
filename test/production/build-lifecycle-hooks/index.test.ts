@@ -39,9 +39,7 @@ describe('build-lifecycle-hooks', () => {
       const getCliOutput = next.getCliOutputFromHere()
       await next.build()
       expect(getCliOutput()).toContain('error after production build')
-      expect(getCliOutput()).not.toContain(
-        'Completed runAfterProductionCompile in'
-      )
+      expect(getCliOutput()).not.toContain('Completed runAfterProductionCompile in')
     } finally {
       await next.patchFile('next.config.ts', (content) => {
         return content.replace(

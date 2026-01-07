@@ -13,8 +13,7 @@ describe('Empty Project', () => {
     context.server = await launchApp(join(__dirname, '../'), context.appPort)
   })
 
-  const fetch = (p, q?: any) =>
-    fetchViaHTTP(context.appPort, p, q, { timeout: 10_000 })
+  const fetch = (p, q?: any) => fetchViaHTTP(context.appPort, p, q, { timeout: 10_000 })
 
   it('Should not time out and return 404', async () => {
     const res = await fetch('/')

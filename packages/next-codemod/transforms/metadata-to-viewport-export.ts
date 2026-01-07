@@ -31,38 +31,26 @@ export default function transformer(file: FileInfo, _api: API) {
   let viewportProperties
   let hasChanges = false
 
-  const viewport = metadataProperties.find(
-    (prop) => prop.key.name === 'viewport'
-  )
+  const viewport = metadataProperties.find((prop) => prop.key.name === 'viewport')
   if (viewport) {
     viewportProperties = viewport.value.properties
-    metadataProperties = metadataProperties.filter(
-      (prop) => prop.key.name !== 'viewport'
-    )
+    metadataProperties = metadataProperties.filter((prop) => prop.key.name !== 'viewport')
     hasChanges = true
   } else {
     viewportProperties = []
   }
 
-  const colorScheme = metadataProperties.find(
-    (prop) => prop.key.name === 'colorScheme'
-  )
+  const colorScheme = metadataProperties.find((prop) => prop.key.name === 'colorScheme')
   if (colorScheme) {
     viewportProperties.push(colorScheme)
-    metadataProperties = metadataProperties.filter(
-      (prop) => prop.key.name !== 'colorScheme'
-    )
+    metadataProperties = metadataProperties.filter((prop) => prop.key.name !== 'colorScheme')
     hasChanges = true
   }
 
-  const themeColor = metadataProperties.find(
-    (prop) => prop.key.name === 'themeColor'
-  )
+  const themeColor = metadataProperties.find((prop) => prop.key.name === 'themeColor')
   if (themeColor) {
     viewportProperties.push(themeColor)
-    metadataProperties = metadataProperties.filter(
-      (prop) => prop.key.name !== 'themeColor'
-    )
+    metadataProperties = metadataProperties.filter((prop) => prop.key.name !== 'themeColor')
     hasChanges = true
   }
 
@@ -72,17 +60,12 @@ export default function transformer(file: FileInfo, _api: API) {
   }
 
   // Update the metadata export
-  metadataExport
-    .find(j.ObjectExpression)
-    .replaceWith(j.objectExpression(metadataProperties))
+  metadataExport.find(j.ObjectExpression).replaceWith(j.objectExpression(metadataProperties))
 
   // Create the new viewport object
   const viewportExport = j.exportNamedDeclaration(
     j.variableDeclaration('const', [
-      j.variableDeclarator(
-        j.identifier('viewport'),
-        j.objectExpression(viewportProperties)
-      ),
+      j.variableDeclarator(j.identifier('viewport'), j.objectExpression(viewportProperties)),
     ])
   )
 

@@ -119,12 +119,9 @@ describe('Cache Components Errors', () => {
             // we expect the build to fail
           }
 
-          const output = getPrerenderOutput(
-            next.cliOutput.slice(cliOutputLength),
-            {
-              isMinified: !isDebugPrerender,
-            }
-          )
+          const output = getPrerenderOutput(next.cliOutput.slice(cliOutputLength), {
+            isMinified: !isDebugPrerender,
+          })
 
           if (isDebugPrerender) {
             expect(output).toMatchInlineSnapshot(`
@@ -188,12 +185,9 @@ describe('Cache Components Errors', () => {
             // we expect the build to fail
           }
 
-          const output = getPrerenderOutput(
-            next.cliOutput.slice(cliOutputLength),
-            {
-              isMinified: !isDebugPrerender,
-            }
-          )
+          const output = getPrerenderOutput(next.cliOutput.slice(cliOutputLength), {
+            isMinified: !isDebugPrerender,
+          })
 
           if (isTurbopack) {
             if (isDebugPrerender) {
@@ -312,12 +306,9 @@ describe('Cache Components Errors', () => {
             // we expect the build to fail
           }
 
-          const output = getPrerenderOutput(
-            next.cliOutput.slice(cliOutputLength),
-            {
-              isMinified: !isDebugPrerender,
-            }
-          )
+          const output = getPrerenderOutput(next.cliOutput.slice(cliOutputLength), {
+            isMinified: !isDebugPrerender,
+          })
 
           if (isDebugPrerender) {
             expect(output).toMatchInlineSnapshot(`
@@ -404,12 +395,9 @@ describe('Cache Components Errors', () => {
             // we expect the build to fail
           }
 
-          const output = getPrerenderOutput(
-            next.cliOutput.slice(cliOutputLength),
-            {
-              isMinified: !isDebugPrerender,
-            }
-          )
+          const output = getPrerenderOutput(next.cliOutput.slice(cliOutputLength), {
+            isMinified: !isDebugPrerender,
+          })
 
           if (isDebugPrerender) {
             expect(output).toMatchInlineSnapshot(`
@@ -471,12 +459,9 @@ describe('Cache Components Errors', () => {
             // we expect the build to fail
           }
 
-          const output = getPrerenderOutput(
-            next.cliOutput.slice(cliOutputLength),
-            {
-              isMinified: !isDebugPrerender,
-            }
-          )
+          const output = getPrerenderOutput(next.cliOutput.slice(cliOutputLength), {
+            isMinified: !isDebugPrerender,
+          })
 
           if (isDebugPrerender) {
             expect(output).toMatchInlineSnapshot(`
@@ -586,12 +571,9 @@ describe('Cache Components Errors', () => {
             // we expect the build to fail
           }
 
-          const output = getPrerenderOutput(
-            next.cliOutput.slice(cliOutputLength),
-            {
-              isMinified: !isDebugPrerender,
-            }
-          )
+          const output = getPrerenderOutput(next.cliOutput.slice(cliOutputLength), {
+            isMinified: !isDebugPrerender,
+          })
 
           if (isTurbopack) {
             if (isDebugPrerender) {
@@ -796,12 +778,9 @@ describe('Cache Components Errors', () => {
               // we expect the build to fail
             }
 
-            const output = getPrerenderOutput(
-              next.cliOutput.slice(cliOutputLength),
-              {
-                isMinified: !isDebugPrerender,
-              }
-            )
+            const output = getPrerenderOutput(next.cliOutput.slice(cliOutputLength), {
+              isMinified: !isDebugPrerender,
+            })
 
             if (isDebugPrerender) {
               if (isTurbopack) {
@@ -908,12 +887,9 @@ describe('Cache Components Errors', () => {
               // we expect the build to fail
             }
 
-            const output = getPrerenderOutput(
-              next.cliOutput.slice(cliOutputLength),
-              {
-                isMinified: !isDebugPrerender,
-              }
-            )
+            const output = getPrerenderOutput(next.cliOutput.slice(cliOutputLength), {
+              isMinified: !isDebugPrerender,
+            })
 
             if (isDebugPrerender) {
               if (isTurbopack) {
@@ -1000,9 +976,7 @@ describe('Cache Components Errors', () => {
           it('should return `undefined` for `searchParams.foo`', async () => {
             const browser = await next.browser(`${pathname}?foo=test`)
 
-            expect(await browser.elementById('foo-param').text()).toBe(
-              'undefined'
-            )
+            expect(await browser.elementById('foo-param').text()).toBe('undefined')
           })
 
           it('should show a collapsed redbox with a sync access error', async () => {
@@ -1037,9 +1011,7 @@ describe('Cache Components Errors', () => {
           it('should return `undefined` for `searchParams.foo`', async () => {
             const browser = await next.browser(`${pathname}?foo=test`)
 
-            expect(await browser.elementById('foo-param').text()).toBe(
-              'undefined'
-            )
+            expect(await browser.elementById('foo-param').text()).toBe('undefined')
           })
 
           it('should show a collapsed redbox with a sync access error', async () => {
@@ -1168,12 +1140,9 @@ describe('Cache Components Errors', () => {
               // we expect the build to fail
             }
 
-            const output = getPrerenderOutput(
-              next.cliOutput.slice(cliOutputLength),
-              {
-                isMinified: !isDebugPrerender,
-              }
-            )
+            const output = getPrerenderOutput(next.cliOutput.slice(cliOutputLength), {
+              isMinified: !isDebugPrerender,
+            })
 
             if (isDebugPrerender) {
               if (isTurbopack) {
@@ -1358,9 +1327,7 @@ describe('Cache Components Errors', () => {
           it('should return `undefined` for `draftMode().isEnabled`', async () => {
             const browser = await next.browser(`${pathname}`)
 
-            expect(await browser.elementById('draft-mode').text()).toBe(
-              'undefined'
-            )
+            expect(await browser.elementById('draft-mode').text()).toBe('undefined')
           })
 
           it('should show a collapsed redbox with a sync access error', async () => {
@@ -1506,12 +1473,9 @@ describe('Cache Components Errors', () => {
               // we expect the build to fail
             }
 
-            const output = getPrerenderOutput(
-              next.cliOutput.slice(cliOutputLength),
-              {
-                isMinified: !isDebugPrerender,
-              }
-            )
+            const output = getPrerenderOutput(next.cliOutput.slice(cliOutputLength), {
+              isMinified: !isDebugPrerender,
+            })
 
             if (isDebugPrerender) {
               if (isTurbopack) {
@@ -1816,12 +1780,9 @@ describe('Cache Components Errors', () => {
               // we expect the build to fail
             }
 
-            const output = getPrerenderOutput(
-              next.cliOutput.slice(cliOutputLength),
-              {
-                isMinified: !isDebugPrerender,
-              }
-            )
+            const output = getPrerenderOutput(next.cliOutput.slice(cliOutputLength), {
+              isMinified: !isDebugPrerender,
+            })
 
             if (isDebugPrerender) {
               if (isTurbopack) {
@@ -1941,12 +1902,9 @@ describe('Cache Components Errors', () => {
               // we expect the build to fail
             }
 
-            const output = getPrerenderOutput(
-              next.cliOutput.slice(cliOutputLength),
-              {
-                isMinified: !isDebugPrerender,
-              }
-            )
+            const output = getPrerenderOutput(next.cliOutput.slice(cliOutputLength), {
+              isMinified: !isDebugPrerender,
+            })
 
             if (isTurbopack) {
               if (isDebugPrerender) {
@@ -2046,8 +2004,7 @@ describe('Cache Components Errors', () => {
       })
 
       describe('unguarded RSC with unguarded Client sync IO', () => {
-        const pathname =
-          '/sync-attribution/unguarded-async-unguarded-clientsync'
+        const pathname = '/sync-attribution/unguarded-async-unguarded-clientsync'
 
         if (skipped) {
           return
@@ -2080,12 +2037,9 @@ describe('Cache Components Errors', () => {
               // we expect the build to fail
             }
 
-            const output = getPrerenderOutput(
-              next.cliOutput.slice(cliOutputLength),
-              {
-                isMinified: !isDebugPrerender,
-              }
-            )
+            const output = getPrerenderOutput(next.cliOutput.slice(cliOutputLength), {
+              isMinified: !isDebugPrerender,
+            })
 
             if (isDebugPrerender) {
               if (isTurbopack) {
@@ -2188,12 +2142,9 @@ describe('Cache Components Errors', () => {
               // we expect the build to fail
             }
 
-            const output = getPrerenderOutput(
-              next.cliOutput.slice(cliOutputLength),
-              {
-                isMinified: !isDebugPrerender,
-              }
-            )
+            const output = getPrerenderOutput(next.cliOutput.slice(cliOutputLength), {
+              isMinified: !isDebugPrerender,
+            })
 
             if (isTurbopack) {
               if (isDebugPrerender) {
@@ -2295,12 +2246,9 @@ describe('Cache Components Errors', () => {
               // we expect the build to fail
             }
 
-            const output = getPrerenderOutput(
-              next.cliOutput.slice(cliOutputLength),
-              {
-                isMinified: !isDebugPrerender,
-              }
-            )
+            const output = getPrerenderOutput(next.cliOutput.slice(cliOutputLength), {
+              isMinified: !isDebugPrerender,
+            })
 
             if (isDebugPrerender) {
               if (isTurbopack) {
@@ -2401,12 +2349,9 @@ describe('Cache Components Errors', () => {
               // we expect the build to fail
             }
 
-            const output = getPrerenderOutput(
-              next.cliOutput.slice(cliOutputLength),
-              {
-                isMinified: !isDebugPrerender,
-              }
-            )
+            const output = getPrerenderOutput(next.cliOutput.slice(cliOutputLength), {
+              isMinified: !isDebugPrerender,
+            })
 
             if (isTurbopack) {
               if (isDebugPrerender) {
@@ -2521,12 +2466,9 @@ describe('Cache Components Errors', () => {
                 // we expect the build to fail
               }
 
-              const output = getPrerenderOutput(
-                next.cliOutput.slice(cliOutputLength),
-                {
-                  isMinified: !isDebugPrerender,
-                }
-              )
+              const output = getPrerenderOutput(next.cliOutput.slice(cliOutputLength), {
+                isMinified: !isDebugPrerender,
+              })
 
               if (isTurbopack) {
                 if (isDebugPrerender) {
@@ -2654,12 +2596,9 @@ describe('Cache Components Errors', () => {
                 // we expect the build to fail
               }
 
-              const output = getPrerenderOutput(
-                next.cliOutput.slice(cliOutputLength),
-                {
-                  isMinified: !isDebugPrerender,
-                }
-              )
+              const output = getPrerenderOutput(next.cliOutput.slice(cliOutputLength), {
+                isMinified: !isDebugPrerender,
+              })
 
               if (isTurbopack) {
                 if (isDebugPrerender) {
@@ -2790,12 +2729,9 @@ describe('Cache Components Errors', () => {
                 // we expect the build to fail
               }
 
-              const output = getPrerenderOutput(
-                next.cliOutput.slice(cliOutputLength),
-                {
-                  isMinified: !isDebugPrerender,
-                }
-              )
+              const output = getPrerenderOutput(next.cliOutput.slice(cliOutputLength), {
+                isMinified: !isDebugPrerender,
+              })
 
               if (isTurbopack) {
                 if (isDebugPrerender) {
@@ -2923,12 +2859,9 @@ describe('Cache Components Errors', () => {
                 // we expect the build to fail
               }
 
-              const output = getPrerenderOutput(
-                next.cliOutput.slice(cliOutputLength),
-                {
-                  isMinified: !isDebugPrerender,
-                }
-              )
+              const output = getPrerenderOutput(next.cliOutput.slice(cliOutputLength), {
+                isMinified: !isDebugPrerender,
+              })
 
               if (isTurbopack) {
                 if (isDebugPrerender) {
@@ -3056,12 +2989,9 @@ describe('Cache Components Errors', () => {
               // we expect the build to fail
             }
 
-            const output = getPrerenderOutput(
-              next.cliOutput.slice(cliOutputLength),
-              {
-                isMinified: !isDebugPrerender,
-              }
-            )
+            const output = getPrerenderOutput(next.cliOutput.slice(cliOutputLength), {
+              isMinified: !isDebugPrerender,
+            })
 
             if (isTurbopack) {
               if (isDebugPrerender) {
@@ -3185,12 +3115,9 @@ describe('Cache Components Errors', () => {
               expect(next.cliOutput.slice(cliOutputLength)).toContain('Error')
             })
 
-            const output = getDeterministicOutput(
-              next.cliOutput.slice(cliOutputLength),
-              {
-                isMinified: !isDebugPrerender,
-              }
-            )
+            const output = getDeterministicOutput(next.cliOutput.slice(cliOutputLength), {
+              isMinified: !isDebugPrerender,
+            })
 
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
@@ -3251,12 +3178,9 @@ describe('Cache Components Errors', () => {
               expect(next.cliOutput.slice(cliOutputLength)).toContain('Error')
             })
 
-            const output = getDeterministicOutput(
-              next.cliOutput.slice(cliOutputLength),
-              {
-                isMinified: !isDebugPrerender,
-              }
-            )
+            const output = getDeterministicOutput(next.cliOutput.slice(cliOutputLength), {
+              isMinified: !isDebugPrerender,
+            })
 
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
@@ -3290,9 +3214,7 @@ describe('Cache Components Errors', () => {
       describe('in `unstable_cache`', () => {
         if (isNextDev) {
           it('should show a redbox error', async () => {
-            const browser = await next.browser(
-              '/use-cache-private-in-unstable-cache'
-            )
+            const browser = await next.browser('/use-cache-private-in-unstable-cache')
 
             if (isTurbopack) {
               await expect(browser).toDisplayRedbox(`
@@ -3334,12 +3256,9 @@ describe('Cache Components Errors', () => {
               // we expect the build to fail
             }
 
-            const output = getPrerenderOutput(
-              next.cliOutput.slice(cliOutputLength),
-              {
-                isMinified: !isDebugPrerender,
-              }
-            )
+            const output = getPrerenderOutput(next.cliOutput.slice(cliOutputLength), {
+              isMinified: !isDebugPrerender,
+            })
 
             if (isDebugPrerender) {
               if (isTurbopack) {
@@ -3419,9 +3338,7 @@ describe('Cache Components Errors', () => {
       describe('in `use cache`', () => {
         if (isNextDev) {
           it('should show a redbox error', async () => {
-            const browser = await next.browser(
-              '/use-cache-private-in-use-cache'
-            )
+            const browser = await next.browser('/use-cache-private-in-use-cache')
 
             await expect(browser).toDisplayRedbox(`
                {
@@ -3446,12 +3363,9 @@ describe('Cache Components Errors', () => {
               // we expect the build to fail
             }
 
-            const output = getPrerenderOutput(
-              next.cliOutput.slice(cliOutputLength),
-              {
-                isMinified: !isDebugPrerender,
-              }
-            )
+            const output = getPrerenderOutput(next.cliOutput.slice(cliOutputLength), {
+              isMinified: !isDebugPrerender,
+            })
 
             // TODO: Ideally, the error should only be shown once.
             if (isDebugPrerender) {
@@ -3579,9 +3493,7 @@ describe('Cache Components Errors', () => {
       describe('without Suspense', () => {
         if (isNextDev) {
           it('should show a redbox error', async () => {
-            const browser = await next.browser(
-              '/use-cache-private-without-suspense'
-            )
+            const browser = await next.browser('/use-cache-private-without-suspense')
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
@@ -3620,12 +3532,9 @@ describe('Cache Components Errors', () => {
               // we expect the build to fail
             }
 
-            const output = getPrerenderOutput(
-              next.cliOutput.slice(cliOutputLength),
-              {
-                isMinified: !isDebugPrerender,
-              }
-            )
+            const output = getPrerenderOutput(next.cliOutput.slice(cliOutputLength), {
+              isMinified: !isDebugPrerender,
+            })
 
             if (isTurbopack) {
               if (isDebugPrerender) {
@@ -3734,12 +3643,9 @@ describe('Cache Components Errors', () => {
             await prerender('/use-cache-private-connection')
             await next.start({ skipBuild: true })
 
-            const browser = await next.browser(
-              '/use-cache-private-connection',
-              {
-                pushErrorAsConsoleLog: true,
-              }
-            )
+            const browser = await next.browser('/use-cache-private-connection', {
+              pushErrorAsConsoleLog: true,
+            })
 
             expect(await browser.elementById('private').text()).toBe('Private')
 
@@ -3783,12 +3689,9 @@ describe('Cache Components Errors', () => {
             // we expect the build to fail
           }
 
-          const output = getPrerenderOutput(
-            next.cliOutput.slice(cliOutputLength),
-            {
-              isMinified: !isDebugPrerender,
-            }
-          )
+          const output = getPrerenderOutput(next.cliOutput.slice(cliOutputLength), {
+            isMinified: !isDebugPrerender,
+          })
 
           if (isDebugPrerender) {
             if (isTurbopack) {
@@ -3887,12 +3790,9 @@ describe('Cache Components Errors', () => {
             // we expect the build to fail
           }
 
-          const output = getPrerenderOutput(
-            next.cliOutput.slice(cliOutputLength),
-            {
-              isMinified: !isDebugPrerender,
-            }
-          )
+          const output = getPrerenderOutput(next.cliOutput.slice(cliOutputLength), {
+            isMinified: !isDebugPrerender,
+          })
 
           if (isDebugPrerender) {
             if (isTurbopack) {
@@ -3991,12 +3891,9 @@ describe('Cache Components Errors', () => {
             // we expect the build to fail
           }
 
-          const output = getPrerenderOutput(
-            next.cliOutput.slice(cliOutputLength),
-            {
-              isMinified: !isDebugPrerender,
-            }
-          )
+          const output = getPrerenderOutput(next.cliOutput.slice(cliOutputLength), {
+            isMinified: !isDebugPrerender,
+          })
 
           if (isDebugPrerender) {
             if (isTurbopack) {
@@ -4095,12 +3992,9 @@ describe('Cache Components Errors', () => {
             // we expect the build to fail
           }
 
-          const output = getPrerenderOutput(
-            next.cliOutput.slice(cliOutputLength),
-            {
-              isMinified: !isDebugPrerender,
-            }
-          )
+          const output = getPrerenderOutput(next.cliOutput.slice(cliOutputLength), {
+            isMinified: !isDebugPrerender,
+          })
 
           if (isDebugPrerender) {
             if (isTurbopack) {
@@ -4199,12 +4093,9 @@ describe('Cache Components Errors', () => {
             // we expect the build to fail
           }
 
-          const output = getPrerenderOutput(
-            next.cliOutput.slice(cliOutputLength),
-            {
-              isMinified: !isDebugPrerender,
-            }
-          )
+          const output = getPrerenderOutput(next.cliOutput.slice(cliOutputLength), {
+            isMinified: !isDebugPrerender,
+          })
 
           if (isDebugPrerender) {
             if (isTurbopack) {
@@ -4306,12 +4197,9 @@ describe('Cache Components Errors', () => {
             // we expect the build to fail
           }
 
-          const output = getPrerenderOutput(
-            next.cliOutput.slice(cliOutputLength),
-            {
-              isMinified: !isDebugPrerender,
-            }
-          )
+          const output = getPrerenderOutput(next.cliOutput.slice(cliOutputLength), {
+            isMinified: !isDebugPrerender,
+          })
 
           if (isDebugPrerender) {
             if (isTurbopack) {
@@ -4427,12 +4315,9 @@ describe('Cache Components Errors', () => {
             // we expect the build to fail
           }
 
-          const output = getPrerenderOutput(
-            next.cliOutput.slice(cliOutputLength),
-            {
-              isMinified: !isDebugPrerender,
-            }
-          )
+          const output = getPrerenderOutput(next.cliOutput.slice(cliOutputLength), {
+            isMinified: !isDebugPrerender,
+          })
 
           if (isTurbopack) {
             if (isDebugPrerender) {
@@ -4551,12 +4436,9 @@ describe('Cache Components Errors', () => {
             // we expect the build to fail
           }
 
-          const output = getPrerenderOutput(
-            next.cliOutput.slice(cliOutputLength),
-            {
-              isMinified: !isDebugPrerender,
-            }
-          )
+          const output = getPrerenderOutput(next.cliOutput.slice(cliOutputLength), {
+            isMinified: !isDebugPrerender,
+          })
 
           if (isTurbopack) {
             if (isDebugPrerender) {
@@ -4675,12 +4557,9 @@ describe('Cache Components Errors', () => {
             // we expect the build to fail
           }
 
-          const output = getPrerenderOutput(
-            next.cliOutput.slice(cliOutputLength),
-            {
-              isMinified: !isDebugPrerender,
-            }
-          )
+          const output = getPrerenderOutput(next.cliOutput.slice(cliOutputLength), {
+            isMinified: !isDebugPrerender,
+          })
 
           if (isTurbopack) {
             if (isDebugPrerender) {
@@ -4799,12 +4678,9 @@ describe('Cache Components Errors', () => {
             // we expect the build to fail
           }
 
-          const output = getPrerenderOutput(
-            next.cliOutput.slice(cliOutputLength),
-            {
-              isMinified: !isDebugPrerender,
-            }
-          )
+          const output = getPrerenderOutput(next.cliOutput.slice(cliOutputLength), {
+            isMinified: !isDebugPrerender,
+          })
 
           if (isTurbopack) {
             if (isDebugPrerender) {
@@ -4923,12 +4799,9 @@ describe('Cache Components Errors', () => {
             // we expect the build to fail
           }
 
-          const output = getPrerenderOutput(
-            next.cliOutput.slice(cliOutputLength),
-            {
-              isMinified: !isDebugPrerender,
-            }
-          )
+          const output = getPrerenderOutput(next.cliOutput.slice(cliOutputLength), {
+            isMinified: !isDebugPrerender,
+          })
 
           if (isTurbopack) {
             if (isDebugPrerender) {
@@ -5047,12 +4920,9 @@ describe('Cache Components Errors', () => {
             // we expect the build to fail
           }
 
-          const output = getPrerenderOutput(
-            next.cliOutput.slice(cliOutputLength),
-            {
-              isMinified: !isDebugPrerender,
-            }
-          )
+          const output = getPrerenderOutput(next.cliOutput.slice(cliOutputLength), {
+            isMinified: !isDebugPrerender,
+          })
 
           if (isTurbopack) {
             if (isDebugPrerender) {
@@ -5171,12 +5041,9 @@ describe('Cache Components Errors', () => {
             // we expect the build to fail
           }
 
-          const output = getPrerenderOutput(
-            next.cliOutput.slice(cliOutputLength),
-            {
-              isMinified: !isDebugPrerender,
-            }
-          )
+          const output = getPrerenderOutput(next.cliOutput.slice(cliOutputLength), {
+            isMinified: !isDebugPrerender,
+          })
 
           if (isTurbopack) {
             if (isDebugPrerender) {
@@ -5295,12 +5162,9 @@ describe('Cache Components Errors', () => {
             // we expect the build to fail
           }
 
-          const output = getPrerenderOutput(
-            next.cliOutput.slice(cliOutputLength),
-            {
-              isMinified: !isDebugPrerender,
-            }
-          )
+          const output = getPrerenderOutput(next.cliOutput.slice(cliOutputLength), {
+            isMinified: !isDebugPrerender,
+          })
 
           if (isTurbopack) {
             if (isDebugPrerender) {
@@ -5419,12 +5283,9 @@ describe('Cache Components Errors', () => {
             // we expect the build to fail
           }
 
-          const output = getPrerenderOutput(
-            next.cliOutput.slice(cliOutputLength),
-            {
-              isMinified: !isDebugPrerender,
-            }
-          )
+          const output = getPrerenderOutput(next.cliOutput.slice(cliOutputLength), {
+            isMinified: !isDebugPrerender,
+          })
 
           if (isTurbopack) {
             if (isDebugPrerender) {
@@ -5569,12 +5430,9 @@ describe('Cache Components Errors', () => {
             await prerender(pathname)
           } catch {}
 
-          const output = getPrerenderOutput(
-            next.cliOutput.slice(cliOutputLength),
-            {
-              isMinified: !isDebugPrerender,
-            }
-          )
+          const output = getPrerenderOutput(next.cliOutput.slice(cliOutputLength), {
+            isMinified: !isDebugPrerender,
+          })
 
           expect(output).toMatchInlineSnapshot(`
              "BOOM

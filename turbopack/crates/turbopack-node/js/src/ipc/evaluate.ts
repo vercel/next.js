@@ -60,9 +60,7 @@ export const run = async (
         reject = rej
       })
       requests.set(id, { resolve, reject })
-      return ipc
-        .send({ type: 'request', id, data: message })
-        .then(() => promise)
+      return ipc.send({ type: 'request', id, data: message }).then(() => promise)
     },
     sendError: (error: Error) => {
       return ipc.sendError(error)
@@ -92,8 +90,7 @@ export const run = async (
         const value = await getValue(internalIpc, ...args)
         await ipc.send({
           type: 'end',
-          data:
-            value === undefined ? undefined : JSON.stringify(value, null, 2),
+          data: value === undefined ? undefined : JSON.stringify(value, null, 2),
           duration: 0,
         })
       } catch (e) {

@@ -11,10 +11,7 @@ import { getProjectDir } from '../lib/get-project-dir'
 import { enableMemoryDebuggingMode } from '../lib/memory/startup'
 import { disableMemoryDebuggingMode } from '../lib/memory/shutdown'
 import { Bundler, parseBundlerArgs } from '../lib/bundler'
-import {
-  resolveBuildPaths,
-  parseBuildPathsInput,
-} from '../lib/resolve-build-paths'
+import { resolveBuildPaths, parseBuildPathsInput } from '../lib/resolve-build-paths'
 
 export type NextBuildOptions = {
   experimentalAnalyze?: boolean
@@ -66,9 +63,7 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
   const bundler = parseBundlerArgs(options)
 
   if (experimentalAnalyze && bundler !== Bundler.Turbopack) {
-    printAndExit(
-      '--experimental-analyze is only compatible with the Turbopack bundler.'
-    )
+    printAndExit('--experimental-analyze is only compatible with the Turbopack bundler.')
   }
 
   if (!mangling) {
@@ -78,9 +73,7 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
   }
 
   if (profile) {
-    warn(
-      `Profiling is enabled. ${italic('Note: This may affect performance.')}`
-    )
+    warn(`Profiling is enabled. ${italic('Note: This may affect performance.')}`)
   }
 
   if (debugPrerender) {
@@ -117,9 +110,7 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
         resolvedPagePaths = resolved.pagePaths
       }
     } catch (err) {
-      printAndExit(
-        `Failed to resolve build paths: ${isError(err) ? err.message : String(err)}`
-      )
+      printAndExit(`Failed to resolve build paths: ${isError(err) ? err.message : String(err)}`)
     }
   }
 

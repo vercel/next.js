@@ -2,10 +2,7 @@ export type RequestErrorContext = {
   routerKind: 'Pages Router' | 'App Router'
   routePath: string // the route file path, e.g. /app/blog/[dynamic]
   routeType: 'render' | 'route' | 'action' | 'proxy'
-  renderSource?:
-    | 'react-server-components'
-    | 'react-server-components-payload'
-    | 'server-rendering'
+  renderSource?: 'react-server-components' | 'react-server-components-payload' | 'server-rendering'
   revalidateReason: 'on-demand' | 'stale' | undefined
   // TODO: other future instrumentation context
 }

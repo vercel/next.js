@@ -9,11 +9,7 @@ import type {
   ParseOptions,
   TokensToFunctionOptions,
 } from 'next/dist/compiled/path-to-regexp'
-import {
-  pathToRegexp,
-  compile,
-  regexpToFunction,
-} from 'next/dist/compiled/path-to-regexp'
+import { pathToRegexp, compile, regexpToFunction } from 'next/dist/compiled/path-to-regexp'
 import {
   hasAdjacentParameterIssues,
   normalizeAdjacentParameters,
@@ -36,9 +32,7 @@ export function safePathToRegexp(
 
   // Check if normalization is needed and cache the result
   const needsNormalization = hasAdjacentParameterIssues(route)
-  const routeToUse = needsNormalization
-    ? normalizeAdjacentParameters(route)
-    : route
+  const routeToUse = needsNormalization ? normalizeAdjacentParameters(route) : route
 
   try {
     return pathToRegexp(routeToUse, keys, options)
@@ -63,15 +57,10 @@ export function safePathToRegexp(
  * When normalization is applied, the returned compiler function automatically strips
  * the internal separator from the output URL.
  */
-export function safeCompile(
-  route: string,
-  options?: TokensToFunctionOptions & ParseOptions
-) {
+export function safeCompile(route: string, options?: TokensToFunctionOptions & ParseOptions) {
   // Check if normalization is needed and cache the result
   const needsNormalization = hasAdjacentParameterIssues(route)
-  const routeToUse = needsNormalization
-    ? normalizeAdjacentParameters(route)
-    : route
+  const routeToUse = needsNormalization ? normalizeAdjacentParameters(route) : route
 
   try {
     const compiler = compile(routeToUse, options)
@@ -109,9 +98,10 @@ export function safeCompile(
 /**
  * Client-safe wrapper around regexpToFunction that automatically cleans parameters.
  */
-export function safeRegexpToFunction<
-  T extends Record<string, any> = Record<string, any>,
->(regexp: RegExp, keys?: Key[]): (pathname: string) => { params: T } | false {
+export function safeRegexpToFunction<T extends Record<string, any> = Record<string, any>>(
+  regexp: RegExp,
+  keys?: Key[]
+): (pathname: string) => { params: T } | false {
   const originalMatcher = regexpToFunction<T>(regexp, keys || [])
 
   return (pathname: string) => {

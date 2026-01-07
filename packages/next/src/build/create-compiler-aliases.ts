@@ -159,44 +159,33 @@ export function createWebpackAliases({
     [RSC_ACTION_CLIENT_WRAPPER_ALIAS]:
       'next/dist/build/webpack/loaders/next-flight-loader/action-client-wrapper',
 
-    [RSC_ACTION_PROXY_ALIAS]:
-      'next/dist/build/webpack/loaders/next-flight-loader/server-reference',
+    [RSC_ACTION_PROXY_ALIAS]: 'next/dist/build/webpack/loaders/next-flight-loader/server-reference',
 
     [RSC_ACTION_ENCRYPTION_ALIAS]: 'next/dist/server/app-render/encryption',
 
-    [RSC_CACHE_WRAPPER_ALIAS]:
-      'next/dist/build/webpack/loaders/next-flight-loader/cache-wrapper',
+    [RSC_CACHE_WRAPPER_ALIAS]: 'next/dist/build/webpack/loaders/next-flight-loader/cache-wrapper',
     [RSC_DYNAMIC_IMPORT_WRAPPER_ALIAS]:
       'next/dist/build/webpack/loaders/next-flight-loader/track-dynamic-import',
 
-    '@swc/helpers/_': path.join(
-      path.dirname(require.resolve('@swc/helpers/package.json')),
-      '_'
-    ),
+    '@swc/helpers/_': path.join(path.dirname(require.resolve('@swc/helpers/package.json')), '_'),
 
     setimmediate: 'next/dist/compiled/setimmediate',
   }
 }
 
-export function createServerOnlyClientOnlyAliases(
-  isServer: boolean
-): CompilerAliases {
+export function createServerOnlyClientOnlyAliases(isServer: boolean): CompilerAliases {
   return isServer
     ? {
         'server-only$': 'next/dist/compiled/server-only/empty',
         'client-only$': 'next/dist/compiled/client-only/error',
-        'next/dist/compiled/server-only$':
-          'next/dist/compiled/server-only/empty',
-        'next/dist/compiled/client-only$':
-          'next/dist/compiled/client-only/error',
+        'next/dist/compiled/server-only$': 'next/dist/compiled/server-only/empty',
+        'next/dist/compiled/client-only$': 'next/dist/compiled/client-only/error',
       }
     : {
         'server-only$': 'next/dist/compiled/server-only/index',
         'client-only$': 'next/dist/compiled/client-only/index',
-        'next/dist/compiled/client-only$':
-          'next/dist/compiled/client-only/index',
-        'next/dist/compiled/server-only':
-          'next/dist/compiled/server-only/index',
+        'next/dist/compiled/client-only$': 'next/dist/compiled/client-only/index',
+        'next/dist/compiled/server-only': 'next/dist/compiled/server-only/index',
       }
 }
 
@@ -313,14 +302,8 @@ export function createVendoredReactAliases(
     reactProductionProfiling: boolean
   }
 ): CompilerAliases {
-  const environmentCondition = isBrowser
-    ? 'browser'
-    : isEdgeServer
-      ? 'edge'
-      : 'nodejs'
-  const reactCondition = shouldUseReactServerCondition(layer)
-    ? 'server'
-    : 'client'
+  const environmentCondition = isBrowser ? 'browser' : isEdgeServer ? 'edge' : 'nodejs'
+  const reactCondition = shouldUseReactServerCondition(layer) ? 'server' : 'client'
 
   // ✅ Correct alias
   // ❌ Incorrect alias i.e. importing this entrypoint should throw an error.
@@ -351,10 +334,7 @@ export function createVendoredReactAliases(
       'react-server-dom-webpack/server.node$': /* ❌ */ `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.node`,
       'react-server-dom-webpack/static$':      /* ❌ */ `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/static.browser`,
     }
-  } else if (
-    environmentCondition === 'browser' &&
-    reactCondition === 'server'
-  ) {
+  } else if (environmentCondition === 'browser' && reactCondition === 'server') {
     // prettier-ignore
     reactAlias = {
       // file:///./../compiled/react/package.json
@@ -492,15 +472,13 @@ export function createVendoredReactAliases(
   }
 
   if (reactProductionProfiling) {
-    reactAlias['react-dom/client$'] =
-      `next/dist/compiled/react-dom${bundledReactChannel}/profiling`
+    reactAlias['react-dom/client$'] = `next/dist/compiled/react-dom${bundledReactChannel}/profiling`
   }
 
   const alias: CompilerAliases = reactAlias
 
-  alias[
-    '@vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client.ts'
-  ] = `next/dist/client/dev/noop-turbopack-hmr`
+  alias['@vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client.ts'] =
+    `next/dist/client/dev/noop-turbopack-hmr`
 
   return alias
 }
@@ -510,20 +488,15 @@ export function createVendoredReactAliases(
 export function getOptimizedModuleAliases(): CompilerAliases {
   return {
     unfetch: require.resolve('next/dist/build/polyfills/fetch/index.js'),
-    'isomorphic-unfetch':
-      require.resolve('next/dist/build/polyfills/fetch/index.js'),
-    'whatwg-fetch':
-      require.resolve('next/dist/build/polyfills/fetch/whatwg-fetch.js'),
-    'object-assign':
-      require.resolve('next/dist/build/polyfills/object-assign.js'),
-    'object.assign/auto':
-      require.resolve('next/dist/build/polyfills/object.assign/auto.js'),
+    'isomorphic-unfetch': require.resolve('next/dist/build/polyfills/fetch/index.js'),
+    'whatwg-fetch': require.resolve('next/dist/build/polyfills/fetch/whatwg-fetch.js'),
+    'object-assign': require.resolve('next/dist/build/polyfills/object-assign.js'),
+    'object.assign/auto': require.resolve('next/dist/build/polyfills/object.assign/auto.js'),
     'object.assign/implementation':
       require.resolve('next/dist/build/polyfills/object.assign/implementation.js'),
     'object.assign/polyfill':
       require.resolve('next/dist/build/polyfills/object.assign/polyfill.js'),
-    'object.assign/shim':
-      require.resolve('next/dist/build/polyfills/object.assign/shim.js'),
+    'object.assign/shim': require.resolve('next/dist/build/polyfills/object.assign/shim.js'),
     url: require.resolve('next/dist/compiled/native-url'),
   }
 }

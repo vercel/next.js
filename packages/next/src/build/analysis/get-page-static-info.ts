@@ -4,17 +4,10 @@ import type { RouteHas } from '../../lib/load-custom-routes'
 import { promises as fs } from 'fs'
 import { relative } from 'path'
 import { LRUCache } from '../../server/lib/lru-cache'
-import {
-  extractExportedConstValue,
-  UnsupportedValueError,
-} from './extract-const-value'
+import { extractExportedConstValue, UnsupportedValueError } from './extract-const-value'
 import { parseModule } from './parse-module'
 import * as Log from '../output/log'
-import {
-  SERVER_RUNTIME,
-  MIDDLEWARE_FILENAME,
-  PROXY_FILENAME,
-} from '../../lib/constants'
+import { SERVER_RUNTIME, MIDDLEWARE_FILENAME, PROXY_FILENAME } from '../../lib/constants'
 import { tryToParsePath } from '../../lib/try-to-parse-path'
 import { isAPIRoute } from '../../lib/is-api-route'
 import { isEdgeRuntime } from '../../lib/is-edge-runtime'
@@ -110,20 +103,15 @@ export interface PagesPageStaticInfo {
 
 export type PageStaticInfo = AppPageStaticInfo | PagesPageStaticInfo
 
-const CLIENT_MODULE_LABEL =
-  /\/\* __next_internal_client_entry_do_not_use__ ([^ ]*) (cjs|auto) \*\//
+const CLIENT_MODULE_LABEL = /\/\* __next_internal_client_entry_do_not_use__ ([^ ]*) (cjs|auto) \*\//
 
-const ACTION_MODULE_LABEL =
-  /\/\* __next_internal_action_entry_do_not_use__ (\{[^}]+\}) \*\//
+const ACTION_MODULE_LABEL = /\/\* __next_internal_action_entry_do_not_use__ (\{[^}]+\}) \*\//
 
 const CLIENT_DIRECTIVE = 'use client'
 const SERVER_ACTION_DIRECTIVE = 'use server'
 
 export type RSCModuleType = 'server' | 'client'
-export function getRSCModuleInformation(
-  source: string,
-  isReactServerLayer: boolean
-): RSCMeta {
+export function getRSCModuleInformation(source: string, isReactServerLayer: boolean): RSCMeta {
   const actionsJson = source.match(ACTION_MODULE_LABEL)
   const parsedActionsMeta = actionsJson
     ? (JSON.parse(actionsJson[1]) as Record<string, string>)
@@ -143,9 +131,7 @@ export function getRSCModuleInformation(
   const clientRefs = clientRefsString ? clientRefsString.split(',') : []
   const clientEntryType = clientInfoMatch?.[2] as 'cjs' | 'auto' | undefined
 
-  const type = clientInfoMatch
-    ? RSC_MODULE_TYPES.client
-    : RSC_MODULE_TYPES.server
+  const type = clientInfoMatch ? RSC_MODULE_TYPES.client : RSC_MODULE_TYPES.server
 
   return {
     type,
@@ -199,10 +185,7 @@ function checkExports(
 
     for (const node of ast.body) {
       // There should be no non-string literals nodes before directives
-      if (
-        node.type === 'ExpressionStatement' &&
-        node.expression.type === 'StringLiteral'
-      ) {
+      if (node.type === 'ExpressionStatement' && node.expression.type === 'StringLiteral') {
         if (!hasLeadingNonDirectiveNode) {
           const directive = node.expression.value
           if (CLIENT_DIRECTIVE === directive) {
@@ -215,10 +198,7 @@ function checkExports(
       } else {
         hasLeadingNonDirectiveNode = true
       }
-      if (
-        node.type === 'ExportDeclaration' &&
-        node.declaration?.type === 'VariableDeclaration'
-      ) {
+      if (node.type === 'ExportDeclaration' && node.declaration?.type === 'VariableDeclaration') {
         for (const declaration of node.declaration?.declarations) {
           if (expectedExports.includes(declaration.id.value)) {
             exports.add(declaration.id.value)
@@ -239,10 +219,7 @@ function checkExports(
         generateStaticParams = id === 'generateStaticParams'
       }
 
-      if (
-        node.type === 'ExportDeclaration' &&
-        node.declaration?.type === 'VariableDeclaration'
-      ) {
+      if (node.type === 'ExportDeclaration' && node.declaration?.type === 'VariableDeclaration') {
         const id = node.declaration?.declarations[0]?.id.value
         if (exportsSet.has(id)) {
           getServerSideProps = id === 'getServerSideProps'
@@ -255,10 +232,7 @@ function checkExports(
 
       if (node.type === 'ExportNamedDeclaration') {
         for (const specifier of node.specifiers) {
-          if (
-            specifier.type === 'ExportSpecifier' &&
-            specifier.orig?.type === 'Identifier'
-          ) {
+          if (specifier.type === 'ExportSpecifier' && specifier.orig?.type === 'Identifier') {
             const value = specifier.orig.value
 
             if (!getServerSideProps && value === 'getServerSideProps') {
@@ -314,10 +288,8 @@ function validateMiddlewareProxyExports({
   isDev: boolean
 }): void {
   // Check if this is middleware/proxy
-  const isMiddleware =
-    page === `/${MIDDLEWARE_FILENAME}` || page === `/src/${MIDDLEWARE_FILENAME}`
-  const isProxy =
-    page === `/${PROXY_FILENAME}` || page === `/src/${PROXY_FILENAME}`
+  const isMiddleware = page === `/${MIDDLEWARE_FILENAME}` || page === `/src/${MIDDLEWARE_FILENAME}`
+  const isProxy = page === `/${PROXY_FILENAME}` || page === `/src/${PROXY_FILENAME}`
 
   if (!isMiddleware && !isProxy) {
     return
@@ -335,17 +307,11 @@ function validateMiddlewareProxyExports({
   let hasProxyExport = false
 
   for (const node of ast.body) {
-    if (
-      node.type === 'ExportDefaultDeclaration' ||
-      node.type === 'ExportDefaultExpression'
-    ) {
+    if (node.type === 'ExportDefaultDeclaration' || node.type === 'ExportDefaultExpression') {
       hasDefaultExport = true
     }
 
-    if (
-      node.type === 'ExportDeclaration' &&
-      node.declaration?.type === 'FunctionDeclaration'
-    ) {
+    if (node.type === 'ExportDeclaration' && node.declaration?.type === 'FunctionDeclaration') {
       const id = node.declaration.identifier?.value
       if (id === 'middleware') {
         hasMiddlewareExport = true
@@ -355,10 +321,7 @@ function validateMiddlewareProxyExports({
       }
     }
 
-    if (
-      node.type === 'ExportDeclaration' &&
-      node.declaration?.type === 'VariableDeclaration'
-    ) {
+    if (node.type === 'ExportDeclaration' && node.declaration?.type === 'VariableDeclaration') {
       const id = node.declaration?.declarations[0]?.id.value
       if (id === 'middleware') {
         hasMiddlewareExport = true
@@ -370,10 +333,7 @@ function validateMiddlewareProxyExports({
 
     if (node.type === 'ExportNamedDeclaration') {
       for (const specifier of node.specifiers) {
-        if (
-          specifier.type === 'ExportSpecifier' &&
-          specifier.orig?.type === 'Identifier'
-        ) {
+        if (specifier.type === 'ExportSpecifier' && specifier.orig?.type === 'Identifier') {
           // Use the exported name if it exists (for aliased exports like `export { foo as proxy }`),
           // otherwise fall back to the original name (for simple re-exports like `export { proxy }`)
           const exportedIdentifier = specifier.exported || specifier.orig
@@ -390,14 +350,10 @@ function validateMiddlewareProxyExports({
   }
 
   const hasValidExport =
-    hasDefaultExport ||
-    (isMiddleware && hasMiddlewareExport) ||
-    (isProxy && hasProxyExport)
+    hasDefaultExport || (isMiddleware && hasMiddlewareExport) || (isProxy && hasProxyExport)
 
   const relativePath = relative(process.cwd(), pageFilePath)
-  const resolvedPath = relativePath.startsWith('.')
-    ? relativePath
-    : `./${relativePath}`
+  const resolvedPath = relativePath.startsWith('.') ? relativePath : `./${relativePath}`
 
   if (!hasValidExport) {
     const message =
@@ -444,9 +400,7 @@ export function getMiddlewareMatchers(
   matcherOrMatchers: MiddlewareConfigMatcherInput,
   nextConfig: Pick<NextConfig, 'basePath' | 'i18n'>
 ): ProxyMatcher[] {
-  const matchers = Array.isArray(matcherOrMatchers)
-    ? matcherOrMatchers
-    : [matcherOrMatchers]
+  const matchers = Array.isArray(matcherOrMatchers) ? matcherOrMatchers : [matcherOrMatchers]
 
   const { i18n } = nextConfig
 
@@ -464,9 +418,7 @@ export function getMiddlewareMatchers(
     }
 
     source = `/:nextData(_next/data/[^/]{1,})?${source}${
-      isRoot
-        ? `(${nextConfig.i18n ? '|\\.json|' : ''}/?index|/?index\\.json)?`
-        : '{(\\.json)}?'
+      isRoot ? `(${nextConfig.i18n ? '|\\.json|' : ''}/?index|/?index\\.json)?` : '{(\\.json)}?'
     }`
 
     if (nextConfig.basePath) {
@@ -519,9 +471,7 @@ function parseMiddlewareConfig(
   }
 
   if (input.data.unstable_allowDynamic) {
-    config.unstable_allowDynamic = Array.isArray(
-      input.data.unstable_allowDynamic
-    )
+    config.unstable_allowDynamic = Array.isArray(input.data.unstable_allowDynamic)
       ? input.data.unstable_allowDynamic
       : [input.data.unstable_allowDynamic]
   }
@@ -535,10 +485,7 @@ function parseMiddlewareConfig(
 
 const apiRouteWarnings = new LRUCache(250)
 function warnAboutExperimentalEdge(apiRoute: string | null) {
-  if (
-    process.env.NODE_ENV === 'production' &&
-    process.env.NEXT_PRIVATE_BUILD_WORKER === '1'
-  ) {
+  if (process.env.NODE_ENV === 'production' && process.env.NEXT_PRIVATE_BUILD_WORKER === '1') {
     return
   }
 
@@ -630,13 +577,8 @@ export async function getAppPageStaticInfo({
     isDev,
   })
 
-  const {
-    generateStaticParams,
-    generateImageMetadata,
-    generateSitemaps,
-    exports,
-    directives,
-  } = checkExports(ast, AppSegmentConfigSchemaKeys, page)
+  const { generateStaticParams, generateImageMetadata, generateSitemaps, exports, directives } =
+    checkExports(ast, AppSegmentConfigSchemaKeys, page)
 
   const { type: rsc } = getRSCModuleInformation(content, true)
 
@@ -765,9 +707,7 @@ export async function getPagesPageStaticInfo({
 
   if (isProxyFile(page) && resolvedRuntime) {
     const relativePath = relative(process.cwd(), pageFilePath)
-    const resolvedPath = relativePath.startsWith('.')
-      ? relativePath
-      : `./${relativePath}`
+    const resolvedPath = relativePath.startsWith('.') ? relativePath : `./${relativePath}`
     const message = `Route segment config is not allowed in Proxy file at "${resolvedPath}". Proxy always runs on Node.js runtime. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy`
 
     if (isDev) {
@@ -784,12 +724,7 @@ export async function getPagesPageStaticInfo({
     warnAboutExperimentalEdge(isAnAPIRoute ? page! : null)
   }
 
-  if (
-    !isProxyFile(page) &&
-    resolvedRuntime === SERVER_RUNTIME.edge &&
-    page &&
-    !isAnAPIRoute
-  ) {
+  if (!isProxyFile(page) && resolvedRuntime === SERVER_RUNTIME.edge && page && !isAnAPIRoute) {
     const message = `Page ${page} provided runtime 'edge', the edge runtime for rendering is currently experimental. Use runtime 'experimental-edge' instead.`
     if (isDev) {
       Log.error(message)
@@ -819,9 +754,7 @@ export async function getPagesPageStaticInfo({
  * to be specified, that is, when gSSP or gSP is used.
  * Related discussion: https://github.com/vercel/next.js/discussions/34179
  */
-export async function getPageStaticInfo(
-  params: GetPageStaticInfoParams
-): Promise<PageStaticInfo> {
+export async function getPageStaticInfo(params: GetPageStaticInfoParams): Promise<PageStaticInfo> {
   if (params.pageType === PAGE_TYPES.APP) {
     return getAppPageStaticInfo(params)
   }

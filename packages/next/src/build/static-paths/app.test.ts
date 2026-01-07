@@ -131,10 +131,7 @@ describe('assignErrorIfEmpty', () => {
       },
     ]
 
-    assignErrorIfEmpty(prerenderedRoutes, [
-      { paramName: 'id' },
-      { paramName: 'name' },
-    ])
+    assignErrorIfEmpty(prerenderedRoutes, [{ paramName: 'id' }, { paramName: 'name' }])
 
     expect(prerenderedRoutes[0].throwOnEmptyStaticShell).toBe(false)
     expect(prerenderedRoutes[1].throwOnEmptyStaticShell).toBe(false)
@@ -293,10 +290,7 @@ describe('assignErrorIfEmpty', () => {
       },
     ]
 
-    assignErrorIfEmpty(prerenderedRoutes, [
-      { paramName: 'id' },
-      { paramName: 'slug' },
-    ])
+    assignErrorIfEmpty(prerenderedRoutes, [{ paramName: 'id' }, { paramName: 'slug' }])
 
     expect(prerenderedRoutes[0].throwOnEmptyStaticShell).toBe(false) // Should not throw - has children
     expect(prerenderedRoutes[1].throwOnEmptyStaticShell).toBe(false) // Should not throw - has children
@@ -414,10 +408,7 @@ describe('assignErrorIfEmpty', () => {
       },
     ]
 
-    assignErrorIfEmpty(prerenderedRoutes, [
-      { paramName: 'locale' },
-      { paramName: 'segments' },
-    ])
+    assignErrorIfEmpty(prerenderedRoutes, [{ paramName: 'locale' }, { paramName: 'segments' }])
 
     // The route with more fallback params should not throw on empty static shell
     expect(prerenderedRoutes[0].throwOnEmptyStaticShell).toBe(false)
@@ -427,16 +418,9 @@ describe('assignErrorIfEmpty', () => {
 
 describe('filterUniqueParams', () => {
   it('should filter out duplicate parameters', () => {
-    const params = [
-      { id: '1', name: 'test' },
-      { id: '1', name: 'test' },
-      { id: '2' },
-    ]
+    const params = [{ id: '1', name: 'test' }, { id: '1', name: 'test' }, { id: '2' }]
 
-    const unique = filterUniqueParams(
-      [{ paramName: 'id' }, { paramName: 'name' }],
-      params
-    )
+    const unique = filterUniqueParams([{ paramName: 'id' }, { paramName: 'name' }], params)
 
     expect(unique).toEqual([{ id: '1', name: 'test' }, { id: '2' }])
   })
@@ -469,11 +453,7 @@ describe('generateParamPrefixCombinations', () => {
       { id: '2', name: 'test' },
     ]
 
-    const unique = generateAllParamCombinations(
-      [{ paramName: 'id' }],
-      params,
-      []
-    )
+    const unique = generateAllParamCombinations([{ paramName: 'id' }], params, [])
 
     expect(unique).toEqual([{ id: '1' }, { id: '2' }])
   })
@@ -503,11 +483,7 @@ describe('generateParamPrefixCombinations', () => {
   it('should handle parameter value collisions', () => {
     const params = [{ slug: ['foo', 'bar'] }, { slug: 'foo,bar' }]
 
-    const unique = generateAllParamCombinations(
-      [{ paramName: 'slug' }],
-      params,
-      []
-    )
+    const unique = generateAllParamCombinations([{ paramName: 'slug' }], params, [])
 
     expect(unique).toEqual([{ slug: ['foo', 'bar'] }, { slug: 'foo,bar' }])
   })
@@ -517,9 +493,7 @@ describe('generateParamPrefixCombinations', () => {
     expect(generateAllParamCombinations([], [{ id: '1' }], [])).toEqual([])
 
     // Empty routeParams
-    expect(generateAllParamCombinations([{ paramName: 'id' }], [], [])).toEqual(
-      []
-    )
+    expect(generateAllParamCombinations([{ paramName: 'id' }], [], [])).toEqual([])
 
     // Both empty
     expect(generateAllParamCombinations([], [], [])).toEqual([])
@@ -538,12 +512,7 @@ describe('generateParamPrefixCombinations', () => {
       []
     )
 
-    expect(unique).toEqual([
-      { id: '1' },
-      { id: '1', name: 'test' },
-      { id: '2' },
-      { id: '3' },
-    ])
+    expect(unique).toEqual([{ id: '1' }, { id: '1', name: 'test' }, { id: '2' }, { id: '3' }])
   })
 
   it('should handle missing parameter keys in objects', () => {
@@ -554,11 +523,7 @@ describe('generateParamPrefixCombinations', () => {
     ]
 
     const unique = generateAllParamCombinations(
-      [
-        { paramName: 'lang' },
-        { paramName: 'region' },
-        { paramName: 'category' },
-      ],
+      [{ paramName: 'lang' }, { paramName: 'region' }, { paramName: 'category' }],
       params,
       []
     )
@@ -581,11 +546,7 @@ describe('generateParamPrefixCombinations', () => {
       { slug: 'U:undefined' }, // String that looks like undefined prefix
     ]
 
-    const unique = generateAllParamCombinations(
-      [{ paramName: 'slug' }],
-      params,
-      []
-    )
+    const unique = generateAllParamCombinations([{ paramName: 'slug' }], params, [])
 
     expect(unique).toEqual([
       { slug: ['foo', 'bar'] },
@@ -603,11 +564,7 @@ describe('generateParamPrefixCombinations', () => {
       { slug: ['foo', 'bar|baz'] }, // Array with pipe in element
     ]
 
-    const unique = generateAllParamCombinations(
-      [{ paramName: 'slug' }],
-      params,
-      []
-    )
+    const unique = generateAllParamCombinations([{ paramName: 'slug' }], params, [])
 
     expect(unique).toEqual([{ slug: 'foo|bar' }, { slug: ['foo', 'bar|baz'] }])
   })
@@ -818,19 +775,14 @@ describe('generateRouteStaticParams', () => {
     })
 
     it('should return empty array for segments without generateStaticParams', async () => {
-      const segments: TestAppSegment[] = [
-        createMockSegment(),
-        createMockSegment(),
-      ]
+      const segments: TestAppSegment[] = [createMockSegment(), createMockSegment()]
       const store = createMockWorkStore()
       const result = await generateRouteStaticParams(segments, store, false)
       expect(result).toEqual([])
     })
 
     it('should process single segment with generateStaticParams', async () => {
-      const segments: TestAppSegment[] = [
-        createMockSegment(async () => [{ id: '1' }, { id: '2' }]),
-      ]
+      const segments: TestAppSegment[] = [createMockSegment(async () => [{ id: '1' }, { id: '2' }])]
       const store = createMockWorkStore()
       const result = await generateRouteStaticParams(segments, store, false)
       expect(result).toEqual([{ id: '1' }, { id: '2' }])
@@ -838,10 +790,7 @@ describe('generateRouteStaticParams', () => {
 
     it('should process multiple segments with generateStaticParams', async () => {
       const segments: TestAppSegment[] = [
-        createMockSegment(async () => [
-          { category: 'tech' },
-          { category: 'sports' },
-        ]),
+        createMockSegment(async () => [{ category: 'tech' }, { category: 'sports' }]),
         createMockSegment(async ({ params }) => [
           { slug: `${params?.category}-post-1` },
           { slug: `${params?.category}-post-2` },
@@ -862,9 +811,7 @@ describe('generateRouteStaticParams', () => {
     it('should inherit parent parameters', async () => {
       const segments: TestAppSegment[] = [
         createMockSegment(async () => [{ lang: 'en' }, { lang: 'fr' }]),
-        createMockSegment(async ({ params }) => [
-          { category: `${params?.lang}-tech` },
-        ]),
+        createMockSegment(async ({ params }) => [{ category: `${params?.lang}-tech` }]),
       ]
       const store = createMockWorkStore()
       const result = await generateRouteStaticParams(segments, store, false)
@@ -878,9 +825,7 @@ describe('generateRouteStaticParams', () => {
       const segments: TestAppSegment[] = [
         createMockSegment(async () => [{ lang: 'en' }]),
         createMockSegment(), // No generateStaticParams
-        createMockSegment(async ({ params }) => [
-          { slug: `${params?.lang}-slug` },
-        ]),
+        createMockSegment(async ({ params }) => [{ slug: `${params?.lang}-slug` }]),
       ]
       const store = createMockWorkStore()
       const result = await generateRouteStaticParams(segments, store, false)
@@ -915,10 +860,7 @@ describe('generateRouteStaticParams', () => {
       ]
       const store = createMockWorkStore()
       const result = await generateRouteStaticParams(segments, store, false)
-      expect(result).toEqual([
-        { lang: 'en', category: 'en-tech' },
-        { category: 'default-tech' },
-      ])
+      expect(result).toEqual([{ lang: 'en', category: 'en-tech' }, { category: 'default-tech' }])
     })
   })
 
@@ -935,9 +877,7 @@ describe('generateRouteStaticParams', () => {
     })
 
     it('should not modify fetchCache when segment has no fetchCache config', async () => {
-      const segments: TestAppSegment[] = [
-        createMockSegment(async () => [{ id: '1' }]),
-      ]
+      const segments: TestAppSegment[] = [createMockSegment(async () => [{ id: '1' }])]
       const store = createMockWorkStore('force-cache')
       await generateRouteStaticParams(segments, store, false)
       expect(store.fetchCache).toBe('force-cache')
@@ -962,10 +902,7 @@ describe('generateRouteStaticParams', () => {
   describe('Array parameter values', () => {
     it('should handle array parameter values', async () => {
       const segments: TestAppSegment[] = [
-        createMockSegment(async () => [
-          { slug: ['a', 'b'] },
-          { slug: ['c', 'd', 'e'] },
-        ]),
+        createMockSegment(async () => [{ slug: ['a', 'b'] }, { slug: ['c', 'd', 'e'] }]),
       ]
       const store = createMockWorkStore()
       const result = await generateRouteStaticParams(segments, store, false)
@@ -975,9 +912,7 @@ describe('generateRouteStaticParams', () => {
     it('should handle mixed array and string parameters', async () => {
       const segments: TestAppSegment[] = [
         createMockSegment(async () => [{ lang: 'en' }]),
-        createMockSegment(async ({ params }) => [
-          { slug: [`${params?.lang}`, 'post'] },
-        ]),
+        createMockSegment(async ({ params }) => [{ slug: [`${params?.lang}`, 'post'] }]),
       ]
       const store = createMockWorkStore()
       const result = await generateRouteStaticParams(segments, store, false)
@@ -1027,9 +962,7 @@ describe('generateRouteStaticParams', () => {
         }),
       ]
       const store = createMockWorkStore()
-      await expect(
-        generateRouteStaticParams(segments, store, false)
-      ).rejects.toThrow('Test error')
+      await expect(generateRouteStaticParams(segments, store, false)).rejects.toThrow('Test error')
     })
 
     it('should handle generateStaticParams returning a rejected promise', async () => {
@@ -1039,9 +972,7 @@ describe('generateRouteStaticParams', () => {
         }),
       ]
       const store = createMockWorkStore()
-      await expect(
-        generateRouteStaticParams(segments, store, false)
-      ).rejects.toThrow('Async error')
+      await expect(generateRouteStaticParams(segments, store, false)).rejects.toThrow('Async error')
     })
 
     it('should handle partially failing generateStaticParams', async () => {
@@ -1055,9 +986,9 @@ describe('generateRouteStaticParams', () => {
         }),
       ]
       const store = createMockWorkStore()
-      await expect(
-        generateRouteStaticParams(segments, store, false)
-      ).rejects.toThrow('Tech not allowed')
+      await expect(generateRouteStaticParams(segments, store, false)).rejects.toThrow(
+        'Tech not allowed'
+      )
     })
 
     it('should throw error when generateStaticParams returns empty array with isRoutePPREnabled=true', async () => {
@@ -1066,9 +997,7 @@ describe('generateRouteStaticParams', () => {
         createMockSegment(async () => []), // Empty result
       ]
       const store = createMockWorkStore()
-      await expect(
-        generateRouteStaticParams(segments, store, true)
-      ).rejects.toThrow(
+      await expect(generateRouteStaticParams(segments, store, true)).rejects.toThrow(
         'When using Cache Components, all `generateStaticParams` functions must return at least one result'
       )
     })
@@ -1078,9 +1007,7 @@ describe('generateRouteStaticParams', () => {
         createMockSegment(async () => []), // Empty result at root level
       ]
       const store = createMockWorkStore()
-      await expect(
-        generateRouteStaticParams(segments, store, true)
-      ).rejects.toThrow(
+      await expect(generateRouteStaticParams(segments, store, true)).rejects.toThrow(
         'When using Cache Components, all `generateStaticParams` functions must return at least one result'
       )
     })
@@ -1108,11 +1035,7 @@ describe('generateRouteStaticParams', () => {
   describe('Complex real-world scenarios', () => {
     it('should handle i18n routing pattern', async () => {
       const segments: TestAppSegment[] = [
-        createMockSegment(async () => [
-          { lang: 'en' },
-          { lang: 'fr' },
-          { lang: 'es' },
-        ]),
+        createMockSegment(async () => [{ lang: 'en' }, { lang: 'fr' }, { lang: 'es' }]),
         createMockSegment(async ({ params: _params }) => [
           { category: 'tech' },
           { category: 'sports' },
@@ -1140,19 +1063,14 @@ describe('generateRouteStaticParams', () => {
     it('should handle e-commerce routing pattern', async () => {
       const segments: TestAppSegment[] = [
         createMockSegment(), // Static segment
-        createMockSegment(async () => [
-          { category: 'electronics' },
-          { category: 'clothing' },
-        ]),
+        createMockSegment(async () => [{ category: 'electronics' }, { category: 'clothing' }]),
         createMockSegment(async ({ params }) => {
           if (params?.category === 'electronics') {
             return [{ subcategory: 'phones' }, { subcategory: 'laptops' }]
           }
           return [{ subcategory: 'shirts' }, { subcategory: 'pants' }]
         }),
-        createMockSegment(async ({ params }) => [
-          { product: `${params?.subcategory}-item-1` },
-        ]),
+        createMockSegment(async ({ params }) => [{ product: `${params?.subcategory}-item-1` }]),
       ]
       const store = createMockWorkStore()
       const result = await generateRouteStaticParams(segments, store, false)
@@ -1180,10 +1098,7 @@ describe('generateRouteStaticParams', () => {
       const segments: TestAppSegment[] = [
         createMockSegment(), // Static segment
         createMockSegment(async () => [{ year: '2023' }, { year: '2024' }]),
-        createMockSegment(async ({ params: _params }) => [
-          { month: '01' },
-          { month: '02' },
-        ]),
+        createMockSegment(async ({ params: _params }) => [{ month: '01' }, { month: '02' }]),
         createMockSegment(async ({ params }) => [
           { slug: [`${params?.year}-${params?.month}-post`] },
           { slug: [] }, // Empty for optional catch-all
@@ -1205,9 +1120,7 @@ describe('generateRouteStaticParams', () => {
     it('should handle recursive calls without stack overflow', async () => {
       const segments: TestAppSegment[] = []
       for (let i = 0; i < 5000; i++) {
-        segments.push(
-          createMockSegment(async () => [{ [`param${i}`]: `value${i}` }])
-        )
+        segments.push(createMockSegment(async () => [{ [`param${i}`]: `value${i}` }]))
       }
       const store = createMockWorkStore()
       const result = await generateRouteStaticParams(segments, store, false)
@@ -1225,21 +1138,13 @@ describe('calculateFallbackMode', () => {
   })
 
   it('should return NOT_FOUND when dynamic params are disabled regardless of root params', () => {
-    const result = calculateFallbackMode(
-      false,
-      ['rootParam'],
-      FallbackMode.BLOCKING_STATIC_RENDER
-    )
+    const result = calculateFallbackMode(false, ['rootParam'], FallbackMode.BLOCKING_STATIC_RENDER)
 
     expect(result).toBe(FallbackMode.NOT_FOUND)
   })
 
   it('should return BLOCKING_STATIC_RENDER when dynamic params are enabled and root params exist', () => {
-    const result = calculateFallbackMode(
-      true,
-      ['rootParam1', 'rootParam2'],
-      FallbackMode.PRERENDER
-    )
+    const result = calculateFallbackMode(true, ['rootParam1', 'rootParam2'], FallbackMode.PRERENDER)
 
     expect(result).toBe(FallbackMode.BLOCKING_STATIC_RENDER)
   })
@@ -1251,11 +1156,7 @@ describe('calculateFallbackMode', () => {
   })
 
   it('should return base fallback mode when dynamic params are enabled and empty root params', () => {
-    const result = calculateFallbackMode(
-      true,
-      [],
-      FallbackMode.BLOCKING_STATIC_RENDER
-    )
+    const result = calculateFallbackMode(true, [], FallbackMode.BLOCKING_STATIC_RENDER)
 
     expect(result).toBe(FallbackMode.BLOCKING_STATIC_RENDER)
   })
@@ -1267,21 +1168,13 @@ describe('calculateFallbackMode', () => {
   })
 
   it('should prioritize root params over base fallback mode', () => {
-    const result = calculateFallbackMode(
-      true,
-      ['rootParam'],
-      FallbackMode.PRERENDER
-    )
+    const result = calculateFallbackMode(true, ['rootParam'], FallbackMode.PRERENDER)
 
     expect(result).toBe(FallbackMode.BLOCKING_STATIC_RENDER)
   })
 
   it('should handle single root param correctly', () => {
-    const result = calculateFallbackMode(
-      true,
-      ['singleParam'],
-      FallbackMode.PRERENDER
-    )
+    const result = calculateFallbackMode(true, ['singleParam'], FallbackMode.PRERENDER)
 
     expect(result).toBe(FallbackMode.BLOCKING_STATIC_RENDER)
   })

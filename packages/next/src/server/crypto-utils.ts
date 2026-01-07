@@ -16,13 +16,7 @@ export function encryptWithSecret(secret: Buffer, data: string): string {
   const salt = crypto.randomBytes(CIPHER_SALT_LENGTH)
 
   // https://nodejs.org/api/crypto.html#crypto_crypto_pbkdf2sync_password_salt_iterations_keylen_digest
-  const key = crypto.pbkdf2Sync(
-    secret,
-    salt,
-    PBKDF2_ITERATIONS,
-    CIPHER_KEY_LENGTH,
-    `sha512`
-  )
+  const key = crypto.pbkdf2Sync(secret, salt, PBKDF2_ITERATIONS, CIPHER_KEY_LENGTH, `sha512`)
 
   const cipher = crypto.createCipheriv(CIPHER_ALGORITHM, key, iv)
   const encrypted = Buffer.concat([cipher.update(data, `utf8`), cipher.final()])
@@ -42,33 +36,19 @@ export function encryptWithSecret(secret: Buffer, data: string): string {
   ]).toString(`hex`)
 }
 
-export function decryptWithSecret(
-  secret: Buffer,
-  encryptedData: string
-): string {
+export function decryptWithSecret(secret: Buffer, encryptedData: string): string {
   const buffer = Buffer.from(encryptedData, `hex`)
 
   const salt = buffer.slice(0, CIPHER_SALT_LENGTH)
-  const iv = buffer.slice(
-    CIPHER_SALT_LENGTH,
-    CIPHER_SALT_LENGTH + CIPHER_IV_LENGTH
-  )
+  const iv = buffer.slice(CIPHER_SALT_LENGTH, CIPHER_SALT_LENGTH + CIPHER_IV_LENGTH)
   const tag = buffer.slice(
     CIPHER_SALT_LENGTH + CIPHER_IV_LENGTH,
     CIPHER_SALT_LENGTH + CIPHER_IV_LENGTH + CIPHER_TAG_LENGTH
   )
-  const encrypted = buffer.slice(
-    CIPHER_SALT_LENGTH + CIPHER_IV_LENGTH + CIPHER_TAG_LENGTH
-  )
+  const encrypted = buffer.slice(CIPHER_SALT_LENGTH + CIPHER_IV_LENGTH + CIPHER_TAG_LENGTH)
 
   // https://nodejs.org/api/crypto.html#crypto_crypto_pbkdf2sync_password_salt_iterations_keylen_digest
-  const key = crypto.pbkdf2Sync(
-    secret,
-    salt,
-    PBKDF2_ITERATIONS,
-    CIPHER_KEY_LENGTH,
-    `sha512`
-  )
+  const key = crypto.pbkdf2Sync(secret, salt, PBKDF2_ITERATIONS, CIPHER_KEY_LENGTH, `sha512`)
 
   const decipher = crypto.createDecipheriv(CIPHER_ALGORITHM, key, iv)
   decipher.setAuthTag(tag)

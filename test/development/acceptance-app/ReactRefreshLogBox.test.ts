@@ -37,13 +37,9 @@ describe('ReactRefreshLogBox app', () => {
     await browser.elementByCss('a').click()
 
     if (isTurbopack) {
-      await expect(browser).toDisplayRedbox(
-        `"Expected Redbox but found no visible one."`
-      )
+      await expect(browser).toDisplayRedbox(`"Expected Redbox but found no visible one."`)
     } else {
-      await expect(browser).toDisplayRedbox(
-        `"Expected Redbox but found no visible one."`
-      )
+      await expect(browser).toDisplayRedbox(`"Expected Redbox but found no visible one."`)
     }
   })
 
@@ -67,9 +63,9 @@ describe('ReactRefreshLogBox app', () => {
       `
     )
 
-    expect(
-      await session.evaluate(() => document.querySelector('h1').textContent)
-    ).toBe('Default Export')
+    expect(await session.evaluate(() => document.querySelector('h1').textContent)).toBe(
+      'Default Export'
+    )
 
     // Add a throw in module init phase:
     await session.patch(
@@ -206,9 +202,7 @@ describe('ReactRefreshLogBox app', () => {
       `
     )
 
-    expect(
-      await session.evaluate(() => document.querySelector('h2').textContent)
-    ).toBe('hello')
+    expect(await session.evaluate(() => document.querySelector('h2').textContent)).toBe('hello')
 
     await session.write(
       'FunctionDefault.js',
@@ -216,13 +210,9 @@ describe('ReactRefreshLogBox app', () => {
     )
 
     if (isTurbopack) {
-      await expect(browser).toDisplayRedbox(
-        `"Expected Redbox but found no visible one."`
-      )
+      await expect(browser).toDisplayRedbox(`"Expected Redbox but found no visible one."`)
     } else {
-      await expect(browser).toDisplayRedbox(
-        `"Expected Redbox but found no visible one."`
-      )
+      await expect(browser).toDisplayRedbox(`"Expected Redbox but found no visible one."`)
     }
   })
 
@@ -386,9 +376,7 @@ describe('ReactRefreshLogBox app', () => {
     )
 
     await session.waitForNoRedbox()
-    expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('hello')
+    expect(await session.evaluate(() => document.querySelector('p').textContent)).toBe('hello')
 
     await session.patch(
       'Child.js',
@@ -450,9 +438,7 @@ describe('ReactRefreshLogBox app', () => {
     )
 
     await session.waitForNoRedbox()
-    expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('hello new')
+    expect(await session.evaluate(() => document.querySelector('p').textContent)).toBe('hello new')
   })
 
   test('css syntax errors', async () => {
@@ -657,8 +643,7 @@ describe('ReactRefreshLogBox app', () => {
         () =>
           document
             .querySelector('body nextjs-portal')
-            .shadowRoot.querySelectorAll('#nextjs__container_errors_desc a')
-            .length
+            .shadowRoot.querySelectorAll('#nextjs__container_errors_desc a').length
       )
     ).toBe(1)
     expect(
@@ -667,9 +652,7 @@ describe('ReactRefreshLogBox app', () => {
           (
             document
               .querySelector('body nextjs-portal')
-              .shadowRoot.querySelector(
-                '#nextjs__container_errors_desc a:nth-of-type(1)'
-              ) as any
+              .shadowRoot.querySelector('#nextjs__container_errors_desc a:nth-of-type(1)') as any
           ).href
       )
     ).toMatchInlineSnapshot(`"https://nextjs.org/"`)
@@ -735,8 +718,7 @@ describe('ReactRefreshLogBox app', () => {
         () =>
           document
             .querySelector('body nextjs-portal')
-            .shadowRoot.querySelectorAll('#nextjs__container_errors_desc a')
-            .length
+            .shadowRoot.querySelectorAll('#nextjs__container_errors_desc a').length
       )
     ).toBe(1)
     expect(
@@ -745,9 +727,7 @@ describe('ReactRefreshLogBox app', () => {
           (
             document
               .querySelector('body nextjs-portal')
-              .shadowRoot.querySelector(
-                '#nextjs__container_errors_desc a:nth-of-type(1)'
-              ) as any
+              .shadowRoot.querySelector('#nextjs__container_errors_desc a:nth-of-type(1)') as any
           ).href
       )
     ).toMatchInlineSnapshot(`"https://nextjs.org/"`)
@@ -813,8 +793,7 @@ describe('ReactRefreshLogBox app', () => {
         () =>
           document
             .querySelector('body nextjs-portal')
-            .shadowRoot.querySelectorAll('#nextjs__container_errors_desc a')
-            .length
+            .shadowRoot.querySelectorAll('#nextjs__container_errors_desc a').length
       )
     ).toBe(1)
     expect(
@@ -823,9 +802,7 @@ describe('ReactRefreshLogBox app', () => {
           (
             document
               .querySelector('body nextjs-portal')
-              .shadowRoot.querySelector(
-                '#nextjs__container_errors_desc a:nth-of-type(1)'
-              ) as any
+              .shadowRoot.querySelector('#nextjs__container_errors_desc a:nth-of-type(1)') as any
           ).href
       )
     ).toMatchInlineSnapshot(`"https://nextjs.org/"`)
@@ -891,8 +868,7 @@ describe('ReactRefreshLogBox app', () => {
         () =>
           document
             .querySelector('body nextjs-portal')
-            .shadowRoot.querySelectorAll('#nextjs__container_errors_desc a')
-            .length
+            .shadowRoot.querySelectorAll('#nextjs__container_errors_desc a').length
       )
     ).toBe(2)
     expect(
@@ -901,9 +877,7 @@ describe('ReactRefreshLogBox app', () => {
           (
             document
               .querySelector('body nextjs-portal')
-              .shadowRoot.querySelector(
-                '#nextjs__container_errors_desc a:nth-of-type(1)'
-              ) as any
+              .shadowRoot.querySelector('#nextjs__container_errors_desc a:nth-of-type(1)') as any
           ).href
       )
     ).toMatchInlineSnapshot(`"https://nextjs.org/"`)
@@ -913,9 +887,7 @@ describe('ReactRefreshLogBox app', () => {
           (
             document
               .querySelector('body nextjs-portal')
-              .shadowRoot.querySelector(
-                '#nextjs__container_errors_desc a:nth-of-type(2)'
-              ) as any
+              .shadowRoot.querySelector('#nextjs__container_errors_desc a:nth-of-type(2)') as any
           ).href
       )
     ).toBe('http://example.com/')
@@ -1145,10 +1117,7 @@ describe('ReactRefreshLogBox app', () => {
     // Add Component error
     await session.patch(
       'index.js',
-      file.replace(
-        '//',
-        "if (typeof window !== 'undefined') throw new Error('Component error')"
-      )
+      file.replace('//', "if (typeof window !== 'undefined') throw new Error('Component error')")
     )
 
     // Render error should "win" and show up in fullscreen
@@ -1369,9 +1338,7 @@ describe('ReactRefreshLogBox app', () => {
         }
       `
     )
-    expect(await browser.waitForElementByCss('#text').text()).toBe(
-      'Hello world'
-    )
+    expect(await browser.waitForElementByCss('#text').text()).toBe('Hello world')
     await session.waitForNoRedbox()
 
     // Re-add error
@@ -1593,10 +1560,7 @@ describe('ReactRefreshLogBox app', () => {
         `)
       }
 
-      await next.patchFile(
-        'index.js',
-        'export default function Page() {return <p>hello world</p>}'
-      )
+      await next.patchFile('index.js', 'export default function Page() {return <p>hello world</p>}')
       await session.waitForNoRedbox()
     })
   }

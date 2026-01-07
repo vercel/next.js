@@ -1,8 +1,5 @@
 import { prepareFlightRouterStateForRequest } from './flight-data-helpers'
-import {
-  HasLoadingBoundary,
-  type FlightRouterState,
-} from '../shared/lib/app-router-types'
+import { HasLoadingBoundary, type FlightRouterState } from '../shared/lib/app-router-types'
 
 describe('prepareFlightRouterStateForRequest', () => {
   describe('HMR refresh handling', () => {
@@ -25,10 +22,7 @@ describe('prepareFlightRouterStateForRequest', () => {
 
   describe('__PAGE__ segment handling', () => {
     it('should strip search params from __PAGE__ segments', () => {
-      const flightRouterState: FlightRouterState = [
-        '__PAGE__?{"param":"value","foo":"bar"}',
-        {},
-      ]
+      const flightRouterState: FlightRouterState = ['__PAGE__?{"param":"value","foo":"bar"}', {}]
 
       const result = prepareFlightRouterStateForRequest(flightRouterState)
       const decoded = JSON.parse(decodeURIComponent(result))
@@ -58,12 +52,7 @@ describe('prepareFlightRouterStateForRequest', () => {
 
   describe('URL stripping', () => {
     it('should always set URL (index 2) to null', () => {
-      const flightRouterState: FlightRouterState = [
-        'segment',
-        {},
-        '/sensitive/url/path',
-        null,
-      ]
+      const flightRouterState: FlightRouterState = ['segment', {}, '/sensitive/url/path', null]
 
       const result = prepareFlightRouterStateForRequest(flightRouterState)
       const decoded = JSON.parse(decodeURIComponent(result))
@@ -74,12 +63,7 @@ describe('prepareFlightRouterStateForRequest', () => {
 
   describe('refresh marker handling', () => {
     it('should preserve "refetch" marker', () => {
-      const flightRouterState: FlightRouterState = [
-        'segment',
-        {},
-        '/url',
-        'refetch',
-      ]
+      const flightRouterState: FlightRouterState = ['segment', {}, '/url', 'refetch']
 
       const result = prepareFlightRouterStateForRequest(flightRouterState)
       const decoded = JSON.parse(decodeURIComponent(result))
@@ -88,12 +72,7 @@ describe('prepareFlightRouterStateForRequest', () => {
     })
 
     it('should preserve "inside-shared-layout" marker', () => {
-      const flightRouterState: FlightRouterState = [
-        'segment',
-        {},
-        '/url',
-        'inside-shared-layout',
-      ]
+      const flightRouterState: FlightRouterState = ['segment', {}, '/url', 'inside-shared-layout']
 
       const result = prepareFlightRouterStateForRequest(flightRouterState)
       const decoded = JSON.parse(decodeURIComponent(result))
@@ -102,12 +81,7 @@ describe('prepareFlightRouterStateForRequest', () => {
     })
 
     it('should strip "refresh" marker (client-only)', () => {
-      const flightRouterState: FlightRouterState = [
-        'segment',
-        {},
-        '/url',
-        'refresh',
-      ]
+      const flightRouterState: FlightRouterState = ['segment', {}, '/url', 'refresh']
 
       const result = prepareFlightRouterStateForRequest(flightRouterState)
       const decoded = JSON.parse(decodeURIComponent(result))
@@ -127,13 +101,7 @@ describe('prepareFlightRouterStateForRequest', () => {
 
   describe('optional fields preservation', () => {
     it('should preserve isRootLayout when true', () => {
-      const flightRouterState: FlightRouterState = [
-        'segment',
-        {},
-        null,
-        null,
-        true,
-      ]
+      const flightRouterState: FlightRouterState = ['segment', {}, null, null, true]
 
       const result = prepareFlightRouterStateForRequest(flightRouterState)
       const decoded = JSON.parse(decodeURIComponent(result))
@@ -142,13 +110,7 @@ describe('prepareFlightRouterStateForRequest', () => {
     })
 
     it('should preserve isRootLayout when false', () => {
-      const flightRouterState: FlightRouterState = [
-        'segment',
-        {},
-        null,
-        null,
-        false,
-      ]
+      const flightRouterState: FlightRouterState = ['segment', {}, null, null, false]
 
       const result = prepareFlightRouterStateForRequest(flightRouterState)
       const decoded = JSON.parse(decodeURIComponent(result))
@@ -192,12 +154,7 @@ describe('prepareFlightRouterStateForRequest', () => {
       const flightRouterState: FlightRouterState = [
         'parent',
         {
-          children: [
-            '__PAGE__?{"nested":"param"}',
-            {},
-            '/nested/url',
-            'refresh',
-          ],
+          children: ['__PAGE__?{"nested":"param"}', {}, '/nested/url', 'refresh'],
           modal: ['modal-segment', {}, '/modal/url', 'refetch'],
         },
         '/parent/url',
@@ -235,12 +192,7 @@ describe('prepareFlightRouterStateForRequest', () => {
           children: [
             'level1',
             {
-              children: [
-                '__PAGE__?{"deep":"nesting"}',
-                {},
-                '/deep/url',
-                'refetch',
-              ],
+              children: ['__PAGE__?{"deep":"nesting"}', {}, '/deep/url', 'refetch'],
             },
           ],
         },

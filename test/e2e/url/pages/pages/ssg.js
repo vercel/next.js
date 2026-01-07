@@ -11,8 +11,7 @@ export async function getStaticProps() {
 export default function Index({ url }) {
   return (
     <main>
-      Hello {imported.src}+
-      {new URL('../../public/vercel.png', import.meta.url).toString()}+{url}
+      Hello {imported.src}+{new URL('../../public/vercel.png', import.meta.url).toString()}+{url}
     </main>
   )
 }

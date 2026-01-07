@@ -50,10 +50,7 @@ interface Options {
   i18nProvider?: I18NProvider
 }
 
-export function getNextPathnameInfo(
-  pathname: string,
-  options: Options
-): NextPathnameInfo {
+export function getNextPathnameInfo(pathname: string, options: Options): NextPathnameInfo {
   const { basePath, i18n, trailingSlash } = options.nextConfig ?? {}
   const info: NextPathnameInfo = {
     pathname,
@@ -66,10 +63,7 @@ export function getNextPathnameInfo(
   }
   let pathnameNoDataPrefix = info.pathname
 
-  if (
-    info.pathname.startsWith('/_next/data/') &&
-    info.pathname.endsWith('.json')
-  ) {
+  if (info.pathname.startsWith('/_next/data/') && info.pathname.endsWith('.json')) {
     const paths = info.pathname
       .replace(/^\/_next\/data\//, '')
       .replace(/\.json$/, '')
@@ -77,8 +71,7 @@ export function getNextPathnameInfo(
 
     const buildId = paths[0]
     info.buildId = buildId
-    pathnameNoDataPrefix =
-      paths[1] !== 'index' ? `/${paths.slice(1).join('/')}` : '/'
+    pathnameNoDataPrefix = paths[1] !== 'index' ? `/${paths.slice(1).join('/')}` : '/'
 
     // update pathname with normalized if enabled although
     // we use normalized to populate locale info still

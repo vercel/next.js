@@ -71,9 +71,7 @@ function runTests() {
 
         await retry(async () => {
           await renderViaHTTP(appPort, '/basic-alias')
-          expect(stripAnsi(output)).toMatch(
-            /Module not found: Can't resolve '@c\/worldd'/
-          )
+          expect(stripAnsi(output)).toMatch(/Module not found: Can't resolve '@c\/worldd'/)
         })
       } finally {
         await fs.writeFile(basicPage, contents)
@@ -82,54 +80,39 @@ function runTests() {
   })
 
   describe('should build', () => {
-    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-      'production mode',
-      () => {
-        beforeAll(async () => {
-          await nextBuild(appDir)
-        })
-        it('should trace correctly', async () => {
-          const singleAliasTrace = await fs.readJSON(
-            join(appDir, '.next/server/pages/single-alias.js.nft.json')
-          )
-          const resolveOrderTrace = await fs.readJSON(
-            join(appDir, '.next/server/pages/resolve-order.js.nft.json')
-          )
-          const resolveFallbackTrace = await fs.readJSON(
-            join(appDir, '.next/server/pages/resolve-fallback.js.nft.json')
-          )
-          const basicAliasTrace = await fs.readJSON(
-            join(appDir, '.next/server/pages/basic-alias.js.nft.json')
-          )
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
+      beforeAll(async () => {
+        await nextBuild(appDir)
+      })
+      it('should trace correctly', async () => {
+        const singleAliasTrace = await fs.readJSON(
+          join(appDir, '.next/server/pages/single-alias.js.nft.json')
+        )
+        const resolveOrderTrace = await fs.readJSON(
+          join(appDir, '.next/server/pages/resolve-order.js.nft.json')
+        )
+        const resolveFallbackTrace = await fs.readJSON(
+          join(appDir, '.next/server/pages/resolve-fallback.js.nft.json')
+        )
+        const basicAliasTrace = await fs.readJSON(
+          join(appDir, '.next/server/pages/basic-alias.js.nft.json')
+        )
 
-          expect(
-            singleAliasTrace.files.some((file) =>
-              file.includes('components/hello.js')
-            )
-          ).toBe(false)
-          expect(
-            resolveOrderTrace.files.some((file) =>
-              file.includes('lib/a/api.js')
-            )
-          ).toBe(false)
-          expect(
-            resolveOrderTrace.files.some((file) =>
-              file.includes('mypackage/data.js')
-            )
-          ).toBe(true)
-          expect(
-            resolveFallbackTrace.files.some((file) =>
-              file.includes('lib/b/b-only.js')
-            )
-          ).toBe(false)
-          expect(
-            basicAliasTrace.files.some((file) =>
-              file.includes('components/world.js')
-            )
-          ).toBe(false)
-        })
-      }
-    )
+        expect(singleAliasTrace.files.some((file) => file.includes('components/hello.js'))).toBe(
+          false
+        )
+        expect(resolveOrderTrace.files.some((file) => file.includes('lib/a/api.js'))).toBe(false)
+        expect(resolveOrderTrace.files.some((file) => file.includes('mypackage/data.js'))).toBe(
+          true
+        )
+        expect(resolveFallbackTrace.files.some((file) => file.includes('lib/b/b-only.js'))).toBe(
+          false
+        )
+        expect(basicAliasTrace.files.some((file) => file.includes('components/world.js'))).toBe(
+          false
+        )
+      })
+    })
   })
 }
 

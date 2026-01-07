@@ -21,8 +21,4 @@ class MultiReporter implements Reporter {
 }
 
 // JSON is always reported to allow for diagnostics
-export const reporter = new MultiReporter([
-  reportToJson,
-  reportToJsonBuild,
-  reportToTelemetry,
-])
+export const reporter = new MultiReporter([reportToJson, reportToJsonBuild, reportToTelemetry])

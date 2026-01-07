@@ -9,16 +9,14 @@ describe('app dir - with output export', () => {
       let { next } = nextTestSetup({
         files: {
           app: new FileRef(join(__dirname, '..', 'app')),
-          'next.config.js': new PatchedFileRef(
-            join(__dirname, '..', 'next.config.js'),
-            (content) =>
-              content.replace(
-                'trailingSlash: true,',
-                `trailingSlash: true,
+          'next.config.js': new PatchedFileRef(join(__dirname, '..', 'next.config.js'), (content) =>
+            content.replace(
+              'trailingSlash: true,',
+              `trailingSlash: true,
        exportPathMap: async function (map) {
         return map
       },`
-              )
+            )
           ),
         },
         skipStart: true,
@@ -75,14 +73,12 @@ describe('app dir - with output export', () => {
       let { next } = nextTestSetup({
         files: {
           app: new FileRef(join(__dirname, '..', 'app')),
-          'next.config.js': new PatchedFileRef(
-            join(__dirname, '..', 'next.config.js'),
-            (content) =>
-              content.replace(
-                'trailingSlash: true,',
-                `trailingSlash: true,
+          'next.config.js': new PatchedFileRef(join(__dirname, '..', 'next.config.js'), (content) =>
+            content.replace(
+              'trailingSlash: true,',
+              `trailingSlash: true,
        distDir: 'output',`
-              )
+            )
           ),
         },
         skipStart: true,
@@ -91,9 +87,7 @@ describe('app dir - with output export', () => {
       it('should correctly emit exported assets to config.distDir', async () => {
         let { exitCode } = await next.build()
         expect(exitCode).toBe(0)
-        expect(await getFiles(join(next.testDir, 'output'))).toEqual(
-          expectedWhenTrailingSlashTrue
-        )
+        expect(await getFiles(join(next.testDir, 'output'))).toEqual(expectedWhenTrailingSlashTrue)
       })
     })
   } else {

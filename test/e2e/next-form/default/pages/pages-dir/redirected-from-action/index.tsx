@@ -3,9 +3,7 @@ import * as React from 'react'
 export async function getServerSideProps({ req }) {
   return {
     props: {
-      searchParams: Object.fromEntries(
-        new URL(req.url, 'http://n').searchParams.entries()
-      ),
+      searchParams: Object.fromEntries(new URL(req.url, 'http://n').searchParams.entries()),
     },
   }
 }

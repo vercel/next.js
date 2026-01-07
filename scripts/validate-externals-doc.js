@@ -4,30 +4,19 @@ const JSON5 = require('next/dist/compiled/json5')
 
 const serverExternals = JSON5.parse(
   fs.readFileSync(
-    path.join(
-      __dirname,
-      '../packages/next/src/lib/server-external-packages.jsonc'
-    ),
+    path.join(__dirname, '../packages/next/src/lib/server-external-packages.jsonc'),
     'utf8'
   )
 )
 
 function validate(docPath) {
-  const docContent = fs.readFileSync(
-    path.join(__dirname, '..', docPath),
-    'utf8'
-  )
+  const docContent = fs.readFileSync(path.join(__dirname, '..', docPath), 'utf8')
 
   const docPkgs = []
   const extraPkgs = []
   const missingPkgs = []
 
-  for (let docPkg of docContent
-    .split('opt-ed out:')
-    .pop()
-    .split('| Version')
-    .shift()
-    .split('\n')) {
+  for (let docPkg of docContent.split('opt-ed out:').pop().split('| Version').shift().split('\n')) {
     docPkg = docPkg.split('`')[1]
 
     if (!docPkg) {

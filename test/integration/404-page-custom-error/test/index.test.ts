@@ -51,37 +51,31 @@ const runTests = (mode) => {
 }
 
 describe('Default 404 Page with custom _error', () => {
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      afterAll(() => killApp(app))
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
+    afterAll(() => killApp(app))
 
-      it('should build successfully', async () => {
-        const { code } = await nextBuild(appDir, [], {
-          stderr: true,
-          stdout: true,
-        })
-
-        expect(code).toBe(0)
-
-        appPort = await findPort()
-
-        app = await nextStart(appDir, appPort)
+    it('should build successfully', async () => {
+      const { code } = await nextBuild(appDir, [], {
+        stderr: true,
+        stdout: true,
       })
 
-      runTests('server')
-    }
-  )
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
-    'development mode',
-    () => {
-      beforeAll(async () => {
-        appPort = await findPort()
-        app = await launchApp(appDir, appPort)
-      })
-      afterAll(() => killApp(app))
+      expect(code).toBe(0)
 
-      runTests('dev')
-    }
-  )
+      appPort = await findPort()
+
+      app = await nextStart(appDir, appPort)
+    })
+
+    runTests('server')
+  })
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
+    beforeAll(async () => {
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(() => killApp(app))
+
+    runTests('dev')
+  })
 })

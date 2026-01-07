@@ -36,8 +36,6 @@ describe('basic test', () => {
       to: 'output.css',
     })
 
-    expect(res.css).toBe(
-      '@layer b{._5-enzrfpb:lang(ar){font-family:myriad-arabic}}@layer b;'
-    )
+    expect(res.css).toBe('@layer b{._5-enzrfpb:lang(ar){font-family:myriad-arabic}}@layer b;')
   })
 })

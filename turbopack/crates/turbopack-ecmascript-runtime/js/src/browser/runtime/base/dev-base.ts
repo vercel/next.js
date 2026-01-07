@@ -24,8 +24,7 @@ devContextPrototype.c = devModuleCache
 // This file must not use `import` and `export` statements. Otherwise, it
 // becomes impossible to augment interfaces declared in `<reference>`d files
 // (e.g. `Module`). Hence, the need for `import()` here.
-type RefreshRuntimeGlobals =
-  import('@next/react-refresh-utils/dist/runtime').RefreshRuntimeGlobals
+type RefreshRuntimeGlobals = import('@next/react-refresh-utils/dist/runtime').RefreshRuntimeGlobals
 
 declare var $RefreshHelpers$: RefreshRuntimeGlobals['$RefreshHelpers$']
 declare var $RefreshReg$: RefreshRuntimeGlobals['$RefreshReg$']
@@ -40,10 +39,7 @@ type RefreshContext = {
 
 type RefreshHelpers = RefreshRuntimeGlobals['$RefreshHelpers$']
 
-type ModuleFactory = (
-  this: Module['exports'],
-  context: TurbopackDevContext
-) => unknown
+type ModuleFactory = (this: Module['exports'], context: TurbopackDevContext) => unknown
 
 interface DevRuntimeBackend {
   reloadChunk?: (chunkUrl: ChunkUrl) => Promise<void>
@@ -112,10 +108,7 @@ const queuedInvalidatedModules: Set<ModuleId> = new Set()
  * Gets or instantiates a runtime module.
  */
 // @ts-ignore
-function getOrInstantiateRuntimeModule(
-  chunkPath: ChunkPath,
-  moduleId: ModuleId
-): Module {
+function getOrInstantiateRuntimeModule(chunkPath: ChunkPath, moduleId: ModuleId): Module {
   const module = devModuleCache[moduleId]
   if (module) {
     if (module.error) {
@@ -132,9 +125,10 @@ function getOrInstantiateRuntimeModule(
  * Retrieves a module from the cache, or instantiate it if it is not cached.
  */
 // @ts-ignore Defined in `runtime-utils.ts`
-const getOrInstantiateModuleFromParent: GetOrInstantiateModuleFromParent<
-  HotModule
-> = (id, sourceModule) => {
+const getOrInstantiateModuleFromParent: GetOrInstantiateModuleFromParent<HotModule> = (
+  id,
+  sourceModule
+) => {
   if (!sourceModule.hot.active) {
     console.warn(
       `Unexpected import of module ${id} from module ${sourceModule.id}, which was deleted by an HMR update`
@@ -174,11 +168,7 @@ function DevContext(
 DevContext.prototype = Context.prototype
 
 type DevContextConstructor = {
-  new (
-    module: HotModule,
-    exports: Exports,
-    refresh: RefreshContext
-  ): TurbopackDevContext
+  new (module: HotModule, exports: Exports, refresh: RefreshContext): TurbopackDevContext
 }
 
 function instantiateModule(
@@ -218,10 +208,7 @@ function instantiateModule(
       parents = (sourceData as ModuleId[]) || []
       break
     default:
-      invariant(
-        sourceType,
-        (sourceType) => `Unknown source type: ${sourceType}`
-      )
+      invariant(sourceType, (sourceType) => `Unknown source type: ${sourceType}`)
   }
 
   const module: HotModule = createModuleObject(id) as HotModule
@@ -236,11 +223,7 @@ function instantiateModule(
   // NOTE(alexkirsz) This can fail when the module encounters a runtime error.
   try {
     runModuleExecutionHooks(module, (refresh) => {
-      const context = new (DevContext as any as DevContextConstructor)(
-        module,
-        exports,
-        refresh
-      )
+      const context = new (DevContext as any as DevContextConstructor)(module, exports, refresh)
       moduleFactory(context, module, exports)
     })
   } catch (error) {
@@ -267,13 +250,9 @@ const DUMMY_REFRESH_CONTEXT = {
  * Next.js' React Refresh runtime hooks into to add module context to the
  * refresh registry.
  */
-function runModuleExecutionHooks(
-  module: HotModule,
-  executeModule: (ctx: RefreshContext) => void
-) {
+function runModuleExecutionHooks(module: HotModule, executeModule: (ctx: RefreshContext) => void) {
   if (typeof globalThis.$RefreshInterceptModuleExecution$ === 'function') {
-    const cleanupReactRefreshIntercept =
-      globalThis.$RefreshInterceptModuleExecution$(module.id)
+    const cleanupReactRefreshIntercept = globalThis.$RefreshInterceptModuleExecution$(module.id)
     try {
       executeModule({
         register: globalThis.$RefreshReg$,
@@ -378,9 +357,7 @@ function computeOutdatedModules(
   return { outdatedModules, newModuleFactories }
 }
 
-function computedInvalidatedModules(
-  invalidated: Iterable<ModuleId>
-): Set<ModuleId> {
+function computedInvalidatedModules(invalidated: Iterable<ModuleId>): Set<ModuleId> {
   const outdatedModules = new Set<ModuleId>()
 
   for (const moduleId of invalidated) {
@@ -575,11 +552,7 @@ function applyPhase(
   // Re-instantiate all outdated self-accepted modules.
   for (const { moduleId, errorHandler } of outdatedSelfAcceptedModules) {
     try {
-      instantiateModule(
-        moduleId,
-        SourceType.Update,
-        outdatedModuleParents.get(moduleId)
-      )
+      instantiateModule(moduleId, SourceType.Update, outdatedModuleParents.get(moduleId))
     } catch (err) {
       if (typeof errorHandler === 'function') {
         try {
@@ -619,9 +592,9 @@ function applyChunkListUpdate(update: ChunkListUpdate) {
   }
 
   if (update.chunks != null) {
-    for (const [chunkPath, chunkUpdate] of Object.entries(
-      update.chunks
-    ) as Array<[ChunkPath, ChunkUpdate]>) {
+    for (const [chunkPath, chunkUpdate] of Object.entries(update.chunks) as Array<
+      [ChunkPath, ChunkUpdate]
+    >) {
       const chunkUrl = getChunkRelativeUrl(chunkPath)
 
       switch (chunkUpdate.type) {
@@ -637,15 +610,11 @@ function applyChunkListUpdate(update: ChunkListUpdate) {
         case 'partial':
           invariant(
             chunkUpdate.instruction,
-            (instruction) =>
-              `Unknown partial instruction: ${JSON.stringify(instruction)}.`
+            (instruction) => `Unknown partial instruction: ${JSON.stringify(instruction)}.`
           )
           break
         default:
-          invariant(
-            chunkUpdate,
-            (chunkUpdate) => `Unknown chunk update type: ${chunkUpdate.type}`
-          )
+          invariant(chunkUpdate, (chunkUpdate) => `Unknown chunk update type: ${chunkUpdate.type}`)
       }
     }
   }
@@ -653,14 +622,8 @@ function applyChunkListUpdate(update: ChunkListUpdate) {
 
 function applyEcmascriptMergedUpdate(update: EcmascriptMergedUpdate) {
   const { entries = {}, chunks = {} } = update
-  const { added, modified, chunksAdded, chunksDeleted } = computeChangedModules(
-    entries,
-    chunks
-  )
-  const { outdatedModules, newModuleFactories } = computeOutdatedModules(
-    added,
-    modified
-  )
+  const { added, modified, chunksAdded, chunksDeleted } = computeChangedModules(entries, chunks)
+  const { outdatedModules, newModuleFactories } = computeOutdatedModules(added, modified)
   const { disposedModules } = updateChunksPhase(chunksAdded, chunksDeleted)
 
   applyInternal(outdatedModules, disposedModules, newModuleFactories)
@@ -685,13 +648,9 @@ function applyInternal(
 ) {
   outdatedModules = applyInvalidatedModules(outdatedModules)
 
-  const outdatedSelfAcceptedModules =
-    computeOutdatedSelfAcceptedModules(outdatedModules)
+  const outdatedSelfAcceptedModules = computeOutdatedSelfAcceptedModules(outdatedModules)
 
-  const { outdatedModuleParents } = disposePhase(
-    outdatedModules,
-    disposedModules
-  )
+  const { outdatedModuleParents } = disposePhase(outdatedModules, disposedModules)
 
   // we want to continue on error and only throw the error after we tried applying all updates
   let error: any
@@ -700,12 +659,7 @@ function applyInternal(
     if (!error) error = err
   }
 
-  applyPhase(
-    outdatedSelfAcceptedModules,
-    newModuleFactories,
-    outdatedModuleParents,
-    reportError
-  )
+  applyPhase(outdatedSelfAcceptedModules, newModuleFactories, outdatedModuleParents, reportError)
 
   if (error) {
     throw error
@@ -769,8 +723,7 @@ function computeChangedModules(
       default:
         invariant(
           mergedChunkUpdate,
-          (mergedChunkUpdate) =>
-            `Unknown merged chunk update type: ${mergedChunkUpdate.type}`
+          (mergedChunkUpdate) => `Unknown merged chunk update type: ${mergedChunkUpdate.type}`
         )
     }
   }
@@ -933,10 +886,7 @@ function handleApply(chunkListPath: ChunkListPath, update: ServerMessage) {
   }
 }
 
-function createModuleHot(
-  moduleId: ModuleId,
-  hotData: HotData
-): { hot: Hot; hotState: HotState } {
+function createModuleHot(moduleId: ModuleId, hotData: HotData): { hot: Hot; hotState: HotState } {
   const hotState: HotState = {
     selfAccepted: false,
     selfDeclined: false,
@@ -1017,10 +967,7 @@ function createModuleHot(
  * Removes a module from a chunk.
  * Returns `true` if there are no remaining chunks including this module.
  */
-function removeModuleFromChunk(
-  moduleId: ModuleId,
-  chunkPath: ChunkPath
-): boolean {
+function removeModuleFromChunk(moduleId: ModuleId, chunkPath: ChunkPath): boolean {
   const moduleChunks = moduleChunksMap.get(moduleId)!
   moduleChunks.delete(chunkPath)
 

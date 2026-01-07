@@ -64,16 +64,14 @@ export async function handler(
     return
   }
 
-  const { query, params, prerenderManifest, routerServerContext } =
-    prepareResult
+  const { query, params, prerenderManifest, routerServerContext } = prepareResult
 
   try {
     const method = req.method || 'GET'
     const tracer = getTracer()
 
     const activeSpan = tracer.getActiveScopeSpan()
-    const onRequestError =
-      routeModule.instrumentationOnRequestError.bind(routeModule)
+    const onRequestError = routeModule.instrumentationOnRequestError.bind(routeModule)
 
     const invokeRouteModule = async (span?: Span) =>
       routeModule
@@ -86,8 +84,7 @@ export async function handler(
           allowedRevalidateHeaderKeys: process.env
             .__NEXT_ALLOWED_REVALIDATE_HEADERS as any as string[],
           multiZoneDraftMode: Boolean(process.env.__NEXT_MULTI_ZONE_DRAFT_MODE),
-          trustHostHeader: process.env
-            .__NEXT_TRUST_HOST_HEADER as any as boolean,
+          trustHostHeader: process.env.__NEXT_TRUST_HOST_HEADER as any as boolean,
           // TODO: get this from from runtime env so manifest
           // doesn't need to load
           previewProps: prerenderManifest.preview,
@@ -114,10 +111,7 @@ export async function handler(
             return
           }
 
-          if (
-            rootSpanAttributes.get('next.span_type') !==
-            BaseServerSpan.handleRequest
-          ) {
+          if (rootSpanAttributes.get('next.span_type') !== BaseServerSpan.handleRequest) {
             console.warn(
               `Unexpected root span type '${rootSpanAttributes.get(
                 'next.span_type'

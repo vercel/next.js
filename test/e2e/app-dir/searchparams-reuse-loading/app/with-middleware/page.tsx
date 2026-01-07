@@ -4,14 +4,10 @@ export default function Page() {
   return (
     <ul>
       <li>
-        <Link href="/with-middleware/search-params?id=1">
-          /search-params?id=1
-        </Link>
+        <Link href="/with-middleware/search-params?id=1">/search-params?id=1</Link>
       </li>
       <li>
-        <Link href="/with-middleware/search-params?id=2">
-          /search-params?id=2
-        </Link>
+        <Link href="/with-middleware/search-params?id=2">/search-params?id=2</Link>
       </li>
       <li>
         <Link href="/with-middleware/search-params?id=3" prefetch={true}>

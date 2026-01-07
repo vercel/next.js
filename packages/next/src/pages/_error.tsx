@@ -16,13 +16,8 @@ export type ErrorProps = {
   withDarkMode?: boolean
 }
 
-function _getInitialProps({
-  req,
-  res,
-  err,
-}: NextPageContext): Promise<ErrorProps> | ErrorProps {
-  const statusCode =
-    res && res.statusCode ? res.statusCode : err ? err.statusCode! : 404
+function _getInitialProps({ req, res, err }: NextPageContext): Promise<ErrorProps> | ErrorProps {
+  const statusCode = res && res.statusCode ? res.statusCode : err ? err.statusCode! : 404
 
   let hostname
 
@@ -86,10 +81,7 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
 
   render() {
     const { statusCode, withDarkMode = true } = this.props
-    const title =
-      this.props.title ||
-      statusCodes[statusCode] ||
-      'An unexpected error has occurred'
+    const title = this.props.title || statusCodes[statusCode] || 'An unexpected error has occurred'
 
     return (
       <div style={styles.error}>
@@ -140,10 +132,8 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
               ) : (
                 <>
                   Application error: a client-side exception has occurred{' '}
-                  {Boolean(this.props.hostname) && (
-                    <>while loading {this.props.hostname}</>
-                  )}{' '}
-                  (see the browser console for more information)
+                  {Boolean(this.props.hostname) && <>while loading {this.props.hostname}</>} (see
+                  the browser console for more information)
                 </>
               )}
               .

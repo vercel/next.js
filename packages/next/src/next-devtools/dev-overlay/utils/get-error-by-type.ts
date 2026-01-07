@@ -8,15 +8,11 @@ export type ReadyRuntimeError = {
   id: number
   runtime: true
   error: Error & { environmentName?: string }
-  frames:
-    | readonly OriginalStackFrame[]
-    | (() => Promise<readonly OriginalStackFrame[]>)
+  frames: readonly OriginalStackFrame[] | (() => Promise<readonly OriginalStackFrame[]>)
   type: 'runtime' | 'console' | 'recoverable'
 }
 
-export const useFrames = (
-  error: ReadyRuntimeError | null
-): readonly OriginalStackFrame[] => {
+export const useFrames = (error: ReadyRuntimeError | null): readonly OriginalStackFrame[] => {
   if (!error) return []
 
   if ('use' in React) {
@@ -56,11 +52,7 @@ export async function getErrorByType(
       ...baseError,
       // createMemoizedPromise dedups calls to getOriginalStackFrames
       frames: createMemoizedPromise(async () => {
-        return await getOriginalStackFrames(
-          event.frames,
-          getErrorSource(event.error),
-          isAppDir
-        )
+        return await getOriginalStackFrames(event.frames, getErrorSource(event.error), isAppDir)
       }),
     }
     return readyRuntimeError
@@ -68,19 +60,13 @@ export async function getErrorByType(
     const readyRuntimeError: ReadyRuntimeError = {
       ...baseError,
       // createMemoizedPromise dedups calls to getOriginalStackFrames
-      frames: await getOriginalStackFrames(
-        event.frames,
-        getErrorSource(event.error),
-        isAppDir
-      ),
+      frames: await getOriginalStackFrames(event.frames, getErrorSource(event.error), isAppDir),
     }
     return readyRuntimeError
   }
 }
 
-function createMemoizedPromise<T>(
-  promiseFactory: () => Promise<T>
-): () => Promise<T> {
+function createMemoizedPromise<T>(promiseFactory: () => Promise<T>): () => Promise<T> {
   const cachedPromise = promiseFactory()
   return function (): Promise<T> {
     return cachedPromise

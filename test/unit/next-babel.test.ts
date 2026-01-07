@@ -30,9 +30,7 @@ describe('next/babel', () => {
       // it should use that factory for all JSX:
       expect(output).toMatch(`__jsx("a",{href:"/"`)
 
-      expect(
-        babel(`const a = ()=><a href="/">home</a>`, true)
-      ).toMatchInlineSnapshot(
+      expect(babel(`const a = ()=><a href="/">home</a>`, true)).toMatchInlineSnapshot(
         `"import React from"react";var __jsx=React.createElement;var a=function a(){return __jsx("a",{href:"/"},"home");};"`
       )
     })

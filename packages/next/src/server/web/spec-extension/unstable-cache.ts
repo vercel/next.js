@@ -2,20 +2,13 @@ import type { IncrementalCache } from '../../lib/incremental-cache'
 
 import { CACHE_ONE_YEAR } from '../../../lib/constants'
 import { validateRevalidate, validateTags } from '../../lib/patch-fetch'
-import {
-  workAsyncStorage,
-  type WorkStore,
-} from '../../app-render/work-async-storage.external'
+import { workAsyncStorage, type WorkStore } from '../../app-render/work-async-storage.external'
 import {
   getCacheSignal,
   getDraftModeProviderForCacheScope,
   workUnitAsyncStorage,
 } from '../../app-render/work-unit-async-storage.external'
-import {
-  CachedRouteKind,
-  IncrementalCacheKind,
-  type CachedFetchData,
-} from '../../response-cache'
+import { CachedRouteKind, IncrementalCacheKind, type CachedFetchData } from '../../response-cache'
 import type {
   UnstableCacheStore,
   WorkUnitStore,
@@ -75,15 +68,10 @@ export function unstable_cache<T extends Callback>(
   }
 
   // Validate the tags provided are valid
-  const tags = options.tags
-    ? validateTags(options.tags, `unstable_cache ${cb.toString()}`)
-    : []
+  const tags = options.tags ? validateTags(options.tags, `unstable_cache ${cb.toString()}`) : []
 
   // Validate the revalidate options
-  validateRevalidate(
-    options.revalidate,
-    `unstable_cache ${cb.name || cb.toString()}`
-  )
+  validateRevalidate(options.revalidate, `unstable_cache ${cb.name || cb.toString()}`)
 
   // Stash the fixed part of the key at construction time. The invocation key will combine
   // the fixed key with the arguments when actually called
@@ -101,13 +89,10 @@ export function unstable_cache<T extends Callback>(
     // We must be able to find the incremental cache otherwise we throw
     const maybeIncrementalCache:
       | import('../../lib/incremental-cache').IncrementalCache
-      | undefined =
-      workStore?.incrementalCache || (globalThis as any).__incrementalCache
+      | undefined = workStore?.incrementalCache || (globalThis as any).__incrementalCache
 
     if (!maybeIncrementalCache) {
-      throw new Error(
-        `Invariant: incrementalCache missing in unstable_cache ${cb.toString()}`
-      )
+      throw new Error(`Invariant: incrementalCache missing in unstable_cache ${cb.toString()}`)
     }
     const incrementalCache = maybeIncrementalCache
 
@@ -121,9 +106,7 @@ export function unstable_cache<T extends Callback>(
       // router. Default to an empty pathname and search params when there's no
       // request store or static generation store available.
       const fetchUrlPrefix =
-        workStore && workUnitStore
-          ? getFetchUrlPrefix(workStore, workUnitStore)
-          : ''
+        workStore && workUnitStore ? getFetchUrlPrefix(workStore, workUnitStore) : ''
 
       // Construct the complete cache key for this function invocation
       // @TODO stringify is likely not safe here. We will coerce undefined to null which will make
@@ -132,8 +115,7 @@ export function unstable_cache<T extends Callback>(
       const cacheKey = await incrementalCache.generateCacheKey(invocationKey)
       // $urlWithPath,$sortedQueryStringKeys,$hashOfEveryThingElse
       const fetchUrl = `unstable_cache ${fetchUrlPrefix} ${cb.name ? ` ${cb.name}` : cacheKey}`
-      const fetchIdx =
-        (workStore ? workStore.nextFetchId : noStoreFetchIdx) ?? 1
+      const fetchIdx = (workStore ? workStore.nextFetchId : noStoreFetchIdx) ?? 1
 
       const implicitTags = workUnitStore?.implicitTags
 
@@ -142,9 +124,7 @@ export function unstable_cache<T extends Callback>(
         phase: 'render',
         implicitTags,
         draftMode:
-          workUnitStore &&
-          workStore &&
-          getDraftModeProviderForCacheScope(workStore, workUnitStore),
+          workUnitStore && workStore && getDraftModeProviderForCacheScope(workStore, workUnitStore),
       }
 
       if (workStore) {
@@ -225,9 +205,7 @@ export function unstable_cache<T extends Callback>(
               // @TODO why do we warn this way? Should this just be an error? How are these errors surfaced
               // so bugs can be reported
               // @TODO the invocation key can have sensitive data in it. we should not log this entire object
-              console.error(
-                `Invariant invalid cacheEntry returned for ${invocationKey}`
-              )
+              console.error(`Invariant invalid cacheEntry returned for ${invocationKey}`)
               // will fall through to generating a new cache entry below
             } else {
               // We have a valid cache entry so we will be returning it. We also check to see if we need
@@ -261,10 +239,7 @@ export function unstable_cache<T extends Callback>(
                     })
                     .catch((err) => {
                       // @TODO This error handling seems wrong. We swallow the error?
-                      console.error(
-                        `revalidating cache with key: ${invocationKey}`,
-                        err
-                      )
+                      console.error(`revalidating cache with key: ${invocationKey}`, err)
                       // Return the stale value on error for foreground revalidation
                       return cachedResponse
                     })
@@ -275,8 +250,7 @@ export function unstable_cache<T extends Callback>(
                     revalidationPromise.catch(() => {})
                   }
 
-                  workStore.pendingRevalidates[invocationKey] =
-                    revalidationPromise
+                  workStore.pendingRevalidates[invocationKey] = revalidationPromise
                 }
 
                 // Check if we need to do foreground revalidation
@@ -295,11 +269,7 @@ export function unstable_cache<T extends Callback>(
         }
 
         // If we got this far then we had an invalid cache entry and need to generate a new one
-        const result = await workUnitAsyncStorage.run(
-          innerCacheStore,
-          cb,
-          ...args
-        )
+        const result = await workUnitAsyncStorage.run(innerCacheStore, cb, ...args)
 
         if (!workStore.isDraftMode) {
           if (!workStore.pendingRevalidates) {
@@ -345,9 +315,7 @@ export function unstable_cache<T extends Callback>(
               // The entry is invalid and we need a special warning
               // @TODO why do we warn this way? Should this just be an error? How are these errors surfaced
               // so bugs can be reported
-              console.error(
-                `Invariant invalid cacheEntry returned for ${invocationKey}`
-              )
+              console.error(`Invariant invalid cacheEntry returned for ${invocationKey}`)
               // will fall through to generating a new cache entry below
             } else if (!cacheEntry.isStale) {
               // We have a valid cache entry and it is fresh so we return it
@@ -359,11 +327,7 @@ export function unstable_cache<T extends Callback>(
         }
 
         // If we got this far then we had an invalid cache entry and need to generate a new one
-        const result = await workUnitAsyncStorage.run(
-          innerCacheStore,
-          cb,
-          ...args
-        )
+        const result = await workUnitAsyncStorage.run(innerCacheStore, cb, ...args)
 
         // we need to wait setting the new cache result here as
         // we don't have pending revalidates on workStore to
@@ -389,10 +353,7 @@ export function unstable_cache<T extends Callback>(
   return cachedCb as unknown as T
 }
 
-function getFetchUrlPrefix(
-  workStore: WorkStore,
-  workUnitStore: WorkUnitStore
-): string {
+function getFetchUrlPrefix(workStore: WorkStore, workUnitStore: WorkUnitStore): string {
   switch (workUnitStore.type) {
     case 'request':
       const pathname = workUnitStore.url.pathname

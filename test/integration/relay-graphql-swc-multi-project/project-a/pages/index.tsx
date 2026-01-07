@@ -52,9 +52,7 @@ export const getServerSideProps: GetServerSideProps = async ({ req }) => {
   ).toPromise()
 
   if (!result) {
-    throw new Error(
-      'Mock GraphQL Server network request finished without a response!'
-    )
+    throw new Error('Mock GraphQL Server network request finished without a response!')
   }
 
   return {

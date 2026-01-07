@@ -11,10 +11,7 @@ export async function getServerSideProps({ query: { port } }) {
 export default function Page({ port }) {
   return (
     <>
-      <Link
-        href={`http://localhost:${port}/rewrite-no-basepath`}
-        id="absolute-link"
-      >
+      <Link href={`http://localhost:${port}/rewrite-no-basepath`} id="absolute-link">
         http://localhost:{port}/rewrite-no-basepath
       </Link>
     </>

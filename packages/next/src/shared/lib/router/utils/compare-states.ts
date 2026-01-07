@@ -13,10 +13,7 @@ export function compareRouterStates(a: Router['state'], b: Router['state']) {
       }
       for (let j = queryKeys.length; j--; ) {
         const queryKey = queryKeys[j]
-        if (
-          !b.query.hasOwnProperty(queryKey) ||
-          a.query[queryKey] !== b.query[queryKey]
-        ) {
+        if (!b.query.hasOwnProperty(queryKey) || a.query[queryKey] !== b.query[queryKey]) {
           return false
         }
       }

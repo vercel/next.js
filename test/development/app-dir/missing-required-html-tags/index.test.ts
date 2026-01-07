@@ -105,10 +105,7 @@ describe('app-dir - missing required html tags', () => {
 
     // Reintroduce the bug, but only missing html tag
     await next.patchFile('app/layout.js', (code) =>
-      code.replace(
-        'return <html><body>{children}</body></html>',
-        'return children'
-      )
+      code.replace('return <html><body>{children}</body></html>', 'return children')
     )
 
     // TODO(NDX-768): Should show "missing tags" error

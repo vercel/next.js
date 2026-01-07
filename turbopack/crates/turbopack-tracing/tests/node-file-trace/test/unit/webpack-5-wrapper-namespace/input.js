@@ -9,11 +9,7 @@
       /***/
     },
 
-    /***/ PicC: /***/ function (
-      module,
-      __webpack_exports__,
-      __webpack_require__
-    ) {
+    /***/ PicC: /***/ function (module, __webpack_exports__, __webpack_require__) {
       'use strict'
       __webpack_require__.r(__webpack_exports__)
       /* harmony export (binding) */ __webpack_require__.d(

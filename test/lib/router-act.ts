@@ -104,8 +104,7 @@ export function createRouterAct(
       } catch (err) {
         const isLastAttempt = attempt === maxRetries - 1
         const isExecutionContextError =
-          err instanceof Error &&
-          err.message.includes('Execution context was destroyed')
+          err instanceof Error && err.message.includes('Execution context was destroyed')
 
         if (isExecutionContextError && !isLastAttempt) {
           await new Promise((resolve) => setTimeout(resolve, retryDelayMs))
@@ -124,10 +123,7 @@ export function createRouterAct(
    * all the requests to complete before exiting. Inspired by the React
    * `act` API.
    */
-  async function act<T>(
-    scope: () => Promise<T> | T,
-    config?: ActConfig
-  ): Promise<T> {
+  async function act<T>(scope: () => Promise<T> | T, config?: ActConfig): Promise<T> {
     // Capture a stack trace for better async error messages.
     const error = new Error()
     if (Error.captureStackTrace) {
@@ -146,8 +142,7 @@ export function createRouterAct(
       // Expect at least one request, and block them all from being fulfilled.
       if (currentBatch === null) {
         error.message =
-          '`block` option only supported when nested inside an outer ' +
-          '`act` scope.'
+          '`block` option only supported when nested inside an outer ' + '`act` scope.'
         throw error
       }
       expectedResponses = []
@@ -159,8 +154,7 @@ export function createRouterAct(
       // Shortcut for a single expected response.
       if (config.block === true && currentBatch === null) {
         error.message =
-          '`block: true` option only supported when nested inside an outer ' +
-          '`act` scope.'
+          '`block: true` option only supported when nested inside an outer ' + '`act` scope.'
         throw error
       }
       if (config.block !== 'reject') {
@@ -174,8 +168,7 @@ export function createRouterAct(
       for (const item of config) {
         if (item.block === true && currentBatch === null) {
           error.message =
-            '`block: true` option only supported when nested inside an outer ' +
-            '`act` scope.'
+            '`block: true` option only supported when nested inside an outer ' + '`act` scope.'
           throw error
         }
         if (item.block !== 'reject') {
@@ -271,9 +264,7 @@ export function createRouterAct(
       const orphanedRequests = batch.pendingRequests
       batch.pendingRequests = new Set()
       batch.pendingRequestChecks = new Set()
-      await Promise.all(
-        Array.from(orphanedRequests).map((item) => item.route?.continue())
-      )
+      await Promise.all(Array.from(orphanedRequests).map((item) => item.route?.continue()))
       didHardNavigate = true
     }
 
@@ -384,8 +375,7 @@ ${fulfilled.body}
             }
             if (
               fulfilled.status >= 400 &&
-              (allowStatuses === null ||
-                !allowStatuses.includes(fulfilled.status))
+              (allowStatuses === null || !allowStatuses.includes(fulfilled.status))
             ) {
               error.message = `
 Received a response with an error status code.
@@ -603,12 +593,8 @@ ${fulfilled.body}
               expectedResponses[0].includes +
               '\n'
           } else {
-            const expectedSubstrings = expectedResponses.map(
-              (item) => item.includes
-            )
-            const actualSubstrings = actualResponses.map(
-              (item) => item.includes
-            )
+            const expectedSubstrings = expectedResponses.map((item) => item.includes)
+            const actualSubstrings = actualResponses.map((item) => item.includes)
             error.message =
               'Expected sequence of responses does not match:\n\n' +
               diff(expectedSubstrings, actualSubstrings) +

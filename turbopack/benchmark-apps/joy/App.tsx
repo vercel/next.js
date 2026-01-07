@@ -11,8 +11,7 @@ function Copyright() {
       }}
     >
       {'Copyright © '}
-      <Link href="https://mui.com/">Your Website</Link>{' '}
-      {new Date().getFullYear()}.
+      <Link href="https://mui.com/">Your Website</Link> {new Date().getFullYear()}.
     </Typography>
   )
 }

@@ -11,10 +11,7 @@ export function Form({
 }) {
   const [date, formAction, isDatePending] = useActionState(getDate, null)
 
-  const [random, buttonAction, isRandomPending] = useActionState(
-    getRandom,
-    null
-  )
+  const [random, buttonAction, isRandomPending] = useActionState(getRandom, null)
 
   return (
     <form action={formAction}>

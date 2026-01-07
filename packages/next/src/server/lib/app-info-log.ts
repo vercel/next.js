@@ -2,10 +2,7 @@ import { loadEnvConfig } from '@next/env'
 import * as inspector from 'inspector'
 import * as Log from '../../build/output/log'
 import { bold, purple, strikethrough } from '../../lib/picocolors'
-import {
-  PHASE_DEVELOPMENT_SERVER,
-  PHASE_PRODUCTION_BUILD,
-} from '../../shared/lib/constants'
+import { PHASE_DEVELOPMENT_SERVER, PHASE_PRODUCTION_BUILD } from '../../shared/lib/constants'
 import loadConfig, { type ConfiguredExperimentalFeature } from '../config'
 import { experimentalSchema } from '../config-schema'
 
@@ -68,17 +65,10 @@ export function logStartInfo({
   if (experimentalFeatures?.length) {
     Log.bootstrap(`- Experiments (use with caution):`)
     for (const exp of experimentalFeatures) {
-      const isValid = Object.prototype.hasOwnProperty.call(
-        experimentalSchema,
-        exp.key
-      )
+      const isValid = Object.prototype.hasOwnProperty.call(experimentalSchema, exp.key)
       if (isValid) {
         const symbol =
-          typeof exp.value === 'boolean'
-            ? exp.value === true
-              ? bold('✓')
-              : bold('⨯')
-            : '·'
+          typeof exp.value === 'boolean' ? (exp.value === true ? bold('✓') : bold('⨯')) : '·'
 
         const suffix =
           typeof exp.value === 'number' || typeof exp.value === 'string'
@@ -89,9 +79,7 @@ export function logStartInfo({
 
         Log.bootstrap(`  ${symbol} ${exp.key}${suffix}${reason}`)
       } else {
-        Log.bootstrap(
-          `  ? ${strikethrough(exp.key)} (invalid experimental key)`
-        )
+        Log.bootstrap(`  ? ${strikethrough(exp.key)} (invalid experimental key)`)
       }
     }
   }
@@ -115,19 +103,13 @@ export async function getStartServerInfo({
 }> {
   let experimentalFeatures: ConfiguredExperimentalFeature[] = []
   let cacheComponents = false
-  const config = await loadConfig(
-    dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_BUILD,
-    dir,
-    {
-      reportExperimentalFeatures(features) {
-        experimentalFeatures = features.sort(({ key: a }, { key: b }) =>
-          a.localeCompare(b)
-        )
-      },
-      debugPrerender,
-      silent: false,
-    }
-  )
+  const config = await loadConfig(dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_BUILD, dir, {
+    reportExperimentalFeatures(features) {
+      experimentalFeatures = features.sort(({ key: a }, { key: b }) => a.localeCompare(b))
+    },
+    debugPrerender,
+    silent: false,
+  })
 
   cacheComponents = !!config.cacheComponents
 

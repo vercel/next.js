@@ -47,11 +47,7 @@ describe('react version', () => {
   })
 
   it('should use default react condition for pages router apis', async () => {
-    const pagesRoutes = [
-      '/api/pages-api',
-      '/api/pages-api-edge',
-      '/api/pages-api-edge-url-dep',
-    ]
+    const pagesRoutes = ['/api/pages-api', '/api/pages-api-edge', '/api/pages-api-edge-url-dep']
 
     for (const route of pagesRoutes) {
       const res = await next.fetch(route)

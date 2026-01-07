@@ -7,10 +7,7 @@ function getTestFilter() {
     : null
   if (!manifest) return null
 
-  console.log(
-    'Filtering tests using manifest:',
-    process.env.NEXT_EXTERNAL_TESTS_FILTERS
-  )
+  console.log('Filtering tests using manifest:', process.env.NEXT_EXTERNAL_TESTS_FILTERS)
 
   // For the legacy manifest without a version, we assume it's a complete list
   // of all the tests.
@@ -44,21 +41,13 @@ function getTestFilter() {
 
           // If this file doesn't match any of the include patterns, then it
           // should be excluded.
-          if (
-            manifest.rules.include.every(
-              (pattern) => !minimatch(test.file, pattern)
-            )
-          ) {
+          if (manifest.rules.include.every((pattern) => !minimatch(test.file, pattern))) {
             return false
           }
 
           // If the file matches any of the exclude patterns, then it should be
           // excluded.
-          if (
-            manifest.rules.exclude?.some((pattern) =>
-              minimatch(test.file, pattern)
-            )
-          ) {
+          if (manifest.rules.exclude?.some((pattern) => minimatch(test.file, pattern))) {
             return false
           }
 

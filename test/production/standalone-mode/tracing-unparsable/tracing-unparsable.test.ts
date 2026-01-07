@@ -20,18 +20,10 @@ describe('standalone mode - tracing-unparsable', () => {
 
     let trace = await next.readJSON('.next/server/app/page.js.nft.json')
 
-    expect(trace.files).toContainEqual(
-      expect.stringMatching(/.*\/node_modules\/foo\/LICENSE$/)
-    )
-    expect(trace.files).toContainEqual(
-      expect.stringMatching(/.*\/node_modules\/foo\/binary$/)
-    )
-    expect(trace.files).toContainEqual(
-      expect.stringMatching(/.*\/node_modules\/foo\/index\.js$/)
-    )
-    expect(trace.files).toContainEqual(
-      expect.stringMatching(/.*\/node_modules\/foo\/value\.js$/)
-    )
+    expect(trace.files).toContainEqual(expect.stringMatching(/.*\/node_modules\/foo\/LICENSE$/))
+    expect(trace.files).toContainEqual(expect.stringMatching(/.*\/node_modules\/foo\/binary$/))
+    expect(trace.files).toContainEqual(expect.stringMatching(/.*\/node_modules\/foo\/index\.js$/))
+    expect(trace.files).toContainEqual(expect.stringMatching(/.*\/node_modules\/foo\/value\.js$/))
     expect(trace.files).toContainEqual(
       expect.stringMatching(/.*\/node_modules\/foo\/package\.json$/)
     )

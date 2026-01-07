@@ -1,8 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { getDistDir } from 'next-test-utils'
 
-const strictRouteTypes =
-  process.env.__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES === 'true'
+const strictRouteTypes = process.env.__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES === 'true'
 
 describe('typed-routes-validator', () => {
   const { next, isNextDev, isNextStart, skipped } = nextTestSetup({

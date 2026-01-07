@@ -29,9 +29,7 @@ const { spawn } = require('child_process')
 
     child.on('exit', (code, signal) => {
       if (code || signal) {
-        return reject(
-          new Error(`invalid exit code ${code} or signal ${signal}`)
-        )
+        return reject(new Error(`invalid exit code ${code} or signal ${signal}`))
       }
       resolve(0)
     })
@@ -59,9 +57,7 @@ const { spawn } = require('child_process')
       )
       child.on('exit', (code, signal) => {
         if (code || signal) {
-          return reject(
-            new Error(`invalid exit code ${code} or signal ${signal}`)
-          )
+          return reject(new Error(`invalid exit code ${code} or signal ${signal}`))
         }
         resolve(0)
       })

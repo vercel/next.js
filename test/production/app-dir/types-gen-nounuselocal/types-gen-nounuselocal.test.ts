@@ -2,8 +2,7 @@ import fsp from 'fs/promises'
 import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 
-const strictRouteTypes =
-  process.env.__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES === 'true'
+const strictRouteTypes = process.env.__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES === 'true'
 
 describe('types-gen-nounuselocal', () => {
   const { next, skipped } = nextTestSetup({

@@ -28,9 +28,7 @@ describe('fallback export error', () => {
     console.log(result.cliOutput)
 
     expect(result.exitCode).toBe(0)
-    expect(result.cliOutput).not.toContain(
-      'Found pages with `fallback` enabled'
-    )
+    expect(result.cliOutput).not.toContain('Found pages with `fallback` enabled')
   })
 
   it('should not error with valid exportPathMap', async () => {
@@ -53,9 +51,7 @@ describe('fallback export error', () => {
       console.log(result.cliOutput)
 
       expect(result.exitCode).toBe(0)
-      expect(result.cliOutput).not.toContain(
-        'Found pages with `fallback` enabled'
-      )
+      expect(result.cliOutput).not.toContain('Found pages with `fallback` enabled')
     } finally {
       await next.deleteFile('next.config.js')
     }

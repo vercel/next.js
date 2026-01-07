@@ -1,13 +1,7 @@
 'use client'
 import { useRouter } from 'next/navigation'
 
-export function UpdateSearchParamsButton({
-  searchParams,
-  id,
-}: {
-  searchParams: any
-  id?: string
-}) {
+export function UpdateSearchParamsButton({ searchParams, id }: { searchParams: any; id?: string }) {
   const router = useRouter()
 
   return (

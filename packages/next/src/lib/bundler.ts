@@ -34,20 +34,14 @@ export function parseBundlerArgs(options: {
     // parts will read the env variable.
     setBundlerFlag(Bundler.Turbopack, `TURBOPACK=${process.env.TURBOPACK}`)
   } else if (process.env.IS_TURBOPACK_TEST) {
-    setBundlerFlag(
-      Bundler.Turbopack,
-      `IS_TURBOPACK_TEST=${process.env.IS_TURBOPACK_TEST}`
-    )
+    setBundlerFlag(Bundler.Turbopack, `IS_TURBOPACK_TEST=${process.env.IS_TURBOPACK_TEST}`)
   }
   if (options.webpack) {
     setBundlerFlag(Bundler.Webpack, '--webpack')
   }
 
   if (process.env.IS_WEBPACK_TEST) {
-    setBundlerFlag(
-      Bundler.Webpack,
-      `IS_WEBPACK_TEST=${process.env.IS_WEBPACK_TEST}`
-    )
+    setBundlerFlag(Bundler.Webpack, `IS_WEBPACK_TEST=${process.env.IS_WEBPACK_TEST}`)
   }
 
   // Mostly this is set via the NextConfig but it can also be set via the command line which is
@@ -56,10 +50,7 @@ export function parseBundlerArgs(options: {
     setBundlerFlag(Bundler.Rspack, `NEXT_RSPACK=${process.env.NEXT_RSPACK}`)
   }
   if (process.env.NEXT_TEST_USE_RSPACK) {
-    setBundlerFlag(
-      Bundler.Rspack,
-      `NEXT_TEST_USE_RSPACK=${process.env.NEXT_TEST_USE_RSPACK}`
-    )
+    setBundlerFlag(Bundler.Rspack, `NEXT_TEST_USE_RSPACK=${process.env.NEXT_TEST_USE_RSPACK}`)
   }
 
   if (bundlerFlags.size > 1) {

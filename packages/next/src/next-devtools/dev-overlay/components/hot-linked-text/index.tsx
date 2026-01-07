@@ -51,9 +51,7 @@ export const HotlinkedText: React.FC<{
                   )
                 } else {
                   return (
-                    <React.Fragment key={`text-${outerIndex}-${index}`}>
-                      {rawPart}
-                    </React.Fragment>
+                    <React.Fragment key={`text-${outerIndex}-${index}`}>{rawPart}</React.Fragment>
                   )
                 }
               })

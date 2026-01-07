@@ -8,11 +8,7 @@ const BOLD_WEIGHT = 700
  * Weights can be defined as a number, 'normal' or 'bold'. https://developer.mozilla.org/docs/Web/CSS/@font-face/font-weight
  */
 function getWeightNumber(weight: string) {
-  return weight === 'normal'
-    ? NORMAL_WEIGHT
-    : weight === 'bold'
-      ? BOLD_WEIGHT
-      : Number(weight)
+  return weight === 'normal' ? NORMAL_WEIGHT : weight === 'bold' ? BOLD_WEIGHT : Number(weight)
 }
 
 /**
@@ -24,10 +20,7 @@ function getDistanceFromNormalWeight(weight?: string) {
   if (!weight) return 0
 
   // If it's a variable font the weight is defined with two numbers "100 900", rather than just one "400"
-  const [firstWeight, secondWeight] = weight
-    .trim()
-    .split(/ +/)
-    .map(getWeightNumber)
+  const [firstWeight, secondWeight] = weight.trim().split(/ +/).map(getWeightNumber)
 
   if (Number.isNaN(firstWeight) || Number.isNaN(secondWeight)) {
     nextFontError(
@@ -65,22 +58,19 @@ function getDistanceFromNormalWeight(weight?: string) {
  * - Most of the text will have normal style, prefer normal over italic
  * - If two font files have the same distance from normal weight, the thinner one will most likely be the bulk of the text
  */
-export function pickFontFileForFallbackGeneration<
-  T extends { style?: string; weight?: string },
->(fontFiles: T[]): T {
+export function pickFontFileForFallbackGeneration<T extends { style?: string; weight?: string }>(
+  fontFiles: T[]
+): T {
   return fontFiles.reduce((usedFontFile, currentFontFile) => {
     if (!usedFontFile) return currentFontFile
 
     const usedFontDistance = getDistanceFromNormalWeight(usedFontFile.weight)
-    const currentFontDistance = getDistanceFromNormalWeight(
-      currentFontFile.weight
-    )
+    const currentFontDistance = getDistanceFromNormalWeight(currentFontFile.weight)
 
     // Prefer normal style if they have the same weight
     if (
       usedFontDistance === currentFontDistance &&
-      (typeof currentFontFile.style === 'undefined' ||
-        currentFontFile.style === 'normal')
+      (typeof currentFontFile.style === 'undefined' || currentFontFile.style === 'normal')
     ) {
       return currentFontFile
     }
@@ -92,10 +82,7 @@ export function pickFontFileForFallbackGeneration<
     if (absCurrentDistance < absUsedDistance) return currentFontFile
 
     // Prefer the thinner font if both have the same absolute distance from normal weight
-    if (
-      absUsedDistance === absCurrentDistance &&
-      currentFontDistance < usedFontDistance
-    ) {
+    if (absUsedDistance === absCurrentDistance && currentFontDistance < usedFontDistance) {
       return currentFontFile
     }
 

@@ -75,10 +75,7 @@ export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
 
       // Iterate over the production matches again, this time we should be able
       // to match it against the production matcher unless there's an error.
-      for await (const productionMatch of this.production.matchAll(
-        pathname,
-        options
-      )) {
+      for await (const productionMatch of this.production.matchAll(pathname, options)) {
         yield productionMatch
       }
     }
@@ -96,9 +93,7 @@ export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
     await super.reload()
 
     // Check for and warn of any duplicates.
-    for (const [pathname, matchers] of Object.entries(
-      this.matchers.duplicates
-    )) {
+    for (const [pathname, matchers] of Object.entries(this.matchers.duplicates)) {
       // We only want to warn about matchers resolving to the same path if their
       // identities are different.
       const identity = matchers[0].identity
@@ -108,9 +103,7 @@ export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
 
       Log.warn(
         `Duplicate page detected. ${matchers
-          .map((matcher) =>
-            cyan(path.relative(this.dir, matcher.definition.filename))
-          )
+          .map((matcher) => cyan(path.relative(this.dir, matcher.definition.filename)))
           .join(' and ')} resolve to ${cyan(pathname)}`
       )
     }

@@ -32,15 +32,9 @@ declare module 'react-server-dom-webpack/client' {
 
   type TemporaryReferenceSet = Map<string, unknown>
 
-  export type CallServerCallback = (
-    id: string,
-    args: unknown[]
-  ) => Promise<unknown>
+  export type CallServerCallback = (id: string, args: unknown[]) => Promise<unknown>
 
-  export type EncodeFormActionCallback = <A>(
-    id: any,
-    args: Promise<A>
-  ) => ReactCustomFormAction
+  export type EncodeFormActionCallback = <A>(id: any, args: Promise<A>) => ReactCustomFormAction
 
   export type ReactCustomFormAction = {
     name?: string
@@ -61,10 +55,7 @@ declare module 'react-server-dom-webpack/client' {
     options?: Options
   ): Promise<T>
 
-  export function createFromReadableStream<T>(
-    stream: ReadableStream,
-    options?: Options
-  ): Promise<T>
+  export function createFromReadableStream<T>(stream: ReadableStream, options?: Options): Promise<T>
 
   export function createFromNodeStream<T>(
     stream: import('node:stream').Readable,
@@ -83,9 +74,7 @@ declare module 'react-server-dom-webpack/client' {
     functionName: string | undefined
   ): (...args: unknown[]) => Promise<unknown>
 
-  export function createTemporaryReferenceSet(
-    ...args: unknown[]
-  ): TemporaryReferenceSet
+  export function createTemporaryReferenceSet(...args: unknown[]): TemporaryReferenceSet
 
   export function encodeReply(
     value: unknown,
@@ -124,10 +113,7 @@ declare module 'react-server-dom-webpack/client.browser' {
     options?: Options
   ): Promise<T>
 
-  export function createFromReadableStream<T>(
-    stream: ReadableStream,
-    options?: Options
-  ): Promise<T>
+  export function createFromReadableStream<T>(stream: ReadableStream, options?: Options): Promise<T>
 }
 
 declare module 'react-server-dom-webpack/server.edge' {
@@ -159,12 +145,7 @@ declare module 'react-server-dom-webpack/server.edge' {
       // But we want to not miss callsites accidentally and explicitly choose
       // at each callsite which implementation to choose.
       filterStackFrame:
-        | ((
-            url: string,
-            functionName: string,
-            lineNumber: number,
-            columnNumber: number
-          ) => boolean)
+        | ((url: string, functionName: string, lineNumber: number, columnNumber: number) => boolean)
         | undefined
       onError?: (error: unknown) => void
       signal?: AbortSignal
@@ -172,9 +153,7 @@ declare module 'react-server-dom-webpack/server.edge' {
     }
   ): ReadableStream<Uint8Array>
 
-  export function createTemporaryReferenceSet(
-    ...args: unknown[]
-  ): TemporaryReferenceSet
+  export function createTemporaryReferenceSet(...args: unknown[]): TemporaryReferenceSet
 
   export function decodeReply<T>(
     body: string | FormData,
@@ -244,9 +223,7 @@ declare module 'react-server-dom-webpack/server.node' {
     number /* number of bound arguments */,
   ]
 
-  export function createTemporaryReferenceSet(
-    ...args: unknown[]
-  ): TemporaryReferenceSet
+  export function createTemporaryReferenceSet(...args: unknown[]): TemporaryReferenceSet
 
   export function decodeReplyFromBusboy(
     busboyStream: Busboy,
@@ -290,12 +267,7 @@ declare module 'react-server-dom-webpack/static' {
       // But we want to not miss callsites accidentally and explicitly choose
       // at each callsite which implementation to choose.
       filterStackFrame:
-        | ((
-            url: string,
-            functionName: string,
-            lineNumber: number,
-            columnNumber: number
-          ) => boolean)
+        | ((url: string, functionName: string, lineNumber: number, columnNumber: number) => boolean)
         | undefined
       identifierPrefix?: string
       signal?: AbortSignal
@@ -322,10 +294,7 @@ declare module 'react-server-dom-webpack/client.edge' {
     endTime?: number
   }
 
-  export type EncodeFormActionCallback = <A>(
-    id: any,
-    args: Promise<A>
-  ) => ReactCustomFormAction
+  export type EncodeFormActionCallback = <A>(id: any, args: Promise<A>) => ReactCustomFormAction
 
   export type ReactCustomFormAction = {
     name?: string
@@ -367,10 +336,7 @@ declare module 'react-server-dom-webpack/client.edge' {
 
   type TemporaryReferenceSet = Map<string, unknown>
 
-  export type CallServerCallback = (
-    id: string,
-    args: unknown[]
-  ) => Promise<unknown>
+  export type CallServerCallback = (id: string, args: unknown[]) => Promise<unknown>
 
   export type FindSourceMapURLCallback = (
     fileName: string,
@@ -382,19 +348,14 @@ declare module 'react-server-dom-webpack/client.edge' {
     options?: Options
   ): Promise<T>
 
-  export function createFromReadableStream<T>(
-    stream: ReadableStream,
-    options?: Options
-  ): Promise<T>
+  export function createFromReadableStream<T>(stream: ReadableStream, options?: Options): Promise<T>
 
   export function createServerReference(
     id: string,
     callServer: CallServerCallback
   ): (...args: unknown[]) => Promise<unknown>
 
-  export function createTemporaryReferenceSet(
-    ...args: unknown[]
-  ): TemporaryReferenceSet
+  export function createTemporaryReferenceSet(...args: unknown[]): TemporaryReferenceSet
 
   export function encodeReply(
     value: unknown,
@@ -858,10 +819,7 @@ declare module 'next/dist/compiled/watchpack' {
     watch(files: string[], directories: string[], startTime?: number): void
     close(): void
 
-    getTimeInfoEntries(): Map<
-      string,
-      { safeTime: number; timestamp: number; accuracy?: number }
-    >
+    getTimeInfoEntries(): Map<string, { safeTime: number; timestamp: number; accuracy?: number }>
   }
 
   export default Watchpack
@@ -932,10 +890,7 @@ declare module 'next/dist/compiled/webpack/webpack' {
     /**
      * Appends the given value to the original asset. Usually the #sourceMappingURL comment. [url] is replaced with a URL to the source map file. false disables the appending.
      */
-    append?:
-      | (false | null)
-      | string
-      | ((pathData: PathData, assetInfo?: AssetInfo) => string)
+    append?: (false | null) | string | ((pathData: PathData, assetInfo?: AssetInfo) => string)
     /**
      * Indicates whether column mappings should be used (defaults to true).
      */
@@ -1022,12 +977,7 @@ declare module 'next/dist/compiled/webpack/webpack' {
     WebpackError,
     sources,
   } from 'webpack'
-  export type {
-    javascript,
-    LoaderDefinitionFunction,
-    LoaderContext,
-    ModuleGraph,
-  } from 'webpack'
+  export type { javascript, LoaderDefinitionFunction, LoaderContext, ModuleGraph } from 'webpack'
 
   export type CacheFacade = ReturnType<Compilation['getCache']>
 }

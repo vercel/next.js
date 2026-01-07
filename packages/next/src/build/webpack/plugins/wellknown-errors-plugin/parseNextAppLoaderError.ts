@@ -13,10 +13,7 @@ export function getNextAppLoaderError(
       return false
     }
 
-    const file = relative(
-      compiler.context,
-      module.buildInfo.route.absolutePagePath
-    )
+    const file = relative(compiler.context, module.buildInfo.route.absolutePagePath)
 
     return new SimpleWebpackError(file, err.message)
   } catch {

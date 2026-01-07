@@ -2,25 +2,21 @@ import { validateLocalFontFunctionCall } from './validate-local-font-function-ca
 
 describe('validateLocalFontFunctionCall', () => {
   test('Not using default export', async () => {
-    expect(() =>
-      validateLocalFontFunctionCall('Named', {})
-    ).toThrowErrorMatchingInlineSnapshot(
+    expect(() => validateLocalFontFunctionCall('Named', {})).toThrowErrorMatchingInlineSnapshot(
       `"next/font/local has no named exports"`
     )
   })
 
   test('Missing src', async () => {
-    expect(() =>
-      validateLocalFontFunctionCall('', {})
-    ).toThrowErrorMatchingInlineSnapshot(`"Missing required \`src\` property"`)
+    expect(() => validateLocalFontFunctionCall('', {})).toThrowErrorMatchingInlineSnapshot(
+      `"Missing required \`src\` property"`
+    )
   })
 
   test('Invalid file extension', async () => {
     expect(() =>
       validateLocalFontFunctionCall('', { src: './font/font-file.abc' })
-    ).toThrowErrorMatchingInlineSnapshot(
-      `"Unexpected file \`./font/font-file.abc\`"`
-    )
+    ).toThrowErrorMatchingInlineSnapshot(`"Unexpected file \`./font/font-file.abc\`"`)
   })
 
   test('Invalid display value', async () => {

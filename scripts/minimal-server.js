@@ -45,13 +45,7 @@ if (process.env.LOG_REQUIRE) {
   }
 }
 
-function prettyPrint(
-  node,
-  distDir,
-  prefix = '',
-  isLast = false,
-  isRoot = true
-) {
+function prettyPrint(node, distDir, prefix = '', isLast = false, isRoot = true) {
   let duration = `${node.selfDuration.toFixed(2)}ms / ${node.totalDuration.toFixed(2)}ms`
 
   if (node.selfDuration > 70) {
@@ -66,13 +60,7 @@ function prettyPrint(
   const childPrefix = `${prefix}${isRoot ? '  ' : isLast ? '   ' : '│  '}`
 
   node.children.forEach((child, i) => {
-    output += prettyPrint(
-      child,
-      node.id,
-      childPrefix,
-      i === node.children.length - 1,
-      false
-    )
+    output += prettyPrint(child, node.id, childPrefix, i === node.children.length - 1, false)
   })
 
   return output
@@ -109,9 +97,7 @@ if (process.env.LOG_READFILE) {
 
   require('fs').readFileSync = function (path, options) {
     readFileSyncCount++
-    console.log(
-      `readFileSync: ${require('path').relative(absoluteAppDir, path)}`
-    )
+    console.log(`readFileSync: ${require('path').relative(absoluteAppDir, path)}`)
     return originalReadFileSync.apply(this, arguments)
   }
 }
@@ -173,9 +159,7 @@ require('http')
       .finally(() => {
         console.timeEnd('next-wall-time')
         if (process.env.LOG_REQUIRE) {
-          console.log(
-            prettyPrint(currentNode, path.join(absoluteAppDir, distDir))
-          )
+          console.log(prettyPrint(currentNode, path.join(absoluteAppDir, distDir)))
           if (outliers.length > 0) {
             console.log('Outliers:')
             outliers.forEach((node) => {

@@ -5,9 +5,7 @@ type Props = {
   cookies: any
 }
 
-export const getServerSideProps: GetServerSideProps<Props> = async ({
-  req,
-}) => {
+export const getServerSideProps: GetServerSideProps<Props> = async ({ req }) => {
   return {
     props: { data: 'hello world', cookies: req.cookies },
   }

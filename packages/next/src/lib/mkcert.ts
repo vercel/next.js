@@ -4,8 +4,7 @@ import { X509Certificate, createPrivateKey } from 'node:crypto'
 import { getCacheDirectory } from './helpers/get-cache-directory'
 import * as Log from '../build/output/log'
 import { execSync } from 'node:child_process'
-const { WritableStream } =
-  require('node:stream/web') as typeof import('node:stream/web')
+const { WritableStream } = require('node:stream/web') as typeof import('node:stream/web')
 
 const MKCERT_VERSION = 'v1.4.4'
 
@@ -116,10 +115,7 @@ export async function createSelfSignedCertificate(
       const cert = new X509Certificate(fs.readFileSync(certPath))
       const key = fs.readFileSync(keyPath)
 
-      if (
-        cert.checkHost(host ?? 'localhost') &&
-        cert.checkPrivateKey(createPrivateKey(key))
-      ) {
+      if (cert.checkHost(host ?? 'localhost') && cert.checkPrivateKey(createPrivateKey(key))) {
         Log.info('Using already generated self signed certificate')
         const caLocation = execSync(`"${binaryPath}" -CAROOT`).toString().trim()
 
@@ -131,16 +127,11 @@ export async function createSelfSignedCertificate(
       }
     }
 
-    Log.info(
-      'Attempting to generate self signed certificate. This may prompt for your password'
-    )
+    Log.info('Attempting to generate self signed certificate. This may prompt for your password')
 
     const defaultHosts = ['localhost', '127.0.0.1', '::1']
 
-    const hosts =
-      host && !defaultHosts.includes(host)
-        ? [...defaultHosts, host]
-        : defaultHosts
+    const hosts = host && !defaultHosts.includes(host) ? [...defaultHosts, host] : defaultHosts
 
     execSync(
       `"${binaryPath}" -install -key-file "${keyPath}" -cert-file "${certPath}" ${hosts.join(' ')}`,
@@ -173,9 +164,6 @@ export async function createSelfSignedCertificate(
       rootCA: `${caLocation}/rootCA.pem`,
     }
   } catch (err) {
-    Log.error(
-      'Failed to generate self-signed certificate. Falling back to http.',
-      err
-    )
+    Log.error('Failed to generate self-signed certificate. Falling back to http.', err)
   }
 }

@@ -14,8 +14,7 @@ export default function Shared() {
 
   return (
     <>
-      <Client />,{' '}
-      {(isServerComponent ? 'shared:server' : 'shared:client') + ':' + random}
+      <Client />, {(isServerComponent ? 'shared:server' : 'shared:client') + ':' + random}
     </>
   )
 }

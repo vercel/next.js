@@ -9,8 +9,7 @@ export function lock() {
       return
     }
 
-    const scrollBarGap =
-      window.innerWidth - document.documentElement.clientWidth
+    const scrollBarGap = window.innerWidth - document.documentElement.clientWidth
 
     if (scrollBarGap > 0) {
       previousBodyPaddingRight = document.body.style.paddingRight

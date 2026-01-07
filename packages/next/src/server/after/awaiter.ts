@@ -53,9 +53,7 @@ export class AwaiterOnce {
 
   public waitUntil = (promise: Promise<unknown>): void => {
     if (this.done) {
-      throw new InvariantError(
-        'Cannot call waitUntil() on an AwaiterOnce that was already awaited'
-      )
+      throw new InvariantError('Cannot call waitUntil() on an AwaiterOnce that was already awaited')
     }
     return this.awaiter.waitUntil(promise)
   }

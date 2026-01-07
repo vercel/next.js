@@ -41,9 +41,7 @@ async function spawnNext(port) {
 }
 
 function isCacheableRequest(req) {
-  return (
-    req.method === 'GET' && !req.headers['cache-control']?.includes('no-store')
-  )
+  return req.method === 'GET' && !req.headers['cache-control']?.includes('no-store')
 }
 
 function isCacheableResponse(res) {
@@ -119,11 +117,7 @@ async function createFakeCDN(destPort) {
       source.on('end', () => {
         const data = Buffer.concat(chunks)
         // Send response after we've collected all chunks
-        res.writeHead(
-          proxyRes.statusCode || 200,
-          proxyRes.statusMessage,
-          proxyRes.headers
-        )
+        res.writeHead(proxyRes.statusCode || 200, proxyRes.statusMessage, proxyRes.headers)
         res.end(data)
 
         // Store the raw data for later use

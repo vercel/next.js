@@ -16,10 +16,7 @@ describe('find config', () => {
   })
 
   it('should resolve .config.json', async () => {
-    const config = await findConfig(
-      join(fixtureDir, 'config-long-json'),
-      'test'
-    )
+    const config = await findConfig(join(fixtureDir, 'config-long-json'), 'test')
     expect(config).toEqual({ foo: 'bar' })
   })
 
@@ -34,18 +31,12 @@ describe('find config', () => {
   })
 
   it('should resolve package.json', async () => {
-    const config = await findConfig(
-      join(fixtureDir, 'config-package-json'),
-      'test'
-    )
+    const config = await findConfig(join(fixtureDir, 'config-package-json'), 'test')
     expect(config).toEqual({ foo: 'bar' })
   })
 
   it('should resolve down', async () => {
-    const config = await findConfig(
-      join(fixtureDir, 'config-down/one/two/three/'),
-      'test'
-    )
+    const config = await findConfig(join(fixtureDir, 'config-down/one/two/three/'), 'test')
     expect(config).toEqual({ foo: 'bar' })
   })
 })

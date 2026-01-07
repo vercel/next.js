@@ -18,10 +18,7 @@ const sharedCache = new Map<string, unknown>()
  * @param cache the cache to use for storing the manifest
  * @returns the manifest object
  */
-export function loadManifest<T extends object>(
-  path: string,
-  shouldCache: false
-): T
+export function loadManifest<T extends object>(path: string, shouldCache: false): T
 export function loadManifest<T extends object>(
   path: string,
   shouldCache?: boolean,
@@ -63,10 +60,7 @@ export function loadManifest<T extends object>(
   return manifest
 }
 
-export function evalManifest<T extends object>(
-  path: string,
-  shouldCache: false
-): T
+export function evalManifest<T extends object>(path: string, shouldCache: false): T
 export function evalManifest<T extends object>(
   path: string,
   shouldCache?: boolean,
@@ -127,11 +121,7 @@ export function loadManifestFromRelativePath<T extends object>({
   useEval?: boolean
 }): DeepReadonly<T> {
   try {
-    const manifestPath = join(
-      /* turbopackIgnore: true */ projectDir,
-      distDir,
-      manifest
-    )
+    const manifestPath = join(/* turbopackIgnore: true */ projectDir, distDir, manifest)
 
     if (useEval) {
       return evalManifest<T>(manifestPath, shouldCache, cache)

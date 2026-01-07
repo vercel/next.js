@@ -56,15 +56,13 @@ describe('PPR - partial hydration', () => {
           // The shell should be hydrated as soon as possible,
           // without waiting for the dynamic content
           expect(
-            await browser
-              .elementByCssInstant('#shell-hydrated')
-              .getAttribute('data-is-hydrated')
+            await browser.elementByCssInstant('#shell-hydrated').getAttribute('data-is-hydrated')
           ).toBe('true')
 
           // The dynamic content hasn't streamed in yet, we should only see the fallback
-          expect(
-            await browser.elementByCssInstant('#dynamic-fallback').text()
-          ).toContain('Loading...')
+          expect(await browser.elementByCssInstant('#dynamic-fallback').text()).toContain(
+            'Loading...'
+          )
         },
         // This can take a while? It's unclear why... The delay appears pretty
         // random.
@@ -78,15 +76,13 @@ describe('PPR - partial hydration', () => {
           async () => {
             // The shell is already hydrated, this shouldn't change
             expect(
-              await browser
-                .elementByCssInstant('#shell-hydrated')
-                .getAttribute('data-is-hydrated')
+              await browser.elementByCssInstant('#shell-hydrated').getAttribute('data-is-hydrated')
             ).toBe('true')
 
             // The dynamic content should be visible and hydrated
-            expect(
-              await browser.elementByCssInstant('#dynamic').text()
-            ).toMatch(/Random value: \d+/)
+            expect(await browser.elementByCssInstant('#dynamic').text()).toMatch(
+              /Random value: \d+/
+            )
             expect(
               await browser
                 .elementByCssInstant('#dynamic-hydrated')
@@ -99,9 +95,7 @@ describe('PPR - partial hydration', () => {
 
       // If the HTML and RSC streams were interleaved correctly, we shouldn't be in quirks mode
       // (we would be happen if an RSC script was sent before `<!DOCTYPE html>`)
-      expect(await browser.eval(() => document.compatMode)).not.toBe(
-        'BackCompat'
-      )
+      expect(await browser.eval(() => document.compatMode)).not.toBe('BackCompat')
     })
 
     it('should produce a valid HTML document', async () => {
@@ -135,20 +129,14 @@ describe('PPR - partial hydration', () => {
           waitUntil: 'load', // Unlike the previous test, we want the page to load fully
         })
 
-        expect(await browser.elementByCss('#shell').text()).toContain(
-          'This is a page'
+        expect(await browser.elementByCss('#shell').text()).toContain('This is a page')
+        expect(await browser.elementByCss('#shell-hydrated').getAttribute('data-is-hydrated')).toBe(
+          'false'
         )
-        expect(
-          await browser
-            .elementByCss('#shell-hydrated')
-            .getAttribute('data-is-hydrated')
-        ).toBe('false')
 
         // The dynamic content can't be inserted into the document because we disabled JS,
         // so we should only see the fallback
-        expect(
-          await browser.elementByCss('#dynamic-fallback').text()
-        ).toContain('Loading...')
+        expect(await browser.elementByCss('#dynamic-fallback').text()).toContain('Loading...')
       })
     })
   })

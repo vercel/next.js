@@ -13,10 +13,7 @@ export type RelativeURL = {
   isRelative: boolean
 }
 
-export function parseRelativeURL(
-  url: string | URL,
-  base: string | URL
-): RelativeURL {
+export function parseRelativeURL(url: string | URL, base: string | URL): RelativeURL {
   const baseURL = typeof base === 'string' ? new URL(base) : base
   const relative = new URL(url, base)
 
@@ -24,9 +21,7 @@ export function parseRelativeURL(
   const isRelative = relative.origin === baseURL.origin
 
   return {
-    url: isRelative
-      ? relative.toString().slice(baseURL.origin.length)
-      : relative.toString(),
+    url: isRelative ? relative.toString().slice(baseURL.origin.length) : relative.toString(),
     isRelative,
   }
 }

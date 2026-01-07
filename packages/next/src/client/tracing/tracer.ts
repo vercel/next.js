@@ -30,11 +30,7 @@ class Span implements ISpan {
   state: SpanState
   attributes: Record<string, unknown>
 
-  constructor(
-    name: string,
-    options: SpanOptions,
-    onSpanEnd: (span: Span) => void
-  ) {
+  constructor(name: string, options: SpanOptions, onSpanEnd: (span: Span) => void) {
     this.name = name
     this.attributes = options.attributes ?? {}
     this.startTime = options.startTime ?? Date.now()

@@ -25,9 +25,7 @@ async function main() {
     return
   }
   if (!isCanary && !SEMVER_TYPES.includes(semverType)) {
-    console.log(
-      `Invalid semver type ${semverType}, must be one of ${SEMVER_TYPES.join(', ')}`
-    )
+    console.log(`Invalid semver type ${semverType}, must be one of ${SEMVER_TYPES.join(', ')}`)
     return
   }
 
@@ -62,11 +60,7 @@ async function main() {
 
   console.log(`Running pnpm release-${isCanary ? 'canary' : 'stable'}...`)
   const preleaseType =
-    semverType === 'major'
-      ? 'premajor'
-      : semverType === 'minor'
-        ? 'preminor'
-        : 'prerelease'
+    semverType === 'major' ? 'premajor' : semverType === 'minor' ? 'preminor' : 'prerelease'
 
   const child = execa(
     isCanary

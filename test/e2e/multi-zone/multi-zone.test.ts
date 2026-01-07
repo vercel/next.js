@@ -39,34 +39,27 @@ describe('multi-zone', () => {
       pathname: '/guest/another/post-1',
       content: ['hello from guest app /another/[slug]'],
     },
-  ])(
-    'should correctly respond for $pathname',
-    async ({ pathname, content }) => {
-      const res = await next.fetch(pathname, {
-        redirect: 'manual',
-      })
-      expect(res.status).toBe(200)
+  ])('should correctly respond for $pathname', async ({ pathname, content }) => {
+    const res = await next.fetch(pathname, {
+      redirect: 'manual',
+    })
+    expect(res.status).toBe(200)
 
-      const html = await res.text()
+    const html = await res.text()
 
-      for (const item of content) {
-        expect(html).toContain(item)
-      }
+    for (const item of content) {
+      expect(html).toContain(item)
     }
-  )
+  })
 
   if (isNextDev) {
     async function runHMRTest(app: string) {
       const isHostApp = app === 'host'
       const browser = await next.browser(isHostApp ? '/' : app)
-      expect(await browser.elementByCss('body').text()).toContain(
-        `hello from ${app} app`
-      )
+      expect(await browser.elementByCss('body').text()).toContain(`hello from ${app} app`)
       const initialTimestamp = await browser.elementById('now').text()
 
-      expect(await browser.elementByCss('body').text()).not.toContain(
-        'hmr content'
-      )
+      expect(await browser.elementByCss('body').text()).not.toContain('hmr content')
 
       await waitFor(1000)
 

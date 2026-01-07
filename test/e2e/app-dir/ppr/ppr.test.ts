@@ -29,10 +29,7 @@ describe.skip('ppr', () => {
 
     describe('telemetry', () => {
       it('should send ppr feature usage event', async () => {
-        const events = findAllTelemetryEvents(
-          next.cliOutput,
-          'NEXT_BUILD_FEATURE_USAGE'
-        )
+        const events = findAllTelemetryEvents(next.cliOutput, 'NEXT_BUILD_FEATURE_USAGE')
         expect(events).toContainEqual({
           featureName: 'experimental/ppr',
           invocationCount: 1,
@@ -90,59 +87,53 @@ describe.skip('ppr', () => {
     }
   })
 
-  describe.each([
-    { pathname: '/suspense/node' },
-    { pathname: '/suspense/edge' },
-  ])('with suspense for $pathname', ({ pathname }) => {
-    // When the browser loads the page, we expect that the dynamic part will
-    // be rendered.
-    it('should eventually render the dynamic part', async () => {
-      const browser = await next.browser(pathname)
+  describe.each([{ pathname: '/suspense/node' }, { pathname: '/suspense/edge' }])(
+    'with suspense for $pathname',
+    ({ pathname }) => {
+      // When the browser loads the page, we expect that the dynamic part will
+      // be rendered.
+      it('should eventually render the dynamic part', async () => {
+        const browser = await next.browser(pathname)
 
-      try {
-        // Wait for the page part to load.
-        await browser.waitForElementByCss('#page')
-        await browser.waitForIdleNetwork()
+        try {
+          // Wait for the page part to load.
+          await browser.waitForElementByCss('#page')
+          await browser.waitForIdleNetwork()
 
-        // Wait for the dynamic part to load.
-        await browser.waitForElementByCss('#container > #dynamic > #state')
+          // Wait for the dynamic part to load.
+          await browser.waitForElementByCss('#container > #dynamic > #state')
 
-        // Ensure we've got the right dynamic part.
-        let dynamic = await browser
-          .elementByCss('#container > #dynamic > #state')
-          .text()
+          // Ensure we've got the right dynamic part.
+          let dynamic = await browser.elementByCss('#container > #dynamic > #state').text()
 
-        expect(dynamic).toBe('Not Signed In')
+          expect(dynamic).toBe('Not Signed In')
 
-        // Re-visit the page with the cookie.
-        await browser.addCookie({ name: 'session', value: '1' }).refresh()
+          // Re-visit the page with the cookie.
+          await browser.addCookie({ name: 'session', value: '1' }).refresh()
 
-        // Wait for the page part to load.
-        await browser.waitForElementByCss('#page')
-        await browser.waitForIdleNetwork()
+          // Wait for the page part to load.
+          await browser.waitForElementByCss('#page')
+          await browser.waitForIdleNetwork()
 
-        // Wait for the dynamic part to load.
-        await browser.waitForElementByCss('#container > #dynamic > #state')
+          // Wait for the dynamic part to load.
+          await browser.waitForElementByCss('#container > #dynamic > #state')
 
-        // Ensure we've got the right dynamic part.
-        dynamic = await browser
-          .elementByCss('#container > #dynamic > #state')
-          .text()
+          // Ensure we've got the right dynamic part.
+          dynamic = await browser.elementByCss('#container > #dynamic > #state').text()
 
-        expect(dynamic).toBe('Signed In')
-      } finally {
-        await browser.deleteCookies()
-        await browser.close()
-      }
-    })
-  })
+          expect(dynamic).toBe('Signed In')
+        } finally {
+          await browser.deleteCookies()
+          await browser.close()
+        }
+      })
+    }
+  )
 
   describe('search parameters', () => {
     it('should render the page with the search parameters', async () => {
       const expected = `${Date.now()}:${Math.random()}`
-      const res = await next.fetch(
-        `/search?query=${encodeURIComponent(expected)}`
-      )
+      const res = await next.fetch(`/search?query=${encodeURIComponent(expected)}`)
       expect(res.status).toBe(200)
 
       const html = await res.text()

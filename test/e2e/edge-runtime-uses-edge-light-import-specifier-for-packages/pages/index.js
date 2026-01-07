@@ -5,8 +5,6 @@ export const config = { runtime: 'experimental-edge' }
 
 export default function Index() {
   return (
-    <pre id="result">
-      {JSON.stringify({ edgeLightPackage, edgeLightPackageExports }, null, 2)}
-    </pre>
+    <pre id="result">{JSON.stringify({ edgeLightPackage, edgeLightPackageExports }, null, 2)}</pre>
   )
 }

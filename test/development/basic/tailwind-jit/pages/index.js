@@ -11,9 +11,7 @@ export default function Home() {
 
         <p className="mt-3 text-2xl">
           Get started by editing{' '}
-          <code className="p-3 font-mono text-lg bg-gray-100 rounded-md">
-            pages/index.js
-          </code>
+          <code className="p-3 font-mono text-lg bg-gray-100 rounded-md">pages/index.js</code>
         </p>
 
         <div className="flex flex-wrap items-center justify-around max-w-4xl mt-6 sm:w-full">

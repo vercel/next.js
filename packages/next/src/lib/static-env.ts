@@ -1,12 +1,6 @@
-import type {
-  NextConfigComplete,
-  NextConfigRuntime,
-} from '../server/config-shared'
+import type { NextConfigComplete, NextConfigRuntime } from '../server/config-shared'
 
-function errorIfEnvConflicted(
-  config: NextConfigComplete | NextConfigRuntime,
-  key: string
-) {
+function errorIfEnvConflicted(config: NextConfigComplete | NextConfigRuntime, key: string) {
   const isPrivateKey = /^(?:NODE_.+)|^(?:__.+)$/i.test(key)
   const hasNextRuntimeKey = key === 'NEXT_RUNTIME'
 
@@ -37,9 +31,7 @@ export function getNextPublicEnvironmentVariables() {
 /**
  * Collects the `env` config value from the Next.js config.
  */
-export function getNextConfigEnv(
-  config: NextConfigComplete | NextConfigRuntime
-) {
+export function getNextConfigEnv(config: NextConfigComplete | NextConfigRuntime) {
   // Refactored code below to use for-of
   const defineEnv: Record<string, string | undefined> = {}
   const env = config.env
@@ -53,10 +45,7 @@ export function getNextConfigEnv(
   return defineEnv
 }
 
-export function getStaticEnv(
-  config: NextConfigComplete | NextConfigRuntime,
-  deploymentId: string
-) {
+export function getStaticEnv(config: NextConfigComplete | NextConfigRuntime, deploymentId: string) {
   const staticEnv: Record<string, string | undefined> = {
     ...getNextPublicEnvironmentVariables(),
     ...getNextConfigEnv(config),

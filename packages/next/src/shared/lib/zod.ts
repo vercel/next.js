@@ -37,10 +37,7 @@ function processZodErrorMessage(issue: ZodIssue) {
     path = ''
   }
 
-  if (
-    issue.code === 'invalid_type' &&
-    issue.received === ZodParsedType.undefined
-  ) {
+  if (issue.code === 'invalid_type' && issue.received === ZodParsedType.undefined) {
     // Missing key in object.
     return `${path} is missing, expected ${issue.expected}`
   }

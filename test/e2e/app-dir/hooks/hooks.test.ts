@@ -15,23 +15,16 @@ describe('app dir - hooks', () => {
       { pathname: '/adapter-hooks/1', keyValue: 'value' },
       { pathname: '/adapter-hooks/2', keyValue: 'value' },
       { pathname: '/adapter-hooks/1/account', keyValue: 'value' },
-    ])(
-      'should have the correct hooks at $pathname',
-      async ({ pathname, keyValue = '' }) => {
-        const browser = await next.browser(
-          pathname + (keyValue ? `?key=${keyValue}` : '')
-        )
+    ])('should have the correct hooks at $pathname', async ({ pathname, keyValue = '' }) => {
+      const browser = await next.browser(pathname + (keyValue ? `?key=${keyValue}` : ''))
 
-        await browser.waitForElementByCss('#router-ready')
-        expect(await browser.elementById('key-value').text()).toBe(
-          `Value:${keyValue}`
-        )
-        expect(await browser.elementById('pathname').text()).toBe(pathname)
+      await browser.waitForElementByCss('#router-ready')
+      expect(await browser.elementById('key-value').text()).toBe(`Value:${keyValue}`)
+      expect(await browser.elementById('pathname').text()).toBe(pathname)
 
-        await browser.elementByCss('button').click()
-        await browser.waitForElementByCss('#pushed', { state: 'attached' })
-      }
-    )
+      await browser.elementByCss('button').click()
+      await browser.waitForElementByCss('#pushed', { state: 'attached' })
+    })
   })
 
   describe('usePathname', () => {
@@ -42,9 +35,7 @@ describe('app dir - hooks', () => {
 
     it('should have the canonical url pathname on rewrite', async () => {
       const $ = await next.render$('/rewritten-use-pathname')
-      expect($('#pathname').attr('data-pathname')).toBe(
-        '/rewritten-use-pathname'
-      )
+      expect($('#pathname').attr('data-pathname')).toBe('/rewritten-use-pathname')
     })
   })
 
@@ -62,9 +53,7 @@ describe('app dir - hooks', () => {
     // TODO-APP: correct this behavior when deployed
     if (!isNextDeploy) {
       it('should have the canonical url search params on rewrite', async () => {
-        const $ = await next.render$(
-          '/rewritten-use-search-params?first=a&second=b&third=c'
-        )
+        const $ = await next.render$('/rewritten-use-search-params?first=a&second=b&third=c')
         expect($('#params-first').text()).toBe('a')
         expect($('#params-second').text()).toBe('b')
         expect($('#params-third').text()).toBe('c')
@@ -73,17 +62,11 @@ describe('app dir - hooks', () => {
     }
 
     it('should be able to use instanceof ReadonlyURLSearchParams', async () => {
-      const browser = await next.browser(
-        '/hooks/use-search-params/instanceof?foo=bar'
-      )
+      const browser = await next.browser('/hooks/use-search-params/instanceof?foo=bar')
 
       const [server, client] = await Promise.all([
-        browser
-          .elementByCss('[data-testid="server"]')
-          .then((handle) => handle.text()),
-        browser
-          .elementByCss('[data-testid="client"]')
-          .then((handle) => handle.text()),
+        browser.elementByCss('[data-testid="server"]').then((handle) => handle.text()),
+        browser.elementByCss('[data-testid="client"]').then((handle) => handle.text()),
       ])
 
       expect({ client, server }).toEqual({
@@ -105,9 +88,7 @@ describe('app dir - hooks', () => {
     it('should generate rand when draft mode enabled', async () => {
       const res = await next.fetch('/enable')
       const h = res.headers.get('set-cookie') || ''
-      const cookie = h
-        .split(';')
-        .find((c) => c.startsWith('__prerender_bypass'))
+      const cookie = h.split(';').find((c) => c.startsWith('__prerender_bypass'))
       const $ = await next.render$(
         '/hooks/use-draft-mode',
         {},
@@ -159,9 +140,7 @@ describe('app dir - hooks', () => {
     )
 
     it('should return an empty array in pages', async () => {
-      const $ = await next.render$(
-        '/hooks/use-selected-layout-segment/first/slug2/second/a/b'
-      )
+      const $ = await next.render$('/hooks/use-selected-layout-segment/first/slug2/second/a/b')
 
       expect(JSON.parse($('#page-layout-segments').text())).toEqual([])
     })
@@ -178,19 +157,13 @@ describe('app dir - hooks', () => {
       async ({ path, outerLayout, innerLayout }) => {
         const $ = await next.render$(path)
 
-        expect(JSON.parse($('#outer-layout-segment').text())).toEqual(
-          outerLayout
-        )
-        expect(JSON.parse($('#inner-layout-segment').text())).toEqual(
-          innerLayout
-        )
+        expect(JSON.parse($('#outer-layout-segment').text())).toEqual(outerLayout)
+        expect(JSON.parse($('#inner-layout-segment').text())).toEqual(innerLayout)
       }
     )
 
     it('should return null in pages', async () => {
-      const $ = await next.render$(
-        '/hooks/use-selected-layout-segment/first/slug2/second/a/b'
-      )
+      const $ = await next.render$('/hooks/use-selected-layout-segment/first/slug2/second/a/b')
 
       expect(JSON.parse($('#page-layout-segment').text())).toEqual(null)
     })

@@ -1,9 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import {
-  waitForRedbox,
-  getRedboxDescription,
-  getRedboxSource,
-} from 'next-test-utils'
+import { waitForRedbox, getRedboxDescription, getRedboxSource } from 'next-test-utils'
 
 describe('app-dir - server-component-next-dynamic-ssr-false', () => {
   const { next } = nextTestSetup({
@@ -19,9 +15,7 @@ describe('app-dir - server-component-next-dynamic-ssr-false', () => {
     }
 
     if (process.env.IS_TURBOPACK_TEST) {
-      expect(redbox.description).toMatchInlineSnapshot(
-        `"Ecmascript file had an error"`
-      )
+      expect(redbox.description).toMatchInlineSnapshot(`"Ecmascript file had an error"`)
       expect(redbox.source).toMatchInlineSnapshot(`
        "./app/page.js (3:23)
        Ecmascript file had an error

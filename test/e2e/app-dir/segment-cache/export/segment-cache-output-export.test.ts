@@ -42,9 +42,7 @@ describe('segment cache (output: "export")', () => {
     // Initiate a prefetch
     await act(
       async () => {
-        const checkbox = await browser.elementByCss(
-          '[data-link-accordion="/target-page"]'
-        )
+        const checkbox = await browser.elementByCss('[data-link-accordion="/target-page"]')
         await checkbox.click()
       },
       {
@@ -97,9 +95,7 @@ describe('segment cache (output: "export")', () => {
     // Navigate to the prefetched page.
     await act(
       async () => {
-        const link = await browser.elementByCss(
-          'a[href="/rewrite-to-target-page"]'
-        )
+        const link = await browser.elementByCss('a[href="/rewrite-to-target-page"]')
         await link.click()
 
         // The page was prefetched, so we're able to render the target
@@ -141,9 +137,7 @@ describe('segment cache (output: "export")', () => {
     // Navigate to the prefetched page.
     await act(
       async () => {
-        const link = await browser.elementByCss(
-          'a[href="/redirect-to-target-page"]'
-        )
+        const link = await browser.elementByCss('a[href="/redirect-to-target-page"]')
         await link.click()
 
         // The page was prefetched, so we're able to render the target

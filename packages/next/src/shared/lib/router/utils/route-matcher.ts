@@ -14,10 +14,7 @@ type RouteMatcherOptions = {
   groups: Record<string, Group>
 }
 
-export function getRouteMatcher({
-  re,
-  groups,
-}: RouteMatcherOptions): RouteMatchFn {
+export function getRouteMatcher({ re, groups }: RouteMatcherOptions): RouteMatchFn {
   const rawMatcher = (pathname: string) => {
     const routeMatch = re.exec(pathname)
     if (!routeMatch) return false

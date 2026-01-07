@@ -1,7 +1,5 @@
 import Link from 'next/link'
-import('lodash').then(({ default: _ }) =>
-  console.log(_.chunk(['a', 'b', 'c', 'd'], 2))
-)
+import('lodash').then(({ default: _ }) => console.log(_.chunk(['a', 'b', 'c', 'd'], 2)))
 
 const Page = () => {
   return (

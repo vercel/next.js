@@ -8,13 +8,12 @@ export default async function Page() {
     <main>
       <section>
         <p>
-          In this test we have two components. One reads `new Date()`
-          synchronously in a client component render. The other awaits cookies
-          in a Server Component.
+          In this test we have two components. One reads `new Date()` synchronously in a client
+          component render. The other awaits cookies in a Server Component.
         </p>
         <p>
-          In this version both components are wrapped in Suspense. We expect
-          that this page will prerender with fallbacks around both components
+          In this version both components are wrapped in Suspense. We expect that this page will
+          prerender with fallbacks around both components
         </p>
       </section>
       <section>

@@ -26,10 +26,7 @@ export default function Page() {
       <Test page="middleware-redirect" />
       <Test page="config-rewrite" />
       <Test page="config-redirect" />
-      <Test
-        page="config-redirect-catchall"
-        href="/config-redirect-catchall-before/thing"
-      />
+      <Test page="config-redirect-catchall" href="/config-redirect-catchall-before/thing" />
     </>
   )
 }

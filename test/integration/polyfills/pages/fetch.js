@@ -17,9 +17,7 @@ const testFetchImports = async () => {
   const isomorphicUnfetchReq = require('isomorphic-unfetch')
 
   let areImportsMatching =
-    [whatwgFetchImp.fetch, whatwgFetchReq.fetch].every(
-      (lib) => lib.name === 'fetch'
-    ) &&
+    [whatwgFetchImp.fetch, whatwgFetchReq.fetch].every((lib) => lib.name === 'fetch') &&
     [unfetchImp, unfetchReq, isomorphicUnfetchImp, isomorphicUnfetchReq].every(
       (lib) => lib.name === 'bound fetch'
     )

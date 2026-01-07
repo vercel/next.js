@@ -10,8 +10,6 @@ export default function Page() {
     notFound()
   }
   return (
-    <button onClick={() => React.startTransition(() => enableNotFound(true))}>
-      Not Found!
-    </button>
+    <button onClick={() => React.startTransition(() => enableNotFound(true))}>Not Found!</button>
   )
 }

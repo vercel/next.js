@@ -10,9 +10,7 @@ export type SegmentParam = {
  * Parse dynamic route segment to type of parameter
  */
 export function getSegmentParam(segment: string): SegmentParam | null {
-  const interceptionMarker = INTERCEPTION_ROUTE_MARKERS.find((marker) =>
-    segment.startsWith(marker)
-  )
+  const interceptionMarker = INTERCEPTION_ROUTE_MARKERS.find((marker) => segment.startsWith(marker))
 
   // if an interception marker is part of the path segment, we need to jump ahead
   // to the relevant portion for param parsing
@@ -31,18 +29,14 @@ export function getSegmentParam(segment: string): SegmentParam | null {
 
   if (segment.startsWith('[...') && segment.endsWith(']')) {
     return {
-      paramType: interceptionMarker
-        ? `catchall-intercepted-${interceptionMarker}`
-        : 'catchall',
+      paramType: interceptionMarker ? `catchall-intercepted-${interceptionMarker}` : 'catchall',
       paramName: segment.slice(4, -1),
     }
   }
 
   if (segment.startsWith('[') && segment.endsWith(']')) {
     return {
-      paramType: interceptionMarker
-        ? `dynamic-intercepted-${interceptionMarker}`
-        : 'dynamic',
+      paramType: interceptionMarker ? `dynamic-intercepted-${interceptionMarker}` : 'dynamic',
       paramName: segment.slice(1, -1),
     }
   }

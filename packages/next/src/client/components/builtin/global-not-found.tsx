@@ -4,10 +4,7 @@ function GlobalNotFound() {
   return (
     <html>
       <body>
-        <HTTPAccessErrorFallback
-          status={404}
-          message={'This page could not be found.'}
-        />
+        <HTTPAccessErrorFallback status={404} message={'This page could not be found.'} />
       </body>
     </html>
   )

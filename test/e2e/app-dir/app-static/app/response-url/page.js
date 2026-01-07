@@ -5,12 +5,9 @@ export default async function Page() {
     'https://next-data-api-endpoint.vercel.app/api/random?a1'
   ).then((res) => Promise.all([res.url, res.text()]))
 
-  const urlNoCache = await fetch(
-    'https://next-data-api-endpoint.vercel.app/api/random?b2',
-    {
-      cache: 'no-store',
-    }
-  ).then((res) => res.url)
+  const urlNoCache = await fetch('https://next-data-api-endpoint.vercel.app/api/random?b2', {
+    cache: 'no-store',
+  }).then((res) => res.url)
 
   const [urlCached, valueCached] = await fetch(
     'https://next-data-api-endpoint.vercel.app/api/random?a1'

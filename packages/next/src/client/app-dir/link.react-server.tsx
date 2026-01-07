@@ -1,17 +1,14 @@
 import type { ComponentProps } from 'react'
 import ClientLinkComponent, { type LinkProps, useLinkStatus } from './link'
 
-export default function LinkComponent(
-  props: ComponentProps<typeof ClientLinkComponent>
-) {
+export default function LinkComponent(props: ComponentProps<typeof ClientLinkComponent>) {
   const isLegacyBehavior = props.legacyBehavior
   const childIsHostComponent =
     typeof props.children === 'string' ||
     typeof props.children === 'number' ||
     typeof (props.children as any)?.type === 'string'
   const childIsClientComponent =
-    (props.children as any)?.type?.$$typeof ===
-    Symbol.for('react.client.reference')
+    (props.children as any)?.type?.$$typeof === Symbol.for('react.client.reference')
 
   if (isLegacyBehavior && !childIsHostComponent && !childIsClientComponent) {
     if ((props.children as any)?.type?.$$typeof === Symbol.for('react.lazy')) {

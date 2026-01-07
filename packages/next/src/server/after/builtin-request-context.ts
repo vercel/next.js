@@ -1,8 +1,6 @@
 import { createAsyncLocalStorage } from '../app-render/async-local-storage'
 
-export function getBuiltinRequestContext():
-  | BuiltinRequestContextValue
-  | undefined {
+export function getBuiltinRequestContext(): BuiltinRequestContextValue | undefined {
   const _globalThis = globalThis as GlobalThisWithRequestContext
   const ctx = _globalThis[NEXT_REQUEST_CONTEXT_SYMBOL]
   return ctx?.get()

@@ -50,10 +50,7 @@ export function getDevOverlayFontMiddleware() {
       })
       res.end(fontData)
     } catch (err) {
-      Log.error(
-        'Failed to serve font:',
-        err instanceof Error ? err.message : err
-      )
+      Log.error('Failed to serve font:', err instanceof Error ? err.message : err)
       return middlewareResponse.internalServerError(res)
     }
   }

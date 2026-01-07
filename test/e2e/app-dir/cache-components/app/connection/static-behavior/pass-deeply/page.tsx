@@ -9,13 +9,12 @@ export default async function Page() {
     <section>
       <h1>Deep Connection Reader</h1>
       <p>
-        This component was passed the connection promise returned by
-        `connection()`. It is rendered inside a Suspense boundary.
+        This component was passed the connection promise returned by `connection()`. It is rendered
+        inside a Suspense boundary.
       </p>
       <p>
-        If cacheComponents is turned off the `connection()` call would trigger a
-        dynamic point at the callsite and the suspense boundary would also be
-        blocked for over one second
+        If cacheComponents is turned off the `connection()` call would trigger a dynamic point at
+        the callsite and the suspense boundary would also be blocked for over one second
       </p>
       <Suspense
         fallback={

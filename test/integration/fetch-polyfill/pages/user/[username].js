@@ -21,9 +21,7 @@ export async function getStaticPaths() {
 }
 
 export async function getStaticProps({ params }) {
-  const res = await fetch(
-    `http://localhost:${port}/usernames/${params.username}`
-  )
+  const res = await fetch(`http://localhost:${port}/usernames/${params.username}`)
   const json = await res.json()
   return {
     props: {

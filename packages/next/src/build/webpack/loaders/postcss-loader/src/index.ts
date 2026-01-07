@@ -24,9 +24,7 @@ export default async function loader(
       const file = this.resourcePath
 
       const useSourceMap =
-        typeof options.sourceMap !== 'undefined'
-          ? options.sourceMap
-          : this.sourceMap
+        typeof options.sourceMap !== 'undefined' ? options.sourceMap : this.sourceMap
 
       const processOptions: any = {
         from: file,
@@ -63,9 +61,7 @@ export default async function loader(
       try {
         result = await loaderSpan
           .traceChild('postcss-process')
-          .traceAsyncFn(() =>
-            postcssWithPlugins.process(root || content, processOptions)
-          )
+          .traceAsyncFn(() => postcssWithPlugins.process(root || content, processOptions))
       } catch (error: any) {
         if (error.file) {
           this.addDependency(error.file)
@@ -102,12 +98,7 @@ export default async function loader(
             break
           case 'asset':
             if (message.content && message.file) {
-              this.emitFile(
-                message.file,
-                message.content,
-                message.sourceMap,
-                message.info
-              )
+              this.emitFile(message.file, message.content, message.sourceMap, message.info)
             }
         }
       }

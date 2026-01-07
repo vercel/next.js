@@ -283,13 +283,7 @@ export default defineConfig([
     },
   },
   {
-    files: [
-      'test/**/*.js',
-      'test/**/*.ts',
-      'test/**/*.tsx',
-      '**/*.test.ts',
-      '**/*.test.tsx',
-    ],
+    files: ['test/**/*.js', 'test/**/*.ts', 'test/**/*.tsx', '**/*.test.ts', '**/*.test.tsx'],
     ignores: ['test/tmp/**'],
     extends: compat.extends('plugin:jest/recommended'),
     rules: {
@@ -492,10 +486,7 @@ export default defineConfig([
     },
   },
   {
-    files: [
-      'packages/eslint-plugin-next/**/*.js',
-      'test/unit/eslint-plugin-next/**/*.test.ts',
-    ],
+    files: ['packages/eslint-plugin-next/**/*.js', 'test/unit/eslint-plugin-next/**/*.test.ts'],
     extends: compat.extends('plugin:eslint-plugin/recommended'),
     languageOptions: {
       ecmaVersion: 5,

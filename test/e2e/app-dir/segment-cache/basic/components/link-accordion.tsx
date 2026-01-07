@@ -13,11 +13,7 @@ export function LinkAccordion({ href, children }) {
         onChange={() => setIsVisible(!isVisible)}
         data-link-accordion={href}
       />
-      {isVisible ? (
-        <Link href={href}>{children}</Link>
-      ) : (
-        <>{children} (link is hidden)</>
-      )}
+      {isVisible ? <Link href={href}>{children}</Link> : <>{children} (link is hidden)</>}
     </>
   )
 }

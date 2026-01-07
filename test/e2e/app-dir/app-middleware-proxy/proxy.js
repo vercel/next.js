@@ -14,8 +14,7 @@ export async function proxy(request) {
   // make sure headers() from `next/headers` is behaving properly
   if (
     headersFromRequest.get('x-from-client') &&
-    headersFromNext.get('x-from-client') !==
-      headersFromRequest.get('x-from-client')
+    headersFromNext.get('x-from-client') !== headersFromRequest.get('x-from-client')
   ) {
     throw new Error('Expected headers from client to match')
   }

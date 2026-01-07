@@ -25,23 +25,21 @@ export default class ResponseCache implements ResponseCacheBase {
   >({
     // Ensure on-demand revalidate doesn't block normal requests, it should be
     // safe to run an on-demand revalidate for the same key as a normal request.
-    cacheKeyFn: ({ key, isOnDemandRevalidate }) =>
-      `${key}-${isOnDemandRevalidate ? '1' : '0'}`,
+    cacheKeyFn: ({ key, isOnDemandRevalidate }) => `${key}-${isOnDemandRevalidate ? '1' : '0'}`,
     // We wait to do any async work until after we've added our promise to
     // `pendingResponses` to ensure that any any other calls will reuse the
     // same promise until we've fully finished our work.
     schedulerFn: scheduleOnNextTick,
   })
 
-  private readonly revalidateBatcher = Batcher.create<
-    string,
-    IncrementalResponseCacheEntry | null
-  >({
-    // We wait to do any async work until after we've added our promise to
-    // `pendingResponses` to ensure that any any other calls will reuse the
-    // same promise until we've fully finished our work.
-    schedulerFn: scheduleOnNextTick,
-  })
+  private readonly revalidateBatcher = Batcher.create<string, IncrementalResponseCacheEntry | null>(
+    {
+      // We wait to do any async work until after we've added our promise to
+      // `pendingResponses` to ensure that any any other calls will reuse the
+      // same promise until we've fully finished our work.
+      schedulerFn: scheduleOnNextTick,
+    }
+  )
 
   private previousCacheItem?: {
     key: string
@@ -107,29 +105,26 @@ export default class ResponseCache implements ResponseCacheBase {
       routeKind,
     } = context
 
-    const response = await this.getBatcher.batch(
-      { key, isOnDemandRevalidate },
-      ({ resolve }) => {
-        const promise = this.handleGet(
-          key,
-          responseGenerator,
-          {
-            incrementalCache,
-            isOnDemandRevalidate,
-            isFallback,
-            isRoutePPREnabled,
-            isPrefetch,
-            routeKind,
-          },
-          resolve
-        )
+    const response = await this.getBatcher.batch({ key, isOnDemandRevalidate }, ({ resolve }) => {
+      const promise = this.handleGet(
+        key,
+        responseGenerator,
+        {
+          incrementalCache,
+          isOnDemandRevalidate,
+          isFallback,
+          isRoutePPREnabled,
+          isPrefetch,
+          routeKind,
+        },
+        resolve
+      )
 
-        // We need to ensure background revalidates are passed to waitUntil.
-        if (waitUntil) waitUntil(promise)
+      // We need to ensure background revalidates are passed to waitUntil.
+      if (waitUntil) waitUntil(promise)
 
-        return promise
-      }
-    )
+      return promise
+    })
 
     return toResponseCacheEntry(response)
   }
@@ -156,8 +151,7 @@ export default class ResponseCache implements ResponseCacheBase {
     },
     resolve: (value: IncrementalResponseCacheEntry | null) => void
   ): Promise<IncrementalResponseCacheEntry | null> {
-    let previousIncrementalCacheEntry: IncrementalResponseCacheEntry | null =
-      null
+    let previousIncrementalCacheEntry: IncrementalResponseCacheEntry | null = null
     let resolved = false
 
     try {
@@ -306,19 +300,13 @@ export default class ResponseCache implements ResponseCacheBase {
       // with new revalidate and expire times to prevent non-stop retrying.
       if (previousIncrementalCacheEntry?.cacheControl) {
         const revalidate = Math.min(
-          Math.max(
-            previousIncrementalCacheEntry.cacheControl.revalidate || 3,
-            3
-          ),
+          Math.max(previousIncrementalCacheEntry.cacheControl.revalidate || 3, 3),
           30
         )
         const expire =
           previousIncrementalCacheEntry.cacheControl.expire === undefined
             ? undefined
-            : Math.max(
-                revalidate + 3,
-                previousIncrementalCacheEntry.cacheControl.expire
-              )
+            : Math.max(revalidate + 3, previousIncrementalCacheEntry.cacheControl.expire)
 
         await incrementalCache.set(key, previousIncrementalCacheEntry.value, {
           cacheControl: { revalidate: revalidate, expire: expire },

@@ -49,9 +49,7 @@ export function Client({ prefix, commonjsAction, esmAction }) {
   const [runtime, setRuntime] = useState('')
   const textarea = useRef()
   useEffect(() => {
-    setRuntime(
-      `${globalThis.TURBOPACK ? 'Turbopack' : 'Webpack'} (${process.env.NODE_ENV})`
-    )
+    setRuntime(`${globalThis.TURBOPACK ? 'Turbopack' : 'Webpack'} (${process.env.NODE_ENV})`)
   }, [])
   return (
     <>
@@ -75,12 +73,7 @@ export function Client({ prefix, commonjsAction, esmAction }) {
         <button
           type="button"
           onClick={(e) =>
-            measureClientButton(
-              e.target,
-              textarea,
-              'client esm',
-              () => import('../lib/esm.js')
-            )
+            measureClientButton(e.target, textarea, 'client esm', () => import('../lib/esm.js'))
           }
         >
           ESM client
@@ -90,9 +83,7 @@ export function Client({ prefix, commonjsAction, esmAction }) {
         <p>
           <button
             type="button"
-            onClick={(e) =>
-              measureActionButton(e.target, textarea, commonjsAction)
-            }
+            onClick={(e) => measureActionButton(e.target, textarea, commonjsAction)}
           >
             CommonJs server action
           </button>
@@ -100,10 +91,7 @@ export function Client({ prefix, commonjsAction, esmAction }) {
       )}
       {esmAction && (
         <p>
-          <button
-            type="button"
-            onClick={(e) => measureActionButton(e.target, textarea, esmAction)}
-          >
+          <button type="button" onClick={(e) => measureActionButton(e.target, textarea, esmAction)}>
             ESM server action
           </button>
         </p>
@@ -111,9 +99,7 @@ export function Client({ prefix, commonjsAction, esmAction }) {
       <p>
         <button
           type="button"
-          onClick={(e) =>
-            measureApiButton(e.target, textarea, `${prefix}/commonjs`)
-          }
+          onClick={(e) => measureApiButton(e.target, textarea, `${prefix}/commonjs`)}
         >
           CommonJs API
         </button>

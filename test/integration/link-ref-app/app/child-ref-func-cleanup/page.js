@@ -11,9 +11,7 @@ export default function Page() {
 
   const refWithCleanup = useCallback((el) => {
     if (!el) {
-      console.error(
-        'callback refs that returned a cleanup should never be called with null'
-      )
+      console.error('callback refs that returned a cleanup should never be called with null')
       return
     }
 

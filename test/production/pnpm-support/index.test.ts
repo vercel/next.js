@@ -4,12 +4,7 @@ import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
-import {
-  findPort,
-  initNextServerScript,
-  killApp,
-  renderViaHTTP,
-} from 'next-test-utils'
+import { findPort, initNextServerScript, killApp, renderViaHTTP } from 'next-test-utils'
 
 describe('pnpm support', () => {
   let next: NextInstance | undefined
@@ -24,9 +19,7 @@ describe('pnpm support', () => {
     next = await createNext({
       files: {
         pages: new FileRef(path.join(__dirname, 'app/pages')),
-        'next.config.js': new FileRef(
-          path.join(__dirname, 'app/next.config.js')
-        ),
+        'next.config.js': new FileRef(path.join(__dirname, 'app/next.config.js')),
       },
       packageJson: {
         scripts: {
@@ -44,9 +37,7 @@ describe('pnpm support', () => {
     const html = await renderViaHTTP(next.url, '/')
     expect(html).toContain('Hello World')
 
-    const manifest = JSON.parse(
-      await next.readFile('.next/next-server.js.nft.json')
-    )
+    const manifest = JSON.parse(await next.readFile('.next/next-server.js.nft.json'))
     for (const ignore of ['next/dist/pages', '.wasm', 'compiled/@ampproject']) {
       let matchingFile
       try {
@@ -66,9 +57,7 @@ describe('pnpm support', () => {
       files: {
         pages: new FileRef(path.join(__dirname, 'app-multi-page/pages')),
         '.npmrc': new FileRef(path.join(__dirname, 'app-multi-page/.npmrc')),
-        'next.config.js': new FileRef(
-          path.join(__dirname, 'app-multi-page/next.config.js')
-        ),
+        'next.config.js': new FileRef(path.join(__dirname, 'app-multi-page/next.config.js')),
       },
       packageJson: {
         scripts: {

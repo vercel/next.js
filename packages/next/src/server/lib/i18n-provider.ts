@@ -71,10 +71,7 @@ export class I18NProvider {
    * @param detectedLocale The detected locale to use if the hostname does not match.
    * @returns The domain locale if found, `undefined` otherwise.
    */
-  public detectDomainLocale(
-    hostname?: string,
-    detectedLocale?: string
-  ): DomainLocale | undefined {
+  public detectDomainLocale(hostname?: string, detectedLocale?: string): DomainLocale | undefined {
     if (!hostname || !this.lowerCaseDomains || !this.config.domains) return
 
     if (detectedLocale) detectedLocale = detectedLocale.toLowerCase()
@@ -103,10 +100,7 @@ export class I18NProvider {
    * @param pathname the pathname that could contain a locale prefix
    * @returns the locale analysis result
    */
-  public fromRequest(
-    req: NextIncomingMessage,
-    pathname: string
-  ): LocaleAnalysisResult {
+  public fromRequest(req: NextIncomingMessage, pathname: string): LocaleAnalysisResult {
     const detectedLocale = getRequestMeta(req, 'locale')
 
     // If a locale was detected on the query, analyze the pathname to ensure
@@ -130,8 +124,7 @@ export class I18NProvider {
     return {
       pathname,
       detectedLocale,
-      inferredFromDefault:
-        getRequestMeta(req, 'localeInferredFromDefault') ?? false,
+      inferredFromDefault: getRequestMeta(req, 'localeInferredFromDefault') ?? false,
     }
   }
 
@@ -143,10 +136,7 @@ export class I18NProvider {
    * @returns The matched locale and the pathname without the locale prefix
    *          (if any).
    */
-  public analyze(
-    pathname: string,
-    options: LocaleAnalysisOptions = {}
-  ): LocaleAnalysisResult {
+  public analyze(pathname: string, options: LocaleAnalysisOptions = {}): LocaleAnalysisResult {
     let detectedLocale: string | undefined = options.defaultLocale
 
     // By default, we assume that the default locale was inferred if there was

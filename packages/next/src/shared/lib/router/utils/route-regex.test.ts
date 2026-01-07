@@ -5,10 +5,7 @@ import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 /**
  * Helper function to compile a pathToRegexpPattern from a route and test it against paths
  */
-function compilePattern(
-  route: string,
-  options: Parameters<typeof getNamedRouteRegex>[1]
-) {
+function compilePattern(route: string, options: Parameters<typeof getNamedRouteRegex>[1]) {
   const regex = getNamedRouteRegex(route, options)
 
   const compiled = pathToRegexp(regex.pathToRegexpPattern, [], {
@@ -200,13 +197,10 @@ describe('getNamedRouteRegex', () => {
   })
 
   it('should not remove extra parts beside the param segments', () => {
-    const regex = getNamedRouteRegex(
-      '/[locale]/about.segments/[...segmentPath].segment.rsc',
-      {
-        prefixRouteKeys: true,
-        includeSuffix: true,
-      }
-    )
+    const regex = getNamedRouteRegex('/[locale]/about.segments/[...segmentPath].segment.rsc', {
+      prefixRouteKeys: true,
+      includeSuffix: true,
+    })
 
     expect(regex).toMatchInlineSnapshot(`
      {
@@ -241,14 +235,11 @@ describe('getNamedRouteRegex', () => {
   })
 
   it('should not remove extra parts in front of the param segments', () => {
-    const regex = getNamedRouteRegex(
-      '/[locale]/about.segments/$dname$d[name].segment.rsc',
-      {
-        prefixRouteKeys: true,
-        includeSuffix: true,
-        includePrefix: true,
-      }
-    )
+    const regex = getNamedRouteRegex('/[locale]/about.segments/$dname$d[name].segment.rsc', {
+      prefixRouteKeys: true,
+      includeSuffix: true,
+      includePrefix: true,
+    })
 
     expect(regex).toMatchInlineSnapshot(`
      {
@@ -281,8 +272,7 @@ describe('getNamedRouteRegex', () => {
      }
     `)
 
-    expect('/en/about.segments/$dname$dwyatt.segment.rsc'.match(regex.re))
-      .toMatchInlineSnapshot(`
+    expect('/en/about.segments/$dname$dwyatt.segment.rsc'.match(regex.re)).toMatchInlineSnapshot(`
      [
        "/en/about.segments/$dname$dwyatt.segment.rsc",
        "en",
@@ -570,9 +560,7 @@ describe('getNamedRouteRegex - Reference Mapping', () => {
     })
 
     // Same parameter name should map to same prefixed key
-    expect(baseRegex.reference.names.locale).toBe(
-      interceptedRegex.reference.names.locale
-    )
+    expect(baseRegex.reference.names.locale).toBe(interceptedRegex.reference.names.locale)
     expect(interceptedRegex.reference.names.locale).toBe('nxtPlocale')
   })
 
@@ -1214,12 +1202,9 @@ describe('getNamedRouteRegex - pathToRegexpPattern Conformance', () => {
     })
 
     it('should generate a pattern for routes with catch-all and static segments', () => {
-      const { regex, compiled } = compilePattern(
-        '/[locale]/docs/v2/[...slug]',
-        {
-          prefixRouteKeys: true,
-        }
-      )
+      const { regex, compiled } = compilePattern('/[locale]/docs/v2/[...slug]', {
+        prefixRouteKeys: true,
+      })
 
       expect(regex.pathToRegexpPattern).toBe('/:nxtPlocale/docs/v2/:nxtPslug+')
 
@@ -1239,19 +1224,13 @@ describe('getNamedRouteRegex - pathToRegexpPattern Conformance', () => {
     })
 
     it('should generate a pattern for deeply nested dynamic routes', () => {
-      const { regex, compiled } = compilePattern(
-        '/[org]/[repo]/[branch]/[...path]',
-        {
-          prefixRouteKeys: true,
-        }
-      )
+      const { regex, compiled } = compilePattern('/[org]/[repo]/[branch]/[...path]', {
+        prefixRouteKeys: true,
+      })
 
-      expect(regex.pathToRegexpPattern).toBe(
-        '/:nxtPorg/:nxtPrepo/:nxtPbranch/:nxtPpath+'
-      )
+      expect(regex.pathToRegexpPattern).toBe('/:nxtPorg/:nxtPrepo/:nxtPbranch/:nxtPpath+')
 
-      expect(compiled.exec('/vercel/next.js/canary/docs/api/reference.md'))
-        .toMatchInlineSnapshot(`
+      expect(compiled.exec('/vercel/next.js/canary/docs/api/reference.md')).toMatchInlineSnapshot(`
         [
           "/vercel/next.js/canary/docs/api/reference.md",
           "vercel",

@@ -2,13 +2,7 @@
 
 import fs from 'fs-extra'
 import { join } from 'path'
-import {
-  renderViaHTTP,
-  launchApp,
-  findPort,
-  killApp,
-  waitFor,
-} from 'next-test-utils'
+import { renderViaHTTP, launchApp, findPort, killApp, waitFor } from 'next-test-utils'
 
 let app
 let appPort
@@ -37,15 +31,11 @@ describe('Dynamic route rename casing', () => {
     await fs.rename(pageFile, pageFileAlt)
     await waitFor(2000)
 
-    expect(stderr).not.toContain(
-      `You cannot use different slug names for the same dynamic path`
-    )
+    expect(stderr).not.toContain(`You cannot use different slug names for the same dynamic path`)
 
     await fs.rename(pageFileAlt, pageFile)
     await waitFor(2000)
 
-    expect(stderr).not.toContain(
-      `You cannot use different slug names for the same dynamic path`
-    )
+    expect(stderr).not.toContain(`You cannot use different slug names for the same dynamic path`)
   })
 })

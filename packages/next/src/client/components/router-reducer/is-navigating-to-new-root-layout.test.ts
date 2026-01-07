@@ -41,10 +41,7 @@ describe('isNavigatingToNewRootLayout', () => {
     }
     const newRouterState = getNewRouterStateTree()
 
-    const result = isNavigatingToNewRootLayout(
-      newRouterState,
-      initialRouterStateTree
-    )
+    const result = isNavigatingToNewRootLayout(newRouterState, initialRouterStateTree)
 
     expect(result).toBe(false)
   })
@@ -90,10 +87,7 @@ describe('isNavigatingToNewRootLayout', () => {
     }
     const newRouterState = getNewRouterStateTree()
 
-    const result = isNavigatingToNewRootLayout(
-      newRouterState,
-      initialRouterStateTree
-    )
+    const result = isNavigatingToNewRootLayout(newRouterState, initialRouterStateTree)
 
     expect(result).toBe(true)
   })

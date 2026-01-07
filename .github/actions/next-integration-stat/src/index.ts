@@ -21,18 +21,15 @@ async function fetchJobLogsFromWorkflow(
   octokit: Octokit,
   job: Job
 ): Promise<{ logs: string; job: Job }> {
-  console.log(
-    `fetchJobLogsFromWorkflow ${job.name}: Checking test results for the job`
-  )
+  console.log(`fetchJobLogsFromWorkflow ${job.name}: Checking test results for the job`)
 
   // downloadJobLogsForWorkflowRun returns a redirect to the actual logs
   // The returned URL is valid (without any additional auth) for 1 minute
-  const jobLogRedirectResponse =
-    await octokit.rest.actions.downloadJobLogsForWorkflowRun({
-      accept: 'application/vnd.github.v3+json',
-      ...context.repo,
-      job_id: job.id,
-    })
+  const jobLogRedirectResponse = await octokit.rest.actions.downloadJobLogsForWorkflowRun({
+    accept: 'application/vnd.github.v3+json',
+    ...context.repo,
+    job_id: job.id,
+  })
 
   console.log(
     `fetchJobLogsFromWorkflow ${job.name}: Trying to get logs from redirect url ${jobLogRedirectResponse.url}`
@@ -50,9 +47,7 @@ async function fetchJobLogsFromWorkflow(
   )
 
   if (!jobLogsResponse.ok) {
-    throw new Error(
-      `Failed to get logsUrl, got status ${jobLogsResponse.status}`
-    )
+    throw new Error(`Failed to get logsUrl, got status ${jobLogsResponse.status}`)
   }
 
   // this should be the check_run's raw logs including each line
@@ -79,8 +74,7 @@ async function getInputs(): Promise<{
   const token = getInput('token')
   const octokit = getOctokit(token)
 
-  const shouldExpandResultMessages =
-    getInput('expand_result_messages') === 'true'
+  const shouldExpandResultMessages = getInput('expand_result_messages') === 'true'
 
   if (!shouldExpandResultMessages) {
     console.log('Test report comment will not include result messages.')
@@ -152,14 +146,11 @@ async function getJobResults(
   sha: string
 ): Promise<TestResultManifest> {
   console.log('Trying to collect next.js integration test logs')
-  const jobs = await octokit.paginate(
-    octokit.rest.actions.listJobsForWorkflowRun,
-    {
-      ...context.repo,
-      run_id: context?.runId,
-      per_page: 50,
-    }
-  )
+  const jobs = await octokit.paginate(octokit.rest.actions.listJobsForWorkflowRun, {
+    ...context.repo,
+    run_id: context?.runId,
+    per_page: 50,
+  })
 
   // Filter out next.js integration test jobs
   const integrationTestJobs = jobs?.filter((job) =>
@@ -224,18 +215,13 @@ async function getJobResults(
 
   // Collect all test results into single manifest to store into file. This'll allow to upload / compare test results
   // across different runs.
-  fs.writeFileSync(
-    './nextjs-test-results.json',
-    JSON.stringify(testResultManifest, null, 2)
-  )
+  fs.writeFileSync('./nextjs-test-results.json', JSON.stringify(testResultManifest, null, 2))
 
   return testResultManifest
 }
 
 // Get the latest base test results to diff against with current test results.
-async function getTestResultDiffBase(
-  _octokit: Octokit
-): Promise<TestResultManifest | null> {
+async function getTestResultDiffBase(_octokit: Octokit): Promise<TestResultManifest | null> {
   // TODO: This code was previously written for the `vercel/turborepo`
   // repository which used to have a `nextjs-integration-test-data` branch with
   // all the previous test run data.
@@ -250,9 +236,7 @@ function withoutRetries(results: Array<JobResult>): Array<JobResult> {
   results = results.slice().reverse()
   const seenNames = new Set()
   results = results.filter((job) => {
-    if (
-      job.data.testResults.some((testResult) => seenNames.has(testResult.name))
-    ) {
+    if (job.data.testResults.some((testResult) => seenNames.has(testResult.name))) {
       return false
     }
     job.data.testResults.forEach((testResult) => seenNames.add(testResult.name))
@@ -406,9 +390,7 @@ function getTestSummary(
 
 `
 
-  const fixedTests = baseTestFailedNames.filter(
-    (name) => !currentTestFailedNames.includes(name)
-  )
+  const fixedTests = baseTestFailedNames.filter((name) => !currentTestFailedNames.includes(name))
   const newFailedTests = currentTestFailedNames.filter(
     (name) => !baseTestFailedNames.includes(name)
   )
@@ -437,57 +419,42 @@ function getTestSummary(
 
 // Create a markdown formatted comment body for the PR
 // with marker prefix to look for existing comment for the subsequent runs.
-const createFormattedComment = (comment: {
-  header: Array<string>
-  contents: Array<string>
-}) => {
+const createFormattedComment = (comment: { header: Array<string>; contents: Array<string> }) => {
   return (
-    [
-      `${commentTitlePre} ${BOT_COMMENT_MARKER}`,
-      ...(comment.header ?? []),
-    ].join(`\n`) +
+    [`${commentTitlePre} ${BOT_COMMENT_MARKER}`, ...(comment.header ?? [])].join(`\n`) +
     `\n\n` +
     comment.contents.join(`\n`)
   )
 }
 
 // Higher order fn to create a function that creates a comment on a PR
-const createCommentPostAsync =
-  (octokit: Octokit, prNumber?: number) => async (body: string) => {
-    if (!prNumber) {
-      console.log(
-        "This workflow run doesn't seem to be triggered via PR, there's no corresponding PR number. Skipping creating a comment."
-      )
-      return
-    }
-
-    const result = await octokit.rest.issues.createComment({
-      ...context.repo,
-      issue_number: prNumber,
-      body,
-    })
-
-    console.log('Created a new comment', result.data.html_url)
+const createCommentPostAsync = (octokit: Octokit, prNumber?: number) => async (body: string) => {
+  if (!prNumber) {
+    console.log(
+      "This workflow run doesn't seem to be triggered via PR, there's no corresponding PR number. Skipping creating a comment."
+    )
+    return
   }
+
+  const result = await octokit.rest.issues.createComment({
+    ...context.repo,
+    issue_number: prNumber,
+    body,
+  })
+
+  console.log('Created a new comment', result.data.html_url)
+}
 
 // An action report failed next.js integration test with --turbopack
 async function run() {
-  const {
-    token,
-    octokit,
-    prNumber,
-    sha,
-    noBaseComparison,
-    shouldExpandResultMessages,
-  } = await getInputs()
+  const { token, octokit, prNumber, sha, noBaseComparison, shouldExpandResultMessages } =
+    await getInputs()
 
   // Collect current PR's failed test results
   const jobResults = await getJobResults(octokit, token, sha)
 
   // Get the base to compare against
-  const baseResults = noBaseComparison
-    ? null
-    : await getTestResultDiffBase(octokit)
+  const baseResults = noBaseComparison ? null : await getTestResultDiffBase(octokit)
 
   const postCommentAsync = createCommentPostAsync(octokit, prNumber)
 
@@ -559,9 +526,7 @@ async function run() {
             `...\n(Test result messages are too long, cannot post full message in comment. See the action logs for the full message.)`
           : resultMessage
       if (resultMessage.length >= 50000) {
-        console.log(
-          'Test result messages are too long, comment will post stripped.'
-        )
+        console.log('Test result messages are too long, comment will post stripped.')
       }
 
       commentValues.push(`<details>`)
@@ -575,9 +540,7 @@ async function run() {
     const commentIdxToUpdate = acc.length - 1
     if (
       acc.length === 0 ||
-      commentValues.join(`\n`).length +
-        acc[commentIdxToUpdate].contents.join(`\n`).length >
-        60000
+      commentValues.join(`\n`).length + acc[commentIdxToUpdate].contents.join(`\n`).length > 60000
     ) {
       acc.push({
         header: [`Commit: ${sha}`],
@@ -593,9 +556,7 @@ async function run() {
     // First comment is always a summary
     {
       header: [`Commit: ${sha}`],
-      contents: [
-        getTestSummary(sha, noBaseComparison ? null : baseResults, jobResults),
-      ],
+      contents: [getTestSummary(sha, noBaseComparison ? null : baseResults, jobResults)],
     },
     ...comments,
   ]
@@ -612,10 +573,7 @@ async function run() {
       )
     )
 
-    fs.writeFileSync(
-      './passed-test-path-list.json',
-      JSON.stringify(passedTestsLists, null, 2)
-    )
+    fs.writeFileSync('./passed-test-path-list.json', JSON.stringify(passedTestsLists, null, 2))
 
     if (!prNumber) {
       return
@@ -624,8 +582,7 @@ async function run() {
     if (jobResults.result.length === 0) {
       console.log('No failed test results found :tada:')
       await postCommentAsync(
-        `### Next.js test passes :green_circle: ${BOT_COMMENT_MARKER}` +
-          `\nCommit: ${sha}\n`
+        `### Next.js test passes :green_circle: ${BOT_COMMENT_MARKER}` + `\nCommit: ${sha}\n`
       )
       return
     }
@@ -635,9 +592,7 @@ async function run() {
         ...comment,
       }
       if (isMultipleComments) {
-        value.header.push(
-          `**(Report ${idx + 1}/${commentsWithSummary.length})**`
-        )
+        value.header.push(`**(Report ${idx + 1}/${commentsWithSummary.length})**`)
       }
       // Add collapsible details for full test report
       if (idx > 0) {

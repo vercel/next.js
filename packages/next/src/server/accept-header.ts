@@ -10,11 +10,7 @@ interface Options {
   type: 'accept-language'
 }
 
-function parse(
-  raw: string,
-  preferences: readonly string[] | undefined,
-  options: Options
-) {
+function parse(raw: string, preferences: readonly string[] | undefined, options: Options) {
   const lowers = new Map<string, { orig: string; pos: number }>()
   const header = raw.replace(/[ \t]/g, '')
 

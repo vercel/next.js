@@ -37,9 +37,7 @@ function cleanConsoleArgsForFileLogging(args: any[]): string {
   } catch {
     // Fallback to simple string conversion if formatting fails
     return args
-      .map((arg) =>
-        typeof arg === 'string' ? arg : util.inspect(arg, { depth: 2 })
-      )
+      .map((arg) => (typeof arg === 'string' ? arg : util.inspect(arg, { depth: 2 })))
       .join(' ')
   }
 }
@@ -77,9 +75,7 @@ const forwardConsole: typeof console = {
       (...args: Array<any>) =>
         (console[method] as any)(
           ...args.map((arg) =>
-            methodsToSkipInspect.has(method) ||
-            typeof arg !== 'object' ||
-            arg === null
+            methodsToSkipInspect.has(method) || typeof arg !== 'object' || arg === null
               ? arg
               : // we hardcode depth:Infinity to allow the true depth to be configured by the serialization done in the browser (which is controlled by user)
                 util.inspect(arg, { depth: Infinity, colors: true })
@@ -109,15 +105,11 @@ const colorError = (
     applyColor?: boolean
   }
 ) => {
-  const colorFn =
-    config?.applyColor === undefined || config.applyColor ? red : <T>(x: T) => x
+  const colorFn = config?.applyColor === undefined || config.applyColor ? red : <T>(x: T) => x
   switch (mapped.kind) {
     case 'mapped-stack':
     case 'stack': {
-      return (
-        (config?.prefix ? colorFn(config?.prefix) : '') +
-        `\n${colorFn(mapped.stack)}`
-      )
+      return (config?.prefix ? colorFn(config?.prefix) : '') + `\n${colorFn(mapped.stack)}`
     }
     case 'with-frame-code': {
       return (
@@ -271,11 +263,7 @@ async function prepareConsoleErrorArgs(
     })
   )
 
-  const mappedStack = await getSourceMappedStackFrames(
-    entry.consoleErrorStack,
-    ctx,
-    distDir
-  )
+  const mappedStack = await getSourceMappedStackFrames(entry.consoleErrorStack, ctx, distDir)
 
   /**
    * don't show the stack + codeblock when there are errors present, since:
@@ -290,10 +278,7 @@ async function prepareConsoleErrorArgs(
     }
     return result
   }
-  const result = [
-    ...processConsoleFormatStrings(deserialized),
-    colorError(mappedStack),
-  ]
+  const result = [...processConsoleFormatStrings(deserialized), colorError(mappedStack)]
   if (location) {
     result.push(dim(`(${location})`))
   }
@@ -319,11 +304,7 @@ async function handleTable(
     if (!entry.consoleMethodStack) {
       return
     }
-    const frames = await getSourceMappedStackFrames(
-      entry.consoleMethodStack,
-      ctx,
-      distDir
-    )
+    const frames = await getSourceMappedStackFrames(entry.consoleMethodStack, ctx, distDir)
     return getConsoleLocation(frames)
   })()
 
@@ -353,11 +334,7 @@ async function handleTrace(
   )
 
   if (!entry.consoleMethodStack) {
-    forwardConsole.log(
-      browserPrefix,
-      ...deserializedArgs,
-      '[Trace unavailable]'
-    )
+    forwardConsole.log(browserPrefix, ...deserializedArgs, '[Trace unavailable]')
     return
   }
 
@@ -383,15 +360,10 @@ async function handleDir(
   distDir: string
 ) {
   const loggableEntry = await prepareConsoleArgs(entry, ctx, distDir)
-  const consoleMethod =
-    (forwardConsole as any)[entry.method] || forwardConsole.log
+  const consoleMethod = (forwardConsole as any)[entry.method] || forwardConsole.log
 
   if (entry.consoleMethodStack) {
-    const mapped = await getSourceMappedStackFrames(
-      entry.consoleMethodStack,
-      ctx,
-      distDir
-    )
+    const mapped = await getSourceMappedStackFrames(entry.consoleMethodStack, ctx, distDir)
     const location = dim(`(${getConsoleLocation(mapped)})`)
     const originalWrite = process.stdout.write.bind(process.stdout)
     let captured = ''
@@ -494,14 +466,7 @@ export async function handleLog(
             case 'debug':
             case 'error':
             case 'warn': {
-              await handleDefaultConsole(
-                entry,
-                browserPrefix,
-                ctx,
-                distDir,
-                config,
-                isServerLog
-              )
+              await handleDefaultConsole(entry, browserPrefix, ctx, distDir, config, isServerLog)
               break
             }
             default: {
@@ -516,26 +481,16 @@ export async function handleLog(
           forwardConsole.error(browserPrefix, ...consoleArgs)
 
           // Process enqueued logs and write to file
-          fileLogger.logBrowser(
-            'ERROR',
-            cleanConsoleArgsForFileLogging(consoleArgs)
-          )
+          fileLogger.logBrowser('ERROR', cleanConsoleArgsForFileLogging(consoleArgs))
           break
         }
         // formatted error is an explicit error event (rejections, uncaught errors)
         case 'formatted-error': {
-          const formattedArgs = await prepareFormattedErrorArgs(
-            entry,
-            ctx,
-            distDir
-          )
+          const formattedArgs = await prepareFormattedErrorArgs(entry, ctx, distDir)
           forwardConsole.error(browserPrefix, ...formattedArgs)
 
           // Process enqueued logs and write to file
-          fileLogger.logBrowser(
-            'ERROR',
-            cleanConsoleArgsForFileLogging(formattedArgs)
-          )
+          fileLogger.logBrowser('ERROR', cleanConsoleArgsForFileLogging(formattedArgs))
           break
         }
         default: {
@@ -547,26 +502,16 @@ export async function handleLog(
           const consoleArgs = await prepareConsoleErrorArgs(entry, ctx, distDir)
           forwardConsole.error(browserPrefix, ...consoleArgs)
           // Process enqueued logs and write to file
-          fileLogger.logBrowser(
-            'ERROR',
-            cleanConsoleArgsForFileLogging(consoleArgs)
-          )
+          fileLogger.logBrowser('ERROR', cleanConsoleArgsForFileLogging(consoleArgs))
           break
         }
         case 'console': {
-          const consoleMethod =
-            forwardConsole[entry.method] || forwardConsole.log
+          const consoleMethod = forwardConsole[entry.method] || forwardConsole.log
           const consoleArgs = await prepareConsoleArgs(entry, ctx, distDir)
-          ;(consoleMethod as (...args: any[]) => void)(
-            browserPrefix,
-            ...consoleArgs
-          )
+          ;(consoleMethod as (...args: any[]) => void)(browserPrefix, ...consoleArgs)
 
           // Process enqueued logs and write to file
-          fileLogger.logBrowser(
-            'ERROR',
-            cleanConsoleArgsForFileLogging(consoleArgs)
-          )
+          fileLogger.logBrowser('ERROR', cleanConsoleArgsForFileLogging(consoleArgs))
           break
         }
         case 'formatted-error': {

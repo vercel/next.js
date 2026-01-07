@@ -27,10 +27,7 @@ export class NextJsRequireCacheHotReloader implements WebpackPluginInstance {
 
     compiler.hooks.afterEmit.tapPromise(PLUGIN_NAME, async (compilation) => {
       for (const name of RUNTIME_NAMES) {
-        const runtimeChunkPath = path.join(
-          compilation.outputOptions.path!,
-          `${name}.js`
-        )
+        const runtimeChunkPath = path.join(compilation.outputOptions.path!, `${name}.js`)
         deleteCache(runtimeChunkPath)
       }
 
@@ -43,10 +40,7 @@ export class NextJsRequireCacheHotReloader implements WebpackPluginInstance {
       })
 
       for (const page of entries) {
-        const outputPath = path.join(
-          compilation.outputOptions.path!,
-          page + '.js'
-        )
+        const outputPath = path.join(compilation.outputOptions.path!, page + '.js')
         deleteCache(outputPath)
       }
     })

@@ -6,10 +6,7 @@ const Another = () => (
       Hello LF
     </Link>
     <br />
-    <Link
-      href={{ pathname: '/', query: { complex: 'yes\n' } }}
-      id="hello-complex"
-    >
+    <Link href={{ pathname: '/', query: { complex: 'yes\n' } }} id="hello-complex">
       Hello Complex
     </Link>
   </div>

@@ -12,10 +12,9 @@ export default async function Page() {
     <main>
       <DebugRenderKind />
       <p id="intro">
-        This page uses a short-lived public cache (expire &lt; DYNAMIC_EXPIRE,
-        5min), which should not be included in a static prefetch, and should
-        also not be included in a runtime prefetch, because it has a short
-        enough stale time (&lt; RUNTIME_PREFETCH_DYNAMIC_STALE, 30s)
+        This page uses a short-lived public cache (expire &lt; DYNAMIC_EXPIRE, 5min), which should
+        not be included in a static prefetch, and should also not be included in a runtime prefetch,
+        because it has a short enough stale time (&lt; RUNTIME_PREFETCH_DYNAMIC_STALE, 30s)
       </p>
       <Suspense fallback={<div style={{ color: 'grey' }}>Loading...</div>}>
         <ShortLivedCache />

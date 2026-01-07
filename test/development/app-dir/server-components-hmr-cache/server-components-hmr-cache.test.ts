@@ -7,9 +7,7 @@ describe('server-components-hmr-cache', () => {
   let cliOutputLength: number
 
   const getLoggedAfterValue = () => {
-    const match = next.cliOutput
-      .slice(cliOutputLength)
-      .match(loggedAfterValueRegexp)
+    const match = next.cliOutput.slice(cliOutputLength).match(loggedAfterValueRegexp)
 
     if (!match) {
       throw new Error('No logs from after() found')
@@ -149,19 +147,13 @@ describe('server-components-hmr-cache', () => {
     describe('with experimental.serverComponentsHmrCache disabled', () => {
       beforeAll(async () => {
         await next.patchFile('next.config.js', (content) =>
-          content.replace(
-            '// serverComponentsHmrCache: false,',
-            'serverComponentsHmrCache: false,'
-          )
+          content.replace('// serverComponentsHmrCache: false,', 'serverComponentsHmrCache: false,')
         )
       })
 
       afterAll(async () => {
         await next.patchFile('next.config.js', (content) =>
-          content.replace(
-            'serverComponentsHmrCache: false,',
-            '// serverComponentsHmrCache: false,'
-          )
+          content.replace('serverComponentsHmrCache: false,', '// serverComponentsHmrCache: false,')
         )
       })
 
@@ -200,9 +192,7 @@ describe('server-components-hmr-cache', () => {
             (content) => content.replace('foo', 'bar'),
             async () => {
               await retry(async () => {
-                const updatedContent = await browser
-                  .elementById('content')
-                  .text()
+                const updatedContent = await browser.elementById('content').text()
                 expect(updatedContent).toBe('bar')
                 // TODO: remove custom duration in case we increase the default.
               }, 5000)

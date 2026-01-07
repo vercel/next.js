@@ -3,13 +3,7 @@
 import { join } from 'path'
 
 import cheerio from 'cheerio'
-import {
-  check,
-  File,
-  renderViaHTTP,
-  runDevSuite,
-  runProdSuite,
-} from 'next-test-utils'
+import { check, File, renderViaHTTP, runDevSuite, runProdSuite } from 'next-test-utils'
 import webdriver, { type Playwright } from 'next-webdriver'
 
 const appDir = join(__dirname, '../app')
@@ -31,9 +25,7 @@ describe('Basics', () => {
     it('hydrates correctly for normal page', async () => {
       const browser = await webdriver(context.appPort, '/')
       expect(await browser.eval('window.didHydrate')).toBe(true)
-      expect(await browser.elementById('react-dom-version').text()).toMatch(
-        /19/
-      )
+      expect(await browser.elementById('react-dom-version').text()).toMatch(/19/)
     })
 
     it('useId() values should match on hydration', async () => {
@@ -42,9 +34,7 @@ describe('Basics', () => {
       const ssrId = $('#id').text()
 
       const browser = await webdriver(context.appPort, '/use-id')
-      const csrId = await browser.eval(
-        'document.getElementById("id").innerText'
-      )
+      const csrId = await browser.eval('document.getElementById("id").innerText')
 
       expect(ssrId).toEqual(csrId)
     })
@@ -59,9 +49,7 @@ describe('Basics', () => {
           expect(
             dynamicIds.find((id) =>
               process.env.IS_TURBOPACK_TEST
-                ? id.endsWith(
-                    'app/components/foo.js [client] (ecmascript, next/dynamic entry)'
-                  )
+                ? id.endsWith('app/components/foo.js [client] (ecmascript, next/dynamic entry)')
                 : id === `pages/${page}.js -> ../components/foo`
             )
           ).toBeTruthy()
@@ -78,10 +66,7 @@ function runTestsAgainstRuntime(runtime) {
   runTests(
     `Concurrent mode in the ${runtime} runtime`,
     (context) => {
-      async function withBrowser(
-        path: string,
-        cb: (browser: Playwright) => Promise<void>
-      ) {
+      async function withBrowser(path: string, cb: (browser: Playwright) => Promise<void>) {
         let browser: Playwright
         try {
           browser = await webdriver(context.appPort, path)
@@ -94,10 +79,7 @@ function runTestsAgainstRuntime(runtime) {
       }
 
       it('flushes styled-jsx styles as the page renders', async () => {
-        const html = await renderViaHTTP(
-          context.appPort,
-          '/use-flush-effect/styled-jsx'
-        )
+        const html = await renderViaHTTP(context.appPort, '/use-flush-effect/styled-jsx')
         const stylesOccurrence = html.match(/color:(\s)*(?:blue|#00f)/g) || []
         expect(stylesOccurrence.length).toBe(1)
 
@@ -143,10 +125,7 @@ function runTestsAgainstRuntime(runtime) {
     },
     {
       beforeAll: (env) => {
-        indexPage.replace(
-          "// runtime: 'experimental-edge'",
-          `runtime: '${runtime}'`
-        )
+        indexPage.replace("// runtime: 'experimental-edge'", `runtime: '${runtime}'`)
       },
       afterAll: (env) => {
         indexPage.restore()
@@ -158,11 +137,7 @@ function runTestsAgainstRuntime(runtime) {
 runTestsAgainstRuntime('experimental-edge')
 runTestsAgainstRuntime('nodejs')
 
-function runTests(
-  name: string,
-  fn: (context: any, env: any) => void,
-  opts?: any
-) {
+function runTests(name: string, fn: (context: any, env: any) => void, opts?: any) {
   const suiteOptions = { ...opts, runTests: fn }
   runDevSuite(name, appDir, suiteOptions)
   runProdSuite(name, appDir, suiteOptions)

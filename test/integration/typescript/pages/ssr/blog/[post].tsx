@@ -5,9 +5,7 @@ type Post = {
   content: string
 }
 
-export const getServerSideProps = async (
-  ctx: GetServerSidePropsContext<{ post: string }>
-) => {
+export const getServerSideProps = async (ctx: GetServerSidePropsContext<{ post: string }>) => {
   const res = await fetch(`https://.../posts/`)
   const posts: Post[] = await res.json()
   return {
@@ -17,9 +15,7 @@ export const getServerSideProps = async (
   }
 }
 
-function Blog({
-  posts,
-}: InferGetServerSidePropsType<typeof getServerSideProps>) {
+function Blog({ posts }: InferGetServerSidePropsType<typeof getServerSideProps>) {
   return (
     <>
       {posts.map((post) => (

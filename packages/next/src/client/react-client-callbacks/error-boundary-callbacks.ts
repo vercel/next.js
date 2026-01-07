@@ -28,15 +28,14 @@ export function onCaughtError(
     const { AppDevOverlayErrorBoundary } =
       require('../../next-devtools/userspace/app/app-dev-overlay-error-boundary') as typeof import('../../next-devtools/userspace/app/app-dev-overlay-error-boundary')
 
-    isImplicitErrorBoundary =
-      errorBoundaryComponent === AppDevOverlayErrorBoundary
+    isImplicitErrorBoundary = errorBoundaryComponent === AppDevOverlayErrorBoundary
   }
 
   isImplicitErrorBoundary =
     isImplicitErrorBoundary ||
     (errorBoundaryComponent === ErrorBoundaryHandler &&
-      (errorInfo.errorBoundary! as InstanceType<typeof ErrorBoundaryHandler>)
-        .props.errorComponent === DefaultErrorBoundary)
+      (errorInfo.errorBoundary! as InstanceType<typeof ErrorBoundaryHandler>).props
+        .errorComponent === DefaultErrorBoundary)
 
   // Skip the segment explorer triggered error
   if (process.env.NODE_ENV !== 'production') {
@@ -63,9 +62,7 @@ export function onCaughtError(
   if (process.env.NODE_ENV !== 'production') {
     const errorBoundaryName =
       // read react component displayName
-      (errorBoundaryComponent as any)?.displayName ||
-      errorBoundaryComponent?.name ||
-      'Unknown'
+      (errorBoundaryComponent as any)?.displayName || errorBoundaryComponent?.name || 'Unknown'
 
     const componentThatErroredFrame = errorInfo?.componentStack?.split('\n')[1]
 

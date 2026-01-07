@@ -18,10 +18,7 @@ declare global {
 }
 
 type RSCErrorHandler = (err: unknown) => string | undefined
-type SSRErrorHandler = (
-  err: unknown,
-  errorInfo?: ErrorInfo
-) => string | undefined
+type SSRErrorHandler = (err: unknown, errorInfo?: ErrorInfo) => string | undefined
 
 export type DigestedError = Error & { digest: string; environmentName?: string }
 
@@ -83,10 +80,7 @@ export function createReactServerErrorHandler(
     // If the error already has a digest, respect the original digest,
     // so it won't get re-generated into another new error.
     if (err.digest) {
-      if (
-        process.env.NODE_ENV === 'production' &&
-        reactServerErrors.has(err.digest)
-      ) {
+      if (process.env.NODE_ENV === 'production' && reactServerErrors.has(err.digest)) {
         // This error is likely an obfuscated error from another react-server
         // environment (e.g. 'use cache'). We recover the original error here
         // for reporting purposes.
@@ -190,9 +184,7 @@ export function createHTMLErrorHandler(
     } else {
       err.digest = createDigestWithErrorCode(
         err,
-        stringHash(
-          err.message + (errorInfo?.componentStack || err.stack || '')
-        ).toString()
+        stringHash(err.message + (errorInfo?.componentStack || err.stack || '')).toString()
       )
     }
 
@@ -232,7 +224,5 @@ export function createHTMLErrorHandler(
 }
 
 export function isUserLandError(err: any): boolean {
-  return (
-    !isAbortError(err) && !isBailoutToCSRError(err) && !isNextRouterError(err)
-  )
+  return !isAbortError(err) && !isBailoutToCSRError(err) && !isNextRouterError(err)
 }

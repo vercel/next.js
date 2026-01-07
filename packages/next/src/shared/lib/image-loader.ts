@@ -2,12 +2,7 @@ import type { ImageLoaderPropsWithConfig } from './image-config'
 import { findClosestQuality } from './find-closest-quality'
 import { getDeploymentId } from './deployment-id'
 
-function defaultLoader({
-  config,
-  src,
-  width,
-  quality,
-}: ImageLoaderPropsWithConfig): string {
+function defaultLoader({ config, src, width, quality }: ImageLoaderPropsWithConfig): string {
   if (
     src.startsWith('/') &&
     src.includes('?') &&
@@ -81,9 +76,7 @@ function defaultLoader({
         // We use dynamic require because this should only error in development
         const { hasRemoteMatch } =
           require('./match-remote-pattern') as typeof import('./match-remote-pattern')
-        if (
-          !hasRemoteMatch(config.domains!, config.remotePatterns!, parsedSrc)
-        ) {
+        if (!hasRemoteMatch(config.domains!, config.remotePatterns!, parsedSrc)) {
           throw new Error(
             `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
               `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-host`

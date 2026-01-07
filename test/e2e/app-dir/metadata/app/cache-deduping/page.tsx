@@ -3,9 +3,7 @@ import React, { cache } from 'react'
 const getRandomMemoized = cache(() => Math.random().toString())
 
 async function getRandomMemoizedByFetch() {
-  const res = await fetch(
-    'https://next-data-api-endpoint.vercel.app/api/random'
-  )
+  const res = await fetch('https://next-data-api-endpoint.vercel.app/api/random')
   return res.text()
 }
 

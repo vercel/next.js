@@ -36,14 +36,9 @@ describe('i18n-data-fetching-redirect', () => {
     `('$path $locale', async ({ path, locale }) => {
       const browser = await webdriver(next.url, `/${locale}/${path}/from-ctx`)
 
-      await check(
-        () => browser.eval('window.location.pathname'),
-        `/${locale}/home`
-      )
+      await check(() => browser.eval('window.location.pathname'), `/${locale}/home`)
       expect(await browser.elementByCss('#router-locale').text()).toBe(locale)
-      expect(await browser.elementByCss('#router-pathname').text()).toBe(
-        '/home'
-      )
+      expect(await browser.elementByCss('#router-pathname').text()).toBe('/home')
       expect(await browser.elementByCss('#router-as-path').text()).toBe('/home')
     })
 
@@ -61,16 +56,11 @@ describe('i18n-data-fetching-redirect', () => {
 
       await browser.elementByCss(`#to-${path}-from-ctx`).click()
 
-      await check(
-        () => browser.eval('window.location.pathname'),
-        `/${locale}/home`
-      )
+      await check(() => browser.eval('window.location.pathname'), `/${locale}/home`)
 
       expect(await browser.eval('window.beforeNav')).toBe(1)
       expect(await browser.elementByCss('#router-locale').text()).toBe(locale)
-      expect(await browser.elementByCss('#router-pathname').text()).toBe(
-        '/home'
-      )
+      expect(await browser.elementByCss('#router-pathname').text()).toBe('/home')
       expect(await browser.elementByCss('#router-as-path').text()).toBe('/home')
     })
   })

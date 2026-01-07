@@ -15,9 +15,7 @@ export function isClientComponentEntryModule(mod: webpack.NormalModule) {
   const rscInfo = getModuleBuildInfo(mod).rsc
   const hasClientDirective = rscInfo?.isClientRef
   const isActionLayerEntry = isActionClientLayerModule(mod)
-  return (
-    hasClientDirective || isActionLayerEntry || imageRegex.test(mod.resource)
-  )
+  return hasClientDirective || isActionLayerEntry || imageRegex.test(mod.resource)
 }
 
 export const regexCSS = /\.(css|scss|sass)(\?.*)?$/
@@ -35,8 +33,7 @@ export function isCSSMod(mod: {
     mod.loaders?.some(
       ({ loader }) =>
         loader.includes('next-style-loader/index.js') ||
-        (process.env.NEXT_RSPACK &&
-          loader.includes('rspack.CssExtractRspackPlugin.loader')) ||
+        (process.env.NEXT_RSPACK && loader.includes('rspack.CssExtractRspackPlugin.loader')) ||
         loader.includes('mini-css-extract-plugin/loader.js') ||
         loader.includes('@vanilla-extract/webpack-plugin/loader/')
     )
@@ -78,10 +75,9 @@ export async function getLoaderModuleNamedExports(
     mod.dependencies
       ?.filter((dep) => {
         return (
-          [
-            'HarmonyExportImportedSpecifierDependency',
-            'HarmonyExportSpecifierDependency',
-          ].includes(dep.constructor.name) &&
+          ['HarmonyExportImportedSpecifierDependency', 'HarmonyExportSpecifierDependency'].includes(
+            dep.constructor.name
+          ) &&
           'name' in dep &&
           dep.name !== 'default'
         )

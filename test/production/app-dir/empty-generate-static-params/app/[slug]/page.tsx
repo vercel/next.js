@@ -1,10 +1,6 @@
 import { Suspense } from 'react'
 
-export default async function Page({
-  params,
-}: {
-  params: Promise<{ slug: string }>
-}) {
+export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
   return (
     <div>
       Hello World

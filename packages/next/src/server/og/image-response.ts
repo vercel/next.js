@@ -1,8 +1,6 @@
 type OgModule = typeof import('next/dist/compiled/@vercel/og')
 
-function importModule(): Promise<
-  typeof import('next/dist/compiled/@vercel/og')
-> {
+function importModule(): Promise<typeof import('next/dist/compiled/@vercel/og')> {
   return import(
     process.env.NEXT_RUNTIME === 'edge'
       ? 'next/dist/compiled/@vercel/og/index.edge.js'

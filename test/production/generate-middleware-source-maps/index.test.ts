@@ -15,9 +15,7 @@ describe('Middleware source maps', () => {
   })
 
   it('generates a source map for Middleware', async () => {
-    const middlewareManifest = await next.readJSON(
-      '.next/server/middleware-manifest.json'
-    )
+    const middlewareManifest = await next.readJSON('.next/server/middleware-manifest.json')
 
     for (const key in middlewareManifest.middleware) {
       const middleware = middlewareManifest.middleware[key]
@@ -25,20 +23,14 @@ describe('Middleware source maps', () => {
       for (const file of middleware.files) {
         const filePath = path.join(next.testDir, '.next', file)
         expect(await fs.pathExists(filePath)).toEqual(true)
-        let sourcemap = decodeURI(
-          extractSourceMappingURL(await fs.readFile(filePath, 'utf8'))
-        )
-        expect(
-          await fs.pathExists(path.join(path.dirname(filePath), sourcemap))
-        ).toEqual(true)
+        let sourcemap = decodeURI(extractSourceMappingURL(await fs.readFile(filePath, 'utf8')))
+        expect(await fs.pathExists(path.join(path.dirname(filePath), sourcemap))).toEqual(true)
       }
     }
   })
 
   it('generates a source map for Edge API', async () => {
-    const middlewareManifest = await next.readJSON(
-      '.next/server/middleware-manifest.json'
-    )
+    const middlewareManifest = await next.readJSON('.next/server/middleware-manifest.json')
     for (const key in middlewareManifest.functions) {
       const edgeFunction = middlewareManifest.functions[key]
       expect(edgeFunction.files).toBeDefined()
@@ -47,16 +39,9 @@ describe('Middleware source maps', () => {
       )) {
         const filePath = path.join(next.testDir, '.next', file)
         expect(await fs.pathExists(filePath)).toEqual(true)
-        if (
-          filePath.endsWith('.js') &&
-          !filePath.endsWith('/react-loadable-manifest.js')
-        ) {
-          let sourcemap = decodeURI(
-            extractSourceMappingURL(await fs.readFile(filePath, 'utf8'))
-          )
-          expect(
-            await fs.pathExists(path.join(path.dirname(filePath), sourcemap))
-          ).toEqual(true)
+        if (filePath.endsWith('.js') && !filePath.endsWith('/react-loadable-manifest.js')) {
+          let sourcemap = decodeURI(extractSourceMappingURL(await fs.readFile(filePath, 'utf8')))
+          expect(await fs.pathExists(path.join(path.dirname(filePath), sourcemap))).toEqual(true)
         }
       }
     }

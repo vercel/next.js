@@ -41,9 +41,7 @@ describe('app-dir edge SSR', () => {
         logs.push(log)
       })
       await next.render('/app-edge')
-      expect(logs.some((log) => log.includes(`Attempted import error:`))).toBe(
-        false
-      )
+      expect(logs.some((log) => log.includes(`Attempted import error:`))).toBe(false)
     })
 
     it('should resolve client component without error', async () => {
@@ -80,9 +78,7 @@ describe('app-dir edge SSR', () => {
   } else {
     // Production tests
     it('should generate matchers correctly in middleware manifest', async () => {
-      const manifest = JSON.parse(
-        await next.readFile('.next/server/middleware-manifest.json')
-      )
+      const manifest = JSON.parse(await next.readFile('.next/server/middleware-manifest.json'))
       if (process.env.IS_TURBOPACK_TEST) {
         expect(manifest.functions['/(group)/group/page'].matchers).toEqual([
           {

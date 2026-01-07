@@ -1,13 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import {
-  requestIdleCallback,
-  cancelIdleCallback,
-} from './request-idle-callback'
+import { requestIdleCallback, cancelIdleCallback } from './request-idle-callback'
 
-type UseIntersectionObserverInit = Pick<
-  IntersectionObserverInit,
-  'rootMargin' | 'root'
->
+type UseIntersectionObserverInit = Pick<IntersectionObserverInit, 'rootMargin' | 'root'>
 
 type UseIntersection = { disabled?: boolean } & UseIntersectionObserverInit & {
     rootRef?: React.RefObject<HTMLElement | null> | null
@@ -33,9 +27,7 @@ function createObserver(options: UseIntersectionObserverInit): Observer {
     root: options.root || null,
     margin: options.rootMargin || '',
   }
-  const existing = idList.find(
-    (obj) => obj.root === id.root && obj.margin === id.margin
-  )
+  const existing = idList.find((obj) => obj.root === id.root && obj.margin === id.margin)
   let instance: Observer | undefined
 
   if (existing) {
@@ -83,9 +75,7 @@ function observe(
     if (elements.size === 0) {
       observer.disconnect()
       observers.delete(id)
-      const index = idList.findIndex(
-        (obj) => obj.root === id.root && obj.margin === id.margin
-      )
+      const index = idList.findIndex((obj) => obj.root === id.root && obj.margin === id.margin)
       if (index > -1) {
         idList.splice(index, 1)
       }
@@ -112,14 +102,10 @@ export function useIntersection<T extends Element>({
 
       const element = elementRef.current
       if (element && element.tagName) {
-        const unobserve = observe(
-          element,
-          (isVisible) => isVisible && setVisible(isVisible),
-          {
-            root: rootRef?.current,
-            rootMargin,
-          }
-        )
+        const unobserve = observe(element, (isVisible) => isVisible && setVisible(isVisible), {
+          root: rootRef?.current,
+          rootMargin,
+        })
 
         return unobserve
       }

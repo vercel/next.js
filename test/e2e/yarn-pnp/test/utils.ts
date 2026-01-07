@@ -6,11 +6,7 @@ import { NextInstance } from 'e2e-utils'
 
 jest.setTimeout(2 * 60 * 1000)
 
-export function runTests(
-  example = '',
-  testPath = '/',
-  expectedContent = ['index page']
-) {
+export function runTests(example = '', testPath = '/', expectedContent = ['index page']) {
   const versionParts = process.versions.node.split('.').map((i) => Number(i))
 
   if ((global as any).isNextDeploy) {
@@ -18,10 +14,7 @@ export function runTests(
     return
   }
 
-  if (
-    versionParts[0] > 16 ||
-    (versionParts[0] === 16 && versionParts[1] >= 14)
-  ) {
+  if (versionParts[0] > 16 || (versionParts[0] === 16 && versionParts[1] >= 14)) {
     let next: NextInstance
 
     beforeAll(async () => {
@@ -59,9 +52,7 @@ export function runTests(
           )}`
         },
         buildCommand: `yarn next build`,
-        startCommand: (global as any).isNextDev
-          ? `yarn next`
-          : `yarn next start`,
+        startCommand: (global as any).isNextDev ? `yarn next` : `yarn next start`,
       })
     })
     afterAll(() => next?.destroy())

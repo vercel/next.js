@@ -34,9 +34,7 @@ describe('unstable-cache-foreground-revalidate', () => {
       ...logs.matchAll(/\[TEST\] unstable_cache callback executed at: (\d+)/g),
     ]
     const completions = [
-      ...logs.matchAll(
-        /\[TEST\] Page render completed with cache data from: (\d+)/g
-      ),
+      ...logs.matchAll(/\[TEST\] Page render completed with cache data from: (\d+)/g),
     ]
 
     if (completions.length === 0) {
@@ -45,9 +43,7 @@ describe('unstable-cache-foreground-revalidate', () => {
 
     const lastCompletion = completions[completions.length - 1]
     const lastCacheExecution =
-      cacheExecutions.length > 0
-        ? cacheExecutions[cacheExecutions.length - 1]
-        : null
+      cacheExecutions.length > 0 ? cacheExecutions[cacheExecutions.length - 1] : null
 
     if (!lastCacheExecution) {
       throw new Error(

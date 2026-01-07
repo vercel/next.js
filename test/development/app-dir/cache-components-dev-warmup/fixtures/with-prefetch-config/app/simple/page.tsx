@@ -1,10 +1,5 @@
 import { Suspense } from 'react'
-import {
-  CachedData,
-  CachedFetch,
-  SuccessiveCachedData,
-  UncachedFetch,
-} from '../data-fetching'
+import { CachedData, CachedFetch, SuccessiveCachedData, UncachedFetch } from '../data-fetching'
 
 const CACHE_KEY = __dirname + '/__PAGE__'
 

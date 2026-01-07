@@ -1,8 +1,5 @@
 declare module 'private-next-rsc-action-encryption' {
-  export function encryptActionBoundArgs(
-    actionId: string,
-    ...args: any[]
-  ): Promise<string>
+  export function encryptActionBoundArgs(actionId: string, ...args: any[]): Promise<string>
 
   export function decryptActionBoundArgs(
     actionId: string,
@@ -19,10 +16,7 @@ declare module 'private-next-rsc-server-reference' {
 }
 
 declare module 'private-next-rsc-action-client-wrapper' {
-  export function callServer(
-    actionId: string,
-    actionArgs: unknown[]
-  ): Promise<unknown>
+  export function callServer(actionId: string, actionArgs: unknown[]): Promise<unknown>
 
   export function findSourceMapURL(filename: string): string | null
 

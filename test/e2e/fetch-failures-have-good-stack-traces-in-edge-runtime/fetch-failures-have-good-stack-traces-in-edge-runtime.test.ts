@@ -23,9 +23,7 @@ describe('fetch failures have good stack traces in edge runtime', () => {
 
       if (isNextStart) {
         // eslint-disable-next-line jest/no-standalone-expect
-        expect(next.cliOutput.slice(outputIndex)).toMatch(
-          /at.+\/pages\/api\/unknown-domain.js/
-        )
+        expect(next.cliOutput.slice(outputIndex)).toMatch(/at.+\/pages\/api\/unknown-domain.js/)
       } else if (isNextDev) {
         // eslint-disable-next-line jest/no-standalone-expect
         expect(stripAnsi(next.cliOutput.slice(outputIndex))).toContain(
@@ -68,9 +66,6 @@ describe('fetch failures have good stack traces in edge runtime', () => {
   it.skip('when returning `fetch` using an unknown domain, stack traces are preserved', async () => {
     await webdriver(next.url, '/api/unknown-domain-no-await')
 
-    await check(
-      () => stripAnsi(next.cliOutput),
-      /at.+\/pages\/api\/unknown-domain-no-await.ts:4/
-    )
+    await check(() => stripAnsi(next.cliOutput), /at.+\/pages\/api\/unknown-domain-no-await.ts:4/)
   })
 })

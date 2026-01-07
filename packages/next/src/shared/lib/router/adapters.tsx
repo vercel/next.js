@@ -9,9 +9,7 @@ import { asPathToSearchParams } from './utils/as-path-to-search-params'
 import { getRouteRegex } from './utils/route-regex'
 
 /** It adapts a Pages Router (`NextRouter`) to the App Router Instance. */
-export function adaptForAppRouterInstance(
-  pagesRouter: NextRouter
-): AppRouterInstance {
+export function adaptForAppRouterInstance(pagesRouter: NextRouter): AppRouterInstance {
   return {
     back() {
       pagesRouter.back()
@@ -120,9 +118,5 @@ export function PathnameContextProviderAdapter({
     return url.pathname
   }, [router.asPath, router.isFallback, router.isReady, router.pathname])
 
-  return (
-    <PathnameContext.Provider value={value}>
-      {children}
-    </PathnameContext.Provider>
-  )
+  return <PathnameContext.Provider value={value}>{children}</PathnameContext.Provider>
 }

@@ -33,11 +33,7 @@ export default function UI({
           const random = Math.random()
           const res = await setCookie('random-server', random)
           setResult(
-            random +
-              ':' +
-              res.value +
-              ':' +
-              document.cookie.match(/random-server=([^;]+)/)?.[1]
+            random + ':' + res.value + ':' + document.cookie.match(/random-server=([^;]+)/)?.[1]
           )
         }}
       >

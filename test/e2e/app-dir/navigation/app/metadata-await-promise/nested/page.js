@@ -8,9 +8,7 @@ export default function Page() {
 }
 
 async function getTitle() {
-  return await new Promise((resolve) =>
-    setTimeout(() => resolve('Async Title'), 5000)
-  )
+  return await new Promise((resolve) => setTimeout(() => resolve('Async Title'), 5000))
 }
 
 export async function generateMetadata() {

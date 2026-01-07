@@ -10,10 +10,6 @@ export default function Page() {
     redirect('/redirect/result')
   }
   return (
-    <button
-      onClick={() => React.startTransition(() => setShouldRedirect(true))}
-    >
-      Redirect!
-    </button>
+    <button onClick={() => React.startTransition(() => setShouldRedirect(true))}>Redirect!</button>
   )
 }

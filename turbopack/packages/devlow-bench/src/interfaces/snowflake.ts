@@ -46,18 +46,10 @@ export default function createInterface({
   topicName?: string
   schemaId?: number
 } = {}): Interface {
-  if (!gatewayUri)
-    throw new Error(
-      'Snowflake gateway URI is required (set SNOWFLAKE_GATEWAY_URI)'
-    )
-  if (!topicName)
-    throw new Error(
-      'Snowflake topic name is required (set SNOWFLAKE_TOPIC_NAME)'
-    )
+  if (!gatewayUri) throw new Error('Snowflake gateway URI is required (set SNOWFLAKE_GATEWAY_URI)')
+  if (!topicName) throw new Error('Snowflake topic name is required (set SNOWFLAKE_TOPIC_NAME)')
   if (!schemaId)
-    throw new Error(
-      'Snowflake schema ID is required (set SNOWFLAKE_SCHEMA_ID to a valid integer)'
-    )
+    throw new Error('Snowflake schema ID is required (set SNOWFLAKE_SCHEMA_ID to a valid integer)')
 
   const records: DevlowMetric[] = []
   const iface: Interface = {

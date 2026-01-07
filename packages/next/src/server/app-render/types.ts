@@ -1,9 +1,6 @@
 import type { LoadComponentsReturnType } from '../load-components'
 import type { ServerRuntime, SizeLimit } from '../../types'
-import type {
-  ExperimentalConfig,
-  NextConfigComplete,
-} from '../../server/config-shared'
+import type { ExperimentalConfig, NextConfigComplete } from '../../server/config-shared'
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
 import type { ParsedUrlQuery } from 'querystring'
 import type { AppPageModule } from '../route-modules/app-page/module'
@@ -115,10 +112,7 @@ export interface RenderOptsPartial {
     htmlRequestId: string,
     requestId: string
   ) => void
-  sendErrorsToBrowser?: (
-    errorsRscStream: ReadableStream<Uint8Array>,
-    htmlRequestId: string
-  ) => void
+  sendErrorsToBrowser?: (errorsRscStream: ReadableStream<Uint8Array>, htmlRequestId: string) => void
   nextExport?: boolean
   nextConfigOutput?: 'standalone' | 'export'
   onInstrumentationRequestError?: ServerOnInstrumentationRequestError

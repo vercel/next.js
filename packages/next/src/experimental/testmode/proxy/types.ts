@@ -1,10 +1,6 @@
 export interface ProxyServer {
   readonly port: number
-  fetchWith(
-    input: string | URL,
-    init?: RequestInit,
-    testData?: string
-  ): Promise<Response>
+  fetchWith(input: string | URL, init?: RequestInit, testData?: string): Promise<Response>
   close(): void
 }
 

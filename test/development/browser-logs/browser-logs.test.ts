@@ -87,9 +87,7 @@ describe(`Terminal Logging (${bundlerName})`, () => {
 
       await retry(() => {
         const logOutput = logs.join('')
-        expect(logOutput).toContain(
-          '[browser] Log from pages router client component'
-        )
+        expect(logOutput).toContain('[browser] Log from pages router client component')
       })
     })
 
@@ -253,9 +251,7 @@ describe(`Terminal Logging (${bundlerName})`, () => {
 
       await retry(() => {
         const logOutput = logs.join('')
-        expect(logOutput).toContain(
-          '[browser] Client component log from app router'
-        )
+        expect(logOutput).toContain('[browser] Client component log from app router')
       })
 
       await browser.close()

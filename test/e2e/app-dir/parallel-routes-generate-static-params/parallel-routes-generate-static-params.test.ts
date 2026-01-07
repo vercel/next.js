@@ -12,9 +12,7 @@ describe('parallel-routes-generate-static-params', () => {
     await browser.waitForElementByCss('#intercepted-slot')
 
     expect(await browser.elementByCss('h1').text()).toBe('Home Page')
-    expect(await browser.elementByCss('h2').text()).toBe(
-      'Modal for Interception Page'
-    )
+    expect(await browser.elementByCss('h2').text()).toBe('Modal for Interception Page')
 
     await browser.back()
 

@@ -9,11 +9,7 @@ describe('require-context', () => {
   it('should get correct require context when using regex filtering', async () => {
     const $ = await next.render$('/require-context-with-regex')
     expect($('pre').text()).toBe(
-      JSON.stringify([
-        './parent/file1.js',
-        './parent/file2.js',
-        './parent2/file3.js',
-      ])
+      JSON.stringify(['./parent/file1.js', './parent/file2.js', './parent2/file3.js'])
     )
   })
 

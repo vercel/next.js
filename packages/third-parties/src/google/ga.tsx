@@ -65,8 +65,6 @@ export function sendGAEvent(..._args: Object[]) {
   if (window[currDataLayerName]) {
     window[currDataLayerName].push(arguments)
   } else {
-    console.warn(
-      `@next/third-parties: GA dataLayer ${currDataLayerName} does not exist`
-    )
+    console.warn(`@next/third-parties: GA dataLayer ${currDataLayerName} does not exist`)
   }
 }

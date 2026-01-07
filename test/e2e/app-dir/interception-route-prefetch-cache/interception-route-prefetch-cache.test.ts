@@ -21,9 +21,7 @@ describe('interception-route-prefetch-cache', () => {
         expect(await browser.elementById('children').text()).toMatch(/Foo Page/)
 
         // Verify we got the right interception
-        expect(await browser.elementById('slot').text()).toMatch(
-          /Intercepted on Foo Page/
-        )
+        expect(await browser.elementById('slot').text()).toMatch(/Intercepted on Foo Page/)
       })
 
       // Go back home. At this point, the router cache should have content from /foo
@@ -44,9 +42,7 @@ describe('interception-route-prefetch-cache', () => {
       // then we'd see the content from /foo
       await retry(async () => {
         expect(await browser.elementById('children').text()).toMatch(/Bar Page/)
-        expect(await browser.elementById('slot').text()).toMatch(
-          /Intercepted on Bar Page/
-        )
+        expect(await browser.elementById('slot').text()).toMatch(/Intercepted on Bar Page/)
       })
     })
   }

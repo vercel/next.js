@@ -100,16 +100,11 @@ export default function transformer(file, api) {
     const { declaration } = node
 
     function wrapDefaultExportInWithRouter() {
-      if (
-        j(rule).find(j.CallExpression, { callee: { name: 'withRouter' } })
-          .length > 0
-      ) {
+      if (j(rule).find(j.CallExpression, { callee: { name: 'withRouter' } }).length > 0) {
         return
       }
       j(rule).replaceWith(
-        j.exportDefaultDeclaration(
-          wrapNodeInFunction(j, 'withRouter', [declaration])
-        )
+        j.exportDefaultDeclaration(wrapNodeInFunction(j, 'withRouter', [declaration]))
       )
     }
 
@@ -126,48 +121,43 @@ export default function transformer(file, api) {
         implementation = root.find(j.VariableDeclarator, { id: { name } })
       }
 
-      implementation
-        .find(j.Property, { key: { name: 'url' } })
-        .forEach((propertyRule) => {
-          const isThisPropsDestructure = j(propertyRule).closest(
-            j.VariableDeclarator,
-            {
-              init: {
-                object: {
-                  type: 'ThisExpression',
-                },
-                property: { name: 'props' },
-              },
-            }
-          )
-          if (isThisPropsDestructure.length === 0) {
-            return
-          }
-          const originalKeyValue = propertyRule.value.value.name
-          propertyRule.value.key.name = 'router'
-          wrapDefaultExportInWithRouter()
-          addWithRouterImport(j, root)
-          // If the property is reassigned to another variable we don't have to transform it
-          if (originalKeyValue !== 'url') {
-            return
-          }
-
-          propertyRule.value.value.name = 'router'
-          j(propertyRule)
-            .closest(j.BlockStatement)
-            .find(j.Identifier, (identifierNode) => {
-              if (identifierNode.type === 'JSXIdentifier') {
-                return false
-              }
-
-              if (identifierNode.name !== 'url') {
-                return false
-              }
-
-              return true
-            })
-            .replaceWith(j.identifier('router'))
+      implementation.find(j.Property, { key: { name: 'url' } }).forEach((propertyRule) => {
+        const isThisPropsDestructure = j(propertyRule).closest(j.VariableDeclarator, {
+          init: {
+            object: {
+              type: 'ThisExpression',
+            },
+            property: { name: 'props' },
+          },
         })
+        if (isThisPropsDestructure.length === 0) {
+          return
+        }
+        const originalKeyValue = propertyRule.value.value.name
+        propertyRule.value.key.name = 'router'
+        wrapDefaultExportInWithRouter()
+        addWithRouterImport(j, root)
+        // If the property is reassigned to another variable we don't have to transform it
+        if (originalKeyValue !== 'url') {
+          return
+        }
+
+        propertyRule.value.value.name = 'router'
+        j(propertyRule)
+          .closest(j.BlockStatement)
+          .find(j.Identifier, (identifierNode) => {
+            if (identifierNode.type === 'JSXIdentifier') {
+              return false
+            }
+
+            if (identifierNode.name !== 'url') {
+              return false
+            }
+
+            return true
+          })
+          .replaceWith(j.identifier('router'))
+      })
 
       // Find usage of `this.props.url`
       const thisPropsUrlUsage = getThisPropsUrlNodes(j, implementation)
@@ -233,48 +223,43 @@ export default function transformer(file, api) {
           // Find usage of `this.props.url`
           const thisPropsUrlUsage = getThisPropsUrlNodes(j, implementation)
 
-          implementation
-            .find(j.Property, { key: { name: 'url' } })
-            .forEach((propertyRule) => {
-              const isThisPropsDestructure = j(propertyRule).closest(
-                j.VariableDeclarator,
-                {
-                  init: {
-                    object: {
-                      type: 'ThisExpression',
-                    },
-                    property: { name: 'props' },
-                  },
-                }
-              )
-              if (isThisPropsDestructure.length === 0) {
-                return
-              }
-              const originalKeyValue = propertyRule.value.value.name
-              propertyRule.value.key.name = 'router'
-              wrapDefaultExportInWithRouter()
-              addWithRouterImport(j, root)
-              // If the property is reassigned to another variable we don't have to transform it
-              if (originalKeyValue !== 'url') {
-                return
-              }
-
-              propertyRule.value.value.name = 'router'
-              j(propertyRule)
-                .closest(j.BlockStatement)
-                .find(j.Identifier, (identifierNode) => {
-                  if (identifierNode.type === 'JSXIdentifier') {
-                    return false
-                  }
-
-                  if (identifierNode.name !== 'url') {
-                    return false
-                  }
-
-                  return true
-                })
-                .replaceWith(j.identifier('router'))
+          implementation.find(j.Property, { key: { name: 'url' } }).forEach((propertyRule) => {
+            const isThisPropsDestructure = j(propertyRule).closest(j.VariableDeclarator, {
+              init: {
+                object: {
+                  type: 'ThisExpression',
+                },
+                property: { name: 'props' },
+              },
             })
+            if (isThisPropsDestructure.length === 0) {
+              return
+            }
+            const originalKeyValue = propertyRule.value.value.name
+            propertyRule.value.key.name = 'router'
+            wrapDefaultExportInWithRouter()
+            addWithRouterImport(j, root)
+            // If the property is reassigned to another variable we don't have to transform it
+            if (originalKeyValue !== 'url') {
+              return
+            }
+
+            propertyRule.value.value.name = 'router'
+            j(propertyRule)
+              .closest(j.BlockStatement)
+              .find(j.Identifier, (identifierNode) => {
+                if (identifierNode.type === 'JSXIdentifier') {
+                  return false
+                }
+
+                if (identifierNode.name !== 'url') {
+                  return false
+                }
+
+                return true
+              })
+              .replaceWith(j.identifier('router'))
+          })
 
           if (thisPropsUrlUsage.length === 0) {
             return
@@ -291,17 +276,14 @@ export default function transformer(file, api) {
     j(rule)
       .find(j.Property, { key: { name: 'url' } })
       .forEach((propertyRule) => {
-        const isThisPropsDestructure = j(propertyRule).closest(
-          j.VariableDeclarator,
-          {
-            init: {
-              object: {
-                type: 'ThisExpression',
-              },
-              property: { name: 'props' },
+        const isThisPropsDestructure = j(propertyRule).closest(j.VariableDeclarator, {
+          init: {
+            object: {
+              type: 'ThisExpression',
             },
-          }
-        )
+            property: { name: 'props' },
+          },
+        })
         if (isThisPropsDestructure.length === 0) {
           return
         }
@@ -339,11 +321,7 @@ export default function transformer(file, api) {
           return
         }
         const firstArgumentName = func.params[0].name
-        const propsUrlUsage = getPropsUrlNodes(
-          j,
-          j(methodRule),
-          firstArgumentName
-        )
+        const propsUrlUsage = getPropsUrlNodes(j, j(methodRule), firstArgumentName)
         turnUrlIntoRouter(j, propsUrlUsage)
         if (propsUrlUsage.length === 0) {
           return
@@ -360,11 +338,7 @@ export default function transformer(file, api) {
           return
         }
         const firstArgumentName = func.params[0].name
-        const propsUrlUsage = getPropsUrlNodes(
-          j,
-          j(methodRule),
-          firstArgumentName
-        )
+        const propsUrlUsage = getPropsUrlNodes(j, j(methodRule), firstArgumentName)
         turnUrlIntoRouter(j, propsUrlUsage)
         if (propsUrlUsage.length === 0) {
           return

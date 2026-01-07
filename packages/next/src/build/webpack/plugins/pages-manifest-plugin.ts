@@ -1,10 +1,7 @@
 import path from 'path'
 import fs from 'fs/promises'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
-import {
-  PAGES_MANIFEST,
-  APP_PATHS_MANIFEST,
-} from '../../../shared/lib/constants'
+import { PAGES_MANIFEST, APP_PATHS_MANIFEST } from '../../../shared/lib/constants'
 import getRouteFromEntrypoint from '../../../server/get-route-from-entrypoint'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 
@@ -18,9 +15,7 @@ export let nodeServerAppPaths = {}
 // This plugin creates a pages-manifest.json from page entrypoints.
 // This is used for mapping paths like `/` to `.next/server/static/<buildid>/pages/index.js` when doing SSR
 // It's also used by next export to provide defaultPathMap
-export default class PagesManifestPlugin
-  implements webpack.WebpackPluginInstance
-{
+export default class PagesManifestPlugin implements webpack.WebpackPluginInstance {
   dev: boolean
   distDir?: string
   isEdgeRuntime: boolean
@@ -49,10 +44,7 @@ export default class PagesManifestPlugin
     const appPaths: PagesManifest = {}
 
     for (const entrypoint of entrypoints.values()) {
-      const pagePath = getRouteFromEntrypoint(
-        entrypoint.name,
-        this.appDirEnabled
-      )
+      const pagePath = getRouteFromEntrypoint(entrypoint.name, this.appDirEnabled)
 
       if (!pagePath) {
         continue
@@ -100,10 +92,7 @@ export default class PagesManifestPlugin
 
     // handle parallel compilers writing to the same
     // manifest path by merging existing manifest with new
-    const writeMergedManifest = async (
-      manifestPath: string,
-      entries: Record<string, string>
-    ) => {
+    const writeMergedManifest = async (manifestPath: string, entries: Record<string, string>) => {
       await fs.mkdir(path.dirname(manifestPath), { recursive: true })
       await fs.writeFile(
         manifestPath,
@@ -122,18 +111,13 @@ export default class PagesManifestPlugin
     }
 
     if (this.distDir) {
-      const pagesManifestPath = path.join(
-        this.distDir,
-        'server',
-        PAGES_MANIFEST
-      )
+      const pagesManifestPath = path.join(this.distDir, 'server', PAGES_MANIFEST)
       await writeMergedManifest(pagesManifestPath, {
         ...edgeServerPages,
         ...nodeServerPages,
       })
     } else {
-      const pagesManifestPath =
-        (!this.dev && !this.isEdgeRuntime ? '../' : '') + PAGES_MANIFEST
+      const pagesManifestPath = (!this.dev && !this.isEdgeRuntime ? '../' : '') + PAGES_MANIFEST
       compilation.emitAsset(
         pagesManifestPath,
         new sources.RawSource(
@@ -151,11 +135,7 @@ export default class PagesManifestPlugin
 
     if (this.appDirEnabled) {
       if (this.distDir) {
-        const appPathsManifestPath = path.join(
-          this.distDir,
-          'server',
-          APP_PATHS_MANIFEST
-        )
+        const appPathsManifestPath = path.join(this.distDir, 'server', APP_PATHS_MANIFEST)
         await writeMergedManifest(appPathsManifestPath, {
           ...edgeServerAppPaths,
           ...nodeServerAppPaths,

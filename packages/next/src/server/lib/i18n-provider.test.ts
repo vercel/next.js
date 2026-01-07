@@ -44,14 +44,10 @@ describe('I18NProvider', () => {
       {
         domain: 'example.ca',
         detectedLocale: 'en-CA',
-        expected: config.domains.find((domainLocale) =>
-          domainLocale.locales?.includes('en-CA')
-        ),
+        expected: config.domains.find((domainLocale) => domainLocale.locales?.includes('en-CA')),
       },
     ])('for domain $domain', ({ domain, detectedLocale, expected }) => {
-      expect(provider.detectDomainLocale(domain, detectedLocale)).toEqual(
-        expected
-      )
+      expect(provider.detectDomainLocale(domain, detectedLocale)).toEqual(expected)
     })
   })
 

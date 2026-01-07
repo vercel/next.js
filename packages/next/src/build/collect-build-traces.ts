@@ -71,15 +71,7 @@ function shouldIgnore(
   for (const parent of reason.parents.values()) {
     if (!children.has(parent)) {
       children.add(parent)
-      if (
-        !shouldIgnore(
-          parent,
-          serverIgnoreFn,
-          reasons,
-          cachedIgnoreFiles,
-          children
-        )
-      ) {
+      if (!shouldIgnore(parent, serverIgnoreFn, reasons, cachedIgnoreFiles, children)) {
         allParentsIgnored = false
         break
       }
@@ -113,8 +105,7 @@ export async function collectBuildTraces({
   const startTime = Date.now()
   debug('starting build traces')
 
-  const { outputFileTracingIncludes = {}, outputFileTracingExcludes = {} } =
-    config
+  const { outputFileTracingIncludes = {}, outputFileTracingExcludes = {} } = config
   const excludeGlobKeys = Object.keys(outputFileTracingExcludes)
   const includeGlobKeys = Object.keys(outputFileTracingIncludes)
 
@@ -123,14 +114,8 @@ export async function collectBuildTraces({
       isTurbotrace: 'false', // TODO(arlyon): remove this
     })
     .traceAsyncFn(async () => {
-      const nextServerTraceOutput = path.join(
-        distDir,
-        'next-server.js.nft.json'
-      )
-      const nextMinimalTraceOutput = path.join(
-        distDir,
-        'next-minimal-server.js.nft.json'
-      )
+      const nextServerTraceOutput = path.join(distDir, 'next-server.js.nft.json')
+      const nextMinimalTraceOutput = path.join(distDir, 'next-minimal-server.js.nft.json')
       const root = outputFileTracingRoot
 
       // Under standalone mode, we need to trace the extra IPC server and
@@ -149,9 +134,7 @@ export async function collectBuildTraces({
       if (cacheHandler) {
         sharedEntriesSet.push(
           require.resolve(
-            path.isAbsolute(cacheHandler)
-              ? cacheHandler
-              : path.join(dir, cacheHandler)
+            path.isAbsolute(cacheHandler) ? cacheHandler : path.join(dir, cacheHandler)
           )
         )
       }
@@ -159,18 +142,12 @@ export async function collectBuildTraces({
       // Under standalone mode, we need to ensure that the cache entry debug
       // handler is traced so it can be copied. This is only used for testing,
       // and is not used in production.
-      if (
-        process.env.__NEXT_TEST_MODE &&
-        process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS
-      ) {
+      if (process.env.__NEXT_TEST_MODE && process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS) {
         sharedEntriesSet.push(
           require.resolve(
             path.isAbsolute(process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS)
               ? process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS
-              : path.join(
-                  dir,
-                  process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS
-                )
+              : path.join(dir, process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS)
           )
         )
       }
@@ -180,9 +157,7 @@ export async function collectBuildTraces({
           if (handlerPath) {
             sharedEntriesSet.push(
               require.resolve(
-                path.isAbsolute(handlerPath)
-                  ? handlerPath
-                  : path.join(dir, handlerPath)
+                path.isAbsolute(handlerPath) ? handlerPath : path.join(dir, handlerPath)
               )
             )
           }
@@ -273,9 +248,7 @@ export async function collectBuildTraces({
       const minimalServerTracedFiles = new Set<string>()
 
       function addToTracedFiles(base: string, file: string, dest: Set<string>) {
-        dest.add(
-          path.relative(distDir, path.join(base, file)).replace(/\\/g, '/')
-        )
+        dest.add(path.relative(distDir, path.join(base, file)).replace(/\\/g, '/'))
       }
 
       if (isStandalone) {
@@ -320,9 +293,7 @@ export async function collectBuildTraces({
             } catch (e) {
               if (
                 isError(e) &&
-                (e.code === 'EINVAL' ||
-                  e.code === 'ENOENT' ||
-                  e.code === 'UNKNOWN')
+                (e.code === 'EINVAL' || e.code === 'ENOENT' || e.code === 'UNKNOWN')
               ) {
                 return null
               }
@@ -376,9 +347,7 @@ export async function collectBuildTraces({
         ] as Array<[string[], Set<string>]>) {
           for (const file of entries) {
             const curFiles = [
-              ...(parentFilesMap
-                .get(path.relative(outputFileTracingRoot, file))
-                ?.keys() || []),
+              ...(parentFilesMap.get(path.relative(outputFileTracingRoot, file))?.keys() || []),
             ]
             tracedFiles.add(path.relative(distDir, file).replace(/\\/g, '/'))
 
@@ -388,18 +357,14 @@ export async function collectBuildTraces({
               if (
                 !shouldIgnore(
                   curFile,
-                  tracedFiles === minimalServerTracedFiles
-                    ? minimalServerIgnoreFn
-                    : serverIgnoreFn,
+                  tracedFiles === minimalServerTracedFiles ? minimalServerIgnoreFn : serverIgnoreFn,
                   reasons,
                   tracedFiles === minimalServerTracedFiles
                     ? cachedLookupIgnoreMinimal
                     : cachedLookupIgnore
                 )
               ) {
-                tracedFiles.add(
-                  path.relative(distDir, filePath).replace(/\\/g, '/')
-                )
+                tracedFiles.add(path.relative(distDir, filePath).replace(/\\/g, '/'))
               }
             }
           }
@@ -410,96 +375,71 @@ export async function collectBuildTraces({
         const cachedLookupIgnoreRoutes = new Map<string, boolean>()
 
         await Promise.all(
-          [
-            ...(entryNameFilesMap
-              ? Object.entries(entryNameFilesMap)
-              : new Map()),
-          ].map(async ([entryName, entryNameFiles]) => {
-            const isApp = entryName.startsWith('app/')
-            const isPages = entryName.startsWith('pages/')
-            let route = entryName
-            if (isApp) {
-              route = normalizeAppPath(route.substring('app'.length))
-            }
-            if (isPages) {
-              route = normalizePagePath(route.substring('pages'.length))
-            }
+          [...(entryNameFilesMap ? Object.entries(entryNameFilesMap) : new Map())].map(
+            async ([entryName, entryNameFiles]) => {
+              const isApp = entryName.startsWith('app/')
+              const isPages = entryName.startsWith('pages/')
+              let route = entryName
+              if (isApp) {
+                route = normalizeAppPath(route.substring('app'.length))
+              }
+              if (isPages) {
+                route = normalizePagePath(route.substring('pages'.length))
+              }
 
-            // we don't need to trace for automatically statically optimized
-            // pages as they don't have server bundles, note there is
-            // the caveat with flying shuttle mode as it needs this for
-            // detecting changed entries
-            if (staticPages.includes(route)) {
-              return
-            }
-            const entryOutputPath = path.join(
-              distDir,
-              'server',
-              `${entryName}.js`
-            )
-            const traceOutputPath = `${entryOutputPath}.nft.json`
-            const existingTrace = JSON.parse(
-              await fs.readFile(traceOutputPath, 'utf8')
-            ) as {
-              version: number
-              files: string[]
-              fileHashes: Record<string, string>
-            }
-            const traceOutputDir = path.dirname(traceOutputPath)
-            const curTracedFiles = new Set<string>()
+              // we don't need to trace for automatically statically optimized
+              // pages as they don't have server bundles, note there is
+              // the caveat with flying shuttle mode as it needs this for
+              // detecting changed entries
+              if (staticPages.includes(route)) {
+                return
+              }
+              const entryOutputPath = path.join(distDir, 'server', `${entryName}.js`)
+              const traceOutputPath = `${entryOutputPath}.nft.json`
+              const existingTrace = JSON.parse(await fs.readFile(traceOutputPath, 'utf8')) as {
+                version: number
+                files: string[]
+                fileHashes: Record<string, string>
+              }
+              const traceOutputDir = path.dirname(traceOutputPath)
+              const curTracedFiles = new Set<string>()
 
-            for (const file of [...entryNameFiles, entryOutputPath]) {
-              const curFiles = [
-                ...(parentFilesMap
-                  .get(path.relative(outputFileTracingRoot, file))
-                  ?.keys() || []),
-              ]
-              for (const curFile of curFiles || []) {
-                if (
-                  !shouldIgnore(
-                    curFile,
-                    routeIgnoreFn,
-                    reasons,
-                    cachedLookupIgnoreRoutes
-                  )
-                ) {
-                  const filePath = path.join(outputFileTracingRoot, curFile)
-                  const outputFile = path
-                    .relative(traceOutputDir, filePath)
-                    .replace(/\\/g, '/')
-                  curTracedFiles.add(outputFile)
+              for (const file of [...entryNameFiles, entryOutputPath]) {
+                const curFiles = [
+                  ...(parentFilesMap.get(path.relative(outputFileTracingRoot, file))?.keys() || []),
+                ]
+                for (const curFile of curFiles || []) {
+                  if (!shouldIgnore(curFile, routeIgnoreFn, reasons, cachedLookupIgnoreRoutes)) {
+                    const filePath = path.join(outputFileTracingRoot, curFile)
+                    const outputFile = path.relative(traceOutputDir, filePath).replace(/\\/g, '/')
+                    curTracedFiles.add(outputFile)
+                  }
                 }
               }
-            }
 
-            for (const file of existingTrace.files || []) {
-              curTracedFiles.add(file)
-            }
+              for (const file of existingTrace.files || []) {
+                curTracedFiles.add(file)
+              }
 
-            await fs.writeFile(
-              traceOutputPath,
-              JSON.stringify({
-                ...existingTrace,
-                files: [...curTracedFiles].sort(),
-              })
-            )
-          })
+              await fs.writeFile(
+                traceOutputPath,
+                JSON.stringify({
+                  ...existingTrace,
+                  files: [...curTracedFiles].sort(),
+                })
+              )
+            }
+          )
         )
       }
 
       const moduleTypes = ['app-page', 'pages']
 
       for (const type of moduleTypes) {
-        const modulePath = require.resolve(
-          `next/dist/server/route-modules/${type}/module.compiled`
-        )
+        const modulePath = require.resolve(`next/dist/server/route-modules/${type}/module.compiled`)
         const relativeModulePath = path.relative(root, modulePath)
 
-        const contextDir = path.join(
-          path.dirname(modulePath),
-          'vendored',
-          'contexts'
-        )
+        const contextDir = path.join(path.dirname(modulePath), 'vendored', 'contexts')
 
         for (const item of await fs.readdir(contextDir)) {
           const itemPath = path.relative(root, path.join(contextDir, item))
@@ -514,9 +454,7 @@ export async function collectBuildTraces({
 
       const serverTracedFilesSorted = Array.from(serverTracedFiles)
       serverTracedFilesSorted.sort()
-      const minimalServerTracedFilesSorted = Array.from(
-        minimalServerTracedFiles
-      )
+      const minimalServerTracedFilesSorted = Array.from(minimalServerTracedFiles)
       minimalServerTracedFilesSorted.sort()
 
       await Promise.all([
@@ -546,127 +484,114 @@ export async function collectBuildTraces({
   // apply outputFileTracingIncludes/outputFileTracingExcludes after runTurbotrace
   const includeExcludeSpan = nextBuildSpan.traceChild('apply-include-excludes')
   await includeExcludeSpan.traceAsyncFn(async () => {
-    const globOrig =
-      require('next/dist/compiled/glob') as typeof import('next/dist/compiled/glob')
+    const globOrig = require('next/dist/compiled/glob') as typeof import('next/dist/compiled/glob')
     const glob = (pattern: string): Promise<string[]> => {
       return new Promise((resolve, reject) => {
-        globOrig(
-          pattern,
-          { cwd: dir, nodir: true, dot: true },
-          (err, files) => {
-            if (err) {
-              return reject(err)
-            }
-            resolve(files)
+        globOrig(pattern, { cwd: dir, nodir: true, dot: true }, (err, files) => {
+          if (err) {
+            return reject(err)
           }
-        )
+          resolve(files)
+        })
       })
     }
 
     const { entryNameFilesMap } = buildTraceContext?.chunksTrace || {}
 
     await Promise.all(
-      [
-        ...(entryNameFilesMap ? Object.entries(entryNameFilesMap) : new Map()),
-      ].map(async ([entryName]) => {
-        const isApp = entryName.startsWith('app/')
-        const isPages = entryName.startsWith('pages/')
-        let route = entryName
-        if (isApp) {
-          route = normalizeAppPath(entryName)
-        }
-        if (isPages) {
-          route = normalizePagePath(entryName)
-        }
+      [...(entryNameFilesMap ? Object.entries(entryNameFilesMap) : new Map())].map(
+        async ([entryName]) => {
+          const isApp = entryName.startsWith('app/')
+          const isPages = entryName.startsWith('pages/')
+          let route = entryName
+          if (isApp) {
+            route = normalizeAppPath(entryName)
+          }
+          if (isPages) {
+            route = normalizePagePath(entryName)
+          }
 
-        if (staticPages.includes(route)) {
-          return
-        }
+          if (staticPages.includes(route)) {
+            return
+          }
 
-        // edge routes have no trace files
-        if (edgeRuntimeRoutes.hasOwnProperty(route)) {
-          return
-        }
+          // edge routes have no trace files
+          if (edgeRuntimeRoutes.hasOwnProperty(route)) {
+            return
+          }
 
-        const combinedIncludes = new Set<string>()
-        const combinedExcludes = new Set<string>()
-        for (const curGlob of includeGlobKeys) {
-          const isMatch = picomatch(curGlob, { dot: true, contains: true })
-          if (isMatch(route)) {
-            for (const include of outputFileTracingIncludes[curGlob]) {
-              combinedIncludes.add(include.replace(/\\/g, '/'))
+          const combinedIncludes = new Set<string>()
+          const combinedExcludes = new Set<string>()
+          for (const curGlob of includeGlobKeys) {
+            const isMatch = picomatch(curGlob, { dot: true, contains: true })
+            if (isMatch(route)) {
+              for (const include of outputFileTracingIncludes[curGlob]) {
+                combinedIncludes.add(include.replace(/\\/g, '/'))
+              }
             }
           }
-        }
 
-        for (const curGlob of excludeGlobKeys) {
-          const isMatch = picomatch(curGlob, { dot: true, contains: true })
-          if (isMatch(route)) {
-            for (const exclude of outputFileTracingExcludes[curGlob]) {
-              combinedExcludes.add(exclude)
+          for (const curGlob of excludeGlobKeys) {
+            const isMatch = picomatch(curGlob, { dot: true, contains: true })
+            if (isMatch(route)) {
+              for (const exclude of outputFileTracingExcludes[curGlob]) {
+                combinedExcludes.add(exclude)
+              }
             }
           }
-        }
 
-        if (!combinedIncludes?.size && !combinedExcludes?.size) {
-          return
-        }
+          if (!combinedIncludes?.size && !combinedExcludes?.size) {
+            return
+          }
 
-        const traceFile = path.join(
-          distDir,
-          `server`,
-          `${entryName}.js.nft.json`
-        )
-        const pageDir = path.dirname(traceFile)
-        const traceContent = JSON.parse(await fs.readFile(traceFile, 'utf8'))
-        const includes: string[] = []
-        const resolvedTraceIncludes = new Map<string, string[]>()
+          const traceFile = path.join(distDir, `server`, `${entryName}.js.nft.json`)
+          const pageDir = path.dirname(traceFile)
+          const traceContent = JSON.parse(await fs.readFile(traceFile, 'utf8'))
+          const includes: string[] = []
+          const resolvedTraceIncludes = new Map<string, string[]>()
 
-        if (combinedIncludes?.size) {
-          await Promise.all(
-            [...combinedIncludes].map(async (includeGlob) => {
-              const results = await glob(includeGlob)
-              const resolvedInclude = resolvedTraceIncludes.get(
-                includeGlob
-              ) || [
-                ...results.map((file) => {
-                  return path.relative(pageDir, path.join(dir, file))
-                }),
-              ]
-              includes.push(...resolvedInclude)
-              resolvedTraceIncludes.set(includeGlob, resolvedInclude)
+          if (combinedIncludes?.size) {
+            await Promise.all(
+              [...combinedIncludes].map(async (includeGlob) => {
+                const results = await glob(includeGlob)
+                const resolvedInclude = resolvedTraceIncludes.get(includeGlob) || [
+                  ...results.map((file) => {
+                    return path.relative(pageDir, path.join(dir, file))
+                  }),
+                ]
+                includes.push(...resolvedInclude)
+                resolvedTraceIncludes.set(includeGlob, resolvedInclude)
+              })
+            )
+          }
+          const combined = new Set([...traceContent.files, ...includes])
+
+          if (combinedExcludes?.size) {
+            const resolvedGlobs = [...combinedExcludes].map((exclude) => path.join(dir, exclude))
+
+            // pre compile before forEach
+            const isMatch = picomatch(resolvedGlobs, {
+              dot: true,
+              contains: true,
+            })
+
+            combined.forEach((file) => {
+              if (isMatch(path.join(pageDir, file))) {
+                combined.delete(file)
+              }
+            })
+          }
+
+          // overwrite trace file with custom includes/excludes
+          await fs.writeFile(
+            traceFile,
+            JSON.stringify({
+              version: traceContent.version,
+              files: [...combined],
             })
           )
         }
-        const combined = new Set([...traceContent.files, ...includes])
-
-        if (combinedExcludes?.size) {
-          const resolvedGlobs = [...combinedExcludes].map((exclude) =>
-            path.join(dir, exclude)
-          )
-
-          // pre compile before forEach
-          const isMatch = picomatch(resolvedGlobs, {
-            dot: true,
-            contains: true,
-          })
-
-          combined.forEach((file) => {
-            if (isMatch(path.join(pageDir, file))) {
-              combined.delete(file)
-            }
-          })
-        }
-
-        // overwrite trace file with custom includes/excludes
-        await fs.writeFile(
-          traceFile,
-          JSON.stringify({
-            version: traceContent.version,
-            files: [...combined],
-          })
-        )
-      })
+      )
     )
   })
 

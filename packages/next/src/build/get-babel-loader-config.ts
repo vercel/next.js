@@ -25,8 +25,7 @@ const getReactCompilerPlugins = (
   const environment: Pick<EnvironmentConfig, 'enableNameAnonymousFunctions'> = {
     enableNameAnonymousFunctions: isDev,
   }
-  const options: ReactCompilerOptions =
-    typeof maybeOptions === 'boolean' ? {} : maybeOptions
+  const options: ReactCompilerOptions = typeof maybeOptions === 'boolean' ? {} : maybeOptions
   const compilerOptions: JSONValue = {
     ...options,
     environment,
@@ -61,11 +60,7 @@ const getBabelLoader = (
       development: dev,
       hasReactRefresh: dev && isClient,
       hasJsxRuntime: true,
-      reactCompilerPlugins: getReactCompilerPlugins(
-        reactCompilerOptions,
-        isServer,
-        dev
-      ),
+      reactCompilerPlugins: getReactCompilerPlugins(reactCompilerOptions, isServer, dev),
       reactCompilerExclude,
     }
     return {
@@ -90,11 +85,7 @@ const getReactCompilerLoader = (
   reactCompilerExclude: ((excludePath: string) => boolean) | undefined,
   isDev: boolean
 ) => {
-  const reactCompilerPlugins = getReactCompilerPlugins(
-    reactCompilerOptions,
-    isServer,
-    isDev
-  )
+  const reactCompilerPlugins = getReactCompilerPlugins(reactCompilerOptions, isServer, isDev)
   if (!reactCompilerPlugins) {
     return undefined
   }

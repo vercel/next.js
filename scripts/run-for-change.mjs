@@ -60,9 +60,7 @@ async function main() {
   const { branchName, remoteUrl, isCanary } = await getGitInfo()
   const diffRevision = await getDiffRevision()
 
-  const changesResult = await exec(
-    `git diff ${diffRevision} --name-only`
-  ).catch((err) => {
+  const changesResult = await exec(`git diff ${diffRevision} --name-only`).catch((err) => {
     console.error(err)
     return { stdout: '' }
   })
@@ -76,19 +74,13 @@ async function main() {
   const alwaysCanary = process.argv.indexOf('--always-canary') > -1
 
   if (!type) {
-    throw new Error(
-      `Missing "--type" flag, e.g. "node run-for-change.mjs --type docs"`
-    )
+    throw new Error(`Missing "--type" flag, e.g. "node run-for-change.mjs --type docs"`)
   }
   const execArgIndex = process.argv.indexOf('--exec')
-  const listChangedDirectories = process.argv.includes(
-    '--listChangedDirectories'
-  )
+  const listChangedDirectories = process.argv.includes('--listChangedDirectories')
 
   if (execArgIndex < 0 && !listChangedDirectories) {
-    throw new Error(
-      'Invalid: must provide either "--exec" or "--listChangedDirectories" flag'
-    )
+    throw new Error('Invalid: must provide either "--exec" or "--listChangedDirectories" flag')
   }
   let hasMatchingChange = false
   const changeItems = CHANGE_ITEM_GROUPS[type]

@@ -15,9 +15,7 @@ describe('parallel-routes-and-interception-basepath', () => {
   })
   it('should show normal route via direct link with basepath when parallel intercepted slot exist', async () => {
     const browser = await next.browser('/base/nested')
-    const nestedPageFull = await browser
-      .elementByCss('#nested-page-full')
-      .text()
+    const nestedPageFull = await browser.elementByCss('#nested-page-full').text()
     expect(nestedPageFull).toBe('Nested Page Full')
   })
 })

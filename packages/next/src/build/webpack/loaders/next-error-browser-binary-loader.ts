@@ -1,8 +1,6 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 
-export default function nextErrorBrowserBinaryLoader(
-  this: webpack.LoaderContext<any>
-) {
+export default function nextErrorBrowserBinaryLoader(this: webpack.LoaderContext<any>) {
   const { resourcePath, rootContext } = this
   const relativePath = resourcePath.slice(rootContext.length + 1)
   throw new Error(

@@ -68,17 +68,11 @@ describe('DevPagesRouteMatcherProvider', () => {
       async ({ files, route }) => {
         const reader: FileReader = {
           read: jest.fn(() => [
-            ...extensions.map((ext) =>
-              normalizeSlashes(`${dir}/api/other/page.${ext}`)
-            ),
+            ...extensions.map((ext) => normalizeSlashes(`${dir}/api/other/page.${ext}`)),
             ...files,
           ]),
         }
-        const matcher = new DevPagesRouteMatcherProvider(
-          dir,
-          extensions,
-          reader
-        )
+        const matcher = new DevPagesRouteMatcherProvider(dir, extensions, reader)
         const matchers = await matcher.matchers()
         expect(matchers).toHaveLength(1)
         expect(reader.read).toHaveBeenCalledWith(dir)

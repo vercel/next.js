@@ -61,9 +61,7 @@ function setUpEnv(dir: string) {
 export default function nextJest(options: { dir?: string } = {}) {
   // createJestConfig
   return (
-    customJestConfig?:
-      | Config.InitialProjectOptions
-      | (() => Promise<Config.InitialProjectOptions>)
+    customJestConfig?: Config.InitialProjectOptions | (() => Promise<Config.InitialProjectOptions>)
   ) => {
     // Function that is provided as the module.exports of jest.config.js
     // Will be called and awaited by Jest
@@ -92,9 +90,7 @@ export default function nextJest(options: { dir?: string } = {}) {
       }
       // Ensure provided async config is supported
       const resolvedJestConfig =
-        (typeof customJestConfig === 'function'
-          ? await customJestConfig()
-          : customJestConfig) ?? {}
+        (typeof customJestConfig === 'function' ? await customJestConfig() : customJestConfig) ?? {}
 
       // eagerly load swc bindings instead of waiting for transform calls
       await installBindings(nextConfig?.experimental?.useWasmBinary)
@@ -123,16 +119,13 @@ export default function nextJest(options: { dir?: string } = {}) {
         moduleNameMapper: {
           // Handle CSS imports (with CSS modules)
           // https://jestjs.io/docs/webpack#mocking-css-modules
-          '^.+\\.module\\.(css|sass|scss)$':
-            require.resolve('./object-proxy.js'),
+          '^.+\\.module\\.(css|sass|scss)$': require.resolve('./object-proxy.js'),
 
           // Handle CSS imports (without CSS modules)
           '^.+\\.(css|sass|scss)$': require.resolve('./__mocks__/styleMock.js'),
 
           // Handle image imports
-          '^.+\\.(png|jpg|jpeg|gif|webp|avif|ico|bmp)$': require.resolve(
-            `./__mocks__/fileMock.js`
-          ),
+          '^.+\\.(png|jpg|jpeg|gif|webp|avif|ico|bmp)$': require.resolve(`./__mocks__/fileMock.js`),
 
           // Keep .svg to it's own rule to make overriding easy
           '^.+\\.(svg)$': require.resolve(`./__mocks__/fileMock.js`),

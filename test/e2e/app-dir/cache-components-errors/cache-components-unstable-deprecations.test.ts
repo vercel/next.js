@@ -14,26 +14,18 @@ describe('Cache Components Errors', () => {
       if (isNextDev) {
         await next.browser('/life')
 
-        expect(next.cliOutput).toContain(
-          'Error: `unstable_cacheLife` was recently stabilized'
-        )
+        expect(next.cliOutput).toContain('Error: `unstable_cacheLife` was recently stabilized')
       } else {
-        expect(next.cliOutput).toContain(
-          'Error: `unstable_cacheLife` was recently stabilized'
-        )
+        expect(next.cliOutput).toContain('Error: `unstable_cacheLife` was recently stabilized')
       }
     })
     it('warns if you use `cacheTag` through `unstable_cacheTag`', async () => {
       if (isNextDev) {
         await next.browser('/tag')
 
-        expect(next.cliOutput).toContain(
-          'Error: `unstable_cacheTag` was recently stabilized'
-        )
+        expect(next.cliOutput).toContain('Error: `unstable_cacheTag` was recently stabilized')
       } else {
-        expect(next.cliOutput).toContain(
-          'Error: `unstable_cacheTag` was recently stabilized'
-        )
+        expect(next.cliOutput).toContain('Error: `unstable_cacheTag` was recently stabilized')
       }
     })
   })

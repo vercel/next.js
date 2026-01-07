@@ -128,48 +128,33 @@ export default (next: NextInstance) => {
     })
 
     it('should prevent URI based XSS attacks', async () => {
-      const browser = await webdriver(
-        next.appPort,
-        '/\',document.body.innerHTML="INJECTED",\''
-      )
+      const browser = await webdriver(next.appPort, '/\',document.body.innerHTML="INJECTED",\'')
       await checkInjected(browser)
       await browser.close()
     })
 
     it('should prevent URI based XSS attacks using single quotes', async () => {
-      const browser = await webdriver(
-        next.appPort,
-        `/'-(document.body.innerHTML='INJECTED')-'`
-      )
+      const browser = await webdriver(next.appPort, `/'-(document.body.innerHTML='INJECTED')-'`)
       await checkInjected(browser)
       await browser.close()
     })
 
     it('should prevent URI based XSS attacks using double quotes', async () => {
-      const browser = await webdriver(
-        next.appPort,
-        `/"-(document.body.innerHTML='INJECTED')-"`
-      )
+      const browser = await webdriver(next.appPort, `/"-(document.body.innerHTML='INJECTED')-"`)
       await checkInjected(browser)
 
       await browser.close()
     })
 
     it('should prevent URI based XSS attacks using semicolons and double quotes', async () => {
-      const browser = await webdriver(
-        next.appPort,
-        `/;"-(document.body.innerHTML='INJECTED')-"`
-      )
+      const browser = await webdriver(next.appPort, `/;"-(document.body.innerHTML='INJECTED')-"`)
       await checkInjected(browser)
 
       await browser.close()
     })
 
     it('should prevent URI based XSS attacks using semicolons and single quotes', async () => {
-      const browser = await webdriver(
-        next.appPort,
-        `/;'-(document.body.innerHTML='INJECTED')-'`
-      )
+      const browser = await webdriver(next.appPort, `/;'-(document.body.innerHTML='INJECTED')-'`)
       await checkInjected(browser)
 
       await browser.close()
@@ -246,9 +231,7 @@ export default (next: NextInstance) => {
         }
       )
 
-      const { pathname, hostname, search } = new URL(
-        res.headers.get('location') || ''
-      )
+      const { pathname, hostname, search } = new URL(res.headers.get('location') || '')
       expect(res.status).toBe(308)
       expect(pathname).toBe('/trailing-redirect')
       expect(hostname).toBeOneOf(['localhost', '127.0.0.1'])
@@ -283,9 +266,7 @@ export default (next: NextInstance) => {
         }
       )
 
-      const { pathname, hostname, search } = new URL(
-        res.headers.get('location') || ''
-      )
+      const { pathname, hostname, search } = new URL(res.headers.get('location') || '')
       expect(res.status).toBe(307)
       expect(pathname).toBe('/about')
       expect(search).toBe('?foo=%2Fgoogle.com')
@@ -294,14 +275,9 @@ export default (next: NextInstance) => {
     })
 
     it('should handle encoded / value for trailing slash correctly', async () => {
-      const res = await fetchViaHTTP(
-        next.appPort,
-        '/%2fexample.com/',
-        undefined,
-        {
-          redirect: 'manual',
-        }
-      )
+      const res = await fetchViaHTTP(next.appPort, '/%2fexample.com/', undefined, {
+        redirect: 'manual',
+      })
 
       const { pathname, hostname } = new URL(res.headers.get('location') || '')
       expect(res.status).toBe(308)

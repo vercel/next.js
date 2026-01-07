@@ -1,13 +1,6 @@
 /* eslint-env jest */
 import { join } from 'path'
-import {
-  killApp,
-  findPort,
-  launchApp,
-  fetchViaHTTP,
-  nextBuild,
-  nextStart,
-} from 'next-test-utils'
+import { killApp, findPort, launchApp, fetchViaHTTP, nextBuild, nextStart } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
 let appPort
@@ -59,17 +52,14 @@ describe('API routes', () => {
 
     runTests()
   })
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      beforeAll(async () => {
-        await nextBuild(appDir)
-        appPort = await findPort()
-        app = await nextStart(appDir, appPort)
-      })
-      afterAll(() => killApp(app))
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
+    beforeAll(async () => {
+      await nextBuild(appDir)
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(() => killApp(app))
 
-      runTests()
-    }
-  )
+    runTests()
+  })
 })

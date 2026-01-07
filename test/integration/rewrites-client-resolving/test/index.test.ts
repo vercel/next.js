@@ -2,13 +2,7 @@
 
 import { join } from 'path'
 import webdriver from 'next-webdriver'
-import {
-  killApp,
-  findPort,
-  nextBuild,
-  nextStart,
-  launchApp,
-} from 'next-test-utils'
+import { killApp, findPort, nextBuild, nextStart, launchApp } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
 let appPort
@@ -36,9 +30,7 @@ const runTests = () => {
     await browser.elementByCss('#category-link').click()
     await browser.waitForElementByCss('#category')
 
-    expect(await browser.elementByCss('#category').text()).toBe(
-      'category: first'
-    )
+    expect(await browser.elementByCss('#category').text()).toBe('category: first')
   })
 
   it('should break rewrites chain when dynamic catch-all route multi-level matches', async () => {
@@ -46,9 +38,7 @@ const runTests = () => {
     await browser.elementByCss('#category-link-again').click()
     await browser.waitForElementByCss('#category')
 
-    expect(await browser.elementByCss('#category').text()).toBe(
-      'category: hello/world'
-    )
+    expect(await browser.elementByCss('#category').text()).toBe('category: hello/world')
   })
 
   it('should break rewrites chain after matching /category', async () => {
@@ -61,29 +51,23 @@ const runTests = () => {
 }
 
 describe('Client-side rewrites resolving', () => {
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
-    'development mode',
-    () => {
-      beforeAll(async () => {
-        appPort = await findPort()
-        app = await launchApp(appDir, appPort)
-      })
-      afterAll(() => killApp(app))
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
+    beforeAll(async () => {
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(() => killApp(app))
 
-      runTests()
-    }
-  )
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      beforeAll(async () => {
-        appPort = await findPort()
-        await nextBuild(appDir)
-        app = await nextStart(appDir, appPort)
-      })
-      afterAll(() => killApp(app))
+    runTests()
+  })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
+    beforeAll(async () => {
+      appPort = await findPort()
+      await nextBuild(appDir)
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(() => killApp(app))
 
-      runTests()
-    }
-  )
+    runTests()
+  })
 })

@@ -1,10 +1,4 @@
-import {
-  startTransition,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from 'react'
+import { startTransition, useCallback, useEffect, useRef, useState } from 'react'
 import { LeftArrow } from '../../../icons/left-arrow'
 import { RightArrow } from '../../../icons/right-arrow'
 import type { ReadyRuntimeError } from '../../../utils/get-error-by-type'
@@ -34,9 +28,7 @@ export function ErrorOverlayPagination({
     () =>
       startTransition(() => {
         if (activeIdx < runtimeErrors.length - 1) {
-          onActiveIndexChange(
-            Math.max(0, Math.min(runtimeErrors.length - 1, activeIdx + 1))
-          )
+          onActiveIndexChange(Math.max(0, Math.min(runtimeErrors.length - 1, activeIdx + 1)))
         }
       }),
     [activeIdx, runtimeErrors.length, onActiveIndexChange]
@@ -107,10 +99,7 @@ export function ErrorOverlayPagination({
   }, [nav, activeIdx, runtimeErrors.length])
 
   return (
-    <nav
-      className="error-overlay-pagination dialog-exclude-closing-from-outside-click"
-      ref={onNav}
-    >
+    <nav className="error-overlay-pagination dialog-exclude-closing-from-outside-click" ref={onNav}>
       <button
         ref={buttonLeft}
         type="button"
@@ -120,10 +109,7 @@ export function ErrorOverlayPagination({
         data-nextjs-dialog-error-previous
         className="error-overlay-pagination-button"
       >
-        <LeftArrow
-          title="previous"
-          className="error-overlay-pagination-button-icon"
-        />
+        <LeftArrow title="previous" className="error-overlay-pagination-button-icon" />
       </button>
       <div className="error-overlay-pagination-count">
         <span data-nextjs-dialog-error-index={activeIdx}>{activeIdx + 1}/</span>
@@ -142,10 +128,7 @@ export function ErrorOverlayPagination({
         data-nextjs-dialog-error-next
         className="error-overlay-pagination-button"
       >
-        <RightArrow
-          title="next"
-          className="error-overlay-pagination-button-icon"
-        />
+        <RightArrow title="next" className="error-overlay-pagination-button-icon" />
       </button>
     </nav>
   )

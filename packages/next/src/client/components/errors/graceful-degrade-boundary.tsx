@@ -19,10 +19,7 @@ function getDomNodeAttributes(node: HTMLElement): Record<string, string> {
   return result
 }
 
-export class GracefulDegradeBoundary extends Component<
-  ErrorBoundaryProps,
-  ErrorBoundaryState
-> {
+export class GracefulDegradeBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   private rootHtml: string
   private htmlAttributes: Record<string, string>
   private htmlRef: React.RefObject<HTMLHtmlElement | null>

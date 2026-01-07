@@ -11,10 +11,7 @@ describe('custom-app-hmr', () => {
     await browser.eval('window.hmrConstantValue = "should-not-change"')
 
     const customAppContent = await next.readFile(customAppFilePath)
-    const newCustomAppContent = customAppContent.replace(
-      'hmr text origin',
-      'hmr text changed'
-    )
+    const newCustomAppContent = customAppContent.replace('hmr text origin', 'hmr text changed')
     await next.patchFile(customAppFilePath, newCustomAppContent)
 
     await check(async () => {

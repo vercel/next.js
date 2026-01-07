@@ -55,9 +55,7 @@ describe('app dir - prefetching', () => {
 
     expect(timeToComplete).toBeLessThan(1000)
 
-    expect(await browser.elementByCss('#dashboard-layout').text()).toBe(
-      'Dashboard Hello World'
-    )
+    expect(await browser.elementByCss('#dashboard-layout').text()).toBe('Dashboard Hello World')
 
     await browser.waitForElementByCss('#dashboard-page')
 
@@ -184,8 +182,7 @@ describe('app dir - prefetching', () => {
       await waitFor(500)
       expect(
         requests.filter(
-          (request) =>
-            request === '/static-page' || request.includes(NEXT_RSC_UNION_QUERY)
+          (request) => request === '/static-page' || request.includes(NEXT_RSC_UNION_QUERY)
         ).length
       ).toBe(0)
     }
@@ -198,9 +195,7 @@ describe('app dir - prefetching', () => {
       .click()
       .waitForElementByCss('#prefetch-false-page-result')
 
-    expect(
-      await browser.elementByCss('#prefetch-false-page-result').text()
-    ).toBe('Result page')
+    expect(await browser.elementByCss('#prefetch-false-page-result').text()).toBe('Result page')
   })
 
   it('should not need to prefetch the layout if the prefetch is initiated at the same segment', async () => {
@@ -211,10 +206,7 @@ describe('app dir - prefetching', () => {
           children: [
             'prefetch-auto',
             {
-              children: [
-                ['slug', 'justputit', 'd'],
-                { children: ['__PAGE__', {}] },
-              ],
+              children: [['slug', 'justputit', 'd'], { children: ['__PAGE__', {}] }],
             },
           ],
         },
@@ -246,10 +238,7 @@ describe('app dir - prefetching', () => {
           children: [
             'prefetch-auto',
             {
-              children: [
-                ['slug', 'vercel', 'd'],
-                { children: ['__PAGE__', {}] },
-              ],
+              children: [['slug', 'vercel', 'd'], { children: ['__PAGE__', {}] }],
             },
           ],
         },
@@ -296,9 +285,7 @@ describe('app dir - prefetching', () => {
     await browser.eval('window.next.router.prefetch("/")')
 
     // confirm the error component was not re-rendered
-    expect(await browser.elementById('random-number').text()).toBe(
-      initialRandom
-    )
+    expect(await browser.elementById('random-number').text()).toBe(initialRandom)
   })
 
   it('should immediately render the loading state for a dynamic segment when fetched from higher up in the tree', async () => {
@@ -366,17 +353,15 @@ describe('app dir - prefetching', () => {
     await browser.elementById('prefetch-via-link').click()
 
     // Assert that we're on the homepage (check for accordion since links are hidden)
-    expect(
-      await browser.hasElementByCssSelector('#accordion-to-dashboard')
-    ).toBe(true)
+    expect(await browser.hasElementByCssSelector('#accordion-to-dashboard')).toBe(true)
 
     await browser.waitForIdleNetwork()
 
     // No new requests should be made since it is correctly prefetched
     await retry(async () => {
-      expect(
-        rscRequests.filter((req) => req.includes('/?param=with%20space')).length
-      ).toBe(initialRequestCount)
+      expect(rscRequests.filter((req) => req.includes('/?param=with%20space')).length).toBe(
+        initialRequestCount
+      )
     })
   })
 
@@ -388,29 +373,20 @@ describe('app dir - prefetching', () => {
           const logStartIndex = next.cliOutput.length
 
           const browser = await next.browser(`${basePath}/test-page`)
-          let initialRandomNumber = await browser
-            .elementById('random-number')
-            .text()
-          await browser
-            .elementByCss(`[href="${basePath}/test-page/sub-page"]`)
-            .click()
+          let initialRandomNumber = await browser.elementById('random-number').text()
+          await browser.elementByCss(`[href="${basePath}/test-page/sub-page"]`).click()
 
           await retry(async () => {
-            expect(await browser.hasElementByCssSelector('#sub-page')).toBe(
-              true
-            )
+            expect(await browser.hasElementByCssSelector('#sub-page')).toBe(true)
           })
 
-          const newRandomNumber = await browser
-            .elementById('random-number')
-            .text()
+          const newRandomNumber = await browser.elementById('random-number').text()
 
           expect(initialRandomNumber).toBe(newRandomNumber)
 
           await retry(async () => {
             const logOccurrences =
-              next.cliOutput.slice(logStartIndex).split('re-fetching in layout')
-                .length - 1
+              next.cliOutput.slice(logStartIndex).split('re-fetching in layout').length - 1
 
             expect(logOccurrences).toBe(1)
           })
@@ -427,9 +403,7 @@ describe('app dir - prefetching', () => {
             const text = await browser.elementById('search-params-data').text()
             expect(text).toMatch(/{"foo":"true"}/)
           })
-          await browser
-            .elementByCss(`[href="${basePath}/search-params"]`)
-            .click()
+          await browser.elementByCss(`[href="${basePath}/search-params"]`).click()
           await retry(async () => {
             const text = await browser.elementById('search-params-data').text()
             expect(text).toMatch(/{}/)
@@ -460,9 +434,7 @@ describe('app dir - prefetching', () => {
       await retry(async () => {
         expect(await browser.hasElementByCssSelector('h1')).toBe(true)
       })
-      expect(await browser.elementByCss('h1').text()).toEqual(
-        'A prefetch threw an error'
-      )
+      expect(await browser.elementByCss('h1').text()).toEqual('A prefetch threw an error')
     })
   })
 
@@ -489,13 +461,9 @@ describe('app dir - prefetching', () => {
       await browser.waitForIdleNetwork()
 
       await retry(async () => {
-        const staticPageRequests = requests.filter(
-          (req) => req.url === '/static-page'
-        )
+        const staticPageRequests = requests.filter((req) => req.url === '/static-page')
         expect(staticPageRequests.length).toBeGreaterThan(0)
-        expect(staticPageRequests.every((req) => req.priority === 'low')).toBe(
-          true
-        )
+        expect(staticPageRequests.every((req) => req.priority === 'low')).toBe(true)
       })
     })
 
@@ -525,18 +493,12 @@ describe('app dir - prefetching', () => {
       await browser.waitForIdleNetwork()
 
       await retry(async () => {
-        const dashboardRequests = requests.filter(
-          (req) => req.url === '/dashboard'
-        )
+        const dashboardRequests = requests.filter((req) => req.url === '/dashboard')
         expect(dashboardRequests.length).toBeGreaterThanOrEqual(2)
         // Should have at least one low priority prefetch request
-        expect(dashboardRequests.some((req) => req.priority === 'low')).toBe(
-          true
-        )
+        expect(dashboardRequests.some((req) => req.priority === 'low')).toBe(true)
         // Should have at least one auto priority fetch to fill in missing data
-        expect(dashboardRequests.some((req) => req.priority === 'auto')).toBe(
-          true
-        )
+        expect(dashboardRequests.some((req) => req.priority === 'auto')).toBe(true)
       })
     })
 

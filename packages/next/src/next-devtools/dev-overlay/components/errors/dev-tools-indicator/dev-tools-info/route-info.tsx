@@ -7,14 +7,11 @@ function StaticRouteContent({
   return (
     <article className="dev-tools-info-article" {...props}>
       <p className="dev-tools-info-paragraph">
-        The path{' '}
-        <code className="dev-tools-info-code">{window.location.pathname}</code>{' '}
-        is marked as "static" since it will be prerendered during the build
-        time.
+        The path <code className="dev-tools-info-code">{window.location.pathname}</code> is marked
+        as "static" since it will be prerendered during the build time.
       </p>
       <p className="dev-tools-info-paragraph">
-        With Static Rendering, routes are rendered at build time, or in the
-        background after{' '}
+        With Static Rendering, routes are rendered at build time, or in the background after{' '}
         <a
           className="dev-tools-info-link"
           href={
@@ -30,9 +27,8 @@ function StaticRouteContent({
         .
       </p>
       <p className="dev-tools-info-paragraph">
-        Static rendering is useful when a route has data that is not
-        personalized to the user and can be known at build time, such as a
-        static blog post or a product page.
+        Static rendering is useful when a route has data that is not personalized to the user and
+        can be known at build time, such as a static blog post or a product page.
       </p>
     </article>
   )
@@ -45,15 +41,13 @@ function DynamicRouteContent({
   return (
     <article className="dev-tools-info-article" {...props}>
       <p className="dev-tools-info-paragraph">
-        The path{' '}
-        <code className="dev-tools-info-code">{window.location.pathname}</code>{' '}
-        is marked as "dynamic" since it will be rendered for each user at{' '}
-        <strong>request time</strong>.
+        The path <code className="dev-tools-info-code">{window.location.pathname}</code> is marked
+        as "dynamic" since it will be rendered for each user at <strong>request time</strong>.
       </p>
       <p className="dev-tools-info-paragraph">
-        Dynamic rendering is useful when a route has data that is personalized
-        to the user or has information that can only be known at request time,
-        such as cookies or the URL's search params.
+        Dynamic rendering is useful when a route has data that is personalized to the user or has
+        information that can only be known at request time, such as cookies or the URL's search
+        params.
       </p>
       {routerType === 'pages' ? (
         <p className="dev-tools-info-pagraph">
@@ -66,8 +60,8 @@ function DynamicRouteContent({
           >
             getServerSideProps
           </a>{' '}
-          function will opt the route into dynamic rendering. This function will
-          be called by the server on every request.
+          function will opt the route into dynamic rendering. This function will be called by the
+          server on every request.
         </p>
       ) : (
         <p className="dev-tools-info-paragraph">
@@ -89,10 +83,8 @@ function DynamicRouteContent({
           >
             fetch
           </a>{' '}
-          option of{' '}
-          <code className="dev-tools-info-code">{`{ cache: 'no-store' }`}</code>{' '}
-          is discovered, Next.js will switch to dynamically rendering the whole
-          route.
+          option of <code className="dev-tools-info-code">{`{ cache: 'no-store' }`}</code> is
+          discovered, Next.js will switch to dynamically rendering the whole route.
         </p>
       )}
     </article>

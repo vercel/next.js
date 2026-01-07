@@ -3,10 +3,7 @@ const withMDX = nextMDX({
   extension: /\.mdx?$/,
   options: {
     remarkPlugins: ['remark-gfm', ['remark-toc', { heading: 'The Table' }]],
-    rehypePlugins: [
-      'rehype-slug',
-      ['rehype-katex', { strict: true, throwOnError: true }],
-    ],
+    rehypePlugins: ['rehype-slug', ['rehype-katex', { strict: true, throwOnError: true }]],
     recmaPlugins: ['recma-export-filepath'],
   },
 })

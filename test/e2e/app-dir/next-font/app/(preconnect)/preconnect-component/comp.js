@@ -6,7 +6,5 @@ const componentFont = localFont({
 })
 
 export default function Component() {
-  return (
-    <p className={componentFont.className}>{JSON.stringify(componentFont)}</p>
-  )
+  return <p className={componentFont.className}>{JSON.stringify(componentFont)}</p>
 }

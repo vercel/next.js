@@ -20,12 +20,8 @@ describe('react version', () => {
 
     const middlewareHeaders = {
       react: response.headers.get('x-react-condition'),
-      serverFavoringBrowser: response.headers.get(
-        'x-server-favoring-browser-condition'
-      ),
-      serverFavoringEdge: response.headers.get(
-        'x-server-favoring-edge-condition'
-      ),
+      serverFavoringBrowser: response.headers.get('x-server-favoring-browser-condition'),
+      serverFavoringEdge: response.headers.get('x-server-favoring-edge-condition'),
     }
     expect(middlewareHeaders).toEqual({
       react: 'react-server',
@@ -57,12 +53,8 @@ describe('react version', () => {
 
     const middlewareHeaders = {
       react: response.headers.get('x-react-condition'),
-      serverFavoringBrowser: response.headers.get(
-        'x-server-favoring-browser-condition'
-      ),
-      serverFavoringEdge: response.headers.get(
-        'x-server-favoring-edge-condition'
-      ),
+      serverFavoringBrowser: response.headers.get('x-server-favoring-browser-condition'),
+      serverFavoringEdge: response.headers.get('x-server-favoring-edge-condition'),
     }
     expect(middlewareHeaders).toEqual({
       react: 'react-server',
@@ -93,12 +85,8 @@ describe('react version', () => {
     const response = await next.fetch('/api/node-route')
     const middlewareHeaders = {
       react: response.headers.get('x-react-condition'),
-      serverFavoringBrowser: response.headers.get(
-        'x-server-favoring-browser-condition'
-      ),
-      serverFavoringEdge: response.headers.get(
-        'x-server-favoring-edge-condition'
-      ),
+      serverFavoringBrowser: response.headers.get('x-server-favoring-browser-condition'),
+      serverFavoringEdge: response.headers.get('x-server-favoring-edge-condition'),
     }
     const apiConditions = await response.json()
     expect({ apiConditions, middlewareHeaders }).toEqual({
@@ -119,12 +107,8 @@ describe('react version', () => {
     const response = await next.fetch('/api/edge-route')
     const middlewareHeaders = {
       react: response.headers.get('x-react-condition'),
-      serverFavoringBrowser: response.headers.get(
-        'x-server-favoring-browser-condition'
-      ),
-      serverFavoringEdge: response.headers.get(
-        'x-server-favoring-edge-condition'
-      ),
+      serverFavoringBrowser: response.headers.get('x-server-favoring-browser-condition'),
+      serverFavoringEdge: response.headers.get('x-server-favoring-edge-condition'),
     }
     const apiConditions = await response.json()
     expect({ apiConditions, middlewareHeaders }).toEqual({
@@ -146,12 +130,8 @@ describe('react version', () => {
 
     const middlewareHeaders = {
       react: response.headers.get('x-react-condition'),
-      serverFavoringBrowser: response.headers.get(
-        'x-server-favoring-browser-condition'
-      ),
-      serverFavoringEdge: response.headers.get(
-        'x-server-favoring-edge-condition'
-      ),
+      serverFavoringBrowser: response.headers.get('x-server-favoring-browser-condition'),
+      serverFavoringEdge: response.headers.get('x-server-favoring-edge-condition'),
     }
     expect(middlewareHeaders).toEqual({
       react: 'react-server',
@@ -191,12 +171,8 @@ describe('react version', () => {
 
     const middlewareHeaders = {
       react: response.headers.get('x-react-condition'),
-      serverFavoringBrowser: response.headers.get(
-        'x-server-favoring-browser-condition'
-      ),
-      serverFavoringEdge: response.headers.get(
-        'x-server-favoring-edge-condition'
-      ),
+      serverFavoringBrowser: response.headers.get('x-server-favoring-browser-condition'),
+      serverFavoringEdge: response.headers.get('x-server-favoring-edge-condition'),
     }
     expect(middlewareHeaders).toEqual({
       react: 'react-server',
@@ -236,12 +212,8 @@ describe('react version', () => {
 
     const middlewareHeaders = {
       react: response.headers.get('x-react-condition'),
-      serverFavoringBrowser: response.headers.get(
-        'x-server-favoring-browser-condition'
-      ),
-      serverFavoringEdge: response.headers.get(
-        'x-server-favoring-edge-condition'
-      ),
+      serverFavoringBrowser: response.headers.get('x-server-favoring-browser-condition'),
+      serverFavoringEdge: response.headers.get('x-server-favoring-edge-condition'),
     }
     const data = await response.json()
     expect({ middlewareHeaders, data }).toEqual({
@@ -263,12 +235,8 @@ describe('react version', () => {
 
     const middlewareHeaders = {
       react: response.headers.get('x-react-condition'),
-      serverFavoringBrowser: response.headers.get(
-        'x-server-favoring-browser-condition'
-      ),
-      serverFavoringEdge: response.headers.get(
-        'x-server-favoring-edge-condition'
-      ),
+      serverFavoringBrowser: response.headers.get('x-server-favoring-browser-condition'),
+      serverFavoringEdge: response.headers.get('x-server-favoring-edge-condition'),
     }
     const data = await response.json()
     expect({ middlewareHeaders, data }).toEqual({

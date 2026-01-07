@@ -14,13 +14,7 @@ const Page = () => {
           overflow: 'hidden',
         }}
       >
-        <Image
-          id="fill-image-1"
-          src="/wide.png"
-          width="500px"
-          height="400px"
-          fill
-        />
+        <Image id="fill-image-1" src="/wide.png" width="500px" height="400px" fill />
       </div>
     </div>
   )

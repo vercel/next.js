@@ -12,9 +12,7 @@ export function generateStaticParams() {
   ]
 }
 
-export default async function Page(props: {
-  params: Promise<{ slug: string }>
-}) {
+export default async function Page(props: { params: Promise<{ slug: string }> }) {
   const params = await props.params
   await fetch('https://next-data-api.vercel.app/api/random', {
     next: {
@@ -22,10 +20,7 @@ export default async function Page(props: {
     },
   })
 
-  if (
-    params.slug !== 'second' &&
-    process.env.NEXT_PHASE === 'phase-production-build'
-  ) {
+  if (params.slug !== 'second' && process.env.NEXT_PHASE === 'phase-production-build') {
     notFound()
   }
 

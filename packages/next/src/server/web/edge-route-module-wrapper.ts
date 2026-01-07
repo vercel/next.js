@@ -48,10 +48,7 @@ export class EdgeRouteModuleWrapper {
    *                override the ones passed from the runtime
    * @returns a function that can be used as a handler for the edge runtime
    */
-  public static wrap(
-    routeModule: AppRouteRouteModule,
-    options: WrapOptions
-  ): EdgeHandler {
+  public static wrap(routeModule: AppRouteRouteModule, options: WrapOptions): EdgeHandler {
     // Create the module wrapper.
     const wrapper = new EdgeRouteModuleWrapper(routeModule)
 
@@ -67,10 +64,7 @@ export class EdgeRouteModuleWrapper {
     }
   }
 
-  private async handler(
-    request: NextRequestHint,
-    evt: NextFetchEvent
-  ): Promise<Response> {
+  private async handler(request: NextRequestHint, evt: NextFetchEvent): Promise<Response> {
     const utils = getServerUtils({
       pageIsDynamic: this.matcher.isDynamic,
       page: this.matcher.definition.pathname,
@@ -81,9 +75,7 @@ export class EdgeRouteModuleWrapper {
       caseSensitive: false,
     })
 
-    const { nextConfig } = this.routeModule.getNextConfigEdge(
-      new WebNextRequest(request)
-    )
+    const { nextConfig } = this.routeModule.getNextConfigEdge(new WebNextRequest(request))
 
     const { params } = utils.normalizeDynamicRouteParams(
       searchParamsToUrlQuery(request.nextUrl.searchParams),
@@ -138,9 +130,7 @@ export class EdgeRouteModuleWrapper {
     } else {
       // NOTE: if this is a streaming response, onClose may be called later,
       // so we can't rely on `closeController.listeners` -- it might be 0 at this point.
-      const trackedBody = trackStreamConsumed(res.body, () =>
-        closeController.dispatchClose()
-      )
+      const trackedBody = trackStreamConsumed(res.body, () => closeController.dispatchClose())
       res = new Response(trackedBody, {
         status: res.status,
         statusText: res.statusText,

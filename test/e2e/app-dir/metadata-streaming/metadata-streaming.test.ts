@@ -15,9 +15,7 @@ describe('app-dir - metadata-streaming', () => {
   it('should still load viewport meta tags even if metadata is delayed', async () => {
     const $ = await next.render$('/slow')
 
-    expect($('meta[name="viewport"]').attr('content')).toBe(
-      'width=device-width, initial-scale=1'
-    )
+    expect($('meta[name="viewport"]').attr('content')).toBe('width=device-width, initial-scale=1')
     expect($('meta[charset]').attr('charset')).toBe('utf-8')
   })
 
@@ -98,9 +96,9 @@ describe('app-dir - metadata-streaming', () => {
     it('should load the metadata in browser', async () => {
       const browser = await next.browser('/dynamic-api')
       await retry(async () => {
-        expect(
-          await browser.elementByCss('body title', { state: 'attached' }).text()
-        ).toMatch(/Dynamic api \d+/)
+        expect(await browser.elementByCss('body title', { state: 'attached' }).text()).toMatch(
+          /Dynamic api \d+/
+        )
       })
     })
   })

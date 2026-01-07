@@ -5,9 +5,7 @@ describe('react-performance-track', () => {
   // true is the default when having Chrome DevTools open.
   // Hardcoded for now since most of the actual behavior is not intended.
   const disableCache = false
-  const extraHTTPHeaders = disableCache
-    ? { 'Cache-Control': 'no-cache' }
-    : undefined
+  const extraHTTPHeaders = disableCache ? { 'Cache-Control': 'no-cache' } : undefined
 
   const { next } = nextTestSetup({
     files: __dirname,

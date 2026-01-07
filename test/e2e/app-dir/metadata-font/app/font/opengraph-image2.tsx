@@ -5,9 +5,7 @@ import { ImageResponse } from 'next/og'
 export const contentType = 'image/png'
 
 export default async function og() {
-  const font = await fs.promises.readFile(
-    path.join(process.cwd(), 'assets/typewr__.ttf')
-  )
+  const font = await fs.promises.readFile(path.join(process.cwd(), 'assets/typewr__.ttf'))
   return new ImageResponse(
     <div
       style={{

@@ -27,9 +27,7 @@ async function main() {
     ]),
   ])
 
-  const lernaConfig = JSON.parse(
-    await fs.readFile(path.join(repoRoot, 'lerna.json'), 'utf8')
-  )
+  const lernaConfig = JSON.parse(await fs.readFile(path.join(repoRoot, 'lerna.json'), 'utf8'))
 
   // 15.0.0-canary.17 -> 15.0.0
   // 15.0.0 -> 15.0.0
@@ -38,9 +36,7 @@ async function main() {
   console.info(`Designated version: ${version}`)
 
   const nativePackagesDir = path.join(repoRoot, 'crates/napi/npm')
-  const platforms = (await fs.readdir(nativePackagesDir)).filter(
-    (name) => !name.startsWith('.')
-  )
+  const platforms = (await fs.readdir(nativePackagesDir)).filter((name) => !name.startsWith('.'))
 
   console.info(`Creating tarballs for next-swc packages`)
   const nextSwcPackageNames = new Set()
@@ -62,10 +58,7 @@ async function main() {
         throw error
       }
       const manifest = JSON.parse(
-        await fs.readFile(
-          path.join(nativePackagesDir, platform, 'package.json'),
-          'utf8'
-        )
+        await fs.readFile(path.join(nativePackagesDir, platform, 'package.json'), 'utf8')
       )
       manifest.version = version
       await fs.writeFile(
@@ -75,13 +68,9 @@ async function main() {
       // By encoding the package name in the directory, vercel-packages can later extract the package name of a tarball from its path when `tarballDirectory` is zipped.
       const packDestination = path.join(tarballDirectory, manifest.name)
       await fs.mkdir(packDestination, { recursive: true })
-      const { stdout } = await execa(
-        'npm',
-        ['pack', '--pack-destination', packDestination],
-        {
-          cwd: path.join(nativePackagesDir, platform),
-        }
-      )
+      const { stdout } = await execa('npm', ['pack', '--pack-destination', packDestination], {
+        cwd: path.join(nativePackagesDir, platform),
+      })
       // tarball name is printed as the last line of npm-pack
       const tarballName = stdout.trim().split('\n').pop()
       console.info(`Created tarball ${path.join(packDestination, tarballName)}`)
@@ -90,12 +79,7 @@ async function main() {
     })
   )
 
-  const lernaListJson = await execa('pnpm', [
-    '--silent',
-    'lerna',
-    'list',
-    '--json',
-  ])
+  const lernaListJson = await execa('pnpm', ['--silent', 'lerna', 'list', '--json'])
   const packages = JSON.parse(lernaListJson.stdout)
   const packagesByVersion = new Map()
   // vercel-packages finds GH artifacts via the head SHA because that's the only
@@ -159,13 +143,9 @@ async function main() {
     // By encoding the package name in the directory, vercel-packages can later extract the package name of a tarball from its path when `tarballDirectory` is zipped.
     const packDestination = path.join(tarballDirectory, manifest.name)
     await fs.mkdir(packDestination, { recursive: true })
-    const { stdout } = await execa(
-      'npm',
-      ['pack', '--pack-destination', packDestination],
-      {
-        cwd: packageInfo.location,
-      }
-    )
+    const { stdout } = await execa('npm', ['pack', '--pack-destination', packDestination], {
+      cwd: packageInfo.location,
+    })
     // tarball name is printed as the last line of npm-pack
     const tarballName = stdout.trim().split('\n').pop()
     console.info(`Created tarball ${path.join(packDestination, tarballName)}`)

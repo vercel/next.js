@@ -72,9 +72,7 @@ describe('app dir - external dependency', () => {
 
     // support esm module imports on server side, and indirect imports from shared components
     expect(serverHtml).toContain('pure-esm-module')
-    expect(sharedHtml).toContain(
-      'node_modules instance from client module pure-esm-module'
-    )
+    expect(sharedHtml).toContain('node_modules instance from client module pure-esm-module')
   })
 
   it('should transpile specific external packages with the `transpilePackages` option', async () => {
@@ -97,9 +95,7 @@ describe('app dir - external dependency', () => {
 
     // Package should be resolved based on the react-server condition,
     // as well as package's internal & external dependencies.
-    expect(result).toContain(
-      'Server: index.react-server:react.subset:dep.server'
-    )
+    expect(result).toContain('Server: index.react-server:react.subset:dep.server')
     expect(result).toContain('Client: index.default:react.full:dep.default')
 
     // Subpath exports should be resolved based on the condition too.
@@ -122,11 +118,9 @@ describe('app dir - external dependency', () => {
   it('should handle external css modules', async () => {
     const browser = await next.browser('/css/modules')
 
-    expect(
-      await browser.eval(
-        `window.getComputedStyle(document.querySelector('h1')).color`
-      )
-    ).toBe('rgb(255, 0, 0)')
+    expect(await browser.eval(`window.getComputedStyle(document.querySelector('h1')).color`)).toBe(
+      'rgb(255, 0, 0)'
+    )
   })
 
   it('should use the same export type for packages in both ssr and client', async () => {
@@ -137,20 +131,16 @@ describe('app dir - external dependency', () => {
   it('should handle external css modules in pages', async () => {
     const browser = await next.browser('/test-pages')
 
-    expect(
-      await browser.eval(
-        `window.getComputedStyle(document.querySelector('h1')).color`
-      )
-    ).toBe('rgb(255, 0, 0)')
+    expect(await browser.eval(`window.getComputedStyle(document.querySelector('h1')).color`)).toBe(
+      'rgb(255, 0, 0)'
+    )
   })
 
   it('should handle external next/font', async () => {
     const browser = await next.browser('/font')
 
     expect(
-      await browser.eval(
-        `window.getComputedStyle(document.querySelector('p')).fontFamily`
-      )
+      await browser.eval(`window.getComputedStyle(document.querySelector('p')).fontFamily`)
     ).toMatch(/^myFont, "myFont Fallback"$/)
   })
   it('should not apply swc optimizer transform for external packages in browser layer in web worker', async () => {
@@ -177,9 +167,7 @@ describe('app dir - external dependency', () => {
       // Should work with both esm and cjs imports
       expect(html).toContain('CJS-ESM Compat package: cjs-esm-compat/index.mjs')
       expect(html).toContain('CJS package: cjs-lib')
-      expect(html).toContain(
-        'Nested imports: nested-import:esm:cjs-esm-compat/index.mjs'
-      )
+      expect(html).toContain('Nested imports: nested-import:esm:cjs-esm-compat/index.mjs')
     })
 
     it('should use the same react in server app', async () => {
@@ -228,18 +216,14 @@ describe('app dir - external dependency', () => {
   describe('mixed syntax external modules', () => {
     it('should handle mixed module with next/dynamic', async () => {
       const browser = await next.browser('/mixed/dynamic')
-      expect(await browser.elementByCss('#component').text()).toContain(
-        'mixed-syntax-esm'
-      )
+      expect(await browser.elementByCss('#component').text()).toContain('mixed-syntax-esm')
     })
 
     it('should handle mixed module in server and client components', async () => {
       const $ = await next.render$('/mixed/import')
       expect(await $('#server').text()).toContain('server:mixed-syntax-esm')
       expect(await $('#client').text()).toContain('client:mixed-syntax-esm')
-      expect(await $('#relative-mixed').text()).toContain(
-        'relative-mixed-syntax-esm'
-      )
+      expect(await $('#relative-mixed').text()).toContain('relative-mixed-syntax-esm')
     })
   })
 
@@ -271,9 +255,7 @@ describe('app dir - external dependency', () => {
     const html = await next.render('/cjs/server')
     expect(html).toContain('resolve response')
 
-    const outputFile = await next.readFile(
-      `${getDistDir()}/server/app/cjs/server/page.js`
-    )
+    const outputFile = await next.readFile(`${getDistDir()}/server/app/cjs/server/page.js`)
     expect(outputFile).not.toContain('image-response')
   })
 
@@ -285,9 +267,7 @@ describe('app dir - external dependency', () => {
   describe('server actions', () => {
     it('should prefer to resolve esm over cjs for bundling optout packages', async () => {
       const browser = await next.browser('/optout/action')
-      expect(await browser.elementByCss('#dual-pkg-outout p').text()).toBe(
-        'initial'
-      )
+      expect(await browser.elementByCss('#dual-pkg-outout p').text()).toBe('initial')
 
       browser.elementByCss('#dual-pkg-outout button').click()
       await check(async () => {

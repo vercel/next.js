@@ -37,9 +37,7 @@ export async function middleware(request) {
   }
 
   if (request.nextUrl.pathname.startsWith('/internal/test')) {
-    const method = request.nextUrl.pathname.endsWith('rewrite')
-      ? 'rewrite'
-      : 'redirect'
+    const method = request.nextUrl.pathname.endsWith('rewrite') ? 'rewrite' : 'redirect'
 
     const internal = ['rsc', 'next-router-state-tree']
     if (internal.some((name) => request.headers.has(name))) {
@@ -51,21 +49,13 @@ export async function middleware(request) {
 
   if (request.nextUrl.pathname === '/search-params-prop-middleware-rewrite') {
     return NextResponse.rewrite(
-      new URL(
-        '/search-params-prop?first=value&second=other%20value&third',
-        request.url
-      )
+      new URL('/search-params-prop?first=value&second=other%20value&third', request.url)
     )
   }
 
-  if (
-    request.nextUrl.pathname === '/search-params-prop-server-middleware-rewrite'
-  ) {
+  if (request.nextUrl.pathname === '/search-params-prop-server-middleware-rewrite') {
     return NextResponse.rewrite(
-      new URL(
-        '/search-params-prop/server?first=value&second=other%20value&third',
-        request.url
-      )
+      new URL('/search-params-prop/server?first=value&second=other%20value&third', request.url)
     )
   }
 

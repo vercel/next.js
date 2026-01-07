@@ -49,9 +49,7 @@ const postcssNextFontPlugin = ({
       // Hash font-family names
       for (const node of root.nodes) {
         if (node.type === 'atrule' && node.name === 'font-face') {
-          const familyNode = node.nodes.find(
-            (decl: Declaration) => decl.prop === 'font-family'
-          )
+          const familyNode = node.nodes.find((decl: Declaration) => decl.prop === 'font-family')
           if (!familyNode) {
             continue
           }
@@ -73,13 +71,8 @@ const postcssNextFontPlugin = ({
       if (adjustFontFallback) {
         adjustFontFallbackFamily = formatFamily(`${fontFamily} Fallback`)
         const fallbackFontFace = postcss.atRule({ name: 'font-face' })
-        const {
-          fallbackFont,
-          ascentOverride,
-          descentOverride,
-          lineGapOverride,
-          sizeAdjust,
-        } = adjustFontFallback
+        const { fallbackFont, ascentOverride, descentOverride, lineGapOverride, sizeAdjust } =
+          adjustFontFallback
         fallbackFontFace.nodes = [
           new postcss.Declaration({
             prop: 'font-family',
@@ -179,9 +172,7 @@ const postcssNextFontPlugin = ({
         name: 'style',
         value: {
           fontFamily: formattedFontFamilies,
-          fontWeight: !Number.isNaN(Number(weight))
-            ? Number(weight)
-            : undefined,
+          fontWeight: !Number.isNaN(Number(weight)) ? Number(weight) : undefined,
           fontStyle: style && !isRange(style) ? style : undefined,
         },
       })

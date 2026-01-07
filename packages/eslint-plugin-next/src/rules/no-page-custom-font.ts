@@ -30,8 +30,7 @@ export default defineRule({
     }
 
     const is_Document =
-      page.startsWith(`${sep}_document`) ||
-      page.startsWith(`${posix.sep}_document`)
+      page.startsWith(`${sep}_document`) || page.startsWith(`${posix.sep}_document`)
 
     let documentImportName
     let localDefaultExportId
@@ -79,9 +78,7 @@ export default defineRule({
         // still be undefined
         if (!localDefaultExportId) {
           // find the top level of the module
-          const program = ancestors.find(
-            (ancestor) => ancestor.type === 'Program'
-          ) as AST.Program
+          const program = ancestors.find((ancestor) => ancestor.type === 'Program') as AST.Program
 
           // go over each token to find the combination of `export default <name>`
           for (let i = 0; i <= program.tokens.length - 1; i++) {
@@ -94,11 +91,7 @@ export default defineRule({
             if (token.type === 'Keyword' && token.value === 'export') {
               const nextToken = program.tokens[i + 1]
 
-              if (
-                nextToken &&
-                nextToken.type === 'Keyword' &&
-                nextToken.value === 'default'
-              ) {
+              if (nextToken && nextToken.type === 'Keyword' && nextToken.value === 'default') {
                 const maybeIdentifier = program.tokens[i + 2]
 
                 if (maybeIdentifier && maybeIdentifier.type === 'Identifier') {
@@ -150,8 +143,7 @@ export default defineRule({
 
         const hrefValue = attributes.value('href')
         const isGoogleFont =
-          typeof hrefValue === 'string' &&
-          hrefValue.startsWith('https://fonts.googleapis.com/css')
+          typeof hrefValue === 'string' && hrefValue.startsWith('https://fonts.googleapis.com/css')
 
         if (isGoogleFont) {
           const end = `This is discouraged. See: ${url}`

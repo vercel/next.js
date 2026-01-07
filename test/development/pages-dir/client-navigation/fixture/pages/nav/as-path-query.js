@@ -3,13 +3,7 @@ import { withRouter } from 'next/router'
 
 export default withRouter(({ router: { asPath, query } }) => {
   return (
-    <div
-      id={asPath
-        .replace('/', '')
-        .replace('/', '-')
-        .replace('?', '-')
-        .replace('=', '-')}
-    >
+    <div id={asPath.replace('/', '').replace('/', '-').replace('?', '-').replace('=', '-')}>
       <div id="router-query">{JSON.stringify(query)}</div>
       <div>
         <Link

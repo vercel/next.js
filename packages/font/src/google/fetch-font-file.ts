@@ -15,10 +15,6 @@ export async function fetchFontFile(url: string, isDev: boolean) {
   }
 
   return await retry(async () => {
-    return fetchResource(
-      url,
-      isDev,
-      `Failed to fetch font file from \`${url}\`.`
-    )
+    return fetchResource(url, isDev, `Failed to fetch font file from \`${url}\`.`)
   }, 3)
 }

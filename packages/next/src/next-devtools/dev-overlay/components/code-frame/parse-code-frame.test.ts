@@ -27,24 +27,18 @@ describe('parse line numbers', () => {
     const formattedFrame = formatCodeFrame(input.codeFrame)
     const decodedLines = groupCodeFrameLines(formattedFrame)
 
-    expect(
-      parseLineNumberFromCodeFrameLine(decodedLines[0], input.stackFrame)
-    ).toEqual({
+    expect(parseLineNumberFromCodeFrameLine(decodedLines[0], input.stackFrame)).toEqual({
       lineNumber: '1',
       isErroredLine: false,
     })
 
-    expect(
-      parseLineNumberFromCodeFrameLine(decodedLines[1], input.stackFrame)
-    ).toEqual({
+    expect(parseLineNumberFromCodeFrameLine(decodedLines[1], input.stackFrame)).toEqual({
       lineNumber: '2',
       isErroredLine: true,
     })
 
     // Line of ^ marker
-    expect(
-      parseLineNumberFromCodeFrameLine(decodedLines[2], input.stackFrame)
-    ).toEqual({
+    expect(parseLineNumberFromCodeFrameLine(decodedLines[2], input.stackFrame)).toEqual({
       lineNumber: '',
       isErroredLine: false,
     })
@@ -71,21 +65,15 @@ describe('parse line numbers', () => {
     const formattedFrame = formatCodeFrame(input.codeFrame)
     const decodedLines = groupCodeFrameLines(formattedFrame)
 
-    expect(
-      parseLineNumberFromCodeFrameLine(decodedLines[1], input.stackFrame)
-    ).toEqual({
+    expect(parseLineNumberFromCodeFrameLine(decodedLines[1], input.stackFrame)).toEqual({
       lineNumber: '5',
       isErroredLine: false,
     })
-    expect(
-      parseLineNumberFromCodeFrameLine(decodedLines[2], input.stackFrame)
-    ).toEqual({
+    expect(parseLineNumberFromCodeFrameLine(decodedLines[2], input.stackFrame)).toEqual({
       lineNumber: '6',
       isErroredLine: true,
     })
-    expect(
-      parseLineNumberFromCodeFrameLine(decodedLines[4], input.stackFrame)
-    ).toEqual({
+    expect(parseLineNumberFromCodeFrameLine(decodedLines[4], input.stackFrame)).toEqual({
       lineNumber: '7',
       isErroredLine: false,
     })

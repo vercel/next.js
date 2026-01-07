@@ -28,10 +28,7 @@ describe('parallel-routes-catchall', () => {
     // so we'd expect to see the catch-all slot & the page content
     await check(() => browser.elementById('children').text(), /bar/)
     await check(() => browser.elementById('slot').text(), /slot catchall/)
-    await check(
-      () => browser.elementById('slot').text(),
-      /catchall slot client component/
-    )
+    await check(() => browser.elementById('slot').text(), /catchall slot client component/)
   })
 
   it('should match correctly when defining an explicit slot but no page', async () => {
@@ -55,9 +52,6 @@ describe('parallel-routes-catchall', () => {
     // quux doesn't have a page or slot defined. It should use the catch-all for both
     await check(() => browser.elementById('children').text(), /main catchall/)
     await check(() => browser.elementById('slot').text(), /slot catchall/)
-    await check(
-      () => browser.elementById('slot').text(),
-      /catchall slot client component/
-    )
+    await check(() => browser.elementById('slot').text(), /catchall slot client component/)
   })
 })

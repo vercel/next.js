@@ -6,8 +6,7 @@ describe('trackStreamConsumed', () => {
     const endPromise = new DetachedPromise<void>()
     const onEnd = jest.fn(endPromise.resolve)
 
-    const { stream: inputStream, controller } =
-      readableStreamWithController<string>()
+    const { stream: inputStream, controller } = readableStreamWithController<string>()
     const trackedStream = trackStreamConsumed(inputStream, onEnd)
 
     const reader = trackedStream.getReader()
@@ -32,8 +31,7 @@ describe('trackStreamConsumed', () => {
     const endPromise = new DetachedPromise<void>()
     const onEnd = jest.fn(endPromise.resolve)
 
-    const { stream: inputStream, controller } =
-      readableStreamWithController<string>()
+    const { stream: inputStream, controller } = readableStreamWithController<string>()
     const trackedStream = trackStreamConsumed(inputStream, onEnd)
 
     const reader = trackedStream.getReader()
@@ -60,8 +58,7 @@ describe('trackStreamConsumed', () => {
     const cancelledPromise = new DetachedPromise<unknown>()
     const onCancel = jest.fn(cancelledPromise.resolve)
 
-    const { stream: inputStream, controller } =
-      readableStreamWithController<string>(onCancel)
+    const { stream: inputStream, controller } = readableStreamWithController<string>(onCancel)
     const trackedStream = trackStreamConsumed(inputStream, onEnd)
 
     const reader = trackedStream.getReader()
@@ -90,9 +87,7 @@ describe('trackStreamConsumed', () => {
   })
 })
 
-function readableStreamWithController<TChunk>(
-  onCancel?: (reason: unknown) => void
-) {
+function readableStreamWithController<TChunk>(onCancel?: (reason: unknown) => void) {
   let controller: ReadableStreamDefaultController<TChunk> = undefined!
   const stream = new ReadableStream<TChunk>({
     start(_controller) {

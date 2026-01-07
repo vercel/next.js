@@ -9,8 +9,7 @@ export interface ServerReference {
   $$id: string
 }
 
-export type ServerFunction = ServerReference &
-  ((...args: unknown[]) => Promise<unknown>)
+export type ServerFunction = ServerReference & ((...args: unknown[]) => Promise<unknown>)
 
 export function isServerReference<T>(
   value: T & Partial<ServerReference>

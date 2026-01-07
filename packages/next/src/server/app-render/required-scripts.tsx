@@ -11,10 +11,7 @@ export function getRequiredScripts(
   qs: string,
   nonce: string | undefined,
   pagePath: string
-): [
-  () => void,
-  { src: string; integrity?: string; crossOrigin?: string | undefined },
-] {
+): [() => void, { src: string; integrity?: string; crossOrigin?: string | undefined }] {
   let preinitScripts: () => void
   let preinitScriptCommands: string[] = []
   const bootstrapScript: {
@@ -26,13 +23,11 @@ export function getRequiredScripts(
     crossOrigin,
   }
 
-  const files = (
-    buildManifest.rootMainFilesTree?.[pagePath] || buildManifest.rootMainFiles
-  ).map(encodeURIPath)
+  const files = (buildManifest.rootMainFilesTree?.[pagePath] || buildManifest.rootMainFiles).map(
+    encodeURIPath
+  )
   if (files.length === 0) {
-    throw new Error(
-      'Invariant: missing bootstrap script. This is a bug in Next.js'
-    )
+    throw new Error('Invariant: missing bootstrap script. This is a bug in Next.js')
   }
   if (SRIManifest) {
     bootstrapScript.src = `${assetPrefix}/_next/` + files[0] + qs

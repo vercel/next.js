@@ -19,13 +19,7 @@ const Page = () => {
         height={400}
       />
       <div style={{ height: '1000vh' }} />
-      <Image
-        id="eager-image"
-        src="/test.webp"
-        width={400}
-        height={400}
-        loading="eager"
-      />
+      <Image id="eager-image" src="/test.webp" width={400} height={400} loading="eager" />
     </div>
   )
 }

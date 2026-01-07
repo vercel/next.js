@@ -25,8 +25,7 @@ export async function eventSwcPlugins(
     const { dependencies = {}, devDependencies = {} } = require(packageJsonPath)
 
     const deps = { ...devDependencies, ...dependencies }
-    const swcPluginPackages =
-      config.experimental?.swcPlugins?.map(([name, _]) => name) ?? []
+    const swcPluginPackages = config.experimental?.swcPlugins?.map(([name, _]) => name) ?? []
 
     return swcPluginPackages.map((plugin) => {
       // swc plugins can be non-npm pkgs with absolute path doesn't have version

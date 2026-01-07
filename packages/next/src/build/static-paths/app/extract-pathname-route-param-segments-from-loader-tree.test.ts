@@ -26,9 +26,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
-      expect(result).toEqual([
-        { name: '[slug]', paramName: 'slug', paramType: 'dynamic' },
-      ])
+      expect(result).toEqual([{ name: '[slug]', paramName: 'slug', paramType: 'dynamic' }])
     })
 
     it('should extract multiple nested dynamic segments', () => {
@@ -55,18 +53,12 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
-      expect(result).toEqual([
-        { name: '[...slug]', paramName: 'slug', paramType: 'catchall' },
-      ])
+      expect(result).toEqual([{ name: '[...slug]', paramName: 'slug', paramType: 'catchall' }])
     })
 
     it('should extract optional catchall segment', () => {
       // Tree: /[[...slug]]
-      const loaderTree = createLoaderTree(
-        '',
-        {},
-        createLoaderTree('[[...slug]]')
-      )
+      const loaderTree = createLoaderTree('', {}, createLoaderTree('[[...slug]]'))
       const route = parseAppRoute('/[[...slug]]', true)
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
@@ -151,9 +143,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
-      expect(result).toEqual([
-        { name: '[slug]', paramName: 'slug', paramType: 'dynamic' },
-      ])
+      expect(result).toEqual([{ name: '[slug]', paramName: 'slug', paramType: 'dynamic' }])
     })
 
     it('should ignore nested route groups', () => {
@@ -161,19 +151,13 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
       const loaderTree = createLoaderTree(
         '',
         {},
-        createLoaderTree(
-          '(group1)',
-          {},
-          createLoaderTree('(group2)', {}, createLoaderTree('[id]'))
-        )
+        createLoaderTree('(group1)', {}, createLoaderTree('(group2)', {}, createLoaderTree('[id]')))
       )
       const route = parseAppRoute('/[id]', true)
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
-      expect(result).toEqual([
-        { name: '[id]', paramName: 'id', paramType: 'dynamic' },
-      ])
+      expect(result).toEqual([{ name: '[id]', paramName: 'id', paramType: 'dynamic' }])
     })
 
     it('should handle route groups mixed with static segments', () => {
@@ -195,9 +179,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
-      expect(result).toEqual([
-        { name: '[userId]', paramName: 'userId', paramType: 'dynamic' },
-      ])
+      expect(result).toEqual([{ name: '[userId]', paramName: 'userId', paramType: 'dynamic' }])
     })
   })
 
@@ -211,9 +193,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
-      expect(result).toEqual([
-        { name: '[id]', paramName: 'id', paramType: 'dynamic' },
-      ])
+      expect(result).toEqual([{ name: '[id]', paramName: 'id', paramType: 'dynamic' }])
     })
 
     it('should extract segments from multiple parallel routes at same depth', () => {
@@ -227,9 +207,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
       // Only [id] matches - [category] has different param name
-      expect(result).toEqual([
-        { name: '[id]', paramName: 'id', paramType: 'dynamic' },
-      ])
+      expect(result).toEqual([{ name: '[id]', paramName: 'id', paramType: 'dynamic' }])
     })
 
     it('should extract segments from both children and parallel routes', () => {
@@ -260,9 +238,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
-      expect(result).toEqual([
-        { name: '[...path]', paramName: 'path', paramType: 'catchall' },
-      ])
+      expect(result).toEqual([{ name: '[...path]', paramName: 'path', paramType: 'catchall' }])
     })
 
     it('should NOT extract parallel route segments that do not match pathname', () => {
@@ -280,9 +256,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
       // Only [id] should match, parallel routes are at depth 1
-      expect(result).toEqual([
-        { name: '[id]', paramName: 'id', paramType: 'dynamic' },
-      ])
+      expect(result).toEqual([{ name: '[id]', paramName: 'id', paramType: 'dynamic' }])
     })
   })
 
@@ -404,15 +378,9 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
       const interceptionRoute = parseAppRoute('/(.)photo/[photoId]', true)
 
       const { pathnameRouteParamSegments: routeGroupResult } =
-        extractPathnameRouteParamSegmentsFromLoaderTree(
-          routeGroupTree,
-          routeGroupRoute
-        )
+        extractPathnameRouteParamSegmentsFromLoaderTree(routeGroupTree, routeGroupRoute)
       const { pathnameRouteParamSegments: interceptionResult } =
-        extractPathnameRouteParamSegmentsFromLoaderTree(
-          interceptionTree,
-          interceptionRoute
-        )
+        extractPathnameRouteParamSegmentsFromLoaderTree(interceptionTree, interceptionRoute)
 
       // Route group ignored, slug at depth 0
       expect(routeGroupResult).toEqual([
@@ -452,11 +420,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
     it('should extract intercepted param when marker is part of the segment itself', () => {
       // Tree: /(.)[photoId] - the interception marker is PART OF the dynamic segment
       // This is the case where -intercepted- types apply (handled by getSegmentParam)
-      const loaderTree = createLoaderTree(
-        '',
-        {},
-        createLoaderTree('(.)[photoId]')
-      )
+      const loaderTree = createLoaderTree('', {}, createLoaderTree('(.)[photoId]'))
       const route = parseAppRoute('/[photoId]', true)
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
@@ -496,11 +460,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
         '',
         {},
         createLoaderTree('[id]', {
-          modal: createLoaderTree(
-            '(.)photo',
-            {},
-            createLoaderTree('[photoId]')
-          ),
+          modal: createLoaderTree('(.)photo', {}, createLoaderTree('[photoId]')),
         })
       )
       const route = parseAppRoute('/[id]/(.)photo/[photoId]', true)
@@ -523,16 +483,8 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
         '',
         {},
         createLoaderTree('[category]', {
-          modal: createLoaderTree(
-            '(.)photo',
-            {},
-            createLoaderTree('[photoId]')
-          ),
-          sidebar: createLoaderTree(
-            '(.)filter',
-            {},
-            createLoaderTree('[filterId]')
-          ),
+          modal: createLoaderTree('(.)photo', {}, createLoaderTree('[photoId]')),
+          sidebar: createLoaderTree('(.)filter', {}, createLoaderTree('[filterId]')),
         })
       )
       const route = parseAppRoute('/[category]/(.)photo/[photoId]', true)
@@ -558,11 +510,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
           'gallery',
           {},
           createLoaderTree('[id]', {
-            modal: createLoaderTree(
-              '(..)photo',
-              {},
-              createLoaderTree('[photoId]')
-            ),
+            modal: createLoaderTree('(..)photo', {}, createLoaderTree('[photoId]')),
           })
         )
       )
@@ -592,19 +540,12 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
             'gallery',
             {},
             createLoaderTree('[id]', {
-              modal: createLoaderTree(
-                '(...)photo',
-                {},
-                createLoaderTree('[photoId]')
-              ),
+              modal: createLoaderTree('(...)photo', {}, createLoaderTree('[photoId]')),
             })
           )
         )
       )
-      const route = parseAppRoute(
-        '/app/gallery/[id]/(...)photo/[photoId]',
-        true
-      )
+      const route = parseAppRoute('/app/gallery/[id]/(...)photo/[photoId]', true)
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -624,11 +565,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
         '',
         {},
         createLoaderTree('[id]', {
-          modal: createLoaderTree(
-            '(.)details',
-            {},
-            createLoaderTree('[...segments]')
-          ),
+          modal: createLoaderTree('(.)details', {}, createLoaderTree('[...segments]')),
         })
       )
       const route = parseAppRoute('/[id]/(.)details/[...segments]', true)
@@ -656,11 +593,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
           '(marketing)',
           {},
           createLoaderTree('[lang]', {
-            modal: createLoaderTree(
-              '(.)photo',
-              {},
-              createLoaderTree('[photoId]')
-            ),
+            modal: createLoaderTree('(.)photo', {}, createLoaderTree('[photoId]')),
           })
         )
       )
@@ -690,19 +623,12 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
             'blog',
             {},
             createLoaderTree('[category]', {
-              modal: createLoaderTree(
-                '(.)post',
-                {},
-                createLoaderTree('[slug]')
-              ),
+              modal: createLoaderTree('(.)post', {}, createLoaderTree('[slug]')),
             })
           )
         )
       )
-      const route = parseAppRoute(
-        '/[lang]/blog/[category]/(.)post/[slug]',
-        true
-      )
+      const route = parseAppRoute('/[lang]/blog/[category]/(.)post/[slug]', true)
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -750,11 +676,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
           'photos',
           {},
           createLoaderTree('[id]', {
-            modal: createLoaderTree(
-              '(.)photo',
-              {},
-              createLoaderTree('[photoId]')
-            ),
+            modal: createLoaderTree('(.)photo', {}, createLoaderTree('[photoId]')),
           })
         )
       )
@@ -784,19 +706,12 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
             'products',
             {},
             createLoaderTree('[category]', {
-              modal: createLoaderTree(
-                '(.)product',
-                {},
-                createLoaderTree('[productId]')
-              ),
+              modal: createLoaderTree('(.)product', {}, createLoaderTree('[productId]')),
             })
           )
         )
       )
-      const route = parseAppRoute(
-        '/[locale]/products/[category]/(.)product/[productId]',
-        true
-      )
+      const route = parseAppRoute('/[locale]/products/[category]/(.)product/[productId]', true)
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -847,9 +762,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
-      expect(result).toEqual([
-        { name: '[id]', paramName: 'id', paramType: 'dynamic' },
-      ])
+      expect(result).toEqual([{ name: '[id]', paramName: 'id', paramType: 'dynamic' }])
     })
 
     it('should match segments by depth and param name', () => {
@@ -857,20 +770,14 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
       const loaderTree = createLoaderTree(
         '',
         {},
-        createLoaderTree(
-          '[lang]',
-          {},
-          createLoaderTree('blog', {}, createLoaderTree('[slug]'))
-        )
+        createLoaderTree('[lang]', {}, createLoaderTree('blog', {}, createLoaderTree('[slug]')))
       )
       const route = parseAppRoute('/[lang]/[slug]', true)
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
       // Should match [lang] at depth 0 but not [slug] (wrong depth)
-      expect(result).toEqual([
-        { name: '[lang]', paramName: 'lang', paramType: 'dynamic' },
-      ])
+      expect(result).toEqual([{ name: '[lang]', paramName: 'lang', paramType: 'dynamic' }])
     })
 
     it('should handle optional catchall in parallel route', () => {
@@ -899,20 +806,14 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
         createLoaderTree(
           '(a)',
           {},
-          createLoaderTree(
-            '(b)',
-            {},
-            createLoaderTree('(c)', {}, createLoaderTree('[id]'))
-          )
+          createLoaderTree('(b)', {}, createLoaderTree('(c)', {}, createLoaderTree('[id]')))
         )
       )
       const route = parseAppRoute('/[id]', true)
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
-      expect(result).toEqual([
-        { name: '[id]', paramName: 'id', paramType: 'dynamic' },
-      ])
+      expect(result).toEqual([{ name: '[id]', paramName: 'id', paramType: 'dynamic' }])
     })
   })
 
@@ -936,19 +837,13 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
       const loaderTree = createLoaderTree(
         '',
         {},
-        createLoaderTree(
-          'api',
-          {},
-          createLoaderTree('v1', {}, createLoaderTree('[endpoint]'))
-        )
+        createLoaderTree('api', {}, createLoaderTree('v1', {}, createLoaderTree('[endpoint]')))
       )
       const route = parseAppRoute('/api/v1/[endpoint]', true)
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
-      expect(result).toEqual([
-        { name: '[endpoint]', paramName: 'endpoint', paramType: 'dynamic' },
-      ])
+      expect(result).toEqual([{ name: '[endpoint]', paramName: 'endpoint', paramType: 'dynamic' }])
     })
 
     it('should handle segments with values already present in the page', () => {
@@ -1163,11 +1058,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
       const loaderTree = createLoaderTree(
         '',
         {},
-        createLoaderTree(
-          'blog',
-          {},
-          createLoaderTree('[lang]', {}, createLoaderTree('[slug]'))
-        )
+        createLoaderTree('blog', {}, createLoaderTree('[lang]', {}, createLoaderTree('[slug]')))
       )
       const route = parseAppRoute('/blog/en/[slug]', true)
       const { pathnameRouteParamSegments, params } =
@@ -1207,11 +1098,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
       const loaderTree = createLoaderTree(
         '',
         {},
-        createLoaderTree(
-          '(shop)',
-          {},
-          createLoaderTree('[category]', {}, createLoaderTree('[id]'))
-        )
+        createLoaderTree('(shop)', {}, createLoaderTree('[category]', {}, createLoaderTree('[id]')))
       )
       const route = parseAppRoute('/electronics/123', true)
       const { pathnameRouteParamSegments, params } =

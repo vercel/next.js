@@ -1,10 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import {
-  getRedboxDescription,
-  openRedbox,
-  waitForNoRedbox,
-  retry,
-} from 'next-test-utils'
+import { getRedboxDescription, openRedbox, waitForNoRedbox, retry } from 'next-test-utils'
 
 describe('Cache Components Dev Errors', () => {
   const { next } = nextTestSetup({

@@ -8,13 +8,7 @@ const Page = () => {
       <p>Trailing Slash</p>
       <Image id="import-img" alt="import-img" src={img} priority />
       <br />
-      <Image
-        id="string-img"
-        alt="string-img"
-        src="/prefix/test.jpg"
-        width={200}
-        height={200}
-      />
+      <Image id="string-img" alt="string-img" src="/prefix/test.jpg" width={200} height={200} />
     </div>
   )
 }

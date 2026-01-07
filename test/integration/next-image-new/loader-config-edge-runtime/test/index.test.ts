@@ -1,12 +1,6 @@
 /* eslint-env jest */
 
-import {
-  findPort,
-  killApp,
-  launchApp,
-  nextBuild,
-  nextStart,
-} from 'next-test-utils'
+import { findPort, killApp, launchApp, nextBuild, nextStart } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
@@ -18,9 +12,7 @@ let browser
 
 function runTests() {
   it('should add "src" to img1 based on the loader config', async () => {
-    expect(await browser.elementById('img1').getAttribute('src')).toBe(
-      '/logo.png#w:828,q:50'
-    )
+    expect(await browser.elementById('img1').getAttribute('src')).toBe('/logo.png#w:828,q:50')
   })
 
   it('should add "srcset" to img1 based on the loader config', async () => {
@@ -30,9 +22,7 @@ function runTests() {
   })
 
   it('should add "src" to img2 based on the loader prop', async () => {
-    expect(await browser.elementById('img2').getAttribute('src')).toBe(
-      '/logo.png?wid=640&qual=35'
-    )
+    expect(await browser.elementById('img2').getAttribute('src')).toBe('/logo.png?wid=640&qual=35')
   })
 
   it('should add "srcset" to img2 based on the loader prop', async () => {
@@ -43,39 +33,33 @@ function runTests() {
 }
 
 describe('Image Loader Config with Edge Runtime', () => {
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
-    'development mode',
-    () => {
-      beforeAll(async () => {
-        appPort = await findPort()
-        app = await launchApp(appDir, appPort)
-        browser = await webdriver(appPort, '/')
-      })
-      afterAll(async () => {
-        await killApp(app)
-        if (browser) {
-          browser.close()
-        }
-      })
-      runTests()
-    }
-  )
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      beforeAll(async () => {
-        await nextBuild(appDir)
-        appPort = await findPort()
-        app = await nextStart(appDir, appPort)
-        browser = await webdriver(appPort, '/')
-      })
-      afterAll(async () => {
-        await killApp(app)
-        if (browser) {
-          browser.close()
-        }
-      })
-      runTests()
-    }
-  )
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
+    beforeAll(async () => {
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+      browser = await webdriver(appPort, '/')
+    })
+    afterAll(async () => {
+      await killApp(app)
+      if (browser) {
+        browser.close()
+      }
+    })
+    runTests()
+  })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
+    beforeAll(async () => {
+      await nextBuild(appDir)
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+      browser = await webdriver(appPort, '/')
+    })
+    afterAll(async () => {
+      await killApp(app)
+      if (browser) {
+        browser.close()
+      }
+    })
+    runTests()
+  })
 })

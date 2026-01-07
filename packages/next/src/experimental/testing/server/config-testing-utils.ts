@@ -1,10 +1,7 @@
 import type { IncomingHttpHeaders } from 'node:http'
 import { parse, type UrlWithParsedQuery } from 'node:url'
 import { match } from 'next/dist/compiled/path-to-regexp'
-import {
-  matchHas,
-  prepareDestination,
-} from '../../../shared/lib/router/utils/prepare-destination'
+import { matchHas, prepareDestination } from '../../../shared/lib/router/utils/prepare-destination'
 import { buildCustomRoute } from '../../../lib/build-custom-route'
 import loadCustomRoutes from '../../../lib/load-custom-routes'
 import type { NextConfig } from '../../../server/config-shared'
@@ -89,9 +86,7 @@ export async function unstable_getResponseFromNextConfig({
   const request = constructRequest({ url, headers, cookies })
   const routes = await loadCustomRoutes(nextConfig)
 
-  const headerRoutes = routes.headers.map((route) =>
-    buildCustomRoute('header', route)
-  )
+  const headerRoutes = routes.headers.map((route) => buildCustomRoute('header', route))
   const redirectRoutes = routes.redirects.map((route) =>
     buildCustomRoute('redirect', route, ['/_next/'])
   )

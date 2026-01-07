@@ -53,10 +53,7 @@ export function devToolsConfigMiddleware({
 
     const validation = devToolsConfigSchema.safeParse(body)
     if (!validation.success) {
-      console.error(
-        '[Next.js DevTools] Invalid config passed:',
-        validation.error.message
-      )
+      console.error('[Next.js DevTools] Invalid config passed:', validation.error.message)
       return middlewareResponse.badRequest(res)
     }
 
@@ -69,9 +66,7 @@ export function devToolsConfigMiddleware({
   }
 }
 
-export async function getDevToolsConfig(
-  distDir: string
-): Promise<DevToolsConfig> {
+export async function getDevToolsConfig(distDir: string): Promise<DevToolsConfig> {
   const configPath = join(distDir, 'cache', DEVTOOLS_CONFIG_FILENAME)
 
   if (!existsSync(configPath)) {

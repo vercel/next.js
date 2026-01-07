@@ -29,11 +29,7 @@ DEALINGS IN THE SOFTWARE.
 import vm from 'vm'
 import { transformSync } from './index'
 import { getJestSWCOptions } from './options'
-import type {
-  TransformerCreator,
-  TransformOptions,
-  SyncTransformer,
-} from '@jest/transform'
+import type { TransformerCreator, TransformOptions, SyncTransformer } from '@jest/transform'
 import type { Config } from '@jest/types'
 import type { NextConfig, ExperimentalConfig } from '../../server/config-shared'
 import type { ResolvedBaseUrl } from '../load-jsconfig'
@@ -54,9 +50,7 @@ export interface JestTransformerConfig extends TransformerConfig {
 // see https://github.com/facebook/jest/issues/9430
 const isSupportEsm = 'Module' in vm
 
-function getJestConfig(
-  jestConfig: TransformOptions<JestTransformerConfig>
-): Config.ProjectConfig {
+function getJestConfig(jestConfig: TransformOptions<JestTransformerConfig>): Config.ProjectConfig {
   return 'config' in jestConfig
     ? // jest 27
       jestConfig.config
@@ -64,16 +58,10 @@ function getJestConfig(
       (jestConfig as unknown as Config.ProjectConfig)
 }
 
-function isEsm(
-  isEsmProject: boolean,
-  filename: string,
-  jestConfig: Config.ProjectConfig
-): boolean {
+function isEsm(isEsmProject: boolean, filename: string, jestConfig: Config.ProjectConfig): boolean {
   return (
     (/\.jsx?$/.test(filename) && isEsmProject) ||
-    jestConfig.extensionsToTreatAsEsm?.some((ext: any) =>
-      filename.endsWith(ext)
-    )
+    jestConfig.extensionsToTreatAsEsm?.some((ext: any) => filename.endsWith(ext))
   )
 }
 
@@ -97,9 +85,7 @@ const createTransformer: TransformerCreator<
       swcPlugins: inputOptions?.swcPlugins,
       compilerOptions: inputOptions?.compilerOptions,
       serverReferenceHashSalt: '',
-      esm:
-        isSupportEsm &&
-        isEsm(Boolean(inputOptions?.isEsmProject), filename, jestConfig),
+      esm: isSupportEsm && isEsm(Boolean(inputOptions?.isEsmProject), filename, jestConfig),
     })
 
     return transformSync(src, { ...swcTransformOpts, filename })

@@ -26,8 +26,7 @@ export default function Root({ children }) {
           <ul>
             {links.map(({ href }) => (
               <li key={href}>
-                {href} - <Link href={href}>link</Link> -{' '}
-                <a href={href}>anchor</a>
+                {href} - <Link href={href}>link</Link> - <a href={href}>anchor</a>
               </li>
             ))}
           </ul>

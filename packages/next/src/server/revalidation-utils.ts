@@ -26,17 +26,12 @@ export async function withExecuteRevalidates<T>(
 }
 
 type RevalidationState = Required<
-  Pick<
-    WorkStore,
-    'pendingRevalidatedTags' | 'pendingRevalidates' | 'pendingRevalidateWrites'
-  >
+  Pick<WorkStore, 'pendingRevalidatedTags' | 'pendingRevalidates' | 'pendingRevalidateWrites'>
 >
 
 function cloneRevalidationState(store: WorkStore): RevalidationState {
   return {
-    pendingRevalidatedTags: store.pendingRevalidatedTags
-      ? [...store.pendingRevalidatedTags]
-      : [],
+    pendingRevalidatedTags: store.pendingRevalidatedTags ? [...store.pendingRevalidatedTags] : [],
     pendingRevalidates: { ...store.pendingRevalidates },
     pendingRevalidateWrites: store.pendingRevalidateWrites
       ? [...store.pendingRevalidateWrites]
@@ -51,9 +46,7 @@ function diffRevalidationState(
   const prevTagsWithProfile = new Set(
     prev.pendingRevalidatedTags.map((item) => {
       const profileKey =
-        typeof item.profile === 'object'
-          ? JSON.stringify(item.profile)
-          : item.profile || ''
+        typeof item.profile === 'object' ? JSON.stringify(item.profile) : item.profile || ''
       return `${item.tag}:${profileKey}`
     })
   )
@@ -61,15 +54,11 @@ function diffRevalidationState(
   return {
     pendingRevalidatedTags: curr.pendingRevalidatedTags.filter((item) => {
       const profileKey =
-        typeof item.profile === 'object'
-          ? JSON.stringify(item.profile)
-          : item.profile || ''
+        typeof item.profile === 'object' ? JSON.stringify(item.profile) : item.profile || ''
       return !prevTagsWithProfile.has(`${item.tag}:${profileKey}`)
     }),
     pendingRevalidates: Object.fromEntries(
-      Object.entries(curr.pendingRevalidates).filter(
-        ([key]) => !(key in prev.pendingRevalidates)
-      )
+      Object.entries(curr.pendingRevalidates).filter(([key]) => !(key in prev.pendingRevalidates))
     ),
     pendingRevalidateWrites: curr.pendingRevalidateWrites.filter(
       (promise) => !prevRevalidateWrites.has(promise)
@@ -94,9 +83,7 @@ async function revalidateTags(
 
   // Group tags by profile for batch processing
   const tagsByProfile = new Map<
-    | string
-    | { stale?: number; revalidate?: number; expire?: number }
-    | undefined,
+    string | { stale?: number; revalidate?: number; expire?: number } | undefined,
     string[]
   >()
 
@@ -105,11 +92,7 @@ async function revalidateTags(
     // Find existing profile by comparing values
     let existingKey = undefined
     for (const [key] of tagsByProfile) {
-      if (
-        typeof key === 'string' &&
-        typeof profile === 'string' &&
-        key === profile
-      ) {
+      if (typeof key === 'string' && typeof profile === 'string' && key === profile) {
         existingKey = key
         break
       }
@@ -140,9 +123,7 @@ async function revalidateTags(
     let durations: { expire?: number } | undefined
 
     if (profile) {
-      let cacheLife:
-        | { stale?: number; revalidate?: number; expire?: number }
-        | undefined
+      let cacheLife: { stale?: number; revalidate?: number; expire?: number } | undefined
 
       if (typeof profile === 'object') {
         // Profile is already a cacheLife configuration object
@@ -183,25 +164,17 @@ async function revalidateTags(
   await Promise.all(promises)
 }
 
-export async function executeRevalidates(
-  workStore: WorkStore,
-  state?: RevalidationState
-) {
+export async function executeRevalidates(workStore: WorkStore, state?: RevalidationState) {
   const pendingRevalidatedTags =
     state?.pendingRevalidatedTags ?? workStore.pendingRevalidatedTags ?? []
 
-  const pendingRevalidates =
-    state?.pendingRevalidates ?? workStore.pendingRevalidates ?? {}
+  const pendingRevalidates = state?.pendingRevalidates ?? workStore.pendingRevalidates ?? {}
 
   const pendingRevalidateWrites =
     state?.pendingRevalidateWrites ?? workStore.pendingRevalidateWrites ?? []
 
   return Promise.all([
-    revalidateTags(
-      pendingRevalidatedTags,
-      workStore.incrementalCache,
-      workStore
-    ),
+    revalidateTags(pendingRevalidatedTags, workStore.incrementalCache, workStore),
     ...Object.values(pendingRevalidates),
     ...pendingRevalidateWrites,
   ])

@@ -21,9 +21,7 @@ const nextTelemetry = (options: NextTelemetryOptions, arg: string) => {
     const path = telemetry.setEnabled(false)
 
     if (isEnabled) {
-      console.log(
-        cyan(`Your preference has been saved${path ? ` to ${path}` : ''}.`)
-      )
+      console.log(cyan(`Your preference has been saved${path ? ` to ${path}` : ''}.`))
     } else {
       console.log(yellow(`Next.js' telemetry collection is already disabled.`))
     }
@@ -33,14 +31,10 @@ const nextTelemetry = (options: NextTelemetryOptions, arg: string) => {
     console.log(bold('Next.js Telemetry'))
   }
 
-  console.log(
-    `\nStatus: ${isEnabled ? bold(green('Enabled')) : bold(red('Disabled'))}`
-  )
+  console.log(`\nStatus: ${isEnabled ? bold(green('Enabled')) : bold(red('Disabled'))}`)
 
   if (isEnabled) {
-    console.log(
-      '\nNext.js telemetry is completely anonymous. Thank you for participating!'
-    )
+    console.log('\nNext.js telemetry is completely anonymous. Thank you for participating!')
   } else {
     console.log(
       `\nYou have opted-out of Next.js' anonymous telemetry program.\nNo data will be collected from your machine.`

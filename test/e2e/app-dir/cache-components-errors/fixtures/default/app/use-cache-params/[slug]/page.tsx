@@ -1,8 +1,4 @@
-export default async function Page({
-  params,
-}: {
-  params: Promise<{ slug: string }>
-}) {
+export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
   'use cache'
 
   const { slug } = await params
@@ -10,9 +6,9 @@ export default async function Page({
   return (
     <>
       <p>
-        This page accesses params without defining any static params. This
-        excludes the page from prerenders, and creates a dynamic hole. Without a
-        parent suspense boundary, this will cause an error during prerendering.
+        This page accesses params without defining any static params. This excludes the page from
+        prerenders, and creates a dynamic hole. Without a parent suspense boundary, this will cause
+        an error during prerendering.
       </p>
       <p>Slug: {slug}</p>
     </>

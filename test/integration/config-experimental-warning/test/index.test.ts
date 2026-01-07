@@ -1,15 +1,7 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import {
-  killApp,
-  launchApp,
-  findPort,
-  File,
-  nextBuild,
-  nextStart,
-  retry,
-} from 'next-test-utils'
+import { killApp, launchApp, findPort, File, nextBuild, nextStart, retry } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
 const appDir = join(__dirname, '..')
@@ -184,11 +176,9 @@ describe('Config Experimental Warning', () => {
     expect(stdout).toContain(' ✓ workerThreads')
     expect(stdout).toContain(' ✓ scrollRestoration')
   })
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      it('should not show next app info in next start', async () => {
-        configFile.write(`
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
+    it('should not show next app info in next start', async () => {
+      configFile.write(`
         module.exports = {
           experimental: {
             workerThreads: true,
@@ -199,19 +189,19 @@ describe('Config Experimental Warning', () => {
         }
       `)
 
-        await collectStdoutFromBuild(appDir)
-        const port = await findPort()
-        let stdout = ''
-        app = await nextStart(appDir, port, {
-          onStdout(msg) {
-            stdout += msg
-          },
-        })
-        expect(stdout).not.toMatch(experimentalHeader)
+      await collectStdoutFromBuild(appDir)
+      const port = await findPort()
+      let stdout = ''
+      app = await nextStart(appDir, port, {
+        onStdout(msg) {
+          stdout += msg
+        },
       })
+      expect(stdout).not.toMatch(experimentalHeader)
+    })
 
-      it('should show next app info with all experimental features in next build', async () => {
-        configFile.write(`
+    it('should show next app info with all experimental features in next build', async () => {
+      configFile.write(`
         module.exports = {
           experimental: {
             workerThreads: true,
@@ -222,17 +212,17 @@ describe('Config Experimental Warning', () => {
           }
         }
       `)
-        const stdout = await collectStdoutFromBuild(appDir)
-        expect(stdout).toMatch(experimentalHeader)
-        expect(stdout).toMatch(' · cpus: 2')
-        expect(stdout).toMatch(' ✓ workerThreads')
-        expect(stdout).toMatch(' ✓ scrollRestoration')
-        expect(stdout).toMatch(' ⨯ prerenderEarlyExit')
-        expect(stdout).toMatch(' ✓ parallelServerCompiles')
-      })
+      const stdout = await collectStdoutFromBuild(appDir)
+      expect(stdout).toMatch(experimentalHeader)
+      expect(stdout).toMatch(' · cpus: 2')
+      expect(stdout).toMatch(' ✓ workerThreads')
+      expect(stdout).toMatch(' ✓ scrollRestoration')
+      expect(stdout).toMatch(' ⨯ prerenderEarlyExit')
+      expect(stdout).toMatch(' ✓ parallelServerCompiles')
+    })
 
-      it('should show unrecognized experimental features in warning but not in start log experiments section', async () => {
-        configFile.write(`
+    it('should show unrecognized experimental features in warning but not in start log experiments section', async () => {
+      configFile.write(`
         module.exports = {
           experimental: {
             appDir: true
@@ -240,28 +230,25 @@ describe('Config Experimental Warning', () => {
         }
       `)
 
-        await collectStdoutFromBuild(appDir)
-        const port = await findPort()
-        let stdout = ''
-        let stderr = ''
-        app = await nextStart(appDir, port, {
-          onStdout(msg) {
-            stdout += msg
-          },
-          onStderr(msg) {
-            stderr += msg
-          },
-        })
-
-        await retry(() => {
-          const cliOutput = stripAnsi(stdout)
-          const cliOutputErr = stripAnsi(stderr)
-          expect(cliOutput).not.toContain(experimentalHeader)
-          expect(cliOutputErr).toContain(
-            `Unrecognized key(s) in object: 'appDir' at "experimental"`
-          )
-        })
+      await collectStdoutFromBuild(appDir)
+      const port = await findPort()
+      let stdout = ''
+      let stderr = ''
+      app = await nextStart(appDir, port, {
+        onStdout(msg) {
+          stdout += msg
+        },
+        onStderr(msg) {
+          stderr += msg
+        },
       })
-    }
-  )
+
+      await retry(() => {
+        const cliOutput = stripAnsi(stdout)
+        const cliOutputErr = stripAnsi(stderr)
+        expect(cliOutput).not.toContain(experimentalHeader)
+        expect(cliOutputErr).toContain(`Unrecognized key(s) in object: 'appDir' at "experimental"`)
+      })
+    })
+  })
 })

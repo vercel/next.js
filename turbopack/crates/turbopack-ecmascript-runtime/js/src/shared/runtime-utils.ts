@@ -12,21 +12,14 @@
 type EsmNamespaceObject = Record<string, any>
 
 // @ts-ignore Defined in `dev-base.ts`
-declare function getOrInstantiateModuleFromParent<M>(
-  id: ModuleId,
-  sourceModule: M
-): M
+declare function getOrInstantiateModuleFromParent<M>(id: ModuleId, sourceModule: M): M
 
 const REEXPORTED_OBJECTS = new WeakMap<Module, ReexportedObjects>()
 
 /**
  * Constructs the `__turbopack_context__` object for a module.
  */
-function Context(
-  this: TurbopackBaseContext<Module>,
-  module: Module,
-  exports: Exports
-) {
+function Context(this: TurbopackBaseContext<Module>, module: Module, exports: Exports) {
   this.m = module
   // We need to store this here instead of accessing it from the module object to:
   // 1. Make it available to factories directly, since we rewrite `this` to
@@ -58,31 +51,18 @@ interface ModuleContext {
   resolve(moduleId: string): ModuleId
 }
 
-type GetOrInstantiateModuleFromParent<M extends Module> = (
-  moduleId: M['id'],
-  parentModule: M
-) => M
+type GetOrInstantiateModuleFromParent<M extends Module> = (moduleId: M['id'], parentModule: M) => M
 
-declare function getOrInstantiateRuntimeModule(
-  chunkPath: ChunkPath,
-  moduleId: ModuleId
-): Module
+declare function getOrInstantiateRuntimeModule(chunkPath: ChunkPath, moduleId: ModuleId): Module
 
 const hasOwnProperty = Object.prototype.hasOwnProperty
 const toStringTag = typeof Symbol !== 'undefined' && Symbol.toStringTag
 
-function defineProp(
-  obj: any,
-  name: PropertyKey,
-  options: PropertyDescriptor & ThisType<any>
-) {
+function defineProp(obj: any, name: PropertyKey, options: PropertyDescriptor & ThisType<any>) {
   if (!hasOwnProperty.call(obj, name)) Object.defineProperty(obj, name, options)
 }
 
-function getOverwrittenModule(
-  moduleCache: ModuleCache<Module>,
-  id: ModuleId
-): Module {
+function getOverwrittenModule(moduleCache: ModuleCache<Module>, id: ModuleId): Module {
   let module = moduleCache[id]
   if (!module) {
     // This is invoked when a module is merged into another module, thus it wasn't invoked via
@@ -112,9 +92,7 @@ const BindingTag_Value = 0 as BindingTag
 // - a prop name
 // - BindingTag_Value, a value to be bound directly, or
 // - 1 or 2 functions to bind as getters and sdetters
-type EsmBindings = Array<
-  string | BindingTag | (() => unknown) | ((v: unknown) => void) | unknown
->
+type EsmBindings = Array<string | BindingTag | (() => unknown) | ((v: unknown) => void) | unknown>
 
 /**
  * Adds the getters to the exports object.
@@ -179,22 +157,14 @@ function esmExport(
 contextPrototype.s = esmExport
 
 type ReexportedObjects = Record<PropertyKey, unknown>[]
-function ensureDynamicExports(
-  module: Module,
-  exports: Exports
-): ReexportedObjects {
-  let reexportedObjects: ReexportedObjects | undefined =
-    REEXPORTED_OBJECTS.get(module)
+function ensureDynamicExports(module: Module, exports: Exports): ReexportedObjects {
+  let reexportedObjects: ReexportedObjects | undefined = REEXPORTED_OBJECTS.get(module)
 
   if (!reexportedObjects) {
     REEXPORTED_OBJECTS.set(module, (reexportedObjects = []))
     module.exports = module.namespaceObject = new Proxy(exports, {
       get(target, prop) {
-        if (
-          hasOwnProperty.call(target, prop) ||
-          prop === 'default' ||
-          prop === '__esModule'
-        ) {
+        if (hasOwnProperty.call(target, prop) || prop === 'default' || prop === '__esModule') {
           return Reflect.get(target, prop)
         }
         for (const obj of reexportedObjects!) {
@@ -242,11 +212,7 @@ function dynamicExport(
 }
 contextPrototype.j = dynamicExport
 
-function exportValue(
-  this: TurbopackBaseContext<Module>,
-  value: any,
-  id: ModuleId | undefined
-) {
+function exportValue(this: TurbopackBaseContext<Module>, value: any, id: ModuleId | undefined) {
   let module: Module
   if (id != null) {
     module = getOverwrittenModule(this.c, id)
@@ -293,11 +259,7 @@ const LEAF_PROTOTYPES = [null, getProto({}), getProto([]), getProto(getProto)]
  *   * `false`: will have the raw module as default export
  *   * `true`: will have the default property as default export
  */
-function interopEsm(
-  raw: Exports,
-  ns: EsmNamespaceObject,
-  allowExportDefault?: boolean
-) {
+function interopEsm(raw: Exports, ns: EsmNamespaceObject, allowExportDefault?: boolean) {
   const bindings: EsmBindings = []
   let defaultLocation = -1
   for (
@@ -351,21 +313,12 @@ function esmImport(
 
   // only ESM can be an async module, so we don't need to worry about exports being a promise here.
   const raw = module.exports
-  return (module.namespaceObject = interopEsm(
-    raw,
-    createNS(raw),
-    raw && (raw as any).__esModule
-  ))
+  return (module.namespaceObject = interopEsm(raw, createNS(raw), raw && (raw as any).__esModule))
 }
 contextPrototype.i = esmImport
 
-function asyncLoader(
-  this: TurbopackBaseContext<Module>,
-  moduleId: ModuleId
-): Promise<Exports> {
-  const loader = this.r(moduleId) as (
-    importFunction: EsmImport
-  ) => Promise<Exports>
+function asyncLoader(this: TurbopackBaseContext<Module>, moduleId: ModuleId): Promise<Exports> {
+  const loader = this.r(moduleId) as (importFunction: EsmImport) => Promise<Exports>
   return loader(esmImport.bind(this))
 }
 contextPrototype.A = asyncLoader
@@ -382,10 +335,7 @@ const runtimeRequire =
       }
 contextPrototype.t = runtimeRequire
 
-function commonJsRequire(
-  this: TurbopackBaseContext<Module>,
-  id: ModuleId
-): Exports {
+function commonJsRequire(this: TurbopackBaseContext<Module>, id: ModuleId): Exports {
   return getOrInstantiateModuleFromParent(id, this.m).exports
 }
 contextPrototype.r = commonJsRequire
@@ -503,10 +453,7 @@ function installCompressedModuleFactories(
     let moduleId = chunkModules[i] as ModuleId
     let end = i + 1
     // Find our factory function
-    while (
-      end < chunkModules.length &&
-      typeof chunkModules[end] !== 'function'
-    ) {
+    while (end < chunkModules.length && typeof chunkModules[end] !== 'function') {
       end++
     }
     if (end === chunkModules.length) {
@@ -602,9 +549,7 @@ function wrapDeps(deps: Dep[]): AsyncModuleExt[] {
 function asyncModule(
   this: TurbopackBaseContext<Module>,
   body: (
-    handleAsyncDependencies: (
-      deps: Dep[]
-    ) => Exports[] | Promise<() => Exports[]>,
+    handleAsyncDependencies: (deps: Dep[]) => Exports[] | Promise<() => Exports[]>,
     asyncResult: (err?: any) => void
   ) => void,
   hasAwait: boolean

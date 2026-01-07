@@ -6,11 +6,7 @@ export async function generateStaticParams() {
   return []
 }
 
-export default async function IdPage({
-  params,
-}: {
-  params: Promise<{ id: string }>
-}) {
+export default async function IdPage({ params }: { params: Promise<{ id: string }> }) {
   await new Promise((resolve) => setTimeout(resolve, Math.random() * 5000))
 
   const { id } = await params

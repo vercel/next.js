@@ -7,7 +7,5 @@ export default function middleware(req) {
 }
 
 export const config = {
-  matcher: [
-    '/((?!api|_next/static|favicon|.well-known|auth|sitemap|robots.txt|files).*)',
-  ],
+  matcher: ['/((?!api|_next/static|favicon|.well-known|auth|sitemap|robots.txt|files).*)'],
 }

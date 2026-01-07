@@ -6,9 +6,7 @@ export type ResolvedLazyResult<TValue> = PromiseLike<TValue> & { value: TValue }
  * awaited. Afterwards, it provides the resolved value synchronously as `value`
  * property.
  */
-export function createLazyResult<TValue>(
-  fn: () => Promise<TValue> | TValue
-): LazyResult<TValue> {
+export function createLazyResult<TValue>(fn: () => Promise<TValue> | TValue): LazyResult<TValue> {
   let pendingResult: Promise<TValue> | undefined
 
   const result: LazyResult<TValue> = {

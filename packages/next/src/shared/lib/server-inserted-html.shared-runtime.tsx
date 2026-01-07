@@ -10,8 +10,9 @@ export type ServerInsertedHTMLHook = (callbacks: () => React.ReactNode) => void
 //   import { createContext } from 'react'
 //
 // More info: https://github.com/vercel/next.js/pull/40686
-export const ServerInsertedHTMLContext =
-  React.createContext<ServerInsertedHTMLHook | null>(null as any)
+export const ServerInsertedHTMLContext = React.createContext<ServerInsertedHTMLHook | null>(
+  null as any
+)
 
 export function useServerInsertedHTML(callback: () => React.ReactNode): void {
   const addInsertedServerHTMLCallback = useContext(ServerInsertedHTMLContext)

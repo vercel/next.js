@@ -31,10 +31,7 @@ type FontOptions = {
 /**
  * Validate the data received from next-swc next-transform-font on next/font/local calls
  */
-export function validateLocalFontFunctionCall(
-  functionName: string,
-  fontData: any
-): FontOptions {
+export function validateLocalFontFunctionCall(functionName: string, fontData: any): FontOptions {
   if (functionName) {
     nextFontError(`next/font/local has no named exports`)
   }
@@ -85,11 +82,7 @@ export function validateLocalFontFunctionCall(
 
   if (Array.isArray(declarations)) {
     declarations.forEach((declaration) => {
-      if (
-        ['src', 'font-display', 'font-weight', 'font-style'].includes(
-          declaration?.prop
-        )
-      ) {
+      if (['src', 'font-display', 'font-weight', 'font-style'].includes(declaration?.prop)) {
         nextFontError(`Invalid declaration prop: \`${declaration.prop}\``)
       }
     })

@@ -11,9 +11,7 @@ export default async function Page(props) {
       <Link href="/dynamic/first" id="to-dynamic-first">
         To next url
       </Link>
-      <p id={`catchall-${params.slug.join('-')}`}>
-        catchall {params.slug.join(' ')}
-      </p>
+      <p id={`catchall-${params.slug.join('-')}`}>catchall {params.slug.join(' ')}</p>
     </>
   )
 }

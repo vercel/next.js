@@ -61,9 +61,7 @@ export class NextDevInstance extends NextInstance {
     return buildArgs
   }
 
-  private getSpawnOpts(
-    env?: Record<string, string>
-  ): import('child_process').SpawnOptions {
+  private getSpawnOpts(env?: Record<string, string>): import('child_process').SpawnOptions {
     return {
       cwd: this.testDir,
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -79,13 +77,9 @@ export class NextDevInstance extends NextInstance {
     }
   }
 
-  public async build(
-    options: { env?: Record<string, string>; args?: string[] } = {}
-  ) {
+  public async build(options: { env?: Record<string, string>; args?: string[] } = {}) {
     if (this.childProcess) {
-      throw new Error(
-        `can not run build while server is running, use next.stop() first`
-      )
+      throw new Error(`can not run build while server is running, use next.stop() first`)
     }
 
     return new Promise<{
@@ -105,8 +99,7 @@ export class NextDevInstance extends NextInstance {
         this.childProcess = undefined
         resolve({
           exitCode: 1,
-          cliOutput:
-            this.cliOutput.slice(curOutput) + '\nSpawn error: ' + error.message,
+          cliOutput: this.cliOutput.slice(curOutput) + '\nSpawn error: ' + error.message,
         })
       })
 
@@ -126,14 +119,11 @@ export class NextDevInstance extends NextInstance {
     }
 
     const useTurbo =
-      !process.env.NEXT_TEST_WASM &&
-      ((this as any).turbo || (this as any).experimentalTurbo)
+      !process.env.NEXT_TEST_WASM && ((this as any).turbo || (this as any).experimentalTurbo)
 
-    let startArgs = [
-      'pnpm',
-      'next',
-      useTurbo ? '--turbopack' : undefined,
-    ].filter(Boolean) as string[]
+    let startArgs = ['pnpm', 'next', useTurbo ? '--turbopack' : undefined].filter(
+      Boolean
+    ) as string[]
 
     if (this.startCommand) {
       startArgs = this.startCommand.split(' ')
@@ -181,10 +171,7 @@ export class NextDevInstance extends NextInstance {
           this.emit('stderr', [msg])
         })
 
-        const serverReadyTimeoutId = this.setServerReadyTimeout(
-          reject,
-          this.startServerTimeout
-        )
+        const serverReadyTimeoutId = this.setServerReadyTimeout(reject, this.startServerTimeout)
 
         this.childProcess.on('close', (code, signal) => {
           if (this.isStopping) return
@@ -270,9 +257,7 @@ export class NextDevInstance extends NextInstance {
 
       const detectServerRestart = async () => {
         await retry(async () => {
-          const isServerReady = this.serverReadyPattern.test(
-            this.cliOutput.slice(cliOutputLength)
-          )
+          const isServerReady = this.serverReadyPattern.test(this.cliOutput.slice(cliOutputLength))
           if (isServerRunning && !isServerReady) {
             throw new Error('Server has not finished restarting.')
           }
@@ -329,10 +314,7 @@ export class NextDevInstance extends NextInstance {
     await this.handleDevWatchDelayAfterChange(filename)
   }
 
-  public override async renameFolder(
-    foldername: string,
-    newFoldername: string
-  ) {
+  public override async renameFolder(foldername: string, newFoldername: string) {
     await this.handleDevWatchDelayBeforeChange(foldername)
     await super.renameFolder(foldername, newFoldername)
     await this.handleDevWatchDelayAfterChange(foldername)

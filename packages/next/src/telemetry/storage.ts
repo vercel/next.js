@@ -100,9 +100,7 @@ export class Telemetry {
         bold('Attention')
       )}: Next.js now collects completely anonymous telemetry regarding usage.`
     )
-    console.log(
-      `This information is used to shape Next.js' roadmap and prioritize features.`
-    )
+    console.log(`This information is used to shape Next.js' roadmap and prioritize features.`)
     console.log(
       `You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:`
     )
@@ -243,41 +241,29 @@ export class Telemetry {
     fs.mkdirSync(this.distDir, { recursive: true })
     // Use unique filename per process to avoid race conditions between parent/child
     const eventsFile = `_events_${process.pid}.json`
-    fs.writeFileSync(
-      path.join(this.distDir, eventsFile),
-      JSON.stringify(allEvents)
-    )
+    fs.writeFileSync(path.join(this.distDir, eventsFile), JSON.stringify(allEvents))
 
     // Note: cross-spawn is not used here as it causes
     // a new command window to appear when we don't want it to
-    const child_process =
-      require('child_process') as typeof import('child_process')
+    const child_process = require('child_process') as typeof import('child_process')
 
     // we use spawnSync when debugging to ensure logs are piped
     // correctly to stdout/stderr
-    const spawn = this.NEXT_TELEMETRY_DEBUG
-      ? child_process.spawnSync
-      : child_process.spawn
+    const spawn = this.NEXT_TELEMETRY_DEBUG ? child_process.spawnSync : child_process.spawn
 
-    spawn(
-      process.execPath,
-      [require.resolve('./detached-flush'), mode, dir, eventsFile],
-      {
-        detached: !this.NEXT_TELEMETRY_DEBUG,
-        windowsHide: true,
-        shell: false,
-        ...(this.NEXT_TELEMETRY_DEBUG
-          ? {
-              stdio: 'inherit',
-            }
-          : {}),
-      }
-    )
+    spawn(process.execPath, [require.resolve('./detached-flush'), mode, dir, eventsFile], {
+      detached: !this.NEXT_TELEMETRY_DEBUG,
+      windowsHide: true,
+      shell: false,
+      ...(this.NEXT_TELEMETRY_DEBUG
+        ? {
+            stdio: 'inherit',
+          }
+        : {}),
+    })
   }
 
-  private submitRecord = async (
-    _events: TelemetryEvent | TelemetryEvent[]
-  ): Promise<any> => {
+  private submitRecord = async (_events: TelemetryEvent | TelemetryEvent[]): Promise<any> => {
     let events: TelemetryEvent[]
     if (Array.isArray(_events)) {
       events = _events
@@ -296,9 +282,7 @@ export class Telemetry {
         setTimeout(() => {
           // Print to standard error to simplify selecting the output
           events.forEach(({ eventName, payload }) =>
-            console.error(
-              `[telemetry] ` + JSON.stringify({ eventName, payload }, null, 2)
-            )
+            console.error(`[telemetry] ` + JSON.stringify({ eventName, payload }, null, 2))
           )
           resolve(undefined)
         }, 100)

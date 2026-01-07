@@ -5,9 +5,8 @@ export default async function Page({ params }) {
   return (
     <>
       <p>
-        This page accesses params synchronously. This does not trigger dynamic,
-        and the build should succeed. In dev mode, we do log an error for the
-        sync access though.
+        This page accesses params synchronously. This does not trigger dynamic, and the build should
+        succeed. In dev mode, we do log an error for the sync access though.
       </p>
       <ParamsReadingComponent params={params} />
       <Suspense>

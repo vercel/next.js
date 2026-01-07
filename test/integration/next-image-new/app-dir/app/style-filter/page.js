@@ -16,12 +16,7 @@ const Page = () => {
         height={400}
       />
 
-      <Image
-        className={style.overrideImg}
-        id="img-blur"
-        placeholder="blur"
-        src={img}
-      />
+      <Image className={style.overrideImg} id="img-blur" placeholder="blur" src={img} />
 
       <footer>Footer</footer>
     </div>

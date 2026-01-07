@@ -56,9 +56,7 @@ const isMuslFromReport = () => {
 
 const isMuslFromChildProcess = () => {
   try {
-    return require('child_process')
-      .execSync('ldd --version', { encoding: 'utf8' })
-      .includes('musl')
+    return require('child_process').execSync('ldd --version', { encoding: 'utf8' }).includes('musl')
   } catch (e) {
     // If we reach this case, we don't know if the system is musl or not, so is better to just fallback to false
     return false
@@ -96,9 +94,7 @@ function requireNative() {
         loadErrors.push(e)
       }
     } else {
-      loadErrors.push(
-        new Error(`Unsupported architecture on Android ${process.arch}`)
-      )
+      loadErrors.push(new Error(`Unsupported architecture on Android ${process.arch}`))
     }
   } else if (process.platform === 'win32') {
     if (process.arch === 'x64') {
@@ -135,9 +131,7 @@ function requireNative() {
         loadErrors.push(e)
       }
     } else {
-      loadErrors.push(
-        new Error(`Unsupported architecture on Windows: ${process.arch}`)
-      )
+      loadErrors.push(new Error(`Unsupported architecture on Windows: ${process.arch}`))
     }
   } else if (process.platform === 'darwin') {
     try {
@@ -173,9 +167,7 @@ function requireNative() {
         loadErrors.push(e)
       }
     } else {
-      loadErrors.push(
-        new Error(`Unsupported architecture on macOS: ${process.arch}`)
-      )
+      loadErrors.push(new Error(`Unsupported architecture on macOS: ${process.arch}`))
     }
   } else if (process.platform === 'freebsd') {
     if (process.arch === 'x64') {
@@ -201,9 +193,7 @@ function requireNative() {
         loadErrors.push(e)
       }
     } else {
-      loadErrors.push(
-        new Error(`Unsupported architecture on FreeBSD: ${process.arch}`)
-      )
+      loadErrors.push(new Error(`Unsupported architecture on FreeBSD: ${process.arch}`))
     }
   } else if (process.platform === 'linux') {
     if (process.arch === 'x64') {
@@ -325,9 +315,7 @@ function requireNative() {
         loadErrors.push(e)
       }
     } else {
-      loadErrors.push(
-        new Error(`Unsupported architecture on Linux: ${process.arch}`)
-      )
+      loadErrors.push(new Error(`Unsupported architecture on Linux: ${process.arch}`))
     }
   } else if (process.platform === 'openharmony') {
     if (process.arch === 'arm64') {
@@ -364,16 +352,10 @@ function requireNative() {
         loadErrors.push(e)
       }
     } else {
-      loadErrors.push(
-        new Error(`Unsupported architecture on OpenHarmony: ${process.arch}`)
-      )
+      loadErrors.push(new Error(`Unsupported architecture on OpenHarmony: ${process.arch}`))
     }
   } else {
-    loadErrors.push(
-      new Error(
-        `Unsupported OS: ${process.platform}, architecture: ${process.arch}`
-      )
-    )
+    loadErrors.push(new Error(`Unsupported OS: ${process.platform}, architecture: ${process.arch}`))
   }
 }
 
@@ -411,8 +393,7 @@ if (!nativeBinding) {
 }
 
 module.exports = nativeBinding
-module.exports.registerNextExternalsPlugin =
-  nativeBinding.registerNextExternalsPlugin
+module.exports.registerNextExternalsPlugin = nativeBinding.registerNextExternalsPlugin
 module.exports.Assets = nativeBinding.Assets
 module.exports.AsyncDependenciesBlock = nativeBinding.AsyncDependenciesBlock
 module.exports.Chunk = nativeBinding.Chunk
@@ -460,8 +441,7 @@ module.exports.async = nativeBinding.async
 module.exports.BuiltinPluginName = nativeBinding.BuiltinPluginName
 module.exports.cleanupGlobalTrace = nativeBinding.cleanupGlobalTrace
 module.exports.EnforceExtension = nativeBinding.EnforceExtension
-module.exports.EXPECTED_RSPACK_CORE_VERSION =
-  nativeBinding.EXPECTED_RSPACK_CORE_VERSION
+module.exports.EXPECTED_RSPACK_CORE_VERSION = nativeBinding.EXPECTED_RSPACK_CORE_VERSION
 module.exports.formatDiagnostic = nativeBinding.formatDiagnostic
 module.exports.JsLoaderState = nativeBinding.JsLoaderState
 module.exports.JsRspackSeverity = nativeBinding.JsRspackSeverity

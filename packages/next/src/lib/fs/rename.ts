@@ -62,26 +62,18 @@ function renameSyncWithRetry(
   try {
     return fsRenameSync(source, target)
   } catch (error: any) {
-    if (
-      error.code !== 'EACCES' &&
-      error.code !== 'EPERM' &&
-      error.code !== 'EBUSY'
-    ) {
+    if (error.code !== 'EACCES' && error.code !== 'EPERM' && error.code !== 'EBUSY') {
       throw error // only for errors we think are temporary
     }
 
     if (Date.now() - startTime >= retryTimeout) {
-      console.error(
-        `Node.js fs rename failed after ${attempt} retries with error: ${error}`
-      )
+      console.error(`Node.js fs rename failed after ${attempt} retries with error: ${error}`)
 
       throw error // give up after configurable timeout
     }
 
     if (attempt > 100) {
-      console.error(
-        `Node.js fs rename failed after ${attempt} retries with error ${error}`
-      )
+      console.error(`Node.js fs rename failed after ${attempt} retries with error ${error}`)
       throw error
     }
 
@@ -102,12 +94,6 @@ function renameSyncWithRetry(
     }
 
     // Attempt again
-    return renameSyncWithRetry(
-      source,
-      target,
-      startTime,
-      retryTimeout,
-      attempt + 1
-    )
+    return renameSyncWithRetry(source, target, startTime, retryTimeout, attempt + 1)
   }
 }

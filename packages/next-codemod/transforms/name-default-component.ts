@@ -11,20 +11,13 @@ import { basename, extname } from 'path'
 import { createParserFromPath } from '../lib/parser'
 
 const camelCase = (value: string): string => {
-  const val = value.replace(/[-_\s.]+(.)?/g, (_match, chr) =>
-    chr ? chr.toUpperCase() : ''
-  )
+  const val = value.replace(/[-_\s.]+(.)?/g, (_match, chr) => (chr ? chr.toUpperCase() : ''))
   return val.slice(0, 1).toUpperCase() + val.slice(1)
 }
 
-const isValidIdentifier = (value: string): boolean =>
-  /^[a-zA-ZÀ-ÿ][0-9a-zA-ZÀ-ÿ]+$/.test(value)
+const isValidIdentifier = (value: string): boolean => /^[a-zA-ZÀ-ÿ][0-9a-zA-ZÀ-ÿ]+$/.test(value)
 
-export default function transformer(
-  file: FileInfo,
-  _api: API,
-  options: Options
-) {
+export default function transformer(file: FileInfo, _api: API, options: Options) {
   const j = createParserFromPath(file.path)
   const root = j(file.source)
 
@@ -42,9 +35,7 @@ export default function transformer(
     return !program || program?.value?.type === 'Program'
   }
 
-  const nameFunctionComponent = (
-    path: ASTPath<ExportDefaultDeclaration>
-  ): void => {
+  const nameFunctionComponent = (path: ASTPath<ExportDefaultDeclaration>): void => {
     const node = path.value
 
     if (!node.declaration) {
@@ -52,8 +43,7 @@ export default function transformer(
     }
 
     const isArrowFunction =
-      node.declaration.type === 'ArrowFunctionExpression' &&
-      returnsJSX(node.declaration.body)
+      node.declaration.type === 'ArrowFunctionExpression' && returnsJSX(node.declaration.body)
     const isAnonymousFunction =
       node.declaration.type === 'FunctionDeclaration' && !node.declaration.id
 
@@ -84,10 +74,7 @@ export default function transformer(
     if (isArrowFunction) {
       path.insertBefore(
         j.variableDeclaration('const', [
-          j.variableDeclarator(
-            j.identifier(name),
-            node.declaration as ArrowFunctionExpression
-          ),
+          j.variableDeclarator(j.identifier(name), node.declaration as ArrowFunctionExpression),
         ])
       )
 

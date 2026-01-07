@@ -31,9 +31,7 @@ export function getFontAxes(
 
     if (selectedVariableAxes) {
       // The axes other than weight and style that can be defined for the current variable font
-      const defineAbleAxes: string[] = allAxes
-        .map(({ tag }) => tag)
-        .filter((tag) => tag !== 'wght')
+      const defineAbleAxes: string[] = allAxes.map(({ tag }) => tag).filter((tag) => tag !== 'wght')
 
       if (defineAbleAxes.length === 0) {
         nextFontError(`Font \`${fontFamily}\` has no definable \`axes\``)

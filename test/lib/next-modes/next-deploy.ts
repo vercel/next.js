@@ -3,11 +3,7 @@ import path from 'path'
 import execa from 'execa'
 import fs from 'fs-extra'
 import { NextInstance } from './base'
-import {
-  TEST_PROJECT_NAME,
-  TEST_TEAM_NAME,
-  TEST_TOKEN,
-} from '../../../scripts/reset-project.mjs'
+import { TEST_PROJECT_NAME, TEST_TEAM_NAME, TEST_TOKEN } from '../../../scripts/reset-project.mjs'
 import fetch from 'node-fetch'
 import { Span } from 'next/dist/trace'
 
@@ -71,17 +67,12 @@ export class NextDeployInstance extends NextInstance {
     // create auth file in CI
     if (process.env.NEXT_TEST_JOB) {
       if (!TEST_TOKEN && !TEST_TEAM_NAME) {
-        throw new Error(
-          'Missing TEST_TOKEN and TEST_TEAM_NAME environment variables for CI'
-        )
+        throw new Error('Missing TEST_TOKEN and TEST_TEAM_NAME environment variables for CI')
       }
 
       const vcConfigDir = path.join(os.homedir(), '.vercel')
       await fs.ensureDir(vcConfigDir)
-      await fs.writeFile(
-        path.join(vcConfigDir, 'auth.json'),
-        JSON.stringify({ token: TEST_TOKEN })
-      )
+      await fs.writeFile(path.join(vcConfigDir, 'auth.json'), JSON.stringify({ token: TEST_TOKEN }))
       vercelFlags.push('--global-config', vcConfigDir)
     }
     require('console').log(`Linking project at ${this.testDir}`)
@@ -110,9 +101,7 @@ export class NextDeployInstance extends NextInstance {
       additionalEnv.push(`${key}=${this.env[key]}`)
     }
 
-    additionalEnv.push(
-      `VERCEL_CLI_VERSION=${process.env.VERCEL_CLI_VERSION || 'vercel@latest'}`
-    )
+    additionalEnv.push(`VERCEL_CLI_VERSION=${process.env.VERCEL_CLI_VERSION || 'vercel@latest'}`)
 
     // Add experimental feature flags
 
@@ -139,12 +128,7 @@ export class NextDeployInstance extends NextInstance {
         'NEXT_TELEMETRY_DISABLED=1',
         '--build-env',
         'VERCEL_NEXT_BUNDLED_SERVER=1',
-        ...additionalEnv.flatMap((pair) => [
-          '--env',
-          pair,
-          '--build-env',
-          pair,
-        ]),
+        ...additionalEnv.flatMap((pair) => ['--env', pair, '--build-env', pair]),
         '--force',
         ...vercelFlags,
       ],
@@ -205,23 +189,17 @@ export class NextDeployInstance extends NextInstance {
     const buildIdRes = await fetch(buildIdUrl)
 
     if (!buildIdRes.ok) {
-      require('console').error(
-        `Failed to load buildId ${buildIdUrl} (${buildIdRes.status})`
-      )
+      require('console').error(`Failed to load buildId ${buildIdUrl} (${buildIdRes.status})`)
     }
     this._buildId = (await buildIdRes.text()).trim()
 
     require('console').log(`Got buildId: ${this._buildId}`)
 
     // Use the vercel inspect command to get the CLI output from the build.
-    const buildLogs = await execa(
-      'vercel',
-      ['inspect', '--logs', this._url, ...vercelFlags],
-      {
-        env: vercelEnv,
-        reject: false,
-      }
-    )
+    const buildLogs = await execa('vercel', ['inspect', '--logs', this._url, ...vercelFlags], {
+      env: vercelEnv,
+      reject: false,
+    })
     if (buildLogs.exitCode !== 0) {
       throw new Error(`Failed to get build output logs: ${buildLogs.stderr}`)
     }
@@ -271,10 +249,7 @@ export class NextDeployInstance extends NextInstance {
     // no-op as the deployment is created during setup()
   }
 
-  public async patchFile(
-    filename: string,
-    content: string
-  ): Promise<{ newFile: boolean }> {
+  public async patchFile(filename: string, content: string): Promise<{ newFile: boolean }> {
     throw new Error('patchFile is not available in deploy test mode')
   }
   public async readFile(filename: string): Promise<string> {
@@ -283,10 +258,7 @@ export class NextDeployInstance extends NextInstance {
   public async deleteFile(filename: string): Promise<void> {
     throw new Error('deleteFile is not available in deploy test mode')
   }
-  public async renameFile(
-    filename: string,
-    newFilename: string
-  ): Promise<void> {
+  public async renameFile(filename: string, newFilename: string): Promise<void> {
     throw new Error('renameFile is not available in deploy test mode')
   }
 }

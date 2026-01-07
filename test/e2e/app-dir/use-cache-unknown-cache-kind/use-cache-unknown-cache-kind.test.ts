@@ -112,9 +112,7 @@ describe('use-cache-unknown-cache-kind', () => {
       const errorSource = await getRedboxSource(browser)
 
       if (isTurbopack) {
-        expect(errorDescription).toMatchInlineSnapshot(
-          `"Ecmascript file had an error"`
-        )
+        expect(errorDescription).toMatchInlineSnapshot(`"Ecmascript file had an error"`)
       } else if (isRspack) {
         expect(errorDescription).toMatchInlineSnapshot(
           `"  ╰─▶   × Error:   x Unknown cache kind "custom". Please configure a cache handler for this kind in the \`cacheHandlers\` object in your Next.js config."`
@@ -204,10 +202,7 @@ function getBuildOutput(cliOutput: string): string {
       }
 
       lines.push(stripAnsi(line))
-    } else if (
-      line.includes('Build error occurred') ||
-      line.includes('Failed to compile')
-    ) {
+    } else if (line.includes('Build error occurred') || line.includes('Failed to compile')) {
       skipLines = false
     }
   }

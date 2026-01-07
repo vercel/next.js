@@ -2,14 +2,7 @@
 
 import { join } from 'path'
 import cheerio from 'cheerio'
-import {
-  nextBuild,
-  fetchViaHTTP,
-  findPort,
-  launchApp,
-  killApp,
-  nextStart,
-} from 'next-test-utils'
+import { nextBuild, fetchViaHTTP, findPort, launchApp, killApp, nextStart } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
 let appPort
@@ -51,57 +44,42 @@ const respectsChunkAttachmentOrder = async () => {
 }
 
 describe('Root components import order', () => {
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      beforeAll(async () => {
-        await nextBuild(appDir)
-        appPort = await findPort()
-        app = await nextStart(appDir, appPort)
-      })
-      afterAll(() => killApp(app))
-
-      // Test relies on webpack splitChunks overrides.
-      ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
-        'Skipped in Turbopack',
-        () => {
-          it(
-            '_app chunks should be attached to de dom before page chunks',
-            respectsChunkAttachmentOrder
-          )
-        }
-      )
-      it(
-        'root components should be imported in this order _document > _app > page in order to respect side effects',
-        respectsSideEffects
-      )
-    }
-  )
-})
-;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
-  'development mode',
-  () => {
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
+      await nextBuild(appDir)
       appPort = await findPort()
-      app = await launchApp(join(__dirname, '../'), appPort)
+      app = await nextStart(appDir, appPort)
     })
-
     afterAll(() => killApp(app))
 
+    // Test relies on webpack splitChunks overrides.
+    ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)('Skipped in Turbopack', () => {
+      it(
+        '_app chunks should be attached to de dom before page chunks',
+        respectsChunkAttachmentOrder
+      )
+    })
     it(
       'root components should be imported in this order _document > _app > page in order to respect side effects',
       respectsSideEffects
     )
+  })
+})
+;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
+  beforeAll(async () => {
+    appPort = await findPort()
+    app = await launchApp(join(__dirname, '../'), appPort)
+  })
 
-    // Test relies on webpack splitChunks overrides.
-    ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
-      'Skipped in Turbopack',
-      () => {
-        it(
-          '_app chunks should be attached to de dom before page chunks',
-          respectsChunkAttachmentOrder
-        )
-      }
-    )
-  }
-)
+  afterAll(() => killApp(app))
+
+  it(
+    'root components should be imported in this order _document > _app > page in order to respect side effects',
+    respectsSideEffects
+  )
+
+  // Test relies on webpack splitChunks overrides.
+  ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)('Skipped in Turbopack', () => {
+    it('_app chunks should be attached to de dom before page chunks', respectsChunkAttachmentOrder)
+  })
+})

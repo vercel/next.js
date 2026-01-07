@@ -747,13 +747,7 @@ describe('sortPageObjects', () => {
 
 describe('sortPages', () => {
   it('should sort pages by specificity', () => {
-    const pages = [
-      '/docs/[[...slug]]',
-      '/docs/[...slug]',
-      '/docs/[slug]',
-      '/docs/api',
-      '/docs',
-    ]
+    const pages = ['/docs/[[...slug]]', '/docs/[...slug]', '/docs/[slug]', '/docs/api', '/docs']
 
     const sorted = sortPages(pages)
 
@@ -767,23 +761,11 @@ describe('sortPages', () => {
   })
 
   it('should handle mixed route depths', () => {
-    const pages = [
-      '/api/v1/[...path]',
-      '/[slug]',
-      '/',
-      '/api/users/[id]',
-      '/api',
-    ]
+    const pages = ['/api/v1/[...path]', '/[slug]', '/', '/api/users/[id]', '/api']
 
     const sorted = sortPages(pages)
 
-    expect(sorted).toEqual([
-      '/',
-      '/api',
-      '/api/users/[id]',
-      '/api/v1/[...path]',
-      '/[slug]',
-    ])
+    expect(sorted).toEqual(['/', '/api', '/api/users/[id]', '/api/v1/[...path]', '/[slug]'])
   })
 
   it('should sort lexicographically when specificity is equal', () => {
@@ -820,21 +802,11 @@ describe('sortPages', () => {
   })
 
   it('should handle duplicate pages', () => {
-    const pages = [
-      '/blog/[slug]',
-      '/blog/post-1',
-      '/blog/[slug]',
-      '/blog/[slug]',
-    ]
+    const pages = ['/blog/[slug]', '/blog/post-1', '/blog/[slug]', '/blog/[slug]']
 
     const sorted = sortPages(pages)
 
-    expect(sorted).toEqual([
-      '/blog/post-1',
-      '/blog/[slug]',
-      '/blog/[slug]',
-      '/blog/[slug]',
-    ])
+    expect(sorted).toEqual(['/blog/post-1', '/blog/[slug]', '/blog/[slug]', '/blog/[slug]'])
   })
 
   it('should handle complex nested routes', () => {
@@ -925,19 +897,12 @@ describe('compareRouteSegments', () => {
   })
 
   it('should prioritize catch-all over optional catch-all segments', () => {
-    expect(compareRouteSegments('/docs/[...slug]', '/docs/[[...slug]]')).toBe(
-      -1
-    )
+    expect(compareRouteSegments('/docs/[...slug]', '/docs/[[...slug]]')).toBe(-1)
     expect(compareRouteSegments('/docs/[[...slug]]', '/docs/[...slug]')).toBe(1)
   })
 
   it('should handle complete specificity hierarchy', () => {
-    const routes = [
-      '/docs/[[...slug]]',
-      '/docs/[...slug]',
-      '/docs/[slug]',
-      '/docs/api',
-    ]
+    const routes = ['/docs/[[...slug]]', '/docs/[...slug]', '/docs/[slug]', '/docs/api']
 
     const sorted = routes.sort(compareRouteSegments)
     expect(sorted).toEqual([
@@ -980,15 +945,9 @@ describe('compareRouteSegments', () => {
   })
 
   it('should handle complex nested comparisons', () => {
-    expect(compareRouteSegments('/[lang]/blog/[slug]', '/en/blog/[slug]')).toBe(
-      1
-    )
-    expect(compareRouteSegments('/en/blog/[slug]', '/[lang]/blog/[slug]')).toBe(
-      -1
-    )
-    expect(
-      compareRouteSegments('/[lang]/blog/[...slug]', '/[lang]/blog/[slug]')
-    ).toBe(1)
+    expect(compareRouteSegments('/[lang]/blog/[slug]', '/en/blog/[slug]')).toBe(1)
+    expect(compareRouteSegments('/en/blog/[slug]', '/[lang]/blog/[slug]')).toBe(-1)
+    expect(compareRouteSegments('/[lang]/blog/[...slug]', '/[lang]/blog/[slug]')).toBe(1)
   })
 
   it('should handle mixed depths with different specificities', () => {

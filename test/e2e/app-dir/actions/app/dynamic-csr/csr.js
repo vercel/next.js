@@ -5,7 +5,5 @@ import { useState } from 'react'
 
 export function CSR() {
   const [count, setCount] = useState(0)
-  return (
-    <button onClick={async () => setCount(await inc(count))}>{count}</button>
-  )
+  return <button onClick={async () => setCount(await inc(count))}>{count}</button>
 }

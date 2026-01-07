@@ -110,9 +110,7 @@ describe('middleware can use wasm files', () => {
         expect(manifest.middleware['/'].wasm).toEqual(
           expect.arrayContaining([
             expect.objectContaining({
-              filePath: expect.stringMatching(
-                /^server\/edge\/chunks\/.*\.wasm$/
-              ),
+              filePath: expect.stringMatching(/^server\/edge\/chunks\/.*\.wasm$/),
               name: expect.stringMatching(/^wasm_/),
             }),
           ])
@@ -121,9 +119,7 @@ describe('middleware can use wasm files', () => {
         expect(manifest.middleware['/'].wasm).toEqual(
           expect.arrayContaining([
             expect.objectContaining({
-              filePath: expect.stringMatching(
-                /^server\/edge-chunks\/wasm_.*\.wasm$/
-              ),
+              filePath: expect.stringMatching(/^server\/edge-chunks\/wasm_.*\.wasm$/),
               name: expect.stringMatching(/^wasm_/),
             }),
           ])

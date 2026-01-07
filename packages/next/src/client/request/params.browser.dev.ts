@@ -9,9 +9,7 @@ import {
 interface CacheLifetime {}
 const CachedParams = new WeakMap<CacheLifetime, Promise<Params>>()
 
-function makeDynamicallyTrackedParamsWithDevWarnings(
-  underlyingParams: Params
-): Promise<Params> {
+function makeDynamicallyTrackedParamsWithDevWarnings(underlyingParams: Params): Promise<Params> {
   const cachedParams = CachedParams.get(underlyingParams)
   if (cachedParams) {
     return cachedParams
@@ -78,8 +76,6 @@ function warnForEnumeration() {
   )
 }
 
-export function createRenderParamsFromClient(
-  clientParams: Params
-): Promise<Params> {
+export function createRenderParamsFromClient(clientParams: Params): Promise<Params> {
   return makeDynamicallyTrackedParamsWithDevWarnings(clientParams)
 }

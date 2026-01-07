@@ -14,9 +14,7 @@ function createLogger() {
     const { writeFileSync } = require('node:fs') as typeof import('node:fs')
 
     let logLine = args
-      .map((arg) =>
-        typeof arg === 'string' ? arg : inspect(arg, { colors: true })
-      )
+      .map((arg) => (typeof arg === 'string' ? arg : inspect(arg, { colors: true })))
       .join(' ')
 
     logs.push(logLine)
@@ -42,9 +40,7 @@ it('runs immediates after each task', async () => {
         })
         queueMicrotask(() => {
           process.nextTick(() => {
-            log(
-              'timeout 1 -> immediate 1 -> nextTick 1 -> microtask 2 -> nextTick'
-            )
+            log('timeout 1 -> immediate 1 -> nextTick 1 -> microtask 2 -> nextTick')
           })
         })
       })
@@ -242,9 +238,7 @@ it('runs immediates scheduled in nextTick', async () => {
         log('timeout 1 -> nextTick -> immediate 1')
         process.nextTick(() => {
           setImmediate(() => {
-            log(
-              'timeout 1 -> nextTick -> immediate 1 -> nextTick -> immediate 1'
-            )
+            log('timeout 1 -> nextTick -> immediate 1 -> nextTick -> immediate 1')
           })
         })
       })
@@ -407,8 +401,7 @@ describe('alternate sources of immediates', () => {
     const { log, logs } = createLogger()
     const done = createPromiseWithResolvers<void>()
 
-    const timersPromises =
-      require('node:timers/promises') as typeof import('node:timers/promises')
+    const timersPromises = require('node:timers/promises') as typeof import('node:timers/promises')
 
     setTimeout(() => {
       DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
@@ -555,9 +548,7 @@ describe('async context propagation', () => {
           Ctx.run('inner', () => {
             setImmediate(() => {
               // The inner context should be readable here
-              log(
-                `timeout 1 -> immediate 1 -> immediate 1 :: ${Ctx.getStore()}`
-              )
+              log(`timeout 1 -> immediate 1 -> immediate 1 :: ${Ctx.getStore()}`)
             })
           })
         })
@@ -876,10 +867,7 @@ describe('uncaught errors in setImmediate do not affect surrounding tasks or oth
   }
 
   const trackUncaughtErrors = (
-    handler: (
-      error: unknown,
-      kind: 'uncaughtException' | 'unhandledRejection'
-    ) => void
+    handler: (error: unknown, kind: 'uncaughtException' | 'unhandledRejection') => void
   ) => {
     // We have to use this instead of `process.on("uncaughtException")`,
     // because if an actual "uncaughtException" event fires, Jest will fail the test.
@@ -905,10 +893,7 @@ describe('uncaught errors in setImmediate do not affect surrounding tasks or oth
 
         process.off('unhandledRejection', onUnhandledRejection)
         for (const listener of prevListeners) {
-          process.on(
-            'unhandledRejection',
-            listener as NodeJS.UnhandledRejectionListener
-          )
+          process.on('unhandledRejection', listener as NodeJS.UnhandledRejectionListener)
         }
       },
     }
@@ -1110,11 +1095,7 @@ describe('uncaught errors in setImmediate do not affect surrounding tasks or oth
   describe('unhandled rejections', () => {
     type Case = {
       name: string
-      immediate: (
-        name: string,
-        error: Error,
-        log: (...args: any[]) => void
-      ) => void
+      immediate: (name: string, error: Error, log: (...args: any[]) => void) => void
     }
 
     const unhandledRejectionCases: Case[] = [
@@ -1321,63 +1302,60 @@ describe('error recovery', () => {
         },
       },
     ])('crash reason - $description', ({ invalidCall }) => {
-      it.each(schedulingCases)(
-        'after a crash - $description',
-        async ({ scheduleCrash }) => {
-          // In the first run, we trigger a crash
+      it.each(schedulingCases)('after a crash - $description', async ({ scheduleCrash }) => {
+        // In the first run, we trigger a crash
 
-          const { log, logs } = createLogger()
-          const dones = [
-            createPromiseWithResolvers<void>(),
-            createPromiseWithResolvers<void>(),
-            createPromiseWithResolvers<void>(),
-          ]
+        const { log, logs } = createLogger()
+        const dones = [
+          createPromiseWithResolvers<void>(),
+          createPromiseWithResolvers<void>(),
+          createPromiseWithResolvers<void>(),
+        ]
 
-          // This test includes a native setImmediate, so we want to avoid
-          // flakiness due to timer/immediate interleaving
-          const scheduleTimeout = createAtomicTimerGroup()
+        // This test includes a native setImmediate, so we want to avoid
+        // flakiness due to timer/immediate interleaving
+        const scheduleTimeout = createAtomicTimerGroup()
 
-          scheduleTimeout(() => {
-            // NOTE: native immediate
-            setImmediate(() => {
-              log('immediate 1 (native)')
-              dones[0].resolve()
-            })
+        scheduleTimeout(() => {
+          // NOTE: native immediate
+          setImmediate(() => {
+            log('immediate 1 (native)')
+            dones[0].resolve()
           })
-          scheduleTimeout(() => {
-            DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
-            log('timeout 1')
+        })
+        scheduleTimeout(() => {
+          DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
+          log('timeout 1')
 
-            setImmediate(() => {
-              log('timeout 1 -> immediate 1 (patched)')
-              dones[1].resolve()
-            })
-
-            setImmediate(() => {
-              log('timeout 1 -> immediate 2 (patched)')
-              dones[2].resolve()
-            })
-
-            scheduleCrash(() => {
-              expect(() => invalidCall()).toThrow()
-            })
+          setImmediate(() => {
+            log('timeout 1 -> immediate 1 (patched)')
+            dones[1].resolve()
           })
 
-          await Promise.all(dones.map((d) => d.promise))
+          setImmediate(() => {
+            log('timeout 1 -> immediate 2 (patched)')
+            dones[2].resolve()
+          })
 
-          expect(logs).toEqual([
-            'timeout 1',
-            // The queued immediates should be rescheduled using native `setImmediate`,
-            // so we should observe them happening after the native one we scheduled earlier
-            'immediate 1 (native)',
-            'timeout 1 -> immediate 1 (patched)',
-            'timeout 1 -> immediate 2 (patched)',
-          ])
+          scheduleCrash(() => {
+            expect(() => invalidCall()).toThrow()
+          })
+        })
 
-          // The next run should work correctly
-          await expectCorrectRunToWork()
-        }
-      )
+        await Promise.all(dones.map((d) => d.promise))
+
+        expect(logs).toEqual([
+          'timeout 1',
+          // The queued immediates should be rescheduled using native `setImmediate`,
+          // so we should observe them happening after the native one we scheduled earlier
+          'immediate 1 (native)',
+          'timeout 1 -> immediate 1 (patched)',
+          'timeout 1 -> immediate 2 (patched)',
+        ])
+
+        // The next run should work correctly
+        await expectCorrectRunToWork()
+      })
 
       it.each(schedulingCases)(
         'after a crash in a patched immediate - $description',

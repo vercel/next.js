@@ -23,26 +23,21 @@ describe('css-server-chunks', () => {
         recursive: true,
       })
     ).filter((f) => f.endsWith('.js') || f.endsWith('.css'))
-    expect(clientChunks).toEqual(
-      expect.arrayContaining([expect.stringMatching(/\.css$/)])
-    )
+    expect(clientChunks).toEqual(expect.arrayContaining([expect.stringMatching(/\.css$/)]))
 
     let serverChunks = (
       await Promise.all(
-        [`${next.distDir}/server/app`, `${next.distDir}/server/pages`].map(
-          (d) =>
-            fs.readdir(path.join(next.testDir, d), {
-              recursive: true,
-              encoding: 'utf8',
-            })
+        [`${next.distDir}/server/app`, `${next.distDir}/server/pages`].map((d) =>
+          fs.readdir(path.join(next.testDir, d), {
+            recursive: true,
+            encoding: 'utf8',
+          })
         )
       )
     )
       .flat()
       .filter((f) => f.endsWith('.js') || f.endsWith('.css'))
     expect(serverChunks).not.toBeEmpty()
-    expect(serverChunks).not.toEqual(
-      expect.arrayContaining([expect.stringMatching(/\.css$/)])
-    )
+    expect(serverChunks).not.toEqual(expect.arrayContaining([expect.stringMatching(/\.css$/)]))
   })
 })

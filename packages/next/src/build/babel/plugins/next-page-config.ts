@@ -1,16 +1,10 @@
 import { types as BabelTypes } from 'next/dist/compiled/babel/core'
-import type {
-  PluginObj,
-  PluginPass,
-  Visitor,
-  NodePath,
-} from 'next/dist/compiled/babel/core'
+import type { PluginObj, PluginPass, Visitor, NodePath } from 'next/dist/compiled/babel/core'
 
 const CONFIG_KEY = 'config'
 
 function errorMessage(state: any, details: string): string {
-  const pageName =
-    (state.filename || '').split(state.cwd || '').pop() || 'unknown'
+  const pageName = (state.filename || '').split(state.cwd || '').pop() || 'unknown'
   return `Invalid page config export found. ${details} in file ${pageName}. See: https://nextjs.org/docs/messages/invalid-page-config`
 }
 
@@ -19,11 +13,7 @@ interface ConfigState extends PluginPass {
 }
 
 // config to parsing pageConfig for client bundles
-export default function nextPageConfig({
-  types: t,
-}: {
-  types: typeof BabelTypes
-}): PluginObj {
+export default function nextPageConfig({ types: t }: { types: typeof BabelTypes }): PluginObj {
   return {
     visitor: {
       Program: {
@@ -41,16 +31,10 @@ export default function nextPageConfig({
                     )
                   }) &&
                   BabelTypes.isStringLiteral(
-                    (exportPath.node as BabelTypes.ExportNamedDeclaration)
-                      .source
+                    (exportPath.node as BabelTypes.ExportNamedDeclaration).source
                   )
                 ) {
-                  throw new Error(
-                    errorMessage(
-                      exportState,
-                      'Expected object but got export from'
-                    )
-                  )
+                  throw new Error(errorMessage(exportState, 'Expected object but got export from'))
                 }
               },
               ExportNamedDeclaration(
@@ -59,17 +43,14 @@ export default function nextPageConfig({
               ) {
                 if (
                   exportState.bundleDropped ||
-                  (!exportPath.node.declaration &&
-                    exportPath.node.specifiers.length === 0)
+                  (!exportPath.node.declaration && exportPath.node.specifiers.length === 0)
                 ) {
                   return
                 }
 
                 const declarations: BabelTypes.VariableDeclarator[] = [
-                  ...((
-                    exportPath.node
-                      .declaration as BabelTypes.VariableDeclaration
-                  )?.declarations || []),
+                  ...((exportPath.node.declaration as BabelTypes.VariableDeclaration)
+                    ?.declarations || []),
                   exportPath.scope.getBinding(CONFIG_KEY)?.path
                     .node as BabelTypes.VariableDeclarator,
                 ].filter(Boolean)
@@ -82,18 +63,11 @@ export default function nextPageConfig({
                   ) {
                     // export {} from 'somewhere'
                     if (BabelTypes.isStringLiteral(exportPath.node.source)) {
-                      throw new Error(
-                        errorMessage(
-                          exportState,
-                          `Expected object but got import`
-                        )
-                      )
+                      throw new Error(errorMessage(exportState, `Expected object but got import`))
                       // import hello from 'world'
                       // export { hello as config }
                     } else if (
-                      BabelTypes.isIdentifier(
-                        (specifier as BabelTypes.ExportSpecifier).local
-                      )
+                      BabelTypes.isIdentifier((specifier as BabelTypes.ExportSpecifier).local)
                     ) {
                       if (
                         BabelTypes.isImportSpecifier(
@@ -102,12 +76,7 @@ export default function nextPageConfig({
                           )?.path.node
                         )
                       ) {
-                        throw new Error(
-                          errorMessage(
-                            exportState,
-                            `Expected object but got import`
-                          )
-                        )
+                        throw new Error(errorMessage(exportState, `Expected object but got import`))
                       }
                     }
                   }
@@ -129,22 +98,12 @@ export default function nextPageConfig({
 
                   if (!BabelTypes.isObjectExpression(init)) {
                     const got = init ? init.type : 'undefined'
-                    throw new Error(
-                      errorMessage(
-                        exportState,
-                        `Expected object but got ${got}`
-                      )
-                    )
+                    throw new Error(errorMessage(exportState, `Expected object but got ${got}`))
                   }
 
                   for (const prop of init.properties) {
                     if (BabelTypes.isSpreadElement(prop)) {
-                      throw new Error(
-                        errorMessage(
-                          exportState,
-                          `Property spread is not allowed`
-                        )
-                      )
+                      throw new Error(errorMessage(exportState, `Property spread is not allowed`))
                     }
                   }
                 }

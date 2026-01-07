@@ -3,9 +3,7 @@ import fs from 'fs'
 import path from 'path'
 
 export async function getStaticProps() {
-  const text = fs
-    .readFileSync(path.join(process.cwd(), 'world.txt'), 'utf8')
-    .trim()
+  const text = fs.readFileSync(path.join(process.cwd(), 'world.txt'), 'utf8').trim()
   return {
     props: {
       world: text,

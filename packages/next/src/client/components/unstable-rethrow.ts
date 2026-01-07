@@ -7,9 +7,7 @@
  */
 export const unstable_rethrow =
   typeof window === 'undefined'
-    ? (
-        require('./unstable-rethrow.server') as typeof import('./unstable-rethrow.server')
-      ).unstable_rethrow
-    : (
-        require('./unstable-rethrow.browser') as typeof import('./unstable-rethrow.browser')
-      ).unstable_rethrow
+    ? (require('./unstable-rethrow.server') as typeof import('./unstable-rethrow.server'))
+        .unstable_rethrow
+    : (require('./unstable-rethrow.browser') as typeof import('./unstable-rethrow.browser'))
+        .unstable_rethrow

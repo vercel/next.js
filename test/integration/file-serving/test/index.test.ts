@@ -3,14 +3,7 @@
 /* eslint-disable jest/no-identical-title */
 import fs from 'fs-extra'
 import { join } from 'path'
-import {
-  killApp,
-  findPort,
-  nextBuild,
-  nextStart,
-  fetchViaHTTP,
-  launchApp,
-} from 'next-test-utils'
+import { killApp, findPort, nextBuild, nextStart, fetchViaHTTP, launchApp } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
 let appPort
@@ -170,21 +163,15 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/test-file.txt', async () => {
-    await expectStatus(
-      '/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/test-file.txt'
-    )
+    await expectStatus('/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/test-file.txt')
   })
 
   it('should prevent traversing with /%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/test-file.txt', async () => {
-    await expectStatus(
-      '/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/test-file.txt'
-    )
+    await expectStatus('/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/test-file.txt')
   })
 
   it('should prevent traversing with /%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/test-file.txt', async () => {
-    await expectStatus(
-      '/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/test-file.txt'
-    )
+    await expectStatus('/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/test-file.txt')
   })
 
   it('should prevent traversing with /%2e%2e%2ftest-file.txt', async () => {
@@ -204,15 +191,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt', async () => {
-    await expectStatus(
-      '/%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt'
-    )
+    await expectStatus('/%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt')
   })
 
   it('should prevent traversing with /%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt', async () => {
-    await expectStatus(
-      '/%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt'
-    )
+    await expectStatus('/%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt')
   })
 
   it('should prevent traversing with /%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt', async () => {
@@ -248,21 +231,15 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /..%252f..%252f..%252f..%252f..%252f..%252ftest-file.txt', async () => {
-    await expectStatus(
-      '/..%252f..%252f..%252f..%252f..%252f..%252ftest-file.txt'
-    )
+    await expectStatus('/..%252f..%252f..%252f..%252f..%252f..%252ftest-file.txt')
   })
 
   it('should prevent traversing with /..%252f..%252f..%252f..%252f..%252f..%252f..%252ftest-file.txt', async () => {
-    await expectStatus(
-      '/..%252f..%252f..%252f..%252f..%252f..%252f..%252ftest-file.txt'
-    )
+    await expectStatus('/..%252f..%252f..%252f..%252f..%252f..%252f..%252ftest-file.txt')
   })
 
   it('should prevent traversing with /..%252f..%252f..%252f..%252f..%252f..%252f..%252f..%252ftest-file.txt', async () => {
-    await expectStatus(
-      '/..%252f..%252f..%252f..%252f..%252f..%252f..%252f..%252ftest-file.txt'
-    )
+    await expectStatus('/..%252f..%252f..%252f..%252f..%252f..%252f..%252f..%252ftest-file.txt')
   })
 
   it('should prevent traversing with /%252e%252e/test-file.txt', async () => {
@@ -278,15 +255,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /%252e%252e/%252e%252e/%252e%252e/%252e%252e/test-file.txt', async () => {
-    await expectStatus(
-      '/%252e%252e/%252e%252e/%252e%252e/%252e%252e/test-file.txt'
-    )
+    await expectStatus('/%252e%252e/%252e%252e/%252e%252e/%252e%252e/test-file.txt')
   })
 
   it('should prevent traversing with /%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/test-file.txt', async () => {
-    await expectStatus(
-      '/%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/test-file.txt'
-    )
+    await expectStatus('/%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/test-file.txt')
   })
 
   it('should prevent traversing with /%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/test-file.txt', async () => {
@@ -316,15 +289,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /%252e%252e%252f%252e%252e%252f%252e%252e%252ftest-file.txt', async () => {
-    await expectStatus(
-      '/%252e%252e%252f%252e%252e%252f%252e%252e%252ftest-file.txt'
-    )
+    await expectStatus('/%252e%252e%252f%252e%252e%252f%252e%252e%252ftest-file.txt')
   })
 
   it('should prevent traversing with /%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252ftest-file.txt', async () => {
-    await expectStatus(
-      '/%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252ftest-file.txt'
-    )
+    await expectStatus('/%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252ftest-file.txt')
   })
 
   it('should prevent traversing with /%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252ftest-file.txt', async () => {
@@ -404,21 +373,15 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /..%255c..%255c..%255c..%255c..%255c..%255ctest-file.txt', async () => {
-    await expectStatus(
-      '/..%255c..%255c..%255c..%255c..%255c..%255ctest-file.txt'
-    )
+    await expectStatus('/..%255c..%255c..%255c..%255c..%255c..%255ctest-file.txt')
   })
 
   it('should prevent traversing with /..%255c..%255c..%255c..%255c..%255c..%255c..%255ctest-file.txt', async () => {
-    await expectStatus(
-      '/..%255c..%255c..%255c..%255c..%255c..%255c..%255ctest-file.txt'
-    )
+    await expectStatus('/..%255c..%255c..%255c..%255c..%255c..%255c..%255ctest-file.txt')
   })
 
   it('should prevent traversing with /..%255c..%255c..%255c..%255c..%255c..%255c..%255c..%255ctest-file.txt', async () => {
-    await expectStatus(
-      '/..%255c..%255c..%255c..%255c..%255c..%255c..%255c..%255ctest-file.txt'
-    )
+    await expectStatus('/..%255c..%255c..%255c..%255c..%255c..%255c..%255c..%255ctest-file.txt')
   })
 
   it('should prevent traversing with /..%5c..%5ctest-file.txt', async () => {
@@ -470,15 +433,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\test-file.txt', async () => {
-    await expectStatus(
-      '/%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\test-file.txt'
-    )
+    await expectStatus('/%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\test-file.txt')
   })
 
   it('should prevent traversing with /%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\test-file.txt', async () => {
-    await expectStatus(
-      '/%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\test-file.txt'
-    )
+    await expectStatus('/%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\test-file.txt')
   })
 
   it('should prevent traversing with /%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\test-file.txt', async () => {
@@ -504,15 +463,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt', async () => {
-    await expectStatus(
-      '/%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt'
-    )
+    await expectStatus('/%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt')
   })
 
   it('should prevent traversing with /%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt', async () => {
-    await expectStatus(
-      '/%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt'
-    )
+    await expectStatus('/%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt')
   })
 
   it('should prevent traversing with /%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt', async () => {
@@ -540,15 +495,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\test-file.txt', async () => {
-    await expectStatus(
-      '/%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\test-file.txt'
-    )
+    await expectStatus('/%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\test-file.txt')
   })
 
   it('should prevent traversing with /%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\test-file.txt', async () => {
-    await expectStatus(
-      '/%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\test-file.txt'
-    )
+    await expectStatus('/%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\test-file.txt')
   })
 
   it('should prevent traversing with /%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\test-file.txt', async () => {
@@ -578,15 +529,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /%252e%252e%255c%252e%252e%255c%252e%252e%255ctest-file.txt', async () => {
-    await expectStatus(
-      '/%252e%252e%255c%252e%252e%255c%252e%252e%255ctest-file.txt'
-    )
+    await expectStatus('/%252e%252e%255c%252e%252e%255c%252e%252e%255ctest-file.txt')
   })
 
   it('should prevent traversing with /%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255ctest-file.txt', async () => {
-    await expectStatus(
-      '/%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255ctest-file.txt'
-    )
+    await expectStatus('/%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255ctest-file.txt')
   })
 
   it('should prevent traversing with /%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255ctest-file.txt', async () => {
@@ -634,15 +581,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /..%c0%af..%c0%af..%c0%af..%c0%af..%c0%af..%c0%aftest-file.txt', async () => {
-    await expectStatus(
-      '/..%c0%af..%c0%af..%c0%af..%c0%af..%c0%af..%c0%aftest-file.txt'
-    )
+    await expectStatus('/..%c0%af..%c0%af..%c0%af..%c0%af..%c0%af..%c0%aftest-file.txt')
   })
 
   it('should prevent traversing with /..%c0%af..%c0%af..%c0%af..%c0%af..%c0%af..%c0%af..%c0%aftest-file.txt', async () => {
-    await expectStatus(
-      '/..%c0%af..%c0%af..%c0%af..%c0%af..%c0%af..%c0%af..%c0%aftest-file.txt'
-    )
+    await expectStatus('/..%c0%af..%c0%af..%c0%af..%c0%af..%c0%af..%c0%af..%c0%aftest-file.txt')
   })
 
   it('should prevent traversing with /..%c0%af..%c0%af..%c0%af..%c0%af..%c0%af..%c0%af..%c0%af..%c0%aftest-file.txt', async () => {
@@ -664,9 +607,7 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /%c0%ae%c0%ae/%c0%ae%c0%ae/%c0%ae%c0%ae/%c0%ae%c0%ae/test-file.txt', async () => {
-    await expectStatus(
-      '/%c0%ae%c0%ae/%c0%ae%c0%ae/%c0%ae%c0%ae/%c0%ae%c0%ae/test-file.txt'
-    )
+    await expectStatus('/%c0%ae%c0%ae/%c0%ae%c0%ae/%c0%ae%c0%ae/%c0%ae%c0%ae/test-file.txt')
   })
 
   it('should prevent traversing with /%c0%ae%c0%ae/%c0%ae%c0%ae/%c0%ae%c0%ae/%c0%ae%c0%ae/%c0%ae%c0%ae/test-file.txt', async () => {
@@ -702,9 +643,7 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /%c0%ae%c0%ae%c0%af%c0%ae%c0%ae%c0%af%c0%ae%c0%ae%c0%aftest-file.txt', async () => {
-    await expectStatus(
-      '/%c0%ae%c0%ae%c0%af%c0%ae%c0%ae%c0%af%c0%ae%c0%ae%c0%aftest-file.txt'
-    )
+    await expectStatus('/%c0%ae%c0%ae%c0%af%c0%ae%c0%ae%c0%af%c0%ae%c0%ae%c0%aftest-file.txt')
   })
 
   it('should prevent traversing with /%c0%ae%c0%ae%c0%af%c0%ae%c0%ae%c0%af%c0%ae%c0%ae%c0%af%c0%ae%c0%ae%c0%aftest-file.txt', async () => {
@@ -750,15 +689,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /..%25c0%25af..%25c0%25af..%25c0%25af..%25c0%25aftest-file.txt', async () => {
-    await expectStatus(
-      '/..%25c0%25af..%25c0%25af..%25c0%25af..%25c0%25aftest-file.txt'
-    )
+    await expectStatus('/..%25c0%25af..%25c0%25af..%25c0%25af..%25c0%25aftest-file.txt')
   })
 
   it('should prevent traversing with /..%25c0%25af..%25c0%25af..%25c0%25af..%25c0%25af..%25c0%25aftest-file.txt', async () => {
-    await expectStatus(
-      '/..%25c0%25af..%25c0%25af..%25c0%25af..%25c0%25af..%25c0%25aftest-file.txt'
-    )
+    await expectStatus('/..%25c0%25af..%25c0%25af..%25c0%25af..%25c0%25af..%25c0%25aftest-file.txt')
   })
 
   it('should prevent traversing with /..%25c0%25af..%25c0%25af..%25c0%25af..%25c0%25af..%25c0%25af..%25c0%25aftest-file.txt', async () => {
@@ -784,9 +719,7 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /%25c0%25ae%25c0%25ae/%25c0%25ae%25c0%25ae/test-file.txt', async () => {
-    await expectStatus(
-      '/%25c0%25ae%25c0%25ae/%25c0%25ae%25c0%25ae/test-file.txt'
-    )
+    await expectStatus('/%25c0%25ae%25c0%25ae/%25c0%25ae%25c0%25ae/test-file.txt')
   })
 
   it('should prevent traversing with /%25c0%25ae%25c0%25ae/%25c0%25ae%25c0%25ae/%25c0%25ae%25c0%25ae/test-file.txt', async () => {
@@ -830,9 +763,7 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /%25c0%25ae%25c0%25ae%25c0%25af%25c0%25ae%25c0%25ae%25c0%25aftest-file.txt', async () => {
-    await expectStatus(
-      '/%25c0%25ae%25c0%25ae%25c0%25af%25c0%25ae%25c0%25ae%25c0%25aftest-file.txt'
-    )
+    await expectStatus('/%25c0%25ae%25c0%25ae%25c0%25af%25c0%25ae%25c0%25ae%25c0%25aftest-file.txt')
   })
 
   it('should prevent traversing with /%25c0%25ae%25c0%25ae%25c0%25af%25c0%25ae%25c0%25ae%25c0%25af%25c0%25ae%25c0%25ae%25c0%25aftest-file.txt', async () => {
@@ -892,15 +823,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /..%c1%9c..%c1%9c..%c1%9c..%c1%9c..%c1%9c..%c1%9ctest-file.txt', async () => {
-    await expectStatus(
-      '/..%c1%9c..%c1%9c..%c1%9c..%c1%9c..%c1%9c..%c1%9ctest-file.txt'
-    )
+    await expectStatus('/..%c1%9c..%c1%9c..%c1%9c..%c1%9c..%c1%9c..%c1%9ctest-file.txt')
   })
 
   it('should prevent traversing with /..%c1%9c..%c1%9c..%c1%9c..%c1%9c..%c1%9c..%c1%9c..%c1%9ctest-file.txt', async () => {
-    await expectStatus(
-      '/..%c1%9c..%c1%9c..%c1%9c..%c1%9c..%c1%9c..%c1%9c..%c1%9ctest-file.txt'
-    )
+    await expectStatus('/..%c1%9c..%c1%9c..%c1%9c..%c1%9c..%c1%9c..%c1%9c..%c1%9ctest-file.txt')
   })
 
   it('should prevent traversing with /..%c1%9c..%c1%9c..%c1%9c..%c1%9c..%c1%9c..%c1%9c..%c1%9c..%c1%9ctest-file.txt', async () => {
@@ -918,15 +845,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /%c0%ae%c0%ae\\%c0%ae%c0%ae\\%c0%ae%c0%ae\\test-file.txt', async () => {
-    await expectStatus(
-      '/%c0%ae%c0%ae\\%c0%ae%c0%ae\\%c0%ae%c0%ae\\test-file.txt'
-    )
+    await expectStatus('/%c0%ae%c0%ae\\%c0%ae%c0%ae\\%c0%ae%c0%ae\\test-file.txt')
   })
 
   it('should prevent traversing with /%c0%ae%c0%ae\\%c0%ae%c0%ae\\%c0%ae%c0%ae\\%c0%ae%c0%ae\\test-file.txt', async () => {
-    await expectStatus(
-      '/%c0%ae%c0%ae\\%c0%ae%c0%ae\\%c0%ae%c0%ae\\%c0%ae%c0%ae\\test-file.txt'
-    )
+    await expectStatus('/%c0%ae%c0%ae\\%c0%ae%c0%ae\\%c0%ae%c0%ae\\%c0%ae%c0%ae\\test-file.txt')
   })
 
   it('should prevent traversing with /%c0%ae%c0%ae\\%c0%ae%c0%ae\\%c0%ae%c0%ae\\%c0%ae%c0%ae\\%c0%ae%c0%ae\\test-file.txt', async () => {
@@ -962,9 +885,7 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /%c0%ae%c0%ae%c1%9c%c0%ae%c0%ae%c1%9c%c0%ae%c0%ae%c1%9ctest-file.txt', async () => {
-    await expectStatus(
-      '/%c0%ae%c0%ae%c1%9c%c0%ae%c0%ae%c1%9c%c0%ae%c0%ae%c1%9ctest-file.txt'
-    )
+    await expectStatus('/%c0%ae%c0%ae%c1%9c%c0%ae%c0%ae%c1%9c%c0%ae%c0%ae%c1%9ctest-file.txt')
   })
 
   it('should prevent traversing with /%c0%ae%c0%ae%c1%9c%c0%ae%c0%ae%c1%9c%c0%ae%c0%ae%c1%9c%c0%ae%c0%ae%c1%9ctest-file.txt', async () => {
@@ -1010,15 +931,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /..%25c1%259c..%25c1%259c..%25c1%259c..%25c1%259ctest-file.txt', async () => {
-    await expectStatus(
-      '/..%25c1%259c..%25c1%259c..%25c1%259c..%25c1%259ctest-file.txt'
-    )
+    await expectStatus('/..%25c1%259c..%25c1%259c..%25c1%259c..%25c1%259ctest-file.txt')
   })
 
   it('should prevent traversing with /..%25c1%259c..%25c1%259c..%25c1%259c..%25c1%259c..%25c1%259ctest-file.txt', async () => {
-    await expectStatus(
-      '/..%25c1%259c..%25c1%259c..%25c1%259c..%25c1%259c..%25c1%259ctest-file.txt'
-    )
+    await expectStatus('/..%25c1%259c..%25c1%259c..%25c1%259c..%25c1%259c..%25c1%259ctest-file.txt')
   })
 
   it('should prevent traversing with /..%25c1%259c..%25c1%259c..%25c1%259c..%25c1%259c..%25c1%259c..%25c1%259ctest-file.txt', async () => {
@@ -1044,9 +961,7 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /%25c0%25ae%25c0%25ae\\%25c0%25ae%25c0%25ae\\test-file.txt', async () => {
-    await expectStatus(
-      '/%25c0%25ae%25c0%25ae\\%25c0%25ae%25c0%25ae\\test-file.txt'
-    )
+    await expectStatus('/%25c0%25ae%25c0%25ae\\%25c0%25ae%25c0%25ae\\test-file.txt')
   })
 
   it('should prevent traversing with /%25c0%25ae%25c0%25ae\\%25c0%25ae%25c0%25ae\\%25c0%25ae%25c0%25ae\\test-file.txt', async () => {
@@ -1090,9 +1005,7 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /%25c0%25ae%25c0%25ae%25c1%259c%25c0%25ae%25c0%25ae%25c1%259ctest-file.txt', async () => {
-    await expectStatus(
-      '/%25c0%25ae%25c0%25ae%25c1%259c%25c0%25ae%25c0%25ae%25c1%259ctest-file.txt'
-    )
+    await expectStatus('/%25c0%25ae%25c0%25ae%25c1%259c%25c0%25ae%25c0%25ae%25c1%259ctest-file.txt')
   })
 
   it('should prevent traversing with /%25c0%25ae%25c0%25ae%25c1%259c%25c0%25ae%25c0%25ae%25c1%259c%25c0%25ae%25c0%25ae%25c1%259ctest-file.txt', async () => {
@@ -1148,15 +1061,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /..%%32%66..%%32%66..%%32%66..%%32%66..%%32%66test-file.txt', async () => {
-    await expectStatus(
-      '/..%%32%66..%%32%66..%%32%66..%%32%66..%%32%66test-file.txt'
-    )
+    await expectStatus('/..%%32%66..%%32%66..%%32%66..%%32%66..%%32%66test-file.txt')
   })
 
   it('should prevent traversing with /..%%32%66..%%32%66..%%32%66..%%32%66..%%32%66..%%32%66test-file.txt', async () => {
-    await expectStatus(
-      '/..%%32%66..%%32%66..%%32%66..%%32%66..%%32%66..%%32%66test-file.txt'
-    )
+    await expectStatus('/..%%32%66..%%32%66..%%32%66..%%32%66..%%32%66..%%32%66test-file.txt')
   })
 
   it('should prevent traversing with /..%%32%66..%%32%66..%%32%66..%%32%66..%%32%66..%%32%66..%%32%66test-file.txt', async () => {
@@ -1180,15 +1089,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/test-file.txt', async () => {
-    await expectStatus(
-      '/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/test-file.txt'
-    )
+    await expectStatus('/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/test-file.txt')
   })
 
   it('should prevent traversing with /%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/test-file.txt', async () => {
-    await expectStatus(
-      '/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/test-file.txt'
-    )
+    await expectStatus('/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/test-file.txt')
   })
 
   it('should prevent traversing with /%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/test-file.txt', async () => {
@@ -1220,9 +1125,7 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /%%32%65%%32%65%%32%66%%32%65%%32%65%%32%66test-file.txt', async () => {
-    await expectStatus(
-      '/%%32%65%%32%65%%32%66%%32%65%%32%65%%32%66test-file.txt'
-    )
+    await expectStatus('/%%32%65%%32%65%%32%66%%32%65%%32%65%%32%66test-file.txt')
   })
 
   it('should prevent traversing with /%%32%65%%32%65%%32%66%%32%65%%32%65%%32%66%%32%65%%32%65%%32%66test-file.txt', async () => {
@@ -1278,15 +1181,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /..%%35%63..%%35%63..%%35%63..%%35%63..%%35%63test-file.txt', async () => {
-    await expectStatus(
-      '/..%%35%63..%%35%63..%%35%63..%%35%63..%%35%63test-file.txt'
-    )
+    await expectStatus('/..%%35%63..%%35%63..%%35%63..%%35%63..%%35%63test-file.txt')
   })
 
   it('should prevent traversing with /..%%35%63..%%35%63..%%35%63..%%35%63..%%35%63..%%35%63test-file.txt', async () => {
-    await expectStatus(
-      '/..%%35%63..%%35%63..%%35%63..%%35%63..%%35%63..%%35%63test-file.txt'
-    )
+    await expectStatus('/..%%35%63..%%35%63..%%35%63..%%35%63..%%35%63..%%35%63test-file.txt')
   })
 
   it('should prevent traversing with /..%%35%63..%%35%63..%%35%63..%%35%63..%%35%63..%%35%63..%%35%63test-file.txt', async () => {
@@ -1310,15 +1209,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/test-file.txt', async () => {
-    await expectStatus(
-      '/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/test-file.txt'
-    )
+    await expectStatus('/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/test-file.txt')
   })
 
   it('should prevent traversing with /%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/test-file.txt', async () => {
-    await expectStatus(
-      '/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/test-file.txt'
-    )
+    await expectStatus('/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/test-file.txt')
   })
 
   it('should prevent traversing with /%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/test-file.txt', async () => {
@@ -1350,9 +1245,7 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /%%32%65%%32%65%%35%63%%32%65%%32%65%%35%63test-file.txt', async () => {
-    await expectStatus(
-      '/%%32%65%%32%65%%35%63%%32%65%%32%65%%35%63test-file.txt'
-    )
+    await expectStatus('/%%32%65%%32%65%%35%63%%32%65%%32%65%%35%63test-file.txt')
   })
 
   it('should prevent traversing with /%%32%65%%32%65%%35%63%%32%65%%32%65%%35%63%%32%65%%32%65%%35%63test-file.txt', async () => {
@@ -1476,21 +1369,15 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/test-file.txt', async () => {
-    await expectStatus(
-      '/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/test-file.txt'
-    )
+    await expectStatus('/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/test-file.txt')
   })
 
   it('should prevent traversing with /%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/test-file.txt', async () => {
-    await expectStatus(
-      '/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/test-file.txt'
-    )
+    await expectStatus('/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/test-file.txt')
   })
 
   it('should prevent traversing with /%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/test-file.txt', async () => {
-    await expectStatus(
-      '/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/test-file.txt'
-    )
+    await expectStatus('/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/test-file.txt')
   })
 
   it('should prevent traversing with /%2e%2e%2ftest-file.txt', async () => {
@@ -1510,15 +1397,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt', async () => {
-    await expectStatus(
-      '/%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt'
-    )
+    await expectStatus('/%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt')
   })
 
   it('should prevent traversing with /%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt', async () => {
-    await expectStatus(
-      '/%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt'
-    )
+    await expectStatus('/%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt')
   })
 
   it('should prevent traversing with /%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt', async () => {
@@ -1554,21 +1437,15 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /..%252f..%252f..%252f..%252f..%252f..%252ftest-file.txt', async () => {
-    await expectStatus(
-      '/..%252f..%252f..%252f..%252f..%252f..%252ftest-file.txt'
-    )
+    await expectStatus('/..%252f..%252f..%252f..%252f..%252f..%252ftest-file.txt')
   })
 
   it('should prevent traversing with /..%252f..%252f..%252f..%252f..%252f..%252f..%252ftest-file.txt', async () => {
-    await expectStatus(
-      '/..%252f..%252f..%252f..%252f..%252f..%252f..%252ftest-file.txt'
-    )
+    await expectStatus('/..%252f..%252f..%252f..%252f..%252f..%252f..%252ftest-file.txt')
   })
 
   it('should prevent traversing with /..%252f..%252f..%252f..%252f..%252f..%252f..%252f..%252ftest-file.txt', async () => {
-    await expectStatus(
-      '/..%252f..%252f..%252f..%252f..%252f..%252f..%252f..%252ftest-file.txt'
-    )
+    await expectStatus('/..%252f..%252f..%252f..%252f..%252f..%252f..%252f..%252ftest-file.txt')
   })
 
   it('should prevent traversing with /%252e%252e/test-file.txt', async () => {
@@ -1584,15 +1461,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /%252e%252e/%252e%252e/%252e%252e/%252e%252e/test-file.txt', async () => {
-    await expectStatus(
-      '/%252e%252e/%252e%252e/%252e%252e/%252e%252e/test-file.txt'
-    )
+    await expectStatus('/%252e%252e/%252e%252e/%252e%252e/%252e%252e/test-file.txt')
   })
 
   it('should prevent traversing with /%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/test-file.txt', async () => {
-    await expectStatus(
-      '/%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/test-file.txt'
-    )
+    await expectStatus('/%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/test-file.txt')
   })
 
   it('should prevent traversing with /%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/test-file.txt', async () => {
@@ -1622,15 +1495,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /%252e%252e%252f%252e%252e%252f%252e%252e%252ftest-file.txt', async () => {
-    await expectStatus(
-      '/%252e%252e%252f%252e%252e%252f%252e%252e%252ftest-file.txt'
-    )
+    await expectStatus('/%252e%252e%252f%252e%252e%252f%252e%252e%252ftest-file.txt')
   })
 
   it('should prevent traversing with /%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252ftest-file.txt', async () => {
-    await expectStatus(
-      '/%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252ftest-file.txt'
-    )
+    await expectStatus('/%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252ftest-file.txt')
   })
 
   it('should prevent traversing with /%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252ftest-file.txt', async () => {
@@ -1742,15 +1611,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\test-file.txt', async () => {
-    await expectStatus(
-      '/%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\test-file.txt'
-    )
+    await expectStatus('/%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\test-file.txt')
   })
 
   it('should prevent traversing with /%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\test-file.txt', async () => {
-    await expectStatus(
-      '/%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\test-file.txt'
-    )
+    await expectStatus('/%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\test-file.txt')
   })
 
   it('should prevent traversing with /%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\test-file.txt', async () => {
@@ -1776,15 +1641,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt', async () => {
-    await expectStatus(
-      '/%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt'
-    )
+    await expectStatus('/%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt')
   })
 
   it('should prevent traversing with /%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt', async () => {
-    await expectStatus(
-      '/%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt'
-    )
+    await expectStatus('/%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt')
   })
 
   it('should prevent traversing with /%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt', async () => {
@@ -1820,21 +1681,15 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /..%255c..%255c..%255c..%255c..%255c..%255ctest-file.txt', async () => {
-    await expectStatus(
-      '/..%255c..%255c..%255c..%255c..%255c..%255ctest-file.txt'
-    )
+    await expectStatus('/..%255c..%255c..%255c..%255c..%255c..%255ctest-file.txt')
   })
 
   it('should prevent traversing with /..%255c..%255c..%255c..%255c..%255c..%255c..%255ctest-file.txt', async () => {
-    await expectStatus(
-      '/..%255c..%255c..%255c..%255c..%255c..%255c..%255ctest-file.txt'
-    )
+    await expectStatus('/..%255c..%255c..%255c..%255c..%255c..%255c..%255ctest-file.txt')
   })
 
   it('should prevent traversing with /..%255c..%255c..%255c..%255c..%255c..%255c..%255c..%255ctest-file.txt', async () => {
-    await expectStatus(
-      '/..%255c..%255c..%255c..%255c..%255c..%255c..%255c..%255ctest-file.txt'
-    )
+    await expectStatus('/..%255c..%255c..%255c..%255c..%255c..%255c..%255c..%255ctest-file.txt')
   })
 
   it('should prevent traversing with /%252e%252e\\test-file.txt', async () => {
@@ -1850,15 +1705,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\test-file.txt', async () => {
-    await expectStatus(
-      '/%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\test-file.txt'
-    )
+    await expectStatus('/%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\test-file.txt')
   })
 
   it('should prevent traversing with /%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\test-file.txt', async () => {
-    await expectStatus(
-      '/%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\test-file.txt'
-    )
+    await expectStatus('/%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\test-file.txt')
   })
 
   it('should prevent traversing with /%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\test-file.txt', async () => {
@@ -1888,15 +1739,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /%252e%252e%255c%252e%252e%255c%252e%252e%255ctest-file.txt', async () => {
-    await expectStatus(
-      '/%252e%252e%255c%252e%252e%255c%252e%252e%255ctest-file.txt'
-    )
+    await expectStatus('/%252e%252e%255c%252e%252e%255c%252e%252e%255ctest-file.txt')
   })
 
   it('should prevent traversing with /%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255ctest-file.txt', async () => {
-    await expectStatus(
-      '/%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255ctest-file.txt'
-    )
+    await expectStatus('/%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255ctest-file.txt')
   })
 
   it('should prevent traversing with /%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255ctest-file.txt', async () => {
@@ -2008,21 +1855,15 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/test-file.txt', async () => {
-    await expectStatus(
-      '/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/test-file.txt'
-    )
+    await expectStatus('/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/test-file.txt')
   })
 
   it('should prevent traversing with /%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/test-file.txt', async () => {
-    await expectStatus(
-      '/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/test-file.txt'
-    )
+    await expectStatus('/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/test-file.txt')
   })
 
   it('should prevent traversing with /%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/test-file.txt', async () => {
-    await expectStatus(
-      '/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/test-file.txt'
-    )
+    await expectStatus('/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/test-file.txt')
   })
 
   it('should prevent traversing with /%2e%2e%2ftest-file.txt', async () => {
@@ -2042,15 +1883,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt', async () => {
-    await expectStatus(
-      '/%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt'
-    )
+    await expectStatus('/%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt')
   })
 
   it('should prevent traversing with /%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt', async () => {
-    await expectStatus(
-      '/%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt'
-    )
+    await expectStatus('/%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt')
   })
 
   it('should prevent traversing with /%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt', async () => {
@@ -2086,21 +1923,15 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /..%252f..%252f..%252f..%252f..%252f..%252ftest-file.txt', async () => {
-    await expectStatus(
-      '/..%252f..%252f..%252f..%252f..%252f..%252ftest-file.txt'
-    )
+    await expectStatus('/..%252f..%252f..%252f..%252f..%252f..%252ftest-file.txt')
   })
 
   it('should prevent traversing with /..%252f..%252f..%252f..%252f..%252f..%252f..%252ftest-file.txt', async () => {
-    await expectStatus(
-      '/..%252f..%252f..%252f..%252f..%252f..%252f..%252ftest-file.txt'
-    )
+    await expectStatus('/..%252f..%252f..%252f..%252f..%252f..%252f..%252ftest-file.txt')
   })
 
   it('should prevent traversing with /..%252f..%252f..%252f..%252f..%252f..%252f..%252f..%252ftest-file.txt', async () => {
-    await expectStatus(
-      '/..%252f..%252f..%252f..%252f..%252f..%252f..%252f..%252ftest-file.txt'
-    )
+    await expectStatus('/..%252f..%252f..%252f..%252f..%252f..%252f..%252f..%252ftest-file.txt')
   })
 
   it('should prevent traversing with /%252e%252e/test-file.txt', async () => {
@@ -2116,15 +1947,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /%252e%252e/%252e%252e/%252e%252e/%252e%252e/test-file.txt', async () => {
-    await expectStatus(
-      '/%252e%252e/%252e%252e/%252e%252e/%252e%252e/test-file.txt'
-    )
+    await expectStatus('/%252e%252e/%252e%252e/%252e%252e/%252e%252e/test-file.txt')
   })
 
   it('should prevent traversing with /%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/test-file.txt', async () => {
-    await expectStatus(
-      '/%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/test-file.txt'
-    )
+    await expectStatus('/%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/test-file.txt')
   })
 
   it('should prevent traversing with /%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/test-file.txt', async () => {
@@ -2154,15 +1981,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /%252e%252e%252f%252e%252e%252f%252e%252e%252ftest-file.txt', async () => {
-    await expectStatus(
-      '/%252e%252e%252f%252e%252e%252f%252e%252e%252ftest-file.txt'
-    )
+    await expectStatus('/%252e%252e%252f%252e%252e%252f%252e%252e%252ftest-file.txt')
   })
 
   it('should prevent traversing with /%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252ftest-file.txt', async () => {
-    await expectStatus(
-      '/%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252ftest-file.txt'
-    )
+    await expectStatus('/%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252ftest-file.txt')
   })
 
   it('should prevent traversing with /%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252ftest-file.txt', async () => {
@@ -2274,15 +2097,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\test-file.txt', async () => {
-    await expectStatus(
-      '/%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\test-file.txt'
-    )
+    await expectStatus('/%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\test-file.txt')
   })
 
   it('should prevent traversing with /%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\test-file.txt', async () => {
-    await expectStatus(
-      '/%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\test-file.txt'
-    )
+    await expectStatus('/%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\test-file.txt')
   })
 
   it('should prevent traversing with /%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\test-file.txt', async () => {
@@ -2308,15 +2127,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt', async () => {
-    await expectStatus(
-      '/%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt'
-    )
+    await expectStatus('/%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt')
   })
 
   it('should prevent traversing with /%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt', async () => {
-    await expectStatus(
-      '/%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt'
-    )
+    await expectStatus('/%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt')
   })
 
   it('should prevent traversing with /%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt', async () => {
@@ -2352,21 +2167,15 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /..%255c..%255c..%255c..%255c..%255c..%255ctest-file.txt', async () => {
-    await expectStatus(
-      '/..%255c..%255c..%255c..%255c..%255c..%255ctest-file.txt'
-    )
+    await expectStatus('/..%255c..%255c..%255c..%255c..%255c..%255ctest-file.txt')
   })
 
   it('should prevent traversing with /..%255c..%255c..%255c..%255c..%255c..%255c..%255ctest-file.txt', async () => {
-    await expectStatus(
-      '/..%255c..%255c..%255c..%255c..%255c..%255c..%255ctest-file.txt'
-    )
+    await expectStatus('/..%255c..%255c..%255c..%255c..%255c..%255c..%255ctest-file.txt')
   })
 
   it('should prevent traversing with /..%255c..%255c..%255c..%255c..%255c..%255c..%255c..%255ctest-file.txt', async () => {
-    await expectStatus(
-      '/..%255c..%255c..%255c..%255c..%255c..%255c..%255c..%255ctest-file.txt'
-    )
+    await expectStatus('/..%255c..%255c..%255c..%255c..%255c..%255c..%255c..%255ctest-file.txt')
   })
 
   it('should prevent traversing with /%252e%252e\\test-file.txt', async () => {
@@ -2382,15 +2191,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\test-file.txt', async () => {
-    await expectStatus(
-      '/%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\test-file.txt'
-    )
+    await expectStatus('/%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\test-file.txt')
   })
 
   it('should prevent traversing with /%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\test-file.txt', async () => {
-    await expectStatus(
-      '/%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\test-file.txt'
-    )
+    await expectStatus('/%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\test-file.txt')
   })
 
   it('should prevent traversing with /%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\test-file.txt', async () => {
@@ -2420,15 +2225,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /%252e%252e%255c%252e%252e%255c%252e%252e%255ctest-file.txt', async () => {
-    await expectStatus(
-      '/%252e%252e%255c%252e%252e%255c%252e%252e%255ctest-file.txt'
-    )
+    await expectStatus('/%252e%252e%255c%252e%252e%255c%252e%252e%255ctest-file.txt')
   })
 
   it('should prevent traversing with /%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255ctest-file.txt', async () => {
-    await expectStatus(
-      '/%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255ctest-file.txt'
-    )
+    await expectStatus('/%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255ctest-file.txt')
   })
 
   it('should prevent traversing with /%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255ctest-file.txt', async () => {
@@ -2832,15 +2633,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /....\\....\\....\\....\\....\\....\\....\\test-file.txt', async () => {
-    await expectStatus(
-      '/....\\....\\....\\....\\....\\....\\....\\test-file.txt'
-    )
+    await expectStatus('/....\\....\\....\\....\\....\\....\\....\\test-file.txt')
   })
 
   it('should prevent traversing with /....\\....\\....\\....\\....\\....\\....\\....\\test-file.txt', async () => {
-    await expectStatus(
-      '/....\\....\\....\\....\\....\\....\\....\\....\\test-file.txt'
-    )
+    await expectStatus('/....\\....\\....\\....\\....\\....\\....\\....\\test-file.txt')
   })
 
   it('should prevent traversing with /........................................................................../test-file.txt', async () => {
@@ -2960,15 +2757,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /..%u2215..%u2215..%u2215..%u2215..%u2215..%u2215test-file.txt', async () => {
-    await expectStatus(
-      '/..%u2215..%u2215..%u2215..%u2215..%u2215..%u2215test-file.txt'
-    )
+    await expectStatus('/..%u2215..%u2215..%u2215..%u2215..%u2215..%u2215test-file.txt')
   })
 
   it('should prevent traversing with /..%u2215..%u2215..%u2215..%u2215..%u2215..%u2215..%u2215test-file.txt', async () => {
-    await expectStatus(
-      '/..%u2215..%u2215..%u2215..%u2215..%u2215..%u2215..%u2215test-file.txt'
-    )
+    await expectStatus('/..%u2215..%u2215..%u2215..%u2215..%u2215..%u2215..%u2215test-file.txt')
   })
 
   it('should prevent traversing with /..%u2215..%u2215..%u2215..%u2215..%u2215..%u2215..%u2215..%u2215test-file.txt', async () => {
@@ -2990,9 +2783,7 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /%uff0e%uff0e/%uff0e%uff0e/%uff0e%uff0e/%uff0e%uff0e/test-file.txt', async () => {
-    await expectStatus(
-      '/%uff0e%uff0e/%uff0e%uff0e/%uff0e%uff0e/%uff0e%uff0e/test-file.txt'
-    )
+    await expectStatus('/%uff0e%uff0e/%uff0e%uff0e/%uff0e%uff0e/%uff0e%uff0e/test-file.txt')
   })
 
   it('should prevent traversing with /%uff0e%uff0e/%uff0e%uff0e/%uff0e%uff0e/%uff0e%uff0e/%uff0e%uff0e/test-file.txt', async () => {
@@ -3028,9 +2819,7 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /%uff0e%uff0e%u2215%uff0e%uff0e%u2215%uff0e%uff0e%u2215test-file.txt', async () => {
-    await expectStatus(
-      '/%uff0e%uff0e%u2215%uff0e%uff0e%u2215%uff0e%uff0e%u2215test-file.txt'
-    )
+    await expectStatus('/%uff0e%uff0e%u2215%uff0e%uff0e%u2215%uff0e%uff0e%u2215test-file.txt')
   })
 
   it('should prevent traversing with /%uff0e%uff0e%u2215%uff0e%uff0e%u2215%uff0e%uff0e%u2215%uff0e%uff0e%u2215test-file.txt', async () => {
@@ -3084,15 +2873,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /..%u2216..%u2216..%u2216..%u2216..%u2216..%u2216test-file.txt', async () => {
-    await expectStatus(
-      '/..%u2216..%u2216..%u2216..%u2216..%u2216..%u2216test-file.txt'
-    )
+    await expectStatus('/..%u2216..%u2216..%u2216..%u2216..%u2216..%u2216test-file.txt')
   })
 
   it('should prevent traversing with /..%u2216..%u2216..%u2216..%u2216..%u2216..%u2216..%u2216test-file.txt', async () => {
-    await expectStatus(
-      '/..%u2216..%u2216..%u2216..%u2216..%u2216..%u2216..%u2216test-file.txt'
-    )
+    await expectStatus('/..%u2216..%u2216..%u2216..%u2216..%u2216..%u2216..%u2216test-file.txt')
   })
 
   it('should prevent traversing with /..%u2216..%u2216..%u2216..%u2216..%u2216..%u2216..%u2216..%u2216test-file.txt', async () => {
@@ -3122,15 +2907,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /..%uEFC8..%uEFC8..%uEFC8..%uEFC8..%uEFC8..%uEFC8test-file.txt', async () => {
-    await expectStatus(
-      '/..%uEFC8..%uEFC8..%uEFC8..%uEFC8..%uEFC8..%uEFC8test-file.txt'
-    )
+    await expectStatus('/..%uEFC8..%uEFC8..%uEFC8..%uEFC8..%uEFC8..%uEFC8test-file.txt')
   })
 
   it('should prevent traversing with /..%uEFC8..%uEFC8..%uEFC8..%uEFC8..%uEFC8..%uEFC8..%uEFC8test-file.txt', async () => {
-    await expectStatus(
-      '/..%uEFC8..%uEFC8..%uEFC8..%uEFC8..%uEFC8..%uEFC8..%uEFC8test-file.txt'
-    )
+    await expectStatus('/..%uEFC8..%uEFC8..%uEFC8..%uEFC8..%uEFC8..%uEFC8..%uEFC8test-file.txt')
   })
 
   it('should prevent traversing with /..%uEFC8..%uEFC8..%uEFC8..%uEFC8..%uEFC8..%uEFC8..%uEFC8..%uEFC8test-file.txt', async () => {
@@ -3160,15 +2941,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /..%uF025..%uF025..%uF025..%uF025..%uF025..%uF025test-file.txt', async () => {
-    await expectStatus(
-      '/..%uF025..%uF025..%uF025..%uF025..%uF025..%uF025test-file.txt'
-    )
+    await expectStatus('/..%uF025..%uF025..%uF025..%uF025..%uF025..%uF025test-file.txt')
   })
 
   it('should prevent traversing with /..%uF025..%uF025..%uF025..%uF025..%uF025..%uF025..%uF025test-file.txt', async () => {
-    await expectStatus(
-      '/..%uF025..%uF025..%uF025..%uF025..%uF025..%uF025..%uF025test-file.txt'
-    )
+    await expectStatus('/..%uF025..%uF025..%uF025..%uF025..%uF025..%uF025..%uF025test-file.txt')
   })
 
   it('should prevent traversing with /..%uF025..%uF025..%uF025..%uF025..%uF025..%uF025..%uF025..%uF025test-file.txt', async () => {
@@ -3186,15 +2963,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /%uff0e%uff0e\\%uff0e%uff0e\\%uff0e%uff0e\\test-file.txt', async () => {
-    await expectStatus(
-      '/%uff0e%uff0e\\%uff0e%uff0e\\%uff0e%uff0e\\test-file.txt'
-    )
+    await expectStatus('/%uff0e%uff0e\\%uff0e%uff0e\\%uff0e%uff0e\\test-file.txt')
   })
 
   it('should prevent traversing with /%uff0e%uff0e\\%uff0e%uff0e\\%uff0e%uff0e\\%uff0e%uff0e\\test-file.txt', async () => {
-    await expectStatus(
-      '/%uff0e%uff0e\\%uff0e%uff0e\\%uff0e%uff0e\\%uff0e%uff0e\\test-file.txt'
-    )
+    await expectStatus('/%uff0e%uff0e\\%uff0e%uff0e\\%uff0e%uff0e\\%uff0e%uff0e\\test-file.txt')
   })
 
   it('should prevent traversing with /%uff0e%uff0e\\%uff0e%uff0e\\%uff0e%uff0e\\%uff0e%uff0e\\%uff0e%uff0e\\test-file.txt', async () => {
@@ -3230,9 +3003,7 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /%uff0e%uff0e%u2216%uff0e%uff0e%u2216%uff0e%uff0e%u2216test-file.txt', async () => {
-    await expectStatus(
-      '/%uff0e%uff0e%u2216%uff0e%uff0e%u2216%uff0e%uff0e%u2216test-file.txt'
-    )
+    await expectStatus('/%uff0e%uff0e%u2216%uff0e%uff0e%u2216%uff0e%uff0e%u2216test-file.txt')
   })
 
   it('should prevent traversing with /%uff0e%uff0e%u2216%uff0e%uff0e%u2216%uff0e%uff0e%u2216%uff0e%uff0e%u2216test-file.txt', async () => {
@@ -3290,15 +3061,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /..0x2f..0x2f..0x2f..0x2f..0x2f..0x2f..0x2ftest-file.txt', async () => {
-    await expectStatus(
-      '/..0x2f..0x2f..0x2f..0x2f..0x2f..0x2f..0x2ftest-file.txt'
-    )
+    await expectStatus('/..0x2f..0x2f..0x2f..0x2f..0x2f..0x2f..0x2ftest-file.txt')
   })
 
   it('should prevent traversing with /..0x2f..0x2f..0x2f..0x2f..0x2f..0x2f..0x2f..0x2ftest-file.txt', async () => {
-    await expectStatus(
-      '/..0x2f..0x2f..0x2f..0x2f..0x2f..0x2f..0x2f..0x2ftest-file.txt'
-    )
+    await expectStatus('/..0x2f..0x2f..0x2f..0x2f..0x2f..0x2f..0x2f..0x2ftest-file.txt')
   })
 
   it('should prevent traversing with /0x2e0x2e/test-file.txt', async () => {
@@ -3318,15 +3085,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /0x2e0x2e/0x2e0x2e/0x2e0x2e/0x2e0x2e/0x2e0x2e/test-file.txt', async () => {
-    await expectStatus(
-      '/0x2e0x2e/0x2e0x2e/0x2e0x2e/0x2e0x2e/0x2e0x2e/test-file.txt'
-    )
+    await expectStatus('/0x2e0x2e/0x2e0x2e/0x2e0x2e/0x2e0x2e/0x2e0x2e/test-file.txt')
   })
 
   it('should prevent traversing with /0x2e0x2e/0x2e0x2e/0x2e0x2e/0x2e0x2e/0x2e0x2e/0x2e0x2e/test-file.txt', async () => {
-    await expectStatus(
-      '/0x2e0x2e/0x2e0x2e/0x2e0x2e/0x2e0x2e/0x2e0x2e/0x2e0x2e/test-file.txt'
-    )
+    await expectStatus('/0x2e0x2e/0x2e0x2e/0x2e0x2e/0x2e0x2e/0x2e0x2e/0x2e0x2e/test-file.txt')
   })
 
   it('should prevent traversing with /0x2e0x2e/0x2e0x2e/0x2e0x2e/0x2e0x2e/0x2e0x2e/0x2e0x2e/0x2e0x2e/test-file.txt', async () => {
@@ -3354,15 +3117,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /0x2e0x2e0x2f0x2e0x2e0x2f0x2e0x2e0x2f0x2e0x2e0x2ftest-file.txt', async () => {
-    await expectStatus(
-      '/0x2e0x2e0x2f0x2e0x2e0x2f0x2e0x2e0x2f0x2e0x2e0x2ftest-file.txt'
-    )
+    await expectStatus('/0x2e0x2e0x2f0x2e0x2e0x2f0x2e0x2e0x2f0x2e0x2e0x2ftest-file.txt')
   })
 
   it('should prevent traversing with /0x2e0x2e0x2f0x2e0x2e0x2f0x2e0x2e0x2f0x2e0x2e0x2f0x2e0x2e0x2ftest-file.txt', async () => {
-    await expectStatus(
-      '/0x2e0x2e0x2f0x2e0x2e0x2f0x2e0x2e0x2f0x2e0x2e0x2f0x2e0x2e0x2ftest-file.txt'
-    )
+    await expectStatus('/0x2e0x2e0x2f0x2e0x2e0x2f0x2e0x2e0x2f0x2e0x2e0x2f0x2e0x2e0x2ftest-file.txt')
   })
 
   it('should prevent traversing with /0x2e0x2e0x2f0x2e0x2e0x2f0x2e0x2e0x2f0x2e0x2e0x2f0x2e0x2e0x2f0x2e0x2e0x2ftest-file.txt', async () => {
@@ -3408,15 +3167,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /..0x5c..0x5c..0x5c..0x5c..0x5c..0x5c..0x5ctest-file.txt', async () => {
-    await expectStatus(
-      '/..0x5c..0x5c..0x5c..0x5c..0x5c..0x5c..0x5ctest-file.txt'
-    )
+    await expectStatus('/..0x5c..0x5c..0x5c..0x5c..0x5c..0x5c..0x5ctest-file.txt')
   })
 
   it('should prevent traversing with /..0x5c..0x5c..0x5c..0x5c..0x5c..0x5c..0x5c..0x5ctest-file.txt', async () => {
-    await expectStatus(
-      '/..0x5c..0x5c..0x5c..0x5c..0x5c..0x5c..0x5c..0x5ctest-file.txt'
-    )
+    await expectStatus('/..0x5c..0x5c..0x5c..0x5c..0x5c..0x5c..0x5c..0x5ctest-file.txt')
   })
 
   it('should prevent traversing with /0x2e0x2e\\test-file.txt', async () => {
@@ -3436,15 +3191,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /0x2e0x2e\\0x2e0x2e\\0x2e0x2e\\0x2e0x2e\\0x2e0x2e\\test-file.txt', async () => {
-    await expectStatus(
-      '/0x2e0x2e\\0x2e0x2e\\0x2e0x2e\\0x2e0x2e\\0x2e0x2e\\test-file.txt'
-    )
+    await expectStatus('/0x2e0x2e\\0x2e0x2e\\0x2e0x2e\\0x2e0x2e\\0x2e0x2e\\test-file.txt')
   })
 
   it('should prevent traversing with /0x2e0x2e\\0x2e0x2e\\0x2e0x2e\\0x2e0x2e\\0x2e0x2e\\0x2e0x2e\\test-file.txt', async () => {
-    await expectStatus(
-      '/0x2e0x2e\\0x2e0x2e\\0x2e0x2e\\0x2e0x2e\\0x2e0x2e\\0x2e0x2e\\test-file.txt'
-    )
+    await expectStatus('/0x2e0x2e\\0x2e0x2e\\0x2e0x2e\\0x2e0x2e\\0x2e0x2e\\0x2e0x2e\\test-file.txt')
   })
 
   it('should prevent traversing with /0x2e0x2e\\0x2e0x2e\\0x2e0x2e\\0x2e0x2e\\0x2e0x2e\\0x2e0x2e\\0x2e0x2e\\test-file.txt', async () => {
@@ -3472,15 +3223,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /0x2e0x2e0x5c0x2e0x2e0x5c0x2e0x2e0x5c0x2e0x2e0x5ctest-file.txt', async () => {
-    await expectStatus(
-      '/0x2e0x2e0x5c0x2e0x2e0x5c0x2e0x2e0x5c0x2e0x2e0x5ctest-file.txt'
-    )
+    await expectStatus('/0x2e0x2e0x5c0x2e0x2e0x5c0x2e0x2e0x5c0x2e0x2e0x5ctest-file.txt')
   })
 
   it('should prevent traversing with /0x2e0x2e0x5c0x2e0x2e0x5c0x2e0x2e0x5c0x2e0x2e0x5c0x2e0x2e0x5ctest-file.txt', async () => {
-    await expectStatus(
-      '/0x2e0x2e0x5c0x2e0x2e0x5c0x2e0x2e0x5c0x2e0x2e0x5c0x2e0x2e0x5ctest-file.txt'
-    )
+    await expectStatus('/0x2e0x2e0x5c0x2e0x2e0x5c0x2e0x2e0x5c0x2e0x2e0x5c0x2e0x2e0x5ctest-file.txt')
   })
 
   it('should prevent traversing with /0x2e0x2e0x5c0x2e0x2e0x5c0x2e0x2e0x5c0x2e0x2e0x5c0x2e0x2e0x5c0x2e0x2e0x5ctest-file.txt', async () => {
@@ -3522,15 +3269,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /..%c0%2f..%c0%2f..%c0%2f..%c0%2f..%c0%2f..%c0%2ftest-file.txt', async () => {
-    await expectStatus(
-      '/..%c0%2f..%c0%2f..%c0%2f..%c0%2f..%c0%2f..%c0%2ftest-file.txt'
-    )
+    await expectStatus('/..%c0%2f..%c0%2f..%c0%2f..%c0%2f..%c0%2f..%c0%2ftest-file.txt')
   })
 
   it('should prevent traversing with /..%c0%2f..%c0%2f..%c0%2f..%c0%2f..%c0%2f..%c0%2f..%c0%2ftest-file.txt', async () => {
-    await expectStatus(
-      '/..%c0%2f..%c0%2f..%c0%2f..%c0%2f..%c0%2f..%c0%2f..%c0%2ftest-file.txt'
-    )
+    await expectStatus('/..%c0%2f..%c0%2f..%c0%2f..%c0%2f..%c0%2f..%c0%2f..%c0%2ftest-file.txt')
   })
 
   it('should prevent traversing with /..%c0%2f..%c0%2f..%c0%2f..%c0%2f..%c0%2f..%c0%2f..%c0%2f..%c0%2ftest-file.txt', async () => {
@@ -3552,9 +3295,7 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /%c0%2e%c0%2e/%c0%2e%c0%2e/%c0%2e%c0%2e/%c0%2e%c0%2e/test-file.txt', async () => {
-    await expectStatus(
-      '/%c0%2e%c0%2e/%c0%2e%c0%2e/%c0%2e%c0%2e/%c0%2e%c0%2e/test-file.txt'
-    )
+    await expectStatus('/%c0%2e%c0%2e/%c0%2e%c0%2e/%c0%2e%c0%2e/%c0%2e%c0%2e/test-file.txt')
   })
 
   it('should prevent traversing with /%c0%2e%c0%2e/%c0%2e%c0%2e/%c0%2e%c0%2e/%c0%2e%c0%2e/%c0%2e%c0%2e/test-file.txt', async () => {
@@ -3590,9 +3331,7 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /%c0%2e%c0%2e%c0%2f%c0%2e%c0%2e%c0%2f%c0%2e%c0%2e%c0%2ftest-file.txt', async () => {
-    await expectStatus(
-      '/%c0%2e%c0%2e%c0%2f%c0%2e%c0%2e%c0%2f%c0%2e%c0%2e%c0%2ftest-file.txt'
-    )
+    await expectStatus('/%c0%2e%c0%2e%c0%2f%c0%2e%c0%2e%c0%2f%c0%2e%c0%2e%c0%2ftest-file.txt')
   })
 
   it('should prevent traversing with /%c0%2e%c0%2e%c0%2f%c0%2e%c0%2e%c0%2f%c0%2e%c0%2e%c0%2f%c0%2e%c0%2e%c0%2ftest-file.txt', async () => {
@@ -3646,15 +3385,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /..%c0%5c..%c0%5c..%c0%5c..%c0%5c..%c0%5c..%c0%5ctest-file.txt', async () => {
-    await expectStatus(
-      '/..%c0%5c..%c0%5c..%c0%5c..%c0%5c..%c0%5c..%c0%5ctest-file.txt'
-    )
+    await expectStatus('/..%c0%5c..%c0%5c..%c0%5c..%c0%5c..%c0%5c..%c0%5ctest-file.txt')
   })
 
   it('should prevent traversing with /..%c0%5c..%c0%5c..%c0%5c..%c0%5c..%c0%5c..%c0%5c..%c0%5ctest-file.txt', async () => {
-    await expectStatus(
-      '/..%c0%5c..%c0%5c..%c0%5c..%c0%5c..%c0%5c..%c0%5c..%c0%5ctest-file.txt'
-    )
+    await expectStatus('/..%c0%5c..%c0%5c..%c0%5c..%c0%5c..%c0%5c..%c0%5c..%c0%5ctest-file.txt')
   })
 
   it('should prevent traversing with /..%c0%5c..%c0%5c..%c0%5c..%c0%5c..%c0%5c..%c0%5c..%c0%5c..%c0%5ctest-file.txt', async () => {
@@ -3672,15 +3407,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /%c0%2e%c0%2e\\%c0%2e%c0%2e\\%c0%2e%c0%2e\\test-file.txt', async () => {
-    await expectStatus(
-      '/%c0%2e%c0%2e\\%c0%2e%c0%2e\\%c0%2e%c0%2e\\test-file.txt'
-    )
+    await expectStatus('/%c0%2e%c0%2e\\%c0%2e%c0%2e\\%c0%2e%c0%2e\\test-file.txt')
   })
 
   it('should prevent traversing with /%c0%2e%c0%2e\\%c0%2e%c0%2e\\%c0%2e%c0%2e\\%c0%2e%c0%2e\\test-file.txt', async () => {
-    await expectStatus(
-      '/%c0%2e%c0%2e\\%c0%2e%c0%2e\\%c0%2e%c0%2e\\%c0%2e%c0%2e\\test-file.txt'
-    )
+    await expectStatus('/%c0%2e%c0%2e\\%c0%2e%c0%2e\\%c0%2e%c0%2e\\%c0%2e%c0%2e\\test-file.txt')
   })
 
   it('should prevent traversing with /%c0%2e%c0%2e\\%c0%2e%c0%2e\\%c0%2e%c0%2e\\%c0%2e%c0%2e\\%c0%2e%c0%2e\\test-file.txt', async () => {
@@ -3716,9 +3447,7 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /%c0%2e%c0%2e%c0%5c%c0%2e%c0%2e%c0%5c%c0%2e%c0%2e%c0%5ctest-file.txt', async () => {
-    await expectStatus(
-      '/%c0%2e%c0%2e%c0%5c%c0%2e%c0%2e%c0%5c%c0%2e%c0%2e%c0%5ctest-file.txt'
-    )
+    await expectStatus('/%c0%2e%c0%2e%c0%5c%c0%2e%c0%2e%c0%5c%c0%2e%c0%2e%c0%5ctest-file.txt')
   })
 
   it('should prevent traversing with /%c0%2e%c0%2e%c0%5c%c0%2e%c0%2e%c0%5c%c0%2e%c0%2e%c0%5c%c0%2e%c0%2e%c0%5ctest-file.txt', async () => {
@@ -3768,15 +3497,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with ////%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt', async () => {
-    await expectStatus(
-      '////%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt'
-    )
+    await expectStatus('////%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt')
   })
 
   it('should prevent traversing with ////%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt', async () => {
-    await expectStatus(
-      '////%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt'
-    )
+    await expectStatus('////%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt')
   })
 
   it('should prevent traversing with ////%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt', async () => {
@@ -3804,21 +3529,15 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /\\\\\\%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt', async () => {
-    await expectStatus(
-      '/\\\\\\%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt'
-    )
+    await expectStatus('/\\\\\\%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt')
   })
 
   it('should prevent traversing with /\\\\\\%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt', async () => {
-    await expectStatus(
-      '/\\\\\\%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt'
-    )
+    await expectStatus('/\\\\\\%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt')
   })
 
   it('should prevent traversing with /\\\\\\%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt', async () => {
-    await expectStatus(
-      '/\\\\\\%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt'
-    )
+    await expectStatus('/\\\\\\%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt')
   })
 
   it('should prevent traversing with /\\\\\\%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt', async () => {
@@ -3922,15 +3641,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /..\\\\..\\\\..\\\\..\\\\..\\\\..\\\\..\\\\test-file.txt', async () => {
-    await expectStatus(
-      '/..\\\\..\\\\..\\\\..\\\\..\\\\..\\\\..\\\\test-file.txt'
-    )
+    await expectStatus('/..\\\\..\\\\..\\\\..\\\\..\\\\..\\\\..\\\\test-file.txt')
   })
 
   it('should prevent traversing with /..\\\\..\\\\..\\\\..\\\\..\\\\..\\\\..\\\\..\\\\test-file.txt', async () => {
-    await expectStatus(
-      '/..\\\\..\\\\..\\\\..\\\\..\\\\..\\\\..\\\\..\\\\test-file.txt'
-    )
+    await expectStatus('/..\\\\..\\\\..\\\\..\\\\..\\\\..\\\\..\\\\..\\\\test-file.txt')
   })
 
   it('should prevent traversing with /..\\\\\\test-file.txt', async () => {
@@ -3954,15 +3669,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /..\\\\\\..\\\\\\..\\\\\\..\\\\\\..\\\\\\..\\\\\\test-file.txt', async () => {
-    await expectStatus(
-      '/..\\\\\\..\\\\\\..\\\\\\..\\\\\\..\\\\\\..\\\\\\test-file.txt'
-    )
+    await expectStatus('/..\\\\\\..\\\\\\..\\\\\\..\\\\\\..\\\\\\..\\\\\\test-file.txt')
   })
 
   it('should prevent traversing with /..\\\\\\..\\\\\\..\\\\\\..\\\\\\..\\\\\\..\\\\\\..\\\\\\test-file.txt', async () => {
-    await expectStatus(
-      '/..\\\\\\..\\\\\\..\\\\\\..\\\\\\..\\\\\\..\\\\\\..\\\\\\test-file.txt'
-    )
+    await expectStatus('/..\\\\\\..\\\\\\..\\\\\\..\\\\\\..\\\\\\..\\\\\\..\\\\\\test-file.txt')
   })
 
   it('should prevent traversing with /..\\\\\\..\\\\\\..\\\\\\..\\\\\\..\\\\\\..\\\\\\..\\\\\\..\\\\\\test-file.txt', async () => {
@@ -3992,21 +3703,15 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /./\\/././\\/././\\/././\\/././\\/././\\/./test-file.txt', async () => {
-    await expectStatus(
-      '/./\\/././\\/././\\/././\\/././\\/././\\/./test-file.txt'
-    )
+    await expectStatus('/./\\/././\\/././\\/././\\/././\\/././\\/./test-file.txt')
   })
 
   it('should prevent traversing with /./\\/././\\/././\\/././\\/././\\/././\\/././\\/./test-file.txt', async () => {
-    await expectStatus(
-      '/./\\/././\\/././\\/././\\/././\\/././\\/././\\/./test-file.txt'
-    )
+    await expectStatus('/./\\/././\\/././\\/././\\/././\\/././\\/././\\/./test-file.txt')
   })
 
   it('should prevent traversing with /./\\/././\\/././\\/././\\/././\\/././\\/././\\/././\\/./test-file.txt', async () => {
-    await expectStatus(
-      '/./\\/././\\/././\\/././\\/././\\/././\\/././\\/././\\/./test-file.txt'
-    )
+    await expectStatus('/./\\/././\\/././\\/././\\/././\\/././\\/././\\/././\\/./test-file.txt')
   })
 
   it('should prevent traversing with /.\\/\\.\\test-file.txt', async () => {
@@ -4026,15 +3731,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /.\\/\\.\\.\\/\\.\\.\\/\\.\\.\\/\\.\\.\\/\\.\\test-file.txt', async () => {
-    await expectStatus(
-      '/.\\/\\.\\.\\/\\.\\.\\/\\.\\.\\/\\.\\.\\/\\.\\test-file.txt'
-    )
+    await expectStatus('/.\\/\\.\\.\\/\\.\\.\\/\\.\\.\\/\\.\\.\\/\\.\\test-file.txt')
   })
 
   it('should prevent traversing with /.\\/\\.\\.\\/\\.\\.\\/\\.\\.\\/\\.\\.\\/\\.\\.\\/\\.\\test-file.txt', async () => {
-    await expectStatus(
-      '/.\\/\\.\\.\\/\\.\\.\\/\\.\\.\\/\\.\\.\\/\\.\\.\\/\\.\\test-file.txt'
-    )
+    await expectStatus('/.\\/\\.\\.\\/\\.\\.\\/\\.\\.\\/\\.\\.\\/\\.\\.\\/\\.\\test-file.txt')
   })
 
   it('should prevent traversing with /.\\/\\.\\.\\/\\.\\.\\/\\.\\.\\/\\.\\.\\/\\.\\.\\/\\.\\.\\/\\.\\test-file.txt', async () => {
@@ -4198,21 +3899,15 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /.\\..\\.\\..\\.\\..\\.\\..\\.\\..\\.\\..\\test-file.txt', async () => {
-    await expectStatus(
-      '/.\\..\\.\\..\\.\\..\\.\\..\\.\\..\\.\\..\\test-file.txt'
-    )
+    await expectStatus('/.\\..\\.\\..\\.\\..\\.\\..\\.\\..\\.\\..\\test-file.txt')
   })
 
   it('should prevent traversing with /.\\..\\.\\..\\.\\..\\.\\..\\.\\..\\.\\..\\.\\..\\test-file.txt', async () => {
-    await expectStatus(
-      '/.\\..\\.\\..\\.\\..\\.\\..\\.\\..\\.\\..\\.\\..\\test-file.txt'
-    )
+    await expectStatus('/.\\..\\.\\..\\.\\..\\.\\..\\.\\..\\.\\..\\.\\..\\test-file.txt')
   })
 
   it('should prevent traversing with /.\\..\\.\\..\\.\\..\\.\\..\\.\\..\\.\\..\\.\\..\\.\\..\\test-file.txt', async () => {
-    await expectStatus(
-      '/.\\..\\.\\..\\.\\..\\.\\..\\.\\..\\.\\..\\.\\..\\.\\..\\test-file.txt'
-    )
+    await expectStatus('/.\\..\\.\\..\\.\\..\\.\\..\\.\\..\\.\\..\\.\\..\\.\\..\\test-file.txt')
   })
 
   it('should prevent traversing with /.//..//test-file.txt', async () => {
@@ -4236,21 +3931,15 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /.//..//.//..//.//..//.//..//.//..//.//..//test-file.txt', async () => {
-    await expectStatus(
-      '/.//..//.//..//.//..//.//..//.//..//.//..//test-file.txt'
-    )
+    await expectStatus('/.//..//.//..//.//..//.//..//.//..//.//..//test-file.txt')
   })
 
   it('should prevent traversing with /.//..//.//..//.//..//.//..//.//..//.//..//.//..//test-file.txt', async () => {
-    await expectStatus(
-      '/.//..//.//..//.//..//.//..//.//..//.//..//.//..//test-file.txt'
-    )
+    await expectStatus('/.//..//.//..//.//..//.//..//.//..//.//..//.//..//test-file.txt')
   })
 
   it('should prevent traversing with /.//..//.//..//.//..//.//..//.//..//.//..//.//..//.//..//test-file.txt', async () => {
-    await expectStatus(
-      '/.//..//.//..//.//..//.//..//.//..//.//..//.//..//.//..//test-file.txt'
-    )
+    await expectStatus('/.//..//.//..//.//..//.//..//.//..//.//..//.//..//.//..//test-file.txt')
   })
 
   it('should prevent traversing with /.\\\\..\\\\test-file.txt', async () => {
@@ -4266,15 +3955,11 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\test-file.txt', async () => {
-    await expectStatus(
-      '/.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\test-file.txt'
-    )
+    await expectStatus('/.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\test-file.txt')
   })
 
   it('should prevent traversing with /.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\test-file.txt', async () => {
-    await expectStatus(
-      '/.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\test-file.txt'
-    )
+    await expectStatus('/.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\test-file.txt')
   })
 
   it('should prevent traversing with /.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\test-file.txt', async () => {
@@ -4420,9 +4105,7 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /..\\..\\\\..\\..\\\\..\\..\\\\..\\..\\\\\\test-file.txt', async () => {
-    await expectStatus(
-      '/..\\..\\\\..\\..\\\\..\\..\\\\..\\..\\\\\\test-file.txt'
-    )
+    await expectStatus('/..\\..\\\\..\\..\\\\..\\..\\\\..\\..\\\\\\test-file.txt')
   })
 
   it('should prevent traversing with /\\..%2f', async () => {
@@ -4454,9 +4137,7 @@ const runTests = () => {
   })
 
   it('should prevent traversing with /\\..%2f\\..%2f\\..%2f\\..%2f\\..%2f\\..%2f\\..%2f\\..%2ftest-file.txt', async () => {
-    await expectStatus(
-      '/\\..%2f\\..%2f\\..%2f\\..%2f\\..%2f\\..%2f\\..%2f\\..%2ftest-file.txt'
-    )
+    await expectStatus('/\\..%2f\\..%2f\\..%2f\\..%2f\\..%2f\\..%2f\\..%2f\\..%2ftest-file.txt')
   })
 }
 
@@ -4464,50 +4145,44 @@ const copyTestFileToDist = () =>
   fs.copy(join(appDir, 'test-file.txt'), join(appDir, '.next', 'test-file.txt'))
 
 describe('File Serving', () => {
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
-    'development mode',
-    () => {
-      beforeAll(async () => {
-        appPort = await findPort()
-        app = await launchApp(appDir, appPort, {
-          // don't log stdout and stderr as we're going to generate
-          // a lot of output from resolve mismatches
-          stdout: false,
-          stderr: false,
-        })
-        await copyTestFileToDist()
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
+    beforeAll(async () => {
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort, {
+        // don't log stdout and stderr as we're going to generate
+        // a lot of output from resolve mismatches
+        stdout: false,
+        stderr: false,
       })
-      afterAll(async () => {
-        await killApp(app)
+      await copyTestFileToDist()
+    })
+    afterAll(async () => {
+      await killApp(app)
+    })
+
+    runTests()
+  })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
+    beforeAll(async () => {
+      const { code } = await nextBuild(appDir)
+
+      if (code !== 0) {
+        throw new Error(`Failed to build got code: ${code}`)
+      }
+      await copyTestFileToDist()
+
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort, {
+        // don't log stdout and stderr as we're going to generate
+        // a lot of output from resolve mismatches
+        stdout: false,
+        stderr: false,
       })
+    })
+    afterAll(async () => {
+      await killApp(app)
+    })
 
-      runTests()
-    }
-  )
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      beforeAll(async () => {
-        const { code } = await nextBuild(appDir)
-
-        if (code !== 0) {
-          throw new Error(`Failed to build got code: ${code}`)
-        }
-        await copyTestFileToDist()
-
-        appPort = await findPort()
-        app = await nextStart(appDir, appPort, {
-          // don't log stdout and stderr as we're going to generate
-          // a lot of output from resolve mismatches
-          stdout: false,
-          stderr: false,
-        })
-      })
-      afterAll(async () => {
-        await killApp(app)
-      })
-
-      runTests()
-    }
-  )
+    runTests()
+  })
 })

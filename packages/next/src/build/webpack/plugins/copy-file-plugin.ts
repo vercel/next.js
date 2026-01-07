@@ -39,10 +39,7 @@ export class CopyFilePlugin {
         },
         async () => {
           if (cache) {
-            const cachedResult = await cache.getPromise(
-              this.filePath,
-              this.cacheKey
-            )
+            const cachedResult = await cache.getPromise(this.filePath, this.cacheKey)
             if (cachedResult) {
               const { file, source } = cachedResult
               compilation.emitAsset(file, source, {
@@ -53,14 +50,10 @@ export class CopyFilePlugin {
           }
           const content = await fs.readFile(this.filePath, 'utf8')
 
-          const file = loaderUtils.interpolateName(
-            { resourcePath: this.filePath },
-            this.name,
-            {
-              content,
-              context: compiler.context,
-            }
-          )
+          const file = loaderUtils.interpolateName({ resourcePath: this.filePath }, this.name, {
+            content,
+            context: compiler.context,
+          })
 
           const source = new sources.RawSource(content)
 

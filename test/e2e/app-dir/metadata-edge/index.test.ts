@@ -14,42 +14,32 @@ describe('app dir - Metadata API on the Edge runtime', () => {
           await next.readFile('.next/server/middleware-manifest.json')
         )
 
-        const uniquePageFiles = [
-          ...new Set<string>(middlewareManifest.functions['/page'].files),
-        ]
+        const uniquePageFiles = [...new Set<string>(middlewareManifest.functions['/page'].files)]
 
-        const pageFilesThatHaveImageResponse = uniquePageFiles.filter(
-          (file) => {
-            return next
-              .readFileSync(path.join('.next', file))
-              .includes('experimental_FigmaImageResponse')
-          }
-        )
+        const pageFilesThatHaveImageResponse = uniquePageFiles.filter((file) => {
+          return next
+            .readFileSync(path.join('.next', file))
+            .includes('experimental_FigmaImageResponse')
+        })
         expect(pageFilesThatHaveImageResponse).not.toBeEmpty()
 
         const uniqueAnotherFiles = [
-          ...new Set<string>(
-            middlewareManifest.functions['/another/page'].files
-          ),
+          ...new Set<string>(middlewareManifest.functions['/another/page'].files),
         ]
         expect(uniqueAnotherFiles).not.toBeEmpty()
 
-        const anotherFilesThatHaveImageResponse = uniqueAnotherFiles.filter(
-          (file) => {
-            return (
-              next
-                .readFileSync(path.join('.next', file))
-                // This export is not used but it checks if the `@vercel/og` package is shared between the two routes.
-                .includes('experimental_FigmaImageResponse')
-            )
-          }
-        )
+        const anotherFilesThatHaveImageResponse = uniqueAnotherFiles.filter((file) => {
+          return (
+            next
+              .readFileSync(path.join('.next', file))
+              // This export is not used but it checks if the `@vercel/og` package is shared between the two routes.
+              .includes('experimental_FigmaImageResponse')
+          )
+        })
 
         // Grab the list of files that hold `ImageResponse`. Given the chunking should create the same file for both routes it should end up being the same object.
         // This test was added to ensure that we don't include `ImageResponse` in the individual page bundles: https://github.com/vercel/next.js/pull/51950.
-        expect(pageFilesThatHaveImageResponse).toMatchObject(
-          anotherFilesThatHaveImageResponse
-        )
+        expect(pageFilesThatHaveImageResponse).toMatchObject(anotherFilesThatHaveImageResponse)
       })
     }
   })

@@ -1,9 +1,5 @@
 import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
-import type {
-  ManifestHeaderRoute,
-  ManifestRedirectRoute,
-  ManifestRewriteRoute,
-} from '../build'
+import type { ManifestHeaderRoute, ManifestRedirectRoute, ManifestRewriteRoute } from '../build'
 import {
   normalizeRouteRegex,
   type Header,
@@ -13,14 +9,8 @@ import {
 } from './load-custom-routes'
 import { getRedirectStatus, modifyRouteRegex } from './redirect-status'
 
-export function buildCustomRoute(
-  type: 'header',
-  route: Header
-): ManifestHeaderRoute
-export function buildCustomRoute(
-  type: 'rewrite',
-  route: Rewrite
-): ManifestRewriteRoute
+export function buildCustomRoute(type: 'header', route: Header): ManifestHeaderRoute
+export function buildCustomRoute(type: 'rewrite', route: Rewrite): ManifestRewriteRoute
 export function buildCustomRoute(
   type: 'redirect',
   route: Redirect,
@@ -48,10 +38,7 @@ export function buildCustomRoute(
   ) {
     let source = compiled.source
     if (!route.internal) {
-      source = modifyRouteRegex(
-        source,
-        type === 'redirect' ? restrictedRedirectPaths : undefined
-      )
+      source = modifyRouteRegex(source, type === 'redirect' ? restrictedRedirectPaths : undefined)
     }
 
     regex = normalizeRouteRegex(source)

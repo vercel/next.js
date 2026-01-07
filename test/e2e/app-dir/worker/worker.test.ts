@@ -33,9 +33,7 @@ describe('app dir - workers', () => {
     await browser.elementByCss('button').click()
 
     await retry(async () =>
-      expect(await browser.elementByCss('#worker-state').text()).toBe(
-        'worker.ts:worker-dep'
-      )
+      expect(await browser.elementByCss('#worker-state').text()).toBe('worker.ts:worker-dep')
     )
   })
 
@@ -48,9 +46,7 @@ describe('app dir - workers', () => {
     await browser.elementByCss('button').click()
 
     await retry(async () =>
-      expect(await browser.elementByCss('#worker-state').text()).toBe(
-        'worker.ts:worker-dep'
-      )
+      expect(await browser.elementByCss('#worker-state').text()).toBe('worker.ts:worker-dep')
     )
   })
 
@@ -63,9 +59,7 @@ describe('app dir - workers', () => {
     await browser.elementByCss('button').click()
 
     await retry(async () =>
-      expect(await browser.elementByCss('#worker-state').text()).toBe(
-        'unbundled-worker'
-      )
+      expect(await browser.elementByCss('#worker-state').text()).toBe('unbundled-worker')
     )
   })
 })

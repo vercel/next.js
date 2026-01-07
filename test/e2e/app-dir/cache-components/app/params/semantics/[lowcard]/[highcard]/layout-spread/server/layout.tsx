@@ -10,9 +10,7 @@ export default async function Page({
   const copied = { ...(await params) }
   return (
     <section>
-      <p>
-        This Layout spreads params in a server component after awaiting them
-      </p>
+      <p>This Layout spreads params in a server component after awaiting them</p>
       <div>
         page lowcard: <span id="param-copied-lowcard">{copied.lowcard}</span>
       </div>
@@ -20,8 +18,7 @@ export default async function Page({
         page highcard: <span id="param-copied-highcard">{copied.highcard}</span>
       </div>
       <div>
-        param key count:{' '}
-        <span id="param-key-count">{Object.keys(copied).length}</span>
+        param key count: <span id="param-key-count">{Object.keys(copied).length}</span>
       </div>
       <span id="page">{getSentinelValue()}</span>
       {children}

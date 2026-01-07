@@ -11,10 +11,7 @@ describe('get_routes MCP tool', () => {
     return
   }
 
-  async function callGetRoutes(
-    id: string,
-    args: Record<string, unknown> = {}
-  ): Promise<string> {
+  async function callGetRoutes(id: string, args: Record<string, unknown> = {}): Promise<string> {
     const response = await fetch(`${next.url}/_next/mcp`, {
       method: 'POST',
       headers: {
@@ -66,9 +63,7 @@ describe('get_routes MCP tool', () => {
 
   it('should filter routes by routerType parameter', async () => {
     // Test app-only filter
-    const appOnlyResponse = JSON.parse(
-      await callGetRoutes('test-app-only', { routerType: 'app' })
-    )
+    const appOnlyResponse = JSON.parse(await callGetRoutes('test-app-only', { routerType: 'app' }))
     expect(appOnlyResponse).toMatchInlineSnapshot(`
       {
         "appRouter": [

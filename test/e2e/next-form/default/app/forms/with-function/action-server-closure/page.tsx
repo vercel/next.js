@@ -8,11 +8,7 @@ export default function Page() {
     <Form
       action={async (data) => {
         'use server'
-        redirect(
-          destination +
-            '?' +
-            new URLSearchParams([...data.entries()] as [string, string][])
-        )
+        redirect(destination + '?' + new URLSearchParams([...data.entries()] as [string, string][]))
       }}
       id="search-form"
     >

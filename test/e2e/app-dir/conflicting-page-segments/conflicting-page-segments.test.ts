@@ -19,9 +19,7 @@ describe('conflicting-page-segments', () => {
       await next.start()
       const html = await next.render('/')
 
-      expect(html).toContain(
-        'You cannot have two parallel pages that resolve to the same path.'
-      )
+      expect(html).toContain('You cannot have two parallel pages that resolve to the same path.')
     } else {
       await expect(next.start()).rejects.toThrow('next build failed')
 

@@ -20,8 +20,8 @@ export default function Page() {
         2. A statically-prefetchable sub-layout not shared with other pages.
         <br />
         <br />
-        We should use a runtime prefetch for it without any overrides on Link,
-        but its sub-layout should be prefetched statically.
+        We should use a runtime prefetch for it without any overrides on Link, but its sub-layout
+        should be prefetched statically.
       </p>
       <Suspense fallback="Loading...">
         <RuntimePrefetchable />
@@ -32,9 +32,5 @@ export default function Page() {
 
 async function RuntimePrefetchable() {
   await cookies()
-  return (
-    <div id="runtime-prefetchable-content-page">
-      Runtime-prefetchable content from page
-    </div>
-  )
+  return <div id="runtime-prefetchable-content-page">Runtime-prefetchable content from page</div>
 }

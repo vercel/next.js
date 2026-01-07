@@ -10,9 +10,7 @@ function normalizeBrowserConsoleStackTrace(trace: unknown) {
   return (
     trace
       // Removes React's internals i.e. incomplete ignore-listing
-      .split(
-        /at (react-stack-bottom-frame|Object\.react_stack_bottom_frame).*/m
-      )[0]
+      .split(/at (react-stack-bottom-frame|Object\.react_stack_bottom_frame).*/m)[0]
       // Remove the location `()` part in every line of stack trace;
       .replace(/\(.*\)/g, '')
       // Remove the leading spaces in every line of stack trace;
@@ -74,8 +72,7 @@ describe('app-dir - owner-stack', () => {
      }
     `)
 
-    expect(normalizeBrowserConsoleStackTrace(errorStack))
-      .toMatchInlineSnapshot(`
+    expect(normalizeBrowserConsoleStackTrace(errorStack)).toMatchInlineSnapshot(`
      "Error: browser error
      at useThrowError 
      at useErrorHook 
@@ -146,8 +143,7 @@ describe('app-dir - owner-stack', () => {
      }
     `)
 
-    expect(normalizeBrowserConsoleStackTrace(errorStack))
-      .toMatchInlineSnapshot(`
+    expect(normalizeBrowserConsoleStackTrace(errorStack)).toMatchInlineSnapshot(`
      "Error: ssr error
      at useThrowError 
      at useErrorHook 

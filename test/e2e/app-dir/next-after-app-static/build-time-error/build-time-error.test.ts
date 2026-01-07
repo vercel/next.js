@@ -19,42 +19,26 @@ _describe('after() in static pages - thrown errors', () => {
 
     {
       const path = '/page-throws-in-after/callback'
-      expect(next.cliOutput).toContain(
-        `Error occurred prerendering page "${path}"`
-      )
-      expect(next.cliOutput).toContain(
-        `My cool error thrown inside after on route "${path}"`
-      )
+      expect(next.cliOutput).toContain(`Error occurred prerendering page "${path}"`)
+      expect(next.cliOutput).toContain(`My cool error thrown inside after on route "${path}"`)
     }
 
     {
       const path = '/page-throws-in-after/promise'
-      expect(next.cliOutput).toContain(
-        `Error occurred prerendering page "${path}"`
-      )
-      expect(next.cliOutput).toContain(
-        `My cool error thrown inside after on route "${path}"`
-      )
+      expect(next.cliOutput).toContain(`Error occurred prerendering page "${path}"`)
+      expect(next.cliOutput).toContain(`My cool error thrown inside after on route "${path}"`)
     }
 
     {
       const path = '/route-throws-in-after/callback'
-      expect(next.cliOutput).toContain(
-        `Error occurred prerendering page "${path}"`
-      )
-      expect(next.cliOutput).toContain(
-        `My cool error thrown inside after on route "${path}"`
-      )
+      expect(next.cliOutput).toContain(`Error occurred prerendering page "${path}"`)
+      expect(next.cliOutput).toContain(`My cool error thrown inside after on route "${path}"`)
     }
 
     {
       const path = '/route-throws-in-after/promise'
-      expect(next.cliOutput).toContain(
-        `Error occurred prerendering page "${path}"`
-      )
-      expect(next.cliOutput).toContain(
-        `My cool error thrown inside after on route "${path}"`
-      )
+      expect(next.cliOutput).toContain(`Error occurred prerendering page "${path}"`)
+      expect(next.cliOutput).toContain(`My cool error thrown inside after on route "${path}"`)
     }
   })
 })

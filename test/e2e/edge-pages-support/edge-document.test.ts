@@ -5,9 +5,7 @@ import { join } from 'path'
 describe('edge render - custom _document with edge runtime', () => {
   const { next } = nextTestSetup({
     files: {
-      'pages/index.js': new FileRef(
-        join(__dirname, 'app', 'pages', 'index.js')
-      ),
+      'pages/index.js': new FileRef(join(__dirname, 'app', 'pages', 'index.js')),
       'next.config.js': new FileRef(join(__dirname, 'app', 'next.config.js')),
       'pages/_document.js': `
         import Document, { Html, Head, Main, NextScript } from 'next/document'

@@ -32,10 +32,7 @@ export class LocaleRouteMatcher<
    * @param options The options to use when matching.
    * @returns The match result, or `null` if there was no match.
    */
-  public match(
-    pathname: string,
-    options?: LocaleMatcherMatchOptions
-  ): LocaleRouteMatch<D> | null {
+  public match(pathname: string, options?: LocaleMatcherMatchOptions): LocaleRouteMatch<D> | null {
     // This is like the parent `match` method but instead this injects the
     // additional `options` into the
     const result = this.test(pathname, options)

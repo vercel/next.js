@@ -61,10 +61,7 @@ function makeUntrackedSearchParamsWithDevWarnings(
             // the underlying searchParams.
             Reflect.has(target, prop) === false)
         ) {
-          const expression = describeHasCheckingStringProperty(
-            'searchParams',
-            prop
-          )
+          const expression = describeHasCheckingStringProperty('searchParams', prop)
           warnForSyncAccess(expression)
         }
       }

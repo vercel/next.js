@@ -88,44 +88,28 @@ describe('metadata-files-static-output-parallel-route', () => {
   })
 
   it('should serve static files when requested to its route for parallel slot page', async () => {
-    const [
-      appleIconRes,
-      iconRes,
-      opengraphImageRes,
-      twitterImageRes,
-      sitemapRes,
-    ] = await Promise.all([
-      next.fetch(`/parallel/apple-icon-kzjltp.png`),
-      next.fetch(`/parallel/icon-kzjltp.png`),
-      next.fetch(`/parallel/opengraph-image-kzjltp.png`),
-      next.fetch(`/parallel/twitter-image-kzjltp.png`),
-      next.fetch(`/parallel/sitemap.xml`),
-    ])
+    const [appleIconRes, iconRes, opengraphImageRes, twitterImageRes, sitemapRes] =
+      await Promise.all([
+        next.fetch(`/parallel/apple-icon-kzjltp.png`),
+        next.fetch(`/parallel/icon-kzjltp.png`),
+        next.fetch(`/parallel/opengraph-image-kzjltp.png`),
+        next.fetch(`/parallel/twitter-image-kzjltp.png`),
+        next.fetch(`/parallel/sitemap.xml`),
+      ])
 
     // Compare response content with actual files
-    const [
-      actualAppleIcon,
-      actualIcon,
-      actualOpengraphImage,
-      actualTwitterImage,
-      actualSitemap,
-    ] = await Promise.all([
-      next.readFileBuffer('app/parallel/@parallel/apple-icon.png'),
-      next.readFileBuffer('app/parallel/@parallel/icon.png'),
-      next.readFileBuffer('app/parallel/@parallel/opengraph-image.png'),
-      next.readFileBuffer('app/parallel/@parallel/twitter-image.png'),
-      next.readFile('app/parallel/@parallel/sitemap.xml'),
-    ])
+    const [actualAppleIcon, actualIcon, actualOpengraphImage, actualTwitterImage, actualSitemap] =
+      await Promise.all([
+        next.readFileBuffer('app/parallel/@parallel/apple-icon.png'),
+        next.readFileBuffer('app/parallel/@parallel/icon.png'),
+        next.readFileBuffer('app/parallel/@parallel/opengraph-image.png'),
+        next.readFileBuffer('app/parallel/@parallel/twitter-image.png'),
+        next.readFile('app/parallel/@parallel/sitemap.xml'),
+      ])
 
     expect({
-      appleIcon: Buffer.compare(
-        Buffer.from(await appleIconRes.arrayBuffer()),
-        actualAppleIcon
-      ),
-      icon: Buffer.compare(
-        Buffer.from(await iconRes.arrayBuffer()),
-        actualIcon
-      ),
+      appleIcon: Buffer.compare(Buffer.from(await appleIconRes.arrayBuffer()), actualAppleIcon),
+      icon: Buffer.compare(Buffer.from(await iconRes.arrayBuffer()), actualIcon),
       opengraphImage: Buffer.compare(
         Buffer.from(await opengraphImageRes.arrayBuffer()),
         actualOpengraphImage

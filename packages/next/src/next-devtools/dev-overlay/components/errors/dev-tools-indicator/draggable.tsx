@@ -48,9 +48,7 @@ export function Draggable({
   })
 
   function onDragEnd(translation: Point, velocity: Point) {
-    const distance = Math.sqrt(
-      translation.x * translation.x + translation.y * translation.y
-    )
+    const distance = Math.sqrt(translation.x * translation.x + translation.y * translation.y)
     if (distance === 0) {
       ref.current?.style.removeProperty('translate')
       return
@@ -74,9 +72,7 @@ export function Draggable({
   function getNearestCorner({ x, y }: Point): Corner {
     const allCorners = getCorners()
     const distances = Object.entries(allCorners).map(([key, translation]) => {
-      const distance = Math.sqrt(
-        (x - translation.x) ** 2 + (y - translation.y) ** 2
-      )
+      const distance = Math.sqrt((x - translation.x) ** 2 + (y - translation.y) ** 2)
       return { key, distance }
     })
     const min = Math.min(...distances.map((d) => d.distance))
@@ -95,17 +91,14 @@ export function Draggable({
     const offset = padding * 2
     const triggerWidth = ref.current?.offsetWidth || 0
     const triggerHeight = ref.current?.offsetHeight || 0
-    const scrollbarWidth =
-      window.innerWidth - document.documentElement.clientWidth
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth
 
     function getAbsolutePosition(corner: Corners) {
       const isRight = corner.includes('right')
       const isBottom = corner.includes('bottom')
 
       // Base positions flush against the chosen corner
-      let x = isRight
-        ? window.innerWidth - scrollbarWidth - offset - triggerWidth
-        : 0
+      let x = isRight ? window.innerWidth - scrollbarWidth - offset - triggerWidth : 0
       let y = isBottom ? window.innerHeight - offset - triggerHeight : 0
 
       // Apply avoidZone offset if this corner is occupied. We only move along
@@ -168,8 +161,7 @@ interface Velocity {
 function useDrag(options: UseDragOptions) {
   const ref = useRef<HTMLDivElement>(null)
   const machine = useRef<
-    | { state: 'idle' | 'press' | 'drag-end' }
-    | { state: 'drag'; pointerId: number }
+    { state: 'idle' | 'press' | 'drag-end' } | { state: 'drag'; pointerId: number }
   >({
     state: 'idle',
   })
@@ -185,10 +177,7 @@ function useDrag(options: UseDragOptions) {
       ref.current?.releasePointerCapture(machine.current.pointerId)
     }
 
-    machine.current =
-      machine.current.state === 'drag'
-        ? { state: 'drag-end' }
-        : { state: 'idle' }
+    machine.current = machine.current.state === 'drag' ? { state: 'drag-end' } : { state: 'idle' }
 
     if (cleanup.current !== null) {
       cleanup.current()
@@ -361,9 +350,7 @@ function useDrag(options: UseDragOptions) {
   }
 }
 
-function calculateVelocity(
-  history: Array<{ position: Point; timestamp: number }>
-): Point {
+function calculateVelocity(history: Array<{ position: Point; timestamp: number }>): Point {
   if (history.length < 2) {
     return { x: 0, y: 0 }
   }
@@ -378,10 +365,8 @@ function calculateVelocity(
   }
 
   // Calculate pixels per millisecond
-  const velocityX =
-    (latestPoint.position.x - oldestPoint.position.x) / timeDelta
-  const velocityY =
-    (latestPoint.position.y - oldestPoint.position.y) / timeDelta
+  const velocityX = (latestPoint.position.x - oldestPoint.position.x) / timeDelta
+  const velocityY = (latestPoint.position.y - oldestPoint.position.y) / timeDelta
 
   // Convert to pixels per second for more intuitive values
   return {

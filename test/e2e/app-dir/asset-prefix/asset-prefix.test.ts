@@ -25,10 +25,7 @@ describe('app-dir assetPrefix handling', () => {
 
   it('should redirect route when clicking link', async () => {
     const browser = await next.browser('/')
-    await browser
-      .elementByCss('#to-a-trailing-slash')
-      .click()
-      .waitForElementByCss('#a-page')
+    await browser.elementByCss('#to-a-trailing-slash').click().waitForElementByCss('#a-page')
     expect(await browser.waitForElementByCss('#a-page').text()).toBe('A page')
   })
 

@@ -44,9 +44,7 @@ export function resolveRobots(data: MetadataRoute.Robots): string {
 // TODO-METADATA: support multi sitemap files
 // convert sitemap data to xml string
 export function resolveSitemap(data: MetadataRoute.Sitemap): string {
-  const hasAlternates = data.some(
-    (item) => Object.keys(item.alternates ?? {}).length > 0
-  )
+  const hasAlternates = data.some((item) => Object.keys(item.alternates ?? {}).length > 0)
   const hasImages = data.some((item) => Boolean(item.images?.length))
   const hasVideos = data.some((item) => Boolean(item.videos?.length))
 
@@ -90,14 +88,10 @@ export function resolveSitemap(data: MetadataRoute.Sitemap): string {
           `<video:title>${video.title}</video:title>`,
           `<video:thumbnail_loc>${video.thumbnail_loc}</video:thumbnail_loc>`,
           `<video:description>${video.description}</video:description>`,
-          video.content_loc &&
-            `<video:content_loc>${video.content_loc}</video:content_loc>`,
-          video.player_loc &&
-            `<video:player_loc>${video.player_loc}</video:player_loc>`,
-          video.duration &&
-            `<video:duration>${video.duration}</video:duration>`,
-          video.view_count &&
-            `<video:view_count>${video.view_count}</video:view_count>`,
+          video.content_loc && `<video:content_loc>${video.content_loc}</video:content_loc>`,
+          video.player_loc && `<video:player_loc>${video.player_loc}</video:player_loc>`,
+          video.duration && `<video:duration>${video.duration}</video:duration>`,
+          video.view_count && `<video:view_count>${video.view_count}</video:view_count>`,
           video.tag && `<video:tag>${video.tag}</video:tag>`,
           video.rating && `<video:rating>${video.rating}</video:rating>`,
           video.expiration_date &&
@@ -122,9 +116,7 @@ export function resolveSitemap(data: MetadataRoute.Sitemap): string {
     }
     if (item.lastModified) {
       const serializedDate =
-        item.lastModified instanceof Date
-          ? item.lastModified.toISOString()
-          : item.lastModified
+        item.lastModified instanceof Date ? item.lastModified.toISOString() : item.lastModified
 
       content += `<lastmod>${serializedDate}</lastmod>\n`
     }
