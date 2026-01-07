@@ -10927,6 +10927,7 @@ dependencies = [
  "codspeed-criterion-compat",
  "console-subscriber",
  "dunce",
+ "either",
  "futures",
  "http-body-util",
  "hyper 1.7.0",
@@ -10975,6 +10976,7 @@ dependencies = [
  "turbopack-trace-utils",
  "urlencoding",
  "uuid",
+ "vergen-gitcl",
  "webbrowser",
 ]
 

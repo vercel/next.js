@@ -23,7 +23,8 @@ use turbo_tasks::{
     trace::TraceRawVcs,
 };
 use turbo_tasks_backend::{
-    BackendOptions, NoopBackingStorage, TurboTasksBackend, noop_backing_storage,
+    BackendOptions, GitVersionInfo, StorageMode, TurboTasksBackend, noop_backing_storage,
+    turbo_backing_storage,
 };
 use turbo_tasks_fs::{FileContent, rope::RopeBuilder};
 use turbopack_browser::ecmascript::list::asset::EcmascriptDevChunkList;
@@ -40,21 +41,48 @@ use crate::{
     util::{NormalizedDirs, normalize_dirs},
 };
 
-type Backend = TurboTasksBackend<NoopBackingStorage>;
-
 mod bundle;
 mod stream;
 mod update_server;
 
 /// Start a devserver with the given args.
 pub async fn start_server(args: &DevArguments) -> Result<()> {
-    let turbo_tasks = TurboTasks::new(TurboTasksBackend::new(
-        BackendOptions {
-            storage_mode: None,
-            ..Default::default()
-        },
-        noop_backing_storage(),
-    ));
+    let turbo_tasks = if args.common.caching {
+        let version_info = GitVersionInfo {
+            describe: env!("VERGEN_GIT_DESCRIBE"),
+            dirty: option_env!("CI").is_none_or(|value| value.is_empty())
+                && env!("VERGEN_GIT_DIRTY") == "true",
+        };
+
+        let (storage, _) = turbo_backing_storage(
+            &args
+                .common
+                .dir
+                .clone()
+                .unwrap_or_else(|| PathBuf::from("."))
+                .join(".turbopack/cache"),
+            &version_info,
+            false,
+            false,
+            false,
+        )?;
+
+        TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions {
+                storage_mode: Some(StorageMode::ReadWrite),
+                ..Default::default()
+            },
+            storage,
+        ))
+    } else {
+        TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions {
+                storage_mode: None,
+                ..Default::default()
+            },
+            noop_backing_storage(),
+        ))
+    };
 
     let NormalizedDirs {
         project_dir,

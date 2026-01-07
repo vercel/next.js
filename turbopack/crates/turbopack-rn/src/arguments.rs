@@ -94,10 +94,10 @@ pub struct CommonArguments {
     #[clap(long)]
     pub worker_threads: Option<usize>,
 
-    // Enable experimental garbage collection with the provided memory limit in
-    // MB.
-    // #[clap(long)]
-    // pub memory_limit: Option<usize>,
+    /// Enable persistent caching
+    #[clap(long)]
+    pub caching: bool,
+
     /// Whether to build for the `browser` or `node``
     #[clap(long)]
     pub target: Option<Target>,

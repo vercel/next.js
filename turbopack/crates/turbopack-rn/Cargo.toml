@@ -77,9 +77,14 @@ serde_json = { workspace = true }
 tokio-util = { workspace = true }
 hyper-tungstenite = "0.18.0"
 pin-project-lite = { workspace = true }
+either = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }
 regex = { workspace = true }
 turbopack-bench = { workspace = true }
 turbo-tasks-malloc = { workspace = true, features = ["custom_allocator"] }
+
+[build-dependencies]
+anyhow = { workspace = true }
+vergen-gitcl = { workspace = true }
