@@ -7421,9 +7421,12 @@
       "typed-routes-validator should pass type checking with valid API route exports",
       "typed-routes-validator should pass type checking with valid layout exports",
       "typed-routes-validator should pass type checking with valid page exports",
+      "typed-routes-validator should pass type checking with valid page props",
       "typed-routes-validator should pass type checking with valid route handler exports"
     ],
-    "failed": [],
+    "failed": [
+      "typed-routes-validator should fail type checking with invalid page props"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
