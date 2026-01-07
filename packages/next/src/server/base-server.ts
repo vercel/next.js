@@ -111,7 +111,7 @@ import {
 import { BaseServerSpan } from './lib/trace/constants'
 import { I18NProvider } from './lib/i18n-provider'
 import { sendResponse } from './send-response'
-import { normalizeNextQueryParam } from './web/utils'
+import { normalizeNextQueryParam, decodeHeaderValue } from './web/utils'
 import {
   HTML_CONTENT_TYPE_HEADER,
   JSON_CONTENT_TYPE_HEADER,
@@ -942,6 +942,26 @@ export default abstract class Server<
         req,
         isNodeNextResponse(res) ? res.originalResponse : res
       )
+
+      // In minimal mode (Vercel), decode headers that were percent-encoded by middleware
+      // to preserve non-ASCII characters during transport
+      if (this.minimalMode) {
+        const encodedHeadersList = req.headers['x-middleware-request-encoded']
+        if (typeof encodedHeadersList === 'string') {
+          const encodedHeaders = encodedHeadersList.split(',')
+          for (const headerName of encodedHeaders) {
+            const trimmedName = headerName.trim()
+            const headerValue = req.headers[trimmedName]
+            if (typeof headerValue === 'string') {
+              req.headers[trimmedName] = decodeHeaderValue(headerValue)
+            } else if (Array.isArray(headerValue)) {
+              req.headers[trimmedName] = headerValue.map(decodeHeaderValue)
+            }
+          }
+          // Clean up the marker header
+          delete req.headers['x-middleware-request-encoded']
+        }
+      }
 
       const urlParts = (req.url || '').split('?', 1)
       const urlNoQuery = urlParts[0]

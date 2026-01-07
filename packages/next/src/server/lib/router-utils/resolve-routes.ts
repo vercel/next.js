@@ -14,7 +14,7 @@ import { getCloneableBody } from '../../body-streams'
 import { filterReqHeaders, ipcForbiddenHeaders } from '../server-ipc/utils'
 import { stringifyQuery } from '../../server-route-utils'
 import { formatHostname } from '../format-hostname'
-import { toNodeOutgoingHttpHeaders } from '../../web/utils'
+import { toNodeOutgoingHttpHeaders, decodeHeaderValue } from '../../web/utils'
 import { isAbortError } from '../../pipe-readable'
 import { getHostname } from '../../../shared/lib/get-hostname'
 import {
@@ -611,14 +611,23 @@ export function getResolveRoutes(
               // Update or add headers.
               for (const key of overriddenHeaders.keys()) {
                 const valueKey = 'x-middleware-request-' + key
-                const newValue = middlewareHeaders[valueKey]
+                const encodedValue = middlewareHeaders[valueKey]
+                const newValue =
+                  encodedValue == null
+                    ? undefined
+                    : typeof encodedValue === 'string'
+                      ? decodeHeaderValue(encodedValue)
+                      : encodedValue.map(decodeHeaderValue)
                 const oldValue = req.headers[key]
 
                 if (oldValue !== newValue) {
-                  req.headers[key] = newValue === null ? undefined : newValue
+                  req.headers[key] = newValue
                 }
                 delete middlewareHeaders[valueKey]
               }
+
+              // Clean up the encoded headers marker
+              delete middlewareHeaders['x-middleware-request-encoded']
             }
 
             if (

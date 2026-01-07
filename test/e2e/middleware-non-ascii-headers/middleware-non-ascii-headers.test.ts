@@ -10,13 +10,29 @@ import { createNext, FileRef } from 'e2e-utils'
  * cf-ipcity: "Montréal"), the request fails because x-middleware-request-* headers
  * must be ASCII-safe per HTTP spec.
  *
- * Error: "Header 'x-middleware-request-cf-ipcity: Montréal' contains non-ASCII characters"
+ * IMPORTANT: In real-world scenarios (Cloudflare, browsers), UTF-8 header values are
+ * transmitted as bytes and interpreted by Node.js as Latin-1, causing "Mojibake".
+ * For example, "Montréal" (UTF-8: 4D 6F 6E 74 72 C3 A9 61 6C) arrives as "MontrÃ©al"
+ * when those UTF-8 bytes are interpreted as Latin-1 characters.
  *
- * Note: HTTP headers can only contain ISO-8859-1 (Latin-1) characters (char codes 0-255).
- * Characters outside this range cannot be sent via HTTP headers at all.
- * The issue specifically affects Latin-1 characters like French accents (é, è, ê),
- * German umlauts (ü, ö, ä), and other Western European characters.
+ * node-fetch (used in tests) handles headers differently - it converts non-ASCII to
+ * replacement characters. So these tests send the Mojibake directly to simulate
+ * what the server actually receives in production.
  */
+
+/**
+ * Converts a UTF-8 string to its Mojibake representation.
+ * This simulates what happens when UTF-8 bytes are interpreted as Latin-1.
+ */
+function toMojibake(str: string): string {
+  const encoder = new TextEncoder() // UTF-8
+  const bytes = encoder.encode(str)
+  // Interpret UTF-8 bytes as Latin-1 characters
+  return Array.from(bytes)
+    .map((b) => String.fromCharCode(b))
+    .join('')
+}
+
 describe('Middleware Non-ASCII Headers', () => {
   let next: NextInstance
 
@@ -32,21 +48,23 @@ describe('Middleware Non-ASCII Headers', () => {
   })
 
   it('should handle headers with French accented characters (Montréal)', async () => {
-    // This is the exact scenario from issue #85631 - Cloudflare's cf-ipcity header
+    // Simulate what the server receives when Cloudflare sends "Montréal" as UTF-8
+    // The UTF-8 bytes get interpreted as Latin-1, producing "MontrÃ©al"
     const res = await fetchViaHTTP(
       next.url,
       '/api/headers',
       {},
       {
         headers: {
-          'x-city': 'Montréal',
+          'x-city': toMojibake('Montréal'),
         },
       }
     )
 
     expect(res.status).toBe(200)
     const headers = await res.json()
-        expect(headers['x-city']).toBe('Montréal')
+    // The middleware should recover the original UTF-8 string
+    expect(headers['x-city']).toBe('Montréal')
   })
 
   it('should handle headers with German umlauts (München)', async () => {
@@ -56,14 +74,14 @@ describe('Middleware Non-ASCII Headers', () => {
       {},
       {
         headers: {
-          'x-city': 'München',
+          'x-city': toMojibake('München'),
         },
       }
     )
 
     expect(res.status).toBe(200)
     const headers = await res.json()
-        expect(headers['x-city']).toBe('München')
+    expect(headers['x-city']).toBe('München')
   })
 
   it('should handle headers with Spanish characters (España)', async () => {
@@ -73,14 +91,14 @@ describe('Middleware Non-ASCII Headers', () => {
       {},
       {
         headers: {
-          'x-country': 'España',
+          'x-country': toMojibake('España'),
         },
       }
     )
 
     expect(res.status).toBe(200)
     const headers = await res.json()
-        expect(headers['x-country']).toBe('España')
+    expect(headers['x-country']).toBe('España')
   })
 
   it('should handle headers with Nordic characters (Malmö, København)', async () => {
@@ -90,15 +108,15 @@ describe('Middleware Non-ASCII Headers', () => {
       {},
       {
         headers: {
-          'x-city': 'Malmö',
-          'x-region': 'København',
+          'x-city': toMojibake('Malmö'),
+          'x-region': toMojibake('København'),
         },
       }
     )
 
     expect(res.status).toBe(200)
     const headers = await res.json()
-        expect(headers['x-city']).toBe('Malmö')
+    expect(headers['x-city']).toBe('Malmö')
     expect(headers['x-region']).toBe('København')
   })
 
@@ -109,14 +127,14 @@ describe('Middleware Non-ASCII Headers', () => {
       {},
       {
         headers: {
-          'x-region': 'Île-de-France',
+          'x-region': toMojibake('Île-de-France'),
         },
       }
     )
 
     expect(res.status).toBe(200)
     const headers = await res.json()
-        expect(headers['x-region']).toBe('Île-de-France')
+    expect(headers['x-region']).toBe('Île-de-France')
   })
 
   it('should handle headers with Austrian characters (Österreich)', async () => {
@@ -126,34 +144,34 @@ describe('Middleware Non-ASCII Headers', () => {
       {},
       {
         headers: {
-          'x-country': 'Österreich',
+          'x-country': toMojibake('Österreich'),
         },
       }
     )
 
     expect(res.status).toBe(200)
     const headers = await res.json()
-        expect(headers['x-country']).toBe('Österreich')
+    expect(headers['x-country']).toBe('Österreich')
   })
 
-  it('should handle multiple headers with various Latin-1 characters', async () => {
+  it('should handle multiple headers with various non-ASCII characters', async () => {
     const res = await fetchViaHTTP(
       next.url,
       '/api/headers',
       {},
       {
         headers: {
-          'x-city': 'Montréal',
-          'x-region': 'Île-de-France',
-          'x-country': 'Österreich',
-          'x-greeting': 'Grüß Gott',
+          'x-city': toMojibake('Montréal'),
+          'x-region': toMojibake('Île-de-France'),
+          'x-country': toMojibake('Österreich'),
+          'x-greeting': toMojibake('Grüß Gott'),
         },
       }
     )
 
     expect(res.status).toBe(200)
     const headers = await res.json()
-        expect(headers['x-city']).toBe('Montréal')
+    expect(headers['x-city']).toBe('Montréal')
     expect(headers['x-region']).toBe('Île-de-France')
     expect(headers['x-country']).toBe('Österreich')
     expect(headers['x-greeting']).toBe('Grüß Gott')
@@ -166,13 +184,13 @@ describe('Middleware Non-ASCII Headers', () => {
       {},
       {
         headers: {
-          'x-city': 'São Paulo',
+          'x-city': toMojibake('São Paulo'),
         },
       }
     )
 
     expect(res.status).toBe(200)
     const headers = await res.json()
-        expect(headers['x-city']).toBe('São Paulo')
+    expect(headers['x-city']).toBe('São Paulo')
   })
 })

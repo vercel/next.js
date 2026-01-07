@@ -12,9 +12,8 @@ import { NextResponse } from 'next/server'
  * @param {import('next/server').NextRequest} request
  */
 export async function middleware(request) {
-  // Simply forward all existing headers through NextResponse.next()
-  // This is the common pattern that triggers the issue when incoming
-  // headers contain non-ASCII values (e.g., from Cloudflare geolocation)
+  // This is the typical middleware pattern - create a new Headers object
+  // to allow modifications
   const headers = new Headers(request.headers)
 
   // Add a marker header to prove middleware ran

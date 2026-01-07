@@ -1,7 +1,12 @@
 import { stringifyCookie } from '../../web/spec-extension/cookies'
 import type { I18NConfig } from '../../config-shared'
 import { NextURL } from '../next-url'
-import { toNodeOutgoingHttpHeaders, validateURL } from '../utils'
+import {
+  toNodeOutgoingHttpHeaders,
+  validateURL,
+  encodeHeaderValue,
+  decodeNodeHeaderValue,
+} from '../utils'
 import { ReflectAdapter } from './adapters/reflect'
 
 import { ResponseCookies } from './cookies'
@@ -19,12 +24,26 @@ function handleMiddlewareField(
     }
 
     const keys = []
+    const encodedKeys = []
     for (const [key, value] of init.request.headers) {
-      headers.set('x-middleware-request-' + key, value)
+      // First decode any values that were percent-encoded by fromNodeOutgoingHttpHeaders
+      // to preserve non-ASCII characters, then re-encode for the middleware header
+      const decodedValue = decodeNodeHeaderValue(value)
+      const encodedValue = encodeHeaderValue(decodedValue)
+      headers.set('x-middleware-request-' + key, encodedValue)
       keys.push(key)
+      // Track headers that were encoded (value changed after encoding)
+      if (encodedValue !== decodedValue) {
+        encodedKeys.push(key)
+      }
     }
 
     headers.set('x-middleware-override-headers', keys.join(','))
+    // Add a marker header listing which headers have percent-encoded values
+    // This allows the server to decode them in minimal mode (Vercel)
+    if (encodedKeys.length > 0) {
+      headers.set('x-middleware-request-encoded', encodedKeys.join(','))
+    }
   }
 }
 

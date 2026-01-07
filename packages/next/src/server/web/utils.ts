@@ -3,6 +3,7 @@ import {
   NEXT_INTERCEPTION_MARKER_PREFIX,
   NEXT_QUERY_PARAM_PREFIX,
 } from '../../lib/constants'
+import { recoverMojibake } from '../lib/fix-mojibake'
 
 /**
  * Converts a Node.js IncomingHttpHeaders object to a Headers object. Any
@@ -25,10 +26,36 @@ export function fromNodeOutgoingHttpHeaders(
         v = v.toString()
       }
 
+      // Try to recover from Mojibake (UTF-8 bytes interpreted as Latin-1)
+      v = recoverMojibake(v)
+
+      // Encode non-ASCII characters to prevent corruption by the Headers API.
+      // The Headers API in edge runtime doesn't properly preserve Latin-1 characters.
+      // eslint-disable-next-line no-control-regex
+      if (/[^\u0000-\u007F]/.test(v)) {
+        // Encode non-ASCII as percent-encoded UTF-8
+        v = encodeURIComponent(v)
+      }
+
       headers.append(key, v)
     }
   }
   return headers
+}
+
+/**
+ * Decodes a header value that may have been percent-encoded by fromNodeOutgoingHttpHeaders.
+ */
+export function decodeNodeHeaderValue(value: string): string {
+  // Check if value contains percent-encoded sequences
+  if (/%[0-9A-Fa-f]{2}/.test(value)) {
+    try {
+      return decodeURIComponent(value)
+    } catch {
+      return value
+    }
+  }
+  return value
 }
 
 /*
@@ -163,4 +190,46 @@ export function normalizeNextQueryParam(key: string): null | string {
     }
   }
   return null
+}
+
+/**
+ * Encodes header values containing non-ASCII characters for safe HTTP transmission.
+ * HTTP headers must be ASCII-safe, so non-ASCII characters are percent-encoded.
+ *
+ * @param value - The header value to encode
+ * @returns The encoded header value
+ */
+export function encodeHeaderValue(value: string): string {
+  // Check if the value contains non-ASCII characters
+  // eslint-disable-next-line no-control-regex
+  if (/[^\u0000-\u007F]/.test(value)) {
+    // Use encodeURIComponent but preserve spaces and common header-safe characters
+    return encodeURIComponent(value)
+      .replace(/%20/g, ' ') // Preserve spaces
+      .replace(/%3A/g, ':') // Preserve colons (common in headers)
+      .replace(/%2D/g, '-') // Preserve hyphens
+      .replace(/%2E/g, '.') // Preserve dots
+      .replace(/%5F/g, '_') // Preserve underscores
+  }
+  return value
+}
+
+/**
+ * Decodes header values that were encoded with encodeHeaderValue.
+ *
+ * @param value - The header value to decode
+ * @returns The decoded header value
+ */
+export function decodeHeaderValue(value: string): string {
+  try {
+    // decodeURIComponent will throw if the value is not properly encoded
+    // Only attempt to decode if the value contains percent-encoded sequences
+    if (/%[0-9A-Fa-f]{2}/.test(value)) {
+      return decodeURIComponent(value.replace(/ /g, '%20'))
+    }
+    return value
+  } catch {
+    // If decoding fails, return the original value
+    return value
+  }
 }
