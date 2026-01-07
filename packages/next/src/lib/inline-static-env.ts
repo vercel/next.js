@@ -18,8 +18,21 @@ export async function inlineStaticEnv({
   config: NextConfigComplete
 }) {
   const nextConfigEnv = getNextConfigEnv(config)
-  // Evaluate deploymentId function if needed
-  const deploymentId = generateDeploymentId(config.deploymentId) || ''
+  // NEXT_DEPLOYMENT_ID takes precedence when set (e.g., by Vercel platform)
+  // Only evaluate and set from user config if not already set (prebuild scenario)
+  let deploymentId: string
+  if (
+    process.env.NEXT_DEPLOYMENT_ID !== null &&
+    process.env.NEXT_DEPLOYMENT_ID !== undefined
+  ) {
+    deploymentId = process.env.NEXT_DEPLOYMENT_ID
+  } else {
+    // Evaluate deploymentId function if needed
+    deploymentId = generateDeploymentId(config.deploymentId) || ''
+    // Set NEXT_DEPLOYMENT_ID from user config (we're in else block, so it's not already set)
+    // This ensures we never overwrite a Vercel-generated deployment ID
+    process.env.NEXT_DEPLOYMENT_ID = deploymentId
+  }
   const staticEnv = getStaticEnv(config, deploymentId)
 
   const serverDir = path.join(distDir, 'server')

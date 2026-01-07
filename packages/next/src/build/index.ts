@@ -956,13 +956,15 @@ export default async function build(
 
       // Generate deploymentId - can be a string or  function
       const deploymentId = generateDeploymentId(config.deploymentId) || ''
-      // Only set NEXT_DEPLOYMENT_ID if it's not already set (null or undefined) - prebuild scenario
-      // This ensures we never overwrite a Vercel-generated deployment ID
+      // NEXT_DEPLOYMENT_ID takes precedence when set (e.g., by Vercel platform)
+      // Only set it from user config if not already set (prebuild scenario)
       if (process.env.NEXT_DEPLOYMENT_ID == null) {
         process.env.NEXT_DEPLOYMENT_ID = deploymentId
+        config.deploymentId = deploymentId
+      } else {
+        // Use the existing NEXT_DEPLOYMENT_ID if it's already set
+        config.deploymentId = process.env.NEXT_DEPLOYMENT_ID
       }
-      // Update config with the evaluated deploymentId so it's available as a string throughout the build
-      config.deploymentId = deploymentId
       NextBuildContext.config = config
 
       let configOutDir = 'out'

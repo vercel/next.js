@@ -959,8 +959,9 @@ function assignDefaultsAndValidate(
   if (process.env.NEXT_DEPLOYMENT_ID != null) {
     result.deploymentId = process.env.NEXT_DEPLOYMENT_ID
   } else if (result.deploymentId) {
-    // Only set NEXT_DEPLOYMENT_ID from user config if it's not already set (null or undefined)
+    // Only set NEXT_DEPLOYMENT_ID from user config if it's not already set (undefined)
     // This ensures we never overwrite a Vercel-generated deployment ID
+    // Note: == null checks for both null and undefined, but env vars are typically undefined when not set
     if (process.env.NEXT_DEPLOYMENT_ID == null) {
       process.env.NEXT_DEPLOYMENT_ID = result.deploymentId
     }
