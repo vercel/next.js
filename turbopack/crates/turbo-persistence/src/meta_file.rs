@@ -449,6 +449,10 @@ impl MetaFile {
             #[cfg(not(feature = "stats"))]
             return Ok(MetaBatchLookupResult {});
         }
+        debug_assert!(
+            cells.is_sorted_by_key(|(hash, _, _)| *hash),
+            "Cells must be sorted by key hash"
+        );
         #[allow(unused_mut, reason = "It's used when stats are enabled")]
         let mut lookup_result = MetaBatchLookupResult::default();
         for entry in self.entries.iter().rev() {
