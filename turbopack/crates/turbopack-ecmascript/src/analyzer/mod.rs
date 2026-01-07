@@ -3601,6 +3601,80 @@ impl Hash for RequireContextValue {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct ImportMetaGlobOptions {
+    pub pattern: RcStr,
+    pub eager: bool,
+    pub import: Option<RcStr>,
+}
+
+/// Parse the arguments passed to an import.meta.glob invocation, validate them
+/// and convert them to the appropriate rust values.
+pub fn parse_import_meta_glob(args: &[JsValue]) -> Result<ImportMetaGlobOptions> {
+    if !(1..=2).contains(&args.len()) {
+        bail!("import.meta.glob() requires 1-2 arguments");
+    }
+
+    let Some(pattern) = args[0].as_str().map(|s| s.into()) else {
+        bail!("import.meta.glob(pattern, ...) requires pattern to be a constant string");
+    };
+
+    let mut eager = false;
+    let mut import = None;
+
+    if let Some(options_arg) = args.get(1) {
+        if let JsValue::Object { parts, .. } = options_arg {
+            for part in parts {
+                match part {
+                    ObjectPart::KeyValue(key, value) => {
+                        if let Some(key_str) = key.as_str() {
+                            match key_str {
+                                "eager" => {
+                                    if let Some(eager_val) = value.as_bool() {
+                                        eager = eager_val;
+                                    } else {
+                                        bail!(
+                                            "import.meta.glob(..., {{ eager }}) requires eager to \
+                                             be a constant boolean"
+                                        );
+                                    }
+                                }
+                                "import" => {
+                                    if let Some(import_val) = value.as_str() {
+                                        import = Some(import_val.into());
+                                    } else {
+                                        bail!(
+                                            "import.meta.glob(..., {{ import }}) requires import \
+                                             to be a constant string"
+                                        );
+                                    }
+                                }
+                                _ => {
+                                    // Ignore unknown options for forward compatibility
+                                }
+                            }
+                        }
+                    }
+                    ObjectPart::Spread(_) => {
+                        bail!(
+                            "import.meta.glob(..., options) does not support spread operators in \
+                             options"
+                        );
+                    }
+                }
+            }
+        } else {
+            bail!("import.meta.glob(..., options) requires options to be an object literal");
+        }
+    }
+
+    Ok(ImportMetaGlobOptions {
+        pattern,
+        eager,
+        import,
+    })
+}
+
 /// A list of well-known functions that have special meaning in the analysis.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum WellKnownFunctionKind {

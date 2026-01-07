@@ -112,7 +112,7 @@ use crate::{
         },
         imports::{ImportAnnotations, ImportAttributes, ImportedSymbol, Reexport},
         linker::link,
-        parse_require_context, side_effects,
+        parse_import_meta_glob, parse_require_context, side_effects,
         top_level_await::has_top_level_await,
         well_known::replace_well_known,
     },
@@ -2192,19 +2192,32 @@ where
         }
 
         WellKnownFunctionKind::ImportMetaGlob => {
-            let _args = linked_args().await?;
-
-            let pattern = rcstr!("**");
-            let eager = false;
-            let import = None;
+            let args = linked_args().await?;
+            let options = match parse_import_meta_glob(args) {
+                Ok(options) => options,
+                Err(err) => {
+                    let (args, hints) = explain_args(args);
+                    handler.span_err_with_code(
+                        span,
+                        &format!(
+                            "import.meta.glob({args}) is not statically analyze-able: {}{hints}",
+                            PrettyPrintError(&err)
+                        ),
+                        DiagnosticId::Error(
+                            errors::failed_to_analyze::ecmascript::IMPORT_META_GLOB.to_string(),
+                        ),
+                    );
+                    return Ok(());
+                }
+            };
 
             analysis.add_reference_code_gen(
                 ImportMetaGlobAssetReference::new(
                     source,
                     origin,
-                    pattern,
-                    eager,
-                    import,
+                    options.pattern,
+                    options.eager,
+                    options.import,
                     Some(issue_source(source, span)),
                     in_try,
                 )
