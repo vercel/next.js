@@ -17,6 +17,12 @@ test/integration/typescript-app-type-declarations/next-env.d.ts
 packages/create-next-app/templates
 examples/
 
+# oxfmt bug files start
+# Additional whitespace injected in the comment on each run
+packages/next/src/next-devtools/dev-overlay/utils/css.test.ts
+# oxfmt bug files end
+
+
 lerna.json
 test-timings.json
 pnpm-lock.yaml
