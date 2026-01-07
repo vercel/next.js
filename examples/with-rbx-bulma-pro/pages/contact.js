@@ -1,4 +1,13 @@
-import { Section, Title, Field, Label, Control, Input, Textarea, Button } from "rbx";
+import {
+  Section,
+  Title,
+  Field,
+  Label,
+  Control,
+  Input,
+  Textarea,
+  Button,
+} from "rbx";
 import Layout from "../components/Layout";
 
 const ContactPage = () => (

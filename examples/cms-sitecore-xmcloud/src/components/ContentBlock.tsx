@@ -1,4 +1,9 @@
-import { Text, RichText, Field, withDatasourceCheck } from "@sitecore-jss/sitecore-jss-nextjs";
+import {
+  Text,
+  RichText,
+  Field,
+  withDatasourceCheck,
+} from "@sitecore-jss/sitecore-jss-nextjs";
 import { ComponentProps } from "lib/component-props";
 
 type ContentBlockProps = ComponentProps & {

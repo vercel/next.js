@@ -21,7 +21,10 @@ const ServerError = (): JSX.Element => (
     </Head>
     <div style={{ padding: 10 }}>
       <h1>500 Internal Server Error</h1>
-      <p>There is a problem with the resource you are looking for, and it cannot be displayed.</p>
+      <p>
+        There is a problem with the resource you are looking for, and it cannot
+        be displayed.
+      </p>
       <a href="/">Go to the Home page</a>
     </div>
   </>
@@ -33,7 +36,10 @@ const Custom500 = (props: SitecorePageProps): JSX.Element => {
   }
 
   return (
-    <SitecoreContext componentFactory={componentFactory} layoutData={props.layoutData}>
+    <SitecoreContext
+      componentFactory={componentFactory}
+      layoutData={props.layoutData}
+    >
       <Layout layoutData={props.layoutData} />
     </SitecoreContext>
   );

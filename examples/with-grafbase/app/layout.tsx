@@ -25,7 +25,11 @@ const GetAllPostsDocument = graphql(/* GraphQL */ `
   }
 `);
 
-export default async function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const { postCollection } = await grafbase.request(GetAllPostsDocument, {
     first: 50,
   });
@@ -44,7 +48,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                   Home
                 </Link>
               </li>
-              <li className="px-3 py-2 uppercase text-xs text-gray-800 font-semibold">Posts</li>
+              <li className="px-3 py-2 uppercase text-xs text-gray-800 font-semibold">
+                Posts
+              </li>
               {postCollection?.edges?.map((edge) =>
                 edge?.node ? (
                   <li key={edge.node.id}>

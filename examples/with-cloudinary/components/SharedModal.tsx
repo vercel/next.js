@@ -167,7 +167,10 @@ export default function SharedModal({
           {/* Bottom Nav bar */}
           {navigation && (
             <div className="fixed inset-x-0 bottom-0 z-40 overflow-hidden bg-gradient-to-b from-black/0 to-black/60">
-              <motion.div initial={false} className="mx-auto mt-6 mb-6 flex aspect-[3/2] h-14">
+              <motion.div
+                initial={false}
+                className="mx-auto mt-6 mb-6 flex aspect-[3/2] h-14"
+              >
                 <AnimatePresence initial={false}>
                   {filteredImages.map(({ public_id, format, id }) => (
                     <motion.button
@@ -184,7 +187,9 @@ export default function SharedModal({
                       onClick={() => changePhotoId(id)}
                       key={id}
                       className={`${
-                        id === index ? "z-20 rounded-md shadow shadow-black/50" : "z-10"
+                        id === index
+                          ? "z-20 rounded-md shadow shadow-black/50"
+                          : "z-10"
                       } ${id === 0 ? "rounded-l-md" : ""} ${
                         id === images.length - 1 ? "rounded-r-md" : ""
                       } relative inline-block w-full shrink-0 transform-gpu overflow-hidden focus:outline-none`}

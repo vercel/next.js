@@ -43,7 +43,10 @@ export default function Home() {
                 <tr className="movie" key={movie.title}>
                   <th>{index + 1}</th>
                   <td>
-                    <Link href={`/movie/${encodeURIComponent(movie.title)}`} className="link">
+                    <Link
+                      href={`/movie/${encodeURIComponent(movie.title)}`}
+                      className="link"
+                    >
                       {movie.title}
                     </Link>
                   </td>
@@ -60,7 +63,10 @@ export default function Home() {
                     <ul>
                       {movie.actors.map((actor) => (
                         <li key={actor}>
-                          <Link href={`/actor/${encodeURIComponent(actor)}`} className="link">
+                          <Link
+                            href={`/actor/${encodeURIComponent(actor)}`}
+                            className="link"
+                          >
                             {actor}
                           </Link>
                         </li>

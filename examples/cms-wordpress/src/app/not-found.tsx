@@ -11,10 +11,13 @@ import { SeoQuery } from "@/queries/general/SeoQuery";
 const notFoundPageWordPressId = 501;
 
 export async function generateMetadata(): Promise<Metadata> {
-  const { contentNode } = await fetchGraphQL<{ contentNode: ContentNode }>(print(SeoQuery), {
-    slug: notFoundPageWordPressId,
-    idType: "DATABASE_ID",
-  });
+  const { contentNode } = await fetchGraphQL<{ contentNode: ContentNode }>(
+    print(SeoQuery),
+    {
+      slug: notFoundPageWordPressId,
+      idType: "DATABASE_ID",
+    },
+  );
 
   const metadata = setSeoData({ seo: contentNode.seo });
 

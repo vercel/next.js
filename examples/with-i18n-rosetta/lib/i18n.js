@@ -46,5 +46,7 @@ export default function I18n({ children, locale, lngDict }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lngDict, locale]);
 
-  return <I18nContext.Provider value={i18nWrapper}>{children}</I18nContext.Provider>;
+  return (
+    <I18nContext.Provider value={i18nWrapper}>{children}</I18nContext.Provider>
+  );
 }

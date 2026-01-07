@@ -45,7 +45,10 @@ export default function HeroPost({
         <div>
           <p className="text-lg leading-relaxed mb-4">{excerpt}</p>
           {isFilled.contentRelationship(author) && (
-            <Avatar name={asText(author.data.name)} picture={author.data.picture} />
+            <Avatar
+              name={asText(author.data.name)}
+              picture={author.data.picture}
+            />
           )}
         </div>
       </div>

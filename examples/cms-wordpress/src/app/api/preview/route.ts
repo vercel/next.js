@@ -33,7 +33,9 @@ export async function GET(request: Request) {
   }
 `;
 
-  const { login } = await fetchGraphQL<{ login: LoginPayload }>(print(mutation));
+  const { login } = await fetchGraphQL<{ login: LoginPayload }>(
+    print(mutation),
+  );
 
   const authToken = login.authToken;
 
@@ -63,7 +65,9 @@ export async function GET(request: Request) {
 
   const response = NextResponse.redirect(
     `${process.env.NEXT_PUBLIC_BASE_URL}${
-      contentNode.status === "draft" ? `/preview/${contentNode.databaseId}` : contentNode.uri
+      contentNode.status === "draft"
+        ? `/preview/${contentNode.databaseId}`
+        : contentNode.uri
     }`,
   );
 

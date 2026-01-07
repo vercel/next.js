@@ -8,7 +8,10 @@ export const PreviewNotice = () => {
   return (
     <aside className={styles.preview}>
       Preview mode enabled
-      <a className={styles.link} href={`/api/exit-preview?path=${encodeURIComponent(pathname)}`}>
+      <a
+        className={styles.link}
+        href={`/api/exit-preview?path=${encodeURIComponent(pathname)}`}
+      >
         Exit
       </a>
     </aside>

@@ -23,7 +23,10 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({ children }) => {
 
         {children}
 
-        <ModalToggler slug={menuModalSlug} className={classes.mobileMenuToggler}>
+        <ModalToggler
+          slug={menuModalSlug}
+          className={classes.mobileMenuToggler}
+        >
           <MenuIcon />
         </ModalToggler>
       </Gutter>

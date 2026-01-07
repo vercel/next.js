@@ -9,9 +9,14 @@ export default function Bridge() {
       height="704"
       xmlns="http://www.w3.org/2000/svg"
     >
-      <title id="conf-city-title">Line drawing of the Golden Gate Bridge in San Francisco.</title>
+      <title id="conf-city-title">
+        Line drawing of the Golden Gate Bridge in San Francisco.
+      </title>
       <path d="M372.5 299.5L616.5 335" stroke="currentColor" />
-      <path d="M370 16.5C429.833 101.833 562.9 284 616.5 330" stroke="currentColor" />
+      <path
+        d="M370 16.5C429.833 101.833 562.9 284 616.5 330"
+        stroke="currentColor"
+      />
       <path
         d="M329.5 34.5L325 36L322 38C321.333 38.5 320 39.6 320 40C320 40.4 319.333 41.1667 319 41.5L318.5 45.5V72L322.5 73M329.5 34.5C336.667 34 351.1 33 351.5 33C351.9 33 354 33.3333 355 33.5L356.5 34.5L358 36L358.5 38L358 70L357.5 70.5L354 72L350.5 73.5H330L322.5 73M329.5 34.5L324.5 38L323.5 40.5L322.5 43.5V73"
         stroke="currentColor"
@@ -37,7 +42,10 @@ export default function Bridge() {
         d="M352.5 14C347.333 14.6667 334.3 15.8 323.5 15C321.9 12.6 320.5 11 320 10.5V6L318.5 4.5L316.5 6V10C276.667 42 158 116.7 2 159.5"
         stroke="currentColor"
       />
-      <path d="M313 14V69.5L311.5 71.5V131.5L310 133V207L309 208.5V287" stroke="currentColor" />
+      <path
+        d="M313 14V69.5L311.5 71.5V131.5L310 133V207L309 208.5V287"
+        stroke="currentColor"
+      />
       <path
         d="M321 288.5V261.5H323V250.5H324.5V244H325.5V241L329.5 234.5L334.5 233.5H351L352 237.5L353.5 238.5L354 243L355 244.5V249L355.5 250.5L356 259.5V292.5L355.5 328.5L356.5 330.5V334V397.5"
         stroke="currentColor"
@@ -54,7 +62,10 @@ export default function Bridge() {
       <path d="M315 455L338.347 453L364 455" stroke="currentColor" />
       <path d="M449 453L464.247 451L481 453" stroke="currentColor" />
       <path d="M252 487L275.347 484L301 487" stroke="currentColor" />
-      <path d="M277.5 552.5L209.5 550L109.5 571L46 584.5L9.5 604H-22" stroke="currentColor" />
+      <path
+        d="M277.5 552.5L209.5 550L109.5 571L46 584.5L9.5 604H-22"
+        stroke="currentColor"
+      />
       <path
         d="M355.5 318.5L117.5 293M113 286.5L355.5 313.5M373 315L616.5 346.5M373 321L567.5 346.5"
         stroke="currentColor"

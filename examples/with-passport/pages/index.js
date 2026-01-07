@@ -13,10 +13,13 @@ const Home = () => {
       <ol>
         <li>Click Login and enter a username and password.</li>
         <li>
-          You'll be redirected to Home. Click on Profile, notice how your session is being used
-          through a token stored in a cookie.
+          You'll be redirected to Home. Click on Profile, notice how your
+          session is being used through a token stored in a cookie.
         </li>
-        <li>Click Logout and try to go to Profile again. You'll get redirected to Login.</li>
+        <li>
+          Click Logout and try to go to Profile again. You'll get redirected to
+          Login.
+        </li>
       </ol>
 
       {user && (

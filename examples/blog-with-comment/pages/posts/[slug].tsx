@@ -8,7 +8,9 @@ import { getAllPosts, getPostBySlug } from "../../lib/getPost";
 import markdownToHtml from "../../lib/markdownToHtml";
 import Head from "next/head";
 
-export default function PostPage({ post }: InferGetStaticPropsType<typeof getStaticProps>) {
+export default function PostPage({
+  post,
+}: InferGetStaticPropsType<typeof getStaticProps>) {
   const router = useRouter();
 
   if (!router.isFallback && !post?.slug) {
@@ -28,11 +30,18 @@ export default function PostPage({ post }: InferGetStaticPropsType<typeof getSta
           <article>
             <header>
               <h1 className="text-4xl font-bold">{post.title}</h1>
-              {post.excerpt ? <p className="mt-2 text-xl">{post.excerpt}</p> : null}
-              <time className="flex mt-2 text-gray-400">{distanceToNow(new Date(post.date))}</time>
+              {post.excerpt ? (
+                <p className="mt-2 text-xl">{post.excerpt}</p>
+              ) : null}
+              <time className="flex mt-2 text-gray-400">
+                {distanceToNow(new Date(post.date))}
+              </time>
             </header>
 
-            <div className="prose mt-10" dangerouslySetInnerHTML={{ __html: post.content }} />
+            <div
+              className="prose mt-10"
+              dangerouslySetInnerHTML={{ __html: post.content }}
+            />
           </article>
 
           <Comment />
@@ -49,7 +58,13 @@ type Params = {
 };
 
 export async function getStaticProps({ params }: Params) {
-  const post = getPostBySlug(params.slug, ["slug", "title", "excerpt", "date", "content"]);
+  const post = getPostBySlug(params.slug, [
+    "slug",
+    "title",
+    "excerpt",
+    "date",
+    "content",
+  ]);
   const content = await markdownToHtml(post.content || "");
 
   return {

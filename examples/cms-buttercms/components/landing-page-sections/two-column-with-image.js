@@ -16,7 +16,13 @@ export default function TwoColumnWithImage({
           {image && imagePosition === "left" && (
             <div className="col-lg-6 order-last order-lg-first">
               <div className="left-image cta-image ">
-                <Image src={image} layout="responsive" height="400px" width="600px" alt="" />
+                <Image
+                  src={image}
+                  layout="responsive"
+                  height="400px"
+                  width="600px"
+                  alt=""
+                />
               </div>
             </div>
           )}
@@ -26,7 +32,10 @@ export default function TwoColumnWithImage({
                 <h2 className="mb-20">{headline}</h2>
                 <div dangerouslySetInnerHTML={{ __html: subheadline }} />
               </div>
-              <a href={buttonUrl} className="main-btn btn-hover border-btn mt-30">
+              <a
+                href={buttonUrl}
+                className="main-btn btn-hover border-btn mt-30"
+              >
                 {buttonLabel}
               </a>
             </div>
@@ -34,7 +43,13 @@ export default function TwoColumnWithImage({
           {image && imagePosition === "right" && (
             <div className="col-lg-6">
               <div className="right-image cta-image text-lg-end">
-                <Image src={image} layout="responsive" height="400px" width="600px" alt="" />
+                <Image
+                  src={image}
+                  layout="responsive"
+                  height="400px"
+                  width="600px"
+                  alt=""
+                />
               </div>
             </div>
           )}

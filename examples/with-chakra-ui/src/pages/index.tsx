@@ -1,4 +1,11 @@
-import { Link as ChakraLink, Text, Code, List, ListIcon, ListItem } from "@chakra-ui/react";
+import {
+  Link as ChakraLink,
+  Text,
+  Code,
+  List,
+  ListIcon,
+  ListItem,
+} from "@chakra-ui/react";
 import { CheckCircleIcon, LinkIcon } from "@chakra-ui/icons";
 
 import { Hero } from "../components/Hero";
@@ -20,7 +27,12 @@ const Index = () => (
       <List spacing={3} my={0} color="text">
         <ListItem>
           <ListIcon as={CheckCircleIcon} color="green.500" />
-          <ChakraLink isExternal href="https://chakra-ui.com" flexGrow={1} mr={2}>
+          <ChakraLink
+            isExternal
+            href="https://chakra-ui.com"
+            flexGrow={1}
+            mr={2}
+          >
             Chakra UI <LinkIcon />
           </ChakraLink>
         </ListItem>

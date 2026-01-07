@@ -8,7 +8,10 @@ type Data = {
 };
 
 // GET /api/items/search?q=searchQ -- searches for items matching text `searchQ`
-export default async function handler(req: NextApiRequest, res: NextApiResponse<Data>) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse<Data>,
+) {
   const query = req.query["q"];
   if (query === undefined) {
     res.status(400).json({ error: "No search query found in request" });

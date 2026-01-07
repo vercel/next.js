@@ -1,6 +1,8 @@
 import PostType from "../interfaces/post";
 
-export async function executeGraphQLForBlogPosts(query: string): Promise<CmsPost[]> {
+export async function executeGraphQLForBlogPosts(
+  query: string,
+): Promise<CmsPost[]> {
   const graphQLEndpoint = `${process.env.SF_API_URL}graphql`;
   const response = await fetch(graphQLEndpoint, {
     method: "POST",
@@ -77,7 +79,9 @@ export async function getPostBySlugFromCms(slug: string): Promise<PostType> {
         }
     `;
 
-  const blogPosts = (await executeGraphQLForBlogPosts(query)).map((x) => mapCmsBlog(x));
+  const blogPosts = (await executeGraphQLForBlogPosts(query)).map((x) =>
+    mapCmsBlog(x),
+  );
   if (blogPosts.length > 0) return blogPosts[0];
 
   return null;
@@ -109,7 +113,9 @@ export async function getAllPostsFromCms(): Promise<PostType[]> {
         }
     `;
 
-  const blogPosts = (await executeGraphQLForBlogPosts(query)).map((x) => mapCmsBlog(x));
+  const blogPosts = (await executeGraphQLForBlogPosts(query)).map((x) =>
+    mapCmsBlog(x),
+  );
   return blogPosts;
 }
 

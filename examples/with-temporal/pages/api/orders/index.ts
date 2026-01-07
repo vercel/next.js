@@ -12,7 +12,10 @@ function getUserId(token?: string): string {
   return "user-id-123";
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse<Data>) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse<Data>,
+) {
   if (req.method !== "POST") {
     res.send({ result: "Error code 405: use POST" });
     return;

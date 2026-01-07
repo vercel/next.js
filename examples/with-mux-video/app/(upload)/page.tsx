@@ -18,7 +18,8 @@ const createUpload = async () => {
   return upload;
 };
 
-const waitForThreeSeconds = () => new Promise((resolve) => setTimeout(resolve, 3000));
+const waitForThreeSeconds = () =>
+  new Promise((resolve) => setTimeout(resolve, 3000));
 
 const redirectToAsset = async (uploadId: string) => {
   let attempts = 0;

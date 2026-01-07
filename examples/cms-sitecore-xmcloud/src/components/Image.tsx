@@ -37,14 +37,27 @@ export const Banner = (props: ImageProps): JSX.Element => {
     ...props.fields.Image,
     editable: props?.fields?.Image?.editable
       ?.replace(`width="${props?.fields?.Image?.value?.width}"`, 'width="100%"')
-      .replace(`height="${props?.fields?.Image?.value?.height}"`, 'height="100%"'),
+      .replace(
+        `height="${props?.fields?.Image?.value?.height}"`,
+        'height="100%"',
+      ),
   };
   const id = props.params.RenderingIdentifier;
 
   return (
-    <div className={`component hero-banner ${props.params.styles}`} id={id ? id : undefined}>
-      <div className="component-content sc-sxa-image-hero-banner" style={backgroundStyle}>
-        {sitecoreContext.pageEditing ? <JssImage field={modifyImageProps} /> : ""}
+    <div
+      className={`component hero-banner ${props.params.styles}`}
+      id={id ? id : undefined}
+    >
+      <div
+        className="component-content sc-sxa-image-hero-banner"
+        style={backgroundStyle}
+      >
+        {sitecoreContext.pageEditing ? (
+          <JssImage field={modifyImageProps} />
+        ) : (
+          ""
+        )}
       </div>
     </div>
   );
@@ -58,7 +71,10 @@ export const Default = (props: ImageProps): JSX.Element => {
     const id = props.params.RenderingIdentifier;
 
     return (
-      <div className={`component image ${props.params.styles}`} id={id ? id : undefined}>
+      <div
+        className={`component image ${props.params.styles}`}
+        id={id ? id : undefined}
+      >
         <div className="component-content">
           {sitecoreContext.pageState === "edit" ? (
             <Image />

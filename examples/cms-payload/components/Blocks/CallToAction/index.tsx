@@ -30,8 +30,13 @@ type Props = {
   blockName?: string;
   blockType: "cta";
 };
-export const CallToActionBlock: React.FC<Props> = ({ ctaBackgroundColor, links, richText }) => {
-  const oppositeBackgroundColor = ctaBackgroundColor === "white" ? "black" : "white";
+export const CallToActionBlock: React.FC<Props> = ({
+  ctaBackgroundColor,
+  links,
+  richText,
+}) => {
+  const oppositeBackgroundColor =
+    ctaBackgroundColor === "white" ? "black" : "white";
 
   return (
     <Gutter>
@@ -44,7 +49,14 @@ export const CallToActionBlock: React.FC<Props> = ({ ctaBackgroundColor, links, 
               </div>
             </Cell>
 
-            <Cell start={10} cols={3} startL={9} colsL={4} startM={1} colsM={12}>
+            <Cell
+              start={10}
+              cols={3}
+              startL={9}
+              colsL={4}
+              startM={1}
+              colsM={12}
+            >
               <div className={classes.linkGroup}>
                 {(links || []).map(({ link }, i) => {
                   return <CMSLink key={i} {...link} />;

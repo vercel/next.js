@@ -20,7 +20,9 @@ type Props = {
   params: Promise<{ slug: string }>;
 };
 
-const postSlugs = defineQuery(`*[_type == "post" && defined(slug.current)]{"slug": slug.current}`);
+const postSlugs = defineQuery(
+  `*[_type == "post" && defined(slug.current)]{"slug": slug.current}`,
+);
 
 export async function generateStaticParams() {
   return await sanityFetch({
@@ -74,14 +76,18 @@ export default async function PostPage({ params }: Props) {
           {post.title}
         </h1>
         <div className="hidden md:mb-12 md:block">
-          {post.author && <Avatar name={post.author.name} picture={post.author.picture} />}
+          {post.author && (
+            <Avatar name={post.author.name} picture={post.author.picture} />
+          )}
         </div>
         <div className="mb-8 sm:mx-0 md:mb-16">
           <CoverImage image={post.coverImage} priority />
         </div>
         <div className="mx-auto max-w-2xl">
           <div className="mb-6 block md:hidden">
-            {post.author && <Avatar name={post.author.name} picture={post.author.picture} />}
+            {post.author && (
+              <Avatar name={post.author.name} picture={post.author.picture} />
+            )}
           </div>
           <div className="mb-6 text-lg">
             <div className="mb-4 text-lg">
@@ -90,7 +96,10 @@ export default async function PostPage({ params }: Props) {
           </div>
         </div>
         {post.content?.length && (
-          <PortableText className="mx-auto max-w-2xl" value={post.content as PortableTextBlock[]} />
+          <PortableText
+            className="mx-auto max-w-2xl"
+            value={post.content as PortableTextBlock[]}
+          />
         )}
       </article>
       <aside>

@@ -4,7 +4,9 @@ async function fetchAPI(query, { variables, preview } = {}) {
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${
-        preview ? process.env.GRAPHCMS_DEV_AUTH_TOKEN : process.env.GRAPHCMS_PROD_AUTH_TOKEN
+        preview
+          ? process.env.GRAPHCMS_DEV_AUTH_TOKEN
+          : process.env.GRAPHCMS_PROD_AUTH_TOKEN
       }`,
     },
     body: JSON.stringify({

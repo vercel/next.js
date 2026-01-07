@@ -45,7 +45,12 @@ export default async function Navigation() {
         if (!item.uri) return null;
 
         return (
-          <Link itemProp="url" href={item.uri} key={index} target={item.target || "_self"}>
+          <Link
+            itemProp="url"
+            href={item.uri}
+            key={index}
+            target={item.target || "_self"}
+          >
             <span itemProp="name">{item.label}</span>
           </Link>
         );

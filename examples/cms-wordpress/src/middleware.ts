@@ -8,7 +8,10 @@ export async function middleware(request: NextRequest) {
 
   const basicAuth = `${process.env.WP_USER}:${process.env.WP_APP_PASS}`;
 
-  const pathnameWithoutTrailingSlash = request.nextUrl.pathname.replace(/\/$/, "");
+  const pathnameWithoutTrailingSlash = request.nextUrl.pathname.replace(
+    /\/$/,
+    "",
+  );
 
   const response = await fetch(
     `${process.env.NEXT_PUBLIC_WORDPRESS_API_URL}/wp-json/redirection/v1/redirect/?filterBy%5Burl-match%5D=plain&filterBy%5Burl%5D=${pathnameWithoutTrailingSlash}`,
@@ -23,13 +26,18 @@ export async function middleware(request: NextRequest) {
   const data = await response.json();
 
   if (data?.items?.length > 0) {
-    const redirect = data.items.find((item: any) => item.url === pathnameWithoutTrailingSlash);
+    const redirect = data.items.find(
+      (item: any) => item.url === pathnameWithoutTrailingSlash,
+    );
 
     if (!redirect) {
       return NextResponse.next();
     }
 
-    const newUrl = new URL(redirect.action_data.url, process.env.NEXT_PUBLIC_BASE_URL).toString();
+    const newUrl = new URL(
+      redirect.action_data.url,
+      process.env.NEXT_PUBLIC_BASE_URL,
+    ).toString();
 
     return NextResponse.redirect(newUrl, {
       status: redirect.action_code === 301 ? 308 : 307,

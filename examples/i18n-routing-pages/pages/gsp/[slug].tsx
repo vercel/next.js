@@ -1,4 +1,8 @@
-import type { GetStaticProps, GetStaticPaths, InferGetStaticPropsType } from "next";
+import type {
+  GetStaticProps,
+  GetStaticPaths,
+  InferGetStaticPropsType,
+} from "next";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import LocaleSwitcher from "../../components/locale-switcher";
@@ -40,7 +44,10 @@ type Props = {
   locales?: string[];
 };
 
-export const getStaticProps: GetStaticProps<Props> = async ({ locale, locales }) => {
+export const getStaticProps: GetStaticProps<Props> = async ({
+  locale,
+  locales,
+}) => {
   return {
     props: {
       locale,

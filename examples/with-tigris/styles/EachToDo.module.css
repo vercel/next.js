@@ -42,8 +42,8 @@
 .deleteBtn:focus,
 .deleteBtn:active,
 .deleteBtn:focus-visible {
-  filter: brightness(0) saturate(100%) invert(98%) sepia(27%) saturate(4410%) hue-rotate(308deg)
-    brightness(115%) contrast(98%);
+  filter: brightness(0) saturate(100%) invert(98%) sepia(27%) saturate(4410%)
+    hue-rotate(308deg) brightness(115%) contrast(98%);
 }
 
 @keyframes fadeInAnimation {

@@ -35,7 +35,10 @@ export default function Post({ post, morePosts, preview }) {
             <article>
               <Head>
                 <title>{`${post.title} | Next.js Blog Example with ${CMS_NAME}`}</title>
-                <meta property="og:image" content={absoluteURL(post.field_image.uri.url)} />
+                <meta
+                  property="og:image"
+                  content={absoluteURL(post.field_image.uri.url)}
+                />
               </Head>
               <PostHeader
                 title={post.title}
@@ -70,15 +73,19 @@ export async function getStaticProps(context) {
 
   let morePosts = [];
   if (post) {
-    morePosts = await getResourceCollectionFromContext("node--article", context, {
-      params: {
-        include: "field_image,uid,uid.user_picture",
-        sort: "-created",
-        "filter[id][condition][path]": "id",
-        "filter[id][condition][operator]": "<>",
-        "filter[id][condition][value]": post.id,
+    morePosts = await getResourceCollectionFromContext(
+      "node--article",
+      context,
+      {
+        params: {
+          include: "field_image,uid,uid.user_picture",
+          sort: "-created",
+          "filter[id][condition][path]": "id",
+          "filter[id][condition][operator]": "<>",
+          "filter[id][condition][value]": post.id,
+        },
       },
-    });
+    );
   }
 
   return {

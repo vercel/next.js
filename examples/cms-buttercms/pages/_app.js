@@ -61,7 +61,9 @@ function MyApp({ Component, pageProps, mainMenu }) {
       <Head>
         <meta charSet="utf-8" />
         <meta httpEquiv="x-ua-compatible" content="ie=edge" />
-        <title>Sample Landing Page with Components - powered by ButterCMS</title>
+        <title>
+          Sample Landing Page with Components - powered by ButterCMS
+        </title>
         <meta
           name="description"
           content="Sample Landing Page with Components - powered by ButterCMS"

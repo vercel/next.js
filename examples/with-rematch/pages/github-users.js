@@ -17,8 +17,8 @@ const Github = (props) => {
       <Header />
       <h1> Github users </h1>
       <p>
-        Server rendered github user list. You can also reload the users from the api by clicking the{" "}
-        <b>Get users</b> button below.
+        Server rendered github user list. You can also reload the users from the
+        api by clicking the <b>Get users</b> button below.
       </p>
       <h1> Users passed as property from getStaticProps</h1>
       {usersList.map((user) => (

@@ -57,7 +57,11 @@ function editLineEndings(content: string) {
  * @param {string} filename - the filename
  * @returns the new file's filepath
  */
-function scaffoldFile(rootPath: string, fileContent: string, filename: string): string | null {
+function scaffoldFile(
+  rootPath: string,
+  fileContent: string,
+  filename: string,
+): string | null {
   const outputDir = path.join(rootPath, componentPath);
   const outputFile = path.join(outputDir, filename);
 
@@ -85,5 +89,7 @@ Next steps:`),
 );
 
 if (componentOutputPath) {
-  console.log(`* Implement the React component in ${chalk.green(componentOutputPath)}`);
+  console.log(
+    `* Implement the React component in ${chalk.green(componentOutputPath)}`,
+  );
 }

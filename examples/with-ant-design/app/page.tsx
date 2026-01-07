@@ -25,7 +25,12 @@ const HomePage = () => (
         <p className="mb-0 mt-3 text-disabled">Welcome to the world !</p>
       </div>
       <div>
-        <Form layout="horizontal" size={"large"} labelCol={{ span: 8 }} wrapperCol={{ span: 8 }}>
+        <Form
+          layout="horizontal"
+          size={"large"}
+          labelCol={{ span: 8 }}
+          wrapperCol={{ span: 8 }}
+        >
           <Form.Item label="Input Number">
             <InputNumber
               min={1}

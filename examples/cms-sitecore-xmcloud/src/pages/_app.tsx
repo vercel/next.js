@@ -4,7 +4,10 @@ import { SitecorePageProps } from "lib/page-props";
 
 import "assets/main.scss";
 
-function App({ Component, pageProps }: AppProps<SitecorePageProps>): JSX.Element {
+function App({
+  Component,
+  pageProps,
+}: AppProps<SitecorePageProps>): JSX.Element {
   const { dictionary, ...rest } = pageProps;
 
   return (

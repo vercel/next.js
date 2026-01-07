@@ -17,7 +17,8 @@ interface ComponentProps {
 
 const DefaultContainer = (props: ComponentProps): JSX.Element => {
   const { sitecoreContext } = useSitecoreContext();
-  const containerStyles = props.params && props.params.Styles ? props.params.Styles : "";
+  const containerStyles =
+    props.params && props.params.Styles ? props.params.Styles : "";
   const styles = `${props.params.GridParameters} ${containerStyles}`.trimEnd();
   const phKey = `container-${props.params.DynamicPlaceholderId}`;
   const id = props.params.RenderingIdentifier;
@@ -33,7 +34,10 @@ const DefaultContainer = (props: ComponentProps): JSX.Element => {
   }
 
   return (
-    <div className={`component container-default ${styles}`} id={id ? id : undefined}>
+    <div
+      className={`component container-default ${styles}`}
+      id={id ? id : undefined}
+    >
       <div className="component-content" style={backgroundStyle}>
         <div className="row">
           <Placeholder name={phKey} rendering={props.rendering} />

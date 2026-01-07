@@ -16,7 +16,9 @@ export class SitecoreSitemapFetcher {
    */
   async fetch(context?: GetStaticPathsContext): Promise<StaticPath[]> {
     const pluginsList = Object.values(plugins) as SitemapFetcherPlugin[];
-    const pluginsResults = await Promise.all(pluginsList.map((plugin) => plugin.exec(context)));
+    const pluginsResults = await Promise.all(
+      pluginsList.map((plugin) => plugin.exec(context)),
+    );
     const results = pluginsResults.reduce((acc, cur) => [...acc, ...cur], []);
     return results;
   }

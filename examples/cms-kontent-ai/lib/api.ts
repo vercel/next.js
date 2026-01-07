@@ -42,7 +42,9 @@ export async function getAllPostSlugs() {
     .type(contentTypes.post.codename)
     .elementsParameter(["slug"])
     .toPromise()
-    .then((response) => response.data.items.map((post) => post.elements.slug.value));
+    .then((response) =>
+      response.data.items.map((post) => post.elements.slug.value),
+    );
 }
 
 export async function getMorePostsForSlug(slug: string, preview: boolean) {

@@ -17,7 +17,9 @@ export class PathExtractor {
     if (params === undefined) {
       return "/";
     }
-    let path = Array.isArray(params.path) ? params.path.join("/") : (params.path ?? "/");
+    let path = Array.isArray(params.path)
+      ? params.path.join("/")
+      : (params.path ?? "/");
 
     // Ensure leading '/'
     if (!path.startsWith("/")) {

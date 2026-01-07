@@ -15,7 +15,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    description: "Full-stack TypeScript example using Next.js, react-stripe-js, and stripe-node.",
+    description:
+      "Full-stack TypeScript example using Next.js, react-stripe-js, and stripe-node.",
     images: [
       {
         url: "https://nextjs-typescript-react-stripe-js.vercel.app/social_card.png",
@@ -48,7 +49,11 @@ export default function RootLayout({ children }: LayoutProps) {
         <div className="banner">
           <span>
             This is a{" "}
-            <a href="https://github.com/stripe-samples" target="_blank" rel="noopener noreferrer">
+            <a
+              href="https://github.com/stripe-samples"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               Stripe Sample
             </a>
             .{" View code on "}

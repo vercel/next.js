@@ -27,7 +27,10 @@ export function useFragment<TType>(
 // return array of nullable if `fragmentType` is array of nullable
 export function useFragment<TType>(
   _documentNode: DocumentNode<TType, any>,
-  fragmentType: ReadonlyArray<FragmentType<DocumentNode<TType, any>>> | null | undefined,
+  fragmentType:
+    | ReadonlyArray<FragmentType<DocumentNode<TType, any>>>
+    | null
+    | undefined,
 ): ReadonlyArray<TType> | null | undefined;
 export function useFragment<TType>(
   _documentNode: DocumentNode<TType, any>,

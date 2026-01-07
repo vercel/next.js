@@ -4,5 +4,8 @@ declare module "electron-next" {
     development: string;
   }
 
-  export default function (directories: Directories | string, port?: number): Promise<void>;
+  export default function (
+    directories: Directories | string,
+    port?: number,
+  ): Promise<void>;
 }

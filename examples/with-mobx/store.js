@@ -1,4 +1,10 @@
-import { action, observable, computed, runInAction, makeObservable } from "mobx";
+import {
+  action,
+  observable,
+  computed,
+  runInAction,
+  makeObservable,
+} from "mobx";
 import { enableStaticRendering } from "mobx-react-lite";
 
 enableStaticRendering(typeof window === "undefined");

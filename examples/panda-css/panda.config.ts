@@ -1,4 +1,9 @@
-import { defineConfig, defineGlobalStyles, defineRecipe, defineTextStyles } from "@pandacss/dev";
+import {
+  defineConfig,
+  defineGlobalStyles,
+  defineRecipe,
+  defineTextStyles,
+} from "@pandacss/dev";
 
 // https://panda-css.com/docs/theming/text-styles#defining-text-styles
 export const textStyles = defineTextStyles({

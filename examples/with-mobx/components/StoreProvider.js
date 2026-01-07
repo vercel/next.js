@@ -32,5 +32,7 @@ function initializeStore(initialData = null) {
 export function StoreProvider({ children, initialState: initialData }) {
   const store = initializeStore(initialData);
 
-  return <StoreContext.Provider value={store}>{children}</StoreContext.Provider>;
+  return (
+    <StoreContext.Provider value={store}>{children}</StoreContext.Provider>
+  );
 }

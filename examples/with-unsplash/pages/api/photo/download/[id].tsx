@@ -20,7 +20,10 @@ export default function download(req: NextApiRequest, res: NextApiResponse) {
         const filePath = json.links.download;
         const fileName = id + ".jpg";
 
-        res.setHeader("content-disposition", "attachment; filename=" + fileName);
+        res.setHeader(
+          "content-disposition",
+          "attachment; filename=" + fileName,
+        );
 
         fetch(filePath)
           .then((r) => r.buffer())

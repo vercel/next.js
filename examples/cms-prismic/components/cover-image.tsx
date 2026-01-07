@@ -9,7 +9,11 @@ type CoverImageProps = {
   href?: string;
 };
 
-export default function CoverImage({ title, image: imageField, href }: CoverImageProps) {
+export default function CoverImage({
+  title,
+  image: imageField,
+  href,
+}: CoverImageProps) {
   const image = (
     <PrismicNextImage
       field={imageField}

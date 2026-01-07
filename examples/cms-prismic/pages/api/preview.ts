@@ -3,7 +3,10 @@ import { setPreviewData, redirectToPreviewURL } from "@prismicio/next";
 
 import { createClient } from "../../lib/prismic";
 
-export default async function preview(req: NextApiRequest, res: NextApiResponse) {
+export default async function preview(
+  req: NextApiRequest,
+  res: NextApiResponse,
+) {
   const client = createClient({ req });
 
   setPreviewData({ req, res });

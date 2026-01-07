@@ -6,7 +6,11 @@ type CommentFormProps = {
   onSubmit: (e: React.FormEvent) => Promise<void>;
 };
 
-export default function CommentForm({ text, setText, onSubmit }: CommentFormProps) {
+export default function CommentForm({
+  text,
+  setText,
+  onSubmit,
+}: CommentFormProps) {
   const { isAuthenticated, logout, loginWithPopup } = useAuth0();
 
   return (
@@ -15,7 +19,9 @@ export default function CommentForm({ text, setText, onSubmit }: CommentFormProp
         className="flex w-full max-h-40 p-3 rounded resize-y bg-gray-200 text-gray-900 placeholder-gray-500"
         rows={2}
         placeholder={
-          isAuthenticated ? `What are your thoughts?` : "Please login to leave a comment"
+          isAuthenticated
+            ? `What are your thoughts?`
+            : "Please login to leave a comment"
         }
         onChange={(e) => setText(e.target.value)}
         value={text}

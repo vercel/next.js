@@ -26,8 +26,14 @@ export async function sanityFetch<const QueryString extends string>({
   perspective?: Omit<ClientPerspective, "raw">;
   stega?: boolean;
 }) {
-  const perspective = _perspective || (await draftMode()).isEnabled ? "previewDrafts" : "published";
-  const stega = _stega || perspective === "previewDrafts" || process.env.VERCEL_ENV === "preview";
+  const perspective =
+    _perspective || (await draftMode()).isEnabled
+      ? "previewDrafts"
+      : "published";
+  const stega =
+    _stega ||
+    perspective === "previewDrafts" ||
+    process.env.VERCEL_ENV === "preview";
   if (perspective === "previewDrafts") {
     return client.fetch(query, await params, {
       stega,

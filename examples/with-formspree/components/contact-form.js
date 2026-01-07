@@ -12,7 +12,12 @@ export default function ContactForm() {
       <label htmlFor="email" className={formStyles.labels}>
         Your email:
       </label>
-      <input id="email" type="email" name="email" className={formStyles.inputs} />
+      <input
+        id="email"
+        type="email"
+        name="email"
+        className={formStyles.inputs}
+      />
       <ValidationError
         prefix="Email"
         field="email"
@@ -40,7 +45,10 @@ export default function ContactForm() {
       >
         Send
       </button>
-      <ValidationError errors={state.errors} className={formStyles.formErrors} />
+      <ValidationError
+        errors={state.errors}
+        className={formStyles.formErrors}
+      />
     </form>
   );
 }

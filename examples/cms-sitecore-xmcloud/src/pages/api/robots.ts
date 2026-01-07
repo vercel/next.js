@@ -3,7 +3,10 @@ import { GraphQLRobotsService } from "@sitecore-jss/sitecore-jss-nextjs";
 import { siteResolver } from "lib/site-resolver";
 import config from "temp/config";
 
-const robotsApi = async (req: NextApiRequest, res: NextApiResponse): Promise<void> => {
+const robotsApi = async (
+  req: NextApiRequest,
+  res: NextApiResponse,
+): Promise<void> => {
   // Ensure response is text/html
   res.setHeader("Content-Type", "text/html;charset=utf-8");
 

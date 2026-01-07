@@ -15,7 +15,10 @@ export default function Intro() {
           Next.js
         </a>{" "}
         and{" "}
-        <a href={CMS_URL} className="underline transition-colors duration-200 hover:text-success">
+        <a
+          href={CMS_URL}
+          className="underline transition-colors duration-200 hover:text-success"
+        >
           {CMS_NAME}
         </a>
         .

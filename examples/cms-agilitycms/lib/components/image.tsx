@@ -31,7 +31,12 @@ const imageAddStrategy = ({
   return true;
 };
 
-const imageShowStrategy = ({ lazyLoad, isSsr, isIntersectionObserverAvailable, loaded }: State) => {
+const imageShowStrategy = ({
+  lazyLoad,
+  isSsr,
+  isIntersectionObserverAvailable,
+  loaded,
+}: State) => {
   if (!lazyLoad) {
     return true;
   }
@@ -100,7 +105,9 @@ const Image = function ({
 
   const isSsr = typeof window === "undefined";
 
-  const isIntersectionObserverAvailable = isSsr ? false : !!window.IntersectionObserver;
+  const isIntersectionObserverAvailable = isSsr
+    ? false
+    : !!window.IntersectionObserver;
 
   const absolutePositioning: React.CSSProperties = {
     position: "absolute",
@@ -129,7 +136,9 @@ const Image = function ({
     <source srcSet={data.webpSrcSet} sizes={data.sizes} type="image/webp" />
   );
 
-  const regularSource = data.srcSet && <source srcSet={data.srcSet} sizes={data.sizes} />;
+  const regularSource = data.srcSet && (
+    <source srcSet={data.srcSet} sizes={data.sizes} />
+  );
 
   const placeholder = (
     <div
@@ -183,7 +192,9 @@ const Image = function ({
             ...absolutePositioning,
             opacity: showImage ? 1 : 0,
             transition:
-              !fadeInDuration || fadeInDuration > 0 ? `opacity ${fadeInDuration || 500}ms` : null,
+              !fadeInDuration || fadeInDuration > 0
+                ? `opacity ${fadeInDuration || 500}ms`
+                : null,
           }}
         >
           {webpSource}

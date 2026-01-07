@@ -1,5 +1,14 @@
 import Head from "next/head";
-import { Container, Row, Col, Button, Card, CardText, CardTitle, CardBody } from "reactstrap";
+import {
+  Container,
+  Row,
+  Col,
+  Button,
+  Card,
+  CardText,
+  CardTitle,
+  CardBody,
+} from "reactstrap";
 
 export default function Home() {
   return (
@@ -21,7 +30,9 @@ export default function Home() {
               <Card className="my-3">
                 <CardBody>
                   <CardTitle tag="h5">Documentation</CardTitle>
-                  <CardText>Find in-depth information about Next.js features and API.</CardText>
+                  <CardText>
+                    Find in-depth information about Next.js features and API.
+                  </CardText>
                   <Button color="primary" href="https://nextjs.org/docs">
                     More &rarr;
                   </Button>
@@ -32,7 +43,9 @@ export default function Home() {
               <Card className="my-3">
                 <CardBody>
                   <CardTitle tag="h5">Learn</CardTitle>
-                  <CardText>Learn about Next.js in an interactive course with quizzes!</CardText>
+                  <CardText>
+                    Learn about Next.js in an interactive course with quizzes!
+                  </CardText>
                   <Button color="primary" href="https://nextjs.org/learn">
                     More &rarr;
                   </Button>
@@ -45,7 +58,9 @@ export default function Home() {
               <Card className="my-3">
                 <CardBody>
                   <CardTitle tag="h5">Examples</CardTitle>
-                  <CardText>Discover and deploy boilerplate example Next.js projects.</CardText>
+                  <CardText>
+                    Discover and deploy boilerplate example Next.js projects.
+                  </CardText>
                   <Button
                     color="primary"
                     href="https://github.com/vercel/next.js/tree/canary/examples"
@@ -60,7 +75,8 @@ export default function Home() {
                 <CardBody>
                   <CardTitle tag="h5">Deploy</CardTitle>
                   <CardText>
-                    Instantly deploy your Next.js site to a public URL with Vercel.
+                    Instantly deploy your Next.js site to a public URL with
+                    Vercel.
                   </CardText>
                   <Button
                     color="primary"
@@ -81,7 +97,8 @@ export default function Home() {
           target="_blank"
           rel="noopener noreferrer"
         >
-          Powered by <img src="/vercel.svg" alt="Vercel Logo" className="sml-logo" />
+          Powered by{" "}
+          <img src="/vercel.svg" alt="Vercel Logo" className="sml-logo" />
         </a>
       </footer>
     </Container>

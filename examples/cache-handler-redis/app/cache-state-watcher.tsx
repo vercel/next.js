@@ -4,7 +4,10 @@ import { ReactNode, useEffect, useState } from "react";
 
 type CacheStateWatcherProps = { time: number; revalidateAfter: number };
 
-export function CacheStateWatcher({ time, revalidateAfter }: CacheStateWatcherProps): ReactNode {
+export function CacheStateWatcher({
+  time,
+  revalidateAfter,
+}: CacheStateWatcherProps): ReactNode {
   const [cacheState, setCacheState] = useState("");
   const [countDown, setCountDown] = useState("");
 
@@ -14,7 +17,9 @@ export function CacheStateWatcher({ time, revalidateAfter }: CacheStateWatcherPr
     function check(): void {
       const now = Date.now();
 
-      setCountDown(Math.max(0, (time + revalidateAfter - now) / 1000).toFixed(3));
+      setCountDown(
+        Math.max(0, (time + revalidateAfter - now) / 1000).toFixed(3),
+      );
 
       if (now > time + revalidateAfter) {
         setCacheState("stale");
@@ -36,7 +41,9 @@ export function CacheStateWatcher({ time, revalidateAfter }: CacheStateWatcherPr
 
   return (
     <>
-      <div className={`cache-state ${cacheState}`}>Cache state: {cacheState}</div>
+      <div className={`cache-state ${cacheState}`}>
+        Cache state: {cacheState}
+      </div>
       <div className="stale-after">Stale in: {countDown}</div>
     </>
   );

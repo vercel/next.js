@@ -7,7 +7,10 @@ import { Plugin } from "..";
 class PreviewModePlugin implements Plugin {
   order = 1;
 
-  async exec(props: SitecorePageProps, context: GetServerSidePropsContext | GetStaticPropsContext) {
+  async exec(
+    props: SitecorePageProps,
+    context: GetServerSidePropsContext | GetStaticPropsContext,
+  ) {
     if (!context.preview) return props;
 
     // If we're in preview (editing) mode, use data already sent along with the editing request

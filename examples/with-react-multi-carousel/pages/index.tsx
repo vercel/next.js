@@ -20,7 +20,13 @@ const BreakpointSlides: ResponsiveType = {
 
 export default function Page() {
   return (
-    <Carousel responsive={BreakpointSlides} ssr infinite itemClass="carousel-item" autoPlay>
+    <Carousel
+      responsive={BreakpointSlides}
+      ssr
+      infinite
+      itemClass="carousel-item"
+      autoPlay
+    >
       <Image
         alt="Gundam"
         src="/brucetang.jpg"
@@ -45,8 +51,20 @@ export default function Page() {
         width={700}
         height={475}
       />
-      <Image alt="Beach" src="/roanlavery.jpg" layout="responsive" width={700} height={475} />
-      <Image alt="Torii" src="/tianshuliu.jpg" layout="responsive" width={700} height={475} />
+      <Image
+        alt="Beach"
+        src="/roanlavery.jpg"
+        layout="responsive"
+        width={700}
+        height={475}
+      />
+      <Image
+        alt="Torii"
+        src="/tianshuliu.jpg"
+        layout="responsive"
+        width={700}
+        height={475}
+      />
     </Carousel>
   );
 }

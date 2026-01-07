@@ -9,7 +9,11 @@ import {
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 
 function RightSlot({ children }) {
-  return <div className="ml-auto pl-4 text-gray-500 group-hover:text-gray-200">{children}</div>;
+  return (
+    <div className="ml-auto pl-4 text-gray-500 group-hover:text-gray-200">
+      {children}
+    </div>
+  );
 }
 
 function DropdownMenuItem({ children, ...props }) {
@@ -75,7 +79,9 @@ export default function Home() {
   const [person, setPerson] = useState("pedro");
   return (
     <div className="h-screen w-full flex flex-col space-y-4 items-center justify-center bg-gradient-to-r from-cyan-500 to-blue-500">
-      <h1 className="text-6xl text-white font-semibold">Radix UI + Tailwind CSS</h1>
+      <h1 className="text-6xl text-white font-semibold">
+        Radix UI + Tailwind CSS
+      </h1>
       <h1 className="text-4xl text-white font-semibold">Click me!</h1>
 
       <DropdownMenu.Root>
@@ -91,7 +97,10 @@ export default function Home() {
           </button>
         </DropdownMenu.Trigger>
 
-        <DropdownMenu.Content sideOffset={5} className="bg-white rounded p-1 shadow-lg">
+        <DropdownMenu.Content
+          sideOffset={5}
+          className="bg-white rounded p-1 shadow-lg"
+        >
           <DropdownMenuItem>
             New Tab <RightSlot>⌘+T</RightSlot>
           </DropdownMenuItem>
@@ -132,7 +141,10 @@ export default function Home() {
             </DropdownMenuItemIndicator>
             Show Bookmarks <RightSlot>⌘+B</RightSlot>
           </DropdownMenuCheckboxItem>
-          <DropdownMenuCheckboxItem checked={urlsChecked} onCheckedChange={setUrlsChecked}>
+          <DropdownMenuCheckboxItem
+            checked={urlsChecked}
+            onCheckedChange={setUrlsChecked}
+          >
             <DropdownMenuItemIndicator>
               <CheckIcon />
             </DropdownMenuItemIndicator>

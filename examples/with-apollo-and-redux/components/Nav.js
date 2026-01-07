@@ -9,7 +9,10 @@ export default function Nav() {
       <Link href="/" className={pathname === "/" ? "is-active" : ""}>
         Home
       </Link>
-      <Link href="/apollo" className={pathname === "/apollo" ? "is-active" : ""}>
+      <Link
+        href="/apollo"
+        className={pathname === "/apollo" ? "is-active" : ""}
+      >
         Apollo
       </Link>
       <Link href="/redux" className={pathname === "/redux" ? "is-active" : ""}>

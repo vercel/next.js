@@ -7,7 +7,11 @@ export const metadata = {
   description: "A blog app using Next.js and Prisma",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en" className="h-full">
       <body className="h-full overflow-hidden">

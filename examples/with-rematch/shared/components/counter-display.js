@@ -11,8 +11,9 @@ const CounterDisplay = () => {
     <>
       <h3> Counter </h3>
       <p>
-        This counter is connected via the <b>useSelector</b> hook. Components which are not pages
-        can be connected using the useSelector hook just like redux components.
+        This counter is connected via the <b>useSelector</b> hook. Components
+        which are not pages can be connected using the useSelector hook just
+        like redux components.
       </p>
       <p>Current value {counter}</p>
       <p>

@@ -5,7 +5,10 @@ import { nanoid } from "nanoid";
 import getUser from "./getUser";
 import clearUrl from "./clearUrl";
 
-export default async function createComments(req: NextApiRequest, res: NextApiResponse) {
+export default async function createComments(
+  req: NextApiRequest,
+  res: NextApiResponse,
+) {
   const url = clearUrl(req.headers.referer);
   const { text } = req.body;
   const { authorization } = req.headers;
@@ -15,7 +18,9 @@ export default async function createComments(req: NextApiRequest, res: NextApiRe
   }
 
   if (!redis) {
-    return res.status(400).json({ message: "Failed to connect to redis client." });
+    return res
+      .status(400)
+      .json({ message: "Failed to connect to redis client." });
   }
 
   try {
