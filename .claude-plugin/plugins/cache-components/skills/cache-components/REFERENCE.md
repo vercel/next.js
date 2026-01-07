@@ -443,15 +443,17 @@ import { revalidateTag } from 'next/cache'
 ### Signature
 
 ```tsx
-function revalidateTag(tag: string, profile: string | CacheLifeOptions): void
+function revalidateTag(tag: string, profile: string | { expire?: number }): void
 ```
 
 ### Parameters
 
-| Parameter | Type                         | Description                                        |
-| --------- | ---------------------------- | -------------------------------------------------- |
-| `tag`     | `string`                     | The cache tag to invalidate                        |
-| `profile` | `string \| CacheLifeOptions` | Cache profile for stale-while-revalidate behavior  |
+| Parameter | Type                            | Description                                                    |
+| --------- | ------------------------------- | -------------------------------------------------------------- |
+| `tag`     | `string`                        | The cache tag to invalidate                                    |
+| `profile` | `string \| { expire?: number }` | Cache profile name or object with expire time (seconds)        |
+
+> **Note:** Unlike `cacheLife()` which accepts `stale`, `revalidate`, and `expire`, the `revalidateTag()` object form only accepts `expire`. Use a predefined profile name (like `'hours'`) for full control over stale-while-revalidate behavior.
 
 ### Usage
 
@@ -462,11 +464,11 @@ import { revalidateTag } from 'next/cache'
 export async function updateSettings(data: FormData) {
   await db.settings.update({ data })
 
-  // With predefined profile
+  // With predefined profile (recommended)
   revalidateTag('settings', 'hours')
 
-  // With custom options
-  revalidateTag('settings', { stale: 60, revalidate: 300 })
+  // With custom expiration
+  revalidateTag('settings', { expire: 3600 })
 }
 ```
 
@@ -511,7 +513,7 @@ export async function addToCart(productId: string, userId: string) {
 // When INVENTORY changes from warehouse sync → revalidateTag
 export async function syncInventory(products: Product[]) {
   await db.inventory.bulkUpdate(products)
-  revalidateTag('inventory') // Background - eventual consistency OK
+  revalidateTag('inventory', 'max') // Background - eventual consistency OK
 }
 
 // When USER completes purchase → updateTag for buyer, revalidateTag for product
@@ -520,7 +522,7 @@ export async function completePurchase(orderId: string) {
 
   updateTag(`order-${orderId}`) // Buyer sees confirmation immediately
   updateTag(`cart-${order.userId}`) // Buyer's cart clears immediately
-  revalidateTag(`product-${order.productId}`) // Others see updated stock eventually
+  revalidateTag(`product-${order.productId}`, 'max') // Others see updated stock eventually
 }
 ```
 

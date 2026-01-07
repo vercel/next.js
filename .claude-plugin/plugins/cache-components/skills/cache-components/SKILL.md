@@ -253,7 +253,7 @@ import { revalidateTag } from 'next/cache'
 export async function updatePost(id: string, data: FormData) {
   await db.posts.update({ where: { id }, data })
 
-  revalidateTag('posts') // Serve stale, refresh in background
+  revalidateTag('posts', 'max') // Serve stale, refresh in background
 }
 ```
 

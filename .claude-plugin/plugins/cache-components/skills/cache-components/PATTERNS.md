@@ -291,7 +291,7 @@ export async function trackView(postId: string) {
   })
 
   // Background revalidation - old count shown while updating
-  revalidateTag(`post-${postId}`)
+  revalidateTag(`post-${postId}`, 'max')
 }
 
 // For user-facing mutations, use updateTag instead
