@@ -51,7 +51,7 @@ describe('getDynamicHTMLPostponedState', () => {
       isCacheComponentsEnabled
     )
 
-    const parsed = parsePostponedState(state, { slug: '123' })
+    const parsed = parsePostponedState(state, { slug: '123' }, undefined)
 
     expect(parsed).toMatchInlineSnapshot(`
      {
@@ -109,7 +109,7 @@ describe('getDynamicHTMLPostponedState', () => {
 
     const value = 'hello'
     const params = { slug: value }
-    const parsed = parsePostponedState(state, params)
+    const parsed = parsePostponedState(state, params, undefined)
     expect(parsed).toEqual({
       type: DynamicState.HTML,
       data: [1, { [value]: value }],
@@ -137,7 +137,7 @@ describe('parsePostponedState', () => {
     const params = {
       slug: Math.random().toString(16).slice(3),
     }
-    const parsed = parsePostponedState(state, params)
+    const parsed = parsePostponedState(state, params, undefined)
 
     // Ensure that it parsed it correctly.
     expect(parsed).toEqual({
@@ -153,7 +153,7 @@ describe('parsePostponedState', () => {
   it('parses a HTML postponed state without fallback params', () => {
     const state = `2:{}null`
     const params = {}
-    const parsed = parsePostponedState(state, params)
+    const parsed = parsePostponedState(state, params, undefined)
 
     // Ensure that it parsed it correctly.
     expect(parsed).toEqual({
@@ -165,7 +165,7 @@ describe('parsePostponedState', () => {
 
   it('parses a data postponed state', () => {
     const state = '4:nullnull'
-    const parsed = parsePostponedState(state, {})
+    const parsed = parsePostponedState(state, {}, undefined)
 
     // Ensure that it parsed it correctly.
     expect(parsed).toEqual({

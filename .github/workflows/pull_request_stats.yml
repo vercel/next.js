@@ -36,9 +36,13 @@ jobs:
       uploadAnalyzerArtifacts: 'yes'
 
   stats:
-    name: PR Stats
+    name: PR Stats (${{ matrix.bundler }})
     needs: build
     timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        bundler: [webpack, turbopack]
     runs-on:
       - 'self-hosted'
       - 'linux'
@@ -64,7 +68,52 @@ jobs:
 
       - uses: ./.github/actions/next-stats-action
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
+        with:
+          bundler: ${{ matrix.bundler }}
         env:
-          # This uses the webpack bundle analyzer and for consistent results we need to use webpack.
-          # Once there is an equivalent analyzer for turbopack, we can remove this.
-          IS_WEBPACK_TEST: 1
+          PR_STATS_COMMENT_TOKEN: ${{ secrets.PR_STATS_COMMENT_TOKEN }}
+          TURBO_TEAM: ${{ env.TURBO_TEAM }}
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_CACHE: ${{ env.TURBO_CACHE }}
+
+      - name: Upload stats results
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-stats-${{ matrix.bundler }}
+          path: pr-stats-${{ matrix.bundler }}.json
+          retention-days: 1
+
+  stats-aggregate:
+    name: Aggregate PR Stats
+    needs: stats
+    if: always() && needs.stats.result != 'cancelled'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Download all stats artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: pr-stats-*
+          path: stats-results
+          merge-multiple: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_LTS_VERSION }}
+
+      - name: Install dependencies
+        working-directory: .github/actions/next-stats-action
+        run: npm install
+
+      - name: Aggregate and post results
+        working-directory: .github/actions/next-stats-action
+        run: node src/aggregate-results.js ${{ github.workspace }}/stats-results
+        env:
+          PR_STATS_COMMENT_TOKEN: ${{ secrets.PR_STATS_COMMENT_TOKEN }}
+          KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
+          KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
