@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check, waitForNoRedbox } from 'next-test-utils'
+import { check, waitFor, waitForNoRedbox } from 'next-test-utils'
 
 describe('global-not-found - basic', () => {
   const { next, isNextDev } = nextTestSetup({
@@ -49,6 +49,13 @@ describe('global-not-found - basic', () => {
     expect(await browser.elementByCss('#page-title').text()).toBe(
       'Client Trigger Not Found Page'
     )
+
+    // In dev mode, wait for HMR to settle before triggering client navigation.
+    // Without this wait, the RSC response for /_not-found may reference chunks
+    // that are being rebuilt, causing a SyntaxError when loading stale chunks.
+    if (isNextDev) {
+      await waitFor(2000)
+    }
 
     // Click button to trigger notFound()
     await browser.elementByCss('#trigger-not-found').click()
