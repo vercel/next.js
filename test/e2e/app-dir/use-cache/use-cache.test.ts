@@ -1378,6 +1378,7 @@ function extractResumeDataCacheFromPostponedState(
   const postponedStringLength = parseInt(postponedStringLengthMatch)
 
   return createRenderResumeDataCache(
-    state.slice(postponedStringLengthMatch.length + postponedStringLength + 1)
+    state.slice(postponedStringLengthMatch.length + postponedStringLength + 1),
+    undefined
   )
 }
