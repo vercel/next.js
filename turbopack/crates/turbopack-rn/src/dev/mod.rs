@@ -1,4 +1,7 @@
-use std::{env::current_dir, future::Future, net::SocketAddr, path::PathBuf, pin::Pin, sync::Arc};
+use std::{
+    borrow::Cow, env::current_dir, future::Future, net::SocketAddr, path::PathBuf, pin::Pin,
+    sync::Arc,
+};
 
 use anyhow::{Context, Error, Result};
 use futures::StreamExt;
@@ -370,6 +373,31 @@ impl Svc {
                         return Ok(not_found);
                     }
                 }
+            }
+            // - /assets/?unstable_path=.%2Fsrc%2Fassets%2Fimages/partial-react-logo.png?
+            //   platform=ios&hash=0379fd4e2504cdac
+            // - /assets/src/assets/images/icon.png
+            (&Method::GET, path) if path.starts_with("/assets/") => {
+                #[derive(Deserialize)]
+                struct Query {
+                    unstable_path: Option<String>,
+                }
+                let query: Query =
+                    serde_qs::from_str(req.uri().query().unwrap_or_default()).unwrap();
+
+                let file = if let Some(unstable_path) = &query.unstable_path {
+                    let unstable_path = urlencoding::decode(unstable_path)?;
+                    Cow::Owned(unstable_path.split("?").next().unwrap().to_string())
+                } else {
+                    Cow::Borrowed(path.strip_prefix("/assets/").unwrap())
+                };
+
+                println!("Serving asset file: {}", file);
+
+                let file = &*file;
+                let content = std::fs::read(PathBuf::from(&self.project_dir).join(file))?;
+                let response = Response::new(full(content));
+                return Ok(response);
             }
             // https://github.com/expo/expo/blob/main/packages/%40expo/cli/src/start/server/middleware/ExpoGoManifestHandlerMiddleware.ts
             // GET / HTTP/1.1
