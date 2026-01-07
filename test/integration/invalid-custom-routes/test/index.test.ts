@@ -2,7 +2,7 @@
 
 import fs from 'fs-extra'
 import { join } from 'path'
-import { launchApp, findPort, nextBuild } from 'next-test-utils'
+import { launchApp, findPort, nextBuild, retry } from 'next-test-utils'
 
 let appDir = join(__dirname, '..')
 const nextConfigPath = join(appDir, 'next.config.js')
@@ -33,11 +33,13 @@ const runTests = () => {
       ],
       'headers'
     )
-    const stderr = await getStderr()
+    await retry(async () => {
+      const stderr = await getStderr()
 
-    expect(stderr).toContain(
-      '`headers` field cannot be empty for route {"source":"/:path*"'
-    )
+      expect(stderr).toContain(
+        '`headers` field cannot be empty for route {"source":"/:path*"'
+      )
+    })
   })
 
   it('should error when source and destination length is exceeded', async () => {
