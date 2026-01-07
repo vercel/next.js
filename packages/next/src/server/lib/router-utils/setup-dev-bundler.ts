@@ -33,7 +33,6 @@ import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 import { buildDataRoute } from './build-data-route'
 import { getRouteMatcher } from '../../../shared/lib/router/utils/route-matcher'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
-import { createClientRouterFilter } from '../../../lib/create-client-router-filter'
 import { absolutePathToPage } from '../../../shared/lib/page-path/absolute-path-to-page'
 import { generateInterceptionRoutesRewrites } from '../../../lib/generate-interception-routes-rewrites'
 
@@ -376,7 +375,6 @@ async function startWatcher(
     })
     const fileWatchTimes = new Map()
     let enabledTypeScript = await verifyTypeScript(opts)
-    let previousClientRouterFilters: any
     let previousConflictingPagePaths: Set<string> = new Set()
 
     const routeTypesFilePath = path.join(distDir, 'types', 'routes.d.ts')
@@ -781,28 +779,6 @@ async function startWatcher(
       }
 
       previousConflictingPagePaths = conflictingAppPagePaths
-
-      let clientRouterFilters: any
-      if (nextConfig.experimental.clientRouterFilter) {
-        clientRouterFilters = createClientRouterFilter(
-          Object.keys(appPaths),
-          nextConfig.experimental.clientRouterFilterRedirects
-            ? ((nextConfig as any)._originalRedirects || []).filter(
-                (r: any) => !r.internal
-              )
-            : [],
-          nextConfig.experimental.clientRouterFilterAllowedRate
-        )
-
-        if (
-          !previousClientRouterFilters ||
-          JSON.stringify(previousClientRouterFilters) !==
-            JSON.stringify(clientRouterFilters)
-        ) {
-          envChange = true
-          previousClientRouterFilters = clientRouterFilters
-        }
-      }
 
       if (envChange || tsconfigChange) {
         if (envChange) {
