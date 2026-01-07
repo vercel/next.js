@@ -27,7 +27,8 @@ export async function fetchCSSFromGoogleFonts(
     return fetchResource(
       url,
       isDev,
-      `Failed to fetch font \`${fontFamily}\`: ${url}\n` + `Please check your network connection.`
+      `Failed to fetch font \`${fontFamily}\`: ${url}\n` +
+        `Please check your network connection.`
     )
   }, 3)
 

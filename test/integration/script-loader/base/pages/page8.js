@@ -1,7 +1,8 @@
 import Script from 'next/script'
 import Link from 'next/link'
 
-const url = 'https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js'
+const url =
+  'https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js'
 
 const Page = () => {
   return (

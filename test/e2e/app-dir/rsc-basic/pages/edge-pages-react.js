@@ -7,7 +7,9 @@ export default function Page() {
     <div>
       <p id="react">{'React.version=' + React.version}</p>
       <p id="react-dom">{'ReactDOM.version=' + ReactDOM.version}</p>
-      <p id="react-dom-server">{'ReactDOMServer.version=' + ReactDOMServer.version}</p>
+      <p id="react-dom-server">
+        {'ReactDOMServer.version=' + ReactDOMServer.version}
+      </p>
     </div>
   )
 }

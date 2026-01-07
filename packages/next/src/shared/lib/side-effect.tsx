@@ -20,7 +20,9 @@ export default function SideEffect(props: SideEffectProps) {
   function emitChange() {
     if (headManager && headManager.mountedInstances) {
       const headElements = Children.toArray(
-        Array.from(headManager.mountedInstances as Set<React.ReactNode>).filter(Boolean)
+        Array.from(headManager.mountedInstances as Set<React.ReactNode>).filter(
+          Boolean
+        )
       ) as React.ReactElement[]
       headManager.updateHead(reduceComponentsToState(headElements))
     }

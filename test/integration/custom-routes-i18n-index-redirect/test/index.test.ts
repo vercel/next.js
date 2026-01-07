@@ -2,7 +2,14 @@
 
 import http from 'http'
 import { join } from 'path'
-import { launchApp, killApp, findPort, nextBuild, nextStart, fetchViaHTTP } from 'next-test-utils'
+import {
+  launchApp,
+  killApp,
+  findPort,
+  nextBuild,
+  nextStart,
+  fetchViaHTTP,
+} from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
 let server
@@ -52,21 +59,27 @@ describe('Custom routes i18n with index redirect', () => {
   afterAll(async () => {
     server.close()
   })
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
-    runTests()
-  })
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
-    runTests()
-  })
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
+      runTests()
+    }
+  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
+      runTests()
+    }
+  )
 })

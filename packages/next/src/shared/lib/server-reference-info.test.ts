@@ -68,7 +68,16 @@ describe('omitUnusedArgs', () => {
   })
 
   test('should return all args when all args are used and has restArgs', () => {
-    const args = ['arg1', 'arg2', 'arg3', 'arg4', 'arg5', 'arg6', 'restArg1', 'restArg2']
+    const args = [
+      'arg1',
+      'arg2',
+      'arg3',
+      'arg4',
+      'arg5',
+      'arg6',
+      'restArg1',
+      'restArg2',
+    ]
 
     const info: ServerReferenceInfo = {
       type: 'use-cache',
@@ -99,7 +108,16 @@ describe('omitUnusedArgs', () => {
   })
 
   test('should include restArgs when hasRestArgs is true', () => {
-    const args = ['arg1', 'arg2', 'arg3', 'arg4', 'arg5', 'arg6', 'restArg1', 'restArg2']
+    const args = [
+      'arg1',
+      'arg2',
+      'arg3',
+      'arg4',
+      'arg5',
+      'arg6',
+      'restArg1',
+      'restArg2',
+    ]
 
     const info: ServerReferenceInfo = {
       type: 'use-cache',
@@ -120,7 +138,16 @@ describe('omitUnusedArgs', () => {
   })
 
   test('should not include extra args when hasRestArgs is false', () => {
-    const args = ['arg1', 'arg2', 'arg3', 'arg4', 'arg5', 'arg6', 'extraArg1', 'extraArg2']
+    const args = [
+      'arg1',
+      'arg2',
+      'arg3',
+      'arg4',
+      'arg5',
+      'arg6',
+      'extraArg1',
+      'extraArg2',
+    ]
 
     const info: ServerReferenceInfo = {
       type: 'server-action',

@@ -37,7 +37,10 @@ declare global {
        *
        * @param inlineSnapshot - The snapshot to compare against.
        */
-      toDisplayRedbox(inlineSnapshot?: string, opts?: ErrorSnapshotOptions): Promise<void>
+      toDisplayRedbox(
+        inlineSnapshot?: string,
+        opts?: ErrorSnapshotOptions
+      ): Promise<void>
 
       /**
        * Inline snapshot matcher for a Redbox that's collapsed by default.
@@ -57,7 +60,10 @@ declare global {
        *
        * @param inlineSnapshot - The snapshot to compare against.
        */
-      toDisplayCollapsedRedbox(inlineSnapshot?: string, opts?: ErrorSnapshotOptions): Promise<void>
+      toDisplayCollapsedRedbox(
+        inlineSnapshot?: string,
+        opts?: ErrorSnapshotOptions
+      ): Promise<void>
     }
   }
 }
@@ -80,14 +86,15 @@ async function createErrorSnapshot(
   next: NextInstance | null,
   { label: includeLabel = true }: ErrorSnapshotOptions = {}
 ): Promise<ErrorSnapshot> {
-  const [label, environmentLabel, description, source, stack, componentStack] = await Promise.all([
-    includeLabel ? getRedboxLabel(browser) : null,
-    getRedboxEnvironmentLabel(browser),
-    getRedboxDescription(browser),
-    getRedboxSource(browser),
-    getRedboxCallStack(browser),
-    getRedboxComponentStack(browser),
-  ])
+  const [label, environmentLabel, description, source, stack, componentStack] =
+    await Promise.all([
+      includeLabel ? getRedboxLabel(browser) : null,
+      getRedboxEnvironmentLabel(browser),
+      getRedboxDescription(browser),
+      getRedboxSource(browser),
+      getRedboxCallStack(browser),
+      getRedboxComponentStack(browser),
+    ])
 
   // We don't need to test the codeframe logic everywhere.
   // Here we focus on the cursor position of the top most frame
@@ -133,7 +140,10 @@ async function createErrorSnapshot(
     focusedSource = focusedSource.trim()
 
     if (next !== null) {
-      focusedSource = focusedSource.replaceAll(next.testDir, '<FIXME-project-root>')
+      focusedSource = focusedSource.replaceAll(
+        next.testDir,
+        '<FIXME-project-root>'
+      )
     }
 
     // This is the processed path the nextjs file from node_modules,
@@ -147,7 +157,10 @@ async function createErrorSnapshot(
       // e.g. "next-app-loader?<SEARCH PARAMS>" (in rspack, the loader doesn't seem to be prefixed with node_modules)
       /^next-[a-zA-Z0-9\-_]+?-loader\?/.test(sourceLines[0])
     ) {
-      focusedSource = `<FIXME-nextjs-internal-source>` + '\n' + sourceLines.slice(1).join('\n')
+      focusedSource =
+        `<FIXME-nextjs-internal-source>` +
+        '\n' +
+        sourceLines.slice(1).join('\n')
     }
   }
 
@@ -159,7 +172,10 @@ async function createErrorSnapshot(
       .replace(/\w+_WEBPACK_IMPORTED_MODULE_\w+/, '<webpack-module-id>')
 
     if (next !== null) {
-      sanitizedDescription = sanitizedDescription.replace(next.testDir, '<FIXME-project-root>')
+      sanitizedDescription = sanitizedDescription.replace(
+        next.testDir,
+        '<FIXME-project-root>'
+      )
     }
   }
 
@@ -201,9 +217,13 @@ async function createRedboxSnapshot(
 
     if (errorIndex < errorTally - 1) {
       // Go to next error
-      await browser.waitForElementByCss('[data-nextjs-dialog-error-next]').click()
+      await browser
+        .waitForElementByCss('[data-nextjs-dialog-error-next]')
+        .click()
       // TODO: Wait for suspended content if the click triggered it.
-      await browser.waitForElementByCss(`[data-nextjs-dialog-error-index="${errorIndex + 1}"]`)
+      await browser.waitForElementByCss(
+        `[data-nextjs-dialog-error-index="${errorIndex + 1}"]`
+      )
     }
   }
 
@@ -247,7 +267,11 @@ expect.extend({
       if (expectedRedboxSnapshot === undefined) {
         return toMatchInlineSnapshot.call(this, String(cause.message))
       } else {
-        return toMatchInlineSnapshot.call(this, String(cause.message), expectedRedboxSnapshot)
+        return toMatchInlineSnapshot.call(
+          this,
+          String(cause.message),
+          expectedRedboxSnapshot
+        )
       }
     }
 

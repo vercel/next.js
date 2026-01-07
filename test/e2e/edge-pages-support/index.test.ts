@@ -17,14 +17,24 @@ describe('edge-render-getserversideprops', () => {
       'should not output trace files for edge routes',
       async () => {
         /* eslint-disable jest/no-standalone-expect */
-        expect(await fs.pathExists(join(next.testDir, '.next/pages'))).toBe(false)
-        expect(await fs.pathExists(join(next.testDir, '.next/server/pages/[id].js'))).toBe(true)
-        expect(await fs.pathExists(join(next.testDir, '.next/server/pages/[id].js.nft.json'))).toBe(
+        expect(await fs.pathExists(join(next.testDir, '.next/pages'))).toBe(
           false
         )
-        expect(await fs.pathExists(join(next.testDir, '.next/server/pages/index.js'))).toBe(true)
         expect(
-          await fs.pathExists(join(next.testDir, '.next/server/pages/index.js.nft.json'))
+          await fs.pathExists(join(next.testDir, '.next/server/pages/[id].js'))
+        ).toBe(true)
+        expect(
+          await fs.pathExists(
+            join(next.testDir, '.next/server/pages/[id].js.nft.json')
+          )
+        ).toBe(false)
+        expect(
+          await fs.pathExists(join(next.testDir, '.next/server/pages/index.js'))
+        ).toBe(true)
+        expect(
+          await fs.pathExists(
+            join(next.testDir, '.next/server/pages/index.js.nft.json')
+          )
         ).toBe(false)
         /* eslint-enable jest/no-standalone-expect */
       }
@@ -107,11 +117,16 @@ describe('edge-render-getserversideprops', () => {
   })
 
   it('should respond to _next/data for index correctly', async () => {
-    const res = await fetchViaHTTP(next.url, `/_next/data/${next.buildId}/index.json`, undefined, {
-      headers: {
-        'x-nextjs-data': '1',
-      },
-    })
+    const res = await fetchViaHTTP(
+      next.url,
+      `/_next/data/${next.buildId}/index.json`,
+      undefined,
+      {
+        headers: {
+          'x-nextjs-data': '1',
+        },
+      }
+    )
     expect(res.status).toBe(200)
     const { pageProps: props } = await res.json()
     expect(props.query).toEqual({})
@@ -137,7 +152,9 @@ describe('edge-render-getserversideprops', () => {
 
   if ((global as any).isNextStart) {
     it('should have data routes in routes-manifest', async () => {
-      const manifest = JSON.parse(await next.readFile('.next/routes-manifest.json'))
+      const manifest = JSON.parse(
+        await next.readFile('.next/routes-manifest.json')
+      )
 
       for (const route of manifest.dataRoutes) {
         route.dataRouteRegex = normalizeRegEx(route.dataRouteRegex)

@@ -94,9 +94,9 @@ describe('ReactRefreshLogBox', () => {
       `
     )
 
-    expect(await session.evaluate(() => document.querySelector('h1').textContent)).toBe(
-      'Default Export'
-    )
+    expect(
+      await session.evaluate(() => document.querySelector('h1').textContent)
+    ).toBe('Default Export')
 
     // Add a throw in module init phase:
     await session.patch(
@@ -272,7 +272,9 @@ describe('ReactRefreshLogBox', () => {
       `
     )
 
-    expect(await session.evaluate(() => document.querySelector('h2').textContent)).toBe('hello')
+    expect(
+      await session.evaluate(() => document.querySelector('h2').textContent)
+    ).toBe('hello')
 
     await session.write(
       'FunctionDefault.js',
@@ -544,7 +546,9 @@ describe('ReactRefreshLogBox', () => {
     )
 
     await session.waitForNoRedbox()
-    expect(await session.evaluate(() => document.querySelector('p').textContent)).toBe('hello')
+    expect(
+      await session.evaluate(() => document.querySelector('p').textContent)
+    ).toBe('hello')
 
     await session.patch(
       'Child.js',
@@ -659,7 +663,9 @@ describe('ReactRefreshLogBox', () => {
     )
 
     await session.waitForNoRedbox()
-    expect(await session.evaluate(() => document.querySelector('p').textContent)).toBe('hello new')
+    expect(
+      await session.evaluate(() => document.querySelector('p').textContent)
+    ).toBe('hello new')
   })
 
   test('css syntax errors', async () => {
@@ -1356,7 +1362,9 @@ describe('ReactRefreshLogBox', () => {
     // Expect more than the default amount of frames
     // The default stackTraceLimit results in max 9 [data-nextjs-call-stack-frame] elements
 
-    const callStackFrames = await browser.elementsByCss('[data-nextjs-call-stack-frame]')
+    const callStackFrames = await browser.elementsByCss(
+      '[data-nextjs-call-stack-frame]'
+    )
 
     expect(callStackFrames.length).toBeGreaterThan(9)
   })

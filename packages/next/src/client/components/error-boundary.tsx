@@ -7,7 +7,8 @@ import { handleHardNavError } from './nav-failure-handler'
 import { HandleISRError } from './handle-isr-error'
 import { isBot } from '../../shared/lib/router/utils/is-bot'
 
-const isBotUserAgent = typeof window !== 'undefined' && isBot(window.navigator.userAgent)
+const isBotUserAgent =
+  typeof window !== 'undefined' && isBot(window.navigator.userAgent)
 
 export type ErrorComponent = React.ComponentType<{
   error: Error
@@ -104,7 +105,10 @@ export class ErrorBoundaryHandler extends React.Component<
           <HandleISRError error={this.state.error} />
           {this.props.errorStyles}
           {this.props.errorScripts}
-          <this.props.errorComponent error={this.state.error} reset={this.reset} />
+          <this.props.errorComponent
+            error={this.state.error}
+            reset={this.reset}
+          />
         </>
       )
     }

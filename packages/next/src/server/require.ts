@@ -1,5 +1,9 @@
 import path from 'path'
-import { PAGES_MANIFEST, SERVER_DIRECTORY, APP_PATHS_MANIFEST } from '../shared/lib/constants'
+import {
+  PAGES_MANIFEST,
+  SERVER_DIRECTORY,
+  APP_PATHS_MANIFEST,
+} from '../shared/lib/constants'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
@@ -25,12 +29,18 @@ export function getMaybePagePath(
   // If we have a cached path, we can return it directly.
   if (pagePath) return pagePath
 
-  const serverBuildPath = path.join(/* turbopackIgnore: true */ distDir, SERVER_DIRECTORY)
+  const serverBuildPath = path.join(
+    /* turbopackIgnore: true */ distDir,
+    SERVER_DIRECTORY
+  )
   let appPathsManifest: undefined | PagesManifest
 
   if (isAppPath) {
     appPathsManifest = loadManifest(
-      path.join(/* turbopackIgnore: true */ serverBuildPath, APP_PATHS_MANIFEST),
+      path.join(
+        /* turbopackIgnore: true */ serverBuildPath,
+        APP_PATHS_MANIFEST
+      ),
       !isDev
     ) as PagesManifest
   }
@@ -53,7 +63,8 @@ export function getMaybePagePath(
       const manifestNoLocales: typeof pagesManifest = {}
 
       for (const key of Object.keys(manifest)) {
-        manifestNoLocales[normalizeLocalePath(key, locales).pathname] = pagesManifest[key]
+        manifestNoLocales[normalizeLocalePath(key, locales).pathname] =
+          pagesManifest[key]
       }
       curPath = manifestNoLocales[page]
     }
@@ -101,12 +112,18 @@ export function getPagePath(
   return pagePath
 }
 
-export async function requirePage(page: string, distDir: string, isAppPath: boolean): Promise<any> {
+export async function requirePage(
+  page: string,
+  distDir: string,
+  isAppPath: boolean
+): Promise<any> {
   const pagePath = getPagePath(page, distDir, undefined, isAppPath)
   if (pagePath.endsWith('.html')) {
-    return promises.readFile(/* turbopackIgnore: true */ pagePath, 'utf8').catch((err) => {
-      throw new MissingStaticPage(page, err.message)
-    })
+    return promises
+      .readFile(/* turbopackIgnore: true */ pagePath, 'utf8')
+      .catch((err) => {
+        throw new MissingStaticPage(page, err.message)
+      })
   }
 
   const mod = process.env.NEXT_MINIMAL

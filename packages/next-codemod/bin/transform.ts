@@ -4,17 +4,29 @@ import prompts from 'prompts'
 import stripAnsi from 'strip-ansi'
 import { join } from 'node:path'
 import { installPackages, uninstallPackage } from '../lib/handle-package'
-import { checkGitStatus, onCancel, TRANSFORMER_INQUIRER_CHOICES } from '../lib/utils'
+import {
+  checkGitStatus,
+  onCancel,
+  TRANSFORMER_INQUIRER_CHOICES,
+} from '../lib/utils'
 
 function expandFilePathsIfNeeded(filesBeforeExpansion) {
-  const shouldExpandFiles = filesBeforeExpansion.some((file) => file.includes('*'))
-  return shouldExpandFiles ? globby.sync(filesBeforeExpansion) : filesBeforeExpansion
+  const shouldExpandFiles = filesBeforeExpansion.some((file) =>
+    file.includes('*')
+  )
+  return shouldExpandFiles
+    ? globby.sync(filesBeforeExpansion)
+    : filesBeforeExpansion
 }
 
 export const jscodeshiftExecutable = require.resolve('.bin/jscodeshift')
 export const transformerDirectory = join(__dirname, '../', 'transforms')
 
-export async function runTransform(transform: string, path: string, options: any) {
+export async function runTransform(
+  transform: string,
+  path: string,
+  options: any
+) {
   let transformer = transform
   let directory = path
 
@@ -22,9 +34,14 @@ export async function runTransform(transform: string, path: string, options: any
     checkGitStatus(options.force)
   }
 
-  if (transform && !TRANSFORMER_INQUIRER_CHOICES.find((x) => x.value === transform)) {
+  if (
+    transform &&
+    !TRANSFORMER_INQUIRER_CHOICES.find((x) => x.value === transform)
+  ) {
     console.error('Invalid transform choice, pick one of:')
-    console.error(TRANSFORMER_INQUIRER_CHOICES.map((x) => '- ' + x.value).join('\n'))
+    console.error(
+      TRANSFORMER_INQUIRER_CHOICES.map((x) => '- ' + x.value).join('\n')
+    )
     process.exit(1)
   }
 
@@ -47,13 +64,15 @@ export async function runTransform(transform: string, path: string, options: any
         type: 'select',
         name: 'transformer',
         message: 'Which transform would you like to apply?',
-        choices: TRANSFORMER_INQUIRER_CHOICES.reverse().map(({ title, value, version }) => {
-          return {
-            title: `(v${version}) ${value}`,
-            description: title,
-            value,
+        choices: TRANSFORMER_INQUIRER_CHOICES.reverse().map(
+          ({ title, value, version }) => {
+            return {
+              title: `(v${version}) ${value}`,
+              description: title,
+              value,
+            }
           }
-        }),
+        ),
       },
       { onCancel }
     )
@@ -66,13 +85,16 @@ export async function runTransform(transform: string, path: string, options: any
       {
         type: 'confirm',
         name: 'isAppDeployedToVercel',
-        message: 'Is your app deployed to Vercel? (Required to apply the selected codemod)',
+        message:
+          'Is your app deployed to Vercel? (Required to apply the selected codemod)',
         initial: true,
       },
       { onCancel }
     )
     if (!isAppDeployedToVercel) {
-      console.log('Skipping codemod "next-request-geo-ip" as your app is not deployed to Vercel.')
+      console.log(
+        'Skipping codemod "next-request-geo-ip" as your app is not deployed to Vercel.'
+      )
       return
     }
   }
@@ -209,7 +231,9 @@ export async function runTransform(transform: string, path: string, options: any
 
   // When has changes, it requires `@vercel/functions`, so skip prompt.
   if (!dry && transformer === 'next-request-geo-ip' && hasChanges) {
-    console.log('Installing `@vercel/functions` because the `next-request-geo-ip` made changes.')
+    console.log(
+      'Installing `@vercel/functions` because the `next-request-geo-ip` made changes.'
+    )
     installPackages(['@vercel/functions'])
   }
 }

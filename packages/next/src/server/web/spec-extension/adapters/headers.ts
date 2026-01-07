@@ -47,7 +47,9 @@ export class HeadersAdapter extends Headers {
         // Let's find the original casing of the key. This assumes that there is
         // no mixed case keys (e.g. "Content-Type" and "content-type") in the
         // headers object.
-        const original = Object.keys(headers).find((o) => o.toLowerCase() === lowercased)
+        const original = Object.keys(headers).find(
+          (o) => o.toLowerCase() === lowercased
+        )
 
         // If the original casing doesn't exist, return undefined.
         if (typeof original === 'undefined') return
@@ -65,7 +67,9 @@ export class HeadersAdapter extends Headers {
         // Let's find the original casing of the key. This assumes that there is
         // no mixed case keys (e.g. "Content-Type" and "content-type") in the
         // headers object.
-        const original = Object.keys(headers).find((o) => o.toLowerCase() === lowercased)
+        const original = Object.keys(headers).find(
+          (o) => o.toLowerCase() === lowercased
+        )
 
         // If the original casing doesn't exist, use the prop as the key.
         return ReflectAdapter.set(target, original ?? prop, value, receiver)
@@ -78,7 +82,9 @@ export class HeadersAdapter extends Headers {
         // Let's find the original casing of the key. This assumes that there is
         // no mixed case keys (e.g. "Content-Type" and "content-type") in the
         // headers object.
-        const original = Object.keys(headers).find((o) => o.toLowerCase() === lowercased)
+        const original = Object.keys(headers).find(
+          (o) => o.toLowerCase() === lowercased
+        )
 
         // If the original casing doesn't exist, return false.
         if (typeof original === 'undefined') return false
@@ -87,14 +93,17 @@ export class HeadersAdapter extends Headers {
         return ReflectAdapter.has(target, original)
       },
       deleteProperty(target, prop) {
-        if (typeof prop === 'symbol') return ReflectAdapter.deleteProperty(target, prop)
+        if (typeof prop === 'symbol')
+          return ReflectAdapter.deleteProperty(target, prop)
 
         const lowercased = prop.toLowerCase()
 
         // Let's find the original casing of the key. This assumes that there is
         // no mixed case keys (e.g. "Content-Type" and "content-type") in the
         // headers object.
-        const original = Object.keys(headers).find((o) => o.toLowerCase() === lowercased)
+        const original = Object.keys(headers).find(
+          (o) => o.toLowerCase() === lowercased
+        )
 
         // If the original casing doesn't exist, return true.
         if (typeof original === 'undefined') return true

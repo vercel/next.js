@@ -73,7 +73,8 @@ const Form = ({ formId, petForm, forNewPet = true }) => {
 
   const handleChange = (e) => {
     const target = e.target
-    const value = target.name === 'poddy_trained' ? target.checked : target.value
+    const value =
+      target.name === 'poddy_trained' ? target.checked : target.value
     const name = target.name
 
     setForm({
@@ -136,7 +137,12 @@ const Form = ({ formId, petForm, forNewPet = true }) => {
         />
 
         <label htmlFor="age">Age</label>
-        <input type="number" name="age" value={form.age} onChange={handleChange} />
+        <input
+          type="number"
+          name="age"
+          value={form.age}
+          onChange={handleChange}
+        />
 
         <label htmlFor="poddy_trained">Potty Trained</label>
         <input
@@ -147,7 +153,12 @@ const Form = ({ formId, petForm, forNewPet = true }) => {
         />
 
         <label htmlFor="diet">Diet</label>
-        <textarea name="diet" maxLength="60" value={form.diet} onChange={handleChange} />
+        <textarea
+          name="diet"
+          maxLength="60"
+          value={form.diet}
+          onChange={handleChange}
+        />
 
         <label htmlFor="image_url">Image URL</label>
         <input
@@ -159,10 +170,20 @@ const Form = ({ formId, petForm, forNewPet = true }) => {
         />
 
         <label htmlFor="likes">Likes</label>
-        <textarea name="likes" maxLength="60" value={form.likes} onChange={handleChange} />
+        <textarea
+          name="likes"
+          maxLength="60"
+          value={form.likes}
+          onChange={handleChange}
+        />
 
         <label htmlFor="dislikes">Dislikes</label>
-        <textarea name="dislikes" maxLength="60" value={form.dislikes} onChange={handleChange} />
+        <textarea
+          name="dislikes"
+          maxLength="60"
+          value={form.dislikes}
+          onChange={handleChange}
+        />
 
         <button type="submit" className="btn">
           Submit

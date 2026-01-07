@@ -15,7 +15,8 @@ export async function generateViewport({
   const unusedParentArg = eval('arguments')[1]
   if (unusedParentArg !== undefined) {
     throw new Error(
-      'Expected the unused parent argument to be omitted. Received: ' + unusedParentArg
+      'Expected the unused parent argument to be omitted. Received: ' +
+        unusedParentArg
     )
   }
 

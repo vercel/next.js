@@ -57,14 +57,18 @@ describe('app-root-param-getters - simple', () => {
     }
     {
       const params = { path: ['foo', 'bar'] }
-      const $ = await next.render$(`/optional-catch-all/${params.path.join('/')}`)
+      const $ = await next.render$(
+        `/optional-catch-all/${params.path.join('/')}`
+      )
       expect($('p').text()).toBe(JSON.stringify(params))
     }
   })
 
   it('should render the not found page without errors', async () => {
     const browser = await next.browser('/')
-    expect(await browser.elementByCss('h2').text()).toBe('This page could not be found.')
+    expect(await browser.elementByCss('h2').text()).toBe(
+      'This page could not be found.'
+    )
     if (isNextDev) {
       await waitForNoRedbox(browser)
     }
@@ -105,7 +109,9 @@ describe('app-root-param-getters - simple', () => {
 
   it('should error when used in a server action', async () => {
     const params = { lang: 'en', locale: 'us' }
-    const browser = await next.browser(`/${params.lang}/${params.locale}/server-action`)
+    const browser = await next.browser(
+      `/${params.lang}/${params.locale}/server-action`
+    )
     const tracker = createRequestTracker(browser)
     const [, response] = await tracker.captureResponse(
       async () => {
@@ -131,7 +137,9 @@ describe('app-root-param-getters - simple', () => {
     const browser = await next.browser(
       `/${params.lang}/${params.locale}/rerender-after-server-action`
     )
-    expect(await browser.elementById('root-params').text()).toBe(`${params.lang} ${params.locale}`)
+    expect(await browser.elementById('root-params').text()).toBe(
+      `${params.lang} ${params.locale}`
+    )
     const initialDate = await browser.elementById('timestamp')
 
     // Run a server action and rerender the page
@@ -162,13 +170,17 @@ describe('app-root-param-getters - simple', () => {
     })
 
     // It should still display correct root params
-    expect(await browser.elementById('root-params').text()).toBe(`${params.lang} ${params.locale}`)
+    expect(await browser.elementById('root-params').text()).toBe(
+      `${params.lang} ${params.locale}`
+    )
   })
 
   // TODO(root-params): add support for route handlers
   it('should error when used in a route handler (until we implement it)', async () => {
     const params = { lang: 'en', locale: 'us' }
-    const response = await next.fetch(`/${params.lang}/${params.locale}/route-handler`)
+    const response = await next.fetch(
+      `/${params.lang}/${params.locale}/route-handler`
+    )
     expect(response.status).toBe(500)
     if (!isNextDeploy) {
       expect(getCliOutput()).toInclude(

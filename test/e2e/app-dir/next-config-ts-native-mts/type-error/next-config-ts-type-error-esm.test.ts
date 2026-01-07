@@ -27,7 +27,9 @@ describe('next-config-ts-type-error-esm', () => {
       expect($('p').text()).toBe('foo')
     } else {
       const { cliOutput } = await next.build()
-      await expect(cliOutput).toContain(`Type 'string' is not assignable to type 'number'.`)
+      await expect(cliOutput).toContain(
+        `Type 'string' is not assignable to type 'number'.`
+      )
     }
   })
 })

@@ -23,7 +23,9 @@ export default function Home() {
         <button
           type="submit"
           formAction="/pages-dir/search"
-          formEncType={attribute === 'formEncType' ? 'multipart/form-data' : undefined}
+          formEncType={
+            attribute === 'formEncType' ? 'multipart/form-data' : undefined
+          }
           formMethod={attribute === 'formMethod' ? 'post' : undefined}
           formTarget={attribute === 'formTarget' ? 'bloop' : undefined}
         >

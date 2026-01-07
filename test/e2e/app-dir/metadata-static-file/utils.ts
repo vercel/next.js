@@ -19,7 +19,9 @@ async function getMetadataLinks(browser: Playwright) {
           '/apple-icon',
           '/opengraph-image',
           '/twitter-image',
-        ].some((file) => new URL(el.href, window.location.origin).pathname.includes(file))
+        ].some((file) =>
+          new URL(el.href, window.location.origin).pathname.includes(file)
+        )
       })
       .map((el) => ({
         href: new URL(el.href, window.location.origin).pathname,
@@ -40,7 +42,14 @@ async function getMetadataMetas(browser: Playwright) {
         }
 
         const attr = meta.name || meta.getAttribute('property') || ''
-        return ['og:', 'twitter:', 'viewport', 'description', 'keywords', 'robots'].some(
+        return [
+          'og:',
+          'twitter:',
+          'viewport',
+          'description',
+          'keywords',
+          'robots',
+        ].some(
           (prefix) => attr.startsWith(prefix) || attr === prefix.slice(0, -1)
         )
       })
@@ -53,14 +62,19 @@ async function getMetadataMetas(browser: Playwright) {
       .sort((a, b) => {
         if (a.name && !b.name) return -1
         if (!a.name && b.name) return 1
-        return (a.name || a.property || '').localeCompare(b.name || b.property || '')
+        return (a.name || a.property || '').localeCompare(
+          b.name || b.property || ''
+        )
       })
   })
   return metas
 }
 
 export async function getCommonMetadataHeadTags(browser: Playwright) {
-  const [links, metas] = await Promise.all([getMetadataLinks(browser), getMetadataMetas(browser)])
+  const [links, metas] = await Promise.all([
+    getMetadataLinks(browser),
+    getMetadataMetas(browser),
+  ])
 
   return { links, metas }
 }

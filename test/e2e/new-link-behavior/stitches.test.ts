@@ -14,7 +14,9 @@ describe('New Link Behavior with stitches', () => {
         pages: new FileRef(path.join(appDir, 'pages')),
         components: new FileRef(path.join(appDir, 'components')),
         'next.config.js': new FileRef(path.join(appDir, 'next.config.js')),
-        'stitches.config.js': new FileRef(path.join(appDir, 'stitches.config.js')),
+        'stitches.config.js': new FileRef(
+          path.join(appDir, 'stitches.config.js')
+        ),
       },
       dependencies: {
         '@stitches/react': '^1.2.6',

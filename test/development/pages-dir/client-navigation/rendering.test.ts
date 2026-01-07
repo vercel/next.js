@@ -62,7 +62,9 @@ describe('Client Navigation rendering', () => {
 
     test('renders when component is a forwardRef instance', async () => {
       const html = await render('/forwardRef-component')
-      expect(html.includes('This is a component with a forwarded ref')).toBeTruthy()
+      expect(
+        html.includes('This is a component with a forwarded ref')
+      ).toBeTruthy()
     })
 
     test('renders when component is a memo instance', async () => {
@@ -96,7 +98,9 @@ describe('Client Navigation rendering', () => {
       const styleId = $('#blue-box').attr('class')
       const style = $('style')
 
-      expect(style.text()).toMatch(new RegExp(`p.${styleId}{color:(?:blue|#00f)`))
+      expect(style.text()).toMatch(
+        new RegExp(`p.${styleId}{color:(?:blue|#00f)`)
+      )
     })
 
     test('renders styled jsx external', async () => {
@@ -104,7 +108,9 @@ describe('Client Navigation rendering', () => {
       const styleId = $('#blue-box').attr('class')
       const style = $('style')
 
-      expect(style.text()).toMatch(new RegExp(`p.${styleId}{color:(?:blue|#00f)`))
+      expect(style.text()).toMatch(
+        new RegExp(`p.${styleId}{color:(?:blue|#00f)`)
+      )
     })
 
     test('renders properties populated asynchronously', async () => {
@@ -147,7 +153,10 @@ describe('Client Navigation rendering', () => {
     })
 
     test('getInitialProps should be class method', async () => {
-      const browser = await webdriver(next.appPort, '/instance-get-initial-props')
+      const browser = await webdriver(
+        next.appPort,
+        '/instance-get-initial-props'
+      )
 
       await expect(browser).toDisplayRedbox(`
        {
@@ -176,12 +185,16 @@ describe('Client Navigation rendering', () => {
 
     test('default Content-Type', async () => {
       const res = await fetch('/stateless')
-      expect(res.headers.get('Content-Type')).toMatch('text/html; charset=utf-8')
+      expect(res.headers.get('Content-Type')).toMatch(
+        'text/html; charset=utf-8'
+      )
     })
 
     test('setting Content-Type in getInitialProps', async () => {
       const res = await fetch('/custom-encoding')
-      expect(res.headers.get('Content-Type')).toMatch('text/html; charset=iso-8859-2')
+      expect(res.headers.get('Content-Type')).toMatch(
+        'text/html; charset=iso-8859-2'
+      )
     })
 
     test('should render 404 for _next routes that do not exist', async () => {
@@ -262,7 +275,10 @@ describe('Client Navigation rendering', () => {
     })
 
     test('error-in-the-global-scope', async () => {
-      const browser = await webdriver(next.appPort, '/error-in-the-global-scope')
+      const browser = await webdriver(
+        next.appPort,
+        '/error-in-the-global-scope'
+      )
 
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
@@ -329,7 +345,9 @@ describe('Client Navigation rendering', () => {
       // build dynamic page
       await fetch('/dynamic/ssr')
 
-      const buildManifest = await next.readJSON(`${getDistDir()}/${BUILD_MANIFEST}`)
+      const buildManifest = await next.readJSON(
+        `${getDistDir()}/${BUILD_MANIFEST}`
+      )
       const reactLoadableManifest = await next.readJSON(
         process.env.IS_TURBOPACK_TEST
           ? `${getDistDir()}/server/pages/dynamic/ssr/${REACT_LOADABLE_MANIFEST}`
@@ -360,11 +378,15 @@ describe('Client Navigation rendering', () => {
         resources.push('/_next/' + item)
       }
 
-      const responses = await Promise.all(resources.map((resource) => fetch(resource)))
+      const responses = await Promise.all(
+        resources.map((resource) => fetch(resource))
+      )
 
       responses.forEach((res) => {
         try {
-          expect(res.headers.get('Cache-Control')).toBe('no-store, must-revalidate')
+          expect(res.headers.get('Cache-Control')).toBe(
+            'no-store, must-revalidate'
+          )
         } catch (err) {
           err.message = res.url + ' ' + err.message
           throw err

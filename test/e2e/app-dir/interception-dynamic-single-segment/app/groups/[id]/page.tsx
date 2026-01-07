@@ -1,6 +1,8 @@
 import Link from 'next/link'
 
-export default async function GroupPage(props: { params: Promise<{ id: string }> }) {
+export default async function GroupPage(props: {
+  params: Promise<{ id: string }>
+}) {
   const params = await props.params
   return (
     <div>

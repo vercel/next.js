@@ -13,98 +13,107 @@ const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 // get included.
 //
 // Also skip alternate React versions, as they would require different snapshots.
-;(process.env.IS_TURBOPACK_TEST && !isReact18 ? describe : describe.skip)('next-server-nft', () => {
-  const { next, skipped } = nextTestSetup({
-    files: __dirname,
-    skipDeployment: true,
-  })
+;(process.env.IS_TURBOPACK_TEST && !isReact18 ? describe : describe.skip)(
+  'next-server-nft',
+  () => {
+    const { next, skipped } = nextTestSetup({
+      files: __dirname,
+      skipDeployment: true,
+    })
 
-  if (skipped) {
-    return
-  }
+    if (skipped) {
+      return
+    }
 
-  async function readNormalizedNFT(name) {
-    const data = await next.readJSON(name)
-    const result = [
-      ...new Set(
-        data.files
-          .filter((file: string) => {
-            // They are important, but they are never actually included by themselves but rather as
-            // part of some JS files in the same directory tree, which are higher-signal for the
-            // screenshot below.
-            if (file.endsWith('/package.json')) {
-              return false
-            }
-
-            // Filter out the many symlinks that power node_modules
-            const fileAbsolute = path.join(next.testDir, name, '..', file)
-            try {
-              if (fs.lstatSync(fileAbsolute).isSymbolicLink()) {
+    async function readNormalizedNFT(name) {
+      const data = await next.readJSON(name)
+      const result = [
+        ...new Set(
+          data.files
+            .filter((file: string) => {
+              // They are important, but they are never actually included by themselves but rather as
+              // part of some JS files in the same directory tree, which are higher-signal for the
+              // screenshot below.
+              if (file.endsWith('/package.json')) {
                 return false
               }
-            } catch (e) {
-              // File doesn't exist - this is a bug in the NFT generation!
-              // Keep it in the list so the test can catch it
-            }
-            return true
-          })
-          .map((file: string) => {
-            // Normalize sharp, different architectures have different files
-            if (file.includes('/node_modules/@img/sharp-libvips-')) {
-              return '/node_modules/@img/sharp-libvips-*'
-            }
-            if (file.match(/\/node_modules\/@img\/sharp-\w+-\w+\/lib\/sharp-\w+-\w+.node$/)) {
-              return '/node_modules/@img/sharp-*/sharp-*.node'
-            }
 
-            // Strip double node_modules to simplify output
-            const firstNodeModules = file.indexOf('/node_modules/')
-            const lastNodeModules = file.lastIndexOf('/node_modules/')
-            if (firstNodeModules !== lastNodeModules) {
-              return file.slice(lastNodeModules)
-            }
+              // Filter out the many symlinks that power node_modules
+              const fileAbsolute = path.join(next.testDir, name, '..', file)
+              try {
+                if (fs.lstatSync(fileAbsolute).isSymbolicLink()) {
+                  return false
+                }
+              } catch (e) {
+                // File doesn't exist - this is a bug in the NFT generation!
+                // Keep it in the list so the test can catch it
+              }
+              return true
+            })
+            .map((file: string) => {
+              // Normalize sharp, different architectures have different files
+              if (file.includes('/node_modules/@img/sharp-libvips-')) {
+                return '/node_modules/@img/sharp-libvips-*'
+              }
+              if (
+                file.match(
+                  /\/node_modules\/@img\/sharp-\w+-\w+\/lib\/sharp-\w+-\w+.node$/
+                )
+              ) {
+                return '/node_modules/@img/sharp-*/sharp-*.node'
+              }
 
+              // Strip double node_modules to simplify output
+              const firstNodeModules = file.indexOf('/node_modules/')
+              const lastNodeModules = file.lastIndexOf('/node_modules/')
+              if (firstNodeModules !== lastNodeModules) {
+                return file.slice(lastNodeModules)
+              }
+
+              return file
+            })
+        ),
+      ]
+      result.sort()
+      return result
+    }
+
+    it('should not trace too many files in next-server.js.nft.json', async () => {
+      const trace = await readNormalizedNFT('.next/next-server.js.nft.json')
+
+      // Group the entries together so that the snapshot doesn't change too often.
+      // This trace contains quite a lot of files that aren't actually needed. But there isn't much
+      // that Turbopack itself can do about that.
+      const traceGrouped = [
+        ...new Set(
+          trace.map((file: string) => {
+            if (file.startsWith('/node_modules/next/')) {
+              if (file.startsWith('/node_modules/next/dist/client/')) {
+                return '/node_modules/next/dist/client/*'
+              }
+              if (file.startsWith('/node_modules/next/dist/server/')) {
+                return '/node_modules/next/dist/server/*'
+              }
+              if (file.startsWith('/node_modules/next/dist/shared/')) {
+                return '/node_modules/next/dist/shared/*'
+              }
+            } else if (
+              file.startsWith('/node_modules/react') ||
+              file.endsWith('.node')
+            ) {
+              return file
+            } else {
+              let match = /^\/node_modules\/(@[^/]+\/[^/]+|[^/]+)\//.exec(file)
+              if (match != null) {
+                return `/node_modules/${match[1]}/*`
+              }
+            }
             return file
           })
-      ),
-    ]
-    result.sort()
-    return result
-  }
+        ),
+      ]
 
-  it('should not trace too many files in next-server.js.nft.json', async () => {
-    const trace = await readNormalizedNFT('.next/next-server.js.nft.json')
-
-    // Group the entries together so that the snapshot doesn't change too often.
-    // This trace contains quite a lot of files that aren't actually needed. But there isn't much
-    // that Turbopack itself can do about that.
-    const traceGrouped = [
-      ...new Set(
-        trace.map((file: string) => {
-          if (file.startsWith('/node_modules/next/')) {
-            if (file.startsWith('/node_modules/next/dist/client/')) {
-              return '/node_modules/next/dist/client/*'
-            }
-            if (file.startsWith('/node_modules/next/dist/server/')) {
-              return '/node_modules/next/dist/server/*'
-            }
-            if (file.startsWith('/node_modules/next/dist/shared/')) {
-              return '/node_modules/next/dist/shared/*'
-            }
-          } else if (file.startsWith('/node_modules/react') || file.endsWith('.node')) {
-            return file
-          } else {
-            let match = /^\/node_modules\/(@[^/]+\/[^/]+|[^/]+)\//.exec(file)
-            if (match != null) {
-              return `/node_modules/${match[1]}/*`
-            }
-          }
-          return file
-        })
-      ),
-    ]
-
-    expect(traceGrouped).toMatchInlineSnapshot(`
+      expect(traceGrouped).toMatchInlineSnapshot(`
        [
          "/node_modules/@img/colour/*",
          "/node_modules/@img/sharp-*/sharp-*.node",
@@ -218,33 +227,38 @@ const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
          "/node_modules/styled-jsx/*",
        ]
       `)
-  })
+    })
 
-  it('should not include .next directory in traces despite dynamic fs operations', async () => {
-    // This test verifies that the denied_path feature prevents the .next directory
-    // from being included in traces. The app/dynamic-read page uses dynamic fs.readFileSync
-    // with path.join(process.cwd(), ...) which could theoretically read any file.
+    it('should not include .next directory in traces despite dynamic fs operations', async () => {
+      // This test verifies that the denied_path feature prevents the .next directory
+      // from being included in traces. The app/dynamic-read page uses dynamic fs.readFileSync
+      // with path.join(process.cwd(), ...) which could theoretically read any file.
 
-    // Check the page-specific trace that has the dynamic fs operations
-    const pageTrace = await readNormalizedNFT('.next/server/app/dynamic-read/page.js.nft.json')
+      // Check the page-specific trace that has the dynamic fs operations
+      const pageTrace = await readNormalizedNFT(
+        '.next/server/app/dynamic-read/page.js.nft.json'
+      )
 
-    // Snapshot the non-node_modules and non-chunks files to see what's being traced
-    // We also filter out chunks because their names change with every build
-    const nonNodeModulesFiles = pageTrace.filter(
-      (file: string) => !file.includes('/node_modules/') && !file.includes('/chunks/')
-    )
+      // Snapshot the non-node_modules and non-chunks files to see what's being traced
+      // We also filter out chunks because their names change with every build
+      const nonNodeModulesFiles = pageTrace.filter(
+        (file: string) =>
+          !file.includes('/node_modules/') && !file.includes('/chunks/')
+      )
 
-    expect(nonNodeModulesFiles).toMatchInlineSnapshot(`
+      expect(nonNodeModulesFiles).toMatchInlineSnapshot(`
        [
          "./page/react-loadable-manifest.json",
          "./page_client-reference-manifest.js",
        ]
       `)
-  })
+    })
 
-  it('should not trace too many files in next-minimal-server.js.nft.json', async () => {
-    const trace = await readNormalizedNFT('.next/next-minimal-server.js.nft.json')
-    expect(trace).toMatchInlineSnapshot(`
+    it('should not trace too many files in next-minimal-server.js.nft.json', async () => {
+      const trace = await readNormalizedNFT(
+        '.next/next-minimal-server.js.nft.json'
+      )
+      expect(trace).toMatchInlineSnapshot(`
        [
          "/node_modules/client-only/index.js",
          "/node_modules/next/dist/client/components/app-router-headers.js",
@@ -317,5 +331,6 @@ const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
          "/node_modules/styled-jsx/style.js",
        ]
       `)
-  })
-})
+    })
+  }
+)

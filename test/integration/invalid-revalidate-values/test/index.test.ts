@@ -1,7 +1,15 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import { findPort, killApp, File, launchApp, renderViaHTTP, check, waitFor } from 'next-test-utils'
+import {
+  findPort,
+  killApp,
+  File,
+  launchApp,
+  renderViaHTTP,
+  check,
+  waitFor,
+} from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
 const pageFile = new File(join(appDir, 'pages/ssg.js'))

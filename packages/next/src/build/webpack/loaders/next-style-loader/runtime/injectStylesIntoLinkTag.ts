@@ -8,7 +8,10 @@ const getTarget = (() => {
       let styleTarget = document.querySelector(target)
 
       // Special case to return head of iframe instead of iframe itself
-      if (window.HTMLIFrameElement && styleTarget instanceof window.HTMLIFrameElement) {
+      if (
+        window.HTMLIFrameElement &&
+        styleTarget instanceof window.HTMLIFrameElement
+      ) {
         try {
           // This will throw an exception if access to iframe is blocked
           // due to cross-origin restrictions
@@ -28,10 +31,12 @@ const getTarget = (() => {
 
 module.exports = (url: any, options: any) => {
   options = options || {}
-  options.attributes = typeof options.attributes === 'object' ? options.attributes : {}
+  options.attributes =
+    typeof options.attributes === 'object' ? options.attributes : {}
 
   if (typeof options.attributes.nonce === 'undefined') {
-    const nonce = typeof __webpack_nonce__ !== 'undefined' ? __webpack_nonce__ : null
+    const nonce =
+      typeof __webpack_nonce__ !== 'undefined' ? __webpack_nonce__ : null
 
     if (nonce) {
       options.attributes.nonce = nonce

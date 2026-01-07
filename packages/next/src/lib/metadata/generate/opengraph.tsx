@@ -3,7 +3,11 @@ import type { TwitterAppDescriptor } from '../types/twitter-types'
 
 import { Meta, MetaFilter, MultiMeta } from './meta'
 
-export function OpenGraphMetadata({ openGraph }: { openGraph: ResolvedMetadata['openGraph'] }) {
+export function OpenGraphMetadata({
+  openGraph,
+}: {
+  openGraph: ResolvedMetadata['openGraph']
+}) {
   if (!openGraph) {
     return null
   }
@@ -173,7 +177,9 @@ export function OpenGraphMetadata({ openGraph }: { openGraph: ResolvedMetadata['
         ]
         break
       case 'video.tv_show':
-        typedOpenGraph = [Meta({ property: 'og:type', content: 'video.tv_show' })]
+        typedOpenGraph = [
+          Meta({ property: 'og:type', content: 'video.tv_show' }),
+        ]
         break
       case 'video.other':
         typedOpenGraph = [Meta({ property: 'og:type', content: 'video.other' })]
@@ -231,7 +237,11 @@ function TwitterAppItem({
   ]
 }
 
-export function TwitterMetadata({ twitter }: { twitter: ResolvedMetadata['twitter'] }) {
+export function TwitterMetadata({
+  twitter,
+}: {
+  twitter: ResolvedMetadata['twitter']
+}) {
   if (!twitter) return null
   const { card } = twitter
 
@@ -268,7 +278,11 @@ export function TwitterMetadata({ twitter }: { twitter: ResolvedMetadata['twitte
   ])
 }
 
-export function AppLinksMeta({ appLinks }: { appLinks: ResolvedMetadata['appLinks'] }) {
+export function AppLinksMeta({
+  appLinks,
+}: {
+  appLinks: ResolvedMetadata['appLinks']
+}) {
   if (!appLinks) return null
   return MetaFilter([
     MultiMeta({ propertyPrefix: 'al:ios', contents: appLinks.ios }),

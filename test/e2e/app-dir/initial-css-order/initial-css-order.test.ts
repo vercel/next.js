@@ -9,7 +9,9 @@ describe('initial-css-order', () => {
     const browser = await next.browser('/')
 
     expect(
-      await browser.eval(`window.getComputedStyle(document.querySelector('body')).backgroundColor`)
+      await browser.eval(
+        `window.getComputedStyle(document.querySelector('body')).backgroundColor`
+      )
     ).toBe('rgb(0, 128, 0)')
   })
 
@@ -17,7 +19,9 @@ describe('initial-css-order', () => {
     const browser = await next.browser('/404')
 
     expect(
-      await browser.eval(`window.getComputedStyle(document.querySelector('body')).backgroundColor`)
+      await browser.eval(
+        `window.getComputedStyle(document.querySelector('body')).backgroundColor`
+      )
     ).toBe('rgb(255, 0, 0)')
   })
 })

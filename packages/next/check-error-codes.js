@@ -19,7 +19,9 @@ async function main() {
 
   // Load existing errors.json if it exists
   try {
-    existingErrors = JSON.parse(await fs.readFile(path.join(__dirname, 'errors.json'), 'utf8'))
+    existingErrors = JSON.parse(
+      await fs.readFile(path.join(__dirname, 'errors.json'), 'utf8')
+    )
   } catch {
     // Start fresh if errors.json doesn't exist
   }
@@ -31,7 +33,9 @@ async function main() {
       : 1
 
   // Process new error files
-  const errorFiles = [...(await fs.readdir(errorsDir))].map((file) => path.join(errorsDir, file))
+  const errorFiles = [...(await fs.readdir(errorsDir))].map((file) =>
+    path.join(errorsDir, file)
+  )
 
   let newErrorCount = 0
   for (const file of errorFiles) {

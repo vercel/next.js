@@ -30,10 +30,15 @@ describe('Edge can read request body', () => {
 
   describe('middleware', () => {
     it('reads a JSON body', async () => {
-      const response = await fetchViaHTTP(next.url, '/api/nothing?middleware-handler=json', null, {
-        method: 'POST',
-        body: JSON.stringify({ hello: 'world' }),
-      })
+      const response = await fetchViaHTTP(
+        next.url,
+        '/api/nothing?middleware-handler=json',
+        null,
+        {
+          method: 'POST',
+          body: JSON.stringify({ hello: 'world' }),
+        }
+      )
       expect(await serialize(response)).toMatchObject({
         text: expect.stringContaining('ok'),
         status: 200,

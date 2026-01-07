@@ -5,7 +5,9 @@ type CssPluginCollection_Array = (string | [string, boolean | object])[]
 
 type CssPluginCollection_Object = { [key: string]: object | boolean }
 
-type CssPluginCollection = CssPluginCollection_Array | CssPluginCollection_Object
+type CssPluginCollection =
+  | CssPluginCollection_Array
+  | CssPluginCollection_Object
 
 type CssPluginShape = [string, object | boolean | string]
 
@@ -115,11 +117,16 @@ export async function getPostCssPlugins(
   disablePostcssPresetEnv: boolean = false,
   useLightningcss: boolean = false
 ): Promise<import('postcss').AcceptedPlugin[]> {
-  let config = await findConfig<{ plugins: CssPluginCollection }>(dir, 'postcss')
+  let config = await findConfig<{ plugins: CssPluginCollection }>(
+    dir,
+    'postcss'
+  )
 
   if (config == null) {
     config = {
-      plugins: useLightningcss ? [] : getDefaultPlugins(supportedBrowsers, disablePostcssPresetEnv),
+      plugins: useLightningcss
+        ? []
+        : getDefaultPlugins(supportedBrowsers, disablePostcssPresetEnv),
     }
   }
 
@@ -144,7 +151,9 @@ export async function getPostCssPlugins(
   // Enforce the user provided plugins if the configuration file is present
   let plugins = config.plugins
   if (plugins == null || typeof plugins !== 'object') {
-    throw new Error(`Your custom PostCSS configuration must export a \`plugins\` key.`)
+    throw new Error(
+      `Your custom PostCSS configuration must export a \`plugins\` key.`
+    )
   }
 
   if (!Array.isArray(plugins)) {
@@ -219,7 +228,9 @@ export async function getPostCssPlugins(
     }
   })
 
-  const resolved = await Promise.all(parsed.map((p) => loadPlugin(dir, p[0], p[1])))
+  const resolved = await Promise.all(
+    parsed.map((p) => loadPlugin(dir, p[0], p[1]))
+  )
   const filtered: import('postcss').AcceptedPlugin[] = resolved.filter(
     Boolean
   ) as import('postcss').AcceptedPlugin[]

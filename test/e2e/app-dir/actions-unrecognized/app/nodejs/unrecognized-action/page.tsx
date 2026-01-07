@@ -20,7 +20,11 @@ export default function Page() {
       </div>
       <div>
         <UnrecognizedActionBoundary>
-          <FormWithArg action={action} id="form-simple-argument" argument={{ foo: 'bar' }}>
+          <FormWithArg
+            action={action}
+            id="form-simple-argument"
+            argument={{ foo: 'bar' }}
+          >
             Submit client form with simple argument
           </FormWithArg>
         </UnrecognizedActionBoundary>
@@ -44,7 +48,9 @@ function setServerActionId(action: (...args: any[]) => any, id: string) {
   // React implementation detail: `registerServerReference(func, id)` sets `func.$$id = id`.
   const actionWithMetadata = action as typeof action & { $$id?: string }
   if (!actionWithMetadata.$$id) {
-    throw new Error(`Expected to find server action metadata properties on ${action}`)
+    throw new Error(
+      `Expected to find server action metadata properties on ${action}`
+    )
   }
   Object.defineProperty(actionWithMetadata, '$$id', {
     value: id,

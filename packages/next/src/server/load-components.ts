@@ -1,7 +1,16 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import type { AppType, DocumentType, NextComponentType } from '../shared/lib/utils'
+import type {
+  AppType,
+  DocumentType,
+  NextComponentType,
+} from '../shared/lib/utils'
 import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
-import type { PageConfig, GetStaticPaths, GetServerSideProps, GetStaticProps } from '../types'
+import type {
+  PageConfig,
+  GetStaticPaths,
+  GetServerSideProps,
+  GetStaticProps,
+} from '../types'
 import type { RouteModule } from './route-modules/route-module'
 import type { BuildManifest } from './get-page-files'
 import type { ActionManifest } from '../build/webpack/plugins/flight-client-entry-plugin'
@@ -60,25 +69,26 @@ export type GenericComponentMod = {
   ): Promise<void | null>
 }
 
-export type LoadComponentsReturnType<NextModule extends GenericComponentMod = GenericComponentMod> =
-  {
-    Component: NextComponentType
-    pageConfig: PageConfig
-    buildManifest: DeepReadonly<BuildManifest>
-    subresourceIntegrityManifest?: DeepReadonly<Record<string, string>>
-    reactLoadableManifest: DeepReadonly<ReactLoadableManifest>
-    dynamicCssManifest?: DeepReadonly<DynamicCssManifest>
-    Document: DocumentType
-    App: AppType
-    getStaticProps?: GetStaticProps
-    getStaticPaths?: GetStaticPaths
-    getServerSideProps?: GetServerSideProps
-    ComponentMod: NextModule
-    routeModule: RouteModule
-    isAppPath?: boolean
-    page: string
-    multiZoneDraftMode?: boolean
-  }
+export type LoadComponentsReturnType<
+  NextModule extends GenericComponentMod = GenericComponentMod,
+> = {
+  Component: NextComponentType
+  pageConfig: PageConfig
+  buildManifest: DeepReadonly<BuildManifest>
+  subresourceIntegrityManifest?: DeepReadonly<Record<string, string>>
+  reactLoadableManifest: DeepReadonly<ReactLoadableManifest>
+  dynamicCssManifest?: DeepReadonly<DynamicCssManifest>
+  Document: DocumentType
+  App: AppType
+  getStaticProps?: GetStaticProps
+  getStaticPaths?: GetStaticPaths
+  getServerSideProps?: GetServerSideProps
+  ComponentMod: NextModule
+  routeModule: RouteModule
+  isAppPath?: boolean
+  page: string
+  multiZoneDraftMode?: boolean
+}
 
 /**
  * Load manifest file with retries, defaults to 3 attempts.
@@ -147,7 +157,9 @@ async function tryLoadClientReferenceManifest(
   }
 }
 
-async function loadComponentsImpl<N extends GenericComponentMod = GenericComponentMod>({
+async function loadComponentsImpl<
+  N extends GenericComponentMod = GenericComponentMod,
+>({
   distDir,
   page,
   isAppPath,
@@ -183,7 +195,10 @@ async function loadComponentsImpl<N extends GenericComponentMod = GenericCompone
 
     let reactLoadableManifestPath: string
     if (!process.env.TURBOPACK) {
-      reactLoadableManifestPath = join(/* turbopackIgnore: true */ distDir, REACT_LOADABLE_MANIFEST)
+      reactLoadableManifestPath = join(
+        /* turbopackIgnore: true */ distDir,
+        REACT_LOADABLE_MANIFEST
+      )
     } else if (isAppPath) {
       reactLoadableManifestPath = join(
         /* turbopackIgnore: true */ distDir,
@@ -230,7 +245,10 @@ async function loadComponentsImpl<N extends GenericComponentMod = GenericCompone
       isAppPath || process.env.TURBOPACK
         ? undefined
         : loadManifestWithRetries<DynamicCssManifest>(
-            join(/* turbopackIgnore: true */ distDir, `${DYNAMIC_CSS_MANIFEST}.json`),
+            join(
+              /* turbopackIgnore: true */ distDir,
+              `${DYNAMIC_CSS_MANIFEST}.json`
+            ),
             manifestLoadAttempts
           ).catch(() => undefined),
       isAppPath && hasClientManifest
@@ -239,7 +257,10 @@ async function loadComponentsImpl<N extends GenericComponentMod = GenericCompone
               /* turbopackIgnore: true */ distDir,
               'server',
               'app',
-              page.replace(/%5F/g, '_') + '_' + CLIENT_REFERENCE_MANIFEST + '.js'
+              page.replace(/%5F/g, '_') +
+                '_' +
+                CLIENT_REFERENCE_MANIFEST +
+                '.js'
             ),
             page.replace(/%5F/g, '_'),
             manifestLoadAttempts
@@ -283,7 +304,8 @@ async function loadComponentsImpl<N extends GenericComponentMod = GenericCompone
     const Document = interopDefault(DocumentMod)
     const App = interopDefault(AppMod)
 
-    const { getServerSideProps, getStaticProps, getStaticPaths, routeModule } = ComponentMod
+    const { getServerSideProps, getStaticProps, getStaticPaths, routeModule } =
+      ComponentMod
 
     return {
       App,
@@ -309,7 +331,8 @@ async function loadComponentsImpl<N extends GenericComponentMod = GenericCompone
     const Document = interopDefault(DocumentMod)
     const App = interopDefault(AppMod)
 
-    const { getServerSideProps, getStaticProps, getStaticPaths, routeModule } = ComponentMod
+    const { getServerSideProps, getStaticProps, getStaticPaths, routeModule } =
+      ComponentMod
 
     return {
       App,

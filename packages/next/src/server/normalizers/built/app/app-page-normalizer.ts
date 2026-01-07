@@ -13,7 +13,11 @@ class DevAppPageNormalizerInternal extends AbsoluteFilenameNormalizer {
 }
 
 export class DevAppPageNormalizer extends Normalizers {
-  constructor(appDir: string, extensions: ReadonlyArray<string>, _isTurbopack: boolean) {
+  constructor(
+    appDir: string,
+    extensions: ReadonlyArray<string>,
+    _isTurbopack: boolean
+  ) {
     const normalizer = new DevAppPageNormalizerInternal(appDir, extensions)
     super(
       // %5F to _ replacement should only happen with Turbopack.

@@ -9,9 +9,13 @@ import type {
   FunctionExpression,
 } from 'jscodeshift'
 
-export const NEXTJS_ENTRY_FILES = /([\\/]|^)(page|layout|route|default)\.(t|j)sx?$/
+export const NEXTJS_ENTRY_FILES =
+  /([\\/]|^)(page|layout|route|default)\.(t|j)sx?$/
 
-export type FunctionScope = FunctionDeclaration | FunctionExpression | ArrowFunctionExpression
+export type FunctionScope =
+  | FunctionDeclaration
+  | FunctionExpression
+  | ArrowFunctionExpression
 
 export const NEXT_CODEMOD_ERROR_PREFIX = '@next-codemod-error'
 const NEXT_CODEMOD_IGNORE_ERROR_PREFIX = '@next-codemod-ignore'
@@ -37,7 +41,10 @@ export const TARGET_PROP_NAMES = new Set(['params', 'searchParams'])
 
 export function isFunctionType(
   type: string
-): type is 'FunctionDeclaration' | 'FunctionExpression' | 'ArrowFunctionExpression' {
+): type is
+  | 'FunctionDeclaration'
+  | 'FunctionExpression'
+  | 'ArrowFunctionExpression' {
   return (
     type === 'FunctionDeclaration' ||
     type === 'FunctionExpression' ||
@@ -127,10 +134,16 @@ export function determineClientDirective(root: Collection<any>, j: API['j']) {
 }
 
 export function isPromiseType(typeAnnotation) {
-  return typeAnnotation.type === 'TSTypeReference' && typeAnnotation.typeName.name === 'Promise'
+  return (
+    typeAnnotation.type === 'TSTypeReference' &&
+    typeAnnotation.typeName.name === 'Promise'
+  )
 }
 
-export function turnFunctionReturnTypeToAsync(node: any, j: API['jscodeshift']) {
+export function turnFunctionReturnTypeToAsync(
+  node: any,
+  j: API['jscodeshift']
+) {
   if (
     j.FunctionDeclaration.check(node) ||
     j.FunctionExpression.check(node) ||
@@ -190,20 +203,29 @@ export function insertReactUseImport(root: Collection<any>, j: API['j']) {
     } else {
       // Final all type imports to 'react'
       if (reactImportDeclaration.size() > 0) {
-        reactImportDeclaration.get().node.specifiers.push(j.importSpecifier(j.identifier('use')))
+        reactImportDeclaration
+          .get()
+          .node.specifiers.push(j.importSpecifier(j.identifier('use')))
       } else {
         // Add new import declaration for 'react' and 'use'
         root
           .get()
           .node.program.body.unshift(
-            j.importDeclaration([j.importSpecifier(j.identifier('use'))], j.literal('react'))
+            j.importDeclaration(
+              [j.importSpecifier(j.identifier('use'))],
+              j.literal('react')
+            )
           )
       }
     }
   }
 }
 
-function findSubScopeArgumentIdentifier(path: ASTPath<any>, j: API['j'], argName: string) {
+function findSubScopeArgumentIdentifier(
+  path: ASTPath<any>,
+  j: API['j'],
+  argName: string
+) {
   const defCount = j(path).find(j.Identifier, { name: argName }).size()
 
   return defCount > 0
@@ -240,7 +262,10 @@ export function isFunctionScope(
   )
 }
 
-export function findClosetParentFunctionScope(path: ASTPath, j: API['jscodeshift']) {
+export function findClosetParentFunctionScope(
+  path: ASTPath,
+  j: API['jscodeshift']
+) {
   if (!path.scope) return null
   let parentFunctionPath = path.scope.path
   while (parentFunctionPath && !isFunctionScope(parentFunctionPath, j)) {
@@ -266,7 +291,10 @@ function getFunctionNodeFromBinding(
   } else if (j.VariableDeclarator.check(bindingNode)) {
     const init = bindingNode.init
     // If the initializer is a function (arrow or function expression), record it
-    if (j.FunctionExpression.check(init) || j.ArrowFunctionExpression.check(init)) {
+    if (
+      j.FunctionExpression.check(init) ||
+      j.ArrowFunctionExpression.check(init)
+    ) {
       return bindingPath.get('init')
     }
   } else if (j.Identifier.check(bindingNode)) {
@@ -289,7 +317,10 @@ function getFunctionNodeFromBinding(
       const variableDeclarator = variablePath.get()?.node?.declarations?.[0]
       if (j.VariableDeclarator.check(variableDeclarator)) {
         const init = variableDeclarator.init
-        if (j.FunctionExpression.check(init) || j.ArrowFunctionExpression.check(init)) {
+        if (
+          j.FunctionExpression.check(init) ||
+          j.ArrowFunctionExpression.check(init)
+        ) {
           return variablePath.get('declarations', 0, 'init')
         }
       }
@@ -350,7 +381,8 @@ export function getFunctionPathFromExportPath(
             if (!namedExportFilter(idName)) return
 
             // get bindings for each variable declarator
-            const exportBinding = namedExportPath.scope.getBindings()[idName]?.[0]
+            const exportBinding =
+              namedExportPath.scope.getBindings()[idName]?.[0]
             if (exportBinding) {
               return getFunctionNodeFromBinding(exportBinding, idName, j, root)
             }
@@ -386,12 +418,21 @@ export function getFunctionPathFromExportPath(
   return undefined
 }
 
-export function wrapParentheseIfNeeded(hasChainAccess: boolean, j: API['jscodeshift'], expression) {
+export function wrapParentheseIfNeeded(
+  hasChainAccess: boolean,
+  j: API['jscodeshift'],
+  expression
+) {
   return hasChainAccess ? j.parenthesizedExpression(expression) : expression
 }
 
-function existsComment(comments: ASTPath<any>['node']['comments'], comment: string): boolean {
-  const isCodemodErrorComment = comment.trim().startsWith(NEXT_CODEMOD_ERROR_PREFIX)
+function existsComment(
+  comments: ASTPath<any>['node']['comments'],
+  comment: string
+): boolean {
+  const isCodemodErrorComment = comment
+    .trim()
+    .startsWith(NEXT_CODEMOD_ERROR_PREFIX)
 
   let hasIgnoreComment = false
   let hasComment = false
@@ -425,7 +466,10 @@ export function insertCommentOnce(
   comment: string
 ): boolean {
   const hasCommentInInlineComments = existsComment(node.comments, comment)
-  const hasCommentInLeadingComments = existsComment(node.leadingComments, comment)
+  const hasCommentInLeadingComments = existsComment(
+    node.leadingComments,
+    comment
+  )
 
   if (!hasCommentInInlineComments && !hasCommentInLeadingComments) {
     // Always insert into inline comment
@@ -485,7 +529,8 @@ export function containsReactHooksCallExpressions(
         // - use(<callPath>) => true
         // - useX*(<callPath>) => true
         const isUseHookOrReactHookCall =
-          j.Identifier.check(callPath.value.callee) && isReactHookName(callPath.value.callee.name)
+          j.Identifier.check(callPath.value.callee) &&
+          isReactHookName(callPath.value.callee.name)
 
         // It's matching member access:
         // - React.use(<callPath>) => true
@@ -511,7 +556,10 @@ export function containsReactHooksCallExpressions(
 // use2(<path>) => false
 // React.use(<path>) => true
 // Robust.use(<path>) => false
-export function isParentUseCallExpression(path: ASTPath<any>, j: API['jscodeshift']) {
+export function isParentUseCallExpression(
+  path: ASTPath<any>,
+  j: API['jscodeshift']
+) {
   const isParentUseCall =
     // member access parentPath is argument
     j.CallExpression.check(path.parent.value) &&
@@ -540,7 +588,10 @@ export function isParentUseCallExpression(path: ASTPath<any>, j: API['jscodeshif
 // e.g.
 // Promise.all(<path>) => true
 // Promise.allSettled(<path>) => false
-export function isParentPromiseAllCallExpression(path: ASTPath<any>, j: API['jscodeshift']) {
+export function isParentPromiseAllCallExpression(
+  path: ASTPath<any>,
+  j: API['jscodeshift']
+) {
   const argsParent = path.parent
   const callParent = argsParent?.parent
   if (

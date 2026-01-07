@@ -8,7 +8,10 @@ export const config = {
 
 let readable: ReturnType<typeof Readable> | undefined
 
-export default async function handler(req: IncomingMessage, res: ServerResponse): Promise<void> {
+export default async function handler(
+  req: IncomingMessage,
+  res: ServerResponse
+): Promise<void> {
   const url = new URL(req.url!, 'http://localhost/')
 
   if (url.searchParams.has('compile')) {
@@ -42,7 +45,9 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
 
   if (!old) {
     res.statusCode = 500
-    res.end('The streamable from the prime request is unexpectedly not available')
+    res.end(
+      'The streamable from the prime request is unexpectedly not available'
+    )
     return
   }
 

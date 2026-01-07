@@ -8,7 +8,10 @@ import {
 import { PageSegmentTree } from '../components/overview/segment-explorer'
 import { DevToolsHeader } from '../components/errors/dev-tools-indicator/dev-tools-info/dev-tools-header'
 import { useDelayedRender } from '../hooks/use-delayed-render'
-import { MENU_CURVE, MENU_DURATION_MS } from '../components/errors/dev-tools-indicator/utils'
+import {
+  MENU_CURVE,
+  MENU_DURATION_MS,
+} from '../components/errors/dev-tools-indicator/utils'
 import { useDevOverlayContext } from '../../dev-overlay.browser'
 import { createContext, useContext } from 'react'
 import { useRenderErrorContext } from '../dev-overlay'
@@ -68,7 +71,8 @@ const MenuPanel = () => {
             : {
                 title: `Current route is ${state.staticIndicator}.`,
                 label: 'Route',
-                value: state.staticIndicator === 'static' ? 'Static' : 'Dynamic',
+                value:
+                  state.staticIndicator === 'static' ? 'Static' : 'Dynamic',
                 onClick: () => setPanel('route-type'),
                 attributes: {
                   'data-nextjs-route-type': state.staticIndicator,
@@ -81,7 +85,8 @@ const MenuPanel = () => {
               value: 'Turbopack',
             }
           : {
-              title: 'Learn about Turbopack and how to enable it in your application.',
+              title:
+                'Learn about Turbopack and how to enable it in your application.',
               label: 'Bundler',
               value: (
                 <a
@@ -131,7 +136,9 @@ const useToggleDevtoolsVisibility = () => {
     })
 
     const menuElement = shadowRoot.getElementById('panel-route') as HTMLElement
-    const indicatorElement = shadowRoot.getElementById('data-devtools-indicator') as HTMLElement
+    const indicatorElement = shadowRoot.getElementById(
+      'data-devtools-indicator'
+    ) as HTMLElement
 
     if (menuElement && menuElement.firstElementChild) {
       const firstChild = menuElement.firstElementChild as HTMLElement
@@ -152,7 +159,10 @@ export const PanelRouter = () => {
   const toggleDevtools = useToggleDevtoolsVisibility()
   const isAppRouter = state.routerType === 'app'
 
-  useShortcuts(state.hideShortcut ? { [state.hideShortcut]: toggleDevtools } : {}, triggerRef)
+  useShortcuts(
+    state.hideShortcut ? { [state.hideShortcut]: toggleDevtools } : {},
+    triggerRef
+  )
 
   return (
     <>
@@ -176,33 +186,39 @@ export const PanelRouter = () => {
         </DynamicPanel>
       </PanelRoute>
 
-      {state.staticIndicator !== 'disabled' && state.staticIndicator !== 'pending' && (
-        <PanelRoute name="route-type">
-          <DynamicPanel
-            key={state.staticIndicator}
-            sharePanelSizeGlobally={false}
-            sizeConfig={{
-              kind: 'fixed',
-              height: state.staticIndicator === 'static' ? 300 / state.scale : 325 / state.scale,
-              width: 400 / state.scale,
-            }}
-            closeOnClickOutside
-            header={
-              <DevToolsHeader
-                title={`${state.staticIndicator === 'static' ? 'Static' : 'Dynamic'} Route`}
-              />
-            }
-          >
-            <div className="panel-content">
-              <RouteInfoBody
-                routerType={state.routerType}
-                isStaticRoute={state.staticIndicator === 'static'}
-              />
-              <InfoFooter href={learnMoreLink[state.routerType][state.staticIndicator]} />
-            </div>
-          </DynamicPanel>
-        </PanelRoute>
-      )}
+      {state.staticIndicator !== 'disabled' &&
+        state.staticIndicator !== 'pending' && (
+          <PanelRoute name="route-type">
+            <DynamicPanel
+              key={state.staticIndicator}
+              sharePanelSizeGlobally={false}
+              sizeConfig={{
+                kind: 'fixed',
+                height:
+                  state.staticIndicator === 'static'
+                    ? 300 / state.scale
+                    : 325 / state.scale,
+                width: 400 / state.scale,
+              }}
+              closeOnClickOutside
+              header={
+                <DevToolsHeader
+                  title={`${state.staticIndicator === 'static' ? 'Static' : 'Dynamic'} Route`}
+                />
+              }
+            >
+              <div className="panel-content">
+                <RouteInfoBody
+                  routerType={state.routerType}
+                  isStaticRoute={state.staticIndicator === 'static'}
+                />
+                <InfoFooter
+                  href={learnMoreLink[state.routerType][state.staticIndicator]}
+                />
+              </div>
+            </DynamicPanel>
+          </PanelRoute>
+        )}
 
       {isAppRouter && (
         <PanelRoute name="segment-explorer">
@@ -296,7 +312,13 @@ const PanelContext = createContext<{
   mounted: boolean
 }>(null!)
 // this router can be enhanced by Activity and ViewTransition trivially when we want to use them
-function PanelRoute({ children, name }: { children: React.ReactNode; name: PanelStateKind }) {
+function PanelRoute({
+  children,
+  name,
+}: {
+  children: React.ReactNode
+  name: PanelStateKind
+}) {
   const { panel } = usePanelRouterContext()
   const { mounted, rendered } = useDelayedRender(name === panel, {
     enterDelay: 0,

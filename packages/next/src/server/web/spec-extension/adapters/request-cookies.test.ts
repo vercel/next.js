@@ -22,8 +22,12 @@ describe('RequestCookiesAdapter', () => {
     expect(sealed.get('bar')).toEqual({ name: 'bar', value: 'foo' })
 
     // These methods are not available on the sealed instance
-    expect(() => (sealed as any).set('foo', 'bar2')).toThrow(ReadonlyRequestCookiesError)
-    expect(() => (sealed as any).delete('foo')).toThrow(ReadonlyRequestCookiesError)
+    expect(() => (sealed as any).set('foo', 'bar2')).toThrow(
+      ReadonlyRequestCookiesError
+    )
+    expect(() => (sealed as any).delete('foo')).toThrow(
+      ReadonlyRequestCookiesError
+    )
     expect(() => (sealed as any).clear()).toThrow(ReadonlyRequestCookiesError)
 
     // Ensure nothing was actually changed.
@@ -41,8 +45,12 @@ describe('RequestCookiesAdapter', () => {
     expect(sealed.get('bar')).toEqual(undefined)
 
     // These methods are not available on the sealed instance
-    expect(() => (sealed as any).set('foo', 'bar2')).toThrow(ReadonlyRequestCookiesError)
-    expect(() => (sealed as any).delete('foo')).toThrow(ReadonlyRequestCookiesError)
+    expect(() => (sealed as any).set('foo', 'bar2')).toThrow(
+      ReadonlyRequestCookiesError
+    )
+    expect(() => (sealed as any).delete('foo')).toThrow(
+      ReadonlyRequestCookiesError
+    )
     expect(() => (sealed as any).clear()).toThrow(ReadonlyRequestCookiesError)
 
     // Ensure nothing was actually changed.
@@ -57,12 +65,17 @@ describe('MutableRequestCookiesAdapter', () => {
     const underlyingCookies = new RequestCookies(headers)
     const onUpdateCookies = jest.fn<void, [string[]]>()
 
-    const wrappedCookies = MutableRequestCookiesAdapter.wrap(underlyingCookies, onUpdateCookies)
+    const wrappedCookies = MutableRequestCookiesAdapter.wrap(
+      underlyingCookies,
+      onUpdateCookies
+    )
 
     const returned = wrappedCookies.set('foo', '1').set('bar', '2')
 
     expect(returned).toBe(wrappedCookies)
-    expect(onUpdateCookies).toHaveBeenCalledWith([expect.stringContaining('foo=1')])
+    expect(onUpdateCookies).toHaveBeenCalledWith([
+      expect.stringContaining('foo=1'),
+    ])
     expect(onUpdateCookies).toHaveBeenCalledWith([
       expect.stringContaining('foo=1'),
       expect.stringContaining('bar=2'),
@@ -75,12 +88,17 @@ describe('MutableRequestCookiesAdapter', () => {
     underlyingCookies.set('foo', '1').set('bar', '2')
 
     const onUpdateCookies = jest.fn<void, [string[]]>()
-    const wrappedCookies = MutableRequestCookiesAdapter.wrap(underlyingCookies, onUpdateCookies)
+    const wrappedCookies = MutableRequestCookiesAdapter.wrap(
+      underlyingCookies,
+      onUpdateCookies
+    )
 
     const returned = wrappedCookies.delete('foo').delete('bar')
 
     expect(returned).toBe(wrappedCookies)
-    expect(onUpdateCookies).toHaveBeenCalledWith([expect.stringContaining('foo=;')])
+    expect(onUpdateCookies).toHaveBeenCalledWith([
+      expect.stringContaining('foo=;'),
+    ])
     expect(onUpdateCookies).toHaveBeenCalledWith([
       expect.stringContaining('foo=;'),
       expect.stringContaining('bar=;'),
@@ -108,7 +126,8 @@ describe('wrapWithMutableAccessCheck', () => {
       // simulate changing phases
       requestStore.phase = 'render'
 
-      const EXPECTED_ERROR = /Cookies can only be modified in a Server Action or Route Handler\./
+      const EXPECTED_ERROR =
+        /Cookies can only be modified in a Server Action or Route Handler\./
 
       expect(() => {
         cookies.set('foo', '1')
@@ -127,7 +146,8 @@ describe('wrapWithMutableAccessCheck', () => {
       // simulate changing phases
       requestStore.phase = 'render'
 
-      const EXPECTED_ERROR = /Cookies can only be modified in a Server Action or Route Handler\./
+      const EXPECTED_ERROR =
+        /Cookies can only be modified in a Server Action or Route Handler\./
 
       expect(() => {
         cookies.delete('foo')

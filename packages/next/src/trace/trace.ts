@@ -12,7 +12,9 @@ let defaultParentSpanId: SpanId | undefined
 let shouldSaveTraceEvents: boolean | undefined
 let savedTraceEvents: TraceEvent[] = []
 
-const RECORD_SPAN_THRESHOLD_MS = parseInt(process.env.NEXT_TRACE_SPAN_THRESHOLD_MS ?? '-1')
+const RECORD_SPAN_THRESHOLD_MS = parseInt(
+  process.env.NEXT_TRACE_SPAN_THRESHOLD_MS ?? '-1'
+)
 
 // eslint typescript has a bug with TS enums
 export enum SpanStatus {
@@ -108,7 +110,8 @@ export class Span {
     attrs?: Attributes
   ) {
     // We need to convert the time info to the same base as hrtime since that is used usually.
-    const correction = process.hrtime.bigint() - BigInt(Date.now()) * NUM_OF_MILLISEC_IN_NANOSEC
+    const correction =
+      process.hrtime.bigint() - BigInt(Date.now()) * NUM_OF_MILLISEC_IN_NANOSEC
     const span = new Span({
       name,
       parentId: this.id,
@@ -143,11 +146,16 @@ export class Span {
   }
 }
 
-export const trace = (name: string, parentId?: SpanId, attrs?: { [key: string]: string }) => {
+export const trace = (
+  name: string,
+  parentId?: SpanId,
+  attrs?: { [key: string]: string }
+) => {
   return new Span({ name, parentId, attrs })
 }
 
-export const flushAllTraces = (opts?: { end: boolean }) => reporter.flushAll(opts)
+export const flushAllTraces = (opts?: { end: boolean }) =>
+  reporter.flushAll(opts)
 
 // This code supports workers by serializing the state of tracers when the
 // worker is initialized, and serializing the trace events from the worker back

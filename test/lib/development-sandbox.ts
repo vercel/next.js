@@ -57,13 +57,17 @@ export async function createSandbox(
       ...args: Parameters<TFn>
     ): Promise<ReturnType<TFn>>
     async function evaluate(fn: string): Promise<unknown>
-    async function evaluate(snippet: string | ((...args: any) => any)): Promise<any> {
+    async function evaluate(
+      snippet: string | ((...args: any) => any)
+    ): Promise<any> {
       if (typeof snippet === 'function' || typeof snippet === 'string') {
         const result = await browser.eval(snippet)
         await waitFor(30)
         return result
       } else {
-        throw new Error(`You must pass a string or function to be evaluated in the browser.`)
+        throw new Error(
+          `You must pass a string or function to be evaluated in the browser.`
+        )
       }
     }
 
@@ -108,7 +112,9 @@ export async function createSandbox(
               break
             }
             if (status !== 'pending') {
-              throw new Error(`Application is in inconsistent state: ${status}.`)
+              throw new Error(
+                `Application is in inconsistent state: ${status}.`
+              )
             }
 
             await waitFor(30)

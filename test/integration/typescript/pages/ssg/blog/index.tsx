@@ -7,6 +7,8 @@ export const getStaticProps = async () => {
   }
 }
 
-export default function Page({ data }: InferGetStaticPropsType<typeof getStaticProps>) {
+export default function Page({
+  data,
+}: InferGetStaticPropsType<typeof getStaticProps>) {
   return <h1>{data.join(' ')}</h1>
 }

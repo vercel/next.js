@@ -31,7 +31,9 @@ const toLocaleString = (number: number, locale: any) => {
 
 export default function prettyBytes(number: number, options?: any): string {
   if (!Number.isFinite(number)) {
-    throw new TypeError(`Expected a finite number, got ${typeof number}: ${number}`)
+    throw new TypeError(
+      `Expected a finite number, got ${typeof number}: ${number}`
+    )
   }
 
   options = Object.assign({}, options)
@@ -52,7 +54,10 @@ export default function prettyBytes(number: number, options?: any): string {
     return prefix + numberString + ' B'
   }
 
-  const exponent = Math.min(Math.floor(Math.log10(number) / 3), UNITS.length - 1)
+  const exponent = Math.min(
+    Math.floor(Math.log10(number) / 3),
+    UNITS.length - 1
+  )
 
   number = Number((number / Math.pow(1000, exponent)).toPrecision(3))
   const numberString = toLocaleString(number, options.locale)

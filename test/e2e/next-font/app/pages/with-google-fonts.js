@@ -38,7 +38,10 @@ export default function WithFonts() {
       <div id="multiple-fraunces" className={frauncesMultiple.className}>
         {JSON.stringify(frauncesMultiple)}
       </div>
-      <div id="multiple-weights-fraunces" className={frauncesMultipleWeights.className}>
+      <div
+        id="multiple-weights-fraunces"
+        className={frauncesMultipleWeights.className}
+      >
         {JSON.stringify(frauncesMultipleWeights)}
       </div>
     </>

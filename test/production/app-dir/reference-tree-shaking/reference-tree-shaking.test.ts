@@ -11,7 +11,9 @@ describe('reference-tree-shaking', () => {
 
     // Only Turbopack applies inner graph tree shaking here
     if (process.env.IS_TURBOPACK_TEST) {
-      const serverReferences = await next.readFile('.next/server/server-reference-manifest.json')
+      const serverReferences = await next.readFile(
+        '.next/server/server-reference-manifest.json'
+      )
       expect(serverReferences).not.toContain('library/action.js')
 
       const clientReferences = await next.readFile(

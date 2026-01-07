@@ -22,7 +22,12 @@ describe('resolveImages', () => {
   })
 
   it('should filter out invalid images', () => {
-    const images = [image1, { url: image2, alt: 'Image2' }, { alt: 'Image3' }, undefined]
+    const images = [
+      image1,
+      { url: image2, alt: 'Image2' },
+      { alt: 'Image3' },
+      undefined,
+    ]
 
     // @ts-expect-error - intentionally passing invalid images
     expect(resolveImages(images, null)).toEqual([

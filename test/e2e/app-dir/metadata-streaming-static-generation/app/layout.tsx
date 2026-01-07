@@ -1,7 +1,13 @@
 import Link from 'next/link'
 import { ReactNode } from 'react'
 
-const hrefs = ['/slow/dynamic', '/slow/static', '/', '/suspenseful/dynamic', '/suspenseful/static']
+const hrefs = [
+  '/slow/dynamic',
+  '/slow/static',
+  '/',
+  '/suspenseful/dynamic',
+  '/suspenseful/static',
+]
 
 export default function Root({ children }: { children: ReactNode }) {
   return (

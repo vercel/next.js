@@ -10,7 +10,9 @@ describe('app-dir assetPrefix with basePath handling', () => {
       redirect: 'manual',
     })
     expect(res.status).toBe(308)
-    expect(new URL(res.headers.get('location'), next.url).pathname).toBe('/custom-base-path/a')
+    expect(new URL(res.headers.get('location'), next.url).pathname).toBe(
+      '/custom-base-path/a'
+    )
   })
 
   it('should render link', async () => {
@@ -25,7 +27,10 @@ describe('app-dir assetPrefix with basePath handling', () => {
 
   it('should redirect route when clicking link', async () => {
     const browser = await next.browser('/custom-base-path')
-    await browser.elementByCss('#to-a-trailing-slash').click().waitForElementByCss('#a-page')
+    await browser
+      .elementByCss('#to-a-trailing-slash')
+      .click()
+      .waitForElementByCss('#a-page')
     expect(await browser.waitForElementByCss('#a-page').text()).toBe('A page')
   })
 
@@ -51,13 +56,19 @@ describe('app-dir assetPrefix with basePath handling', () => {
 
   describe('rewrites', () => {
     it('rewrites that do not start with assetPrefix should still work', async () => {
-      const res = await next.fetch('/custom-base-path/not-custom-asset-prefix/api/test-json', {})
+      const res = await next.fetch(
+        '/custom-base-path/not-custom-asset-prefix/api/test-json',
+        {}
+      )
       expect(res.status).toBe(200)
       expect(await res.text()).toBe('{"message":"test"}')
     })
 
     it('should respect rewrites that start with assetPrefix', async () => {
-      const res = await next.fetch('/custom-base-path/custom-asset-prefix/api/test-json', {})
+      const res = await next.fetch(
+        '/custom-base-path/custom-asset-prefix/api/test-json',
+        {}
+      )
       expect(res.status).toBe(200)
       expect(await res.text()).toBe('{"message":"test"}')
     })

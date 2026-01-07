@@ -29,7 +29,9 @@ describe.skip('search-params', () => {
 
       // Confirm that the page re-rendered with the new search params.
       const searchParamsContainer = await browser.elementById('search-params')
-      expect(await searchParamsContainer.innerText()).toBe('Search params: {"blazing":"good"}')
+      expect(await searchParamsContainer.innerText()).toBe(
+        'Search params: {"blazing":"good"}'
+      )
     }
   )
 })

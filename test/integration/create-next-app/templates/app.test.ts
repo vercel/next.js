@@ -15,7 +15,9 @@ describe('create-next-app --app (App Router)', () => {
       throw new Error('This test needs to be run with `node run-tests.js`.')
     }
 
-    const pkgPaths = new Map<string, string>(JSON.parse(process.env.NEXT_TEST_PKG_PATHS))
+    const pkgPaths = new Map<string, string>(
+      JSON.parse(process.env.NEXT_TEST_PKG_PATHS)
+    )
 
     nextTgzFilename = pkgPaths.get('next')
   })

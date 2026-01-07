@@ -16,11 +16,14 @@ export default function IdPage(props) {
   return (
     <>
       <p>
-        Id Page. Params: <span id="id-page-params">{JSON.stringify(params)}</span>
+        Id Page. Params:{' '}
+        <span id="id-page-params">{JSON.stringify(params)}</span>
       </p>
       {children}
 
-      <p id="search-params">{JSON.stringify(Object.fromEntries(useSearchParams()))}</p>
+      <p id="search-params">
+        {JSON.stringify(Object.fromEntries(useSearchParams()))}
+      </p>
       <Button>button on app/dynamic-client</Button>
     </>
   )

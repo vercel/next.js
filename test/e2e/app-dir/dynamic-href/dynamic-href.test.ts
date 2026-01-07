@@ -36,13 +36,18 @@ describe('dynamic-href', () => {
       const pageContent = await next.readFile('app/object/page.js')
       await next.patchFile(
         'app/object/page.js',
-        pageContent.replace("pathname: '/object/[slug]'", "pathname: '/object/slug'")
+        pageContent.replace(
+          "pathname: '/object/[slug]'",
+          "pathname: '/object/slug'"
+        )
       )
       expect(await browser.waitForElementByCss('#link').text()).toBe('to slug')
 
       // Navigate to new page
       await browser.elementByCss('#link').click()
-      expect(await browser.waitForElementByCss('#pathname').text()).toBe('/object/slug')
+      expect(await browser.waitForElementByCss('#pathname').text()).toBe(
+        '/object/slug'
+      )
       expect(await browser.elementByCss('#slug').text()).toBe('1')
     })
 

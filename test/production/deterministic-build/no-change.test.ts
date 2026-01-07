@@ -34,7 +34,9 @@ const nodeFilePaths = [
 ]
 
 function getEdgeRouteFileHashes(next: NextInstance): RouteFileHashRecords {
-  const manifest: any = JSON.parse(next.readFileSync('.next/server/middleware-manifest.json'))
+  const manifest: any = JSON.parse(
+    next.readFileSync('.next/server/middleware-manifest.json')
+  )
   const routeKeys = Object.keys(manifest.functions)
   const hashMap: RouteFileHashRecords = {}
   for (const route of routeKeys) {

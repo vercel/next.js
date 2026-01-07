@@ -431,7 +431,9 @@ describe('babel plugin (next-ssg-transform)', () => {
         export { getStaticProps, default } from 'a'
       `)
 
-      expect(output).toMatchInlineSnapshot(`"export var __N_SSG=true;export{default}from'a';"`)
+      expect(output).toMatchInlineSnapshot(
+        `"export var __N_SSG=true;export{default}from'a';"`
+      )
     })
 
     it('should support babel-style memoized function', () => {

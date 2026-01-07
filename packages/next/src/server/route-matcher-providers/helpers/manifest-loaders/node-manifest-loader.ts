@@ -14,6 +14,8 @@ export class NodeManifestLoader implements ManifestLoader {
   }
 
   public load(name: string): Manifest | null {
-    return NodeManifestLoader.require(path.join(this.distDir, SERVER_DIRECTORY, name))
+    return NodeManifestLoader.require(
+      path.join(this.distDir, SERVER_DIRECTORY, name)
+    )
   }
 }

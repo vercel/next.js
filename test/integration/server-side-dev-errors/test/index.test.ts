@@ -3,7 +3,13 @@
 import fs from 'fs/promises'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
-import { waitForNoRedbox, findPort, killApp, launchApp, retry } from 'next-test-utils'
+import {
+  waitForNoRedbox,
+  findPort,
+  killApp,
+  launchApp,
+  retry,
+} from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
 const appDir = join(__dirname, '../')
@@ -52,14 +58,21 @@ describe('server-side dev errors', () => {
 
     try {
       const stderrIdx = stderr.length
-      await fs.writeFile(gspPage, content.replace('return {', 'missingVar;return {'))
+      await fs.writeFile(
+        gspPage,
+        content.replace('return {', 'missingVar;return {')
+      )
       const browser = await webdriver(appPort, '/gsp')
 
       await retry(() => {
-        expect(stderr.slice(stderrIdx)).toContain('ReferenceError: missingVar is not defined')
+        expect(stderr.slice(stderrIdx)).toContain(
+          'ReferenceError: missingVar is not defined'
+        )
       })
 
-      const stderrOutput = stripInternalHandler(stripAnsi(stderr.slice(stderrIdx)).trim())
+      const stderrOutput = stripInternalHandler(
+        stripAnsi(stderr.slice(stderrIdx)).trim()
+      )
 
       expect(stderrOutput).toStartWith(
         '⨯ ReferenceError: missingVar is not defined' +
@@ -96,14 +109,21 @@ describe('server-side dev errors', () => {
 
     try {
       const stderrIdx = stderr.length
-      await fs.writeFile(gsspPage, content.replace('return {', 'missingVar;return {'))
+      await fs.writeFile(
+        gsspPage,
+        content.replace('return {', 'missingVar;return {')
+      )
       const browser = await webdriver(appPort, '/gssp')
 
       await retry(() => {
-        expect(stderr.slice(stderrIdx)).toContain('ReferenceError: missingVar is not defined')
+        expect(stderr.slice(stderrIdx)).toContain(
+          'ReferenceError: missingVar is not defined'
+        )
       })
 
-      const stderrOutput = stripInternalHandler(stripAnsi(stderr.slice(stderrIdx)).trim())
+      const stderrOutput = stripInternalHandler(
+        stripAnsi(stderr.slice(stderrIdx)).trim()
+      )
       expect(stderrOutput).toStartWith(
         '⨯ ReferenceError: missingVar is not defined' +
           '\n    at getServerSideProps (../../test/integration/server-side-dev-errors/pages/gssp.js:6:3)' +
@@ -139,14 +159,21 @@ describe('server-side dev errors', () => {
 
     try {
       const stderrIdx = stderr.length
-      await fs.writeFile(dynamicGsspPage, content.replace('return {', 'missingVar;return {'))
+      await fs.writeFile(
+        dynamicGsspPage,
+        content.replace('return {', 'missingVar;return {')
+      )
       const browser = await webdriver(appPort, '/blog/first')
 
       await retry(() => {
-        expect(stderr.slice(stderrIdx)).toContain('ReferenceError: missingVar is not defined')
+        expect(stderr.slice(stderrIdx)).toContain(
+          'ReferenceError: missingVar is not defined'
+        )
       })
 
-      const stderrOutput = stripInternalHandler(stripAnsi(stderr.slice(stderrIdx)).trim())
+      const stderrOutput = stripInternalHandler(
+        stripAnsi(stderr.slice(stderrIdx)).trim()
+      )
       expect(stderrOutput).toStartWith(
         '⨯ ReferenceError: missingVar is not defined' +
           '\n    at getServerSideProps (../../test/integration/server-side-dev-errors/pages/blog/[slug].js:6:3)' +
@@ -181,11 +208,16 @@ describe('server-side dev errors', () => {
 
     try {
       const stderrIdx = stderr.length
-      await fs.writeFile(apiPage, content.replace('res.status', 'missingVar;res.status'))
+      await fs.writeFile(
+        apiPage,
+        content.replace('res.status', 'missingVar;res.status')
+      )
       const browser = await webdriver(appPort, '/api/hello')
 
       await retry(() => {
-        expect(stderr.slice(stderrIdx)).toContain('ReferenceError: missingVar is not defined')
+        expect(stderr.slice(stderrIdx)).toContain(
+          'ReferenceError: missingVar is not defined'
+        )
       })
 
       const stderrOutput = stripAnsi(stderr.slice(stderrIdx)).trim()
@@ -242,11 +274,16 @@ describe('server-side dev errors', () => {
 
     try {
       const stderrIdx = stderr.length
-      await fs.writeFile(dynamicApiPage, content.replace('res.status', 'missingVar;res.status'))
+      await fs.writeFile(
+        dynamicApiPage,
+        content.replace('res.status', 'missingVar;res.status')
+      )
       const browser = await webdriver(appPort, '/api/blog/first')
 
       await retry(() => {
-        expect(stderr.slice(stderrIdx)).toContain('ReferenceError: missingVar is not defined')
+        expect(stderr.slice(stderrIdx)).toContain(
+          'ReferenceError: missingVar is not defined'
+        )
       })
 
       const stderrOutput = stripAnsi(stderr.slice(stderrIdx)).trim()
@@ -307,7 +344,10 @@ describe('server-side dev errors', () => {
     })
 
     const stderrOutput = stripAnsi(stderr.slice(stderrIdx))
-      .replace('⚠ Fast Refresh had to perform a full reload due to a Runtime ReferenceError.', '')
+      .replace(
+        '⚠ Fast Refresh had to perform a full reload due to a Runtime ReferenceError.',
+        ''
+      )
       .trim()
     // FIXME(veil): error repeated
     if (isTurbopack) {
@@ -384,7 +424,10 @@ describe('server-side dev errors', () => {
     })
 
     const stderrOutput = stripAnsi(stderr.slice(stderrIdx))
-      .replace('⚠ Fast Refresh had to perform a full reload due to a Runtime ReferenceError.', '')
+      .replace(
+        '⚠ Fast Refresh had to perform a full reload due to a Runtime ReferenceError.',
+        ''
+      )
       .trim()
     // FIXME(veil): error repeated
     if (isTurbopack) {
@@ -459,7 +502,10 @@ describe('server-side dev errors', () => {
     })
 
     const stderrOutput = stripAnsi(stderr.slice(stderrIdx))
-      .replace('⚠ Fast Refresh had to perform a full reload due to a Runtime ReferenceError.', '')
+      .replace(
+        '⚠ Fast Refresh had to perform a full reload due to a Runtime ReferenceError.',
+        ''
+      )
       .trim()
     // FIXME(veil): error repeated
     if (isTurbopack) {
@@ -534,7 +580,10 @@ describe('server-side dev errors', () => {
     })
 
     const stderrOutput = stripAnsi(stderr.slice(stderrIdx))
-      .replace('⚠ Fast Refresh had to perform a full reload due to a Runtime ReferenceError.', '')
+      .replace(
+        '⚠ Fast Refresh had to perform a full reload due to a Runtime ReferenceError.',
+        ''
+      )
       .trim()
     // FIXME(veil): error repeated
     if (isTurbopack) {

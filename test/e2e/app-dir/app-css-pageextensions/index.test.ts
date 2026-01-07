@@ -19,7 +19,9 @@ describe('app dir - css with pageextensions', () => {
       it('should support global css inside layout', async () => {
         const browser = await next.browser('/css-pageextensions')
         expect(
-          await browser.eval(`window.getComputedStyle(document.querySelector('h1')).color`)
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('h1')).color`
+          )
         ).toBe('rgb(255, 0, 0)')
       })
     })

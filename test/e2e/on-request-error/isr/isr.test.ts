@@ -21,7 +21,10 @@ describe('on-request-error - isr', () => {
     return
   }
 
-  async function matchRevalidateReason(errorMessage: string, revalidateReason: string) {
+  async function matchRevalidateReason(
+    errorMessage: string,
+    revalidateReason: string
+  ) {
     await retry(async () => {
       const json = await getOutputLogJson(next, outputLogPath)
       expect(json[errorMessage]).toMatchObject({

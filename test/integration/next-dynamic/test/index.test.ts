@@ -36,35 +36,43 @@ function runTests() {
 
     // should not print "invalid-dynamic-suspense" warning in browser's console
     const logs = (await browser.log()).map((log) => log.message).join('\n')
-    expect(logs).not.toContain('https://nextjs.org/docs/messages/invalid-dynamic-suspense')
+    expect(logs).not.toContain(
+      'https://nextjs.org/docs/messages/invalid-dynamic-suspense'
+    )
   })
 }
 
 describe('next/dynamic', () => {
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
-
-    runTests()
-  })
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await runNextCommand(['build', appDir])
-
-      app = nextServer({
-        dir: appDir,
-        dev: false,
-        quiet: true,
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
       })
+      afterAll(() => killApp(app))
 
-      server = await startApp(app)
-      appPort = server.address().port
-    })
-    afterAll(() => stopApp(server))
+      runTests()
+    }
+  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await runNextCommand(['build', appDir])
 
-    runTests()
-  })
+        app = nextServer({
+          dir: appDir,
+          dev: false,
+          quiet: true,
+        })
+
+        server = await startApp(app)
+        appPort = server.address().port
+      })
+      afterAll(() => stopApp(server))
+
+      runTests()
+    }
+  )
 })

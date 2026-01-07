@@ -59,5 +59,8 @@ export interface RouteMatcherManager {
    * @param pathname the pathname to match against
    * @param options the options for the matching
    */
-  matchAll(pathname: string, options: MatchOptions): AsyncGenerator<RouteMatch, null, undefined>
+  matchAll(
+    pathname: string,
+    options: MatchOptions
+  ): AsyncGenerator<RouteMatch, null, undefined>
 }

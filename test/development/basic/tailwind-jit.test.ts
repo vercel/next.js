@@ -12,8 +12,12 @@ if (process.env.IS_TURBOPACK_TEST) {
 describe('TailwindCSS JIT', () => {
   const { next } = nextTestSetup({
     files: {
-      'postcss.config.js': new FileRef(join(__dirname, 'tailwind-jit/postcss.config.js')),
-      'tailwind.config.js': new FileRef(join(__dirname, 'tailwind-jit/tailwind.config.js')),
+      'postcss.config.js': new FileRef(
+        join(__dirname, 'tailwind-jit/postcss.config.js')
+      ),
+      'tailwind.config.js': new FileRef(
+        join(__dirname, 'tailwind-jit/tailwind.config.js')
+      ),
       pages: new FileRef(join(__dirname, 'tailwind-jit/pages')),
     },
     dependencies: {
@@ -28,7 +32,9 @@ describe('TailwindCSS JIT', () => {
       browser = await webdriver(next.url, '/')
       const text = await browser.elementByCss('.text-6xl').text()
       expect(text).toMatch(/Welcome to/)
-      const cssBlue = await browser.elementByCss('#test-link').getComputedCss('color')
+      const cssBlue = await browser
+        .elementByCss('#test-link')
+        .getComputedCss('color')
       expect(cssBlue).toBe('rgb(37, 99, 235)')
 
       const aboutPagePath = join('pages', 'index.js')

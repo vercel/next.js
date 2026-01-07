@@ -37,16 +37,20 @@ export class DevBundlerService {
 
     this.close = hotReloader.close.bind(hotReloader)
     this.setCacheStatus = hotReloader.setCacheStatus.bind(hotReloader)
-    this.setReactDebugChannel = hotReloader.setReactDebugChannel.bind(hotReloader)
+    this.setReactDebugChannel =
+      hotReloader.setReactDebugChannel.bind(hotReloader)
     this.sendErrorsToBrowser = hotReloader.sendErrorsToBrowser.bind(hotReloader)
   }
 
-  public ensurePage: typeof this.bundler.hotReloader.ensurePage = async (definition) => {
+  public ensurePage: typeof this.bundler.hotReloader.ensurePage = async (
+    definition
+  ) => {
     // TODO: remove after ensure is pulled out of server
     return await this.bundler.hotReloader.ensurePage(definition)
   }
 
-  public logErrorWithOriginalStack = this.bundler.logErrorWithOriginalStack.bind(this.bundler)
+  public logErrorWithOriginalStack =
+    this.bundler.logErrorWithOriginalStack.bind(this.bundler)
 
   public async getFallbackErrorComponents(url?: string) {
     await this.bundler.hotReloader.buildFallbackError()

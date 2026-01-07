@@ -17,7 +17,8 @@ const HEAD_PROJECT_NAME = TEST_PROJECT_NAME + '-head'
 
 const TEST_TEAM_NAME = process.env.VERCEL_TEST_TEAM
 const TEST_TOKEN = process.env.VERCEL_TEST_TOKEN
-const VERCEL_EDGE_FUNCTIONS_BRIDGE_PKG = process.env.VERCEL_EDGE_FUNCTIONS_BRIDGE_PKG
+const VERCEL_EDGE_FUNCTIONS_BRIDGE_PKG =
+  process.env.VERCEL_EDGE_FUNCTIONS_BRIDGE_PKG
 const __dirname = url.fileURLToPath(new URL('.', import.meta.url))
 
 const appFolder = path.join(__dirname, 'benchmark-app')
@@ -57,7 +58,10 @@ export async function generateProjects() {
               {
                 title: 'deploying project',
                 task: async () => {
-                  const url = await deployProject(ORIGIN_PROJECT_NAME, originAppFolder)
+                  const url = await deployProject(
+                    ORIGIN_PROJECT_NAME,
+                    originAppFolder
+                  )
                   ctx.originUrl = url
                 },
               },
@@ -95,7 +99,10 @@ export async function generateProjects() {
               {
                 title: 'deploying project',
                 task: async () => {
-                  const url = await deployProject(HEAD_PROJECT_NAME, headAppFolder)
+                  const url = await deployProject(
+                    HEAD_PROJECT_NAME,
+                    headAppFolder
+                  )
                   ctx.headUrl = url
                 },
               },
@@ -111,7 +118,10 @@ export async function generateProjects() {
 }
 
 export async function cleanupProjectFolders() {
-  await Promise.all([execa('rm', ['-rf', originAppFolder]), execa('rm', ['-rf', headAppFolder])])
+  await Promise.all([
+    execa('rm', ['-rf', originAppFolder]),
+    execa('rm', ['-rf', headAppFolder]),
+  ])
 }
 
 export async function deployProject(projectName, appFolder) {
@@ -144,7 +154,10 @@ export async function deployProject(projectName, appFolder) {
         '--build-env',
         'NEXT_TELEMETRY_DISABLED=1',
         ...(VERCEL_EDGE_FUNCTIONS_BRIDGE_PKG
-          ? ['--build-env', `VERCEL_EDGE_FUNCTIONS_BRIDGE_PKG=${VERCEL_EDGE_FUNCTIONS_BRIDGE_PKG}`]
+          ? [
+              '--build-env',
+              `VERCEL_EDGE_FUNCTIONS_BRIDGE_PKG=${VERCEL_EDGE_FUNCTIONS_BRIDGE_PKG}`,
+            ]
           : []),
         '--force',
         ...vercelFlags,

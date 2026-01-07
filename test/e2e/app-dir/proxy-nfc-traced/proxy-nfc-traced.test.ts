@@ -15,7 +15,10 @@ describe('proxy-nfc-traced', () => {
   if (isNextStart && !isTurbopack) {
     it('should have renamed trace file as middleware instead of proxy', async () => {
       const nfc = JSON.parse(
-        fs.readFileSync(path.join(next.testDir, '.next/server/middleware.js.nft.json'), 'utf-8')
+        fs.readFileSync(
+          path.join(next.testDir, '.next/server/middleware.js.nft.json'),
+          'utf-8'
+        )
       )
       expect(nfc.files).toContain('middleware.js')
       expect(nfc.files).not.toContain('proxy.js')

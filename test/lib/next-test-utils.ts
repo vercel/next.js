@@ -1,5 +1,11 @@
 import express from 'express'
-import { existsSync, readFileSync, unlinkSync, writeFileSync, createReadStream } from 'fs'
+import {
+  existsSync,
+  readFileSync,
+  unlinkSync,
+  writeFileSync,
+  createReadStream,
+} from 'fs'
 import { inspect, promisify } from 'util'
 import http from 'http'
 import path from 'path'
@@ -38,7 +44,11 @@ export const pkg = _pkg
 // This goes straight to Node’s stdout, avoiding Jest's verbose output:
 export const debugPrint = (...args: unknown[]) => {
   const prettyArgs = args
-    .map((arg) => (typeof arg === 'string' ? arg : inspect(arg, { colors: process.stdout.isTTY })))
+    .map((arg) =>
+      typeof arg === 'string'
+        ? arg
+        : inspect(arg, { colors: process.stdout.isTTY })
+    )
     .join(' ')
 
   const timestamp = new Date().toISOString().split('T')[1]
@@ -117,7 +127,11 @@ export function initNextServerScript(
   })
 }
 
-export function getFullUrl(appPortOrUrl: string | number, url?: string, hostname?: string) {
+export function getFullUrl(
+  appPortOrUrl: string | number,
+  url?: string,
+  hostname?: string
+) {
   let fullUrl =
     typeof appPortOrUrl === 'string' && appPortOrUrl.startsWith('http')
       ? appPortOrUrl
@@ -146,7 +160,10 @@ export function getFullUrl(appPortOrUrl: string | number, url?: string, hostname
  * @param query the query object to add to the pathname
  * @returns the pathname with the query
  */
-export function withQuery(pathname: string, query: Record<string, any> | string) {
+export function withQuery(
+  pathname: string,
+  query: Record<string, any> | string
+) {
   const querystring = typeof query === 'string' ? query : qs.stringify(query)
   if (querystring.length === 0) {
     return pathname
@@ -298,9 +315,16 @@ export function runNextCommand(
     }
 
     instance.on('close', (code, signal) => {
-      if (!options.stderr && !options.stdout && !options.ignoreFail && (code !== 0 || signal)) {
+      if (
+        !options.stderr &&
+        !options.stdout &&
+        !options.ignoreFail &&
+        (code !== 0 || signal)
+      ) {
         return reject(
-          new Error(`command failed with code ${code} signal ${signal}\n${mergedStdio}`)
+          new Error(
+            `command failed with code ${code} signal ${signal}\n${mergedStdio}`
+          )
         )
       }
 
@@ -358,13 +382,18 @@ export function runNextCommandDev(
 
   const nodeArgs = opts.nodeArgs || []
   return new Promise((resolve, reject) => {
-    const instance = spawn('node', [...nodeArgs, '--no-deprecation', nextBin, ...argv], {
-      cwd,
-      env,
-    })
+    const instance = spawn(
+      'node',
+      [...nodeArgs, '--no-deprecation', nextBin, ...argv],
+      {
+        cwd,
+        env,
+      }
+    )
     let didResolve = false
 
-    const bootType = opts.nextStart || stdOut ? 'start' : opts?.turbo ? 'turbo' : 'dev'
+    const bootType =
+      opts.nextStart || stdOut ? 'start' : opts?.turbo ? 'turbo' : 'dev'
 
     function handleStdout(data) {
       const message = data.toString()
@@ -427,24 +456,41 @@ export function runNextCommandDev(
 }
 
 // Launch the app in development mode.
-export function launchApp(dir: string, port: string | number, opts?: NextDevOptions) {
+export function launchApp(
+  dir: string,
+  port: string | number,
+  opts?: NextDevOptions
+) {
   const options = opts ?? {}
   const useTurbo = shouldUseTurbopack()
 
   return runNextCommandDev(
-    [useTurbo ? '--turbopack' : undefined, dir, '-p', port as string, '--hostname', '::'].filter(
-      (flag: string | undefined): flag is string => Boolean(flag)
-    ),
+    [
+      useTurbo ? '--turbopack' : undefined,
+      dir,
+      '-p',
+      port as string,
+      '--hostname',
+      '::',
+    ].filter((flag: string | undefined): flag is string => Boolean(flag)),
     undefined,
     { ...options, turbo: useTurbo }
   )
 }
 
-export function nextBuild(dir: string, args: string[] = [], opts: NextOptions = {}) {
+export function nextBuild(
+  dir: string,
+  args: string[] = [],
+  opts: NextOptions = {}
+) {
   return runNextCommand(['build', dir, ...args], opts)
 }
 
-export function nextTest(dir: string, args: string[] = [], opts: NextOptions = {}) {
+export function nextTest(
+  dir: string,
+  args: string[] = [],
+  opts: NextOptions = {}
+) {
   return runNextCommand(['experimental-test', dir, ...args], {
     ...opts,
     env: {
@@ -454,14 +500,26 @@ export function nextTest(dir: string, args: string[] = [], opts: NextOptions = {
   })
 }
 
-export function nextStart(dir: string, port: string | number, opts: NextDevOptions = {}) {
-  return runNextCommandDev(['start', '-p', port as string, '--hostname', '::', dir], undefined, {
-    ...opts,
-    nextStart: true,
-  })
+export function nextStart(
+  dir: string,
+  port: string | number,
+  opts: NextDevOptions = {}
+) {
+  return runNextCommandDev(
+    ['start', '-p', port as string, '--hostname', '::', dir],
+    undefined,
+    {
+      ...opts,
+      nextStart: true,
+    }
+  )
 }
 
-export function buildTS(args: string[] = [], cwd?: string, env?: any): Promise<void> {
+export function buildTS(
+  args: string[] = [],
+  cwd?: string,
+  env?: any
+): Promise<void> {
   cwd = cwd || path.dirname(require.resolve('next/package'))
   env = { ...process.env, NODE_ENV: undefined, ...env }
 
@@ -525,7 +583,11 @@ export async function killApp(
   if (!instance) {
     return
   }
-  if (instance?.pid && instance.exitCode === null && instance.signalCode === null) {
+  if (
+    instance?.pid &&
+    instance.exitCode === null &&
+    instance.signalCode === null
+  ) {
     const exitPromise = once(instance, 'exit')
     await killProcess(instance.pid, signal)
     await exitPromise
@@ -590,7 +652,9 @@ export async function stopApp(server: http.Server | undefined) {
   await promisify(server.close).apply(server)
 }
 
-export async function waitFor(millisOrCondition: number | (() => boolean)): Promise<void> {
+export async function waitFor(
+  millisOrCondition: number | (() => boolean)
+): Promise<void> {
   if (typeof millisOrCondition === 'number') {
     return new Promise((resolve) => setTimeout(resolve, millisOrCondition))
   }
@@ -605,7 +669,11 @@ export async function waitFor(millisOrCondition: number | (() => boolean)): Prom
   })
 }
 
-export async function startStaticServer(dir: string, notFoundFile?: string, fixedPort?: number) {
+export async function startStaticServer(
+  dir: string,
+  notFoundFile?: string,
+  fixedPort?: number
+) {
   const app = express()
   const server = http.createServer(app)
   app.use(express.static(dir))
@@ -667,7 +735,9 @@ export class File {
 
   constructor(path: string) {
     this.path = path
-    this.originalContent = existsSync(this.path) ? readFileSync(this.path, 'utf8') : null
+    this.originalContent = existsSync(this.path)
+      ? readFileSync(this.path, 'utf8')
+      : null
   }
 
   write(content: string) {
@@ -730,10 +800,14 @@ export async function retry<T>(
       return await fn()
     } catch (err) {
       if (i === 0) {
-        console.error(`Failed to retry${description ? ` ${description}` : ''} within ${duration}ms`)
+        console.error(
+          `Failed to retry${description ? ` ${description}` : ''} within ${duration}ms`
+        )
         throw err
       }
-      debugPrint(`Retrying${description ? ` ${description}` : ''} in ${interval}ms`)
+      debugPrint(
+        `Retrying${description ? ` ${description}` : ''} in ${interval}ms`
+      )
       await waitFor(interval)
     }
   }
@@ -844,7 +918,9 @@ export async function getToastErrorCount(browser: Playwright): Promise<number> {
 export async function openRedbox(browser: Playwright): Promise<void> {
   const redbox = browser.locateRedbox()
   if (await redbox.isVisible()) {
-    const error = new Error('Redbox is already open. Use `waitForRedbox` instead.')
+    const error = new Error(
+      'Redbox is already open. Use `waitForRedbox` instead.'
+    )
     Error.captureStackTrace(error, openRedbox)
     throw error
   }
@@ -859,7 +935,9 @@ export async function openRedbox(browser: Playwright): Promise<void> {
   await waitForRedbox(browser)
 }
 
-export async function toggleDevToolsIndicatorPopover(browser: Playwright): Promise<void> {
+export async function toggleDevToolsIndicatorPopover(
+  browser: Playwright
+): Promise<void> {
   const devToolsIndicator = await waitForDevToolsIndicator(browser)
 
   try {
@@ -893,9 +971,12 @@ export async function getSegmentExplorerContent(browser: Playwright) {
   for (const row of rows) {
     // query filename of row: segment-explorer-filename
     const segment = (
-      (await (await row.$('.segment-explorer-filename--path'))?.innerText()) || ''
+      (await (await row.$('.segment-explorer-filename--path'))?.innerText()) ||
+      ''
     ).trim()
-    const files = ((await (await row.$('.segment-explorer-files'))?.innerText()) || '')
+    const files = (
+      (await (await row.$('.segment-explorer-files'))?.innerText()) || ''
+    )
       .split(/\n+/)
       .map((file) => file.trim())
 
@@ -908,7 +989,9 @@ export async function getSegmentExplorerContent(browser: Playwright) {
 export async function hasDevToolsPanel(browser: Playwright) {
   const result = await browser.eval(() => {
     const portal = document.querySelector('nextjs-portal')
-    return portal?.shadowRoot?.querySelector('[data-nextjs-dialog-overlay]') != null
+    return (
+      portal?.shadowRoot?.querySelector('[data-nextjs-dialog-overlay]') != null
+    )
   })
   return result
 }
@@ -918,7 +1001,9 @@ export async function waitForDevToolsIndicator(browser: Playwright) {
   try {
     await devToolsIndicator.waitFor({ timeout: 5000 })
   } catch (errorCause) {
-    const error = new Error('Expected DevTools Indicator but found no visible one.')
+    const error = new Error(
+      'Expected DevTools Indicator but found no visible one.'
+    )
     Error.captureStackTrace(error, waitForDevToolsIndicator)
     throw error
   }
@@ -930,7 +1015,9 @@ export async function assertNoDevToolsIndicator(browser: Playwright) {
   const devToolsIndicator = browser.locateDevToolsIndicator()
 
   if (await devToolsIndicator.isVisible()) {
-    const error = new Error('Expected no visible DevTools Indicator but found one.')
+    const error = new Error(
+      'Expected no visible DevTools Indicator but found one.'
+    )
     Error.captureStackTrace(error, assertNoDevToolsIndicator)
     throw error
   }
@@ -963,7 +1050,9 @@ export async function waitForStaticIndicator(
           `Expected static indicator with route type ${expectedRouteType}, found ${routeType} instead.`
         )
       } else {
-        throw new Error(`Expected no static indicator, found ${routeType} instead.`)
+        throw new Error(
+          `Expected no static indicator, found ${routeType} instead.`
+        )
       }
     }
   })
@@ -979,14 +1068,19 @@ export function getRedboxHeader(browser: Playwright): Promise<string | null> {
   })
 }
 
-export async function getRedboxTotalErrorCount(browser: Playwright): Promise<number> {
+export async function getRedboxTotalErrorCount(
+  browser: Playwright
+): Promise<number> {
   const text = await browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
-      .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header-total-count]'))
+      .find((p) =>
+        p.shadowRoot.querySelector('[data-nextjs-dialog-header-total-count]')
+      )
 
     const root = portal?.shadowRoot
-    return root?.querySelector('[data-nextjs-dialog-header-total-count]')?.innerText
+    return root?.querySelector('[data-nextjs-dialog-header-total-count]')
+      ?.innerText
   })
   return parseInt(text || '-1')
 }
@@ -1001,7 +1095,10 @@ export function getRedboxSource(browser: Playwright): Promise<string | null> {
         )
       )
     const root = portal.shadowRoot
-    return root.querySelector('[data-nextjs-codeframe], [data-nextjs-terminal]')?.innerText ?? null
+    return (
+      root.querySelector('[data-nextjs-codeframe], [data-nextjs-terminal]')
+        ?.innerText ?? null
+    )
   })
 }
 
@@ -1012,8 +1109,9 @@ export function getRedboxTitle(browser: Playwright): Promise<string | null> {
       .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
     const root = portal.shadowRoot
     return (
-      root.querySelector('[data-nextjs-dialog-header] .nextjs__container_errors__error_title')
-        ?.innerText ?? null
+      root.querySelector(
+        '[data-nextjs-dialog-header] .nextjs__container_errors__error_title'
+      )?.innerText ?? null
     )
   })
 }
@@ -1024,52 +1122,73 @@ export function getRedboxLabel(browser: Playwright): Promise<string | null> {
       .call(document.querySelectorAll('nextjs-portal'))
       .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
     const root = portal.shadowRoot
-    return root.querySelector('#nextjs__container_errors_label')?.innerText ?? null
+    return (
+      root.querySelector('#nextjs__container_errors_label')?.innerText ?? null
+    )
   })
 }
 
-export function getRedboxEnvironmentLabel(browser: Playwright): Promise<string | null> {
+export function getRedboxEnvironmentLabel(
+  browser: Playwright
+): Promise<string | null> {
   return browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
       .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
     const root = portal.shadowRoot
-    return root.querySelector('[data-nextjs-environment-name-label]')?.innerText ?? null
+    return (
+      root.querySelector('[data-nextjs-environment-name-label]')?.innerText ??
+      null
+    )
   })
 }
 
-export function getRedboxDescription(browser: Playwright): Promise<string | null> {
+export function getRedboxDescription(
+  browser: Playwright
+): Promise<string | null> {
   return browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
       .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
     const root = portal.shadowRoot
-    return root.querySelector('#nextjs__container_errors_desc')?.innerText ?? null
+    return (
+      root.querySelector('#nextjs__container_errors_desc')?.innerText ?? null
+    )
   })
 }
 
-export function getRedboxDescriptionWarning(browser: Playwright): Promise<string | null> {
+export function getRedboxDescriptionWarning(
+  browser: Playwright
+): Promise<string | null> {
   return browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
       .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
     const root = portal.shadowRoot
-    return root.querySelector('#nextjs__container_errors__notes')?.innerText ?? null
+    return (
+      root.querySelector('#nextjs__container_errors__notes')?.innerText ?? null
+    )
   })
 }
 
-export function getRedboxErrorLink(browser: Playwright): Promise<string | null> {
+export function getRedboxErrorLink(
+  browser: Playwright
+): Promise<string | null> {
   return browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
       .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
     const root = portal.shadowRoot
-    return root.querySelector('#nextjs__container_errors__link')?.innerText ?? null
+    return (
+      root.querySelector('#nextjs__container_errors__link')?.innerText ?? null
+    )
   })
 }
 
 export function getBrowserBodyText(browser: Playwright) {
-  return browser.eval<string>('document.getElementsByTagName("body")[0].innerText')
+  return browser.eval<string>(
+    'document.getElementsByTagName("body")[0].innerText'
+  )
 }
 
 export function normalizeRegEx(src: string) {
@@ -1098,7 +1217,10 @@ export function getPageFilesFromBuildManifest(dir: string, page: string) {
   return pageFiles
 }
 
-export function getContentOfPageFilesFromBuildManifest(dir: string, page: string): string {
+export function getContentOfPageFilesFromBuildManifest(
+  dir: string,
+  page: string
+): string {
   const pageFiles = getPageFilesFromBuildManifest(dir, page)
 
   return pageFiles
@@ -1150,7 +1272,10 @@ export function getPageFileFromPagesManifest(dir: string, page: string) {
 
 export function readNextBuildServerPageFile(appDir: string, page: string) {
   const pageFile = getPageFileFromPagesManifest(appDir, page)
-  return readFileSync(path.join(appDir, getDistDir(), 'server', pageFile), 'utf8')
+  return readFileSync(
+    path.join(appDir, getDistDir(), 'server', pageFile),
+    'utf8'
+  )
 }
 
 export function getClientBuildManifest(dir: string) {
@@ -1164,7 +1289,10 @@ export function getClientBuildManifest(dir: string) {
   return manifest
 }
 
-export function getClientBuildManifestLoaderChunkUrlPath(dir: string, page: string) {
+export function getClientBuildManifestLoaderChunkUrlPath(
+  dir: string,
+  page: string
+) {
   let manifest = getClientBuildManifest(dir)
   let chunk: string[] | undefined = manifest[page]
   if (chunk == null) {
@@ -1266,9 +1394,12 @@ export function runProdSuite(
     env?: NodeJS.ProcessEnv
   }
 ) {
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
-    runSuite(suiteName, { appDir, env: 'prod' }, options)
-  })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      runSuite(suiteName, { appDir, env: 'prod' }, options)
+    }
+  )
 }
 
 /**
@@ -1280,7 +1411,9 @@ export function runProdSuite(
 export function findAllTelemetryEvents(output: string, eventName: string) {
   const regex = /\[telemetry\] ({.+?^})/gms
   // Pop the last element of each entry to retrieve contents of the capturing group
-  const events = [...output.matchAll(regex)].map((entry) => JSON.parse(entry.pop()!))
+  const events = [...output.matchAll(regex)].map((entry) =>
+    JSON.parse(entry.pop()!)
+  )
   return events.filter((e) => e.eventName === eventName).map((e) => e.payload)
 }
 
@@ -1358,7 +1491,9 @@ export async function getRedboxComponentStack(
   return componentStackFrames
     .map((componentStackFrame) => {
       if (!includeNextjsInternalComponents) {
-        const componentStackFrameMatch = componentStackFrame.match(nextjsClientComponentStackFrame)
+        const componentStackFrameMatch = componentStackFrame.match(
+          nextjsClientComponentStackFrame
+        )
         // React component stack frames aren't subject to ignore-listing.
         // They're not relevant for our tests though.
         // If you need to assert on Next.js internal component frames,
@@ -1385,13 +1520,17 @@ export async function hasRedboxCallStack(browser: Playwright) {
   })
 }
 
-export async function getRedboxCallStack(browser: Playwright): Promise<string[] | null> {
+export async function getRedboxCallStack(
+  browser: Playwright
+): Promise<string[] | null> {
   return browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
       .find((p) => p.shadowRoot.querySelector('[data-nextjs-call-stack-frame]'))
     const root = portal?.shadowRoot
-    const frameElements = root?.querySelectorAll('[data-nextjs-call-stack-frame]')
+    const frameElements = root?.querySelectorAll(
+      '[data-nextjs-call-stack-frame]'
+    )
 
     const stack: string[] = []
     if (frameElements !== undefined) {
@@ -1431,20 +1570,28 @@ export async function getRedboxCallStack(browser: Playwright): Promise<string[] 
   })
 }
 
-export async function getRedboxCallStackCollapsed(browser: Playwright): Promise<string> {
+export async function getRedboxCallStackCollapsed(
+  browser: Playwright
+): Promise<string> {
   const callStackFrameElements = await browser.elementsByCss(
     '.nextjs-container-errors-body > [data-nextjs-codeframe] > :first-child, ' +
       '.nextjs-container-errors-body > [data-nextjs-call-stack-frame], ' +
       '.nextjs-container-errors-body > [data-nextjs-collapsed-call-stack-details] > summary'
   )
-  const callStackFrameTexts = await Promise.all(callStackFrameElements.map((f) => f.innerText()))
+  const callStackFrameTexts = await Promise.all(
+    callStackFrameElements.map((f) => f.innerText())
+  )
 
   return callStackFrameTexts.join('\n---\n').trim()
 }
 
-export async function getVersionCheckerText(browser: Playwright): Promise<string> {
+export async function getVersionCheckerText(
+  browser: Playwright
+): Promise<string> {
   await browser.waitForElementByCss('[data-nextjs-version-checker]', 30000)
-  const versionCheckerElement = await browser.elementByCss('[data-nextjs-version-checker]')
+  const versionCheckerElement = await browser.elementByCss(
+    '[data-nextjs-version-checker]'
+  )
   const versionCheckerText = await versionCheckerElement.innerText()
   return versionCheckerText.trim()
 }
@@ -1599,7 +1746,14 @@ export function createMultiDomMatcher(browser: Playwright) {
   ) => {
     await Promise.all(
       Object.keys(expected).map(async (key) => {
-        return checkMeta(browser, key, expected[key], queryKey, tag, domAttributeField)
+        return checkMeta(
+          browser,
+          key,
+          expected[key],
+          queryKey,
+          tag,
+          domAttributeField
+        )
       })
     )
   }
@@ -1611,17 +1765,24 @@ export const checkMetaNameContentPair = (
   content: string | string[]
 ) => checkMeta(browser, name, content, 'name')
 
-export const checkLink = (browser: Playwright, rel: string, content: string | string[]) =>
-  checkMeta(browser, rel, content, 'rel', 'link', 'href')
+export const checkLink = (
+  browser: Playwright,
+  rel: string,
+  content: string | string[]
+) => checkMeta(browser, rel, content, 'rel', 'link', 'href')
 
 export async function getStackFramesContent(browser) {
-  const stackFrameElements = await browser.elementsByCss('[data-nextjs-call-stack-frame]')
+  const stackFrameElements = await browser.elementsByCss(
+    '[data-nextjs-call-stack-frame]'
+  )
   const stackFramesContent = (
     await Promise.all(
       stackFrameElements.map(async (frame) => {
         const functionNameEl = await frame.$('.call-stack-frame-method-name')
         const sourceEl = await frame.$('[data-has-source="true"]')
-        const functionName = functionNameEl ? await functionNameEl.innerText() : ''
+        const functionName = functionNameEl
+          ? await functionNameEl.innerText()
+          : ''
         const source = sourceEl ? await sourceEl.innerText() : ''
 
         if (!functionName) {
@@ -1638,7 +1799,9 @@ export async function getStackFramesContent(browser) {
 }
 
 export async function toggleCollapseCallStackFrames(browser: Playwright) {
-  const button = await browser.elementByCss('[data-nextjs-call-stack-ignored-list-toggle-button]')
+  const button = await browser.elementByCss(
+    '[data-nextjs-call-stack-ignored-list-toggle-button]'
+  )
   const lastExpanded = await button.getAttribute(
     'data-nextjs-call-stack-ignored-list-toggle-button'
   )
@@ -1691,11 +1854,17 @@ export async function assertNoConsoleErrors(browser: Playwright) {
   expect(warningsAndErrors).toEqual([])
 }
 
-export async function getHighlightedDiffLines(browser: Playwright): Promise<[string, string][]> {
-  const lines = await browser.elementsByCss('[data-nextjs-container-errors-pseudo-html--diff]')
+export async function getHighlightedDiffLines(
+  browser: Playwright
+): Promise<[string, string][]> {
+  const lines = await browser.elementsByCss(
+    '[data-nextjs-container-errors-pseudo-html--diff]'
+  )
   return Promise.all(
     lines.map(async (line) => [
-      (await line.getAttribute('data-nextjs-container-errors-pseudo-html--diff'))!,
+      (await line.getAttribute(
+        'data-nextjs-container-errors-pseudo-html--diff'
+      ))!,
       (await line.innerText())[0],
     ])
   )
@@ -1749,5 +1918,7 @@ export function normalizeManifest<T>(
 export function getDistDir(): '.next' | '.next/dev' {
   // global.isNextDev is set in e2e/development/production tests.
   // NEXT_TEST_MODE is set in CI or local test-* commands.
-  return (global as any).isNextDev || process.env.NEXT_TEST_MODE === 'dev' ? '.next/dev' : '.next'
+  return (global as any).isNextDev || process.env.NEXT_TEST_MODE === 'dev'
+    ? '.next/dev'
+    : '.next'
 }

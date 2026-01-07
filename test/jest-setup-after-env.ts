@@ -38,8 +38,14 @@ if (process.platform === 'win32') {
       const normalizedExpected = normalizeLF(expectedOutput)
 
       // Run the transform and normalize its output for comparison
-      const output = testUtils.applyTransform(module, options, normalizedInput, testOptions)
-      const normalizedOutput = typeof output === 'string' ? normalizeLF(output) : output
+      const output = testUtils.applyTransform(
+        module,
+        options,
+        normalizedInput,
+        testOptions
+      )
+      const normalizedOutput =
+        typeof output === 'string' ? normalizeLF(output) : output
 
       // Do the comparison ourselves instead of letting the original do it
       // eslint-disable-next-line jest/no-standalone-expect -- called from within test blocks
@@ -68,13 +74,22 @@ if (process.platform === 'win32') {
 
           // Determine file extension based on parser option
           const parser = testOptions?.parser || module.parser
-          const extension = parser === 'ts' ? 'ts' : parser === 'tsx' ? 'tsx' : 'js'
+          const extension =
+            parser === 'ts' ? 'ts' : parser === 'tsx' ? 'tsx' : 'js'
 
-          const inputPath = path.join(fixtureDir, `${prefix}.input.${extension}`)
-          const outputPath = path.join(fixtureDir, `${prefix}.output.${extension}`)
+          const inputPath = path.join(
+            fixtureDir,
+            `${prefix}.input.${extension}`
+          )
+          const outputPath = path.join(
+            fixtureDir,
+            `${prefix}.output.${extension}`
+          )
 
           const source = normalizeLF(fs.readFileSync(inputPath, 'utf8'))
-          const expectedOutput = normalizeLF(fs.readFileSync(outputPath, 'utf8'))
+          const expectedOutput = normalizeLF(
+            fs.readFileSync(outputPath, 'utf8')
+          )
 
           testUtils.runInlineTest(
             module,

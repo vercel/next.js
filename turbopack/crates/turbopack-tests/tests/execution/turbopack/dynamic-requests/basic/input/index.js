@@ -43,7 +43,10 @@ it('should support dynamic requests in import with template literals', async () 
 
 it('should support dynamic requests in import with template literals and suffix', async () => {
   await expect(importTemplateSuffix('a')).resolves.toBe(a)
-  await expect(importTemplateSuffix('d')).resolves.toHaveProperty('default', 'd')
+  await expect(importTemplateSuffix('d')).resolves.toHaveProperty(
+    'default',
+    'd'
+  )
 })
 
 it('should support dynamic requests in import with addition', async () => {

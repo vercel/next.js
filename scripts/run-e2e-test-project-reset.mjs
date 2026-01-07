@@ -1,4 +1,8 @@
-import { resetProject, TEST_PROJECT_NAME, TEST_TEAM_NAME } from './reset-project.mjs'
+import {
+  resetProject,
+  TEST_PROJECT_NAME,
+  TEST_TEAM_NAME,
+} from './reset-project.mjs'
 
 resetProject({
   projectName: TEST_PROJECT_NAME,

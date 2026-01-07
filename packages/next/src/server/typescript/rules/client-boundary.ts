@@ -18,7 +18,10 @@ const clientBoundary = {
         const initializer = declaration.initializer
         if (initializer && ts.isArrowFunction(initializer)) {
           diagnostics.push(
-            ...clientBoundary.getSemanticDiagnosticsForFunctionExport(source, initializer)
+            ...clientBoundary.getSemanticDiagnosticsForFunctionExport(
+              source,
+              initializer
+            )
           )
         }
       }
@@ -53,7 +56,8 @@ const clientBoundary = {
 
             if (propType) {
               const propTypeInfo = typeChecker.getTypeAtLocation(propType)
-              const typeDeclarationNode = propTypeInfo.symbol?.getDeclarations()?.[0]
+              const typeDeclarationNode =
+                propTypeInfo.symbol?.getDeclarations()?.[0]
 
               if (typeDeclarationNode) {
                 if (
@@ -68,12 +72,14 @@ const clientBoundary = {
                   // will miss accidentally passing normal functions but a false
                   // negative is better than a false positive given how frequent the
                   // false-positive would be.
-                  const maybeServerAction = propName === 'action' || /.+Action$/.test(propName)
+                  const maybeServerAction =
+                    propName === 'action' || /.+Action$/.test(propName)
 
                   // There's a special case for the error file that the `reset` prop
                   // is allowed to be a function:
                   // https://github.com/vercel/next.js/issues/46573
-                  const isErrorReset = (isErrorFile || isGlobalErrorFile) && propName === 'reset'
+                  const isErrorReset =
+                    (isErrorFile || isGlobalErrorFile) && propName === 'reset'
 
                   if (!maybeServerAction && !isErrorReset) {
                     diagnostics.push({

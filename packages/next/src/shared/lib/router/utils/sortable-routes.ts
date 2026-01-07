@@ -158,7 +158,9 @@ function compareSortableRoutes(a: SortableRoute, b: SortableRoute): number {
  * @param routes - Array of routes to sort
  * @returns New sorted array (does not mutate input)
  */
-export function sortSortableRoutes(routes: readonly SortableRoute[]): readonly SortableRoute[] {
+export function sortSortableRoutes(
+  routes: readonly SortableRoute[]
+): readonly SortableRoute[] {
   // Because sort is always in-place, we need to create a shallow copy to avoid
   // mutating the input array.
   return [...routes].sort(compareSortableRoutes)

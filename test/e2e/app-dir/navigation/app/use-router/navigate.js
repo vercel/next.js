@@ -24,7 +24,8 @@ export function NavigateAndTrackRouterIdentity({ href }) {
         <span id="count-from-client-state">{navigationCount}</span>
       </div>
       <div>
-        router identity changes: <span id="router-change-count">{changedCount}</span>
+        router identity changes:{' '}
+        <span id="router-change-count">{changedCount}</span>
       </div>
       <button id="trigger-push" onClick={navigate}>
         navigate

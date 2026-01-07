@@ -9,12 +9,14 @@ export default function LazilyGeneratedParamsStartPage() {
   return (
     <>
       <p>
-        Demonstrates that we can prefetch param that is not generated at build time but is lazily
-        generated on demand
+        Demonstrates that we can prefetch param that is not generated at build
+        time but is lazily generated on demand
       </p>
       <ul>
         <li>
-          <LinkAccordion href="/lazily-generated-params/some-param-value">Target</LinkAccordion>
+          <LinkAccordion href="/lazily-generated-params/some-param-value">
+            Target
+          </LinkAccordion>
         </li>
       </ul>
     </>

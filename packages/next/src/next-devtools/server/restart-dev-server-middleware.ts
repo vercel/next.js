@@ -25,7 +25,8 @@ export function getRestartDevServerMiddleware({
    * Can be used to determine if two server status responses are from the same process or a
    * different (restarted) process.
    */
-  const executionId: number = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER) + 1
+  const executionId: number =
+    Math.floor(Math.random() * Number.MAX_SAFE_INTEGER) + 1
 
   async function handleRestartRequest(
     req: IncomingMessage,
@@ -36,10 +37,16 @@ export function getRestartDevServerMiddleware({
       return middlewareResponse.methodNotAllowed(res)
     }
 
-    const shouldInvalidateFileSystemCache = searchParams.has('invalidateFileSystemCache')
+    const shouldInvalidateFileSystemCache = searchParams.has(
+      'invalidateFileSystemCache'
+    )
     if (shouldInvalidateFileSystemCache) {
       if (webpackCacheDirectories != null) {
-        await Promise.all(Array.from(webpackCacheDirectories).map(invalidateWebpackFileSystemCache))
+        await Promise.all(
+          Array.from(webpackCacheDirectories).map(
+            invalidateWebpackFileSystemCache
+          )
+        )
       }
       if (turbopackProject != null) {
         await turbopackProject.invalidateFileSystemCache()

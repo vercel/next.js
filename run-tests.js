@@ -56,7 +56,8 @@ const DEFAULT_CONCURRENCY = 2
 const RESULTS_EXT = `.results.json`
 const isTestJob = !!process.env.NEXT_TEST_JOB
 // Check env to see if test should continue even if some of test fails
-const shouldContinueTestsOnError = process.env.NEXT_TEST_CONTINUE_ON_ERROR === 'true'
+const shouldContinueTestsOnError =
+  process.env.NEXT_TEST_CONTINUE_ON_ERROR === 'true'
 
 // Check env to load a list of test paths to skip retry. This is to be used in conjunction with NEXT_TEST_CONTINUE_ON_ERROR,
 // When try to run all of the tests regardless of pass / fail and want to skip retrying `known` failed tests.
@@ -93,13 +94,18 @@ async function retryKVOperation(operation, operationName, maxRetries = 3) {
       retries--
       if (retries > 0) {
         const delay = (maxRetries - retries + 1) * 5 // 5s, 10s, 15s backoff
-        console.log(`KV ${operationName} failed, retrying in ${delay}s. Error:`, err.message)
+        console.log(
+          `KV ${operationName} failed, retrying in ${delay}s. Error:`,
+          err.message
+        )
         await new Promise((resolve) => setTimeout(resolve, delay * 1000))
       }
     }
   }
 
-  throw new Error(`Failed to ${operationName} after ${maxRetries} retries: ${lastError?.message}`)
+  throw new Error(
+    `Failed to ${operationName} after ${maxRetries} retries: ${lastError?.message}`
+  )
 }
 
 const testFilters = {
@@ -149,7 +155,9 @@ ${output}
           },
         ],
         ...Array.from(errorsPerTests.entries()).map(([test]) => {
-          return [`<a href="https://github.com/vercel/next.js/blob/canary/${test}">${test}</a>`]
+          return [
+            `<a href="https://github.com/vercel/next.js/blob/canary/${test}">${test}</a>`,
+          ]
         }),
       ])
       .addRaw(outputTemplate)
@@ -217,7 +225,8 @@ async function main() {
 
   // `.github/workflows/build_reusable.yml` sets this, we should use it unless
   // it's overridden by an explicit `--concurrency` argument.
-  const envConcurrency = process.env.TEST_CONCURRENCY && parseInt(process.env.TEST_CONCURRENCY, 10)
+  const envConcurrency =
+    process.env.TEST_CONCURRENCY && parseInt(process.env.TEST_CONCURRENCY, 10)
 
   const options = {
     concurrency: argv.concurrency ?? envConcurrency ?? DEFAULT_CONCURRENCY,
@@ -266,7 +275,9 @@ async function main() {
   const shouldUseSharedTimings = options.timings && options.group
 
   /** @type TestFile[] */
-  let tests = argv._.filter((arg) => arg.toString().match(/\.test\.(js|ts|tsx)/)).map((file) => ({
+  let tests = argv._.filter((arg) =>
+    arg.toString().match(/\.test\.(js|ts|tsx)/)
+  ).map((file) => ({
     file: file.toString(),
     excludedCases: [],
   }))
@@ -283,7 +294,8 @@ async function main() {
     if (options.related) {
       const { getRelatedTests } = await import('./scripts/run-related-test.mjs')
       const tests = await getRelatedTests()
-      if (tests.length) testPatternRegex = new RegExp(tests.map(escapeRegexp).join('|'))
+      if (tests.length)
+        testPatternRegex = new RegExp(tests.map(escapeRegexp).join('|'))
 
       if (testPatternRegex) {
         console.log('Running related tests:', testPatternRegex.toString())
@@ -312,7 +324,9 @@ async function main() {
           return isMatchingPattern(filterTestsBy, file)
         }
         // include all except the separately configured types
-        return !configuredTestTypes.some((type) => isMatchingPattern(type, file))
+        return !configuredTestTypes.some((type) =>
+          isMatchingPattern(type, file)
+        )
       })
       .map((file) => ({
         file,
@@ -462,7 +476,8 @@ ${ENDGROUP}`)
     // a starter Next.js install to re-use to speed up tests to avoid having to
     // run `pnpm install` each time.
     console.log(`${GROUP}Creating shared Next.js install`)
-    const reactVersion = process.env.NEXT_TEST_REACT_VERSION || nextjsReactPeerVersion
+    const reactVersion =
+      process.env.NEXT_TEST_REACT_VERSION || nextjsReactPeerVersion
     const { installDir, pkgPaths, tmpRepoDir } = await createNextInstall({
       parentSpan: mockTrace(),
       dependencies: {
@@ -507,11 +522,16 @@ ${ENDGROUP}`)
         '--runInBand',
         '--forceExit',
         '--verbose',
-        ...(isTestJob ? ['--json', `--outputFile=${test.file}${RESULTS_EXT}`] : []),
+        ...(isTestJob
+          ? ['--json', `--outputFile=${test.file}${RESULTS_EXT}`]
+          : []),
         test.file,
         ...(test.excludedCases.length === 0
           ? []
-          : ['--testNamePattern', `^(?!(?:${test.excludedCases.map(escapeRegexp).join('|')})$).`]),
+          : [
+              '--testNamePattern',
+              `^(?!(?:${test.excludedCases.map(escapeRegexp).join('|')})$).`,
+            ]),
       ]
       const env = {
         // run tests in headless mode by default
@@ -604,7 +624,8 @@ ${ENDGROUP}`)
         if (isChildExitWithNonZero) {
           if (hideOutput) {
             await outputSema.acquire()
-            const isExpanded = firstError && !testSignal.aborted && !shouldContinueTestsOnError
+            const isExpanded =
+              firstError && !testSignal.aborted && !shouldContinueTestsOnError
             if (isExpanded) {
               firstError = false
               process.stdout.write(`❌ ${test.file} output:\n`)
@@ -637,7 +658,9 @@ ${ENDGROUP}`)
             code ? `failed with code: ${code}` : `failed with signal: ${signal}`
           )
           // @ts-expect-error
-          err.output = outputChunks.map(({ chunk }) => chunk.toString()).join('')
+          err.output = outputChunks
+            .map(({ chunk }) => chunk.toString())
+            .join('')
 
           return reject(err)
         }
@@ -653,7 +676,9 @@ ${ENDGROUP}`)
               path.join(
                 __dirname,
                 'test/traces',
-                path.relative(path.join(__dirname, 'test'), test.file).replace(/\//g, '-')
+                path
+                  .relative(path.join(__dirname, 'test'), test.file)
+                  .replace(/\//g, '-')
               ),
               { recursive: true, force: true }
             )
@@ -667,10 +692,14 @@ ${ENDGROUP}`)
   const runTest = async (/** @type {TestFile} */ test) => {
     let passed = false
 
-    const shouldSkipRetries = skipRetryTestManifest.find((t) => t.includes(test.file))
+    const shouldSkipRetries = skipRetryTestManifest.find((t) =>
+      t.includes(test.file)
+    )
     const numRetries = shouldSkipRetries ? 0 : originalRetries
     if (shouldSkipRetries) {
-      console.log(`Skipping retry for ${test.file} due to skipRetryTestManifest`)
+      console.log(
+        `Skipping retry for ${test.file} due to skipRetryTestManifest`
+      )
     }
 
     for (let i = 0; i < numRetries + 1; i++) {
@@ -686,7 +715,9 @@ ${ENDGROUP}`)
           time,
         })
         passed = true
-        console.log(`${test.file} finished on retry ${i}/${numRetries} in ${time / 1000}s`)
+        console.log(
+          `${test.file} finished on retry ${i}/${numRetries} in ${time / 1000}s`
+        )
         break
       } catch (err) {
         if (i < numRetries) {
@@ -719,7 +750,9 @@ ${ENDGROUP}`)
       if (!shouldContinueTestsOnError) {
         testController.abort(error)
       } else {
-        console.log(`CONTINUE_ON_ERROR enabled, continuing tests after ${test.file} failed`)
+        console.log(
+          `CONTINUE_ON_ERROR enabled, continuing tests after ${test.file} failed`
+        )
       }
     }
 
@@ -727,7 +760,10 @@ ${ENDGROUP}`)
     // This is parsed by the commenter webhook to notify about failing tests
     if ((!passed || shouldContinueTestsOnError) && isTestJob) {
       try {
-        const testsOutput = await fsp.readFile(`${test.file}${RESULTS_EXT}`, 'utf8')
+        const testsOutput = await fsp.readFile(
+          `${test.file}${RESULTS_EXT}`,
+          'utf8'
+        )
         const obj = JSON.parse(testsOutput)
         obj.processEnv = {
           NEXT_TEST_MODE: process.env.NEXT_TEST_MODE,
@@ -735,7 +771,11 @@ ${ENDGROUP}`)
         }
         await outputSema.acquire()
         if (GROUP) console.log(`${GROUP}Result as JSON for tooling`)
-        console.log(`--test output start--`, JSON.stringify(obj), `--test output end--`)
+        console.log(
+          `--test output start--`,
+          JSON.stringify(obj),
+          `--test output end--`
+        )
         if (ENDGROUP) console.log(ENDGROUP)
         outputSema.release()
       } catch (err) {

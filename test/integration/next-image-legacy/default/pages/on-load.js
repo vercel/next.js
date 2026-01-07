@@ -9,7 +9,10 @@ const Page = () => {
   return (
     <div>
       <h1>Test onLoad</h1>
-      <p>This is the native onLoad which doesn't work as many places as onLoadingComplete</p>
+      <p>
+        This is the native onLoad which doesn't work as many places as
+        onLoadingComplete
+      </p>
       <ImageWithMessage
         id="1"
         src="/test.jpg"
@@ -69,7 +72,9 @@ const Page = () => {
 function ImageWithMessage({ id, idToCount, setIdToCount, ...props }) {
   const [msg, setMsg] = useState('[LOADING]')
   const style =
-    props.layout === 'fill' ? { position: 'relative', width: '64px', height: '64px' } : {}
+    props.layout === 'fill'
+      ? { position: 'relative', width: '64px', height: '64px' }
+      : {}
   return (
     <>
       <div className="wrap" style={style}>

@@ -1,6 +1,10 @@
 import Link from 'next/link'
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
   const links = []
   for (let n = 1; n <= 5; n++) {
     links.push(

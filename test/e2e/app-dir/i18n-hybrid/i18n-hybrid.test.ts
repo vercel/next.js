@@ -58,23 +58,29 @@ describe('i18n-hybrid', () => {
     )
   })
 
-  it.each(urls.filter((url) => !url.expected))('does not resolve $pathname', async (url) => {
-    const res = await next.fetch(url.pathname, {
-      redirect: 'manual',
-    })
+  it.each(urls.filter((url) => !url.expected))(
+    'does not resolve $pathname',
+    async (url) => {
+      const res = await next.fetch(url.pathname, {
+        redirect: 'manual',
+      })
 
-    expect(res.status).toBe(404)
-  })
+      expect(res.status).toBe(404)
+    }
+  )
 
-  it.each(urls.filter((url) => url.expected))('does resolve $pathname', async (url) => {
-    const res = await next.fetch(url.pathname, {
-      redirect: 'manual',
-    })
+  it.each(urls.filter((url) => url.expected))(
+    'does resolve $pathname',
+    async (url) => {
+      const res = await next.fetch(url.pathname, {
+        redirect: 'manual',
+      })
 
-    expect(res.status).toBe(200)
+      expect(res.status).toBe(200)
 
-    const $ = cheerio.load(await res.text())
-    const debug = JSON.parse($('#debug').text())
-    expect(debug).toEqual(url.expected)
-  })
+      const $ = cheerio.load(await res.text())
+      const debug = JSON.parse($('#debug').text())
+      expect(debug).toEqual(url.expected)
+    }
+  )
 })

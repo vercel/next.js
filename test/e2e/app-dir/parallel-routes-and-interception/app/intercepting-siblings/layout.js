@@ -4,7 +4,9 @@ export default function Layout({ children, modal }) {
   return (
     <div>
       <h1>intercepting-siblings</h1>
-      <div style={{ border: '1px solid black', padding: '1rem' }}>{children}</div>
+      <div style={{ border: '1px solid black', padding: '1rem' }}>
+        {children}
+      </div>
       <hr />
       <div style={{ border: '1px solid black', padding: '1rem' }}>{modal}</div>
       <h1>links</h1>

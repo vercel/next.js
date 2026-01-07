@@ -12,7 +12,9 @@ const createSrcFolder = async () => {
 
   const files = new Array(100)
     .fill(undefined)
-    .map((_, i) => join(srcDir, `folder${i % 5}`, `folder${i + (1 % 5)}`, `file${i}`))
+    .map((_, i) =>
+      join(srcDir, `folder${i % 5}`, `folder${i + (1 % 5)}`, `file${i}`)
+    )
 
   await Promise.all(files.map((file) => outputFile(file, 'hello')))
 }

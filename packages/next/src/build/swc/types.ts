@@ -20,7 +20,10 @@ export interface Binding {
       options: ProjectOptions,
       turboEngineOptions?: NapiTurboEngineOptions
     ): Promise<Project>
-    startTurbopackTraceServer(traceFilePath: string, port: number | undefined): void
+    startTurbopackTraceServer(
+      traceFilePath: string,
+      port: number | undefined
+    ): void
 
     nextBuild?: any
   }
@@ -51,7 +54,10 @@ export interface Binding {
 
   rspack: {
     getModuleNamedExports(resourcePath: string): Promise<string[]>
-    warnForEdgeRuntime(source: string, isProduction: boolean): Promise<NapiSourceDiagnostic[]>
+    warnForEdgeRuntime(
+      source: string,
+      isProduction: boolean
+    ): Promise<NapiSourceDiagnostic[]>
   }
   expandNextJsTemplate(
     content: Buffer,
@@ -229,13 +235,19 @@ export interface Project {
 
   writeAnalyzeData(appDirOnly: boolean): Promise<TurbopackResult<void>>
 
-  writeAllEntrypointsToDisk(appDirOnly: boolean): Promise<TurbopackResult<Partial<RawEntrypoints>>>
+  writeAllEntrypointsToDisk(
+    appDirOnly: boolean
+  ): Promise<TurbopackResult<Partial<RawEntrypoints>>>
 
-  entrypointsSubscribe(): AsyncIterableIterator<TurbopackResult<RawEntrypoints | {}>>
+  entrypointsSubscribe(): AsyncIterableIterator<
+    TurbopackResult<RawEntrypoints | {}>
+  >
 
   hmrEvents(identifier: string): AsyncIterableIterator<TurbopackResult<Update>>
 
-  hmrIdentifiersSubscribe(): AsyncIterableIterator<TurbopackResult<HmrIdentifiers>>
+  hmrIdentifiersSubscribe(): AsyncIterableIterator<
+    TurbopackResult<HmrIdentifiers>
+  >
 
   getSourceForAsset(filePath: string): Promise<string | null>
 
@@ -247,7 +259,9 @@ export interface Project {
     currentDirectoryFileUrl: string
   ): Promise<TurbopackStackFrame | null>
 
-  updateInfoSubscribe(aggregationMs: number): AsyncIterableIterator<TurbopackResult<UpdateMessage>>
+  updateInfoSubscribe(
+    aggregationMs: number
+  ): AsyncIterableIterator<TurbopackResult<UpdateMessage>>
 
   compilationEventsSubscribe(
     eventTypes?: string[]
@@ -303,7 +317,9 @@ export interface Endpoint {
    * After serverChanged() has been awaited it will listen to changes.
    * The async iterator will yield for each change.
    */
-  serverChanged(includeIssues: boolean): Promise<AsyncIterableIterator<TurbopackResult>>
+  serverChanged(
+    includeIssues: boolean
+  ): Promise<AsyncIterableIterator<TurbopackResult>>
 }
 
 interface EndpointConfig {
@@ -353,7 +369,10 @@ export type WrittenEndpoint =
       config: EndpointConfig
     }
 
-export interface ProjectOptions extends Omit<NapiProjectOptions, 'nextConfig' | 'env'> {
+export interface ProjectOptions extends Omit<
+  NapiProjectOptions,
+  'nextConfig' | 'env'
+> {
   /**
    * The next.config.js contents.
    */

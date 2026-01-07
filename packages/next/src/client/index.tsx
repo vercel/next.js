@@ -2,7 +2,11 @@
 // imports polyfill from `@next/polyfill-module` after build.
 import '../build/polyfills/polyfill-module'
 import type Router from '../shared/lib/router/router'
-import type { AppComponent, AppProps, PrivateRouteInfo } from '../shared/lib/router/router'
+import type {
+  AppComponent,
+  AppProps,
+  PrivateRouteInfo,
+} from '../shared/lib/router/router'
 
 import React, { type JSX } from 'react'
 import ReactDOM from 'react-dom/client'
@@ -12,7 +16,10 @@ import type { MittEmitter } from '../shared/lib/mitt'
 import { RouterContext } from '../shared/lib/router-context.shared-runtime'
 import { disableSmoothScrollDuringRouteTransition } from '../shared/lib/router/utils/disable-smooth-scroll'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
-import { urlQueryToSearchParams, assign } from '../shared/lib/router/utils/querystring'
+import {
+  urlQueryToSearchParams,
+  assign,
+} from '../shared/lib/router/utils/querystring'
 import { getURL, loadGetInitialProps, ST } from '../shared/lib/utils'
 import type { NextWebVitalsMetric, NEXT_DATA } from '../shared/lib/utils'
 import { Portal } from './portal'
@@ -115,7 +122,9 @@ class Container extends React.Component<{
             initialMatchesMiddleware)) ||
         (initialData.props &&
           initialData.props.__N_SSG &&
-          (location.search || process.env.__NEXT_HAS_REWRITES || initialMatchesMiddleware)))
+          (location.search ||
+            process.env.__NEXT_HAS_REWRITES ||
+            initialMatchesMiddleware)))
     ) {
       // update query on mount for exported pages
       router
@@ -123,7 +132,10 @@ class Container extends React.Component<{
           router.pathname +
             '?' +
             String(
-              assign(urlQueryToSearchParams(router.query), new URLSearchParams(location.search))
+              assign(
+                urlQueryToSearchParams(router.query),
+                new URLSearchParams(location.search)
+              )
             ),
           asPath,
           {
@@ -168,7 +180,9 @@ class Container extends React.Component<{
     } else {
       const { PagesDevOverlayBridge } =
         require('../next-devtools/userspace/pages/pages-dev-overlay-setup') as typeof import('../next-devtools/userspace/pages/pages-dev-overlay-setup')
-      return <PagesDevOverlayBridge>{this.props.children}</PagesDevOverlayBridge>
+      return (
+        <PagesDevOverlayBridge>{this.props.children}</PagesDevOverlayBridge>
+      )
     }
   }
 }
@@ -179,12 +193,16 @@ export async function initialize(opts: { devClient?: any } = {}): Promise<{
   // This makes sure this specific lines are removed in production
   if (process.env.NODE_ENV === 'development') {
     tracer.onSpanEnd(
-      (require('./tracing/report-to-socket') as typeof import('./tracing/report-to-socket')).default
+      (
+        require('./tracing/report-to-socket') as typeof import('./tracing/report-to-socket')
+      ).default
     )
     devClient = opts.devClient
   }
 
-  initialData = JSON.parse(document.getElementById('__NEXT_DATA__')!.textContent!)
+  initialData = JSON.parse(
+    document.getElementById('__NEXT_DATA__')!.textContent!
+  )
   window.__NEXT_DATA__ = initialData
 
   defaultLocale = initialData.defaultLocale
@@ -215,7 +233,10 @@ export async function initialize(opts: { devClient?: any } = {}): Promise<{
 
     if (initialData.locales) {
       const parsedAs = parseRelativeUrl(asPath)
-      const localePathResult = normalizeLocalePath(parsedAs.pathname, initialData.locales)
+      const localePathResult = normalizeLocalePath(
+        parsedAs.pathname,
+        initialData.locales
+      )
 
       if (localePathResult.detectedLocale) {
         parsedAs.pathname = localePathResult.pathname
@@ -242,13 +263,15 @@ export async function initialize(opts: { devClient?: any } = {}): Promise<{
   }
 
   if (initialData.scriptLoader) {
-    const { initScriptLoader } = require('./script') as typeof import('./script')
+    const { initScriptLoader } =
+      require('./script') as typeof import('./script')
     initScriptLoader(initialData.scriptLoader)
   }
 
   pageLoader = new PageLoader(initialData.buildId, prefix)
 
-  const register: RegisterFn = ([r, f]) => pageLoader.routeLoader.onEntrypoint(r, f)
+  const register: RegisterFn = ([r, f]) =>
+    pageLoader.routeLoader.onEntrypoint(r, f)
   if (window.__NEXT_P) {
     // Defer page registration for another tick. This will increase the overall
     // latency in hydrating the page, but reduce the total blocking time.
@@ -270,7 +293,9 @@ function renderApp(App: AppComponent, appProps: AppProps) {
   return <App {...appProps} />
 }
 
-function AppContainer({ children }: React.PropsWithChildren<{}>): React.ReactElement {
+function AppContainer({
+  children,
+}: React.PropsWithChildren<{}>): React.ReactElement {
   // Create a memoized value for next/navigation router context.
   const adaptedForAppRouter = React.useMemo(() => {
     return adaptForAppRouterInstance(router)
@@ -293,7 +318,10 @@ function AppContainer({ children }: React.PropsWithChildren<{}>): React.ReactEle
               <RouterContext.Provider value={makePublicRouterInstance(router)}>
                 <HeadManagerContext.Provider value={headManager}>
                   <ImageConfigContext.Provider
-                    value={process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete}
+                    value={
+                      process.env
+                        .__NEXT_IMAGE_OPTS as any as ImageConfigComplete
+                    }
                   >
                     {children}
                   </ImageConfigContext.Provider>
@@ -384,7 +412,9 @@ function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
         },
       }
       return Promise.resolve(
-        renderErrorProps.props?.err ? renderErrorProps.props : loadGetInitialProps(App, appCtx)
+        renderErrorProps.props?.err
+          ? renderErrorProps.props
+          : loadGetInitialProps(App, appCtx)
       ).then((initProps) =>
         doRender({
           ...renderErrorProps,
@@ -470,12 +500,18 @@ function markHydrateComplete(): void {
             query: location.search,
           },
         })
-        .end(performance.timeOrigin + hydrationMeasure.startTime + hydrationMeasure.duration)
+        .end(
+          performance.timeOrigin +
+            hydrationMeasure.startTime +
+            hydrationMeasure.duration
+        )
     }
   }
 
   if (onPerfEntry) {
-    performance.getEntriesByName(performanceMeasures.hydration).forEach(onPerfEntry)
+    performance
+      .getEntriesByName(performanceMeasures.hydration)
+      .forEach(onPerfEntry)
   }
   clearMarks()
 }
@@ -508,18 +544,26 @@ function markRenderComplete(): void {
       performanceMarks.afterRender
     )
     if (onPerfEntry) {
-      performance.getEntriesByName(performanceMeasures.render).forEach(onPerfEntry)
-      performance.getEntriesByName(performanceMeasures.routeChangeToRender).forEach(onPerfEntry)
+      performance
+        .getEntriesByName(performanceMeasures.render)
+        .forEach(onPerfEntry)
+      performance
+        .getEntriesByName(performanceMeasures.routeChangeToRender)
+        .forEach(onPerfEntry)
     }
   }
 
   clearMarks()
-  ;[performanceMeasures.routeChangeToRender, performanceMeasures.render].forEach((measure) =>
-    performance.clearMeasures(measure)
-  )
+  ;[
+    performanceMeasures.routeChangeToRender,
+    performanceMeasures.render,
+  ].forEach((measure) => performance.clearMeasures(measure))
 }
 
-function renderReactElement(domEl: HTMLElement, fn: (cb: () => void) => JSX.Element): void {
+function renderReactElement(
+  domEl: HTMLElement,
+  fn: (cb: () => void) => JSX.Element
+): void {
   // mark start of hydrate/render
   if (ST) {
     performance.mark(performanceMarks.beforeRender)
@@ -549,7 +593,10 @@ function Root({
 }>): React.ReactElement {
   // We use `useLayoutEffect` to guarantee the callbacks are executed
   // as soon as React flushes the update
-  React.useLayoutEffect(() => callbacks.forEach((callback) => callback()), [callbacks])
+  React.useLayoutEffect(
+    () => callbacks.forEach((callback) => callback()),
+    [callbacks]
+  )
 
   if (process.env.__NEXT_TEST_MODE) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -621,8 +668,11 @@ function doRender(input: RenderRouteInfo): Promise<any> {
       currentStyleTags.map((tag) => tag.getAttribute('data-n-href'))
     )
 
-    const noscript: Element | null = document.querySelector('noscript[data-n-css]')
-    const nonce: string | null | undefined = noscript?.getAttribute('data-n-css')
+    const noscript: Element | null = document.querySelector(
+      'noscript[data-n-css]'
+    )
+    const nonce: string | null | undefined =
+      noscript?.getAttribute('data-n-css')
 
     styleSheets.forEach(({ href, text }: { href: string; text: any }) => {
       if (!currentHrefs.has(href)) {
@@ -655,10 +705,13 @@ function doRender(input: RenderRouteInfo): Promise<any> {
       !canceled
     ) {
       const desiredHrefs: Set<string> = new Set(styleSheets.map((s) => s.href))
-      const currentStyleTags: HTMLStyleElement[] = looseToArray<HTMLStyleElement>(
-        document.querySelectorAll('style[data-n-href]')
+      const currentStyleTags: HTMLStyleElement[] =
+        looseToArray<HTMLStyleElement>(
+          document.querySelectorAll('style[data-n-href]')
+        )
+      const currentHrefs: string[] = currentStyleTags.map(
+        (tag) => tag.getAttribute('data-n-href')!
       )
-      const currentHrefs: string[] = currentStyleTags.map((tag) => tag.getAttribute('data-n-href')!)
 
       // Toggle `<style>` tags on or off depending on if they're needed:
       for (let idx = 0; idx < currentHrefs.length; ++idx) {
@@ -670,25 +723,34 @@ function doRender(input: RenderRouteInfo): Promise<any> {
       }
 
       // Reorder styles into intended order:
-      let referenceNode: Element | null = document.querySelector('noscript[data-n-css]')
+      let referenceNode: Element | null = document.querySelector(
+        'noscript[data-n-css]'
+      )
       if (
         // This should be an invariant:
         referenceNode
       ) {
         styleSheets.forEach(({ href }: { href: string }) => {
-          const targetTag: Element | null = document.querySelector(`style[data-n-href="${href}"]`)
+          const targetTag: Element | null = document.querySelector(
+            `style[data-n-href="${href}"]`
+          )
           if (
             // This should be an invariant:
             targetTag
           ) {
-            referenceNode!.parentNode!.insertBefore(targetTag, referenceNode!.nextSibling)
+            referenceNode!.parentNode!.insertBefore(
+              targetTag,
+              referenceNode!.nextSibling
+            )
             referenceNode = targetTag
           }
         })
       }
 
       // Finally, clean up server rendered stylesheets:
-      looseToArray<HTMLLinkElement>(document.querySelectorAll('link[data-n-p]')).forEach((el) => {
+      looseToArray<HTMLLinkElement>(
+        document.querySelectorAll('link[data-n-p]')
+      ).forEach((el) => {
         el.parentNode!.removeChild(el)
       })
     }
@@ -722,7 +784,11 @@ function doRender(input: RenderRouteInfo): Promise<any> {
   // We catch runtime errors using componentDidCatch which will trigger renderError
   renderReactElement(appElement!, (callback) => (
     <Root callbacks={[callback, onRootCommit]}>
-      {process.env.__NEXT_STRICT_MODE ? <React.StrictMode>{elem}</React.StrictMode> : elem}
+      {process.env.__NEXT_STRICT_MODE ? (
+        <React.StrictMode>{elem}</React.StrictMode>
+      ) : (
+        elem
+      )}
     </Root>
   ))
 
@@ -737,7 +803,8 @@ async function render(renderingProps: RenderRouteInfo): Promise<void> {
   if (
     renderingProps.err &&
     // renderingProps.Component might be undefined if there is a top/module-level error
-    (typeof renderingProps.Component === 'undefined' || !renderingProps.isHydratePass)
+    (typeof renderingProps.Component === 'undefined' ||
+      !renderingProps.isHydratePass)
   ) {
     await renderError(renderingProps)
     return
@@ -797,7 +864,10 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
           name,
           startTime: startTime || perfStartEntry,
           value: value == null ? duration : value,
-          label: entryType === 'mark' || entryType === 'measure' ? 'custom' : 'web-vital',
+          label:
+            entryType === 'mark' || entryType === 'measure'
+              ? 'custom'
+              : 'web-vital',
         }
         if (attribution) {
           webVitals.attribution = attribution
@@ -857,7 +927,8 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
           // In development, error the navigation API usage in runtime,
           // since it's not allowed to be used in pages router as it doesn't contain error boundary like app router.
           if (isNextRouterError(initialErr)) {
-            error.message = 'Next.js navigation API is not allowed to be used in Pages Router.'
+            error.message =
+              'Next.js navigation API is not allowed to be used in Pages Router.'
           }
 
           throw getServerError(error, errSource)

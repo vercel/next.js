@@ -55,7 +55,9 @@ async function run() {
 
     if (data.items.length > 0) {
       data.items.forEach(async (item) => {
-        const labelType = item.labels.some((label) => label.name === 'Turbopack')
+        const labelType = item.labels.some(
+          (label) => label.name === 'Turbopack'
+        )
           ? 'turbopack'
           : 'next'
         const syncLabel = `linear: ${labelType}`

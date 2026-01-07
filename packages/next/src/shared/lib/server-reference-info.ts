@@ -24,7 +24,9 @@ export interface ServerReferenceInfo {
  *
  * @param id hex-encoded server reference ID
  */
-export function extractInfoFromServerReferenceId(id: string): ServerReferenceInfo {
+export function extractInfoFromServerReferenceId(
+  id: string
+): ServerReferenceInfo {
   const infoByte = parseInt(id.slice(0, 2), 16)
   const typeBit = (infoByte >> 7) & 0x1
   const argMask = (infoByte >> 1) & 0x3f
@@ -39,7 +41,14 @@ export function extractInfoFromServerReferenceId(id: string): ServerReferenceInf
 
   return {
     type: typeBit === 1 ? 'use-cache' : 'server-action',
-    usedArgs: usedArgs as [boolean, boolean, boolean, boolean, boolean, boolean],
+    usedArgs: usedArgs as [
+      boolean,
+      boolean,
+      boolean,
+      boolean,
+      boolean,
+      boolean,
+    ],
     hasRestArgs: restArgs === 1,
   }
 }
@@ -48,7 +57,10 @@ export function extractInfoFromServerReferenceId(id: string): ServerReferenceInf
  * Creates a sparse array containing only the used arguments based on the
  * provided action info.
  */
-export function omitUnusedArgs(args: unknown[], info: ServerReferenceInfo): unknown[] {
+export function omitUnusedArgs(
+  args: unknown[],
+  info: ServerReferenceInfo
+): unknown[] {
   const filteredArgs = new Array(args.length)
 
   for (let index = 0; index < args.length; index++) {

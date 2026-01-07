@@ -2,7 +2,14 @@
 
 import cheerio from 'cheerio'
 import fs from 'fs-extra'
-import { findPort, killApp, launchApp, nextBuild, nextStart, renderViaHTTP } from 'next-test-utils'
+import {
+  findPort,
+  killApp,
+  launchApp,
+  nextBuild,
+  nextStart,
+  renderViaHTTP,
+} from 'next-test-utils'
 import { join } from 'path'
 
 let app
@@ -32,29 +39,35 @@ function runTests() {
 const nextConfig = join(appDir, 'next.config.js')
 
 describe('Dynamic Optional Routing', () => {
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-    runTests()
-  })
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      const curConfig = await fs.readFile(nextConfig, 'utf8')
+      runTests()
+    }
+  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        const curConfig = await fs.readFile(nextConfig, 'utf8')
 
-      if (curConfig.includes('target')) {
-        await fs.writeFile(nextConfig, `module.exports = {}`)
-      }
-      await nextBuild(appDir)
+        if (curConfig.includes('target')) {
+          await fs.writeFile(nextConfig, `module.exports = {}`)
+        }
+        await nextBuild(appDir)
 
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-    runTests()
-  })
+      runTests()
+    }
+  )
 })

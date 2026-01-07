@@ -52,7 +52,9 @@ describe('next/head', () => {
 
     for (let i = 1; i < 5; i++) {
       expect(
-        await browser.elementByCss(`meta[name="test-head-${i}"]`).getAttribute('content')
+        await browser
+          .elementByCss(`meta[name="test-head-${i}"]`)
+          .getAttribute('content')
       ).toBe('hello')
     }
   })
@@ -61,6 +63,8 @@ describe('next/head', () => {
     const html = await renderViaHTTP(next.url, '/')
     const $ = cheerio.load(html)
 
-    expect($(`meta[name="test-head-initial-props"]`).attr()['content']).toBe('hello')
+    expect($(`meta[name="test-head-initial-props"]`).attr()['content']).toBe(
+      'hello'
+    )
   })
 })

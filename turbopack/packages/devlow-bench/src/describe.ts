@@ -1,4 +1,9 @@
-import type { ConfigFor, CurrentScenario, Interface, Scenario } from './index.js'
+import type {
+  ConfigFor,
+  CurrentScenario,
+  Interface,
+  Scenario,
+} from './index.js'
 import compose from './interfaces/compose.js'
 import { runScenarios } from './runner.js'
 
@@ -38,17 +43,22 @@ export function describe<P>(
       runScenarios(scenarios, compose(...ifaces))
     })
   }
-  const normalizedConfig: Record<string, (string | number | boolean)[]> = Object.fromEntries(
-    Object.entries(config).map(([key, value]) => [
-      key,
-      typeof value === 'boolean' ? [value, !value] : (value as (string | number | boolean)[]),
-    ])
-  )
+  const normalizedConfig: Record<string, (string | number | boolean)[]> =
+    Object.fromEntries(
+      Object.entries(config).map(([key, value]) => [
+        key,
+        typeof value === 'boolean'
+          ? [value, !value]
+          : (value as (string | number | boolean)[]),
+      ])
+    )
   currentScenarios!.push({
     name,
     config: normalizedConfig,
     only: false,
-    fn: fn as (props: Record<string, string | number | boolean>) => Promise<void>,
+    fn: fn as (
+      props: Record<string, string | number | boolean>
+    ) => Promise<void>,
   })
 }
 
@@ -63,7 +73,10 @@ describe.only = function describeOnly<P>(
 
 let currentScenario: CurrentScenario | null = null
 
-export function withCurrent(current: CurrentScenario, fn: () => Promise<void>): Promise<void> {
+export function withCurrent(
+  current: CurrentScenario,
+  fn: () => Promise<void>
+): Promise<void> {
   const prev = currentScenario
   currentScenario = current
   return fn().finally(() => {
@@ -103,19 +116,29 @@ export async function reportMeasurement(
     throw new Error('reportMeasurement() must be called inside of describe()')
   }
   if (typeof name !== 'string') {
-    throw new Error('reportMeasurement() must be called with a name that is a string')
+    throw new Error(
+      'reportMeasurement() must be called with a name that is a string'
+    )
   }
   if (typeof value !== 'number') {
-    throw new Error('reportMeasurement() must be called with a value that is a number')
+    throw new Error(
+      'reportMeasurement() must be called with a value that is a number'
+    )
   }
   if (isNaN(value)) {
-    throw new Error('reportMeasurement() must be called with a value that is not NaN')
+    throw new Error(
+      'reportMeasurement() must be called with a value that is not NaN'
+    )
   }
   if (!isFinite(value)) {
-    throw new Error('reportMeasurement() must be called with a value that is finite')
+    throw new Error(
+      'reportMeasurement() must be called with a value that is finite'
+    )
   }
   if (typeof unit !== 'string') {
-    throw new Error('reportMeasurement() must be called with a unit that is a string')
+    throw new Error(
+      'reportMeasurement() must be called with a unit that is a string'
+    )
   }
   let { relativeTo, scenario, props } = options
   if (relativeTo === PREVIOUS) {
@@ -137,7 +160,9 @@ export async function reportMeasurement(
       throw new Error(`No measurement named ${relativeTo} found`)
     }
     if (prev.unit !== unit) {
-      throw new Error(`Measurement ${relativeTo} is not a "${unit}" measurement`)
+      throw new Error(
+        `Measurement ${relativeTo} is not a "${unit}" measurement`
+      )
     }
     reportedValue -= prev.value
   }

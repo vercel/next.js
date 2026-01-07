@@ -55,7 +55,9 @@ function dedupeConcurrent<T>(func: () => Promise<T>): () => Promise<T> {
 }
 
 const fetchDynamicRandomDeduped = dedupeConcurrent(async () => {
-  const res = await fetch('https://next-data-api-endpoint.vercel.app/api/random')
+  const res = await fetch(
+    'https://next-data-api-endpoint.vercel.app/api/random'
+  )
   if (!res.ok) {
     throw new Error(`request failed with status ${res.status}`)
   }

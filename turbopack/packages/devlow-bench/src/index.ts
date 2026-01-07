@@ -37,9 +37,14 @@ export type Interface = Partial<FullInterface>
 
 export interface FullInterface {
   filterScenarios(scenarios: Scenario[]): Promise<Scenario[]>
-  filterScenarioVariants(scenarioVariants: ScenarioVariant[]): Promise<ScenarioVariant[]>
+  filterScenarioVariants(
+    scenarioVariants: ScenarioVariant[]
+  ): Promise<ScenarioVariant[]>
 
-  start(scenario: string, props: Record<string, string | number | boolean | null>): Promise<void>
+  start(
+    scenario: string,
+    props: Record<string, string | number | boolean | null>
+  ): Promise<void>
   measurement(
     scenario: string,
     props: Record<string, string | number | boolean | null>,
@@ -48,7 +53,10 @@ export interface FullInterface {
     unit: string,
     relativeTo?: string
   ): Promise<void>
-  end(scenario: string, props: Record<string, string | number | boolean | null>): Promise<void>
+  end(
+    scenario: string,
+    props: Record<string, string | number | boolean | null>
+  ): Promise<void>
   error(
     scenario: string,
     props: Record<string, string | number | boolean | null>,
@@ -62,7 +70,8 @@ export function intoFullInterface(iface: Interface): FullInterface {
   return {
     filterScenarios: iface.filterScenarios ?? (async (scenarios) => scenarios),
     filterScenarioVariants:
-      iface.filterScenarioVariants ?? (async (scenarioVariants) => scenarioVariants),
+      iface.filterScenarioVariants ??
+      (async (scenarioVariants) => scenarioVariants),
     start: iface.start ?? (async () => {}),
     measurement: iface.measurement ?? (async () => {}),
     end: iface.end ?? (async () => {}),
@@ -71,5 +80,10 @@ export function intoFullInterface(iface: Interface): FullInterface {
   }
 }
 
-export { describe, measureTime, reportMeasurement, PREVIOUS } from './describe.js'
+export {
+  describe,
+  measureTime,
+  reportMeasurement,
+  PREVIOUS,
+} from './describe.js'
 export { runScenarios } from './runner.js'

@@ -23,7 +23,10 @@ export function defineConfig<T extends NextOptionsConfig = NextOptionsConfig>(
       defaultPlaywrightConfig as base.PlaywrightTestConfig<T>
     return base.defineConfig<T>(partialDefaultPlaywrightConfig, config)
   } else {
-    return base.defineConfig<T>(defaultPlaywrightConfig as base.PlaywrightTestConfig<T>, config)
+    return base.defineConfig<T>(
+      defaultPlaywrightConfig as base.PlaywrightTestConfig<T>,
+      config
+    )
   }
 }
 

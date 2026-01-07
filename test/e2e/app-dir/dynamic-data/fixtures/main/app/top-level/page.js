@@ -9,8 +9,9 @@ export default async function Page({ searchParams }) {
     <div>
       <PageSentinel />
       <section>
-        This example uses headers/cookies/searchParams directly. In static generation we'd expect
-        this to bail out to dynamic. In PPR we expect this to partially render the root layout only
+        This example uses headers/cookies/searchParams directly. In static
+        generation we'd expect this to bail out to dynamic. In PPR we expect
+        this to partially render the root layout only
       </section>
       <section id="headers">
         <h3>headers</h3>

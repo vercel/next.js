@@ -5,7 +5,10 @@ import { join } from 'path'
 import { interopDefault } from '../lib/interop-default'
 import { getTracer } from './lib/trace/tracer'
 import { LoadComponentsSpan } from './lib/trace/constants'
-import { loadManifestWithRetries, type LoadComponentsReturnType } from './load-components'
+import {
+  loadManifestWithRetries,
+  type LoadComponentsReturnType,
+} from './load-components'
 export type ManifestItem = {
   id: number | string
   files: string[]

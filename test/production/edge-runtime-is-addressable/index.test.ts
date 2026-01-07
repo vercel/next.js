@@ -54,7 +54,9 @@ describe('Edge Runtime is addressable', () => {
   })
 
   test('removes the undefined branch with dead code elimination', async () => {
-    const middlewareManifest = await next.readJSON('.next/server/middleware-manifest.json')
+    const middlewareManifest = await next.readJSON(
+      '.next/server/middleware-manifest.json'
+    )
 
     const files = middlewareManifest.middleware['/'].files
 

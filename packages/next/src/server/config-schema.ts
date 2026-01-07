@@ -14,7 +14,12 @@ import type {
   TurbopackRuleCondition,
   TurbopackLoaderBuiltinCondition,
 } from './config-shared'
-import type { Header, Rewrite, RouteHas, Redirect } from '../lib/load-custom-routes'
+import type {
+  Header,
+  Rewrite,
+  RouteHas,
+  Redirect,
+} from '../lib/load-custom-routes'
 import { SUPPORTED_TEST_RUNNERS_LIST } from '../cli/next-test'
 
 // A custom zod schema for the SizeLimit type
@@ -106,14 +111,15 @@ const zTurbopackLoaderItem: zod.ZodType<TurbopackLoaderItem> = z.union([
   }),
 ])
 
-const zTurbopackLoaderBuiltinCondition: zod.ZodType<TurbopackLoaderBuiltinCondition> = z.union([
-  z.literal('browser'),
-  z.literal('foreign'),
-  z.literal('development'),
-  z.literal('production'),
-  z.literal('node'),
-  z.literal('edge-light'),
-])
+const zTurbopackLoaderBuiltinCondition: zod.ZodType<TurbopackLoaderBuiltinCondition> =
+  z.union([
+    z.literal('browser'),
+    z.literal('foreign'),
+    z.literal('development'),
+    z.literal('production'),
+    z.literal('node'),
+    z.literal('edge-light'),
+  ])
 
 const zTurbopackCondition: zod.ZodType<TurbopackRuleCondition> = z.union([
   z.strictObject({ all: z.lazy(() => z.array(zTurbopackCondition)) }),
@@ -126,16 +132,18 @@ const zTurbopackCondition: zod.ZodType<TurbopackRuleCondition> = z.union([
   }),
 ])
 
-const zTurbopackRuleConfigItem: zod.ZodType<TurbopackRuleConfigItem> = z.strictObject({
-  loaders: z.array(zTurbopackLoaderItem),
-  as: z.string().optional(),
-  condition: zTurbopackCondition.optional(),
-})
+const zTurbopackRuleConfigItem: zod.ZodType<TurbopackRuleConfigItem> =
+  z.strictObject({
+    loaders: z.array(zTurbopackLoaderItem),
+    as: z.string().optional(),
+    condition: zTurbopackCondition.optional(),
+  })
 
-const zTurbopackRuleConfigCollection: zod.ZodType<TurbopackRuleConfigCollection> = z.union([
-  zTurbopackRuleConfigItem,
-  z.array(z.union([zTurbopackLoaderItem, zTurbopackRuleConfigItem])),
-])
+const zTurbopackRuleConfigCollection: zod.ZodType<TurbopackRuleConfigCollection> =
+  z.union([
+    zTurbopackRuleConfigItem,
+    z.array(z.union([zTurbopackLoaderItem, zTurbopackRuleConfigItem])),
+  ])
 
 const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
   rules: z.record(z.string(), zTurbopackRuleConfigCollection).optional(),
@@ -375,7 +383,11 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             z.object({
               sourceMap: z.boolean().optional(),
               autoLabel: z
-                .union([z.literal('always'), z.literal('dev-only'), z.literal('never')])
+                .union([
+                  z.literal('always'),
+                  z.literal('dev-only'),
+                  z.literal('never'),
+                ])
                 .optional(),
               labelFormat: z.string().min(1).optional(),
               importMap: z
@@ -384,8 +396,12 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
                   z.record(
                     z.string(),
                     z.object({
-                      canonicalImport: z.tuple([z.string(), z.string()]).optional(),
-                      styledBaseImport: z.tuple([z.string(), z.string()]).optional(),
+                      canonicalImport: z
+                        .tuple([z.string(), z.string()])
+                        .optional(),
+                      styledBaseImport: z
+                        .tuple([z.string(), z.string()])
+                        .optional(),
                     })
                   )
                 )
@@ -440,12 +456,17 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         ]),
         define: z.record(z.string(), z.string()).optional(),
         defineServer: z.record(z.string(), z.string()).optional(),
-        runAfterProductionCompile: z.function().returns(z.promise(z.void())).optional(),
+        runAfterProductionCompile: z
+          .function()
+          .returns(z.promise(z.void()))
+          .optional(),
       })
       .optional(),
     compress: z.boolean().optional(),
     configOrigin: z.string().optional(),
-    crossOrigin: z.union([z.literal('anonymous'), z.literal('use-credentials')]).optional(),
+    crossOrigin: z
+      .union([z.literal('anonymous'), z.literal('use-credentials')])
+      .optional(),
     deploymentId: z.string().optional(),
     devIndicators: z
       .union([
@@ -484,7 +505,13 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     generateBuildId: z
       .function()
       .args()
-      .returns(z.union([z.string(), z.null(), z.promise(z.union([z.string(), z.null()]))]))
+      .returns(
+        z.union([
+          z.string(),
+          z.null(),
+          z.promise(z.union([z.string(), z.null()])),
+        ])
+      )
       .optional(),
     generateEtags: z.boolean().optional(),
     headers: z
@@ -493,7 +520,9 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .returns(z.promise(z.array(zHeader)))
       .optional(),
     htmlLimitedBots: z.instanceof(RegExp).optional(),
-    httpAgentOptions: z.strictObject({ keepAlive: z.boolean().optional() }).optional(),
+    httpAgentOptions: z
+      .strictObject({ keepAlive: z.boolean().optional() })
+      .optional(),
     i18n: z
       .strictObject({
         defaultLocale: z.string().min(1),
@@ -543,21 +572,37 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         contentDispositionType: z.enum(['inline', 'attachment']).optional(),
         dangerouslyAllowSVG: z.boolean().optional(),
         dangerouslyAllowLocalIP: z.boolean().optional(),
-        deviceSizes: z.array(z.number().int().gte(1).lte(10000)).max(25).optional(),
+        deviceSizes: z
+          .array(z.number().int().gte(1).lte(10000))
+          .max(25)
+          .optional(),
         disableStaticImages: z.boolean().optional(),
         domains: z.array(z.string()).max(50).optional(),
         formats: z
           .array(z.enum(['image/avif', 'image/webp']))
           .max(4)
           .optional(),
-        imageSizes: z.array(z.number().int().gte(1).lte(10000)).min(0).max(25).optional(),
+        imageSizes: z
+          .array(z.number().int().gte(1).lte(10000))
+          .min(0)
+          .max(25)
+          .optional(),
         loader: z.enum(VALID_LOADERS).optional(),
         loaderFile: z.string().optional(),
         maximumRedirects: z.number().int().min(0).max(20).optional(),
-        maximumResponseBody: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER).optional(),
+        maximumResponseBody: z
+          .number()
+          .int()
+          .min(1)
+          .max(Number.MAX_SAFE_INTEGER)
+          .optional(),
         minimumCacheTTL: z.number().int().gte(0).optional(),
         path: z.string().optional(),
-        qualities: z.array(z.number().int().gte(1).lte(100)).min(1).max(20).optional(),
+        qualities: z
+          .array(z.number().int().gte(1).lte(100))
+          .min(1)
+          .max(20)
+          .optional(),
       })
       .optional(),
     logging: z
@@ -599,8 +644,12 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .optional(),
     output: z.enum(['standalone', 'export']).optional(),
     outputFileTracingRoot: z.string().optional(),
-    outputFileTracingExcludes: z.record(z.string(), z.array(z.string())).optional(),
-    outputFileTracingIncludes: z.record(z.string(), z.array(z.string())).optional(),
+    outputFileTracingExcludes: z
+      .record(z.string(), z.array(z.string()))
+      .optional(),
+    outputFileTracingIncludes: z
+      .record(z.string(), z.array(z.string()))
+      .optional(),
     pageExtensions: z.array(z.string()).min(1).optional(),
     poweredByHeader: z.boolean().optional(),
     productionBrowserSourceMaps: z.boolean().optional(),
@@ -609,7 +658,9 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       z
         .object({
           compilationMode: z.enum(['infer', 'annotation', 'all']).optional(),
-          panicThreshold: z.enum(['none', 'critical_errors', 'all_errors']).optional(),
+          panicThreshold: z
+            .enum(['none', 'critical_errors', 'all_errors'])
+            .optional(),
         })
         .optional(),
     ]),

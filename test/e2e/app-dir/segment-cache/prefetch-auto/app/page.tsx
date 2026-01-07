@@ -4,8 +4,8 @@ export default function Page() {
   return (
     <>
       <p>
-        This page is used to test that prefetch="auto" uses the default prefetching strategy (the
-        same as if no prefetch prop is given).
+        This page is used to test that prefetch="auto" uses the default
+        prefetching strategy (the same as if no prefetch prop is given).
       </p>
 
       <LinkAccordion prefetch="auto" href="/dynamic">

@@ -1,6 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
-const strictRouteTypes = process.env.__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES === 'true'
+const strictRouteTypes =
+  process.env.__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES === 'true'
 
 // This next-types-plugin feature only works in webpack
 ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(

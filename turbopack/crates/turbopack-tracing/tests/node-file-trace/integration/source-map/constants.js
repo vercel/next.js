@@ -56,7 +56,8 @@ var Propagate
 ;(function (Propagate) {
   Propagate[(Propagate['DEADLINE'] = 1)] = 'DEADLINE'
   Propagate[(Propagate['CENSUS_STATS_CONTEXT'] = 2)] = 'CENSUS_STATS_CONTEXT'
-  Propagate[(Propagate['CENSUS_TRACING_CONTEXT'] = 4)] = 'CENSUS_TRACING_CONTEXT'
+  Propagate[(Propagate['CENSUS_TRACING_CONTEXT'] = 4)] =
+    'CENSUS_TRACING_CONTEXT'
   Propagate[(Propagate['CANCELLATION'] = 8)] = 'CANCELLATION'
   // https://github.com/grpc/grpc/blob/master/include/grpc/impl/codegen/propagation_bits.h#L43
   Propagate[(Propagate['DEFAULTS'] = 65535)] = 'DEFAULTS'

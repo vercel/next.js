@@ -40,7 +40,9 @@ describe('Instrumentation Client Hook', () => {
         expect(instrumentationTime).toBeLessThan(hydrationTime)
         expect(
           (await browser.log()).some((log) =>
-            log.message.startsWith('[Client Instrumentation Hook] Slow execution detected')
+            log.message.startsWith(
+              '[Client Instrumentation Hook] Slow execution detected'
+            )
           )
         ).toBe(isNextDev && shouldLog)
       })
@@ -108,7 +110,9 @@ describe('Instrumentation Client Hook', () => {
     if (isNextDev) {
       it('should reload instrumentation-client when modified', async () => {
         const browser = await next.browser('/')
-        const initialTime = await browser.eval(`window.__INSTRUMENTATION_CLIENT_EXECUTED_AT`)
+        const initialTime = await browser.eval(
+          `window.__INSTRUMENTATION_CLIENT_EXECUTED_AT`
+        )
         expect(initialTime).toBeDefined()
 
         // Modify the instrumentation-client.ts file
@@ -126,11 +130,15 @@ describe('Instrumentation Client Hook', () => {
 
         await retry(async () => {
           // Check if the updated instrumentation client was executed
-          const updatedFlag = await browser.eval(`window.__INSTRUMENTATION_CLIENT_UPDATED`)
+          const updatedFlag = await browser.eval(
+            `window.__INSTRUMENTATION_CLIENT_UPDATED`
+          )
           expect(updatedFlag).toBe(true)
 
           // Verify new execution time
-          const newTime = await browser.eval(`window.__INSTRUMENTATION_CLIENT_EXECUTED_AT`)
+          const newTime = await browser.eval(
+            `window.__INSTRUMENTATION_CLIENT_EXECUTED_AT`
+          )
           expect(newTime).toBeDefined()
           expect(newTime).toBeGreaterThan(initialTime)
         })
@@ -141,7 +149,9 @@ describe('Instrumentation Client Hook', () => {
     } else {
       // Add a dummy test when not in dev mode
       it('skips tests in non-dev mode', () => {
-        console.log('Skipping instrumentation-client-hook tests in non-dev mode')
+        console.log(
+          'Skipping instrumentation-client-hook tests in non-dev mode'
+        )
       })
     }
   })

@@ -20,7 +20,9 @@ async function main() {
 
   // Find all pr-stats-*.json files
   const files = await fs.readdir(resultsDir)
-  const statsFiles = files.filter((f) => f.startsWith('pr-stats-') && f.endsWith('.json'))
+  const statsFiles = files.filter(
+    (f) => f.startsWith('pr-stats-') && f.endsWith('.json')
+  )
 
   if (statsFiles.length === 0) {
     // This can happen for docs-only changes where stats jobs are skipped
@@ -109,7 +111,9 @@ async function main() {
     })
   }
 
-  logger(`Merged ${allData.length} result sets into ${mergedResults.length} configs`)
+  logger(
+    `Merged ${allData.length} result sets into ${mergedResults.length} configs`
+  )
 
   // Post the combined comment
   await addComment(mergedResults, actionInfo, statsConfig)

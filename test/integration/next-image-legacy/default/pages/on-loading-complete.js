@@ -96,7 +96,9 @@ const Page = () => {
 function ImageWithMessage({ id, idToCount, setIdToCount, ...props }) {
   const [msg, setMsg] = useState('[LOADING]')
   const style =
-    props.layout === 'fill' ? { position: 'relative', width: '64px', height: '64px' } : {}
+    props.layout === 'fill'
+      ? { position: 'relative', width: '64px', height: '64px' }
+      : {}
   return (
     <>
       <div className="wrap" style={style}>

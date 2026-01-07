@@ -31,7 +31,9 @@ export function createSegmentRequestKeyPart(
       // TODO: FlightRouterState encodes Not Found routes as "/_not-found".
       // But params typically don't include the leading slash. We should use
       // a different encoding to avoid this special case.
-      segment === '/_not-found' ? '_not-found' : encodeToFilesystemAndURLSafeString(segment)
+      segment === '/_not-found'
+        ? '_not-found'
+        : encodeToFilesystemAndURLSafeString(segment)
     // Since this is not a dynamic segment, it's fully encoded. It does not
     // need to be "hydrated" with a param value.
     return safeName as SegmentRequestKeyPart
@@ -85,6 +87,8 @@ function encodeToFilesystemAndURLSafeString(value: string) {
   return '!' + base64url
 }
 
-export function convertSegmentPathToStaticExportFilename(segmentPath: string): string {
+export function convertSegmentPathToStaticExportFilename(
+  segmentPath: string
+): string {
   return `__next${segmentPath.replace(/\//g, '.')}.txt`
 }

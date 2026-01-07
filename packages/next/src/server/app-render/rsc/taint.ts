@@ -13,11 +13,13 @@ function notImplemented() {
   throw new Error('Taint can only be used with the taint flag.')
 }
 
-export const taintObjectReference: (message: string | undefined, object: Reference) => void =
-  process.env.__NEXT_EXPERIMENTAL_REACT
-    ? // @ts-ignore
-      React.experimental_taintObjectReference
-    : notImplemented
+export const taintObjectReference: (
+  message: string | undefined,
+  object: Reference
+) => void = process.env.__NEXT_EXPERIMENTAL_REACT
+  ? // @ts-ignore
+    React.experimental_taintObjectReference
+  : notImplemented
 export const taintUniqueValue: (
   message: string | undefined,
   lifetime: Reference,

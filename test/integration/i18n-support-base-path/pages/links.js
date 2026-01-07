@@ -23,15 +23,27 @@ export default function Page(props) {
         to /gsp
       </Link>
       <br />
-      <Link href="/gsp/fallback/first" locale={nextLocale} id="to-fallback-first">
+      <Link
+        href="/gsp/fallback/first"
+        locale={nextLocale}
+        id="to-fallback-first"
+      >
         to /gsp/fallback/first
       </Link>
       <br />
-      <Link href="/gsp/fallback/hello" locale={nextLocale} id="to-fallback-hello">
+      <Link
+        href="/gsp/fallback/hello"
+        locale={nextLocale}
+        id="to-fallback-hello"
+      >
         to /gsp/fallback/hello
       </Link>
       <br />
-      <Link href="/gsp/no-fallback/first" locale={nextLocale} id="to-no-fallback-first">
+      <Link
+        href="/gsp/no-fallback/first"
+        locale={nextLocale}
+        id="to-no-fallback-first"
+      >
         to /gsp/no-fallback/first
       </Link>
       <br />

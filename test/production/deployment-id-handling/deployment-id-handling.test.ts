@@ -18,52 +18,57 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'CUSTOM_DEPLOYMENT_ID'])(
       { urlPath: '/pages-edge' },
       { urlPath: '/from-app' },
       { urlPath: '/from-app/edge' },
-    ])('should append dpl query to all assets correctly for $urlPath', async ({ urlPath }) => {
-      const $ = await next.render$(urlPath)
+    ])(
+      'should append dpl query to all assets correctly for $urlPath',
+      async ({ urlPath }) => {
+        const $ = await next.render$(urlPath)
 
-      expect($('#deploymentId').text()).toBe(deploymentId)
+        expect($('#deploymentId').text()).toBe(deploymentId)
 
-      const scripts = Array.from($('script'))
-      expect(scripts.length).toBeGreaterThan(0)
+        const scripts = Array.from($('script'))
+        expect(scripts.length).toBeGreaterThan(0)
 
-      for (const script of scripts) {
-        if (script.attribs.src) {
-          expect(script.attribs.src).toContain('dpl=' + deploymentId)
-        }
-      }
-
-      const links = Array.from($('link'))
-      expect(links.length).toBeGreaterThan(0)
-
-      for (const link of links) {
-        if (link.attribs.href && link.attribs.rel !== 'expect') {
-          if (link.attribs.as === 'font') {
-            expect(link.attribs.href).not.toContain('dpl=' + deploymentId)
-          } else {
-            expect(link.attribs.href).toContain('dpl=' + deploymentId)
+        for (const script of scripts) {
+          if (script.attribs.src) {
+            expect(script.attribs.src).toContain('dpl=' + deploymentId)
           }
         }
-      }
 
-      const browser = await next.browser(urlPath)
-      const requests = []
+        const links = Array.from($('link'))
+        expect(links.length).toBeGreaterThan(0)
 
-      browser.on('request', (req) => {
-        if (req.url().includes('/_next/static')) {
-          requests.push(req.url())
+        for (const link of links) {
+          if (link.attribs.href && link.attribs.rel !== 'expect') {
+            if (link.attribs.as === 'font') {
+              expect(link.attribs.href).not.toContain('dpl=' + deploymentId)
+            } else {
+              expect(link.attribs.href).toContain('dpl=' + deploymentId)
+            }
+          }
         }
-      })
 
-      await browser.elementByCss('#dynamic-import').click()
+        const browser = await next.browser(urlPath)
+        const requests = []
 
-      await retry(() => expect(requests).not.toBeEmpty())
+        browser.on('request', (req) => {
+          if (req.url().includes('/_next/static')) {
+            requests.push(req.url())
+          }
+        })
 
-      try {
-        expect(requests.every((item) => item.includes('dpl=' + deploymentId))).toBe(true)
-      } finally {
-        require('console').error('requests', requests)
+        await browser.elementByCss('#dynamic-import').click()
+
+        await retry(() => expect(requests).not.toBeEmpty())
+
+        try {
+          expect(
+            requests.every((item) => item.includes('dpl=' + deploymentId))
+          ).toBe(true)
+        } finally {
+          require('console').error('requests', requests)
+        }
       }
-    })
+    )
 
     it.each([{ pathname: '/api/hello' }, { pathname: '/api/hello-app' }])(
       'should have deployment id env available',
@@ -97,7 +102,11 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'CUSTOM_DEPLOYMENT_ID'])(
         expect(dataHeaders.length).toBeGreaterThan(0)
       })
 
-      expect(dataHeaders.every((headers) => headers['x-deployment-id'] === deploymentId)).toBe(true)
+      expect(
+        dataHeaders.every(
+          (headers) => headers['x-deployment-id'] === deploymentId
+        )
+      ).toBe(true)
     })
 
     it('should contain deployment id in RSC payload request headers', async () => {
@@ -121,7 +130,11 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'CUSTOM_DEPLOYMENT_ID'])(
         expect(rscHeaders.length).toBeGreaterThan(0)
       })
 
-      expect(rscHeaders.every((headers) => headers['x-deployment-id'] === deploymentId)).toBe(true)
+      expect(
+        rscHeaders.every(
+          (headers) => headers['x-deployment-id'] === deploymentId
+        )
+      ).toBe(true)
     })
   }
 )
@@ -136,48 +149,53 @@ describe('deployment-id-handling disabled', () => {
     { urlPath: '/pages-edge' },
     { urlPath: '/from-app' },
     { urlPath: '/from-app/edge' },
-  ])('should not append dpl query to all assets for $urlPath', async ({ urlPath }) => {
-    const $ = await next.render$(urlPath)
+  ])(
+    'should not append dpl query to all assets for $urlPath',
+    async ({ urlPath }) => {
+      const $ = await next.render$(urlPath)
 
-    expect($('#deploymentId').text()).not.toBe(deploymentId)
+      expect($('#deploymentId').text()).not.toBe(deploymentId)
 
-    const scripts = Array.from($('script'))
-    expect(scripts.length).toBeGreaterThan(0)
+      const scripts = Array.from($('script'))
+      expect(scripts.length).toBeGreaterThan(0)
 
-    for (const script of scripts) {
-      if (script.attribs.src) {
-        expect(script.attribs.src).not.toContain('dpl=' + deploymentId)
-      }
-    }
-
-    const links = Array.from($('link'))
-    expect(links.length).toBeGreaterThan(0)
-
-    for (const link of links) {
-      if (link.attribs.href) {
-        if (link.attribs.as === 'font') {
-          expect(link.attribs.href).not.toContain('dpl=' + deploymentId)
-        } else {
-          expect(link.attribs.href).not.toContain('dpl=' + deploymentId)
+      for (const script of scripts) {
+        if (script.attribs.src) {
+          expect(script.attribs.src).not.toContain('dpl=' + deploymentId)
         }
       }
+
+      const links = Array.from($('link'))
+      expect(links.length).toBeGreaterThan(0)
+
+      for (const link of links) {
+        if (link.attribs.href) {
+          if (link.attribs.as === 'font') {
+            expect(link.attribs.href).not.toContain('dpl=' + deploymentId)
+          } else {
+            expect(link.attribs.href).not.toContain('dpl=' + deploymentId)
+          }
+        }
+      }
+
+      const browser = await next.browser(urlPath)
+      const requests = []
+
+      browser.on('request', (req) => {
+        requests.push(req.url())
+      })
+
+      await browser.elementByCss('#dynamic-import').click()
+
+      await retry(() => expect(requests).not.toBeEmpty())
+
+      try {
+        expect(
+          requests.every((item) => !item.includes('dpl=' + deploymentId))
+        ).toBe(true)
+      } finally {
+        require('console').error('requests', requests)
+      }
     }
-
-    const browser = await next.browser(urlPath)
-    const requests = []
-
-    browser.on('request', (req) => {
-      requests.push(req.url())
-    })
-
-    await browser.elementByCss('#dynamic-import').click()
-
-    await retry(() => expect(requests).not.toBeEmpty())
-
-    try {
-      expect(requests.every((item) => !item.includes('dpl=' + deploymentId))).toBe(true)
-    } finally {
-      require('console').error('requests', requests)
-    }
-  })
+  )
 })

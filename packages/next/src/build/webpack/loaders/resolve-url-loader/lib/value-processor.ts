@@ -58,13 +58,16 @@ function valueProcessor(filename: any, options: any) {
           const before = arr[i - 1],
             after = arr[i + 1],
             isQuoted = before === after && (before === "'" || before === '"'),
-            unescaped = isQuoted ? initialised.replace(/\\{2}/g, '\\') : initialised
+            unescaped = isQuoted
+              ? initialised.replace(/\\{2}/g, '\\')
+              : initialised
 
           // split into uri and query/hash and then find the absolute path to the uri
           const split = unescaped.split(/([?#])/g),
             uri = split[0],
             absolute =
-              (testIsRelative(uri) && join(uri, candidate)) || (testIsAbsolute(uri) && join(uri)),
+              (testIsRelative(uri) && join(uri, candidate)) ||
+              (testIsAbsolute(uri) && join(uri)),
             query = options.keepQuery ? split.slice(1).join('') : ''
 
           // use the absolute path in absolute mode or else relative path (or default to initialised)

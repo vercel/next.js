@@ -28,7 +28,9 @@ async function resolveStackFrames(
   request: OriginalStackFramesRequest
 ): Promise<OriginalStackFramesResponse> {
   if (!stackFrameResolver) {
-    throw new Error('Stack frame resolver not initialized. This is a bug in Next.js.')
+    throw new Error(
+      'Stack frame resolver not initialized. This is a bug in Next.js.'
+    )
   }
   return stackFrameResolver(request)
 }
@@ -76,7 +78,8 @@ const formatErrorFrames = async (
             )
         )
         .map((resolvedFrame, j) =>
-          resolvedFrame.status === 'fulfilled' && resolvedFrame.value.originalStackFrame
+          resolvedFrame.status === 'fulfilled' &&
+          resolvedFrame.value.originalStackFrame
             ? formatStackFrame(resolvedFrame.value.originalStackFrame)
             : formatStackFrame(frames[j])
         )
@@ -91,7 +94,10 @@ async function formatRuntimeError(
   errors: readonly SupportedErrorEvent[],
   isAppDirectory: boolean
 ): Promise<string> {
-  const formatError = async (error: SupportedErrorEvent, index: number): Promise<string> => {
+  const formatError = async (
+    error: SupportedErrorEvent,
+    index: number
+  ): Promise<string> => {
     const errorHeader = `\n#### Error ${index + 1} (Type: ${error.type})\n\n`
     const errorName = error.error?.name || 'Error'
     const errorMsg = error.error?.message || 'Unknown error'
@@ -99,7 +105,9 @@ async function formatRuntimeError(
 
     if (!error.frames?.length) {
       const stack = error.error?.stack || ''
-      return errorHeader + errorMessage + (stack ? `\`\`\`\n${stack}\n\`\`\`\n` : '')
+      return (
+        errorHeader + errorMessage + (stack ? `\`\`\`\n${stack}\n\`\`\`\n` : '')
+      )
     }
 
     const errorSource = getErrorSource(error.error)
@@ -149,7 +157,8 @@ export async function formatErrors(
     output += `# Found errors in ${errorsByUrl.size} browser session(s)\n\n`
 
     for (const [url, overlayState] of errorsByUrl) {
-      const totalErrorCount = overlayState.errors.length + (overlayState.buildError ? 1 : 0)
+      const totalErrorCount =
+        overlayState.errors.length + (overlayState.buildError ? 1 : 0)
 
       if (totalErrorCount === 0) continue
 

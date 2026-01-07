@@ -1,4 +1,9 @@
-import { getCookie, getHeader, setCookie, setCookieAndRedirect } from '../actions'
+import {
+  getCookie,
+  getHeader,
+  setCookie,
+  setCookieAndRedirect,
+} from '../actions'
 import UI from '../ui'
 import { validator } from './validator'
 

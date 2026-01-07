@@ -41,7 +41,11 @@ const readData = createDataFetcher('streaming', {
 function SuspenseyFooter() {
   readData()
   // generate large chunk of text to let the suspensey styling be inserted before the suspense script
-  return <FootInner id="footer-inner">{'(generate-large-footer-text)'.repeat(30)}</FootInner>
+  return (
+    <FootInner id="footer-inner">
+      {'(generate-large-footer-text)'.repeat(30)}
+    </FootInner>
+  )
 }
 
 export default function page() {

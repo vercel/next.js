@@ -9,7 +9,8 @@ export const NEXT_ROUTER_PREFETCH_HEADER = 'next-router-prefetch' as const
 // TODO: If we change next-router-state-tree to be a segment path, we can use
 // that instead. Then next-router-prefetch and next-router-segment-prefetch can
 // be merged into a single enum.
-export const NEXT_ROUTER_SEGMENT_PREFETCH_HEADER = 'next-router-segment-prefetch' as const
+export const NEXT_ROUTER_SEGMENT_PREFETCH_HEADER =
+  'next-router-segment-prefetch' as const
 export const NEXT_HMR_REFRESH_HEADER = 'next-hmr-refresh' as const
 export const NEXT_HMR_REFRESH_HASH_COOKIE = '__next_hmr_refresh_hash__' as const
 export const NEXT_URL = 'next-url' as const

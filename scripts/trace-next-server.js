@@ -5,7 +5,8 @@ const fsp = require('fs/promises')
 const prettyBytes = require('pretty-bytes')
 const gzipSize = require('next/dist/compiled/gzip-size')
 const { nodeFileTrace } = require('next/dist/compiled/@vercel/nft')
-const { linkPackages } = require('../.github/actions/next-stats-action/src/prepare/repo-setup')()
+const { linkPackages } =
+  require('../.github/actions/next-stats-action/src/prepare/repo-setup')()
 
 const MAX_COMPRESSED_SIZE = 250 * 1000
 const MAX_UNCOMPRESSED_SIZE = 2.5 * 1000 * 1000
@@ -26,7 +27,9 @@ async function main() {
   await fsp.cp(origRepoDir, repoDir, {
     filter: (item) => {
       return (
-        !item.startsWith(origTestDir) && !item.startsWith(dotDir) && !item.includes('node_modules')
+        !item.startsWith(origTestDir) &&
+        !item.startsWith(dotDir) &&
+        !item.includes('node_modules')
       )
     },
     force: true,
@@ -64,7 +67,10 @@ async function main() {
     },
   })
 
-  const nextServerPath = path.join(workDir, 'node_modules/next/dist/server/next-server.js')
+  const nextServerPath = path.join(
+    workDir,
+    'node_modules/next/dist/server/next-server.js'
+  )
 
   const traceLabel = `traced ${nextServerPath}`
   console.time(traceLabel)
@@ -111,7 +117,10 @@ async function main() {
   })
 
   await fsp.writeFile(
-    path.join(__dirname, '../packages/next/dist/server/next-server.js.nft.json'),
+    path.join(
+      __dirname,
+      '../packages/next/dist/server/next-server.js.nft.json'
+    ),
     JSON.stringify({
       files: Array.from(tracedDeps),
       version: 1,
@@ -122,7 +131,10 @@ async function main() {
 
   console.timeEnd(traceLabel)
 
-  if (totalCompressedSize > MAX_COMPRESSED_SIZE || totalUncompressedSize > MAX_UNCOMPRESSED_SIZE) {
+  if (
+    totalCompressedSize > MAX_COMPRESSED_SIZE ||
+    totalUncompressedSize > MAX_UNCOMPRESSED_SIZE
+  ) {
     throw new Error(
       `Max traced size of next-server exceeded limits of ${MAX_COMPRESSED_SIZE} compressed or ${MAX_UNCOMPRESSED_SIZE} uncompressed`
     )

@@ -2,7 +2,11 @@
 
 import { getSentinelValue } from '../../../../sentinel'
 
-export default async function Layout({ children }: { children: React.ReactNode }) {
+export default async function Layout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
   return (
     <div>
       <p>This layout is explicitly not reading params.</p>

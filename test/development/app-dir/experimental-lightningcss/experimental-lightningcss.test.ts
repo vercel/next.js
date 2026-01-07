@@ -18,7 +18,9 @@ describe('experimental-lightningcss with default mode', () => {
       // lightningcss produces different class names in turbo mode
       if (isTurbopack) {
         // swc_css does not include `-module` in the class name, while lightningcss does.
-        expect($('p').attr('class')).toBe('search-keyword style-module__hlQ3RG__blue')
+        expect($('p').attr('class')).toBe(
+          'search-keyword style-module__hlQ3RG__blue'
+        )
       } else {
         // We remove hash from the class name in test mode using env var because it is not deterministic.
         expect($('p').attr('class')).toBe('search-keyword style-module__blue')
@@ -29,7 +31,9 @@ describe('experimental-lightningcss with default mode', () => {
       const $ = await next.browser('/')
 
       expect(await $.elementByCss('.nested').text()).toBe('Red due to nesting')
-      expect(await $.elementByCss('.nested').getComputedCss('color')).toBe('rgb(255, 0, 0)')
+      expect(await $.elementByCss('.nested').getComputedCss('color')).toBe(
+        'rgb(255, 0, 0)'
+      )
     })
   })
 })

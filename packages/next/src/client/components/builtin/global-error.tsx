@@ -17,7 +17,9 @@ function DefaultGlobalError({ error }: { error: any }) {
   const message = isServerError
     ? 'Something went wrong while loading this page.'
     : 'An error occurred while running this page.'
-  const hint = isServerError ? 'If this keeps happening, it may be a server issue.' : null
+  const hint = isServerError
+    ? 'If this keeps happening, it may be a server issue.'
+    : null
 
   return (
     <html id="__next_error__">
@@ -32,7 +34,11 @@ function DefaultGlobalError({ error }: { error: any }) {
             <h1 style={errorStyles.title}>{title}</h1>
             <p style={errorStyles.message}>{message}</p>
             {hint && <p style={errorStyles.messageHint}>{hint}</p>}
-            {!isServerError && <p style={errorStyles.messageHint}>Reloading usually fixes this.</p>}
+            {!isServerError && (
+              <p style={errorStyles.messageHint}>
+                Reloading usually fixes this.
+              </p>
+            )}
             <div style={errorStyles.buttonGroup}>
               <form>
                 <button type="submit" style={errorStyles.button}>
@@ -58,7 +64,8 @@ function DefaultGlobalError({ error }: { error: any }) {
             {digest && (
               <div style={errorStyles.digestContainer}>
                 <p style={errorStyles.digest}>
-                  Error reference: <code style={errorStyles.digestCode}>{digest}</code>
+                  Error reference:{' '}
+                  <code style={errorStyles.digestCode}>{digest}</code>
                 </p>
               </div>
             )}

@@ -28,7 +28,11 @@ SOFTWARE.
 export function prepend(candidate: any) {
   if (typeof candidate === 'string') {
     return 'file://' + candidate
-  } else if (candidate && typeof candidate === 'object' && Array.isArray(candidate.sources)) {
+  } else if (
+    candidate &&
+    typeof candidate === 'object' &&
+    Array.isArray(candidate.sources)
+  ) {
     return Object.assign({}, candidate, {
       sources: candidate.sources.map(prepend),
     })
@@ -43,7 +47,11 @@ export function prepend(candidate: any) {
 export function remove(candidate: any) {
   if (typeof candidate === 'string') {
     return candidate.replace(/^file:\/{2}/, '')
-  } else if (candidate && typeof candidate === 'object' && Array.isArray(candidate.sources)) {
+  } else if (
+    candidate &&
+    typeof candidate === 'object' &&
+    Array.isArray(candidate.sources)
+  ) {
     return Object.assign({}, candidate, {
       sources: candidate.sources.map(remove),
     })

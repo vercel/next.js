@@ -90,6 +90,8 @@ describe('Image Legacy Rendering', () => {
     const $ = cheerio.load(ReactDOM.renderToString(element))
     const noscriptImg = $('noscript img')
     expect(noscriptImg.attr('sizes')).toBe('50vw')
-    expect(noscriptImg.attr('srcset')).toContain('/_next/image?url=%2Ftest.png&w=384&q=75 384w')
+    expect(noscriptImg.attr('srcset')).toContain(
+      '/_next/image?url=%2Ftest.png&w=384&q=75 384w'
+    )
   })
 })

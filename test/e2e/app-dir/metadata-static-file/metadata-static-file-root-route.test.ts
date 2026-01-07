@@ -59,15 +59,19 @@ describe('metadata-files-static-output-root-route', () => {
     ])
 
     // Compare response content with actual files
-    const [actualFavicon, actualManifest, actualRobots, actualSitemap] = await Promise.all([
-      next.readFileBuffer('app/favicon.ico'),
-      next.readFile('app/manifest.json'),
-      next.readFile('app/robots.txt'),
-      next.readFile('app/sitemap.xml'),
-    ])
+    const [actualFavicon, actualManifest, actualRobots, actualSitemap] =
+      await Promise.all([
+        next.readFileBuffer('app/favicon.ico'),
+        next.readFile('app/manifest.json'),
+        next.readFile('app/robots.txt'),
+        next.readFile('app/sitemap.xml'),
+      ])
 
     expect({
-      favicon: Buffer.compare(Buffer.from(await faviconRes.arrayBuffer()), actualFavicon),
+      favicon: Buffer.compare(
+        Buffer.from(await faviconRes.arrayBuffer()),
+        actualFavicon
+      ),
       manifest: await manifestRes.text(),
       robots: await robotsRes.text(),
       sitemap: await sitemapRes.text(),

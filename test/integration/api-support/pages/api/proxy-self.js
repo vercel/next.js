@@ -4,7 +4,9 @@ export default async function handler(req, res) {
   const port = req.headers.host.split(':').pop()
   const proxy = httpProxy.createProxy({
     target: `http://127.0.0.1:${port}/${
-      req.query.buildId ? `_next/static/${req.query.buildId}/_ssgManifest.js` : `user`
+      req.query.buildId
+        ? `_next/static/${req.query.buildId}/_ssgManifest.js`
+        : `user`
     }`,
     ignorePath: true,
   })

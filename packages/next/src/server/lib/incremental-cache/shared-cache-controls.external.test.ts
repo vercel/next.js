@@ -1,4 +1,7 @@
-import type { DynamicPrerenderManifestRoute, PrerenderManifestRoute } from '../../../build'
+import type {
+  DynamicPrerenderManifestRoute,
+  PrerenderManifestRoute,
+} from '../../../build'
 import { RenderingMode } from '../../../build/rendering-mode'
 import { SharedCacheControls } from './shared-cache-controls.external'
 

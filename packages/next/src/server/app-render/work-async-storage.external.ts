@@ -98,7 +98,9 @@ export interface WorkStore {
 
   buildId: string
 
-  readonly reactLoadableManifest?: DeepReadonly<Record<string, { files: string[] }>>
+  readonly reactLoadableManifest?: DeepReadonly<
+    Record<string, { files: string[] }>
+  >
   readonly assetPrefix?: string
   readonly nonce?: string
 
@@ -112,7 +114,10 @@ export interface WorkStore {
    * might include request-specific things like `cookies()` inside a
    * `React.cache()`.
    */
-  runInCleanSnapshot: <R, TArgs extends any[]>(fn: (...args: TArgs) => R, ...args: TArgs) => R
+  runInCleanSnapshot: <R, TArgs extends any[]>(
+    fn: (...args: TArgs) => R,
+    ...args: TArgs
+  ) => R
 
   reactServerErrorsByDigest: Map<string, DigestedError>
 }

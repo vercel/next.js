@@ -1,7 +1,10 @@
 declare const __webpack_require__: any
 declare let __webpack_public_path__: string
 
-import { getDeploymentId, getDeploymentIdQueryOrEmptyString } from '../shared/lib/deployment-id'
+import {
+  getDeploymentId,
+  getDeploymentIdQueryOrEmptyString,
+} from '../shared/lib/deployment-id'
 
 // If we have a deployment ID, we need to append it to the webpack chunk names
 // I am keeping the process check explicit so this can be statically optimized
@@ -14,10 +17,12 @@ if (getDeploymentId()) {
     getChunkScriptFilename(...args) + suffix
 
   const getChunkCssFilename = __webpack_require__.k
-  __webpack_require__.k = (...args: any[]) => getChunkCssFilename(...args) + suffix
+  __webpack_require__.k = (...args: any[]) =>
+    getChunkCssFilename(...args) + suffix
 
   const getMiniCssFilename = __webpack_require__.miniCssF
-  __webpack_require__.miniCssF = (...args: any[]) => getMiniCssFilename(...args) + suffix
+  __webpack_require__.miniCssF = (...args: any[]) =>
+    getMiniCssFilename(...args) + suffix
 }
 
 // Ignore the module ID transform in client.

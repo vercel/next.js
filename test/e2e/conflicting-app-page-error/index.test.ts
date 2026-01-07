@@ -23,10 +23,16 @@ describe('Conflict between app file and pages file', () => {
     it('should print error for conflicting app/page', async () => {
       const { cliOutput } = await next.build()
       if (process.env.IS_TURBOPACK_TEST) {
-        expect(cliOutput).toContain('App Router and Pages Router both match path: /')
-        expect(cliOutput).toContain('App Router and Pages Router both match path: /another')
+        expect(cliOutput).toContain(
+          'App Router and Pages Router both match path: /'
+        )
+        expect(cliOutput).toContain(
+          'App Router and Pages Router both match path: /another'
+        )
       } else {
-        expect(cliOutput).toMatch(/Conflicting app and page files? (were|was) found/)
+        expect(cliOutput).toMatch(
+          /Conflicting app and page files? (were|was) found/
+        )
 
         for (const [pagePath, appPath] of [
           ['pages/index.js', 'app/page.js'],
@@ -52,7 +58,9 @@ describe('Conflict between app file and pages file', () => {
 
       if (!process.env.IS_TURBOPACK_TEST) {
         for (const pair of conflicts) {
-          expect(await getRedboxSource(browser)).toContain(`"${pair[0]}" - "${pair[1]}"`)
+          expect(await getRedboxSource(browser)).toContain(
+            `"${pair[0]}" - "${pair[1]}"`
+          )
         }
       }
     })

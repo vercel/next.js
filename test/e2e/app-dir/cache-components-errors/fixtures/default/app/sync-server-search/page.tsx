@@ -2,12 +2,15 @@ import { connection } from 'next/server'
 import { Suspense } from 'react'
 
 type SearchParams = { foo: string | string[] | undefined }
-export default async function Page(props: { searchParams: Promise<SearchParams> }) {
+export default async function Page(props: {
+  searchParams: Promise<SearchParams>
+}) {
   return (
     <>
       <p>
-        This page accesses searchParams synchronously. This does not trigger dynamic, and the build
-        should succeed. In dev mode, we do log an error for the sync access though.
+        This page accesses searchParams synchronously. This does not trigger
+        dynamic, and the build should succeed. In dev mode, we do log an error
+        for the sync access though.
       </p>
       <SearchParamsReadingComponent searchParams={props.searchParams} />
       <Suspense>
@@ -26,7 +29,8 @@ async function SearchParamsReadingComponent({
   const fooParam = (searchParams as any).foo
   return (
     <div>
-      this component reads the `foo` search param: <span id="foo-param">{String(fooParam)}</span>
+      this component reads the `foo` search param:{' '}
+      <span id="foo-param">{String(fooParam)}</span>
     </div>
   )
 }

@@ -20,12 +20,16 @@ describe('app-dir - metadata-icons', () => {
 
   it('should render custom icons along with favicon in root page', async () => {
     const $ = await next.render$('/')
-    expect($('link[rel="shortcut icon"]').attr('href')).toBe('/shortcut-icon.png')
+    expect($('link[rel="shortcut icon"]').attr('href')).toBe(
+      '/shortcut-icon.png'
+    )
   })
 
   it('should render custom icons along with favicon in nested page', async () => {
     const $ = await next.render$('/nested')
-    expect($('link[rel="shortcut icon"]').attr('href')).toBe('/shortcut-icon-nested.png')
+    expect($('link[rel="shortcut icon"]').attr('href')).toBe(
+      '/shortcut-icon-nested.png'
+    )
   })
 
   it('should re-insert the body icons into the head', async () => {
@@ -55,7 +59,9 @@ describe('app-dir - metadata-icons', () => {
     const browser = await next.browser('/custom-icon')
     const metaTags = await browser.elementsByCss('meta')
     // none of them has [name="«nxt-icon»"]
-    const names = await Promise.all(metaTags.map((el) => el.getAttribute('name')))
+    const names = await Promise.all(
+      metaTags.map((el) => el.getAttribute('name'))
+    )
     expect(names).not.toContain('«nxt-icon»')
   })
 
@@ -71,7 +77,9 @@ describe('app-dir - metadata-icons', () => {
     await retry(async () => {
       const iconsInHead = await browser.elementsByCss('head link[rel="icon"]')
       let iconUrls = await Promise.all(
-        iconsInHead.map(async (el) => (await el.getAttribute('href')).split('?')[0])
+        iconsInHead.map(
+          async (el) => (await el.getAttribute('href')).split('?')[0]
+        )
       )
       // Pick last 2 icons
       // In non-headless mode, the icons are deduped;
@@ -113,7 +121,9 @@ describe('app-dir - metadata-icons', () => {
     const body = $('body')
     const icons = body.find('link[rel="icon"]')
     expect(icons.length).toBe(2)
-    expect(Array.from(icons.map((_, el) => $(el).attr('href')))).toContain('/heart.png')
+    expect(Array.from(icons.map((_, el) => $(el).attr('href')))).toContain(
+      '/heart.png'
+    )
 
     const bodyHtml = body.html()
     expect(bodyHtml).toContain(iconInsertionScript)
@@ -123,7 +133,9 @@ describe('app-dir - metadata-icons', () => {
     await retry(async () => {
       const iconsInHead = await browser.elementsByCss('head link[rel="icon"]')
       const iconUrls = await Promise.all(
-        iconsInHead.map(async (el) => (await el.getAttribute('href')).split('?')[0])
+        iconsInHead.map(
+          async (el) => (await el.getAttribute('href')).split('?')[0]
+        )
       )
       expect(iconUrls).toEqual(['/favicon.ico', '/heart.png'])
     })

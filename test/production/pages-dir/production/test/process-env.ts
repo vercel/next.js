@@ -21,20 +21,32 @@ export default (next: NextInstance) => {
         next.testDir,
         '/process-env'
       )
-      expect(allClientCodeForPage).toMatch(/__THIS_SHOULD_ONLY_BE_DEFINED_IN_BROWSER_CONTEXT__/)
-      expect(allClientCodeForPage).not.toMatch(/__THIS_SHOULD_ONLY_BE_DEFINED_IN_SERVER_CONTEXT__/)
+      expect(allClientCodeForPage).toMatch(
+        /__THIS_SHOULD_ONLY_BE_DEFINED_IN_BROWSER_CONTEXT__/
+      )
+      expect(allClientCodeForPage).not.toMatch(
+        /__THIS_SHOULD_ONLY_BE_DEFINED_IN_SERVER_CONTEXT__/
+      )
     })
 
     it('should eliminate client only code on the server', async () => {
       let allServerCodeForPage = ''
-      const chunksFilesDir = path.join(next.testDir, '.next', 'server', 'chunks')
+      const chunksFilesDir = path.join(
+        next.testDir,
+        '.next',
+        'server',
+        'chunks'
+      )
       const allFilesInDotNextServerChunks = await fs
         .readdirSync(chunksFilesDir, {
           recursive: true,
         })
         .filter((item) => item.toString().endsWith('.js'))
       for (const file of allFilesInDotNextServerChunks) {
-        const content = await fs.readFile(path.join(chunksFilesDir, file.toString()), 'utf8')
+        const content = await fs.readFile(
+          path.join(chunksFilesDir, file.toString()),
+          'utf8'
+        )
         allServerCodeForPage += content
       }
 
@@ -45,12 +57,19 @@ export default (next: NextInstance) => {
         })
         .filter((item) => item.toString().endsWith('.js'))
       for (const file of allFilesInDotNextServerPages) {
-        const content = await fs.readFile(path.join(pagesFilesDir, file.toString()), 'utf8')
+        const content = await fs.readFile(
+          path.join(pagesFilesDir, file.toString()),
+          'utf8'
+        )
         allServerCodeForPage += content
       }
 
-      expect(allServerCodeForPage).not.toMatch(/__THIS_SHOULD_ONLY_BE_DEFINED_IN_BROWSER_CONTEXT__/)
-      expect(allServerCodeForPage).toMatch(/__THIS_SHOULD_ONLY_BE_DEFINED_IN_SERVER_CONTEXT__/)
+      expect(allServerCodeForPage).not.toMatch(
+        /__THIS_SHOULD_ONLY_BE_DEFINED_IN_BROWSER_CONTEXT__/
+      )
+      expect(allServerCodeForPage).toMatch(
+        /__THIS_SHOULD_ONLY_BE_DEFINED_IN_SERVER_CONTEXT__/
+      )
     })
   })
 }

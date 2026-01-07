@@ -3,7 +3,8 @@ import type { SWC_TARGET_TRIPLE } from '../../build/webpack/plugins/telemetry-pl
 import type { UseCacheTrackerKey } from '../../build/webpack/plugins/telemetry-plugin/use-cache-tracker-utils'
 import { extractNextErrorCode } from '../../lib/error-telemetry-utils'
 
-const REGEXP_DIRECTORY_DUNDER = /[\\/]__[^\\/]+(?<![\\/]__(?:tests|mocks))__[\\/]/i
+const REGEXP_DIRECTORY_DUNDER =
+  /[\\/]__[^\\/]+(?<![\\/]__(?:tests|mocks))__[\\/]/i
 const REGEXP_DIRECTORY_TESTS = /[\\/]__(tests|mocks)__[\\/]/i
 const REGEXP_FILE_TEST = /\.(?:spec|test)\.[^.]+$/i
 
@@ -84,16 +85,22 @@ type EventBuildCompleted = {
 
 export function eventBuildCompleted(
   pagePaths: string[],
-  event: Omit<EventBuildCompleted, 'totalPageCount' | 'hasDunderPages' | 'hasTestPages'>
+  event: Omit<
+    EventBuildCompleted,
+    'totalPageCount' | 'hasDunderPages' | 'hasTestPages'
+  >
 ): { eventName: string; payload: EventBuildCompleted } {
   return {
     eventName: EVENT_BUILD_COMPLETED,
     payload: {
       ...event,
       totalPageCount: pagePaths.length,
-      hasDunderPages: pagePaths.some((path) => REGEXP_DIRECTORY_DUNDER.test(path)),
+      hasDunderPages: pagePaths.some((path) =>
+        REGEXP_DIRECTORY_DUNDER.test(path)
+      ),
       hasTestPages: pagePaths.some(
-        (path) => REGEXP_DIRECTORY_TESTS.test(path) || REGEXP_FILE_TEST.test(path)
+        (path) =>
+          REGEXP_DIRECTORY_TESTS.test(path) || REGEXP_FILE_TEST.test(path)
       ),
       totalAppPagesCount: event.totalAppPagesCount,
     },
@@ -153,9 +160,12 @@ export function eventBuildOptimize(
     payload: {
       ...event,
       totalPageCount: pagePaths.length,
-      hasDunderPages: pagePaths.some((path) => REGEXP_DIRECTORY_DUNDER.test(path)),
+      hasDunderPages: pagePaths.some((path) =>
+        REGEXP_DIRECTORY_DUNDER.test(path)
+      ),
       hasTestPages: pagePaths.some(
-        (path) => REGEXP_DIRECTORY_TESTS.test(path) || REGEXP_FILE_TEST.test(path)
+        (path) =>
+          REGEXP_DIRECTORY_TESTS.test(path) || REGEXP_FILE_TEST.test(path)
       ),
       totalAppPagesCount: event.totalAppPagesCount,
       staticAppPagesCount: event.staticAppPagesCount,
@@ -229,7 +239,9 @@ export type EventPackageUsedInGetServerSideProps = {
 }
 
 export function eventPackageUsedInGetServerSideProps(
-  packagesUsedInServerSideProps: ReturnType<TelemetryPlugin['packagesUsedInServerSideProps']>
+  packagesUsedInServerSideProps: ReturnType<
+    TelemetryPlugin['packagesUsedInServerSideProps']
+  >
 ): Array<{ eventName: string; payload: EventPackageUsedInGetServerSideProps }> {
   return packagesUsedInServerSideProps.map((packageName) => ({
     eventName: EVENT_NAME_PACKAGE_USED_IN_GET_SERVER_SIDE_PROPS,

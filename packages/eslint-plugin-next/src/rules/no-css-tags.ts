@@ -21,10 +21,13 @@ export default defineRule({
           return
         }
 
-        const attributes = node.attributes.filter((attr) => attr.type === 'JSXAttribute')
+        const attributes = node.attributes.filter(
+          (attr) => attr.type === 'JSXAttribute'
+        )
         if (
           attributes.find(
-            (attr) => attr.name.name === 'rel' && attr.value.value === 'stylesheet'
+            (attr) =>
+              attr.name.name === 'rel' && attr.value.value === 'stylesheet'
           ) &&
           attributes.find(
             (attr) =>

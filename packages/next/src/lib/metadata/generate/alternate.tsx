@@ -20,13 +20,19 @@ function AlternateLink({
   )
 }
 
-export function AlternatesMetadata({ alternates }: { alternates: ResolvedMetadata['alternates'] }) {
+export function AlternatesMetadata({
+  alternates,
+}: {
+  alternates: ResolvedMetadata['alternates']
+}) {
   if (!alternates) return null
 
   const { canonical, languages, media, types } = alternates
 
   return MetaFilter([
-    canonical ? AlternateLink({ rel: 'canonical', descriptor: canonical }) : null,
+    canonical
+      ? AlternateLink({ rel: 'canonical', descriptor: canonical })
+      : null,
     languages
       ? Object.entries(languages).flatMap(([locale, descriptors]) =>
           descriptors?.map((descriptor) =>
@@ -43,7 +49,9 @@ export function AlternatesMetadata({ alternates }: { alternates: ResolvedMetadat
       : null,
     types
       ? Object.entries(types).flatMap(([type, descriptors]) =>
-          descriptors?.map((descriptor) => AlternateLink({ rel: 'alternate', type, descriptor }))
+          descriptors?.map((descriptor) =>
+            AlternateLink({ rel: 'alternate', type, descriptor })
+          )
         )
       : null,
   ])

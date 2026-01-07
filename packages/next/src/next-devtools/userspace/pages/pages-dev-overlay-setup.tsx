@@ -21,7 +21,11 @@ const usePagesDevOverlayBridge = () => {
   React.useInsertionEffect(() => {
     // NDT uses a different React instance so it's not technically a state update
     // scheduled from useInsertionEffect.
-    renderPagesDevOverlay(getOwnerStack, getSquashedHydrationErrorDetails, isRecoverableError)
+    renderPagesDevOverlay(
+      getOwnerStack,
+      getSquashedHydrationErrorDetails,
+      isRecoverableError
+    )
   }, [])
 
   React.useEffect(() => {
@@ -42,7 +46,9 @@ interface PagesDevOverlayBridgeProps {
   children?: React.ReactNode
 }
 
-export function PagesDevOverlayBridge({ children }: PagesDevOverlayBridgeProps) {
+export function PagesDevOverlayBridge({
+  children,
+}: PagesDevOverlayBridgeProps) {
   usePagesDevOverlayBridge()
 
   return <PagesDevOverlayErrorBoundary>{children}</PagesDevOverlayErrorBoundary>
@@ -60,7 +66,10 @@ function handleError(error: unknown) {
 
   // Skip ModuleBuildError and ModuleNotFoundError, as it will be sent through onBuildError callback.
   // This is to avoid same error as different type showing up on client to cause flashing.
-  if (error.name !== 'ModuleBuildError' && error.name !== 'ModuleNotFoundError') {
+  if (
+    error.name !== 'ModuleBuildError' &&
+    error.name !== 'ModuleNotFoundError'
+  ) {
     dispatcher.onUnhandledError(error)
   }
 }
@@ -87,7 +96,11 @@ function onUnhandledError(event: ErrorEvent) {
 
 function onUnhandledRejection(ev: PromiseRejectionEvent) {
   const reason = ev?.reason
-  if (!reason || !(reason instanceof Error) || typeof reason.stack !== 'string') {
+  if (
+    !reason ||
+    !(reason instanceof Error) ||
+    typeof reason.stack !== 'string'
+  ) {
     // A non-error was thrown, we don't have anything to show. :-(
     return
   }

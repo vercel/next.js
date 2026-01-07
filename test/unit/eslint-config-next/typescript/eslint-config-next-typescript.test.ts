@@ -14,7 +14,9 @@ describe('eslint-config-next/typescript', () => {
       }
     )
 
-    const { languageOptions, ...eslintConfigAfterSetup } = JSON.parse(eslintConfigAfterSetupJSON)
+    const { languageOptions, ...eslintConfigAfterSetup } = JSON.parse(
+      eslintConfigAfterSetupJSON
+    )
 
     expect({
       parser: languageOptions.parser,
@@ -22,7 +24,8 @@ describe('eslint-config-next/typescript', () => {
       parser: expect.stringContaining('typescript-eslint'),
     })
 
-    expect(getEslintConfigSnapshot(eslintConfigAfterSetup)).toMatchInlineSnapshot(`
+    expect(getEslintConfigSnapshot(eslintConfigAfterSetup))
+      .toMatchInlineSnapshot(`
      {
        "language": "@/js",
        "linterOptions": {

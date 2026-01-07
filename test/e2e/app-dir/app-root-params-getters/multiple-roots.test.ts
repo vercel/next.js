@@ -89,7 +89,10 @@ describe('app-root-param-getters - multiple roots', () => {
         // so we're skipping the rest of the test for now.
         return
       }
-      await session.renameFolder('app/new-root/[stuff]', 'app/new-root/[things]')
+      await session.renameFolder(
+        'app/new-root/[stuff]',
+        'app/new-root/[things]'
+      )
 
       // The page code we added should now be erroring, because the root param getter is called `things` now
       await retry(() => {

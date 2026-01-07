@@ -40,29 +40,31 @@ export function createBrowserRequest<T>(
 
   const requestId = `mcp-${messageType}-${nanoid()}`
 
-  const responsePromise = new Promise<BrowserResponse<T>[]>((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      const pending = pendingRequests.get(requestId)
-      if (pending && pending.responses.length > 0) {
-        resolve(pending.responses as BrowserResponse<T>[])
-      } else {
-        reject(
-          new Error(
-            `Timeout waiting for response from frontend. The browser may not be responding to HMR messages.`
+  const responsePromise = new Promise<BrowserResponse<T>[]>(
+    (resolve, reject) => {
+      const timeout = setTimeout(() => {
+        const pending = pendingRequests.get(requestId)
+        if (pending && pending.responses.length > 0) {
+          resolve(pending.responses as BrowserResponse<T>[])
+        } else {
+          reject(
+            new Error(
+              `Timeout waiting for response from frontend. The browser may not be responding to HMR messages.`
+            )
           )
-        )
-      }
-      pendingRequests.delete(requestId)
-    }, timeoutMs)
+        }
+        pendingRequests.delete(requestId)
+      }, timeoutMs)
 
-    pendingRequests.set(requestId, {
-      responses: [],
-      expectedCount: connectionCount,
-      resolve: resolve as (value: BrowserResponse<unknown>[]) => void,
-      reject,
-      timeout,
-    })
-  })
+      pendingRequests.set(requestId, {
+        responses: [],
+        expectedCount: connectionCount,
+        resolve: resolve as (value: BrowserResponse<unknown>[]) => void,
+        reject,
+        timeout,
+      })
+    }
+  )
 
   sendHmrMessage({
     type: messageType,
@@ -72,9 +74,15 @@ export function createBrowserRequest<T>(
   return responsePromise
 }
 
-export function handleBrowserPageResponse<T>(requestId: string, data: T, url: string): void {
+export function handleBrowserPageResponse<T>(
+  requestId: string,
+  data: T,
+  url: string
+): void {
   if (!url) {
-    throw new Error('URL is required in MCP browser response. This is a bug in Next.js.')
+    throw new Error(
+      'URL is required in MCP browser response. This is a bug in Next.js.'
+    )
   }
 
   const pending = pendingRequests.get(requestId)

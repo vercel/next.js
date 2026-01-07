@@ -13,14 +13,15 @@ export default function Home() {
           <em>Expected behavior</em>: link should take you to the blog post
         </li>
         <li>
-          <em>Actual behavior</em>: the browser fetches the data for the page but never navigates
+          <em>Actual behavior</em>: the browser fetches the data for the page
+          but never navigates
         </li>
       </ol>
       <p>
-        Reloading and pressing the "Go to another page" link and then going to the blog post does
-        work however, suggesting the issue is navigating from <code>/blog</code> to{' '}
-        <code>/blog/a-post</code> (<code>/[slug]</code> where slug is blog and{' '}
-        <code>/blog/[slug]</code> where slug is a-post)
+        Reloading and pressing the "Go to another page" link and then going to
+        the blog post does work however, suggesting the issue is navigating from{' '}
+        <code>/blog</code> to <code>/blog/a-post</code> (<code>/[slug]</code>{' '}
+        where slug is blog and <code>/blog/[slug]</code> where slug is a-post)
       </p>
       <Link href="/blog" style={{ display: 'block' }} id="to-blog">
         Go to blog

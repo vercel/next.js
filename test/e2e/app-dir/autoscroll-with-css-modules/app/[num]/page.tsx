@@ -1,7 +1,11 @@
 import Link from 'next/link'
 import styles from './styles.module.css'
 
-export default async function Page({ params }: { params: Promise<{ num: string }> }) {
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ num: string }>
+}) {
   const { num } = await params
   return (
     <div>

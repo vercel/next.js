@@ -5,7 +5,11 @@ import type {
   PrefetchKind,
 } from '../../client/components/router-reducer/router-reducer-types'
 import type { Params } from '../../server/request/params'
-import type { FlightRouterState, FlightSegmentPath, CacheNode } from './app-router-types'
+import type {
+  FlightRouterState,
+  FlightSegmentPath,
+  CacheNode,
+} from './app-router-types'
 import React from 'react'
 
 export interface NavigateOptions {
@@ -51,7 +55,9 @@ export interface AppRouterInstance {
   prefetch(href: string, options?: PrefetchOptions): void
 }
 
-export const AppRouterContext = React.createContext<AppRouterInstance | null>(null)
+export const AppRouterContext = React.createContext<AppRouterInstance | null>(
+  null
+)
 export const LayoutRouterContext = React.createContext<{
   parentTree: FlightRouterState
   parentCacheNode: CacheNode

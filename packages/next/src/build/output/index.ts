@@ -12,7 +12,9 @@ type CompilerDiagnostics = {
   warnings: string[] | null
 }
 
-type WebpackStatus = { loading: true } | ({ loading: false } & CompilerDiagnostics)
+type WebpackStatus =
+  | { loading: true }
+  | ({ loading: false } & CompilerDiagnostics)
 
 type BuildStatusStore = {
   client: WebpackStatus
@@ -54,7 +56,8 @@ buildStore.subscribe((state) => {
     )
     clientWasLoading = (!buildWasDone && clientWasLoading) || client.loading
     serverWasLoading = (!buildWasDone && serverWasLoading) || server.loading
-    edgeServerWasLoading = (!buildWasDone && edgeServerWasLoading) || edgeServer.loading
+    edgeServerWasLoading =
+      (!buildWasDone && edgeServerWasLoading) || edgeServer.loading
     buildWasDone = false
     return
   }

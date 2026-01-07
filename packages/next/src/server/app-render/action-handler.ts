@@ -20,12 +20,23 @@ import {
   getAccessFallbackHTTPStatus,
   isHTTPAccessFallbackError,
 } from '../../client/components/http-access-fallback/http-access-fallback'
-import { getRedirectTypeFromError, getURLFromRedirectError } from '../../client/components/redirect'
-import { isRedirectError, type RedirectType } from '../../client/components/redirect-error'
-import RenderResult, { type AppPageRenderResultMetadata } from '../render-result'
+import {
+  getRedirectTypeFromError,
+  getURLFromRedirectError,
+} from '../../client/components/redirect'
+import {
+  isRedirectError,
+  type RedirectType,
+} from '../../client/components/redirect-error'
+import RenderResult, {
+  type AppPageRenderResultMetadata,
+} from '../render-result'
 import type { WorkStore } from '../app-render/work-async-storage.external'
 import { FlightRenderResult } from './flight-render-result'
-import { filterReqHeaders, actionsForbiddenHeaders } from '../lib/server-ipc/utils'
+import {
+  filterReqHeaders,
+  actionsForbiddenHeaders,
+} from '../lib/server-ipc/utils'
 import { getModifiedCookieValues } from '../web/spec-extension/adapters/request-cookies'
 
 import {
@@ -71,7 +82,9 @@ function hasServerActions() {
   )
 }
 
-function nodeHeadersToRecord(headers: IncomingHttpHeaders | OutgoingHttpHeaders) {
+function nodeHeadersToRecord(
+  headers: IncomingHttpHeaders | OutgoingHttpHeaders
+) {
   const record: Record<string, string> = {}
   for (const [key, value] of Object.entries(headers)) {
     if (value !== undefined) {
@@ -81,14 +94,19 @@ function nodeHeadersToRecord(headers: IncomingHttpHeaders | OutgoingHttpHeaders)
   return record
 }
 
-function getForwardedHeaders(req: BaseNextRequest, res: BaseNextResponse): Headers {
+function getForwardedHeaders(
+  req: BaseNextRequest,
+  res: BaseNextResponse
+): Headers {
   // Get request headers and cookies
   const requestHeaders = req.headers
   const requestCookies = new RequestCookies(HeadersAdapter.from(requestHeaders))
 
   // Get response headers and cookies
   const responseHeaders = res.getHeaders()
-  const responseCookies = new ResponseCookies(fromNodeOutgoingHttpHeaders(responseHeaders))
+  const responseCookies = new ResponseCookies(
+    fromNodeOutgoingHttpHeaders(responseHeaders)
+  )
 
   // Merge request and response headers
   const mergedHeaders = filterReqHeaders(
@@ -150,7 +168,11 @@ function addRevalidationHeader(
   )
     ? 1
     : 0
-  const isCookieRevalidated = getModifiedCookieValues(requestStore.mutableCookies).length ? 1 : 0
+  const isCookieRevalidated = getModifiedCookieValues(
+    requestStore.mutableCookies
+  ).length
+    ? 1
+    : 0
 
   // First check if a tag, cookie, or path was revalidated.
   if (isTagRevalidated || isCookieRevalidated) {
@@ -163,7 +185,10 @@ function addRevalidationHeader(
     workStore.pathWasRevalidated !== undefined &&
     workStore.pathWasRevalidated !== ActionDidNotRevalidate
   ) {
-    res.setHeader(NEXT_ACTION_REVALIDATED_HEADER, JSON.stringify(workStore.pathWasRevalidated))
+    res.setHeader(
+      NEXT_ACTION_REVALIDATED_HEADER,
+      JSON.stringify(workStore.pathWasRevalidated)
+    )
   }
 }
 
@@ -178,7 +203,9 @@ async function createForwardedActionResponse(
   basePath: string
 ) {
   if (!host) {
-    throw new Error('Invariant: Missing `host` header from a forwarded Server Actions request.')
+    throw new Error(
+      'Invariant: Missing `host` header from a forwarded Server Actions request.'
+    )
   }
 
   const forwardedHeaders = getForwardedHeaders(req, res)
@@ -188,7 +215,8 @@ async function createForwardedActionResponse(
   // with the response from the forwarded worker
   forwardedHeaders.set('x-action-forwarded', '1')
 
-  const proto = getRequestMeta(req, 'initProtocol')?.replace(/:+$/, '') || 'https'
+  const proto =
+    getRequestMeta(req, 'initProtocol')?.replace(/:+$/, '') || 'https'
 
   // For standalone or the serverful mode, use the internal origin directly
   // other than the host headers from the request.
@@ -233,7 +261,9 @@ async function createForwardedActionResponse(
       },
     })
 
-    if (response.headers.get('content-type')?.startsWith(RSC_CONTENT_TYPE_HEADER)) {
+    if (
+      response.headers.get('content-type')?.startsWith(RSC_CONTENT_TYPE_HEADER)
+    ) {
       // copy the headers from the redirect response to the response we're sending
       for (const [key, value] of response.headers) {
         if (!actionsForbiddenHeaders.includes(key)) {
@@ -281,7 +311,10 @@ function getAppRelativeRedirectUrl(
     }
     const resolved = new URL(redirectUrl, `http://n${base}`)
     // Include basePath in the final URL
-    return new URL(`${basePath}${resolved.pathname}${resolved.search}${resolved.hash}`, 'http://n')
+    return new URL(
+      `${basePath}${resolved.pathname}${resolved.search}${resolved.hash}`,
+      'http://n'
+    )
   }
 
   const parsedRedirectUrl = new URL(redirectUrl)
@@ -292,7 +325,9 @@ function getAppRelativeRedirectUrl(
 
   // At this point the hosts are the same, just confirm we
   // are routing to a path underneath the `basePath`
-  return parsedRedirectUrl.pathname.startsWith(basePath) ? parsedRedirectUrl : null
+  return parsedRedirectUrl.pathname.startsWith(basePath)
+    ? parsedRedirectUrl
+    : null
 }
 
 async function createRedirectRenderResult(
@@ -321,17 +356,21 @@ async function createRedirectRenderResult(
 
   if (appRelativeRedirectUrl) {
     if (!originalHost) {
-      throw new Error('Invariant: Missing `host` header from a forwarded Server Actions request.')
+      throw new Error(
+        'Invariant: Missing `host` header from a forwarded Server Actions request.'
+      )
     }
 
     const forwardedHeaders = getForwardedHeaders(req, res)
     forwardedHeaders.set(RSC_HEADER, '1')
 
-    const proto = getRequestMeta(req, 'initProtocol')?.replace(/:+$/, '') || 'https'
+    const proto =
+      getRequestMeta(req, 'initProtocol')?.replace(/:+$/, '') || 'https'
 
     // For standalone or the serverful mode, use the internal origin directly
     // other than the host headers from the request.
-    const origin = process.env.__NEXT_PRIVATE_ORIGIN || `${proto}://${originalHost.value}`
+    const origin =
+      process.env.__NEXT_PRIVATE_ORIGIN || `${proto}://${originalHost.value}`
 
     const fetchUrl = new URL(
       `${origin}${appRelativeRedirectUrl.pathname}${appRelativeRedirectUrl.search}`
@@ -344,7 +383,8 @@ async function createRedirectRenderResult(
       )
       forwardedHeaders.set(
         NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
-        workStore.incrementalCache?.prerenderManifest?.preview?.previewModeId || ''
+        workStore.incrementalCache?.prerenderManifest?.preview?.previewModeId ||
+          ''
       )
     }
 
@@ -356,11 +396,14 @@ async function createRedirectRenderResult(
 
     try {
       setCacheBustingSearchParam(fetchUrl, {
-        [NEXT_ROUTER_PREFETCH_HEADER]: forwardedHeaders.get(NEXT_ROUTER_PREFETCH_HEADER)
+        [NEXT_ROUTER_PREFETCH_HEADER]: forwardedHeaders.get(
+          NEXT_ROUTER_PREFETCH_HEADER
+        )
           ? ('1' as const)
           : undefined,
         [NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]:
-          forwardedHeaders.get(NEXT_ROUTER_SEGMENT_PREFETCH_HEADER) ?? undefined,
+          forwardedHeaders.get(NEXT_ROUTER_SEGMENT_PREFETCH_HEADER) ??
+          undefined,
         [NEXT_ROUTER_STATE_TREE_HEADER]:
           forwardedHeaders.get(NEXT_ROUTER_STATE_TREE_HEADER) ?? undefined,
         [NEXT_URL]: forwardedHeaders.get(NEXT_URL) ?? undefined,
@@ -375,7 +418,11 @@ async function createRedirectRenderResult(
         },
       })
 
-      if (response.headers.get('content-type')?.startsWith(RSC_CONTENT_TYPE_HEADER)) {
+      if (
+        response.headers
+          .get('content-type')
+          ?.startsWith(RSC_CONTENT_TYPE_HEADER)
+      ) {
         // copy the headers from the redirect response to the response we're sending
         for (const [key, value] of response.headers) {
           if (!actionsForbiddenHeaders.includes(key)) {
@@ -420,7 +467,10 @@ function limitUntrustedHeaderValueForLogs(value: string) {
   return value.length > 100 ? value.slice(0, 100) + '...' : value
 }
 
-export function parseHostHeader(headers: IncomingHttpHeaders, originDomain?: string) {
+export function parseHostHeader(
+  headers: IncomingHttpHeaders,
+  originDomain?: string
+) {
   const forwardedHostHeader = headers['x-forwarded-host']
   const forwardedHostHeaderValue =
     forwardedHostHeader && Array.isArray(forwardedHostHeader)
@@ -498,8 +548,13 @@ export async function handleAction({
   const { page } = ctx.renderOpts
   const serverModuleMap = getServerModuleMap()
 
-  const { actionId, isMultipartAction, isFetchAction, isURLEncodedAction, isPossibleServerAction } =
-    getServerActionRequestMetadata(req)
+  const {
+    actionId,
+    isMultipartAction,
+    isFetchAction,
+    isURLEncodedAction,
+    isPossibleServerAction,
+  } = getServerActionRequestMetadata(req)
 
   const handleUnrecognizedFetchAction = (err: unknown): HandleActionResult => {
     // If the deployment doesn't have skew protection, this is expected to occasionally happen,
@@ -545,7 +600,9 @@ export async function handleAction({
   }
 
   if (workStore.isStaticGeneration) {
-    throw new Error("Invariant: server actions can't be handled during static rendering")
+    throw new Error(
+      "Invariant: server actions can't be handled during static rendering"
+    )
   }
 
   let temporaryReferences: TemporaryReferenceSet | undefined
@@ -630,7 +687,10 @@ export async function handleAction({
   }
 
   // ensure we avoid caching server actions unexpectedly
-  res.setHeader('Cache-Control', 'no-cache, no-store, max-age=0, must-revalidate')
+  res.setHeader(
+    'Cache-Control',
+    'no-cache, no-store, max-age=0, must-revalidate'
+  )
 
   const { actionAsyncStorage } = ComponentMod
 
@@ -676,8 +736,12 @@ export async function handleAction({
           // TODO: add body limit
 
           // Use react-server-dom-webpack/server
-          const { createTemporaryReferenceSet, decodeReply, decodeAction, decodeFormState } =
-            ComponentMod
+          const {
+            createTemporaryReferenceSet,
+            decodeReply,
+            decodeAction,
+            decodeFormState,
+          } = ComponentMod
 
           temporaryReferences = createTemporaryReferenceSet()
 
@@ -693,9 +757,13 @@ export async function handleAction({
                 return handleUnrecognizedFetchAction(err)
               }
 
-              boundActionArguments = await decodeReply(formData, serverModuleMap, {
-                temporaryReferences,
-              })
+              boundActionArguments = await decodeReply(
+                formData,
+                serverModuleMap,
+                {
+                  temporaryReferences,
+                }
+              )
             } else {
               // Multipart POST, but not a fetch action.
               // Potentially an MPA action, we have to try decoding it to check.
@@ -722,7 +790,11 @@ export async function handleAction({
                   actionWasForwarded
                 )
 
-                const formState = await decodeFormState(actionResult, formData, serverModuleMap)
+                const formState = await decodeFormState(
+                  actionResult,
+                  formData,
+                  serverModuleMap
+                )
 
                 // Skip the fetch path.
                 // We need to render a full HTML version of the page for the response, we'll handle that in app-render.
@@ -768,9 +840,13 @@ export async function handleAction({
 
             const actionData = Buffer.concat(chunks).toString('utf-8')
 
-            boundActionArguments = await decodeReply(actionData, serverModuleMap, {
-              temporaryReferences,
-            })
+            boundActionArguments = await decodeReply(
+              actionData,
+              serverModuleMap,
+              {
+                temporaryReferences,
+              }
+            )
           }
         } else if (
           // The type check here ensures that `req` is correctly typed, and the
@@ -785,7 +861,9 @@ export async function handleAction({
             decodeReplyFromBusboy,
             decodeAction,
             decodeFormState,
-          } = require(`./react-server.node`) as typeof import('./react-server.node')
+          } = require(
+            `./react-server.node`
+          ) as typeof import('./react-server.node')
 
           temporaryReferences = createTemporaryReferenceSet()
 
@@ -795,7 +873,8 @@ export async function handleAction({
             require('node:stream/promises') as typeof import('node:stream/promises')
 
           const defaultBodySizeLimit = '1 MB'
-          const bodySizeLimit = serverActions?.bodySizeLimit ?? defaultBodySizeLimit
+          const bodySizeLimit =
+            serverActions?.bodySizeLimit ?? defaultBodySizeLimit
           const bodySizeLimitBytes =
             bodySizeLimit !== defaultBodySizeLimit
               ? (
@@ -808,7 +887,8 @@ export async function handleAction({
             transform(chunk, encoding, callback) {
               size += Buffer.byteLength(chunk, encoding)
               if (size > bodySizeLimitBytes) {
-                const { ApiError } = require('../api-utils') as typeof import('../api-utils')
+                const { ApiError } =
+                  require('../api-utils') as typeof import('../api-utils')
 
                 callback(
                   new ApiError(
@@ -868,7 +948,9 @@ export async function handleAction({
                 method: 'POST',
                 // @ts-expect-error
                 headers: { 'Content-Type': contentType },
-                body: Readable.toWeb(sizeLimitedBody) as ReadableStream<Uint8Array>,
+                body: Readable.toWeb(
+                  sizeLimitedBody
+                ) as ReadableStream<Uint8Array>,
                 duplex: 'half',
               })
 
@@ -911,7 +993,11 @@ export async function handleAction({
                   actionWasForwarded
                 )
 
-                const formState = await decodeFormState(actionResult, formData, serverModuleMap)
+                const formState = await decodeFormState(
+                  actionResult,
+                  formData,
+                  serverModuleMap
+                )
 
                 // Skip the fetch path.
                 // We need to render a full HTML version of the page for the response, we'll handle that in app-render.
@@ -958,9 +1044,13 @@ export async function handleAction({
 
             const actionData = Buffer.concat(chunks).toString('utf-8')
 
-            boundActionArguments = await decodeReply(actionData, serverModuleMap, {
-              temporaryReferences,
-            })
+            boundActionArguments = await decodeReply(
+              actionData,
+              serverModuleMap,
+              {
+                temporaryReferences,
+              }
+            )
           }
         } else {
           throw new Error('Invariant: Unknown request type.')
@@ -978,25 +1068,25 @@ export async function handleAction({
         // / -> fire action -> POST / -> appRender1 -> modId for the action file
         // /foo -> fire action -> POST /foo -> appRender2 -> modId for the action file
 
-        const actionMod = (await ComponentMod.__next_app__.require(actionModId)) as Record<
-          string,
-          (...args: unknown[]) => Promise<unknown>
-        >
+        const actionMod = (await ComponentMod.__next_app__.require(
+          actionModId
+        )) as Record<string, (...args: unknown[]) => Promise<unknown>>
         const actionHandler =
           actionMod[
             // `actionId` must exist if we got here, as otherwise we would have thrown an error above
             actionId!
           ]
 
-        const { actionResult, skipPageRendering } = await executeActionAndPrepareForRender(
-          actionHandler,
-          boundActionArguments,
-          workStore,
-          requestStore,
-          actionWasForwarded
-        ).finally(() => {
-          addRevalidationHeader(res, { workStore, requestStore })
-        })
+        const { actionResult, skipPageRendering } =
+          await executeActionAndPrepareForRender(
+            actionHandler,
+            boundActionArguments,
+            workStore,
+            requestStore,
+            actionWasForwarded
+          ).finally(() => {
+            addRevalidationHeader(res, { workStore, requestStore })
+          })
 
         // For form actions, we need to continue rendering the page.
         if (isFetchAction) {
@@ -1009,7 +1099,9 @@ export async function handleAction({
               // If we skip page rendering, we need to ensure pending
               // revalidates are awaited before closing the response. Otherwise,
               // this will be done after rendering the page.
-              waitUntil: skipPageRendering ? executeRevalidates(workStore) : undefined,
+              waitUntil: skipPageRendering
+                ? executeRevalidates(workStore)
+                : undefined,
             }),
           }
         } else {
@@ -1122,7 +1214,9 @@ export async function handleAction({
   }
 }
 
-async function executeActionAndPrepareForRender<TFn extends (...args: any[]) => Promise<any>>(
+async function executeActionAndPrepareForRender<
+  TFn extends (...args: any[]) => Promise<any>,
+>(
   action: TFn,
   args: Parameters<TFn>,
   workStore: WorkStore,
@@ -1209,7 +1303,10 @@ const ACTION_ID_EXPECTED_LENGTH = 42
  * It pre-parses the FormData to ensure that any action IDs referred to are actual action IDs for
  * this Next.js application.
  */
-function areAllActionIdsValid(mpaFormData: FormData, serverModuleMap: ServerModuleMap): boolean {
+function areAllActionIdsValid(
+  mpaFormData: FormData,
+  serverModuleMap: ServerModuleMap
+): boolean {
   let hasAtLeastOneAction = false
   // Before we attempt to decode the payload for a possible MPA action, assert that all
   // action IDs are valid IDs. If not we should disregard the payload
@@ -1228,7 +1325,8 @@ function areAllActionIdsValid(mpaFormData: FormData, serverModuleMap: ServerModu
       hasAtLeastOneAction = true
     } else if (key.startsWith($ACTION_REF_)) {
       // Bound args case
-      const actionDescriptorField = $ACTION_ + key.slice($ACTION_REF_.length) + ':0'
+      const actionDescriptorField =
+        $ACTION_ + key.slice($ACTION_REF_.length) + ':0'
       const actionFields = mpaFormData.getAll(actionDescriptorField)
       if (actionFields.length !== 1) {
         return false
@@ -1261,7 +1359,10 @@ function isInvalidStringActionDescriptor(
 
   // We expect actionDescriptor to be '{"id":"<actionId>",...}'
   const actionId = actionDescriptor.slice(from, to)
-  if (actionId.length !== ACTION_ID_EXPECTED_LENGTH || actionDescriptor[to] !== '"') {
+  if (
+    actionId.length !== ACTION_ID_EXPECTED_LENGTH ||
+    actionDescriptor[to] !== '"'
+  ) {
     return true
   }
 
@@ -1281,7 +1382,10 @@ function isInvalidActionIdFieldName(
   // The field name must always start with $ACTION_ID_ but since it is
   // the id is extracted from the key of the field we have already validated
   // this before entering this function
-  if (actionIdFieldName.length !== $ACTION_ID_.length + ACTION_ID_EXPECTED_LENGTH) {
+  if (
+    actionIdFieldName.length !==
+    $ACTION_ID_.length + ACTION_ID_EXPECTED_LENGTH
+  ) {
     // this field name has too few or too many characters
     return true
   }

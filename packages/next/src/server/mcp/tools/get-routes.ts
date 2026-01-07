@@ -76,10 +76,14 @@ export function registerGetRoutesTool(
         }
 
         const isSrcDir =
-          (pagesDir && pagesDir.includes('/src/')) || (appDir && appDir.includes('/src/'))
+          (pagesDir && pagesDir.includes('/src/')) ||
+          (appDir && appDir.includes('/src/'))
 
         // Create valid file matcher for filtering
-        const validFileMatcher = createValidFileMatcher(nextConfig.pageExtensions, appDir)
+        const validFileMatcher = createValidFileMatcher(
+          nextConfig.pageExtensions,
+          appDir
+        )
 
         // Collect and process App Router routes if requested
         if (appDir && (!routerType || routerType === 'app')) {
@@ -128,7 +132,10 @@ export function registerGetRoutesTool(
         // Collect and process Pages Router routes if requested
         if (pagesDir && (!routerType || routerType === 'pages')) {
           try {
-            const pagePaths = await collectPagesFiles(pagesDir, validFileMatcher)
+            const pagePaths = await collectPagesFiles(
+              pagesDir,
+              validFileMatcher
+            )
 
             if (pagePaths.length > 0) {
               const mappedPages = await createPagesMapping({

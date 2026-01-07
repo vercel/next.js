@@ -7,9 +7,10 @@ export default async function Page() {
   return (
     <>
       <p>
-        This page has dynamic metadata and is also dynamic in the page without a Suspense boundary.
-        This is violation of cache components rules. This test exists however because there was
-        previously a bug that would incorrectly report this as an invariant error.
+        This page has dynamic metadata and is also dynamic in the page without a
+        Suspense boundary. This is violation of cache components rules. This
+        test exists however because there was previously a bug that would
+        incorrectly report this as an invariant error.
       </p>
       <Dynamic />
     </>

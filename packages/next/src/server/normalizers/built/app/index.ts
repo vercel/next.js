@@ -1,7 +1,13 @@
-import { AppBundlePathNormalizer, DevAppBundlePathNormalizer } from './app-bundle-path-normalizer'
+import {
+  AppBundlePathNormalizer,
+  DevAppBundlePathNormalizer,
+} from './app-bundle-path-normalizer'
 import { AppFilenameNormalizer } from './app-filename-normalizer'
 import { DevAppPageNormalizer } from './app-page-normalizer'
-import { AppPathnameNormalizer, DevAppPathnameNormalizer } from './app-pathname-normalizer'
+import {
+  AppPathnameNormalizer,
+  DevAppPathnameNormalizer,
+} from './app-pathname-normalizer'
 
 export class AppNormalizers {
   public readonly filename: AppFilenameNormalizer
@@ -20,7 +26,11 @@ export class DevAppNormalizers {
   public readonly pathname: DevAppPathnameNormalizer
   public readonly bundlePath: DevAppBundlePathNormalizer
 
-  constructor(appDir: string, extensions: ReadonlyArray<string>, isTurbopack: boolean) {
+  constructor(
+    appDir: string,
+    extensions: ReadonlyArray<string>,
+    isTurbopack: boolean
+  ) {
     this.page = new DevAppPageNormalizer(appDir, extensions, isTurbopack)
     this.pathname = new DevAppPathnameNormalizer(this.page)
     this.bundlePath = new DevAppBundlePathNormalizer(this.page, isTurbopack)

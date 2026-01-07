@@ -13,7 +13,9 @@ function getChunkSuffixFromScriptSrc() {
   // TURBOPACK_CHUNK_SUFFIX is set in web workers
   return (
     (self.TURBOPACK_CHUNK_SUFFIX ??
-      document?.currentScript?.getAttribute?.('src')?.replace(/^(.*(?=\?)|^.*$)/, '')) ||
+      document?.currentScript
+        ?.getAttribute?.('src')
+        ?.replace(/^(.*(?=\?)|^.*$)/, '')) ||
     ''
   )
 }
@@ -55,7 +57,9 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
 
       // This waits for chunks to be loaded, but also marks included items as available.
       await Promise.all(
-        params.otherChunks.map((otherChunkData) => loadInitialChunk(chunkPath, otherChunkData))
+        params.otherChunks.map((otherChunkData) =>
+          loadInitialChunk(chunkPath, otherChunkData)
+        )
       )
 
       if (params.runtimeModuleIds.length > 0) {
@@ -82,7 +86,10 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
     ): Promise<Exports> {
       const req = fetchWebAssembly(wasmChunkPath)
 
-      const { instance } = await WebAssembly.instantiateStreaming(req, importsObj)
+      const { instance } = await WebAssembly.instantiateStreaming(
+        req,
+        importsObj
+      )
 
       return instance.exports
     },
@@ -159,7 +166,9 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
         self.TURBOPACK_NEXT_CHUNK_URLS!.push(chunkUrl)
         importScripts(TURBOPACK_WORKER_LOCATION + chunkUrl)
       } else {
-        throw new Error(`can't infer type of chunk from URL ${chunkUrl} in worker`)
+        throw new Error(
+          `can't infer type of chunk from URL ${chunkUrl} in worker`
+        )
       }
     } else {
       // TODO(PACK-2140): remove this once all filenames are guaranteed to be escaped.

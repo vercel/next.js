@@ -11,8 +11,8 @@ export default function Page({ params, searchParams }) {
   return (
     <main>
       <p>
-        This page checks whether runtime/dynamic APIs resolve in the correct stage (regardless of
-        whether we had a cache miss or not)
+        This page checks whether runtime/dynamic APIs resolve in the correct
+        stage (regardless of whether we had a cache miss or not)
       </p>
       <CachedData cacheKey={CACHE_KEY} label="page" />
       <LogAfter label="--- dynamic stage ---" api={() => connection()} />
@@ -36,7 +36,13 @@ function LogAfter({ label, api }: { label: string; api: () => Promise<any> }) {
   )
 }
 
-async function LogAfterInner({ label, api }: { label: string; api: () => Promise<any> }) {
+async function LogAfterInner({
+  label,
+  api,
+}: {
+  label: string
+  api: () => Promise<any>
+}) {
   await api()
   console.log(`after ${label}`)
   return <div>Finished {label}</div>

@@ -19,10 +19,14 @@ const clientNavigation = (context, isProd = false) => {
     describe('should show 404 upon client replacestate', () => {
       it('should navigate the page', async () => {
         const browser = await webdriver(context.appPort, '/asd')
-        const serverCode = await browser.waitForElementByCss('#errorStatusCode').text()
+        const serverCode = await browser
+          .waitForElementByCss('#errorStatusCode')
+          .text()
         await browser.waitForElementByCss('#errorGoHome').click()
         await browser.waitForElementByCss('#hellom8').back()
-        const clientCode = await browser.waitForElementByCss('#errorStatusCode').text()
+        const clientCode = await browser
+          .waitForElementByCss('#errorStatusCode')
+          .text()
 
         expect({ serverCode, clientCode }).toMatchObject({
           serverCode: '404',
@@ -57,7 +61,9 @@ const clientNavigation = (context, isProd = false) => {
           expect(await browser.url()).toContain('/missing')
         })
         expect(await browser.elementByCss('#missing').text()).toBe('poof')
-        expect(await browser.eval(() => (window as any).beforeNav)).not.toBe('hi')
+        expect(await browser.eval(() => (window as any).beforeNav)).not.toBe(
+          'hi'
+        )
       })
     }
   })
@@ -71,26 +77,32 @@ const runTests = (isProd = false) => {
 }
 
 describe('Client 404', () => {
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
-    beforeAll(async () => {
-      context.appPort = await findPort()
-      context.server = await launchApp(appDir, context.appPort)
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        context.appPort = await findPort()
+        context.server = await launchApp(appDir, context.appPort)
 
-      // pre-build page at the start
-      await renderViaHTTP(context.appPort, '/')
-    })
-    afterAll(() => killApp(context.server))
+        // pre-build page at the start
+        await renderViaHTTP(context.appPort, '/')
+      })
+      afterAll(() => killApp(context.server))
 
-    runTests()
-  })
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      context.appPort = await findPort()
-      context.server = await nextStart(appDir, context.appPort)
-    })
-    afterAll(() => killApp(context.server))
+      runTests()
+    }
+  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await nextBuild(appDir)
+        context.appPort = await findPort()
+        context.server = await nextStart(appDir, context.appPort)
+      })
+      afterAll(() => killApp(context.server))
 
-    runTests(true)
-  })
+      runTests(true)
+    }
+  )
 })

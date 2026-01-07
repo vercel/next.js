@@ -9,7 +9,10 @@ import {
   trackDynamicDataInDynamicRender,
 } from '../app-render/dynamic-rendering'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
-import { makeHangingPromise, makeDevtoolsIOAwarePromise } from '../dynamic-rendering-utils'
+import {
+  makeHangingPromise,
+  makeDevtoolsIOAwarePromise,
+} from '../dynamic-rendering-utils'
 import { isRequestAPICallableInsideAfter } from './utils'
 import { RenderStage } from '../app-render/staged-rendering'
 
@@ -24,7 +27,11 @@ export function connection(): Promise<void> {
   const workUnitStore = workUnitAsyncStorage.getStore()
 
   if (workStore) {
-    if (workUnitStore && workUnitStore.phase === 'after' && !isRequestAPICallableInsideAfter()) {
+    if (
+      workUnitStore &&
+      workUnitStore.phase === 'after' &&
+      !isRequestAPICallableInsideAfter()
+    ) {
       throw new Error(
         `Route ${workStore.route} used \`connection()\` inside \`after()\`. The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual Request, but \`after()\` executes after the request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/canary/app/api-reference/functions/after`
       )
@@ -72,15 +79,27 @@ export function connection(): Promise<void> {
         case 'prerender-runtime':
           // We return a promise that never resolves to allow the prerender to
           // stall at this point.
-          return makeHangingPromise(workUnitStore.renderSignal, workStore.route, '`connection()`')
+          return makeHangingPromise(
+            workUnitStore.renderSignal,
+            workStore.route,
+            '`connection()`'
+          )
         case 'prerender-ppr':
           // We use React's postpone API to interrupt rendering here to create a
           // dynamic hole
-          return postponeWithTracking(workStore.route, 'connection', workUnitStore.dynamicTracking)
+          return postponeWithTracking(
+            workStore.route,
+            'connection',
+            workUnitStore.dynamicTracking
+          )
         case 'prerender-legacy':
           // We throw an error here to interrupt prerendering to mark the route
           // as dynamic
-          return throwToInterruptStaticGeneration('connection', workStore, workUnitStore)
+          return throwToInterruptStaticGeneration(
+            'connection',
+            workStore,
+            workUnitStore
+          )
         case 'request':
           trackDynamicDataInDynamicRender(workUnitStore)
           if (process.env.NODE_ENV === 'development') {
@@ -90,7 +109,11 @@ export function connection(): Promise<void> {
             if (workUnitStore.asyncApiPromises) {
               return workUnitStore.asyncApiPromises.connection
             }
-            return makeDevtoolsIOAwarePromise(undefined, workUnitStore, RenderStage.Dynamic)
+            return makeDevtoolsIOAwarePromise(
+              undefined,
+              workUnitStore,
+              RenderStage.Dynamic
+            )
           } else {
             return Promise.resolve(undefined)
           }

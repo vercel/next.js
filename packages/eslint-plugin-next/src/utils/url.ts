@@ -18,7 +18,9 @@ function parseUrlForPages(urlprefix: string, directory: string) {
     // not just js(x) and ts(x)
     if (/(\.(j|t)sx?)$/.test(dirent.name)) {
       if (/^index(\.(j|t)sx?)$/.test(dirent.name)) {
-        res.push(`${urlprefix}${dirent.name.replace(/^index(\.(j|t)sx?)$/, '')}`)
+        res.push(
+          `${urlprefix}${dirent.name.replace(/^index(\.(j|t)sx?)$/, '')}`
+        )
       }
       res.push(`${urlprefix}${dirent.name.replace(/(\.(j|t)sx?)$/, '')}`)
     } else {
@@ -117,7 +119,10 @@ export function normalizeAppPath(route: string) {
       }
 
       // The last segment (if it's a leaf) should be ignored.
-      if ((segment === 'page' || segment === 'route') && index === segments.length - 1) {
+      if (
+        (segment === 'page' || segment === 'route') &&
+        index === segments.length - 1
+      ) {
         return pathname
       }
 
@@ -129,7 +134,10 @@ export function normalizeAppPath(route: string) {
 /**
  * Gets the possible URLs from a directory.
  */
-export function getUrlFromPagesDirectories(urlPrefix: string, directories: string[]) {
+export function getUrlFromPagesDirectories(
+  urlPrefix: string,
+  directories: string[]
+) {
   return Array.from(
     // De-duplicate similar pages across multiple directories.
     new Set(
@@ -146,7 +154,10 @@ export function getUrlFromPagesDirectories(urlPrefix: string, directories: strin
   })
 }
 
-export function getUrlFromAppDirectory(urlPrefix: string, directories: string[]) {
+export function getUrlFromAppDirectory(
+  urlPrefix: string,
+  directories: string[]
+) {
   return Array.from(
     // De-duplicate similar pages across multiple directories.
     new Set(

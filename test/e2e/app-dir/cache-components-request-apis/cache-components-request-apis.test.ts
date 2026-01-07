@@ -4,7 +4,10 @@ const stackStart = /\s+at /
 
 function createExpectError(cliOutput: string) {
   let cliIndex = 0
-  return function expectError(containing: string, withStackContaining?: string) {
+  return function expectError(
+    containing: string,
+    withStackContaining?: string
+  ) {
     const initialCliIndex = cliIndex
     let lines = cliOutput.slice(cliIndex).split('\n')
 
@@ -57,12 +60,18 @@ describe(`Request Promises`, () => {
       }
       const expectError = createExpectError(next.cliOutput)
 
-      expectError('Error: During prerendering, `params` rejects when the prerender is complete')
+      expectError(
+        'Error: During prerendering, `params` rejects when the prerender is complete'
+      )
       expectError(
         'Error: During prerendering, `searchParams` rejects when the prerender is complete'
       )
-      expectError('Error: During prerendering, `cookies()` rejects when the prerender is complete')
-      expectError('Error: During prerendering, `headers()` rejects when the prerender is complete')
+      expectError(
+        'Error: During prerendering, `cookies()` rejects when the prerender is complete'
+      )
+      expectError(
+        'Error: During prerendering, `headers()` rejects when the prerender is complete'
+      )
       expectError(
         'Error: During prerendering, `connection()` rejects when the prerender is complete'
       )
@@ -90,12 +99,18 @@ describe(`Request Promises`, () => {
       } catch {}
       const expectError = createExpectError(next.cliOutput)
 
-      expectError('Error: During prerendering, `params` rejects when the prerender is complete')
+      expectError(
+        'Error: During prerendering, `params` rejects when the prerender is complete'
+      )
       expectError(
         'Error: During prerendering, `searchParams` rejects when the prerender is complete'
       )
-      expectError('Error: During prerendering, `cookies()` rejects when the prerender is complete')
-      expectError('Error: During prerendering, `headers()` rejects when the prerender is complete')
+      expectError(
+        'Error: During prerendering, `cookies()` rejects when the prerender is complete'
+      )
+      expectError(
+        'Error: During prerendering, `headers()` rejects when the prerender is complete'
+      )
       expectError(
         'Error: During prerendering, `connection()` rejects when the prerender is complete'
       )

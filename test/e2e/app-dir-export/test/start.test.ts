@@ -27,7 +27,8 @@ describe('app dir - with output export (next start)', () => {
     it('should warn during next start with output standalone', async () => {
       await next.patchFile(
         'next.config.js',
-        (content) => content.replace(`output: 'export'`, `output: 'standalone'`),
+        (content) =>
+          content.replace(`output: 'export'`, `output: 'standalone'`),
         async () => {
           const { exitCode } = await next.build()
           expect(exitCode).toBe(0)

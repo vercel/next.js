@@ -1,4 +1,7 @@
-export default function Layout(props: { children: React.ReactNode; slot: React.ReactNode }) {
+export default function Layout(props: {
+  children: React.ReactNode
+  slot: React.ReactNode
+}) {
   return (
     <html>
       <body>

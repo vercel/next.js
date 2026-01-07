@@ -20,7 +20,11 @@ const formatCliHelpOutput = (cmd: Command, helper: Help) => {
 
       const fullText = `${value.padEnd(termWidth + itemSeparatorWidth)}${description}`
 
-      return helper.wrap(fullText, helpWidth - itemIndentWidth, termWidth + itemSeparatorWidth)
+      return helper.wrap(
+        fullText,
+        helpWidth - itemIndentWidth,
+        termWidth + itemSeparatorWidth
+      )
     }
 
     return term
@@ -42,16 +46,26 @@ const formatCliHelpOutput = (cmd: Command, helper: Help) => {
 
   // Arguments
   const argumentList = helper.visibleArguments(cmd).map((argument) => {
-    return formatItem(helper.argumentTerm(argument), helper.argumentDescription(argument))
+    return formatItem(
+      helper.argumentTerm(argument),
+      helper.argumentDescription(argument)
+    )
   })
 
   if (argumentList.length > 0) {
-    output = output.concat([`${bold('Arguments:')}`, formatList(argumentList), ''])
+    output = output.concat([
+      `${bold('Arguments:')}`,
+      formatList(argumentList),
+      '',
+    ])
   }
 
   // Options
   const optionList = helper.visibleOptions(cmd).map((option) => {
-    return formatItem(helper.optionTerm(option), helper.optionDescription(option))
+    return formatItem(
+      helper.optionTerm(option),
+      helper.optionDescription(option)
+    )
   })
 
   if (optionList.length > 0) {
@@ -60,11 +74,18 @@ const formatCliHelpOutput = (cmd: Command, helper: Help) => {
 
   // Commands
   const commandList = helper.visibleCommands(cmd).map((subCmd) => {
-    return formatItem(helper.subcommandTerm(subCmd), helper.subcommandDescription(subCmd))
+    return formatItem(
+      helper.subcommandTerm(subCmd),
+      helper.subcommandDescription(subCmd)
+    )
   })
 
   if (commandList.length > 0) {
-    output = output.concat([`${bold('Commands:')}`, formatList(commandList), ''])
+    output = output.concat([
+      `${bold('Commands:')}`,
+      formatList(commandList),
+      '',
+    ])
   }
 
   return output.join('\n')

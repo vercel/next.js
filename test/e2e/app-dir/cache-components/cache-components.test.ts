@@ -226,7 +226,10 @@ describe('cache-components', () => {
   })
 
   it('should partially prerender pages that use `searchParams` in Server Components', async () => {
-    let $ = await next.render$('/cases/dynamic_api_search_params_server?sentinel=my+sentinel', {})
+    let $ = await next.render$(
+      '/cases/dynamic_api_search_params_server?sentinel=my+sentinel',
+      {}
+    )
     if (isNextDev) {
       expect($('#layout').text()).toBe('at runtime')
       expect($('#page').text()).toBe('at runtime')
@@ -241,7 +244,10 @@ describe('cache-components', () => {
   })
 
   it('should partially prerender pages that use `searchParams` in Client Components', async () => {
-    let $ = await next.render$('/cases/dynamic_api_search_params_client?sentinel=my+sentinel', {})
+    let $ = await next.render$(
+      '/cases/dynamic_api_search_params_client?sentinel=my+sentinel',
+      {}
+    )
     if (isNextDev) {
       expect($('#layout').text()).toBe('at runtime')
       expect($('#page').text()).toBe('at runtime')
@@ -356,13 +362,17 @@ describe('cache-components', () => {
       expect(await browser.elementById('layout').text()).toBe('at runtime')
       expect(await browser.elementById('page').text()).toBe('at runtime')
       // Assert that we rendered a time within the last couple seconds.
-      const inPageDate = new Date(await browser.waitForElementByCss('#time').text())
+      const inPageDate = new Date(
+        await browser.waitForElementByCss('#time').text()
+      )
       expect(inPageDate.getTime() - now.getTime()).toBeLessThan(2000)
     } else {
       expect(await browser.elementById('layout').text()).toBe('at buildtime')
       expect(await browser.elementById('page').text()).toBe('at buildtime')
       // Assert that we rendered a time within the last 2 seconds.
-      const inPageDate = new Date(await browser.waitForElementByCss('#time').text())
+      const inPageDate = new Date(
+        await browser.waitForElementByCss('#time').text()
+      )
       expect(inPageDate.getTime() - now.getTime()).toBeLessThan(2000)
     }
   })

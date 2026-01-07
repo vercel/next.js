@@ -9,7 +9,10 @@ module.exports = {
 
       if (isServer && nextRuntime === 'nodejs') {
         const curEntry = origEntries['pages/_app']
-        origEntries['pages/_app'] = [path.join(__dirname, 'lib/get-data.js'), ...curEntry]
+        origEntries['pages/_app'] = [
+          path.join(__dirname, 'lib/get-data.js'),
+          ...curEntry,
+        ]
         console.log(origEntries)
       }
       return origEntries

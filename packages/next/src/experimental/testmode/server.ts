@@ -33,10 +33,15 @@ export function interceptTestApis(): () => void {
   }
 }
 
-export function wrapRequestHandlerWorker(handler: WorkerRequestHandler): WorkerRequestHandler {
+export function wrapRequestHandlerWorker(
+  handler: WorkerRequestHandler
+): WorkerRequestHandler {
   return (req, res) => withRequest(req, reader, () => handler(req, res))
 }
 
-export function wrapRequestHandlerNode(handler: NodeRequestHandler): NodeRequestHandler {
-  return (req, res, parsedUrl) => withRequest(req, reader, () => handler(req, res, parsedUrl))
+export function wrapRequestHandlerNode(
+  handler: NodeRequestHandler
+): NodeRequestHandler {
+  return (req, res, parsedUrl) =>
+    withRequest(req, reader, () => handler(req, res, parsedUrl))
 }

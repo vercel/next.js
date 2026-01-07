@@ -29,7 +29,8 @@ export default defineRule({
 
         const hrefValue = attributes.value('href')
         const isGoogleFont =
-          typeof hrefValue === 'string' && hrefValue.startsWith('https://fonts.googleapis.com/css')
+          typeof hrefValue === 'string' &&
+          hrefValue.startsWith('https://fonts.googleapis.com/css')
 
         if (isGoogleFont) {
           const params = new URLSearchParams(hrefValue.split('?', 2)[1])

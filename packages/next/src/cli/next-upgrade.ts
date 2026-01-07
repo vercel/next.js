@@ -7,9 +7,13 @@ interface NextUpgradeOptions {
   verbose: boolean
 }
 
-export function spawnNextUpgrade(directory: string | undefined, options: NextUpgradeOptions) {
+export function spawnNextUpgrade(
+  directory: string | undefined,
+  options: NextUpgradeOptions
+) {
   const baseDir = getProjectDir(directory)
-  const [upgradeProcessCommand, ...upgradeProcessDefaultArgs] = getNpxCommand(baseDir).split(' ')
+  const [upgradeProcessCommand, ...upgradeProcessDefaultArgs] =
+    getNpxCommand(baseDir).split(' ')
 
   const upgradeProcessCommandArgs = [
     ...upgradeProcessDefaultArgs,
@@ -22,10 +26,14 @@ export function spawnNextUpgrade(directory: string | undefined, options: NextUpg
     upgradeProcessCommandArgs.push('--verbose')
   }
 
-  const upgradeProcess = spawn(upgradeProcessCommand, upgradeProcessCommandArgs, {
-    stdio: 'inherit',
-    cwd: baseDir,
-  })
+  const upgradeProcess = spawn(
+    upgradeProcessCommand,
+    upgradeProcessCommandArgs,
+    {
+      stdio: 'inherit',
+      cwd: baseDir,
+    }
+  )
 
   upgradeProcess.on('close', (code) => {
     process.exitCode = code ?? 0

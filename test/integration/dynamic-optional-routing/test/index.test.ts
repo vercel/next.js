@@ -127,7 +127,9 @@ function runTests() {
   it('should fall back to top-level catch-all', async () => {
     const html = await renderViaHTTP(appPort, '/get-static-paths/hello/world')
     const $ = cheerio.load(html)
-    expect($('#route').text()).toBe('top level route param: [get-static-paths|hello|world]')
+    expect($('#route').text()).toBe(
+      'top level route param: [get-static-paths|hello|world]'
+    )
   })
 
   it('should match root path on undefined param', async () => {
@@ -151,17 +153,27 @@ function runTests() {
   it('should handle getStaticPaths with fallback no segments', async () => {
     const html = await renderViaHTTP(appPort, '/get-static-paths-fallback')
     const $ = cheerio.load(html)
-    expect($('#route').text()).toBe('gsp fallback route: undefined is not fallback')
+    expect($('#route').text()).toBe(
+      'gsp fallback route: undefined is not fallback'
+    )
   })
 
   it('should handle getStaticPaths with fallback 2 segments', async () => {
-    const html = await renderViaHTTP(appPort, '/get-static-paths-fallback/p2/p3')
+    const html = await renderViaHTTP(
+      appPort,
+      '/get-static-paths-fallback/p2/p3'
+    )
     const $ = cheerio.load(html)
-    expect($('#route').text()).toBe('gsp fallback route: [p2|p3] is not fallback')
+    expect($('#route').text()).toBe(
+      'gsp fallback route: [p2|p3] is not fallback'
+    )
   })
 
   it('should fallback correctly when fallback enabled', async () => {
-    const html = await renderViaHTTP(appPort, '/get-static-paths-fallback/hello/world')
+    const html = await renderViaHTTP(
+      appPort,
+      '/get-static-paths-fallback/hello/world'
+    )
     const $ = cheerio.load(html)
     expect($('#route').text()).toBe('gsp fallback route: undefined is fallback')
   })
@@ -214,7 +226,10 @@ function runInvalidPagesTests(buildFn) {
     try {
       await fs.outputFile(invalidRoute, DUMMY_PAGE, 'utf-8')
       await buildFn(appDir)
-      await check(() => stderr, /Optional route parameters are not yet supported/)
+      await check(
+        () => stderr,
+        /Optional route parameters are not yet supported/
+      )
     } finally {
       await fs.unlink(invalidRoute)
     }
@@ -222,55 +237,60 @@ function runInvalidPagesTests(buildFn) {
 }
 
 describe('Dynamic Optional Routing', () => {
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
-    describe('rendering', () => {
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      describe('rendering', () => {
+        beforeAll(async () => {
+          appPort = await findPort()
+          app = await launchApp(appDir, appPort)
+        })
+        afterAll(() => killApp(app))
+        runTests()
+      })
+
+      describe('invalid pages', () => {
+        runInvalidPagesTests(async (appDir) => {
+          stderr = ''
+          appPort = await findPort()
+          app = await launchApp(appDir, appPort, {
+            onStderr: (msg) => {
+              stderr += msg
+            },
+          })
+        })
+        afterEach(() => killApp(app))
+      })
+    }
+  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
       beforeAll(async () => {
+        const curConfig = await fs.readFile(nextConfig, 'utf8')
+
+        if (curConfig.includes('target')) {
+          await fs.writeFile(nextConfig, `module.exports = {}`)
+        }
+        await nextBuild(appDir)
+
         appPort = await findPort()
-        app = await launchApp(appDir, appPort)
+        app = await nextStart(appDir, appPort)
       })
       afterAll(() => killApp(app))
+
       runTests()
-    })
 
-    describe('invalid pages', () => {
       runInvalidPagesTests(async (appDir) => {
-        stderr = ''
-        appPort = await findPort()
-        app = await launchApp(appDir, appPort, {
-          onStderr: (msg) => {
-            stderr += msg
-          },
-        })
+        ;({ stderr } = await nextBuild(appDir, [], { stderr: true }))
       })
-      afterEach(() => killApp(app))
-    })
-  })
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      const curConfig = await fs.readFile(nextConfig, 'utf8')
 
-      if (curConfig.includes('target')) {
-        await fs.writeFile(nextConfig, `module.exports = {}`)
-      }
-      await nextBuild(appDir)
-
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
-
-    runTests()
-
-    runInvalidPagesTests(async (appDir) => {
-      ;({ stderr } = await nextBuild(appDir, [], { stderr: true }))
-    })
-
-    it('should fail to build when param is not explicitly defined', async () => {
-      const invalidRoute = appDir + 'pages/invalid/[[...slug]].js'
-      try {
-        await fs.outputFile(
-          invalidRoute,
-          `
+      it('should fail to build when param is not explicitly defined', async () => {
+        const invalidRoute = appDir + 'pages/invalid/[[...slug]].js'
+        try {
+          await fs.outputFile(
+            invalidRoute,
+            `
             export async function getStaticPaths() {
               return {
                 paths: [
@@ -290,15 +310,16 @@ describe('Dynamic Optional Routing', () => {
               )
             }
           `,
-          'utf-8'
-        )
-        const { stderr } = await nextBuild(appDir, [], { stderr: true })
-        await expect(stderr).toMatch(
-          'A required parameter (slug) was not provided as an array received undefined in getStaticPaths for /invalid/[[...slug]]'
-        )
-      } finally {
-        await fs.unlink(invalidRoute)
-      }
-    })
-  })
+            'utf-8'
+          )
+          const { stderr } = await nextBuild(appDir, [], { stderr: true })
+          await expect(stderr).toMatch(
+            'A required parameter (slug) was not provided as an array received undefined in getStaticPaths for /invalid/[[...slug]]'
+          )
+        } finally {
+          await fs.unlink(invalidRoute)
+        }
+      })
+    }
+  )
 })

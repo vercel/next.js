@@ -19,7 +19,10 @@ const cache = new WeakMap<readonly string[], readonly string[]>()
  * @param locales A list of locales.
  * @returns The detected locale and pathname without locale
  */
-export function normalizeLocalePath(pathname: string, locales?: readonly string[]): PathLocale {
+export function normalizeLocalePath(
+  pathname: string,
+  locales?: readonly string[]
+): PathLocale {
   // If locales is undefined, return the pathname as is.
   if (!locales) return { pathname }
 

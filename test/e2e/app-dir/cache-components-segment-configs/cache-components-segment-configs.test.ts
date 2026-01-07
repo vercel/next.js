@@ -1,5 +1,10 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry, waitForRedbox, getRedboxDescription, getRedboxSource } from 'next-test-utils'
+import {
+  retry,
+  waitForRedbox,
+  getRedboxDescription,
+  getRedboxSource,
+} from 'next-test-utils'
 
 describe('cache-components-segment-configs', () => {
   const { next, skipped, isNextDev, isTurbopack } = nextTestSetup({
@@ -28,7 +33,9 @@ describe('cache-components-segment-configs', () => {
       }
 
       if (isTurbopack) {
-        expect(redbox.description).toMatchInlineSnapshot(`"Ecmascript file had an error"`)
+        expect(redbox.description).toMatchInlineSnapshot(
+          `"Ecmascript file had an error"`
+        )
       } else {
         expect(redbox.description).toMatchInlineSnapshot(
           `"  x Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it."`
@@ -87,7 +94,9 @@ describe('cache-components-segment-configs', () => {
           }
 
           if (isTurbopack) {
-            expect(redbox.description).toMatchInlineSnapshot(`"Ecmascript file had an error"`)
+            expect(redbox.description).toMatchInlineSnapshot(
+              `"Ecmascript file had an error"`
+            )
           } else {
             expect(redbox.description).toMatchInlineSnapshot(
               `"  x Route segment config "runtime" is not compatible with \`nextConfig.cacheComponents\`. Please remove it."`
@@ -104,7 +113,9 @@ describe('cache-components-segment-configs', () => {
 
             // the stack trace is different between turbopack/webpack
             if (isTurbopack) {
-              expectLinesToAppearTogether(next.cliOutput, ['./app/layout.tsx:2:24'])
+              expectLinesToAppearTogether(next.cliOutput, [
+                './app/layout.tsx:2:24',
+              ])
             } else {
               expectLinesToAppearTogether(next.cliOutput, [
                 'Import trace for requested module:',
@@ -120,7 +131,9 @@ describe('cache-components-segment-configs', () => {
 })
 
 function expectLinesToAppearTogether(output: string, lines: string[]) {
-  const escapedLines = lines.map((line) => line.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+  const escapedLines = lines.map((line) =>
+    line.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  )
   const pattern = new RegExp(escapedLines.join('\\s*'), 's')
   expect(output).toMatch(pattern)
 }

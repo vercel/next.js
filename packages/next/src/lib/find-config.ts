@@ -7,7 +7,10 @@ type RecursivePartial<T> = {
   [P in keyof T]?: RecursivePartial<T[P]>
 }
 
-export function findConfigPath(dir: string, key: string): Promise<string | undefined> {
+export function findConfigPath(
+  dir: string,
+  key: string
+): Promise<string | undefined> {
   // If we didn't find the configuration in `package.json`, we should look for
   // known filenames.
   return findUp(

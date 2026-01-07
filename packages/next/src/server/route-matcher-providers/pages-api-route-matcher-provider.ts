@@ -5,7 +5,10 @@ import {
   PagesAPILocaleRouteMatcher,
   PagesAPIRouteMatcher,
 } from '../route-matchers/pages-api-route-matcher'
-import type { Manifest, ManifestLoader } from './helpers/manifest-loaders/manifest-loader'
+import type {
+  Manifest,
+  ManifestLoader,
+} from './helpers/manifest-loaders/manifest-loader'
 import { ManifestRouteMatcherProvider } from './manifest-route-matcher-provider'
 import type { I18NProvider } from '../lib/i18n-provider'
 import { PagesNormalizers } from '../normalizers/built/pages'
@@ -23,9 +26,13 @@ export class PagesAPIRouteMatcherProvider extends ManifestRouteMatcherProvider<P
     this.normalizers = new PagesNormalizers(distDir)
   }
 
-  protected async transform(manifest: Manifest): Promise<ReadonlyArray<PagesAPIRouteMatcher>> {
+  protected async transform(
+    manifest: Manifest
+  ): Promise<ReadonlyArray<PagesAPIRouteMatcher>> {
     // This matcher is only for Pages API routes.
-    const pathnames = Object.keys(manifest).filter((pathname) => isAPIRoute(pathname))
+    const pathnames = Object.keys(manifest).filter((pathname) =>
+      isAPIRoute(pathname)
+    )
 
     const matchers: Array<PagesAPIRouteMatcher> = []
 

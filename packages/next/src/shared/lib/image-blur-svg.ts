@@ -20,7 +20,8 @@ export function getImageBlurSvg({
   const svgWidth = blurWidth ? blurWidth * 40 : widthInt
   const svgHeight = blurHeight ? blurHeight * 40 : heightInt
 
-  const viewBox = svgWidth && svgHeight ? `viewBox='0 0 ${svgWidth} ${svgHeight}'` : ''
+  const viewBox =
+    svgWidth && svgHeight ? `viewBox='0 0 ${svgWidth} ${svgHeight}'` : ''
   const preserveAspectRatio = viewBox
     ? 'none'
     : objectFit === 'contain'

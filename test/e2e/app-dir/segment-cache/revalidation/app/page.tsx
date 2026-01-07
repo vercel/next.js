@@ -42,7 +42,8 @@ export default async function Page() {
         </li>
         <li>
           <ManualPrefetchLinkAccordion href="/greeting">
-            Manual link (router.prefetch) to target page with prefetching enabled
+            Manual link (router.prefetch) to target page with prefetching
+            enabled
           </ManualPrefetchLinkAccordion>
         </li>
         <li>

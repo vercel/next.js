@@ -13,18 +13,23 @@ describe.each([
       },
     },
   },
-])('Nested @import() Global Support ($dependencies)', ({ dependencies, nextConfig }) => {
-  const { next } = nextTestSetup({
-    files: __dirname,
-    dependencies,
-    nextConfig,
-  })
+])(
+  'Nested @import() Global Support ($dependencies)',
+  ({ dependencies, nextConfig }) => {
+    const { next } = nextTestSetup({
+      files: __dirname,
+      dependencies,
+      nextConfig,
+    })
 
-  it('should render the page', async () => {
-    const browser = await next.browser('/')
-    expect(await browser.elementByCss('.red-text').getComputedCss('color')).toBe(colorToRgb('red'))
-    expect(await browser.elementByCss('.blue-text').getComputedCss('color')).toBe(
-      colorToRgb('blue')
-    )
-  })
-})
+    it('should render the page', async () => {
+      const browser = await next.browser('/')
+      expect(
+        await browser.elementByCss('.red-text').getComputedCss('color')
+      ).toBe(colorToRgb('red'))
+      expect(
+        await browser.elementByCss('.blue-text').getComputedCss('color')
+      ).toBe(colorToRgb('blue'))
+    })
+  }
+)

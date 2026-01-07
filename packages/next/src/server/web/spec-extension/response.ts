@@ -9,7 +9,10 @@ import { ResponseCookies } from './cookies'
 const INTERNALS = Symbol('internal response')
 const REDIRECTS = new Set([301, 302, 303, 307, 308])
 
-function handleMiddlewareField(init: MiddlewareResponseInit | undefined, headers: Headers) {
+function handleMiddlewareField(
+  init: MiddlewareResponseInit | undefined,
+  headers: Headers
+) {
   if (init?.request?.headers) {
     if (!(init.request.headers instanceof Headers)) {
       throw new Error('request.headers must be an instance of Headers')
@@ -103,7 +106,10 @@ export class NextResponse<Body = unknown> extends Response {
     return this[INTERNALS].cookies
   }
 
-  static json<JsonBody>(body: JsonBody, init?: ResponseInit): NextResponse<JsonBody> {
+  static json<JsonBody>(
+    body: JsonBody,
+    init?: ResponseInit
+  ): NextResponse<JsonBody> {
     const response: Response = Response.json(body, init)
     return new NextResponse(response.body, response)
   }
@@ -111,7 +117,9 @@ export class NextResponse<Body = unknown> extends Response {
   static redirect(url: string | NextURL | URL, init?: number | ResponseInit) {
     const status = typeof init === 'number' ? init : (init?.status ?? 307)
     if (!REDIRECTS.has(status)) {
-      throw new RangeError('Failed to execute "redirect" on "response": Invalid status code')
+      throw new RangeError(
+        'Failed to execute "redirect" on "response": Invalid status code'
+      )
     }
     const initObj = typeof init === 'object' ? init : {}
     const headers = new Headers(initObj?.headers)
@@ -124,7 +132,10 @@ export class NextResponse<Body = unknown> extends Response {
     })
   }
 
-  static rewrite(destination: string | NextURL | URL, init?: MiddlewareResponseInit) {
+  static rewrite(
+    destination: string | NextURL | URL,
+    init?: MiddlewareResponseInit
+  ) {
     const headers = new Headers(init?.headers)
     headers.set('x-middleware-rewrite', validateURL(destination))
 

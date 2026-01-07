@@ -1,7 +1,10 @@
 import { nextTestSetup } from 'e2e-utils'
 
 const CASES = [
-  ['turbopackPersistentCaching', "Use 'experimental.turbopackFileSystemCacheForDev' instead."],
+  [
+    'turbopackPersistentCaching',
+    "Use 'experimental.turbopackFileSystemCacheForDev' instead.",
+  ],
   [
     'turbopackPersistentCachingForDev',
     "Use 'experimental.turbopackFileSystemCacheForDev' instead.",

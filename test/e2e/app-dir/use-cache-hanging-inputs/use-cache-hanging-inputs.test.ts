@@ -168,15 +168,26 @@ describe('use-cache-hanging-inputs', () => {
       expect(cliOutput).toInclude(createExpectedBuildErrorMessage('/error'))
       expect(cliOutput).toInclude('Error: kaputt!')
 
-      expect(cliOutput).toIncludeRepeated(escapeStringRegexp(expectedTimeoutErrorMessage), 4)
+      expect(cliOutput).toIncludeRepeated(
+        escapeStringRegexp(expectedTimeoutErrorMessage),
+        4
+      )
 
-      expect(cliOutput).toInclude(createExpectedBuildErrorMessage('/bound-args'))
+      expect(cliOutput).toInclude(
+        createExpectedBuildErrorMessage('/bound-args')
+      )
 
-      expect(cliOutput).toInclude(createExpectedBuildErrorMessage('/transformed-params/[slug]'))
+      expect(cliOutput).toInclude(
+        createExpectedBuildErrorMessage('/transformed-params/[slug]')
+      )
 
-      expect(cliOutput).toInclude(createExpectedBuildErrorMessage('/uncached-promise'))
+      expect(cliOutput).toInclude(
+        createExpectedBuildErrorMessage('/uncached-promise')
+      )
 
-      expect(cliOutput).toInclude(createExpectedBuildErrorMessage('/uncached-promise-nested'))
+      expect(cliOutput).toInclude(
+        createExpectedBuildErrorMessage('/uncached-promise-nested')
+      )
     }, 180_000)
   }
 })

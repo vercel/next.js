@@ -72,7 +72,11 @@ export type ElementByCssOpts = {
   waitUntil?: false | 'load' | 'domcontentloaded' | 'networkidle'
 }
 
-export type PlaywrightNavigationWaitUntil = 'load' | 'domcontentloaded' | 'networkidle' | 'commit'
+export type PlaywrightNavigationWaitUntil =
+  | 'load'
+  | 'domcontentloaded'
+  | 'networkidle'
+  | 'commit'
 
 export class Playwright<TCurrent = undefined> {
   private activeTrace?: string
@@ -126,8 +130,14 @@ export class Playwright<TCurrent = undefined> {
     }
   }
 
-  on(event: 'request', cb: (request: PlaywrightRequest) => void | Promise<void>): void
-  on(event: 'response', cb: (request: PlaywrightResponse) => void | Promise<void>): void
+  on(
+    event: 'request',
+    cb: (request: PlaywrightRequest) => void | Promise<void>
+  ): void
+  on(
+    event: 'response',
+    cb: (request: PlaywrightResponse) => void | Promise<void>
+  ): void
   on(event: EventType, cb: (...args: any[]) => void) {
     if (!this.eventCallbacks[event]) {
       throw new Error(
@@ -139,8 +149,14 @@ export class Playwright<TCurrent = undefined> {
     this.eventCallbacks[event]?.add(cb)
   }
 
-  off(event: 'request', cb: (request: PlaywrightRequest) => void | Promise<void>): void
-  off(event: 'response', cb: (request: PlaywrightResponse) => void | Promise<void>): void
+  off(
+    event: 'request',
+    cb: (request: PlaywrightRequest) => void | Promise<void>
+  ): void
+  off(
+    event: 'response',
+    cb: (request: PlaywrightResponse) => void | Promise<void>
+  ): void
   off(event: EventType, cb: (...args: any[]) => void) {
     this.eventCallbacks[event]?.delete(cb)
   }
@@ -159,7 +175,9 @@ export class Playwright<TCurrent = undefined> {
       device = devices[process.env.DEVICE_NAME]
 
       if (!device) {
-        throw new Error(`Invalid playwright device name ${process.env.DEVICE_NAME}`)
+        throw new Error(
+          `Invalid playwright device name ${process.env.DEVICE_NAME}`
+        )
       }
     }
 
@@ -263,9 +281,9 @@ export class Playwright<TCurrent = undefined> {
       debugPrint('Browser Log:', msg)
 
       pageLogs.push(
-        Promise.all(msg.args().map((handle) => handle.jsonValue().catch(() => {}))).then(
-          (args) => ({ source: msg.type(), message: msg.text(), args })
-        )
+        Promise.all(
+          msg.args().map((handle) => handle.jsonValue().catch(() => {}))
+        ).then((args) => ({ source: msg.type(), message: msg.text(), args }))
       )
     })
     page.on('crash', () => {
@@ -301,17 +319,23 @@ export class Playwright<TCurrent = undefined> {
 
     page.on('websocket', (ws) => {
       if (tracePlaywright) {
-        page.evaluate(`console.log('connected to ws at ${ws.url()}')`).catch(() => {})
+        page
+          .evaluate(`console.log('connected to ws at ${ws.url()}')`)
+          .catch(() => {})
 
         ws.on('close', () =>
-          page.evaluate(`console.log('closed websocket ${ws.url()}')`).catch(() => {})
+          page
+            .evaluate(`console.log('closed websocket ${ws.url()}')`)
+            .catch(() => {})
         )
       }
       ws.on('framereceived', (frame) => {
         websocketFrames.push({ payload: frame.payload })
 
         if (tracePlaywright) {
-          page.evaluate(`console.log('received ws message ${frame.payload}')`).catch(() => {})
+          page
+            .evaluate(`console.log('received ws message ${frame.payload}')`)
+            .catch(() => {})
         }
       })
     })
@@ -340,7 +364,9 @@ export class Playwright<TCurrent = undefined> {
     })
   }
   setDimensions({ width, height }: { height: number; width: number }) {
-    return this.startOrPreserveChain(() => page.setViewportSize({ width, height }))
+    return this.startOrPreserveChain(() =>
+      page.setViewportSize({ width, height })
+    )
   }
   addCookie(opts: { name: string; value: string }) {
     return this.startOrPreserveChain(async () =>
@@ -523,8 +549,14 @@ export class Playwright<TCurrent = undefined> {
   ): Playwright<ReturnType<TFn>> & Promise<ReturnType<TFn>>
   // TODO: this is ugly, the type parameter is basically a hidden cast
   eval<T = any>(fn: string, ...args: any[]): Playwright<T> & Promise<T>
-  eval<T = any>(fn: string | ((...args: any[]) => any), ...args: any[]): Playwright<T> & Promise<T>
-  eval(fn: string | ((...args: any[]) => any), ...args: any[]): Playwright<any> & Promise<any> {
+  eval<T = any>(
+    fn: string | ((...args: any[]) => any),
+    ...args: any[]
+  ): Playwright<T> & Promise<T>
+  eval(
+    fn: string | ((...args: any[]) => any),
+    ...args: any[]
+  ): Playwright<any> & Promise<any> {
     return this.startChain(async () =>
       page
         .evaluate(fn, ...args)
@@ -577,7 +609,9 @@ export class Playwright<TCurrent = undefined> {
   }
 
   locateRedbox(): Locator {
-    return page.locator('nextjs-portal [aria-labelledby="nextjs__container_errors_label"]')
+    return page.locator(
+      'nextjs-portal [aria-labelledby="nextjs__container_errors_label"]'
+    )
   }
 
   locateDevToolsIndicator(): Locator {
@@ -629,7 +663,9 @@ export class Playwright<TCurrent = undefined> {
         // Note that this should also be enforced by the type system
         // by adding appropriate `(this: Playwright<PreviousValue>)` type annotations
         // to methods that expect to be chained, but tests can bypass this (or not be checked because they use JS)
-        throw new Error('Expected this call to be chained after a previous call')
+        throw new Error(
+          'Expected this call to be chained after a previous call'
+        )
       } else {
         // We're handling a call that does not expect to be chained after a previous one,
         // so it's safe to default the current value to undefined -- we don't need a value to invoke `nextCall`

@@ -26,10 +26,16 @@ export const middlewareResponse = {
   internalServerError(res: ServerResponse, error?: unknown) {
     res.statusCode = 500
     res.setHeader('Content-Type', 'text/plain')
-    res.end(error !== undefined ? inspect(error, { colors: false }) : 'Internal Server Error')
+    res.end(
+      error !== undefined
+        ? inspect(error, { colors: false })
+        : 'Internal Server Error'
+    )
   },
   json(res: ServerResponse, data: any) {
-    res.setHeader('Content-Type', 'application/json').end(Buffer.from(JSON.stringify(data)))
+    res
+      .setHeader('Content-Type', 'application/json')
+      .end(Buffer.from(JSON.stringify(data)))
   },
   jsonString(res: ServerResponse, data: string) {
     res.setHeader('Content-Type', 'application/json').end(Buffer.from(data))

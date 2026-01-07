@@ -32,13 +32,22 @@ describe('instrumentation-hook-rsc', () => {
           `export function register() {console.log('toast')}`
         )
         await check(() => next.cliOutput, /toast/)
-        await next.renameFile('./src/instrumentation.js', './src/instrumentation.js.bak')
-        await check(() => next.cliOutput, /The instrumentation file has been removed/)
+        await next.renameFile(
+          './src/instrumentation.js',
+          './src/instrumentation.js.bak'
+        )
+        await check(
+          () => next.cliOutput,
+          /The instrumentation file has been removed/
+        )
         await next.patchFile(
           './src/instrumentation.js.bak',
           `export function register() {console.log('bread')}`
         )
-        await next.renameFile('./src/instrumentation.js.bak', './src/instrumentation.js')
+        await next.renameFile(
+          './src/instrumentation.js.bak',
+          './src/instrumentation.js'
+        )
         await check(() => next.cliOutput, /The instrumentation file was added/)
         await check(() => next.cliOutput, /bread/)
       })

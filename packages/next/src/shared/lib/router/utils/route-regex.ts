@@ -1,4 +1,7 @@
-import { NEXT_INTERCEPTION_MARKER_PREFIX, NEXT_QUERY_PARAM_PREFIX } from '../../../../lib/constants'
+import {
+  NEXT_INTERCEPTION_MARKER_PREFIX,
+  NEXT_QUERY_PARAM_PREFIX,
+} from '../../../../lib/constants'
 import { INTERCEPTION_ROUTE_MARKERS } from './interception-routes'
 import { escapeStringRegexp } from '../../escape-regexp'
 import { removeTrailingSlash } from './remove-trailing-slash'
@@ -87,13 +90,19 @@ type GetRouteRegexOptions = {
   excludeOptionalTrailingSlash?: boolean
 }
 
-function getParametrizedRoute(route: string, includeSuffix: boolean, includePrefix: boolean) {
+function getParametrizedRoute(
+  route: string,
+  includeSuffix: boolean,
+  includePrefix: boolean
+) {
   const groups: { [groupName: string]: Group } = {}
   let groupIndex = 1
 
   const segments: string[] = []
   for (const segment of removeTrailingSlash(route).slice(1).split('/')) {
-    const markerMatch = INTERCEPTION_ROUTE_MARKERS.find((m) => segment.startsWith(m))
+    const markerMatch = INTERCEPTION_ROUTE_MARKERS.find((m) =>
+      segment.startsWith(m)
+    )
     const paramMatches = segment.match(PARAMETER_PATTERN) // Check for parameters
 
     if (markerMatch && paramMatches && paramMatches[2]) {
@@ -230,7 +239,9 @@ function getSafeKeyFromSegment({
   // if the segment has an interception marker, make sure that's part of the regex pattern
   // this is to ensure that the route with the interception marker doesn't incorrectly match
   // the non-intercepted route (ie /app/(.)[username] should not match /app/[username])
-  const interceptionPrefix = interceptionMarker ? escapeStringRegexp(interceptionMarker) : ''
+  const interceptionPrefix = interceptionMarker
+    ? escapeStringRegexp(interceptionMarker)
+    : ''
 
   let pattern: string
   if (duplicateKey && backreferenceDuplicateKeys) {
@@ -272,11 +283,15 @@ function getNamedParametrizedRoute(
   reference = structuredClone(reference)
 
   for (const segment of removeTrailingSlash(route).slice(1).split('/')) {
-    const hasInterceptionMarker = INTERCEPTION_ROUTE_MARKERS.some((m) => segment.startsWith(m))
+    const hasInterceptionMarker = INTERCEPTION_ROUTE_MARKERS.some((m) =>
+      segment.startsWith(m)
+    )
 
     const paramMatches = segment.match(PARAMETER_PATTERN) // Check for parameters
 
-    const interceptionMarker = hasInterceptionMarker ? paramMatches?.[1] : undefined
+    const interceptionMarker = hasInterceptionMarker
+      ? paramMatches?.[1]
+      : undefined
 
     let keyPrefix: string | undefined
     if (interceptionMarker && paramMatches?.[2]) {
@@ -290,14 +305,15 @@ function getNamedParametrizedRoute(
 
     if (interceptionMarker && paramMatches && paramMatches[2]) {
       // If there's an interception marker, add it to the segments.
-      const { key, pattern, cleanedKey, repeat, optional } = getSafeKeyFromSegment({
-        getSafeRouteKey,
-        interceptionMarker,
-        segment: paramMatches[2],
-        routeKeys,
-        keyPrefix,
-        backreferenceDuplicateKeys,
-      })
+      const { key, pattern, cleanedKey, repeat, optional } =
+        getSafeKeyFromSegment({
+          getSafeRouteKey,
+          interceptionMarker,
+          segment: paramMatches[2],
+          routeKeys,
+          keyPrefix,
+          backreferenceDuplicateKeys,
+        })
 
       segments.push(pattern)
       inverseParts.push(
@@ -311,13 +327,14 @@ function getNamedParametrizedRoute(
         inverseParts.push(`/${paramMatches[1]}`)
       }
 
-      const { key, pattern, cleanedKey, repeat, optional } = getSafeKeyFromSegment({
-        getSafeRouteKey,
-        segment: paramMatches[2],
-        routeKeys,
-        keyPrefix,
-        backreferenceDuplicateKeys,
-      })
+      const { key, pattern, cleanedKey, repeat, optional } =
+        getSafeKeyFromSegment({
+          getSafeRouteKey,
+          segment: paramMatches[2],
+          routeKeys,
+          keyPrefix,
+          backreferenceDuplicateKeys,
+        })
 
       // Remove the leading slash if includePrefix already added it.
       let s = pattern
@@ -358,7 +375,10 @@ function getNamedParametrizedRoute(
  * be "true" currently this is only the case when creating the routes-manifest
  * during the build
  */
-export function getNamedRouteRegex(normalizedRoute: string, options: GetNamedRouteRegexOptions) {
+export function getNamedRouteRegex(
+  normalizedRoute: string,
+  options: GetNamedRouteRegexOptions
+) {
   const result = getNamedParametrizedRoute(
     normalizedRoute,
     options.prefixRouteKeys,
@@ -392,7 +412,11 @@ export function getNamedMiddlewareRegex(
     catchAll?: boolean
   }
 ) {
-  const { parameterizedRoute } = getParametrizedRoute(normalizedRoute, false, false)
+  const { parameterizedRoute } = getParametrizedRoute(
+    normalizedRoute,
+    false,
+    false
+  )
   const { catchAll = true } = options
   if (parameterizedRoute === '/') {
     let catchAllRegex = catchAll ? '.*' : ''

@@ -14,11 +14,22 @@ import {
   PinterestMeta,
 } from './generate/basic'
 import { AlternatesMetadata } from './generate/alternate'
-import { OpenGraphMetadata, TwitterMetadata, AppLinksMeta } from './generate/opengraph'
+import {
+  OpenGraphMetadata,
+  TwitterMetadata,
+  AppLinksMeta,
+} from './generate/opengraph'
 import { IconsMetadata } from './generate/icons'
-import { type MetadataErrorType, resolveMetadata, resolveViewport } from './resolve-metadata'
+import {
+  type MetadataErrorType,
+  resolveMetadata,
+  resolveViewport,
+} from './resolve-metadata'
 import { MetaFilter } from './generate/meta'
-import type { ResolvedMetadata, ResolvedViewport } from './types/metadata-interface'
+import type {
+  ResolvedMetadata,
+  ResolvedViewport,
+} from './types/metadata-interface'
 import { isHTTPAccessFallbackError } from '../../client/components/http-access-fallback/http-access-fallback'
 import type { MetadataContext } from './types/resolvers'
 import type { WorkStore } from '../../server/app-render/work-async-storage.external'
@@ -61,8 +72,14 @@ export function createMetadataComponents({
   Metadata: React.ComponentType
   MetadataOutlet: React.ComponentType
 } {
-  const searchParams = createServerSearchParamsForMetadata(parsedQuery, workStore)
-  const pathnameForMetadata = createServerPathnameForMetadata(pathname, workStore)
+  const searchParams = createServerSearchParamsForMetadata(
+    parsedQuery,
+    workStore
+  )
+  const pathnameForMetadata = createServerPathnameForMetadata(
+    pathname,
+    workStore
+  )
 
   async function Viewport() {
     const tags = await getResolvedViewport(
@@ -79,9 +96,12 @@ export function createMetadataComponents({
         throw viewportErr
       }
       if (!errorType && isHTTPAccessFallbackError(viewportErr)) {
-        return getNotFoundViewport(tree, searchParams, getDynamicParamFromSegment, workStore).catch(
-          () => null
-        )
+        return getNotFoundViewport(
+          tree,
+          searchParams,
+          getDynamicParamFromSegment,
+          workStore
+        ).catch(() => null)
       }
       // We're going to throw the error from the metadata outlet so we just render null here instead
       return null
@@ -166,7 +186,13 @@ export function createMetadataComponents({
         workStore,
         errorType
       ),
-      getResolvedViewport(tree, searchParams, getDynamicParamFromSegment, workStore, errorType),
+      getResolvedViewport(
+        tree,
+        searchParams,
+        getDynamicParamFromSegment,
+        workStore,
+        errorType
+      ),
     ]).then(() => null)
 
     // TODO: We shouldn't change what we render based on whether we are streaming or not.
@@ -242,7 +268,13 @@ async function getResolvedViewportImpl(
   errorType?: MetadataErrorType | 'redirect'
 ): Promise<React.ReactNode> {
   const errorConvention = errorType === 'redirect' ? undefined : errorType
-  return renderViewport(tree, searchParams, getDynamicParamFromSegment, workStore, errorConvention)
+  return renderViewport(
+    tree,
+    searchParams,
+    getDynamicParamFromSegment,
+    workStore,
+    errorConvention
+  )
 }
 
 const getNotFoundViewport = cache(getNotFoundViewportImpl)
@@ -280,7 +312,8 @@ async function renderMetadata(
     workStore,
     metadataContext
   )
-  const elements: Array<React.ReactNode> = createMetadataElements(resolvedMetadata)
+  const elements: Array<React.ReactNode> =
+    createMetadataElements(resolvedMetadata)
   return (
     <>
       {elements.map((el, index) => {
@@ -305,7 +338,8 @@ async function renderViewport(
     workStore
   )
 
-  const elements: Array<React.ReactNode> = createViewportElements(resolvedViewport)
+  const elements: Array<React.ReactNode> =
+    createViewportElements(resolvedViewport)
   return (
     <>
       {elements.map((el, index) => {

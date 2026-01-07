@@ -7,7 +7,10 @@ import { useCallback, useRef, type Ref } from 'react'
 // This implements cleanup functions with the old behavior in 18.
 // We know refs are always called alternating with `null` and then `T`.
 // So a call with `null` means we need to call the previous cleanup functions.
-export function useMergedRef<TElement>(refA: Ref<TElement>, refB: Ref<TElement>): Ref<TElement> {
+export function useMergedRef<TElement>(
+  refA: Ref<TElement>,
+  refB: Ref<TElement>
+): Ref<TElement> {
   const cleanupA = useRef<(() => void) | null>(null)
   const cleanupB = useRef<(() => void) | null>(null)
 
@@ -44,7 +47,10 @@ export function useMergedRef<TElement>(refA: Ref<TElement>, refB: Ref<TElement>)
   )
 }
 
-function applyRef<TElement>(refA: NonNullable<Ref<TElement>>, current: TElement) {
+function applyRef<TElement>(
+  refA: NonNullable<Ref<TElement>>,
+  current: TElement
+) {
   if (typeof refA === 'function') {
     const cleanup = refA(current)
     if (typeof cleanup === 'function') {

@@ -20,7 +20,11 @@ export function getGoogleFontsUrl(
         variants.push([['wght', wght], ...(axes.variableAxes ?? [])])
       } else {
         for (const ital of axes.ital) {
-          variants.push([['ital', ital], ['wght', wght], ...(axes.variableAxes ?? [])])
+          variants.push([
+            ['ital', ital],
+            ['wght', wght],
+            ...(axes.variableAxes ?? []),
+          ])
         }
       }
     }

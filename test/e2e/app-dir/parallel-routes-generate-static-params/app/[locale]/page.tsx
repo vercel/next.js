@@ -1,6 +1,10 @@
 import Link from 'next/link'
 
-export default async function Home({ params }: { params: Promise<{ locale: string }> }) {
+export default async function Home({
+  params,
+}: {
+  params: Promise<{ locale: string }>
+}) {
   const { locale } = await params
   return (
     <div id="home-page">

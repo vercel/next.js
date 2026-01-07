@@ -123,8 +123,12 @@ describe('validateAppPaths', () => {
     })
 
     it('does not error when routes differ only by interception markers', () => {
-      expect(() => validateAppPaths(['/blog/test', '/blog/(..)test'])).not.toThrow()
-      expect(() => validateAppPaths(['/blog/[slug]', '/blog/(..)[slug]'])).not.toThrow()
+      expect(() =>
+        validateAppPaths(['/blog/test', '/blog/(..)test'])
+      ).not.toThrow()
+      expect(() =>
+        validateAppPaths(['/blog/[slug]', '/blog/(..)[slug]'])
+      ).not.toThrow()
     })
   })
 
@@ -204,7 +208,12 @@ describe('validateAppPaths', () => {
     })
 
     it('detects multiple conflicts', () => {
-      const paths = ['/blog/[slug]', '/blog/[id]', '/posts/[id]', '/posts/[slug]']
+      const paths = [
+        '/blog/[slug]',
+        '/blog/[id]',
+        '/posts/[id]',
+        '/posts/[slug]',
+      ]
 
       // Should report both conflicts
       expect(() => validateAppPaths(paths)).toThrowErrorMatchingInlineSnapshot(`
@@ -275,7 +284,9 @@ describe('validateAppPaths', () => {
       it('detects three-dot character (…) instead of ...', () => {
         const paths = ['/docs/[…slug]']
 
-        expect(() => validateAppPaths(paths)).toThrowErrorMatchingInlineSnapshot(
+        expect(() =>
+          validateAppPaths(paths)
+        ).toThrowErrorMatchingInlineSnapshot(
           `"Detected a three-dot character ('…') in parameter "…slug" in route "/docs/[…slug]". Did you mean ('...')?"`
         )
       })
@@ -283,7 +294,9 @@ describe('validateAppPaths', () => {
       it('detects extra brackets in segment names', () => {
         const paths = ['/blog/[[slug]']
 
-        expect(() => validateAppPaths(paths)).toThrowErrorMatchingInlineSnapshot(
+        expect(() =>
+          validateAppPaths(paths)
+        ).toThrowErrorMatchingInlineSnapshot(
           `"Segment names may not start or end with extra brackets ('[slug') in route "/blog/[[slug]"."`
         )
       })
@@ -291,7 +304,9 @@ describe('validateAppPaths', () => {
       it('detects erroneous periods at start of segment', () => {
         const paths = ['/blog/[.slug]']
 
-        expect(() => validateAppPaths(paths)).toThrowErrorMatchingInlineSnapshot(
+        expect(() =>
+          validateAppPaths(paths)
+        ).toThrowErrorMatchingInlineSnapshot(
           `"Segment names may not start with erroneous periods ('.slug') in route "/blog/[.slug]"."`
         )
       })
@@ -299,7 +314,9 @@ describe('validateAppPaths', () => {
       it('detects optional non-catch-all segments', () => {
         const paths = ['/blog/[[slug]]']
 
-        expect(() => validateAppPaths(paths)).toThrowErrorMatchingInlineSnapshot(
+        expect(() =>
+          validateAppPaths(paths)
+        ).toThrowErrorMatchingInlineSnapshot(
           `"Optional route parameters are not yet supported ("[[slug]]") in route "/blog/[[slug]]"."`
         )
       })
@@ -326,7 +343,9 @@ describe('validateAppPaths', () => {
       it('detects extra closing bracket only', () => {
         const paths = ['/blog/[slug]]']
 
-        expect(() => validateAppPaths(paths)).toThrowErrorMatchingInlineSnapshot(
+        expect(() =>
+          validateAppPaths(paths)
+        ).toThrowErrorMatchingInlineSnapshot(
           `"Segment names may not start or end with extra brackets ('slug]') in route "/blog/[slug]]"."`
         )
       })
@@ -358,7 +377,9 @@ describe('validateAppPaths', () => {
       it('detects duplicate slug names in same path', () => {
         const paths = ['/blog/[slug]/posts/[slug]']
 
-        expect(() => validateAppPaths(paths)).toThrowErrorMatchingInlineSnapshot(
+        expect(() =>
+          validateAppPaths(paths)
+        ).toThrowErrorMatchingInlineSnapshot(
           `"You cannot have the same slug name "slug" repeat within a single dynamic path in route "/blog/[slug]/posts/[slug]"."`
         )
       })
@@ -366,7 +387,9 @@ describe('validateAppPaths', () => {
       it('detects slug names differing only by non-word symbols', () => {
         const paths = ['/blog/[helloworld]/[hello-world]']
 
-        expect(() => validateAppPaths(paths)).toThrowErrorMatchingInlineSnapshot(
+        expect(() =>
+          validateAppPaths(paths)
+        ).toThrowErrorMatchingInlineSnapshot(
           `"You cannot have the slug names "helloworld" and "hello-world" differ only by non-word symbols within a single dynamic path in route "/blog/[helloworld]/[hello-world]"."`
         )
       })
@@ -376,7 +399,9 @@ describe('validateAppPaths', () => {
       it('detects catch-all not at the end', () => {
         const paths = ['/docs/[...slug]/more']
 
-        expect(() => validateAppPaths(paths)).toThrowErrorMatchingInlineSnapshot(
+        expect(() =>
+          validateAppPaths(paths)
+        ).toThrowErrorMatchingInlineSnapshot(
           `"Catch-all must be the last part of the URL in route "/docs/[...slug]/more"."`
         )
       })
@@ -384,7 +409,9 @@ describe('validateAppPaths', () => {
       it('detects optional catch-all not at the end', () => {
         const paths = ['/docs/[[...slug]]/more']
 
-        expect(() => validateAppPaths(paths)).toThrowErrorMatchingInlineSnapshot(
+        expect(() =>
+          validateAppPaths(paths)
+        ).toThrowErrorMatchingInlineSnapshot(
           `"Optional catch-all must be the last part of the URL in route "/docs/[[...slug]]/more"."`
         )
       })
@@ -393,7 +420,9 @@ describe('validateAppPaths', () => {
         // This would be impossible in practice but we should catch it
         const paths = ['/docs/[...required]/[[...optional]]']
 
-        expect(() => validateAppPaths(paths)).toThrowErrorMatchingInlineSnapshot(
+        expect(() =>
+          validateAppPaths(paths)
+        ).toThrowErrorMatchingInlineSnapshot(
           `"You cannot use both a required and optional catch-all route at the same level in route "/docs/[...required]/[[...optional]]"."`
         )
       })
@@ -403,7 +432,9 @@ describe('validateAppPaths', () => {
       it('detects route with same specificity as optional catch-all', () => {
         const paths = ['/docs', '/docs/[[...slug]]']
 
-        expect(() => validateAppPaths(paths)).toThrowErrorMatchingInlineSnapshot(
+        expect(() =>
+          validateAppPaths(paths)
+        ).toThrowErrorMatchingInlineSnapshot(
           `"You cannot define a route with the same specificity as an optional catch-all route ("/docs" and "/docs/[[...slug]]")."`
         )
       })
@@ -432,7 +463,10 @@ describe('validateAppPaths', () => {
     })
 
     it('handles complex nested structures', () => {
-      const paths = ['/[locale]/blog/[category]/[slug]', '/[locale]/blog/[category]/featured']
+      const paths = [
+        '/[locale]/blog/[category]/[slug]',
+        '/[locale]/blog/[category]/featured',
+      ]
 
       expect(() => validateAppPaths(paths)).not.toThrow()
     })
@@ -447,7 +481,9 @@ describe('validateAppPaths', () => {
     it('detects conflict between root route and root-level optional catch-all', () => {
       const paths = ['/', '/[[...slug]]']
 
-      expect(() => validateAppPaths(paths)).toThrow(/same specificity as an optional catch-all/)
+      expect(() => validateAppPaths(paths)).toThrow(
+        /same specificity as an optional catch-all/
+      )
     })
 
     // Test for optional catch-all with dynamic segments in prefix
@@ -456,16 +492,23 @@ describe('validateAppPaths', () => {
       // /blog/[cat] is structurally identical to /blog/[category]
       const paths = ['/blog/[category]/[[...slug]]', '/blog/[cat]']
 
-      expect(() => validateAppPaths(paths)).toThrow(/same specificity as an optional catch-all/)
+      expect(() => validateAppPaths(paths)).toThrow(
+        /same specificity as an optional catch-all/
+      )
     })
 
     // Test for optional catch-all with nested dynamic segments
     it('detects conflict with multiple dynamic segments in prefix', () => {
       // /[locale]/blog/[category]/[[...slug]] with zero slug = /[locale]/blog/[category]
       // /[lang]/blog/[cat] is structurally identical
-      const paths = ['/[locale]/blog/[category]/[[...slug]]', '/[lang]/blog/[cat]']
+      const paths = [
+        '/[locale]/blog/[category]/[[...slug]]',
+        '/[lang]/blog/[cat]',
+      ]
 
-      expect(() => validateAppPaths(paths)).toThrow(/same specificity as an optional catch-all/)
+      expect(() => validateAppPaths(paths)).toThrow(
+        /same specificity as an optional catch-all/
+      )
     })
   })
 
@@ -473,7 +516,9 @@ describe('validateAppPaths', () => {
     it('provides clear error message with normalized path', () => {
       const paths = ['/blog/[slug]', '/blog/[modalSlug]']
 
-      expect(() => validateAppPaths(paths)).toThrow(/Ambiguous route pattern "\/blog\/\[\*\]"/)
+      expect(() => validateAppPaths(paths)).toThrow(
+        /Ambiguous route pattern "\/blog\/\[\*\]"/
+      )
     })
 
     it('provides actionable guidance', () => {

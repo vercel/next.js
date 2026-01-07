@@ -5,8 +5,9 @@ export default function Page() {
   return (
     <main>
       <p>
-        Caches that use the 'seconds' profile will be omitted from static prerenders, making this
-        essentially dynamic. If we omit it, it should not affect the cache life of the prerender.
+        Caches that use the 'seconds' profile will be omitted from static
+        prerenders, making this essentially dynamic. If we omit it, it should
+        not affect the cache life of the prerender.
       </p>
       <Suspense fallback="Loading...">
         <ShortLivedContent />

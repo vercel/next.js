@@ -7,7 +7,8 @@ describe('get-page-static-infos', () => {
       const expected = [
         {
           originalSource: '/middleware/path',
-          regexp: '^(?:\\/(_next\\/data\\/[^/]{1,}))?\\/middleware\\/path(\\.json)?[\\/#\\?]?$',
+          regexp:
+            '^(?:\\/(_next\\/data\\/[^/]{1,}))?\\/middleware\\/path(\\.json)?[\\/#\\?]?$',
         },
       ]
       const result = getMiddlewareMatchers(matchers, { i18n: undefined })
@@ -19,7 +20,8 @@ describe('get-page-static-infos', () => {
       const expected = [
         {
           originalSource: '/middleware/path',
-          regexp: '^(?:\\/(_next\\/data\\/[^/]{1,}))?\\/middleware\\/path(\\.json)?[\\/#\\?]?$',
+          regexp:
+            '^(?:\\/(_next\\/data\\/[^/]{1,}))?\\/middleware\\/path(\\.json)?[\\/#\\?]?$',
         },
         {
           originalSource: '/middleware/another-path',
@@ -33,7 +35,8 @@ describe('get-page-static-infos', () => {
 
     it('matches /:id and /:id.json', () => {
       const matchers = ['/:id']
-      const result = getMiddlewareMatchers(matchers, { i18n: undefined })[0].regexp
+      const result = getMiddlewareMatchers(matchers, { i18n: undefined })[0]
+        .regexp
       const regex = new RegExp(result)
       expect(regex.test('/apple')).toBe(true)
       expect(regex.test('/apple.json')).toBe(true)

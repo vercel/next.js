@@ -2,7 +2,13 @@ import { execSync, spawn } from 'child_process'
 import { join } from 'path'
 import { fileURLToPath } from 'url'
 import fetch from 'node-fetch'
-import { existsSync, readFileSync, writeFileSync, unlinkSync, promises as fs } from 'fs'
+import {
+  existsSync,
+  readFileSync,
+  writeFileSync,
+  unlinkSync,
+  promises as fs,
+} from 'fs'
 import prettyMs from 'pretty-ms'
 import treeKill from 'tree-kill'
 
@@ -41,7 +47,9 @@ async function killApp(instance) {
 class File {
   constructor(path) {
     this.path = path
-    this.originalContent = existsSync(this.path) ? readFileSync(this.path, 'utf8') : null
+    this.originalContent = existsSync(this.path)
+      ? readFileSync(this.path, 'utf8')
+      : null
   }
 
   write(content) {
@@ -185,7 +193,8 @@ for (const testCase of [
             const matched = compiledRegex.exec(message)
             if (matched) {
               resolve({
-                'time (ms)': (matched[2] === 's' ? 1000 : 1) * Number(matched[1]),
+                'time (ms)':
+                  (matched[2] === 's' ? 1000 : 1) * Number(matched[1]),
                 modules: Number(matched[3]),
               })
               instance.stdout.removeListener('data', waitForOnData)
@@ -244,7 +253,9 @@ for (const testCase of [
         .split('\n')
         .filter((line) => line)
         .map((line) => JSON.parse(line))
-      const { duration } = traces.pop().find(({ name }) => name === 'next-build')
+      const { duration } = traces
+        .pop()
+        .find(({ name }) => name === 'next-build')
       console.info('next build duration: ', prettyMs(duration / 1000))
     }
   } finally {

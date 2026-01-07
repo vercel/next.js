@@ -32,7 +32,9 @@ function getProductionDeploymentUrl(): URL | undefined {
  * - In start, it should be the user-provided metadataBase value. Otherwise,
  * it'll fall back to the Vercel production deployment, and localhost as a last resort.
  */
-export function getSocialImageMetadataBaseFallback(metadataBase: MetadataBaseURL): URL {
+export function getSocialImageMetadataBaseFallback(
+  metadataBase: MetadataBaseURL
+): URL {
   const defaultMetadataBase = createLocalMetadataBase()
   const previewDeploymentUrl = getPreviewDeploymentUrl()
   const productionDeploymentUrl = getProductionDeploymentUrl()
@@ -91,7 +93,8 @@ function resolveRelativeUrl(url: string | URL, pathname: string): string | URL {
 }
 
 // The regex is matching logic from packages/next/src/lib/load-custom-routes.ts
-const FILE_REGEX = /^(?:\/((?!\.well-known(?:\/.*)?)(?:[^/]+\/)*[^/]+\.\w+))(\/?|$)/i
+const FILE_REGEX =
+  /^(?:\/((?!\.well-known(?:\/.*)?)(?:[^/]+\/)*[^/]+\.\w+))(\/?|$)/i
 function isFilePattern(pathname: string): boolean {
   return FILE_REGEX.test(pathname)
 }
@@ -114,7 +117,9 @@ function resolveAbsoluteUrlWithPathname(
     resolvedUrl = result
   } else {
     resolvedUrl =
-      result.pathname === '/' && result.searchParams.size === 0 ? result.origin : result.href
+      result.pathname === '/' && result.searchParams.size === 0
+        ? result.origin
+        : result.href
   }
 
   // Add trailing slash if it's enabled for urls matches the condition
@@ -129,7 +134,8 @@ function resolveAbsoluteUrlWithPathname(
     if (!isRelative) {
       try {
         const parsedUrl = new URL(resolvedUrl)
-        isExternal = metadataBase != null && parsedUrl.origin !== metadataBase.origin
+        isExternal =
+          metadataBase != null && parsedUrl.origin !== metadataBase.origin
         isFileUrl = isFilePattern(parsedUrl.pathname)
       } catch {
         // If it's not a valid URL, treat it as external
@@ -148,4 +154,9 @@ function resolveAbsoluteUrlWithPathname(
   return resolvedUrl
 }
 
-export { isStringOrURL, resolveUrl, resolveRelativeUrl, resolveAbsoluteUrlWithPathname }
+export {
+  isStringOrURL,
+  resolveUrl,
+  resolveRelativeUrl,
+  resolveAbsoluteUrlWithPathname,
+}

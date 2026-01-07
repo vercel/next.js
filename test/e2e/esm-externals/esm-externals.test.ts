@@ -40,7 +40,9 @@ describe('esm-externals', () => {
 
   // App dir
   describe.each(['/server', '/client'])('app dir url %s', (url) => {
-    const expectedHtml = isTurbopack ? 'Hello World+World+World' : 'Hello World+World+Alternative'
+    const expectedHtml = isTurbopack
+      ? 'Hello World+World+World'
+      : 'Hello World+World+Alternative'
 
     const expectedText = isTurbopack
       ? 'Hello World+World+World'
@@ -56,7 +58,9 @@ describe('esm-externals', () => {
 
     it('should render the correct page', async () => {
       const browser = await next.browser(url)
-      expect(await browser.elementByCss('body > p').text()).toEqual(expectedText)
+      expect(await browser.elementByCss('body > p').text()).toEqual(
+        expectedText
+      )
     })
   })
 })

@@ -29,7 +29,9 @@ describe('app-dir action progressive enhancement', () => {
     await browser.elementById('submit').click()
 
     await retry(async () => {
-      expect(await browser.url()).toBe(`${next.url}/header?name=test&hidden-info=hi`)
+      expect(await browser.url()).toBe(
+        `${next.url}/header?name=test&hidden-info=hi`
+      )
     })
 
     expect(responseCode).toBe(303)
@@ -44,7 +46,9 @@ describe('app-dir action progressive enhancement', () => {
     await browser.elementById('there').click()
 
     await retry(async () => {
-      expect(await browser.url()).toBe(`${next.url}/header?name=test&hidden-info=hi`)
+      expect(await browser.url()).toBe(
+        `${next.url}/header?name=test&hidden-info=hi`
+      )
     })
   })
 

@@ -5,9 +5,13 @@ const isServerSide = typeof window === 'undefined'
 
 type ComponentModule<P = {}> = { default: React.ComponentType<P> }
 
-export declare type LoaderComponent<P = {}> = Promise<React.ComponentType<P> | ComponentModule<P>>
+export declare type LoaderComponent<P = {}> = Promise<
+  React.ComponentType<P> | ComponentModule<P>
+>
 
-export declare type Loader<P = {}> = (() => LoaderComponent<P>) | LoaderComponent<P>
+export declare type Loader<P = {}> =
+  | (() => LoaderComponent<P>)
+  | LoaderComponent<P>
 
 export type LoaderMap = { [module: string]: () => Loader<any> }
 
@@ -40,7 +44,9 @@ export type DynamicOptions<P = {}> = LoadableGeneratedOptions & {
 
 export type LoadableOptions<P = {}> = DynamicOptions<P>
 
-export type LoadableFn<P = {}> = (opts: LoadableOptions<P>) => React.ComponentType<P>
+export type LoadableFn<P = {}> = (
+  opts: LoadableOptions<P>
+) => React.ComponentType<P>
 
 export type LoadableComponent<P = {}> = React.ComponentType<P>
 
@@ -59,7 +65,9 @@ export function noSSR<P = {}>(
 
   const Loading = loadableOptions.loading!
   // This will only be rendered on the server side
-  return () => <Loading error={null} isLoading pastDelay={false} timedOut={false} />
+  return () => (
+    <Loading error={null} isLoading pastDelay={false} timedOut={false} />
+  )
 }
 
 /**
@@ -115,7 +123,9 @@ export default function dynamic<P = {}>(
 
   const loaderFn = loadableOptions.loader as () => LoaderComponent<P>
   const loader = () =>
-    loaderFn != null ? loaderFn().then(convertModule) : Promise.resolve(convertModule(() => null))
+    loaderFn != null
+      ? loaderFn().then(convertModule)
+      : Promise.resolve(convertModule(() => null))
 
   // coming from build/babel/plugins/react-loadable-plugin.js
   if (loadableOptions.loadableGenerated) {

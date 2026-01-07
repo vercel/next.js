@@ -12,7 +12,10 @@ describe('parallel-route-not-found', () => {
     // Deploy doesn't have access to runtime logs
     if (!isNextDeploy) {
       await check(() => {
-        if (next.cliOutput.includes('TypeError') || next.cliOutput.includes('Warning')) {
+        if (
+          next.cliOutput.includes('TypeError') ||
+          next.cliOutput.includes('Warning')
+        ) {
           return 'has-errors'
         }
 
@@ -20,7 +23,9 @@ describe('parallel-route-not-found', () => {
       }, 'success')
     }
 
-    expect(await browser.elementByCss('body').text()).not.toContain('Interception Modal')
+    expect(await browser.elementByCss('body').text()).not.toContain(
+      'Interception Modal'
+    )
     expect(await browser.elementByCss('body').text()).toContain('Locale: en')
 
     await browser.elementByCss("[href='/en/show']").click()
@@ -28,7 +33,10 @@ describe('parallel-route-not-found', () => {
     // Deploy doesn't have access to runtime logs
     if (!isNextDeploy) {
       await check(() => {
-        if (next.cliOutput.includes('TypeError') || next.cliOutput.includes('Warning')) {
+        if (
+          next.cliOutput.includes('TypeError') ||
+          next.cliOutput.includes('Warning')
+        ) {
           return 'has-errors'
         }
 
@@ -50,7 +58,10 @@ describe('parallel-route-not-found', () => {
     // Deploy doesn't have access to runtime logs
     if (!isNextDeploy) {
       await check(() => {
-        if (next.cliOutput.includes('TypeError') || next.cliOutput.includes('Warning')) {
+        if (
+          next.cliOutput.includes('TypeError') ||
+          next.cliOutput.includes('Warning')
+        ) {
           return 'has-errors'
         }
 
@@ -58,6 +69,8 @@ describe('parallel-route-not-found', () => {
       }, 'success')
     }
 
-    expect(await browser.elementByCss('body').text()).toContain('Custom Not Found')
+    expect(await browser.elementByCss('body').text()).toContain(
+      'Custom Not Found'
+    )
   })
 })

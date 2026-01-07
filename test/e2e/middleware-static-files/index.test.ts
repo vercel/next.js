@@ -38,17 +38,20 @@ describe('Middleware Runtime', () => {
     await next.destroy()
   })
 
-  it.each(testPaths)('should match middleware correctly for $testPath', async ({ testPath }) => {
-    const res = await next.fetch(testPath, {
-      redirect: 'manual',
-    })
+  it.each(testPaths)(
+    'should match middleware correctly for $testPath',
+    async ({ testPath }) => {
+      const res = await next.fetch(testPath, {
+        redirect: 'manual',
+      })
 
-    if (res.status === 404) {
-      expect(await res.text()).toContain('page could not be found')
-    } else {
-      expect(await res.json()).toEqual({ middleware: true })
+      if (res.status === 404) {
+        expect(await res.text()).toContain('page could not be found')
+      } else {
+        expect(await res.json()).toEqual({ middleware: true })
+      }
     }
-  })
+  )
 
   if (isNextStart && !process.env.IS_TURBOPACK_TEST) {
     it('should match middleware of _next/static', async () => {

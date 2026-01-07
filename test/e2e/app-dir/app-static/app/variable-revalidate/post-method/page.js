@@ -3,58 +3,76 @@ import { fetchRetry } from '../../../lib/fetch-retry'
 export const dynamic = 'force-dynamic'
 
 export default async function Page() {
-  const data = await fetchRetry('https://next-data-api-endpoint.vercel.app/api/random', {
-    method: 'POST',
-    next: {
-      revalidate: 10,
-    },
-  }).then((res) => res.text())
-
-  const dataWithBody1 = await fetchRetry('https://next-data-api-endpoint.vercel.app/api/random', {
-    method: 'POST',
-    body: JSON.stringify({ hello: 'world' }),
-    next: {
-      revalidate: 10,
-    },
-  }).then((res) => res.text())
-
-  const dataWithBody2 = await fetchRetry('https://next-data-api-endpoint.vercel.app/api/random', {
-    method: 'POST',
-    body: new ReadableStream({
-      start(controller) {
-        controller.enqueue(JSON.stringify({ another: 'one' }))
-        controller.close()
+  const data = await fetchRetry(
+    'https://next-data-api-endpoint.vercel.app/api/random',
+    {
+      method: 'POST',
+      next: {
+        revalidate: 10,
       },
-    }),
-    duplex: 'half',
-    next: {
-      revalidate: 10,
-    },
-  }).then((res) => res.text())
+    }
+  ).then((res) => res.text())
 
-  const dataWithBody3 = await fetchRetry('https://next-data-api-endpoint.vercel.app/api/random', {
-    method: 'POST',
-    body: new URLSearchParams('myParam=myValue&myParam=anotherValue'),
-    next: {
-      revalidate: 30,
-    },
-  }).then((res) => res.text())
+  const dataWithBody1 = await fetchRetry(
+    'https://next-data-api-endpoint.vercel.app/api/random',
+    {
+      method: 'POST',
+      body: JSON.stringify({ hello: 'world' }),
+      next: {
+        revalidate: 10,
+      },
+    }
+  ).then((res) => res.text())
 
-  const dataWithBody4 = await fetchRetry('https://next-data-api-endpoint.vercel.app/api/random', {
-    method: 'POST',
-    body: new URLSearchParams('myParam=myValue&myParam=diffValue'),
-    next: {
-      revalidate: 30,
-    },
-  }).then((res) => res.text())
+  const dataWithBody2 = await fetchRetry(
+    'https://next-data-api-endpoint.vercel.app/api/random',
+    {
+      method: 'POST',
+      body: new ReadableStream({
+        start(controller) {
+          controller.enqueue(JSON.stringify({ another: 'one' }))
+          controller.close()
+        },
+      }),
+      duplex: 'half',
+      next: {
+        revalidate: 10,
+      },
+    }
+  ).then((res) => res.text())
 
-  const dataWithBody5 = await fetchRetry('https://next-data-api-endpoint.vercel.app/api/random', {
-    method: 'POST',
-    body: new TextEncoder().encode(JSON.stringify({ hi: 'there' })),
-    next: {
-      revalidate: 30,
-    },
-  }).then((res) => res.text())
+  const dataWithBody3 = await fetchRetry(
+    'https://next-data-api-endpoint.vercel.app/api/random',
+    {
+      method: 'POST',
+      body: new URLSearchParams('myParam=myValue&myParam=anotherValue'),
+      next: {
+        revalidate: 30,
+      },
+    }
+  ).then((res) => res.text())
+
+  const dataWithBody4 = await fetchRetry(
+    'https://next-data-api-endpoint.vercel.app/api/random',
+    {
+      method: 'POST',
+      body: new URLSearchParams('myParam=myValue&myParam=diffValue'),
+      next: {
+        revalidate: 30,
+      },
+    }
+  ).then((res) => res.text())
+
+  const dataWithBody5 = await fetchRetry(
+    'https://next-data-api-endpoint.vercel.app/api/random',
+    {
+      method: 'POST',
+      body: new TextEncoder().encode(JSON.stringify({ hi: 'there' })),
+      next: {
+        revalidate: 30,
+      },
+    }
+  ).then((res) => res.text())
 
   return (
     <>

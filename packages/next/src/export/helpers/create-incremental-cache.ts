@@ -4,7 +4,10 @@ import { hasNextSupport } from '../../server/ci-info'
 import { nodeFs } from '../../server/lib/node-fs-methods'
 import { interopDefault } from '../../lib/interop-default'
 import { formatDynamicImportPath } from '../../lib/format-dynamic-import-path'
-import { initializeCacheHandlers, setCacheHandler } from '../../server/use-cache/handlers'
+import {
+  initializeCacheHandlers,
+  setCacheHandler,
+} from '../../server/use-cache/handlers'
 
 export async function createIncrementalCache({
   cacheHandler,
@@ -29,7 +32,9 @@ export async function createIncrementalCache({
   let CacheHandler: any
   if (cacheHandler) {
     CacheHandler = interopDefault(
-      await import(formatDynamicImportPath(dir, cacheHandler)).then((mod) => mod.default || mod)
+      await import(formatDynamicImportPath(dir, cacheHandler)).then(
+        (mod) => mod.default || mod
+      )
     )
   }
 
@@ -40,7 +45,9 @@ export async function createIncrementalCache({
       setCacheHandler(
         kind,
         interopDefault(
-          await import(formatDynamicImportPath(dir, handler)).then((mod) => mod.default || mod)
+          await import(formatDynamicImportPath(dir, handler)).then(
+            (mod) => mod.default || mod
+          )
         )
       )
     }

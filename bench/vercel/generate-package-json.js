@@ -3,7 +3,9 @@ import fs from 'fs/promises'
 import path from 'path'
 
 export async function generatePackageJson(folder, withLocalNext = false) {
-  const packageJson = JSON.parse(await fs.readFile(path.join(folder, 'package.json')))
+  const packageJson = JSON.parse(
+    await fs.readFile(path.join(folder, 'package.json'))
+  )
 
   const currentVersions = await getCurrentRootReactPackagesVersions()
 
@@ -16,7 +18,10 @@ export async function generatePackageJson(folder, withLocalNext = false) {
     packageJson.dependencies.next = await getCurrentNextVersion()
   }
 
-  await fs.writeFile(path.join(folder, 'package.json'), JSON.stringify(packageJson, null, 2))
+  await fs.writeFile(
+    path.join(folder, 'package.json'),
+    JSON.stringify(packageJson, null, 2)
+  )
 }
 
 export async function packNextBuild(folder) {
@@ -30,12 +35,16 @@ export async function packNextBuild(folder) {
 }
 
 async function getCurrentNextVersion() {
-  const packageJson = JSON.parse(await fs.readFile('../../packages/next/package.json', 'utf8'))
+  const packageJson = JSON.parse(
+    await fs.readFile('../../packages/next/package.json', 'utf8')
+  )
   return packageJson.version
 }
 
 async function getCurrentRootReactPackagesVersions() {
-  const packageJson = JSON.parse(await fs.readFile('../../package.json', 'utf8'))
+  const packageJson = JSON.parse(
+    await fs.readFile('../../package.json', 'utf8')
+  )
   return {
     react: packageJson.devDependencies['react'],
     'react-dom': packageJson.devDependencies['react-dom'],

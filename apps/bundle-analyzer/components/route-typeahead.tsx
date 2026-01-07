@@ -12,7 +12,11 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 import { cn, jsonFetcher } from '@/lib/utils'
 import { NetworkError } from '@/lib/errors'
 import { Kbd } from '@/components/ui/kbd'
@@ -22,7 +26,10 @@ interface RouteTypeaheadProps {
   onRouteSelected: (routeName: string) => void
 }
 
-export function RouteTypeahead({ selectedRoute, onRouteSelected }: RouteTypeaheadProps) {
+export function RouteTypeahead({
+  selectedRoute,
+  onRouteSelected,
+}: RouteTypeaheadProps) {
   const [open, setOpen] = useState(false)
   const [shortcutLabel, setShortcutLabel] = useState<string | null>(null)
 
@@ -32,7 +39,8 @@ export function RouteTypeahead({ selectedRoute, onRouteSelected }: RouteTypeahea
 
     const handleKeyDown = (e: KeyboardEvent) => {
       const activeElement = document.activeElement
-      const isInputFocused = activeElement && ['INPUT', 'TEXTAREA'].includes(activeElement.tagName)
+      const isInputFocused =
+        activeElement && ['INPUT', 'TEXTAREA'].includes(activeElement.tagName)
 
       if (isInputFocused) return
 
@@ -68,7 +76,9 @@ export function RouteTypeahead({ selectedRoute, onRouteSelected }: RouteTypeahea
       <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-destructive/10 border border-destructive/20 text-destructive text-sm max-w-full">
         <span className="font-medium">⚠</span>
         <span className="truncate">
-          {error instanceof NetworkError ? 'Unable to connect to server' : error.message}
+          {error instanceof NetworkError
+            ? 'Unable to connect to server'
+            : error.message}
         </span>
       </div>
     )

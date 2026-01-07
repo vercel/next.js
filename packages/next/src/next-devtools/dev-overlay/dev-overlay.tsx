@@ -20,7 +20,8 @@ export const useRenderErrorContext = () => useContext(RenderErrorContext)
 export function DevOverlay() {
   const [panel, setPanel] = useState<null | PanelStateKind>(null)
   const [selectedIndex, setSelectedIndex] = useState(-1)
-  const { state, dispatch, getSquashedHydrationErrorDetails } = useDevOverlayContext()
+  const { state, dispatch, getSquashedHydrationErrorDetails } =
+    useDevOverlayContext()
 
   const triggerRef = useRef<HTMLButtonElement>(null)
   return (
@@ -34,7 +35,9 @@ export function DevOverlay() {
             <>
               {state.showIndicator ? (
                 <>
-                  <RenderErrorContext value={{ runtimeErrors, totalErrorCount }}>
+                  <RenderErrorContext
+                    value={{ runtimeErrors, totalErrorCount }}
+                  >
                     <PanelRouterContext
                       value={{
                         panel,
@@ -47,7 +50,9 @@ export function DevOverlay() {
                       <ErrorOverlay
                         state={state}
                         dispatch={dispatch}
-                        getSquashedHydrationErrorDetails={getSquashedHydrationErrorDetails}
+                        getSquashedHydrationErrorDetails={
+                          getSquashedHydrationErrorDetails
+                        }
                         runtimeErrors={runtimeErrors}
                         errorCount={totalErrorCount}
                       />

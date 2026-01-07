@@ -39,7 +39,9 @@ describe('react-max-headers-length', () => {
           expect(header).not.toBeNull()
           expect(header).toBeString()
 
-          expect(header.length).toBeGreaterThanOrEqual(calculateMinHeaderLength(6000))
+          expect(header.length).toBeGreaterThanOrEqual(
+            calculateMinHeaderLength(6000)
+          )
           expect(header.length).toBeLessThanOrEqual(6000)
         } else if (reactMaxHeadersLength === 0) {
           // This is the case where the header is not emitted.

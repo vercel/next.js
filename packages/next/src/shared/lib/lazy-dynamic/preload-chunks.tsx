@@ -6,7 +6,11 @@ import { workAsyncStorage } from '../../../server/app-render/work-async-storage.
 import { encodeURIPath } from '../encode-uri-path'
 import { getDeploymentIdQueryOrEmptyString } from '../deployment-id'
 
-export function PreloadChunks({ moduleIds }: { moduleIds: string[] | undefined }) {
+export function PreloadChunks({
+  moduleIds,
+}: {
+  moduleIds: string[] | undefined
+}) {
   // Early return in client compilation and only load requestStore on server side
   if (typeof window !== 'undefined') {
     return null

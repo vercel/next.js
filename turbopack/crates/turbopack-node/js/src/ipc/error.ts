@@ -3,7 +3,9 @@
 // https://github.com/vercel/next.js/blob/e657741b9908cf0044aaef959c0c4defb19ed6d8/packages/next/src/shared/lib/is-plain-object.ts
 
 export default function isError(err: unknown): err is Error {
-  return typeof err === 'object' && err !== null && 'name' in err && 'message' in err
+  return (
+    typeof err === 'object' && err !== null && 'name' in err && 'message' in err
+  )
 }
 
 export function getProperError(err: unknown): Error {

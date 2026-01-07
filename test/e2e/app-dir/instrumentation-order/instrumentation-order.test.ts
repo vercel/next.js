@@ -21,7 +21,9 @@ describe('instrumentation-order', () => {
         'instrumentation:register:end',
         'global-side-effect:app-router-page',
       ]
-      const searchedLines = cliOutputLines.filter((line) => ORDERED_LOGS.includes(line.trim()))
+      const searchedLines = cliOutputLines.filter((line) =>
+        ORDERED_LOGS.includes(line.trim())
+      )
 
       expect(searchedLines).toEqual(ORDERED_LOGS)
     })

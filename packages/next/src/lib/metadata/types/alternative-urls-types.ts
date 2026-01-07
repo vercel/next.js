@@ -437,7 +437,9 @@ export type AlternateLinkDescriptor = {
 
 export type AlternateURLs = {
   canonical?: null | string | URL | AlternateLinkDescriptor | undefined
-  languages?: Languages<null | string | URL | AlternateLinkDescriptor[]> | undefined
+  languages?:
+    | Languages<null | string | URL | AlternateLinkDescriptor[]>
+    | undefined
   media?:
     | {
         [media: string]: null | string | URL | AlternateLinkDescriptor[]

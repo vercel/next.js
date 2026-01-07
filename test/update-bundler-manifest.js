@@ -10,7 +10,10 @@ const { hideBin } = require('yargs/helpers')
 
 const WORKING_PATH = '/root/actions-runner/_work/next.js/next.js/'
 
-const INITIALIZING_TEST_CASES = ['compile successfully', 'should build successfully']
+const INITIALIZING_TEST_CASES = [
+  'compile successfully',
+  'should build successfully',
+]
 
 // please make sure this is sorted alphabetically when making changes.
 const SKIPPED_TEST_SUITES = {}
@@ -27,7 +30,8 @@ const { argv } = yargs(hideBin(process.argv))
   .boolean('override')
   .describe(
     'override',
-    "Don't merge with existing test results, allowing tests to transition to " + 'a failed state'
+    "Don't merge with existing test results, allowing tests to transition to " +
+      'a failed state'
   )
 
 const manifestJsonPath = `${__dirname}/${argv.bundler}-${argv.testSuite}-tests-manifest.json`
@@ -94,10 +98,11 @@ async function fetchLatestTestArtifact() {
   const artifactSlug = `test-results-${argv.bundler}-${
     argv.testSuite === 'dev' ? 'development' : 'production'
   }`
-  const { stdout } = await exec('Getting latest test artifacts from GitHub actions', 'gh', [
-    'api',
-    `/repos/vercel/next.js/actions/artifacts?name=${artifactSlug}`,
-  ])
+  const { stdout } = await exec(
+    'Getting latest test artifacts from GitHub actions',
+    'gh',
+    ['api', `/repos/vercel/next.js/actions/artifacts?name=${artifactSlug}`]
+  )
 
   /** @type {ListArtifactsResponse} */
   const res = JSON.parse(stdout)
@@ -110,7 +115,9 @@ async function fetchLatestTestArtifact() {
     return artifact
   }
 
-  throw new Error(`no valid test-results artifact was found for branch ${argv.branch}`)
+  throw new Error(
+    `no valid test-results artifact was found for branch ${argv.branch}`
+  )
 }
 
 /**
@@ -218,7 +225,9 @@ async function updatePassingTests() {
     info.failed = [...new Set(info.failed)].sort()
     info.pending = [...new Set(info.pending)].sort()
     info.flakey = [...new Set(info.flakey)].sort()
-    info.passed = [...new Set(info.passed.filter((name) => !info.failed.includes(name)))].sort()
+    info.passed = [
+      ...new Set(info.passed.filter((name) => !info.failed.includes(name))),
+    ].sort()
   }
 
   if (!argv.override) {
@@ -235,7 +244,9 @@ async function updatePassingTests() {
 
       // We want to find old passing tests that are now failing, and report them.
       // Tests are allowed transition to skipped or flakey.
-      const shouldPass = new Set(oldData.passed.filter((name) => newData.failed.includes(name)))
+      const shouldPass = new Set(
+        oldData.passed.filter((name) => newData.failed.includes(name))
+      )
       if (shouldPass.size > 0) {
         console.log(
           `${bold().red(file)} has ${
@@ -248,10 +259,14 @@ async function updatePassingTests() {
       // Merge the old passing tests with the new ones
       newData.passed = [...new Set([...shouldPass, ...newData.passed])].sort()
       // but remove them also from the failed list
-      newData.failed = newData.failed.filter((name) => !shouldPass.has(name)).sort()
+      newData.failed = newData.failed
+        .filter((name) => !shouldPass.has(name))
+        .sort()
 
       if (!oldData.runtimeError && newData.runtimeError) {
-        console.log(`${bold().red(file)} has a runtime error that is shouldn't have\n`)
+        console.log(
+          `${bold().red(file)} has a runtime error that is shouldn't have\n`
+        )
         newData.runtimeError = false
       }
     }
@@ -266,7 +281,10 @@ async function updatePassingTests() {
       return obj
     }, {})
 
-  await fs.writeFile(manifestJsonPath, await format(JSON.stringify(ordered, null, 2)))
+  await fs.writeFile(
+    manifestJsonPath,
+    await format(JSON.stringify(ordered, null, 2))
+  )
 }
 
 function shouldSkip(name, skips) {

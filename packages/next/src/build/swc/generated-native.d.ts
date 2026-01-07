@@ -15,7 +15,9 @@ export type NapiRouteHas = {
 export type RcStr = string
 
 export function lightningCssTransform(args: object): Promise<unknown>
-export function lightningCssTransformStyleAttribute(args: object): Promise<unknown>
+export function lightningCssTransformStyleAttribute(
+  args: object
+): Promise<unknown>
 
 // GENERATED-TYPES-BELOW
 // DO NOT MANUALLY EDIT THESE TYPES
@@ -32,10 +34,18 @@ export declare class ExternalObject<T> {
     [K: symbol]: T
   }
 }
-export declare function lockfileTryAcquireSync(path: string): { __napiType: 'Lockfile' } | null
-export declare function lockfileTryAcquire(path: string): Promise<{ __napiType: 'Lockfile' } | null>
-export declare function lockfileUnlockSync(lockfile: { __napiType: 'Lockfile' }): void
-export declare function lockfileUnlock(lockfile: { __napiType: 'Lockfile' }): Promise<void>
+export declare function lockfileTryAcquireSync(
+  path: string
+): { __napiType: 'Lockfile' } | null
+export declare function lockfileTryAcquire(
+  path: string
+): Promise<{ __napiType: 'Lockfile' } | null>
+export declare function lockfileUnlockSync(lockfile: {
+  __napiType: 'Lockfile'
+}): void
+export declare function lockfileUnlock(lockfile: {
+  __napiType: 'Lockfile'
+}): Promise<void>
 export declare function mdxCompile(
   value: string,
   option: Buffer,
@@ -233,7 +243,9 @@ export declare function projectInvalidateFileSystemCache(project: {
  * This is called by `project_shutdown`, so if you're calling that API, you shouldn't call this
  * one.
  */
-export declare function projectOnExit(project: { __napiType: 'Project' }): Promise<void>
+export declare function projectOnExit(project: {
+  __napiType: 'Project'
+}): Promise<void>
 /**
  * Runs `project_on_exit`, and then waits for turbo_tasks to gracefully shut down.
  *
@@ -241,7 +253,9 @@ export declare function projectOnExit(project: { __napiType: 'Project' }): Promi
  * it's skipped in the development server (`project_on_exit` is used instead with a short timeout),
  * where we prioritize fast exit and user responsiveness over all else.
  */
-export declare function projectShutdown(project: { __napiType: 'Project' }): Promise<void>
+export declare function projectShutdown(project: {
+  __napiType: 'Project'
+}): Promise<void>
 export interface AppPageNapiRoute {
   /** The relative path from project_path to the route file */
   originalName?: RcStr
@@ -389,7 +403,9 @@ export interface TurbopackInternalErrorOpts {
   message: string
   anonymizedLocation?: string
 }
-export declare function rootTaskDispose(rootTask: { __napiType: 'RootTask' }): void
+export declare function rootTaskDispose(rootTask: {
+  __napiType: 'RootTask'
+}): void
 export interface NapiIssue {
   severity: string
   stage: string
@@ -440,7 +456,9 @@ export declare function isReactCompilerRequired(
   filename: string,
   signal?: AbortSignal | undefined | null
 ): Promise<boolean>
-export declare function getModuleNamedExports(resourcePath: string): Promise<string[]>
+export declare function getModuleNamedExports(
+  resourcePath: string
+): Promise<string[]>
 export interface NapiSourceDiagnostic {
   severity: string
   message: string
@@ -510,4 +528,6 @@ export declare function initCustomTraceSubscriber(
  * This should be called when parent node.js process exits, otherwise generated
  * trace may drop traces in the buffer.
  */
-export declare function teardownTraceSubscriber(guardExternal: ExternalObject<RefCell>): void
+export declare function teardownTraceSubscriber(
+  guardExternal: ExternalObject<RefCell>
+): void

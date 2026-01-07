@@ -80,7 +80,9 @@ describe('app-dir with middleware', () => {
 
       // Should not be included in response headers.
       expect(res.headers.get('x-middleware-override-headers')).toBeNull()
-      expect(res.headers.get('x-middleware-request-x-from-middleware')).toBeNull()
+      expect(
+        res.headers.get('x-middleware-request-x-from-middleware')
+      ).toBeNull()
       expect(res.headers.get('x-middleware-request-x-from-client1')).toBeNull()
       expect(res.headers.get('x-middleware-request-x-from-client2')).toBeNull()
     })
@@ -88,7 +90,8 @@ describe('app-dir with middleware', () => {
     it(`Updates headers`, async () => {
       const res = await next.fetch(
         withQuery(path, {
-          'update-headers': 'x-from-client1=new-value1,x-from-client2=new-value2',
+          'update-headers':
+            'x-from-client1=new-value1,x-from-client2=new-value2',
         }),
         {
           headers: {
@@ -107,7 +110,9 @@ describe('app-dir with middleware', () => {
 
       // Should not be included in response headers.
       expect(res.headers.get('x-middleware-override-headers')).toBeNull()
-      expect(res.headers.get('x-middleware-request-x-from-middleware')).toBeNull()
+      expect(
+        res.headers.get('x-middleware-request-x-from-middleware')
+      ).toBeNull()
       expect(res.headers.get('x-middleware-request-x-from-client1')).toBeNull()
       expect(res.headers.get('x-middleware-request-x-from-client2')).toBeNull()
       expect(res.headers.get('x-middleware-request-x-from-client3')).toBeNull()
@@ -116,7 +121,9 @@ describe('app-dir with middleware', () => {
     it(`Supports draft mode`, async () => {
       const res = await next.fetch(`${path}?draft=true`)
       const headers: string = res.headers.get('set-cookie') || ''
-      const bypassCookie = headers.split(';').find((c) => c.startsWith('__prerender_bypass'))
+      const bypassCookie = headers
+        .split(';')
+        .find((c) => c.startsWith('__prerender_bypass'))
       expect(bypassCookie).toBeDefined()
     })
   })
@@ -157,7 +164,9 @@ describe('app-dir with middleware', () => {
       // only the first cookie should be deleted
       expect(await browser.elementById('rsc-cookie-1').text()).toBe('Cookie 1:')
 
-      expect(await browser.elementById('rsc-cookie-2').text()).toMatch(/Cookie 2: \d+\.\d+/)
+      expect(await browser.elementById('rsc-cookie-2').text()).toMatch(
+        /Cookie 2: \d+\.\d+/
+      )
     })
 
     // Cleanup
@@ -178,7 +187,9 @@ describe('app-dir with middleware', () => {
     await browser.elementById('submit-server-action').click()
 
     await retry(async () => {
-      expect(await browser.elementById('action-result').text()).toMatch(/Action Result: \d+\.\d+/)
+      expect(await browser.elementById('action-result').text()).toMatch(
+        /Action Result: \d+\.\d+/
+      )
     })
 
     // ensure that we still can't read the secure cookie
@@ -235,7 +246,9 @@ describe('app-dir with middleware', () => {
     await browser.elementById('submit-server-action').click()
 
     await retry(async () => {
-      expect(await browser.elementById('action-result').text()).toMatch(/Action Result: \d+\.\d+/)
+      expect(await browser.elementById('action-result').text()).toMatch(
+        /Action Result: \d+\.\d+/
+      )
     })
 
     await browser.deleteCookies()
@@ -258,7 +271,9 @@ describe('app-dir with middleware', () => {
 
       // Ensure the provided location is still on the response
       const locationHeader = res.headers.get('location')
-      expect(locationHeader).toBe('https://next-data-api-endpoint.vercel.app/api/random')
+      expect(locationHeader).toBe(
+        'https://next-data-api-endpoint.vercel.app/api/random'
+      )
     })
   }
 })

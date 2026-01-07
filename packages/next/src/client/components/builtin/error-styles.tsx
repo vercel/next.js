@@ -77,7 +77,8 @@ export const errorStyles = {
     color: 'var(--next-error-digest)',
   },
   digestCode: {
-    fontFamily: 'ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace',
+    fontFamily:
+      'ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace',
     fontSize: '11px',
     color: 'var(--next-error-digest-code)',
     userSelect: 'all' as const,
@@ -124,10 +125,27 @@ body { margin: 0; color: var(--next-error-text); background: var(--next-error-bg
 
 export function ErrorIcon() {
   return (
-    <svg width="40" height="40" viewBox="0 0 40 40" fill="none" style={errorStyles.icon}>
-      <circle cx="20" cy="20" r="19" stroke="var(--next-error-icon-ring)" strokeWidth="2" />
+    <svg
+      width="40"
+      height="40"
+      viewBox="0 0 40 40"
+      fill="none"
+      style={errorStyles.icon}
+    >
+      <circle
+        cx="20"
+        cy="20"
+        r="19"
+        stroke="var(--next-error-icon-ring)"
+        strokeWidth="2"
+      />
       <circle cx="20" cy="20" r="16" fill="var(--next-error-icon-fill)" />
-      <path d="M20 12v9" stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round" />
+      <path
+        d="M20 12v9"
+        stroke="#dc2626"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+      />
       <circle cx="20" cy="27" r="1.5" fill="#dc2626" />
     </svg>
   )

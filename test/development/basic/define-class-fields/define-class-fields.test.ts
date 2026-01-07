@@ -17,7 +17,10 @@ describe('useDefineForClassFields SWC option', () => {
   it('tsx should compile with useDefineForClassFields enabled', async () => {
     const browser = await next.browser('/')
     await browser.elementByCss('#action').click()
-    await check(() => browser.elementByCss('#name').text(), /this is my name: next/)
+    await check(
+      () => browser.elementByCss('#name').text(),
+      /this is my name: next/
+    )
   })
 
   it("Initializes resident to undefined after the call to 'super()' when with useDefineForClassFields enabled", async () => {

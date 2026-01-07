@@ -11,19 +11,21 @@ describe('oxford-comma-list', () => {
   })
 
   test('two item array', () => {
-    expect(getOxfordCommaList(['apples', 'strawberries'])).toMatchInlineSnapshot(
-      `"apples and strawberries"`
-    )
+    expect(
+      getOxfordCommaList(['apples', 'strawberries'])
+    ).toMatchInlineSnapshot(`"apples and strawberries"`)
   })
 
   test('three item array', () => {
-    expect(getOxfordCommaList(['apples', 'strawberries', 'blueberries'])).toMatchInlineSnapshot(
-      `"apples, strawberries, and blueberries"`
-    )
+    expect(
+      getOxfordCommaList(['apples', 'strawberries', 'blueberries'])
+    ).toMatchInlineSnapshot(`"apples, strawberries, and blueberries"`)
   })
 
   test('four item array', () => {
-    expect(getOxfordCommaList(['1', '2', '3', '4'])).toMatchInlineSnapshot(`"1, 2, 3, and 4"`)
+    expect(getOxfordCommaList(['1', '2', '3', '4'])).toMatchInlineSnapshot(
+      `"1, 2, 3, and 4"`
+    )
   })
 
   test('five item array', () => {

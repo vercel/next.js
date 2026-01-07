@@ -14,6 +14,8 @@ describe('edge-route-catchall', () => {
   it('should correctly normalize edge route catch-all with multiple params', async () => {
     const result = await next.fetch('/edge/one/two/three')
 
-    expect(await result.text()).toBe(JSON.stringify({ slug: ['one', 'two', 'three'] }))
+    expect(await result.text()).toBe(
+      JSON.stringify({ slug: ['one', 'two', 'three'] })
+    )
   })
 })

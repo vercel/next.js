@@ -11,7 +11,10 @@ export function Form({
   bar: () => Promise<number>
   baz: () => Promise<number>
 }) {
-  const [result, dispatch] = useActionState<[number, number, number], 'submit' | 'reset'>(
+  const [result, dispatch] = useActionState<
+    [number, number, number],
+    'submit' | 'reset'
+  >(
     async (_state, event) => {
       if (event === 'reset') {
         return [0, 0, 0]

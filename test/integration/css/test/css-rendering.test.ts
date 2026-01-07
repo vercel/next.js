@@ -1,21 +1,33 @@
 /* eslint-env jest */
 import { pathExists, readFile, readJSON, remove } from 'fs-extra'
-import { check, findPort, File, killApp, nextBuild, nextStart, waitFor } from 'next-test-utils'
+import {
+  check,
+  findPort,
+  File,
+  killApp,
+  nextBuild,
+  nextStart,
+  waitFor,
+} from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
 const fixturesDir = join(__dirname, '../..', 'css-fixtures')
 
 describe('CSS Support', () => {
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
-    describe('CSS Import from node_modules', () => {
-      const appDir = join(fixturesDir, 'npm-import-bad')
-      const nextConfig = new File(join(appDir, 'next.config.js'))
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      describe('CSS Import from node_modules', () => {
+        const appDir = join(fixturesDir, 'npm-import-bad')
+        const nextConfig = new File(join(appDir, 'next.config.js'))
 
-      describe.each([true, false])(`useLightnincsss(%s)`, (useLightningcss) => {
-        beforeAll(async () => {
-          nextConfig.write(
-            `
+        describe.each([true, false])(
+          `useLightnincsss(%s)`,
+          (useLightningcss) => {
+            beforeAll(async () => {
+              nextConfig.write(
+                `
 const config = require('../next.config.js');
 module.exports = {
   ...config,
@@ -23,24 +35,28 @@ module.exports = {
     useLightningcss: ${useLightningcss}
   }
 }`
-          )
-        })
-        beforeAll(async () => {
-          await remove(join(appDir, '.next'))
-        })
+              )
+            })
+            beforeAll(async () => {
+              await remove(join(appDir, '.next'))
+            })
 
-        it('should fail the build', async () => {
-          const { code, stderr } = await nextBuild(appDir, [], {
-            stderr: true,
-          })
+            it('should fail the build', async () => {
+              const { code, stderr } = await nextBuild(appDir, [], {
+                stderr: true,
+              })
 
-          expect(code).toBe(0)
-          expect(stderr).not.toMatch(/Can't resolve '[^']*?nprogress[^']*?'/)
-          expect(stderr).not.toMatch(/Build error occurred/)
-        })
+              expect(code).toBe(0)
+              expect(stderr).not.toMatch(
+                /Can't resolve '[^']*?nprogress[^']*?'/
+              )
+              expect(stderr).not.toMatch(/Build error occurred/)
+            })
+          }
+        )
       })
-    })
-  })
+    }
+  )
 
   // https://github.com/vercel/next.js/issues/18557
   describe('CSS page transition inject <style> with nonce so it works with CSP header', () => {
@@ -192,21 +208,24 @@ module.exports = {
       })
     }
 
-    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
-      beforeAll(async () => {
-        await remove(join(appDir, '.next'))
-      })
-      beforeAll(async () => {
-        await nextBuild(appDir, [], {})
-        appPort = await findPort()
-        app = await nextStart(appDir, appPort)
-      })
-      afterAll(async () => {
-        await killApp(app)
-      })
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+      'production mode',
+      () => {
+        beforeAll(async () => {
+          await remove(join(appDir, '.next'))
+        })
+        beforeAll(async () => {
+          await nextBuild(appDir, [], {})
+          appPort = await findPort()
+          app = await nextStart(appDir, appPort)
+        })
+        afterAll(async () => {
+          await killApp(app)
+        })
 
-      tests()
-    })
+        tests()
+      }
+    )
   })
 
   // Turbopack keeps styles which mirrors development with webpack. This test only checks a behavior for webpack.
@@ -273,21 +292,24 @@ module.exports = {
           })
         }
 
-        ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
-          beforeAll(async () => {
-            await remove(join(appDir, '.next'))
-          })
-          beforeAll(async () => {
-            await nextBuild(appDir, [], {})
-            appPort = await findPort()
-            app = await nextStart(appDir, appPort)
-          })
-          afterAll(async () => {
-            await killApp(app)
-          })
+        ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+          'production mode',
+          () => {
+            beforeAll(async () => {
+              await remove(join(appDir, '.next'))
+            })
+            beforeAll(async () => {
+              await nextBuild(appDir, [], {})
+              appPort = await findPort()
+              app = await nextStart(appDir, appPort)
+            })
+            afterAll(async () => {
+              await killApp(app)
+            })
 
-          tests()
-        })
+            tests()
+          }
+        )
       })
     }
   )
@@ -340,27 +362,36 @@ module.exports = {
       }
 
       // This test case will fail in Turbopack when both pages share some css chunks. Deleting them will cause the / page to fail too.
-      ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)('production mode', () => {
-        beforeAll(async () => {
-          await remove(join(appDir, '.next'))
-        })
-        beforeAll(async () => {
-          await nextBuild(appDir, [], {})
-          appPort = await findPort()
-          app = await nextStart(appDir, appPort)
+      ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
+        'production mode',
+        () => {
+          beforeAll(async () => {
+            await remove(join(appDir, '.next'))
+          })
+          beforeAll(async () => {
+            await nextBuild(appDir, [], {})
+            appPort = await findPort()
+            app = await nextStart(appDir, appPort)
 
-          // Remove other page CSS files:
-          const manifest = await readJSON(join(appDir, '.next', 'build-manifest.json'))
-          const files = manifest['pages']['/other'].filter((e) => e.endsWith('.css'))
-          if (files.length < 1) throw new Error()
-          await Promise.all(files.map((f) => remove(join(appDir, '.next', f))))
-        })
-        afterAll(async () => {
-          await killApp(app)
-        })
+            // Remove other page CSS files:
+            const manifest = await readJSON(
+              join(appDir, '.next', 'build-manifest.json')
+            )
+            const files = manifest['pages']['/other'].filter((e) =>
+              e.endsWith('.css')
+            )
+            if (files.length < 1) throw new Error()
+            await Promise.all(
+              files.map((f) => remove(join(appDir, '.next', f)))
+            )
+          })
+          afterAll(async () => {
+            await killApp(app)
+          })
 
-        tests()
-      })
+          tests()
+        }
+      )
     })
   })
 
@@ -404,7 +435,10 @@ module.exports = {
           const browser = await webdriver(appPort, '/')
           try {
             await checkBlackTitle(browser)
-            await check(() => browser.eval(`document.querySelector('p').innerText`), 'mounted')
+            await check(
+              () => browser.eval(`document.querySelector('p').innerText`),
+              'mounted'
+            )
           } finally {
             await browser.close()
           }
@@ -414,7 +448,10 @@ module.exports = {
           const browser = await webdriver(appPort, '/client')
           try {
             await checkRedTitle(browser)
-            await check(() => browser.eval(`document.querySelector('p').innerText`), 'mounted')
+            await check(
+              () => browser.eval(`document.querySelector('p').innerText`),
+              'mounted'
+            )
           } finally {
             await browser.close()
           }
@@ -424,38 +461,54 @@ module.exports = {
           const browser = await webdriver(appPort, '/')
           try {
             await checkBlackTitle(browser)
-            await check(() => browser.eval(`document.querySelector('p').innerText`), 'mounted')
+            await check(
+              () => browser.eval(`document.querySelector('p').innerText`),
+              'mounted'
+            )
             await browser.eval(`document.querySelector('#link-client').click()`)
             await checkRedTitle(browser)
-            await check(() => browser.eval(`document.querySelector('p').innerText`), 'mounted')
+            await check(
+              () => browser.eval(`document.querySelector('p').innerText`),
+              'mounted'
+            )
           } finally {
             await browser.close()
           }
         })
       }
 
-      ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
-        beforeAll(async () => {
-          await remove(join(appDir, '.next'))
-        })
-        beforeAll(async () => {
-          await nextBuild(appDir, [], {})
-          appPort = await findPort()
-          app = await nextStart(appDir, appPort)
+      ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+        'production mode',
+        () => {
+          beforeAll(async () => {
+            await remove(join(appDir, '.next'))
+          })
+          beforeAll(async () => {
+            await nextBuild(appDir, [], {})
+            appPort = await findPort()
+            app = await nextStart(appDir, appPort)
 
-          const buildId = (await readFile(join(appDir, '.next', 'BUILD_ID'), 'utf8')).trim()
-          const fileName = join(appDir, '.next/static/', buildId, '_buildManifest.js')
-          if (!(await pathExists(fileName))) {
-            throw new Error('Missing build manifest')
-          }
-          await remove(fileName)
-        })
-        afterAll(async () => {
-          await killApp(app)
-        })
+            const buildId = (
+              await readFile(join(appDir, '.next', 'BUILD_ID'), 'utf8')
+            ).trim()
+            const fileName = join(
+              appDir,
+              '.next/static/',
+              buildId,
+              '_buildManifest.js'
+            )
+            if (!(await pathExists(fileName))) {
+              throw new Error('Missing build manifest')
+            }
+            await remove(fileName)
+          })
+          afterAll(async () => {
+            await killApp(app)
+          })
 
-        tests()
-      })
+          tests()
+        }
+      )
     })
   })
 })

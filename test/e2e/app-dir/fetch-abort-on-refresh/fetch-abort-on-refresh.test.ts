@@ -23,7 +23,9 @@ describeHeaded('fetch-abort-on-refresh', () => {
     // Check that we're back on the slow page (the page that was first redirected to, before the MPA, not the error boundary)
     // We use element checks instead of eval() because eval() triggers waitForLoadState which times out with bfcache
     const hasSlowPage = await browser.hasElementByCss('#slow-page')
-    const hasGlobalError = await browser.hasElementByCss('h2:has-text("Something went wrong!")')
+    const hasGlobalError = await browser.hasElementByCss(
+      'h2:has-text("Something went wrong!")'
+    )
 
     expect(hasSlowPage).toBe(true)
     expect(hasGlobalError).toBe(false)

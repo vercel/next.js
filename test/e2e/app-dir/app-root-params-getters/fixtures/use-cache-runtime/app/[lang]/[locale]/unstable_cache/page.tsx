@@ -15,9 +15,9 @@ async function Runtime() {
   await connection()
 
   const rootParams = await getCachedParams()
-  const data = await fetch('https://next-data-api-endpoint.vercel.app/api/random').then((res) =>
-    res.text()
-  )
+  const data = await fetch(
+    'https://next-data-api-endpoint.vercel.app/api/random'
+  ).then((res) => res.text())
 
   return (
     <p>

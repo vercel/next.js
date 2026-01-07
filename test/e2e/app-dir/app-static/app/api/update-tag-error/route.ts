@@ -10,7 +10,10 @@ export async function GET() {
     return NextResponse.json(
       {
         error:
-          (error && typeof error === 'object' && 'message' in error && error.message) ||
+          (error &&
+            typeof error === 'object' &&
+            'message' in error &&
+            error.message) ||
           'unknown error',
         expectedError: true,
       },

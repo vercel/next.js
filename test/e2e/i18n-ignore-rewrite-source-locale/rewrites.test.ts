@@ -50,15 +50,21 @@ describe('i18n-ignore-rewrite-source-locale', () => {
   test.each(locales)(
     'get public file by skipping locale in rewrite, locale: %s',
     async (locale) => {
-      const res = await renderViaHTTP(next.url, `${locale}/rewrite-files/file.txt`)
+      const res = await renderViaHTTP(
+        next.url,
+        `${locale}/rewrite-files/file.txt`
+      )
       expect(res).toContain('hello from file.txt')
     }
   )
 
-  test.each(locales)('call api by skipping locale in rewrite, locale: %s', async (locale) => {
-    const res = await renderViaHTTP(next.url, `${locale}/rewrite-api/hello`)
-    expect(res).toContain('hello from api')
-  })
+  test.each(locales)(
+    'call api by skipping locale in rewrite, locale: %s',
+    async (locale) => {
+      const res = await renderViaHTTP(next.url, `${locale}/rewrite-api/hello`)
+      expect(res).toContain('hello from api')
+    }
+  )
 
   // build artifacts aren't available on deploy
   if (!(global as any).isNextDeploy) {
@@ -67,7 +73,9 @@ describe('i18n-ignore-rewrite-source-locale', () => {
       'get _next/static/ files by skipping locale in rewrite, locale: %s',
       async (locale) => {
         const chunks = (
-          await fs.readdir(path.join(next.testDir, next.distDir, 'static', 'chunks'))
+          await fs.readdir(
+            path.join(next.testDir, next.distDir, 'static', 'chunks')
+          )
         ).filter((f) => f.endsWith('.js'))
 
         await Promise.all(

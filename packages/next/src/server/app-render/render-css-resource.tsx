@@ -24,7 +24,10 @@ export function renderCssResource(
     // During HMR, it's critical to use different `precedence` values
     // for different stylesheets, so their order will be kept.
     // https://github.com/facebook/react/pull/25060
-    const precedence = process.env.NODE_ENV === 'development' ? 'next_' + entryCssFile.path : 'next'
+    const precedence =
+      process.env.NODE_ENV === 'development'
+        ? 'next_' + entryCssFile.path
+        : 'next'
 
     // In dev, Safari and Firefox will cache the resource during HMR:
     // - https://github.com/vercel/next.js/issues/5860
@@ -50,7 +53,11 @@ export function renderCssResource(
     }
 
     preloadCallbacks?.push(() => {
-      ctx.componentMod.preloadStyle(fullHref, ctx.renderOpts.crossOrigin, ctx.nonce)
+      ctx.componentMod.preloadStyle(
+        fullHref,
+        ctx.renderOpts.crossOrigin,
+        ctx.nonce
+      )
     })
 
     return createElement('link', {

@@ -7,11 +7,15 @@ describe('parallel-routes-catchall-css', () => {
   })
 
   async function getChildrenBackgroundColor(browser: Playwright) {
-    return browser.eval(`window.getComputedStyle(document.getElementById('main')).backgroundColor`)
+    return browser.eval(
+      `window.getComputedStyle(document.getElementById('main')).backgroundColor`
+    )
   }
 
   async function getSlotBackgroundColor(browser: Playwright) {
-    return browser.eval(`window.getComputedStyle(document.getElementById('slot')).backgroundColor`)
+    return browser.eval(
+      `window.getComputedStyle(document.getElementById('slot')).backgroundColor`
+    )
   }
 
   it('should properly load the Head content from multiple leaf segments', async () => {

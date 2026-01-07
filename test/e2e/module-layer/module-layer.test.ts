@@ -76,7 +76,9 @@ describe('module layer', () => {
           '/app/client-edge',
           '/app/server-edge',
         ])
-        const pagesManifest = JSON.parse(await next.readFile('.next/server/pages-manifest.json'))
+        const pagesManifest = JSON.parse(
+          await next.readFile('.next/server/pages-manifest.json')
+        )
         const middlewareManifest = JSON.parse(
           await next.readFile('.next/server/middleware-manifest.json')
         )

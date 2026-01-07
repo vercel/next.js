@@ -14,7 +14,9 @@ export default function Page() {
           <LinkAccordion href="/shoes/3">/shoes/3</LinkAccordion>
         </li>
         <li>
-          <LinkAccordion href="/shoes/4?foo=bar">/shoes/4?foo=bar</LinkAccordion>
+          <LinkAccordion href="/shoes/4?foo=bar">
+            /shoes/4?foo=bar
+          </LinkAccordion>
         </li>
       </ul>
     </>

@@ -40,7 +40,9 @@ export function wrapClientComponentLoader(
   }
 }
 
-export function getClientComponentLoaderMetrics(options: { reset?: boolean } = {}) {
+export function getClientComponentLoaderMetrics(
+  options: { reset?: boolean } = {}
+) {
   const metrics =
     clientComponentLoadStart === 0
       ? undefined

@@ -117,15 +117,18 @@ describe('manual-client-base-path', () => {
       expect(await browser.eval('window.location.search')).toBe('?update=1')
 
       await check(async () => {
-        assert.deepEqual(JSON.parse(await browser.elementByCss('#router').text()), {
-          asPath: fullAsPath,
-          pathname: pathname || asPath,
-          query: {
-            update: '1',
-            ...((query as any) || {}),
-          },
-          basePath,
-        })
+        assert.deepEqual(
+          JSON.parse(await browser.elementByCss('#router').text()),
+          {
+            asPath: fullAsPath,
+            pathname: pathname || asPath,
+            query: {
+              update: '1',
+              ...((query as any) || {}),
+            },
+            basePath,
+          }
+        )
         return 'success'
       }, 'success')
 
@@ -164,7 +167,9 @@ describe('manual-client-base-path', () => {
 
     await browser.elementByCss('#to-dynamic').click()
     await check(() => browser.elementByCss('#page').text(), 'dynamic page')
-    expect(await browser.eval('window.location.pathname')).toBe('/dynamic/first')
+    expect(await browser.eval('window.location.pathname')).toBe(
+      '/dynamic/first'
+    )
 
     await browser.back()
     await check(() => browser.elementByCss('#page').text(), 'index page')
@@ -172,7 +177,9 @@ describe('manual-client-base-path', () => {
 
     await browser.forward()
     await check(() => browser.elementByCss('#page').text(), 'dynamic page')
-    expect(await browser.eval('window.location.pathname')).toBe('/dynamic/first')
+    expect(await browser.eval('window.location.pathname')).toBe(
+      '/dynamic/first'
+    )
 
     expect(await browser.eval('window.beforeNav')).toBe(1)
   })
@@ -187,10 +194,15 @@ describe('manual-client-base-path', () => {
 
     await browser.elementByCss('#to-dynamic').click()
     await check(() => browser.elementByCss('#page').text(), 'dynamic page')
-    expect(await browser.eval('window.location.pathname')).toBe('/dynamic/first')
+    expect(await browser.eval('window.location.pathname')).toBe(
+      '/dynamic/first'
+    )
 
     await browser.elementByCss('#to-dynamic').click()
-    await check(() => browser.eval('window.location.pathname'), '/dynamic/second')
+    await check(
+      () => browser.eval('window.location.pathname'),
+      '/dynamic/second'
+    )
 
     expect(await browser.eval('window.beforeNav')).toBe(1)
   })

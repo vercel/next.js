@@ -1,7 +1,13 @@
 /* eslint-env jest */
 import fs from 'fs-extra'
 import { join } from 'path'
-import { check, findPort, killApp, launchApp, renderViaHTTP } from 'next-test-utils'
+import {
+  check,
+  findPort,
+  killApp,
+  launchApp,
+  renderViaHTTP,
+} from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
 const nextConfigPath = join(appDir, 'next.config.js')
@@ -46,7 +52,10 @@ describe('SSG Prerender', () => {
 
       const blogPage = join(appDir, 'pages/blog/[post]/index.js')
       const origContent = await fs.readFile(blogPage, 'utf8')
-      await fs.writeFile(blogPage, origContent.replace('fallback: true,', '/* fallback: true, */'))
+      await fs.writeFile(
+        blogPage,
+        origContent.replace('fallback: true,', '/* fallback: true, */')
+      )
 
       try {
         await check(() => renderViaHTTP(appPort, '/blog/post-1'), errMsg)

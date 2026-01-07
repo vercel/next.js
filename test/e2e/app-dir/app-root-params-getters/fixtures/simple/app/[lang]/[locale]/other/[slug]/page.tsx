@@ -14,8 +14,8 @@ export default async function Page({ params }) {
         </span>
       </p>
       <p>
-        in <code>cacheComponents</code>, dynamic params need a suspense boundary (because we didn't
-        provide a value in <code>generateStaticParams</code>)
+        in <code>cacheComponents</code>, dynamic params need a suspense boundary
+        (because we didn't provide a value in <code>generateStaticParams</code>)
         <Suspense>
           <DynamicSlug params={params} />
         </Suspense>

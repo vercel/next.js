@@ -28,7 +28,11 @@ export function createInitialRouterState({
   const initialCanonicalUrl = initialCanonicalUrlParts.join('/')
 
   const normalizedFlightData = getFlightDataPartsFromPath(initialFlightData[0])
-  const { tree: initialTree, seedData: initialSeedData, head: initialHead } = normalizedFlightData
+  const {
+    tree: initialTree,
+    seedData: initialSeedData,
+    head: initialHead,
+  } = normalizedFlightData
   // For the SSR render, seed data should always be available (we only send back a `null` response
   // in the case of a `loading` segment, pre-PPR.)
 
@@ -65,7 +69,8 @@ export function createInitialRouterState({
     renderedSearch: initialRenderedSearch,
     nextUrl:
       // the || operator is intentional, the pathname can be an empty string
-      (extractPathFromFlightRouterState(initialTree) || location?.pathname) ?? null,
+      (extractPathFromFlightRouterState(initialTree) || location?.pathname) ??
+      null,
     previousNextUrl: null,
     debugInfo: null,
   }

@@ -11,9 +11,12 @@ async function Postpone({ children }) {
 }
 
 export default async function Page({ params }) {
-  const random = await fetch('https://next-data-api-endpoint.vercel.app/api/random', {
-    cache: 'force-cache',
-  }).then((res) => res.text())
+  const random = await fetch(
+    'https://next-data-api-endpoint.vercel.app/api/random',
+    {
+      cache: 'force-cache',
+    }
+  ).then((res) => res.text())
 
   return (
     <>

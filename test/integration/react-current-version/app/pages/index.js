@@ -9,7 +9,13 @@ export default function Index() {
   return (
     <div>
       <p id="react-dom-version">{ReactDOM.version}</p>
-      <Image id="priority-image" priority src="/noop.png" width={300} height={400} />
+      <Image
+        id="priority-image"
+        priority
+        src="/noop.png"
+        width={300}
+        height={400}
+      />
     </div>
   )
 }

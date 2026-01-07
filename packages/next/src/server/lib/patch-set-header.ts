@@ -11,9 +11,15 @@ type PatchableResponse = {
  * @param req Incoming request
  * @param res Outgoing response
  */
-export function patchSetHeaderWithCookieSupport(req: NextIncomingMessage, res: PatchableResponse) {
+export function patchSetHeaderWithCookieSupport(
+  req: NextIncomingMessage,
+  res: PatchableResponse
+) {
   const setHeader = res.setHeader.bind(res)
-  res.setHeader = (name: string, value: string | string[]): PatchableResponse => {
+  res.setHeader = (
+    name: string,
+    value: string | string[]
+  ): PatchableResponse => {
     // When renders /_error after page is failed, it could attempt to set
     // headers after headers.
     if ('headersSent' in res && res.headersSent) {
@@ -32,7 +38,11 @@ export function patchSetHeaderWithCookieSupport(req: NextIncomingMessage, res: P
           // TODO: (wyattjoh) find out why this is called multiple times resulting in duplicate cookies being added
           ...new Set([
             ...(middlewareValue || []),
-            ...(typeof value === 'string' ? [value] : Array.isArray(value) ? value : []),
+            ...(typeof value === 'string'
+              ? [value]
+              : Array.isArray(value)
+                ? value
+                : []),
           ]),
         ]
       }

@@ -7,20 +7,28 @@ import RedirectClientComponent from './client'
 
 export default async function Page() {
   const cookie = (await cookies()).get('random')
-  const data = await fetch('https://next-data-api-endpoint.vercel.app/api/random?page', {
-    next: { revalidate: 3600, tags: ['thankyounext'] },
-  }).then((res) => res.text())
+  const data = await fetch(
+    'https://next-data-api-endpoint.vercel.app/api/random?page',
+    {
+      next: { revalidate: 3600, tags: ['thankyounext'] },
+    }
+  ).then((res) => res.text())
 
-  const data2 = await fetch('https://next-data-api-endpoint.vercel.app/api/random?a=b', {
-    next: { revalidate: 3600, tags: ['thankyounext', 'justputit'] },
-  }).then((res) => res.text())
+  const data2 = await fetch(
+    'https://next-data-api-endpoint.vercel.app/api/random?a=b',
+    {
+      next: { revalidate: 3600, tags: ['thankyounext', 'justputit'] },
+    }
+  ).then((res) => res.text())
 
   return (
     <>
       <h1 id="title">revalidate</h1>
       <p>
         {' '}
-        revalidate (tags: thankyounext): <span id="thankyounext">{data}</span>{' '}
+        revalidate (tags: thankyounext): <span id="thankyounext">
+          {data}
+        </span>{' '}
         <span>
           <Link href="/revalidate-2" id="another">
             /revalidate-2
@@ -28,10 +36,12 @@ export default async function Page() {
         </span>
       </p>
       <p>
-        revalidate (tags: thankyounext, justputit): <span id="justputit">{data2}</span>
+        revalidate (tags: thankyounext, justputit):{' '}
+        <span id="justputit">{data2}</span>
       </p>
       <p>
-        random cookie: <span id="random-cookie">{JSON.stringify({ cookie })}</span>
+        random cookie:{' '}
+        <span id="random-cookie">{JSON.stringify({ cookie })}</span>
       </p>
       <form>
         <button

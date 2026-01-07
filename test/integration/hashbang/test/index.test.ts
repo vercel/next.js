@@ -2,7 +2,14 @@
 
 import { join } from 'path'
 import fs from 'fs-extra'
-import { renderViaHTTP, findPort, launchApp, killApp, nextBuild, nextStart } from 'next-test-utils'
+import {
+  renderViaHTTP,
+  findPort,
+  launchApp,
+  killApp,
+  nextBuild,
+  nextStart,
+} from 'next-test-utils'
 
 let app
 let appPort
@@ -30,24 +37,30 @@ function runTests() {
 const nextConfig = join(appDir, 'next.config.js')
 
 describe('Hashbang', () => {
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-    runTests()
-  })
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await fs.remove(nextConfig)
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+      runTests()
+    }
+  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await fs.remove(nextConfig)
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-    runTests()
-  })
+      runTests()
+    }
+  )
 })

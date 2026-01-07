@@ -16,7 +16,9 @@ const cwd = process.cwd()
   let isBeta = false
 
   try {
-    const tagOutput = execSync(`node ${path.join(__dirname, 'check-is-release.js')}`).toString()
+    const tagOutput = execSync(
+      `node ${path.join(__dirname, 'check-is-release.js')}`
+    ).toString()
     console.log(tagOutput)
 
     if (tagOutput.trim().startsWith('v')) {
@@ -34,7 +36,13 @@ const cwd = process.cwd()
     throw err
   }
 
-  let tag = isCanary ? 'canary' : isReleaseCandidate ? 'rc' : isBeta ? 'beta' : 'latest'
+  let tag = isCanary
+    ? 'canary'
+    : isReleaseCandidate
+      ? 'rc'
+      : isBeta
+        ? 'beta'
+        : 'latest'
 
   try {
     if (!isCanary && !isReleaseCandidate && !isBeta) {
@@ -42,7 +50,9 @@ const cwd = process.cwd()
         await fs.promises.readFile(path.join(cwd, 'lerna.json'), 'utf-8')
       ).version
 
-      const res = await fetch(`https://registry.npmjs.org/-/package/next/dist-tags`)
+      const res = await fetch(
+        `https://registry.npmjs.org/-/package/next/dist-tags`
+      )
       const tags = await res.json()
 
       if (semver.lt(version, tags.latest)) {
@@ -98,7 +108,9 @@ const cwd = process.cwd()
     } catch (err) {
       console.error(`Failed to publish ${pkg}`, err)
 
-      if (output.includes('cannot publish over the previously published versions')) {
+      if (
+        output.includes('cannot publish over the previously published versions')
+      ) {
         console.error('Ignoring already published error', pkg)
         return
       }
@@ -112,7 +124,9 @@ const cwd = process.cwd()
     // Recursive call need to be outside of the publishSema
     const retryDelaySeconds = 15
     console.log(`retrying in ${retryDelaySeconds}s`)
-    await new Promise((resolve) => setTimeout(resolve, retryDelaySeconds * 1000))
+    await new Promise((resolve) =>
+      setTimeout(resolve, retryDelaySeconds * 1000)
+    )
     await publish(pkg, retry + 1)
   }
 
@@ -148,7 +162,9 @@ const cwd = process.cwd()
             )
             releasesData = await releaseUrlRes.json()
 
-            release = releasesData.find((release) => release.tag_name === version)
+            release = releasesData.find(
+              (release) => release.tag_name === version
+            )
           } catch (err) {
             console.log(`Fetching release failed`, err)
           }
@@ -186,7 +202,10 @@ const cwd = process.cwd()
   const results = await Promise.allSettled(
     packageDirs.map(async (packageDir) => {
       const pkgJson = JSON.parse(
-        await fs.promises.readFile(path.join(packagesDir, packageDir, 'package.json'), 'utf-8')
+        await fs.promises.readFile(
+          path.join(packagesDir, packageDir, 'package.json'),
+          'utf-8'
+        )
       )
 
       if (pkgJson.private) {

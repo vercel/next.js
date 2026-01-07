@@ -31,7 +31,9 @@ const Page = () => {
         src="/test.gif"
         width={100}
         height={100}
-        loader={({ src, width }) => `https://example.vercel.sh${src}?width=${width * 2}`}
+        loader={({ src, width }) =>
+          `https://example.vercel.sh${src}?width=${width * 2}`
+        }
       />
       <Image
         id="width-querystring-size"

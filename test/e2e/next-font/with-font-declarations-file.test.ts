@@ -4,7 +4,8 @@ import { NextInstance } from 'e2e-utils'
 import { renderViaHTTP } from 'next-test-utils'
 import { join } from 'path'
 
-const mockedGoogleFontResponses = require.resolve('./google-font-mocked-responses.js')
+const mockedGoogleFontResponses =
+  require.resolve('./google-font-mocked-responses.js')
 
 const isDev = (global as any).isNextDev
 
@@ -46,7 +47,9 @@ describe('next/font/google with-font-declarations-file', () => {
       expect($('link[as="font"]').get(0).attribs).toEqual({
         as: 'font',
         crossorigin: 'anonymous',
-        href: expect.stringMatching(/\/_next\/static\/media\/.*-s\.p(\..*)?\.woff2/),
+        href: expect.stringMatching(
+          /\/_next\/static\/media\/.*-s\.p(\..*)?\.woff2/
+        ),
         rel: 'preload',
         type: 'font/woff2',
         'data-next-font': 'size-adjust',
@@ -55,7 +58,9 @@ describe('next/font/google with-font-declarations-file', () => {
       expect($('link[as="font"]').get(1).attribs).toEqual({
         as: 'font',
         crossorigin: 'anonymous',
-        href: expect.stringMatching(/\/_next\/static\/media\/.*-s\.p(\..*)?\.woff2/),
+        href: expect.stringMatching(
+          /\/_next\/static\/media\/.*-s\.p(\..*)?\.woff2/
+        ),
         rel: 'preload',
         type: 'font/woff2',
         'data-next-font': 'size-adjust',
@@ -83,7 +88,9 @@ describe('next/font/google with-font-declarations-file', () => {
       expect($('link[as="font"]').get(0).attribs).toEqual({
         as: 'font',
         crossorigin: 'anonymous',
-        href: expect.stringMatching(/\/_next\/static\/media\/.*-s\.p(\..*)?\.woff2/),
+        href: expect.stringMatching(
+          /\/_next\/static\/media\/.*-s\.p(\..*)?\.woff2/
+        ),
         rel: 'preload',
         type: 'font/woff2',
         'data-next-font': 'size-adjust',
@@ -92,7 +99,9 @@ describe('next/font/google with-font-declarations-file', () => {
       expect($('link[as="font"]').get(1).attribs).toEqual({
         as: 'font',
         crossorigin: 'anonymous',
-        href: expect.stringMatching(/\/_next\/static\/media\/.*-s\.p(\..*)?\.woff2/),
+        href: expect.stringMatching(
+          /\/_next\/static\/media\/.*-s\.p(\..*)?\.woff2/
+        ),
         rel: 'preload',
         type: 'font/woff2',
         'data-next-font': 'size-adjust',
@@ -120,7 +129,9 @@ describe('next/font/google with-font-declarations-file', () => {
       expect($('link[as="font"]').get(0).attribs).toEqual({
         as: 'font',
         crossorigin: 'anonymous',
-        href: expect.stringMatching(/\/_next\/static\/media\/.*-s\.p(\..*)?\.woff2/),
+        href: expect.stringMatching(
+          /\/_next\/static\/media\/.*-s\.p(\..*)?\.woff2/
+        ),
         rel: 'preload',
         type: 'font/woff2',
         'data-next-font': 'size-adjust',
@@ -129,7 +140,9 @@ describe('next/font/google with-font-declarations-file', () => {
       expect($('link[as="font"]').get(1).attribs).toEqual({
         as: 'font',
         crossorigin: 'anonymous',
-        href: expect.stringMatching(/\/_next\/static\/media\/.*-s\.p(\..*)?\.woff2/),
+        href: expect.stringMatching(
+          /\/_next\/static\/media\/.*-s\.p(\..*)?\.woff2/
+        ),
         rel: 'preload',
         type: 'font/woff2',
         'data-next-font': 'size-adjust',

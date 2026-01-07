@@ -14,7 +14,10 @@ describe('use-cache-metadata-route-handler', () => {
       const [buildStatus] = next.cliOutput.match(/. \/opengraph-image/)
 
       // TODO: Should always be `○ /opengraph-image`.
-      expect(buildStatus).toBeOneOf(['○ /opengraph-image', 'ƒ /opengraph-image'])
+      expect(buildStatus).toBeOneOf([
+        '○ /opengraph-image',
+        'ƒ /opengraph-image',
+      ])
     }
   })
 
@@ -139,16 +142,24 @@ describe('use-cache-metadata-route-handler', () => {
         'robots.txt',
         'sitemap.xml',
       ]) {
-        const { files } = await next.readJSON(`/.next/server/app/${filename}/route.js.nft.json`)
+        const { files } = await next.readJSON(
+          `/.next/server/app/${filename}/route.js.nft.json`
+        )
 
-        expect(files.find((e) => e.endsWith('route_client-reference-manifest.js'))).toBeString()
+        expect(
+          files.find((e) => e.endsWith('route_client-reference-manifest.js'))
+        ).toBeString()
       }
     })
 
     it('should not include the client reference manifest in the route.js.nft.json files of static metadata routes', async () => {
-      const { files } = await next.readJSON('/.next/server/app/favicon.ico/route.js.nft.json')
+      const { files } = await next.readJSON(
+        '/.next/server/app/favicon.ico/route.js.nft.json'
+      )
 
-      expect(files.find((e) => e.endsWith('route_client-reference-manifest.js'))).toBeUndefined()
+      expect(
+        files.find((e) => e.endsWith('route_client-reference-manifest.js'))
+      ).toBeUndefined()
     })
   }
 })

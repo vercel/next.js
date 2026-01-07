@@ -70,7 +70,9 @@ export function useRestartServer() {
         }
       }
 
-      console.log('[Next.js DevTools] Failed to restart server. Exhausted all polling attempts.')
+      console.log(
+        '[Next.js DevTools] Failed to restart server. Exhausted all polling attempts.'
+      )
       return
     } catch (error) {
       console.log('[Next.js DevTools] Failed to restart server.', error)

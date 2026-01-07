@@ -5,7 +5,8 @@ import GracefulDegradeBoundary from './graceful-degrade-boundary'
 import { ErrorBoundary, type ErrorBoundaryProps } from '../error-boundary'
 import { isBot } from '../../../shared/lib/router/utils/is-bot'
 
-const isBotUserAgent = typeof window !== 'undefined' && isBot(window.navigator.userAgent)
+const isBotUserAgent =
+  typeof window !== 'undefined' && isBot(window.navigator.userAgent)
 
 export default function RootErrorBoundary({
   children,

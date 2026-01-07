@@ -22,7 +22,9 @@ describe('correct tsconfig.json defaults', () => {
 
   it('should add `moduleResolution` when generating tsconfig.json in dev', async () => {
     try {
-      expect(await next.readFile('tsconfig.json').catch(() => false)).toBeFalse()
+      expect(
+        await next.readFile('tsconfig.json').catch(() => false)
+      ).toBeFalse()
 
       await next.start()
 
@@ -46,7 +48,9 @@ describe('correct tsconfig.json defaults', () => {
 
   it('should not warn for `moduleResolution` when already present and valid', async () => {
     try {
-      expect(await next.readFile('tsconfig.json').catch(() => false)).toBeTruthy()
+      expect(
+        await next.readFile('tsconfig.json').catch(() => false)
+      ).toBeTruthy()
 
       await next.start()
 

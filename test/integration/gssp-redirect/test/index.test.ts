@@ -19,9 +19,14 @@ let appPort
 
 const runTests = (isDev: boolean) => {
   it('should apply temporary redirect when visited directly for GSSP page', async () => {
-    const res = await fetchViaHTTP(appPort, '/gssp-blog/redirect-1', undefined, {
-      redirect: 'manual',
-    })
+    const res = await fetchViaHTTP(
+      appPort,
+      '/gssp-blog/redirect-1',
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
     expect(res.status).toBe(307)
 
     const { pathname } = new URL(res.headers.get('location'))
@@ -30,9 +35,14 @@ const runTests = (isDev: boolean) => {
   })
 
   it('should apply permanent redirect when visited directly for GSSP page', async () => {
-    const res = await fetchViaHTTP(appPort, '/gssp-blog/redirect-permanent', undefined, {
-      redirect: 'manual',
-    })
+    const res = await fetchViaHTTP(
+      appPort,
+      '/gssp-blog/redirect-permanent',
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
     expect(res.status).toBe(308)
 
     const { pathname } = new URL(res.headers.get('location'))
@@ -42,9 +52,14 @@ const runTests = (isDev: boolean) => {
   })
 
   it('should apply statusCode 301 redirect when visited directly for GSSP page', async () => {
-    const res = await fetchViaHTTP(appPort, '/gssp-blog/redirect-statusCode-301', undefined, {
-      redirect: 'manual',
-    })
+    const res = await fetchViaHTTP(
+      appPort,
+      '/gssp-blog/redirect-statusCode-301',
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
     expect(res.status).toBe(301)
 
     const { pathname } = new URL(res.headers.get('location'))
@@ -54,9 +69,14 @@ const runTests = (isDev: boolean) => {
   })
 
   it('should apply statusCode 303 redirect when visited directly for GSSP page', async () => {
-    const res = await fetchViaHTTP(appPort, '/gssp-blog/redirect-statusCode-303', undefined, {
-      redirect: 'manual',
-    })
+    const res = await fetchViaHTTP(
+      appPort,
+      '/gssp-blog/redirect-statusCode-303',
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
     expect(res.status).toBe(303)
 
     const { pathname } = new URL(res.headers.get('location'))
@@ -66,9 +86,13 @@ const runTests = (isDev: boolean) => {
   })
 
   it('should apply redirect when fallback GSP page is visited directly (internal dynamic)', async () => {
-    const browser = await webdriver(appPort, '/gsp-blog/redirect-dest-_gsp-blog_first', {
-      retryWaitHydration: true,
-    })
+    const browser = await webdriver(
+      appPort,
+      '/gsp-blog/redirect-dest-_gsp-blog_first',
+      {
+        retryWaitHydration: true,
+      }
+    )
 
     await browser.waitForElementByCss('#gsp')
 
@@ -84,9 +108,13 @@ const runTests = (isDev: boolean) => {
   })
 
   it('should apply redirect when fallback blocking GSP page is visited directly (internal dynamic)', async () => {
-    const browser = await webdriver(appPort, '/gsp-blog-blocking/redirect-dest-_gsp-blog_first', {
-      retryWaitHydration: true,
-    })
+    const browser = await webdriver(
+      appPort,
+      '/gsp-blog-blocking/redirect-dest-_gsp-blog_first',
+      {
+        retryWaitHydration: true,
+      }
+    )
 
     await browser.waitForElementByCss('#gsp')
 
@@ -102,9 +130,13 @@ const runTests = (isDev: boolean) => {
   })
 
   it('should apply redirect when fallback blocking GSP page is visited directly (internal dynamic) second visit', async () => {
-    const browser = await webdriver(appPort, '/gsp-blog-blocking/redirect-dest-_gsp-blog_first', {
-      retryWaitHydration: true,
-    })
+    const browser = await webdriver(
+      appPort,
+      '/gsp-blog-blocking/redirect-dest-_gsp-blog_first',
+      {
+        retryWaitHydration: true,
+      }
+    )
 
     await browser.waitForElementByCss('#gsp')
 
@@ -165,9 +197,13 @@ const runTests = (isDev: boolean) => {
 
   if (!isDev) {
     it('should apply redirect when fallback GSP page is visited directly (internal dynamic) 2nd visit', async () => {
-      const browser = await webdriver(appPort, '/gsp-blog/redirect-dest-_gsp-blog_first', {
-        retryWaitHydration: true,
-      })
+      const browser = await webdriver(
+        appPort,
+        '/gsp-blog/redirect-dest-_gsp-blog_first',
+        {
+          retryWaitHydration: true,
+        }
+      )
 
       await browser.waitForElementByCss('#gsp')
 
@@ -212,11 +248,18 @@ const runTests = (isDev: boolean) => {
   }
 
   it('should apply redirect when fallback GSP page is visited directly (external)', async () => {
-    const browser = await webdriver(appPort, '/gsp-blog/redirect-dest-_missing', {
-      retryWaitHydration: true,
-    })
+    const browser = await webdriver(
+      appPort,
+      '/gsp-blog/redirect-dest-_missing',
+      {
+        retryWaitHydration: true,
+      }
+    )
 
-    await check(() => browser.eval(() => document.documentElement.innerHTML), /oops not found/)
+    await check(
+      () => browser.eval(() => document.documentElement.innerHTML),
+      /oops not found/
+    )
 
     const initialHref = await browser.eval(() => (window as any).initialHref)
     expect(initialHref).toBeFalsy()
@@ -227,29 +270,48 @@ const runTests = (isDev: boolean) => {
   })
 
   it('should apply redirect when fallback GSP page is visited directly (external domain)', async () => {
-    const browser = await webdriver(appPort, '/gsp-blog/redirect-dest-external', {
-      retryWaitHydration: true,
-    })
+    const browser = await webdriver(
+      appPort,
+      '/gsp-blog/redirect-dest-external',
+      {
+        retryWaitHydration: true,
+      }
+    )
 
-    await check(() => browser.eval(() => document.location.hostname), 'example.vercel.sh')
+    await check(
+      () => browser.eval(() => document.location.hostname),
+      'example.vercel.sh'
+    )
 
     const initialHref = await browser.eval(() => (window as any).initialHref)
     expect(initialHref).toBeFalsy()
   })
 
   it('should apply redirect when fallback GSSP page is visited directly (external domain)', async () => {
-    const browser = await webdriver(appPort, '/gssp-blog/redirect-dest-external', {
-      retryWaitHydration: true,
-    })
+    const browser = await webdriver(
+      appPort,
+      '/gssp-blog/redirect-dest-external',
+      {
+        retryWaitHydration: true,
+      }
+    )
 
-    await check(() => browser.eval(() => document.location.hostname), 'example.vercel.sh')
+    await check(
+      () => browser.eval(() => document.location.hostname),
+      'example.vercel.sh'
+    )
 
     const initialHref = await browser.eval(() => (window as any).initialHref)
     expect(initialHref).toBeFalsy()
 
-    const res = await fetchViaHTTP(appPort, '/gssp-blog/redirect-dest-external', undefined, {
-      redirect: 'manual',
-    })
+    const res = await fetchViaHTTP(
+      appPort,
+      '/gssp-blog/redirect-dest-external',
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
     expect(res.status).toBe(307)
 
     const parsed = new URL(res.headers.get('location'))
@@ -258,9 +320,13 @@ const runTests = (isDev: boolean) => {
   })
 
   it('should apply redirect when GSSP page is navigated to client-side (internal dynamic)', async () => {
-    const browser = await webdriver(appPort, '/gssp-blog/redirect-dest-_gssp-blog_first', {
-      retryWaitHydration: true,
-    })
+    const browser = await webdriver(
+      appPort,
+      '/gssp-blog/redirect-dest-_gssp-blog_first',
+      {
+        retryWaitHydration: true,
+      }
+    )
 
     await browser.waitForElementByCss('#gssp')
 
@@ -438,44 +504,49 @@ const runTests = (isDev: boolean) => {
 }
 
 describe('GS(S)P Redirect Support', () => {
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
-
-    runTests(true)
-  })
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
-    let output = ''
-
-    beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort, {
-        onStdout(msg) {
-          output += msg
-        },
-        onStderr(msg) {
-          output += msg
-        },
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
       })
-    })
-    afterAll(() => killApp(app))
+      afterAll(() => killApp(app))
 
-    runTests(false)
+      runTests(true)
+    }
+  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      let output = ''
 
-    it('should not have errors in output', async () => {
-      expect(output).not.toContain('Failed to update prerender files')
-    })
+      beforeAll(async () => {
+        await fs.remove(join(appDir, '.next'))
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort, {
+          onStdout(msg) {
+            output += msg
+          },
+          onStderr(msg) {
+            output += msg
+          },
+        })
+      })
+      afterAll(() => killApp(app))
 
-    it('should error for redirect during prerendering', async () => {
-      await fs.mkdirp(join(appDir, 'pages/invalid'))
-      await fs.writeFile(
-        join(appDir, 'pages', 'invalid', '[slug].js'),
-        `
+      runTests(false)
+
+      it('should not have errors in output', async () => {
+        expect(output).not.toContain('Failed to update prerender files')
+      })
+
+      it('should error for redirect during prerendering', async () => {
+        await fs.mkdirp(join(appDir, 'pages/invalid'))
+        await fs.writeFile(
+          join(appDir, 'pages', 'invalid', '[slug].js'),
+          `
         export default function Post(props) {
           return "hi"
         }
@@ -496,17 +567,18 @@ describe('GS(S)P Redirect Support', () => {
           }
         }
       `
-      )
-      const { stdout, stderr } = await nextBuild(appDir, undefined, {
-        stdout: true,
-        stderr: true,
-      })
-      const output = stdout + stderr
-      await fs.remove(join(appDir, 'pages/invalid'))
+        )
+        const { stdout, stderr } = await nextBuild(appDir, undefined, {
+          stdout: true,
+          stderr: true,
+        })
+        const output = stdout + stderr
+        await fs.remove(join(appDir, 'pages/invalid'))
 
-      expect(output).toContain(
-        '`redirect` can not be returned from getStaticProps during prerendering'
-      )
-    })
-  })
+        expect(output).toContain(
+          '`redirect` can not be returned from getStaticProps during prerendering'
+        )
+      })
+    }
+  )
 })

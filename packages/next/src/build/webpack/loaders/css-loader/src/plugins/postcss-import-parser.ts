@@ -15,7 +15,11 @@ function parseNode(atRule: any, key: any) {
     return
   }
 
-  if (atRule.raws && atRule.raws.afterName && atRule.raws.afterName.trim().length > 0) {
+  if (
+    atRule.raws &&
+    atRule.raws.afterName &&
+    atRule.raws.afterName.trim().length > 0
+  ) {
     const lastCommentIndex = atRule.raws.afterName.lastIndexOf('/*')
     const matched = atRule.raws.afterName
       .slice(lastCommentIndex)
@@ -71,14 +75,18 @@ function parseNode(atRule: any, key: any) {
   } else {
     // Invalid function - `@import nourl(test.css);`
     if (paramsNodes[0].value.toLowerCase() !== 'url') {
-      const error: any = new Error(`Unable to find uri in "${atRule.toString()}"`)
+      const error: any = new Error(
+        `Unable to find uri in "${atRule.toString()}"`
+      )
 
       error.node = atRule
 
       throw error
     }
 
-    isStringValue = paramsNodes[0].nodes.length !== 0 && paramsNodes[0].nodes[0].type === 'string'
+    isStringValue =
+      paramsNodes[0].nodes.length !== 0 &&
+      paramsNodes[0].nodes[0].type === 'string'
     url = isStringValue
       ? paramsNodes[0].nodes[0].value
       : valueParser.stringify(paramsNodes[0].nodes)

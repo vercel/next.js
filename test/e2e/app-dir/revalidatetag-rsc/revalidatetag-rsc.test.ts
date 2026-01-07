@@ -34,13 +34,15 @@ describe('revalidateTag-rsc', () => {
         )
       } else {
         await retry(async () => {
-          expect(await browser.eval('document.documentElement.innerHTML')).toContain(
-            'This page failed to load'
-          )
+          expect(
+            await browser.eval('document.documentElement.innerHTML')
+          ).toContain('This page failed to load')
         })
       }
 
-      expect(next.cliOutput).toContain('Route /revalidate_via_page used "revalidateTag data"')
+      expect(next.cliOutput).toContain(
+        'Route /revalidate_via_page used "revalidateTag data"'
+      )
     })
   }
 })

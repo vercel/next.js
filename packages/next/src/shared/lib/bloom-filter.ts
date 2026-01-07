@@ -23,7 +23,9 @@ export class BloomFilter {
   constructor(numItems: number, errorRate: number = DEFAULT_ERROR_RATE) {
     this.numItems = numItems
     this.errorRate = errorRate
-    this.numBits = Math.ceil(-(numItems * Math.log(errorRate)) / (Math.log(2) * Math.log(2)))
+    this.numBits = Math.ceil(
+      -(numItems * Math.log(errorRate)) / (Math.log(2) * Math.log(2))
+    )
     this.numHashes = Math.ceil((this.numBits / numItems) * Math.log(2))
     this.bitArray = new Array(this.numBits).fill(0)
   }

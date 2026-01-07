@@ -5,7 +5,10 @@ import { getNamedRouteRegex } from '../../shared/lib/router/utils/route-regex'
 import { djb2Hash } from '../../shared/lib/hash'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
-import { isGroupSegment, isParallelRouteSegment } from '../../shared/lib/segment'
+import {
+  isGroupSegment,
+  isParallelRouteSegment,
+} from '../../shared/lib/segment'
 
 /*
  * If there's special convention like (...) or @ in the page path,
@@ -36,7 +39,9 @@ function getMetadataRouteSuffix(page: string) {
   let suffix = ''
   // Check if there's any special characters in the parent pathname.
   const segments = parentPathname.split('/')
-  if (segments.some((seg) => isGroupSegment(seg) || isParallelRouteSegment(seg))) {
+  if (
+    segments.some((seg) => isGroupSegment(seg) || isParallelRouteSegment(seg))
+  ) {
     // Hash the parent path to get a unique suffix
     suffix = djb2Hash(parentPathname).toString(36).slice(0, 6)
   }
@@ -114,7 +119,11 @@ export function normalizeMetadataRoute(page: string) {
   // If it's a metadata file route, we need to append /[id]/route to the page.
   if (!route.endsWith('/route')) {
     const { dir, name: baseName, ext } = path.parse(route)
-    route = path.posix.join(dir, `${baseName}${suffix ? `-${suffix}` : ''}${ext}`, 'route')
+    route = path.posix.join(
+      dir,
+      `${baseName}${suffix ? `-${suffix}` : ''}${ext}`,
+      'route'
+    )
   }
 
   return route
@@ -128,7 +137,9 @@ export function normalizeMetadataRoute(page: string) {
 export function normalizeMetadataPageToRoute(page: string, isDynamic: boolean) {
   const isRoute = page.endsWith('/route')
   const routePagePath = isRoute ? page.slice(0, -'/route'.length) : page
-  const metadataRouteExtension = routePagePath.endsWith('/sitemap') ? '.xml' : ''
+  const metadataRouteExtension = routePagePath.endsWith('/sitemap')
+    ? '.xml'
+    : ''
   const mapped = isDynamic
     ? `${routePagePath}/[__metadata_id__]`
     : `${routePagePath}${metadataRouteExtension}`

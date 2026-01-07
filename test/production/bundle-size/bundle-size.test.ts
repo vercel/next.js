@@ -56,7 +56,10 @@ describe('bundle-size', () => {
         const browser = await next.browser(from, {
           beforePageLoad(page) {
             page.on('response', async (res) => {
-              if (res.url().includes('static/chunks') && res.url().endsWith('.js')) {
+              if (
+                res.url().includes('static/chunks') &&
+                res.url().endsWith('.js')
+              ) {
                 jsResources.push(res.text())
               }
             })
@@ -64,7 +67,9 @@ describe('bundle-size', () => {
         })
 
         await retry(async () => {
-          expect(await browser.elementByCss('main').text()).toContain('this is a')
+          expect(await browser.elementByCss('main').text()).toContain(
+            'this is a'
+          )
         })
 
         let initialJsResourceSize = await getResourceSize(jsResources)
@@ -78,7 +83,9 @@ describe('bundle-size', () => {
 
         await browser.elementByCss(`[href="${to}"]`).click()
         await retry(async () => {
-          expect(await browser.elementByCss('main').text()).toContain('this is b')
+          expect(await browser.elementByCss('main').text()).toContain(
+            'this is b'
+          )
         })
 
         let softNavJsResourceSize = await getResourceSize(jsResources)
@@ -91,14 +98,19 @@ describe('bundle-size', () => {
         let browser = await next.browser(to, {
           beforePageLoad(page) {
             page.on('response', async (res) => {
-              if (res.url().includes('static/chunks') && res.url().endsWith('.js')) {
+              if (
+                res.url().includes('static/chunks') &&
+                res.url().endsWith('.js')
+              ) {
                 jsResources.push(res.text())
               }
             })
           },
         })
         await retry(async () => {
-          expect(await browser.elementByCss('main').text()).toContain('this is b')
+          expect(await browser.elementByCss('main').text()).toContain(
+            'this is b'
+          )
         })
 
         let initialJsResourceSize = await getResourceSize(jsResources)

@@ -1,5 +1,10 @@
 import { nextTestSetup } from 'e2e-utils'
-import { waitForRedbox, waitForNoRedbox, getRedboxSource, retry } from 'next-test-utils'
+import {
+  waitForRedbox,
+  waitForNoRedbox,
+  getRedboxSource,
+  retry,
+} from 'next-test-utils'
 
 describe('app-dir - error-on-next-codemod-comment', () => {
   const { next, isNextDev } = nextTestSetup({
@@ -90,7 +95,10 @@ describe('app-dir - error-on-next-codemod-comment', () => {
       let originFileContent
       await next.patchFile('app/page.tsx', (code) => {
         originFileContent = code
-        return code.replace('// @next-codemod-error remove jsx of next line', '')
+        return code.replace(
+          '// @next-codemod-error remove jsx of next line',
+          ''
+        )
       })
 
       await retry(async () => {

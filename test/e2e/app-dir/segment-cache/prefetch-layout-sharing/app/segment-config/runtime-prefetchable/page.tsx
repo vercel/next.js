@@ -13,9 +13,10 @@ export default function Page() {
       <div>
         <p>
           When this page is prefetched from outside of the{' '}
-          <code>/segment-config/runtime-prefetchable</code> segment, the page contents will be
-          runtime-prefetched (despite this segment not being marked as runtime-prefetchable) because
-          the parent layout is marked as runtime-prefetchable.
+          <code>/segment-config/runtime-prefetchable</code> segment, the page
+          contents will be runtime-prefetched (despite this segment not being
+          marked as runtime-prefetchable) because the parent layout is marked as
+          runtime-prefetchable.
         </p>
         <Suspense fallback="Loading...">
           <RuntimePrefetchable />
@@ -24,17 +25,20 @@ export default function Page() {
 
       <ul>
         <li>
-          A page that shares some layouts with this page, and should use a static prefetch:
+          A page that shares some layouts with this page, and should use a
+          static prefetch:
           <br />
           <DebugLinkAccordion href="/segment-config/runtime-prefetchable/configured-as-static" />
         </li>
         <li>
-          A page that shares some layouts with this page, and should use a runtime prefetch:
+          A page that shares some layouts with this page, and should use a
+          runtime prefetch:
           <br />
           <DebugLinkAccordion href="/segment-config/runtime-prefetchable/configured-as-runtime" />
         </li>
         <li>
-          A page that shares some layouts with this page, and has a fully static page segment
+          A page that shares some layouts with this page, and has a fully static
+          page segment
           <br />
           <DebugLinkAccordion href="/segment-config/runtime-prefetchable/fully-static" />
         </li>
@@ -45,5 +49,9 @@ export default function Page() {
 
 async function RuntimePrefetchable() {
   await cookies()
-  return <div id="runtime-prefetchable-content-page">Runtime-prefetchable content from page</div>
+  return (
+    <div id="runtime-prefetchable-content-page">
+      Runtime-prefetchable content from page
+    </div>
+  )
 }

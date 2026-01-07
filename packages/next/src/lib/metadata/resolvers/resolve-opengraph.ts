@@ -1,5 +1,9 @@
 import type { ResolvedMetadataWithURLs } from '../types/metadata-interface'
-import type { OpenGraphType, OpenGraph, ResolvedOpenGraph } from '../types/opengraph-types'
+import type {
+  OpenGraphType,
+  OpenGraph,
+  ResolvedOpenGraph,
+} from '../types/opengraph-types'
 import type {
   FieldResolverExtraArgs,
   AsyncFieldResolverExtraArgs,
@@ -26,7 +30,14 @@ const OgTypeFields = {
   playlist: ['albums', 'musicians'],
   radio: ['creators'],
   video: ['actors', 'directors', 'writers', 'tags'],
-  basic: ['emails', 'phoneNumbers', 'faxNumbers', 'alternateLocale', 'audio', 'videos'],
+  basic: [
+    'emails',
+    'phoneNumbers',
+    'faxNumbers',
+    'alternateLocale',
+    'audio',
+    'videos',
+  ],
 } as const
 
 function resolveAndValidateImage(
@@ -49,7 +60,8 @@ function resolveAndValidateImage(
   // x-ref: https://vercel.com/docs/projects/environment-variables/system-environment-variables#system-environment-variables
   const isUsingVercelSystemEnvironmentVariables = Boolean(process.env.VERCEL)
 
-  const isRelativeUrl = typeof inputUrl === 'string' && !isFullStringUrl(inputUrl)
+  const isRelativeUrl =
+    typeof inputUrl === 'string' && !isFullStringUrl(inputUrl)
 
   // When no explicit metadataBase is specified by the user, we'll override it with the fallback metadata
   // under the following conditions:
@@ -60,7 +72,8 @@ function resolveAndValidateImage(
   // the ogImage will be properly discovered across different environments without the user needing to
   // have a bunch of `process.env` checks when defining their `metadataBase`.
   if (isRelativeUrl && (!metadataBase || isStaticMetadataRouteFile)) {
-    const fallbackMetadataBase = getSocialImageMetadataBaseFallback(metadataBase)
+    const fallbackMetadataBase =
+      getSocialImageMetadataBaseFallback(metadataBase)
 
     // When not using Vercel environment variables for URL injection, we aren't able to determine
     // a fallback value for `metadataBase`. For self-hosted setups, we want to warn
@@ -116,7 +129,11 @@ export function resolveImages(
 
   const nonNullableImages = []
   for (const item of resolvedImages) {
-    const resolvedItem = resolveAndValidateImage(item, metadataBase, isStaticMetadataRouteFile)
+    const resolvedItem = resolveAndValidateImage(
+      item,
+      metadataBase,
+      isStaticMetadataRouteFile
+    )
     if (!resolvedItem) continue
 
     nonNullableImages.push(resolvedItem)
@@ -144,7 +161,13 @@ function getFieldsByOgType(ogType: OpenGraphType | undefined) {
 export const resolveOpenGraph: AsyncFieldResolverExtraArgs<
   'openGraph',
   [MetadataBaseURL, Promise<string>, MetadataContext, string | null]
-> = async (openGraph, metadataBase, pathname, metadataContext, titleTemplate) => {
+> = async (
+  openGraph,
+  metadataBase,
+  pathname,
+  metadataContext,
+  titleTemplate
+) => {
   if (!openGraph) return null
 
   function resolveProps(target: ResolvedOpenGraph, og: OpenGraph) {
@@ -172,13 +195,24 @@ export const resolveOpenGraph: AsyncFieldResolverExtraArgs<
   resolveProps(resolved, openGraph)
 
   resolved.url = openGraph.url
-    ? resolveAbsoluteUrlWithPathname(openGraph.url, metadataBase, await pathname, metadataContext)
+    ? resolveAbsoluteUrlWithPathname(
+        openGraph.url,
+        metadataBase,
+        await pathname,
+        metadataContext
+      )
     : null
 
   return resolved
 }
 
-const TwitterBasicInfoKeys = ['site', 'siteId', 'creator', 'creatorId', 'description'] as const
+const TwitterBasicInfoKeys = [
+  'site',
+  'siteId',
+  'creator',
+  'creatorId',
+  'description',
+] as const
 
 export const resolveTwitter: FieldResolverExtraArgs<
   'twitter',

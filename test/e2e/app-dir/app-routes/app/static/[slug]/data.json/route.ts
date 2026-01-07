@@ -5,7 +5,10 @@ export function generateStaticParams() {
   return [{ slug: 'first' }, { slug: 'second' }]
 }
 
-export const GET = async (req: NextRequest, props: { params: Promise<{ slug: string }> }) => {
+export const GET = async (
+  req: NextRequest,
+  props: { params: Promise<{ slug: string }> }
+) => {
   const params = await props.params
   const resolvedParams = await params
   return NextResponse.json({ params: resolvedParams, now: Date.now() })

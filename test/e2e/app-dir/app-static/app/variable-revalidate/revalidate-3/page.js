@@ -1,11 +1,17 @@
 export default async function Page() {
-  const data = await fetch('https://next-data-api-endpoint.vercel.app/api/random?page', {
-    next: { revalidate: 3 },
-  }).then((res) => res.text())
+  const data = await fetch(
+    'https://next-data-api-endpoint.vercel.app/api/random?page',
+    {
+      next: { revalidate: 3 },
+    }
+  ).then((res) => res.text())
 
-  const data2 = await fetch('https://next-data-api-endpoint.vercel.app/api/random?page', {
-    next: { revalidate: 3 },
-  }).then((res) => res.text())
+  const data2 = await fetch(
+    'https://next-data-api-endpoint.vercel.app/api/random?page',
+    {
+      next: { revalidate: 3 },
+    }
+  ).then((res) => res.text())
 
   return (
     <>

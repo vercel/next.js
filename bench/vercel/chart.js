@@ -32,7 +32,9 @@ function round(num) {
 function getConfidenceInterval(data) {
   const n = data.length
   const m = data.reduce((a, b) => a + b) / n
-  const s = Math.sqrt(data.map((x) => Math.pow(x - m, 2)).reduce((a, b) => a + b) / n)
+  const s = Math.sqrt(
+    data.map((x) => Math.pow(x - m, 2)).reduce((a, b) => a + b) / n
+  )
   const z = 1.96 // 95% confidence
   const e = z * (s / Math.sqrt(n))
   return e
@@ -50,8 +52,8 @@ export function downsample(data, maxPoints) {
 }
 
 export function printBenchmarkResults({ origin, head }, metricSelector) {
-  const [processedOriginData, processedHeadData] = [origin, head].map((results) =>
-    results.map(metricSelector).filter(Boolean)
+  const [processedOriginData, processedHeadData] = [origin, head].map(
+    (results) => results.map(metricSelector).filter(Boolean)
   )
 
   if (processedHeadData.length === 0 || processedOriginData.length === 0) {
@@ -59,7 +61,10 @@ export function printBenchmarkResults({ origin, head }, metricSelector) {
     return
   }
 
-  const [originMetrics, headMetrics] = [processedOriginData, processedHeadData].map(getMetrics)
+  const [originMetrics, headMetrics] = [
+    processedOriginData,
+    processedHeadData,
+  ].map(getMetrics)
 
   const deltaMetrics = {
     min: headMetrics.min - originMetrics.min,
@@ -78,8 +83,16 @@ export function printBenchmarkResults({ origin, head }, metricSelector) {
     delta: deltaMetrics,
   })
 
-  const [originData, headData] = [processedOriginData, processedHeadData].map((data) =>
-    downsample(data, Math.min(CHART_WIDTH, processedOriginData.length, processedHeadData.length))
+  const [originData, headData] = [processedOriginData, processedHeadData].map(
+    (data) =>
+      downsample(
+        data,
+        Math.min(
+          CHART_WIDTH,
+          processedOriginData.length,
+          processedHeadData.length
+        )
+      )
   )
 
   console.log(

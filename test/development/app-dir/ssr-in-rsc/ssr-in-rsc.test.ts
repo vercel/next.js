@@ -36,7 +36,9 @@ describe('react-dom/server in React Server environment', () => {
   })
 
   it('explicit react-dom/server.browser usage in app code', async () => {
-    const browser = await next.browser('/exports/app-code/react-dom-server-browser-explicit')
+    const browser = await next.browser(
+      '/exports/app-code/react-dom-server-browser-explicit'
+    )
 
     await waitForNoRedbox(browser)
     if (isTurbopack) {
@@ -102,7 +104,9 @@ describe('react-dom/server in React Server environment', () => {
   })
 
   it('explicit react-dom/server.edge usage in app code', async () => {
-    const browser = await next.browser('/exports/app-code/react-dom-server-edge-explicit')
+    const browser = await next.browser(
+      '/exports/app-code/react-dom-server-edge-explicit'
+    )
 
     await waitForNoRedbox(browser)
     if (isTurbopack) {
@@ -168,7 +172,9 @@ describe('react-dom/server in React Server environment', () => {
   })
 
   it('implicit react-dom/server.edge usage in app code', async () => {
-    const browser = await next.browser('/exports/app-code/react-dom-server-edge-implicit')
+    const browser = await next.browser(
+      '/exports/app-code/react-dom-server-edge-implicit'
+    )
 
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
@@ -247,7 +253,9 @@ describe('react-dom/server in React Server environment', () => {
   })
 
   it('explicit react-dom/server.node usage in app code', async () => {
-    const browser = await next.browser('/exports/app-code/react-dom-server-node-explicit')
+    const browser = await next.browser(
+      '/exports/app-code/react-dom-server-node-explicit'
+    )
 
     await waitForRedbox(browser)
     const redbox = {
@@ -302,7 +310,9 @@ describe('react-dom/server in React Server environment', () => {
   })
 
   it('implicit react-dom/server.node usage in app code', async () => {
-    const browser = await next.browser('/exports/app-code/react-dom-server-node-implicit')
+    const browser = await next.browser(
+      '/exports/app-code/react-dom-server-node-implicit'
+    )
 
     await waitForRedbox(browser)
     const redbox = {
@@ -382,7 +392,9 @@ describe('react-dom/server in React Server environment', () => {
   })
 
   it('explicit react-dom/server.browser usage in library code', async () => {
-    const browser = await next.browser('/exports/library-code/react-dom-server-browser-explicit')
+    const browser = await next.browser(
+      '/exports/library-code/react-dom-server-browser-explicit'
+    )
 
     await waitForRedbox(browser)
     const redbox = {
@@ -437,7 +449,9 @@ describe('react-dom/server in React Server environment', () => {
   })
 
   it('explicit react-dom/server.edge usage in library code', async () => {
-    const browser = await next.browser('/exports/library-code/react-dom-server-edge-explicit')
+    const browser = await next.browser(
+      '/exports/library-code/react-dom-server-edge-explicit'
+    )
 
     await waitForNoRedbox(browser)
     if (isTurbopack) {
@@ -507,7 +521,9 @@ describe('react-dom/server in React Server environment', () => {
   })
 
   it('implicit react-dom/server.edge usage in library code', async () => {
-    const browser = await next.browser('/exports/library-code/react-dom-server-edge-implicit')
+    const browser = await next.browser(
+      '/exports/library-code/react-dom-server-edge-implicit'
+    )
 
     await waitForNoRedbox(browser)
     if (isTurbopack) {
@@ -577,7 +593,9 @@ describe('react-dom/server in React Server environment', () => {
   })
 
   it('explicit react-dom/server.node usage in library code', async () => {
-    const browser = await next.browser('/exports/library-code/react-dom-server-node-explicit')
+    const browser = await next.browser(
+      '/exports/library-code/react-dom-server-node-explicit'
+    )
 
     await waitForRedbox(browser)
     const redbox = {
@@ -632,7 +650,9 @@ describe('react-dom/server in React Server environment', () => {
   })
 
   it('implicit react-dom/server.node usage in library code', async () => {
-    const browser = await next.browser('/exports/library-code/react-dom-server-node-implicit')
+    const browser = await next.browser(
+      '/exports/library-code/react-dom-server-node-implicit'
+    )
 
     await waitForRedbox(browser)
     const redbox = {

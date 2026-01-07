@@ -1,13 +1,19 @@
 export const fetchCache = 'force-cache'
 
 export default async function Page() {
-  const dataNoCache = await fetch('https://next-data-api-endpoint.vercel.app/api/random?a1', {
-    cache: 'no-cache',
-  }).then((res) => res.text())
+  const dataNoCache = await fetch(
+    'https://next-data-api-endpoint.vercel.app/api/random?a1',
+    {
+      cache: 'no-cache',
+    }
+  ).then((res) => res.text())
 
-  const dataForceCache = await fetch('https://next-data-api-endpoint.vercel.app/api/random?b2', {
-    cache: 'force-cache',
-  }).then((res) => res.text())
+  const dataForceCache = await fetch(
+    'https://next-data-api-endpoint.vercel.app/api/random?b2',
+    {
+      cache: 'force-cache',
+    }
+  ).then((res) => res.text())
 
   const dataRevalidateCache = await fetch(
     'https://next-data-api-endpoint.vercel.app/api/random?c3',
@@ -28,9 +34,9 @@ export default async function Page() {
     }
   ).then((res) => res.text())
 
-  const dataAutoCache = await fetch('https://next-data-api-endpoint.vercel.app/api/random?d4').then(
-    (res) => res.text()
-  )
+  const dataAutoCache = await fetch(
+    'https://next-data-api-endpoint.vercel.app/api/random?d4'
+  ).then((res) => res.text())
 
   return (
     <>

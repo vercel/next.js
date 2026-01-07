@@ -1,4 +1,10 @@
-import type { API, Collection, FileInfo, JSCodeshift, Options } from 'jscodeshift'
+import type {
+  API,
+  Collection,
+  FileInfo,
+  JSCodeshift,
+  Options,
+} from 'jscodeshift'
 import { createParserFromPath } from '../lib/parser'
 
 function addReactImport(j: JSCodeshift, root: Collection) {
@@ -29,7 +35,10 @@ function addReactImport(j: JSCodeshift, root: Collection) {
 
   // Create import node
   // import React from 'react'
-  const ReactImport = j.importDeclaration([ReactDefaultSpecifier], j.stringLiteral('react'))
+  const ReactImport = j.importDeclaration(
+    [ReactDefaultSpecifier],
+    j.stringLiteral('react')
+  )
 
   // Find the Program, this is the top level AST node
   const Program = root.find(j.Program)
@@ -39,7 +48,11 @@ function addReactImport(j: JSCodeshift, root: Collection) {
   })
 }
 
-export default function transformer(file: FileInfo, _api: API, options: Options) {
+export default function transformer(
+  file: FileInfo,
+  _api: API,
+  options: Options
+) {
   const j = createParserFromPath(file.path)
   const root = j(file.source)
 

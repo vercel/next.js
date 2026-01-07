@@ -3,7 +3,11 @@
 import { use } from 'react'
 
 function log(outBadge: string, errBadge: string) {
-  console.info(`${outBadge} /console-after-abort/client: template(one: %s, two: %s)`, 'one', 'two')
+  console.info(
+    `${outBadge} /console-after-abort/client: template(one: %s, two: %s)`,
+    'one',
+    'two'
+  )
   console.log(
     `${outBadge} /console-after-abort/client: This is a console page. Don't match the codeframe.`
   )

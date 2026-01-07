@@ -4,7 +4,9 @@ export async function getServerSideProps({ req }) {
   await sleep(1000)
   return {
     props: {
-      searchParams: Object.fromEntries(new URL(req.url, 'http://n').searchParams.entries()),
+      searchParams: Object.fromEntries(
+        new URL(req.url, 'http://n').searchParams.entries()
+      ),
     },
   }
 }

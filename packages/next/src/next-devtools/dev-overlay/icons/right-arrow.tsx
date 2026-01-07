@@ -1,4 +1,10 @@
-export function RightArrow({ title, className }: { title?: string; className?: string }) {
+export function RightArrow({
+  title,
+  className,
+}: {
+  title?: string
+  className?: string
+}) {
   return (
     <svg
       width="16"

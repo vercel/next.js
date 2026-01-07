@@ -8,7 +8,9 @@ type ErrorOverlayFooterProps = {
 export function ErrorOverlayFooter({ errorCode }: ErrorOverlayFooterProps) {
   return (
     <footer data-nextjs-error-overlay-footer className="error-overlay-footer">
-      {errorCode ? <ErrorFeedback className="error-feedback" errorCode={errorCode} /> : null}
+      {errorCode ? (
+        <ErrorFeedback className="error-feedback" errorCode={errorCode} />
+      ) : null}
     </footer>
   )
 }

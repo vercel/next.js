@@ -15,13 +15,23 @@ const context = { basePath: '', outputPath: '', isDev: false, tracing }
 describe('getBlurImage', () => {
   it('should return image for jpg', async () => {
     const buffer = await getImage('./images/test.jpg')
-    const result = await getBlurImage(buffer, 'jpeg', { width: 400, height: 400 }, context)
+    const result = await getBlurImage(
+      buffer,
+      'jpeg',
+      { width: 400, height: 400 },
+      context
+    )
     expect(result).toBeObject()
     expect(result.dataURL).toBeString()
   })
   it('should return undefined for animated webp', async () => {
     const buffer = await getImage('./images/animated.webp')
-    const result = await getBlurImage(buffer, 'webp', { width: 400, height: 400 }, context)
+    const result = await getBlurImage(
+      buffer,
+      'webp',
+      { width: 400, height: 400 },
+      context
+    )
     expect(result).toBeObject()
     expect(result.dataURL).toBeUndefined()
   })

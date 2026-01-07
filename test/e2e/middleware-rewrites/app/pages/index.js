@@ -13,15 +13,24 @@ export default function Home() {
       <div />
       <Link href="/rewrite-to-ab-test">A/B test homepage</Link>
       <div />
-      <Link href="/rewrite-me-to-about?override=internal" id="rewrite-me-to-about">
+      <Link
+        href="/rewrite-me-to-about?override=internal"
+        id="rewrite-me-to-about"
+      >
         Rewrite me to about
       </Link>
       <div />
-      <Link href="/rewrite-to-beforefiles-rewrite" id="rewrite-to-beforefiles-rewrite">
+      <Link
+        href="/rewrite-to-beforefiles-rewrite"
+        id="rewrite-to-beforefiles-rewrite"
+      >
         Rewrite me to beforeFiles Rewrite
       </Link>
       <div />
-      <Link href="/rewrite-to-afterfiles-rewrite" id="rewrite-to-afterfiles-rewrite">
+      <Link
+        href="/rewrite-to-afterfiles-rewrite"
+        id="rewrite-to-afterfiles-rewrite"
+      >
         Rewrite me to afterFiles Rewrite
       </Link>
       <div />
@@ -64,9 +73,13 @@ export default function Home() {
         id="link-to-shallow-push"
         onClick={(e) => {
           e.preventDefault()
-          router.push('/?path=rewrite-me-without-hard-navigation&message=refreshed', undefined, {
-            shallow: true,
-          })
+          router.push(
+            '/?path=rewrite-me-without-hard-navigation&message=refreshed',
+            undefined,
+            {
+              shallow: true,
+            }
+          )
         }}
       >
         Do not rewrite me

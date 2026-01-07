@@ -6,5 +6,7 @@ it('should not show deopted into client rendering warning', async () => {
     stderr: true,
   })
   expect(output.code).toBe(0)
-  expect(output.stderr).not.toContain(`Entire page / deopted into client-side rendering.`)
+  expect(output.stderr).not.toContain(
+    `Entire page / deopted into client-side rendering.`
+  )
 })

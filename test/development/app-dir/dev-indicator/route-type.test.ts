@@ -16,7 +16,10 @@ describe('app dir dev indicator - route type', () => {
     const browser = await next.browser('/')
     const origContent = await next.readFile('app/page.tsx')
 
-    await next.patchFile('app/page.tsx', origContent.replace('// headers()', 'headers()'))
+    await next.patchFile(
+      'app/page.tsx',
+      origContent.replace('// headers()', 'headers()')
+    )
 
     try {
       await waitForStaticIndicator(browser, 'Dynamic')
@@ -28,7 +31,10 @@ describe('app dir dev indicator - route type', () => {
   it('should have route type as dynamic when on load of dynamic page', async () => {
     const origContent = await next.readFile('app/page.tsx')
 
-    await next.patchFile('app/page.tsx', origContent.replace('// headers()', 'headers()'))
+    await next.patchFile(
+      'app/page.tsx',
+      origContent.replace('// headers()', 'headers()')
+    )
 
     const browser = await next.browser('/')
 

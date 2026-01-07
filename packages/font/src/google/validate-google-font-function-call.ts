@@ -71,8 +71,12 @@ export function validateGoogleFontFunctionCall(
   const fontStyles = fontFamilyData.styles
 
   // Get the unique weights and styles from the function call
-  const weights = !weight ? [] : [...new Set(Array.isArray(weight) ? weight : [weight])]
-  const styles = !style ? [] : [...new Set(Array.isArray(style) ? style : [style])]
+  const weights = !weight
+    ? []
+    : [...new Set(Array.isArray(weight) ? weight : [weight])]
+  const styles = !style
+    ? []
+    : [...new Set(Array.isArray(style) ? style : [style])]
 
   if (weights.length === 0) {
     // Set variable as default, throw if not available

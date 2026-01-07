@@ -41,12 +41,16 @@ for (const type of ['with-mdx-rs', 'without-mdx-rs']) {
       it('should work using browser with mdx import', async () => {
         const browser = await next.browser('/import')
         expect(await browser.elementByCss('h1').text()).toBe('This is a title')
-        expect(await browser.elementByCss('p').text()).toBe('This is a paragraph')
+        expect(await browser.elementByCss('p').text()).toBe(
+          'This is a paragraph'
+        )
       })
 
       it('should allow overriding components', async () => {
         const browser = await next.browser('/')
-        expect(await browser.elementByCss('h1').getComputedCss('color')).toBe('rgb(255, 0, 0)')
+        expect(await browser.elementByCss('h1').getComputedCss('color')).toBe(
+          'rgb(255, 0, 0)'
+        )
       })
 
       it('should allow importing client components', async () => {
@@ -56,7 +60,9 @@ for (const type of ['with-mdx-rs', 'without-mdx-rs']) {
 
       it('should work with next/image', async () => {
         const $ = await next.render$('/image')
-        expect($('img').attr('src')).toBe('/_next/image?url=%2Ftest.jpg&w=384&q=75')
+        expect($('img').attr('src')).toBe(
+          '/_next/image?url=%2Ftest.jpg&w=384&q=75'
+        )
       })
 
       if (type === 'without-mdx-rs') {
@@ -110,12 +116,16 @@ for (const type of ['with-mdx-rs', 'without-mdx-rs']) {
       it('should work using browser with mdx import', async () => {
         const browser = await next.browser('/pages/import')
         expect(await browser.elementByCss('h1').text()).toBe('This is a title')
-        expect(await browser.elementByCss('p').text()).toBe('This is a paragraph')
+        expect(await browser.elementByCss('p').text()).toBe(
+          'This is a paragraph'
+        )
       })
 
       it('should allow overriding components', async () => {
         const browser = await next.browser('/pages')
-        expect(await browser.elementByCss('h1').getComputedCss('color')).toBe('rgb(255, 0, 0)')
+        expect(await browser.elementByCss('h1').getComputedCss('color')).toBe(
+          'rgb(255, 0, 0)'
+        )
       })
     })
   })

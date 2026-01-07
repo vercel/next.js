@@ -7,7 +7,10 @@ interface CallStackProps {
   dialogResizerRef: React.RefObject<HTMLDivElement | null>
 }
 
-export function ErrorOverlayCallStack({ frames, dialogResizerRef }: CallStackProps) {
+export function ErrorOverlayCallStack({
+  frames,
+  dialogResizerRef,
+}: CallStackProps) {
   const initialDialogHeight = useRef<number>(NaN)
   const [isIgnoreListOpen, setIsIgnoreListOpen] = useState(false)
 

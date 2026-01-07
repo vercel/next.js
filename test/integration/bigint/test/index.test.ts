@@ -2,7 +2,14 @@
 
 import fs from 'fs-extra'
 import { join } from 'path'
-import { fetchViaHTTP, launchApp, nextBuild, nextStart, killApp, findPort } from 'next-test-utils'
+import {
+  fetchViaHTTP,
+  launchApp,
+  nextBuild,
+  nextStart,
+  killApp,
+  findPort,
+} from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
 const nextConfig = join(appDir, 'next.config.js')
@@ -26,24 +33,30 @@ const runTests = () => {
 }
 
 describe('bigint API route support', () => {
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-    runTests()
-  })
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await fs.remove(nextConfig)
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+      runTests()
+    }
+  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await fs.remove(nextConfig)
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-    runTests()
-  })
+      runTests()
+    }
+  )
 })

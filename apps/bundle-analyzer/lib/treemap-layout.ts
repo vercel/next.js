@@ -125,7 +125,11 @@ function computeTreemapLayoutFromAnalyzeInternal(
   const childrenIndices = analyzeData.sourceChildren(sourceIndex)
 
   // Fold single-child directories
-  if (childrenIndices.length === 1 && isDirectory && (foldedPath + source.path).length <= 40) {
+  if (
+    childrenIndices.length === 1 &&
+    isDirectory &&
+    (foldedPath + source.path).length <= 40
+  ) {
     const childIndex = childrenIndices[0]
     const child = analyzeData.source(childIndex)
     if (child?.path.endsWith('/')) {
@@ -162,7 +166,9 @@ function computeTreemapLayoutFromAnalyzeInternal(
   const directoryName = foldedPath + source.path || 'All Route Modules'
 
   // Directory with children
-  const titleBarHeight = Math.round(Math.max(12, Math.min(24, rect.height * 0.1)))
+  const titleBarHeight = Math.round(
+    Math.max(12, Math.min(24, rect.height * 0.1))
+  )
   const isCollapsed = rect.height < 30
 
   const contentRect: LayoutRect = {
@@ -177,7 +183,10 @@ function computeTreemapLayoutFromAnalyzeInternal(
     function countDescendants(idx: SourceIndex): number {
       const children = analyzeData.sourceChildren(idx)
       if (children.length === 0) return 1
-      return children.reduce((sum, childIdx) => sum + countDescendants(childIdx), 0)
+      return children.reduce(
+        (sum, childIdx) => sum + countDescendants(childIdx),
+        0
+      )
     }
 
     return {

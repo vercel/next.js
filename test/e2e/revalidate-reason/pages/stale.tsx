@@ -1,7 +1,10 @@
 import React from 'react'
 
 export async function getStaticProps({ params, revalidateReason }) {
-  console.log('revalidate-reason/pages/stale.tsx revalidateReason:', revalidateReason)
+  console.log(
+    'revalidate-reason/pages/stale.tsx revalidateReason:',
+    revalidateReason
+  )
   return {
     props: {
       reason: revalidateReason,

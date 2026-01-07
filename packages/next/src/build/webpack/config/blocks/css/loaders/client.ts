@@ -31,7 +31,9 @@ export function getClientStyleLoader({
 
           // These elements should always exist. If they do not,
           // this code should fail.
-          var anchorElement = document.querySelector('#__next_css__DO_NOT_USE__')!
+          var anchorElement = document.querySelector(
+            '#__next_css__DO_NOT_USE__'
+          )!
           var parentNode = anchorElement.parentNode! // Normally <head>
 
           // Each style tag should be placed right before our

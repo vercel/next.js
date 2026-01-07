@@ -66,7 +66,9 @@ export class AppDevOverlayErrorBoundary extends PureComponent<
     const { children, globalError } = this.props
     const { reactError } = this.state
 
-    const fallback = <ErroredHtml globalError={globalError} error={reactError} />
+    const fallback = (
+      <ErroredHtml globalError={globalError} error={reactError} />
+    )
 
     return reactError !== null ? fallback : children
   }

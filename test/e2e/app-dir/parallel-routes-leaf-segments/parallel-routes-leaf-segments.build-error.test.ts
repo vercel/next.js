@@ -37,7 +37,9 @@ describe('parallel-routes-leaf-segments-build-error', () => {
           expect(logs).toEqual(
             expect.arrayContaining([
               expect.objectContaining({
-                message: expect.stringContaining('/with-children/@header/default.js'),
+                message: expect.stringContaining(
+                  '/with-children/@header/default.js'
+                ),
               }),
             ])
           )

@@ -2,7 +2,11 @@ import { nextTestSetup } from 'e2e-utils'
 import { check, waitFor, retry } from 'next-test-utils'
 import { Readable } from 'stream'
 
-import { withRequestMeta, getRequestMeta, cookieWithRequestMeta } from './helpers'
+import {
+  withRequestMeta,
+  getRequestMeta,
+  cookieWithRequestMeta,
+} from './helpers'
 
 const basePath = process.env.BASE_PATH ?? ''
 
@@ -18,18 +22,32 @@ describe('app-custom-routes', () => {
   describe('works with api prefix correctly', () => {
     it('statically generates correctly with no dynamic usage', async () => {
       if (isNextStart) {
-        expect(await next.readFile('.next/server/app/api/hello.json.body')).toBeTruthy()
-        expect(await next.readFile('.next/server/app/api/hello.json.meta')).toBeTruthy()
+        expect(
+          await next.readFile('.next/server/app/api/hello.json.body')
+        ).toBeTruthy()
+        expect(
+          await next.readFile('.next/server/app/api/hello.json.meta')
+        ).toBeTruthy()
       }
-      expect(JSON.parse(await next.render(basePath + '/api/hello.json'))).toEqual({
+      expect(
+        JSON.parse(await next.render(basePath + '/api/hello.json'))
+      ).toEqual({
         pathname: '/api/hello.json',
       })
     })
 
     it('does not statically generate with dynamic usage', async () => {
       if (isNextStart) {
-        expect(await next.readFile('.next/server/app/api/dynamic.body').catch(() => '')).toBeFalsy()
-        expect(await next.readFile('.next/server/app/api/dynamic.meta').catch(() => '')).toBeFalsy()
+        expect(
+          await next
+            .readFile('.next/server/app/api/dynamic.body')
+            .catch(() => '')
+        ).toBeFalsy()
+        expect(
+          await next
+            .readFile('.next/server/app/api/dynamic.meta')
+            .catch(() => '')
+        ).toBeFalsy()
       }
       expect(JSON.parse(await next.render(basePath + '/api/dynamic'))).toEqual({
         pathname: '/api/dynamic',
@@ -39,22 +57,27 @@ describe('app-custom-routes', () => {
   })
 
   describe('works with generateStaticParams correctly', () => {
-    it.each(['/static/first/data.json', '/static/second/data.json', '/static/three/data.json'])(
-      'responds correctly on %s',
-      async (path) => {
-        expect(JSON.parse(await next.render(basePath + path))).toEqual({
-          params: { slug: path.split('/', 3)[2] },
-          now: expect.any(Number),
-        })
-        if (isNextStart) {
-          await check(async () => {
-            expect(await next.readFile(`.next/server/app/${path}.body`)).toBeTruthy()
-            expect(await next.readFile(`.next/server/app/${path}.meta`)).toBeTruthy()
-            return 'success'
-          }, 'success')
-        }
+    it.each([
+      '/static/first/data.json',
+      '/static/second/data.json',
+      '/static/three/data.json',
+    ])('responds correctly on %s', async (path) => {
+      expect(JSON.parse(await next.render(basePath + path))).toEqual({
+        params: { slug: path.split('/', 3)[2] },
+        now: expect.any(Number),
+      })
+      if (isNextStart) {
+        await check(async () => {
+          expect(
+            await next.readFile(`.next/server/app/${path}.body`)
+          ).toBeTruthy()
+          expect(
+            await next.readFile(`.next/server/app/${path}.meta`)
+          ).toBeTruthy()
+          return 'success'
+        }, 'success')
       }
-    )
+    })
 
     it.each([
       '/revalidate-1/first/data.json',
@@ -74,8 +97,12 @@ describe('app-custom-routes', () => {
 
       if (isNextStart) {
         await check(async () => {
-          expect(await next.readFile(`.next/server/app/${path}.body`)).toBeTruthy()
-          expect(await next.readFile(`.next/server/app/${path}.meta`)).toBeTruthy()
+          expect(
+            await next.readFile(`.next/server/app/${path}.body`)
+          ).toBeTruthy()
+          expect(
+            await next.readFile(`.next/server/app/${path}.meta`)
+          ).toBeTruthy()
           return 'success'
         }, 'success')
       }
@@ -83,50 +110,58 @@ describe('app-custom-routes', () => {
   })
 
   describe('basic fetch request with a response', () => {
-    describe.each(['GET', 'POST', 'PUT', 'DELETE', 'PATCH'])('made via a %s request', (method) => {
-      it.each(['/basic/endpoint', '/basic/vercel/endpoint'])(
-        'responds correctly on %s',
-        async (path) => {
-          const res = await next.fetch(basePath + path, { method })
+    describe.each(['GET', 'POST', 'PUT', 'DELETE', 'PATCH'])(
+      'made via a %s request',
+      (method) => {
+        it.each(['/basic/endpoint', '/basic/vercel/endpoint'])(
+          'responds correctly on %s',
+          async (path) => {
+            const res = await next.fetch(basePath + path, { method })
 
-          expect(res.status).toEqual(200)
-          expect(await res.text()).toContain('hello, world')
+            expect(res.status).toEqual(200)
+            expect(await res.text()).toContain('hello, world')
 
-          const meta = getRequestMeta(res.headers)
-          expect(meta.method).toEqual(method)
-        }
-      )
-    })
-
-    describe.each(['GET', 'POST', 'PUT', 'DELETE', 'PATCH'])('abort via a %s request', (method) => {
-      it.each(['/basic/endpoint', '/basic/vercel/endpoint'])(
-        'aborts without error on %s',
-        async (path) => {
-          const outputIdx = next.cliOutput.length
-          const controller = new AbortController()
-
-          const resProm = next
-            .fetch(basePath + path, {
-              method,
-              signal: controller.signal,
-            })
-            .catch((err) => err)
-
-          setTimeout(() => {
-            controller.abort()
-          }, 10)
-
-          await resProm
-
-          for (let i = 0; i < 3; i++) {
-            await waitFor(1000)
-            const trimmedOutput = next.cliOutput.substring(outputIdx)
-            expect(trimmedOutput).not.toContain('Error')
-            expect(trimmedOutput).not.toContain('should not be disturbed or locked')
+            const meta = getRequestMeta(res.headers)
+            expect(meta.method).toEqual(method)
           }
-        }
-      )
-    })
+        )
+      }
+    )
+
+    describe.each(['GET', 'POST', 'PUT', 'DELETE', 'PATCH'])(
+      'abort via a %s request',
+      (method) => {
+        it.each(['/basic/endpoint', '/basic/vercel/endpoint'])(
+          'aborts without error on %s',
+          async (path) => {
+            const outputIdx = next.cliOutput.length
+            const controller = new AbortController()
+
+            const resProm = next
+              .fetch(basePath + path, {
+                method,
+                signal: controller.signal,
+              })
+              .catch((err) => err)
+
+            setTimeout(() => {
+              controller.abort()
+            }, 10)
+
+            await resProm
+
+            for (let i = 0; i < 3; i++) {
+              await waitFor(1000)
+              const trimmedOutput = next.cliOutput.substring(outputIdx)
+              expect(trimmedOutput).not.toContain('Error')
+              expect(trimmedOutput).not.toContain(
+                'should not be disturbed or locked'
+              )
+            }
+          }
+        )
+      }
+    )
 
     describe('route groups', () => {
       it('routes to the correct handler', async () => {
@@ -148,7 +183,9 @@ describe('app-custom-routes', () => {
       })
 
       it('can read query parameters (edge)', async () => {
-        const res = await next.fetch(basePath + '/edge/advanced/query?ping=pong')
+        const res = await next.fetch(
+          basePath + '/edge/advanced/query?ping=pong'
+        )
 
         expect(res.status).toEqual(200)
         const meta = getRequestMeta(res.headers)
@@ -368,7 +405,9 @@ describe('app-custom-routes', () => {
     })
 
     it('provides params to routes with catch-all routes', async () => {
-      const res = await next.fetch(basePath + '/basic/vercel/some/other/resource')
+      const res = await next.fetch(
+        basePath + '/basic/vercel/some/other/resource'
+      )
 
       expect(res.status).toEqual(200)
       const meta = getRequestMeta(res.headers)
@@ -510,7 +549,8 @@ describe('app-custom-routes', () => {
     })
 
     it('responds with 500 (Internal Server Error) when the handler calls NextResponse.next()', async () => {
-      const error = 'https://nextjs.org/docs/messages/next-response-next-in-app-route-handler'
+      const error =
+        'https://nextjs.org/docs/messages/next-response-next-in-app-route-handler'
 
       // Precondition. We shouldn't have seen this before. This ensures we're
       // testing that the specific route throws this error in the console.

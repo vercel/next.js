@@ -12,7 +12,9 @@ describe.skip('styled-components SWC transform', () => {
   beforeAll(async () => {
     next = await createNext({
       files: {
-        'next.config.js': new FileRef(join(__dirname, 'styled-components-disabled/next.config.js')),
+        'next.config.js': new FileRef(
+          join(__dirname, 'styled-components-disabled/next.config.js')
+        ),
         pages: new FileRef(join(__dirname, 'styled-components-disabled/pages')),
       },
       dependencies: {
@@ -34,7 +36,9 @@ describe.skip('styled-components SWC transform', () => {
         expect(logs).toEqual(
           expect.arrayContaining([
             {
-              message: expect.stringContaining('https://react.dev/link/hydration-mismatch'),
+              message: expect.stringContaining(
+                'https://react.dev/link/hydration-mismatch'
+              ),
               source: 'error',
             },
           ])

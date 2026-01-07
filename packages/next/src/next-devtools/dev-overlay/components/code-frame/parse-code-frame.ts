@@ -23,7 +23,8 @@ export function formatCodeFrame(codeFrame: string) {
     return lines
       .map((line, a) =>
         ~(a = line.indexOf('|'))
-          ? line.substring(0, a) + line.substring(a).replace(`^\\ {${miniLeadingSpacesLength}}`, '')
+          ? line.substring(0, a) +
+            line.substring(a).replace(`^\\ {${miniLeadingSpacesLength}}`, '')
           : line
       )
       .join('\n')
@@ -71,7 +72,10 @@ export function groupCodeFrameLines(formattedFrame: string) {
   return lines
 }
 
-export function parseLineNumberFromCodeFrameLine(line: AnserJsonEntry[], stackFrame: StackFrame) {
+export function parseLineNumberFromCodeFrameLine(
+  line: AnserJsonEntry[],
+  stackFrame: StackFrame
+) {
   let lineNumberToken: AnserJsonEntry | undefined
   let line1: string | undefined
   // parse line number from line first 2 tokens

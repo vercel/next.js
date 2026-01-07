@@ -255,8 +255,12 @@ describe('nextjs APIs in after()', () => {
         // in `next start`, static routes log the error at build time
         const logs = isDynamic || isNextDev ? getLogs() : buildLogs
         expect(logs).toContain(`[${path}] draft.isEnabled: false`)
-        expect(logs).toContain(`Route ${path} used "draftMode().enable()" inside \`after()\``)
-        expect(logs).toContain(`Route ${path} used "draftMode().disable()" inside \`after()\``)
+        expect(logs).toContain(
+          `Route ${path} used "draftMode().enable()" inside \`after()\``
+        )
+        expect(logs).toContain(
+          `Route ${path} used "draftMode().disable()" inside \`after()\``
+        )
       })
     })
 
@@ -267,8 +271,12 @@ describe('nextjs APIs in after()', () => {
       await retry(() => {
         const logs = getLogs()
         expect(logs).toContain(`[${path}] draft.isEnabled: false`)
-        expect(logs).toContain(`Route ${path} used "draftMode().enable()" inside \`after()\``)
-        expect(logs).toContain(`Route ${path} used "draftMode().disable()" inside \`after()\``)
+        expect(logs).toContain(
+          `Route ${path} used "draftMode().enable()" inside \`after()\``
+        )
+        expect(logs).toContain(
+          `Route ${path} used "draftMode().disable()" inside \`after()\``
+        )
       })
     })
   })

@@ -1,7 +1,11 @@
 import type { API, FileInfo, Options } from 'jscodeshift'
 import { createParserFromPath } from '../lib/parser'
 
-export default function transformer(file: FileInfo, _api: API, options: Options) {
+export default function transformer(
+  file: FileInfo,
+  _api: API,
+  options: Options
+) {
   const j = createParserFromPath(file.path)
   const root = j(file.source)
   let hasChanges = false

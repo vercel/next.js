@@ -8,7 +8,10 @@ async function main() {
   const tarballs = await fs.readdir(path.join(cwd, 'public'))
   const nextTarball = tarballs.find((item) => !item.includes('-swc'))
 
-  await fs.rename(path.join(cwd, 'public', nextTarball), path.join(cwd, nextTarball))
+  await fs.rename(
+    path.join(cwd, 'public', nextTarball),
+    path.join(cwd, nextTarball)
+  )
 
   await new Promise((resolve, reject) => {
     const child = spawn('tar', ['-xf', nextTarball], {
@@ -26,7 +29,9 @@ async function main() {
   })
 
   const unpackedPackageJson = path.join(cwd, 'package/package.json')
-  const parsedPackageJson = JSON.parse(await fs.readFile(unpackedPackageJson, 'utf8'))
+  const parsedPackageJson = JSON.parse(
+    await fs.readFile(unpackedPackageJson, 'utf8')
+  )
   const { optionalDependencies } = parsedPackageJson
 
   for (const key of Object.keys(optionalDependencies)) {
@@ -36,7 +41,10 @@ async function main() {
     )
   }
 
-  await fs.writeFile(unpackedPackageJson, JSON.stringify(parsedPackageJson, null, 2))
+  await fs.writeFile(
+    unpackedPackageJson,
+    JSON.stringify(parsedPackageJson, null, 2)
+  )
 
   await fs.unlink(nextTarball)
 
@@ -55,7 +63,10 @@ async function main() {
     })
   })
 
-  await fs.rename(path.join(cwd, nextTarball), path.join(cwd, 'public', nextTarball))
+  await fs.rename(
+    path.join(cwd, nextTarball),
+    path.join(cwd, 'public', nextTarball)
+  )
 }
 
 main().catch((err) => {

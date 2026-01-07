@@ -10,9 +10,13 @@ import ImportsDefault from 'my-esm-package/imports'
 import * as ImportsNamed from 'my-esm-package/imports'
 import { named as namedImports } from 'my-esm-package/imports'
 
-const pendingDynamicExports = import('my-esm-package/exports').then((mod) => JSON.stringify(mod))
+const pendingDynamicExports = import('my-esm-package/exports').then((mod) =>
+  JSON.stringify(mod)
+)
 
-const pendingDynamicImports = import('my-esm-package/imports').then((mod) => JSON.stringify(mod))
+const pendingDynamicImports = import('my-esm-package/imports').then((mod) =>
+  JSON.stringify(mod)
+)
 
 import Client from './client'
 

@@ -8,7 +8,11 @@ import type {
 } from '../../../types'
 import type { PagesRouteDefinition } from '../../route-definitions/pages-route-definition'
 import type { NextParsedUrlQuery } from '../../request-meta'
-import type { PagesRenderContext, PagesSharedContext, RenderOpts } from '../../render'
+import type {
+  PagesRenderContext,
+  PagesSharedContext,
+  RenderOpts,
+} from '../../render'
 import type RenderResult from '../../render-result'
 import type { AppType, DocumentType } from '../../../shared/lib/utils'
 
@@ -119,7 +123,10 @@ export interface PagesRouteHandlerContext extends RouteModuleHandleContext {
   renderOpts: Omit<RenderOpts, 'Document' | 'App'>
 }
 
-export class PagesRouteModule extends RouteModule<PagesRouteDefinition, PagesUserlandModule> {
+export class PagesRouteModule extends RouteModule<
+  PagesRouteDefinition,
+  PagesUserlandModule
+> {
   private readonly components: PagesComponents
 
   constructor(options: PagesRouteModuleOptions) {

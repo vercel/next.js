@@ -20,7 +20,9 @@ export function GoogleTagManager(props: GTMParams) {
 
   currDataLayerName = dataLayerName
 
-  const scriptUrl = new URL(gtmScriptUrl || 'https://www.googletagmanager.com/gtm.js')
+  const scriptUrl = new URL(
+    gtmScriptUrl || 'https://www.googletagmanager.com/gtm.js'
+  )
   if (gtmId) {
     scriptUrl.searchParams.set('id', gtmId)
   }
@@ -62,7 +64,12 @@ export function GoogleTagManager(props: GTMParams) {
         }}
         nonce={nonce}
       />
-      <Script id="_next-gtm" data-ntpc="GTM" src={scriptUrl.href} nonce={nonce} />
+      <Script
+        id="_next-gtm"
+        data-ntpc="GTM"
+        src={scriptUrl.href}
+        nonce={nonce}
+      />
     </>
   )
 }

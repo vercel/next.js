@@ -39,7 +39,8 @@ export function getPathMatch(path: string, options?: Options): PatchMatcher {
   const keys: Key[] = []
   const regexp = pathToRegexp(path, keys, {
     delimiter: '/',
-    sensitive: typeof options?.sensitive === 'boolean' ? options.sensitive : false,
+    sensitive:
+      typeof options?.sensitive === 'boolean' ? options.sensitive : false,
     strict: options?.strict,
   })
 

@@ -1,4 +1,10 @@
-export const VALID_LOADERS = ['default', 'imgix', 'cloudinary', 'akamai', 'custom'] as const
+export const VALID_LOADERS = [
+  'default',
+  'imgix',
+  'cloudinary',
+  'akamai',
+  'custom',
+] as const
 
 export type LoaderValue = (typeof VALID_LOADERS)[number]
 

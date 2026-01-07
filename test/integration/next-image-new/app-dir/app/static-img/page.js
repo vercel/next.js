@@ -32,11 +32,24 @@ const Page = async () => {
       <h1 id="page-header">Static Image</h1>
       <Image id="basic-static" src={testImg} placeholder="blur" priority />
       <TallImage />
-      <Image id="defined-width-and-height" src={testPNG} height="150" width="150" />
+      <Image
+        id="defined-width-and-height"
+        src={testPNG}
+        height="150"
+        width="150"
+      />
       <Image id="defined-height-only" src={widePNG} height="350" />
       <Image id="defined-width-only" src={widePNG} width="400" />
-      <Image id="require-static" src={require('../../public/foo/test-rect.jpg')} />
-      <Image id="basic-non-static" src="/test-rect.jpg" width="400" height="300" />
+      <Image
+        id="require-static"
+        src={require('../../public/foo/test-rect.jpg')}
+      />
+      <Image
+        id="basic-non-static"
+        src="/test-rect.jpg"
+        width="400"
+        height="300"
+      />
       <br />
       <Image id="blur-png" src={testPNG} placeholder="blur" />
       <Image id="blur-jpg" src={testJPG} placeholder="blur" />
@@ -44,8 +57,20 @@ const Page = async () => {
       <Image id="blur-avif" src={testAVIF} placeholder="blur" />
       <Image id="blur-wide" src={widePNG} placeholder="blur" />
       <Image id="blur-tall" src={tallPNG} placeholder="blur" />
-      <Image id="blur-super-wide" src={superWidePNG} placeholder="blur" width={72} height={16} />
-      <Image id="blur-super-tall" src={superWidePNG} placeholder="blur" width={16} height={72} />
+      <Image
+        id="blur-super-wide"
+        src={superWidePNG}
+        placeholder="blur"
+        width={72}
+        height={16}
+      />
+      <Image
+        id="blur-super-tall"
+        src={superWidePNG}
+        placeholder="blur"
+        width={16}
+        height={72}
+      />
       <br />
       <Image id="static-svg" src={testSVG} />
       <Image id="static-gif" src={testGIF} />

@@ -51,9 +51,13 @@ export function makeGetServerInsertedHTML({
           ) : null
         )
       } else if (isRedirectError(error)) {
-        const redirectUrl = addPathPrefix(getURLFromRedirectError(error), basePath)
+        const redirectUrl = addPathPrefix(
+          getURLFromRedirectError(error),
+          basePath
+        )
         const statusCode = getRedirectStatusCodeFromError(error)
-        const isPermanent = statusCode === RedirectStatusCode.PermanentRedirect ? true : false
+        const isPermanent =
+          statusCode === RedirectStatusCode.PermanentRedirect ? true : false
         if (redirectUrl) {
           errorMetaTags.push(
             <meta

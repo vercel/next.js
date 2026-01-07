@@ -7,7 +7,10 @@ async function getCachedRandom(n: number) {
 }
 
 export async function generateStaticParams() {
-  return [{ id: `a${await getCachedRandom(9)}` }, { id: `b${await getCachedRandom(2)}` }]
+  return [
+    { id: `a${await getCachedRandom(9)}` },
+    { id: `b${await getCachedRandom(2)}` },
+  ]
 }
 
 export default async function Page() {

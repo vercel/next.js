@@ -1,4 +1,6 @@
-process.env.RSPACK_BINDING = require('node:path').dirname(require.resolve('@next/rspack-binding'))
+process.env.RSPACK_BINDING = require('node:path').dirname(
+  require.resolve('@next/rspack-binding')
+)
 
 const binding = require('@next/rspack-binding')
 

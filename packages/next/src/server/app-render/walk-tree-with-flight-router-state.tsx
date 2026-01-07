@@ -73,7 +73,8 @@ export async function walkTreeWithFlightRouterState({
   /**
    * Checks if the current segment or any level above it has a root layout.
    */
-  const rootLayoutIncludedAtThisLevelOrAbove = rootLayoutIncluded || rootLayoutAtThisLevel
+  const rootLayoutIncludedAtThisLevelOrAbove =
+    rootLayoutIncluded || rootLayoutAtThisLevel
 
   // Because this function walks to a deeper point in the tree to start rendering we have to track the dynamic parameters up to the point where rendering starts
   const segmentParam = getDynamicParamFromSegment(segment)
@@ -130,7 +131,9 @@ export async function walkTreeWithFlightRouterState({
     // never render any components. Only send the router state.
     (parsedRequestHeaders.isRouteTreePrefetchRequest ||
       // Otherwise, check for the presence of a `loading` component.
-      (isPrefetch && !Boolean(modules.loading) && !hasLoadingComponentInTree(loaderTreeToFilter)))
+      (isPrefetch &&
+        !Boolean(modules.loading) &&
+        !hasLoadingComponentInTree(loaderTreeToFilter)))
   ) {
     // Send only the router state.
     // TODO: Even for a dynamic route, we should cache these responses,
@@ -149,22 +152,47 @@ export async function walkTreeWithFlightRouterState({
     const routerState = parsedRequestHeaders.isRouteTreePrefetchRequest
       ? // Route tree prefetch requests contain some extra information
         createRouteTreePrefetch(loaderTreeToFilter, getDynamicParamFromSegment)
-      : createFlightRouterStateFromLoaderTree(loaderTreeToFilter, getDynamicParamFromSegment, query)
+      : createFlightRouterStateFromLoaderTree(
+          loaderTreeToFilter,
+          getDynamicParamFromSegment,
+          query
+        )
 
-    return [[overriddenSegment, routerState, null, [null, null], true] satisfies FlightDataSegment]
+    return [
+      [
+        overriddenSegment,
+        routerState,
+        null,
+        [null, null],
+        true,
+      ] satisfies FlightDataSegment,
+    ]
   }
 
   // Similar to the previous branch. This flag is sent by the client to request
   // only the metadata for a page. No segment data.
   if (flightRouterState && flightRouterState[3] === 'metadata-only') {
     const overriddenSegment =
-      flightRouterState && canSegmentBeOverridden(actualSegment, flightRouterState[0])
+      flightRouterState &&
+      canSegmentBeOverridden(actualSegment, flightRouterState[0])
         ? flightRouterState[0]
         : actualSegment
     const routerState = parsedRequestHeaders.isRouteTreePrefetchRequest
       ? createRouteTreePrefetch(loaderTreeToFilter, getDynamicParamFromSegment)
-      : createFlightRouterStateFromLoaderTree(loaderTreeToFilter, getDynamicParamFromSegment, query)
-    return [[overriddenSegment, routerState, null, rscHead, false] satisfies FlightDataSegment]
+      : createFlightRouterStateFromLoaderTree(
+          loaderTreeToFilter,
+          getDynamicParamFromSegment,
+          query
+        )
+    return [
+      [
+        overriddenSegment,
+        routerState,
+        null,
+        rscHead,
+        false,
+      ] satisfies FlightDataSegment,
+    ]
   }
 
   if (renderComponentsOnThisLevel) {
@@ -202,7 +230,15 @@ export async function walkTreeWithFlightRouterState({
       }
     )
 
-    return [[overriddenSegment, routerState, seedData, rscHead, false] satisfies FlightDataSegment]
+    return [
+      [
+        overriddenSegment,
+        routerState,
+        seedData,
+        rscHead,
+        false,
+      ] satisfies FlightDataSegment,
+    ]
   }
 
   // If we are not rendering on this level we need to check if the current
@@ -211,7 +247,9 @@ export async function walkTreeWithFlightRouterState({
   const layoutPath = layout?.[1]
   const injectedCSSWithCurrentLayout = new Set(injectedCSS)
   const injectedJSWithCurrentLayout = new Set(injectedJS)
-  const injectedFontPreloadTagsWithCurrentLayout = new Set(injectedFontPreloadTags)
+  const injectedFontPreloadTagsWithCurrentLayout = new Set(
+    injectedFontPreloadTags
+  )
   if (layoutPath) {
     getLinkAndScriptTags(
       layoutPath,
@@ -219,7 +257,11 @@ export async function walkTreeWithFlightRouterState({
       injectedJSWithCurrentLayout,
       true
     )
-    getPreloadableFonts(nextFontManifest, layoutPath, injectedFontPreloadTagsWithCurrentLayout)
+    getPreloadableFonts(
+      nextFontManifest,
+      layoutPath,
+      injectedFontPreloadTagsWithCurrentLayout
+    )
   }
 
   const paths: FlightDataPath[] = []
@@ -232,7 +274,8 @@ export async function walkTreeWithFlightRouterState({
       ctx,
       loaderTreeToFilter: parallelRoute,
       parentParams: currentParams,
-      flightRouterState: flightRouterState && flightRouterState[1][parallelRouteKey],
+      flightRouterState:
+        flightRouterState && flightRouterState[1][parallelRouteKey],
       parentIsInsideSharedLayout: isInsideSharedLayout,
       rscHead,
       injectedCSS: injectedCSSWithCurrentLayout,
@@ -255,7 +298,10 @@ export async function walkTreeWithFlightRouterState({
  * This function is used to determine if an existing segment can be overridden
  * by the incoming segment.
  */
-const canSegmentBeOverridden = (existingSegment: Segment, segment: Segment): boolean => {
+const canSegmentBeOverridden = (
+  existingSegment: Segment,
+  segment: Segment
+): boolean => {
   if (Array.isArray(existingSegment) || !Array.isArray(segment)) {
     return false
   }

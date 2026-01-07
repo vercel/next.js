@@ -19,7 +19,10 @@ export interface DeprecatedMetadataFields {
   'apple-touch-icon-precomposed'?: never | undefined
 }
 
-export type TemplateString = DefaultTemplateString | AbsoluteTemplateString | AbsoluteString
+export type TemplateString =
+  | DefaultTemplateString
+  | AbsoluteTemplateString
+  | AbsoluteString
 export type DefaultTemplateString = {
   default: string
   template: string

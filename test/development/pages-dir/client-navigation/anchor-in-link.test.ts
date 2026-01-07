@@ -29,7 +29,11 @@ describe('Client Navigation', () => {
     it('should not navigate if the <a/> tag has a target', async () => {
       const browser = await next.browser('/nav')
 
-      await browser.elementByCss('#increase').click().elementByCss('#target-link').click()
+      await browser
+        .elementByCss('#increase')
+        .click()
+        .elementByCss('#target-link')
+        .click()
 
       await waitFor(1000)
 
@@ -62,7 +66,10 @@ describe('Client Navigation', () => {
     it('should not reload when link in svg is clicked', async () => {
       const browser = await next.browser('/nav')
       await browser.eval('window.hello = true')
-      await browser.elementByCss('#in-svg-link').click().waitForElementByCss('.nav-about')
+      await browser
+        .elementByCss('#in-svg-link')
+        .click()
+        .waitForElementByCss('.nav-about')
 
       expect(await browser.eval('window.hello')).toBe(true)
       await browser.close()

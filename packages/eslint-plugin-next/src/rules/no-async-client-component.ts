@@ -47,18 +47,25 @@ export default defineRule({
             }
 
             // async function MyComponent() {...}; export default MyComponent;
-            if (block.declaration.type === 'Identifier' && isCapitalized(block.declaration.name)) {
+            if (
+              block.declaration.type === 'Identifier' &&
+              isCapitalized(block.declaration.name)
+            ) {
               const targetName = block.declaration.name
 
               const functionDeclaration = node.body.find((localBlock) => {
-                if (localBlock.type === 'FunctionDeclaration' && localBlock.id.name === targetName)
+                if (
+                  localBlock.type === 'FunctionDeclaration' &&
+                  localBlock.id.name === targetName
+                )
                   return true
 
                 if (
                   localBlock.type === 'VariableDeclaration' &&
                   localBlock.declarations.find(
                     (declaration) =>
-                      declaration.id?.type === 'Identifier' && declaration.id.name === targetName
+                      declaration.id?.type === 'Identifier' &&
+                      declaration.id.name === targetName
                   )
                 )
                   return true
@@ -79,7 +86,8 @@ export default defineRule({
               if (functionDeclaration?.type === 'VariableDeclaration') {
                 const varDeclarator = functionDeclaration.declarations.find(
                   (declaration) =>
-                    declaration.id?.type === 'Identifier' && declaration.id.name === targetName
+                    declaration.id?.type === 'Identifier' &&
+                    declaration.id.name === targetName
                 )
 
                 if (

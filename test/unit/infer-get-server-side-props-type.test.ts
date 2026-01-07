@@ -1,4 +1,7 @@
-import type { InferGetServerSidePropsType, GetServerSidePropsContext } from 'next'
+import type {
+  InferGetServerSidePropsType,
+  GetServerSidePropsContext,
+} from 'next'
 import { expectTypeOf } from 'expect-type'
 
 describe('InferGetServerSidePropsType', () => {

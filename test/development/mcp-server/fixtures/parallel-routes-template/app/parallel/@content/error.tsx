@@ -1,6 +1,12 @@
 'use client'
 
-export default function ContentError({ error, reset }: { error: Error; reset: () => void }) {
+export default function ContentError({
+  error,
+  reset,
+}: {
+  error: Error
+  reset: () => void
+}) {
   return (
     <div>
       <h2>Content Error: {error.message}</h2>

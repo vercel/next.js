@@ -131,7 +131,9 @@ describe('segment cache (search params)', () => {
     await act(
       async () => {
         await linkD.click()
-        const result = await browser.elementById('target-page-with-search-param')
+        const result = await browser.elementById(
+          'target-page-with-search-param'
+        )
         expect(await result.innerText()).toBe('Search param: d_full')
       },
       // No requests should be issued, because the page was fully prefetched.
@@ -150,9 +152,10 @@ describe('segment cache (search params)', () => {
     const revealLinkThatRewritesToANewSearchParam = await browser.elementByCss(
       'input[data-link-accordion="/search-params/target-page?searchParam=rewritesToANewSearchParam"]'
     )
-    const revealLinkThatAlsoRewritesToThatSameSearchParam = await browser.elementByCss(
-      'input[data-link-accordion="/search-params/target-page?searchParam=alsoRewritesToThatSameSearchParam"]'
-    )
+    const revealLinkThatAlsoRewritesToThatSameSearchParam =
+      await browser.elementByCss(
+        'input[data-link-accordion="/search-params/target-page?searchParam=alsoRewritesToThatSameSearchParam"]'
+      )
     await act(
       async () => {
         await revealLinkThatRewritesToANewSearchParam.click()
@@ -202,7 +205,9 @@ describe('segment cache (search params)', () => {
     await retry(async () => {
       const greeting = browser.locator('#greeting')
       expect(await greeting.isVisible()).toBe(true)
-      expect(await greeting.innerText()).toEqual('Greeting (from search params): (none)')
+      expect(await greeting.innerText()).toEqual(
+        'Greeting (from search params): (none)'
+      )
     })
 
     // This link rewrites to the current page, but with a search param that
@@ -220,7 +225,9 @@ describe('segment cache (search params)', () => {
     )
 
     // Clicking the link should update the greeting
-    const link = await browser.elementByCss('a[href="/search-params-with-greeting"]')
+    const link = await browser.elementByCss(
+      'a[href="/search-params-with-greeting"]'
+    )
     await act(async () => {
       await link.click()
     }, 'no-requests')
@@ -246,7 +253,9 @@ describe('segment cache (search params)', () => {
       await retry(async () => {
         const greeting = browser.locator('#greeting')
         expect(await greeting.isVisible()).toBe(true)
-        expect(await greeting.innerText()).toEqual('Greeting (from search params): hello')
+        expect(await greeting.innerText()).toEqual(
+          'Greeting (from search params): hello'
+        )
       })
 
       // This link rewrites to same target pathname as the current page, but with
@@ -264,7 +273,9 @@ describe('segment cache (search params)', () => {
       )
 
       // Clicking the link should remove the greeting
-      const link = await browser.elementByCss('a[href="/search-params-with-no-greeting"]')
+      const link = await browser.elementByCss(
+        'a[href="/search-params-with-no-greeting"]'
+      )
       await act(async () => {
         await link.click()
       }, 'no-requests')

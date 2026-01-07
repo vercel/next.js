@@ -15,18 +15,21 @@ describe('use-cache-dev', () => {
     it('should update cached data after editing a file', async () => {
       const browser = await next.browser('/')
 
-      const [initialFetchedRandom, initialText, initialMathRandom] = await Promise.all([
-        browser.elementById('fetchedRandom').text(),
-        browser.elementById('text').text(),
-        browser.elementById('mathRandom').text(),
-      ])
+      const [initialFetchedRandom, initialText, initialMathRandom] =
+        await Promise.all([
+          browser.elementById('fetchedRandom').text(),
+          browser.elementById('text').text(),
+          browser.elementById('mathRandom').text(),
+        ])
 
       expect(initialFetchedRandom).toMatch(/[0,1]\.\d+/)
       expect(initialText).toBe('foo')
       expect(initialMathRandom).toMatch(/[0,1]\.\d+/)
 
       // Edit something inside of "use cache" in the page.tsx file.
-      await next.patchFile('app/page.tsx', (content) => content.replace('foo', 'bar'))
+      await next.patchFile('app/page.tsx', (content) =>
+        content.replace('foo', 'bar')
+      )
 
       let newFetchedRandom: string
       let newText: string
@@ -51,7 +54,9 @@ describe('use-cache-dev', () => {
       })
 
       // Now revert the edit.
-      await next.patchFile('app/page.tsx', (content) => content.replace('bar', 'foo'))
+      await next.patchFile('app/page.tsx', (content) =>
+        content.replace('bar', 'foo')
+      )
 
       await retry(async () => {
         const [fetchedRandom, text, mathRandom] = await Promise.all([
@@ -116,7 +121,11 @@ describe('use-cache-dev', () => {
       let $ = await next.render$('/')
       const initialContent = $('#container').text()
 
-      $ = await next.render$('/', {}, { headers: { 'cache-control': 'no-cache' } })
+      $ = await next.render$(
+        '/',
+        {},
+        { headers: { 'cache-control': 'no-cache' } }
+      )
 
       const hardReloadContent = $('#container').text()
 
@@ -162,7 +171,9 @@ describe('use-cache-dev', () => {
       const browser = await next.browser('/')
 
       // Edit something in the root page.tsx file.
-      await next.patchFile('app/page.tsx', (content) => content.replace('foo', 'bar'))
+      await next.patchFile('app/page.tsx', (content) =>
+        content.replace('foo', 'bar')
+      )
 
       // Navigate to the nested page. This an explicit hard navigation. A soft
       // navigation plus refresh would also reproduce the issue.
@@ -171,7 +182,9 @@ describe('use-cache-dev', () => {
       expect(await browser.elementById('greeting').text()).toBe('Hi')
 
       // Edit something in the nested page.tsx file.
-      await next.patchFile('app/some/path/page.tsx', (content) => content.replace('Hi', 'Hello'))
+      await next.patchFile('app/some/path/page.tsx', (content) =>
+        content.replace('Hi', 'Hello')
+      )
 
       await retry(async () => {
         expect(await browser.elementById('greeting').text()).toBe('Hello')

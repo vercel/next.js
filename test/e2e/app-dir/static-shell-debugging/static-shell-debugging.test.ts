@@ -14,7 +14,9 @@ describe.skip('static-shell-debugging', () => {
     // are not supported. This is also intended to be used in development.
     skipDeployment: true,
     env: {
-      __NEXT_EXPERIMENTAL_STATIC_SHELL_DEBUGGING: context.debugging ? '1' : undefined,
+      __NEXT_EXPERIMENTAL_STATIC_SHELL_DEBUGGING: context.debugging
+        ? '1'
+        : undefined,
     },
     nextConfig: {
       experimental: { ppr: context.ppr },

@@ -5,7 +5,8 @@ import { renderViaHTTP } from 'next-test-utils'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 
-const mockedGoogleFontResponses = require.resolve('./google-font-mocked-responses.js')
+const mockedGoogleFontResponses =
+  require.resolve('./google-font-mocked-responses.js')
 
 function getClassNameRegex(className: string): RegExp {
   return new RegExp(`${className}`)
@@ -64,7 +65,9 @@ describe('next/font', () => {
       const link = $('[rel="preload"][as="font"]').attr('href')
       expect(link).toBeDefined()
       const res = await next.fetch(link)
-      expect(res.headers.get('cache-control')).toBe('public, max-age=31536000, immutable')
+      expect(res.headers.get('cache-control')).toBe(
+        'public, max-age=31536000, immutable'
+      )
     })
   }
 
@@ -82,7 +85,9 @@ describe('next/font', () => {
         className: expect.stringMatching(getClassNameRegex('className')),
         variable: expect.stringMatching(getClassNameRegex('variable')),
         style: {
-          fontFamily: expect.stringMatching(/^'Open Sans', 'Open Sans Fallback'$/),
+          fontFamily: expect.stringMatching(
+            /^'Open Sans', 'Open Sans Fallback'$/
+          ),
           fontStyle: 'normal',
         },
       })
@@ -92,7 +97,9 @@ describe('next/font', () => {
         className: expect.stringMatching(getClassNameRegex('className')),
         variable: expect.stringMatching(getClassNameRegex('variable')),
         style: {
-          fontFamily: expect.stringMatching(/^'Open Sans', 'Open Sans Fallback'$/),
+          fontFamily: expect.stringMatching(
+            /^'Open Sans', 'Open Sans Fallback'$/
+          ),
           fontStyle: 'normal',
         },
       })
@@ -125,7 +132,9 @@ describe('next/font', () => {
         className: expect.stringMatching(getClassNameRegex('className')),
         variable: expect.stringMatching(getClassNameRegex('variable')),
         style: {
-          fontFamily: expect.stringMatching(/^'Open Sans', 'Open Sans Fallback'$/),
+          fontFamily: expect.stringMatching(
+            /^'Open Sans', 'Open Sans Fallback'$/
+          ),
           fontStyle: 'normal',
         },
       })
@@ -134,7 +143,9 @@ describe('next/font', () => {
       expect(JSON.parse($('#first-local-font').text())).toEqual({
         className: expect.stringMatching(getClassNameRegex('className')),
         style: {
-          fontFamily: expect.stringMatching(/^'myFont1', 'myFont1 Fallback', system-ui$/),
+          fontFamily: expect.stringMatching(
+            /^'myFont1', 'myFont1 Fallback', system-ui$/
+          ),
           fontStyle: 'italic',
           fontWeight: 100,
         },
@@ -149,7 +160,10 @@ describe('next/font', () => {
     })
 
     test('Variable font without weight range', async () => {
-      const html = await renderViaHTTP(next.url, '/variable-font-without-weight-range')
+      const html = await renderViaHTTP(
+        next.url,
+        '/variable-font-without-weight-range'
+      )
       const $ = cheerio.load(html)
 
       expect(JSON.parse($('#nabla').text())).toEqual({
@@ -168,13 +182,19 @@ describe('next/font', () => {
 
       // _app.js
       expect(
-        await browser.eval('getComputedStyle(document.querySelector("#app-open-sans")).fontFamily')
+        await browser.eval(
+          'getComputedStyle(document.querySelector("#app-open-sans")).fontFamily'
+        )
       ).toMatch(/^"Open Sans", "Open Sans Fallback"$/)
       expect(
-        await browser.eval('getComputedStyle(document.querySelector("#app-open-sans")).fontWeight')
+        await browser.eval(
+          'getComputedStyle(document.querySelector("#app-open-sans")).fontWeight'
+        )
       ).toBe('400')
       expect(
-        await browser.eval('getComputedStyle(document.querySelector("#app-open-sans")).fontStyle')
+        await browser.eval(
+          'getComputedStyle(document.querySelector("#app-open-sans")).fontStyle'
+        )
       ).toBe('normal')
 
       // with-fonts.js
@@ -400,7 +420,10 @@ describe('next/font', () => {
     })
 
     test('font without preloadable subsets', async () => {
-      const html = await renderViaHTTP(next.url, '/font-without-preloadable-subsets')
+      const html = await renderViaHTTP(
+        next.url,
+        '/font-without-preloadable-subsets'
+      )
       const $ = cheerio.load(html)
 
       // Preconnect
@@ -637,10 +660,14 @@ describe('next/font', () => {
       `)
 
       // Check that the custom declaration is included in the CSS
-      expect(stylesheets).toContainEqual(expect.stringContaining('ascent-override: 90%;'))
+      expect(stylesheets).toContainEqual(
+        expect.stringContaining('ascent-override: 90%;')
+      )
 
       // Check that the custom declaration is included in the CSS and overrides the default family
-      expect(stylesheets).toContainEqual(expect.stringContaining('font-family: foobar;'))
+      expect(stylesheets).toContainEqual(
+        expect.stringContaining('font-family: foobar;')
+      )
     })
   })
 })

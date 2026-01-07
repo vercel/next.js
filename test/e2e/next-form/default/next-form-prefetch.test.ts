@@ -53,7 +53,9 @@ _describe('app dir - form prefetching', () => {
 
     // we're blocking requests, so the navigation won't go through,
     // but we should still see the prefetched loading state
-    expect(await session.waitForElementByCss('#loading').text()).toBe('Loading...')
+    expect(await session.waitForElementByCss('#loading').text()).toBe(
+      'Loading...'
+    )
 
     // We only resolve the dynamic request after we've confirmed loading exists,
     // to avoid a race where the dynamic request handles the loading state instead.
@@ -116,7 +118,9 @@ _describe('app dir - form prefetching', () => {
     navigationRequest.resolve()
 
     // now, the loading state should stream in dynamically
-    expect(await session.waitForElementByCss('#loading').text()).toBe('Loading...')
+    expect(await session.waitForElementByCss('#loading').text()).toBe(
+      'Loading...'
+    )
 
     const result = await session.waitForElementByCss('#search-results').text()
     expect(result).toInclude(`query: "${query}"`)
@@ -174,7 +178,9 @@ class RequestInterceptor {
           return route.continue()
         }
 
-        const shouldIntercept = opts.requestFilter ? opts.requestFilter(request) : true
+        const shouldIntercept = opts.requestFilter
+          ? opts.requestFilter(request)
+          : true
 
         const url = request.url()
 
@@ -188,7 +194,11 @@ class RequestInterceptor {
         const requestKey = this.getRequestKey(request)
 
         if (opts.log) {
-          console.log('[interceptor] intercepting request:', url, `(key: ${requestKey})`)
+          console.log(
+            '[interceptor] intercepting request:',
+            url,
+            `(key: ${requestKey})`
+          )
         }
 
         if (this.pendingRequests.has(requestKey)) {
@@ -241,6 +251,8 @@ function promiseWithResolvers<T>() {
 
 function timeoutPromise(duration: number, message = 'Timeout') {
   return new Promise<never>((_, reject) =>
-    AbortSignal.timeout(duration).addEventListener('abort', () => reject(new Error(message)))
+    AbortSignal.timeout(duration).addEventListener('abort', () =>
+      reject(new Error(message))
+    )
   )
 }

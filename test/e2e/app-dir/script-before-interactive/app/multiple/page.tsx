@@ -26,7 +26,9 @@ export default function MultiplePage() {
           `,
         }}
       />
-      <p>This page tests multiple beforeInteractive scripts with CSS classes.</p>
+      <p>
+        This page tests multiple beforeInteractive scripts with CSS classes.
+      </p>
     </div>
   )
 }

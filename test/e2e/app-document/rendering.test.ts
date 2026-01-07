@@ -50,13 +50,17 @@ describe('Document and App - Rendering via HTTP', () => {
     it('renders ctx.renderPage with enhancer correctly', async () => {
       const $ = await next.render$('/?withEnhancer=true')
       const nonce = 'RENDERED'
-      expect($('#render-page-enhance-component').text().includes(nonce)).toBe(true)
+      expect($('#render-page-enhance-component').text().includes(nonce)).toBe(
+        true
+      )
     })
 
     it('renders ctx.renderPage with enhanceComponent correctly', async () => {
       const $ = await next.render$('/?withEnhanceComponent=true')
       const nonce = 'RENDERED'
-      expect($('#render-page-enhance-component').text().includes(nonce)).toBe(true)
+      expect($('#render-page-enhance-component').text().includes(nonce)).toBe(
+        true
+      )
     })
 
     it('renders ctx.renderPage with enhanceApp correctly', async () => {
@@ -66,10 +70,14 @@ describe('Document and App - Rendering via HTTP', () => {
     })
 
     it('renders ctx.renderPage with enhanceApp and enhanceComponent correctly', async () => {
-      const $ = await next.render$('/?withEnhanceComponent=true&withEnhanceApp=true')
+      const $ = await next.render$(
+        '/?withEnhanceComponent=true&withEnhanceApp=true'
+      )
       const nonce = 'RENDERED'
       expect($('#render-page-enhance-app').text().includes(nonce)).toBe(true)
-      expect($('#render-page-enhance-component').text().includes(nonce)).toBe(true)
+      expect($('#render-page-enhance-component').text().includes(nonce)).toBe(
+        true
+      )
     })
 
     if (isNextDev) {
@@ -115,18 +123,25 @@ describe('Document and App - Rendering via HTTP', () => {
 
         await next.patchFile(
           'pages/_app.js',
-          origContent.replace('// throw _app GIP err here', `throw new Error("${errMsg}")`)
+          origContent.replace(
+            '// throw _app GIP err here',
+            `throw new Error("${errMsg}")`
+          )
         )
 
         let foundErr = false
         try {
-          await retry(async () => expect(await next.render('/')).toContain(errMsg))
+          await retry(async () =>
+            expect(await next.render('/')).toContain(errMsg)
+          )
           foundErr = true
         } finally {
           await next.patchFile('pages/_app.js', origContent)
 
           // Make sure _app is restored
-          await retry(async () => expect(await next.render('/')).toContain('page-index'))
+          await retry(async () =>
+            expect(await next.render('/')).toContain('page-index')
+          )
           expect(foundErr).toBeTruthy()
         }
       })

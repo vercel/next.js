@@ -12,6 +12,8 @@ describe('edge-route-rewrite', () => {
 
   it('it should support a rewrite to a dynamic edge route', async () => {
     const result = await next.render('/dynamic-test/foo')
-    expect(result).toContain('Hello from /app/dynamic/[slug]/route.ts. Slug: foo')
+    expect(result).toContain(
+      'Hello from /app/dynamic/[slug]/route.ts. Slug: foo'
+    )
   })
 })

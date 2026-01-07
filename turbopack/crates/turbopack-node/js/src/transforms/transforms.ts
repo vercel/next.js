@@ -48,7 +48,9 @@ const contextDir = process.cwd()
 export const toPath = (file: string) => {
   const relPath = relative(contextDir, file)
   if (isAbsolute(relPath)) {
-    throw new Error(`Cannot depend on path (${file}) outside of root directory (${contextDir})`)
+    throw new Error(
+      `Cannot depend on path (${file}) outside of root directory (${contextDir})`
+    )
   }
   return sep !== '/' ? relPath.replaceAll(sep, '/') : relPath
 }

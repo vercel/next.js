@@ -18,12 +18,15 @@ export function getRegistry(baseDir: string = process.cwd()) {
   let registry = `https://registry.npmjs.org/`
 
   try {
-    const output = execSync(`${pkgManager} config get registry ${resolvedFlags}`, {
-      env: {
-        ...process.env,
-        NODE_OPTIONS: getFormattedNodeOptionsWithoutInspect(),
-      },
-    })
+    const output = execSync(
+      `${pkgManager} config get registry ${resolvedFlags}`,
+      {
+        env: {
+          ...process.env,
+          NODE_OPTIONS: getFormattedNodeOptionsWithoutInspect(),
+        },
+      }
+    )
       .toString()
       .trim()
 

@@ -46,7 +46,10 @@ const linterConfig: any = {
 const linterConfigWithCustomDirectory: any = {
   ...linterConfig,
   rules: {
-    'no-html-link-for-pages': [2, path.join(withCustomPagesDir, 'custom-pages')],
+    'no-html-link-for-pages': [
+      2,
+      path.join(withCustomPagesDir, 'custom-pages'),
+    ],
   },
 }
 const linterConfigWithMultipleDirectories = {
@@ -255,9 +258,13 @@ export class Blah extends Head {
 describe('no-html-link-for-pages', function () {
   it('does not print warning when there are "pages" or "app" directories with rootDir in context settings', function () {
     const consoleSpy = jest.spyOn(console, 'warn').mockImplementation()
-    linters.withNestedPages.verify(validCode, linterConfigWithNestedContentRootDirDirectory, {
-      filename: 'foo.js',
-    })
+    linters.withNestedPages.verify(
+      validCode,
+      linterConfigWithNestedContentRootDirDirectory,
+      {
+        filename: 'foo.js',
+      }
+    )
     expect(consoleSpy).not.toHaveBeenCalled()
     consoleSpy.mockRestore()
   })
@@ -284,15 +291,23 @@ describe('no-html-link-for-pages', function () {
     consoleSpy.mockRestore()
   })
   it('valid link element', function () {
-    const report = linters.withCustomPages.verify(validCode, linterConfigWithCustomDirectory, {
-      filename: 'foo.js',
-    })
+    const report = linters.withCustomPages.verify(
+      validCode,
+      linterConfigWithCustomDirectory,
+      {
+        filename: 'foo.js',
+      }
+    )
     assert.deepEqual(report, [])
   })
   it('valid link element with multiple directories', function () {
-    const report = linters.withCustomPages.verify(validCode, linterConfigWithMultipleDirectories, {
-      filename: 'foo.js',
-    })
+    const report = linters.withCustomPages.verify(
+      validCode,
+      linterConfigWithMultipleDirectories,
+      {
+        filename: 'foo.js',
+      }
+    )
     assert.deepEqual(report, [])
   })
   it('valid anchor element', function () {
@@ -410,9 +425,13 @@ describe('no-html-link-for-pages', function () {
     assert.deepEqual(report, [])
   })
   it('valid target="_blank" link element with appDir', function () {
-    const report = linters.withApp.verify(validTargetBlankLinkCode, linterConfig, {
-      filename: 'foo.js',
-    })
+    const report = linters.withApp.verify(
+      validTargetBlankLinkCode,
+      linterConfig,
+      {
+        filename: 'foo.js',
+      }
+    )
     assert.deepEqual(report, [])
   })
   it('valid public file link element with appDir', function () {
@@ -440,17 +459,25 @@ describe('no-html-link-for-pages', function () {
       report.message,
       'Do not use an `<a>` element to navigate to `/list/foo/bar/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
     )
-    const [secondReport] = linters.withApp.verify(secondInvalidDynamicCode, linterConfig, {
-      filename: 'foo.js',
-    })
+    const [secondReport] = linters.withApp.verify(
+      secondInvalidDynamicCode,
+      linterConfig,
+      {
+        filename: 'foo.js',
+      }
+    )
     assert.notEqual(secondReport, undefined, 'No lint errors found.')
     assert.equal(
       secondReport.message,
       'Do not use an `<a>` element to navigate to `/list/foo/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
     )
-    const [thirdReport] = linters.withApp.verify(thirdInvalidDynamicCode, linterConfig, {
-      filename: 'foo.js',
-    })
+    const [thirdReport] = linters.withApp.verify(
+      thirdInvalidDynamicCode,
+      linterConfig,
+      {
+        filename: 'foo.js',
+      }
+    )
     assert.notEqual(thirdReport, undefined, 'No lint errors found.')
     assert.equal(
       thirdReport.message,
@@ -458,15 +485,23 @@ describe('no-html-link-for-pages', function () {
     )
   })
   it('valid intercepted route with appDir', function () {
-    const report = linters.withApp.verify(validInterceptedRouteCode, linterConfig, {
-      filename: 'foo.js',
-    })
+    const report = linters.withApp.verify(
+      validInterceptedRouteCode,
+      linterConfig,
+      {
+        filename: 'foo.js',
+      }
+    )
     assert.deepEqual(report, [])
   })
   it('invalid intercepted route with appDir', function () {
-    const [report] = linters.withApp.verify(invalidInterceptedRouteCode, linterConfig, {
-      filename: 'foo.js',
-    })
+    const [report] = linters.withApp.verify(
+      invalidInterceptedRouteCode,
+      linterConfig,
+      {
+        filename: 'foo.js',
+      }
+    )
     assert.notEqual(report, undefined, 'No lint errors found.')
     assert.equal(
       report.message,

@@ -25,7 +25,9 @@ function main() {
   const args = process.argv.slice(2)
 
   if (args.length < 3) {
-    console.error('Usage: node merge-errors-json.mjs <current> <base> <other> [<marker-size>]')
+    console.error(
+      'Usage: node merge-errors-json.mjs <current> <base> <other> [<marker-size>]'
+    )
     process.exit(1)
   }
 
@@ -95,7 +97,10 @@ function mergeErrors(base, current, other) {
   return result
 }
 
-function getNewMessages(/** @type {ErrorsMap} */ prev, /** @type {ErrorsMap} */ current) {
+function getNewMessages(
+  /** @type {ErrorsMap} */ prev,
+  /** @type {ErrorsMap} */ current
+) {
   const existing = new Set(Object.values(prev))
   return Object.values(current).filter((msg) => !existing.has(msg))
 }
@@ -105,7 +110,10 @@ function readJsonSync(/** @type {string} */ filePath) {
   return JSON.parse(content)
 }
 
-function writeJsonSync(/** @type {string} */ filePath, /** @type {any} */ value) {
+function writeJsonSync(
+  /** @type {string} */ filePath,
+  /** @type {any} */ value
+) {
   const content = JSON.stringify(value, null, 2) + '\n'
   writeFileSync(filePath, content, 'utf8')
 }

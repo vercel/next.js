@@ -12,20 +12,25 @@ describe.each([
       },
     },
   },
-])('Good CSS Import from node_modules ($dependencies)', ({ dependencies, nextConfig }) => {
-  const { next } = nextTestSetup({
-    files: __dirname,
-    dependencies: {
-      ...dependencies,
-      nprogress: '0.2.0',
-    },
-    nextConfig,
-  })
+])(
+  'Good CSS Import from node_modules ($dependencies)',
+  ({ dependencies, nextConfig }) => {
+    const { next } = nextTestSetup({
+      files: __dirname,
+      dependencies: {
+        ...dependencies,
+        nprogress: '0.2.0',
+      },
+      nextConfig,
+    })
 
-  it('should render the page', async () => {
-    const browser = await next.browser('/')
-    expect(await browser.elementByCss('#nprogress .bar').getComputedCss('background-color')).toBe(
-      'rgb(34, 153, 221)'
-    )
-  })
-})
+    it('should render the page', async () => {
+      const browser = await next.browser('/')
+      expect(
+        await browser
+          .elementByCss('#nprogress .bar')
+          .getComputedCss('background-color')
+      ).toBe('rgb(34, 153, 221)')
+    })
+  }
+)

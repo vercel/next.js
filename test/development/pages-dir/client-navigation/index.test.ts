@@ -1,6 +1,11 @@
 /* eslint-env jest */
 
-import { waitFor, check, retry, getRedboxTotalErrorCount } from 'next-test-utils'
+import {
+  waitFor,
+  check,
+  retry,
+  getRedboxTotalErrorCount,
+} from 'next-test-utils'
 import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 
@@ -90,7 +95,9 @@ describe('Client Navigation', () => {
         .text()
       expect(text).toBe('10')
 
-      expect(await browser.url()).toBe(`http://localhost:${next.appPort}/nav/querystring/10#10`)
+      expect(await browser.url()).toBe(
+        `http://localhost:${next.appPort}/nav/querystring/10#10`
+      )
       await browser.close()
     })
 
@@ -104,7 +111,9 @@ describe('Client Navigation', () => {
         .text()
       expect(text).toBe('10')
 
-      expect(await browser.url()).toBe(`http://localhost:${next.appPort}/nav/querystring/10#10`)
+      expect(await browser.url()).toBe(
+        `http://localhost:${next.appPort}/nav/querystring/10#10`
+      )
       await browser.close()
     })
 
@@ -130,7 +139,10 @@ describe('Client Navigation', () => {
       expect(stackLength).toBe(2)
 
       // Going back to the home with a regular link will augment the history count
-      await browser.elementByCss('#home-link').click().waitForElementByCss('.nav-home')
+      await browser
+        .elementByCss('#home-link')
+        .click()
+        .waitForElementByCss('.nav-home')
 
       stackLength = await browser.eval('window.history.length')
 
@@ -142,7 +154,9 @@ describe('Client Navigation', () => {
     it('should handle undefined in router.push', async () => {
       const browser = await next.browser('/nav/query-params')
       await browser.elementByCss('#click-me').click()
-      const query = JSON.parse(await browser.waitForElementByCss('#query-value').text())
+      const query = JSON.parse(
+        await browser.waitForElementByCss('#query-value').text()
+      )
       expect(query).toEqual({
         param1: '',
         param2: '',
@@ -174,7 +188,10 @@ describe('Client Navigation', () => {
 
     it('should redirect the page when loading', async () => {
       const browser = await next.browser('/nav/redirect')
-      const text = await browser.waitForElementByCss('.nav-about').elementByCss('p').text()
+      const text = await browser
+        .waitForElementByCss('.nav-about')
+        .elementByCss('p')
+        .text()
 
       expect(text).toBe('This is the about page.')
       await browser.close()
@@ -201,7 +218,9 @@ describe('Client Navigation', () => {
     it('should not work with /index page', async () => {
       const browser = await next.browser('/index')
       expect(await browser.elementByCss('h1').text()).toBe('404')
-      expect(await browser.elementByCss('h2').text()).toBe('This page could not be found.')
+      expect(await browser.elementByCss('h2').text()).toBe(
+        'This page could not be found.'
+      )
       await browser.close()
     })
 
@@ -383,7 +402,9 @@ describe('Client Navigation', () => {
 
   it('should not error on module.exports + polyfills', async () => {
     const browser = await next.browser('/read-only-object-error')
-    expect(await browser.elementByCss('body').text()).toBe('this is just a placeholder component')
+    expect(await browser.elementByCss('body').text()).toBe(
+      'this is just a placeholder component'
+    )
   })
 
   it('should work on nested /index/index.js', async () => {

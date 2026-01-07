@@ -36,7 +36,10 @@ import { createIncrementalCache } from './helpers/create-incremental-cache'
 import { isPostpone } from '../server/lib/router-utils/is-postpone'
 import { isDynamicUsageError } from './helpers/is-dynamic-usage-error'
 import { isBailoutToCSRError } from '../shared/lib/lazy-dynamic/bailout-to-csr'
-import { turborepoTraceAccess, TurborepoAccessTraceResult } from '../build/turborepo-access-trace'
+import {
+  turborepoTraceAccess,
+  TurborepoAccessTraceResult,
+} from '../build/turborepo-access-trace'
 import type { Params } from '../server/request/params'
 import {
   createOpaqueFallbackRouteParams,
@@ -140,7 +143,10 @@ async function exportPageImpl(
   const hasOrigQueryValues = Object.keys(originalQuery).length > 0
 
   // Check if the page is a specified dynamic route
-  const { pathname: nonLocalizedPath } = normalizeLocalePath(path, commonRenderOpts.locales)
+  const { pathname: nonLocalizedPath } = normalizeLocalePath(
+    path,
+    commonRenderOpts.locales
+  )
 
   let params: Params | undefined
 
@@ -155,9 +161,11 @@ async function exportPageImpl(
   // If this is a status code page, then set the response code.
   for (const statusCode of [404, 500]) {
     if (
-      [`/${statusCode}`, `/${statusCode}.html`, `/${statusCode}/index.html`].some(
-        (p) => p === updatedPath || `/${locale}${p}` === updatedPath
-      )
+      [
+        `/${statusCode}`,
+        `/${statusCode}.html`,
+        `/${statusCode}/index.html`,
+      ].some((p) => p === updatedPath || `/${locale}${p}` === updatedPath)
     ) {
       res.statusCode = statusCode
     }
@@ -179,7 +187,8 @@ async function exportPageImpl(
     addRequestMeta(req, 'isLocaleDomain', true)
   }
 
-  const getHtmlFilename = (p: string) => (subFolders ? `${p}${sep}index.html` : `${p}.html`)
+  const getHtmlFilename = (p: string) =>
+    subFolders ? `${p}${sep}index.html` : `${p}.html`
 
   let htmlFilename = getHtmlFilename(filePath)
 
@@ -194,7 +203,9 @@ async function exportPageImpl(
   }
   // Make sure page isn't a folder with a dot in the name e.g. `v1.2`
   else if (pageExt !== pathExt && pathExt !== '') {
-    const isBuiltinPaths = ['/500', '/404'].some((p) => p === path || p === path + '.html')
+    const isBuiltinPaths = ['/500', '/404'].some(
+      (p) => p === path || p === path + '.html'
+    )
     // If the ssg path has .html extension, and it's not builtin paths, use it directly
     // Otherwise, use that as the filename instead
     const isHtmlExtPath = !isBuiltinPaths && path.endsWith('.html')
@@ -311,7 +322,9 @@ async function exportPageImpl(
   }
 }
 
-export async function exportPages(input: ExportPagesInput): Promise<ExportPagesResult> {
+export async function exportPages(
+  input: ExportPagesInput
+): Promise<ExportPagesResult> {
   const {
     exportPaths,
     dir,
@@ -354,10 +367,14 @@ export async function exportPages(input: ExportPagesInput): Promise<ExportPagesR
 
   renderOpts.incrementalCache = incrementalCache
 
-  const maxConcurrency = nextConfig.experimental.staticGenerationMaxConcurrency ?? 8
+  const maxConcurrency =
+    nextConfig.experimental.staticGenerationMaxConcurrency ?? 8
   const results: ExportPagesResult = []
 
-  const exportPageWithRetry = async (exportPath: ExportPathEntry, maxAttempts: number) => {
+  const exportPageWithRetry = async (
+    exportPath: ExportPathEntry,
+    maxAttempts: number
+  ) => {
     const { page, path } = exportPath
     const pageKey = page !== path ? `${page}: ${path}` : path
     let attempt = 0
@@ -387,7 +404,8 @@ export async function exportPages(input: ExportPagesInput): Promise<ExportPagesR
             subFolders: nextConfig.trailingSlash && !options.buildExport,
             buildExport: options.buildExport,
             optimizeCss: nextConfig.experimental.optimizeCss,
-            disableOptimizedLoading: nextConfig.experimental.disableOptimizedLoading,
+            disableOptimizedLoading:
+              nextConfig.experimental.disableOptimizedLoading,
             parentSpanId: input.parentSpanId,
             httpAgentOptions: nextConfig.httpAgentOptions,
             debugOutput: options.debugOutput,
@@ -432,11 +450,15 @@ export async function exportPages(input: ExportPagesInput): Promise<ExportPagesR
           // Log a message if we've reached the maximum number of attempts.
           // We only care to do this if maxAttempts was configured.
           if (maxAttempts > 1) {
-            console.info(`Failed to build ${pageKey} after ${maxAttempts} attempts.`)
+            console.info(
+              `Failed to build ${pageKey} after ${maxAttempts} attempts.`
+            )
           }
           // If prerenderEarlyExit is enabled, we'll exit the build immediately.
           if (nextConfig.experimental.prerenderEarlyExit) {
-            console.error(`Export encountered an error on ${pageKey}, exiting the build.`)
+            console.error(
+              `Export encountered an error on ${pageKey}, exiting the build.`
+            )
             process.exit(1)
           } else {
             // Otherwise, this is a no-op. The build will continue, and a summary of failed pages will be displayed at the end.
@@ -473,7 +495,10 @@ export async function exportPages(input: ExportPagesInput): Promise<ExportPagesR
 
     const subsetResults = await Promise.all(
       subset.map((exportPath) =>
-        exportPageWithRetry(exportPath, nextConfig.experimental.staticGenerationRetryCount ?? 1)
+        exportPageWithRetry(
+          exportPath,
+          nextConfig.experimental.staticGenerationRetryCount ?? 1
+        )
       )
     )
 
@@ -483,8 +508,13 @@ export async function exportPages(input: ExportPagesInput): Promise<ExportPagesR
   return results
 }
 
-async function exportPage(input: ExportPageInput): Promise<ExportPageResult | undefined> {
-  trace('export-page', input.parentSpanId).setAttribute('path', input.exportPath.path)
+async function exportPage(
+  input: ExportPageInput
+): Promise<ExportPageResult | undefined> {
+  trace('export-page', input.parentSpanId).setAttribute(
+    'path',
+    input.exportPath.path
+  )
 
   // Configure the http agent.
   setHttpClientAndAgentOptions({
@@ -506,7 +536,10 @@ async function exportPage(input: ExportPageInput): Promise<ExportPageResult | un
   let result: ExportRouteResult | undefined
   try {
     result = await exportPageSpan.traceAsyncFn(() =>
-      turborepoTraceAccess(() => exportPageImpl(input, fileWriter), turborepoAccessTraceResult)
+      turborepoTraceAccess(
+        () => exportPageImpl(input, fileWriter),
+        turborepoAccessTraceResult
+      )
     )
 
     // Wait for all the files to flush to disk.

@@ -21,12 +21,18 @@ const nextSwcDir = path.join(NEXT_DIR, 'packages/next-swc')
     }
   )
 
-  execFn('Copy generated types to `next/src/build/swc/generated-wasm.d.ts`', () => writeTypes())
+  execFn(
+    'Copy generated types to `next/src/build/swc/generated-wasm.d.ts`',
+    () => writeTypes()
+  )
 })()
 
 function writeTypes() {
   const generatedTypesPath = path.join(NEXT_DIR, 'crates/wasm/pkg/wasm.d.ts')
-  const vendoredTypesPath = path.join(NEXT_DIR, 'packages/next/src/build/swc/generated-wasm.d.ts')
+  const vendoredTypesPath = path.join(
+    NEXT_DIR,
+    'packages/next/src/build/swc/generated-wasm.d.ts'
+  )
 
   const generatedNotice =
     '// DO NOT MANUALLY EDIT THESE TYPES\n// You can regenerate this file by running `pnpm swc-build-wasm` in the root of the repo.\n\n'
@@ -37,5 +43,10 @@ function writeTypes() {
 
   fs.writeFileSync(vendoredTypesPath, vendoredTypes)
 
-  exec('Prettify generated types', ['pnpm', 'prettier', '--write', vendoredTypesPath])
+  exec('Prettify generated types', [
+    'pnpm',
+    'prettier',
+    '--write',
+    vendoredTypesPath,
+  ])
 }

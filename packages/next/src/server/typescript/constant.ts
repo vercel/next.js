@@ -43,7 +43,10 @@ export const DISALLOWED_SERVER_REACT_APIS: string[] = [
   'useActionState',
 ]
 
-export const DISALLOWED_SERVER_REACT_DOM_APIS: string[] = ['useFormStatus', 'useFormState']
+export const DISALLOWED_SERVER_REACT_DOM_APIS: string[] = [
+  'useFormStatus',
+  'useFormState',
+]
 
 export const ALLOWED_PAGE_PROPS = ['params', 'searchParams']
 export const ALLOWED_LAYOUT_PROPS = ['params', 'children']

@@ -44,14 +44,16 @@ export function useRouterBFCache(
   // the existing order instead of moving it to the front of the list. I think
   // an initial implementation of this could be to pass an incrementing id
   // to history.pushState/replaceState, then use that here for ordering.
-  const [prevActiveEntry, setPrevActiveEntry] = useState<RouterBFCacheEntry>(() => {
-    const initialEntry: RouterBFCacheEntry = {
-      tree: activeTree,
-      stateKey: activeStateKey,
-      next: null,
+  const [prevActiveEntry, setPrevActiveEntry] = useState<RouterBFCacheEntry>(
+    () => {
+      const initialEntry: RouterBFCacheEntry = {
+        tree: activeTree,
+        stateKey: activeStateKey,
+        next: null,
+      }
+      return initialEntry
     }
-    return initialEntry
-  })
+  )
 
   if (prevActiveEntry.tree === activeTree) {
     // Fast path. The active tree hasn't changed, so we can reuse the

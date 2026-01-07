@@ -34,13 +34,11 @@ export const Media: React.FC<Props> = (props) => {
           }
         : {})}
     >
-      {
-        isVideo ? (
-          <Video {...props} />
-        ) : (
-          <Image {...props} /> // eslint-disable-line
-        )
-      }
+      {isVideo ? (
+        <Video {...props} />
+      ) : (
+        <Image {...props} /> // eslint-disable-line
+      )}
     </Tag>
   );
 };

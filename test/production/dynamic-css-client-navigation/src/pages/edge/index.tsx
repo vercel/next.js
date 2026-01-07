@@ -8,7 +8,9 @@ export default function Home() {
       {/* To reproduce, RedButton should be imported. */}
       <RedButton />
       <Link href="/edge/next-dynamic">/edge/next-dynamic</Link>
-      <Link href="/edge/next-dynamic-ssr-false">/edge/next-dynamic-ssr-false</Link>
+      <Link href="/edge/next-dynamic-ssr-false">
+        /edge/next-dynamic-ssr-false
+      </Link>
       <Link href="/edge/react-lazy">/edge/react-lazy</Link>
     </>
   )

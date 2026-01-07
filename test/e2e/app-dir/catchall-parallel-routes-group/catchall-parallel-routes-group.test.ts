@@ -14,6 +14,9 @@ describe('catchall-parallel-routes-group', () => {
 
     // catch all matches page, but also slot with layout and group
     await check(() => browser.elementByCss('body').text(), /Catch-all Page/)
-    await check(() => browser.elementByCss('body').text(), /Catch-all Slot Group Page/)
+    await check(
+      () => browser.elementByCss('body').text(),
+      /Catch-all Slot Group Page/
+    )
   })
 })

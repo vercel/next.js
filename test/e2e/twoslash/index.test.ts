@@ -8,9 +8,11 @@ describe('twoslash', () => {
     },
   })
 
-  it.each(['default', 'esnext'])('should annotate twoslash types %s', async (mode) => {
-    const { code, nodes, error } = JSON.parse(await next.render(`/?${mode}`))
-    expect({ code, nodes, error }).toMatchInlineSnapshot(`
+  it.each(['default', 'esnext'])(
+    'should annotate twoslash types %s',
+    async (mode) => {
+      const { code, nodes, error } = JSON.parse(await next.render(`/?${mode}`))
+      expect({ code, nodes, error }).toMatchInlineSnapshot(`
      {
        "code": "type X = Promise<number>;
      'hello'.toUpperCase()",
@@ -48,5 +50,6 @@ describe('twoslash', () => {
        ],
      }
     `)
-  })
+    }
+  )
 })

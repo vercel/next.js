@@ -11,7 +11,11 @@ export default async function Page({ searchParams }) {
       {/* add a changing element to know that we actually navigated */}
       <div id="count-from-server">{count}</div>
       <NavigateAndTrackRouterIdentity
-        href={'/use-router/same-page' + '?' + new URLSearchParams({ count: count + 1 })}
+        href={
+          '/use-router/same-page' +
+          '?' +
+          new URLSearchParams({ count: count + 1 })
+        }
       />
     </>
   )

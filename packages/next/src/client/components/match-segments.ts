@@ -1,6 +1,9 @@
 import type { Segment } from '../../shared/lib/app-router-types'
 
-export const matchSegment = (existingSegment: Segment, segment: Segment): boolean => {
+export const matchSegment = (
+  existingSegment: Segment,
+  segment: Segment
+): boolean => {
   // segment is either Array or string
   if (typeof existingSegment === 'string') {
     if (typeof segment === 'string') {

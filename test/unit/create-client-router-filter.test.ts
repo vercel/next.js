@@ -9,9 +9,15 @@ describe('createClientRouterFilter', () => {
       []
     )
 
-    const staticFilterInstance = new BloomFilter(staticFilter.numItems, staticFilter.errorRate)
+    const staticFilterInstance = new BloomFilter(
+      staticFilter.numItems,
+      staticFilter.errorRate
+    )
     staticFilterInstance.import(staticFilter)
-    const dynamicFilterInstance = new BloomFilter(dynamicFilter.numItems, dynamicFilter.errorRate)
+    const dynamicFilterInstance = new BloomFilter(
+      dynamicFilter.numItems,
+      dynamicFilter.errorRate
+    )
     dynamicFilterInstance.import(dynamicFilter)
 
     expect(

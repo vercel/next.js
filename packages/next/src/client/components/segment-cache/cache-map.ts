@@ -233,7 +233,11 @@ export function getFromCacheMap<V extends MapValue>(
   return entry.value
 }
 
-export function isValueExpired(now: number, currentCacheVersion: number, value: MapValue): boolean {
+export function isValueExpired(
+  now: number,
+  currentCacheVersion: number,
+  value: MapValue
+): boolean {
   return value.staleAt <= now || value.version < currentCacheVersion
 }
 
@@ -440,7 +444,10 @@ export function deleteMapEntry(entry: UnknownMapEntry): void {
   }
 }
 
-export function setSizeInCacheMap<V extends MapValue>(value: V, size: number): void {
+export function setSizeInCacheMap<V extends MapValue>(
+  value: V,
+  size: number
+): void {
   const entry = value.ref
   if (entry === null) {
     // This value is not a member of any map.

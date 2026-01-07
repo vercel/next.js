@@ -50,7 +50,12 @@ export function getLayerAssets({
         const href = `${ctx.assetPrefix}/_next/${encodeURIPath(fontFilename)}`
 
         preloadCallbacks.push(() => {
-          ctx.componentMod.preloadFont(href, type, ctx.renderOpts.crossOrigin, ctx.nonce)
+          ctx.componentMod.preloadFont(
+            href,
+            type,
+            ctx.renderOpts.crossOrigin,
+            ctx.nonce
+          )
         })
       }
     } else {

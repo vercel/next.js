@@ -15,7 +15,9 @@ async function benchmarkUrl(
 ) {
   const { numRequests, concurrency, reqTimeout } = options
 
-  const { stdout } = await exec(`ab -n ${numRequests} -c ${concurrency} -s ${reqTimeout} "${url}"`)
+  const { stdout } = await exec(
+    `ab -n ${numRequests} -c ${concurrency} -s ${reqTimeout} "${url}"`
+  )
   const totalTime = parseFloat(parseField(stdout, 'Time taken for tests:'), 10)
   const failedRequests = parseInt(parseField(stdout, 'Failed requests:'), 10)
   const avgReqPerSec = parseFloat(parseField(stdout, 'Requests per second:'))

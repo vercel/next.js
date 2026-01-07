@@ -8,7 +8,10 @@ import Nav from '../nav'
 export default function Page() {
   return (
     <div>
-      <p className={`${baseStyle.base} ${style.name} ${baseStyle2.base}`} id="hello1c">
+      <p
+        className={`${baseStyle.base} ${style.name} ${baseStyle2.base}`}
+        id="hello1c"
+      >
         hello world
       </p>
       <Nav />

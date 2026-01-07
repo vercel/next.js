@@ -22,7 +22,11 @@ async function getCachedValue(
   return [date.toISOString(), fn]
 }
 
-export default async function Page({ params }: { params: Promise<{ mode: string }> }) {
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ mode: string }>
+}) {
   'use cache'
 
   const { mode } = await params

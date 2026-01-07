@@ -84,12 +84,18 @@ describe('Switchable runtime', () => {
         await browser.waitForElementByCss('a').click()
 
         // on /edge/[id]
-        await check(() => browser.eval('document.documentElement.innerHTML'), /to \/edge\/foo/)
+        await check(
+          () => browser.eval('document.documentElement.innerHTML'),
+          /to \/edge\/foo/
+        )
 
         await browser.waitForElementByCss('a').click()
 
         // on /edge/foo
-        await check(() => browser.eval('document.documentElement.innerHTML'), /to \/edge\/\[id\]/)
+        await check(
+          () => browser.eval('document.documentElement.innerHTML'),
+          /to \/edge\/\[id\]/
+        )
 
         expect(context.stdout).not.toContain('self is not defined')
         expect(context.stderr).not.toContain('self is not defined')
@@ -138,7 +144,10 @@ describe('Switchable runtime', () => {
       it.skip('should support client side navigation to static rsc pages', async () => {
         const browser = await webdriver(context.appPort, '/node')
 
-        await browser.waitForElementByCss('#link-node-rsc').click().waitForElementByCss('.node-rsc')
+        await browser
+          .waitForElementByCss('#link-node-rsc')
+          .click()
+          .waitForElementByCss('.node-rsc')
 
         await check(
           () => browser.eval('document.documentElement.innerHTML'),
@@ -147,7 +156,10 @@ describe('Switchable runtime', () => {
       })
 
       it('should not consume server.js file extension', async () => {
-        const { status } = await fetchViaHTTP(context.appPort, '/legacy-extension')
+        const { status } = await fetchViaHTTP(
+          context.appPort,
+          '/legacy-extension'
+        )
         expect(status).toBe(404)
       })
 
@@ -162,7 +174,10 @@ describe('Switchable runtime', () => {
       })
 
       it('should be possible to switch between runtimes in API routes', async () => {
-        await check(() => renderViaHTTP(next.url, '/api/switch-in-dev'), 'server response')
+        await check(
+          () => renderViaHTTP(next.url, '/api/switch-in-dev'),
+          'server response'
+        )
 
         // Edge
         await next.patchFile(
@@ -175,7 +190,10 @@ describe('Switchable runtime', () => {
           export default () => new Response('edge response')
           `
         )
-        await check(() => renderViaHTTP(next.url, '/api/switch-in-dev'), 'edge response')
+        await check(
+          () => renderViaHTTP(next.url, '/api/switch-in-dev'),
+          'edge response'
+        )
 
         // Server
         await next.patchFile(
@@ -186,7 +204,10 @@ describe('Switchable runtime', () => {
           }
           `
         )
-        await check(() => renderViaHTTP(next.url, '/api/switch-in-dev'), 'server response again')
+        await check(
+          () => renderViaHTTP(next.url, '/api/switch-in-dev'),
+          'server response again'
+        )
 
         // Edge
         await next.patchFile(
@@ -199,11 +220,17 @@ describe('Switchable runtime', () => {
           export default () => new Response('edge response again')
           `
         )
-        await check(() => renderViaHTTP(next.url, '/api/switch-in-dev'), 'edge response again')
+        await check(
+          () => renderViaHTTP(next.url, '/api/switch-in-dev'),
+          'edge response again'
+        )
       })
 
       it('should be possible to switch between runtimes in pages', async () => {
-        await check(() => renderViaHTTP(next.url, '/switch-in-dev'), /Hello from edge page/)
+        await check(
+          () => renderViaHTTP(next.url, '/switch-in-dev'),
+          /Hello from edge page/
+        )
 
         // Server
         await next.patchFile(
@@ -214,7 +241,10 @@ describe('Switchable runtime', () => {
           }
           `
         )
-        await check(() => renderViaHTTP(next.url, '/switch-in-dev'), /Hello from server page/)
+        await check(
+          () => renderViaHTTP(next.url, '/switch-in-dev'),
+          /Hello from server page/
+        )
 
         // Edge
         await next.patchFile(
@@ -229,7 +259,10 @@ describe('Switchable runtime', () => {
       }
       `
         )
-        await check(() => renderViaHTTP(next.url, '/switch-in-dev'), /Hello from edge page again/)
+        await check(
+          () => renderViaHTTP(next.url, '/switch-in-dev'),
+          /Hello from edge page again/
+        )
 
         // Server
         await next.patchFile(
@@ -240,12 +273,17 @@ describe('Switchable runtime', () => {
             }
             `
         )
-        await check(() => renderViaHTTP(next.url, '/switch-in-dev'), /Hello from server page again/)
+        await check(
+          () => renderViaHTTP(next.url, '/switch-in-dev'),
+          /Hello from server page again/
+        )
       })
 
       // Doesn't work, see https://github.com/vercel/next.js/pull/39327
       it.skip('should be possible to switch between runtimes with same content', async () => {
-        const fileContent = await next.readFile('pages/api/switch-in-dev-same-content.js')
+        const fileContent = await next.readFile(
+          'pages/api/switch-in-dev-same-content.js'
+        )
         console.log({ fileContent })
         await check(
           () => renderViaHTTP(next.url, '/api/switch-in-dev-same-content'),
@@ -269,7 +307,10 @@ describe('Switchable runtime', () => {
         )
 
         // Server - same content as first compilation of the server runtime version
-        await next.patchFile('pages/api/switch-in-dev-same-content.js', fileContent)
+        await next.patchFile(
+          'pages/api/switch-in-dev-same-content.js',
+          fileContent
+        )
         await check(
           () => renderViaHTTP(next.url, '/api/switch-in-dev-same-content'),
           'server response'
@@ -278,7 +319,10 @@ describe('Switchable runtime', () => {
 
       // TODO: investigate these failures
       it.skip('should recover from syntax error when using edge runtime', async () => {
-        await check(() => renderViaHTTP(next.url, '/api/syntax-error-in-dev'), 'edge response')
+        await check(
+          () => renderViaHTTP(next.url, '/api/syntax-error-in-dev'),
+          'edge response'
+        )
 
         // Syntax error
         await next.patchFile(
@@ -291,7 +335,10 @@ describe('Switchable runtime', () => {
         export default  => new Response('edge response')
         `
         )
-        await check(() => renderViaHTTP(next.url, '/api/syntax-error-in-dev'), /Unexpected token/)
+        await check(
+          () => renderViaHTTP(next.url, '/api/syntax-error-in-dev'),
+          /Unexpected token/
+        )
 
         // Fix syntax error
         await next.patchFile(
@@ -390,7 +437,10 @@ describe('Switchable runtime', () => {
           export const runtime = 'invalid-runtime'
           `
         )
-        await check(() => renderViaHTTP(next.url, '/app-invalid-runtime'), /Hello from app/)
+        await check(
+          () => renderViaHTTP(next.url, '/app-invalid-runtime'),
+          /Hello from app/
+        )
         expect(next.cliOutput).toInclude(
           'Provided runtime "invalid-runtime" is not supported. Please leave it empty or choose one of:'
         )
@@ -524,7 +574,9 @@ describe('Switchable runtime', () => {
       })
 
       it.skip('should display correct tree view with page types in terminal', async () => {
-        const stdoutLines = splitLines(context.stdout).filter((line) => /^[┌├└/]/.test(line))
+        const stdoutLines = splitLines(context.stdout).filter((line) =>
+          /^[┌├└/]/.test(line)
+        )
         const expectedOutputLines = splitLines(`
       ┌   /_app
       ├ ○ /404
@@ -596,7 +648,9 @@ describe('Switchable runtime', () => {
 
         await browser.waitForElementByCss('#link-node-rsc-ssr').click()
 
-        expect(await browser.elementByCss('body').text()).toContain('This is a SSR RSC page.')
+        expect(await browser.elementByCss('body').text()).toContain(
+          'This is a SSR RSC page.'
+        )
         expect(flightRequest).toContain('/node-rsc-ssr')
       })
 
@@ -604,14 +658,18 @@ describe('Switchable runtime', () => {
         const browser = await webdriver(context.appPort, '/node')
 
         await browser.waitForElementByCss('#link-node-rsc-ssg').click()
-        expect(await browser.elementByCss('body').text()).toContain('This is a SSG RSC page.')
+        expect(await browser.elementByCss('body').text()).toContain(
+          'This is a SSG RSC page.'
+        )
       })
 
       it.skip('should support client side navigation to static rsc pages', async () => {
         const browser = await webdriver(context.appPort, '/node')
 
         await browser.waitForElementByCss('#link-node-rsc').click()
-        expect(await browser.elementByCss('body').text()).toContain('This is a static RSC page.')
+        expect(await browser.elementByCss('body').text()).toContain(
+          'This is a static RSC page.'
+        )
       })
 
       it('should support etag header in the web server', async () => {

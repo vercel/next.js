@@ -13,7 +13,8 @@ import {
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
-const gip404Err = /`pages\/404` can not have getInitialProps\/getServerSideProps/
+const gip404Err =
+  /`pages\/404` can not have getInitialProps\/getServerSideProps/
 
 let stdout
 let stderr
@@ -62,7 +63,9 @@ const runTests = (isDev: boolean) => {
     })
 
     it('should have 404 page in prerender-manifest', async () => {
-      const data = await fs.readJSON(join(appDir, '.next/prerender-manifest.json'))
+      const data = await fs.readJSON(
+        join(appDir, '.next/prerender-manifest.json')
+      )
       expect(data.routes['/404']).toEqual({
         allowHeader: [
           'host',
@@ -81,56 +84,62 @@ const runTests = (isDev: boolean) => {
 }
 
 describe('404 Page Support SSG', () => {
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
-    afterAll(() => killApp(app))
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      afterAll(() => killApp(app))
 
-    it('should build successfully', async () => {
-      const {
-        code,
-        stderr: buildStderr,
-        stdout: buildStdout,
-      } = await nextBuild(appDir, [], {
-        stderr: true,
-        stdout: true,
+      it('should build successfully', async () => {
+        const {
+          code,
+          stderr: buildStderr,
+          stdout: buildStdout,
+        } = await nextBuild(appDir, [], {
+          stderr: true,
+          stdout: true,
+        })
+
+        expect(code).toBe(0)
+        expect(buildStderr).not.toMatch(gip404Err)
+        expect(buildStdout).not.toMatch(gip404Err)
+
+        appPort = await findPort()
+        stderr = ''
+        stdout = ''
+
+        app = await nextStart(appDir, appPort, {
+          onStdout(msg) {
+            stdout += msg
+          },
+          onStderr(msg) {
+            stderr += msg
+          },
+        })
+        buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
       })
 
-      expect(code).toBe(0)
-      expect(buildStderr).not.toMatch(gip404Err)
-      expect(buildStdout).not.toMatch(gip404Err)
-
-      appPort = await findPort()
-      stderr = ''
-      stdout = ''
-
-      app = await nextStart(appDir, appPort, {
-        onStdout(msg) {
-          stdout += msg
-        },
-        onStderr(msg) {
-          stderr += msg
-        },
+      runTests(false)
+    }
+  )
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        stderr = ''
+        stdout = ''
+        app = await launchApp(appDir, appPort, {
+          onStdout(msg) {
+            stdout += msg
+          },
+          onStderr(msg) {
+            stderr += msg
+          },
+        })
       })
-      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
-    })
+      afterAll(() => killApp(app))
 
-    runTests(false)
-  })
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      stderr = ''
-      stdout = ''
-      app = await launchApp(appDir, appPort, {
-        onStdout(msg) {
-          stdout += msg
-        },
-        onStderr(msg) {
-          stderr += msg
-        },
-      })
-    })
-    afterAll(() => killApp(app))
-
-    runTests(true)
-  })
+      runTests(true)
+    }
+  )
 })

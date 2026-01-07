@@ -46,7 +46,9 @@ describe('config-output-export', () => {
     })
     const response = await fetchViaHTTP(result.port, '/')
     expect(response.status).toBe(200)
-    expect(await response.text()).toContain('<div id="__next">Hello World</div>')
+    expect(await response.text()).toContain(
+      '<div id="__next">Hello World</div>'
+    )
     expect(result.stderr).toBeEmpty()
   })
 
@@ -58,7 +60,9 @@ describe('config-output-export', () => {
         defaultLocale: 'en',
       },
     })
-    expect(stderr).toContain('Specified "i18n" cannot be used with "output: export".')
+    expect(stderr).toContain(
+      'Specified "i18n" cannot be used with "output: export".'
+    )
   })
 
   describe('when hasNextSupport = false', () => {
@@ -149,13 +153,18 @@ describe('config-output-export', () => {
     let response
     try {
       fs.mkdirSync(pagesApi)
-      fs.writeFileSync(join(pagesApi, 'wow.js'), 'export default (_, res) => res.end("wow")')
+      fs.writeFileSync(
+        join(pagesApi, 'wow.js'),
+        'export default (_, res) => res.end("wow")'
+      )
       result = await runDev({
         output: 'export',
       })
       response = await fetchViaHTTP(result.port, '/api/wow')
       expect(response.status).toBe(404)
-      expect(result?.stderr).toContain('API Routes cannot be used with "output: export".')
+      expect(result?.stderr).toContain(
+        'API Routes cannot be used with "output: export".'
+      )
     } finally {
       await killApp(app).catch(() => {})
       fs.rmSync(pagesApi, { recursive: true, force: true })
@@ -177,7 +186,9 @@ describe('config-output-export', () => {
       response = await fetchViaHTTP(result.port, '/api/mw')
       expect(response.status).toBe(404)
       expect(result?.stdout + result?.stderr).not.toContain('[mw]')
-      expect(result?.stderr).toContain('Middleware cannot be used with "output: export".')
+      expect(result?.stderr).toContain(
+        'Middleware cannot be used with "output: export".'
+      )
     } finally {
       await killApp(app).catch(() => {})
       fs.rmSync(middleware)
@@ -208,8 +219,12 @@ describe('config-output-export', () => {
       browser = await webdriver(result.port, '/blog')
 
       await waitForRedbox(browser)
-      expect(await getRedboxHeader(browser)).toContain('ISR cannot be used with "output: export".')
-      expect(result?.stderr).toContain('ISR cannot be used with "output: export".')
+      expect(await getRedboxHeader(browser)).toContain(
+        'ISR cannot be used with "output: export".'
+      )
+      expect(result?.stderr).toContain(
+        'ISR cannot be used with "output: export".'
+      )
     } finally {
       await killApp(app).catch(() => {})
       fs.rmSync(blog)
@@ -298,7 +313,9 @@ describe('config-output-export', () => {
       expect(await getRedboxHeader(browser)).toContain(
         'getServerSideProps cannot be used with "output: export".'
       )
-      expect(result?.stderr).toContain('getServerSideProps cannot be used with "output: export".')
+      expect(result?.stderr).toContain(
+        'getServerSideProps cannot be used with "output: export".'
+      )
     } finally {
       await killApp(app).catch(() => {})
       fs.rmSync(blog)

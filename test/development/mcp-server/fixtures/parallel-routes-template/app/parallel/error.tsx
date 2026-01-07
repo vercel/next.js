@@ -1,6 +1,12 @@
 'use client'
 
-export default function ParallelError({ error, reset }: { error: Error; reset: () => void }) {
+export default function ParallelError({
+  error,
+  reset,
+}: {
+  error: Error
+  reset: () => void
+}) {
   return (
     <div>
       <h2>Parallel Error: {error.message}</h2>

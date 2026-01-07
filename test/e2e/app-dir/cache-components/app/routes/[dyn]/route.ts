@@ -10,7 +10,10 @@ export async function generateStaticParams() {
   ]
 }
 
-export async function GET(request: NextRequest, props: { params: Promise<{ dyn: string }> }) {
+export async function GET(
+  request: NextRequest,
+  props: { params: Promise<{ dyn: string }> }
+) {
   const { dyn } = await props.params
   return new Response(
     JSON.stringify({

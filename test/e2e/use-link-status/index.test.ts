@@ -41,9 +41,9 @@ describe('useLinkStatus', () => {
 
     // Wait for the new render to commit to make sure that the navigation transition is interrupted
     await retry(async () => {
-      expect(await browser.elementByCss('[data-testid="debug-mode"]').text()).toBe(
-        'Debug Mode Enabled'
-      )
+      expect(
+        await browser.elementByCss('[data-testid="debug-mode"]').text()
+      ).toBe('Debug Mode Enabled')
     })
 
     // Pending state should be gone

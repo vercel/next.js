@@ -86,7 +86,9 @@ const metadata = {
             return []
           }
 
-          const isAsync = node.modifiers?.some((m) => m.kind === ts.SyntaxKind.AsyncKeyword)
+          const isAsync = node.modifiers?.some(
+            (m) => m.kind === ts.SyntaxKind.AsyncKeyword
+          )
 
           return [
             {
@@ -144,7 +146,10 @@ const metadata = {
       }
       return []
     },
-    getSemanticDiagnosticsForExportDeclaration(fileName: string, node: tsModule.ExportDeclaration) {
+    getSemanticDiagnosticsForExportDeclaration(
+      fileName: string,
+      node: tsModule.ExportDeclaration
+    ) {
       const typeChecker = getTypeChecker()
       if (!typeChecker) {
         return []
@@ -187,19 +192,27 @@ const metadata = {
             // async function() {}
             if (ts.isFunctionDeclaration(declaration)) {
               isAsync =
-                declaration.modifiers?.some((m) => m.kind === ts.SyntaxKind.AsyncKeyword) ?? false
+                declaration.modifiers?.some(
+                  (m) => m.kind === ts.SyntaxKind.AsyncKeyword
+                ) ?? false
             }
 
             // foo = async function() {}
             // foo = async () => {}
-            if (ts.isVariableDeclaration(declaration) && declaration.initializer) {
+            if (
+              ts.isVariableDeclaration(declaration) &&
+              declaration.initializer
+            ) {
               const initializer = declaration.initializer
               const isFunction =
-                ts.isArrowFunction(initializer) || ts.isFunctionExpression(initializer)
+                ts.isArrowFunction(initializer) ||
+                ts.isFunctionExpression(initializer)
 
               if (isFunction) {
                 isAsync =
-                  initializer.modifiers?.some((m) => m.kind === ts.SyntaxKind.AsyncKeyword) ?? false
+                  initializer.modifiers?.some(
+                    (m) => m.kind === ts.SyntaxKind.AsyncKeyword
+                  ) ?? false
               }
             }
 
@@ -241,7 +254,11 @@ function hasType(node: tsModule.Declaration): boolean {
   }
 
   // For function declarations, expressions, and arrow functions, check if they have return type
-  if (ts.isFunctionDeclaration(node) || ts.isFunctionExpression(node) || ts.isArrowFunction(node)) {
+  if (
+    ts.isFunctionDeclaration(node) ||
+    ts.isFunctionExpression(node) ||
+    ts.isArrowFunction(node)
+  ) {
     return !!node.type
   }
 
@@ -252,7 +269,8 @@ function hasType(node: tsModule.Declaration): boolean {
     // If it's a function expression or arrow function, check if it has return type
     if (
       node.initializer &&
-      (ts.isFunctionExpression(node.initializer) || ts.isArrowFunction(node.initializer))
+      (ts.isFunctionExpression(node.initializer) ||
+        ts.isArrowFunction(node.initializer))
     ) {
       return !!node.initializer.type
     }

@@ -52,7 +52,10 @@ if (!('description' in Symbol.prototype)) {
 // Licensed Apache-2.0
 if (!Array.prototype.flat) {
   Array.prototype.flat = function flat(d, c) {
-    return ((c = this.concat.apply([], this)), d > 1 && c.some(Array.isArray) ? c.flat(d - 1) : c)
+    return (
+      (c = this.concat.apply([], this)),
+      d > 1 && c.some(Array.isArray) ? c.flat(d - 1) : c
+    )
   }
   Array.prototype.flatMap = function (c, a) {
     return this.map(c, a).flat()

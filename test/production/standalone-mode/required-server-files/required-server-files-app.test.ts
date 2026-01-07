@@ -48,7 +48,10 @@ describe('required server files app router', () => {
     })
     await next.stop()
 
-    await fs.move(join(next.testDir, '.next/standalone'), join(next.testDir, 'standalone'))
+    await fs.move(
+      join(next.testDir, '.next/standalone'),
+      join(next.testDir, 'standalone')
+    )
     for (const file of await fs.readdir(next.testDir)) {
       if (file !== 'standalone') {
         await fs.remove(join(next.testDir, file))
@@ -69,7 +72,10 @@ describe('required server files app router', () => {
     const testServer = join(next.testDir, 'standalone/server.js')
     await fs.writeFile(
       testServer,
-      (await fs.readFile(testServer, 'utf8')).replace('port:', `minimalMode: ${minimalMode},port:`)
+      (await fs.readFile(testServer, 'utf8')).replace(
+        'port:',
+        `minimalMode: ${minimalMode},port:`
+      )
     )
     appPort = await findPort()
     server = await initNextServerScript(
@@ -133,15 +139,20 @@ describe('required server files app router', () => {
     expect($('body [data-lang]').text()).toBe('en')
     expect($('body [data-slug]').text()).toBe('slug')
 
-    res = await fetchViaHTTP(appPort, '/optional-catchall/[lang]/[flags]/[[...slug]]', undefined, {
-      headers: {
-        'x-matched-path': '/optional-catchall/[lang]/[flags]/[[...slug]]',
-        'x-now-route-matches': createNowRouteMatches({
-          lang: 'en',
-          flags: 'flags',
-        }).toString(),
-      },
-    })
+    res = await fetchViaHTTP(
+      appPort,
+      '/optional-catchall/[lang]/[flags]/[[...slug]]',
+      undefined,
+      {
+        headers: {
+          'x-matched-path': '/optional-catchall/[lang]/[flags]/[[...slug]]',
+          'x-now-route-matches': createNowRouteMatches({
+            lang: 'en',
+            flags: 'flags',
+          }).toString(),
+        },
+      }
+    )
     expect(res.status).toBe(200)
 
     html = await res.text()
@@ -258,7 +269,12 @@ describe('required server files app router', () => {
   })
 
   it('should not send cache tags in minimal mode for SSR', async () => {
-    for (const path of ['/ssr/first', '/ssr/second', '/api/ssr/first', '/api/ssr/second']) {
+    for (const path of [
+      '/ssr/first',
+      '/ssr/second',
+      '/api/ssr/first',
+      '/api/ssr/second',
+    ]) {
       const res = await fetchViaHTTP(appPort, path, undefined, {
         redirect: 'manual',
       })
@@ -268,7 +284,12 @@ describe('required server files app router', () => {
   })
 
   it('should not send invalid soft tags to cache handler', async () => {
-    for (const path of ['/ssr/first', '/ssr/second', '/api/ssr/first', '/api/ssr/second']) {
+    for (const path of [
+      '/ssr/first',
+      '/ssr/second',
+      '/api/ssr/first',
+      '/api/ssr/second',
+    ]) {
       const res = await fetchViaHTTP(
         appPort,
         path,

@@ -58,7 +58,9 @@ describe('Middleware can set the matcher in its config', () => {
   it('adds the header for another matched path', async () => {
     const response = await fetchViaHTTP(next.url, '/another-middleware')
     expect(response.headers.get('X-From-Middleware')).toBe('true')
-    expect(await response.text()).toContain('This should also run the middleware')
+    expect(await response.text()).toContain(
+      'This should also run the middleware'
+    )
   })
 
   it('adds the header for another matched data path', async () => {
@@ -133,7 +135,10 @@ describe('Middleware can set the matcher in its config', () => {
     })
 
     await browser.elementByCss('#to-blog-slug-2').click()
-    await check(() => browser.eval('document.documentElement.innerHTML'), /"slug":"slug-2"/)
+    await check(
+      () => browser.eval('document.documentElement.innerHTML'),
+      /"slug":"slug-2"/
+    )
     expect(JSON.parse(await browser.elementByCss('#props').text())).toEqual({
       message: 'Hello, magnificent world.',
       params: {
@@ -302,7 +307,10 @@ describe('using root matcher', () => {
   })
 
   it('adds the header for a matched data path (without header)', async () => {
-    const response = await fetchViaHTTP(next.url, `/_next/data/${next.buildId}/index.json`)
+    const response = await fetchViaHTTP(
+      next.url,
+      `/_next/data/${next.buildId}/index.json`
+    )
     expect(await response.json()).toMatchObject({
       pageProps: {
         message: 'hello world',
@@ -312,14 +320,15 @@ describe('using root matcher', () => {
   })
 })
 
-describe.each([{ title: '' }, { title: ' and trailingSlash', trailingSlash: true }])(
-  'using a single matcher with i18n$title',
-  ({ trailingSlash }) => {
-    let next: NextInstance
-    beforeAll(async () => {
-      next = await createNext({
-        files: {
-          'pages/index.js': `
+describe.each([
+  { title: '' },
+  { title: ' and trailingSlash', trailingSlash: true },
+])('using a single matcher with i18n$title', ({ trailingSlash }) => {
+  let next: NextInstance
+  beforeAll(async () => {
+    next = await createNext({
+      files: {
+        'pages/index.js': `
           export default function Page({ message }) {
             return <div>
               <p>{message}</p>
@@ -329,7 +338,7 @@ describe.each([{ title: '' }, { title: ' and trailingSlash', trailingSlash: true
             props: { message: \`(\${locale}) Hello from /\` }
           })
         `,
-          'pages/[...route].js': `
+        'pages/[...route].js': `
           export default function Page({ message }) {
             return <div>
               <p>catchall page</p>
@@ -340,7 +349,7 @@ describe.each([{ title: '' }, { title: ' and trailingSlash', trailingSlash: true
             props: { message: \`(\${locale}) Hello from /\` + params.route.join("/") }
           })
         `,
-          'middleware.js': `
+        'middleware.js': `
           import { NextResponse } from 'next/server'
           export const config = { matcher: '/' };
           export default (req) => {
@@ -349,7 +358,7 @@ describe.each([{ title: '' }, { title: ' and trailingSlash', trailingSlash: true
             return res;
           }
         `,
-          'next.config.js': `
+        'next.config.js': `
           module.exports = {
             ${trailingSlash ? 'trailingSlash: true,' : ''}
             i18n: {
@@ -359,54 +368,65 @@ describe.each([{ title: '' }, { title: ' and trailingSlash', trailingSlash: true
             }
           }
         `,
-        },
-        dependencies: {},
-      })
+      },
+      dependencies: {},
     })
-    afterAll(() => next.destroy())
+  })
+  afterAll(() => next.destroy())
 
-    it(`adds the header for a matched path`, async () => {
-      const res1 = await fetchViaHTTP(next.url, `/`)
-      expect(await res1.text()).toContain(`(en) Hello from /`)
-      expect(res1.headers.get('X-From-Middleware')).toBe('true')
-      const res2 = await fetchViaHTTP(next.url, `/es`)
-      expect(await res2.text()).toContain(`(es) Hello from /`)
-      expect(res2.headers.get('X-From-Middleware')).toBe('true')
-    })
+  it(`adds the header for a matched path`, async () => {
+    const res1 = await fetchViaHTTP(next.url, `/`)
+    expect(await res1.text()).toContain(`(en) Hello from /`)
+    expect(res1.headers.get('X-From-Middleware')).toBe('true')
+    const res2 = await fetchViaHTTP(next.url, `/es`)
+    expect(await res2.text()).toContain(`(es) Hello from /`)
+    expect(res2.headers.get('X-From-Middleware')).toBe('true')
+  })
 
-    it('adds the header for a mathed root path with /index', async () => {
-      const res1 = await fetchViaHTTP(next.url, `/index`)
-      expect(await res1.text()).toContain(`(en) Hello from /`)
-      expect(res1.headers.get('X-From-Middleware')).toBe('true')
-      const res2 = await fetchViaHTTP(next.url, `/es/index`)
-      expect(await res2.text()).toContain(`(es) Hello from /`)
-      expect(res2.headers.get('X-From-Middleware')).toBe('true')
-    })
+  it('adds the header for a mathed root path with /index', async () => {
+    const res1 = await fetchViaHTTP(next.url, `/index`)
+    expect(await res1.text()).toContain(`(en) Hello from /`)
+    expect(res1.headers.get('X-From-Middleware')).toBe('true')
+    const res2 = await fetchViaHTTP(next.url, `/es/index`)
+    expect(await res2.text()).toContain(`(es) Hello from /`)
+    expect(res2.headers.get('X-From-Middleware')).toBe('true')
+  })
 
-    it(`adds the headers for a matched data path`, async () => {
-      const res1 = await fetchViaHTTP(next.url, `/_next/data/${next.buildId}/en.json`, undefined, {
+  it(`adds the headers for a matched data path`, async () => {
+    const res1 = await fetchViaHTTP(
+      next.url,
+      `/_next/data/${next.buildId}/en.json`,
+      undefined,
+      {
         headers: { 'x-nextjs-data': '1' },
-      })
-      expect(await res1.json()).toMatchObject({
-        pageProps: { message: `(en) Hello from /` },
-      })
-      expect(res1.headers.get('X-From-Middleware')).toBe('true')
-      const res2 = await fetchViaHTTP(next.url, `/_next/data/${next.buildId}/es.json`, undefined)
-      expect(await res2.json()).toMatchObject({
-        pageProps: { message: `(es) Hello from /` },
-      })
-      expect(res2.headers.get('X-From-Middleware')).toBe('true')
+      }
+    )
+    expect(await res1.json()).toMatchObject({
+      pageProps: { message: `(en) Hello from /` },
     })
-
-    it(`does not add the header for an unmatched path`, async () => {
-      const response = await fetchViaHTTP(next.url, `/about/me`)
-      expect(await response.text()).toContain('Hello from /about/me')
-      expect(response.headers.get('X-From-Middleware')).toBeNull()
+    expect(res1.headers.get('X-From-Middleware')).toBe('true')
+    const res2 = await fetchViaHTTP(
+      next.url,
+      `/_next/data/${next.buildId}/es.json`,
+      undefined
+    )
+    expect(await res2.json()).toMatchObject({
+      pageProps: { message: `(es) Hello from /` },
     })
-  }
-)
+    expect(res2.headers.get('X-From-Middleware')).toBe('true')
+  })
 
-describe.each([{ title: '' }, { title: ' and trailingSlash', trailingSlash: true }])(
+  it(`does not add the header for an unmatched path`, async () => {
+    const response = await fetchViaHTTP(next.url, `/about/me`)
+    expect(await response.text()).toContain('Hello from /about/me')
+    expect(response.headers.get('X-From-Middleware')).toBeNull()
+  })
+})
+
+describe.each([
+  { title: '' },
+  { title: ' and trailingSlash', trailingSlash: true },
+])(
   'using a single matcher with i18n and basePath$title',
   ({ trailingSlash }) => {
     let next: NextInstance

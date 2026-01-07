@@ -38,8 +38,12 @@ describe.each([
 
         const stylesheetUrl = cssSheet.attr('href')
 
-        const cssContent = await next.fetch(stylesheetUrl).then((res) => res.text())
-        const cssContentWithoutSourceMap = cssContent.replace(/\/\*.*?\*\//g, '').trim()
+        const cssContent = await next
+          .fetch(stylesheetUrl)
+          .then((res) => res.text())
+        const cssContentWithoutSourceMap = cssContent
+          .replace(/\/\*.*?\*\//g, '')
+          .trim()
 
         if (process.env.IS_TURBOPACK_TEST) {
           if (dependencies.sass) {
@@ -67,10 +71,14 @@ describe.each([
         expect(cssContent).toMatch(/\/\*#\s*sourceMappingURL=(.+\.map)\s*\*\//)
 
         // Check sourcemap
-        const sourceMapUrl = /\/\*#\s*sourceMappingURL=(.+\.map)\s*\*\//.exec(cssContent)[1]
+        const sourceMapUrl = /\/\*#\s*sourceMappingURL=(.+\.map)\s*\*\//.exec(
+          cssContent
+        )[1]
 
         const actualSourceMapUrl = stylesheetUrl.replace(/[^/]+$/, sourceMapUrl)
-        const sourceMapContent = await next.fetch(actualSourceMapUrl).then((res) => res.text())
+        const sourceMapContent = await next
+          .fetch(actualSourceMapUrl)
+          .then((res) => res.text())
         const sourceMapContentParsed = JSON.parse(sourceMapContent)
         // Ensure it doesn't have a specific path in the snapshot.
         delete sourceMapContentParsed.file

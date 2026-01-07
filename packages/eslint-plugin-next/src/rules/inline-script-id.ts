@@ -5,7 +5,8 @@ const url = 'https://nextjs.org/docs/messages/inline-script-id'
 export default defineRule({
   meta: {
     docs: {
-      description: 'Enforce `id` attribute on `next/script` components with inline content.',
+      description:
+        'Enforce `id` attribute on `next/script` components with inline content.',
       recommended: true,
       url,
     },
@@ -57,7 +58,10 @@ export default defineRule({
         // If there is a non-checkable spread attribute, we simply ignore them
         if (hasNonCheckableSpreadAttribute) return
 
-        if (node.children.length > 0 || attributeNames.has('dangerouslySetInnerHTML')) {
+        if (
+          node.children.length > 0 ||
+          attributeNames.has('dangerouslySetInnerHTML')
+        ) {
           if (!attributeNames.has('id')) {
             context.report({
               node,

@@ -32,13 +32,19 @@ export function computeActiveEntries(
 
   const activeEntries = new Set<ModuleIndex>()
 
-  for (let moduleIndex = 0; moduleIndex < modulesData.moduleCount(); moduleIndex++) {
+  for (
+    let moduleIndex = 0;
+    moduleIndex < modulesData.moduleCount();
+    moduleIndex++
+  ) {
     const ident = modulesData.module(moduleIndex)?.ident
     if (ident == null) {
       continue
     }
 
-    if (potentialEntryDependents.some((entryIdent) => ident.includes(entryIdent))) {
+    if (
+      potentialEntryDependents.some((entryIdent) => ident.includes(entryIdent))
+    ) {
       const dependencies = modulesData.moduleDependencies(moduleIndex)
       for (const dep of dependencies) {
         const path = modulesData.module(dep)!.path
@@ -118,7 +124,8 @@ export function computeModuleDepthMap(
     // or the next delayed queue has the same depth so its items need to be processed now
     while (
       delayedModules.length > 0 &&
-      (i === depthMap.size || newDepth === delayedModules[delayedModules.length - 1].depth)
+      (i === depthMap.size ||
+        newDepth === delayedModules[delayedModules.length - 1].depth)
     ) {
       const { depth, queue } = delayedModules.pop()!
       for (const depIndex of queue) {
@@ -130,7 +137,9 @@ export function computeModuleDepthMap(
   }
 
   if (delayedModules.length > 0) {
-    throw new Error('Internal error: delayed modules remain after BFS processing')
+    throw new Error(
+      'Internal error: delayed modules remain after BFS processing'
+    )
   }
 
   return depthMap

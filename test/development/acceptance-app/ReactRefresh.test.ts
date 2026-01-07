@@ -31,7 +31,9 @@ describe('ReactRefresh app', () => {
       `
     )
     await session.evaluate(() => document.querySelector('button').click())
-    expect(await session.evaluate(() => document.querySelector('p').textContent)).toBe('1')
+    expect(
+      await session.evaluate(() => document.querySelector('p').textContent)
+    ).toBe('1')
     await session.patch(
       'index.js',
       outdent`
@@ -48,9 +50,13 @@ describe('ReactRefresh app', () => {
         }
       `
     )
-    expect(await session.evaluate(() => document.querySelector('p').textContent)).toBe('Count: 1')
+    expect(
+      await session.evaluate(() => document.querySelector('p').textContent)
+    ).toBe('Count: 1')
     await session.evaluate(() => document.querySelector('button').click())
-    expect(await session.evaluate(() => document.querySelector('p').textContent)).toBe('Count: 2')
+    expect(
+      await session.evaluate(() => document.querySelector('p').textContent)
+    ).toBe('Count: 2')
   })
 
   test('cyclic dependencies', async () => {
@@ -154,7 +160,9 @@ describe('ReactRefresh app', () => {
       `
     )
 
-    expect(await session.evaluate(() => document.querySelector('p').textContent)).toBe('Hello. 100')
+    expect(
+      await session.evaluate(() => document.querySelector('p').textContent)
+    ).toBe('Hello. 100')
 
     let didFullRefresh = !(await session.patch(
       'SurveyOverview.js',
@@ -167,7 +175,9 @@ describe('ReactRefresh app', () => {
       `
     ))
 
-    expect(await session.evaluate(() => document.querySelector('p').textContent)).toBe('Hello. 200')
+    expect(
+      await session.evaluate(() => document.querySelector('p').textContent)
+    ).toBe('Hello. 200')
     expect(didFullRefresh).toBe(false)
 
     didFullRefresh = !(await session.patch(
@@ -185,7 +195,9 @@ describe('ReactRefresh app', () => {
       `
     ))
 
-    expect(await session.evaluate(() => document.querySelector('p').textContent)).toBe('Hello: 200')
+    expect(
+      await session.evaluate(() => document.querySelector('p').textContent)
+    ).toBe('Hello: 200')
     expect(didFullRefresh).toBe(false)
 
     didFullRefresh = !(await session.patch(
@@ -199,7 +211,9 @@ describe('ReactRefresh app', () => {
       `
     ))
 
-    expect(await session.evaluate(() => document.querySelector('p').textContent)).toBe('Hello: 300')
+    expect(
+      await session.evaluate(() => document.querySelector('p').textContent)
+    ).toBe('Hello: 300')
     expect(didFullRefresh).toBe(false)
   })
 })

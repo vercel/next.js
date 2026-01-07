@@ -37,7 +37,9 @@
       "passed": [
         "app dir - form prefetching should prefetch a loading state for the form's target"
       ],
-      "failed": ["app dir - form prefetching should not prefetch when prefetch is set to false`"]
+      "failed": [
+        "app dir - form prefetching should not prefetch when prefetch is set to false`"
+      ]
     }
   },
   "rules": {

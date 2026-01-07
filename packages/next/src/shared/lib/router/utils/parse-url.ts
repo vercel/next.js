@@ -25,7 +25,11 @@ export function parseUrl(url: string): ParsedUrl {
   const parsedURL = new URL(url)
   const username = parsedURL.username
   const password = parsedURL.password
-  const auth = username ? (password ? `${username}:${password}` : username) : null
+  const auth = username
+    ? password
+      ? `${username}:${password}`
+      : username
+    : null
   const pathname = parsedURL.pathname
   const search = parsedURL.search
   return {
@@ -40,6 +44,9 @@ export function parseUrl(url: string): ParsedUrl {
     search,
     origin: parsedURL.origin,
     slashes:
-      parsedURL.href.slice(parsedURL.protocol.length, parsedURL.protocol.length + 2) === '//',
+      parsedURL.href.slice(
+        parsedURL.protocol.length,
+        parsedURL.protocol.length + 2
+      ) === '//',
   }
 }

@@ -1,5 +1,11 @@
-import { HeadersAdapter, type ReadonlyHeaders } from '../web/spec-extension/adapters/headers'
-import { workAsyncStorage, type WorkStore } from '../app-render/work-async-storage.external'
+import {
+  HeadersAdapter,
+  type ReadonlyHeaders,
+} from '../web/spec-extension/adapters/headers'
+import {
+  workAsyncStorage,
+  type WorkStore,
+} from '../app-render/work-async-storage.external'
 import {
   throwForMissingRequestStore,
   workUnitAsyncStorage,
@@ -13,7 +19,10 @@ import {
   trackDynamicDataInDynamicRender,
 } from '../app-render/dynamic-rendering'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
-import { makeDevtoolsIOAwarePromise, makeHangingPromise } from '../dynamic-rendering-utils'
+import {
+  makeDevtoolsIOAwarePromise,
+  makeHangingPromise,
+} from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { isRequestAPICallableInsideAfter } from './utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
@@ -34,7 +43,11 @@ export function headers(): Promise<ReadonlyHeaders> {
   const workUnitStore = workUnitAsyncStorage.getStore()
 
   if (workStore) {
-    if (workUnitStore && workUnitStore.phase === 'after' && !isRequestAPICallableInsideAfter()) {
+    if (
+      workUnitStore &&
+      workUnitStore.phase === 'after' &&
+      !isRequestAPICallableInsideAfter()
+    ) {
       throw new Error(
         `Route ${workStore.route} used \`headers()\` inside \`after()\`. This is not supported. If you need this data inside an \`after()\` callback, use \`headers()\` outside of the callback. See more info here: https://nextjs.org/docs/canary/app/api-reference/functions/after`
       )
@@ -104,9 +117,16 @@ export function headers(): Promise<ReadonlyHeaders> {
           // We are in a legacy static generation mode while prerendering
           // We track dynamic access here so we don't need to wrap the headers in
           // individual property access tracking.
-          return throwToInterruptStaticGeneration(callingExpression, workStore, workUnitStore)
+          return throwToInterruptStaticGeneration(
+            callingExpression,
+            workStore,
+            workUnitStore
+          )
         case 'prerender-runtime':
-          return delayUntilRuntimeStage(workUnitStore, makeUntrackedHeaders(workUnitStore.headers))
+          return delayUntilRuntimeStage(
+            workUnitStore,
+            makeUntrackedHeaders(workUnitStore.headers)
+          )
         case 'private-cache':
           // Private caches are delayed until the runtime stage in use-cache-wrapper,
           // so we don't need an additional delay here.
@@ -159,7 +179,9 @@ function makeHangingHeaders(
   return promise
 }
 
-function makeUntrackedHeaders(underlyingHeaders: ReadonlyHeaders): Promise<ReadonlyHeaders> {
+function makeUntrackedHeaders(
+  underlyingHeaders: ReadonlyHeaders
+): Promise<ReadonlyHeaders> {
   const cachedHeaders = CachedHeaders.get(underlyingHeaders)
   if (cachedHeaders) {
     return cachedHeaders
@@ -186,7 +208,11 @@ function makeUntrackedHeadersWithDevWarnings(
     return cachedHeaders
   }
 
-  const promise = makeDevtoolsIOAwarePromise(underlyingHeaders, requestStore, RenderStage.Runtime)
+  const promise = makeDevtoolsIOAwarePromise(
+    underlyingHeaders,
+    requestStore,
+    RenderStage.Runtime
+  )
 
   const proxiedPromise = instrumentHeadersPromiseWithDevWarnings(promise, route)
 
@@ -195,14 +221,19 @@ function makeUntrackedHeadersWithDevWarnings(
   return proxiedPromise
 }
 
-const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(createHeadersAccessError)
+const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(
+  createHeadersAccessError
+)
 
 function instrumentHeadersPromiseWithDevWarnings(
   promise: Promise<ReadonlyHeaders>,
   route: string | undefined
 ) {
   Object.defineProperties(promise, {
-    [Symbol.iterator]: replaceableWarningDescriptorForSymbolIterator(promise, route),
+    [Symbol.iterator]: replaceableWarningDescriptorForSymbolIterator(
+      promise,
+      route
+    ),
     append: replaceableWarningDescriptor(promise, 'append', route),
     delete: replaceableWarningDescriptor(promise, 'delete', route),
     get: replaceableWarningDescriptor(promise, 'get', route),
@@ -217,7 +248,11 @@ function instrumentHeadersPromiseWithDevWarnings(
   return promise
 }
 
-function replaceableWarningDescriptor(target: unknown, prop: string, route: string | undefined) {
+function replaceableWarningDescriptor(
+  target: unknown,
+  prop: string,
+  route: string | undefined
+) {
   return {
     enumerable: false,
     get() {
@@ -235,7 +270,10 @@ function replaceableWarningDescriptor(target: unknown, prop: string, route: stri
   }
 }
 
-function replaceableWarningDescriptorForSymbolIterator(target: unknown, route: string | undefined) {
+function replaceableWarningDescriptorForSymbolIterator(
+  target: unknown,
+  route: string | undefined
+) {
   return {
     enumerable: false,
     get() {
@@ -254,7 +292,10 @@ function replaceableWarningDescriptorForSymbolIterator(target: unknown, route: s
   }
 }
 
-function createHeadersAccessError(route: string | undefined, expression: string) {
+function createHeadersAccessError(
+  route: string | undefined,
+  expression: string
+) {
   const prefix = route ? `Route "${route}" ` : 'This route '
   return new Error(
     `${prefix}used ${expression}. ` +

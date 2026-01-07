@@ -39,7 +39,9 @@ describe('DevErrorOverlay', () => {
         .getByRole('status')
         .textContent()
     ).toEqual('Thanks for your feedback!')
-    expect(feedbackRequests).toEqual(['/__nextjs_error_feedback?errorCode=E40&wasHelpful=true'])
+    expect(feedbackRequests).toEqual([
+      '/__nextjs_error_feedback?errorCode=E40&wasHelpful=true',
+    ])
   })
 
   it('sends feedback when clicking not helpful button', async () => {
@@ -64,7 +66,9 @@ describe('DevErrorOverlay', () => {
         .getByRole('status')
         .textContent()
     ).toEqual('Thanks for your feedback!')
-    expect(feedbackRequests).toEqual(['/__nextjs_error_feedback?errorCode=E40&wasHelpful=false'])
+    expect(feedbackRequests).toEqual([
+      '/__nextjs_error_feedback?errorCode=E40&wasHelpful=false',
+    ])
   })
 
   it('loads fonts successfully', async () => {

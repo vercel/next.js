@@ -12,11 +12,16 @@ export function log(message: string) {
 }
 
 // This function has to be called initially.
-export function init(opts: { ts: TypeScript; info: tsModule.server.PluginCreateInfo }) {
+export function init(opts: {
+  ts: TypeScript
+  info: tsModule.server.PluginCreateInfo
+}) {
   const projectDir = opts.info.project.getCurrentDirectory()
   ts = opts.ts
   info = opts.info
-  appDirRegExp = new RegExp('^' + (projectDir + '(/src)?/app').replace(/[\\/]/g, '[\\/]'))
+  appDirRegExp = new RegExp(
+    '^' + (projectDir + '(/src)?/app').replace(/[\\/]/g, '[\\/]')
+  )
 
   log('Initialized Next.js TypeScript plugin: ' + projectDir)
 }
@@ -103,11 +108,17 @@ export const isAppEntryFile = (filePath: string) => {
   )
 }
 export const isPageFile = (filePath: string) => {
-  return appDirRegExp.test(filePath) && /^page\.(mjs|js|jsx|ts|tsx)$/.test(path.basename(filePath))
+  return (
+    appDirRegExp.test(filePath) &&
+    /^page\.(mjs|js|jsx|ts|tsx)$/.test(path.basename(filePath))
+  )
 }
 
 // Check if a module is a client entry.
-export function getEntryInfo(fileName: string, throwOnInvalidDirective?: boolean) {
+export function getEntryInfo(
+  fileName: string,
+  throwOnInvalidDirective?: boolean
+) {
   const source = getSource(fileName)
   if (source) {
     let isDirective = true
@@ -115,14 +126,18 @@ export function getEntryInfo(fileName: string, throwOnInvalidDirective?: boolean
     let isServerEntry = false
 
     ts.forEachChild(source!, (node) => {
-      if (ts.isExpressionStatement(node) && ts.isStringLiteral(node.expression)) {
+      if (
+        ts.isExpressionStatement(node) &&
+        ts.isStringLiteral(node.expression)
+      ) {
         if (node.expression.text === 'use client') {
           if (isDirective) {
             isClientEntry = true
           } else {
             if (throwOnInvalidDirective) {
               const e = {
-                messageText: 'The `"use client"` directive must be put at the top of the file.',
+                messageText:
+                  'The `"use client"` directive must be put at the top of the file.',
                 start: node.expression.getStart(),
                 length: node.expression.getWidth(),
               }
@@ -135,7 +150,8 @@ export function getEntryInfo(fileName: string, throwOnInvalidDirective?: boolean
           } else {
             if (throwOnInvalidDirective) {
               const e = {
-                messageText: 'The `"use server"` directive must be put at the top of the file.',
+                messageText:
+                  'The `"use server"` directive must be put at the top of the file.',
                 start: node.expression.getStart(),
                 length: node.expression.getWidth(),
               }

@@ -19,14 +19,21 @@ class HeaderNav extends React.Component {
   }
 
   componentDidMount() {
-    Router.onRouteChangeComplete = this.handleRouteChangeTopLevelRouterDeprecatedBehavior
-    Router.events.on('routeChangeComplete', this.handleRouteChangeTopLevelRouter)
+    Router.onRouteChangeComplete =
+      this.handleRouteChangeTopLevelRouterDeprecatedBehavior
+    Router.events.on(
+      'routeChangeComplete',
+      this.handleRouteChangeTopLevelRouter
+    )
     this.props.router.events.on('routeChangeComplete', this.handleRouteChange)
   }
 
   componentWillUnmount() {
     Router.onRouteChangeComplete = null
-    Router.events.off('routeChangeComplete', this.handleRouteChangeTopLevelRouter)
+    Router.events.off(
+      'routeChangeComplete',
+      this.handleRouteChangeTopLevelRouter
+    )
     this.props.router.events.off('routeChangeComplete', this.handleRouteChange)
   }
 
@@ -57,7 +64,9 @@ class HeaderNav extends React.Component {
             key={url}
             prefetch
             className={`${this.state.activeURL === url ? 'active' : ''} ${
-              this.state.activeURLTopLevelRouter === url ? 'active-top-level-router' : ''
+              this.state.activeURLTopLevelRouter === url
+                ? 'active-top-level-router'
+                : ''
             } ${
               this.state.activeURLTopLevelRouterDeprecatedBehavior === url
                 ? 'active-top-level-router-deprecated-behavior'

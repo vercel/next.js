@@ -2,7 +2,11 @@
  * Normalizes Next.js data URL by removing /_next/data/{buildId}/ prefix and .json extension
  * ${basePath}/_next/data/$buildId/$path.json -> ${basePath}/$path
  */
-export function normalizeNextDataUrl(url: URL, basePath: string, buildId: string): URL {
+export function normalizeNextDataUrl(
+  url: URL,
+  basePath: string,
+  buildId: string
+): URL {
   const newUrl = new URL(url.toString())
   let pathname = newUrl.pathname
 
@@ -29,7 +33,11 @@ export function normalizeNextDataUrl(url: URL, basePath: string, buildId: string
  * Denormalizes URL by adding /_next/data/{buildId}/ prefix and .json extension
  * ${basePath}/$path -> ${basePath}/_next/data/$buildId/$path.json
  */
-export function denormalizeNextDataUrl(url: URL, basePath: string, buildId: string): URL {
+export function denormalizeNextDataUrl(
+  url: URL,
+  basePath: string,
+  buildId: string
+): URL {
   const newUrl = new URL(url.toString())
   let pathname = newUrl.pathname
 

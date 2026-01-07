@@ -22,7 +22,12 @@ export async function register() {
           return context
         },
         fields() {
-          return ['my-parent-span-id', 'my-test-key-1', 'my-test-key-2', 'non-metadata-key-3']
+          return [
+            'my-parent-span-id',
+            'my-test-key-1',
+            'my-test-key-2',
+            'non-metadata-key-3',
+          ]
         },
       },
     })

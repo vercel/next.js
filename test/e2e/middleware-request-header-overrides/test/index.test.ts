@@ -77,7 +77,9 @@ describe('Middleware Request Headers Overrides', () => {
 
       // Should not be included in response headers.
       expect(res.headers.get('x-middleware-override-headers')).toBeNull()
-      expect(res.headers.get('x-middleware-request-x-from-middleware')).toBeNull()
+      expect(
+        res.headers.get('x-middleware-request-x-from-middleware')
+      ).toBeNull()
       expect(res.headers.get('x-middleware-request-x-from-client1')).toBeNull()
       expect(res.headers.get('x-middleware-request-x-from-client2')).toBeNull()
     })
@@ -87,7 +89,8 @@ describe('Middleware Request Headers Overrides', () => {
         next.url,
         path,
         {
-          'update-headers': 'x-from-client1=new-value1,x-from-client2=new-value2',
+          'update-headers':
+            'x-from-client1=new-value1,x-from-client2=new-value2',
         },
         {
           headers: {
@@ -106,7 +109,9 @@ describe('Middleware Request Headers Overrides', () => {
 
       // Should not be included in response headers.
       expect(res.headers.get('x-middleware-override-headers')).toBeNull()
-      expect(res.headers.get('x-middleware-request-x-from-middleware')).toBeNull()
+      expect(
+        res.headers.get('x-middleware-request-x-from-middleware')
+      ).toBeNull()
       expect(res.headers.get('x-middleware-request-x-from-client1')).toBeNull()
       expect(res.headers.get('x-middleware-request-x-from-client2')).toBeNull()
       expect(res.headers.get('x-middleware-request-x-from-client3')).toBeNull()

@@ -1,5 +1,8 @@
 import React from 'react'
-import type { FlightData, FlightRouterState } from '../../../shared/lib/app-router-types'
+import type {
+  FlightData,
+  FlightRouterState,
+} from '../../../shared/lib/app-router-types'
 import { shouldHardNavigate } from './should-hard-navigate'
 
 describe('shouldHardNavigate', () => {
@@ -49,7 +52,10 @@ describe('shouldHardNavigate', () => {
     const flightDataPath = flightData[0]
     const flightSegmentPath = flightDataPath.slice(0, -4)
 
-    const result = shouldHardNavigate(['', ...flightSegmentPath], initialRouterStateTree)
+    const result = shouldHardNavigate(
+      ['', ...flightSegmentPath],
+      initialRouterStateTree
+    )
 
     expect(result).toBe(false)
   })
@@ -103,7 +109,10 @@ describe('shouldHardNavigate', () => {
     const flightDataPath = flightData[0]
     const flightSegmentPath = flightDataPath.slice(0, -4)
 
-    const result = shouldHardNavigate(['', ...flightSegmentPath], initialRouterStateTree)
+    const result = shouldHardNavigate(
+      ['', ...flightSegmentPath],
+      initialRouterStateTree
+    )
 
     expect(result).toBe(false)
   })
@@ -158,7 +167,10 @@ describe('shouldHardNavigate', () => {
     const flightDataPath = flightData[0]
     const flightSegmentPath = flightDataPath.slice(0, -4)
 
-    const result = shouldHardNavigate(['', ...flightSegmentPath], initialRouterStateTree)
+    const result = shouldHardNavigate(
+      ['', ...flightSegmentPath],
+      initialRouterStateTree
+    )
 
     expect(result).toBe(true)
   })

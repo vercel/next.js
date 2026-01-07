@@ -24,8 +24,14 @@ describe('app dir - metadata', () => {
   describe('basic', () => {
     it('should support title and description', async () => {
       const browser = await next.browser('/title')
-      expect(await browser.eval(`document.title`)).toBe('this is the page title')
-      await checkMetaNameContentPair(browser, 'description', 'this is the layout description')
+      expect(await browser.eval(`document.title`)).toBe(
+        'this is the page title'
+      )
+      await checkMetaNameContentPair(
+        browser,
+        'description',
+        'this is the layout description'
+      )
     })
 
     it('should support title template', async () => {
@@ -42,7 +48,9 @@ describe('app dir - metadata', () => {
 
     it('should use parent layout title when no title is defined in page', async () => {
       const browser = await next.browser('/title-template/use-layout-title')
-      expect(await browser.eval(`document.title`)).toBe('title template layout default')
+      expect(await browser.eval(`document.title`)).toBe(
+        'title template layout default'
+      )
     })
 
     it('should support stashed title in two layers of page and layout', async () => {
@@ -140,15 +148,23 @@ describe('app dir - metadata', () => {
 
       const matchDom = createDomMatcher(browser)
 
-      await matchDom('link', 'href="/assets/startup/apple-touch-startup-image-768x1004.png"', {
-        rel: 'apple-touch-startup-image',
-        media: null,
-      })
+      await matchDom(
+        'link',
+        'href="/assets/startup/apple-touch-startup-image-768x1004.png"',
+        {
+          rel: 'apple-touch-startup-image',
+          media: null,
+        }
+      )
 
-      await matchDom('link', 'href="/assets/startup/apple-touch-startup-image-1536x2008.png"', {
-        rel: 'apple-touch-startup-image',
-        media: '(device-width: 768px) and (device-height: 1024px)',
-      })
+      await matchDom(
+        'link',
+        'href="/assets/startup/apple-touch-startup-image-1536x2008.png"',
+        {
+          rel: 'apple-touch-startup-image',
+          media: '(device-width: 768px) and (device-height: 1024px)',
+        }
+      )
     })
 
     it('should support socials related tags like facebook and pinterest', async () => {
@@ -268,15 +284,25 @@ describe('app dir - metadata', () => {
       const browser = await next.browser('/')
 
       expect(await getTitle(browser)).toBe('index page')
-      await browser.elementByCss('#to-basic').click().waitForElementByCss('#basic')
+      await browser
+        .elementByCss('#to-basic')
+        .click()
+        .waitForElementByCss('#basic')
 
       await retry(async () => {
-        await checkMetaNameContentPair(browser, 'referrer', 'origin-when-cross-origin')
+        await checkMetaNameContentPair(
+          browser,
+          'referrer',
+          'origin-when-cross-origin'
+        )
       })
 
       await browser.back().waitForElementByCss('#index')
       expect(await getTitle(browser)).toBe('index page')
-      await browser.elementByCss('#to-title').click().waitForElementByCss('#title')
+      await browser
+        .elementByCss('#to-title')
+        .click()
+        .waitForElementByCss('#title')
 
       await retry(async () => {
         expect(await getTitle(browser)).toBe('this is the page title')
@@ -290,7 +316,10 @@ describe('app dir - metadata', () => {
       await checkMetaNameContentPair(browser, 'keywords', 'parent,child')
 
       await browser.loadPage(next.url + '/dynamic/blog?q=xxx')
-      await check(() => browser.elementByCss('p').text(), /params - blog query - xxx/)
+      await check(
+        () => browser.elementByCss('p').text(),
+        /params - blog query - xxx/
+      )
     })
 
     it('should handle metadataBase for urls resolved as only URL type', async () => {
@@ -298,7 +327,9 @@ describe('app dir - metadata', () => {
       const url$ = await next.render$('/metadata-base/url')
 
       // compose with metadataBase
-      expect(url$('link[rel="canonical"]').attr('href')).toBe('https://bar.example/url/subpath')
+      expect(url$('link[rel="canonical"]').attr('href')).toBe(
+        'https://bar.example/url/subpath'
+      )
 
       // override metadataBase
       const urlInstance$ = await next.render$('/metadata-base/url-instance')
@@ -327,7 +358,10 @@ describe('app dir - metadata', () => {
         'og:site_name': 'My custom site name',
         'og:locale': 'en-US',
         'og:type': 'website',
-        'og:image': ['https://example.com/image.png', 'https://example.com/image2.png'],
+        'og:image': [
+          'https://example.com/image.png',
+          'https://example.com/image2.png',
+        ],
         'og:image:width': ['800', '1800'],
         'og:image:height': ['600', '1600'],
         'og:image:alt': 'My custom alt',
@@ -341,7 +375,10 @@ describe('app dir - metadata', () => {
         'twitter:card': 'summary_large_image',
         'twitter:title': 'My custom title',
         'twitter:description': 'My custom description',
-        'twitter:image': ['https://example.com/image.png', 'https://example.com/image2.png'],
+        'twitter:image': [
+          'https://example.com/image.png',
+          'https://example.com/image2.png',
+        ],
         'twitter:image:width': ['800', '1800'],
         'twitter:image:height': ['600', '1600'],
         'twitter:image:alt': 'My custom alt',
@@ -374,7 +411,9 @@ describe('app dir - metadata', () => {
         'og:image:type': 'image/png',
         'og:image:alt': 'A alt txt for og',
         'og:image': isNextDev
-          ? expect.stringMatching(/http:\/\/localhost:\d+\/opengraph\/static\/opengraph-image/)
+          ? expect.stringMatching(
+              /http:\/\/localhost:\d+\/opengraph\/static\/opengraph-image/
+            )
           : expect.stringMatching(
               new RegExp(
                 `https:\\/\\/(${
@@ -386,7 +425,9 @@ describe('app dir - metadata', () => {
 
       match('meta', 'name', 'content', {
         'twitter:image': isNextDev
-          ? expect.stringMatching(/http:\/\/localhost:\d+\/opengraph\/static\/twitter-image/)
+          ? expect.stringMatching(
+              /http:\/\/localhost:\d+\/opengraph\/static\/twitter-image/
+            )
           : expect.stringMatching(
               new RegExp(
                 `https:\\/\\/(${
@@ -511,11 +552,15 @@ describe('app dir - metadata', () => {
       expect(['16x16', '48x48']).toContain(favIcon.attr('sizes'))
 
       if (!isNextDeploy) {
-        const faviconFileBuffer = await fs.readFile(path.join(next.testDir, 'app/favicon.ico'))
+        const faviconFileBuffer = await fs.readFile(
+          path.join(next.testDir, 'app/favicon.ico')
+        )
         const faviconResponse = Buffer.from(
           await next.fetch('/favicon.ico').then((res) => res.arrayBuffer())
         )
-        return expect(Buffer.compare(faviconResponse, faviconFileBuffer)).toBe(0)
+        return expect(Buffer.compare(faviconResponse, faviconFileBuffer)).toBe(
+          0
+        )
       }
     })
   })
@@ -530,7 +575,9 @@ describe('app dir - metadata', () => {
       expect($icon.attr('href')).toMatch(/\/icons\/static\/nested\/icon1/)
       expect($icon.attr('sizes')).toBe('32x32')
       expect($icon.attr('type')).toBe('image/png')
-      expect($appleIcon.attr('href')).toMatch(/\/icons\/static\/nested\/apple-icon/)
+      expect($appleIcon.attr('href')).toMatch(
+        /\/icons\/static\/nested\/apple-icon/
+      )
       expect($appleIcon.attr('type')).toBe('image/png')
       expect($appleIcon.attr('sizes')).toMatch('114x114')
     })
@@ -552,7 +599,9 @@ describe('app dir - metadata', () => {
       const dynamicIconHref = $dynamicIcon.attr('href')
       // Static icon files under dynamic routes use "-" as placeholder
       // since the file content is the same regardless of params
-      expect(dynamicIconHref).toMatch(/\/icons\/static\/dynamic-routes\/-\/icon/)
+      expect(dynamicIconHref).toMatch(
+        /\/icons\/static\/dynamic-routes\/-\/icon/
+      )
       const dynamicIconRes = await next.fetch(dynamicIconHref)
       expect(dynamicIconRes.status).toBe(200)
     })
@@ -641,23 +690,31 @@ describe('app dir - metadata', () => {
       expect(res.status).toBe(200)
       expect(res.headers.get('content-type')).toBe('image/x-icon')
       expect(res.headers.get('cache-control')).toBe(
-        isNextDev ? 'no-store, must-revalidate' : 'public, max-age=0, must-revalidate'
+        isNextDev
+          ? 'no-store, must-revalidate'
+          : 'public, max-age=0, must-revalidate'
       )
     })
 
     it('should have icons as route', async () => {
       const resIcon = await next.fetch('/icons/static/icon.png')
-      const resAppleIcon = await next.fetch('/icons/static/nested/apple-icon.png')
+      const resAppleIcon = await next.fetch(
+        '/icons/static/nested/apple-icon.png'
+      )
 
       expect(resAppleIcon.status).toBe(200)
       expect(resAppleIcon.headers.get('content-type')).toBe('image/png')
       expect(resAppleIcon.headers.get('cache-control')).toBe(
-        isNextDev ? 'no-store, must-revalidate' : 'public, max-age=0, must-revalidate'
+        isNextDev
+          ? 'no-store, must-revalidate'
+          : 'public, max-age=0, must-revalidate'
       )
       expect(resIcon.status).toBe(200)
       expect(resIcon.headers.get('content-type')).toBe('image/png')
       expect(resIcon.headers.get('cache-control')).toBe(
-        isNextDev ? 'no-store, must-revalidate' : 'public, max-age=0, must-revalidate'
+        isNextDev
+          ? 'no-store, must-revalidate'
+          : 'public, max-age=0, must-revalidate'
       )
     })
 
@@ -677,7 +734,9 @@ describe('app dir - metadata', () => {
       expect(res.headers.get('content-type')).toBe('application/xml')
       const sitemap = await res.text()
       expect(sitemap).toContain('<?xml version="1.0" encoding="UTF-8"?>')
-      expect(sitemap).toContain('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">')
+      expect(sitemap).toContain(
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+      )
       const invalidSitemapResponse = await next.fetch('/title/sitemap.xml')
       expect(invalidSitemapResponse.status).toBe(200)
     })
@@ -702,8 +761,12 @@ describe('app dir - metadata', () => {
         const appPathsManifest = JSON.parse(
           await next.readFile('.next/server/app-paths-manifest.json')
         )
-        expect(appPathsManifest['/robots.txt/route']).toBe('app/robots.txt/route.js')
-        expect(appPathsManifest['/sitemap.xml/route']).toBe('app/sitemap.xml/route.js')
+        expect(appPathsManifest['/robots.txt/route']).toBe(
+          'app/robots.txt/route.js'
+        )
+        expect(appPathsManifest['/sitemap.xml/route']).toBe(
+          'app/sitemap.xml/route.js'
+        )
       })
     }
   })
@@ -712,10 +775,14 @@ describe('app dir - metadata', () => {
     describe('static optimization', () => {
       it('should build static files into static route', async () => {
         expect(
-          await next.hasFile('.next/server/app/opengraph/static/opengraph-image.png.meta')
+          await next.hasFile(
+            '.next/server/app/opengraph/static/opengraph-image.png.meta'
+          )
         ).toBe(true)
         expect(
-          await next.hasFile('.next/server/app/opengraph/static/opengraph-image.png.body')
+          await next.hasFile(
+            '.next/server/app/opengraph/static/opengraph-image.png.body'
+          )
         ).toBe(true)
         expect(
           await next.hasFile(
@@ -763,12 +830,17 @@ describe('app dir - metadata', () => {
 
     it('should have same title and page value when navigating', async () => {
       const browser = await next.browser('/cache-deduping/navigating')
-      await browser.elementByCss('#link-to-deduping-page').click().waitForElementByCss('#value')
+      await browser
+        .elementByCss('#link-to-deduping-page')
+        .click()
+        .waitForElementByCss('#value')
       const value = await browser.elementByCss('#value').text()
       const value2 = await browser.elementByCss('#value2').text()
       // Dynamic metadata streams in async
       await retry(async () => {
-        expect(await browser.eval(`document.title`)).toContain('"page":"cache-deduping"')
+        expect(await browser.eval(`document.title`)).toContain(
+          '"page":"cache-deduping"'
+        )
       })
       // Value in the title should match what's shown on the page component
       const title = await browser.eval(`document.title`)
@@ -797,7 +869,10 @@ describe('app dir - metadata', () => {
       ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
         'should handle updates to the file icon name and order',
         async () => {
-          await next.renameFile('app/icons/static/icon.png', 'app/icons/static/icon2.png')
+          await next.renameFile(
+            'app/icons/static/icon.png',
+            'app/icons/static/icon2.png'
+          )
 
           await check(async () => {
             const $ = await next.render$('/icons/static')
@@ -805,7 +880,10 @@ describe('app dir - metadata', () => {
             return $icon.attr('href')
           }, /\/icons\/static\/icon2/)
 
-          await next.renameFile('app/icons/static/icon2.png', 'app/icons/static/icon.png')
+          await next.renameFile(
+            'app/icons/static/icon2.png',
+            'app/icons/static/icon.png'
+          )
         }
       )
     }

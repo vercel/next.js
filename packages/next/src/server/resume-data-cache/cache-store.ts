@@ -1,4 +1,7 @@
-import { arrayBufferToString, stringToUint8Array } from '../app-render/encryption-utils'
+import {
+  arrayBufferToString,
+  stringToUint8Array,
+} from '../app-render/encryption-utils'
 import type { CacheEntry } from '../lib/cache-handlers/types'
 import type { CachedFetchValue } from '../response-cache/types'
 import { DYNAMIC_EXPIRE } from '../use-cache/constants'
@@ -6,7 +9,10 @@ import { DYNAMIC_EXPIRE } from '../use-cache/constants'
 /**
  * A generic cache store type that provides a subset of Map functionality
  */
-type CacheStore<T> = Pick<Map<string, T>, 'entries' | 'keys' | 'size' | 'get' | 'set'>
+type CacheStore<T> = Pick<
+  Map<string, T>,
+  'entries' | 'keys' | 'size' | 'get' | 'set'
+>
 
 /**
  * A cache store specifically for fetch cache values
@@ -52,7 +58,10 @@ export function parseUseCacheCacheStore(
 ): UseCacheCacheStore {
   const store = new Map<string, Promise<CacheEntry>>()
 
-  for (const [key, { value, tags, stale, timestamp, expire, revalidate }] of entries) {
+  for (const [
+    key,
+    { value, tags, stale, timestamp, expire, revalidate },
+  ] of entries) {
     store.set(
       key,
       Promise.resolve({

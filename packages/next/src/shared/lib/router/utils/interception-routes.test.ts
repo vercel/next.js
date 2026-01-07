@@ -29,17 +29,23 @@ describe('Interception Route helper', () => {
         interceptedRoute: '/bar',
       })
 
-      expect(extractInterceptionRouteInformation('/foo/bar/(..)(..)baz')).toEqual({
+      expect(
+        extractInterceptionRouteInformation('/foo/bar/(..)(..)baz')
+      ).toEqual({
         interceptingRoute: '/foo/bar',
         interceptedRoute: '/baz',
       })
 
-      expect(extractInterceptionRouteInformation('/foo/(group)/bar/(..)(..)baz')).toEqual({
+      expect(
+        extractInterceptionRouteInformation('/foo/(group)/bar/(..)(..)baz')
+      ).toEqual({
         interceptingRoute: '/foo/bar',
         interceptedRoute: '/baz',
       })
 
-      expect(extractInterceptionRouteInformation('/foo/bar/@modal/(..)(..)baz')).toEqual({
+      expect(
+        extractInterceptionRouteInformation('/foo/bar/@modal/(..)(..)baz')
+      ).toEqual({
         interceptingRoute: '/foo/bar',
         interceptedRoute: '/baz',
       })
@@ -60,7 +66,9 @@ describe('Interception Route helper', () => {
       ).toThrowErrorMatchingInlineSnapshot(
         `"Invalid interception route: /foo/..)/bar. Must be in the format /<intercepting route>/(..|...|..)(..)/<intercepted route>"`
       )
-      expect(() => extractInterceptionRouteInformation('/foo')).toThrowErrorMatchingInlineSnapshot(
+      expect(() =>
+        extractInterceptionRouteInformation('/foo')
+      ).toThrowErrorMatchingInlineSnapshot(
         `"Invalid interception route: /foo. Must be in the format /<intercepting route>/(..|...|..)(..)/<intercepted route>"`
       )
     })

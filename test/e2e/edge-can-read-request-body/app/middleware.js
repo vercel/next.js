@@ -9,7 +9,8 @@ export default async function middleware(req) {
   const res = NextResponse.next()
   res.headers.set('x-incoming-content-type', req.headers.get('content-type'))
 
-  const handler = bodyHandlers[req.nextUrl.searchParams.get('middleware-handler')]
+  const handler =
+    bodyHandlers[req.nextUrl.searchParams.get('middleware-handler')]
   const headers = await handler?.(req)
   for (const [key, value] of headers ?? []) {
     res.headers.set(key, value)

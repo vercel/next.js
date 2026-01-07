@@ -21,6 +21,12 @@
     ],
     "strictNullChecks": false
   },
-  "include": ["next-env.d.ts", ".next/types/**/*.ts", "**/*.mts", "**/*.ts", "**/*.tsx"],
+  "include": [
+    "next-env.d.ts",
+    ".next/types/**/*.ts",
+    "**/*.mts",
+    "**/*.ts",
+    "**/*.tsx"
+  ],
   "exclude": ["node_modules"]
 }

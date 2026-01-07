@@ -1,7 +1,15 @@
-import { waitForRedbox, getBrowserBodyText, retry, waitFor } from 'next-test-utils'
+import {
+  waitForRedbox,
+  getBrowserBodyText,
+  retry,
+  waitFor,
+} from 'next-test-utils'
 import { createNext, nextTestSetup } from 'e2e-utils'
 
-export function runBasicHmrTest(nextConfig: { basePath: string; assetPrefix: string }) {
+export function runBasicHmrTest(nextConfig: {
+  basePath: string
+  assetPrefix: string
+}) {
   const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
     nextConfig,
@@ -61,7 +69,9 @@ export function runBasicHmrTest(nextConfig: { basePath: string; assetPrefix: str
         expect(compileTimeStr).toMatch(/Compiled.*?/i)
       })
 
-      const matches = [...compileTimeStr.match(/Compiled.*? in ([\d.]{1,})\s?(?:s|ms)/i)]
+      const matches = [
+        ...compileTimeStr.match(/Compiled.*? in ([\d.]{1,})\s?(?:s|ms)/i),
+      ]
       const [, compileTime, timeUnit] = matches
 
       let compileTimeMs = parseFloat(compileTime)
@@ -75,7 +85,9 @@ export function runBasicHmrTest(nextConfig: { basePath: string; assetPrefix: str
   it('should reload the page when the server restarts', async () => {
     const browser = await next.browser(basePath + '/hmr/about')
     await retry(async () => {
-      expect(await getBrowserBodyText(browser)).toMatch(/This is the about page/)
+      expect(await getBrowserBodyText(browser)).toMatch(
+        /This is the about page/
+      )
     })
 
     await next.destroy()

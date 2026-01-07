@@ -2,8 +2,14 @@ import '../lib/require-instrumentation-client'
 import { hydrate, router } from './'
 import initOnDemandEntries from './dev/on-demand-entries-client'
 import { displayContent } from './dev/fouc'
-import { connectHMR, addMessageListener } from './dev/hot-reloader/pages/websocket'
-import { assign, urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
+import {
+  connectHMR,
+  addMessageListener,
+} from './dev/hot-reloader/pages/websocket'
+import {
+  assign,
+  urlQueryToSearchParams,
+} from '../shared/lib/router/utils/querystring'
 import { HMR_MESSAGE_SENT_TO_BROWSER } from '../server/dev/hot-reloader-types'
 import { RuntimeErrorHandler } from './dev/runtime-error-handler'
 import { REACT_REFRESH_FULL_RELOAD_FROM_ERROR } from './dev/hot-reloader/shared'
@@ -34,7 +40,9 @@ export function pageBootstrap(assetPrefix: string) {
           break
         }
         case HMR_MESSAGE_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE: {
-          fetch(`${assetPrefix}/_next/static/development/_devPagesManifest.json`)
+          fetch(
+            `${assetPrefix}/_next/static/development/_devPagesManifest.json`
+          )
             .then((res) => res.json())
             .then((manifest) => {
               window.__DEV_PAGES_MANIFEST = manifest

@@ -17,7 +17,9 @@ describe('app-dir alias', () => {
 
   it('should resolve css imports from outside with src folder presented', async () => {
     const browser = await next.browser('/button')
-    const fontSize = await browser.elementByCss('button').getComputedCss('font-size')
+    const fontSize = await browser
+      .elementByCss('button')
+      .getComputedCss('font-size')
     expect(fontSize).toBe('50px')
   })
 })

@@ -10,7 +10,11 @@ import {
 import { execSync } from 'child_process'
 import path from 'path'
 import pc from 'picocolors'
-import { getPkgManager, addPackageDependency, runInstallation } from '../lib/handle-package'
+import {
+  getPkgManager,
+  addPackageDependency,
+  runInstallation,
+} from '../lib/handle-package'
 import { runTransform } from './transform'
 import { onCancel, TRANSFORMER_INQUIRER_CHOICES } from '../lib/utils'
 import { BadInput } from './shared'
@@ -38,9 +42,12 @@ const optionalNextjsPackages = [
  * @example loadHighestNPMVersionMatching("react@^18.3.0 || ^19.0.0") === Promise<"19.0.0">
  */
 async function loadHighestNPMVersionMatching(query: string) {
-  const versionsJSON = execSync(`npm --silent view "${query}" --json --field version`, {
-    encoding: 'utf-8',
-  })
+  const versionsJSON = execSync(
+    `npm --silent view "${query}" --json --field version`,
+    {
+      encoding: 'utf-8',
+    }
+  )
   const versionOrVersions = JSON.parse(versionsJSON)
   if (versionOrVersions.length < 1) {
     throw new Error(
@@ -83,7 +90,10 @@ const cwd = process.cwd()
  * - minor: latest minor within current major (e.g., 15.0.x -> 15.1.x)
  * - major: latest stable version (equivalent to "latest")
  */
-function resolveSemanticRevision(revision: string, installedVersion: string): string {
+function resolveSemanticRevision(
+  revision: string,
+  installedVersion: string
+): string {
   const installedMajor = major(installedVersion)
   const installedMinor = minor(installedVersion)
 
@@ -112,7 +122,10 @@ export async function runUpgrade(
   const installedNextVersion = getInstalledNextVersion()
 
   // Resolve semantic keywords to npm version queries
-  const resolvedRevision = resolveSemanticRevision(revision ?? 'minor', installedNextVersion)
+  const resolvedRevision = resolveSemanticRevision(
+    revision ?? 'minor',
+    installedNextVersion
+  )
 
   if (options.verbose) {
     console.log(`  Resolved upgrade target: ${resolvedRevision}`)
@@ -143,9 +156,12 @@ export async function runUpgrade(
     }
 
     // Then fetch the full package info for that specific version
-    const targetNextPackage = execSync(`npm --silent view "next@${targetVersion}" --json`, {
-      encoding: 'utf-8',
-    })
+    const targetNextPackage = execSync(
+      `npm --silent view "next@${targetVersion}" --json`,
+      {
+        encoding: 'utf-8',
+      }
+    )
     targetNextPackageJson = JSON.parse(targetNextPackage)
   } catch (e) {
     if (options.verbose) {
@@ -244,7 +260,10 @@ export async function runUpgrade(
     await suggestTurbopack(appPackageJson, targetNextVersion)
   }
 
-  const codemods = await suggestCodemods(installedNextVersion, targetNextVersion)
+  const codemods = await suggestCodemods(
+    installedNextVersion,
+    targetNextVersion
+  )
   const packageManager: PackageManager = getPkgManager(cwd)
 
   let shouldRunReactCodemods = false
@@ -272,12 +291,13 @@ export async function runUpgrade(
     ...appPackageJson.devDependencies,
   }
 
-  const versionMapping: Record<string, { version: string; required: boolean }> = {
-    next: { version: targetNextVersion, required: true },
-    react: { version: targetReactVersion, required: true },
-    'react-dom': { version: targetReactVersion, required: true },
-    'react-is': { version: targetReactVersion, required: false },
-  }
+  const versionMapping: Record<string, { version: string; required: boolean }> =
+    {
+      next: { version: targetNextVersion, required: true },
+      react: { version: targetReactVersion, required: true },
+      'react-dom': { version: targetReactVersion, required: true },
+      'react-is': { version: targetReactVersion, required: false },
+    }
   for (const optionalNextjsPackage of optionalNextjsPackages) {
     versionMapping[optionalNextjsPackage] = {
       version: targetNextVersion,
@@ -290,10 +310,11 @@ export async function runUpgrade(
     targetReactVersion.startsWith('19.0.0-beta') ||
     targetReactVersion.startsWith('19.0.0-rc')
   ) {
-    const [targetReactTypesVersion, targetReactDOMTypesVersion] = await Promise.all([
-      loadHighestNPMVersionMatching(`types-react@rc`),
-      loadHighestNPMVersionMatching(`types-react-dom@rc`),
-    ])
+    const [targetReactTypesVersion, targetReactDOMTypesVersion] =
+      await Promise.all([
+        loadHighestNPMVersionMatching(`types-react@rc`),
+        loadHighestNPMVersionMatching(`types-react-dom@rc`),
+      ])
     if (allDependencies['@types/react']) {
       versionMapping['@types/react'] = {
         version: `npm:types-react@${targetReactTypesVersion}`,
@@ -307,14 +328,15 @@ export async function runUpgrade(
       }
     }
   } else {
-    const [targetReactTypesVersion, targetReactDOMTypesVersion] = await Promise.all([
-      loadHighestNPMVersionMatching(
-        `@types/react@${targetNextPackageJson.peerDependencies['react']}`
-      ),
-      loadHighestNPMVersionMatching(
-        `@types/react-dom@${targetNextPackageJson.peerDependencies['react']}`
-      ),
-    ])
+    const [targetReactTypesVersion, targetReactDOMTypesVersion] =
+      await Promise.all([
+        loadHighestNPMVersionMatching(
+          `@types/react@${targetNextPackageJson.peerDependencies['react']}`
+        ),
+        loadHighestNPMVersionMatching(
+          `@types/react-dom@${targetNextPackageJson.peerDependencies['react']}`
+        ),
+      ])
 
     if (allDependencies['@types/react']) {
       versionMapping['@types/react'] = {
@@ -343,7 +365,9 @@ export async function runUpgrade(
 
   writeOverridesField(appPackageJson, packageManager, overrides)
 
-  for (const [packageName, { version, required }] of Object.entries(versionMapping)) {
+  for (const [packageName, { version, required }] of Object.entries(
+    versionMapping
+  )) {
     if (appPackageJson.devDependencies?.[packageName]) {
       devDependenciesToInstall.push([packageName, version])
     } else if (required || appPackageJson.dependencies?.[packageName]) {
@@ -351,7 +375,9 @@ export async function runUpgrade(
     }
   }
 
-  console.log(`Upgrading your project to ${pc.blue('Next.js ' + targetNextVersion)}...`)
+  console.log(
+    `Upgrading your project to ${pc.blue('Next.js ' + targetNextVersion)}...`
+  )
 
   for (const [dep, version] of dependenciesToInstall) {
     addPackageDependency(appPackageJson, dep, version, false)
@@ -461,12 +487,16 @@ function isUsingAppDir(projectPath: string): boolean {
  * 3. Otherwise, we ask the user to manually add `--turbopack` to their dev command,
  *    showing the current dev command as the initial value.
  */
-async function suggestTurbopack(packageJson: any, targetNextVersion: string): Promise<void> {
+async function suggestTurbopack(
+  packageJson: any,
+  targetNextVersion: string
+): Promise<void> {
   const devScript: string | undefined = packageJson.scripts?.['dev']
   // Turbopack flag was changed from `--turbo` to `--turbopack` in v15.0.1-canary.3
   // PR: https://github.com/vercel/next.js/pull/71657
   // Release: https://github.com/vercel/next.js/releases/tag/v15.0.1-canary.3
-  const isAfterTurbopackFlagChange = compareVersions(targetNextVersion, '15.0.1-canary.3') >= 0
+  const isAfterTurbopackFlagChange =
+    compareVersions(targetNextVersion, '15.0.1-canary.3') >= 0
   const turboPackFlag = isAfterTurbopackFlagChange ? '--turbopack' : '--turbo'
 
   if (!devScript) {
@@ -481,7 +511,9 @@ async function suggestTurbopack(packageJson: any, targetNextVersion: string): Pr
     if (devScript.includes('--turbo')) {
       if (isAfterTurbopackFlagChange && !devScript.includes('--turbopack')) {
         console.log() // new line
-        console.log(`${pc.green('✔')} Replaced "--turbo" with "--turbopack" in your dev script.`)
+        console.log(
+          `${pc.green('✔')} Replaced "--turbo" with "--turbopack" in your dev script.`
+        )
         console.log() // new line
         packageJson.scripts['dev'] = devScript.replace('--turbo', '--turbopack')
         return
@@ -503,11 +535,16 @@ async function suggestTurbopack(packageJson: any, targetNextVersion: string): Pr
       return
     }
 
-    packageJson.scripts['dev'] = devScript.replace('next dev', `next dev ${turboPackFlag}`)
+    packageJson.scripts['dev'] = devScript.replace(
+      'next dev',
+      `next dev ${turboPackFlag}`
+    )
     return
   }
 
-  console.log(`${pc.yellow('⚠')} Could not find "${pc.bold('next dev')}" in your dev script.`)
+  console.log(
+    `${pc.yellow('⚠')} Could not find "${pc.bold('next dev')}" in your dev script.`
+  )
 
   const responseCustomDevScript = await prompts(
     {
@@ -519,7 +556,8 @@ async function suggestTurbopack(packageJson: any, targetNextVersion: string): Pr
     { onCancel }
   )
 
-  packageJson.scripts['dev'] = responseCustomDevScript.customDevScript || devScript
+  packageJson.scripts['dev'] =
+    responseCustomDevScript.customDevScript || devScript
 }
 
 async function suggestCodemods(
@@ -534,9 +572,11 @@ async function suggestCodemods(
   // 15.0.0-canary.45 -> 15.0.0-canary.46: don't apply
   // 15.0.0-canary.45 -> 15.0.0          : don't apply
   // 15.0.0-canary.44 -> 15.0.0          : apply
-  const initialVersionIndex = TRANSFORMER_INQUIRER_CHOICES.findIndex((codemod) => {
-    return compareVersions(codemod.version, initialNextVersion) > 0
-  })
+  const initialVersionIndex = TRANSFORMER_INQUIRER_CHOICES.findIndex(
+    (codemod) => {
+      return compareVersions(codemod.version, initialNextVersion) > 0
+    }
+  )
   if (initialVersionIndex === -1) {
     return []
   }
@@ -694,7 +734,12 @@ function warnDependenciesOutOfRange(
     // require.resolve(`${dependency}/package.json`, { paths: [cwd] }) results in previously installed version being used in PNPM
     let pkgJsonFromNodeModules
     try {
-      pkgJsonFromNodeModules = path.join(cwd, 'node_modules', dependency, 'package.json')
+      pkgJsonFromNodeModules = path.join(
+        cwd,
+        'node_modules',
+        dependency,
+        'package.json'
+      )
 
       pkgJson = JSON.parse(fs.readFileSync(pkgJsonFromNodeModules, 'utf8'))
     } catch {
@@ -709,8 +754,8 @@ function warnDependenciesOutOfRange(
     if ('peerDependencies' in pkgJson) {
       const peerDeps = pkgJson.peerDependencies
       const peerDepsNames = Object.keys(peerDeps)
-      const depsToCheck = Object.keys(versionMapping).filter((versionMappingKey) =>
-        peerDepsNames.includes(versionMappingKey)
+      const depsToCheck = Object.keys(versionMapping).filter(
+        (versionMappingKey) => peerDepsNames.includes(versionMappingKey)
       )
 
       for (const depName of depsToCheck) {
@@ -742,7 +787,9 @@ function warnDependenciesOutOfRange(
         'You may have to update these packages to their latest version or file an issue to ask for support of the upgraded libraries.'
     )
     dependenciesOutOfRange.forEach((deps, packageName) => {
-      console.log(`${packageName} ${pc.gray(resolvedDependencyVersions.get(packageName))}`)
+      console.log(
+        `${packageName} ${pc.gray(resolvedDependencyVersions.get(packageName))}`
+      )
       Object.entries(deps).forEach(([depName, value], index, depsArray) => {
         const prefix = index === depsArray.length - 1 ? '  └── ' : '  ├── '
         console.log(

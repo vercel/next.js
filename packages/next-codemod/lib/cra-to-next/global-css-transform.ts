@@ -8,7 +8,11 @@ export const globalCssContext = {
 }
 const globalStylesRegex = /(?<!\.module)\.(css|scss|sass)$/i
 
-export default function transformer(file: FileInfo, _api: API, options: Options) {
+export default function transformer(
+  file: FileInfo,
+  _api: API,
+  options: Options
+) {
   const j = createParserFromPath(file.path)
   const root = j(file.source)
   let hasModifications = false
@@ -37,7 +41,9 @@ export default function transformer(file: FileInfo, _api: API, options: Options)
             path.parentPath.node.comments = []
           }
 
-          path.parentPath.node.comments = [j.commentLine(' ' + file.source.substring(start, end))]
+          path.parentPath.node.comments = [
+            j.commentLine(' ' + file.source.substring(start, end)),
+          ]
           hasModifications = true
           return true
         } else if (value.endsWith('.svg')) {

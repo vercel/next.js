@@ -1,6 +1,12 @@
 /* eslint-env jest */
-import { getPreviouslyCachedImageOrNull, getImageEtag } from 'next/dist/server/image-optimizer'
-import { CachedRouteKind, IncrementalCacheEntry } from 'next/dist/server/response-cache/types'
+import {
+  getPreviouslyCachedImageOrNull,
+  getImageEtag,
+} from 'next/dist/server/image-optimizer'
+import {
+  CachedRouteKind,
+  IncrementalCacheEntry,
+} from 'next/dist/server/response-cache/types'
 import { readFile } from 'fs-extra'
 import { join } from 'path'
 
@@ -24,7 +30,11 @@ const baseCacheEntry = {
   isFallback: false,
 } as const
 
-const getPreviousCacheEntry = async (filepath, extension = 'jpeg', optimizedEtag = true) => {
+const getPreviousCacheEntry = async (
+  filepath,
+  extension = 'jpeg',
+  optimizedEtag = true
+) => {
   const buffer = await readFile(join(__dirname, filepath))
   const upstreamEtag = getImageEtag(buffer)
   const result: IncrementalCacheEntry = {
@@ -44,7 +54,10 @@ describe('shouldUsePreviouslyCachedEntry', () => {
   it('should return the cached image if the upstream image matches previous cache entry upstream etag and not the optimized etag', async () => {
     const previousEntry = await getPreviousCacheEntry('./images/test.jpg')
     expect(
-      getPreviouslyCachedImageOrNull(await getImageUpstream('./images/test.jpg'), previousEntry)
+      getPreviouslyCachedImageOrNull(
+        await getImageUpstream('./images/test.jpg'),
+        previousEntry
+      )
     ).toEqual(previousEntry.value)
   })
 
@@ -81,14 +94,20 @@ describe('shouldUsePreviouslyCachedEntry', () => {
 
   it('should return null if previous cache entry is undefined', async () => {
     expect(
-      getPreviouslyCachedImageOrNull(await getImageUpstream('./images/test.jpg'), undefined)
+      getPreviouslyCachedImageOrNull(
+        await getImageUpstream('./images/test.jpg'),
+        undefined
+      )
     ).toBe(null)
   })
 
   it('should return null if previous cache entry is null', async () => {
-    expect(getPreviouslyCachedImageOrNull(await getImageUpstream('./images/test.jpg'), null)).toBe(
-      null
-    )
+    expect(
+      getPreviouslyCachedImageOrNull(
+        await getImageUpstream('./images/test.jpg'),
+        null
+      )
+    ).toBe(null)
   })
 
   it('should return null if previous cache entry value is null', async () => {

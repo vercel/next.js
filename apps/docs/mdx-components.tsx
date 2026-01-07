@@ -15,7 +15,14 @@ const genericComponents = {
       src?: string
     }
   ) => {
-    const { src, srcLight, srcDark, caption, alt = caption || '', ...rest } = props
+    const {
+      src,
+      srcLight,
+      srcDark,
+      caption,
+      alt = caption || '',
+      ...rest
+    } = props
 
     const hasThemeVariants = srcLight && srcDark
     const sharedClasses = 'rounded-md border border-gray-200 bg-gray-100'
@@ -40,7 +47,12 @@ const genericComponents = {
           </>
         ) : (
           /* Only src provided - show in both themes */
-          <NextImage className={sharedClasses} {...rest} alt={alt} src={IMAGE_BASE_URL + src} />
+          <NextImage
+            className={sharedClasses}
+            {...rest}
+            alt={alt}
+            src={IMAGE_BASE_URL + src}
+          />
         )}
 
         {caption ? <figcaption>{caption}</figcaption> : null}
@@ -67,8 +79,10 @@ export function getMDXComponents(
   return {
     ...defaultMdxComponents,
     ...genericComponents,
-    AppOnly: ({ children }: { children: ReactNode }): ReactNode => (isApp ? children : null),
-    PagesOnly: ({ children }: { children: ReactNode }): ReactNode => (isPages ? children : null),
+    AppOnly: ({ children }: { children: ReactNode }): ReactNode =>
+      isApp ? children : null,
+    PagesOnly: ({ children }: { children: ReactNode }): ReactNode =>
+      isPages ? children : null,
     ...components,
   }
 }

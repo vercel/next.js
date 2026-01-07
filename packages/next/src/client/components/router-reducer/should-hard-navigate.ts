@@ -13,7 +13,10 @@ export function shouldHardNavigate(
 ): boolean {
   const [segment, parallelRoutes] = flightRouterState
   // TODO-APP: Check if `as` can be replaced.
-  const [currentSegment, parallelRouteKey] = flightSegmentPath as [Segment, string]
+  const [currentSegment, parallelRouteKey] = flightSegmentPath as [
+    Segment,
+    string,
+  ]
 
   // Check if current segment matches the existing segment.
   if (!matchSegment(currentSegment, segment)) {

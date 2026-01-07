@@ -92,7 +92,10 @@ function resourceKey(resource: ResourceIdentifier): ResourceKey {
   })
 }
 
-function subscribeToUpdates(sendMessage: SendMessage, resource: ResourceIdentifier): () => void {
+function subscribeToUpdates(
+  sendMessage: SendMessage,
+  resource: ResourceIdentifier
+): () => void {
   sendJSON(sendMessage, {
     type: 'turbopack-subscribe',
     ...resource,
@@ -113,14 +116,18 @@ function handleSocketConnected(sendMessage: SendMessage) {
 }
 
 // we aggregate all pending updates until the issues are resolved
-const chunkListsWithPendingUpdates: Map<ResourceKey, PartialServerMessage> = new Map()
+const chunkListsWithPendingUpdates: Map<ResourceKey, PartialServerMessage> =
+  new Map()
 
 function aggregateUpdates(msg: PartialServerMessage) {
   const key = resourceKey(msg.resource)
   let aggregated = chunkListsWithPendingUpdates.get(key)
 
   if (aggregated) {
-    aggregated.instruction = mergeChunkListUpdates(aggregated.instruction, msg.instruction)
+    aggregated.instruction = mergeChunkListUpdates(
+      aggregated.instruction,
+      msg.instruction
+    )
   } else {
     chunkListsWithPendingUpdates.set(key, msg)
   }
@@ -162,11 +169,17 @@ function mergeChunkListUpdates(
       // no need to key on the `type` field.
       let update = updateA.merged[0]
       for (let i = 1; i < updateA.merged.length; i++) {
-        update = mergeChunkListEcmascriptMergedUpdates(update, updateA.merged[i])
+        update = mergeChunkListEcmascriptMergedUpdates(
+          update,
+          updateA.merged[i]
+        )
       }
 
       for (let i = 0; i < updateB.merged.length; i++) {
-        update = mergeChunkListEcmascriptMergedUpdates(update, updateB.merged[i])
+        update = mergeChunkListEcmascriptMergedUpdates(
+          update,
+          updateB.merged[i]
+        )
       }
 
       merged = [update]
@@ -213,7 +226,10 @@ function mergeChunkListChunks(
   return chunks
 }
 
-function mergeChunkUpdates(updateA: ChunkUpdate, updateB: ChunkUpdate): ChunkUpdate | undefined {
+function mergeChunkUpdates(
+  updateA: ChunkUpdate,
+  updateB: ChunkUpdate
+): ChunkUpdate | undefined {
   if (
     (updateA.type === 'added' && updateB.type === 'deleted') ||
     (updateA.type === 'deleted' && updateB.type === 'added')
@@ -272,7 +288,10 @@ function mergeEcmascriptChunksUpdates(
   >) {
     const chunkUpdateB = chunksB[chunkPath]
     if (chunkUpdateB != null) {
-      const mergedUpdate = mergeEcmascriptChunkUpdates(chunkUpdateA, chunkUpdateB)
+      const mergedUpdate = mergeEcmascriptChunkUpdates(
+        chunkUpdateA,
+        chunkUpdateB
+      )
       if (mergedUpdate != null) {
         chunks[chunkPath] = mergedUpdate
       }
@@ -336,7 +355,10 @@ function mergeEcmascriptChunkUpdates(
 
   if (updateA.type === 'partial' && updateB.type === 'partial') {
     const added = new Set([...(updateA.added ?? []), ...(updateB.added ?? [])])
-    const deleted = new Set([...(updateA.deleted ?? []), ...(updateB.deleted ?? [])])
+    const deleted = new Set([
+      ...(updateA.deleted ?? []),
+      ...(updateB.deleted ?? []),
+    ])
 
     if (updateB.added != null) {
       for (const moduleId of updateB.added) {
@@ -358,7 +380,10 @@ function mergeEcmascriptChunkUpdates(
   }
 
   if (updateA.type === 'added' && updateB.type === 'partial') {
-    const modules = new Set([...(updateA.modules ?? []), ...(updateB.added ?? [])])
+    const modules = new Set([
+      ...(updateA.modules ?? []),
+      ...(updateB.added ?? []),
+    ])
 
     for (const moduleId of updateB.deleted ?? []) {
       modules.delete(moduleId)
@@ -447,7 +472,14 @@ function handleIssues(msg: ServerMessage): boolean {
 }
 
 const SEVERITY_ORDER = ['bug', 'fatal', 'error', 'warning', 'info', 'log']
-const CATEGORY_ORDER = ['parse', 'resolve', 'code generation', 'rendering', 'typescript', 'other']
+const CATEGORY_ORDER = [
+  'parse',
+  'resolve',
+  'code generation',
+  'rendering',
+  'typescript',
+  'other',
+]
 
 function sortIssues(issues: Issue[]) {
   issues.sort((a, b) => {

@@ -29,9 +29,16 @@ import {
 import { getSegmentVaryPathForRequest, type SegmentVaryPath } from './vary-path'
 import type { RouteCacheKey } from './cache-key'
 import { createCacheKey } from './cache-key'
-import { FetchStrategy, type PrefetchTaskFetchStrategy, PrefetchPriority } from './types'
+import {
+  FetchStrategy,
+  type PrefetchTaskFetchStrategy,
+  PrefetchPriority,
+} from './types'
 import { getCurrentCacheVersion } from './cache'
-import { addSearchParamsIfPageSegment, PAGE_SEGMENT_KEY } from '../../../shared/lib/segment'
+import {
+  addSearchParamsIfPageSegment,
+  PAGE_SEGMENT_KEY,
+} from '../../../shared/lib/segment'
 import type { SegmentRequestKey } from '../../../shared/lib/segment-cache/segment-value-encoding'
 
 const scheduleMicrotask =
@@ -194,7 +201,8 @@ const REVALIDATION_COOLDOWN_MS = 300
 
 // Timeout handle for the revalidation cooldown. When non-null, prefetch
 // requests are blocked to allow CDN cache propagation.
-let revalidationCooldownTimeoutHandle: ReturnType<typeof setTimeout> | null = null
+let revalidationCooldownTimeoutHandle: ReturnType<typeof setTimeout> | null =
+  null
 
 /**
  * Called by the cache when revalidation occurs. Starts a cooldown period
@@ -338,7 +346,10 @@ export function isPrefetchTaskDirty(
 function trackMostRecentlyHoveredLink(task: PrefetchTask) {
   // Track the mostly recently hovered link, i.e. the most recently scheduled
   // task at Intent priority. There must only be one such task at a time.
-  if (task.priority === PrefetchPriority.Intent && task !== mostRecentlyHoveredLink) {
+  if (
+    task.priority === PrefetchPriority.Intent &&
+    task !== mostRecentlyHoveredLink
+  ) {
     if (mostRecentlyHoveredLink !== null) {
       // Bump the previously hovered link's priority down to Default.
       if (mostRecentlyHoveredLink.priority !== PrefetchPriority.Background) {
@@ -547,12 +558,18 @@ function pingRoute(now: number, task: PrefetchTask): PrefetchTaskExitStatus {
     // fallback route entries, hence this temporary workaround.
     const url = new URL(key.pathname, location.origin)
     const keyWithoutSearch = createCacheKey(url.href, key.nextUrl)
-    const routeWithoutSearch = readOrCreateRouteCacheEntry(now, task, keyWithoutSearch)
+    const routeWithoutSearch = readOrCreateRouteCacheEntry(
+      now,
+      task,
+      keyWithoutSearch
+    )
     switch (routeWithoutSearch.status) {
       case EntryStatus.Empty: {
         if (background(task)) {
           routeWithoutSearch.status = EntryStatus.Pending
-          spawnPrefetchSubtask(fetchRouteOnCacheMiss(routeWithoutSearch, task, keyWithoutSearch))
+          spawnPrefetchSubtask(
+            fetchRouteOnCacheMiss(routeWithoutSearch, task, keyWithoutSearch)
+          )
         }
         break
       }
@@ -672,8 +689,17 @@ function pingRootRouteTree(
           if (spawnedRuntimePrefetches !== null) {
             // During the first pass, we discovered segments that require a
             // runtime prefetch. Do a second pass to construct a request tree.
-            const spawnedEntries = new Map<SegmentRequestKey, PendingSegmentCacheEntry>()
-            pingRuntimeHead(now, task, route, spawnedEntries, FetchStrategy.PPRRuntime)
+            const spawnedEntries = new Map<
+              SegmentRequestKey,
+              PendingSegmentCacheEntry
+            >()
+            pingRuntimeHead(
+              now,
+              task,
+              route,
+              spawnedEntries,
+              FetchStrategy.PPRRuntime
+            )
             const requestTree = pingRuntimePrefetches(
               now,
               task,
@@ -709,7 +735,10 @@ function pingRootRouteTree(
           // the special metatdata case below first. In the meantime, it's not
           // really that much duplication, just would be nice to remove one of
           // these codepaths.
-          const spawnedEntries = new Map<SegmentRequestKey, PendingSegmentCacheEntry>()
+          const spawnedEntries = new Map<
+            SegmentRequestKey,
+            PendingSegmentCacheEntry
+          >()
           pingRuntimeHead(now, task, route, spawnedEntries, fetchStrategy)
           const dynamicRequestTree = diffRouteTreeAgainstCurrent(
             now,
@@ -746,7 +775,11 @@ function pingRootRouteTree(
   return PrefetchTaskExitStatus.Done
 }
 
-function pingStaticHead(now: number, task: PrefetchTask, route: FulfilledRouteCacheEntry): void {
+function pingStaticHead(
+  now: number,
+  task: PrefetchTask,
+  route: FulfilledRouteCacheEntry
+): void {
   // The Head data for a page (metadata, viewport) is not really a route
   // segment, in the sense that it doesn't appear in the route tree. But we
   // store it in the cache as if it were, using a special key.
@@ -754,7 +787,12 @@ function pingStaticHead(now: number, task: PrefetchTask, route: FulfilledRouteCa
     now,
     task,
     route,
-    readOrCreateSegmentCacheEntry(now, FetchStrategy.PPR, route, route.metadata),
+    readOrCreateSegmentCacheEntry(
+      now,
+      FetchStrategy.PPR,
+      route,
+      route.metadata
+    ),
     task.key,
     route.metadata
   )
@@ -765,7 +803,10 @@ function pingRuntimeHead(
   task: PrefetchTask,
   route: FulfilledRouteCacheEntry,
   spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry>,
-  fetchStrategy: FetchStrategy.Full | FetchStrategy.PPRRuntime | FetchStrategy.LoadingBoundary
+  fetchStrategy:
+    | FetchStrategy.Full
+    | FetchStrategy.PPRRuntime
+    | FetchStrategy.LoadingBoundary
 ): void {
   pingRouteTreeAndIncludeDynamicData(
     now,
@@ -776,7 +817,9 @@ function pingRuntimeHead(
     spawnedEntries,
     // When prefetching the head, there's no difference between Full
     // and LoadingBoundary
-    fetchStrategy === FetchStrategy.LoadingBoundary ? FetchStrategy.Full : fetchStrategy
+    fetchStrategy === FetchStrategy.LoadingBoundary
+      ? FetchStrategy.Full
+      : fetchStrategy
   )
 }
 
@@ -801,7 +844,12 @@ function pingSharedPartOfCacheComponentsTree(
   // pingNewPartOfCacheComponentsTree.
 
   // Prefetch this segment's static data.
-  const segment = readOrCreateSegmentCacheEntry(now, task.fetchStrategy, route, newTree)
+  const segment = readOrCreateSegmentCacheEntry(
+    now,
+    task.fetchStrategy,
+    route,
+    newTree
+  )
   pingStaticSegmentData(now, task, route, segment, task.key, newTree)
 
   // Recursively ping the children.
@@ -815,12 +863,18 @@ function pingSharedPartOfCacheComponentsTree(
       }
       const newTreeChild = newTreeChildren[parallelRouteKey]
       const newTreeChildSegment = newTreeChild.segment
-      const oldTreeChild: FlightRouterState | void = oldTreeChildren[parallelRouteKey]
-      const oldTreeChildSegment: FlightRouterStateSegment | void = oldTreeChild?.[0]
+      const oldTreeChild: FlightRouterState | void =
+        oldTreeChildren[parallelRouteKey]
+      const oldTreeChildSegment: FlightRouterStateSegment | void =
+        oldTreeChild?.[0]
       let childExitStatus
       if (
         oldTreeChildSegment !== undefined &&
-        doesCurrentSegmentMatchCachedSegment(route, newTreeChildSegment, oldTreeChildSegment)
+        doesCurrentSegmentMatchCachedSegment(
+          route,
+          newTreeChildSegment,
+          oldTreeChildSegment
+        )
       ) {
         // We're still in the "shared" part of the tree.
         childExitStatus = pingSharedPartOfCacheComponentsTree(
@@ -833,7 +887,12 @@ function pingSharedPartOfCacheComponentsTree(
       } else {
         // We've entered the "new" part of the tree. Switch
         // traversal functions.
-        childExitStatus = pingNewPartOfCacheComponentsTree(now, task, route, newTreeChild)
+        childExitStatus = pingNewPartOfCacheComponentsTree(
+          now,
+          task,
+          route,
+          newTreeChild
+        )
       }
       if (childExitStatus === PrefetchTaskExitStatus.InProgress) {
         // Child yielded without finishing.
@@ -886,7 +945,12 @@ function pingNewPartOfCacheComponentsTree(
   }
 
   // This segment should not be runtime prefetched. Prefetch its static data.
-  const segment = readOrCreateSegmentCacheEntry(now, task.fetchStrategy, route, tree)
+  const segment = readOrCreateSegmentCacheEntry(
+    now,
+    task.fetchStrategy,
+    route,
+    tree
+  )
   pingStaticSegmentData(now, task, route, segment, task.key, tree)
   if (tree.slots !== null) {
     if (!hasNetworkBandwidth(task)) {
@@ -896,7 +960,12 @@ function pingNewPartOfCacheComponentsTree(
     // Recursively ping the children.
     for (const parallelRouteKey in tree.slots) {
       const childTree = tree.slots[parallelRouteKey]
-      const childExitStatus = pingNewPartOfCacheComponentsTree(now, task, route, childTree)
+      const childExitStatus = pingNewPartOfCacheComponentsTree(
+        now,
+        task,
+        route,
+        childTree
+      )
       if (childExitStatus === PrefetchTaskExitStatus.InProgress) {
         // Child yielded without finishing.
         return PrefetchTaskExitStatus.InProgress
@@ -914,7 +983,10 @@ function diffRouteTreeAgainstCurrent(
   oldTree: FlightRouterState,
   newTree: RouteTree,
   spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry>,
-  fetchStrategy: FetchStrategy.Full | FetchStrategy.PPRRuntime | FetchStrategy.LoadingBoundary
+  fetchStrategy:
+    | FetchStrategy.Full
+    | FetchStrategy.PPRRuntime
+    | FetchStrategy.LoadingBoundary
 ): FlightRouterState {
   // This is a single recursive traversal that does multiple things:
   // - Finds the parts of the target route (newTree) that are not part of
@@ -932,11 +1004,17 @@ function diffRouteTreeAgainstCurrent(
     for (const parallelRouteKey in newTreeChildren) {
       const newTreeChild = newTreeChildren[parallelRouteKey]
       const newTreeChildSegment = newTreeChild.segment
-      const oldTreeChild: FlightRouterState | void = oldTreeChildren[parallelRouteKey]
-      const oldTreeChildSegment: FlightRouterStateSegment | void = oldTreeChild?.[0]
+      const oldTreeChild: FlightRouterState | void =
+        oldTreeChildren[parallelRouteKey]
+      const oldTreeChildSegment: FlightRouterStateSegment | void =
+        oldTreeChild?.[0]
       if (
         oldTreeChildSegment !== undefined &&
-        doesCurrentSegmentMatchCachedSegment(route, newTreeChildSegment, oldTreeChildSegment)
+        doesCurrentSegmentMatchCachedSegment(
+          route,
+          newTreeChildSegment,
+          oldTreeChildSegment
+        )
       ) {
         // This segment is already part of the current route. Keep traversing.
         const requestTreeChild = diffRouteTreeAgainstCurrent(
@@ -968,7 +1046,8 @@ function diffRouteTreeAgainstCurrent(
             // anywhere in the tree, the server will never return any data, so
             // we can skip the request.
             const subtreeHasLoadingBoundary =
-              newTreeChild.hasLoadingBoundary !== HasLoadingBoundary.SubtreeHasNoLoadingBoundary
+              newTreeChild.hasLoadingBoundary !==
+              HasLoadingBoundary.SubtreeHasNoLoadingBoundary
             const requestTreeChild = subtreeHasLoadingBoundary
               ? pingPPRDisabledRouteTreeUpToLoadingBoundary(
                   now,
@@ -1066,7 +1145,12 @@ function pingPPRDisabledRouteTreeUpToLoadingBoundary(
   let refetchMarker: 'refetch' | 'inside-shared-layout' | null =
     refetchMarkerContext === null ? 'inside-shared-layout' : null
 
-  const segment = readOrCreateSegmentCacheEntry(now, task.fetchStrategy, route, tree)
+  const segment = readOrCreateSegmentCacheEntry(
+    now,
+    task.fetchStrategy,
+    route,
+    tree
+  )
   switch (segment.status) {
     case EntryStatus.Empty: {
       // This segment is not cached. Add a refetch marker so the server knows
@@ -1131,14 +1215,15 @@ function pingPPRDisabledRouteTreeUpToLoadingBoundary(
   if (tree.slots !== null) {
     for (const parallelRouteKey in tree.slots) {
       const childTree = tree.slots[parallelRouteKey]
-      requestTreeChildren[parallelRouteKey] = pingPPRDisabledRouteTreeUpToLoadingBoundary(
-        now,
-        task,
-        route,
-        childTree,
-        refetchMarkerContext,
-        spawnedEntries
-      )
+      requestTreeChildren[parallelRouteKey] =
+        pingPPRDisabledRouteTreeUpToLoadingBoundary(
+          now,
+          task,
+          route,
+          childTree,
+          refetchMarkerContext,
+          spawnedEntries
+        )
     }
   }
   const requestTree: FlightRouterState = [
@@ -1192,14 +1277,22 @@ function pingRouteTreeAndIncludeDynamicData(
       // The segment is already cached.
       if (
         segment.isPartial &&
-        canNewFetchStrategyProvideMoreContent(segment.fetchStrategy, fetchStrategy)
+        canNewFetchStrategyProvideMoreContent(
+          segment.fetchStrategy,
+          fetchStrategy
+        )
       ) {
         // The cached segment contains dynamic holes, and was prefetched using a less specific strategy than the current one.
         // This means we're in one of these cases:
         //   - we have a static prefetch, and we're doing a runtime prefetch
         //   - we have a static or runtime prefetch, and we're doing a Full prefetch (or a navigation).
         // In either case, we need to include it in the request to get a more specific (or full) version.
-        spawnedSegment = pingFullSegmentRevalidation(now, route, tree, fetchStrategy)
+        spawnedSegment = pingFullSegmentRevalidation(
+          now,
+          route,
+          tree,
+          fetchStrategy
+        )
       }
       break
     }
@@ -1207,8 +1300,18 @@ function pingRouteTreeAndIncludeDynamicData(
     case EntryStatus.Rejected: {
       // There's either another prefetch currently in progress, or the previous
       // attempt failed. If the new strategy can provide more content, fetch it again.
-      if (canNewFetchStrategyProvideMoreContent(segment.fetchStrategy, fetchStrategy)) {
-        spawnedSegment = pingFullSegmentRevalidation(now, route, tree, fetchStrategy)
+      if (
+        canNewFetchStrategyProvideMoreContent(
+          segment.fetchStrategy,
+          fetchStrategy
+        )
+      ) {
+        spawnedSegment = pingFullSegmentRevalidation(
+          now,
+          route,
+          tree,
+          fetchStrategy
+        )
       }
       break
     }
@@ -1219,15 +1322,16 @@ function pingRouteTreeAndIncludeDynamicData(
   if (tree.slots !== null) {
     for (const parallelRouteKey in tree.slots) {
       const childTree = tree.slots[parallelRouteKey]
-      requestTreeChildren[parallelRouteKey] = pingRouteTreeAndIncludeDynamicData(
-        now,
-        task,
-        route,
-        childTree,
-        isInsideRefetchingParent || spawnedSegment !== null,
-        spawnedEntries,
-        fetchStrategy
-      )
+      requestTreeChildren[parallelRouteKey] =
+        pingRouteTreeAndIncludeDynamicData(
+          now,
+          task,
+          route,
+          childTree,
+          isInsideRefetchingParent || spawnedSegment !== null,
+          spawnedEntries,
+          fetchStrategy
+        )
     }
   }
 
@@ -1237,7 +1341,8 @@ function pingRouteTreeAndIncludeDynamicData(
   }
 
   // Don't bother to add a refetch marker if one is already present in a parent.
-  const refetchMarker = !isInsideRefetchingParent && spawnedSegment !== null ? 'refetch' : null
+  const refetchMarker =
+    !isInsideRefetchingParent && spawnedSegment !== null ? 'refetch' : null
 
   const requestTree: FlightRouterState = [
     tree.segment,
@@ -1292,7 +1397,12 @@ function pingRuntimePrefetches(
   }
 
   // This segment is not part of the runtime prefetch. Clone the base tree.
-  const requestTree: FlightRouterState = [tree.segment, requestTreeChildren, null, null]
+  const requestTree: FlightRouterState = [
+    tree.segment,
+    requestTreeChildren,
+    null,
+    null,
+  ]
   return requestTree
 }
 
@@ -1429,14 +1539,22 @@ function pingFullSegmentRevalidation(
   tree: RouteTree,
   fetchStrategy: FetchStrategy.Full | FetchStrategy.PPRRuntime
 ): PendingSegmentCacheEntry | null {
-  const revalidatingSegment = readOrCreateRevalidatingSegmentEntry(now, fetchStrategy, route, tree)
+  const revalidatingSegment = readOrCreateRevalidatingSegmentEntry(
+    now,
+    fetchStrategy,
+    route,
+    tree
+  )
   if (revalidatingSegment.status === EntryStatus.Empty) {
     // During a Full/PPRRuntime prefetch, a single dynamic request is made for all the
     // segments that we need. So we don't initiate a request here directly. By
     // returning a pending entry from this function, it signals to the caller
     // that this segment should be included in the request that's sent to
     // the server.
-    const pendingSegment = upgradeToPendingSegment(revalidatingSegment, fetchStrategy)
+    const pendingSegment = upgradeToPendingSegment(
+      revalidatingSegment,
+      fetchStrategy
+    )
     upsertSegmentOnCompletion(
       waitForSegmentCacheEntry(pendingSegment),
       getSegmentVaryPathForRequest(fetchStrategy, tree)
@@ -1453,8 +1571,15 @@ function pingFullSegmentRevalidation(
     ) {
       // The existing revalidation was fetched using a less specific strategy.
       // Reset it and start a new revalidation.
-      const emptySegment = overwriteRevalidatingSegmentCacheEntry(fetchStrategy, route, tree)
-      const pendingSegment = upgradeToPendingSegment(emptySegment, fetchStrategy)
+      const emptySegment = overwriteRevalidatingSegmentCacheEntry(
+        fetchStrategy,
+        route,
+        tree
+      )
+      const pendingSegment = upgradeToPendingSegment(
+        emptySegment,
+        fetchStrategy
+      )
       upsertSegmentOnCompletion(
         waitForSegmentCacheEntry(pendingSegment),
         getSegmentVaryPathForRequest(fetchStrategy, tree)
@@ -1610,7 +1735,11 @@ function heapResift(heap: Array<PrefetchTask>, node: PrefetchTask): void {
   }
 }
 
-function heapSiftUp(heap: Array<PrefetchTask>, node: PrefetchTask, i: number): void {
+function heapSiftUp(
+  heap: Array<PrefetchTask>,
+  node: PrefetchTask,
+  i: number
+): void {
   let index = i
   while (index > 0) {
     const parentIndex = (index - 1) >>> 1
@@ -1630,7 +1759,11 @@ function heapSiftUp(heap: Array<PrefetchTask>, node: PrefetchTask, i: number): v
   }
 }
 
-function heapSiftDown(heap: Array<PrefetchTask>, node: PrefetchTask, i: number): void {
+function heapSiftDown(
+  heap: Array<PrefetchTask>,
+  node: PrefetchTask,
+  i: number
+): void {
   let index = i
   const length = heap.length
   const halfLength = length >>> 1

@@ -36,7 +36,9 @@ export class LightningCssMinifyPlugin {
     })
 
     compiler.hooks.compilation.tap(PLUGIN_NAME, (compilation) => {
-      compilation.hooks.chunkHash.tap(PLUGIN_NAME, (_, hash) => hash.update(meta))
+      compilation.hooks.chunkHash.tap(PLUGIN_NAME, (_, hash) =>
+        hash.update(meta)
+      )
 
       compilation.hooks.processAssets.tapPromise(
         {

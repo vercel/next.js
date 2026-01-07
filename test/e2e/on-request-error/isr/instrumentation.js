@@ -17,10 +17,14 @@ export async function onRequestError(err, request, context) {
     context,
   }
 
-  const json = fs.existsSync(logPath) ? JSON.parse(fs.readFileSync(logPath, 'utf8')) : {}
+  const json = fs.existsSync(logPath)
+    ? JSON.parse(fs.readFileSync(logPath, 'utf8'))
+    : {}
 
   json[payload.message] = payload
 
-  console.log(`[instrumentation] write-log:${payload.message} ${payload.context.revalidateReason}`)
+  console.log(
+    `[instrumentation] write-log:${payload.message} ${payload.context.revalidateReason}`
+  )
   fs.writeFileSync(logPath, JSON.stringify(json, null, 2), 'utf8')
 }

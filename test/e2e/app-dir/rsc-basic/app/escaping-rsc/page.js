@@ -8,7 +8,8 @@ function Data() {
   if (!promise)
     promise = new Promise((res) => {
       setTimeout(() => {
-        result = '</script><script>window.__manipulated_by_injection=true</script><script>'
+        result =
+          '</script><script>window.__manipulated_by_injection=true</script><script>'
         res()
       }, 500)
     })

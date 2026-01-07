@@ -192,7 +192,8 @@ describe('AfterContext', () => {
         async start(controller) {
           await streamStarted.promise // block the stream to start it manually later
 
-          const delay = () => new Promise<void>((resolve) => setTimeout(resolve, 50))
+          const delay = () =>
+            new Promise<void>((resolve) => setTimeout(resolve, 50))
 
           after(afterCallback1)
           controller.enqueue('one')
@@ -341,7 +342,9 @@ describe('AfterContext', () => {
 
     // if we didn't properly reject the runCallbacksOnClose promise, this should hang forever, and get killed by jest.
     const results = await Promise.allSettled(waitUntilPromises)
-    expect(results).toEqual([{ status: 'rejected', value: undefined, reason: expect.anything() }])
+    expect(results).toEqual([
+      { status: 'rejected', value: undefined, reason: expect.anything() },
+    ])
   })
 
   it('runs all after() callbacks even if some of them threw', async () => {
@@ -461,7 +464,9 @@ describe('AfterContext', () => {
 
     // ==================================
 
-    const stores = new DetachedPromise<[WorkStore | undefined, WorkStore | undefined]>()
+    const stores = new DetachedPromise<
+      [WorkStore | undefined, WorkStore | undefined]
+    >()
 
     await run(async () => {
       const store1 = workAsyncStorage.getStore()
@@ -504,7 +509,9 @@ describe('AfterContext', () => {
 
     // ==================================
 
-    const stores = new DetachedPromise<[TestStore | undefined, TestStore | undefined]>()
+    const stores = new DetachedPromise<
+      [TestStore | undefined, TestStore | undefined]
+    >()
 
     await testStorage.run('value', () =>
       run(async () => {

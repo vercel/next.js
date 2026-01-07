@@ -4,7 +4,11 @@ type Params = {
   pageNumber: string
 }
 
-export async function generateViewport({ params }: { params: Promise<Params> }) {
+export async function generateViewport({
+  params,
+}: {
+  params: Promise<Params>
+}) {
   const { pageNumber } = await params
   return {
     // Put the page number into the media query. This is just a trick to allow
@@ -18,7 +22,11 @@ async function Content({ params }: { params: Promise<Params> }) {
   return 'Content of page ' + pageNumber
 }
 
-export default async function LinkCancellationTargetPage({ params }: { params: Promise<Params> }) {
+export default async function LinkCancellationTargetPage({
+  params,
+}: {
+  params: Promise<Params>
+}) {
   return (
     <Suspense fallback="Loading...">
       <Content params={params} />

@@ -1,7 +1,11 @@
 'use client'
 
 import { startTransition } from 'react'
-import { absoluteRedirect, multiRelativeRedirect, relativeRedirect } from '../actions'
+import {
+  absoluteRedirect,
+  multiRelativeRedirect,
+  relativeRedirect,
+} from '../actions'
 
 export default function Page() {
   return (

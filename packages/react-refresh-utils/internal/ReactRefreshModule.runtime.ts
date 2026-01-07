@@ -30,11 +30,15 @@ export default function () {
       // @ts-ignore __webpack_module__ is global
       var currentExports = __webpack_module__.exports
       // @ts-ignore __webpack_module__ is global
-      var prevSignature: unknown[] | null = __webpack_module__.hot.data?.prevSignature ?? null
+      var prevSignature: unknown[] | null =
+        __webpack_module__.hot.data?.prevSignature ?? null
 
       // This cannot happen in MainTemplate because the exports mismatch between
       // templating and execution.
-      self.$RefreshHelpers$.registerExportsForReactRefresh(currentExports, __webpack_module__.id)
+      self.$RefreshHelpers$.registerExportsForReactRefresh(
+        currentExports,
+        __webpack_module__.id
+      )
 
       // A module can be accepted automatically based on its exports, e.g. when
       // it is a Refresh Boundary.
@@ -42,7 +46,8 @@ export default function () {
         // Save the previous exports signature on update so we can compare the boundary
         // signatures. We avoid saving exports themselves since it causes memory leaks (https://github.com/vercel/next.js/pull/53797)
         __webpack_module__.hot.dispose(function (data) {
-          data.prevSignature = self.$RefreshHelpers$.getRefreshBoundarySignature(currentExports)
+          data.prevSignature =
+            self.$RefreshHelpers$.getRefreshBoundarySignature(currentExports)
         })
         // Unconditionally accept an update to this module, we'll check if it's
         // still a Refresh Boundary later.

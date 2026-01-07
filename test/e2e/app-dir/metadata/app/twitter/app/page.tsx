@@ -10,7 +10,10 @@ export const metadata = {
     siteId: 'siteId',
     creator: 'creator',
     creatorId: 'creatorId',
-    images: ['https://twitter.com/image-100x100.png', 'https://twitter.com/image-200x200.png'],
+    images: [
+      'https://twitter.com/image-100x100.png',
+      'https://twitter.com/image-200x200.png',
+    ],
     app: {
       name: 'twitter_app',
       id: {

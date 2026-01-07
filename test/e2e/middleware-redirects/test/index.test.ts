@@ -34,7 +34,9 @@ describe('Middleware Redirect', () => {
       const res = await fetchViaHTTP(next.url, `/old-home`, undefined, {
         redirect: 'manual',
       })
-      expect(res.headers.get('location')?.endsWith('/default/about')).toEqual(false)
+      expect(res.headers.get('location')?.endsWith('/default/about')).toEqual(
+        false
+      )
     })
 
     it(`should redirect to data urls with data requests and internal redirects`, async () => {
@@ -46,7 +48,9 @@ describe('Middleware Redirect', () => {
       )
 
       expect(
-        res.headers.get('x-nextjs-redirect')?.endsWith(`/es/new-home?override=internal`)
+        res.headers
+          .get('x-nextjs-redirect')
+          ?.endsWith(`/es/new-home?override=internal`)
       ).toEqual(true)
       expect(res.headers.get('location')).toEqual(null)
     })
@@ -59,13 +63,17 @@ describe('Middleware Redirect', () => {
         { redirect: 'manual', headers: { 'x-nextjs-data': '1' } }
       )
 
-      expect(res.headers.get('x-nextjs-redirect')).toEqual('https://example.vercel.sh/')
+      expect(res.headers.get('x-nextjs-redirect')).toEqual(
+        'https://example.vercel.sh/'
+      )
       expect(res.headers.get('location')).toEqual(null)
 
       const browser = await webdriver(next.url, '/')
       await browser.elementByCss('#old-home-external').click()
       await check(async () => {
-        expect(await browser.elementByCss('h1').text()).toEqual('Example Domain')
+        expect(await browser.elementByCss('h1').text()).toEqual(
+          'Example Domain'
+        )
         return 'yes'
       }, 'yes')
     })
@@ -80,7 +88,9 @@ describe('Middleware Redirect', () => {
       const $ = cheerio.load(html)
       const browser = await webdriver(next.url, `${locale}/old-home`)
       try {
-        expect(await browser.eval(`window.location.pathname`)).toBe(`${locale}/new-home`)
+        expect(await browser.eval(`window.location.pathname`)).toBe(
+          `${locale}/new-home`
+        )
       } finally {
         await browser.close()
       }
@@ -94,7 +104,9 @@ describe('Middleware Redirect', () => {
       await browser.waitForElementByCss('#new-home-title')
       expect(await browser.eval('window.__SAME_PAGE')).toBe(true)
       try {
-        expect(await browser.eval(`window.location.pathname`)).toBe(`${locale}/new-home`)
+        expect(await browser.eval(`window.location.pathname`)).toBe(
+          `${locale}/new-home`
+        )
       } finally {
         await browser.close()
       }
@@ -103,9 +115,11 @@ describe('Middleware Redirect', () => {
     it(`${label}should redirect cleanly with the original url param`, async () => {
       const browser = await webdriver(next.url, `${locale}/blank-page?foo=bar`)
       try {
-        expect(await browser.eval(`window.location.href.replace(window.location.origin, '')`)).toBe(
-          `${locale}/new-home`
-        )
+        expect(
+          await browser.eval(
+            `window.location.href.replace(window.location.origin, '')`
+          )
+        ).toBe(`${locale}/new-home`)
       } finally {
         await browser.close()
       }
@@ -115,7 +129,9 @@ describe('Middleware Redirect', () => {
       const res = await fetchViaHTTP(next.url, `${locale}/redirect-me-alot`)
       const browser = await webdriver(next.url, `${locale}/redirect-me-alot`)
       try {
-        expect(await browser.eval(`window.location.pathname`)).toBe(`${locale}/new-home`)
+        expect(await browser.eval(`window.location.pathname`)).toBe(
+          `${locale}/new-home`
+        )
       } finally {
         await browser.close()
       }
@@ -125,7 +141,9 @@ describe('Middleware Redirect', () => {
     })
 
     it(`${label}should redirect (infinite-loop)`, async () => {
-      await expect(fetchViaHTTP(next.url, `${locale}/infinite-loop`)).rejects.toThrow()
+      await expect(
+        fetchViaHTTP(next.url, `${locale}/infinite-loop`)
+      ).rejects.toThrow()
     })
 
     it(`${label}should redirect to api route with locale`, async () => {

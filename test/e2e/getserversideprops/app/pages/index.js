@@ -83,7 +83,11 @@ const Page = ({ world, time, url }) => {
         to broken
       </Link>
       <br />
-      <Link href="/blog/[post]/[comment]" as="/blog/post-1/comment-1" id="comment-1">
+      <Link
+        href="/blog/[post]/[comment]"
+        as="/blog/post-1/comment-1"
+        id="comment-1"
+      >
         to another dynamic
       </Link>
       <Link href="/something?another=thing" id="something-query">

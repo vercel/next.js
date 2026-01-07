@@ -9,7 +9,10 @@ type Props = {
 async function ComponentServer(props: Props) {
   const params = await props.params
   return (
-    <code data-server-file={props.file} data-server-params={JSON.stringify(params)}>
+    <code
+      data-server-file={props.file}
+      data-server-params={JSON.stringify(params)}
+    >
       {JSON.stringify(params)}
     </code>
   )

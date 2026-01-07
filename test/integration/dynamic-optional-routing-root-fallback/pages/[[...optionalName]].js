@@ -13,5 +13,9 @@ export default function Page({ params }) {
     return <div>loading</div>
   }
 
-  return <div id="success">{params.optionalName ? params.optionalName.join(',') : 'yay'}</div>
+  return (
+    <div id="success">
+      {params.optionalName ? params.optionalName.join(',') : 'yay'}
+    </div>
+  )
 }

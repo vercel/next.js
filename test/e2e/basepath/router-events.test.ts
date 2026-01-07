@@ -20,7 +20,10 @@ describe('basePath', () => {
   it('should use urls with basepath in router events', async () => {
     const browser = await webdriver(next.url, `${basePath}/hello`)
     try {
-      await check(() => browser.eval('window.next.router.isReady ? "ready" : "no"'), 'ready')
+      await check(
+        () => browser.eval('window.next.router.isReady ? "ready" : "no"'),
+        'ready'
+      )
       await browser.eval('window._clearEventLog()')
       await browser
         .elementByCss('#other-page-link')
@@ -28,7 +31,9 @@ describe('basePath', () => {
         .waitForElementByCss('#other-page-title')
 
       const eventLog = await browser.eval('window._getEventLog()')
-      expect(eventLog.filter((item) => item[1]?.endsWith('/other-page'))).toEqual([
+      expect(
+        eventLog.filter((item) => item[1]?.endsWith('/other-page'))
+      ).toEqual([
         ['routeChangeStart', `${basePath}/other-page`, { shallow: false }],
         ['beforeHistoryChange', `${basePath}/other-page`, { shallow: false }],
         ['routeChangeComplete', `${basePath}/other-page`, { shallow: false }],
@@ -41,14 +46,21 @@ describe('basePath', () => {
   it('should use urls with basepath in router events for hash changes', async () => {
     const browser = await webdriver(next.url, `${basePath}/hello`)
     try {
-      await check(() => browser.eval('window.next.router.isReady ? "ready" : "no"'), 'ready')
+      await check(
+        () => browser.eval('window.next.router.isReady ? "ready" : "no"'),
+        'ready'
+      )
       await browser.eval('window._clearEventLog()')
       await browser.elementByCss('#hash-change').click()
 
       const eventLog = await browser.eval('window._getEventLog()')
       expect(eventLog).toEqual([
         ['hashChangeStart', `${basePath}/hello#some-hash`, { shallow: false }],
-        ['hashChangeComplete', `${basePath}/hello#some-hash`, { shallow: false }],
+        [
+          'hashChangeComplete',
+          `${basePath}/hello#some-hash`,
+          { shallow: false },
+        ],
       ])
     } finally {
       await browser.close()
@@ -58,7 +70,10 @@ describe('basePath', () => {
   it('should use urls with basepath in router events for cancelled routes', async () => {
     const browser = await webdriver(next.url, `${basePath}/hello`)
     try {
-      await check(() => browser.eval('window.next.router.isReady ? "ready" : "no"'), 'ready')
+      await check(
+        () => browser.eval('window.next.router.isReady ? "ready" : "no"'),
+        'ready'
+      )
       await browser.eval('window._clearEventLog()')
 
       await browser
@@ -71,7 +86,13 @@ describe('basePath', () => {
       const eventLog = await browser.eval('window._getEventLog()')
       expect(eventLog).toEqual([
         ['routeChangeStart', `${basePath}/slow-route`, { shallow: false }],
-        ['routeChangeError', 'Route Cancelled', true, `${basePath}/slow-route`, { shallow: false }],
+        [
+          'routeChangeError',
+          'Route Cancelled',
+          true,
+          `${basePath}/slow-route`,
+          { shallow: false },
+        ],
         ['routeChangeStart', `${basePath}/other-page`, { shallow: false }],
         ['beforeHistoryChange', `${basePath}/other-page`, { shallow: false }],
         ['routeChangeComplete', `${basePath}/other-page`, { shallow: false }],
@@ -84,7 +105,10 @@ describe('basePath', () => {
   it('should use urls with basepath in router events for failed route change', async () => {
     const browser = await webdriver(next.url, `${basePath}/hello`)
     try {
-      await check(() => browser.eval('window.next.router.isReady ? "ready" : "no"'), 'ready')
+      await check(
+        () => browser.eval('window.next.router.isReady ? "ready" : "no"'),
+        'ready'
+      )
       await browser.eval('window._clearEventLog()')
       await browser.elementByCss('#error-route').click()
 

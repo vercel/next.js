@@ -6,7 +6,10 @@ export default function HomePage() {
     <div>
       <h1>Smooth Scroll Optimization Tests</h1>
       <div style={{ marginBottom: '20px' }}>
-        <Link href="/optimized/page1" style={{ display: 'block', marginBottom: '10px' }}>
+        <Link
+          href="/optimized/page1"
+          style={{ display: 'block', marginBottom: '10px' }}
+        >
           Test Optimized Smooth Scroll (with data attribute)
         </Link>
         <Link href="/legacy/page1" style={{ display: 'block' }}>

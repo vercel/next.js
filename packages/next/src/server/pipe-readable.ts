@@ -50,14 +50,19 @@ function createWriterFromResponse(
       if (!started) {
         started = true
 
-        if ('performance' in globalThis && process.env.NEXT_OTEL_PERFORMANCE_PREFIX) {
+        if (
+          'performance' in globalThis &&
+          process.env.NEXT_OTEL_PERFORMANCE_PREFIX
+        ) {
           const metrics = getClientComponentLoaderMetrics()
           if (metrics) {
             performance.measure(
               `${process.env.NEXT_OTEL_PERFORMANCE_PREFIX}:next-client-component-loading`,
               {
                 start: metrics.clientComponentLoadStart,
-                end: metrics.clientComponentLoadStart + metrics.clientComponentLoadTimes,
+                end:
+                  metrics.clientComponentLoadStart +
+                  metrics.clientComponentLoadTimes,
               }
             )
           }

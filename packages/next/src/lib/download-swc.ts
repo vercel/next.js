@@ -2,14 +2,22 @@ import fs from 'fs'
 import path from 'path'
 import * as Log from '../build/output/log'
 import tar from 'next/dist/compiled/tar'
-const { WritableStream } = require('node:stream/web') as typeof import('node:stream/web')
+const { WritableStream } =
+  require('node:stream/web') as typeof import('node:stream/web')
 import { getRegistry } from './helpers/get-registry'
 import { getCacheDirectory } from './helpers/get-cache-directory'
 
 const MAX_VERSIONS_TO_CACHE = 8
 
-async function extractBinary(outputDirectory: string, pkgName: string, tarFileName: string) {
-  const cacheDirectory = getCacheDirectory('next-swc', process.env['NEXT_SWC_PATH'])
+async function extractBinary(
+  outputDirectory: string,
+  pkgName: string,
+  tarFileName: string
+) {
+  const cacheDirectory = getCacheDirectory(
+    'next-swc',
+    process.env['NEXT_SWC_PATH']
+  )
 
   const extractFromTar = () =>
     tar.x({
@@ -21,7 +29,10 @@ async function extractBinary(outputDirectory: string, pkgName: string, tarFileNa
   if (!fs.existsSync(path.join(cacheDirectory, tarFileName))) {
     Log.info(`Downloading swc package ${pkgName}... to ${cacheDirectory}`)
     await fs.promises.mkdir(cacheDirectory, { recursive: true })
-    const tempFile = path.join(cacheDirectory, `${tarFileName}.temp-${Date.now()}`)
+    const tempFile = path.join(
+      cacheDirectory,
+      `${tarFileName}.temp-${Date.now()}`
+    )
 
     const registry = getRegistry()
 
@@ -87,7 +98,9 @@ async function extractBinary(outputDirectory: string, pkgName: string, tarFileNa
 
     // prune oldest versions in cache
     for (let i = 0; i++; i < cacheFiles.length - MAX_VERSIONS_TO_CACHE) {
-      await fs.promises.unlink(path.join(cacheDirectory, cacheFiles[i])).catch(() => {})
+      await fs.promises
+        .unlink(path.join(cacheDirectory, cacheFiles[i]))
+        .catch(() => {})
     }
   }
 }

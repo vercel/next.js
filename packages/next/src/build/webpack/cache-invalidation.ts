@@ -35,11 +35,15 @@ export async function invalidateFileSystemCache(cacheDirectory: string) {
  * Called during startup. See if the cache is in a partially-completed
  * invalidation state. Finds and delete any invalidated cache files.
  */
-export async function checkFileSystemCacheInvalidationAndCleanup(cacheDirectory: string) {
-  const invalidated = await fs.access(path.join(cacheDirectory, INVALIDATION_MARKER)).then(
-    () => true,
-    () => false
-  )
+export async function checkFileSystemCacheInvalidationAndCleanup(
+  cacheDirectory: string
+) {
+  const invalidated = await fs
+    .access(path.join(cacheDirectory, INVALIDATION_MARKER))
+    .then(
+      () => true,
+      () => false
+    )
   if (invalidated) {
     await cleanupFileSystemCache(cacheDirectory)
   }

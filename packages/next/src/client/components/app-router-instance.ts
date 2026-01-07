@@ -14,7 +14,10 @@ import {
 import { reducer } from './router-reducer/router-reducer'
 import { startTransition } from 'react'
 import { isThenable } from '../../shared/lib/is-thenable'
-import { FetchStrategy, type PrefetchTaskFetchStrategy } from './segment-cache/types'
+import {
+  FetchStrategy,
+  type PrefetchTaskFetchStrategy,
+} from './segment-cache/types'
 import { prefetch as prefetchWithSegmentCache } from './segment-cache/prefetch'
 import { dispatchAppRouterAction } from './use-action-queue'
 import { addBasePath } from '../add-base-path'
@@ -35,14 +38,19 @@ export type AppRouterActionQueue = {
   dispatch: (payload: ReducerActions, setState: DispatchStatePromise) => void
   action: (state: AppRouterState, action: ReducerActions) => ReducerState
 
-  onRouterTransitionStart: ((url: string, type: 'push' | 'replace' | 'traverse') => void) | null
+  onRouterTransitionStart:
+    | ((url: string, type: 'push' | 'replace' | 'traverse') => void)
+    | null
 
   pending: ActionQueueNode | null
   needsRefresh?: boolean
   last: ActionQueueNode | null
 }
 
-export type GlobalErrorState = [GlobalError: GlobalErrorComponent, styles: React.ReactNode]
+export type GlobalErrorState = [
+  GlobalError: GlobalErrorComponent,
+  styles: React.ReactNode,
+]
 
 export type ActionQueueNode = {
   payload: ReducerActions
@@ -52,7 +60,10 @@ export type ActionQueueNode = {
   discarded?: boolean
 }
 
-function runRemainingActions(actionQueue: AppRouterActionQueue, setState: DispatchStatePromise) {
+function runRemainingActions(
+  actionQueue: AppRouterActionQueue,
+  setState: DispatchStatePromise
+) {
   if (actionQueue.pending !== null) {
     actionQueue.pending = actionQueue.pending.next
     if (actionQueue.pending !== null) {
@@ -93,7 +104,10 @@ async function runAction({
     // if we discarded this action, the state should also be discarded
     if (action.discarded) {
       // Check if the discarded server action revalidated data
-      if (action.payload.type === ACTION_SERVER_ACTION && action.payload.didRevalidate) {
+      if (
+        action.payload.type === ACTION_SERVER_ACTION &&
+        action.payload.didRevalidate
+      ) {
         // The server action was discarded but it revalidated data,
         // mark that we need to refresh after all actions complete
         actionQueue.needsRefresh = true
@@ -166,7 +180,10 @@ function dispatchAction(
       action: newAction,
       setState,
     })
-  } else if (payload.type === ACTION_NAVIGATE || payload.type === ACTION_RESTORE) {
+  } else if (
+    payload.type === ACTION_NAVIGATE ||
+    payload.type === ACTION_RESTORE
+  ) {
     // Navigations (including back/forward) take priority over any pending actions.
     // Mark the pending action as discarded (so the state is never applied) and start the navigation action immediately.
     actionQueue.pending.discarded = true
@@ -220,7 +237,8 @@ export function createMutableActionQueue(
     // it around everywhere via props/context.
     if (globalActionQueue !== null) {
       throw new Error(
-        'Internal Next.js Error: createMutableActionQueue was called more ' + 'than once'
+        'Internal Next.js Error: createMutableActionQueue was called more ' +
+          'than once'
       )
     }
     globalActionQueue = actionQueue
@@ -235,7 +253,9 @@ export function getCurrentAppRouterState(): AppRouterState | null {
 
 function getAppRouterActionQueue(): AppRouterActionQueue {
   if (globalActionQueue === null) {
-    throw new Error('Internal Next.js error: Router action dispatched before initialization.')
+    throw new Error(
+      'Internal Next.js error: Router action dispatched before initialization.'
+    )
   }
   return globalActionQueue
 }
@@ -277,7 +297,10 @@ export function dispatchNavigateAction(
   })
 }
 
-export function dispatchTraverseAction(href: string, historyState: AppHistoryState | undefined) {
+export function dispatchTraverseAction(
+  href: string,
+  historyState: AppHistoryState | undefined
+) {
   const onRouterTransitionStart = getProfilingHookForOnNavigationStart()
   if (onRouterTransitionStart !== null) {
     onRouterTransitionStart(href, 'traverse')

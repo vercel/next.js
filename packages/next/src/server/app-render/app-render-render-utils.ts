@@ -14,7 +14,9 @@ export function scheduleInSequentialTasks<R>(
   followup: () => void
 ): Promise<R> {
   if (process.env.NEXT_RUNTIME === 'edge') {
-    throw new InvariantError('`scheduleInSequentialTasks` should not be called in edge runtime.')
+    throw new InvariantError(
+      '`scheduleInSequentialTasks` should not be called in edge runtime.'
+    )
   } else {
     return new Promise((resolve, reject) => {
       const scheduleTimeout = createAtomicTimerGroup()
@@ -53,7 +55,9 @@ export function pipelineInSequentialTasks<A, B, C>(
   three: (b: B) => C
 ): Promise<C> {
   if (process.env.NEXT_RUNTIME === 'edge') {
-    throw new InvariantError('`pipelineInSequentialTasks` should not be called in edge runtime.')
+    throw new InvariantError(
+      '`pipelineInSequentialTasks` should not be called in edge runtime.'
+    )
   } else {
     return new Promise((resolve, reject) => {
       const scheduleTimeout = createAtomicTimerGroup()

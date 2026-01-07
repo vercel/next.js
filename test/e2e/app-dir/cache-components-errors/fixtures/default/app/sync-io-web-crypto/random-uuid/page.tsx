@@ -4,8 +4,8 @@ export default async function Page() {
   return (
     <>
       <p>
-        This page uses `crypto.randomUUID()` in a Server Component which is an error unless preceded
-        by something else dynamic
+        This page uses `crypto.randomUUID()` in a Server Component which is an
+        error unless preceded by something else dynamic
       </p>
       <Suspense fallback="loading...">
         <SyncIOComponent />

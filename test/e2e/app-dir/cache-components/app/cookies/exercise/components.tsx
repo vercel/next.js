@@ -24,7 +24,13 @@ export function AllComponents({
   )
 }
 
-function ForOf({ cookies, expression }: { cookies: ReadonlyRequestCookies; expression: string }) {
+function ForOf({
+  cookies,
+  expression,
+}: {
+  cookies: ReadonlyRequestCookies
+  expression: string
+}) {
   let output = []
   for (let [cookieName, cookie] of cookies) {
     if (cookieName.startsWith('x-sentinel')) {
@@ -44,7 +50,13 @@ function ForOf({ cookies, expression }: { cookies: ReadonlyRequestCookies; expre
   )
 }
 
-function Spread({ cookies, expression }: { cookies: ReadonlyRequestCookies; expression: string }) {
+function Spread({
+  cookies,
+  expression,
+}: {
+  cookies: ReadonlyRequestCookies
+  expression: string
+}) {
   let output = [...cookies]
     .filter(([cookieName]) => cookieName.startsWith('x-sentinel'))
     .map((v) => {
@@ -63,7 +75,13 @@ function Spread({ cookies, expression }: { cookies: ReadonlyRequestCookies; expr
   )
 }
 
-function Size({ cookies, expression }: { cookies: ReadonlyRequestCookies; expression: string }) {
+function Size({
+  cookies,
+  expression,
+}: {
+  cookies: ReadonlyRequestCookies
+  expression: string
+}) {
   return (
     <section>
       <h2>cookies().size</h2>
@@ -87,7 +105,9 @@ function GetAndGetAll({
       </div>
       <h2>{"cookies().get({ name: '...' })"}</h2>
       <div id={'get-x-sentinel-path'}>
-        <pre>{print(cookies.get({ name: 'x-sentinel-path', value: undefined }))}</pre>
+        <pre>
+          {print(cookies.get({ name: 'x-sentinel-path', value: undefined }))}
+        </pre>
       </div>
       <h2>cookies().getAll('...')</h2>
       <div id={'get-x-sentinel-rand'}>
@@ -97,7 +117,13 @@ function GetAndGetAll({
   )
 }
 
-function Has({ cookies, expression }: { cookies: ReadonlyRequestCookies; expression: string }) {
+function Has({
+  cookies,
+  expression,
+}: {
+  cookies: ReadonlyRequestCookies
+  expression: string
+}) {
   return (
     <section>
       <h2>cookies().has('...')</h2>
@@ -108,14 +134,22 @@ function Has({ cookies, expression }: { cookies: ReadonlyRequestCookies; express
         </li>
         <li>
           <label>x-sentinel-foobar</label>
-          <span id={'has-x-sentinel-foobar'}>: {'' + cookies.has('x-sentinel-foobar')}</span>
+          <span id={'has-x-sentinel-foobar'}>
+            : {'' + cookies.has('x-sentinel-foobar')}
+          </span>
         </li>
       </ul>
     </section>
   )
 }
 
-function Set({ cookies, expression }: { cookies: ReadonlyRequestCookies; expression: string }) {
+function Set({
+  cookies,
+  expression,
+}: {
+  cookies: ReadonlyRequestCookies
+  expression: string
+}) {
   let result = 'no error'
   try {
     cookies.set('x-sentinel', 'goodbye')
@@ -132,14 +166,22 @@ function Set({ cookies, expression }: { cookies: ReadonlyRequestCookies; express
         </li>
         <li>
           <label>x-sentinel value</label>
-          <span id={'set-value-x-sentinel'}>: {cookies.get('x-sentinel').value}</span>
+          <span id={'set-value-x-sentinel'}>
+            : {cookies.get('x-sentinel').value}
+          </span>
         </li>
       </ul>
     </section>
   )
 }
 
-function Delete({ cookies, expression }: { cookies: ReadonlyRequestCookies; expression: string }) {
+function Delete({
+  cookies,
+  expression,
+}: {
+  cookies: ReadonlyRequestCookies
+  expression: string
+}) {
   let result = 'no error'
   try {
     cookies.delete('x-sentinel')
@@ -156,14 +198,22 @@ function Delete({ cookies, expression }: { cookies: ReadonlyRequestCookies; expr
         </li>
         <li>
           <label>x-sentinel value</label>
-          <span id={'delete-value-x-sentinel'}>: {cookies.get('x-sentinel').value}</span>
+          <span id={'delete-value-x-sentinel'}>
+            : {cookies.get('x-sentinel').value}
+          </span>
         </li>
       </ul>
     </section>
   )
 }
 
-function Clear({ cookies, expression }: { cookies: ReadonlyRequestCookies; expression: string }) {
+function Clear({
+  cookies,
+  expression,
+}: {
+  cookies: ReadonlyRequestCookies
+  expression: string
+}) {
   let result = 'no error'
   try {
     ;(cookies as any).clear()
@@ -180,7 +230,9 @@ function Clear({ cookies, expression }: { cookies: ReadonlyRequestCookies; expre
         </li>
         <li>
           <label>x-sentinel value</label>
-          <span id={'clear-value-x-sentinel'}>: {cookies.get('x-sentinel').value}</span>
+          <span id={'clear-value-x-sentinel'}>
+            : {cookies.get('x-sentinel').value}
+          </span>
         </li>
       </ul>
     </section>

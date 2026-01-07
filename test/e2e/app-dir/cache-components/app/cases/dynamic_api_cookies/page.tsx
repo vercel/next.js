@@ -9,10 +9,12 @@ export default async function Page() {
     <>
       <p>This page calls `cookies()` in a child component.</p>
       <p>
-        With PPR this page can be partially static because the dynamic API usage is inside a
-        suspense boundary.
+        With PPR this page can be partially static because the dynamic API usage
+        is inside a suspense boundary.
       </p>
-      <p>Without PPR this page is fully dynamic because a dynamic API was used.</p>
+      <p>
+        Without PPR this page is fully dynamic because a dynamic API was used.
+      </p>
       <Suspense fallback="loading...">
         <ComponentThatReadsCookies />
       </Suspense>

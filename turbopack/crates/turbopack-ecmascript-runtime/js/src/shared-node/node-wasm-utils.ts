@@ -16,7 +16,9 @@ function readWebAssemblyAsResponse(path: string) {
   })
 }
 
-async function compileWebAssemblyFromPath(path: string): Promise<WebAssembly.Module> {
+async function compileWebAssemblyFromPath(
+  path: string
+): Promise<WebAssembly.Module> {
   const response = readWebAssemblyAsResponse(path)
 
   return await WebAssembly.compileStreaming(response)
@@ -28,7 +30,10 @@ async function instantiateWebAssemblyFromPath(
 ): Promise<Exports> {
   const response = readWebAssemblyAsResponse(path)
 
-  const { instance } = await WebAssembly.instantiateStreaming(response, importsObj)
+  const { instance } = await WebAssembly.instantiateStreaming(
+    response,
+    importsObj
+  )
 
   return instance.exports
 }

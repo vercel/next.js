@@ -9,7 +9,10 @@ export default async function TeamPage(props: {
       <div id="team-page">
         Team {params.teamId} in Org {params.orgId}
       </div>
-      <Link href={`/org/${params.orgId}/team/${params.teamId}/settings`} id="settings-link">
+      <Link
+        href={`/org/${params.orgId}/team/${params.teamId}/settings`}
+        id="settings-link"
+      >
         Settings
       </Link>
     </div>

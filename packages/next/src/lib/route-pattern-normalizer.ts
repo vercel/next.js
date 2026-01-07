@@ -46,7 +46,10 @@ export function normalizeAdjacentParameters(route: string): string {
   let normalized = route
 
   // Handle interception route patterns: (.):param -> (.)_NEXTSEP_:param
-  normalized = normalized.replace(/(\([^)]*\)):([^/\s]+)/g, `$1${PARAM_SEPARATOR}:$2`)
+  normalized = normalized.replace(
+    /(\([^)]*\)):([^/\s]+)/g,
+    `$1${PARAM_SEPARATOR}:$2`
+  )
 
   // Handle other adjacent parameter patterns: :param1:param2 -> :param1_NEXTSEP_:param2
   normalized = normalized.replace(/:([^:/\s)]+)(?=:)/g, `:$1${PARAM_SEPARATOR}`)
@@ -116,7 +119,9 @@ export function stripNormalizedSeparators(pathname: string): string {
  * Strips normalization separators from extracted route parameters.
  * Used by both server and client code to clean up parameters after route matching.
  */
-export function stripParameterSeparators(params: Record<string, any>): Record<string, any> {
+export function stripParameterSeparators(
+  params: Record<string, any>
+): Record<string, any> {
   const cleaned: Record<string, any> = {}
 
   for (const [key, value] of Object.entries(params)) {
@@ -126,7 +131,9 @@ export function stripParameterSeparators(params: Record<string, any>): Record<st
     } else if (Array.isArray(value)) {
       // Handle array parameters (from repeated route segments)
       cleaned[key] = value.map((item) =>
-        typeof item === 'string' ? item.replace(new RegExp(`^${PARAM_SEPARATOR}`), '') : item
+        typeof item === 'string'
+          ? item.replace(new RegExp(`^${PARAM_SEPARATOR}`), '')
+          : item
       )
     } else {
       cleaned[key] = value

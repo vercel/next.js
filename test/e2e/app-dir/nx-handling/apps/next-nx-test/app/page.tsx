@@ -287,7 +287,9 @@ export default function Index() {
                 </svg>
                 <span>
                   Install Nx Console for JetBrains
-                  <span>Available for WebStorm, Intellij IDEA Ultimate and more!</span>
+                  <span>
+                    Available for WebStorm, Intellij IDEA Ultimate and more!
+                  </span>
                 </span>
               </a>
               <div id="nx-cloud" className="rounded shadow">
@@ -314,9 +316,16 @@ export default function Index() {
                     <span>Enable faster CI & better DX</span>
                   </h2>
                 </div>
-                <p>You can activate distributed tasks executions and caching by running:</p>
+                <p>
+                  You can activate distributed tasks executions and caching by
+                  running:
+                </p>
                 <pre>nx connect</pre>
-                <a href="https://nx.app/?utm_source=nx-project" target="_blank" rel="noreferrer">
+                <a
+                  href="https://nx.app/?utm_source=nx-project"
+                  target="_blank"
+                  rel="noreferrer"
+                >
                   {' '}
                   What is Nx Cloud?{' '}
                 </a>

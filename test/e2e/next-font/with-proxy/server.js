@@ -4,7 +4,9 @@ const httpProxy = require('next/dist/compiled/http-proxy')
 const PROXY_PORT = process.env.PROXY_PORT
 const SERVER_PORT = process.env.SERVER_PORT
 
-httpProxy.createProxyServer({ target: 'http://localhost:' + SERVER_PORT }).listen(PROXY_PORT)
+httpProxy
+  .createProxyServer({ target: 'http://localhost:' + SERVER_PORT })
+  .listen(PROXY_PORT)
 
 const cssResponse = `
 /* cyrillic-ext */

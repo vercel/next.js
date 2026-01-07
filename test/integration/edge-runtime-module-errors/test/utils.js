@@ -37,7 +37,10 @@ export function escapeLF(s) {
   return s.replace(/\n/g, '\\n')
 }
 
-export function expectUnsupportedModuleProdError(moduleName, output = context.logs.output) {
+export function expectUnsupportedModuleProdError(
+  moduleName,
+  output = context.logs.output
+) {
   const moduleNotSupportedMessage = getUnsupportedModule(moduleName)
   expect(output).toContain(moduleNotSupportedMessage)
   const moduleNotFoundMessage = getModuleNotFound(moduleName)
@@ -62,7 +65,10 @@ export function expectUnsupportedModuleDevError(
   expect(responseText).not.toContain(escapeLF(moduleNotFoundMessage))
 }
 
-export function expectModuleNotFoundProdError(moduleName, output = context.logs.output) {
+export function expectModuleNotFoundProdError(
+  moduleName,
+  output = context.logs.output
+) {
   const moduleNotSupportedMessage = getUnsupportedModule(moduleName)
   expect(stripAnsi(output)).not.toContain(moduleNotSupportedMessage)
   const moduleNotFoundMessages = [

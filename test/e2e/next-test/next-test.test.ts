@@ -1,4 +1,11 @@
-import { cpSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'fs'
+import {
+  cpSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
 
@@ -58,7 +65,9 @@ describe.skip('next test', () => {
             }. Create your first test and then run \`next experimental-test\`.`
           )
 
-          const pkgJSON = JSON.parse(readFileSync(join(fixture, 'package.json'), 'utf-8'))
+          const pkgJSON = JSON.parse(
+            readFileSync(join(fixture, 'package.json'), 'utf-8')
+          )
 
           expect(pkgJSON.devDependencies).toHaveProperty('@playwright/test')
         } finally {
@@ -127,7 +136,9 @@ describe.skip('next test', () => {
       })
 
       // Assert the assigned `defaultTestRunner` is printed in the error
-      expect(stderr).toContain('Test runner invalid-test-runner is not supported.')
+      expect(stderr).toContain(
+        'Test runner invalid-test-runner is not supported.'
+      )
 
       // Second, test that the `--test-runner` arg takes precedence over `defaultTestRunner` and default playwright
       ;({ stderr } = spawnSync(
@@ -144,19 +155,25 @@ describe.skip('next test', () => {
       ))
 
       // Assert the assigned `--test-runner` arg is printed in the error
-      expect(stderr).toContain('Test runner invalid-test-runner-2 is not supported.')
+      expect(stderr).toContain(
+        'Test runner invalid-test-runner-2 is not supported.'
+      )
     })
   })
 
   it('should pass args to test runner', async () => {
-    const { stdout } = spawnSync('pnpm', ['next', 'experimental-test', '--list'], {
-      cwd: basicExample.testDir,
-      encoding: 'utf-8',
-      env: {
-        ...process.env,
-        JEST_WORKER_ID: undefined, // Playwright complains about being executed by Jest
-      },
-    })
+    const { stdout } = spawnSync(
+      'pnpm',
+      ['next', 'experimental-test', '--list'],
+      {
+        cwd: basicExample.testDir,
+        encoding: 'utf-8',
+        env: {
+          ...process.env,
+          JEST_WORKER_ID: undefined, // Playwright complains about being executed by Jest
+        },
+      }
+    )
 
     expect(stdout).toMatchInlineSnapshot(`
       "Listing tests:

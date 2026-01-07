@@ -12,7 +12,10 @@ describe('interception-dynamic-segment', () => {
    * Returns true if the given href should already be opened. This allows us to
    * condition on whether to expect any additional network requests.
    */
-  async function isAccordionClosed(browser: Playwright, href: string): Promise<boolean> {
+  async function isAccordionClosed(
+    browser: Playwright,
+    href: string
+  ): Promise<boolean> {
     const selector = `[data-testid="link-accordion"][data-href="${href}"]`
 
     // Check if the button is already open
@@ -76,7 +79,9 @@ describe('interception-dynamic-segment', () => {
       expect(await browser.elementById('modal').text()).toContain('catch-all')
     })
     await retry(async () => {
-      expect(await browser.elementById('children').text()).toContain('not intercepted')
+      expect(await browser.elementById('children').text()).toContain(
+        'not intercepted'
+      )
     })
   })
 
@@ -119,7 +124,9 @@ describe('interception-dynamic-segment', () => {
       await browser.waitForIdleNetwork()
 
       await retry(async () => {
-        expect(await browser.elementById('modal').text()).toContain('intercepted')
+        expect(await browser.elementById('modal').text()).toContain(
+          'intercepted'
+        )
       })
 
       await browser.back()
@@ -171,7 +178,9 @@ describe('interception-dynamic-segment', () => {
         })
 
         await retry(async () => {
-          expect(await browser.elementById('modal').text()).toContain('intercepted')
+          expect(await browser.elementById('modal').text()).toContain(
+            'intercepted'
+          )
         })
       })
       /**
@@ -208,7 +217,9 @@ describe('interception-dynamic-segment', () => {
         })
 
         await retry(async () => {
-          expect(await browser.elementByCss('#modal h3').text()).toContain('TEST CASE 1')
+          expect(await browser.elementByCss('#modal h3').text()).toContain(
+            'TEST CASE 1'
+          )
         })
       })
 
@@ -226,7 +237,9 @@ describe('interception-dynamic-segment', () => {
         })
 
         await retry(async () => {
-          expect(await browser.elementByCss('#modal h3').text()).toContain('TEST CASE 2')
+          expect(await browser.elementByCss('#modal h3').text()).toContain(
+            'TEST CASE 2'
+          )
         })
       })
 
@@ -244,7 +257,9 @@ describe('interception-dynamic-segment', () => {
         })
 
         await retry(async () => {
-          expect(await browser.elementByCss('#modal h3').text()).toContain('TEST CASE 3')
+          expect(await browser.elementByCss('#modal h3').text()).toContain(
+            'TEST CASE 3'
+          )
         })
       })
 
@@ -343,7 +358,9 @@ describe('interception-dynamic-segment', () => {
         for (let i = 0; i < 3; i++) {
           const isAccordionOpen = i > 0
 
-          await expect(isAccordionClosed(browser, '/test-nested')).resolves.toBe(!isAccordionOpen)
+          await expect(
+            isAccordionClosed(browser, '/test-nested')
+          ).resolves.toBe(!isAccordionOpen)
 
           // Forward navigation: triggers RSC request (validates no 404)
           await act(

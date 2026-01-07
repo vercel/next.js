@@ -1,5 +1,8 @@
 import type { Options as DevServerOptions } from './dev/next-dev-server'
-import type { NodeRequestHandler, Options as ServerOptions } from './next-server'
+import type {
+  NodeRequestHandler,
+  Options as ServerOptions,
+} from './next-server'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { Duplex } from 'stream'
 import type { NextUrlWithParsedQuery, RequestMeta } from './request-meta'
@@ -12,7 +15,10 @@ import * as log from '../build/output/log'
 import loadConfig from './config'
 import path from 'node:path'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
-import { PHASE_DEVELOPMENT_SERVER, SERVER_FILES_MANIFEST } from '../shared/lib/constants'
+import {
+  PHASE_DEVELOPMENT_SERVER,
+  SERVER_FILES_MANIFEST,
+} from '../shared/lib/constants'
 import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
 import { getTracer } from './lib/trace/tracer'
 import { NextServerSpan } from './lib/trace/constants'
@@ -29,8 +35,11 @@ let ServerImpl: typeof NextNodeServer
 
 const getServerImpl = async () => {
   if (ServerImpl === undefined) {
-    ServerImpl = (await Promise.resolve(require('./next-server') as typeof import('./next-server')))
-      .default
+    ServerImpl = (
+      await Promise.resolve(
+        require('./next-server') as typeof import('./next-server')
+      )
+    ).default
   }
   return ServerImpl
 }
@@ -57,7 +66,11 @@ export type RequestHandler = (
   parsedUrl?: NextUrlWithParsedQuery | undefined
 ) => Promise<void>
 
-export type UpgradeHandler = (req: IncomingMessage, socket: Duplex, head: Buffer) => Promise<void>
+export type UpgradeHandler = (
+  req: IncomingMessage,
+  socket: Duplex,
+  head: Buffer
+) => Promise<void>
 
 const SYMBOL_LOAD_CONFIG = Symbol('next.load_config')
 
@@ -87,7 +100,9 @@ interface NextWrapperServer {
 
   logErrorWithOriginalStack(err: unknown, type: string): void
 
-  render(...args: Parameters<NextNodeServer['render']>): ReturnType<NextNodeServer['render']>
+  render(
+    ...args: Parameters<NextNodeServer['render']>
+  ): ReturnType<NextNodeServer['render']>
 
   renderToHTML(
     ...args: Parameters<NextNodeServer['renderToHTML']>
@@ -151,11 +166,14 @@ export class NextServer implements NextWrapperServer {
       res: ServerResponse,
       parsedUrl?: NextUrlWithParsedQuery
     ) => {
-      return getTracer().trace(NextServerSpan.getRequestHandlerWithMetadata, async () => {
-        const server = await this.getServer()
-        const handler = server.getRequestHandlerWithMetadata(meta)
-        return handler(req, res, parsedUrl)
-      })
+      return getTracer().trace(
+        NextServerSpan.getRequestHandlerWithMetadata,
+        async () => {
+          const server = await this.getServer()
+          const handler = server.getRequestHandlerWithMetadata(meta)
+          return handler(req, res, parsedUrl)
+        }
+      )
     }
   }
 
@@ -210,7 +228,9 @@ export class NextServer implements NextWrapperServer {
     return server.renderError(...args)
   }
 
-  async renderErrorToHTML(...args: Parameters<NextWrapperServer['renderErrorToHTML']>) {
+  async renderErrorToHTML(
+    ...args: Parameters<NextWrapperServer['renderErrorToHTML']>
+  ) {
     const server = await this.getServer()
     return server.renderErrorToHTML(...args)
   }
@@ -239,7 +259,9 @@ export class NextServer implements NextWrapperServer {
     }
   }
 
-  private async createServer(options: ServerOptions | DevServerOptions): Promise<NextNodeServer> {
+  private async createServer(
+    options: ServerOptions | DevServerOptions
+  ): Promise<NextNodeServer> {
     let ServerImplementation: typeof NextNodeServer
     if (options.dev) {
       ServerImplementation = (
@@ -254,7 +276,9 @@ export class NextServer implements NextWrapperServer {
   }
 
   private async [SYMBOL_LOAD_CONFIG]() {
-    const dir = path.resolve(/* turbopackIgnore: true */ this.options.dir || '.')
+    const dir = path.resolve(
+      /* turbopackIgnore: true */ this.options.dir || '.'
+    )
 
     const config = await loadConfig(
       this.options.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
@@ -352,7 +376,9 @@ class NextCustomServer implements NextWrapperServer {
 
   protected getInit() {
     if (!this.init) {
-      throw new Error('prepare() must be called before performing this operation')
+      throw new Error(
+        'prepare() must be called before performing this operation'
+      )
     }
     return this.init
   }
@@ -397,7 +423,10 @@ class NextCustomServer implements NextWrapperServer {
     this.init = initResult
   }
 
-  private setupWebSocketHandler(customServer?: import('http').Server, _req?: IncomingMessage) {
+  private setupWebSocketHandler(
+    customServer?: import('http').Server,
+    _req?: IncomingMessage
+  ) {
     if (!this.didWebSocketSetup) {
       this.didWebSocketSetup = true
       customServer = customServer || (_req?.socket as any)?.server
@@ -451,11 +480,18 @@ class NextCustomServer implements NextWrapperServer {
 
     // update the router-server nextConfig instance as
     // this is the source of truth for "handler" in serverful
-    const relativeProjectDir = path.relative(process.cwd(), this.options.dir || '')
+    const relativeProjectDir = path.relative(
+      process.cwd(),
+      this.options.dir || ''
+    )
 
-    if (routerServerGlobal[RouterServerContextSymbol]?.[relativeProjectDir]?.nextConfig) {
-      routerServerGlobal[RouterServerContextSymbol][relativeProjectDir].nextConfig.assetPrefix =
-        assetPrefix
+    if (
+      routerServerGlobal[RouterServerContextSymbol]?.[relativeProjectDir]
+        ?.nextConfig
+    ) {
+      routerServerGlobal[RouterServerContextSymbol][
+        relativeProjectDir
+      ].nextConfig.assetPrefix = assetPrefix
     }
   }
 
@@ -483,7 +519,9 @@ class NextCustomServer implements NextWrapperServer {
     return this.server.renderError(...args)
   }
 
-  async renderErrorToHTML(...args: Parameters<NextWrapperServer['renderErrorToHTML']>) {
+  async renderErrorToHTML(
+    ...args: Parameters<NextWrapperServer['renderErrorToHTML']>
+  ) {
     return this.server.renderErrorToHTML(...args)
   }
 
@@ -492,18 +530,25 @@ class NextCustomServer implements NextWrapperServer {
   }
 
   async close() {
-    await Promise.allSettled([this.init?.server.close(), this.cleanupListeners?.runAll()])
+    await Promise.allSettled([
+      this.init?.server.close(),
+      this.cleanupListeners?.runAll(),
+    ])
   }
 }
 
 // This file is used for when users run `require('next')`
-function createServer(options: NextServerOptions & NextBundlerOptions): NextWrapperServer {
+function createServer(
+  options: NextServerOptions & NextBundlerOptions
+): NextWrapperServer {
   // next sets customServer to false when calling this function, in that case we don't want to modify the environment variables
   const isCustomServer = options?.customServer ?? true
   if (isCustomServer) {
     const selectTurbopack =
-      options && (options.turbo || options.turbopack || process.env.IS_TURBOPACK_TEST)
-    const selectWebpack = options && (options.webpack || process.env.IS_WEBPACK_TEST)
+      options &&
+      (options.turbo || options.turbopack || process.env.IS_TURBOPACK_TEST)
+    const selectWebpack =
+      options && (options.webpack || process.env.IS_WEBPACK_TEST)
     if (selectTurbopack && selectWebpack) {
       throw new Error('Pass either `webpack` or `turbopack`, not both.')
     }
@@ -512,15 +557,23 @@ function createServer(options: NextServerOptions & NextBundlerOptions): NextWrap
     }
   } else {
     if (options && (options.webpack || options.turbo || options.turbopack)) {
-      throw new Error('Only custom servers can pass `webpack`, `turbo`, or `turbopack`.')
+      throw new Error(
+        'Only custom servers can pass `webpack`, `turbo`, or `turbopack`.'
+      )
     }
   }
 
   // The package is used as a TypeScript plugin.
-  if (options && 'typescript' in options && 'version' in (options as any).typescript) {
+  if (
+    options &&
+    'typescript' in options &&
+    'version' in (options as any).typescript
+  ) {
     const pluginMod: typeof import('./next-typescript') =
       require('./next-typescript') as typeof import('./next-typescript')
-    return pluginMod.createTSPlugin(options as any) as unknown as NextWrapperServer
+    return pluginMod.createTSPlugin(
+      options as any
+    ) as unknown as NextWrapperServer
   }
 
   if (options == null) {

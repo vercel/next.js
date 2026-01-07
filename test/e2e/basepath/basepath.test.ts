@@ -84,7 +84,9 @@ describe('basePath', () => {
   it('should navigate back correctly to a dynamic route', async () => {
     const browser = await webdriver(next.url, `${basePath}`)
 
-    expect(await browser.elementByCss('#index-page').text()).toContain('index page')
+    expect(await browser.elementByCss('#index-page').text()).toContain(
+      'index page'
+    )
 
     await browser.eval('window.beforeNav = 1')
 
@@ -108,7 +110,9 @@ describe('basePath', () => {
   if (!isNextDev) {
     if (!isNextDeploy) {
       it('should add basePath to routes-manifest', async () => {
-        const routesManifest = JSON.parse(await next.readFile('.next/routes-manifest.json'))
+        const routesManifest = JSON.parse(
+          await next.readFile('.next/routes-manifest.json')
+        )
         expect(routesManifest.basePath).toBe(basePath)
       })
 
@@ -116,7 +120,10 @@ describe('basePath', () => {
         const browser = await webdriver(next.url, `${basePath}/other-page`)
         await browser.eval('window.next.router.prefetch("/gssp")')
 
-        let chunk = getClientBuildManifestLoaderChunkUrlPath(next.testDir, '/gssp')
+        let chunk = getClientBuildManifestLoaderChunkUrlPath(
+          next.testDir,
+          '/gssp'
+        )
 
         await check(async () => {
           const links = await browser.elementsByCss('link[rel=prefetch]')
@@ -145,11 +152,15 @@ describe('basePath', () => {
         await browser.eval('window.next.router.prefetch("/gssp")')
 
         await check(async () => {
-          const hrefs = await browser.eval(`Object.keys(window.next.router.sdc)`)
+          const hrefs = await browser.eval(
+            `Object.keys(window.next.router.sdc)`
+          )
           hrefs.sort()
 
           assert.deepEqual(
-            hrefs.map((href) => new URL(href).pathname.replace(/\/_next\/data\/[^/]+/, '')),
+            hrefs.map((href) =>
+              new URL(href).pathname.replace(/\/_next\/data\/[^/]+/, '')
+            ),
             [
               `${basePath}/gsp.json`,
               `${basePath}/index.json`,
@@ -157,16 +168,27 @@ describe('basePath', () => {
             ]
           )
 
-          let chunkGsp = getClientBuildManifestLoaderChunkUrlPath(next.testDir, '/gsp')
-          let chunkGssp = getClientBuildManifestLoaderChunkUrlPath(next.testDir, '/gssp')
-          let chunkOtherPage = getClientBuildManifestLoaderChunkUrlPath(next.testDir, '/other-page')
+          let chunkGsp = getClientBuildManifestLoaderChunkUrlPath(
+            next.testDir,
+            '/gsp'
+          )
+          let chunkGssp = getClientBuildManifestLoaderChunkUrlPath(
+            next.testDir,
+            '/gssp'
+          )
+          let chunkOtherPage = getClientBuildManifestLoaderChunkUrlPath(
+            next.testDir,
+            '/other-page'
+          )
 
           const prefetches = await browser.eval(
             `[].slice.call(document.querySelectorAll("link[rel=prefetch]")).map((e) => new URL(e.href).pathname)`
           )
           expect(prefetches).toContainEqual(expect.stringContaining(chunkGsp))
           expect(prefetches).toContainEqual(expect.stringContaining(chunkGssp))
-          expect(prefetches).toContainEqual(expect.stringContaining(chunkOtherPage))
+          expect(prefetches).toContainEqual(
+            expect.stringContaining(chunkOtherPage)
+          )
           return 'yes'
         }, 'yes')
       })
@@ -195,7 +217,10 @@ describe('basePath', () => {
   })
 
   it('should not add header with basePath when set to false', async () => {
-    const res = await fetchViaHTTP(next.url, `${basePath}/add-header-no-basepath`)
+    const res = await fetchViaHTTP(
+      next.url,
+      `${basePath}/add-header-no-basepath`
+    )
     expect(res.headers.get('x-hello')).toBe(null)
   })
 
@@ -206,7 +231,10 @@ describe('basePath', () => {
 
   it('should update dynamic params after mount correctly', async () => {
     const browser = await webdriver(next.url, `${basePath}/hello-dynamic`)
-    await check(() => browser.elementByCss('#slug').text(), /slug: hello-dynamic/)
+    await check(
+      () => browser.elementByCss('#slug').text(),
+      /slug: hello-dynamic/
+    )
   })
 
   it('should navigate to index page with getStaticProps', async () => {
@@ -227,7 +255,9 @@ describe('basePath', () => {
       hrefs.sort()
 
       expect(
-        hrefs.map((href) => new URL(href).pathname.replace(/\/_next\/data\/[^/]+/, ''))
+        hrefs.map((href) =>
+          new URL(href).pathname.replace(/\/_next\/data\/[^/]+/, '')
+        )
       ).toEqual([
         `${basePath}/gsp.json`,
         `${basePath}/index.json`,
@@ -256,8 +286,14 @@ describe('basePath', () => {
       hrefs.sort()
 
       expect(
-        hrefs.map((href) => new URL(href).pathname.replace(/\/_next\/data\/[^/]+/, ''))
-      ).toEqual([`${basePath}/gsp.json`, `${basePath}/index.json`, `${basePath}/index/index.json`])
+        hrefs.map((href) =>
+          new URL(href).pathname.replace(/\/_next\/data\/[^/]+/, '')
+        )
+      ).toEqual([
+        `${basePath}/gsp.json`,
+        `${basePath}/index.json`,
+        `${basePath}/index/index.json`,
+      ])
     }
   })
 
@@ -274,17 +310,28 @@ describe('basePath', () => {
   it('should work with normal dynamic page', async () => {
     const browser = await webdriver(next.url, `${basePath}/hello`)
     await browser.elementByCss('#dynamic-link').click()
-    await check(() => browser.eval(() => document.documentElement.innerHTML), /slug: first/)
+    await check(
+      () => browser.eval(() => document.documentElement.innerHTML),
+      /slug: first/
+    )
   })
 
   it('should work with catch-all page', async () => {
     const browser = await webdriver(next.url, `${basePath}/hello`)
     await browser.elementByCss('#catchall-link').click()
-    await check(() => browser.eval(() => document.documentElement.innerHTML), /parts: hello\/world/)
+    await check(
+      () => browser.eval(() => document.documentElement.innerHTML),
+      /parts: hello\/world/
+    )
   })
 
   it('should redirect trailing slash correctly', async () => {
-    const res = await fetchViaHTTP(next.url, `${basePath}/hello/`, {}, { redirect: 'manual' })
+    const res = await fetchViaHTTP(
+      next.url,
+      `${basePath}/hello/`,
+      {},
+      { redirect: 'manual' }
+    )
     expect(res.status).toBe(308)
     const { pathname } = new URL(res.headers.get('location'))
     expect(pathname).toBe(`${basePath}/hello`)
@@ -293,7 +340,12 @@ describe('basePath', () => {
   })
 
   it('should redirect trailing slash on root correctly', async () => {
-    const res = await fetchViaHTTP(next.url, `${basePath}/`, {}, { redirect: 'manual' })
+    const res = await fetchViaHTTP(
+      next.url,
+      `${basePath}/`,
+      {},
+      { redirect: 'manual' }
+    )
     expect(res.status).toBe(308)
     const { pathname } = new URL(res.headers.get('location'))
     expect(pathname).toBe(`${basePath}`)
@@ -304,7 +356,10 @@ describe('basePath', () => {
   it('should navigate an absolute url', async () => {
     const browser = await webdriver(next.url, `${basePath}/absolute-url`)
     await browser.waitForElementByCss('#absolute-link').click()
-    await check(() => browser.eval(() => window.location.origin), 'https://vercel.com')
+    await check(
+      () => browser.eval(() => window.location.origin),
+      'https://vercel.com'
+    )
   })
 
   if (!isNextDeploy) {
@@ -315,7 +370,9 @@ describe('basePath', () => {
       )
       await browser.eval('window._didNotNavigate = true')
       await browser.waitForElementByCss('#absolute-link').click()
-      const text = await browser.waitForElementByCss('#something-else-page').text()
+      const text = await browser
+        .waitForElementByCss('#something-else-page')
+        .text()
 
       expect(text).toBe('something else')
       expect(await browser.eval('window._didNotNavigate')).toBe(true)
@@ -327,7 +384,10 @@ describe('basePath', () => {
         `${basePath}/absolute-url-no-basepath?port=${next.appPort}`
       )
       await browser.waitForElementByCss('#absolute-link').click()
-      await check(() => browser.eval(() => location.pathname), '/rewrite-no-basepath')
+      await check(
+        () => browser.eval(() => location.pathname),
+        '/rewrite-no-basepath'
+      )
       const text = await browser.elementByCss('body').text()
 
       expect(text).toContain('Example Domain')
@@ -409,7 +469,9 @@ describe('basePath', () => {
   it('should show 404 for page not under the /docs prefix', async () => {
     const text = await renderViaHTTP(next.url, '/hello')
     expect(text).not.toContain('Hello World')
-    expect(text).toContain(isNextDeploy ? 'NOT_FOUND' : 'This page could not be found')
+    expect(text).toContain(
+      isNextDeploy ? 'NOT_FOUND' : 'This page could not be found'
+    )
   })
 
   it('should show the other-page page under the /docs prefix', async () => {
@@ -459,7 +521,9 @@ describe('basePath', () => {
 
       const pathname = await browser.elementByCss('#pathname').text()
       expect(pathname).toBe('/hello')
-      expect(await browser.eval('window.location.pathname')).toBe(`${basePath}/hello`)
+      expect(await browser.eval('window.location.pathname')).toBe(
+        `${basePath}/hello`
+      )
       expect(await browser.eval('window.location.search')).toBe('?query=true')
 
       if (isNextDev) {

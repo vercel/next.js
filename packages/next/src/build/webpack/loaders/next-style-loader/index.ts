@@ -16,7 +16,8 @@ loaderApi.pitch = function loader(this: any, request: any): any {
           ? JSON.stringify(options.insert)
           : options.insert.toString()
     const injectType = options.injectType || 'styleTag'
-    const esModule = typeof options.esModule !== 'undefined' ? options.esModule : false
+    const esModule =
+      typeof options.esModule !== 'undefined' ? options.esModule : false
 
     delete options.esModule
 

@@ -20,7 +20,14 @@ export async function getInstrumentationModule(
 
   try {
     cachedInstrumentationModule = interopDefault(
-      await require(path.join(projectDir, distDir, 'server', `${INSTRUMENTATION_HOOK_FILENAME}.js`))
+      await require(
+        path.join(
+          projectDir,
+          distDir,
+          'server',
+          `${INSTRUMENTATION_HOOK_FILENAME}.js`
+        )
+      )
     )
     return cachedInstrumentationModule
   } catch (err: unknown) {
@@ -72,9 +79,15 @@ export async function instrumentationOnRequestError(
 }
 
 let registerInstrumentationPromise: Promise<void> | null = null
-export function ensureInstrumentationRegistered(projectDir: string, distDir: string) {
+export function ensureInstrumentationRegistered(
+  projectDir: string,
+  distDir: string
+) {
   if (!registerInstrumentationPromise) {
-    registerInstrumentationPromise = registerInstrumentation(projectDir, distDir)
+    registerInstrumentationPromise = registerInstrumentation(
+      projectDir,
+      distDir
+    )
   }
   return registerInstrumentationPromise
 }

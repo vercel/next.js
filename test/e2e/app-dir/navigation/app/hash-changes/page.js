@@ -38,7 +38,11 @@ const HashChanges = () => {
       </div>
 
       <div>
-        <Link href="#name-item-400" scroll={false} id="scroll-to-name-item-400-no-scroll">
+        <Link
+          href="#name-item-400"
+          scroll={false}
+          id="scroll-to-name-item-400-no-scroll"
+        >
           Go to name item 400 (no scroll)
         </Link>
       </div>

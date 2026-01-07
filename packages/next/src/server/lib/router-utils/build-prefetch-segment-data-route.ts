@@ -1,7 +1,10 @@
 import path from '../../../shared/lib/isomorphic/path'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
 import { getNamedRouteRegex } from '../../../shared/lib/router/utils/route-regex'
-import { RSC_SEGMENT_SUFFIX, RSC_SEGMENTS_DIR_SUFFIX } from '../../../lib/constants'
+import {
+  RSC_SEGMENT_SUFFIX,
+  RSC_SEGMENTS_DIR_SUFFIX,
+} from '../../../lib/constants'
 
 export const SEGMENT_PATH_KEY = 'nextSegmentPath'
 

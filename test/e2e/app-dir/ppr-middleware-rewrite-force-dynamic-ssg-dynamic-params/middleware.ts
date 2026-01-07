@@ -2,7 +2,9 @@ import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 
 export function middleware(request: NextRequest) {
-  return NextResponse.rewrite(new URL('/en' + request.nextUrl.pathname, request.url))
+  return NextResponse.rewrite(
+    new URL('/en' + request.nextUrl.pathname, request.url)
+  )
 }
 
 export const config = {

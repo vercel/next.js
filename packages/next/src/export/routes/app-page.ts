@@ -4,7 +4,10 @@ import type { RenderOpts } from '../../server/app-render/types'
 import type { NextParsedUrlQuery } from '../../server/request-meta'
 import type { RouteMetadata } from './types'
 
-import type { MockedRequest, MockedResponse } from '../../server/lib/mock-request'
+import type {
+  MockedRequest,
+  MockedResponse,
+} from '../../server/lib/mock-request'
 import { isDynamicUsageError } from '../helpers/is-dynamic-usage-error'
 import {
   NEXT_CACHE_TAGS_HEADER,
@@ -107,7 +110,9 @@ export async function exportAppPage(
 
     if (cacheControl.revalidate === 0) {
       if (isDynamicError) {
-        throw new Error(`Page with dynamic = "error" encountered dynamic data method on ${path}.`)
+        throw new Error(
+          `Page with dynamic = "error" encountered dynamic data method on ${path}.`
+        )
       }
       const { staticBailoutInfo = {} } = metadata
 
@@ -126,7 +131,11 @@ export async function exportAppPage(
     // properly so long as we don't have unknown route params. When a route doesn't
     // have unknown route params, there will not be any flight data.
     if (!flightData) {
-      if (!fallbackRouteParams || fallbackRouteParams.size === 0 || renderOpts.cacheComponents) {
+      if (
+        !fallbackRouteParams ||
+        fallbackRouteParams.size === 0 ||
+        renderOpts.cacheComponents
+      ) {
         throw new Error(`Invariant: failed to get page data for ${path}`)
       }
     } else {
@@ -136,7 +145,10 @@ export async function exportAppPage(
       // that the cache read/write is the same.
       if (!renderOpts.experimental.isRoutePPREnabled) {
         // Writing the RSC payload to a file if we don't have PPR enabled.
-        fileWriter.append(htmlFilepath.replace(/\.html$/, RSC_SUFFIX), flightData)
+        fileWriter.append(
+          htmlFilepath.replace(/\.html$/, RSC_SUFFIX),
+          flightData
+        )
       }
     }
 
@@ -146,11 +158,15 @@ export async function exportAppPage(
       // so that the cache handler has the option to treat each as a
       // separate entry.
       segmentPaths = []
-      const segmentsDir = htmlFilepath.replace(/\.html$/, RSC_SEGMENTS_DIR_SUFFIX)
+      const segmentsDir = htmlFilepath.replace(
+        /\.html$/,
+        RSC_SEGMENTS_DIR_SUFFIX
+      )
 
       for (const [segmentPath, buffer] of segmentData) {
         segmentPaths.push(segmentPath)
-        const segmentDataFilePath = segmentsDir + segmentPath + RSC_SEGMENT_SUFFIX
+        const segmentDataFilePath =
+          segmentsDir + segmentPath + RSC_SEGMENT_SUFFIX
         fileWriter.append(segmentDataFilePath, buffer)
       }
     }
@@ -213,7 +229,10 @@ export async function exportAppPage(
       cacheControl,
       fetchMetrics,
       renderResumeDataCache: renderResumeDataCache
-        ? await stringifyResumeDataCache(renderResumeDataCache, renderOpts.cacheComponents)
+        ? await stringifyResumeDataCache(
+            renderResumeDataCache,
+            renderOpts.cacheComponents
+          )
         : undefined,
     }
   } catch (err) {

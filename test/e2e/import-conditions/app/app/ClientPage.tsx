@@ -11,7 +11,10 @@ export default function ClientPage({
   action: () => Promise<Record<string, string>>
   server: unknown
 }) {
-  const [actionValue, formAction, isPending] = React.useActionState(action, undefined)
+  const [actionValue, formAction, isPending] = React.useActionState(
+    action,
+    undefined
+  )
   const [client, setClient] = React.useState<unknown | null>(null)
   React.useEffect(() => {
     setClient({
@@ -28,7 +31,9 @@ export default function ClientPage({
         {client === null ? (
           <pre>{JSON.stringify({ server }, null, 2)}</pre>
         ) : (
-          <pre>{JSON.stringify({ server, client, action: actionValue }, null, 2)}</pre>
+          <pre>
+            {JSON.stringify({ server, client, action: actionValue }, null, 2)}
+          </pre>
         )}
       </output>
     </form>

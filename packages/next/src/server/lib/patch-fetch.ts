@@ -1,4 +1,7 @@
-import type { WorkAsyncStorage, WorkStore } from '../app-render/work-async-storage.external'
+import type {
+  WorkAsyncStorage,
+  WorkStore,
+} from '../app-render/work-async-storage.external'
 
 import { AppRenderSpan, NextNodeServerSpan } from './trace/constants'
 import { getTracer, SpanKind } from './trace/tracer'
@@ -44,13 +47,20 @@ function isFetchPatched() {
   return (globalThis as Record<symbol, unknown>)[NEXT_PATCH_SYMBOL] === true
 }
 
-export function validateRevalidate(revalidateVal: unknown, route: string): undefined | number {
+export function validateRevalidate(
+  revalidateVal: unknown,
+  route: string
+): undefined | number {
   try {
     let normalizedRevalidate: number | undefined = undefined
 
     if (revalidateVal === false) {
       normalizedRevalidate = INFINITE_CACHE
-    } else if (typeof revalidateVal === 'number' && !isNaN(revalidateVal) && revalidateVal > -1) {
+    } else if (
+      typeof revalidateVal === 'number' &&
+      !isNaN(revalidateVal) &&
+      revalidateVal > -1
+    ) {
       normalizedRevalidate = revalidateVal
     } else if (typeof revalidateVal !== 'undefined') {
       throw new Error(
@@ -107,7 +117,10 @@ export function validateTags(tags: any[], description: string) {
   return validTags
 }
 
-function trackFetchMetric(workStore: WorkStore, ctx: Omit<FetchMetric, 'end' | 'idx'>) {
+function trackFetchMetric(
+  workStore: WorkStore,
+  ctx: Omit<FetchMetric, 'end' | 'idx'>
+) {
   if (!workStore.shouldTrackFetchMetrics) {
     return
   }
@@ -310,7 +323,9 @@ export function createPatchedFetcher(
         }
 
         const isRequestInput =
-          input && typeof input === 'object' && typeof (input as Request).method === 'string'
+          input &&
+          typeof input === 'object' &&
+          typeof (input as Request).method === 'string'
 
         const getRequestMeta = (field: string) => {
           // If request input is present but init is not, retrieve from input first.
@@ -330,7 +345,10 @@ export function createPatchedFetcher(
         // only available if init is used separate
         const originalFetchRevalidate = getNextField('revalidate')
         let currentFetchRevalidate = originalFetchRevalidate
-        const tags: string[] = validateTags(getNextField('tags') || [], `fetch ${input.toString()}`)
+        const tags: string[] = validateTags(
+          getNextField('tags') || [],
+          `fetch ${input.toString()}`
+        )
 
         let revalidateStore: RevalidateStore | undefined
 
@@ -357,7 +375,8 @@ export function createPatchedFetcher(
         if (revalidateStore) {
           if (Array.isArray(tags)) {
             // Collect tags onto parent caches or parent prerenders.
-            const collectedTags = revalidateStore.tags ?? (revalidateStore.tags = [])
+            const collectedTags =
+              revalidateStore.tags ?? (revalidateStore.tags = [])
             for (const tag of tags) {
               if (!collectedTags.includes(tag)) {
                 collectedTags.push(tag)
@@ -404,7 +423,8 @@ export function createPatchedFetcher(
           // If the revalidate value conflicts with the cache value, we should warn the user and unset the conflicting values.
           const isConflictingRevalidate =
             // revalidate: 0 and cache: force-cache
-            (currentFetchCacheConfig === 'force-cache' && currentFetchRevalidate === 0) ||
+            (currentFetchCacheConfig === 'force-cache' &&
+              currentFetchRevalidate === 0) ||
             // revalidate: >0 or revalidate: false and cache: no-store
             (currentFetchCacheConfig === 'no-store' &&
               (currentFetchRevalidate > 0 || currentFetchRevalidate === false))
@@ -443,21 +463,33 @@ export function createPatchedFetcher(
           typeof currentFetchRevalidate === 'undefined'
         ) {
           currentFetchRevalidate = false
-        } else if (hasExplicitFetchCacheOptOut || noFetchConfigAndForceDynamic) {
+        } else if (
+          hasExplicitFetchCacheOptOut ||
+          noFetchConfigAndForceDynamic
+        ) {
           currentFetchRevalidate = 0
         }
 
-        if (currentFetchCacheConfig === 'no-cache' || currentFetchCacheConfig === 'no-store') {
+        if (
+          currentFetchCacheConfig === 'no-cache' ||
+          currentFetchCacheConfig === 'no-store'
+        ) {
           cacheReason = `cache: ${currentFetchCacheConfig}`
         }
 
-        finalRevalidate = validateRevalidate(currentFetchRevalidate, workStore.route)
+        finalRevalidate = validateRevalidate(
+          currentFetchRevalidate,
+          workStore.route
+        )
 
         const _headers = getRequestMeta('headers')
         const initHeaders: Headers =
-          typeof _headers?.get === 'function' ? _headers : new Headers(_headers || {})
+          typeof _headers?.get === 'function'
+            ? _headers
+            : new Headers(_headers || {})
 
-        const hasUnCacheableHeader = initHeaders.get('authorization') || initHeaders.get('cookie')
+        const hasUnCacheableHeader =
+          initHeaders.get('authorization') || initHeaders.get('cookie')
 
         const isUnCacheableMethod = !['get', 'head'].includes(
           getRequestMeta('method')?.toLowerCase() || 'get'
@@ -485,7 +517,8 @@ export function createPatchedFetcher(
           currentFetchRevalidate == undefined
 
         let autoNoCache = Boolean(
-          (hasUnCacheableHeader || isUnCacheableMethod) && revalidateStore?.revalidate === 0
+          (hasUnCacheableHeader || isUnCacheableMethod) &&
+          revalidateStore?.revalidate === 0
         )
 
         let isImplicitBuildTimeCache = false
@@ -522,12 +555,17 @@ export function createPatchedFetcher(
                 'fetch()'
               )
             case 'request':
-              if (process.env.NODE_ENV === 'development' && workUnitStore.stagedRendering) {
+              if (
+                process.env.NODE_ENV === 'development' &&
+                workUnitStore.stagedRendering
+              ) {
                 if (cacheSignal) {
                   cacheSignal.endRead()
                   cacheSignal = null
                 }
-                await workUnitStore.stagedRendering.waitForStage(RenderStage.Dynamic)
+                await workUnitStore.stagedRendering.waitForStage(
+                  RenderStage.Dynamic
+                )
               }
               break
             case 'prerender-ppr':
@@ -567,7 +605,10 @@ export function createPatchedFetcher(
             break
           }
           case 'force-cache': {
-            if (typeof currentFetchRevalidate === 'undefined' || currentFetchRevalidate === 0) {
+            if (
+              typeof currentFetchRevalidate === 'undefined' ||
+              currentFetchRevalidate === 0
+            ) {
               cacheReason = 'fetchCache = force-cache'
               finalRevalidate = INFINITE_CACHE
             }
@@ -602,7 +643,9 @@ export function createPatchedFetcher(
           } else {
             // TODO: should we consider this case an invariant?
             cacheReason = 'auto cache'
-            finalRevalidate = revalidateStore ? revalidateStore.revalidate : INFINITE_CACHE
+            finalRevalidate = revalidateStore
+              ? revalidateStore.revalidate
+              : INFINITE_CACHE
           }
         } else if (!cacheReason) {
           cacheReason = `revalidate: ${finalRevalidate}`
@@ -638,12 +681,17 @@ export function createPatchedFetcher(
                     'fetch()'
                   )
                 case 'request':
-                  if (process.env.NODE_ENV === 'development' && workUnitStore.stagedRendering) {
+                  if (
+                    process.env.NODE_ENV === 'development' &&
+                    workUnitStore.stagedRendering
+                  ) {
                     if (cacheSignal) {
                       cacheSignal.endRead()
                       cacheSignal = null
                     }
-                    await workUnitStore.stagedRendering.waitForStage(RenderStage.Dynamic)
+                    await workUnitStore.stagedRendering.waitForStage(
+                      RenderStage.Dynamic
+                    )
                   }
                   break
                 case 'prerender-ppr':
@@ -672,7 +720,8 @@ export function createPatchedFetcher(
           }
         }
 
-        const isCacheableRevalidate = typeof finalRevalidate === 'number' && finalRevalidate > 0
+        const isCacheableRevalidate =
+          typeof finalRevalidate === 'number' && finalRevalidate > 0
 
         let cacheKey: string | undefined
         const { incrementalCache } = workStore
@@ -699,7 +748,10 @@ export function createPatchedFetcher(
           }
         }
 
-        if (incrementalCache && (isCacheableRevalidate || serverComponentsHmrCache)) {
+        if (
+          incrementalCache &&
+          (isCacheableRevalidate || serverComponentsHmrCache)
+        ) {
           try {
             cacheKey = await incrementalCache.generateCacheKey(
               fetchUrl,
@@ -715,7 +767,10 @@ export function createPatchedFetcher(
 
         let handleUnlock: () => Promise<void> | void = () => {}
 
-        const doOriginalFetch = async (isStale?: boolean, cacheReasonOverride?: string) => {
+        const doOriginalFetch = async (
+          isStale?: boolean,
+          cacheReasonOverride?: string
+        ) => {
           const requestInputFields = [
             'cache',
             'credentials',
@@ -746,7 +801,8 @@ export function createPatchedFetcher(
             }
             input = new Request(reqInput.url, reqOptions)
           } else if (init) {
-            const { _ogBody, body, signal, ...otherInput } = init as RequestInit & { _ogBody?: any }
+            const { _ogBody, body, signal, ...otherInput } =
+              init as RequestInit & { _ogBody?: any }
             init = {
               ...otherInput,
               body: _ogBody || body,
@@ -767,7 +823,10 @@ export function createPatchedFetcher(
                   start: fetchStart,
                   url: fetchUrl,
                   cacheReason: cacheReasonOverride || cacheReason,
-                  cacheStatus: finalRevalidate === 0 || cacheReasonOverride ? 'skip' : 'miss',
+                  cacheStatus:
+                    finalRevalidate === 0 || cacheReasonOverride
+                      ? 'skip'
+                      : 'miss',
                   cacheWarning,
                   status: res.status,
                   method: clonedInit.method || 'GET',
@@ -780,18 +839,21 @@ export function createPatchedFetcher(
                 (isCacheableRevalidate || serverComponentsHmrCache)
               ) {
                 const normalizedRevalidate =
-                  finalRevalidate >= INFINITE_CACHE ? CACHE_ONE_YEAR : finalRevalidate
+                  finalRevalidate >= INFINITE_CACHE
+                    ? CACHE_ONE_YEAR
+                    : finalRevalidate
 
-                const incrementalCacheConfig: SetIncrementalFetchCacheContext | undefined =
-                  isCacheableRevalidate
-                    ? {
-                        fetchCache: true,
-                        fetchUrl,
-                        fetchIdx,
-                        tags,
-                        isImplicitBuildTimeCache,
-                      }
-                    : undefined
+                const incrementalCacheConfig:
+                  | SetIncrementalFetchCacheContext
+                  | undefined = isCacheableRevalidate
+                  ? {
+                      fetchCache: true,
+                      fetchUrl,
+                      fetchIdx,
+                      tags,
+                      isImplicitBuildTimeCache,
+                    }
+                  : undefined
 
                 switch (workUnitStore?.type) {
                   case 'prerender':
@@ -895,8 +957,13 @@ export function createPatchedFetcher(
                   await getTimeoutBoundary()
                   break
                 case 'request':
-                  if (process.env.NODE_ENV === 'development' && workUnitStore.stagedRendering) {
-                    await workUnitStore.stagedRendering.waitForStage(RenderStage.Dynamic)
+                  if (
+                    process.env.NODE_ENV === 'development' &&
+                    workUnitStore.stagedRendering
+                  ) {
+                    await workUnitStore.stagedRendering.waitForStage(
+                      RenderStage.Dynamic
+                    )
                   }
                   break
                 case 'prerender-ppr':
@@ -965,10 +1032,13 @@ export function createPatchedFetcher(
               })
             }
 
-            const response = new Response(Buffer.from(cachedFetchData.body, 'base64'), {
-              headers: cachedFetchData.headers,
-              status: cachedFetchData.status,
-            })
+            const response = new Response(
+              Buffer.from(cachedFetchData.body, 'base64'),
+              {
+                headers: cachedFetchData.headers,
+                status: cachedFetchData.status,
+              }
+            )
 
             Object.defineProperty(response, 'url', {
               value: cachedFetchData.url,
@@ -1011,12 +1081,17 @@ export function createPatchedFetcher(
                     'fetch()'
                   )
                 case 'request':
-                  if (process.env.NODE_ENV === 'development' && workUnitStore.stagedRendering) {
+                  if (
+                    process.env.NODE_ENV === 'development' &&
+                    workUnitStore.stagedRendering
+                  ) {
                     if (cacheSignal) {
                       cacheSignal.endRead()
                       cacheSignal = null
                     }
-                    await workUnitStore.stagedRendering.waitForStage(RenderStage.Dynamic)
+                    await workUnitStore.stagedRendering.waitForStage(
+                      RenderStage.Dynamic
+                    )
                   }
                   break
                 case 'prerender-ppr':
@@ -1056,8 +1131,13 @@ export function createPatchedFetcher(
                       'fetch()'
                     )
                   case 'request':
-                    if (process.env.NODE_ENV === 'development' && workUnitStore.stagedRendering) {
-                      await workUnitStore.stagedRendering.waitForStage(RenderStage.Dynamic)
+                    if (
+                      process.env.NODE_ENV === 'development' &&
+                      workUnitStore.stagedRendering
+                    ) {
+                      await workUnitStore.stagedRendering.waitForStage(
+                        RenderStage.Dynamic
+                      )
                     }
                     break
                   case 'cache':
@@ -1090,7 +1170,8 @@ export function createPatchedFetcher(
         if (cacheKey && isForegroundRevalidate) {
           const pendingRevalidateKey = cacheKey
           workStore.pendingRevalidates ??= {}
-          let pendingRevalidate = workStore.pendingRevalidates[pendingRevalidateKey]
+          let pendingRevalidate =
+            workStore.pendingRevalidates[pendingRevalidateKey]
 
           if (pendingRevalidate) {
             const revalidatedResult: {

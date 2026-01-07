@@ -3,7 +3,10 @@ import { Suspense } from 'react'
 
 const getData = unstable_cache(
   async (cache) => {
-    const res = await fetch('https://next-data-api-endpoint.vercel.app/api/random', { cache })
+    const res = await fetch(
+      'https://next-data-api-endpoint.vercel.app/api/random',
+      { cache }
+    )
 
     return res.text()
   },

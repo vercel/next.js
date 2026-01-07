@@ -4,7 +4,8 @@ import { NextInstance } from 'e2e-utils'
 import { renderViaHTTP } from 'next-test-utils'
 import { join } from 'path'
 
-const mockedGoogleFontResponses = require.resolve('./google-font-mocked-responses.js')
+const mockedGoogleFontResponses =
+  require.resolve('./google-font-mocked-responses.js')
 
 describe('next/font/google without-preloaded-fonts without _app', () => {
   let next: NextInstance
@@ -68,7 +69,9 @@ describe('next/font/google no preloads with _app', () => {
   beforeAll(async () => {
     next = await createNext({
       files: {
-        'pages/_app.js': new FileRef(join(__dirname, 'without-preloaded-fonts/pages/_app.js')),
+        'pages/_app.js': new FileRef(
+          join(__dirname, 'without-preloaded-fonts/pages/_app.js')
+        ),
         'pages/no-preload.js': new FileRef(
           join(__dirname, 'without-preloaded-fonts/pages/no-preload.js')
         ),

@@ -30,7 +30,10 @@ describe('React Context', () => {
     it('should render with context after change', async () => {
       const aboutAppPagePath = 'pages/_app.js'
       const originalContent = await next.readFile(aboutAppPagePath)
-      await next.patchFile(aboutAppPagePath, originalContent.replace('hello world', 'new value'))
+      await next.patchFile(
+        aboutAppPagePath,
+        originalContent.replace('hello world', 'new value')
+      )
 
       try {
         await check(() => renderViaHTTP(next.url, '/'), /Value: .*?new value/)

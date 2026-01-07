@@ -5,7 +5,10 @@ import {
 
 import type { DraftModeProvider } from '../async-storage/draft-mode-provider'
 
-import { workAsyncStorage, type WorkStore } from '../app-render/work-async-storage.external'
+import {
+  workAsyncStorage,
+  type WorkStore,
+} from '../app-render/work-async-storage.external'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import {
   abortAndThrowOnSynchronousRequestDataAccess,
@@ -44,7 +47,10 @@ export function draftMode(): Promise<DraftMode> {
       // Inside of `"use cache"` or `unstable_cache`, draft mode is available if
       // the outmost work unit store is a request store (or a runtime prerender),
       // and if draft mode is enabled.
-      const draftModeProvider = getDraftModeProviderForCacheScope(workStore, workUnitStore)
+      const draftModeProvider = getDraftModeProviderForCacheScope(
+        workStore,
+        workUnitStore
+      )
 
       if (draftModeProvider) {
         return createOrGetCachedDraftMode(draftModeProvider, workStore)
@@ -147,9 +153,14 @@ class DraftMode {
     }
   }
 }
-const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(createDraftModeAccessError)
+const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(
+  createDraftModeAccessError
+)
 
-function createDraftModeAccessError(route: string | undefined, expression: string) {
+function createDraftModeAccessError(
+  route: string | undefined,
+  expression: string
+) {
   const prefix = route ? `Route "${route}" ` : 'This route '
   return new Error(
     `${prefix}used ${expression}. ` +
@@ -211,7 +222,11 @@ function trackDynamicDraftMode(expression: string, constructorOpt: Function) {
             `${exportName} must not be used within a Client Component. Next.js should be preventing ${exportName} from being included in Client Components statically, but did not in this case.`
           )
         case 'prerender-ppr':
-          return postponeWithTracking(workStore.route, expression, workUnitStore.dynamicTracking)
+          return postponeWithTracking(
+            workStore.route,
+            expression,
+            workUnitStore.dynamicTracking
+          )
         case 'prerender-legacy':
           workUnitStore.revalidate = 0
 

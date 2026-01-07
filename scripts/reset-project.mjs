@@ -27,17 +27,20 @@ export async function resetProject({
     )
   }
 
-  const createRes = await fetch(`https://vercel.com/api/v8/projects?teamId=${teamId}`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      Authorization: `Bearer ${TEST_TOKEN}`,
-    },
-    body: JSON.stringify({
-      framework: 'nextjs',
-      name: projectName,
-    }),
-  })
+  const createRes = await fetch(
+    `https://vercel.com/api/v8/projects?teamId=${teamId}`,
+    {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        Authorization: `Bearer ${TEST_TOKEN}`,
+      },
+      body: JSON.stringify({
+        framework: 'nextjs',
+        name: projectName,
+      }),
+    }
+  )
 
   if (!createRes.ok) {
     throw new Error(
@@ -77,5 +80,7 @@ export async function resetProject({
     }
   }
 
-  console.log(`Successfully created fresh Vercel project ${teamId}/${projectName}`)
+  console.log(
+    `Successfully created fresh Vercel project ${teamId}/${projectName}`
+  )
 }

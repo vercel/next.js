@@ -48,7 +48,11 @@ import { CollapseIcon } from '../../icons/collapse-icon'
  * ```
  *
  */
-export function PseudoHtmlDiff({ reactOutputComponentDiff }: { reactOutputComponentDiff: string }) {
+export function PseudoHtmlDiff({
+  reactOutputComponentDiff,
+}: {
+  reactOutputComponentDiff: string
+}) {
   const [isDiffCollapsed, toggleCollapseHtml] = useState(true)
 
   const htmlComponents = useMemo(() => {
@@ -69,12 +73,16 @@ export function PseudoHtmlDiff({ reactOutputComponentDiff }: { reactOutputCompon
           <span
             key={'comp-diff' + index}
             data-nextjs-container-errors-pseudo-html-line
-            data-nextjs-container-errors-pseudo-html--diff={sign === '+' ? 'add' : 'remove'}
+            data-nextjs-container-errors-pseudo-html--diff={
+              sign === '+' ? 'add' : 'remove'
+            }
           >
             <span>
               {/* Slice 2 spaces for the icon */}
               {prefix}
-              <span data-nextjs-container-errors-pseudo-html-line-sign>{sign}</span>
+              <span data-nextjs-container-errors-pseudo-html-line-sign>
+                {sign}
+              </span>
               {suffix}
               {'\n'}
             </span>
@@ -93,7 +101,9 @@ export function PseudoHtmlDiff({ reactOutputComponentDiff }: { reactOutputCompon
               : undefined)}
           >
             {prefix}
-            <span data-nextjs-container-errors-pseudo-html-line-sign>{sign}</span>
+            <span data-nextjs-container-errors-pseudo-html-line-sign>
+              {sign}
+            </span>
             {suffix}
             {'\n'}
           </span>

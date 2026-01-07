@@ -7,7 +7,9 @@ export default function Home() {
 
   const refWithCleanup = useCallback((el) => {
     if (!el) {
-      throw new Error('callback refs that returned a cleanup should never be called with null')
+      throw new Error(
+        'callback refs that returned a cleanup should never be called with null'
+      )
     }
 
     return () => {
@@ -25,7 +27,14 @@ export default function Home() {
       <section>
         {displayImage ? (
           <div style={{ position: 'relative', width: 10, height: 10 }}>
-            <Image ref={refWithCleanup} priority fill src="/test.jpg" alt="alt" sizes="10px" />
+            <Image
+              ref={refWithCleanup}
+              priority
+              fill
+              src="/test.jpg"
+              alt="alt"
+              sizes="10px"
+            />
           </div>
         ) : null}
       </section>

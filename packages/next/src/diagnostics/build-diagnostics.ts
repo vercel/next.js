@@ -32,7 +32,10 @@ async function getDiagnosticsDir(): Promise<string> {
 export async function recordFrameworkVersion(version: string): Promise<void> {
   const diagnosticsDir = await getDiagnosticsDir()
   const frameworkVersionFile = join(diagnosticsDir, FRAMEWORK_VERSION_FILE)
-  await writeFile(frameworkVersionFile, JSON.stringify({ name: 'Next.js', version }))
+  await writeFile(
+    frameworkVersionFile,
+    JSON.stringify({ name: 'Next.js', version })
+  )
 }
 
 /**
@@ -42,7 +45,9 @@ export async function recordFrameworkVersion(version: string): Promise<void> {
  * Each time this method is called, the new information will be merged with any
  * existing build diagnostics that previously existed.
  */
-export async function updateBuildDiagnostics(diagnostics: BuildDiagnostics): Promise<void> {
+export async function updateBuildDiagnostics(
+  diagnostics: BuildDiagnostics
+): Promise<void> {
   const diagnosticsDir = await getDiagnosticsDir()
   const diagnosticsFile = join(diagnosticsDir, DIAGNOSTICS_FILE)
 
@@ -64,7 +69,9 @@ export async function updateBuildDiagnostics(diagnostics: BuildDiagnostics): Pro
 /**
  * Writes fetch metrics collected during static generation to a file.
  */
-export async function recordFetchMetrics(exportResult: ExportAppResult): Promise<void> {
+export async function recordFetchMetrics(
+  exportResult: ExportAppResult
+): Promise<void> {
   const diagnosticsDir = await getDiagnosticsDir()
   const diagnosticsFile = join(diagnosticsDir, FETCH_METRICS_FILE)
   const fetchMetricsByPath: Record<string, FetchMetrics> = {}

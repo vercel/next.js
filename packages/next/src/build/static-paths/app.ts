@@ -1,7 +1,11 @@
 import type { Params } from '../../server/request/params'
 import type { AppPageModule } from '../../server/route-modules/app-page/module'
 import type { AppSegment } from '../segment-config/app/app-segments'
-import type { FallbackRouteParam, PrerenderedRoute, StaticPathsResult } from './types'
+import type {
+  FallbackRouteParam,
+  PrerenderedRoute,
+  StaticPathsResult,
+} from './types'
 
 import path from 'node:path'
 import { AfterRunner } from '../../server/after/run-with-after'
@@ -151,7 +155,9 @@ export function generateAllParamCombinations(
     // Find the index of the last Root Parameter in routeParamKeys.
     // This tells us the minimum combination length needed to include all Root Parameters.
     for (const rootParamKey of rootParamKeys) {
-      const index = childrenRouteParams.findIndex((param) => param.paramName === rootParamKey)
+      const index = childrenRouteParams.findIndex(
+        (param) => param.paramName === rootParamKey
+      )
       if (index === -1) {
         // Root Parameter not found in Route Parameters - this shouldn't happen in normal cases
         // but we handle it gracefully by treating it as if there are no Root Parameters.
@@ -161,7 +167,10 @@ export function generateAllParamCombinations(
       }
       // Track the highest index among all Root Parameters.
       // This ensures all Root Parameters are included in any generated combination.
-      minIndexForCompleteRootParams = Math.max(minIndexForCompleteRootParams, index)
+      minIndexForCompleteRootParams = Math.max(
+        minIndexForCompleteRootParams,
+        index
+      )
     }
   }
 
@@ -183,7 +192,10 @@ export function generateAllParamCombinations(
       // For example, if Root Parameters are ['lang', 'region'] and minIndexForCompleteRootParams = 1:
       // - Skip i=0 (would only include 'lang', missing 'region')
       // - Process i=1 and higher (includes both 'lang' and 'region')
-      if (minIndexForCompleteRootParams >= 0 && i < minIndexForCompleteRootParams) {
+      if (
+        minIndexForCompleteRootParams >= 0 &&
+        i < minIndexForCompleteRootParams
+      ) {
         continue
       }
 
@@ -205,7 +217,10 @@ export function generateAllParamCombinations(
         // Check if the parameter exists in the original params object and has a defined value.
         // This handles cases where generateStaticParams doesn't provide all possible parameters,
         // or where some parameters are optional/undefined.
-        if (!params.hasOwnProperty(routeKey) || params[routeKey] === undefined) {
+        if (
+          !params.hasOwnProperty(routeKey) ||
+          params[routeKey] === undefined
+        ) {
           // If this missing parameter is a Root Parameter, mark the combination as invalid.
           // Root Parameters are required for Static Shells, so we can't generate partial combinations without them.
           if (rootParamKeys.includes(routeKey)) {
@@ -309,7 +324,9 @@ function validateParams(
   if (isRoutePPREnabled && rootParamKeys.length > 0) {
     if (
       routeParams.length === 0 ||
-      rootParamKeys.some((key) => routeParams.some((params) => !(key in params)))
+      rootParamKeys.some((key) =>
+        routeParams.some((params) => !(key in params))
+      )
     ) {
       if (rootParamKeys.length === 1) {
         throw new Error(
@@ -334,7 +351,9 @@ function validateParams(
       if (
         optional &&
         params.hasOwnProperty(key) &&
-        (paramValue === null || paramValue === undefined || (paramValue as any) === false)
+        (paramValue === null ||
+          paramValue === undefined ||
+          (paramValue as any) === false)
       ) {
         paramValue = []
       }
@@ -511,7 +530,8 @@ export function assignErrorIfEmpty(
         //    (e.g., `/1234/[...slug]` should not throw relative to `/[id]/[...slug]`).
         if (
           hasChildren ||
-          (route.fallbackRouteParams && route.fallbackRouteParams.length > minFallbacks)
+          (route.fallbackRouteParams &&
+            route.fallbackRouteParams.length > minFallbacks)
         ) {
           route.throwOnEmptyStaticShell = false // Should not throw on empty static shell.
         } else {
@@ -539,7 +559,9 @@ export function assignErrorIfEmpty(
  * @returns Promise that resolves to an array of all parameter combinations
  */
 export async function generateRouteStaticParams(
-  segments: ReadonlyArray<Readonly<Pick<AppSegment, 'config' | 'generateStaticParams'>>>,
+  segments: ReadonlyArray<
+    Readonly<Pick<AppSegment, 'config' | 'generateStaticParams'>>
+  >,
   store: Pick<WorkStore, 'fetchCache'>,
   isRoutePPREnabled: boolean
 ): Promise<Params[]> {
@@ -616,7 +638,10 @@ export async function generateRouteStaticParams(
   return currentParams
 }
 
-function createReplacements(segment: Pick<AppSegment, 'paramType'>, paramValue: string | string[]) {
+function createReplacements(
+  segment: Pick<AppSegment, 'paramType'>,
+  paramValue: string | string[]
+) {
   // Determine the prefix to use for the interception marker.
   let prefix: string
   if (segment.paramType) {
@@ -762,11 +787,17 @@ export async function buildAppStaticPaths({
   for (const segment of segments) {
     // Check to see if there are any missing params for segments that have
     // dynamicParams set to false.
-    if (segment.paramName && segment.paramType && segment.config?.dynamicParams === false) {
+    if (
+      segment.paramName &&
+      segment.paramType &&
+      segment.config?.dynamicParams === false
+    ) {
       for (const params of routeParams) {
         if (segment.paramName in params) continue
 
-        const relative = segment.filePath ? path.relative(dir, segment.filePath) : undefined
+        const relative = segment.filePath
+          ? path.relative(dir, segment.filePath)
+          : undefined
 
         throw new Error(
           `Segment "${relative}" exports "dynamicParams: false" but the param "${segment.paramName}" is missing from the generated route params.`
@@ -800,9 +831,12 @@ export async function buildAppStaticPaths({
   // TODO: dynamic params should be allowed to be granular per segment but
   // we need additional information stored/leveraged in the prerender
   // manifest to allow this behavior.
-  const dynamicParams = segments.every((segment) => segment.config?.dynamicParams !== false)
+  const dynamicParams = segments.every(
+    (segment) => segment.config?.dynamicParams !== false
+  )
 
-  const supportsRoutePreGeneration = hadAllParamsGenerated || process.env.NODE_ENV === 'production'
+  const supportsRoutePreGeneration =
+    hadAllParamsGenerated || process.env.NODE_ENV === 'production'
 
   const fallbackMode = dynamicParams
     ? supportsRoutePreGeneration
@@ -847,7 +881,11 @@ export async function buildAppStaticPaths({
         pathname: page,
         encodedPathname: page,
         fallbackRouteParams,
-        fallbackMode: calculateFallbackMode(dynamicParams, rootParamKeys, fallbackMode),
+        fallbackMode: calculateFallbackMode(
+          dynamicParams,
+          rootParamKeys,
+          fallbackMode
+        ),
         fallbackRootParams: rootParamKeys,
         throwOnEmptyStaticShell: true,
       })
@@ -877,7 +915,9 @@ export async function buildAppStaticPaths({
             fallbackRouteParams.push({ paramName, paramType })
             for (
               let i =
-                pathnameRouteParamSegments.findIndex((param) => param.paramName === paramName) + 1;
+                pathnameRouteParamSegments.findIndex(
+                  (param) => param.paramName === paramName
+                ) + 1;
               i < pathnameRouteParamSegments.length;
               i++
             ) {
@@ -941,7 +981,11 @@ export async function buildAppStaticPaths({
         pathname,
         encodedPathname: normalizePathname(encodedPathname),
         fallbackRouteParams,
-        fallbackMode: calculateFallbackMode(dynamicParams, fallbackRootParams, fallbackMode),
+        fallbackMode: calculateFallbackMode(
+          dynamicParams,
+          fallbackRootParams,
+          fallbackMode
+        ),
         fallbackRootParams,
         throwOnEmptyStaticShell: true,
       })
@@ -949,7 +993,8 @@ export async function buildAppStaticPaths({
   }
 
   const prerenderedRoutes =
-    prerenderedRoutesByPathname.size > 0 || lastDynamicSegmentHadGenerateStaticParams
+    prerenderedRoutesByPathname.size > 0 ||
+    lastDynamicSegmentHadGenerateStaticParams
       ? [...prerenderedRoutesByPathname.values()]
       : undefined
 

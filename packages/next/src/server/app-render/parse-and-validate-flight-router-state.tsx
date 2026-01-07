@@ -2,8 +2,12 @@ import type { FlightRouterState } from '../../shared/lib/app-router-types'
 import { flightRouterStateSchema } from './types'
 import { assert } from 'next/dist/compiled/superstruct'
 
-export function parseAndValidateFlightRouterState(stateHeader: string | string[]): FlightRouterState
-export function parseAndValidateFlightRouterState(stateHeader: undefined): undefined
+export function parseAndValidateFlightRouterState(
+  stateHeader: string | string[]
+): FlightRouterState
+export function parseAndValidateFlightRouterState(
+  stateHeader: undefined
+): undefined
 export function parseAndValidateFlightRouterState(
   stateHeader: string | string[] | undefined
 ): FlightRouterState | undefined
@@ -14,7 +18,9 @@ export function parseAndValidateFlightRouterState(
     return undefined
   }
   if (Array.isArray(stateHeader)) {
-    throw new Error('Multiple router state headers were sent. This is not allowed.')
+    throw new Error(
+      'Multiple router state headers were sent. This is not allowed.'
+    )
   }
 
   // We limit the size of the router state header to ~40kb. This is to prevent

@@ -16,7 +16,8 @@ const babel = async (code: string, queryOpts = {} as any) => {
     cwd: dir,
     isServer,
     distDir: path.resolve(dir, '.next'),
-    pagesDir: 'pagesDir' in queryOpts ? queryOpts.pagesDir : path.resolve(dir, 'pages'),
+    pagesDir:
+      'pagesDir' in queryOpts ? queryOpts.pagesDir : path.resolve(dir, 'pages'),
     cache: false,
     development: true,
     hasReactRefresh: !isServer,

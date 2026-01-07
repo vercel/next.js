@@ -44,7 +44,9 @@ describe('getParamsFromRouteMatches', () => {
     expect(params).toEqual({ slug: 'hello-world' })
 
     // Providing optional param
-    params = getParamsFromRouteMatches('nxtPslug=hello-world&nxtPoptional=im-optional')
+    params = getParamsFromRouteMatches(
+      'nxtPslug=hello-world&nxtPoptional=im-optional'
+    )
     expect(params).toEqual({ slug: 'hello-world', optional: ['im-optional'] })
   })
 
@@ -63,7 +65,9 @@ describe('getParamsFromRouteMatches', () => {
     expect(params).toEqual(null)
 
     // Providing rest param
-    params = getParamsFromRouteMatches('nxtPslug=hello-world&nxtPrest=im-the/rest')
+    params = getParamsFromRouteMatches(
+      'nxtPslug=hello-world&nxtPrest=im-the/rest'
+    )
     expect(params).toEqual({ slug: 'hello-world', rest: ['im-the', 'rest'] })
   })
 })

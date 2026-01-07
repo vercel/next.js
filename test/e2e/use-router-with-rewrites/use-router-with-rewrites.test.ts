@@ -35,7 +35,9 @@ describe('use-router-with-rewrites', () => {
       await browser.elementById('router-push').click()
 
       const url = new URL(await browser.url())
-      expect(url.pathname + url.search).toBe('/rewrite-to-another-segment/0?id=1')
+      expect(url.pathname + url.search).toBe(
+        '/rewrite-to-another-segment/0?id=1'
+      )
     })
 
     it('should preserve current pathname when using useRouter.replace with rewrites on dynamic route', async () => {
@@ -43,7 +45,9 @@ describe('use-router-with-rewrites', () => {
       await browser.elementById('router-replace').click()
 
       const url = new URL(await browser.url())
-      expect(url.pathname + url.search).toBe('/rewrite-to-another-segment/0?id=2')
+      expect(url.pathname + url.search).toBe(
+        '/rewrite-to-another-segment/0?id=2'
+      )
     })
 
     it('should preserve current pathname when using Link with rewrites on dynamic route', async () => {
@@ -51,7 +55,9 @@ describe('use-router-with-rewrites', () => {
       await browser.elementByCss('a').click()
 
       const url = new URL(await browser.url())
-      expect(url.pathname + url.search).toBe('/rewrite-to-another-segment/0?id=3')
+      expect(url.pathname + url.search).toBe(
+        '/rewrite-to-another-segment/0?id=3'
+      )
     })
   })
 

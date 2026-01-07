@@ -46,19 +46,26 @@ const nextFontGoogleFontLoader: FontLoader = async ({
   } = validateGoogleFontFunctionCall(functionName, data[0])
 
   // Validate and get the font axes required to generated the URL
-  const fontAxes = getFontAxes(fontFamily, weights, styles, selectedVariableAxes)
+  const fontAxes = getFontAxes(
+    fontFamily,
+    weights,
+    styles,
+    selectedVariableAxes
+  )
 
   // Generate the Google Fonts URL from the font family, axes and display value
   const url = getGoogleFontsUrl(fontFamily, fontAxes, display)
 
   // Get precalculated fallback font metrics, used to generate the fallback font CSS
-  const adjustFontFallbackMetrics: AdjustFontFallback | undefined = adjustFontFallback
-    ? getFallbackFontOverrideMetrics(fontFamily)
-    : undefined
+  const adjustFontFallbackMetrics: AdjustFontFallback | undefined =
+    adjustFontFallback ? getFallbackFontOverrideMetrics(fontFamily) : undefined
 
   const result = {
     fallbackFonts: fallback,
-    weight: weights.length === 1 && weights[0] !== 'variable' ? weights[0] : undefined,
+    weight:
+      weights.length === 1 && weights[0] !== 'variable'
+        ? weights[0]
+        : undefined,
     style: styles.length === 1 ? styles[0] : undefined,
     variable,
     adjustFontFallback: adjustFontFallbackMetrics,
@@ -91,7 +98,10 @@ const nextFontGoogleFontLoader: FontLoader = async ({
     fontFaceDeclarations = fontFaceDeclarations.split('body {', 1)[0]
 
     // Find font files to download, provide the array of subsets we want to preload if preloading is enabled
-    const fontFiles = findFontFilesInCss(fontFaceDeclarations, preload ? subsets : undefined)
+    const fontFiles = findFontFilesInCss(
+      fontFaceDeclarations,
+      preload ? subsets : undefined
+    )
 
     // Download the font files extracted from the CSS
     const downloadedFiles = await Promise.all(

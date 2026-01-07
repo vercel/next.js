@@ -35,7 +35,11 @@ function generateCacheKey(request: Request): string {
   ])
 }
 
-type CacheEntry = [key: string, promise: Promise<Response>, response: Response | null]
+type CacheEntry = [
+  key: string,
+  promise: Promise<Response>,
+  response: Response | null,
+]
 
 export function createDedupeFetch(originalFetch: typeof fetch) {
   const getCacheEntries = React.cache(
@@ -73,7 +77,10 @@ export function createDedupeFetch(originalFetch: typeof fetch) {
         typeof resource === 'string' || resource instanceof URL
           ? new Request(resource, options)
           : resource
-      if ((request.method !== 'GET' && request.method !== 'HEAD') || request.keepalive) {
+      if (
+        (request.method !== 'GET' && request.method !== 'HEAD') ||
+        request.keepalive
+      ) {
         // We currently don't dedupe requests that might have side-effects. Those
         // have to be explicitly cached. We assume that the request doesn't have a
         // body if it's GET or HEAD.

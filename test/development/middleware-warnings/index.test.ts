@@ -8,7 +8,9 @@ const middlewareWarning = `A middleware can not alter response's body`
 
 describe('middlewares', () => {
   const { next } = nextTestSetup({
-    files: new FileRef(path.join(__dirname, '..', 'acceptance', 'fixtures', 'default-template')),
+    files: new FileRef(
+      path.join(__dirname, '..', 'acceptance', 'fixtures', 'default-template')
+    ),
     skipStart: true,
   })
 
@@ -66,7 +68,10 @@ describe('middlewares', () => {
       `,
     },
   ])('does not warn when $title', async ({ code }) => {
-    await using _sandbox = await createSandbox(next, new Map([[middlewarePath, code]]))
+    await using _sandbox = await createSandbox(
+      next,
+      new Map([[middlewarePath, code]])
+    )
     expect(next.cliOutput).not.toMatch(middlewareWarning)
   })
 
@@ -88,7 +93,10 @@ describe('middlewares', () => {
       `,
     },
   ])('does not warn when $title', async ({ code }) => {
-    await using _sandbox = await createSandbox(next, new Map([[middlewarePath, code]]))
+    await using _sandbox = await createSandbox(
+      next,
+      new Map([[middlewarePath, code]])
+    )
     expect(next.cliOutput).not.toMatch(middlewareWarning)
   })
 })

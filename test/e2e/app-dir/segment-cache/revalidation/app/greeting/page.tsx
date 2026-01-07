@@ -12,7 +12,9 @@ async function Greeting() {
     // If environment variable is not set, resolve automatically after a delay.
     // This is so you can run the test app locally without spinning up a
     // data server.
-    await new Promise<void>((resolve) => setTimeout(() => resolve(), ARTIFICIAL_DELAY))
+    await new Promise<void>((resolve) =>
+      setTimeout(() => resolve(), ARTIFICIAL_DELAY)
+    )
     // Return a random greeting
     return ['Hello', 'Hi', 'Hey', 'Howdy'][Math.floor(Math.random() * 4)]
   }

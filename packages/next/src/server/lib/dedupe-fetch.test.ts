@@ -54,7 +54,10 @@ describe('dedupe-fetch', () => {
 
       // Should only call original fetch once
       expect(originalFetch).toHaveBeenCalledTimes(1)
-      expect(originalFetch).toHaveBeenCalledWith('https://example.com/api', undefined)
+      expect(originalFetch).toHaveBeenCalledWith(
+        'https://example.com/api',
+        undefined
+      )
 
       // Both responses should be valid
       expect(await response1.text()).toBe('test response')
@@ -83,7 +86,9 @@ describe('dedupe-fetch', () => {
       const mockResponse1 = new Response('response 1', { status: 200 })
       const mockResponse2 = new Response('response 2', { status: 200 })
 
-      originalFetch.mockResolvedValueOnce(mockResponse1).mockResolvedValueOnce(mockResponse2)
+      originalFetch
+        .mockResolvedValueOnce(mockResponse1)
+        .mockResolvedValueOnce(mockResponse2)
 
       // Make requests to different URLs
       const promise1 = dedupeFetch('https://example.com/api1')
@@ -101,7 +106,9 @@ describe('dedupe-fetch', () => {
       const mockResponse1 = new Response('response 1', { status: 200 })
       const mockResponse2 = new Response('response 2', { status: 200 })
 
-      originalFetch.mockResolvedValueOnce(mockResponse1).mockResolvedValueOnce(mockResponse2)
+      originalFetch
+        .mockResolvedValueOnce(mockResponse1)
+        .mockResolvedValueOnce(mockResponse2)
 
       // Make requests with different headers
       const promise1 = dedupeFetch('https://example.com/api', {
@@ -121,18 +128,22 @@ describe('dedupe-fetch', () => {
       const mockResponse1 = new Response('response 1', { status: 200 })
       const mockResponse2 = new Response('response 2', { status: 200 })
 
-      originalFetch.mockResolvedValueOnce(mockResponse1).mockResolvedValueOnce(mockResponse2)
+      originalFetch
+        .mockResolvedValueOnce(mockResponse1)
+        .mockResolvedValueOnce(mockResponse2)
 
       // Make requests with different traceparent headers (W3C Trace Context)
       // Each traceparent represents a different distributed trace
       const promise1 = dedupeFetch('https://example.com/api', {
         headers: {
-          traceparent: '00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01',
+          traceparent:
+            '00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01',
         },
       })
       const promise2 = dedupeFetch('https://example.com/api', {
         headers: {
-          traceparent: '00-0af7651916cd43dd8448eb211c80319c-b9c7c989f97918e1-01',
+          traceparent:
+            '00-0af7651916cd43dd8448eb211c80319c-b9c7c989f97918e1-01',
         },
       })
 
@@ -145,7 +156,8 @@ describe('dedupe-fetch', () => {
         'https://example.com/api',
         expect.objectContaining({
           headers: {
-            traceparent: '00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01',
+            traceparent:
+              '00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01',
           },
         })
       )
@@ -155,19 +167,23 @@ describe('dedupe-fetch', () => {
       const mockResponse1 = new Response('response 1', { status: 200 })
       const mockResponse2 = new Response('response 2', { status: 200 })
 
-      originalFetch.mockResolvedValueOnce(mockResponse1).mockResolvedValueOnce(mockResponse2)
+      originalFetch
+        .mockResolvedValueOnce(mockResponse1)
+        .mockResolvedValueOnce(mockResponse2)
 
       // Make requests with different tracestate headers (W3C Trace Context)
       // tracestate is vendor-specific trace data
       const promise1 = dedupeFetch('https://example.com/api', {
         headers: {
-          traceparent: '00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01',
+          traceparent:
+            '00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01',
           tracestate: 'vendor1=value1,vendor2=value2',
         },
       })
       const promise2 = dedupeFetch('https://example.com/api', {
         headers: {
-          traceparent: '00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01',
+          traceparent:
+            '00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01',
           tracestate: 'vendor1=value3,vendor2=value4',
         },
       })
@@ -181,7 +197,8 @@ describe('dedupe-fetch', () => {
         'https://example.com/api',
         expect.objectContaining({
           headers: {
-            traceparent: '00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01',
+            traceparent:
+              '00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01',
             tracestate: 'vendor1=value1,vendor2=value2',
           },
         })
@@ -192,7 +209,9 @@ describe('dedupe-fetch', () => {
       const mockResponse1 = new Response('response 1', { status: 200 })
       const mockResponse2 = new Response('response 2', { status: 200 })
 
-      originalFetch.mockResolvedValueOnce(mockResponse1).mockResolvedValueOnce(mockResponse2)
+      originalFetch
+        .mockResolvedValueOnce(mockResponse1)
+        .mockResolvedValueOnce(mockResponse2)
 
       // Make requests with different modes
       const promise1 = dedupeFetch('https://example.com/api', {
@@ -217,7 +236,11 @@ describe('dedupe-fetch', () => {
       const promise2 = dedupeFetch('https://example.com/api')
       const promise3 = dedupeFetch('https://example.com/api')
 
-      const [response1, response2, response3] = await Promise.all([promise1, promise2, promise3])
+      const [response1, response2, response3] = await Promise.all([
+        promise1,
+        promise2,
+        promise3,
+      ])
 
       // Should only call original fetch once
       expect(originalFetch).toHaveBeenCalledTimes(1)
@@ -234,7 +257,9 @@ describe('dedupe-fetch', () => {
       const mockResponse1 = new Response('response 1', { status: 200 })
       const mockResponse2 = new Response('response 2', { status: 200 })
 
-      originalFetch.mockResolvedValueOnce(mockResponse1).mockResolvedValueOnce(mockResponse2)
+      originalFetch
+        .mockResolvedValueOnce(mockResponse1)
+        .mockResolvedValueOnce(mockResponse2)
 
       const controller1 = new AbortController()
       const controller2 = new AbortController()
@@ -275,7 +300,9 @@ describe('dedupe-fetch', () => {
       const mockResponse1 = new Response('response 1', { status: 200 })
       const mockResponse2 = new Response('response 2', { status: 200 })
 
-      originalFetch.mockResolvedValueOnce(mockResponse1).mockResolvedValueOnce(mockResponse2)
+      originalFetch
+        .mockResolvedValueOnce(mockResponse1)
+        .mockResolvedValueOnce(mockResponse2)
 
       // Make two POST requests
       const promise1 = dedupeFetch('https://example.com/api', {
@@ -297,7 +324,9 @@ describe('dedupe-fetch', () => {
       const mockResponse1 = new Response('response 1', { status: 200 })
       const mockResponse2 = new Response('response 2', { status: 200 })
 
-      originalFetch.mockResolvedValueOnce(mockResponse1).mockResolvedValueOnce(mockResponse2)
+      originalFetch
+        .mockResolvedValueOnce(mockResponse1)
+        .mockResolvedValueOnce(mockResponse2)
 
       // Make two PUT requests
       const promise1 = dedupeFetch('https://example.com/api', {
@@ -319,7 +348,9 @@ describe('dedupe-fetch', () => {
       const mockResponse1 = new Response('response 1', { status: 200 })
       const mockResponse2 = new Response('response 2', { status: 200 })
 
-      originalFetch.mockResolvedValueOnce(mockResponse1).mockResolvedValueOnce(mockResponse2)
+      originalFetch
+        .mockResolvedValueOnce(mockResponse1)
+        .mockResolvedValueOnce(mockResponse2)
 
       // Make two DELETE requests
       const promise1 = dedupeFetch('https://example.com/api', {
@@ -339,7 +370,9 @@ describe('dedupe-fetch', () => {
       const mockResponse1 = new Response('response 1', { status: 200 })
       const mockResponse2 = new Response('response 2', { status: 200 })
 
-      originalFetch.mockResolvedValueOnce(mockResponse1).mockResolvedValueOnce(mockResponse2)
+      originalFetch
+        .mockResolvedValueOnce(mockResponse1)
+        .mockResolvedValueOnce(mockResponse2)
 
       // Make two PATCH requests
       const promise1 = dedupeFetch('https://example.com/api', {
@@ -363,7 +396,9 @@ describe('dedupe-fetch', () => {
       const mockResponse1 = new Response('response 1', { status: 200 })
       const mockResponse2 = new Response('response 2', { status: 200 })
 
-      originalFetch.mockResolvedValueOnce(mockResponse1).mockResolvedValueOnce(mockResponse2)
+      originalFetch
+        .mockResolvedValueOnce(mockResponse1)
+        .mockResolvedValueOnce(mockResponse2)
 
       // Make requests with keepalive
       const promise1 = dedupeFetch('https://example.com/api', {
@@ -418,7 +453,9 @@ describe('dedupe-fetch', () => {
       const mockResponse1 = new Response('response 1', { status: 200 })
       const mockResponse2 = new Response('response 2', { status: 200 })
 
-      originalFetch.mockResolvedValueOnce(mockResponse1).mockResolvedValueOnce(mockResponse2)
+      originalFetch
+        .mockResolvedValueOnce(mockResponse1)
+        .mockResolvedValueOnce(mockResponse2)
 
       const request1 = new Request('https://example.com/api', {
         headers: { 'X-Custom': 'value1' },
@@ -542,7 +579,9 @@ describe('dedupe-fetch', () => {
       const error = new Error('Network error')
       originalFetch.mockRejectedValue(error)
 
-      await expect(dedupeFetch('https://example.com/api')).rejects.toThrow('Network error')
+      await expect(dedupeFetch('https://example.com/api')).rejects.toThrow(
+        'Network error'
+      )
     })
 
     it('should share errors between deduped requests', async () => {
@@ -628,7 +667,10 @@ describe('dedupe-fetch', () => {
 
       await dedupeFetch('https://example.com/api', options)
 
-      expect(originalFetch).toHaveBeenCalledWith('https://example.com/api', options)
+      expect(originalFetch).toHaveBeenCalledWith(
+        'https://example.com/api',
+        options
+      )
     })
 
     it('should dedupe requests with identical complex options', async () => {

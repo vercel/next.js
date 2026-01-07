@@ -10,10 +10,17 @@ describe('app-dir - metadata-revalidate', () => {
     const prerenderManifest = JSON.parse(manifestContent)
 
     expect(
-      prerenderManifest.routes['/revalidate/og/opengraph-image'].initialRevalidateSeconds
+      prerenderManifest.routes['/revalidate/og/opengraph-image']
+        .initialRevalidateSeconds
     ).toBe(5)
-    expect(prerenderManifest.routes['/manifest.webmanifest'].initialRevalidateSeconds).toBe(5)
-    expect(prerenderManifest.routes['/robots.txt'].initialRevalidateSeconds).toBe(5)
-    expect(prerenderManifest.routes['/sitemap.xml'].initialRevalidateSeconds).toBe(5)
+    expect(
+      prerenderManifest.routes['/manifest.webmanifest'].initialRevalidateSeconds
+    ).toBe(5)
+    expect(
+      prerenderManifest.routes['/robots.txt'].initialRevalidateSeconds
+    ).toBe(5)
+    expect(
+      prerenderManifest.routes['/sitemap.xml'].initialRevalidateSeconds
+    ).toBe(5)
   })
 })

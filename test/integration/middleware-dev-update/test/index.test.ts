@@ -1,4 +1,12 @@
-import { check, fetchViaHTTP, File, findPort, killApp, launchApp, retry } from 'next-test-utils'
+import {
+  check,
+  fetchViaHTTP,
+  File,
+  findPort,
+  killApp,
+  launchApp,
+  retry,
+} from 'next-test-utils'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 
@@ -37,7 +45,9 @@ describe('Middleware development errors', () => {
     await check(async () => {
       const res = await fetchViaHTTP(appPort, path)
       expect(res.status).toBe(200)
-      expect(res.headers.get('x-from-middleware')).toBe(hasMiddleware ? 'true' : null)
+      expect(res.headers.get('x-from-middleware')).toBe(
+        hasMiddleware ? 'true' : null
+      )
       return 'success'
     }, 'success')
   }

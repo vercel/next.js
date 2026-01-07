@@ -20,7 +20,10 @@ describe('Instrumentation Hook', () => {
   describeCase('with-esm-import', ({ next }) => {
     it('with-esm-import should run the instrumentation hook', async () => {
       await next.render('/')
-      await check(() => next.cliOutput, /register in instrumentation\.js is running/)
+      await check(
+        () => next.cliOutput,
+        /register in instrumentation\.js is running/
+      )
     })
   })
 
@@ -85,13 +88,22 @@ describe('Instrumentation Hook', () => {
           `export function register() {console.log('toast')}`
         )
         await check(() => next.cliOutput, /toast/)
-        await next.renameFile('./instrumentation.js', './instrumentation.js.bak')
-        await check(() => next.cliOutput, /The instrumentation file has been removed/)
+        await next.renameFile(
+          './instrumentation.js',
+          './instrumentation.js.bak'
+        )
+        await check(
+          () => next.cliOutput,
+          /The instrumentation file has been removed/
+        )
         await next.patchFile(
           './instrumentation.js.bak',
           `export function register() {console.log('bread')}`
         )
-        await next.renameFile('./instrumentation.js.bak', './instrumentation.js')
+        await next.renameFile(
+          './instrumentation.js.bak',
+          './instrumentation.js'
+        )
         await check(() => next.cliOutput, /The instrumentation file was added/)
         await check(() => next.cliOutput, /bread/)
       })

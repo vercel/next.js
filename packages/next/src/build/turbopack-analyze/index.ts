@@ -19,7 +19,9 @@ export type AnalyzeContext = {
   appDirOnly: boolean
 }
 
-export async function turbopackAnalyze(analyzeContext: AnalyzeContext): Promise<{
+export async function turbopackAnalyze(
+  analyzeContext: AnalyzeContext
+): Promise<{
   duration: number
   shutdownPromise: Promise<void>
 }> {

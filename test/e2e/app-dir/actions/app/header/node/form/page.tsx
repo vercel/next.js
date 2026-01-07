@@ -10,10 +10,9 @@ const getTestCookie = getCookie.bind(null, 'test')
 export default function Page() {
   const [referer, getReferrerAction] = useActionState(getReferrer, null)
 
-  const [cookie, getTestCookieAction] = useActionState<ReturnType<typeof getCookie> | null>(
-    getTestCookie,
-    null
-  )
+  const [cookie, getTestCookieAction] = useActionState<ReturnType<
+    typeof getCookie
+  > | null>(getTestCookie, null)
 
   return (
     <>

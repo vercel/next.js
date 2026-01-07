@@ -123,7 +123,11 @@ const getAssetQueryString = () => {
   return getDeploymentIdQueryOrEmptyString()
 }
 
-function prefetchViaDom(href: string, as: string, link?: HTMLLinkElement): Promise<any> {
+function prefetchViaDom(
+  href: string,
+  as: string,
+  link?: HTMLLinkElement
+): Promise<any> {
   return new Promise<void>((resolve, reject) => {
     const selector = `
       link[rel="prefetch"][href^="${href}"],
@@ -140,7 +144,8 @@ function prefetchViaDom(href: string, as: string, link?: HTMLLinkElement): Promi
     link!.rel = `prefetch`
     link!.crossOrigin = process.env.__NEXT_CROSS_ORIGIN!
     link!.onload = resolve as any
-    link!.onerror = () => reject(markAssetError(new Error(`Failed to prefetch: ${href}`)))
+    link!.onerror = () =>
+      reject(markAssetError(new Error(`Failed to prefetch: ${href}`)))
 
     // `href` should always be last:
     link!.href = href
@@ -160,7 +165,8 @@ function appendScript(
     // 1. Setup success/failure hooks in case the browser synchronously
     //    executes when `src` is set.
     script.onload = resolve
-    script.onerror = () => reject(markAssetError(new Error(`Failed to load script: ${src}`)))
+    script.onerror = () =>
+      reject(markAssetError(new Error(`Failed to load script: ${src}`)))
 
     // 2. Configure the cross-origin attribute before setting `src` in case the
     //    browser begins to fetch.
@@ -178,7 +184,11 @@ function appendScript(
 let devBuildPromise: Promise<void> | undefined
 
 // Resolve a promise that times out after given amount of milliseconds.
-function resolvePromiseWithTimeout<T>(p: Promise<T>, ms: number, err: Error): Promise<T> {
+function resolvePromiseWithTimeout<T>(
+  p: Promise<T>,
+  ms: number,
+  err: Error
+): Promise<T> {
   return new Promise((resolve, reject) => {
     let cancelled = false
 
@@ -245,7 +255,10 @@ interface RouteFiles {
   scripts: (TrustedScriptURL | string)[]
   css: string[]
 }
-function getFilesForRoute(assetPrefix: string, route: string): Promise<RouteFiles> {
+function getFilesForRoute(
+  assetPrefix: string,
+  route: string
+): Promise<RouteFiles> {
   if (process.env.NODE_ENV === 'development') {
     const scriptUrl =
       assetPrefix +
@@ -262,23 +275,31 @@ function getFilesForRoute(assetPrefix: string, route: string): Promise<RouteFile
     if (!(route in manifest)) {
       throw markAssetError(new Error(`Failed to lookup route: ${route}`))
     }
-    const allFiles = manifest[route].map((entry) => assetPrefix + '/_next/' + encodeURIPath(entry))
+    const allFiles = manifest[route].map(
+      (entry) => assetPrefix + '/_next/' + encodeURIPath(entry)
+    )
     return {
       scripts: allFiles
         .filter((v) => v.endsWith('.js'))
         .map((v) => __unsafeCreateTrustedScriptURL(v) + getAssetQueryString()),
-      css: allFiles.filter((v) => v.endsWith('.css')).map((v) => v + getAssetQueryString()),
+      css: allFiles
+        .filter((v) => v.endsWith('.css'))
+        .map((v) => v + getAssetQueryString()),
     }
   })
 }
 
 export function createRouteLoader(assetPrefix: string): RouteLoader {
-  const entrypoints: Map<string, Future<RouteEntrypoint> | RouteEntrypoint> = new Map()
+  const entrypoints: Map<string, Future<RouteEntrypoint> | RouteEntrypoint> =
+    new Map()
   const loadedScripts: Map<string, Promise<unknown>> = new Map()
   const styleSheets: Map<string, Promise<RouteStyleSheet>> = new Map()
-  const routes: Map<string, Future<RouteLoaderEntry> | RouteLoaderEntry> = new Map()
+  const routes: Map<string, Future<RouteLoaderEntry> | RouteLoaderEntry> =
+    new Map()
 
-  function maybeExecuteScript(src: TrustedScriptURL | string): Promise<unknown> {
+  function maybeExecuteScript(
+    src: TrustedScriptURL | string
+  ): Promise<unknown> {
     // With HMR we might need to "reload" scripts when they are
     // disposed and readded. Executing scripts twice has no functional
     // differences
@@ -372,7 +393,9 @@ export function createRouteLoader(assetPrefix: string): RouteLoader {
           getFilesForRoute(assetPrefix, route)
             .then(({ scripts, css }) => {
               return Promise.all([
-                entrypoints.has(route) ? [] : Promise.all(scripts.map(maybeExecuteScript)),
+                entrypoints.has(route)
+                  ? []
+                  : Promise.all(scripts.map(maybeExecuteScript)),
                 Promise.all(css.map(fetchStyleSheet)),
               ] as const)
             })
@@ -414,7 +437,9 @@ export function createRouteLoader(assetPrefix: string): RouteLoader {
         .then((output) =>
           Promise.all(
             canPrefetch
-              ? output.scripts.map((script) => prefetchViaDom(script.toString(), 'script'))
+              ? output.scripts.map((script) =>
+                  prefetchViaDom(script.toString(), 'script')
+                )
               : []
           )
         )

@@ -50,7 +50,9 @@ export class TurborepoAccessTraceResult {
   /**
    * Create an `TurborepoAccessTraceResult` from a serialized `SerializableTurborepoAccessTraceResult`
    */
-  public static fromSerialized(serialized: SerializableTurborepoAccessTraceResult) {
+  public static fromSerialized(
+    serialized: SerializableTurborepoAccessTraceResult
+  ) {
     return new TurborepoAccessTraceResult(
       new Set(serialized.envVars),
       serialized.addresses,

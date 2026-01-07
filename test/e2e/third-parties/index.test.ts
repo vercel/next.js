@@ -22,7 +22,9 @@ describe('@next/third-parties basic usage', () => {
     const $ = await next.render$('/google-maps-embed')
 
     const baseContainer = $('[data-ntpc="GoogleMapsEmbed"]')
-    const mapContainer = $('[src^="https://www.google.com/maps/embed/v1/place?key=XYZ"]')
+    const mapContainer = $(
+      '[src^="https://www.google.com/maps/embed/v1/place?key=XYZ"]'
+    )
     expect(baseContainer.length).toBe(1)
     expect(mapContainer.length).toBe(1)
   })

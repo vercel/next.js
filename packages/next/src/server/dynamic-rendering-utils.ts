@@ -1,7 +1,9 @@
 import type { NonStaticRenderStage } from './app-render/staged-rendering'
 import type { RequestStore } from './app-render/work-unit-async-storage.external'
 
-export function isHangingPromiseRejectionError(err: unknown): err is HangingPromiseRejectionError {
+export function isHangingPromiseRejectionError(
+  err: unknown
+): err is HangingPromiseRejectionError {
   if (typeof err !== 'object' || err === null || !('digest' in err)) {
     return false
   }
@@ -43,7 +45,10 @@ export function makeHangingPromise<T>(
     return Promise.reject(new HangingPromiseRejectionError(route, expression))
   } else {
     const hangingPromise = new Promise<T>((_, reject) => {
-      const boundRejection = reject.bind(null, new HangingPromiseRejectionError(route, expression))
+      const boundRejection = reject.bind(
+        null,
+        new HangingPromiseRejectionError(route, expression)
+      )
       let currentListeners = abortListenersBySignal.get(signal)
       if (currentListeners) {
         currentListeners.push(boundRejection)
@@ -78,7 +83,11 @@ export function makeDevtoolsIOAwarePromise<T>(
 ): Promise<T> {
   if (requestStore.stagedRendering) {
     // We resolve each stage in a timeout, so React DevTools will pick this up as IO.
-    return requestStore.stagedRendering.delayUntilStage(stage, undefined, underlying)
+    return requestStore.stagedRendering.delayUntilStage(
+      stage,
+      undefined,
+      underlying
+    )
   }
   // in React DevTools if we resolve in a setTimeout we will observe
   // the promise resolution as something that can suspend a boundary or root.

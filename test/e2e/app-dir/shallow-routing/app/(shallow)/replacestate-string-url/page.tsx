@@ -11,7 +11,9 @@ function InnerPage() {
       <pre id="my-data">{searchParams.get('query')}</pre>
       <button
         onClick={() => {
-          const previousQuery = new URL(window.location.href).searchParams.get('query')
+          const previousQuery = new URL(window.location.href).searchParams.get(
+            'query'
+          )
           const url = `?query=${previousQuery ? previousQuery + '-added' : 'foo'}`
 
           window.history.replaceState({}, '', url)
@@ -23,7 +25,9 @@ function InnerPage() {
 
       <button
         onClick={() => {
-          const previousQuery = new URL(window.location.href).searchParams.get('query')
+          const previousQuery = new URL(window.location.href).searchParams.get(
+            'query'
+          )
           const url = `?query=${previousQuery ? previousQuery + '-added' : 'foo'}`
 
           window.history.replaceState(null, '', url)
@@ -35,7 +39,9 @@ function InnerPage() {
 
       <button
         onClick={() => {
-          const previousQuery = new URL(window.location.href).searchParams.get('query')
+          const previousQuery = new URL(window.location.href).searchParams.get(
+            'query'
+          )
           const url = `?query=${previousQuery ? previousQuery + '-added' : 'foo'}`
 
           window.history.replaceState(undefined, '', url)

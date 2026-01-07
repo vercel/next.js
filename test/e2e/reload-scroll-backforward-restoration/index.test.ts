@@ -24,7 +24,9 @@ describe('reload-scroll-back-restoration', () => {
     await browser.eval(() => document.querySelector('#link').scrollIntoView())
 
     // check browser restoration setting
-    const scrollRestoration = await browser.eval(() => window.history.scrollRestoration)
+    const scrollRestoration = await browser.eval(
+      () => window.history.scrollRestoration
+    )
     expect(scrollRestoration).toBe('manual')
 
     const scrollPositionMemories: Array<{ x: number; y: number }> = []
@@ -47,7 +49,10 @@ describe('reload-scroll-back-restoration', () => {
 
     // check restore value on history index: 1
     await browser.back()
-    await check(() => browser.eval(() => document.documentElement.innerHTML), /routeChangeComplete/)
+    await check(
+      () => browser.eval(() => document.documentElement.innerHTML),
+      /routeChangeComplete/
+    )
 
     await check(async () => {
       assert.equal(
@@ -70,7 +75,10 @@ describe('reload-scroll-back-restoration', () => {
 
     // check restore value on history index: 0
     await browser.back()
-    await check(() => browser.eval(() => document.documentElement.innerHTML), /routeChangeComplete/)
+    await check(
+      () => browser.eval(() => document.documentElement.innerHTML),
+      /routeChangeComplete/
+    )
 
     await check(async () => {
       assert.equal(
@@ -90,7 +98,9 @@ describe('reload-scroll-back-restoration', () => {
     await browser.eval(() => document.querySelector('#link').scrollIntoView())
 
     // check browser restoration setting
-    const scrollRestoration = await browser.eval(() => window.history.scrollRestoration)
+    const scrollRestoration = await browser.eval(
+      () => window.history.scrollRestoration
+    )
     expect(scrollRestoration).toBe('manual')
 
     const scrollPositionMemories: Array<{ x: number; y: number }> = []
@@ -120,7 +130,10 @@ describe('reload-scroll-back-restoration', () => {
     await browser.back()
     await browser.back()
     await browser.forward()
-    await check(() => browser.eval(() => document.documentElement.innerHTML), /routeChangeComplete/)
+    await check(
+      () => browser.eval(() => document.documentElement.innerHTML),
+      /routeChangeComplete/
+    )
 
     await check(async () => {
       assert.equal(
@@ -143,7 +156,10 @@ describe('reload-scroll-back-restoration', () => {
 
     // check restore value on history index: 2
     await browser.forward()
-    await check(() => browser.eval(() => document.documentElement.innerHTML), /routeChangeComplete/)
+    await check(
+      () => browser.eval(() => document.documentElement.innerHTML),
+      /routeChangeComplete/
+    )
 
     await check(async () => {
       assert.equal(

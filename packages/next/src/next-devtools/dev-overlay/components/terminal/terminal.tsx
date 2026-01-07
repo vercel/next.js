@@ -36,7 +36,10 @@ function getImportTraceFiles(lines: string[]) {
   ) {
     // Grab the lines at the end containing the files
     const files = []
-    while (/.+\..+/.test(lines[lines.length - 1]) && !lines[lines.length - 1].includes(':')) {
+    while (
+      /.+\..+/.test(lines[lines.length - 1]) &&
+      !lines[lines.length - 1].includes(':')
+    ) {
       const file = lines.pop()!.trim()
       files.unshift(file)
     }
@@ -55,8 +58,13 @@ function getEditorLinks(content: string) {
   return { file, source: lines.join('\n'), importTraceFiles }
 }
 
-export const Terminal: React.FC<TerminalProps> = function Terminal({ content }) {
-  const { file, source, importTraceFiles } = React.useMemo(() => getEditorLinks(content), [content])
+export const Terminal: React.FC<TerminalProps> = function Terminal({
+  content,
+}) {
+  const { file, source, importTraceFiles } = React.useMemo(
+    () => getEditorLinks(content),
+    [content]
+  )
 
   const decoded = React.useMemo(() => {
     return Anser.ansiToJson(source, {
@@ -125,7 +133,11 @@ export const Terminal: React.FC<TerminalProps> = function Terminal({ content }) 
             </span>
           ))}
           {importTraceFiles.map((importTraceFile) => (
-            <EditorLink isSourceFile={false} key={importTraceFile} file={importTraceFile} />
+            <EditorLink
+              isSourceFile={false}
+              key={importTraceFile}
+              file={importTraceFile}
+            />
           ))}
         </div>
       </pre>

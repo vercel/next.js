@@ -19,7 +19,9 @@ function buildError(error: any, file: string) {
   }
 
   if (error.stack) {
-    return new WebpackError(`${file} from Minifier\n${error.message}\n${error.stack}`)
+    return new WebpackError(
+      `${file} from Minifier\n${error.message}\n${error.stack}`
+    )
   }
 
   return new WebpackError(`${file} from Minifier\n${error.message}`)
@@ -28,7 +30,9 @@ function buildError(error: any, file: string) {
 const debugMinify = process.env.NEXT_DEBUG_MINIFY
 
 export class MinifyPlugin {
-  constructor(private options: { noMangling?: boolean; disableCharFreq?: boolean }) {}
+  constructor(
+    private options: { noMangling?: boolean; disableCharFreq?: boolean }
+  ) {}
 
   async optimize(
     compiler: any,
@@ -49,9 +53,12 @@ export class MinifyPlugin {
           reserved: ['AbortSignal'],
           disableCharFreq: !!this.options.disableCharFreq,
         }
-    const compilationSpan = getCompilationSpan(compilation)! || getCompilationSpan(compiler)
+    const compilationSpan =
+      getCompilationSpan(compilation)! || getCompilationSpan(compiler)
 
-    const MinifierSpan = compilationSpan.traceChild('minify-webpack-plugin-optimize')
+    const MinifierSpan = compilationSpan.traceChild(
+      'minify-webpack-plugin-optimize'
+    )
 
     if (compilation.name) {
       MinifierSpan.setAttribute('compilationName', compilation.name)
@@ -96,16 +103,18 @@ export class MinifyPlugin {
               JSON.stringify(this.options)
             )
 
-            const output = await cache.getPromise<{ source: sources.Source } | undefined>(
-              name,
-              eTag
-            )
+            const output = await cache.getPromise<
+              { source: sources.Source } | undefined
+            >(name, eTag)
 
             if (debugMinify && debugMinify === '1') {
-              console.log(JSON.stringify({ name, source: source.source().toString() }), {
-                breakLength: Infinity,
-                maxStringLength: Infinity,
-              })
+              console.log(
+                JSON.stringify({ name, source: source.source().toString() }),
+                {
+                  breakLength: Infinity,
+                  maxStringLength: Infinity,
+                }
+              )
             }
             return { name, info, inputSource: source, output, eTag }
           })
@@ -115,7 +124,10 @@ export class MinifyPlugin {
 
       const getWorker = () => {
         return {
-          minify: async (options: { input: string; inputSourceMap: Object }) => {
+          minify: async (options: {
+            input: string
+            inputSourceMap: Object
+          }) => {
             const result = await (
               require('../../../../swc') as typeof import('../../../../swc')
             ).minify(options.input, {
@@ -158,7 +170,10 @@ export class MinifyPlugin {
 
             const minifySpan = MinifierSpan.traceChild('minify-js')
             minifySpan.setAttribute('name', name)
-            minifySpan.setAttribute('cache', typeof output === 'undefined' ? 'MISS' : 'HIT')
+            minifySpan.setAttribute(
+              'cache',
+              typeof output === 'undefined' ? 'MISS' : 'HIT'
+            )
 
             return minifySpan.traceAsyncFn(async () => {
               if (!output) {
@@ -215,44 +230,52 @@ export class MinifyPlugin {
   }
 
   apply(compiler: any) {
-    const { SourceMapSource, RawSource } = (compiler?.webpack?.sources || sources) as typeof sources
+    const { SourceMapSource, RawSource } = (compiler?.webpack?.sources ||
+      sources) as typeof sources
 
     const pluginName = this.constructor.name
 
-    compiler.hooks.thisCompilation.tap(pluginName, (compilation: Compilation) => {
-      const cache = compilation.getCache('MinifierWebpackPlugin')
+    compiler.hooks.thisCompilation.tap(
+      pluginName,
+      (compilation: Compilation) => {
+        const cache = compilation.getCache('MinifierWebpackPlugin')
 
-      const handleHashForChunk = (hash: any, _chunk: any) => {
-        // increment 'c' to invalidate cache
-        hash.update('c')
-      }
+        const handleHashForChunk = (hash: any, _chunk: any) => {
+          // increment 'c' to invalidate cache
+          hash.update('c')
+        }
 
-      const JSModulesHooks =
-        webpack.javascript.JavascriptModulesPlugin.getCompilationHooks(compilation)
-      JSModulesHooks.chunkHash.tap(pluginName, (chunk, hash) => {
-        if (!chunk.hasRuntime()) return
-        return handleHashForChunk(hash, chunk)
-      })
-
-      compilation.hooks.processAssets.tapPromise(
-        {
-          name: pluginName,
-          stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_SIZE,
-        },
-        (assets: any) =>
-          this.optimize(compiler, compilation, assets, cache, {
-            SourceMapSource,
-            RawSource,
-          })
-      )
-
-      compilation.hooks.statsPrinter.tap(pluginName, (stats: any) => {
-        stats.hooks.print
-          .for('asset.info.minimized')
-          .tap('minify-webpack-plugin', (minimized: any, { green, formatFlag }: any) =>
-            minimized ? green(formatFlag('minimized')) : undefined
+        const JSModulesHooks =
+          webpack.javascript.JavascriptModulesPlugin.getCompilationHooks(
+            compilation
           )
-      })
-    })
+        JSModulesHooks.chunkHash.tap(pluginName, (chunk, hash) => {
+          if (!chunk.hasRuntime()) return
+          return handleHashForChunk(hash, chunk)
+        })
+
+        compilation.hooks.processAssets.tapPromise(
+          {
+            name: pluginName,
+            stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_SIZE,
+          },
+          (assets: any) =>
+            this.optimize(compiler, compilation, assets, cache, {
+              SourceMapSource,
+              RawSource,
+            })
+        )
+
+        compilation.hooks.statsPrinter.tap(pluginName, (stats: any) => {
+          stats.hooks.print
+            .for('asset.info.minimized')
+            .tap(
+              'minify-webpack-plugin',
+              (minimized: any, { green, formatFlag }: any) =>
+                minimized ? green(formatFlag('minimized')) : undefined
+            )
+        })
+      }
+    )
   }
 }

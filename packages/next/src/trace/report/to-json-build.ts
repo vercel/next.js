@@ -1,7 +1,10 @@
 import { traceGlobals, traceId } from '../shared'
 import fs from 'fs'
 import path from 'path'
-import { PHASE_DEVELOPMENT_SERVER, PHASE_PRODUCTION_BUILD } from '../../shared/lib/constants'
+import {
+  PHASE_DEVELOPMENT_SERVER,
+  PHASE_PRODUCTION_BUILD,
+} from '../../shared/lib/constants'
 import type { TraceEvent } from '../types'
 import { batcher } from './to-json'
 

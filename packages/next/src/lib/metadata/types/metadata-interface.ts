@@ -12,7 +12,11 @@
  * @see https://nextjs.org/docs/app/api-reference/metadata
  */
 
-import type { AlternateURLs, Languages, ResolvedAlternateURLs } from './alternative-urls-types'
+import type {
+  AlternateURLs,
+  Languages,
+  ResolvedAlternateURLs,
+} from './alternative-urls-types'
 import type {
   AppleWebApp,
   AppLinks,
@@ -196,7 +200,12 @@ interface Metadata extends DeprecatedMetadataFields {
    *
    * @deprecated Use the new viewport configuration (`export const viewport: Viewport = { ... }`) instead.
    */
-  themeColor?: null | string | ThemeColorDescriptor | ThemeColorDescriptor[] | undefined
+  themeColor?:
+    | null
+    | string
+    | ThemeColorDescriptor
+    | ThemeColorDescriptor[]
+    | undefined
 
   /**
    * The color scheme for the document.
@@ -757,7 +766,12 @@ interface Viewport extends ViewportLayout {
    * // Renders <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
    * ```
    */
-  themeColor?: null | string | ThemeColorDescriptor | ThemeColorDescriptor[] | undefined
+  themeColor?:
+    | null
+    | string
+    | ThemeColorDescriptor
+    | ThemeColorDescriptor[]
+    | undefined
 
   /**
    * The color scheme for the document.

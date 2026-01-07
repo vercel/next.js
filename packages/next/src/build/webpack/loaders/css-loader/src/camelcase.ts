@@ -24,7 +24,11 @@ const preserveCamelCase = (string: string, locale: string) => {
       isLastLastCharUpper = isLastCharUpper
       isLastCharUpper = true
       i++
-    } else if (isLastCharUpper && isLastLastCharUpper && /[\p{Ll}]/u.test(character)) {
+    } else if (
+      isLastCharUpper &&
+      isLastLastCharUpper &&
+      /[\p{Ll}]/u.test(character)
+    ) {
       string = string.slice(0, i - 1) + '-' + string.slice(i - 1)
       isLastLastCharUpper = isLastCharUpper
       isLastCharUpper = false
@@ -49,8 +53,12 @@ const preserveConsecutiveUppercase = (input: string) => {
 
 const postProcess = (input: string, options: { locale: string }) => {
   return input
-    .replace(/[_.\- ]+([\p{Alpha}\p{N}_]|$)/gu, (_, p1) => p1.toLocaleUpperCase(options.locale))
-    .replace(/\d+([\p{Alpha}\p{N}_]|$)/gu, (m) => m.toLocaleUpperCase(options.locale))
+    .replace(/[_.\- ]+([\p{Alpha}\p{N}_]|$)/gu, (_, p1) =>
+      p1.toLocaleUpperCase(options.locale)
+    )
+    .replace(/\d+([\p{Alpha}\p{N}_]|$)/gu, (m) =>
+      m.toLocaleUpperCase(options.locale)
+    )
 }
 
 const camelCase = (input: string | string[], options?: any) => {

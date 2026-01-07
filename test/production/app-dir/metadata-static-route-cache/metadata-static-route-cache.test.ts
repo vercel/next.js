@@ -22,7 +22,9 @@ describe('app dir - metadata static routes cache', () => {
     const faviconMd5 = generateMD5(faviconBody)
 
     const opengraphImageUrl = $('meta[property="og:image"]').attr('href')
-    const opengraphImageBody = await (await next.fetch(opengraphImageUrl)).text()
+    const opengraphImageBody = await (
+      await next.fetch(opengraphImageUrl)
+    ).text()
     const opengraphImageMd5 = generateMD5(opengraphImageBody)
 
     await next.stop()
@@ -32,9 +34,14 @@ describe('app dir - metadata static routes cache', () => {
     await next.remove('app/favicon.ico')
     await next.writeFileBuffer('app/favicon.ico', newFaviconContent)
 
-    const newOpengraphImageContent = await next.readFileBuffer('app/opengraph-image.new.png')
+    const newOpengraphImageContent = await next.readFileBuffer(
+      'app/opengraph-image.new.png'
+    )
     await next.remove('app/opengraph-image.png')
-    await next.writeFileBuffer('app/opengraph-image.png', newOpengraphImageContent)
+    await next.writeFileBuffer(
+      'app/opengraph-image.png',
+      newOpengraphImageContent
+    )
 
     await next.start()
 
@@ -44,7 +51,9 @@ describe('app dir - metadata static routes cache', () => {
     const newFaviconMd5 = generateMD5(newFaviconBody)
 
     const newOpengraphImageUrl = new$('meta[property="og:image"]').attr('href')
-    const newOpengraphImageBody = await (await next.fetch(newOpengraphImageUrl)).text()
+    const newOpengraphImageBody = await (
+      await next.fetch(newOpengraphImageUrl)
+    ).text()
     const newOpengraphImageMd5 = generateMD5(newOpengraphImageBody)
 
     await next.stop()

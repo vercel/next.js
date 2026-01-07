@@ -12,10 +12,14 @@ describe('app-dir - draft-mode-middleware', () => {
   }
 
   it('should be able to enable draft mode with middleware present', async () => {
-    const browser = await next.browser('/api/draft?secret=secret-token&slug=preview-page')
+    const browser = await next.browser(
+      '/api/draft?secret=secret-token&slug=preview-page'
+    )
 
     await retry(async () => {
-      expect(next.cliOutput).toContain('draftMode().isEnabled from middleware: true')
+      expect(next.cliOutput).toContain(
+        'draftMode().isEnabled from middleware: true'
+      )
     })
 
     await browser.loadPage(new URL('/preview-page', next.url).toString())
@@ -26,7 +30,9 @@ describe('app-dir - draft-mode-middleware', () => {
   it('should be able to disable draft mode with middleware present', async () => {
     const browser = await next.browser('/api/disable-draft')
     await retry(async () => {
-      expect(next.cliOutput).toContain('draftMode().isEnabled from middleware: false')
+      expect(next.cliOutput).toContain(
+        'draftMode().isEnabled from middleware: false'
+      )
     })
 
     await browser.loadPage(new URL('/preview-page', next.url).toString())

@@ -1,4 +1,11 @@
-import { Environment, FetchFunction, fetchQuery, Network, RecordSource, Store } from 'relay-runtime'
+import {
+  Environment,
+  FetchFunction,
+  fetchQuery,
+  Network,
+  RecordSource,
+  Store,
+} from 'relay-runtime'
 import { GetServerSideProps } from 'next'
 import { pagesQuery as pagesQueryType } from '../queries/__generated__/pagesQuery.graphql'
 import pagesQuery from '../queries/pagesQuery'
@@ -34,10 +41,16 @@ export const getServerSideProps: GetServerSideProps = async ({ req }) => {
     network: Network.create(createGraphQLFetcher(req.headers.host)),
   })
 
-  const result = await fetchQuery<pagesQueryType>(environment, pagesQuery, {}).toPromise()
+  const result = await fetchQuery<pagesQueryType>(
+    environment,
+    pagesQuery,
+    {}
+  ).toPromise()
 
   if (!result) {
-    throw new Error('Mock GraphQL Server network request finished without a response!')
+    throw new Error(
+      'Mock GraphQL Server network request finished without a response!'
+    )
   }
 
   return {

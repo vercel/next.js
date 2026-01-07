@@ -37,7 +37,9 @@ describe('Error Overlay for server components', () => {
       const { browser } = sandbox
       await check(async () => {
         expect(
-          await browser.waitForElementByCss('#nextjs__container_errors_desc').text()
+          await browser
+            .waitForElementByCss('#nextjs__container_errors_desc')
+            .text()
         ).toContain(
           'createContext only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/context-in-server-component'
         )
@@ -89,7 +91,9 @@ describe('Error Overlay for server components', () => {
       const { browser } = sandbox
       await check(async () => {
         expect(
-          await browser.waitForElementByCss('#nextjs__container_errors_desc').text()
+          await browser
+            .waitForElementByCss('#nextjs__container_errors_desc')
+            .text()
         ).toContain(
           'createContext only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/context-in-server-component'
         )
@@ -141,7 +145,9 @@ describe('Error Overlay for server components', () => {
       const { browser } = sandbox
       await check(async () => {
         expect(
-          await browser.waitForElementByCss('#nextjs__container_errors_desc').text()
+          await browser
+            .waitForElementByCss('#nextjs__container_errors_desc')
+            .text()
         ).toContain(
           'createContext only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/context-in-server-component'
         )
@@ -174,7 +180,9 @@ describe('Error Overlay for server components', () => {
       const { browser } = sandbox
       await check(async () => {
         expect(
-          await browser.waitForElementByCss('#nextjs__container_errors_desc').text()
+          await browser
+            .waitForElementByCss('#nextjs__container_errors_desc')
+            .text()
         ).toContain(
           'useRef only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component'
         )
@@ -205,7 +213,9 @@ describe('Error Overlay for server components', () => {
       const { browser } = sandbox
       await check(async () => {
         expect(
-          await browser.waitForElementByCss('#nextjs__container_errors_desc').text()
+          await browser
+            .waitForElementByCss('#nextjs__container_errors_desc')
+            .text()
         ).toContain(
           'experimental_useOptimistic only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component'
         )
@@ -280,7 +290,9 @@ describe('Error Overlay for server components', () => {
       const { browser } = sandbox
       await check(async () => {
         expect(
-          await browser.waitForElementByCss('#nextjs__container_errors_desc').text()
+          await browser
+            .waitForElementByCss('#nextjs__container_errors_desc')
+            .text()
         ).toContain(
           'useState only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component'
         )
@@ -329,7 +341,9 @@ describe('Error Overlay for server components', () => {
       const { browser } = sandbox
       await check(async () => {
         expect(
-          await browser.waitForElementByCss('#nextjs__container_errors_desc').text()
+          await browser
+            .waitForElementByCss('#nextjs__container_errors_desc')
+            .text()
         ).toContain(
           'useEffect only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component'
         )
@@ -363,7 +377,9 @@ describe('Error Overlay for server components', () => {
       const { browser } = sandbox
       await check(async () => {
         expect(
-          await browser.waitForElementByCss('#nextjs__container_errors_desc').text()
+          await browser
+            .waitForElementByCss('#nextjs__container_errors_desc')
+            .text()
         ).toContain(
           'This might be caused by a React Class Component being rendered in a Server Component'
         )
@@ -413,7 +429,9 @@ describe('Error Overlay for server components', () => {
       const { browser } = sandbox
       await check(async () => {
         expect(
-          await browser.waitForElementByCss('#nextjs__container_errors_desc').text()
+          await browser
+            .waitForElementByCss('#nextjs__container_errors_desc')
+            .text()
         ).toContain(
           'This might be caused by a React Class Component being rendered in a Server Component'
         )
@@ -463,7 +481,9 @@ describe('Error Overlay for server components', () => {
       const { browser } = sandbox
       await check(async () => {
         expect(
-          await browser.waitForElementByCss('#nextjs__container_errors_desc').text()
+          await browser
+            .waitForElementByCss('#nextjs__container_errors_desc')
+            .text()
         ).toContain(
           'This might be caused by a React Class Component being rendered in a Server Component'
         )
@@ -507,35 +527,42 @@ describe('Error Overlay for server components', () => {
       expect(normalizedSource).toContain(
         `You're importing a component that needs \`${hook}\`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the \`"use client"\` directive.`
       )
-      expect(normalizedSource).toContain(`import { ${hook} } from 'next/navigation'`)
+      expect(normalizedSource).toContain(
+        `import { ${hook} } from 'next/navigation'`
+      )
     })
   })
 
   describe('Next.js link client hooks called in Server Component', () => {
-    it.each([['useLinkStatus']])('should show error when %s is called', async (hook: string) => {
-      await using sandbox = await createSandbox(
-        next,
-        new Map([
-          [
-            'app/page.js',
-            outdent`
+    it.each([['useLinkStatus']])(
+      'should show error when %s is called',
+      async (hook: string) => {
+        await using sandbox = await createSandbox(
+          next,
+          new Map([
+            [
+              'app/page.js',
+              outdent`
               import { ${hook} } from 'next/link'
               export default function Page() {
                 return "Hello world"
               }
             `,
-          ],
-        ])
-      )
-      const { session } = sandbox
-      await session.waitForRedbox()
-      // In webpack when the message too long it gets truncated with `  | ` with new lines.
-      // So we need to check for the first part of the message.
-      const normalizedSource = await session.getRedboxSource()
-      expect(normalizedSource).toContain(
-        `You're importing a component that needs \`${hook}\`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the \`"use client"\` directive.`
-      )
-      expect(normalizedSource).toContain(`import { ${hook} } from 'next/link'`)
-    })
+            ],
+          ])
+        )
+        const { session } = sandbox
+        await session.waitForRedbox()
+        // In webpack when the message too long it gets truncated with `  | ` with new lines.
+        // So we need to check for the first part of the message.
+        const normalizedSource = await session.getRedboxSource()
+        expect(normalizedSource).toContain(
+          `You're importing a component that needs \`${hook}\`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the \`"use client"\` directive.`
+        )
+        expect(normalizedSource).toContain(
+          `import { ${hook} } from 'next/link'`
+        )
+      }
+    )
   })
 })

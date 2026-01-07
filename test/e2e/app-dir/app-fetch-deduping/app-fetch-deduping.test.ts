@@ -14,7 +14,10 @@ describe('app-fetch-deduping', () => {
       beforeAll(async () => {
         externalServerPort = await findPort()
         externalServer = http.createServer((req, res) => {
-          const parsedUrl = new URL(req.url, `http://localhost:${externalServerPort}`)
+          const parsedUrl = new URL(
+            req.url,
+            `http://localhost:${externalServerPort}`
+          )
           const overrideStatus = parsedUrl.searchParams.get('status')
 
           // if the requested url has a "status" search param, override the response status
@@ -25,7 +28,9 @@ describe('app-fetch-deduping', () => {
           }
 
           // Generate a response with more than two MB of data.
-          res.end(`Request ${req.url} received at ${Date.now()}\n\n${'a'.repeat(2_000_000)}`)
+          res.end(
+            `Request ${req.url} received at ${Date.now()}\n\n${'a'.repeat(2_000_000)}`
+          )
         })
 
         await new Promise<void>((resolve, reject) => {

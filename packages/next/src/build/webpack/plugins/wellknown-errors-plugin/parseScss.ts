@@ -1,7 +1,8 @@
 import { bold, cyan, red, yellow } from '../../../../lib/picocolors'
 import { SimpleWebpackError } from './simpleWebpackError'
 
-const regexScssError = /SassError: (.+)\n\s+on line (\d+) [\s\S]*?>> (.+)\n\s*(-+)\^$/m
+const regexScssError =
+  /SassError: (.+)\n\s+on line (\d+) [\s\S]*?>> (.+)\n\s*(-+)\^$/m
 
 export function getScssError(
   fileName: string,

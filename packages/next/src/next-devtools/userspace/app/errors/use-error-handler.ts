@@ -1,12 +1,16 @@
 import { useEffect } from 'react'
 import { isNextRouterError } from '../../../../client/components/is-next-router-error'
-import { formatConsoleArgs, parseConsoleArgs } from '../../../../client/lib/console'
+import {
+  formatConsoleArgs,
+  parseConsoleArgs,
+} from '../../../../client/lib/console'
 import isError from '../../../../lib/is-error'
 import { createConsoleError } from '../../../shared/console-error'
 import { coerceError, setOwnerStackIfAvailable } from './stitched-error'
 import { forwardUnhandledError, logUnhandledRejection } from '../forward-logs'
 
-const queueMicroTask = globalThis.queueMicrotask || ((cb: () => void) => Promise.resolve().then(cb))
+const queueMicroTask =
+  globalThis.queueMicrotask || ((cb: () => void) => Promise.resolve().then(cb))
 
 type ErrorHandler = (error: Error) => void
 
@@ -15,13 +19,19 @@ const errorHandlers: Array<ErrorHandler> = []
 const rejectionQueue: Array<Error> = []
 const rejectionHandlers: Array<ErrorHandler> = []
 
-export function handleConsoleError(originError: unknown, consoleErrorArgs: any[]) {
+export function handleConsoleError(
+  originError: unknown,
+  consoleErrorArgs: any[]
+) {
   let error: Error
   const { environmentName } = parseConsoleArgs(consoleErrorArgs)
   if (isError(originError)) {
     error = createConsoleError(originError, environmentName)
   } else {
-    error = createConsoleError(formatConsoleArgs(consoleErrorArgs), environmentName)
+    error = createConsoleError(
+      formatConsoleArgs(consoleErrorArgs),
+      environmentName
+    )
   }
   setOwnerStackIfAvailable(error)
 
@@ -62,7 +72,10 @@ export function useErrorHandler(
     return () => {
       // Remove listeners.
       errorHandlers.splice(errorHandlers.indexOf(handleOnUnhandledError), 1)
-      rejectionHandlers.splice(rejectionHandlers.indexOf(handleOnUnhandledRejection), 1)
+      rejectionHandlers.splice(
+        rejectionHandlers.indexOf(handleOnUnhandledRejection),
+        1
+      )
 
       // Reset error queues.
       errorQueue.splice(0, errorQueue.length)

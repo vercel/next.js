@@ -1,6 +1,9 @@
 /* eslint-env jest */
 import fs from 'fs-extra'
-import { recursiveDeleteSyncWithAsyncRetries, calcBackoffMs } from 'next/dist/lib/recursive-delete'
+import {
+  recursiveDeleteSyncWithAsyncRetries,
+  calcBackoffMs,
+} from 'next/dist/lib/recursive-delete'
 import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 import { recursiveCopy } from 'next/dist/lib/recursive-copy'
 import { join } from 'path'
@@ -51,7 +54,9 @@ describe('recursiveDeleteSyncWithAsyncRetries', () => {
 
 describe('calcBackoffMs', () => {
   it('returns expected values', () => {
-    let backoffValuesMs = Array.from({ length: 6 }, (_, attempt) => calcBackoffMs(attempt))
+    let backoffValuesMs = Array.from({ length: 6 }, (_, attempt) =>
+      calcBackoffMs(attempt)
+    )
     expect(backoffValuesMs).toEqual([8, 16, 32, 64, 64, 64])
   })
 })

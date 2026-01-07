@@ -5,7 +5,9 @@ export function layoutTreemap(sizes: number[], rect: LayoutRect): LayoutRect[] {
   if (sizes.length === 1) return [rect]
 
   const totalSize = sizes.reduce((a, b) => a + b, 0)
-  const normalizedSizes = sizes.map((s) => (s / totalSize) * rect.width * rect.height)
+  const normalizedSizes = sizes.map(
+    (s) => (s / totalSize) * rect.width * rect.height
+  )
 
   const result: LayoutRect[] = []
   let remaining = [...normalizedSizes]

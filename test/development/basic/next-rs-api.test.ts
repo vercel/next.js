@@ -18,7 +18,10 @@ import { spawnSync } from 'child_process'
 function normalizePath(path: string) {
   return path
     .replace(/\[project\].+\/node_modules\//g, '[project]/.../node_modules/')
-    .replace(/\[project\]\/packages\/next\//g, '[project]/.../node_modules/next/')
+    .replace(
+      /\[project\]\/packages\/next\//g,
+      '[project]/.../node_modules/next/'
+    )
 }
 
 function styledStringToMarkdown(styled: StyledString): string {
@@ -42,7 +45,8 @@ function normalizeIssues(issues: Issue[]) {
   return issues
     .map((issue) => ({
       ...issue,
-      detail: issue.detail && normalizePath(styledStringToMarkdown(issue.detail)),
+      detail:
+        issue.detail && normalizePath(styledStringToMarkdown(issue.detail)),
       filePath: issue.filePath && normalizePath(issue.filePath),
       source: issue.source && {
         ...issue.source,
@@ -86,7 +90,9 @@ function normalizeDiagnostics(diagnostics: Diagnostics[]) {
 }
 
 function raceIterators<T>(iterators: AsyncIterableIterator<T>[]) {
-  const nexts = iterators.map((iterator, i) => iterator.next().then((next) => ({ next, i })))
+  const nexts = iterators.map((iterator, i) =>
+    iterator.next().then((next) => ({ next, i }))
+  )
   return (async function* () {
     while (true) {
       const remaining = nexts.filter((x) => x)
@@ -152,17 +158,21 @@ describe('next.rs api writeToDisk multiple times', () => {
         'pages/page-nodejs.js': 'export default () => <div>hello world</div>',
         'pages/page-edge.js':
           'export default () => <div>hello world</div>\nexport const config = { runtime: "experimental-edge" }',
-        'pages/api/nodejs.js': 'export default () => Response.json({ hello: "world" })',
+        'pages/api/nodejs.js':
+          'export default () => Response.json({ hello: "world" })',
         'pages/api/edge.js':
           'export default () => Response.json({ hello: "world" })\nexport const config = { runtime: "edge" }',
         'app/layout.tsx':
           'export default function RootLayout({ children }: { children: any }) { return (<html><body>{children}</body></html>)}',
-        'app/loading.tsx': 'export default function Loading() { return <>Loading</> }',
+        'app/loading.tsx':
+          'export default function Loading() { return <>Loading</> }',
         'app/app/page.tsx': appPageCode('hello world'),
-        'app/app/client.tsx': '"use client";\nexport default () => <div>hello world</div>',
+        'app/app/client.tsx':
+          '"use client";\nexport default () => <div>hello world</div>',
         'app/app-edge/page.tsx':
           'export default () => <div>hello world</div>\nexport const runtime = "edge"',
-        'app/app-nodejs/page.tsx': 'export default () => <div>hello world</div>',
+        'app/app-nodejs/page.tsx':
+          'export default () => <div>hello world</div>',
         'app/route-nodejs/route.ts':
           'export function GET() { return Response.json({ hello: "world" }) }',
         'app/route-edge/route.ts':
@@ -278,12 +288,16 @@ main()
       },
     })
 
-    const result = spawnSync('node', ['--expose-gc', join(next.testDir, 'server.js')], {
-      stdio: 'inherit',
-      env: {
-        ...process.env,
-      },
-    })
+    const result = spawnSync(
+      'node',
+      ['--expose-gc', join(next.testDir, 'server.js')],
+      {
+        stdio: 'inherit',
+        env: {
+          ...process.env,
+        },
+      }
+    )
     expect(result.status).toBe(0)
 
     await next.destroy()
@@ -302,17 +316,21 @@ describe('next.rs api', () => {
           'pages/page-nodejs.js': 'export default () => <div>hello world</div>',
           'pages/page-edge.js':
             'export default () => <div>hello world</div>\nexport const config = { runtime: "experimental-edge" }',
-          'pages/api/nodejs.js': 'export default () => Response.json({ hello: "world" })',
+          'pages/api/nodejs.js':
+            'export default () => Response.json({ hello: "world" })',
           'pages/api/edge.js':
             'export default () => Response.json({ hello: "world" })\nexport const config = { runtime: "edge" }',
           'app/layout.tsx':
             'export default function RootLayout({ children }: { children: any }) { return (<html><body>{children}</body></html>)}',
-          'app/loading.tsx': 'export default function Loading() { return <>Loading</> }',
+          'app/loading.tsx':
+            'export default function Loading() { return <>Loading</> }',
           'app/app/page.tsx': appPageCode('hello world'),
-          'app/app/client.tsx': '"use client";\nexport default () => <div>hello world</div>',
+          'app/app/client.tsx':
+            '"use client";\nexport default () => <div>hello world</div>',
           'app/app-edge/page.tsx':
             'export default () => <div>hello world</div>\nexport const runtime = "edge"',
-          'app/app-nodejs/page.tsx': 'export default () => <div>hello world</div>',
+          'app/app-nodejs/page.tsx':
+            'export default () => <div>hello world</div>',
           'app/route-nodejs/route.ts':
             'export function GET() { return Response.json({ hello: "world" }) }',
           'app/route-edge/route.ts':
@@ -398,7 +416,9 @@ describe('next.rs api', () => {
       '/route-nodejs',
     ])
     expect(normalizeIssues(entrypoints.value.issues)).toMatchSnapshot('issues')
-    expect(normalizeDiagnostics(entrypoints.value.diagnostics)).toMatchSnapshot('diagnostics')
+    expect(normalizeDiagnostics(entrypoints.value.diagnostics)).toMatchSnapshot(
+      'diagnostics'
+    )
     await entrypointsSubscription.return()
   })
 
@@ -490,7 +510,9 @@ describe('next.rs api', () => {
           expect(result.type).toBe(runtime)
           expect(result.config).toEqual(config)
           expect(normalizeIssues(result.issues)).toMatchSnapshot('issues')
-          expect(normalizeDiagnostics(result.diagnostics)).toMatchSnapshot('diagnostics')
+          expect(normalizeDiagnostics(result.diagnostics)).toMatchSnapshot(
+            'diagnostics'
+          )
           break
         }
         case 'page': {
@@ -498,13 +520,17 @@ describe('next.rs api', () => {
           expect(result.type).toBe(runtime)
           expect(result.config).toEqual(config)
           expect(normalizeIssues(result.issues)).toMatchSnapshot('issues')
-          expect(normalizeDiagnostics(result.diagnostics)).toMatchSnapshot('diagnostics')
+          expect(normalizeDiagnostics(result.diagnostics)).toMatchSnapshot(
+            'diagnostics'
+          )
 
           const result2 = await route.dataEndpoint.writeToDisk()
           expect(result2.type).toBe(runtime)
           expect(result2.config).toEqual(config)
           expect(normalizeIssues(result2.issues)).toMatchSnapshot('data issues')
-          expect(normalizeDiagnostics(result2.diagnostics)).toMatchSnapshot('data diagnostics')
+          expect(normalizeDiagnostics(result2.diagnostics)).toMatchSnapshot(
+            'data diagnostics'
+          )
           break
         }
         case 'app-page': {
@@ -512,13 +538,17 @@ describe('next.rs api', () => {
           expect(result.type).toBe(runtime)
           expect(result.config).toEqual(config)
           expect(normalizeIssues(result.issues)).toMatchSnapshot('issues')
-          expect(normalizeDiagnostics(result.diagnostics)).toMatchSnapshot('diagnostics')
+          expect(normalizeDiagnostics(result.diagnostics)).toMatchSnapshot(
+            'diagnostics'
+          )
 
           const result2 = await route.pages[0].rscEndpoint.writeToDisk()
           expect(result2.type).toBe(runtime)
           expect(result2.config).toEqual(config)
           expect(normalizeIssues(result2.issues)).toMatchSnapshot('rsc issues')
-          expect(normalizeDiagnostics(result2.diagnostics)).toMatchSnapshot('rsc diagnostics')
+          expect(normalizeDiagnostics(result2.diagnostics)).toMatchSnapshot(
+            'rsc diagnostics'
+          )
 
           break
         }
@@ -612,16 +642,20 @@ describe('next.rs api', () => {
 
         expect(route.type).toBe(type)
 
-        let serverSideSubscription: AsyncIterableIterator<TurbopackResult> | undefined
+        let serverSideSubscription:
+          | AsyncIterableIterator<TurbopackResult>
+          | undefined
         switch (route.type) {
           case 'page': {
             await route.htmlEndpoint.writeToDisk()
-            serverSideSubscription = await route.dataEndpoint.serverChanged(false)
+            serverSideSubscription =
+              await route.dataEndpoint.serverChanged(false)
             break
           }
           case 'app-page': {
             await route.pages[0].htmlEndpoint.writeToDisk()
-            serverSideSubscription = await route.pages[0].rscEndpoint.serverChanged(false)
+            serverSideSubscription =
+              await route.pages[0].rscEndpoint.serverChanged(false)
             break
           }
           default: {
@@ -633,7 +667,9 @@ describe('next.rs api', () => {
         expect(result.done).toBe(false)
         const identifiers = result.value.identifiers
         expect(identifiers).toHaveProperty('length', expect.toBePositive())
-        const subscriptions = identifiers.map((identifier) => project.hmrEvents(identifier))
+        const subscriptions = identifiers.map((identifier) =>
+          project.hmrEvents(identifier)
+        )
         await Promise.all(
           subscriptions.map(async (subscription) => {
             const result = await subscription.next()
@@ -641,11 +677,16 @@ describe('next.rs api', () => {
             expect(result.value).toHaveProperty('resource', expect.toBeObject())
             expect(result.value).toHaveProperty('type', 'issues')
             expect(normalizeIssues(result.value.issues)).toEqual([])
-            expect(result.value).toHaveProperty('diagnostics', expect.toBeEmpty())
+            expect(result.value).toHaveProperty(
+              'diagnostics',
+              expect.toBeEmpty()
+            )
           })
         )
         console.log('waiting for events')
-        const { next: updateComplete } = await drainAndGetNext(projectUpdateSubscription)
+        const { next: updateComplete } = await drainAndGetNext(
+          projectUpdateSubscription
+        )
         const oldContent = await next.readFile(file)
         let ok = false
         try {
@@ -669,24 +710,33 @@ describe('next.rs api', () => {
                         }),
                       ],
                     })
-                    const updates = Object.keys(item.instruction.merged[0].entries)
+                    const updates = Object.keys(
+                      item.instruction.merged[0].entries
+                    )
                     expect(updates).not.toBeEmpty()
 
                     foundUpdates = foundUpdates || []
-                    foundUpdates.push(...Object.keys(item.instruction.merged[0].entries))
+                    foundUpdates.push(
+                      ...Object.keys(item.instruction.merged[0].entries)
+                    )
                   }
                 }
               })(),
               serverSideSubscription &&
                 (async () => {
-                  for await (const { issues, diagnostics } of serverSideSubscription) {
+                  for await (const {
+                    issues,
+                    diagnostics,
+                  } of serverSideSubscription) {
                     if (done) return
                     expect(issues).toBeArray()
                     expect(diagnostics).toBeArray()
                     foundServerSideChange = true
                   }
                 })(),
-              updateComplete.then((u) => new Promise((r) => setTimeout(() => r(u), 1000))),
+              updateComplete.then(
+                (u) => new Promise((r) => setTimeout(() => r(u), 1000))
+              ),
               new Promise((r) => setTimeout(() => r('timeout'), 30000)),
             ].filter((x) => x)
           )
@@ -702,14 +752,18 @@ describe('next.rs api', () => {
             expect(foundUpdates).toBe(false)
           } else {
             expect(
-              typeof foundUpdates === 'boolean' ? foundUpdates : Array.from(new Set(foundUpdates))
+              typeof foundUpdates === 'boolean'
+                ? foundUpdates
+                : Array.from(new Set(foundUpdates))
             ).toEqual([expect.stringContaining(expectedUpdate)])
           }
           expect(foundServerSideChange).toBe(expectedServerSideChange)
           ok = true
         } finally {
           try {
-            const { next: updateComplete2 } = await drainAndGetNext(projectUpdateSubscription)
+            const { next: updateComplete2 } = await drainAndGetNext(
+              projectUpdateSubscription
+            )
             await next.patchFile(file, oldContent)
             await updateComplete2
           } catch (e) {
@@ -723,8 +777,9 @@ describe('next.rs api', () => {
     console.log('start')
     await new Promise((r) => setTimeout(r, 1000))
     const entrypointsSubscribtion = project.entrypointsSubscribe()
-    const entrypoints: TurbopackResult<RawEntrypoints | {}> = (await entrypointsSubscribtion.next())
-      .value
+    const entrypoints: TurbopackResult<RawEntrypoints | {}> = (
+      await entrypointsSubscribtion.next()
+    ).value
     if (!('routes' in entrypoints)) {
       throw new Error('Entrypoints not available due to compilation errors')
     }
@@ -739,7 +794,9 @@ describe('next.rs api', () => {
     expect(result.done).toBe(false)
     const identifiers = result.value.identifiers
 
-    const subscriptions = identifiers.map((identifier) => project.hmrEvents(identifier))
+    const subscriptions = identifiers.map((identifier) =>
+      project.hmrEvents(identifier)
+    )
     await Promise.all(
       subscriptions.map(async (subscription) => {
         const result = await subscription.next()

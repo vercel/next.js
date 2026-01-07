@@ -14,7 +14,9 @@ describe('app dir - not-found - group route', () => {
     it('should use the not-found page under group routes', async () => {
       const browser = await next.browser('/blog')
       expect(await browser.elementByCss('h1').text()).toContain('Group Layout')
-      expect(await browser.elementByCss('#not-found').text()).toContain('Not found!')
+      expect(await browser.elementByCss('#not-found').text()).toContain(
+        'Not found!'
+      )
     })
   }
 
@@ -28,7 +30,10 @@ describe('app dir - not-found - group route', () => {
     beforeAll(async () => {
       await next.stop()
       originalLayout = await next.readFile('app/layout.js')
-      await next.patchFile('app/layout.js', `export const runtime = 'edge'\n${originalLayout}`)
+      await next.patchFile(
+        'app/layout.js',
+        `export const runtime = 'edge'\n${originalLayout}`
+      )
       await next.start()
     })
     afterAll(async () => {

@@ -1,4 +1,8 @@
-export function EnvironmentNameLabel({ environmentName }: { environmentName: string }) {
+export function EnvironmentNameLabel({
+  environmentName,
+}: {
+  environmentName: string
+}) {
   return <span data-nextjs-environment-name-label>{environmentName}</span>
 }
 

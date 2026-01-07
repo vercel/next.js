@@ -120,7 +120,13 @@ async function benchmarkDevBoot(appDevCommand, curDir, port, cleanBuild) {
 }
 
 // Run multiple iterations of dev boot benchmark and return median times
-async function benchmarkDevBootWithIterations(appDevCommand, curDir, port, cleanBuild, label) {
+async function benchmarkDevBootWithIterations(
+  appDevCommand,
+  curDir,
+  port,
+  cleanBuild,
+  label
+) {
   const listenTimes = []
   const readyTimes = []
 
@@ -128,7 +134,12 @@ async function benchmarkDevBootWithIterations(appDevCommand, curDir, port, clean
     // For cold start benchmarks, clean before EVERY iteration to get true cold times
     logger(`  ${label} iteration ${i + 1}/${BENCHMARK_ITERATIONS}...`)
 
-    const result = await benchmarkDevBoot(appDevCommand, curDir, port, cleanBuild)
+    const result = await benchmarkDevBoot(
+      appDevCommand,
+      curDir,
+      port,
+      cleanBuild
+    )
 
     if (result.listenTime !== null) {
       listenTimes.push(result.listenTime)
@@ -189,9 +200,11 @@ module.exports = async function collectStats(
   const collectFileSizes = !benchmarkOnly
   const runBenchmarks = !bundlerSuffix
 
-  const hasPagesToFetch = Array.isArray(runConfig.pagesToFetch) && runConfig.pagesToFetch.length > 0
+  const hasPagesToFetch =
+    Array.isArray(runConfig.pagesToFetch) && runConfig.pagesToFetch.length > 0
 
-  const hasPagesToBench = Array.isArray(runConfig.pagesToBench) && runConfig.pagesToBench.length > 0
+  const hasPagesToBench =
+    Array.isArray(runConfig.pagesToBench) && runConfig.pagesToBench.length > 0
 
   // Run production start benchmark FIRST (before dev benchmark which cleans .next)
   // Only run benchmarks when not collecting bundler-specific file sizes
@@ -245,7 +258,9 @@ module.exports = async function collectStats(
     }
 
     // Run multiple timing iterations for stable median
-    logger(`=== Production Start Benchmark (${BENCHMARK_ITERATIONS} iterations) ===`)
+    logger(
+      `=== Production Start Benchmark (${BENCHMARK_ITERATIONS} iterations) ===`
+    )
     for (let i = 0; i < BENCHMARK_ITERATIONS; i++) {
       logger(`  Prod Start iteration ${i + 1}/${BENCHMARK_ITERATIONS}...`)
       const readyTime = await runProdStartTiming()
@@ -327,9 +342,15 @@ module.exports = async function collectStats(
 
           let fileName = pathname === '/' ? '/index' : pathname
           if (fileName.endsWith('/')) fileName = fileName.slice(0, -1)
-          logger(`Writing file to ${path.join(fetchedPagesDir, `${fileName}.html`)}`)
+          logger(
+            `Writing file to ${path.join(fetchedPagesDir, `${fileName}.html`)}`
+          )
 
-          await fs.writeFile(path.join(fetchedPagesDir, `${fileName}.html`), responseText, 'utf8')
+          await fs.writeFile(
+            path.join(fetchedPagesDir, `${fileName}.html`),
+            responseText,
+            'utf8'
+          )
         } catch (err) {
           logger.error(err)
         }
@@ -363,7 +384,12 @@ module.exports = async function collectStats(
   // Each timing uses median of BENCHMARK_ITERATIONS runs for stability
   // NOTE: This runs AFTER the production start benchmark because it cleans the .next directory
   // Only run benchmarks when not collecting bundler-specific file sizes
-  if (runBenchmarks && !fromDiff && statsConfig.appDevCommand && statsConfig.measureDevBoot) {
+  if (
+    runBenchmarks &&
+    !fromDiff &&
+    statsConfig.appDevCommand &&
+    statsConfig.measureDevBoot
+  ) {
     const devPort = await getPort()
 
     if (!orderedStats['General']) {
@@ -389,7 +415,9 @@ module.exports = async function collectStats(
         : statsConfig.appDevCommand
 
       // 1. Cold start benchmark (clean .next directory, multiple iterations)
-      logger(`=== ${bundler.name} Cold Start (${BENCHMARK_ITERATIONS} iterations) ===`)
+      logger(
+        `=== ${bundler.name} Cold Start (${BENCHMARK_ITERATIONS} iterations) ===`
+      )
       const coldResult = await benchmarkDevBootWithIterations(
         devCommand,
         curDir,
@@ -403,7 +431,8 @@ module.exports = async function collectStats(
           coldResult.listenTime
       }
       if (coldResult.readyTime !== null) {
-        orderedStats['General'][`nextDevColdReadyDuration${bundler.suffix}`] = coldResult.readyTime
+        orderedStats['General'][`nextDevColdReadyDuration${bundler.suffix}`] =
+          coldResult.readyTime
       }
 
       // 2. Warm up bytecode cache by running server for ~10 seconds
@@ -440,7 +469,9 @@ module.exports = async function collectStats(
         }
 
         // 3. Warm start benchmark (keep .next directory, multiple iterations)
-        logger(`=== ${bundler.name} Warm Start (${BENCHMARK_ITERATIONS} iterations) ===`)
+        logger(
+          `=== ${bundler.name} Warm Start (${BENCHMARK_ITERATIONS} iterations) ===`
+        )
         const warmResult = await benchmarkDevBootWithIterations(
           devCommand,
           curDir,
@@ -450,8 +481,9 @@ module.exports = async function collectStats(
         )
 
         if (warmResult.listenTime !== null) {
-          orderedStats['General'][`nextDevWarmListenDuration${bundler.suffix}`] =
-            warmResult.listenTime
+          orderedStats['General'][
+            `nextDevWarmListenDuration${bundler.suffix}`
+          ] = warmResult.listenTime
         }
         if (warmResult.readyTime !== null) {
           orderedStats['General'][`nextDevWarmReadyDuration${bundler.suffix}`] =
@@ -466,7 +498,11 @@ module.exports = async function collectStats(
   // Collect file sizes only when not in benchmark-only mode
   if (collectFileSizes) {
     for (const fileGroup of runConfig.filesToTrack) {
-      const { getRequiredFiles = defaultGetRequiredFiles, name, globs } = fileGroup
+      const {
+        getRequiredFiles = defaultGetRequiredFiles,
+        name,
+        globs,
+      } = fileGroup
       const groupStats = {}
       const curFiles = new Set()
 

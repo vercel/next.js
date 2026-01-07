@@ -1,7 +1,13 @@
 import { streamToUint8Array } from '../stream-utils/node-web-streams-helper'
-import { HMR_MESSAGE_SENT_TO_BROWSER, type HmrMessageSentToBrowser } from './hot-reloader-types'
+import {
+  HMR_MESSAGE_SENT_TO_BROWSER,
+  type HmrMessageSentToBrowser,
+} from './hot-reloader-types'
 
-const errorsRscStreamsByHtmlRequestId = new Map<string, ReadableStream<Uint8Array>>()
+const errorsRscStreamsByHtmlRequestId = new Map<
+  string,
+  ReadableStream<Uint8Array>
+>()
 
 export function sendSerializedErrorsToClient(
   errorsRscStream: ReadableStream<Uint8Array>,

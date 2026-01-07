@@ -5,12 +5,15 @@ export default async function Page() {
     })
   ).then((res) => res.text())
 
-  const data2 = await fetch(new URL('https://next-data-api-endpoint.vercel.app/api/random'), {
-    method: 'POST',
-    next: {
-      revalidate: 0,
-    },
-  }).then((res) => res.text())
+  const data2 = await fetch(
+    new URL('https://next-data-api-endpoint.vercel.app/api/random'),
+    {
+      method: 'POST',
+      next: {
+        revalidate: 0,
+      },
+    }
+  ).then((res) => res.text())
 
   return (
     <>

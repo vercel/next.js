@@ -54,7 +54,9 @@ describe('Middleware Runtime trailing slash', () => {
 
     describe('without .html extension', () => {
       it('should work when requesting the page directly', async () => {
-        const $ = await next.render$('/product/shirts_and_tops/mens_ua_playoff_polo_2.0/1327037')
+        const $ = await next.render$(
+          '/product/shirts_and_tops/mens_ua_playoff_polo_2.0/1327037'
+        )
         expect($('#text').text()).toBe(
           'Param found: shirts_and_tops, mens_ua_playoff_polo_2.0, 1327037'
         )
@@ -114,7 +116,10 @@ describe('Middleware Runtime trailing slash', () => {
         expect(middlewareWithoutEnvs).toEqual({
           files: process.env.IS_TURBOPACK_TEST
             ? expect.toBeArray()
-            : expect.arrayContaining(['server/edge-runtime-webpack.js', 'server/middleware.js']),
+            : expect.arrayContaining([
+                'server/edge-runtime-webpack.js',
+                'server/middleware.js',
+              ]),
           name: 'middleware',
           page: '/',
           matchers: [{ regexp: '^/.*$', originalSource: '/:path*' }],
@@ -134,13 +139,16 @@ describe('Middleware Runtime trailing slash', () => {
               expect.stringContaining('server/edge-runtime-webpack')
             )
           }
-          expect(middleware.files).not.toContainEqual(expect.stringContaining('static/chunks/'))
+          expect(middleware.files).not.toContainEqual(
+            expect.stringContaining('static/chunks/')
+          )
         }
       })
 
       it('should not run middleware for on-demand revalidate', async () => {
-        const bypassToken = (await fs.readJSON(join(next.testDir, '.next/prerender-manifest.json')))
-          .preview.previewModeId
+        const bypassToken = (
+          await fs.readJSON(join(next.testDir, '.next/prerender-manifest.json'))
+        ).preview.previewModeId
 
         const res = await fetchViaHTTP(next.url, '/ssg/first/', undefined, {
           headers: {
@@ -154,11 +162,18 @@ describe('Middleware Runtime trailing slash', () => {
     }
 
     it('should have init header for NextResponse.redirect', async () => {
-      const res = await fetchViaHTTP(next.url, '/redirect-to-somewhere/', undefined, {
-        redirect: 'manual',
-      })
+      const res = await fetchViaHTTP(
+        next.url,
+        '/redirect-to-somewhere/',
+        undefined,
+        {
+          redirect: 'manual',
+        }
+      )
       expect(res.status).toBe(307)
-      expect(new URL(res.headers.get('location'), 'http://n').pathname).toBe('/somewhere/')
+      expect(new URL(res.headers.get('location'), 'http://n').pathname).toBe(
+        '/somewhere/'
+      )
       expect(res.headers.get('x-redirect-header')).toBe('hi')
     })
 
@@ -172,7 +187,9 @@ describe('Middleware Runtime trailing slash', () => {
         from: 'middleware',
         slug: 'hello',
       })
-      expect(JSON.parse(await browser.elementByCss('#props').text()).params).toEqual({
+      expect(
+        JSON.parse(await browser.elementByCss('#props').text()).params
+      ).toEqual({
         slug: 'hello',
       })
       expect(await browser.elementByCss('#pathname').text()).toBe('/ssg/[slug]')
@@ -181,7 +198,10 @@ describe('Middleware Runtime trailing slash', () => {
 
     it('should have correct dynamic route params on client-transition to dynamic route', async () => {
       const browser = await webdriver(next.url, '/404')
-      await check(() => browser.eval('next.router.isReady ? "yes" : "no"'), 'yes')
+      await check(
+        () => browser.eval('next.router.isReady ? "yes" : "no"'),
+        'yes'
+      )
       await browser.eval('window.beforeNav = 1')
       await browser.eval('window.next.router.push("/blog/first")')
       await browser.waitForElementByCss('#blog')
@@ -189,10 +209,14 @@ describe('Middleware Runtime trailing slash', () => {
       expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
         slug: 'first',
       })
-      expect(JSON.parse(await browser.elementByCss('#props').text()).params).toEqual({
+      expect(
+        JSON.parse(await browser.elementByCss('#props').text()).params
+      ).toEqual({
         slug: 'first',
       })
-      expect(await browser.elementByCss('#pathname').text()).toBe('/blog/[slug]')
+      expect(await browser.elementByCss('#pathname').text()).toBe(
+        '/blog/[slug]'
+      )
       expect(await browser.elementByCss('#as-path').text()).toBe('/blog/first/')
 
       await browser.eval('window.next.router.push("/blog/second")')
@@ -201,16 +225,25 @@ describe('Middleware Runtime trailing slash', () => {
       expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
         slug: 'second',
       })
-      expect(JSON.parse(await browser.elementByCss('#props').text()).params).toEqual({
+      expect(
+        JSON.parse(await browser.elementByCss('#props').text()).params
+      ).toEqual({
         slug: 'second',
       })
-      expect(await browser.elementByCss('#pathname').text()).toBe('/blog/[slug]')
-      expect(await browser.elementByCss('#as-path').text()).toBe('/blog/second/')
+      expect(await browser.elementByCss('#pathname').text()).toBe(
+        '/blog/[slug]'
+      )
+      expect(await browser.elementByCss('#as-path').text()).toBe(
+        '/blog/second/'
+      )
     })
 
     it('should have correct dynamic route params for middleware rewrite to dynamic route', async () => {
       const browser = await webdriver(next.url, '/404')
-      await check(() => browser.eval('next.router.isReady ? "yes" : "no"'), 'yes')
+      await check(
+        () => browser.eval('next.router.isReady ? "yes" : "no"'),
+        'yes'
+      )
       await browser.eval('window.beforeNav = 1')
       await browser.eval('window.next.router.push("/rewrite-to-dynamic")')
       await browser.waitForElementByCss('#blog')
@@ -219,18 +252,29 @@ describe('Middleware Runtime trailing slash', () => {
         slug: 'from-middleware',
         some: 'middleware',
       })
-      expect(JSON.parse(await browser.elementByCss('#props').text()).params).toEqual({
+      expect(
+        JSON.parse(await browser.elementByCss('#props').text()).params
+      ).toEqual({
         slug: 'from-middleware',
       })
-      expect(await browser.elementByCss('#pathname').text()).toBe('/blog/[slug]')
-      expect(await browser.elementByCss('#as-path').text()).toBe('/rewrite-to-dynamic/')
+      expect(await browser.elementByCss('#pathname').text()).toBe(
+        '/blog/[slug]'
+      )
+      expect(await browser.elementByCss('#as-path').text()).toBe(
+        '/rewrite-to-dynamic/'
+      )
     })
 
     it('should have correct route params for chained rewrite from middleware to config rewrite', async () => {
       const browser = await webdriver(next.url, '/404')
-      await check(() => browser.eval('next.router.isReady ? "yes" : "no"'), 'yes')
+      await check(
+        () => browser.eval('next.router.isReady ? "yes" : "no"'),
+        'yes'
+      )
       await browser.eval('window.beforeNav = 1')
-      await browser.eval('window.next.router.push("/rewrite-to-config-rewrite")')
+      await browser.eval(
+        'window.next.router.push("/rewrite-to-config-rewrite")'
+      )
       await browser.waitForElementByCss('#blog')
 
       expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
@@ -238,16 +282,25 @@ describe('Middleware Runtime trailing slash', () => {
         hello: 'config',
         some: 'middleware',
       })
-      expect(JSON.parse(await browser.elementByCss('#props').text()).params).toEqual({
+      expect(
+        JSON.parse(await browser.elementByCss('#props').text()).params
+      ).toEqual({
         slug: 'middleware-rewrite',
       })
-      expect(await browser.elementByCss('#pathname').text()).toBe('/blog/[slug]')
-      expect(await browser.elementByCss('#as-path').text()).toBe('/rewrite-to-config-rewrite/')
+      expect(await browser.elementByCss('#pathname').text()).toBe(
+        '/blog/[slug]'
+      )
+      expect(await browser.elementByCss('#as-path').text()).toBe(
+        '/rewrite-to-config-rewrite/'
+      )
     })
 
     it('should have correct route params for rewrite from config dynamic route', async () => {
       const browser = await webdriver(next.url, '/404')
-      await check(() => browser.eval('next.router.isReady ? "yes" : "no"'), 'yes')
+      await check(
+        () => browser.eval('next.router.isReady ? "yes" : "no"'),
+        'yes'
+      )
       await browser.eval('window.beforeNav = 1')
       await browser.eval('window.next.router.push("/rewrite-3")')
       await browser.waitForElementByCss('#blog')
@@ -256,10 +309,14 @@ describe('Middleware Runtime trailing slash', () => {
         slug: 'middleware-rewrite',
         hello: 'config',
       })
-      expect(JSON.parse(await browser.elementByCss('#props').text()).params).toEqual({
+      expect(
+        JSON.parse(await browser.elementByCss('#props').text()).params
+      ).toEqual({
         slug: 'middleware-rewrite',
       })
-      expect(await browser.elementByCss('#pathname').text()).toBe('/blog/[slug]')
+      expect(await browser.elementByCss('#pathname').text()).toBe(
+        '/blog/[slug]'
+      )
       expect(await browser.elementByCss('#as-path').text()).toBe('/rewrite-3/')
     })
 
@@ -268,7 +325,10 @@ describe('Middleware Runtime trailing slash', () => {
       await browser.eval('window.beforeNav = 1')
       await browser.eval('window.next.router.push("/rewrite-1")')
 
-      await check(() => browser.eval('document.documentElement.innerHTML'), /Hello World/)
+      await check(
+        () => browser.eval('document.documentElement.innerHTML'),
+        /Hello World/
+      )
 
       expect(await browser.eval('window.next.router.query')).toEqual({
         from: 'config',
@@ -280,7 +340,9 @@ describe('Middleware Runtime trailing slash', () => {
         redirect: 'manual',
       })
       expect(res.status).toBe(307)
-      expect(new URL(res.headers.get('location'), 'http://n').pathname).toBe('/somewhere/else/')
+      expect(new URL(res.headers.get('location'), 'http://n').pathname).toBe(
+        '/somewhere/else/'
+      )
 
       const browser = await webdriver(next.url, `/`)
       await browser.eval(`next.router.push('/redirect-1')`)
@@ -296,7 +358,10 @@ describe('Middleware Runtime trailing slash', () => {
       expect(await res.text()).toContain('Hello World')
 
       const browser = await webdriver(next.url, `/404`)
-      await check(() => browser.eval('next.router.isReady ? "yes" : "nope"'), 'yes')
+      await check(
+        () => browser.eval('next.router.isReady ? "yes" : "nope"'),
+        'yes'
+      )
       await browser.eval('window.beforeNav = 1')
       await browser.eval(`next.router.push('/rewrite-1')`)
       await check(async () => {
@@ -394,12 +459,15 @@ describe('Middleware Runtime trailing slash', () => {
       const json = await dataRes.json()
       expect(json.pageProps.message).toEqual('Bye Cruel World')
       expect(res.headers.get('x-nextjs-matched-path')).toBeNull()
-      expect(dataRes.headers.get('x-nextjs-matched-path')).toEqual(`/ssr-page-2`)
+      expect(dataRes.headers.get('x-nextjs-matched-path')).toEqual(
+        `/ssr-page-2`
+      )
     })
 
     it('allows shallow linking with middleware', async () => {
       const browser = await webdriver(next.url, '/sha/')
-      const getMessageContents = () => browser.elementById('message-contents').text()
+      const getMessageContents = () =>
+        browser.elementById('message-contents').text()
       const ssrMessage = await getMessageContents()
       const requests: string[] = []
 

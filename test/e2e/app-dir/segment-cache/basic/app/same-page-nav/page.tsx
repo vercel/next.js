@@ -8,16 +8,18 @@ export default async function SamePageNav() {
   return (
     <>
       <p>
-        Demonstrates that when navigating to the exact same URL as the current location, we refresh
-        the page segments.
+        Demonstrates that when navigating to the exact same URL as the current
+        location, we refresh the page segments.
       </p>
       <p>
-        Observe that the random number below changes if you click the same link multiple times, but
-        not when you switch between links.
+        Observe that the random number below changes if you click the same link
+        multiple times, but not when you switch between links.
       </p>
       <p>
         Random number (changes on each refresh):{' '}
-        <span id="random-number">{Math.floor(Math.random() * 1_000_000_000)}</span>
+        <span id="random-number">
+          {Math.floor(Math.random() * 1_000_000_000)}
+        </span>
       </p>
       <ul>
         <li>

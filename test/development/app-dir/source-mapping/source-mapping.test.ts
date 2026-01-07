@@ -79,25 +79,33 @@ describe.skip('source-mapping', () => {
     expect(await browser.elementByCss('#form-9 p').text()).toBe('initial')
     await browser.elementByCss('#form-9 button').click()
     await retry(async () => {
-      expect(await browser.elementByCss('#form-9 p').text()).toBe('function declaration')
+      expect(await browser.elementByCss('#form-9 p').text()).toBe(
+        'function declaration'
+      )
     })
 
     expect(await browser.elementByCss('#form-10 p').text()).toBe('initial')
     await browser.elementByCss('#form-10 button').click()
     await retry(async () => {
-      expect(await browser.elementByCss('#form-10 p').text()).toBe('arrow function expression')
+      expect(await browser.elementByCss('#form-10 p').text()).toBe(
+        'arrow function expression'
+      )
     })
 
     expect(await browser.elementByCss('#form-11 p').text()).toBe('initial')
     await browser.elementByCss('#form-11 button').click()
     await retry(async () => {
-      expect(await browser.elementByCss('#form-11 p').text()).toBe('anonymous function expression')
+      expect(await browser.elementByCss('#form-11 p').text()).toBe(
+        'anonymous function expression'
+      )
     })
 
     expect(await browser.elementByCss('#form-12 p').text()).toBe('initial')
     await browser.elementByCss('#form-12 button').click()
     await retry(async () => {
-      expect(await browser.elementByCss('#form-12 p').text()).toBe('named function expression')
+      expect(await browser.elementByCss('#form-12 p').text()).toBe(
+        'named function expression'
+      )
     })
   })
 

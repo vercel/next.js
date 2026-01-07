@@ -8,7 +8,12 @@ import { ChildProcess } from 'child_process'
 import { createNextInstall } from '../create-next-install'
 import { Span } from 'next/dist/trace'
 import webdriver from '../next-webdriver'
-import { renderViaHTTP, fetchViaHTTP, findPort, getDistDir } from 'next-test-utils'
+import {
+  renderViaHTTP,
+  fetchViaHTTP,
+  findPort,
+  getDistDir,
+} from 'next-test-utils'
 import cheerio from 'cheerio'
 import { once } from 'events'
 import { Playwright } from 'next-webdriver'
@@ -16,7 +21,9 @@ import escapeStringRegexp from 'escape-string-regexp'
 import { Page, Response } from 'playwright'
 
 type Event = 'stdout' | 'stderr' | 'error' | 'destroy'
-export type InstallCommand = string | ((ctx: { dependencies: { [key: string]: string } }) => string)
+export type InstallCommand =
+  | string
+  | ((ctx: { dependencies: { [key: string]: string } }) => string)
 
 export type PackageJson = {
   dependencies?: { [key: string]: string }
@@ -52,7 +59,10 @@ export interface NextInstanceOpts {
 /**
  * Omit the first argument of a function
  */
-type OmitFirstArgument<F> = F extends (firstArgument: any, ...args: infer P) => infer R
+type OmitFirstArgument<F> = F extends (
+  firstArgument: any,
+  ...args: infer P
+) => infer R
   ? (...args: P) => R
   : never
 
@@ -110,7 +120,8 @@ export class NextInstance {
 
   private async writeFiles(filesConfig: FilesConfig, testDir: string) {
     // Handle case where files is a directory string
-    const files = typeof filesConfig === 'string' ? new FileRef(filesConfig) : filesConfig
+    const files =
+      typeof filesConfig === 'string' ? new FileRef(filesConfig) : filesConfig
     if (files instanceof FileRef) {
       // if a FileRef is passed directly to `files` we copy the
       // entire folder to the test directory
@@ -168,7 +179,10 @@ export class NextInstance {
             // file might not exist or can't be unliked. carry on
           }
 
-          await fs.writeFile(outputFilename, item.cb(await fs.readFile(item.fsPath, 'utf8')))
+          await fs.writeFile(
+            outputFilename,
+            item.cb(await fs.readFile(item.fsPath, 'utf8'))
+          )
         }
       }
     }
@@ -205,176 +219,209 @@ export class NextInstance {
       throw new Error('next instance already destroyed')
     }
 
-    await parentSpan.traceChild('createTestDir').traceAsyncFn(async (rootSpan) => {
-      const skipIsolatedNext = !!process.env.NEXT_SKIP_ISOLATE
-      if (!skipIsolatedNext) {
-        require('console').log(
-          `Creating test directory with isolated next... (use NEXT_SKIP_ISOLATE=1 to opt-out)`
-        )
-      }
-      const tmpDir = skipIsolatedNext
-        ? path.join(__dirname, '../../tmp')
-        : process.env.NEXT_TEST_DIR || (await fs.realpath(os.tmpdir()))
-      this.testDir = path.join(
-        tmpDir,
-        `next-test-${Date.now()}-${(Math.random() * 1000) | 0}`,
-        this.subDir
-      )
-      this.distDir = getDistDir()
-
-      const reactVersion = process.env.NEXT_TEST_REACT_VERSION || nextjsReactPeerVersion
-      const finalDependencies = {
-        react: reactVersion,
-        'react-dom': reactVersion,
-        '@types/react': '19.2.2',
-        '@types/react-dom': '19.2.1',
-        typescript: 'latest',
-        '@types/node': 'latest',
-        ...this.dependencies,
-        ...this.packageJson?.dependencies,
-      }
-
-      if (
-        process.env.__NEXT_ENABLE_REACT_COMPILER === 'true' &&
-        !finalDependencies['babel-plugin-react-compiler']
-      ) {
-        finalDependencies['babel-plugin-react-compiler'] = '0.0.0-experimental-3fde738-20250918'
-      }
-
-      if (skipInstall || skipIsolatedNext) {
-        const pkgScripts = (this.packageJson['scripts'] as {}) || {}
-        await fs.mkdir(this.testDir, { recursive: true })
-        await fs.writeFile(
-          path.join(this.testDir, 'package.json'),
-          JSON.stringify(
-            {
-              ...this.packageJson,
-              dependencies: {
-                ...finalDependencies,
-                next: process.env.NEXT_TEST_VERSION || require('next/package.json').version,
-              },
-              ...(this.resolutions ? { resolutions: this.resolutions } : {}),
-              scripts: {
-                // since we can't get the build id as a build artifact, make it
-                // available under the static files
-                'post-build': `cp ${this.distDir}/BUILD_ID ${this.distDir}/static/__BUILD_ID`,
-                ...pkgScripts,
-                build:
-                  (pkgScripts['build'] || this.buildCommand || 'next build') +
-                  ' && pnpm post-build',
-              },
-            },
-            null,
-            2
+    await parentSpan
+      .traceChild('createTestDir')
+      .traceAsyncFn(async (rootSpan) => {
+        const skipIsolatedNext = !!process.env.NEXT_SKIP_ISOLATE
+        if (!skipIsolatedNext) {
+          require('console').log(
+            `Creating test directory with isolated next... (use NEXT_SKIP_ISOLATE=1 to opt-out)`
           )
+        }
+        const tmpDir = skipIsolatedNext
+          ? path.join(__dirname, '../../tmp')
+          : process.env.NEXT_TEST_DIR || (await fs.realpath(os.tmpdir()))
+        this.testDir = path.join(
+          tmpDir,
+          `next-test-${Date.now()}-${(Math.random() * 1000) | 0}`,
+          this.subDir
         )
+        this.distDir = getDistDir()
 
-        await this.beforeInstall(parentSpan)
-      } else {
+        const reactVersion =
+          process.env.NEXT_TEST_REACT_VERSION || nextjsReactPeerVersion
+        const finalDependencies = {
+          react: reactVersion,
+          'react-dom': reactVersion,
+          '@types/react': '19.2.2',
+          '@types/react-dom': '19.2.1',
+          typescript: 'latest',
+          '@types/node': 'latest',
+          ...this.dependencies,
+          ...this.packageJson?.dependencies,
+        }
+
         if (
-          process.env.NEXT_TEST_STARTER &&
-          !this.dependencies &&
-          !this.installCommand &&
-          !this.packageJson &&
-          !isNextDeploy
+          process.env.__NEXT_ENABLE_REACT_COMPILER === 'true' &&
+          !finalDependencies['babel-plugin-react-compiler']
         ) {
-          await fs.cp(process.env.NEXT_TEST_STARTER, this.testDir, {
-            recursive: true,
-          })
-
-          require('console').log('created next.js install, writing test files')
-          await this.beforeInstall(parentSpan)
-        } else {
-          const { tmpRepoDir } = await createNextInstall({
-            parentSpan: rootSpan,
-            dependencies: finalDependencies,
-            resolutions: this.resolutions ?? null,
-            installCommand: this.installCommand,
-            packageJson: this.packageJson,
-            subDir: this.subDir,
-            keepRepoDir: true,
-            beforeInstall: async (span, installDir) => {
-              this.testDir = installDir
-              require('console').log('created next.js install, writing test files')
-              await this.beforeInstall(span)
-            },
-          })
-          this.tmpRepoDir = tmpRepoDir!
+          finalDependencies['babel-plugin-react-compiler'] =
+            '0.0.0-experimental-3fde738-20250918'
         }
-      }
 
-      const testDirFiles = await fs.readdir(this.testDir)
-
-      let nextConfigFile = testDirFiles.find((file) => file.startsWith('next.config.'))
-
-      if (nextConfigFile && this.nextConfig) {
-        throw new Error(
-          `nextConfig provided on "createNext()" and as a file "${nextConfigFile}", use one or the other to continue`
-        )
-      }
-
-      if (this.nextConfig?.distDir) {
-        this.distDir = this.nextConfig.distDir
-      }
-      // Same logic as we get the basePath in isNextDeploy
-      if (nextConfigFile) {
-        const content = await fs.readFile(path.join(this.testDir, nextConfigFile), 'utf8')
-        if (content.includes('distDir')) {
-          const match = content.match(/['"`]?distDir['"`]?:.*?['"`](.*?)['"`]/)?.[1]
-          if (match) {
-            this.distDir = match
-          }
-        }
-      }
-
-      if (this.nextConfig || (isNextDeploy && !nextConfigFile)) {
-        const functions: string[] = []
-        const exportDeclare =
-          this.packageJson?.type === 'module' ? 'export default' : 'module.exports = '
-        await fs.writeFile(
-          path.join(this.testDir, 'next.config.js'),
-          exportDeclare +
+        if (skipInstall || skipIsolatedNext) {
+          const pkgScripts = (this.packageJson['scripts'] as {}) || {}
+          await fs.mkdir(this.testDir, { recursive: true })
+          await fs.writeFile(
+            path.join(this.testDir, 'package.json'),
             JSON.stringify(
               {
-                ...this.nextConfig,
-              } as NextConfig,
-              (key, val: unknown) => {
-                if (typeof val === 'function') {
-                  functions.push(
-                    val.toString().replace(new RegExp(`${val.name}[\\s]{0,}\\(`), 'function(')
-                  )
-                  return `__func_${functions.length - 1}`
-                }
-                return val
+                ...this.packageJson,
+                dependencies: {
+                  ...finalDependencies,
+                  next:
+                    process.env.NEXT_TEST_VERSION ||
+                    require('next/package.json').version,
+                },
+                ...(this.resolutions ? { resolutions: this.resolutions } : {}),
+                scripts: {
+                  // since we can't get the build id as a build artifact, make it
+                  // available under the static files
+                  'post-build': `cp ${this.distDir}/BUILD_ID ${this.distDir}/static/__BUILD_ID`,
+                  ...pkgScripts,
+                  build:
+                    (pkgScripts['build'] || this.buildCommand || 'next build') +
+                    ' && pnpm post-build',
+                },
               },
+              null,
               2
-            ).replace(/"__func_[\d]{1,}"/g, function (str) {
-              return functions.shift()!
+            )
+          )
+
+          await this.beforeInstall(parentSpan)
+        } else {
+          if (
+            process.env.NEXT_TEST_STARTER &&
+            !this.dependencies &&
+            !this.installCommand &&
+            !this.packageJson &&
+            !isNextDeploy
+          ) {
+            await fs.cp(process.env.NEXT_TEST_STARTER, this.testDir, {
+              recursive: true,
             })
-        )
-      }
 
-      const tsConfigTestFile = testDirFiles.find((file) => file === 'tsconfig.test.json')
-      if (tsConfigTestFile) {
-        require('console').log('tsconfig.test.json found, using it for this test')
-        await fs.copyFile(
-          path.join(this.testDir, 'tsconfig.test.json'),
-          path.join(this.testDir, 'tsconfig.json')
-        )
-      }
-
-      if (isNextDeploy) {
-        const fileName = path.join(this.testDir, nextConfigFile || 'next.config.js')
-        const content = await fs.readFile(fileName, 'utf8')
-
-        if (content.includes('basePath')) {
-          this.basePath = content.match(/['"`]?basePath['"`]?:.*?['"`](.*?)['"`]/)?.[1] || ''
+            require('console').log(
+              'created next.js install, writing test files'
+            )
+            await this.beforeInstall(parentSpan)
+          } else {
+            const { tmpRepoDir } = await createNextInstall({
+              parentSpan: rootSpan,
+              dependencies: finalDependencies,
+              resolutions: this.resolutions ?? null,
+              installCommand: this.installCommand,
+              packageJson: this.packageJson,
+              subDir: this.subDir,
+              keepRepoDir: true,
+              beforeInstall: async (span, installDir) => {
+                this.testDir = installDir
+                require('console').log(
+                  'created next.js install, writing test files'
+                )
+                await this.beforeInstall(span)
+              },
+            })
+            this.tmpRepoDir = tmpRepoDir!
+          }
         }
 
-        await fs.writeFile(
-          fileName,
-          `${content}\n` +
-            `
+        const testDirFiles = await fs.readdir(this.testDir)
+
+        let nextConfigFile = testDirFiles.find((file) =>
+          file.startsWith('next.config.')
+        )
+
+        if (nextConfigFile && this.nextConfig) {
+          throw new Error(
+            `nextConfig provided on "createNext()" and as a file "${nextConfigFile}", use one or the other to continue`
+          )
+        }
+
+        if (this.nextConfig?.distDir) {
+          this.distDir = this.nextConfig.distDir
+        }
+        // Same logic as we get the basePath in isNextDeploy
+        if (nextConfigFile) {
+          const content = await fs.readFile(
+            path.join(this.testDir, nextConfigFile),
+            'utf8'
+          )
+          if (content.includes('distDir')) {
+            const match = content.match(
+              /['"`]?distDir['"`]?:.*?['"`](.*?)['"`]/
+            )?.[1]
+            if (match) {
+              this.distDir = match
+            }
+          }
+        }
+
+        if (this.nextConfig || (isNextDeploy && !nextConfigFile)) {
+          const functions: string[] = []
+          const exportDeclare =
+            this.packageJson?.type === 'module'
+              ? 'export default'
+              : 'module.exports = '
+          await fs.writeFile(
+            path.join(this.testDir, 'next.config.js'),
+            exportDeclare +
+              JSON.stringify(
+                {
+                  ...this.nextConfig,
+                } as NextConfig,
+                (key, val: unknown) => {
+                  if (typeof val === 'function') {
+                    functions.push(
+                      val
+                        .toString()
+                        .replace(
+                          new RegExp(`${val.name}[\\s]{0,}\\(`),
+                          'function('
+                        )
+                    )
+                    return `__func_${functions.length - 1}`
+                  }
+                  return val
+                },
+                2
+              ).replace(/"__func_[\d]{1,}"/g, function (str) {
+                return functions.shift()!
+              })
+          )
+        }
+
+        const tsConfigTestFile = testDirFiles.find(
+          (file) => file === 'tsconfig.test.json'
+        )
+        if (tsConfigTestFile) {
+          require('console').log(
+            'tsconfig.test.json found, using it for this test'
+          )
+          await fs.copyFile(
+            path.join(this.testDir, 'tsconfig.test.json'),
+            path.join(this.testDir, 'tsconfig.json')
+          )
+        }
+
+        if (isNextDeploy) {
+          const fileName = path.join(
+            this.testDir,
+            nextConfigFile || 'next.config.js'
+          )
+          const content = await fs.readFile(fileName, 'utf8')
+
+          if (content.includes('basePath')) {
+            this.basePath =
+              content.match(/['"`]?basePath['"`]?:.*?['"`](.*?)['"`]/)?.[1] ||
+              ''
+          }
+
+          await fs.writeFile(
+            fileName,
+            `${content}\n` +
+              `
           // alias __NEXT_TEST_MODE for next-deploy as "_" is not a valid
           // env variable during deploy
           if (process.env.NEXT_PRIVATE_TEST_MODE) {
@@ -386,32 +433,41 @@ export class NextInstance {
             process.env.__NEXT_CACHE_COMPONENTS = process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS
           }
         `
-        )
-
-        if (testDirFiles.includes('node_modules') && !testDirFiles.includes('vercel.json')) {
-          // Tests that include a patched node_modules dir won't automatically be uploaded to Vercel.
-          // We need to ensure node_modules is not excluded from the deploy files, and tweak the
-          // start + build commands to handle copying the patched node modules into the final.
-          // To be extra safe, we only do this if the test directory doesn't already have a custom vercel.json
-          require('console').log(
-            'Detected node_modules in the test directory, writing `vercel.json` and `.vercelignore` to ensure its included.'
           )
 
-          await fs.writeFile(
-            path.join(this.testDir, 'vercel.json'),
-            JSON.stringify({
-              installCommand:
-                'mv node_modules node_modules.bak && npm i && cp -r node_modules.bak/* node_modules',
-            })
-          )
+          if (
+            testDirFiles.includes('node_modules') &&
+            !testDirFiles.includes('vercel.json')
+          ) {
+            // Tests that include a patched node_modules dir won't automatically be uploaded to Vercel.
+            // We need to ensure node_modules is not excluded from the deploy files, and tweak the
+            // start + build commands to handle copying the patched node modules into the final.
+            // To be extra safe, we only do this if the test directory doesn't already have a custom vercel.json
+            require('console').log(
+              'Detected node_modules in the test directory, writing `vercel.json` and `.vercelignore` to ensure its included.'
+            )
 
-          await fs.writeFile(path.join(this.testDir, '.vercelignore'), '!node_modules')
+            await fs.writeFile(
+              path.join(this.testDir, 'vercel.json'),
+              JSON.stringify({
+                installCommand:
+                  'mv node_modules node_modules.bak && npm i && cp -r node_modules.bak/* node_modules',
+              })
+            )
+
+            await fs.writeFile(
+              path.join(this.testDir, '.vercelignore'),
+              '!node_modules'
+            )
+          }
         }
-      }
-    })
+      })
   }
 
-  protected setServerReadyTimeout(reject: (reason?: unknown) => void, ms: number): NodeJS.Timeout {
+  protected setServerReadyTimeout(
+    reject: (reason?: unknown) => void,
+    ms: number
+  ): NodeJS.Timeout {
     return setTimeout(() => {
       reject(
         new Error(
@@ -424,7 +480,10 @@ export class NextInstance {
   // normalize snapshots or stack traces being tested
   // to a consistent test dir value since it's random
   public normalizeTestDirContent(content) {
-    content = content.replace(new RegExp(escapeStringRegexp(this.testDir), 'g'), 'TEST_DIR')
+    content = content.replace(
+      new RegExp(escapeStringRegexp(this.testDir), 'g'),
+      'TEST_DIR'
+    )
     return content
   }
 
@@ -433,7 +492,12 @@ export class NextInstance {
       throw new Error(`stop() must be called before cleaning`)
     }
 
-    const keptFiles = ['node_modules', 'package.json', 'yarn.lock', 'pnpm-lock.yaml']
+    const keptFiles = [
+      'node_modules',
+      'package.json',
+      'yarn.lock',
+      'pnpm-lock.yaml',
+    ]
     for (const file of await fs.readdir(this.testDir)) {
       if (!keptFiles.includes(file)) {
         await fs.rm(path.join(this.testDir, file), {
@@ -445,7 +509,10 @@ export class NextInstance {
     await this.writeInitialFiles()
   }
 
-  public async build(options?: { env?: Record<string, string>; args?: string[] }): Promise<{
+  public async build(options?: {
+    env?: Record<string, string>
+    args?: string[]
+  }): Promise<{
     exitCode: NodeJS.Signals | number | null
     cliOutput: string
   }> {
@@ -461,7 +528,9 @@ export class NextInstance {
 
   public async start(options?: { skipBuild?: boolean }): Promise<void> {}
 
-  public async stop(signal: 'SIGINT' | 'SIGTERM' | 'SIGKILL' = 'SIGKILL'): Promise<void> {
+  public async stop(
+    signal: 'SIGINT' | 'SIGTERM' | 'SIGKILL' = 'SIGKILL'
+  ): Promise<void> {
     if (this.childProcess) {
       if (this.isStopping !== null) {
         // warn for debugging, but don't prevent sending two signals in succession
@@ -513,7 +582,10 @@ export class NextInstance {
               __dirname,
               '../../traces',
               `${path
-                .relative(path.join(__dirname, '../../'), process.env.TEST_FILE_PATH!)
+                .relative(
+                  path.join(__dirname, '../../'),
+                  process.env.TEST_FILE_PATH!
+                )
                 .replace(/\//g, '-')}`,
               `next-trace`
             ),
@@ -578,7 +650,9 @@ export class NextInstance {
     return fs.readFile(path.join(this.testDir, filename), 'utf8')
   }
 
-  public async readFileBuffer(filename: string): Promise<Buffer<ArrayBufferLike>> {
+  public async readFileBuffer(
+    filename: string
+  ): Promise<Buffer<ArrayBufferLike>> {
     return fs.readFile(path.join(this.testDir, filename))
   }
 
@@ -586,14 +660,19 @@ export class NextInstance {
     return fs.writeFile(path.join(this.testDir, filename), data)
   }
 
-  public async readFiles(dirname: string, predicate: (filename: string) => boolean) {
+  public async readFiles(
+    dirname: string,
+    predicate: (filename: string) => boolean
+  ) {
     const absoluteDirname = path.join(this.testDir, dirname)
     const filenames = await fs.readdir(absoluteDirname, 'utf-8')
 
     return Promise.all(
       filenames
         .filter(predicate)
-        .map((filename) => fs.readFile(path.join(absoluteDirname, filename), 'utf8'))
+        .map((filename) =>
+          fs.readFile(path.join(absoluteDirname, filename), 'utf8')
+        )
     )
   }
 
@@ -602,7 +681,9 @@ export class NextInstance {
   }
 
   public async readJSON(filename: string) {
-    return JSON.parse(await fs.readFile(path.join(this.testDir, filename), 'utf-8'))
+    return JSON.parse(
+      await fs.readFile(path.join(this.testDir, filename), 'utf-8')
+    )
   }
 
   public async remove(fileOrDirPath: string) {
@@ -648,7 +729,10 @@ export class NextInstance {
   }
 
   public async renameFile(filename: string, newFilename: string) {
-    await fs.rename(path.join(this.testDir, filename), path.join(this.testDir, newFilename))
+    await fs.rename(
+      path.join(this.testDir, filename),
+      path.join(this.testDir, newFilename)
+    )
   }
 
   /**
@@ -669,7 +753,10 @@ export class NextInstance {
   }
 
   public async renameFolder(foldername: string, newFoldername: string) {
-    await fs.rename(path.join(this.testDir, foldername), path.join(this.testDir, newFoldername))
+    await fs.rename(
+      path.join(this.testDir, foldername),
+      path.join(this.testDir, newFoldername)
+    )
   }
 
   public async deleteFile(filename: string) {
@@ -762,7 +849,9 @@ export class NextInstance {
   /**
    * Fetch the HTML for the provided page. This is a shortcut for `fetchViaHTTP().then(res => res.text())`.
    */
-  public async render(...args: Parameters<OmitFirstArgument<typeof renderViaHTTP>>) {
+  public async render(
+    ...args: Parameters<OmitFirstArgument<typeof renderViaHTTP>>
+  ) {
     try {
       this.throwIfUnavailable()
     } catch (error) {
@@ -779,7 +868,10 @@ export class NextInstance {
    * @param opts the optional options to pass to the underlying fetch
    * @returns the fetch response
    */
-  public async fetch(pathname: string, opts?: import('node-fetch').RequestInit) {
+  public async fetch(
+    pathname: string,
+    opts?: import('node-fetch').RequestInit
+  ) {
     try {
       this.throwIfUnavailable()
     } catch (error) {

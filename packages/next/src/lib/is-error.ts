@@ -36,7 +36,9 @@ function safeStringifyLite(obj: any) {
  * This can be used to print a more detailed error message with properties like `code` & `digest`.
  */
 export default function isError(err: unknown): err is NextError {
-  return typeof err === 'object' && err !== null && 'name' in err && 'message' in err
+  return (
+    typeof err === 'object' && err !== null && 'name' in err && 'message' in err
+  )
 }
 
 export function getProperError(err: unknown): Error {

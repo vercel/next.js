@@ -14,7 +14,10 @@ import camelCase from './camelcase'
 import { normalizePath } from '../../../../../lib/normalize-path'
 
 const whitespace = '[\\x20\\t\\r\\n\\f]'
-const unescapeRegExp = new RegExp(`\\\\([\\da-f]{1,6}${whitespace}?|(${whitespace})|.)`, 'ig')
+const unescapeRegExp = new RegExp(
+  `\\\\([\\da-f]{1,6}${whitespace}?|(${whitespace})|.)`,
+  'ig'
+)
 const matchNativeWin32Path = /^[A-Z]:[/\\]|^\\\\/i
 
 function unescape(str: string) {
@@ -79,7 +82,9 @@ function requestify(url: string, rootContext: string) {
     return url
   }
 
-  return url.charAt(0) === '/' ? urlToRequest(url, rootContext) : urlToRequest(url)
+  return url.charAt(0) === '/'
+    ? urlToRequest(url, rootContext)
+    : urlToRequest(url)
 }
 
 function getFilter(filter: any, resourcePath: string) {
@@ -239,7 +244,10 @@ function getPreRequester({ loaders, loaderIndex }: any) {
       cache[number] = ''
     } else {
       const loadersRequest = loaders
-        .slice(loaderIndex, loaderIndex + 1 + (typeof number !== 'number' ? 0 : number))
+        .slice(
+          loaderIndex,
+          loaderIndex + 1 + (typeof number !== 'number' ? 0 : number)
+        )
         .map((x: any) => x.request)
         .join('!')
 
@@ -294,7 +302,9 @@ function normalizeSourceMapForRuntime(map: any, loaderContext: any) {
 
       const resourceDirname = path.dirname(loaderContext.resourcePath)
       const absoluteSource = path.resolve(resourceDirname, source)
-      const contextifyPath = normalizePath(path.relative(loaderContext.rootContext, absoluteSource))
+      const contextifyPath = normalizePath(
+        path.relative(loaderContext.rootContext, absoluteSource)
+      )
 
       return `webpack://${contextifyPath}`
     })
@@ -351,10 +361,14 @@ function getModuleCode(
         ...(hash ? [`hash: ${JSON.stringify(hash)}`] : []),
         ...(needQuotes ? 'needQuotes: true' : []),
       ]
-      const preparedOptions = getUrlOptions.length > 0 ? `, { ${getUrlOptions.join(', ')} }` : ''
+      const preparedOptions =
+        getUrlOptions.length > 0 ? `, { ${getUrlOptions.join(', ')} }` : ''
 
       beforeCode += `var ${replacementName} = ___CSS_LOADER_GET_URL_IMPORT___(${importName}${preparedOptions});\n`
-      code = code.replace(new RegExp(replacementName, 'g'), () => `" + ${replacementName} + "`)
+      code = code.replace(
+        new RegExp(replacementName, 'g'),
+        () => `" + ${replacementName} + "`
+      )
     }
   }
 
@@ -362,7 +376,9 @@ function getModuleCode(
 }
 
 function dashesCamelCase(str: string) {
-  return str.replace(/-+(\w)/g, (_match: any, firstLetter: string) => firstLetter.toUpperCase())
+  return str.replace(/-+(\w)/g, (_match: any, firstLetter: string) =>
+    firstLetter.toUpperCase()
+  )
 }
 
 function getExportCode(

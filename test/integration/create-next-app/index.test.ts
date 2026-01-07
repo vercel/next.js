@@ -1,6 +1,11 @@
 import { mkdir, writeFile } from 'fs/promises'
 import { join } from 'path'
-import { run, useTempDir, projectFilesShouldExist, projectFilesShouldNotExist } from './utils'
+import {
+  run,
+  useTempDir,
+  projectFilesShouldExist,
+  projectFilesShouldNotExist,
+} from './utils'
 
 describe('create-next-app', () => {
   let nextTgzFilename: string
@@ -10,7 +15,9 @@ describe('create-next-app', () => {
       throw new Error('This test needs to be run with `node run-tests.js`.')
     }
 
-    const pkgPaths = new Map<string, string>(JSON.parse(process.env.NEXT_TEST_PKG_PATHS))
+    const pkgPaths = new Map<string, string>(
+      JSON.parse(process.env.NEXT_TEST_PKG_PATHS)
+    )
 
     nextTgzFilename = pkgPaths.get('next')
   })
@@ -59,7 +66,9 @@ describe('create-next-app', () => {
           .then(() => true)
           .catch(() => false)
       ) {
-        console.warn(`Test folder is not write restricted skipping write permission test`)
+        console.warn(
+          `Test folder is not write restricted skipping write permission test`
+        )
         return
       }
 

@@ -1,4 +1,8 @@
-import { extractICSS, replaceValueSymbols, replaceSymbols } from 'next/dist/compiled/icss-utils'
+import {
+  extractICSS,
+  replaceValueSymbols,
+  replaceSymbols,
+} from 'next/dist/compiled/icss-utils'
 
 import { normalizeUrl, resolveRequests, requestify } from '../utils'
 
@@ -28,7 +32,10 @@ const plugin = (options: any = {}) => {
           prefix = queryParts.join('!')
         }
 
-        const request = requestify(normalizeUrl(normalizedUrl, true), options.rootContext)
+        const request = requestify(
+          normalizeUrl(normalizedUrl, true),
+          options.rootContext
+        )
         const doResolve = async () => {
           const { resolver, context } = options
           const resolvedUrl = await resolveRequests(resolver, context, [
@@ -73,7 +80,9 @@ const plugin = (options: any = {}) => {
           options.api.push({ importName, dedupe: true, index })
         }
 
-        for (const [replacementIndex, token] of Object.keys(item.tokens).entries()) {
+        for (const [replacementIndex, token] of Object.keys(
+          item.tokens
+        ).entries()) {
           const replacementName = `___CSS_LOADER_ICSS_IMPORT_${index}_REPLACEMENT_${replacementIndex}___`
           const localName = item.tokens[token]
 

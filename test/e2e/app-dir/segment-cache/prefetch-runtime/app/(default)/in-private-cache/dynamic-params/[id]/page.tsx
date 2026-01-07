@@ -14,8 +14,8 @@ export default async function Page({ params }: { params: Promise<Params> }) {
     <main>
       <DebugRenderKind />
       <p>
-        This page uses params (passed to a private cache) and some uncached IO, so parts of it
-        should be runtime-prefetchable.
+        This page uses params (passed to a private cache) and some uncached IO,
+        so parts of it should be runtime-prefetchable.
       </p>
       <Suspense fallback={<div style={{ color: 'grey' }}>Loading 1...</div>}>
         <RuntimePrefetchable params={params} />

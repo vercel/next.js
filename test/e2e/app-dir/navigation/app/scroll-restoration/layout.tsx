@@ -19,5 +19,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     setItems((prevItems) => [...prevItems, ...createItems(start, end)])
   }
 
-  return <ItemsContext.Provider value={{ items, loadMoreItems }}>{children}</ItemsContext.Provider>
+  return (
+    <ItemsContext.Provider value={{ items, loadMoreItems }}>
+      {children}
+    </ItemsContext.Provider>
+  )
 }

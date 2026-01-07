@@ -12,7 +12,10 @@ describe.skip('prefetch-navigation', () => {
   }
 
   it('should render the prefetch without waiting for the RSC request', async () => {
-    const rscRequestPromise = new Map<string, { resolve: () => Promise<void> }>()
+    const rscRequestPromise = new Map<
+      string,
+      { resolve: () => Promise<void> }
+    >()
     const browser = await next.browser('/catch-all/1', {
       beforePageLoad(page) {
         page.route('**/catch-all/**', async (route) => {

@@ -1,5 +1,9 @@
 export class ReflectAdapter {
-  static get<T extends object>(target: T, prop: string | symbol, receiver: unknown): any {
+  static get<T extends object>(
+    target: T,
+    prop: string | symbol,
+    receiver: unknown
+  ): any {
     const value = Reflect.get(target, prop, receiver)
     if (typeof value === 'function') {
       return value.bind(target)
@@ -21,7 +25,10 @@ export class ReflectAdapter {
     return Reflect.has(target, prop)
   }
 
-  static deleteProperty<T extends object>(target: T, prop: string | symbol): boolean {
+  static deleteProperty<T extends object>(
+    target: T,
+    prop: string | symbol
+  ): boolean {
     return Reflect.deleteProperty(target, prop)
   }
 }

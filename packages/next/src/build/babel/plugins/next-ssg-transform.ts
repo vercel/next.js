@@ -1,4 +1,7 @@
-import type { NodePath, types as BabelTypes } from 'next/dist/compiled/babel/core'
+import type {
+  NodePath,
+  types as BabelTypes,
+} from 'next/dist/compiled/babel/core'
 import type { PluginObj } from 'next/dist/compiled/babel/core'
 import { SERVER_PROPS_SSG_CONFLICT } from '../../../lib/constants'
 import { SERVER_PROPS_ID, STATIC_PROPS_ID } from '../../../shared/lib/constants'
@@ -58,7 +61,9 @@ function decorateSsgExport(
       ),
       exportPath.node,
     ])
-    exportPath.scope.registerDeclaration(pageCompPath as NodePath<BabelTypes.Node>)
+    exportPath.scope.registerDeclaration(
+      pageCompPath as NodePath<BabelTypes.Node>
+    )
   }
 
   path.traverse({
@@ -104,13 +109,17 @@ export default function nextTransformSsg({
     if (parentPath.type === 'VariableDeclarator') {
       const pp = parentPath as NodePath<BabelTypes.VariableDeclarator>
       const name = pp.get('id')
-      return name.node.type === 'Identifier' ? (name as NodePath<BabelTypes.Identifier>) : null
+      return name.node.type === 'Identifier'
+        ? (name as NodePath<BabelTypes.Identifier>)
+        : null
     }
 
     if (parentPath.type === 'AssignmentExpression') {
       const pp = parentPath as NodePath<BabelTypes.AssignmentExpression>
       const name = pp.get('left')
-      return name.node.type === 'Identifier' ? (name as NodePath<BabelTypes.Identifier>) : null
+      return name.node.type === 'Identifier'
+        ? (name as NodePath<BabelTypes.Identifier>)
+        : null
     }
 
     if (path.node.type === 'ArrowFunctionExpression') {
@@ -122,7 +131,9 @@ export default function nextTransformSsg({
       : null
   }
 
-  function isIdentifierReferenced(ident: NodePath<BabelTypes.Identifier>): boolean {
+  function isIdentifierReferenced(
+    ident: NodePath<BabelTypes.Identifier>
+  ): boolean {
     const b = ident.scope.getBinding(ident.node.name)
     if (b?.referenced) {
       // Functions can reference themselves, so we need to check if there's a
@@ -178,12 +189,16 @@ export default function nextTransformSsg({
             {
               VariableDeclarator(variablePath, variableState) {
                 if (variablePath.node.id.type === 'Identifier') {
-                  const local = variablePath.get('id') as NodePath<BabelTypes.Identifier>
+                  const local = variablePath.get(
+                    'id'
+                  ) as NodePath<BabelTypes.Identifier>
                   if (isIdentifierReferenced(local)) {
                     variableState.refs.add(local)
                   }
                 } else if (variablePath.node.id.type === 'ObjectPattern') {
-                  const pattern = variablePath.get('id') as NodePath<BabelTypes.ObjectPattern>
+                  const pattern = variablePath.get(
+                    'id'
+                  ) as NodePath<BabelTypes.ObjectPattern>
 
                   const properties = pattern.get('properties')
                   properties.forEach((p) => {
@@ -201,7 +216,9 @@ export default function nextTransformSsg({
                     }
                   })
                 } else if (variablePath.node.id.type === 'ArrayPattern') {
-                  const pattern = variablePath.get('id') as NodePath<BabelTypes.ArrayPattern>
+                  const pattern = variablePath.get(
+                    'id'
+                  ) as NodePath<BabelTypes.ArrayPattern>
 
                   const elements = pattern.get('elements')
                   elements.forEach((e) => {
@@ -209,7 +226,9 @@ export default function nextTransformSsg({
                     if (e.node?.type === 'Identifier') {
                       local = e as NodePath<BabelTypes.Identifier>
                     } else if (e.node?.type === 'RestElement') {
-                      local = e.get('argument') as NodePath<BabelTypes.Identifier>
+                      local = e.get(
+                        'argument'
+                      ) as NodePath<BabelTypes.Identifier>
                     } else {
                       return
                     }
@@ -249,7 +268,8 @@ export default function nextTransformSsg({
                 }
 
                 const decl = exportNamedPath.get('declaration') as NodePath<
-                  BabelTypes.FunctionDeclaration | BabelTypes.VariableDeclaration
+                  | BabelTypes.FunctionDeclaration
+                  | BabelTypes.VariableDeclaration
                 >
                 if (decl == null || decl.node == null) {
                   return
@@ -301,7 +321,11 @@ export default function nextTransformSsg({
               | NodePath<BabelTypes.ArrowFunctionExpression>
           ): void {
             const ident = getIdentifier(sweepPath)
-            if (ident?.node && refs.has(ident) && !isIdentifierReferenced(ident)) {
+            if (
+              ident?.node &&
+              refs.has(ident) &&
+              !isIdentifierReferenced(ident)
+            ) {
               ++count
 
               if (
@@ -321,11 +345,16 @@ export default function nextTransformSsg({
               | NodePath<BabelTypes.ImportDefaultSpecifier>
               | NodePath<BabelTypes.ImportNamespaceSpecifier>
           ): void {
-            const local = sweepPath.get('local') as NodePath<BabelTypes.Identifier>
+            const local = sweepPath.get(
+              'local'
+            ) as NodePath<BabelTypes.Identifier>
             if (refs.has(local) && !isIdentifierReferenced(local)) {
               ++count
               sweepPath.remove()
-              if ((sweepPath.parent as BabelTypes.ImportDeclaration).specifiers.length === 0) {
+              if (
+                (sweepPath.parent as BabelTypes.ImportDeclaration).specifiers
+                  .length === 0
+              ) {
                 sweepPath.parentPath.remove()
               }
             }
@@ -339,13 +368,17 @@ export default function nextTransformSsg({
               // eslint-disable-next-line no-loop-func
               VariableDeclarator(variablePath) {
                 if (variablePath.node.id.type === 'Identifier') {
-                  const local = variablePath.get('id') as NodePath<BabelTypes.Identifier>
+                  const local = variablePath.get(
+                    'id'
+                  ) as NodePath<BabelTypes.Identifier>
                   if (refs.has(local) && !isIdentifierReferenced(local)) {
                     ++count
                     variablePath.remove()
                   }
                 } else if (variablePath.node.id.type === 'ObjectPattern') {
-                  const pattern = variablePath.get('id') as NodePath<BabelTypes.ObjectPattern>
+                  const pattern = variablePath.get(
+                    'id'
+                  ) as NodePath<BabelTypes.ObjectPattern>
 
                   const beforeCount = count
                   const properties = pattern.get('properties')
@@ -366,11 +399,16 @@ export default function nextTransformSsg({
                     }
                   })
 
-                  if (beforeCount !== count && pattern.get('properties').length < 1) {
+                  if (
+                    beforeCount !== count &&
+                    pattern.get('properties').length < 1
+                  ) {
                     variablePath.remove()
                   }
                 } else if (variablePath.node.id.type === 'ArrayPattern') {
-                  const pattern = variablePath.get('id') as NodePath<BabelTypes.ArrayPattern>
+                  const pattern = variablePath.get(
+                    'id'
+                  ) as NodePath<BabelTypes.ArrayPattern>
 
                   const beforeCount = count
                   const elements = pattern.get('elements')
@@ -379,7 +417,9 @@ export default function nextTransformSsg({
                     if (e.node?.type === 'Identifier') {
                       local = e as NodePath<BabelTypes.Identifier>
                     } else if (e.node?.type === 'RestElement') {
-                      local = e.get('argument') as NodePath<BabelTypes.Identifier>
+                      local = e.get(
+                        'argument'
+                      ) as NodePath<BabelTypes.Identifier>
                     } else {
                       return
                     }
@@ -390,7 +430,10 @@ export default function nextTransformSsg({
                     }
                   })
 
-                  if (beforeCount !== count && pattern.get('elements').length < 1) {
+                  if (
+                    beforeCount !== count &&
+                    pattern.get('elements').length < 1
+                  ) {
                     variablePath.remove()
                   }
                 }

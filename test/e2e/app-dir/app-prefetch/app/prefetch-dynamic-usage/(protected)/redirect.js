@@ -8,7 +8,9 @@ export function Redirect() {
   const router = useRouter()
 
   useEffect(() => {
-    const nextUrl = encodeURIComponent(path ? decodeURIComponent(path) : '/search')
+    const nextUrl = encodeURIComponent(
+      path ? decodeURIComponent(path) : '/search'
+    )
     router.push(`/login?nextUrl=${nextUrl}`)
   }, [path, router])
 

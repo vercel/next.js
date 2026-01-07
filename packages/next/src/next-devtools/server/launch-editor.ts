@@ -67,7 +67,8 @@ const COMMON_EDITORS_MACOS = {
     '/Applications/VSCodium.app/Contents/Resources/app/bin/code',
   '/Applications/AppCode.app/Contents/MacOS/appcode':
     '/Applications/AppCode.app/Contents/MacOS/appcode',
-  '/Applications/CLion.app/Contents/MacOS/clion': '/Applications/CLion.app/Contents/MacOS/clion',
+  '/Applications/CLion.app/Contents/MacOS/clion':
+    '/Applications/CLion.app/Contents/MacOS/clion',
   '/Applications/IntelliJ IDEA.app/Contents/MacOS/idea':
     '/Applications/IntelliJ IDEA.app/Contents/MacOS/idea',
   '/Applications/PhpStorm.app/Contents/MacOS/phpstorm':
@@ -83,7 +84,8 @@ const COMMON_EDITORS_MACOS = {
   '/Applications/MacVim.app/Contents/MacOS/MacVim': 'mvim',
   '/Applications/GoLand.app/Contents/MacOS/goland':
     '/Applications/GoLand.app/Contents/MacOS/goland',
-  '/Applications/Rider.app/Contents/MacOS/rider': '/Applications/Rider.app/Contents/MacOS/rider',
+  '/Applications/Rider.app/Contents/MacOS/rider':
+    '/Applications/Rider.app/Contents/MacOS/rider',
   '/Applications/Cursor.app/Contents/MacOS/Cursor':
     '/Applications/Cursor.app/Contents/MacOS/Cursor',
 }
@@ -239,7 +241,9 @@ function guessEditor(): string[] {
       // Some processes need elevated rights to get its executable path.
       // Just filter them out upfront. This also saves 10-20ms on the command.
       const output = child_process
-        .execSync('wmic process where "executablepath is not null" get executablepath')
+        .execSync(
+          'wmic process where "executablepath is not null" get executablepath'
+        )
         .toString()
       const runningProcesses = output.split('\r\n')
       for (let i = 0; i < runningProcesses.length; i++) {
@@ -253,7 +257,9 @@ function guessEditor(): string[] {
       // --no-heading No header line
       // x List all processes owned by you
       // -o comm Need only names column
-      const output = child_process.execSync('ps x --no-heading -o comm --sort=comm').toString()
+      const output = child_process
+        .execSync('ps x --no-heading -o comm --sort=comm')
+        .toString()
       const processNames = Object.keys(COMMON_EDITORS_LINUX)
       for (let i = 0; i < processNames.length; i++) {
         const processName = processNames[i]
@@ -278,7 +284,9 @@ function guessEditor(): string[] {
 
 function printInstructions(fileName: string, errorMessage: string | null) {
   console.log()
-  console.log(red('Could not open ' + path.basename(fileName) + ' in the editor.'))
+  console.log(
+    red('Could not open ' + path.basename(fileName) + ' in the editor.')
+  )
   if (errorMessage) {
     if (errorMessage[errorMessage.length - 1] !== '.') {
       errorMessage += '.'
@@ -355,9 +363,14 @@ export function launchEditor(fileName: string, line1: number, column1: number) {
   // form "C:\Users\myusername\Downloads\& curl 172.21.93.52". Use an access list
   // to validate user-provided file names. This doesn't cover the entire range
   // of valid file names but should cover almost all of them in practice.
-  if (process.platform === 'win32' && !WINDOWS_FILE_NAME_ACCESS_LIST.test(fileName.trim())) {
+  if (
+    process.platform === 'win32' &&
+    !WINDOWS_FILE_NAME_ACCESS_LIST.test(fileName.trim())
+  ) {
     console.log()
-    console.log(red('Could not open ' + path.basename(fileName) + ' in the editor.'))
+    console.log(
+      red('Could not open ' + path.basename(fileName) + ' in the editor.')
+    )
     console.log()
     console.log(
       'When running on Windows, file names are checked against an access list ' +
@@ -370,7 +383,9 @@ export function launchEditor(fileName: string, line1: number, column1: number) {
   }
 
   if (line1) {
-    args = args.concat(getArgumentsForLineNumber(editor, fileName, line1, column1))
+    args = args.concat(
+      getArgumentsForLineNumber(editor, fileName, line1, column1)
+    )
   } else {
     args.push(fileName)
   }
@@ -385,7 +400,9 @@ export function launchEditor(fileName: string, line1: number, column1: number) {
     })
   } else if (isTerminalEditor(editor)) {
     if (process.platform === 'darwin') {
-      const escapedScript = escapeApplescriptStringFragment(shellQuote.quote([editor, ...args]))
+      const escapedScript = escapeApplescriptStringFragment(
+        shellQuote.quote([editor, ...args])
+      )
       p = child_process.spawn(
         'osascript',
         ['-e', `tell application "Terminal" to do script "${escapedScript}"`],

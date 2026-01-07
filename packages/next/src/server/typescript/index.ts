@@ -28,7 +28,9 @@ import metadata from './rules/metadata'
 import errorEntry from './rules/error'
 import type tsModule from 'typescript/lib/tsserverlibrary'
 
-export const createTSPlugin: tsModule.server.PluginModuleFactory = ({ typescript: ts }) => {
+export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
+  typescript: ts,
+}) => {
   function create(info: tsModule.server.PluginCreateInfo) {
     // Get plugin options
     // config is the plugin options from the user's tsconfig.json
@@ -55,8 +57,16 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({ typescript
     }
 
     // Auto completion
-    proxy.getCompletionsAtPosition = (fileName: string, position: number, options: any) => {
-      let prior = info.languageService.getCompletionsAtPosition(fileName, position, options) || {
+    proxy.getCompletionsAtPosition = (
+      fileName: string,
+      position: number,
+      options: any
+    ) => {
+      let prior = info.languageService.getCompletionsAtPosition(
+        fileName,
+        position,
+        options
+      ) || {
         isGlobalCompletion: false,
         isMemberCompletion: false,
         isNewIdentifierLocation: false,
@@ -79,7 +89,10 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({ typescript
 
       ts.forEachChild(source!, (node) => {
         // Auto completion for default export function's props.
-        if (isPositionInsideNode(position, node) && isDefaultFunctionExport(node)) {
+        if (
+          isPositionInsideNode(position, node) &&
+          isDefaultFunctionExport(node)
+        ) {
           prior.entries.push(
             ...entryDefault.getCompletionsAtPosition(
               fileName,
@@ -123,14 +136,23 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({ typescript
 
     // Quick info
     proxy.getQuickInfoAtPosition = (fileName: string, position: number) => {
-      const prior = info.languageService.getQuickInfoAtPosition(fileName, position)
+      const prior = info.languageService.getQuickInfoAtPosition(
+        fileName,
+        position
+      )
       if (!isAppEntryFile(fileName)) return prior
 
       // Remove type suggestions for disallowed APIs in server components.
       const entryInfo = getEntryInfo(fileName)
       if (!entryInfo.client) {
-        const definitions = info.languageService.getDefinitionAtPosition(fileName, position)
-        if (definitions && serverLayer.hasDisallowedReactAPIDefinition(definitions)) {
+        const definitions = info.languageService.getDefinitionAtPosition(
+          fileName,
+          position
+        )
+        if (
+          definitions &&
+          serverLayer.hasDisallowedReactAPIDefinition(definitions)
+        ) {
           return
         }
       }
@@ -167,7 +189,10 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({ typescript
       }
 
       if (isInsideApp(fileName)) {
-        const errorDiagnostic = errorEntry.getSemanticDiagnostics(source!, isClientEntry)
+        const errorDiagnostic = errorEntry.getSemanticDiagnostics(
+          source!,
+          isClientEntry
+        )
         prior.push(...errorDiagnostic)
       }
 
@@ -177,10 +202,11 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({ typescript
           if (isAppEntry) {
             if (!isClientEntry || isServerEntry) {
               // Check if it has valid imports in the server layer
-              const diagnostics = serverLayer.getSemanticDiagnosticsForImportDeclaration(
-                source,
-                node
-              )
+              const diagnostics =
+                serverLayer.getSemanticDiagnosticsForImportDeclaration(
+                  source,
+                  node
+                )
               prior.push(...diagnostics)
             }
           }
@@ -191,40 +217,67 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({ typescript
           // export const ...
           if (isAppEntry) {
             // Check if it has correct option exports
-            const diagnostics = entryConfig.getSemanticDiagnosticsForExportVariableStatement(
-              source,
-              node
-            )
+            const diagnostics =
+              entryConfig.getSemanticDiagnosticsForExportVariableStatement(
+                source,
+                node
+              )
             const metadataDiagnostics = isClientEntry
-              ? metadata.client.getSemanticDiagnosticsForExportVariableStatement(fileName, node)
-              : metadata.server.getSemanticDiagnosticsForExportVariableStatement(fileName, node)
+              ? metadata.client.getSemanticDiagnosticsForExportVariableStatement(
+                  fileName,
+                  node
+                )
+              : metadata.server.getSemanticDiagnosticsForExportVariableStatement(
+                  fileName,
+                  node
+                )
             prior.push(...diagnostics, ...metadataDiagnostics)
           }
 
           if (isClientEntry) {
             prior.push(
-              ...clientBoundary.getSemanticDiagnosticsForExportVariableStatement(source, node)
+              ...clientBoundary.getSemanticDiagnosticsForExportVariableStatement(
+                source,
+                node
+              )
             )
           }
 
           if (isServerEntry) {
             prior.push(
-              ...serverBoundary.getSemanticDiagnosticsForExportVariableStatement(source, node)
+              ...serverBoundary.getSemanticDiagnosticsForExportVariableStatement(
+                source,
+                node
+              )
             )
           }
         } else if (isDefaultFunctionExport(node)) {
           // export default function ...
           if (isAppEntry) {
-            const diagnostics = entryDefault.getSemanticDiagnostics(fileName, source, node)
+            const diagnostics = entryDefault.getSemanticDiagnostics(
+              fileName,
+              source,
+              node
+            )
             prior.push(...diagnostics)
           }
 
           if (isClientEntry) {
-            prior.push(...clientBoundary.getSemanticDiagnosticsForFunctionExport(source, node))
+            prior.push(
+              ...clientBoundary.getSemanticDiagnosticsForFunctionExport(
+                source,
+                node
+              )
+            )
           }
 
           if (isServerEntry) {
-            prior.push(...serverBoundary.getSemanticDiagnosticsForFunctionExport(source, node))
+            prior.push(
+              ...serverBoundary.getSemanticDiagnosticsForFunctionExport(
+                source,
+                node
+              )
+            )
           }
         } else if (
           ts.isFunctionDeclaration(node) &&
@@ -233,29 +286,56 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({ typescript
           // export function ...
           if (isAppEntry) {
             const metadataDiagnostics = isClientEntry
-              ? metadata.client.getSemanticDiagnosticsForExportVariableStatement(fileName, node)
-              : metadata.server.getSemanticDiagnosticsForExportVariableStatement(fileName, node)
+              ? metadata.client.getSemanticDiagnosticsForExportVariableStatement(
+                  fileName,
+                  node
+                )
+              : metadata.server.getSemanticDiagnosticsForExportVariableStatement(
+                  fileName,
+                  node
+                )
             prior.push(...metadataDiagnostics)
           }
 
           if (isClientEntry) {
-            prior.push(...clientBoundary.getSemanticDiagnosticsForFunctionExport(source, node))
+            prior.push(
+              ...clientBoundary.getSemanticDiagnosticsForFunctionExport(
+                source,
+                node
+              )
+            )
           }
 
           if (isServerEntry) {
-            prior.push(...serverBoundary.getSemanticDiagnosticsForFunctionExport(source, node))
+            prior.push(
+              ...serverBoundary.getSemanticDiagnosticsForFunctionExport(
+                source,
+                node
+              )
+            )
           }
         } else if (ts.isExportDeclaration(node)) {
           // export { ... }
           if (isAppEntry) {
             const metadataDiagnostics = isClientEntry
-              ? metadata.client.getSemanticDiagnosticsForExportDeclaration(fileName, node)
-              : metadata.server.getSemanticDiagnosticsForExportDeclaration(fileName, node)
+              ? metadata.client.getSemanticDiagnosticsForExportDeclaration(
+                  fileName,
+                  node
+                )
+              : metadata.server.getSemanticDiagnosticsForExportDeclaration(
+                  fileName,
+                  node
+                )
             prior.push(...metadataDiagnostics)
           }
 
           if (isServerEntry) {
-            prior.push(...serverBoundary.getSemanticDiagnosticsForExportDeclaration(source, node))
+            prior.push(
+              ...serverBoundary.getSemanticDiagnosticsForExportDeclaration(
+                source,
+                node
+              )
+            )
           }
         }
       })

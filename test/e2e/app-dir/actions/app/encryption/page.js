@@ -18,7 +18,11 @@ function wrapAction(value, action, element) {
   }
 }
 
-const action = wrapAction('some-module-level-encryption-value', otherAction, <Client />)
+const action = wrapAction(
+  'some-module-level-encryption-value',
+  otherAction,
+  <Client />
+)
 
 // Test runtime encryption (happens during the rendering phase)
 export default function Page() {

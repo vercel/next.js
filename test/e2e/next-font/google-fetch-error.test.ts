@@ -3,7 +3,8 @@ import { NextInstance } from 'e2e-utils'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 
-const mockedGoogleFontResponses = require.resolve('./google-font-mocked-responses.js')
+const mockedGoogleFontResponses =
+  require.resolve('./google-font-mocked-responses.js')
 
 describe('next/font/google fetch error', () => {
   const isDev = (global as any).isNextDev
@@ -60,7 +61,9 @@ describe('next/font/google fetch error', () => {
   } else {
     it('should error when not in dev', async () => {
       await expect(next.start()).rejects.toThrow('next build failed')
-      expect(next.cliOutput).toInclude('Failed to fetch `Inter` from Google Fonts.')
+      expect(next.cliOutput).toInclude(
+        'Failed to fetch `Inter` from Google Fonts.'
+      )
     })
   }
 })

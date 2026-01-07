@@ -3,7 +3,9 @@ import path from 'path'
 import { Worker } from '../../lib/worker'
 import { NextBuildContext } from '../build-context'
 
-async function turbopackBuildWithWorker(): ReturnType<typeof import('./impl').turbopackBuild> {
+async function turbopackBuildWithWorker(): ReturnType<
+  typeof import('./impl').turbopackBuild
+> {
   try {
     const worker = new Worker(path.join(__dirname, 'impl.js'), {
       exposedMethods: ['workerMain', 'waitForShutdown'],
@@ -71,7 +73,8 @@ export function turbopackBuild(
     if (withWorker) {
       return await turbopackBuildWithWorker()
     } else {
-      const build = (require('./impl') as typeof import('./impl')).turbopackBuild
+      const build = (require('./impl') as typeof import('./impl'))
+        .turbopackBuild
       return await build()
     }
   })

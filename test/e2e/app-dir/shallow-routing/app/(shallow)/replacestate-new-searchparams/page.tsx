@@ -13,7 +13,10 @@ function InnerPage() {
         onClick={() => {
           const url = new URL(window.location.href)
           const previousQuery = url.searchParams.get('query')
-          url.searchParams.set('query', previousQuery ? previousQuery + '-added' : 'foo')
+          url.searchParams.set(
+            'query',
+            previousQuery ? previousQuery + '-added' : 'foo'
+          )
           window.history.replaceState({}, '', url)
         }}
         id="replace-searchparams"

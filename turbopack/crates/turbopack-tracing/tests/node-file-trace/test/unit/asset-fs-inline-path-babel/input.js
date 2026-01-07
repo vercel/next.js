@@ -35,7 +35,10 @@ function _interopRequireWildcard(obj) {
   if (obj && obj.__esModule) {
     return obj
   }
-  if (obj === null || (_typeof(obj) !== 'object' && typeof obj !== 'function')) {
+  if (
+    obj === null ||
+    (_typeof(obj) !== 'object' && typeof obj !== 'function')
+  ) {
     return { default: obj }
   }
   var cache = _getRequireWildcardCache()
@@ -43,10 +46,13 @@ function _interopRequireWildcard(obj) {
     return cache.get(obj)
   }
   var newObj = {}
-  var hasPropertyDescriptor = Object.defineProperty && Object.getOwnPropertyDescriptor
+  var hasPropertyDescriptor =
+    Object.defineProperty && Object.getOwnPropertyDescriptor
   for (var key in obj) {
     if (Object.prototype.hasOwnProperty.call(obj, key)) {
-      var desc = hasPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : null
+      var desc = hasPropertyDescriptor
+        ? Object.getOwnPropertyDescriptor(obj, key)
+        : null
       if (desc && (desc.get || desc.set)) {
         Object.defineProperty(newObj, key, desc)
       } else {
@@ -65,7 +71,9 @@ function _interopRequireDefault(obj) {
   return obj && obj.__esModule ? obj : { default: obj }
 }
 
-console.log(_fs['default'].readFileSync(path.join(__dirname, 'asset.txt'), 'utf8'))
+console.log(
+  _fs['default'].readFileSync(path.join(__dirname, 'asset.txt'), 'utf8')
+)
 
 /* Input source:
 import fs from 'fs';

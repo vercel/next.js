@@ -25,7 +25,9 @@ export async function createAppRouteCode({
   name: string
   page: string
   pagePath: string
-  resolveAppRoute: (pathname: string) => Promise<string | undefined> | string | undefined
+  resolveAppRoute: (
+    pathname: string
+  ) => Promise<string | undefined> | string | undefined
   pageExtensions: PageExtensions
   nextConfigOutput: NextConfig['output']
 }): Promise<string> {
@@ -37,7 +39,9 @@ export async function createAppRouteCode({
   // route handler file.
   let resolvedPagePath = await resolveAppRoute(routePath)
   if (!resolvedPagePath) {
-    throw new Error(`Invariant: could not resolve page path for ${name} at ${routePath}`)
+    throw new Error(
+      `Invariant: could not resolve page path for ${name} at ${routePath}`
+    )
   }
 
   // If this is a metadata route file, then we need to use the metadata-loader

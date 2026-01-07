@@ -159,7 +159,9 @@ describe('unhandled-rejection filter', () => {
       const { messages, exitCode } = await runWorkerCode(testForWorker)
 
       expect(exitCode).toBe(0)
-      expect(messages).toEqual(expect.arrayContaining([expect.objectContaining({ count: 1 })]))
+      expect(messages).toEqual(
+        expect.arrayContaining([expect.objectContaining({ count: 1 })])
+      )
     })
 
     it('should not install filter when disabled', async () => {
@@ -176,7 +178,9 @@ describe('unhandled-rejection filter', () => {
       const { messages, exitCode } = await runWorkerCode(testForWorker)
 
       expect(exitCode).toBe(0)
-      expect(messages).toEqual(expect.arrayContaining([expect.objectContaining({ count: 0 })]))
+      expect(messages).toEqual(
+        expect.arrayContaining([expect.objectContaining({ count: 0 })])
+      )
     })
 
     it('should install filter rejections when environment variable is enabled', async () => {
@@ -193,7 +197,9 @@ describe('unhandled-rejection filter', () => {
       const { messages, exitCode } = await runWorkerCode(testForWorker)
 
       expect(exitCode).toBe(0)
-      expect(messages).toEqual(expect.arrayContaining([expect.objectContaining({ count: 1 })]))
+      expect(messages).toEqual(
+        expect.arrayContaining([expect.objectContaining({ count: 1 })])
+      )
     })
 
     it('should install filter rejections when environment variable is enabled in debug mode', async () => {
@@ -210,7 +216,9 @@ describe('unhandled-rejection filter', () => {
       const { messages, exitCode } = await runWorkerCode(testForWorker)
 
       expect(exitCode).toBe(0)
-      expect(messages).toEqual(expect.arrayContaining([expect.objectContaining({ count: 1 })]))
+      expect(messages).toEqual(
+        expect.arrayContaining([expect.objectContaining({ count: 1 })])
+      )
     })
 
     it('should warn once when you uninstall the filter with removeListener', async () => {
@@ -355,23 +363,26 @@ describe('unhandled-rejection filter', () => {
           type: 'prerender',
           renderSignal: { aborted: false },
         }
-        workUnitAsyncStorage.run(delayedAbortStore as WorkUnitStore, async () => {
-          Promise.reject('before abort + sync')
-          await 1
-          Promise.reject('before abort + micro')
-          await new Promise((r) => setTimeout(r, 10))
-          Promise.reject('before abort + task')
-          await new Promise((r) => setImmediate(r))
-          // We mutate this after a task b/c in Next.js this is always done right at the beginning
-          // of a task and any promises rejecting in prior tasks would have already observed their
-          // rejections as unhandled without the aborted signal
-          delayedAbortStore.renderSignal.aborted = true
-          Promise.reject('after abort + sync')
-          await 1
-          Promise.reject('after abort + micro')
-          await new Promise((r) => setTimeout(r, 10))
-          Promise.reject('delayed abort + task')
-        })
+        workUnitAsyncStorage.run(
+          delayedAbortStore as WorkUnitStore,
+          async () => {
+            Promise.reject('before abort + sync')
+            await 1
+            Promise.reject('before abort + micro')
+            await new Promise((r) => setTimeout(r, 10))
+            Promise.reject('before abort + task')
+            await new Promise((r) => setImmediate(r))
+            // We mutate this after a task b/c in Next.js this is always done right at the beginning
+            // of a task and any promises rejecting in prior tasks would have already observed their
+            // rejections as unhandled without the aborted signal
+            delayedAbortStore.renderSignal.aborted = true
+            Promise.reject('after abort + sync')
+            await 1
+            Promise.reject('after abort + micro')
+            await new Promise((r) => setTimeout(r, 10))
+            Promise.reject('delayed abort + task')
+          }
+        )
         Promise.reject('outside store + after')
       }
 
@@ -420,23 +431,26 @@ describe('unhandled-rejection filter', () => {
           type: 'prerender-client',
           renderSignal: { aborted: false },
         }
-        workUnitAsyncStorage.run(delayedAbortStore as WorkUnitStore, async () => {
-          Promise.reject('before abort + sync')
-          await 1
-          Promise.reject('before abort + micro')
-          await new Promise((r) => setTimeout(r, 10))
-          Promise.reject('before abort + task')
-          await new Promise((r) => setImmediate(r))
-          // We mutate this after a task b/c in Next.js this is always done right at the beginning
-          // of a task and any promises rejecting in prior tasks would have already observed their
-          // rejections as unhandled without the aborted signal
-          delayedAbortStore.renderSignal.aborted = true
-          Promise.reject('after abort + sync')
-          await 1
-          Promise.reject('after abort + micro')
-          await new Promise((r) => setTimeout(r, 10))
-          Promise.reject('delayed abort + task')
-        })
+        workUnitAsyncStorage.run(
+          delayedAbortStore as WorkUnitStore,
+          async () => {
+            Promise.reject('before abort + sync')
+            await 1
+            Promise.reject('before abort + micro')
+            await new Promise((r) => setTimeout(r, 10))
+            Promise.reject('before abort + task')
+            await new Promise((r) => setImmediate(r))
+            // We mutate this after a task b/c in Next.js this is always done right at the beginning
+            // of a task and any promises rejecting in prior tasks would have already observed their
+            // rejections as unhandled without the aborted signal
+            delayedAbortStore.renderSignal.aborted = true
+            Promise.reject('after abort + sync')
+            await 1
+            Promise.reject('after abort + micro')
+            await new Promise((r) => setTimeout(r, 10))
+            Promise.reject('delayed abort + task')
+          }
+        )
         Promise.reject('outside store + after')
       }
 
@@ -485,23 +499,26 @@ describe('unhandled-rejection filter', () => {
           type: 'prerender-runtime',
           renderSignal: { aborted: false },
         }
-        workUnitAsyncStorage.run(delayedAbortStore as WorkUnitStore, async () => {
-          Promise.reject('before abort + sync')
-          await 1
-          Promise.reject('before abort + micro')
-          await new Promise((r) => setTimeout(r, 10))
-          Promise.reject('before abort + task')
-          await new Promise((r) => setImmediate(r))
-          // We mutate this after a task b/c in Next.js this is always done right at the beginning
-          // of a task and any promises rejecting in prior tasks would have already observed their
-          // rejections as unhandled without the aborted signal
-          delayedAbortStore.renderSignal.aborted = true
-          Promise.reject('after abort + sync')
-          await 1
-          Promise.reject('after abort + micro')
-          await new Promise((r) => setTimeout(r, 10))
-          Promise.reject('delayed abort + task')
-        })
+        workUnitAsyncStorage.run(
+          delayedAbortStore as WorkUnitStore,
+          async () => {
+            Promise.reject('before abort + sync')
+            await 1
+            Promise.reject('before abort + micro')
+            await new Promise((r) => setTimeout(r, 10))
+            Promise.reject('before abort + task')
+            await new Promise((r) => setImmediate(r))
+            // We mutate this after a task b/c in Next.js this is always done right at the beginning
+            // of a task and any promises rejecting in prior tasks would have already observed their
+            // rejections as unhandled without the aborted signal
+            delayedAbortStore.renderSignal.aborted = true
+            Promise.reject('after abort + sync')
+            await 1
+            Promise.reject('after abort + micro')
+            await new Promise((r) => setTimeout(r, 10))
+            Promise.reject('delayed abort + task')
+          }
+        )
         Promise.reject('outside store + after')
       }
 
@@ -992,11 +1009,14 @@ describe('unhandled-rejection filter', () => {
           reportResult({ type: 'error', message: error.message })
         })
 
-        workUnitAsyncStorage.run({ type: 'request' } as WorkUnitStore, async () => {
-          Promise.reject(new Error('Original error'))
-          await new Promise((r) => setImmediate(r))
-          await new Promise((r) => setTimeout(r, 10))
-        })
+        workUnitAsyncStorage.run(
+          { type: 'request' } as WorkUnitStore,
+          async () => {
+            Promise.reject(new Error('Original error'))
+            await new Promise((r) => setImmediate(r))
+            await new Promise((r) => setTimeout(r, 10))
+          }
+        )
       }
 
       const { messages, exitCode } = await runWorkerCode(testForWorker)
@@ -1026,10 +1046,13 @@ describe('unhandled-rejection filter', () => {
         } = require('next/dist/server/app-render/work-unit-async-storage.external')
 
         // Test non-filtered rejection
-        workUnitAsyncStorage.run({ type: 'request' } as WorkUnitStore, async () => {
-          Promise.reject('passes through')
-          await new Promise((r) => setTimeout(r, 10))
-        })
+        workUnitAsyncStorage.run(
+          { type: 'request' } as WorkUnitStore,
+          async () => {
+            Promise.reject('passes through')
+            await new Promise((r) => setTimeout(r, 10))
+          }
+        )
 
         // Test filtered rejection
         workUnitAsyncStorage.run(
@@ -1071,10 +1094,13 @@ describe('unhandled-rejection filter', () => {
         } = require('next/dist/server/app-render/work-unit-async-storage.external')
 
         // Test non-filtered rejection
-        workUnitAsyncStorage.run({ type: 'request' } as WorkUnitStore, async () => {
-          Promise.reject('passes through')
-          await new Promise((r) => setTimeout(r, 10))
-        })
+        workUnitAsyncStorage.run(
+          { type: 'request' } as WorkUnitStore,
+          async () => {
+            Promise.reject('passes through')
+            await new Promise((r) => setTimeout(r, 10))
+          }
+        )
 
         // Test filtered rejection
         workUnitAsyncStorage.run(

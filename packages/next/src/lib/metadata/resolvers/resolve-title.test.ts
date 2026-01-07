@@ -12,11 +12,15 @@ describe('resolveTitle', () => {
       absolute: 'dash title',
       template: null,
     })
-    expect(resolveTitle({ default: 'title', template: '%s | absolute' }, 'dash %s')).toEqual({
+    expect(
+      resolveTitle({ default: 'title', template: '%s | absolute' }, 'dash %s')
+    ).toEqual({
       absolute: 'dash title',
       template: '%s | absolute',
     })
-    expect(resolveTitle({ default: '', template: '%s | absolute' }, 'fake template')).toEqual({
+    expect(
+      resolveTitle({ default: '', template: '%s | absolute' }, 'fake template')
+    ).toEqual({
       absolute: 'fake template',
       template: '%s | absolute',
     })

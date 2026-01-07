@@ -112,13 +112,19 @@ describe('app-dir action size limit invalid config', () => {
         { request: { method: 'POST', pathname: '/file' } }
       )
       expect(actionResponse.status()).toBe(200)
-      expect(await actionResponse.request().headerValue('content-type')).toStartWith('text/plain')
+      expect(
+        await actionResponse.request().headerValue('content-type')
+      ).toStartWith('text/plain')
 
       if (!isNextDeploy) {
         await retry(() =>
-          expect(logs).toContainEqual(expect.stringContaining(`size = ${accountForOverhead(1)}`))
+          expect(logs).toContainEqual(
+            expect.stringContaining(`size = ${accountForOverhead(1)}`)
+          )
         )
-        expect(logs).not.toContainEqual(expect.stringContaining('Error: Body exceeded 2mb limit'))
+        expect(logs).not.toContainEqual(
+          expect.stringContaining('Error: Body exceeded 2mb limit')
+        )
       }
     })
 
@@ -131,16 +137,24 @@ describe('app-dir action size limit invalid config', () => {
         { request: { method: 'POST', pathname: '/file' } }
       )
       expect(actionResponse.status()).toBe(500) // TODO: 413?
-      expect(await actionResponse.request().headerValue('content-type')).toStartWith('text/plain')
+      expect(
+        await actionResponse.request().headerValue('content-type')
+      ).toStartWith('text/plain')
 
       // The error should have been returned to the client and thrown, triggering the nearest error boundary.
-      expect(await browser.elementByCss('#error').text()).toBe('Something went wrong!')
+      expect(await browser.elementByCss('#error').text()).toBe(
+        'Something went wrong!'
+      )
 
       if (!isNextDeploy) {
         await retry(() => {
-          expect(logs).toContainEqual(expect.stringContaining('Error: Body exceeded 2mb limit'))
           expect(logs).toContainEqual(
-            expect.stringContaining('To configure the body size limit for Server Actions, see')
+            expect.stringContaining('Error: Body exceeded 2mb limit')
+          )
+          expect(logs).toContainEqual(
+            expect.stringContaining(
+              'To configure the body size limit for Server Actions, see'
+            )
           )
         })
         expect(logs).not.toContainEqual(expect.stringMatching(/^size = /))
@@ -162,15 +176,19 @@ describe('app-dir action size limit invalid config', () => {
         { request: { method: 'POST', pathname: '/form' } }
       )
       expect(actionResponse.status()).toBe(200)
-      expect(await actionResponse.request().headerValue('content-type')).toStartWith(
-        'multipart/form-data'
-      )
+      expect(
+        await actionResponse.request().headerValue('content-type')
+      ).toStartWith('multipart/form-data')
 
       if (!isNextDeploy) {
         await retry(() =>
-          expect(logs).toContainEqual(expect.stringContaining(`size = ${accountForOverhead(1)}`))
+          expect(logs).toContainEqual(
+            expect.stringContaining(`size = ${accountForOverhead(1)}`)
+          )
         )
-        expect(logs).not.toContainEqual(expect.stringContaining('Error: Body exceeded 2mb limit'))
+        expect(logs).not.toContainEqual(
+          expect.stringContaining('Error: Body exceeded 2mb limit')
+        )
       }
     })
 
@@ -183,15 +201,19 @@ describe('app-dir action size limit invalid config', () => {
         { request: { method: 'POST', pathname: '/form' } }
       )
       expect(actionResponse.status()).toBe(200)
-      expect(await actionResponse.request().headerValue('content-type')).toStartWith(
-        'multipart/form-data'
-      )
+      expect(
+        await actionResponse.request().headerValue('content-type')
+      ).toStartWith('multipart/form-data')
 
       if (!isNextDeploy) {
         await retry(() =>
-          expect(logs).toContainEqual(expect.stringContaining(`size = ${accountForOverhead(2)}`))
+          expect(logs).toContainEqual(
+            expect.stringContaining(`size = ${accountForOverhead(2)}`)
+          )
         )
-        expect(logs).not.toContainEqual(expect.stringContaining('Error: Body exceeded 2mb limit'))
+        expect(logs).not.toContainEqual(
+          expect.stringContaining('Error: Body exceeded 2mb limit')
+        )
       }
     })
 
@@ -204,18 +226,24 @@ describe('app-dir action size limit invalid config', () => {
         { request: { method: 'POST', pathname: '/form' } }
       )
       expect(actionResponse.status()).toBe(500) // TODO: 413?
-      expect(await actionResponse.request().headerValue('content-type')).toStartWith(
-        'multipart/form-data'
-      )
+      expect(
+        await actionResponse.request().headerValue('content-type')
+      ).toStartWith('multipart/form-data')
 
       // The error should have been returned to the client and thrown, triggering the nearest error boundary.
-      expect(await browser.elementByCss('#error').text()).toBe('Something went wrong!')
+      expect(await browser.elementByCss('#error').text()).toBe(
+        'Something went wrong!'
+      )
 
       if (!isNextDeploy) {
         await retry(() => {
-          expect(logs).toContainEqual(expect.stringContaining('Error: Body exceeded 2mb limit'))
           expect(logs).toContainEqual(
-            expect.stringContaining('To configure the body size limit for Server Actions, see')
+            expect.stringContaining('Error: Body exceeded 2mb limit')
+          )
+          expect(logs).toContainEqual(
+            expect.stringContaining(
+              'To configure the body size limit for Server Actions, see'
+            )
           )
         })
         expect(logs).not.toContainEqual(expect.stringMatching(/^size = /))
@@ -229,7 +257,9 @@ async function patchFileWithCleanup(
   filename: Parameters<NextInstance['patchFile']>[0],
   contents: Parameters<NextInstance['patchFile']>[1]
 ): Promise<AsyncDisposable> {
-  const originalFile = (await next.hasFile(filename)) ? await next.readFile(filename) : null
+  const originalFile = (await next.hasFile(filename))
+    ? await next.readFile(filename)
+    : null
   await next.patchFile(filename, contents)
   return {
     async [Symbol.asyncDispose]() {

@@ -1,9 +1,13 @@
 import { bold, cyan, red, yellow } from '../../../../lib/picocolors'
 import { SimpleWebpackError } from './simpleWebpackError'
 
-const regexCssError = /^(?:CssSyntaxError|SyntaxError)\n\n\((\d+):(\d*)\) (.*)$/s
+const regexCssError =
+  /^(?:CssSyntaxError|SyntaxError)\n\n\((\d+):(\d*)\) (.*)$/s
 
-export function getCssError(fileName: string, err: Error): SimpleWebpackError | false {
+export function getCssError(
+  fileName: string,
+  err: Error
+): SimpleWebpackError | false {
   if (
     !(
       (err.name === 'CssSyntaxError' || err.name === 'SyntaxError') &&

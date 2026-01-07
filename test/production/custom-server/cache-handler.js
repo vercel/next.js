@@ -2,7 +2,8 @@
 
 const { requestIdStorage } = require('./als')
 
-const defaultCacheHandler = require('next/dist/server/lib/cache-handlers/default.external').default
+const defaultCacheHandler =
+  require('next/dist/server/lib/cache-handlers/default.external').default
 
 /**
  * @type {import('next/dist/server/lib/cache-handlers/types').CacheHandler}

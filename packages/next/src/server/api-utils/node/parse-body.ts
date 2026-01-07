@@ -26,7 +26,10 @@ function parseJson(str: string): object {
  * Parse incoming message like `json` or `urlencoded`
  * @param req request object
  */
-export async function parseBody(req: IncomingMessage, limit: SizeLimit): Promise<any> {
+export async function parseBody(
+  req: IncomingMessage,
+  limit: SizeLimit
+): Promise<any> {
   let contentType
   try {
     contentType = parse(req.headers['content-type'] || 'text/plain')

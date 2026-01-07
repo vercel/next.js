@@ -20,7 +20,11 @@ import {
   TelemetryPlugin,
   type TelemetryPluginState,
 } from '../webpack/plugins/telemetry-plugin/telemetry-plugin'
-import { NextBuildContext, resumePluginState, getPluginState } from '../build-context'
+import {
+  NextBuildContext,
+  resumePluginState,
+  getPluginState,
+} from '../build-context'
 import { createEntrypoints } from '../entries'
 import loadConfig from '../../server/config'
 import {
@@ -59,7 +63,9 @@ function isTelemetryPlugin(plugin: unknown): plugin is TelemetryPlugin {
   return plugin instanceof TelemetryPlugin
 }
 
-function isTraceEntryPointsPlugin(plugin: unknown): plugin is TraceEntryPointsPlugin {
+function isTraceEntryPointsPlugin(
+  plugin: unknown
+): plugin is TraceEntryPointsPlugin {
   return plugin instanceof TraceEntryPointsPlugin
 }
 
@@ -83,23 +89,25 @@ export async function webpackBuildImpl(
   process.env.NEXT_COMPILER_NAME = compilerName || 'server'
 
   const runWebpackSpan = nextBuildSpan.traceChild('run-webpack-compiler')
-  const entrypoints = await nextBuildSpan.traceChild('create-entrypoints').traceAsyncFn(() =>
-    createEntrypoints({
-      buildId: NextBuildContext.buildId!,
-      config: config,
-      envFiles: NextBuildContext.loadedEnvFiles!,
-      isDev: false,
-      rootDir: dir,
-      pageExtensions: config.pageExtensions!,
-      pagesDir: NextBuildContext.pagesDir!,
-      appDir: NextBuildContext.appDir!,
-      pages: NextBuildContext.mappedPages!,
-      appPaths: NextBuildContext.mappedAppPages!,
-      previewMode: NextBuildContext.previewProps!,
-      rootPaths: NextBuildContext.mappedRootPaths!,
-      hasInstrumentationHook: NextBuildContext.hasInstrumentationHook!,
-    })
-  )
+  const entrypoints = await nextBuildSpan
+    .traceChild('create-entrypoints')
+    .traceAsyncFn(() =>
+      createEntrypoints({
+        buildId: NextBuildContext.buildId!,
+        config: config,
+        envFiles: NextBuildContext.loadedEnvFiles!,
+        isDev: false,
+        rootDir: dir,
+        pageExtensions: config.pageExtensions!,
+        pagesDir: NextBuildContext.pagesDir!,
+        appDir: NextBuildContext.appDir!,
+        pages: NextBuildContext.mappedPages!,
+        appPaths: NextBuildContext.mappedAppPages!,
+        previewMode: NextBuildContext.previewProps!,
+        rootPaths: NextBuildContext.mappedRootPaths!,
+        hasInstrumentationHook: NextBuildContext.hasInstrumentationHook!,
+      })
+    )
 
   const commonWebpackOptions = {
     isServer: false,
@@ -163,7 +171,8 @@ export async function webpackBuildImpl(
   if (
     clientConfig.optimization &&
     (clientConfig.optimization.minimize !== true ||
-      (clientConfig.optimization.minimizer && clientConfig.optimization.minimizer.length === 0))
+      (clientConfig.optimization.minimizer &&
+        clientConfig.optimization.minimizer.length === 0))
   ) {
     Log.warn(
       `Production code optimization has been disabled in your project. Read more: https://nextjs.org/docs/messages/minification-disabled`
@@ -186,8 +195,11 @@ export async function webpackBuildImpl(
 
     // During the server compilations, entries of client components will be
     // injected to this set and then will be consumed by the client compiler.
-    let serverResult: UnwrapPromise<ReturnType<typeof runCompiler>>[0] | null = null
-    let edgeServerResult: UnwrapPromise<ReturnType<typeof runCompiler>>[0] | null = null
+    let serverResult: UnwrapPromise<ReturnType<typeof runCompiler>>[0] | null =
+      null
+    let edgeServerResult:
+      | UnwrapPromise<ReturnType<typeof runCompiler>>[0]
+      | null = null
 
     let inputFileSystem: webpack.Compiler['inputFileSystem'] | undefined
 
@@ -262,18 +274,24 @@ export async function webpackBuildImpl(
         ...(serverResult?.errors ?? []),
         ...(edgeServerResult?.errors ?? []),
       ].filter(nonNullable),
-      stats: [clientResult?.stats, serverResult?.stats, edgeServerResult?.stats],
+      stats: [
+        clientResult?.stats,
+        serverResult?.stats,
+        edgeServerResult?.stats,
+      ],
     }
   })
   result = nextBuildSpan
     .traceChild('format-webpack-messages')
     .traceFn(() => formatWebpackMessages(result, true)) as CompilerResult
 
-  const telemetryPlugin = (clientConfig as webpack.Configuration).plugins?.find(isTelemetryPlugin)
-
-  const traceEntryPointsPlugin = (serverConfig as webpack.Configuration).plugins?.find(
-    isTraceEntryPointsPlugin
+  const telemetryPlugin = (clientConfig as webpack.Configuration).plugins?.find(
+    isTelemetryPlugin
   )
+
+  const traceEntryPointsPlugin = (
+    serverConfig as webpack.Configuration
+  ).plugins?.find(isTraceEntryPointsPlugin)
 
   const webpackBuildEnd = process.hrtime(webpackBuildStart)
 
@@ -302,7 +320,10 @@ export async function webpackBuildImpl(
     console.error(error)
     console.error()
 
-    if (error.indexOf('private-next-pages') > -1 || error.indexOf('__next_polyfill__') > -1) {
+    if (
+      error.indexOf('private-next-pages') > -1 ||
+      error.indexOf('__next_polyfill__') > -1
+    ) {
       const err = new Error(
         'webpack config.resolve.alias was incorrectly overridden. https://nextjs.org/docs/messages/invalid-resolve-alias'
       ) as NextError
@@ -332,7 +353,8 @@ export async function webpackBuildImpl(
       pluginState: getPluginState(),
       telemetryState: {
         usages: telemetryPlugin?.usages() || [],
-        packagesUsedInServerSideProps: telemetryPlugin?.packagesUsedInServerSideProps() || [],
+        packagesUsedInServerSideProps:
+          telemetryPlugin?.packagesUsedInServerSideProps() || [],
         useCacheTracker: telemetryPlugin?.getUseCacheTracker() || {},
       },
     }
@@ -373,7 +395,9 @@ export async function workerMain(workerData: {
     }
   ))
   await installBindings(config.experimental?.useWasmBinary)
-  NextBuildContext.nextBuildSpan = trace(`worker-main-${workerData.compilerName}`)
+  NextBuildContext.nextBuildSpan = trace(
+    `worker-main-${workerData.compilerName}`
+  )
 
   const result = await webpackBuildImpl(workerData.compilerName)
   const { entriesTrace, chunksTrace } = result.buildTraceContext ?? {}

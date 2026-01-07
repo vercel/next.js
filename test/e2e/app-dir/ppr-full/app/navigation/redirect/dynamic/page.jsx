@@ -10,7 +10,9 @@ const Redirect = () => {
 export default function RedirectPage() {
   return (
     <>
-      <Suspense fallback={<Dynamic pathname="/navigation/redirect/dynamic" fallback />}>
+      <Suspense
+        fallback={<Dynamic pathname="/navigation/redirect/dynamic" fallback />}
+      >
         <Dynamic pathname="/navigation/redirect/dynamic" />
       </Suspense>
       <Redirect />

@@ -89,7 +89,9 @@ describe('app dir - draft mode', () => {
 
     it('should not perform full page navigation on router.refresh()', async () => {
       const to = encodeURIComponent('/generate/foo')
-      const browser = await next.browser(`${basePath}enable-and-redirect?to=${to}`)
+      const browser = await next.browser(
+        `${basePath}enable-and-redirect?to=${to}`
+      )
       await browser.eval('window._test = 42')
       await browser.elementById('refresh').click()
 

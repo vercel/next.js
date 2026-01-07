@@ -29,8 +29,12 @@ describe('custom-app-server-action-redirect', () => {
 
     await browser.elementById('submit-server-action-redirect').click()
 
-    expect(await browser.waitForElementByCss('#another').text()).toBe('Another Page')
-    expect(await browser.url()).toBe(`http://localhost:${next.appPort}/base/another`)
+    expect(await browser.waitForElementByCss('#another').text()).toBe(
+      'Another Page'
+    )
+    expect(await browser.url()).toBe(
+      `http://localhost:${next.appPort}/base/another`
+    )
 
     // Count should still be 2 as the browser should not have reloaded the page.
     expect(await getCount()).toBe('Count: 2')
@@ -41,9 +45,19 @@ describe('custom-app-server-action-redirect', () => {
 
     await browser.elementById('submit-server-action-redirect').click()
 
-    expect(await browser.waitForElementByCss('#another').text()).toBe('Another Page')
-    expect(await browser.url()).toBe(`http://localhost:${next.appPort}/base/another`)
-    await check(() => browser.eval('document.cookie'), /custom-server-test-cookie/)
-    await check(() => browser.eval('document.cookie'), /custom-server-action-test-cookie/)
+    expect(await browser.waitForElementByCss('#another').text()).toBe(
+      'Another Page'
+    )
+    expect(await browser.url()).toBe(
+      `http://localhost:${next.appPort}/base/another`
+    )
+    await check(
+      () => browser.eval('document.cookie'),
+      /custom-server-test-cookie/
+    )
+    await check(
+      () => browser.eval('document.cookie'),
+      /custom-server-action-test-cookie/
+    )
   })
 })

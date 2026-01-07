@@ -13,7 +13,11 @@ import path from '../isomorphic/path'
  * @param normalizedPagePath Normalized page path (it will denormalize).
  * @param extensions Allowed extensions.
  */
-export function getPagePaths(normalizedPagePath: string, extensions: string[], isAppDir: boolean) {
+export function getPagePaths(
+  normalizedPagePath: string,
+  extensions: string[],
+  isAppDir: boolean
+) {
   const page = denormalizePagePath(normalizedPagePath)
 
   let prefixes: string[]

@@ -27,7 +27,8 @@ const aggregate = (event) => {
       event.mergedChildren = 0
       for (const e of queue) {
         if (!e.name.startsWith('build-module-')) {
-          event.childrenTimings[e.name] = (event.childrenTimings[e.name] || 0) + e.duration
+          event.childrenTimings[e.name] =
+            (event.childrenTimings[e.name] || 0) + e.duration
           continue
         }
         const pkgName = getPackageName(e.tags.name)
@@ -44,8 +45,13 @@ const aggregate = (event) => {
   if (event.children) {
     event.children.forEach(aggregate)
     event.children.sort((a, b) => a.timestamp - b.timestamp)
-    event.range = Math.max(event.range, ...event.children.map((c) => c.range || event.timestamp))
-    event.total += isBuildModule ? sum(...event.children.map((c) => c.total || 0)) : 0
+    event.range = Math.max(
+      event.range,
+      ...event.children.map((c) => c.range || event.timestamp)
+    )
+    event.total += isBuildModule
+      ? sum(...event.children.map((c) => c.total || 0))
+      : 0
   }
 }
 
@@ -75,7 +81,8 @@ const formatTimes = (event) => {
   const additionalInfo = []
   if (event.total && event.total !== range)
     additionalInfo.push(`total ${formatDuration(event.total)}`)
-  if (event.duration !== range) additionalInfo.push(`self ${formatDuration(event.duration, bold)}`)
+  if (event.duration !== range)
+    additionalInfo.push(`self ${formatDuration(event.duration, bold)}`)
   return `${formatDuration(range, additionalInfo.length === 0)}${
     additionalInfo.length ? ` (${additionalInfo.join(', ')})` : ''
   }`
@@ -88,14 +95,19 @@ const formatFilename = (filename) => {
 const cleanFilename = (filename) => {
   if (filename.includes('&absolutePagePath=')) {
     filename =
-      'page ' + decodeURIComponent(filename.replace(/.+&absolutePagePath=/, '').slice(0, -1))
+      'page ' +
+      decodeURIComponent(
+        filename.replace(/.+&absolutePagePath=/, '').slice(0, -1)
+      )
   }
   filename = filename.replace(/.+!(?!$)/, '')
   return filename
 }
 
 const getPackageName = (filename) => {
-  const match = /.+[\\/]node_modules[\\/]((?:@[^\\/]+[\\/])?[^\\/]+)/.exec(cleanFilename(filename))
+  const match = /.+[\\/]node_modules[\\/]((?:@[^\\/]+[\\/])?[^\\/]+)/.exec(
+    cleanFilename(filename)
+  )
   return match && match[1]
 }
 

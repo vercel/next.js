@@ -21,7 +21,9 @@ export default async function Page() {
     <div>
       <p id="a">{a}</p>
       <p id="b">{b}</p>
-      <Link href="/revalidate-and-redirect/redirect">Go to /revalidate-and-redirect/redirect</Link>
+      <Link href="/revalidate-and-redirect/redirect">
+        Go to /revalidate-and-redirect/redirect
+      </Link>
     </div>
   )
 }

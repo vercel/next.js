@@ -146,11 +146,16 @@ function getBuildOutput(cliOutput: string): string {
   for (const line of cliOutput.split('\n')) {
     if (!skipLines) {
       if (line.includes('__next_edge_ssr_entry__')) {
-        lines.push('// TODO(veil): Fix broken import trace for Webpack loader resource.')
+        lines.push(
+          '// TODO(veil): Fix broken import trace for Webpack loader resource.'
+        )
       } else {
         lines.push(stripAnsi(line))
       }
-    } else if (line.includes('Build error occurred') || line.includes('Failed to compile')) {
+    } else if (
+      line.includes('Build error occurred') ||
+      line.includes('Failed to compile')
+    ) {
       skipLines = false
     }
   }

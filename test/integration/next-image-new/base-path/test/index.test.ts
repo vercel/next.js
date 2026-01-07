@@ -59,7 +59,9 @@ function runTests(mode) {
       browser = await webdriver(appPort, '/docs')
 
       await check(async () => {
-        const result = await browser.eval(`document.getElementById('basic-image').naturalWidth`)
+        const result = await browser.eval(
+          `document.getElementById('basic-image').naturalWidth`
+        )
 
         if (result === 0) {
           throw new Error('Incorrectly loaded image')
@@ -86,11 +88,17 @@ function runTests(mode) {
     try {
       browser = await webdriver(appPort, '/docs/update')
 
-      await check(() => browser.eval(`document.getElementById("update-image").src`), /test\.jpg/)
+      await check(
+        () => browser.eval(`document.getElementById("update-image").src`),
+        /test\.jpg/
+      )
 
       await browser.eval(`document.getElementById("toggle").click()`)
 
-      await check(() => browser.eval(`document.getElementById("update-image").src`), /test\.png/)
+      await check(
+        () => browser.eval(`document.getElementById("update-image").src`),
+        /test\.png/
+      )
     } finally {
       if (browser) {
         await browser.close()
@@ -103,7 +111,9 @@ function runTests(mode) {
     try {
       browser = await webdriver(appPort, '/docs/flex')
       await check(async () => {
-        const result = await browser.eval(`document.getElementById('basic-image').width`)
+        const result = await browser.eval(
+          `document.getElementById('basic-image').width`
+        )
         if (result === 0) {
           throw new Error('Incorrectly loaded image')
         }
@@ -138,7 +148,10 @@ function runTests(mode) {
     })
 
     it('should show invalid src error when protocol-relative', async () => {
-      const browser = await webdriver(appPort, '/docs/invalid-src-proto-relative')
+      const browser = await webdriver(
+        appPort,
+        '/docs/invalid-src-proto-relative'
+      )
 
       await waitForRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
@@ -181,27 +194,33 @@ function runTests(mode) {
 }
 
 describe('Image Component basePath Tests', () => {
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-    })
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
+      afterAll(async () => {
+        await killApp(app)
+      })
 
-    runTests('dev')
-  })
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-    })
+      runTests('dev')
+    }
+  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(async () => {
+        await killApp(app)
+      })
 
-    runTests('server')
-  })
+      runTests('server')
+    }
+  )
 })

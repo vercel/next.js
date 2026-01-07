@@ -25,7 +25,10 @@ export type OpaqueFallbackRouteParamValue = [
  * An opaque fallback route params object. This is used to store the fallback
  * route params in a way that is not easily accessible to the client.
  */
-export type OpaqueFallbackRouteParams = ReadonlyMap<string, OpaqueFallbackRouteParamValue>
+export type OpaqueFallbackRouteParams = ReadonlyMap<
+  string,
+  OpaqueFallbackRouteParamValue
+>
 
 /**
  * The entries of the opaque fallback route params object.
@@ -34,7 +37,9 @@ export type OpaqueFallbackRouteParams = ReadonlyMap<string, OpaqueFallbackRouteP
  * @param value the value of the fallback route param
  */
 export type OpaqueFallbackRouteParamEntries =
-  ReturnType<OpaqueFallbackRouteParams['entries']> extends MapIterator<[infer K, infer V]>
+  ReturnType<OpaqueFallbackRouteParams['entries']> extends MapIterator<
+    [infer K, infer V]
+  >
     ? ReadonlyArray<[K, V]>
     : never
 
@@ -60,7 +65,10 @@ export function createOpaqueFallbackRouteParams(
   // Generate a unique key for the fallback route param, if this key is found
   // in the static output, it represents a bug in cache components.
   for (const { paramName, paramType } of fallbackRouteParams) {
-    keys.set(paramName, [`%%drp:${paramName}:${uniqueID}%%`, dynamicParamTypes[paramType]])
+    keys.set(paramName, [
+      `%%drp:${paramName}:${uniqueID}%%`,
+      dynamicParamTypes[paramType],
+    ])
   }
 
   return keys
@@ -75,24 +83,27 @@ export function createOpaqueFallbackRouteParams(
  * @param routeModule the route module
  * @returns the opaque fallback route params
  */
-export function getFallbackRouteParams(page: string, routeModule: AppPageRouteModule) {
+export function getFallbackRouteParams(
+  page: string,
+  routeModule: AppPageRouteModule
+) {
   const route = parseAppRoute(page, true)
 
   // Extract the pathname-contributing segments from the loader tree. This
   // mirrors the logic in buildAppStaticPaths where we determine which segments
   // actually contribute to the pathname.
-  const { pathnameRouteParamSegments, params } = extractPathnameRouteParamSegmentsFromLoaderTree(
-    routeModule.userland.loaderTree,
-    route
-  )
+  const { pathnameRouteParamSegments, params } =
+    extractPathnameRouteParamSegmentsFromLoaderTree(
+      routeModule.userland.loaderTree,
+      route
+    )
 
   // Create fallback route params for the pathname segments.
-  const fallbackRouteParams: FallbackRouteParam[] = pathnameRouteParamSegments.map(
-    ({ paramName, paramType }) => ({
+  const fallbackRouteParams: FallbackRouteParam[] =
+    pathnameRouteParamSegments.map(({ paramName, paramType }) => ({
       paramName,
       paramType,
-    })
-  )
+    }))
 
   // Resolve route params from the loader tree. This mutates the
   // fallbackRouteParams array to add any route params that are

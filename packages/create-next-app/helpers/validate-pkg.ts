@@ -18,6 +18,9 @@ export function validateNpmName(name: string): ValidateNpmNameResult {
 
   return {
     valid: false,
-    problems: [...(nameValidation.errors || []), ...(nameValidation.warnings || [])],
+    problems: [
+      ...(nameValidation.errors || []),
+      ...(nameValidation.warnings || []),
+    ],
   }
 }

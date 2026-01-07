@@ -27,7 +27,10 @@ export type { ResponseCookies }
 // The `cookies()` API is a mix of request and response cookies. For `.get()` methods,
 // we want to return the request cookie if it exists. For mutative methods like `.set()`,
 // we want to return the response cookie.
-export type ReadonlyRequestCookies = Omit<RequestCookies, 'set' | 'clear' | 'delete'> &
+export type ReadonlyRequestCookies = Omit<
+  RequestCookies,
+  'set' | 'clear' | 'delete'
+> &
   Pick<ResponseCookies, 'set' | 'delete'>
 
 export class RequestCookiesAdapter {
@@ -49,7 +52,9 @@ export class RequestCookiesAdapter {
 
 const SYMBOL_MODIFY_COOKIE_VALUES = Symbol.for('next.mutated.cookies')
 
-export function getModifiedCookieValues(cookies: ResponseCookies): ResponseCookie[] {
+export function getModifiedCookieValues(
+  cookies: ResponseCookies
+): ResponseCookie[] {
   const modified: ResponseCookie[] | undefined = (cookies as unknown as any)[
     SYMBOL_MODIFY_COOKIE_VALUES
   ]
@@ -64,7 +69,10 @@ type SetCookieArgs =
   | [key: string, value: string, cookie?: Partial<ResponseCookie>]
   | [options: ResponseCookie]
 
-export function appendMutableCookies(headers: Headers, mutableCookies: ResponseCookies): boolean {
+export function appendMutableCookies(
+  headers: Headers,
+  mutableCookies: ResponseCookies
+): boolean {
   const modifiedCookieValues = getModifiedCookieValues(mutableCookies)
   if (modifiedCookieValues.length === 0) {
     return false
@@ -89,7 +97,9 @@ export function appendMutableCookies(headers: Headers, mutableCookies: ResponseC
   return true
 }
 
-type ResponseCookie = NonNullable<ReturnType<InstanceType<typeof ResponseCookies>['get']>>
+type ResponseCookie = NonNullable<
+  ReturnType<InstanceType<typeof ResponseCookies>['get']>
+>
 
 export class MutableRequestCookiesAdapter {
   public static wrap(
@@ -135,7 +145,9 @@ export class MutableRequestCookiesAdapter {
           // headers have been set.
           case 'delete':
             return function (...args: [string] | [ResponseCookie]) {
-              modifiedCookies.add(typeof args[0] === 'string' ? args[0] : args[0].name)
+              modifiedCookies.add(
+                typeof args[0] === 'string' ? args[0] : args[0].name
+              )
               try {
                 target.delete(...args)
                 return wrappedCookies
@@ -145,7 +157,9 @@ export class MutableRequestCookiesAdapter {
             }
           case 'set':
             return function (...args: SetCookieArgs) {
-              modifiedCookies.add(typeof args[0] === 'string' ? args[0] : args[0].name)
+              modifiedCookies.add(
+                typeof args[0] === 'string' ? args[0] : args[0].name
+              )
               try {
                 target.set(...args)
                 return wrappedCookies
@@ -164,7 +178,9 @@ export class MutableRequestCookiesAdapter {
   }
 }
 
-export function createCookiesWithMutableAccessCheck(requestStore: RequestStore): ResponseCookies {
+export function createCookiesWithMutableAccessCheck(
+  requestStore: RequestStore
+): ResponseCookies {
   const wrappedCookies = new Proxy(requestStore.mutableCookies, {
     get(target, prop, receiver) {
       switch (prop) {
@@ -200,14 +216,19 @@ export function areCookiesMutableInCurrentPhase(requestStore: RequestStore) {
  *   'render' -> 'after'
  *   'action' -> 'render'
  * */
-function ensureCookiesAreStillMutable(requestStore: RequestStore, _callingExpression: string) {
+function ensureCookiesAreStillMutable(
+  requestStore: RequestStore,
+  _callingExpression: string
+) {
   if (!areCookiesMutableInCurrentPhase(requestStore)) {
     // TODO: maybe we can give a more precise error message based on callingExpression?
     throw new ReadonlyRequestCookiesError()
   }
 }
 
-export function responseCookiesToRequestCookies(responseCookies: ResponseCookies): RequestCookies {
+export function responseCookiesToRequestCookies(
+  responseCookies: ResponseCookies
+): RequestCookies {
   const requestCookies = new RequestCookies(new Headers())
   for (const cookie of responseCookies.getAll()) {
     requestCookies.set(cookie)

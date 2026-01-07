@@ -49,7 +49,9 @@ const getDerivedTags = (pathname: string): string[] => {
  * Creates a map with lazy results that fetch the expiration value for the given
  * tags and respective cache kind when they're awaited for the first time.
  */
-function createTagsExpirationsByCacheKind(tags: string[]): Map<string, LazyResult<number>> {
+function createTagsExpirationsByCacheKind(
+  tags: string[]
+): Map<string, LazyResult<number>> {
   const expirationsByCacheKind = new Map<string, LazyResult<number>>()
   const cacheHandlers = getCacheHandlerEntries()
 
@@ -86,7 +88,10 @@ export async function getImplicitTags(
 
   // Add the tags from the pathname. If the route has unknown params, we don't
   // want to add the pathname as a tag, as it will be invalid.
-  if (url.pathname && (!fallbackRouteParams || fallbackRouteParams.size === 0)) {
+  if (
+    url.pathname &&
+    (!fallbackRouteParams || fallbackRouteParams.size === 0)
+  ) {
     const tag = `${NEXT_CACHE_IMPLICIT_TAG_ID}${url.pathname}`
     tags.add(tag)
   }

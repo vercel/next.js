@@ -13,8 +13,8 @@ export default async function Layout({ children }) {
         <h2>Shared layout</h2>
         <DebugRenderKind />
         <p id="static-content-layout">
-          This shared layout uses cookies and no uncached IO, so it should be completely
-          runtime-prefetchable.
+          This shared layout uses cookies and no uncached IO, so it should be
+          completely runtime-prefetchable.
         </p>
         <Suspense fallback="Loading ...">
           <RuntimePrefetchable />

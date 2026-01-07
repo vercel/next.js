@@ -22,8 +22,12 @@ describe('Client navigation with onClick action', () => {
     await browser.elementByCss('#on-click-link').click()
 
     await retry(async () => {
-      const countQueryAfterClicked = await browser.elementByCss('#query-count').text()
-      const countStateAfterClicked = await browser.elementByCss('#state-count').text()
+      const countQueryAfterClicked = await browser
+        .elementByCss('#query-count')
+        .text()
+      const countStateAfterClicked = await browser
+        .elementByCss('#state-count')
+        .text()
       expect(countQueryAfterClicked).toBe('QUERY COUNT: 1')
       expect(countStateAfterClicked).toBe('STATE COUNT: 1')
     })
@@ -39,8 +43,12 @@ describe('Client navigation with onClick action', () => {
     await browser.elementByCss('#on-click-link-prevent-default').click()
 
     await retry(async () => {
-      const countQueryAfterClicked = await browser.elementByCss('#query-count').text()
-      const countStateAfterClicked = await browser.elementByCss('#state-count').text()
+      const countQueryAfterClicked = await browser
+        .elementByCss('#query-count')
+        .text()
+      const countStateAfterClicked = await browser
+        .elementByCss('#state-count')
+        .text()
       expect(countQueryAfterClicked).toBe('QUERY COUNT: 0')
       expect(countStateAfterClicked).toBe('STATE COUNT: 1')
     })
@@ -48,8 +56,12 @@ describe('Client navigation with onClick action', () => {
     await browser.elementByCss('#on-click-link').click()
 
     await retry(async () => {
-      const countQueryAfterClickedAgain = await browser.elementByCss('#query-count').text()
-      const countStateAfterClickedAgain = await browser.elementByCss('#state-count').text()
+      const countQueryAfterClickedAgain = await browser
+        .elementByCss('#query-count')
+        .text()
+      const countStateAfterClickedAgain = await browser
+        .elementByCss('#state-count')
+        .text()
       expect(countQueryAfterClickedAgain).toBe('QUERY COUNT: 1')
       expect(countStateAfterClickedAgain).toBe('STATE COUNT: 2')
     })
@@ -61,15 +73,21 @@ describe('Client navigation with onClick action', () => {
     await browser.elementByCss('#on-click-link').click()
 
     await retry(async () => {
-      const defaultCountQuery = await browser.elementByCss('#query-count').text()
+      const defaultCountQuery = await browser
+        .elementByCss('#query-count')
+        .text()
       expect(defaultCountQuery).toBe('QUERY COUNT: 1')
     })
 
     await browser.elementByCss('#on-click-link').click()
 
     await retry(async () => {
-      const countQueryAfterClicked = await browser.elementByCss('#query-count').text()
-      const countStateAfterClicked = await browser.elementByCss('#state-count').text()
+      const countQueryAfterClicked = await browser
+        .elementByCss('#query-count')
+        .text()
+      const countStateAfterClicked = await browser
+        .elementByCss('#state-count')
+        .text()
       expect(countQueryAfterClicked).toBe('QUERY COUNT: 2')
       expect(countStateAfterClicked).toBe('STATE COUNT: 1')
     })

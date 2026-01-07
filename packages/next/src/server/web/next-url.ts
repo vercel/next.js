@@ -46,7 +46,11 @@ export class NextURL {
 
   constructor(input: string | URL, base?: string | URL, opts?: Options)
   constructor(input: string | URL, opts?: Options)
-  constructor(input: string | URL, baseOrOpts?: string | URL | Options, opts?: Options) {
+  constructor(
+    input: string | URL,
+    baseOrOpts?: string | URL | Options,
+    opts?: Options
+  ) {
     let base: undefined | string | URL
     let options: Options
 
@@ -76,10 +80,16 @@ export class NextURL {
       i18nProvider: this[Internal].options.i18nProvider,
     })
 
-    const hostname = getHostname(this[Internal].url, this[Internal].options.headers)
+    const hostname = getHostname(
+      this[Internal].url,
+      this[Internal].options.headers
+    )
     this[Internal].domainLocale = this[Internal].options.i18nProvider
       ? this[Internal].options.i18nProvider.detectDomainLocale(hostname)
-      : detectDomainLocale(this[Internal].options.nextConfig?.i18n?.domains, hostname)
+      : detectDomainLocale(
+          this[Internal].options.nextConfig?.i18n?.domains,
+          hostname
+        )
 
     const defaultLocale =
       this[Internal].domainLocale?.defaultLocale ||
@@ -97,7 +107,9 @@ export class NextURL {
     return formatNextPathnameInfo({
       basePath: this[Internal].basePath,
       buildId: this[Internal].buildId,
-      defaultLocale: !this[Internal].options.forceLocale ? this[Internal].defaultLocale : undefined,
+      defaultLocale: !this[Internal].options.forceLocale
+        ? this[Internal].defaultLocale
+        : undefined,
       locale: this[Internal].locale,
       pathname: this[Internal].url.pathname,
       trailingSlash: this[Internal].trailingSlash,
@@ -125,7 +137,9 @@ export class NextURL {
       !this[Internal].locale ||
       !this[Internal].options.nextConfig?.i18n?.locales.includes(locale)
     ) {
-      throw new TypeError(`The NextURL configuration includes no locale "${locale}"`)
+      throw new TypeError(
+        `The NextURL configuration includes no locale "${locale}"`
+      )
     }
 
     this[Internal].locale = locale

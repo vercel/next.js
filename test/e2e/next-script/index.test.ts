@@ -341,7 +341,9 @@ describe('empty strategy in document body', () => {
             const processedWorkerScripts = await browser.eval(
               `document.querySelectorAll('script[type="text/partytown-x"]').length`
             )
-            return processedWorkerScripts > 0 ? 'success' : processedWorkerScripts
+            return processedWorkerScripts > 0
+              ? 'success'
+              : processedWorkerScripts
           }, 'success')
         } finally {
           if (browser) await browser.close()

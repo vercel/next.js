@@ -17,11 +17,14 @@ if (typeof window !== 'undefined') {
   }
 }
 
-const BEFORE_HYDRATION = typeof document !== 'undefined' && document.getElementById('foo').innerHTML
+const BEFORE_HYDRATION =
+  typeof document !== 'undefined' && document.getElementById('foo').innerHTML
 
 const Index = () => {
   const [firstRender, setFirstRender] = useState('the-server-value')
-  const [beforeHydration, setBeforeHydration] = useState('the-second-server-value')
+  const [beforeHydration, setBeforeHydration] = useState(
+    'the-second-server-value'
+  )
   useEffect(() => {
     setFirstRender(document.getElementById('foo').innerHTML)
     setBeforeHydration(BEFORE_HYDRATION)

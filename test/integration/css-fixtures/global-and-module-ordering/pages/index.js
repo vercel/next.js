@@ -7,7 +7,10 @@ export default function Home() {
       <div id="yellowText" className={`${styles1.textModule} textGlobal`}>
         This text should be yellow.
       </div>
-      <div id="blueText" className={`${styles1.textModule} ${styles2.textModule} textGlobal`}>
+      <div
+        id="blueText"
+        className={`${styles1.textModule} ${styles2.textModule} textGlobal`}
+      >
         This text should be blue.
       </div>
     </>

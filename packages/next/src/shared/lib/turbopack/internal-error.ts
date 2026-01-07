@@ -32,9 +32,12 @@ export function throwTurbopackInternalError(
 ): never {
   if (conversionError != null) {
     // Somehow napi failed to convert `opts` to a JS object??? Just give up and throw that instead.
-    throw new Error('NAPI type conversion error in throwTurbopackInternalError', {
-      cause: conversionError,
-    })
+    throw new Error(
+      'NAPI type conversion error in throwTurbopackInternalError',
+      {
+        cause: conversionError,
+      }
+    )
   }
   const err = new TurbopackInternalError(opts)
   const telemetry = traceGlobals.get('telemetry')

@@ -1,4 +1,7 @@
-import { useSelectedLayoutSegment, useSelectedLayoutSegments } from 'next/navigation'
+import {
+  useSelectedLayoutSegment,
+  useSelectedLayoutSegments,
+} from 'next/navigation'
 
 export default function Page() {
   useSelectedLayoutSegment()

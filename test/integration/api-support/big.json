@@ -18,7 +18,15 @@
     "registered": "2014-08-03T08:29:11 -02:00",
     "latitude": -66.249842,
     "longitude": 51.494405,
-    "tags": ["culpa", "aliquip", "excepteur", "consectetur", "ipsum", "Lorem", "fugiat"],
+    "tags": [
+      "culpa",
+      "aliquip",
+      "excepteur",
+      "consectetur",
+      "ipsum",
+      "Lorem",
+      "fugiat"
+    ],
     "friends": [
       {
         "id": 0,
@@ -88,7 +96,15 @@
     "registered": "2015-06-16T01:07:34 -02:00",
     "latitude": 17.801292,
     "longitude": 103.135113,
-    "tags": ["cillum", "aliqua", "sit", "consectetur", "incididunt", "amet", "occaecat"],
+    "tags": [
+      "cillum",
+      "aliqua",
+      "sit",
+      "consectetur",
+      "incididunt",
+      "amet",
+      "occaecat"
+    ],
     "friends": [
       {
         "id": 0,
@@ -123,7 +139,15 @@
     "registered": "2014-07-22T12:17:44 -02:00",
     "latitude": 12.546908,
     "longitude": -164.480246,
-    "tags": ["proident", "quis", "incididunt", "officia", "fugiat", "pariatur", "velit"],
+    "tags": [
+      "proident",
+      "quis",
+      "incididunt",
+      "officia",
+      "fugiat",
+      "pariatur",
+      "velit"
+    ],
     "friends": [
       {
         "id": 0,
@@ -193,7 +217,15 @@
     "registered": "2017-03-19T11:42:33 -01:00",
     "latitude": 15.528027,
     "longitude": -50.827847,
-    "tags": ["consequat", "sunt", "deserunt", "ullamco", "nisi", "consectetur", "cupidatat"],
+    "tags": [
+      "consequat",
+      "sunt",
+      "deserunt",
+      "ullamco",
+      "nisi",
+      "consectetur",
+      "cupidatat"
+    ],
     "friends": [
       {
         "id": 0,
@@ -228,7 +260,15 @@
     "registered": "2015-02-07T10:53:45 -01:00",
     "latitude": 34.209814,
     "longitude": -155.857005,
-    "tags": ["minim", "ullamco", "incididunt", "dolor", "sint", "mollit", "voluptate"],
+    "tags": [
+      "minim",
+      "ullamco",
+      "incididunt",
+      "dolor",
+      "sint",
+      "mollit",
+      "voluptate"
+    ],
     "friends": [
       {
         "id": 0,

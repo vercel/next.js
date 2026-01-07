@@ -24,7 +24,9 @@ describe('metadata-invalid-image-file', () => {
       expect(next.cliOutput).toContain('Processing image failed')
       expect(next.cliOutput).toContain('unable to decode image data')
     } else {
-      expect(next.cliOutput).toContain('Error: Process image "/favicon.ico" failed:')
+      expect(next.cliOutput).toContain(
+        'Error: Process image "/favicon.ico" failed:'
+      )
     }
 
     if (!isNextDev) {
@@ -32,9 +34,13 @@ describe('metadata-invalid-image-file', () => {
       if (isTurbopack) {
         expect(next.cliOutput).toContain('Build error occurred')
       } else if (isRspack) {
-        expect(next.cliOutput).toContain('Build failed because of Rspack errors')
+        expect(next.cliOutput).toContain(
+          'Build failed because of Rspack errors'
+        )
       } else {
-        expect(next.cliOutput).toContain('Build failed because of webpack errors')
+        expect(next.cliOutput).toContain(
+          'Build failed because of webpack errors'
+        )
       }
     }
   })

@@ -1,8 +1,15 @@
-import type { NodePath, types as BabelTypes } from 'next/dist/compiled/babel/core'
+import type {
+  NodePath,
+  types as BabelTypes,
+} from 'next/dist/compiled/babel/core'
 import type { PluginObj } from 'next/dist/compiled/babel/core'
 import jsx from 'next/dist/compiled/babel/plugin-syntax-jsx'
 
-export default function ({ types: t }: { types: typeof BabelTypes }): PluginObj<any> {
+export default function ({
+  types: t,
+}: {
+  types: typeof BabelTypes
+}): PluginObj<any> {
   return {
     inherits: jsx,
     visitor: {
@@ -39,7 +46,10 @@ export default function ({ types: t }: { types: typeof BabelTypes }): PluginObj<
               const mapping = t.variableDeclaration('var', [
                 t.variableDeclarator(
                   pragma,
-                  t.memberExpression(importAs, t.identifier(state.opts.property))
+                  t.memberExpression(
+                    importAs,
+                    t.identifier(state.opts.property)
+                  )
                 ),
               ])
 
@@ -54,7 +64,8 @@ export default function ({ types: t }: { types: typeof BabelTypes }): PluginObj<
                 t.isIdentifier(existingBinding.path.node.init.callee) &&
                 existingBinding.path.node.init.callee.name === 'require'
               ) {
-                ;[newPath] = existingBinding.path.parentPath.insertAfter(mapping)
+                ;[newPath] =
+                  existingBinding.path.parentPath.insertAfter(mapping)
               } else {
                 ;[newPath] = path.unshiftContainer('body', mapping)
               }
@@ -67,7 +78,10 @@ export default function ({ types: t }: { types: typeof BabelTypes }): PluginObj<
                 [
                   state.opts.import
                     ? // import { $import as _pragma } from '$module'
-                      t.importSpecifier(importAs, t.identifier(state.opts.import))
+                      t.importSpecifier(
+                        importAs,
+                        t.identifier(state.opts.import)
+                      )
                     : state.opts.importNamespace
                       ? t.importNamespaceSpecifier(importAs)
                       : // import _pragma from '$module'
@@ -78,7 +92,10 @@ export default function ({ types: t }: { types: typeof BabelTypes }): PluginObj<
 
               const [newPath] = path.unshiftContainer('body', importSpecifier)
               for (const specifier of newPath.get('specifiers')) {
-                path.scope.registerBinding('module', specifier as NodePath<BabelTypes.Node>)
+                path.scope.registerBinding(
+                  'module',
+                  specifier as NodePath<BabelTypes.Node>
+                )
               }
             }
           }

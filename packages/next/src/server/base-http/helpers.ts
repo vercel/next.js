@@ -24,8 +24,9 @@ export const isWebNextRequest = (req: BaseNextRequest): req is WebNextRequest =>
  * It's expected that when the runtime environment is the edge runtime, that any
  * base response is a WebNextResponse.
  */
-export const isWebNextResponse = (res: BaseNextResponse): res is WebNextResponse =>
-  process.env.NEXT_RUNTIME === 'edge'
+export const isWebNextResponse = (
+  res: BaseNextResponse
+): res is WebNextResponse => process.env.NEXT_RUNTIME === 'edge'
 
 /**
  * Type guard to determine if a request is a NodeNextRequest. This does not
@@ -33,8 +34,9 @@ export const isWebNextResponse = (res: BaseNextResponse): res is WebNextResponse
  * It's expected that when the runtime environment is the node runtime, that any
  * base request is a NodeNextRequest.
  */
-export const isNodeNextRequest = (req: BaseNextRequest): req is NodeNextRequest =>
-  process.env.NEXT_RUNTIME !== 'edge'
+export const isNodeNextRequest = (
+  req: BaseNextRequest
+): req is NodeNextRequest => process.env.NEXT_RUNTIME !== 'edge'
 
 /**
  * Type guard to determine if a response is a NodeNextResponse. This does not
@@ -42,5 +44,6 @@ export const isNodeNextRequest = (req: BaseNextRequest): req is NodeNextRequest 
  * It's expected that when the runtime environment is the node runtime, that any
  * base response is a NodeNextResponse.
  */
-export const isNodeNextResponse = (res: BaseNextResponse): res is NodeNextResponse =>
-  process.env.NEXT_RUNTIME !== 'edge'
+export const isNodeNextResponse = (
+  res: BaseNextResponse
+): res is NodeNextResponse => process.env.NEXT_RUNTIME !== 'edge'

@@ -29,11 +29,13 @@ module.exports = {
         },
         {
           source: '/search-params-prop-rewrite',
-          destination: '/search-params-prop?first=value&second=other%20value&third',
+          destination:
+            '/search-params-prop?first=value&second=other%20value&third',
         },
         {
           source: '/search-params-prop-server-rewrite',
-          destination: '/search-params-prop/server?first=value&second=other%20value&third',
+          destination:
+            '/search-params-prop/server?first=value&second=other%20value&third',
         },
         {
           source: '/after-files-rewrite-with-empty-arrays',

@@ -13,7 +13,11 @@ export function generateStaticParams() {
   return [{ slug: 'prerendered' }]
 }
 
-export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
   return (
     <>
       <h1>{(await params).slug}</h1>

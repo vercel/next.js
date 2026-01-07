@@ -33,7 +33,8 @@ export function ClientSegmentRoot({
     // When Cache Components is enabled, the server does not pass the params
     // as props; they are parsed on the client and passed via context.
     const layoutRouterContext = use(LayoutRouterContext)
-    params = layoutRouterContext !== null ? layoutRouterContext.parentParams : {}
+    params =
+      layoutRouterContext !== null ? layoutRouterContext.parentParams : {}
   }
 
   if (typeof window === 'undefined') {

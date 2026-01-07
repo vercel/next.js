@@ -104,7 +104,9 @@ function warnAboutTimers() {
  * */
 export function createAtomicTimerGroup(delayMs = 0) {
   if (process.env.NEXT_RUNTIME === 'edge') {
-    throw new InvariantError('createAtomicTimerGroup cannot be called in the edge runtime')
+    throw new InvariantError(
+      'createAtomicTimerGroup cannot be called in the edge runtime'
+    )
   } else {
     let isFirstCallback = true
     let firstTimerIdleStart: number | null = null
@@ -140,7 +142,9 @@ export function createAtomicTimerGroup(delayMs = 0) {
 
     return function scheduleTimeout(callback: () => void) {
       if (didFirstTimerRun) {
-        throw new InvariantError('Cannot schedule more timers into a group that already executed')
+        throw new InvariantError(
+          'Cannot schedule more timers into a group that already executed'
+        )
       }
 
       const timer = setTimeout(

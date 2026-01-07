@@ -5,8 +5,8 @@ export default function Page() {
     <main>
       <h1 style={{ color: 'green' }}>Fully statically prefetchable</h1>
       <p id="static-content-page">
-        This page is a statically-prefetchable child of a runtime-prefetchable layout. We should not
-        use a runtime prefetch for it.
+        This page is a statically-prefetchable child of a runtime-prefetchable
+        layout. We should not use a runtime prefetch for it.
       </p>
     </main>
   )

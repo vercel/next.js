@@ -35,7 +35,9 @@ describe('Document and App - Client side', () => {
         await next.patchFile(appPath, originalContent)
 
         await retry(async () =>
-          expect(await browser.elementByCss('body').text()).toContain('Hello HMR')
+          expect(await browser.elementByCss('body').text()).toContain(
+            'Hello HMR'
+          )
         )
       } finally {
         await next.patchFile(appPath, originalContent)
@@ -50,20 +52,27 @@ describe('Document and App - Client side', () => {
         const text = await browser.elementByCss('#hello-hmr').text()
         expect(text).toBe('Hello HMR')
 
-        const editedContent = originalContent.replace('Hello Document HMR', 'Hi Document HMR')
+        const editedContent = originalContent.replace(
+          'Hello Document HMR',
+          'Hi Document HMR'
+        )
 
         // change the content
         await next.patchFile(appPath, editedContent)
 
         await retry(async () =>
-          expect(await browser.elementByCss('body').text()).toContain('Hi Document HMR')
+          expect(await browser.elementByCss('body').text()).toContain(
+            'Hi Document HMR'
+          )
         )
 
         // add the original content
         await next.patchFile(appPath, originalContent)
 
         await retry(async () =>
-          expect(await browser.elementByCss('body').text()).toContain('Hello Document HMR')
+          expect(await browser.elementByCss('body').text()).toContain(
+            'Hello Document HMR'
+          )
         )
       } finally {
         await next.patchFile(appPath, originalContent)

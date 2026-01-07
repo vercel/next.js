@@ -31,7 +31,9 @@ export async function middleware(request) {
     })
   }
 
-  if (request.nextUrl.pathname === '/using-webassembly-instantiate-with-buffer') {
+  if (
+    request.nextUrl.pathname === '/using-webassembly-instantiate-with-buffer'
+  ) {
     return new Response(null, {
       headers: {
         data: JSON.stringify(await usingWebAssemblyInstantiateWithBuffer(9)),

@@ -19,7 +19,10 @@ describe('basePath', () => {
   describe('client-side navigation', () => {
     it('should navigate to /404 correctly client-side', async () => {
       const browser = await webdriver(next.url, `${basePath}/slug-1`)
-      await check(() => browser.eval('document.documentElement.innerHTML'), /slug-1/)
+      await check(
+        () => browser.eval('document.documentElement.innerHTML'),
+        /slug-1/
+      )
 
       await browser.eval('next.router.push("/404", "/slug-2")')
       await check(
@@ -31,7 +34,10 @@ describe('basePath', () => {
 
     it('should navigate to /_error correctly client-side', async () => {
       const browser = await webdriver(next.url, `${basePath}/slug-1`)
-      await check(() => browser.eval('document.documentElement.innerHTML'), /slug-1/)
+      await check(
+        () => browser.eval('document.documentElement.innerHTML'),
+        /slug-1/
+      )
 
       await browser.eval('next.router.push("/_error", "/slug-2")')
       await check(
@@ -54,10 +60,14 @@ describe('basePath', () => {
     if (isNextDeploy) {
       // the custom 404 only shows inside of the basePath so this
       // will be the Vercel default 404 page
-      expect(await browser.eval('document.documentElement.innerHTML')).toContain('NOT_FOUND')
+      expect(
+        await browser.eval('document.documentElement.innerHTML')
+      ).toContain('NOT_FOUND')
     } else {
       const pathname = await browser.eval(() => window.location.pathname)
-      expect(await browser.eval(() => (window as any).next.router.asPath)).toBe('/missing')
+      expect(await browser.eval(() => (window as any).next.router.asPath)).toBe(
+        '/missing'
+      )
       expect(pathname).toBe('/missing')
     }
   })
@@ -68,12 +78,16 @@ describe('basePath', () => {
     if (isNextDeploy) {
       // the custom 404 only shows inside of the basePath so this
       // will be the Vercel default 404 page
-      expect(await browser.eval('document.documentElement.innerHTML')).toContain(
-        '404: This page could not be found'
-      )
+      expect(
+        await browser.eval('document.documentElement.innerHTML')
+      ).toContain('404: This page could not be found')
     } else {
-      expect(await browser.eval(() => (window as any).next.router.asPath)).toBe(`${basePath}hello`)
-      expect(await browser.eval(() => window.location.pathname)).toBe(`${basePath}hello`)
+      expect(await browser.eval(() => (window as any).next.router.asPath)).toBe(
+        `${basePath}hello`
+      )
+      expect(await browser.eval(() => window.location.pathname)).toBe(
+        `${basePath}hello`
+      )
     }
   })
 
@@ -86,14 +100,24 @@ describe('basePath', () => {
     await browser.eval(() => (window as any).next.router.push('/hello'))
     await browser.waitForElementByCss('#pathname')
     await browser.back()
-    await check(() => browser.eval(() => window.location.pathname), `${basePath}hello`)
-    expect(await browser.eval(() => (window as any).next.router.asPath)).toBe(`${basePath}hello`)
-    expect(await browser.eval(() => (window as any).navigationMarker)).toBe(true)
+    await check(
+      () => browser.eval(() => window.location.pathname),
+      `${basePath}hello`
+    )
+    expect(await browser.eval(() => (window as any).next.router.asPath)).toBe(
+      `${basePath}hello`
+    )
+    expect(await browser.eval(() => (window as any).navigationMarker)).toBe(
+      true
+    )
   })
 
   describe('manually added basePath in application logic', () => {
     it('should 404 when manually adding basePath with <Link>', async () => {
-      const browser = await webdriver(next.url, `${basePath}/invalid-manual-basepath`)
+      const browser = await webdriver(
+        next.url,
+        `${basePath}/invalid-manual-basepath`
+      )
       await browser.eval('window.beforeNav = "hi"')
       await browser.elementByCss('#other-page-link').click()
 
@@ -137,6 +161,8 @@ describe('basePath', () => {
   it('should show 404 for page not under the /docs prefix', async () => {
     const text = await renderViaHTTP(next.url, '/hello')
     expect(text).not.toContain('Hello World')
-    expect(text).toContain(isNextDeploy ? 'NOT_FOUND' : 'This page could not be found')
+    expect(text).toContain(
+      isNextDeploy ? 'NOT_FOUND' : 'This page could not be found'
+    )
   })
 })

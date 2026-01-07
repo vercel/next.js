@@ -37,13 +37,21 @@ export function normalizeRewritesForBuildManifest(
   rewrites: CustomRoutes['rewrites']
 ): CustomRoutes['rewrites'] {
   return {
-    afterFiles: rewrites.afterFiles?.map(processRoute)?.map((item) => normalizeRewrite(item)),
-    beforeFiles: rewrites.beforeFiles?.map(processRoute)?.map((item) => normalizeRewrite(item)),
-    fallback: rewrites.fallback?.map(processRoute)?.map((item) => normalizeRewrite(item)),
+    afterFiles: rewrites.afterFiles
+      ?.map(processRoute)
+      ?.map((item) => normalizeRewrite(item)),
+    beforeFiles: rewrites.beforeFiles
+      ?.map(processRoute)
+      ?.map((item) => normalizeRewrite(item)),
+    fallback: rewrites.fallback
+      ?.map(processRoute)
+      ?.map((item) => normalizeRewrite(item)),
   }
 }
 
-export function createEdgeRuntimeManifest(originAssetMap: Partial<BuildManifest>): string {
+export function createEdgeRuntimeManifest(
+  originAssetMap: Partial<BuildManifest>
+): string {
   const manifestFilenames = ['_buildManifest.js', '_ssgManifest.js']
 
   const assetMap: Partial<BuildManifest> = {

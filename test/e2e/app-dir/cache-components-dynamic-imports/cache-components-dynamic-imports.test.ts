@@ -9,7 +9,9 @@ describe('async imports in cacheComponents', () => {
 
   if (isNextStart) {
     it('does not cause any routes to become (partially) dynamic', async () => {
-      const prerenderManifest = JSON.parse(await next.readFile('.next/prerender-manifest.json'))
+      const prerenderManifest = JSON.parse(
+        await next.readFile('.next/prerender-manifest.json')
+      )
 
       // For the purpose of this test we don't consider an incomplete shell.
       const prerenderedRoutes = Object.keys(prerenderManifest.routes)
@@ -17,7 +19,9 @@ describe('async imports in cacheComponents', () => {
         .filter((route) => {
           const filename = route.replace(/^\//, '').replace(/^$/, 'index')
           try {
-            return next.readFileSync(`.next/server/app/${filename}.html`).endsWith('</html>')
+            return next
+              .readFileSync(`.next/server/app/${filename}.html`)
+              .endsWith('</html>')
           } catch (err) {
             if ('code' in err && err.code === 'ENOENT') {
               // the route was prerendered, but we didn't find a HTML file for it.
@@ -75,18 +79,24 @@ describe('async imports in cacheComponents', () => {
     describe('dynamic import in node_modules', () => {
       describe('in an ESM package', () => {
         it('import of a sync module', async () => {
-          await testPage('/inside-render/server/from-node-modules/esm/sync-module')
+          await testPage(
+            '/inside-render/server/from-node-modules/esm/sync-module'
+          )
         })
 
         it('import of module with top-level-await', async () => {
-          await testPage('/inside-render/server/from-node-modules/esm/async-module')
+          await testPage(
+            '/inside-render/server/from-node-modules/esm/async-module'
+          )
         })
       })
 
       describe('in a CJS package', () => {
         // CJS can't do top-level-await, so we're only testing sync modules
         it('import of a sync module', async () => {
-          await testPage('/inside-render/server/from-node-modules/cjs/sync-module')
+          await testPage(
+            '/inside-render/server/from-node-modules/cjs/sync-module'
+          )
         })
       })
     })

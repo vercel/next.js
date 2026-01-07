@@ -10,11 +10,15 @@ export function getCssModuleLocalIdent(
   exportName: string,
   options: object
 ) {
-  const relativePath = path.relative(context.rootContext, context.resourcePath).replace(/\\+/g, '/')
+  const relativePath = path
+    .relative(context.rootContext, context.resourcePath)
+    .replace(/\\+/g, '/')
 
   // Generate a more meaningful name (parent folder) when the user names the
   // file `index.module.css`.
-  const fileNameOrFolder = regexLikeIndexModule.test(relativePath) ? '[folder]' : '[name]'
+  const fileNameOrFolder = regexLikeIndexModule.test(relativePath)
+    ? '[folder]'
+    : '[name]'
 
   // Generate a hash to make the class name unique.
   const hash = loaderUtils.getHashDigest(
@@ -27,7 +31,11 @@ export function getCssModuleLocalIdent(
   // Have webpack interpolate the `[folder]` or `[name]` to its real value.
   return (
     loaderUtils
-      .interpolateName(context, fileNameOrFolder + '_' + exportName + '__' + hash, options)
+      .interpolateName(
+        context,
+        fileNameOrFolder + '_' + exportName + '__' + hash,
+        options
+      )
       .replace(
         // Webpack name interpolation returns `about.module_root__2oFM9` for
         // `.root {}` inside a file named `about.module.css`. Let's simplify

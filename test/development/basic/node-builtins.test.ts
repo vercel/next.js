@@ -11,11 +11,15 @@ describe('node builtins', () => {
 
     await browser.waitForCondition('window.didRender', 15000)
 
-    const data = await browser.waitForElementByCss('#node-browser-polyfills').text()
+    const data = await browser
+      .waitForElementByCss('#node-browser-polyfills')
+      .text()
     const parsedData = JSON.parse(data)
 
     expect(parsedData.vm).toBe(105)
-    expect(parsedData.hash).toBe('b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9')
+    expect(parsedData.hash).toBe(
+      'b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9'
+    )
     expect(parsedData.buffer).toBe('hello world')
     expect(parsedData.stream).toBe(true)
     expect(parsedData.assert).toBe(true)
@@ -37,11 +41,15 @@ describe('node builtins', () => {
 
     await browser.waitForCondition('window.didRender', 15000)
 
-    const data = await browser.waitForElementByCss('#node-browser-polyfills').text()
+    const data = await browser
+      .waitForElementByCss('#node-browser-polyfills')
+      .text()
     const parsedData = JSON.parse(data)
 
     expect(parsedData.vm).toBe(105)
-    expect(parsedData.hash).toBe('b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9')
+    expect(parsedData.hash).toBe(
+      'b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9'
+    )
     expect(parsedData.buffer).toBe('hello world')
     expect(parsedData.stream).toBe(true)
     expect(parsedData.assert).toBe(true)
@@ -65,7 +73,9 @@ describe('node builtins', () => {
     const parsedData = JSON.parse(data)
 
     expect(parsedData.vm).toBe(105)
-    expect(parsedData.hash).toBe('b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9')
+    expect(parsedData.hash).toBe(
+      'b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9'
+    )
     expect(parsedData.buffer).toBe('hello world')
     expect(parsedData.stream).toBe(true)
     expect(parsedData.assert).toBe(true)
@@ -89,7 +99,9 @@ describe('node builtins', () => {
     const parsedData = JSON.parse(data)
 
     expect(parsedData.vm).toBe(105)
-    expect(parsedData.hash).toBe('b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9')
+    expect(parsedData.hash).toBe(
+      'b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9'
+    )
     expect(parsedData.buffer).toBe('hello world')
     expect(parsedData.stream).toBe(true)
     expect(parsedData.assert).toBe(true)
@@ -113,7 +125,9 @@ describe('node builtins', () => {
     const parsedData = JSON.parse(data)
 
     expect(parsedData.vm).toBe(105)
-    expect(parsedData.hash).toBe('b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9')
+    expect(parsedData.hash).toBe(
+      'b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9'
+    )
     expect(parsedData.buffer).toBe('hello world')
     expect(parsedData.stream).toBe(true)
     expect(parsedData.assert).toBe(true)
@@ -136,7 +150,9 @@ describe('node builtins', () => {
     const parsedData = JSON.parse(data)
 
     expect(parsedData.vm).toBe(105)
-    expect(parsedData.hash).toBe('b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9')
+    expect(parsedData.hash).toBe(
+      'b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9'
+    )
     expect(parsedData.buffer).toBe('hello world')
     expect(parsedData.stream).toBe(true)
     expect(parsedData.assert).toBe(true)
@@ -155,7 +171,8 @@ describe('node builtins', () => {
   it('should throw when unsupported builtins are used in middleware', async () => {
     const res = await next.fetch('/middleware-test')
     expect(res.status).toBe(200)
-    expect(JSON.parse(res.headers.get('supported-result'))).toMatchInlineSnapshot(`
+    expect(JSON.parse(res.headers.get('supported-result')))
+      .toMatchInlineSnapshot(`
       {
         "assert": true,
         "buffer": "hello world",
@@ -163,7 +180,8 @@ describe('node builtins', () => {
         "util": true,
       }
     `)
-    expect(JSON.parse(res.headers.get('unsupported-result'))).toMatchInlineSnapshot(`
+    expect(JSON.parse(res.headers.get('unsupported-result')))
+      .toMatchInlineSnapshot(`
       {
         "constants": false,
         "crypto": false,

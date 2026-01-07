@@ -17,7 +17,9 @@ describe('create-next-app --example', () => {
       throw new Error('This test needs to be run with `node run-tests.js`.')
     }
 
-    const pkgPaths = new Map<string, string>(JSON.parse(process.env.NEXT_TEST_PKG_PATHS))
+    const pkgPaths = new Map<string, string>(
+      JSON.parse(process.env.NEXT_TEST_PKG_PATHS)
+    )
 
     nextTgzFilename = pkgPaths.get('next')
   })
@@ -26,7 +28,12 @@ describe('create-next-app --example', () => {
     await useTempDir(async (cwd) => {
       const projectName = 'valid-example'
       const res = await run(
-        [projectName, '--example', 'basic-css', ...(process.env.NEXT_RSPACK ? ['--rspack'] : [])],
+        [
+          projectName,
+          '--example',
+          'basic-css',
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
+        ],
         nextTgzFilename,
         {
           cwd,
@@ -100,7 +107,12 @@ describe('create-next-app --example', () => {
       projectFilesShouldExist({
         cwd,
         projectName,
-        files: ['.gitignore', 'package.json', 'pages/index.mdx', 'node_modules/next'],
+        files: [
+          '.gitignore',
+          'package.json',
+          'pages/index.mdx',
+          'node_modules/next',
+        ],
       })
     })
   })

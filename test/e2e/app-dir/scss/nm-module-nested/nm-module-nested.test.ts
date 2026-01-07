@@ -24,16 +24,20 @@ describe.each([
 
     it('should render the page', async () => {
       const browser = await next.browser('/')
-      expect(await browser.elementByCss('#other2').getComputedCss('color')).toBe(colorToRgb('red'))
-      expect(await browser.elementByCss('#other3').getComputedCss('color')).toBe(
-        colorToRgb('black')
-      )
-      expect(await browser.elementByCss('#subclass').getComputedCss('color')).toBe(
-        colorToRgb('yellow')
-      )
-      expect(await browser.elementByCss('#subclass').getComputedCss('background-color')).toBe(
-        colorToRgb('blue')
-      )
+      expect(
+        await browser.elementByCss('#other2').getComputedCss('color')
+      ).toBe(colorToRgb('red'))
+      expect(
+        await browser.elementByCss('#other3').getComputedCss('color')
+      ).toBe(colorToRgb('black'))
+      expect(
+        await browser.elementByCss('#subclass').getComputedCss('color')
+      ).toBe(colorToRgb('yellow'))
+      expect(
+        await browser
+          .elementByCss('#subclass')
+          .getComputedCss('background-color')
+      ).toBe(colorToRgb('blue'))
     })
   }
 )

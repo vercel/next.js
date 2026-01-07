@@ -20,7 +20,10 @@ export type __ApiPreviewProps = {
   previewModeSigningKey: string
 }
 
-export function wrapApiHandler<T extends (...args: any[]) => any>(page: string, handler: T): T {
+export function wrapApiHandler<T extends (...args: any[]) => any>(
+  page: string,
+  handler: T
+): T {
   return ((...args) => {
     getTracer().setRootSpanAttribute('next.route', page)
     // Call API route method
@@ -39,7 +42,10 @@ export function wrapApiHandler<T extends (...args: any[]) => any>(page: string, 
  * @param res response object
  * @param statusCode `HTTP` status code of response
  */
-export function sendStatusCode(res: NextApiResponse, statusCode: number): NextApiResponse<any> {
+export function sendStatusCode(
+  res: NextApiResponse,
+  statusCode: number
+): NextApiResponse<any> {
   res.statusCode = statusCode
   return res
 }
@@ -82,7 +88,9 @@ export function checkIsOnDemandRevalidate(
   const previewModeId = headers.get(PRERENDER_REVALIDATE_HEADER)
   const isOnDemandRevalidate = previewModeId === previewProps.previewModeId
 
-  const revalidateOnlyGenerated = headers.has(PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER)
+  const revalidateOnlyGenerated = headers.has(
+    PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER
+  )
 
   return { isOnDemandRevalidate, revalidateOnlyGenerated }
 }
@@ -109,7 +117,11 @@ export function clearPreviewData<T>(
     require('next/dist/compiled/cookie') as typeof import('next/dist/compiled/cookie')
   const previous = res.getHeader('Set-Cookie')
   res.setHeader(`Set-Cookie`, [
-    ...(typeof previous === 'string' ? [previous] : Array.isArray(previous) ? previous : []),
+    ...(typeof previous === 'string'
+      ? [previous]
+      : Array.isArray(previous)
+        ? previous
+        : []),
     serialize(COOKIE_NAME_PRERENDER_BYPASS, '', {
       // To delete a cookie, set `expires` to a date in the past:
       // https://tools.ietf.org/html/rfc6265#section-4.1.1
@@ -163,7 +175,11 @@ export class ApiError extends Error {
  * @param statusCode of response
  * @param message of response
  */
-export function sendError(res: NextApiResponse, statusCode: number, message: string): void {
+export function sendError(
+  res: NextApiResponse,
+  statusCode: number,
+  message: string
+): void {
   res.statusCode = statusCode
   res.statusMessage = message
   res.end(message)
@@ -179,7 +195,11 @@ interface LazyProps {
  * @param prop name of property
  * @param getter function to get data
  */
-export function setLazyProp<T>({ req }: LazyProps, prop: string, getter: () => T): void {
+export function setLazyProp<T>(
+  { req }: LazyProps,
+  prop: string,
+  getter: () => T
+): void {
   const opts = { configurable: true, enumerable: true }
   const optsReset = { ...opts, writable: true }
 

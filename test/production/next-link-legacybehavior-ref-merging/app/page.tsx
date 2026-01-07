@@ -15,7 +15,9 @@ export default function Page() {
       <h1>Home</h1>
       <ToggleVisibility>
         <Link href="/link-target" legacyBehavior>
-          <AnchorThatDoesRefMerging id="test-link">Go to /link-target</AnchorThatDoesRefMerging>
+          <AnchorThatDoesRefMerging id="test-link">
+            Go to /link-target
+          </AnchorThatDoesRefMerging>
         </Link>
       </ToggleVisibility>
     </>
@@ -36,7 +38,11 @@ function ToggleVisibility({ children }: { children: ReactNode }) {
   )
 }
 
-function AnchorThatDoesRefMerging({ ref, children, ...anchorProps }: ComponentPropsWithRef<'a'>) {
+function AnchorThatDoesRefMerging({
+  ref,
+  children,
+  ...anchorProps
+}: ComponentPropsWithRef<'a'>) {
   const customRef: RefCallback<HTMLAnchorElement> = useCallback((el) => {
     if (el) {
       console.log('hello friends i am here')

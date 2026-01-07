@@ -18,8 +18,12 @@ describe('segment cache memory pressure', () => {
       },
     })
 
-    const switchToTab1 = await browser.elementByCss('input[type="radio"][value="1"]')
-    const switchToTab2 = await browser.elementByCss('input[type="radio"][value="2"]')
+    const switchToTab1 = await browser.elementByCss(
+      'input[type="radio"][value="1"]'
+    )
+    const switchToTab2 = await browser.elementByCss(
+      'input[type="radio"][value="2"]'
+    )
 
     // Switch to tab 1 to kick off a prefetch for a link to Page 0.
     await act(

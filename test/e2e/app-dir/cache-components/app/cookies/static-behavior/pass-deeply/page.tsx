@@ -9,14 +9,16 @@ export default async function Page() {
     <section>
       <h1>Deep Cookie Reader</h1>
       <p>
-        This component was passed the cookies promise returned by `cookies()`. It is rendered inside
-        a Suspense boundary and it takes a second to resolve so when rendering the page you should
-        see the Suspense fallback content before revealing the cookie value even though cookies was
-        called at the page root.
+        This component was passed the cookies promise returned by `cookies()`.
+        It is rendered inside a Suspense boundary and it takes a second to
+        resolve so when rendering the page you should see the Suspense fallback
+        content before revealing the cookie value even though cookies was called
+        at the page root.
       </p>
       <p>
-        If cacheComponents is turned off the `cookies()` call would trigger a dynamic point at the
-        callsite and the suspense boundary would also be blocked for over one second
+        If cacheComponents is turned off the `cookies()` call would trigger a
+        dynamic point at the callsite and the suspense boundary would also be
+        blocked for over one second
       </p>
       <Suspense
         fallback={

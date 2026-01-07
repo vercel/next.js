@@ -10,7 +10,10 @@ describe('mcp-server telemetry tracking', () => {
     },
   })
 
-  async function callMcpTool(toolName: string, params: Record<string, any> = {}) {
+  async function callMcpTool(
+    toolName: string,
+    params: Record<string, any> = {}
+  ) {
     const response = await fetch(`${next.url}/_next/mcp`, {
       method: 'POST',
       headers: {
@@ -59,7 +62,9 @@ describe('mcp-server telemetry tracking', () => {
     expect(events.length).toBeGreaterThan(0)
 
     // Check that specific tools were tracked
-    const toolUsages = new Map(events.map((e) => [e.toolName, e.invocationCount]))
+    const toolUsages = new Map(
+      events.map((e) => [e.toolName, e.invocationCount])
+    )
 
     // get_project_metadata was called 2 times
     expect(toolUsages.get('mcp/get_project_metadata')).toBe(2)

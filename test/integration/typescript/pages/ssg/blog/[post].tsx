@@ -1,4 +1,8 @@
-import { InferGetStaticPropsType, GetStaticPaths, GetStaticPropsContext } from 'next'
+import {
+  InferGetStaticPropsType,
+  GetStaticPaths,
+  GetStaticPropsContext,
+} from 'next'
 
 type Post = {
   author: string
@@ -12,7 +16,9 @@ export const getStaticPaths: GetStaticPaths = async () => {
   }
 }
 
-export const getStaticProps = async (ctx: GetStaticPropsContext<{ post: string }>) => {
+export const getStaticProps = async (
+  ctx: GetStaticPropsContext<{ post: string }>
+) => {
   const posts: Post[] = [
     {
       author: 'Vercel',

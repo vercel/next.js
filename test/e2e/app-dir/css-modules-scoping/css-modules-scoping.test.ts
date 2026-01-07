@@ -12,28 +12,36 @@ describe('css-modules-scoping', () => {
     // Check grid-area of header
     await retry(async () => {
       expect(
-        await browser.eval(`window.getComputedStyle(document.querySelector('#header')).gridArea`)
+        await browser.eval(
+          `window.getComputedStyle(document.querySelector('#header')).gridArea`
+        )
       ).toBe('header')
     })
 
     // Check grid-area of sidebar
     await retry(async () => {
       expect(
-        await browser.eval(`window.getComputedStyle(document.querySelector('#sidebar')).gridArea`)
+        await browser.eval(
+          `window.getComputedStyle(document.querySelector('#sidebar')).gridArea`
+        )
       ).toBe('sidebar')
     })
 
     // Check grid-area of main
     await retry(async () => {
       expect(
-        await browser.eval(`window.getComputedStyle(document.querySelector('#main')).gridArea`)
+        await browser.eval(
+          `window.getComputedStyle(document.querySelector('#main')).gridArea`
+        )
       ).toBe('main')
     })
 
     // Check grid-area of footer
     await retry(async () => {
       expect(
-        await browser.eval(`window.getComputedStyle(document.querySelector('#footer')).gridArea`)
+        await browser.eval(
+          `window.getComputedStyle(document.querySelector('#footer')).gridArea`
+        )
       ).toBe('footer')
     })
   })

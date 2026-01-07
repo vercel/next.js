@@ -2,11 +2,16 @@ import React from 'react'
 import Head from 'next/head'
 
 export default function HeadPage() {
-  const [shouldReverseScriptOrder, reverseScriptOrder] = React.useReducer((b) => !b, false)
+  const [shouldReverseScriptOrder, reverseScriptOrder] = React.useReducer(
+    (b) => !b,
+    false
+  )
   const [shouldInsertScript, toggleScript] = React.useReducer((b) => !b, false)
 
   const scriptAsyncTrue = <script src="/test-async-true.js" async></script>
-  const scriptAsyncFalse = <script src="/test-async-false.js" async={false}></script>
+  const scriptAsyncFalse = (
+    <script src="/test-async-false.js" async={false}></script>
+  )
 
   return (
     <div>
@@ -33,14 +38,46 @@ export default function HeadPage() {
         <meta property="dedupe:tag" content="tag4" key="same-key" />
         <meta property="og:image" content="ogImageTag1" key="ogImageTag1Key" />
         <meta property="og:image" content="ogImageTag2" key="ogImageTag2Key" />
-        <meta property="og:image:alt" content="ogImageAltTag1" key="ogImageAltTag1Key" />
-        <meta property="og:image:alt" content="ogImageAltTag2" key="ogImageAltTag2Key" />
-        <meta property="og:image:width" content="ogImageWidthTag1" key="ogImageWidthTag1Key" />
-        <meta property="og:image:width" content="ogImageWidthTag2" key="ogImageWidthTag2Key" />
-        <meta property="og:image:height" content="ogImageHeightTag1" key="ogImageHeightTag1Key" />
-        <meta property="og:image:height" content="ogImageHeightTag2" key="ogImageHeightTag2Key" />
-        <meta property="og:image:type" content="ogImageTypeTag1" key="ogImageTypeTag1Key" />
-        <meta property="og:image:type" content="ogImageTypeTag2" key="ogImageTypeTag2Key" />
+        <meta
+          property="og:image:alt"
+          content="ogImageAltTag1"
+          key="ogImageAltTag1Key"
+        />
+        <meta
+          property="og:image:alt"
+          content="ogImageAltTag2"
+          key="ogImageAltTag2Key"
+        />
+        <meta
+          property="og:image:width"
+          content="ogImageWidthTag1"
+          key="ogImageWidthTag1Key"
+        />
+        <meta
+          property="og:image:width"
+          content="ogImageWidthTag2"
+          key="ogImageWidthTag2Key"
+        />
+        <meta
+          property="og:image:height"
+          content="ogImageHeightTag1"
+          key="ogImageHeightTag1Key"
+        />
+        <meta
+          property="og:image:height"
+          content="ogImageHeightTag2"
+          key="ogImageHeightTag2Key"
+        />
+        <meta
+          property="og:image:type"
+          content="ogImageTypeTag1"
+          key="ogImageTypeTag1Key"
+        />
+        <meta
+          property="og:image:type"
+          content="ogImageTypeTag2"
+          key="ogImageTypeTag2Key"
+        />
         <meta
           property="og:image:secure_url"
           content="ogImageSecureUrlTag1"
@@ -51,15 +88,31 @@ export default function HeadPage() {
           content="ogImageSecureUrlTag2"
           key="ogImageSecureUrlTag2Key"
         />
-        <meta property="og:image:url" content="ogImageUrlTag1" key="ogImageUrlTag1Key" />
-        <meta property="og:image:url" content="ogImageUrlTag2" key="ogImageUrlTag2Key" />
+        <meta
+          property="og:image:url"
+          content="ogImageUrlTag1"
+          key="ogImageUrlTag1Key"
+        />
+        <meta
+          property="og:image:url"
+          content="ogImageUrlTag2"
+          key="ogImageUrlTag2Key"
+        />
 
         <meta property="fb:pages" content="fbpages1" />
         <meta property="fb:pages" content="fbpages2" />
 
         {/* both meta tags will be rendered since they use unique keys */}
-        <meta name="citation_author" content="authorName1" key="citationAuthorTag1" />
-        <meta name="citation_author" content="authorName2" key="citationAuthorTag2" />
+        <meta
+          name="citation_author"
+          content="authorName1"
+          key="citationAuthorTag1"
+        />
+        <meta
+          name="citation_author"
+          content="authorName2"
+          key="citationAuthorTag2"
+        />
 
         <React.Fragment>
           <title>Fragment title</title>
@@ -84,10 +137,20 @@ export default function HeadPage() {
 
         {/* such style can be used for alternate links on _app vs individual pages */}
         {['pl', 'en'].map((language) => (
-          <link rel="alternate" key={language} hrefLang={language} href={'/first/' + language} />
+          <link
+            rel="alternate"
+            key={language}
+            hrefLang={language}
+            href={'/first/' + language}
+          />
         ))}
         {['pl', 'en'].map((language) => (
-          <link rel="alternate" key={language} hrefLang={language} href={'/last/' + language} />
+          <link
+            rel="alternate"
+            key={language}
+            hrefLang={language}
+            href={'/last/' + language}
+          />
         ))}
       </Head>
       <h1>I can have meta tags</h1>

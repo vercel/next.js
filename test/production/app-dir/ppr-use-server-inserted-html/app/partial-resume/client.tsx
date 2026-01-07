@@ -11,7 +11,11 @@ export function InsertHtml({ id, data }: { id: string; data: string }) {
       return
     }
     insertRef.current = true
-    const value = <style data-test-id={id}>{`[data-inserted-${data}] { content: ${data} }`}</style>
+    const value = (
+      <style
+        data-test-id={id}
+      >{`[data-inserted-${data}] { content: ${data} }`}</style>
+    )
     console.log(`testing-log-insertion:${data}`)
     return value
   })

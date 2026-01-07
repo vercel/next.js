@@ -24,7 +24,9 @@ function patchConsoleMethod(methodName: ConsoleMethodName): void {
     const originalMethod = descriptor.value
     const originalName = Object.getOwnPropertyDescriptor(originalMethod, 'name')
     let wrapperMethod = function (...args: any[]) {
-      return workUnitAsyncStorage.exit(() => originalMethod.apply(console, args))
+      return workUnitAsyncStorage.exit(() =>
+        originalMethod.apply(console, args)
+      )
     }
     if (originalName) {
       Object.defineProperty(wrapperMethod, 'name', originalName)

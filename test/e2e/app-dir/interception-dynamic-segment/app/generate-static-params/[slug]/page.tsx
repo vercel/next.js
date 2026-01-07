@@ -8,5 +8,12 @@ export default async function Page({ params }: Props) {
 }
 
 export function generateStaticParams() {
-  return [{ slug: 'a' }, { slug: 'b' }, { slug: 'c' }, { slug: 'd' }, { slug: 'e' }, { slug: 'f' }]
+  return [
+    { slug: 'a' },
+    { slug: 'b' },
+    { slug: 'c' },
+    { slug: 'd' },
+    { slug: 'e' },
+    { slug: 'f' },
+  ]
 }

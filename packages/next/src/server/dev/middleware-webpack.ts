@@ -24,7 +24,10 @@ import { middlewareResponse } from '../../next-devtools/server/middleware-respon
 
 import type { IncomingMessage, ServerResponse } from 'http'
 import type webpack from 'webpack'
-import type { NullableMappedPosition, RawSourceMap } from 'next/dist/compiled/source-map08'
+import type {
+  NullableMappedPosition,
+  RawSourceMap,
+} from 'next/dist/compiled/source-map08'
 import { formatFrameSourceFile } from '../../next-devtools/shared/webpack-module-path'
 import type { MappedPosition } from 'source-map'
 import { inspect } from 'util'
@@ -61,7 +64,10 @@ type Source =
       moduleURL: string
     }
 
-function getModuleById(id: string | undefined, compilation: webpack.Compilation) {
+function getModuleById(
+  id: string | undefined,
+  compilation: webpack.Compilation
+) {
   const { chunkGraph, modules } = compilation
 
   return [...modules].find((module) => chunkGraph.getModuleId(module) === id)
@@ -110,7 +116,10 @@ async function findOriginalSourcePositionAndContent(
     }
 
     const sourceContent: string | null =
-      consumer.sourceContentFor(sourcePosition.source, /* returnNullOnMissing */ true) ?? null
+      consumer.sourceContentFor(
+        sourcePosition.source,
+        /* returnNullOnMissing */ true
+      ) ?? null
 
     return {
       sourcePosition,
@@ -147,7 +156,10 @@ export function getIgnoredSources(
   return ignoredSources
 }
 
-function isIgnoredSource(source: Source, sourcePosition: MappedPosition | NullableMappedPosition) {
+function isIgnoredSource(
+  source: Source,
+  sourcePosition: MappedPosition | NullableMappedPosition
+) {
   if (sourcePosition.source == null) {
     return true
   }
@@ -217,8 +229,9 @@ export async function createOriginalStackFrame({
 
   const sourcePath = getSourcePath(
     // When sourcePosition.source is the loader path the modulePath is generally better.
-    (sourcePosition.source!.includes('|') ? source.moduleURL : sourcePosition.source) ||
-      source.moduleURL
+    (sourcePosition.source!.includes('|')
+      ? source.moduleURL
+      : sourcePosition.source) || source.moduleURL
   )
   const filePath = path.resolve(rootDirectory, sourcePath)
   const resolvedFilePath = path.relative(rootDirectory, filePath)
@@ -527,7 +540,8 @@ export function getOverlayMiddleware(options: {
   serverStats: () => webpack.Stats | null
   edgeServerStats: () => webpack.Stats | null
 }) {
-  const { rootDirectory, isSrcDir, clientStats, serverStats, edgeServerStats } = options
+  const { rootDirectory, isSrcDir, clientStats, serverStats, edgeServerStats } =
+    options
 
   return async function (
     req: IncomingMessage,
@@ -586,7 +600,11 @@ export function getOverlayMiddleware(options: {
       const isAppRelativePath = searchParams.get('isAppRelativePath') === '1'
       if (isAppRelativePath) {
         const relativeFilePath = searchParams.get('file') || ''
-        const appPath = path.join('app', isSrcDir ? 'src' : '', relativeFilePath)
+        const appPath = path.join(
+          'app',
+          isSrcDir ? 'src' : '',
+          relativeFilePath
+        )
         openEditorResult = await openFileInEditor(appPath, 1, 1, rootDirectory)
       } else {
         // TODO: How do we differentiate layers and actual file paths with round brackets?
@@ -601,7 +619,10 @@ export function getOverlayMiddleware(options: {
       }
       if (openEditorResult.error) {
         console.error('Failed to launch editor:', openEditorResult.error)
-        return middlewareResponse.internalServerError(res, openEditorResult.error)
+        return middlewareResponse.internalServerError(
+          res,
+          openEditorResult.error
+        )
       }
       if (!openEditorResult.found) {
         return middlewareResponse.notFound(res)
@@ -651,7 +672,11 @@ export function getSourceMapMiddleware(options: {
           getCompilations: () => {
             const compilations: webpack.Compilation[] = []
 
-            for (const stats of [clientStats(), serverStats(), edgeServerStats()]) {
+            for (const stats of [
+              clientStats(),
+              serverStats(),
+              edgeServerStats(),
+            ]) {
               if (stats?.compilation) {
                 compilations.push(stats.compilation)
               }

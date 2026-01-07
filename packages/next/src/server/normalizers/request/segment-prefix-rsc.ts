@@ -1,8 +1,13 @@
 import type { PathnameNormalizer } from './pathname-normalizer'
 
-import { RSC_SEGMENT_SUFFIX, RSC_SEGMENTS_DIR_SUFFIX } from '../../../lib/constants'
+import {
+  RSC_SEGMENT_SUFFIX,
+  RSC_SEGMENTS_DIR_SUFFIX,
+} from '../../../lib/constants'
 
-const PATTERN = new RegExp(`^(/.*)${RSC_SEGMENTS_DIR_SUFFIX}(/.*)${RSC_SEGMENT_SUFFIX}$`)
+const PATTERN = new RegExp(
+  `^(/.*)${RSC_SEGMENTS_DIR_SUFFIX}(/.*)${RSC_SEGMENT_SUFFIX}$`
+)
 
 export class SegmentPrefixRSCPathnameNormalizer implements PathnameNormalizer {
   public match(pathname: string): boolean {

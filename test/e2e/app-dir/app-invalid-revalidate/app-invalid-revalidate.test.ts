@@ -17,7 +17,10 @@ describe('app-invalid-revalidate', () => {
     const origText = await next.readFile('app/layout.tsx')
 
     try {
-      await next.patchFile('app/layout.tsx', origText.replace('// export', 'export'))
+      await next.patchFile(
+        'app/layout.tsx',
+        origText.replace('// export', 'export')
+      )
       await next.start().catch(() => {})
 
       await check(async () => {
@@ -36,7 +39,10 @@ describe('app-invalid-revalidate', () => {
     const origText = await next.readFile('app/page.tsx')
 
     try {
-      await next.patchFile('app/page.tsx', origText.replace('// export', 'export'))
+      await next.patchFile(
+        'app/page.tsx',
+        origText.replace('// export', 'export')
+      )
       await next.start().catch(() => {})
 
       await check(async () => {
@@ -55,7 +61,10 @@ describe('app-invalid-revalidate', () => {
     const origText = await next.readFile('app/page.tsx')
 
     try {
-      await next.patchFile('app/page.tsx', origText.replace('// await', 'await'))
+      await next.patchFile(
+        'app/page.tsx',
+        origText.replace('// await', 'await')
+      )
       await next.start().catch(() => {})
 
       await check(async () => {
@@ -74,7 +83,10 @@ describe('app-invalid-revalidate', () => {
     const origText = await next.readFile('app/page.tsx')
 
     try {
-      await next.patchFile('app/page.tsx', origText.replace('// await unstable', 'await unstable'))
+      await next.patchFile(
+        'app/page.tsx',
+        origText.replace('// await unstable', 'await unstable')
+      )
       await next.start().catch(() => {})
 
       await check(async () => {

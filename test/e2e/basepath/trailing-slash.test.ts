@@ -36,7 +36,9 @@ describe('basePath + trailingSlash', () => {
 
         const pathname = await browser.elementByCss('#pathname').text()
         expect(pathname).toBe('/hello')
-        expect(await browser.eval('window.location.pathname')).toBe(`${basePath}/hello/`)
+        expect(await browser.eval('window.location.pathname')).toBe(
+          `${basePath}/hello/`
+        )
         expect(await browser.eval('window.location.search')).toBe('?query=true')
 
         if (dev) {
@@ -60,7 +62,9 @@ describe('basePath + trailingSlash', () => {
 
         const pathname = await browser.elementByCss('#pathname').text()
         expect(pathname).toBe('/')
-        expect(await browser.eval('window.location.pathname')).toBe(basePath + '/')
+        expect(await browser.eval('window.location.pathname')).toBe(
+          basePath + '/'
+        )
         expect(await browser.eval('window.location.search')).toBe('?query=true')
 
         if (dev) {

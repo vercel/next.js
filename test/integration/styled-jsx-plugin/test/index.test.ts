@@ -1,7 +1,13 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import { killApp, findPort, nextStart, nextBuild, renderViaHTTP } from 'next-test-utils'
+import {
+  killApp,
+  findPort,
+  nextStart,
+  nextBuild,
+  renderViaHTTP,
+} from 'next-test-utils'
 
 const appDir = join(__dirname, '../app')
 let appPort
@@ -18,22 +24,25 @@ function runTests() {
 ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'styled-jsx using in node_modules',
   () => {
-    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
-      beforeAll(async () => {
-        const output = await nextBuild(appDir, undefined, {
-          stdout: true,
-          stderr: true,
-          cwd: appDir,
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+      'production mode',
+      () => {
+        beforeAll(async () => {
+          const output = await nextBuild(appDir, undefined, {
+            stdout: true,
+            stderr: true,
+            cwd: appDir,
+          })
+
+          console.log(output.stdout, output.stderr)
+
+          appPort = await findPort()
+          app = await nextStart(appDir, appPort)
         })
+        afterAll(() => killApp(app))
 
-        console.log(output.stdout, output.stderr)
-
-        appPort = await findPort()
-        app = await nextStart(appDir, appPort)
-      })
-      afterAll(() => killApp(app))
-
-      runTests()
-    })
+        runTests()
+      }
+    )
   }
 )

@@ -31,13 +31,19 @@ const Dialog: React.FC<DialogProps> = function Dialog({
   const dialogRef = React.useRef<HTMLDivElement | null>(null)
   // TODO: Document is an external store. Either use useSyncExternalStore or always set the role.
   const [role, setRole] = React.useState<string | undefined>(
-    typeof document !== 'undefined' && document.hasFocus() ? 'dialog' : undefined
+    typeof document !== 'undefined' && document.hasFocus()
+      ? 'dialog'
+      : undefined
   )
 
-  useOnClickOutside(dialogRef, CSS_SELECTORS_TO_EXCLUDE_ON_CLICK_OUTSIDE, (e) => {
-    e.preventDefault()
-    return onClose?.()
-  })
+  useOnClickOutside(
+    dialogRef,
+    CSS_SELECTORS_TO_EXCLUDE_ON_CLICK_OUTSIDE,
+    (e) => {
+      e.preventDefault()
+      return onClose?.()
+    }
+  )
 
   React.useEffect(() => {
     if (dialogRef.current == null) {
