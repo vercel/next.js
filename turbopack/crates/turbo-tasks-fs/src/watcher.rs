@@ -401,9 +401,9 @@ impl DiskWatcher {
         // side-effect, this will call `ensure_watched` again, setting up any watchers needed.
         //
         // Best is to start_watching before starting to read
-        if let Some((turbo_tasks, handle)) = fs_inner.get_invalidation_context() {
-            let _guard = handle.enter();
+        if let Some(turbo_tasks) = fs_inner.turbo_tasks.upgrade() {
             let _span = tracing::info_span!("invalidate filesystem").entered();
+            let _guard = fs_inner.tokio_handle.enter();
             let invalidator_map = take(&mut *fs_inner.invalidator_map.lock().unwrap());
             let dir_invalidator_map = take(&mut *fs_inner.dir_invalidator_map.lock().unwrap());
             let iter = invalidator_map.into_iter().chain(dir_invalidator_map);
@@ -689,11 +689,11 @@ impl DiskWatcher {
                 }
             }
 
-            let Some((turbo_tasks, handle)) = fs_inner.get_invalidation_context() else {
+            let Some(turbo_tasks) = fs_inner.turbo_tasks.upgrade() else {
                 // TurboTasks was dropped, stop watching
                 break 'outer;
             };
-            let _guard = handle.enter();
+            let _guard = fs_inner.tokio_handle.enter();
 
             let _lock = fs_inner.invalidation_lock.blocking_write();
             {

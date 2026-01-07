@@ -327,13 +327,6 @@ impl DiskFileSystemInner {
         })
     }
 
-    /// Gets the invalidation context (TurboTasksApi and Handle) for use in invalidation.
-    /// Returns None if the TurboTasks instance was dropped.
-    fn get_invalidation_context(&self) -> Option<(Arc<dyn TurboTasksApi>, &Handle)> {
-        let tt = self.turbo_tasks.upgrade()?;
-        Some((tt, &self.tokio_handle))
-    }
-
     /// registers the path as an invalidator for the current task,
     /// has to be called within a turbo-tasks function
     fn register_read_invalidator(&self, path: &Path) -> Result<()> {
@@ -390,10 +383,10 @@ impl DiskFileSystemInner {
 
     fn invalidate(&self) {
         let _span = tracing::info_span!("invalidate filesystem", name = &*self.root).entered();
-        let Some((turbo_tasks, handle)) = self.get_invalidation_context() else {
+        let Some(turbo_tasks) = self.turbo_tasks.upgrade() else {
             return;
         };
-        let _guard = handle.enter();
+        let _guard = self.tokio_handle.enter();
 
         let invalidator_map = take(&mut *self.invalidator_map.lock().unwrap());
         let dir_invalidator_map = take(&mut *self.dir_invalidator_map.lock().unwrap());
@@ -415,10 +408,10 @@ impl DiskFileSystemInner {
         reason: impl Fn(&Path) -> R + Sync,
     ) {
         let _span = tracing::info_span!("invalidate filesystem", name = &*self.root).entered();
-        let Some((turbo_tasks, handle)) = self.get_invalidation_context() else {
+        let Some(turbo_tasks) = self.turbo_tasks.upgrade() else {
             return;
         };
-        let _guard = handle.enter();
+        let _guard = self.tokio_handle.enter();
 
         let invalidator_map = take(&mut *self.invalidator_map.lock().unwrap());
         let dir_invalidator_map = take(&mut *self.dir_invalidator_map.lock().unwrap());
@@ -443,10 +436,10 @@ impl DiskFileSystemInner {
         invalidators: Vec<(Invalidator, Option<WriteContent>)>,
     ) {
         if !invalidators.is_empty() {
-            let Some((turbo_tasks, handle)) = self.get_invalidation_context() else {
+            let Some(turbo_tasks) = self.turbo_tasks.upgrade() else {
                 return;
             };
-            let _guard = handle.enter();
+            let _guard = self.tokio_handle.enter();
 
             if let Some(path) = format_absolute_fs_path(full_path, &self.name, self.root_path()) {
                 if invalidators.len() == 1 {
