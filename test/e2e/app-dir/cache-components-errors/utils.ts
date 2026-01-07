@@ -15,18 +15,13 @@ const ignoredLines = [
  * - (0 , e.U)(...)
  * to a deterministic, bundler-agnostic representation.
  */
-export function convertModuleFunctionSequenceExpression(
-  output: string
-): string {
+export function convertModuleFunctionSequenceExpression(output: string): string {
   return output.replace(/\(0 , \w+\.(\w+)\)\(\.\.\.\)/, '<module-function>()')
 }
 
 export function getDeterministicOutput(
   cliOutput: string,
-  {
-    isMinified,
-    startingLineMatch,
-  }: { isMinified: boolean; startingLineMatch?: string }
+  { isMinified, startingLineMatch }: { isMinified: boolean; startingLineMatch?: string }
 ): string {
   const lines: string[] = []
 
@@ -92,20 +87,11 @@ export function getDeterministicOutput(
       break
     }
 
-    if (
-      foundStartingLine &&
-      !ignoredLines.some((ignoredLine) => line.includes(ignoredLine))
-    ) {
+    if (foundStartingLine && !ignoredLines.some((ignoredLine) => line.includes(ignoredLine))) {
       if (isMinified) {
-        line = line.replace(
-          /at (\S+) \(<anonymous>\)/,
-          replaceAnonymousStackFrame
-        )
+        line = line.replace(/at (\S+) \(<anonymous>\)/, replaceAnonymousStackFrame)
       } else {
-        line = line.replace(
-          /at (\S+) \((webpack:\/\/\/)src[^)]+\)/,
-          `at $1 ($2<next-src>)`
-        )
+        line = line.replace(/at (\S+) \((webpack:\/\/\/)src[^)]+\)/, `at $1 ($2<next-src>)`)
       }
 
       line = line

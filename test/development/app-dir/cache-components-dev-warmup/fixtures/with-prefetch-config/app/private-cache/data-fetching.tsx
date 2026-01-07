@@ -1,10 +1,4 @@
-export async function PrivateCachedData({
-  label,
-  cacheKey,
-}: {
-  label: string
-  cacheKey: string
-}) {
+export async function PrivateCachedData({ label, cacheKey }: { label: string; cacheKey: string }) {
   const data = await getPrivateCachedData(cacheKey)
   console.log(`after private cache read - ${label}`)
   return (

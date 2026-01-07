@@ -3,9 +3,9 @@ import { clearData, getData } from './actions'
 
 export default async function Home() {
   const data = await getData()
-  const randomNumber = await fetch(
-    'https://next-data-api-endpoint.vercel.app/api/random'
-  ).then((res) => res.text())
+  const randomNumber = await fetch('https://next-data-api-endpoint.vercel.app/api/random').then(
+    (res) => res.text()
+  )
 
   return (
     <div id="root-page">

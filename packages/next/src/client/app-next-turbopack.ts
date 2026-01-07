@@ -18,11 +18,7 @@ appBootstrap((assetPrefix) => {
         require('../next-devtools/userspace/app/errors/stitched-error') as typeof import('../next-devtools/userspace/app/errors/stitched-error')
       const { renderAppDevOverlay } =
         require('next/dist/compiled/next-devtools') as typeof import('next/dist/compiled/next-devtools')
-      renderAppDevOverlay(
-        getOwnerStack,
-        isRecoverableError,
-        enableCacheIndicator
-      )
+      renderAppDevOverlay(getOwnerStack, isRecoverableError, enableCacheIndicator)
     }
   }
 })

@@ -43,11 +43,7 @@ export function ErrorFeedback({ errorCode, className }: ErrorFeedbackProps) {
   )
 
   return (
-    <div
-      className={cx('error-feedback', className)}
-      role="region"
-      aria-label="Error feedback"
-    >
+    <div className={cx('error-feedback', className)} role="region" aria-label="Error feedback">
       {hasVoted ? (
         <p className="error-feedback-thanks" role="status" aria-live="polite">
           Thanks for your feedback!
@@ -69,9 +65,7 @@ export function ErrorFeedback({ errorCode, className }: ErrorFeedbackProps) {
             onClick={disabled ? undefined : () => handleFeedback(true)}
             className={cx('feedback-button', voted === true && 'voted')}
             title={
-              disabled
-                ? 'Feedback disabled due to setting NEXT_TELEMETRY_DISABLED'
-                : undefined
+              disabled ? 'Feedback disabled due to setting NEXT_TELEMETRY_DISABLED' : undefined
             }
             type="button"
           >
@@ -83,9 +77,7 @@ export function ErrorFeedback({ errorCode, className }: ErrorFeedbackProps) {
             onClick={disabled ? undefined : () => handleFeedback(false)}
             className={cx('feedback-button', voted === false && 'voted')}
             title={
-              disabled
-                ? 'Feedback disabled due to setting NEXT_TELEMETRY_DISABLED'
-                : undefined
+              disabled ? 'Feedback disabled due to setting NEXT_TELEMETRY_DISABLED' : undefined
             }
             type="button"
           >

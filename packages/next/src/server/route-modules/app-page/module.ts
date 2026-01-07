@@ -5,10 +5,7 @@ import type { NextParsedUrlQuery } from '../../request-meta'
 import type { LoaderTree } from '../../lib/app-dir-module'
 import type { PrerenderManifest } from '../../../build'
 
-import {
-  renderToHTMLOrFlight,
-  type AppSharedContext,
-} from '../../app-render/app-render'
+import { renderToHTMLOrFlight, type AppSharedContext } from '../../app-render/app-render'
 import {
   RouteModule,
   type RouteModuleOptions,
@@ -74,25 +71,13 @@ export type AppPageRouteModuleOptions = RouteModuleOptions<
   AppPageUserlandModule
 >
 
-export class AppPageRouteModule extends RouteModule<
-  AppPageRouteDefinition,
-  AppPageUserlandModule
-> {
-  private matchers = new WeakMap<
-    DeepReadonly<PrerenderManifest>,
-    PrerenderManifestMatcher
-  >()
-  public match(
-    pathname: string,
-    prerenderManifest: DeepReadonly<PrerenderManifest>
-  ) {
+export class AppPageRouteModule extends RouteModule<AppPageRouteDefinition, AppPageUserlandModule> {
+  private matchers = new WeakMap<DeepReadonly<PrerenderManifest>, PrerenderManifestMatcher>()
+  public match(pathname: string, prerenderManifest: DeepReadonly<PrerenderManifest>) {
     // Lazily create the matcher based on the provided prerender manifest.
     let matcher = this.matchers.get(prerenderManifest)
     if (!matcher) {
-      matcher = new PrerenderManifestMatcher(
-        this.definition.pathname,
-        prerenderManifest
-      )
+      matcher = new PrerenderManifestMatcher(this.definition.pathname, prerenderManifest)
       this.matchers.set(prerenderManifest, matcher)
     }
 
@@ -129,15 +114,10 @@ export class AppPageRouteModule extends RouteModule<
     )
   }
 
-  public getVaryHeader(
-    resolvedPathname: string,
-    interceptionRoutePatterns: RegExp[]
-  ): string {
+  public getVaryHeader(resolvedPathname: string, interceptionRoutePatterns: RegExp[]): string {
     const baseVaryHeader = `${RSC_HEADER}, ${NEXT_ROUTER_STATE_TREE_HEADER}, ${NEXT_ROUTER_PREFETCH_HEADER}, ${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}`
 
-    if (
-      this.pathCouldBeIntercepted(resolvedPathname, interceptionRoutePatterns)
-    ) {
+    if (this.pathCouldBeIntercepted(resolvedPathname, interceptionRoutePatterns)) {
       // Interception route responses can vary based on the `Next-URL` header.
       // We use the Vary header to signal this behavior to the client to properly cache the response.
       return `${baseVaryHeader}, ${NEXT_URL}`

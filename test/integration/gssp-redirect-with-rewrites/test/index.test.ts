@@ -1,13 +1,7 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import {
-  renderViaHTTP,
-  findPort,
-  launchApp,
-  killApp,
-  check,
-} from 'next-test-utils'
+import { renderViaHTTP, findPort, launchApp, killApp, check } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 
 // test suites

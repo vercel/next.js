@@ -22,21 +22,11 @@ export type NextComponentType<
   getInitialProps?(context: Context): InitialProps | Promise<InitialProps>
 }
 
-export type DocumentType = NextComponentType<
-  DocumentContext,
-  DocumentInitialProps,
-  DocumentProps
->
+export type DocumentType = NextComponentType<DocumentContext, DocumentInitialProps, DocumentProps>
 
-export type AppType<P = {}> = NextComponentType<
-  AppContextType,
-  P,
-  AppPropsType<any, P>
->
+export type AppType<P = {}> = NextComponentType<AppContextType, P, AppPropsType<any, P>>
 
-export type AppTreeType = ComponentType<
-  AppInitialProps & { [name: string]: any }
->
+export type AppTreeType = ComponentType<AppInitialProps & { [name: string]: any }>
 
 /**
  * Web vitals provided to _app.reportWebVitals by Core Web Vitals plugin developed by Google Chrome team.
@@ -55,10 +45,7 @@ export type NextWebVitalsMetric = {
     }
   | {
       label: 'custom'
-      name:
-        | 'Next.js-hydration'
-        | 'Next.js-route-change-to-render'
-        | 'Next.js-render'
+      name: 'Next.js-hydration' | 'Next.js-route-change-to-render' | 'Next.js-render'
     }
 )
 
@@ -303,9 +290,7 @@ export type NextApiHandler<T = any> = (
 /**
  * Utils
  */
-export function execOnce<T extends (...args: any[]) => ReturnType<T>>(
-  fn: T
-): T {
+export function execOnce<T extends (...args: any[]) => ReturnType<T>>(fn: T): T {
   let used = false
   let result: ReturnType<T>
 
@@ -353,16 +338,14 @@ export function normalizeRepeatedSlashes(url: string) {
       // first we replace any non-encoded backslashes with forward
       // then normalize repeated forward slashes
       .replace(/\\/g, '/')
-      .replace(/\/\/+/g, '/') +
-    (urlParts[1] ? `?${urlParts.slice(1).join('?')}` : '')
+      .replace(/\/\/+/g, '/') + (urlParts[1] ? `?${urlParts.slice(1).join('?')}` : '')
   )
 }
 
-export async function loadGetInitialProps<
-  C extends BaseContext,
-  IP = {},
-  P = {},
->(App: NextComponentType<C, IP, P>, ctx: C): Promise<IP> {
+export async function loadGetInitialProps<C extends BaseContext, IP = {}, P = {}>(
+  App: NextComponentType<C, IP, P>,
+  ctx: C
+): Promise<IP> {
   if (process.env.NODE_ENV !== 'production') {
     if (App.prototype?.getInitialProps) {
       const message = `"${getDisplayName(

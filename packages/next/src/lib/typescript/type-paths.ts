@@ -11,9 +11,7 @@ export function getTypeDefinitionGlobPatterns(
   isolatedDevBuild: boolean
 ): string[] {
   const distDirPosix =
-    path.win32.sep === path.sep
-      ? distDir.replaceAll(path.win32.sep, path.posix.sep)
-      : distDir
+    path.win32.sep === path.sep ? distDir.replaceAll(path.win32.sep, path.posix.sep) : distDir
 
   const typeGlobPatterns: string[] = [`${distDirPosix}/types/**/*.ts`]
 

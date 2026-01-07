@@ -11,9 +11,7 @@ export function isHydrationError(error: unknown): boolean {
 
 export function isHydrationWarning(message: unknown): message is string {
   return (
-    isHtmlTagsWarning(message) ||
-    isTextInTagsMismatchWarning(message) ||
-    isTextWarning(message)
+    isHtmlTagsWarning(message) || isTextInTagsMismatchWarning(message) || isTextWarning(message)
   )
 }
 
@@ -28,22 +26,16 @@ const textAndTagsMismatchWarnings = new Set([
   'Warning: Expected server HTML to contain a matching text node for "%s" in <%s>.%s',
   'Warning: Did not expect server HTML to contain the text node "%s" in <%s>.%s',
 ])
-const textWarnings = new Set([
-  'Warning: Text content did not match. Server: "%s" Client: "%s"%s',
-])
+const textWarnings = new Set(['Warning: Text content did not match. Server: "%s" Client: "%s"%s'])
 
-export const getHydrationWarningType = (
-  message: NullableText
-): 'tag' | 'text' | 'text-in-tag' => {
+export const getHydrationWarningType = (message: NullableText): 'tag' | 'text' | 'text-in-tag' => {
   if (typeof message !== 'string') {
     // TODO: Doesn't make sense to treat no message as a hydration error message.
     // We should bail out somewhere earlier.
     return 'text'
   }
 
-  const normalizedMessage = message.startsWith('Warning: ')
-    ? message
-    : `Warning: ${message}`
+  const normalizedMessage = message.startsWith('Warning: ') ? message : `Warning: ${message}`
 
   if (isHtmlTagsWarning(normalizedMessage)) return 'tag'
   if (isTextInTagsMismatchWarning(normalizedMessage)) return 'text-in-tag'
@@ -57,5 +49,4 @@ const isHtmlTagsWarning = (message: unknown) =>
 const isTextInTagsMismatchWarning = (msg: unknown) =>
   typeof msg === 'string' && textAndTagsMismatchWarnings.has(msg)
 
-const isTextWarning = (msg: unknown) =>
-  typeof msg === 'string' && textWarnings.has(msg)
+const isTextWarning = (msg: unknown) => typeof msg === 'string' && textWarnings.has(msg)

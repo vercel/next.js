@@ -21,27 +21,17 @@ describe('skip-trailing-slash-redirect', () => {
   // or aren't specific to either router implementation
   async function runSharedTests(basePath: string) {
     it('should not apply trailing slash redirect (with slash)', async () => {
-      const res = await fetchViaHTTP(
-        next.url,
-        `${basePath}another/`,
-        undefined,
-        {
-          redirect: 'manual',
-        }
-      )
+      const res = await fetchViaHTTP(next.url, `${basePath}another/`, undefined, {
+        redirect: 'manual',
+      })
       expect(res.status).toBe(200)
       expect(await res.text()).toContain('another page')
     })
 
     it('should not apply trailing slash redirect (without slash)', async () => {
-      const res = await fetchViaHTTP(
-        next.url,
-        `${basePath}another`,
-        undefined,
-        {
-          redirect: 'manual',
-        }
-      )
+      const res = await fetchViaHTTP(next.url, `${basePath}another`, undefined, {
+        redirect: 'manual',
+      })
       expect(res.status).toBe(200)
       expect(await res.text()).toContain('another page')
     })
@@ -51,17 +41,12 @@ describe('skip-trailing-slash-redirect', () => {
       await browser.eval('window.beforeNav = 1')
 
       expect(
-        new URL(
-          await browser.elementByCss('#to-another').getAttribute('href'),
-          'http://n'
-        ).pathname
+        new URL(await browser.elementByCss('#to-another').getAttribute('href'), 'http://n').pathname
       ).toBe(`${basePath}another`)
 
       expect(
         new URL(
-          await browser
-            .elementByCss('#to-another-with-slash')
-            .getAttribute('href'),
+          await browser.elementByCss('#to-another-with-slash').getAttribute('href'),
           'http://n'
         ).pathname
       ).toBe(`${basePath}another/`)
@@ -69,17 +54,13 @@ describe('skip-trailing-slash-redirect', () => {
       await browser.elementByCss('#to-another').click()
       await browser.waitForElementByCss('#another')
 
-      expect(await browser.eval('window.location.pathname')).toBe(
-        `${basePath}another`
-      )
+      expect(await browser.eval('window.location.pathname')).toBe(`${basePath}another`)
 
       await browser.back().waitForElementByCss('#to-another')
 
       expect(
         new URL(
-          await browser
-            .elementByCss('#to-another-with-slash')
-            .getAttribute('href'),
+          await browser.elementByCss('#to-another-with-slash').getAttribute('href'),
           'http://n'
         ).pathname
       ).toBe(`${basePath}another/`)
@@ -87,9 +68,7 @@ describe('skip-trailing-slash-redirect', () => {
       await browser.elementByCss('#to-another-with-slash').click()
       await browser.waitForElementByCss('#another')
 
-      expect(await browser.eval('window.location.pathname')).toBe(
-        `${basePath}another/`
-      )
+      expect(await browser.eval('window.location.pathname')).toBe(`${basePath}another/`)
 
       await browser.back().waitForElementByCss('#to-another')
       expect(await browser.eval('window.beforeNav')).toBe(1)
@@ -104,14 +83,9 @@ describe('skip-trailing-slash-redirect', () => {
     })
 
     it('should respond to dynamic route correctly', async () => {
-      const res = await fetchViaHTTP(
-        next.url,
-        `${basePath}blog/first`,
-        undefined,
-        {
-          redirect: 'manual',
-        }
-      )
+      const res = await fetchViaHTTP(next.url, `${basePath}blog/first`, undefined, {
+        redirect: 'manual',
+      })
       expect(res.status).toBe(200)
       expect(await res.text()).toContain('blog page')
     })
@@ -133,9 +107,7 @@ describe('skip-trailing-slash-redirect', () => {
       await browser.elementByCss('#to-blog-first').click()
       await browser.waitForElementByCss('#blog')
 
-      expect(await browser.eval('location.pathname')).toBe(
-        `${basePath}blog/first`
-      )
+      expect(await browser.eval('location.pathname')).toBe(`${basePath}blog/first`)
     })
   }
 
@@ -149,16 +121,13 @@ describe('skip-trailing-slash-redirect', () => {
     })
   })
 
-  it.each(['EN', 'JA-JP'])(
-    'should be able to redirect locale casing $1',
-    async (locale) => {
-      const res = await next.fetch(`/${locale}`, { redirect: 'manual' })
-      expect(res.status).toBe(307)
-      expect(new URL(res.headers.get('location'), 'http://n').pathname).toBe(
-        `/${locale.toLowerCase()}`
-      )
-    }
-  )
+  it.each(['EN', 'JA-JP'])('should be able to redirect locale casing $1', async (locale) => {
+    const res = await next.fetch(`/${locale}`, { redirect: 'manual' })
+    expect(res.status).toBe(307)
+    expect(new URL(res.headers.get('location'), 'http://n').pathname).toBe(
+      `/${locale.toLowerCase()}`
+    )
+  })
 
   it.each([
     { pathname: '/chained-rewrite-ssg' },
@@ -167,58 +136,47 @@ describe('skip-trailing-slash-redirect', () => {
     { pathname: '/docs/first' },
     { pathname: '/docs-auto-static/first' },
     { pathname: '/docs-ssr/first' },
-  ])(
-    'should handle external rewrite correctly $pathname',
-    async ({ pathname }) => {
-      const res = await fetchViaHTTP(next.url, pathname, undefined, {
-        redirect: 'manual',
+  ])('should handle external rewrite correctly $pathname', async ({ pathname }) => {
+    const res = await fetchViaHTTP(next.url, pathname, undefined, {
+      redirect: 'manual',
+    })
+    expect(res.status).toBe(200)
+
+    const html = await res.text()
+    const $ = cheerio.load(html)
+
+    if (!pathname.includes('static')) {
+      expect(JSON.parse($('#props').text()).params).toEqual({
+        slug: 'first',
       })
-      expect(res.status).toBe(200)
-
-      const html = await res.text()
-      const $ = cheerio.load(html)
-
-      if (!pathname.includes('static')) {
-        expect(JSON.parse($('#props').text()).params).toEqual({
-          slug: 'first',
-        })
-        expect(JSON.parse($('#query').text())).toEqual({
-          slug: 'first',
-        })
-      }
-
-      const browser = await webdriver(next.url, '/docs', {
-        waitHydration: false,
+      expect(JSON.parse($('#query').text())).toEqual({
+        slug: 'first',
       })
-      await check(
-        () => browser.eval('next.router.isReady ? "yes": "no"'),
-        'yes'
-      )
-      await check(() => browser.elementByCss('#mounted').text(), 'yes')
-      await browser.eval('window.beforeNav = 1')
-
-      await browser.elementByCss(`#${pathname.replace(/\//g, '')}`).click()
-      await check(async () => {
-        const query = JSON.parse(await browser.elementByCss('#query').text())
-        expect(query).toEqual({ slug: 'first' })
-        return 'success'
-      }, 'success')
-
-      expect(await browser.eval('window.beforeNav')).toBe(1)
     }
-  )
+
+    const browser = await webdriver(next.url, '/docs', {
+      waitHydration: false,
+    })
+    await check(() => browser.eval('next.router.isReady ? "yes": "no"'), 'yes')
+    await check(() => browser.elementByCss('#mounted').text(), 'yes')
+    await browser.eval('window.beforeNav = 1')
+
+    await browser.elementByCss(`#${pathname.replace(/\//g, '')}`).click()
+    await check(async () => {
+      const query = JSON.parse(await browser.elementByCss('#query').text())
+      expect(query).toEqual({ slug: 'first' })
+      return 'success'
+    }, 'success')
+
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+  })
 
   it('should allow rewriting invalid buildId correctly', async () => {
-    const res = await fetchViaHTTP(
-      next.url,
-      '/_next/data/missing-id/hello.json',
-      undefined,
-      {
-        headers: {
-          'x-nextjs-data': '1',
-        },
-      }
-    )
+    const res = await fetchViaHTTP(next.url, '/_next/data/missing-id/hello.json', undefined, {
+      headers: {
+        'x-nextjs-data': '1',
+      },
+    })
     expect(res.status).toBe(200)
     expect(await res.text()).toContain('Example Domain')
 
@@ -229,16 +187,11 @@ describe('skip-trailing-slash-redirect', () => {
   })
 
   it('should provide original _next/data URL with skipProxyUrlNormalize', async () => {
-    const res = await fetchViaHTTP(
-      next.url,
-      `/_next/data/${next.buildId}/valid.json`,
-      undefined,
-      {
-        headers: {
-          'x-nextjs-data': '1',
-        },
-      }
-    )
+    const res = await fetchViaHTTP(next.url, `/_next/data/${next.buildId}/valid.json`, undefined, {
+      headers: {
+        'x-nextjs-data': '1',
+      },
+    })
     expect(res.status).toBe(200)
     expect(await res.text()).toContain('Example Domain')
   })
@@ -255,20 +208,13 @@ describe('skip-trailing-slash-redirect', () => {
       redirect: 'manual',
     })
     expect(res.status).toBe(200)
-    expect(res.headers.get('set-cookie')).toEqual(
-      'from-middleware=1; Path=/, hello=From API'
-    )
+    expect(res.headers.get('set-cookie')).toEqual('from-middleware=1; Path=/, hello=From API')
   })
 
   it('should merge cookies from middleware and edge API routes correctly', async () => {
-    const res = await fetchViaHTTP(
-      next.url,
-      '/api/test-cookie-edge',
-      undefined,
-      {
-        redirect: 'manual',
-      }
-    )
+    const res = await fetchViaHTTP(next.url, '/api/test-cookie-edge', undefined, {
+      redirect: 'manual',
+    })
     expect(res.status).toBe(200)
     expect(res.headers.get('set-cookie')).toEqual(
       'from-middleware=1; Path=/, hello=From%20API; Path=/'
@@ -277,16 +223,13 @@ describe('skip-trailing-slash-redirect', () => {
 
   if ((global as any).isNextStart) {
     it('should not have trailing slash redirects in manifest', async () => {
-      const routesManifest = JSON.parse(
-        await next.readFile('.next/routes-manifest.json')
-      )
+      const routesManifest = JSON.parse(await next.readFile('.next/routes-manifest.json'))
 
       expect(
         routesManifest.redirects.some((redirect) => {
           return (
             redirect.statusCode === 308 &&
-            (redirect.destination === '/:path+' ||
-              redirect.destination === '/:path+/')
+            (redirect.destination === '/:path+' || redirect.destination === '/:path+/')
           )
         })
       ).toBe(false)
@@ -310,27 +253,17 @@ describe('skip-trailing-slash-redirect', () => {
     )
     expect(res.headers.get('x-nextjs-rewrite').endsWith('/another')).toBe(true)
 
-    res = await fetchViaHTTP(
-      next.url,
-      '/middleware-redirect-external-with',
-      undefined,
-      { redirect: 'manual' }
-    )
+    res = await fetchViaHTTP(next.url, '/middleware-redirect-external-with', undefined, {
+      redirect: 'manual',
+    })
     expect(res.status).toBe(307)
-    expect(res.headers.get('Location')).toBe(
-      'https://example.vercel.sh/somewhere/'
-    )
+    expect(res.headers.get('Location')).toBe('https://example.vercel.sh/somewhere/')
 
-    res = await fetchViaHTTP(
-      next.url,
-      '/middleware-redirect-external-without',
-      undefined,
-      { redirect: 'manual' }
-    )
+    res = await fetchViaHTTP(next.url, '/middleware-redirect-external-without', undefined, {
+      redirect: 'manual',
+    })
     expect(res.status).toBe(307)
-    expect(res.headers.get('Location')).toBe(
-      'https://example.vercel.sh/somewhere'
-    )
+    expect(res.headers.get('Location')).toBe('https://example.vercel.sh/somewhere')
   })
 
   it('should apply config redirect correctly', async () => {
@@ -338,9 +271,7 @@ describe('skip-trailing-slash-redirect', () => {
       redirect: 'manual',
     })
     expect(res.status).toBe(307)
-    expect(new URL(res.headers.get('location'), 'http://n').pathname).toBe(
-      '/another'
-    )
+    expect(new URL(res.headers.get('location'), 'http://n').pathname).toBe('/another')
   })
 
   it('should apply config rewrites correctly', async () => {

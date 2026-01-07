@@ -26,11 +26,7 @@ export function buildDataRoute(page: string, buildId: string) {
   } else {
     dataRouteRegex = normalizeRouteRegex(
       new RegExp(
-        `^${path.posix.join(
-          '/_next/data',
-          escapeStringRegexp(buildId),
-          `${pagePath}\\.json`
-        )}$`
+        `^${path.posix.join('/_next/data', escapeStringRegexp(buildId), `${pagePath}\\.json`)}$`
       ).source
     )
   }

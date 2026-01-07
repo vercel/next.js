@@ -48,9 +48,7 @@ async function main() {
     shell: true,
   })
   const lernaPath = path.join(__dirname, '..', 'lerna.json')
-  const existingLerna = JSON.parse(
-    await fs.promises.readFile(lernaPath, 'utf8')
-  )
+  const existingLerna = JSON.parse(await fs.promises.readFile(lernaPath, 'utf8'))
   existingLerna.command.publish.allowBranch.push(branchName)
 
   await fs.promises.writeFile(lernaPath, JSON.stringify(existingLerna, null, 2))
@@ -68,13 +66,7 @@ async function main() {
     buildAndDeploy.replace(/refs\/heads\/canary/g, `refs/heads/${branchName}`)
   )
 
-  const buildAndTestPath = path.join(
-    __dirname,
-    '..',
-    '.github',
-    'workflows',
-    'build_and_test.yml'
-  )
+  const buildAndTestPath = path.join(__dirname, '..', '.github', 'workflows', 'build_and_test.yml')
   let buildAndTest = await fs.promises.readFile(buildAndTestPath, 'utf8')
   buildAndTest = buildAndTest
     .replace(`['canary']`, `['${branchName}']`)
@@ -118,10 +110,7 @@ async function main() {
   )
 
   if (!updateEnvironmentRes.ok) {
-    console.error(
-      { status: updateEnvironmentRes.status },
-      await updateEnvironmentRes.text()
-    )
+    console.error({ status: updateEnvironmentRes.status }, await updateEnvironmentRes.text())
     throw new Error(`Failed to update environment branch rules`)
   }
   console.log(`Successfully updated deployment environment branch rules`)

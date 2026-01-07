@@ -65,30 +65,19 @@ describe('Edge runtime code with imports', () => {
     it(`${title} dev test Response`, async () => {
       context.app = await launchApp(context.appDir, context.appPort, appOption)
       const res = await fetchViaHTTP(context.appPort, url)
-      expect(context.logs.stderr).toContain(
-        'Expected an instance of Response to be returned'
-      )
+      expect(context.logs.stderr).toContain('Expected an instance of Response to be returned')
       expect(res.status).toBe(500)
     })
-    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-      'production mode',
-      () => {
-        it(`${title} build test Response`, async () => {
-          await nextBuild(context.appDir, undefined, {
-            stderr: true,
-          })
-          context.app = await nextStart(
-            context.appDir,
-            context.appPort,
-            appOption
-          )
-          const res = await fetchViaHTTP(context.appPort, url)
-          expect(context.logs.stderr).toContain(
-            'Expected an instance of Response to be returned'
-          )
-          expect(res.status).toBe(500)
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
+      it(`${title} build test Response`, async () => {
+        await nextBuild(context.appDir, undefined, {
+          stderr: true,
         })
-      }
-    )
+        context.app = await nextStart(context.appDir, context.appPort, appOption)
+        const res = await fetchViaHTTP(context.appPort, url)
+        expect(context.logs.stderr).toContain('Expected an instance of Response to be returned')
+        expect(res.status).toBe(500)
+      })
+    })
   })
 })

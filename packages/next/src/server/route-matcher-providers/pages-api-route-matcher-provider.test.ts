@@ -47,23 +47,20 @@ describe('PagesAPIRouteMatcherProvider', () => {
           bundlePath: 'pages/api',
         },
       },
-    ])(
-      'returns the correct routes for $route.pathname',
-      async ({ manifest, route }) => {
-        const loader: ManifestLoader = {
-          load: jest.fn(() => ({
-            '/users/[id]': 'pages/users/[id].js',
-            '/users': 'pages/users.js',
-            ...manifest,
-          })),
-        }
-        const provider = new PagesAPIRouteMatcherProvider('<root>', loader)
-        const matchers = await provider.matchers()
-
-        expect(loader.load).toHaveBeenCalledWith(PAGES_MANIFEST)
-        expect(matchers).toHaveLength(1)
-        expect(matchers[0].definition).toEqual(route)
+    ])('returns the correct routes for $route.pathname', async ({ manifest, route }) => {
+      const loader: ManifestLoader = {
+        load: jest.fn(() => ({
+          '/users/[id]': 'pages/users/[id].js',
+          '/users': 'pages/users.js',
+          ...manifest,
+        })),
       }
-    )
+      const provider = new PagesAPIRouteMatcherProvider('<root>', loader)
+      const matchers = await provider.matchers()
+
+      expect(loader.load).toHaveBeenCalledWith(PAGES_MANIFEST)
+      expect(matchers).toHaveLength(1)
+      expect(matchers[0].definition).toEqual(route)
+    })
   })
 })

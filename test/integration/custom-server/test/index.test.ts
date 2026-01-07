@@ -60,19 +60,12 @@ describe.each([
     afterAll(() => killApp(server))
 
     it('should serve internal file from render', async () => {
-      const data = await renderViaHTTP(
-        nextUrl,
-        '/static/hello.txt',
-        undefined,
-        { agent }
-      )
+      const data = await renderViaHTTP(nextUrl, '/static/hello.txt', undefined, { agent })
       expect(data).toMatch(/hello world/)
     })
 
     it('should handle render with undefined query', async () => {
-      expect(
-        await renderViaHTTP(nextUrl, '/no-query', undefined, { agent })
-      ).toMatch(/"query":/)
+      expect(await renderViaHTTP(nextUrl, '/no-query', undefined, { agent })).toMatch(/"query":/)
     })
 
     it('should set the assetPrefix dynamically', async () => {
@@ -81,22 +74,16 @@ describe.each([
       })
       expect(normalUsage).not.toMatch(/127\.0\.0\.1/)
 
-      const dynamicUsage = await renderViaHTTP(
-        nextUrl,
-        '/asset?setAssetPrefix=1',
-        undefined,
-        { agent }
-      )
+      const dynamicUsage = await renderViaHTTP(nextUrl, '/asset?setAssetPrefix=1', undefined, {
+        agent,
+      })
       expect(dynamicUsage).toMatch(/127\.0\.0\.1/)
     })
 
     it('should handle null assetPrefix accordingly', async () => {
-      const normalUsage = await renderViaHTTP(
-        nextUrl,
-        '/asset?setEmptyAssetPrefix=1',
-        undefined,
-        { agent }
-      )
+      const normalUsage = await renderViaHTTP(nextUrl, '/asset?setEmptyAssetPrefix=1', undefined, {
+        agent,
+      })
       expect(normalUsage).toMatch(/"\/_next/)
     })
 
@@ -122,14 +109,9 @@ describe.each([
     })
 
     it('should handle custom urls with requests handler', async () => {
-      const html = await renderViaHTTP(
-        nextUrl,
-        '/custom-url-with-request-handler',
-        undefined,
-        {
-          agent,
-        }
-      )
+      const html = await renderViaHTTP(nextUrl, '/custom-url-with-request-handler', undefined, {
+        agent,
+      })
       expect(html).toMatch(/made it to dashboard/)
     })
 
@@ -141,23 +123,20 @@ describe.each([
   })
 
   describe('with generateEtags enabled', () => {
-    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-      'production mode',
-      () => {
-        beforeAll(async () => {
-          await nextBuild(appDir)
-          await startServer({ GENERATE_ETAGS: 'true', NODE_ENV: 'production' })
-        })
-        afterAll(() => killApp(server))
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
+      beforeAll(async () => {
+        await nextBuild(appDir)
+        await startServer({ GENERATE_ETAGS: 'true', NODE_ENV: 'production' })
+      })
+      afterAll(() => killApp(server))
 
-        it('response includes etag header', async () => {
-          const response = await fetchViaHTTP(nextUrl, '/', undefined, {
-            agent,
-          })
-          expect(response.headers.get('etag')).toBeTruthy()
+      it('response includes etag header', async () => {
+        const response = await fetchViaHTTP(nextUrl, '/', undefined, {
+          agent,
         })
-      }
-    )
+        expect(response.headers.get('etag')).toBeTruthy()
+      })
+    })
   })
 
   describe('with generateEtags disabled', () => {
@@ -190,9 +169,7 @@ describe.each([
           // Hydrates with react 18 is correct as expected
           expect(
             logs.some((log) =>
-              log.message.includes(
-                'ReactDOM.hydrate is no longer supported in React 18'
-              )
+              log.message.includes('ReactDOM.hydrate is no longer supported in React 18')
             )
           ).toBe(false)
 
@@ -227,47 +204,41 @@ describe.each([
       expect(html).toContain('made it to dashboard')
       expect(stderr).toContain('Cannot render page with path "dashboard"')
     })
-    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-      'production mode',
-      () => {
-        it('should warn in production mode', async () => {
-          const { code } = await nextBuild(appDir)
-          expect(code).toBe(0)
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
+      it('should warn in production mode', async () => {
+        const { code } = await nextBuild(appDir)
+        expect(code).toBe(0)
 
-          let stderr = ''
+        let stderr = ''
 
-          await startServer(
-            { NODE_ENV: 'production' },
-            {
-              onStderr(msg) {
-                stderr += msg || ''
-              },
-            }
-          )
+        await startServer(
+          { NODE_ENV: 'production' },
+          {
+            onStderr(msg) {
+              stderr += msg || ''
+            },
+          }
+        )
 
-          const html = await renderViaHTTP(nextUrl, '/no-slash', undefined, {
-            agent,
-          })
-          expect(html).toContain('made it to dashboard')
-          expect(stderr).toContain('Cannot render page with path "dashboard"')
+        const html = await renderViaHTTP(nextUrl, '/no-slash', undefined, {
+          agent,
         })
-      }
-    )
+        expect(html).toContain('made it to dashboard')
+        expect(stderr).toContain('Cannot render page with path "dashboard"')
+      })
+    })
   })
 
   describe('compression handling', function () {
     beforeAll(() => startServer())
     afterAll(() => killApp(server))
 
-    it.each(['/', '/no-query'])(
-      'should handle compression for route %s',
-      async (route) => {
-        const response = await fetchViaHTTP(nextUrl, route, undefined, {
-          agent,
-        })
-        expect(response.headers.get('Content-Encoding')).toBe('gzip')
-      }
-    )
+    it.each(['/', '/no-query'])('should handle compression for route %s', async (route) => {
+      const response = await fetchViaHTTP(nextUrl, route, undefined, {
+        agent,
+      })
+      expect(response.headers.get('Content-Encoding')).toBe('gzip')
+    })
   })
 
   describe('with a custom fetch polyfill', () => {
@@ -275,12 +246,7 @@ describe.each([
     afterAll(() => killApp(server))
 
     it('should serve internal file from render', async () => {
-      const data = await renderViaHTTP(
-        nextUrl,
-        '/static/hello.txt',
-        undefined,
-        { agent }
-      )
+      const data = await renderViaHTTP(nextUrl, '/static/hello.txt', undefined, { agent })
       expect(data).toMatch(/hello world/)
     })
   })
@@ -349,22 +315,14 @@ describe.each([
     })
 
     it('NextCustomServer.render404', async () => {
-      const html = await renderViaHTTP(
-        nextUrl,
-        '/legacy-methods/render404',
-        undefined,
-        { agent }
-      )
+      const html = await renderViaHTTP(nextUrl, '/legacy-methods/render404', undefined, { agent })
       expect(html).toContain('made it to 404')
     })
 
     it('NextCustomServer.renderError', async () => {
-      const html = await renderViaHTTP(
-        nextUrl,
-        '/legacy-methods/render-error',
-        undefined,
-        { agent }
-      )
+      const html = await renderViaHTTP(nextUrl, '/legacy-methods/render-error', undefined, {
+        agent,
+      })
       if (isNextDev) {
         // in dev, we always render error overlay + default error page, not /500
         expect(html).toContain('Error: kaboom')
@@ -374,12 +332,9 @@ describe.each([
     })
 
     it('NextCustomServer.renderErrorToHTML', async () => {
-      const html = await renderViaHTTP(
-        nextUrl,
-        '/legacy-methods/render-error-to-html',
-        undefined,
-        { agent }
-      )
+      const html = await renderViaHTTP(nextUrl, '/legacy-methods/render-error-to-html', undefined, {
+        agent,
+      })
       if (isNextDev) {
         // in dev, we always render error overlay + default error page, not /500
         expect(html).toContain('Error: kaboom')

@@ -1,7 +1,6 @@
 {
   "private": true,
   "main": "main/index.js",
-  "productName": "ElectronTypescriptNext",
   "scripts": {
     "clean": "rimraf dist main renderer/out renderer/.next",
     "dev": "npm run build-electron && electron .",
@@ -34,5 +33,6 @@
       "main",
       "renderer/out"
     ]
-  }
+  },
+  "productName": "ElectronTypescriptNext"
 }

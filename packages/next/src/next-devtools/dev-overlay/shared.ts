@@ -12,10 +12,7 @@ export type DevToolsConfig = {
   theme?: 'light' | 'dark' | 'system'
   disableDevIndicator?: boolean
   devToolsPosition?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
-  devToolsPanelPosition?: Record<
-    string,
-    'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
-  >
+  devToolsPanelPosition?: Record<string, 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'>
   devToolsPanelSize?: Record<string, { width: number; height: number }>
   scale?: number
   hideShortcut?: string | null
@@ -32,8 +29,7 @@ export const NEXT_DEV_TOOLS_SCALE = {
   Large: BASE_SIZE / 18,
 }
 
-export type DevToolsScale =
-  (typeof NEXT_DEV_TOOLS_SCALE)[keyof typeof NEXT_DEV_TOOLS_SCALE]
+export type DevToolsScale = (typeof NEXT_DEV_TOOLS_SCALE)[keyof typeof NEXT_DEV_TOOLS_SCALE]
 
 type FastRefreshState =
   /** No refresh in progress. */
@@ -63,9 +59,7 @@ export interface OverlayState {
   readonly isErrorOverlayOpen: boolean
   readonly devToolsPosition: Corners
   readonly devToolsPanelPosition: Readonly<Record<DevtoolsPanelName, Corners>>
-  readonly devToolsPanelSize: Readonly<
-    Record<DevtoolsPanelName, { width: number; height: number }>
-  >
+  readonly devToolsPanelSize: Readonly<Record<DevtoolsPanelName, { width: number; height: number }>>
   readonly scale: number
   readonly page: string
   readonly theme: 'light' | 'dark' | 'system'
@@ -102,16 +96,12 @@ export const ACTION_DEVTOOLS_SCALE = 'devtools-scale'
 
 export const ACTION_DEVTOOLS_CONFIG = 'devtools-config'
 
-export const STORAGE_KEY_PANEL_POSITION_PREFIX =
-  '__nextjs-dev-tools-panel-position'
+export const STORAGE_KEY_PANEL_POSITION_PREFIX = '__nextjs-dev-tools-panel-position'
 export const STORE_KEY_PANEL_SIZE_PREFIX = '__nextjs-dev-tools-panel-size'
-export const STORE_KEY_SHARED_PANEL_SIZE =
-  '__nextjs-dev-tools-shared-panel-size'
-export const STORE_KEY_SHARED_PANEL_LOCATION =
-  '__nextjs-dev-tools-shared-panel-location'
+export const STORE_KEY_SHARED_PANEL_SIZE = '__nextjs-dev-tools-shared-panel-size'
+export const STORE_KEY_SHARED_PANEL_LOCATION = '__nextjs-dev-tools-shared-panel-location'
 
-export const ACTION_DEVTOOL_UPDATE_ROUTE_STATE =
-  'segment-explorer-update-route-state'
+export const ACTION_DEVTOOL_UPDATE_ROUTE_STATE = 'segment-explorer-update-route-state'
 
 interface CacheIndicatorAction {
   type: typeof ACTION_CACHE_INDICATOR
@@ -257,16 +247,12 @@ function getStackIgnoringStrictMode(stack: string | undefined) {
   return stack?.split(REACT_ERROR_STACK_BOTTOM_FRAME_REGEX)[0]
 }
 
-const shouldDisableDevIndicator =
-  process.env.__NEXT_DEV_INDICATOR?.toString() === 'false'
+const shouldDisableDevIndicator = process.env.__NEXT_DEV_INDICATOR?.toString() === 'false'
 
-const devToolsInitialPositionFromNextConfig = (process.env
-  .__NEXT_DEV_INDICATOR_POSITION ?? 'bottom-left') as Corners
+const devToolsInitialPositionFromNextConfig = (process.env.__NEXT_DEV_INDICATOR_POSITION ??
+  'bottom-left') as Corners
 
-export const INITIAL_OVERLAY_STATE: Omit<
-  OverlayState,
-  'isErrorOverlayOpen' | 'routerType'
-> = {
+export const INITIAL_OVERLAY_STATE: Omit<OverlayState, 'isErrorOverlayOpen' | 'routerType'> = {
   nextId: 1,
   buildError: null,
   errors: [],
@@ -274,7 +260,7 @@ export const INITIAL_OVERLAY_STATE: Omit<
   renderingIndicator: false,
   cacheIndicator: 'disabled',
   staticIndicator: 'disabled',
-  /* 
+  /*
     This is set to `true` when we can reliably know
     whether the indicator is in disabled state or not.  
     Otherwise the surface would flicker because the disabled flag loads from the config.
@@ -388,9 +374,7 @@ export function useErrorOverlayReducer(
               // around until the next refresh. Otherwise we run into a race
               // condition where those errors would be cleared on refresh completion
               // before they can be displayed.
-              state.refreshState.type === 'pending'
-                ? state.refreshState.errors
-                : [],
+              state.refreshState.type === 'pending' ? state.refreshState.errors : [],
             refreshState: { type: 'idle' },
           }
         }
@@ -401,11 +385,7 @@ export function useErrorOverlayReducer(
               return {
                 ...state,
                 nextId: state.nextId + 1,
-                errors: pushErrorFilterDuplicates(
-                  state.errors,
-                  state.nextId,
-                  action.reason
-                ),
+                errors: pushErrorFilterDuplicates(state.errors, state.nextId, action.reason),
               }
             }
             case 'pending': {
@@ -414,11 +394,7 @@ export function useErrorOverlayReducer(
                 nextId: state.nextId + 1,
                 refreshState: {
                   ...state.refreshState,
-                  errors: pushErrorFilterDuplicates(
-                    state.errors,
-                    state.nextId,
-                    action.reason
-                  ),
+                  errors: pushErrorFilterDuplicates(state.errors, state.nextId, action.reason),
                 },
               }
             }
@@ -436,8 +412,7 @@ export function useErrorOverlayReducer(
           return {
             ...state,
             showIndicator: true,
-            disableDevIndicator:
-              shouldDisableDevIndicator || !!action.devIndicator.disabledUntil,
+            disableDevIndicator: shouldDisableDevIndicator || !!action.devIndicator.disabledUntil,
           }
         }
         case ACTION_ERROR_OVERLAY_OPEN: {
@@ -495,11 +470,9 @@ export function useErrorOverlayReducer(
           return {
             ...state,
             theme: theme ?? state.theme,
-            disableDevIndicator:
-              disableDevIndicator ?? state.disableDevIndicator,
+            disableDevIndicator: disableDevIndicator ?? state.disableDevIndicator,
             devToolsPosition: devToolsPosition ?? state.devToolsPosition,
-            devToolsPanelPosition:
-              devToolsPanelPosition ?? state.devToolsPanelPosition,
+            devToolsPanelPosition: devToolsPanelPosition ?? state.devToolsPanelPosition,
             scale: scale ?? state.scale,
             devToolsPanelSize: devToolsPanelSize ?? state.devToolsPanelSize,
             hideShortcut:

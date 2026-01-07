@@ -138,11 +138,7 @@ export type SegmentTrieNode = TrieNode<SegmentNodeState>
 const trie: SegmentTrie = createTrie({
   compare: (a, b) => {
     if (!a || !b) return false
-    return (
-      a.pagePath === b.pagePath &&
-      a.type === b.type &&
-      a.boundaryType === b.boundaryType
-    )
+    return a.pagePath === b.pagePath && a.type === b.type && a.boundaryType === b.boundaryType
   },
   getCharacters: (item) => item.pagePath.split('/'),
 })

@@ -27,10 +27,7 @@ describe('Dev Rendering Indicator', () => {
 
   it('Shows build indicator when page is built from modifying', async () => {
     // Ensure both pages are built first so that we don't confuse it with build indicator
-    await Promise.all([
-      next.fetch('/app/rendering/a'),
-      next.fetch('/app/rendering/b'),
-    ])
+    await Promise.all([next.fetch('/app/rendering/a'), next.fetch('/app/rendering/b')])
     const browser = await next.browser('/app/rendering/a')
     await installCheckVisible(browser)
     await browser.eval('window.showedBuilder = false')

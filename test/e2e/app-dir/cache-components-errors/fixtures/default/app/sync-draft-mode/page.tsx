@@ -6,9 +6,8 @@ export default async function Page() {
   return (
     <>
       <p>
-        This page accesses draftMode.isEnabled synchronously. This does not
-        trigger dynamic, and the build should succeed. In dev mode, we do log an
-        error for the sync access though.
+        This page accesses draftMode.isEnabled synchronously. This does not trigger dynamic, and the
+        build should succeed. In dev mode, we do log an error for the sync access though.
       </p>
       <DraftModeReadingComponent />
       <Suspense>

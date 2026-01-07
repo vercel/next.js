@@ -48,12 +48,7 @@ describe('Middleware fetches with any HTTP method', () => {
   afterAll(() => next.destroy())
 
   it('passes the method on a direct fetch request', async () => {
-    const response = await fetchViaHTTP(
-      next.url,
-      '/api/ping',
-      {},
-      { method: 'POST' }
-    )
+    const response = await fetchViaHTTP(next.url, '/api/ping', {}, { method: 'POST' })
     const json = await response.json()
     expect(json).toMatchObject({
       method: 'POST',

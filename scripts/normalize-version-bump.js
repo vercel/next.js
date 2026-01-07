@@ -11,8 +11,7 @@ const fs = require('fs/promises')
 const cwd = process.cwd()
 const NORMALIZED_VERSION = '0.0.0'
 
-const readJson = async (filePath) =>
-  JSON.parse(await fs.readFile(filePath, 'utf8'))
+const readJson = async (filePath) => JSON.parse(await fs.readFile(filePath, 'utf8'))
 
 const writeJson = async (filePath, data) =>
   fs.writeFile(filePath, JSON.stringify(data, null, 2) + '\n')
@@ -24,9 +23,7 @@ const writeJson = async (filePath, data) =>
   const pkgNames = []
   await Promise.all(
     packages.map(async (pkgDir) => {
-      const data = await readJson(
-        path.join(cwd, 'packages', pkgDir, 'package.json')
-      )
+      const data = await readJson(path.join(cwd, 'packages', pkgDir, 'package.json'))
       pkgNames.push(data.name)
       pkgJsonData.set(pkgDir, data)
     })
@@ -55,10 +52,7 @@ const writeJson = async (filePath, data) =>
   }
   await Promise.all(
     packages.map((pkgDir) =>
-      normalizeVersions(
-        path.join(cwd, 'packages', pkgDir, 'package.json'),
-        pkgJsonData.get(pkgDir)
-      )
+      normalizeVersions(path.join(cwd, 'packages', pkgDir, 'package.json'), pkgJsonData.get(pkgDir))
     )
   )
   await normalizeVersions(path.join(cwd, 'lerna.json'))

@@ -7,9 +7,7 @@ describe('unstable-rethrow', () => {
 
   it('should correctly trigger the not found page as not found', async () => {
     const browser = await next.browser('/not-found-page')
-    expect(await browser.elementByCss('body').text()).toContain(
-      'This page could not be found.'
-    )
+    expect(await browser.elementByCss('body').text()).toContain('This page could not be found.')
   })
 
   it('should handle an internal error that gets propagated to the `cause` field', async () => {

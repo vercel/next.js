@@ -73,13 +73,11 @@ const tests = {
       filename: 'pages/index.js',
       errors: [
         {
-          message:
-            'getStaticPathss may be a typo. Did you mean getStaticPaths?',
+          message: 'getStaticPathss may be a typo. Did you mean getStaticPaths?',
           type: 'ExportNamedDeclaration',
         },
         {
-          message:
-            'getStaticPropss may be a typo. Did you mean getStaticProps?',
+          message: 'getStaticPropss may be a typo. Did you mean getStaticProps?',
           type: 'ExportNamedDeclaration',
         },
       ],
@@ -94,8 +92,7 @@ const tests = {
       filename: 'pages/index.js',
       errors: [
         {
-          message:
-            'getServurSideProps may be a typo. Did you mean getServerSideProps?',
+          message: 'getServurSideProps may be a typo. Did you mean getServerSideProps?',
           type: 'ExportNamedDeclaration',
         },
       ],
@@ -110,8 +107,7 @@ const tests = {
       filename: 'pages/index.js',
       errors: [
         {
-          message:
-            'getServurSideProps may be a typo. Did you mean getServerSideProps?',
+          message: 'getServurSideProps may be a typo. Did you mean getServerSideProps?',
           type: 'ExportNamedDeclaration',
         },
       ],

@@ -17,12 +17,8 @@ describe('SCSS Support', () => {
       expect(cliOutput).toContain(
         "To use Next.js' built-in Sass support, you first need to install `sass`."
       )
-      expect(cliOutput).toContain(
-        'Run `npm i sass` or `yarn add sass` inside your workspace.'
-      )
-      expect(cliOutput).toContain(
-        'Learn more: https://nextjs.org/docs/messages/install-sass'
-      )
+      expect(cliOutput).toContain('Run `npm i sass` or `yarn add sass` inside your workspace.')
+      expect(cliOutput).toContain('Learn more: https://nextjs.org/docs/messages/install-sass')
 
       expect(cliOutput).not.toContain('css-loader')
       expect(cliOutput).not.toContain('sass-loader')

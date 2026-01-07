@@ -1,13 +1,7 @@
 /* eslint-env jest */
 
 import fs from 'fs-extra'
-import {
-  check,
-  findPort,
-  getBrowserBodyText,
-  killApp,
-  launchApp,
-} from 'next-test-utils'
+import { check, findPort, getBrowserBodyText, killApp, launchApp } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 

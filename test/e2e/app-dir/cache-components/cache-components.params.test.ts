@@ -29,9 +29,7 @@ describe('cache-components', () => {
     it('should partially prerender pages that await params in a server components', async () => {
       expect(getLines('Route "/params')).toEqual([])
 
-      let $ = await next.render$(
-        '/params/semantics/one/build/layout-access/server'
-      )
+      let $ = await next.render$('/params/semantics/one/build/layout-access/server')
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
 
@@ -121,9 +119,7 @@ describe('cache-components', () => {
     it.skip('should partially prerender pages that use params in a client components', async () => {
       expect(getLines('Route "/params')).toEqual([])
 
-      let $ = await next.render$(
-        '/params/semantics/one/build/layout-access/client'
-      )
+      let $ = await next.render$('/params/semantics/one/build/layout-access/client')
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#lowcard').text()).toBe('at runtime')
@@ -205,9 +201,7 @@ describe('cache-components', () => {
 
     it('should fully prerender pages that check individual param keys after awaiting params in a server component', async () => {
       expect(getLines('Route "/params')).toEqual([])
-      let $ = await next.render$(
-        '/params/semantics/one/build/layout-has/server'
-      )
+      let $ = await next.render$('/params/semantics/one/build/layout-has/server')
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#lowcard').text()).toBe('at runtime')
@@ -303,9 +297,7 @@ describe('cache-components', () => {
     // TODO: Rewrite or update this test.
     it.skip('should fully prerender pages that check individual param keys after `use`ing params in a client component', async () => {
       expect(getLines('Route "/params')).toEqual([])
-      let $ = await next.render$(
-        '/params/semantics/one/build/layout-has/client'
-      )
+      let $ = await next.render$('/params/semantics/one/build/layout-has/client')
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#lowcard').text()).toBe('at runtime')
@@ -396,9 +388,7 @@ describe('cache-components', () => {
 
     it('should partially prerender pages that spread awaited params in a server component', async () => {
       expect(getLines('Route "/params')).toEqual([])
-      let $ = await next.render$(
-        '/params/semantics/one/build/layout-spread/server'
-      )
+      let $ = await next.render$('/params/semantics/one/build/layout-spread/server')
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#lowcard').text()).toBe('at runtime')
@@ -492,9 +482,7 @@ describe('cache-components', () => {
     // TODO: Rewrite or update this test.
     it.skip('should partially prerender pages that spread `use`ed params in a client component', async () => {
       expect(getLines('Route "/params')).toEqual([])
-      let $ = await next.render$(
-        '/params/semantics/one/build/layout-spread/client'
-      )
+      let $ = await next.render$('/params/semantics/one/build/layout-spread/client')
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#lowcard').text()).toBe('at runtime')
@@ -585,9 +573,7 @@ describe('cache-components', () => {
   describe('Param Shadowing', () => {
     it('should correctly allow param names like then, value, and status when awaiting params in a server component', async () => {
       expect(getLines('Route "/params')).toEqual([])
-      let $ = await next.render$(
-        '/params/shadowing/foo/bar/baz/qux/layout/server'
-      )
+      let $ = await next.render$('/params/shadowing/foo/bar/baz/qux/layout/server')
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#page').text()).toBe('at runtime')
@@ -633,9 +619,7 @@ describe('cache-components', () => {
     // TODO: Rewrite or update this test.
     it.skip('should correctly allow param names like then, value, and status when `use`ing params in a client component', async () => {
       expect(getLines('Route "/params')).toEqual([])
-      let $ = await next.render$(
-        '/params/shadowing/foo/bar/baz/qux/layout/client'
-      )
+      let $ = await next.render$('/params/shadowing/foo/bar/baz/qux/layout/client')
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#page').text()).toBe('at runtime')
@@ -692,24 +676,17 @@ describe('cache-components', () => {
             )
           }
 
-          if (
-            line.startsWith('├') &&
-            line.includes('/params/generate-static-params/[slug]')
-          ) {
+          if (line.startsWith('├') && line.includes('/params/generate-static-params/[slug]')) {
             let nextLine = lines[i++]
             // we expect the fallback shell first
             expect(nextLine).toContain('/params/generate-static-params/[slug]')
             nextLine = lines[i++]
 
-            expect(nextLine).toMatch(
-              /\/params\/generate-static-params\/\d+\/page/
-            )
+            expect(nextLine).toMatch(/\/params\/generate-static-params\/\d+\/page/)
             nextLine = lines[i++]
             // Because we force-cache we only end up with one prebuilt page.
             // When cacheComponents semantics are fully respected we will end up with two.
-            expect(nextLine).not.toMatch(
-              /\/params\/generate-static-params\/\d+\/page/
-            )
+            expect(nextLine).not.toMatch(/\/params\/generate-static-params\/\d+\/page/)
             break
           }
         }

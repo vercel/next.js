@@ -28,10 +28,7 @@ describe('webpack-config attachReactRefresh', () => {
       module: {
         rules: [
           {
-            use: [
-              'next/dist/compiled/@next/react-refresh-utils/dist/loader',
-              'rr',
-            ],
+            use: ['next/dist/compiled/@next/react-refresh-utils/dist/loader', 'rr'],
           },
         ],
       },
@@ -40,10 +37,7 @@ describe('webpack-config attachReactRefresh', () => {
       module: {
         rules: [
           {
-            use: [
-              'next/dist/compiled/@next/react-refresh-utils/dist/loader',
-              'rr',
-            ],
+            use: ['next/dist/compiled/@next/react-refresh-utils/dist/loader', 'rr'],
           },
         ],
       },
@@ -59,9 +53,7 @@ describe('webpack-config attachReactRefresh', () => {
         rules: [
           {
             use: [
-              require.resolve(
-                'next/dist/compiled/@next/react-refresh-utils/dist/loader'
-              ),
+              require.resolve('next/dist/compiled/@next/react-refresh-utils/dist/loader'),
               'rr',
             ],
           },
@@ -73,9 +65,7 @@ describe('webpack-config attachReactRefresh', () => {
         rules: [
           {
             use: [
-              require.resolve(
-                'next/dist/compiled/@next/react-refresh-utils/dist/loader'
-              ),
+              require.resolve('next/dist/compiled/@next/react-refresh-utils/dist/loader'),
               'rr',
             ],
           },
@@ -99,12 +89,7 @@ describe('webpack-config attachReactRefresh', () => {
       module: {
         rules: [
           {
-            use: [
-              expect.stringMatching(
-                /react-refresh-utils[\\/]dist[\\/]loader\.js/
-              ),
-              'rr',
-            ],
+            use: [expect.stringMatching(/react-refresh-utils[\\/]dist[\\/]loader\.js/), 'rr'],
           },
         ],
       },
@@ -123,12 +108,7 @@ describe('webpack-config attachReactRefresh', () => {
       module: {
         rules: [
           {
-            use: [
-              expect.stringMatching(
-                /react-refresh-utils[\\/]dist[\\/]loader\.js/
-              ),
-              'rr',
-            ],
+            use: [expect.stringMatching(/react-refresh-utils[\\/]dist[\\/]loader\.js/), 'rr'],
           },
         ],
       },
@@ -149,9 +129,7 @@ describe('webpack-config attachReactRefresh', () => {
           {
             use: [
               'bla',
-              expect.stringMatching(
-                /react-refresh-utils[\\/]dist[\\/]loader\.js/
-              ),
+              expect.stringMatching(/react-refresh-utils[\\/]dist[\\/]loader\.js/),
               'rr',
             ],
           },
@@ -173,9 +151,7 @@ describe('webpack-config attachReactRefresh', () => {
         rules: [
           {
             use: [
-              expect.stringMatching(
-                /react-refresh-utils[\\/]dist[\\/]loader\.js/
-              ),
+              expect.stringMatching(/react-refresh-utils[\\/]dist[\\/]loader\.js/),
               'rr',
               'bla',
             ],
@@ -201,9 +177,7 @@ describe('webpack-config attachReactRefresh', () => {
               'hehe',
               'haha',
               'rawr',
-              expect.stringMatching(
-                /react-refresh-utils[\\/]dist[\\/]loader\.js/
-              ),
+              expect.stringMatching(/react-refresh-utils[\\/]dist[\\/]loader\.js/),
               'rr',
               'lol',
               'bla',

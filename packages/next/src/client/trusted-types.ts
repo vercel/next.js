@@ -30,8 +30,6 @@ function getPolicy() {
  * that will cause a browser to load and execute a resource, e.g. when
  * assigning to script.src.
  */
-export function __unsafeCreateTrustedScriptURL(
-  url: string
-): TrustedScriptURL | string {
+export function __unsafeCreateTrustedScriptURL(url: string): TrustedScriptURL | string {
   return getPolicy()?.createScriptURL(url) || url
 }

@@ -63,9 +63,8 @@ export function FetchDataSteps() {
           >
             Table Editor
           </a>{" "}
-          for your Supabase project to create a table and insert some example
-          data. If you&apos;re stuck for creativity, you can copy and paste the
-          following into the{" "}
+          for your Supabase project to create a table and insert some example data. If you&apos;re
+          stuck for creativity, you can copy and paste the following into the{" "}
           <a
             href="https://supabase.com/dashboard/project/_/sql/new"
             className="font-bold hover:underline text-foreground/80"
@@ -81,9 +80,8 @@ export function FetchDataSteps() {
 
       <TutorialStep title="Enable Row Level Security (RLS)">
         <p>
-          Supabase enables Row Level Security (RLS) by default. To query data
-          from your <code>notes</code> table, you need to add a policy. You can
-          do this in the{" "}
+          Supabase enables Row Level Security (RLS) by default. To query data from your{" "}
+          <code>notes</code> table, you need to add a policy. You can do this in the{" "}
           <a
             href="https://supabase.com/dashboard/project/_/editor"
             className="font-bold hover:underline text-foreground/80"
@@ -103,10 +101,7 @@ export function FetchDataSteps() {
           </a>
           .
         </p>
-        <p>
-          For example, you can run the following SQL to allow public read
-          access:
-        </p>
+        <p>For example, you can run the following SQL to allow public read access:</p>
         <CodeBlock code={rls} />
         <p>
           You can learn more about RLS in the{" "}
@@ -124,8 +119,8 @@ export function FetchDataSteps() {
 
       <TutorialStep title="Query Supabase data from Next.js">
         <p>
-          To create a Supabase client and query data from an Async Server
-          Component, create a new page.tsx file at{" "}
+          To create a Supabase client and query data from an Async Server Component, create a new
+          page.tsx file at{" "}
           <span className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-xs font-medium text-secondary-foreground border">
             /app/notes/page.tsx
           </span>{" "}
@@ -145,13 +140,11 @@ export function FetchDataSteps() {
           >
             Supabase UI library
           </a>{" "}
-          and try installing some blocks. For example, you can install a
-          Realtime Chat block by running:
+          and try installing some blocks. For example, you can install a Realtime Chat block by
+          running:
         </p>
         <CodeBlock
-          code={
-            "npx shadcn@latest add https://supabase.com/ui/r/realtime-chat-nextjs.json"
-          }
+          code={"npx shadcn@latest add https://supabase.com/ui/r/realtime-chat-nextjs.json"}
         />
       </TutorialStep>
 

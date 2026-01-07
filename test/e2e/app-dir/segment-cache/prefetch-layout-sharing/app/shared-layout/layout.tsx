@@ -10,8 +10,8 @@ export default async function Layout({ children }) {
         <h2>Shared layout</h2>
         <DebugRenderKind />
         <p id="shared-layout-description">
-          This shared layout uses cookies and some uncached IO, so parts of it
-          should be runtime-prefetchable.
+          This shared layout uses cookies and some uncached IO, so parts of it should be
+          runtime-prefetchable.
         </p>
         <Suspense fallback={<div style={{ color: 'grey' }}>Loading 1...</div>}>
           <RuntimePrefetchable />

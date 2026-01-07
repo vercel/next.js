@@ -18,17 +18,11 @@ const Page = () => {
         Dynamic route only query
       </Link>
       <br />
-      <Link
-        href="?name=post-3&another=value"
-        id="dynamic-route-only-query-extra"
-      >
+      <Link href="?name=post-3&another=value" id="dynamic-route-only-query-extra">
         Dynamic route only query extra
       </Link>
       <br />
-      <Link
-        href={{ query: { name: 'post-4' } }}
-        id="dynamic-route-only-query-obj"
-      >
+      <Link href={{ query: { name: 'post-4' } }} id="dynamic-route-only-query-obj">
         Dynamic route only query object
       </Link>
       <br />
@@ -43,10 +37,7 @@ const Page = () => {
         Dynamic route query and hash
       </Link>
       <br />
-      <Link
-        href="?name=post-3&another=value#hash-again"
-        id="dynamic-route-query-extra-hash"
-      >
+      <Link href="?name=post-3&another=value#hash-again" id="dynamic-route-query-extra-hash">
         Dynamic route query extra and hash
       </Link>
       <br />

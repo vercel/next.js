@@ -10,10 +10,7 @@ const HomePage = () => {
   return (
     <div>
       <Head>
-        <meta
-          httpEquiv="content-language"
-          content={contentLanguageMap[i18n.activeLocale]}
-        />
+        <meta httpEquiv="content-language" content={contentLanguageMap[i18n.activeLocale]} />
       </Head>
       <Title username="Peter" />
       <h2>{i18n.t("intro.text")}</h2>
@@ -27,9 +24,7 @@ const HomePage = () => {
 };
 
 export async function getStaticProps({ params }) {
-  const { default: lngDict = {} } = await import(
-    `../../locales/${params.lng}.json`
-  );
+  const { default: lngDict = {} } = await import(`../../locales/${params.lng}.json`);
 
   return {
     props: { lng: params.lng, lngDict },

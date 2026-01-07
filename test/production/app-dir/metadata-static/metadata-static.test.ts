@@ -6,9 +6,7 @@ describe('app dir - metadata', () => {
   })
 
   it('should have statically optimized metadata routes by default', async () => {
-    const prerenderManifest = JSON.parse(
-      await next.readFile('.next/prerender-manifest.json')
-    )
+    const prerenderManifest = JSON.parse(await next.readFile('.next/prerender-manifest.json'))
 
     for (const key of [
       '/robots.txt',

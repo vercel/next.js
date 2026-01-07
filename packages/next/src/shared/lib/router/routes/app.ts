@@ -1,9 +1,6 @@
 import { InvariantError } from '../../invariant-error'
 import { getSegmentParam, type SegmentParam } from '../utils/get-segment-param'
-import {
-  INTERCEPTION_ROUTE_MARKERS,
-  type InterceptionMarker,
-} from '../utils/interception-routes'
+import { INTERCEPTION_ROUTE_MARKERS, type InterceptionMarker } from '../utils/interception-routes'
 
 export type RouteGroupAppRouteSegment = {
   type: 'route-group'
@@ -56,9 +53,7 @@ export type AppRouteSegment =
   | RouteGroupAppRouteSegment
   | ParallelRouteAppRouteSegment
 
-export type NormalizedAppRouteSegment =
-  | StaticAppRouteSegment
-  | DynamicAppRouteSegment
+export type NormalizedAppRouteSegment = StaticAppRouteSegment | DynamicAppRouteSegment
 
 export function parseAppRouteSegment(segment: string): AppRouteSegment | null {
   if (segment === '') {
@@ -66,9 +61,7 @@ export function parseAppRouteSegment(segment: string): AppRouteSegment | null {
   }
 
   // Check if the segment starts with an interception marker
-  const interceptionMarker = INTERCEPTION_ROUTE_MARKERS.find((m) =>
-    segment.startsWith(m)
-  )
+  const interceptionMarker = INTERCEPTION_ROUTE_MARKERS.find((m) => segment.startsWith(m))
 
   const param = getSegmentParam(segment)
   if (param) {
@@ -134,11 +127,7 @@ export type InterceptionAppRoute = Omit<
 
 export type NormalizedInterceptionAppRoute = Omit<
   InterceptionAppRoute,
-  | 'normalized'
-  | 'segments'
-  | 'interceptionMarker'
-  | 'interceptingRoute'
-  | 'interceptedRoute'
+  'normalized' | 'segments' | 'interceptionMarker' | 'interceptingRoute' | 'interceptedRoute'
 > & {
   normalized: true
   segments: NormalizedAppRouteSegment[]
@@ -150,9 +139,7 @@ export type NormalizedInterceptionAppRoute = Omit<
 export function isInterceptionAppRoute(
   route: NormalizedAppRoute
 ): route is NormalizedInterceptionAppRoute
-export function isInterceptionAppRoute(
-  route: AppRoute
-): route is InterceptionAppRoute {
+export function isInterceptionAppRoute(route: AppRoute): route is InterceptionAppRoute {
   return (
     route.interceptionMarker !== undefined &&
     route.interceptingRoute !== undefined &&
@@ -160,10 +147,7 @@ export function isInterceptionAppRoute(
   )
 }
 
-export function parseAppRoute(
-  pathname: string,
-  normalized: true
-): NormalizedAppRoute
+export function parseAppRoute(pathname: string, normalized: true): NormalizedAppRoute
 export function parseAppRoute(pathname: string, normalized: false): AppRoute
 export function parseAppRoute(
   pathname: string,
@@ -186,11 +170,7 @@ export function parseAppRoute(
       continue
     }
 
-    if (
-      normalized &&
-      (appSegment.type === 'route-group' ||
-        appSegment.type === 'parallel-route')
-    ) {
+    if (normalized && (appSegment.type === 'route-group' || appSegment.type === 'parallel-route')) {
       throw new InvariantError(
         `${pathname} is being parsed as a normalized route, but it has a route group or parallel route segment.`
       )
@@ -207,16 +187,12 @@ export function parseAppRoute(
       interceptingRoute = normalized
         ? parseAppRoute(parts[0], true)
         : parseAppRoute(parts[0], false)
-      interceptedRoute = normalized
-        ? parseAppRoute(parts[1], true)
-        : parseAppRoute(parts[1], false)
+      interceptedRoute = normalized ? parseAppRoute(parts[1], true) : parseAppRoute(parts[1], false)
       interceptionMarker = appSegment.interceptionMarker
     }
   }
 
-  const dynamicSegments = segments.filter(
-    (segment) => segment.type === 'dynamic'
-  )
+  const dynamicSegments = segments.filter((segment) => segment.type === 'dynamic')
 
   return {
     normalized,

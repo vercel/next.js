@@ -34,9 +34,7 @@ function voidCatch() {
 // when handling streaming data
 const encoder = new TextEncoder()
 
-export function chainStreams<T>(
-  ...streams: ReadableStream<T>[]
-): ReadableStream<T> {
+export function chainStreams<T>(...streams: ReadableStream<T>[]): ReadableStream<T> {
   // If we have no streams, return an empty stream. This behavior is
   // intentional as we're now providing the `RenderResult.EMPTY` value.
   if (streams.length === 0) {
@@ -61,9 +59,7 @@ export function chainStreams<T>(
   let i = 1
   for (; i < streams.length - 1; i++) {
     const nextStream = streams[i]
-    promise = promise.then(() =>
-      nextStream.pipeTo(writable, { preventClose: true })
-    )
+    promise = promise.then(() => nextStream.pipeTo(writable, { preventClose: true }))
   }
 
   // We can omit the length check because we halted before the last stream and there
@@ -96,9 +92,7 @@ export function streamFromBuffer(chunk: Buffer): ReadableStream<Uint8Array> {
   })
 }
 
-async function streamToChunks(
-  stream: ReadableStream<Uint8Array>
-): Promise<Array<Uint8Array>> {
+async function streamToChunks(stream: ReadableStream<Uint8Array>): Promise<Array<Uint8Array>> {
   const reader = stream.getReader()
   const chunks: Array<Uint8Array> = []
 
@@ -125,15 +119,11 @@ function concatUint8Arrays(chunks: Array<Uint8Array>): Uint8Array {
   return result
 }
 
-export async function streamToUint8Array(
-  stream: ReadableStream<Uint8Array>
-): Promise<Uint8Array> {
+export async function streamToUint8Array(stream: ReadableStream<Uint8Array>): Promise<Uint8Array> {
   return concatUint8Arrays(await streamToChunks(stream))
 }
 
-export async function streamToBuffer(
-  stream: ReadableStream<Uint8Array>
-): Promise<Buffer> {
+export async function streamToBuffer(stream: ReadableStream<Uint8Array>): Promise<Buffer> {
   return Buffer.concat(await streamToChunks(stream))
 }
 
@@ -327,19 +317,14 @@ function createMetadataTransformStream(
 
             // Remove the icon mark from the chunk.
             replaced.set(chunk.subarray(0, iconMarkIndex))
-            replaced.set(
-              chunk.subarray(iconMarkIndex + iconMarkLength),
-              iconMarkIndex
-            )
+            replaced.set(chunk.subarray(iconMarkIndex + iconMarkLength), iconMarkIndex)
             chunk = replaced
           } else {
             // The icon mark is after the head tag, replace and insert the script tag at that position.
             const insertion = await insert()
             const encodedInsertion = encoder.encode(insertion)
             const insertionLength = encodedInsertion.length
-            const replaced = new Uint8Array(
-              chunk.length - iconMarkLength + insertionLength
-            )
+            const replaced = new Uint8Array(chunk.length - iconMarkLength + insertionLength)
             replaced.set(chunk.subarray(0, iconMarkIndex))
             replaced.set(encodedInsertion, iconMarkIndex)
             replaced.set(
@@ -358,9 +343,7 @@ function createMetadataTransformStream(
         const encodedInsertion = encoder.encode(insertion)
         const insertionLength = encodedInsertion.length
         // Replace the icon mark with the hoist script or empty string.
-        const replaced = new Uint8Array(
-          chunk.length - iconMarkLength + insertionLength
-        )
+        const replaced = new Uint8Array(chunk.length - iconMarkLength + insertionLength)
         // Set the first part of the chunk, before the icon mark.
         replaced.set(chunk.subarray(0, iconMarkIndex))
         // Set the insertion after the icon mark.
@@ -412,18 +395,13 @@ function createHeadInsertionTransformStream(
             // chunk = <head><meta charset="utf-8"></head>
             // insertion = <script>...</script>
             // output = <head><meta charset="utf-8"> [ <script>...</script> ] </head>
-            const insertedHeadContent = new Uint8Array(
-              chunk.length + encodedInsertion.length
-            )
+            const insertedHeadContent = new Uint8Array(chunk.length + encodedInsertion.length)
             // Append the first part of the chunk, before the head tag
             insertedHeadContent.set(chunk.slice(0, index))
             // Append the server inserted content
             insertedHeadContent.set(encodedInsertion, index)
             // Append the rest of the chunk
-            insertedHeadContent.set(
-              chunk.slice(index),
-              index + encodedInsertion.length
-            )
+            insertedHeadContent.set(chunk.slice(index), index + encodedInsertion.length)
             controller.enqueue(insertedHeadContent)
           } else {
             controller.enqueue(chunk)
@@ -479,10 +457,7 @@ function createClientResumeScriptInsertionTransformStream(): TransformStream<
         return
       }
       // TODO (@Ethan-Arrowood): Replace the generic `indexOfUint8Array` method with something finely tuned for the subset of things actually being checked for.
-      const headClosingTagIndex = indexOfUint8Array(
-        chunk,
-        ENCODED_TAGS.CLOSED.HEAD
-      )
+      const headClosingTagIndex = indexOfUint8Array(chunk, ENCODED_TAGS.CLOSED.HEAD)
 
       if (headClosingTagIndex === -1) {
         // In fully static rendering or non PPR rendering cases:
@@ -497,9 +472,7 @@ function createClientResumeScriptInsertionTransformStream(): TransformStream<
       // chunk = <head><meta charset="utf-8"></head>
       // insertion = <script>...</script>
       // output = <head><meta charset="utf-8"> [ <script>...</script> ] </head>
-      const insertedHeadContent = new Uint8Array(
-        chunk.length + encodedInsertion.length
-      )
+      const insertedHeadContent = new Uint8Array(chunk.length + encodedInsertion.length)
       // Append the first part of the chunk, before the head tag
       insertedHeadContent.set(chunk.slice(0, headClosingTagIndex))
       // Append the server inserted content
@@ -518,9 +491,7 @@ function createClientResumeScriptInsertionTransformStream(): TransformStream<
 
 // Suffix after main body content - scripts before </body>,
 // but wait for the major chunks to be enqueued.
-function createDeferredSuffixStream(
-  suffix: string
-): TransformStream<Uint8Array, Uint8Array> {
+function createDeferredSuffixStream(suffix: string): TransformStream<Uint8Array, Uint8Array> {
   let flushed = false
   let pending: DetachedPromise<void> | undefined
 
@@ -572,9 +543,7 @@ function createFlightDataInjectionTransformStream(
   let pull: Promise<void> | null = null
   let donePulling = false
 
-  function startOrContinuePulling(
-    controller: TransformStreamDefaultController
-  ) {
+  function startOrContinuePulling(controller: TransformStreamDefaultController) {
     if (!pull) {
       pull = startPulling(controller)
     }
@@ -677,9 +646,7 @@ function createMoveSuffixStream(): TransformStream<Uint8Array, Uint8Array> {
         // to split the chunk into two parts.
         if (chunk.length > ENCODED_TAGS.CLOSED.BODY_AND_HTML.length + index) {
           // Write out the part after the suffix.
-          const after = chunk.slice(
-            index + ENCODED_TAGS.CLOSED.BODY_AND_HTML.length
-          )
+          const after = chunk.slice(index + ENCODED_TAGS.CLOSED.BODY_AND_HTML.length)
           controller.enqueue(after)
         }
       } else {
@@ -694,10 +661,7 @@ function createMoveSuffixStream(): TransformStream<Uint8Array, Uint8Array> {
   })
 }
 
-function createStripDocumentClosingTagsTransform(): TransformStream<
-  Uint8Array,
-  Uint8Array
-> {
+function createStripDocumentClosingTagsTransform(): TransformStream<Uint8Array, Uint8Array> {
   return new TransformStream({
     transform(chunk, controller) {
       // We rely on the assumption that chunks will never break across a code unit.
@@ -730,26 +694,17 @@ function createStripDocumentClosingTagsTransform(): TransformStream<
  * and if so, it will inject a script tag to throw an error in the browser, showing the user
  * the error message in the error overlay.
  */
-export function createRootLayoutValidatorStream(): TransformStream<
-  Uint8Array,
-  Uint8Array
-> {
+export function createRootLayoutValidatorStream(): TransformStream<Uint8Array, Uint8Array> {
   let foundHtml = false
   let foundBody = false
   return new TransformStream({
     async transform(chunk, controller) {
       // Peek into the streamed chunk to see if the tags are present.
-      if (
-        !foundHtml &&
-        indexOfUint8Array(chunk, ENCODED_TAGS.OPENING.HTML) > -1
-      ) {
+      if (!foundHtml && indexOfUint8Array(chunk, ENCODED_TAGS.OPENING.HTML) > -1) {
         foundHtml = true
       }
 
-      if (
-        !foundBody &&
-        indexOfUint8Array(chunk, ENCODED_TAGS.OPENING.BODY) > -1
-      ) {
+      if (!foundBody && indexOfUint8Array(chunk, ENCODED_TAGS.OPENING.BODY) > -1) {
         foundBody = true
       }
 
@@ -849,9 +804,7 @@ export async function continueFizzStream(
       : null,
 
     // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
-    inlinedDataStream
-      ? createFlightDataInjectionTransformStream(inlinedDataStream, true)
-      : null,
+    inlinedDataStream ? createFlightDataInjectionTransformStream(inlinedDataStream, true) : null,
 
     // Validate the root layout for missing html or body tags
     validateRootLayout ? createRootLayoutValidatorStream() : null,
@@ -873,10 +826,7 @@ type ContinueDynamicPrerenderOptions = {
 
 export async function continueDynamicPrerender(
   prerenderStream: ReadableStream<Uint8Array>,
-  {
-    getServerInsertedHTML,
-    getServerInsertedMetadata,
-  }: ContinueDynamicPrerenderOptions
+  { getServerInsertedHTML, getServerInsertedMetadata }: ContinueDynamicPrerenderOptions
 ) {
   return (
     prerenderStream
@@ -913,17 +863,13 @@ export async function continueStaticPrerender(
       // Buffer everything to avoid flushing too frequently
       .pipeThrough(createBufferedTransformStream())
       // Add build id comment to start of the HTML document (in export mode)
-      .pipeThrough(
-        createPrefetchCommentStream(isBuildTimePrerendering, buildId)
-      )
+      .pipeThrough(createPrefetchCommentStream(isBuildTimePrerendering, buildId))
       // Insert generated tags to head
       .pipeThrough(createHeadInsertionTransformStream(getServerInsertedHTML))
       // Transform metadata
       .pipeThrough(createMetadataTransformStream(getServerInsertedMetadata))
       // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
-      .pipeThrough(
-        createFlightDataInjectionTransformStream(inlinedDataStream, true)
-      )
+      .pipeThrough(createFlightDataInjectionTransformStream(inlinedDataStream, true))
       // Close tags should always be deferred to the end
       .pipeThrough(createMoveSuffixStream())
   )
@@ -947,9 +893,7 @@ export async function continueStaticFallbackPrerender(
       // Buffer everything to avoid flushing too frequently
       .pipeThrough(createBufferedTransformStream())
       // Add build id comment to start of the HTML document (in export mode)
-      .pipeThrough(
-        createPrefetchCommentStream(isBuildTimePrerendering, buildId)
-      )
+      .pipeThrough(createPrefetchCommentStream(isBuildTimePrerendering, buildId))
       // Insert generated tags to head
       .pipeThrough(createHeadInsertionTransformStream(getServerInsertedHTML))
       // Insert the client resume script into the head
@@ -957,9 +901,7 @@ export async function continueStaticFallbackPrerender(
       // Transform metadata
       .pipeThrough(createMetadataTransformStream(getServerInsertedMetadata))
       // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
-      .pipeThrough(
-        createFlightDataInjectionTransformStream(inlinedDataStream, true)
-      )
+      .pipeThrough(createFlightDataInjectionTransformStream(inlinedDataStream, true))
       // Close tags should always be deferred to the end
       .pipeThrough(createMoveSuffixStream())
   )
@@ -991,10 +933,7 @@ export async function continueDynamicHTMLResume(
       .pipeThrough(createMetadataTransformStream(getServerInsertedMetadata))
       // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
       .pipeThrough(
-        createFlightDataInjectionTransformStream(
-          inlinedDataStream,
-          delayDataUntilFirstHtmlChunk
-        )
+        createFlightDataInjectionTransformStream(inlinedDataStream, delayDataUntilFirstHtmlChunk)
       )
       // Close tags should always be deferred to the end
       .pipeThrough(createMoveSuffixStream())

@@ -41,9 +41,7 @@ describe('mcp-server get_errors tool', () => {
   it('should return no errors for clean page', async () => {
     await next.browser('/')
     const errors = await callGetErrors('test-1')
-    expect(stripAnsi(errors)).toMatchInlineSnapshot(
-      `"No errors detected in 1 browser session(s)."`
-    )
+    expect(stripAnsi(errors)).toMatchInlineSnapshot(`"No errors detected in 1 browser session(s)."`)
   })
 
   it('should capture runtime errors with source-mapped stack frames', async () => {
@@ -255,18 +253,11 @@ describe('mcp-server get_errors tool', () => {
         expect(errors).toContain('/runtime-error-2')
       })
 
-      const strippedErrors = stripAnsi(errors).replace(
-        /localhost:\d+/g,
-        'localhost:PORT'
-      )
+      const strippedErrors = stripAnsi(errors).replace(/localhost:\d+/g, 'localhost:PORT')
 
       // Extract each session's content to check them independently
-      const session1Match = strippedErrors.match(
-        /## Session: \/runtime-error\n[\s\S]*?(?=---)/
-      )
-      const session2Match = strippedErrors.match(
-        /## Session: \/runtime-error-2\n[\s\S]*?(?=---)/
-      )
+      const session1Match = strippedErrors.match(/## Session: \/runtime-error\n[\s\S]*?(?=---)/)
+      const session2Match = strippedErrors.match(/## Session: \/runtime-error-2\n[\s\S]*?(?=---)/)
 
       expect(session1Match).toBeTruthy()
       expect(session2Match).toBeTruthy()
@@ -370,10 +361,7 @@ describe('mcp-server get_errors tool', () => {
  * The standard test harness (next.browser) uses a singleton browser instance which doesn't
  * support concurrent tabs needed for testing errors across multiple browser sessions.
  */
-async function launchStandaloneSession(
-  appPortOrUrl: string | number,
-  url: string
-) {
+async function launchStandaloneSession(appPortOrUrl: string | number, url: string) {
   const headless = !!process.env.HEADLESS
   const browserName = (process.env.BROWSER_NAME || 'chrome').toLowerCase()
 

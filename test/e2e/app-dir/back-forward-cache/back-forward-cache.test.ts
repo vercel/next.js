@@ -41,14 +41,12 @@ describe('back/forward cache', () => {
 
     // Navigate back to page 1. Its state should be preserved.
     await browser.back()
-    const counterDisplay1AfterNav =
-      await browser.elementById('counter-display-1')
+    const counterDisplay1AfterNav = await browser.elementById('counter-display-1')
     expect(await counterDisplay1AfterNav.text()).toBe('Count: 2')
 
     // Navigate forward to page 2. Its state should be preserved.
     await browser.forward()
-    const counterDisplay2AfterNav =
-      await browser.elementById('counter-display-2')
+    const counterDisplay2AfterNav = await browser.elementById('counter-display-2')
     expect(await counterDisplay2AfterNav.text()).toBe('Count: 9')
   })
 
@@ -89,14 +87,12 @@ describe('back/forward cache', () => {
     // Navigate back to page 1. Its state should be preserved.
     const linkToPage1 = await browser.elementByCss('a[href="/page/1"]')
     await linkToPage1.click()
-    const counterDisplay1AfterNav =
-      await browser.elementById('counter-display-1')
+    const counterDisplay1AfterNav = await browser.elementById('counter-display-1')
     expect(await counterDisplay1AfterNav.text()).toBe('Count: 2')
 
     // Navigate back to page 2. Its state should be preserved.
     await linkToPage2.click()
-    const counterDisplay2AfterNav =
-      await browser.elementById('counter-display-2')
+    const counterDisplay2AfterNav = await browser.elementById('counter-display-2')
     expect(await counterDisplay2AfterNav.text()).toBe('Count: 9')
   })
 
@@ -123,14 +119,11 @@ describe('back/forward cache', () => {
     await linkToPage2.click()
 
     // Navigate back to page 1, but with a different search param.
-    const linkToPage1WithSearchParam = await browser.elementByCss(
-      'a[href="/page/1?param=true"]'
-    )
+    const linkToPage1WithSearchParam = await browser.elementByCss('a[href="/page/1?param=true"]')
     await linkToPage1WithSearchParam.click()
 
     await retry(async () => {
-      const counterDisplay1AfterNav =
-        await browser.elementById('counter-display-1')
+      const counterDisplay1AfterNav = await browser.elementById('counter-display-1')
       const hasSearchParam = await browser.elementById('has-search-param-1')
       expect(await counterDisplay1AfterNav.text()).toBe('Count: 2')
       expect(await hasSearchParam.text()).toBe('Has search param: yes')
@@ -198,8 +191,7 @@ describe('back/forward cache', () => {
     await retry(async () => {
       expect(await browser.elementByCss('h2').text()).toEqual('Page 2')
     })
-    const counterDisplay2AfterNav =
-      await browser.elementById('counter-display-2')
+    const counterDisplay2AfterNav = await browser.elementById('counter-display-2')
     expect(await counterDisplay2AfterNav.text()).toBe('Count: 9')
 
     // Navigate back to page 1 to confirm its state is not preserved.
@@ -209,8 +201,7 @@ describe('back/forward cache', () => {
       expect(await browser.elementByCss('h2').text()).toEqual('Page 1')
     })
 
-    const counterDisplay1AfterNav =
-      await browser.elementById('counter-display-1')
+    const counterDisplay1AfterNav = await browser.elementById('counter-display-1')
     expect(await counterDisplay1AfterNav.text()).toBe('Count: 0')
   })
 
@@ -258,13 +249,11 @@ describe('back/forward cache', () => {
     await linkToPage2.click()
 
     // Confirm the state is preserved on both pages.
-    const counterDisplay2AfterNav =
-      await browser.elementById('counter-display-2')
+    const counterDisplay2AfterNav = await browser.elementById('counter-display-2')
     expect(await counterDisplay2AfterNav.text()).toBe('Count: 9')
 
     await linkToPage1.click()
-    const counterDisplay1AfterNav =
-      await browser.elementById('counter-display-1')
+    const counterDisplay1AfterNav = await browser.elementById('counter-display-1')
     expect(await counterDisplay1AfterNav.text()).toBe('Count: 2')
   })
 })

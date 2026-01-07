@@ -8,9 +8,7 @@ describe('app-type', () => {
     })
 
     it('should have the app-only app type', async () => {
-      const requiredServerFiles = JSON.parse(
-        await next.readFile('.next/routes-manifest.json')
-      )
+      const requiredServerFiles = JSON.parse(await next.readFile('.next/routes-manifest.json'))
 
       expect(requiredServerFiles.appType).toBe('app')
     })
@@ -22,9 +20,7 @@ describe('app-type', () => {
     })
 
     it('should have the pages-only app type', async () => {
-      const requiredServerFiles = JSON.parse(
-        await next.readFile('.next/routes-manifest.json')
-      )
+      const requiredServerFiles = JSON.parse(await next.readFile('.next/routes-manifest.json'))
 
       expect(requiredServerFiles.appType).toBe('pages')
     })
@@ -36,9 +32,7 @@ describe('app-type', () => {
     })
 
     it('should have the hybrid app type', async () => {
-      const requiredServerFiles = JSON.parse(
-        await next.readFile('.next/routes-manifest.json')
-      )
+      const requiredServerFiles = JSON.parse(await next.readFile('.next/routes-manifest.json'))
 
       expect(requiredServerFiles.appType).toBe('hybrid')
     })

@@ -41,9 +41,7 @@ export async function inlineStaticEnv({
     'g'
   )
   const changedClientFiles: Array<{ file: string; content: string }> = []
-  const filesToCheck = new Set<string>(
-    manifestChunks.map((f) => path.join(distDir, f))
-  )
+  const filesToCheck = new Set<string>(manifestChunks.map((f) => path.join(distDir, f)))
 
   for (const [parentDir, files] of [
     [serverDir, serverChunks],
@@ -84,15 +82,9 @@ export async function inlineStaticEnv({
     const originalHash = file.match(/([a-z0-9]{16})\./)?.[1] || ''
 
     if (!originalHash) {
-      throw new Error(
-        `Invariant: client chunk changed but failed to detect hash ${file}`
-      )
+      throw new Error(`Invariant: client chunk changed but failed to detect hash ${file}`)
     }
-    const newHash = crypto
-      .createHash('sha256')
-      .update(content)
-      .digest('hex')
-      .substring(0, 16)
+    const newHash = crypto.createHash('sha256').update(content).digest('hex').substring(0, 16)
 
     hashChanges.push({ originalHash, newHash })
 

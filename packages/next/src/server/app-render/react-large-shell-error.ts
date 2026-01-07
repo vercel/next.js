@@ -1,8 +1,6 @@
 // TODO: isWellKnownError -> isNextInternalError
 // isReactLargeShellError -> isWarning
-export function isReactLargeShellError(
-  error: unknown
-): error is Error & { digest?: string } {
+export function isReactLargeShellError(error: unknown): error is Error & { digest?: string } {
   return (
     typeof error === 'object' &&
     error !== null &&

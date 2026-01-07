@@ -41,9 +41,7 @@ export class AfterContext {
       if (!this.waitUntil) {
         errorWaitUntilNotAvailable()
       }
-      this.waitUntil(
-        task.catch((error) => this.reportTaskError('promise', error))
-      )
+      this.waitUntil(task.catch((error) => this.reportTaskError('promise', error)))
     } else if (typeof task === 'function') {
       // TODO(after): implement tracing
       this.addCallback(task)
@@ -89,9 +87,7 @@ export class AfterContext {
       // See: https://github.com/facebook/react/pull/34911
       async () => {
         try {
-          await afterTaskAsyncStorage.run({ rootTaskSpawnPhase }, () =>
-            callback()
-          )
+          await afterTaskAsyncStorage.run({ rootTaskSpawnPhase }, () => callback())
         } catch (error) {
           this.reportTaskError('function', error)
         }

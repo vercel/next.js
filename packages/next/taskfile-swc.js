@@ -124,11 +124,7 @@ module.exports = function (task) {
       const distFilePath = path.dirname(
         // we must strip src from filePath as it isn't carried into
         // the dist file path
-        path.join(
-          __dirname,
-          esm ? 'dist/esm' : 'dist',
-          filePath.replace(/^src[/\\]/, '')
-        )
+        path.join(__dirname, esm ? 'dist/esm' : 'dist', filePath.replace(/^src[/\\]/, ''))
       )
 
       const options = {
@@ -176,11 +172,9 @@ if ((typeof exports.default === 'function' || (typeof exports.default === 'objec
           )
         }
         // ignore-list everything
-        sourceMapPayload.ignoreList = sourceMapPayload.sources.map(
-          (source, sourceIndex) => {
-            return sourceIndex
-          }
-        )
+        sourceMapPayload.ignoreList = sourceMapPayload.sources.map((source, sourceIndex) => {
+          return sourceIndex
+        })
 
         // add sourcemap to `files` array
         this._.files.push({
@@ -197,20 +191,13 @@ if ((typeof exports.default === 'function' || (typeof exports.default === 'objec
 
 function setNextVersion(code) {
   return code
-    .replace(
-      /process\.env\.__NEXT_VERSION/g,
-      `"${require('./package.json').version}"`
-    )
+    .replace(/process\.env\.__NEXT_VERSION/g, `"${require('./package.json').version}"`)
     .replace(
       /process\.env\.__NEXT_REQUIRED_NODE_VERSION_RANGE/g,
       `"${require('./package.json').engines.node}"`
     )
     .replace(
       /process\.env\.REQUIRED_APP_REACT_VERSION/,
-      `"${
-        require('../../package.json').devDependencies[
-          'react-server-dom-webpack'
-        ]
-      }"`
+      `"${require('../../package.json').devDependencies['react-server-dom-webpack']}"`
     )
 }

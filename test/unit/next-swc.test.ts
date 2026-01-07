@@ -121,13 +121,8 @@ describe('next/swc', () => {
   describe('private env replacement', () => {
     it('__NEXT_REQUIRED_NODE_VERSION_RANGE is replaced', async () => {
       const pkgDir = path.dirname(require.resolve('next/package.json'))
-      const nextEntryContent = await fsp.readFile(
-        path.join(pkgDir, 'dist/bin/next'),
-        'utf8'
-      )
-      expect(nextEntryContent).not.toContain(
-        '__NEXT_REQUIRED_NODE_VERSION_RANGE'
-      )
+      const nextEntryContent = await fsp.readFile(path.join(pkgDir, 'dist/bin/next'), 'utf8')
+      expect(nextEntryContent).not.toContain('__NEXT_REQUIRED_NODE_VERSION_RANGE')
       expect(nextEntryContent).toMatch(
         /For Next.js, Node.js version "\$\{">=\d+\.\d+\.\d*"\}" is required./
       )

@@ -9,14 +9,7 @@ const testDir = join(__dirname, 'get-files-in-dir-test')
 const srcDir = join(testDir, 'src')
 
 const setupTestDir = async () => {
-  const paths = [
-    '.hidden',
-    'file',
-    'folder1/file1',
-    'folder1/file2',
-    'link',
-    'linkfolder',
-  ]
+  const paths = ['.hidden', 'file', 'folder1/file1', 'folder1/file2', 'link', 'linkfolder']
 
   await fs.ensureDir(testDir)
 
@@ -28,10 +21,7 @@ const setupTestDir = async () => {
   await fs.outputFile(join(srcDir, 'folder1', 'file2'), 'file2')
   await fs.ensureSymlink(join(srcDir, 'file'), join(srcDir, 'link'))
   await fs.ensureSymlink(join(srcDir, 'link'), join(srcDir, 'link-level-2'))
-  await fs.ensureSymlink(
-    join(srcDir, 'link-level-2'),
-    join(srcDir, 'link-level-3')
-  )
+  await fs.ensureSymlink(join(srcDir, 'link-level-2'), join(srcDir, 'link-level-3'))
   await fs.ensureSymlink(join(srcDir, 'folder1'), join(srcDir, 'linkfolder'))
   return paths
 }

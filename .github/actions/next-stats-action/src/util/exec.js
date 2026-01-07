@@ -39,9 +39,7 @@ exec.spawnPromise = function spawnPromise(command = '', opts = {}) {
     const child = exec.spawn(command, opts)
     child.on('exit', (code, signal) => {
       if (code || signal) {
-        return reject(
-          new Error(`bad exit code/signal code: ${code} signal: ${signal}`)
-        )
+        return reject(new Error(`bad exit code/signal code: ${code} signal: ${signal}`))
       }
       resolve()
     })

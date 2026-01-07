@@ -13,9 +13,7 @@ export default function Page() {
         formAction={async (data) => {
           'use server'
           redirect(
-            destination +
-              '?' +
-              new URLSearchParams([...data.entries()] as [string, string][])
+            destination + '?' + new URLSearchParams([...data.entries()] as [string, string][])
           )
         }}
       >

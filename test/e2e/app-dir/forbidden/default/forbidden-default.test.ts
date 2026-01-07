@@ -1,9 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import {
-  waitForRedbox,
-  waitForNoRedbox,
-  getRedboxDescription,
-} from 'next-test-utils'
+import { waitForRedbox, waitForNoRedbox, getRedboxDescription } from 'next-test-utils'
 
 describe('app dir - forbidden with default forbidden boundary', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
@@ -48,9 +44,7 @@ describe('app dir - forbidden with default forbidden boundary', () => {
     await browser.waitForElementByCss('.next-error-h1')
 
     expect(await browser.elementByCss('h1').text()).toBe('403')
-    expect(await browser.elementByCss('h2').text()).toBe(
-      'This page could not be accessed.'
-    )
+    expect(await browser.elementByCss('h2').text()).toBe('This page could not be accessed.')
   })
 
   it('should be able to navigate to page with calling forbidden in metadata', async () => {
@@ -60,16 +54,12 @@ describe('app dir - forbidden with default forbidden boundary', () => {
     await browser.waitForElementByCss('.next-error-h1')
 
     expect(await browser.elementByCss('h1').text()).toBe('403')
-    expect(await browser.elementByCss('h2').text()).toBe(
-      'This page could not be accessed.'
-    )
+    expect(await browser.elementByCss('h2').text()).toBe('This page could not be accessed.')
   })
 
   it('should render default forbidden for group routes if forbidden is not defined', async () => {
     const browser = await next.browser('/group-dynamic/123')
-    expect(await browser.elementByCss('#page').text()).toBe(
-      'group-dynamic [id]'
-    )
+    expect(await browser.elementByCss('#page').text()).toBe('group-dynamic [id]')
 
     await browser.loadPage(next.url + '/group-dynamic/403')
     await waitForNoRedbox(browser)

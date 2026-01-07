@@ -7,9 +7,8 @@ export default async function Page() {
   return (
     <>
       <div>
-        This page calls a "use cache" function that uses the unstable_cacheLife
-        API twice. We expect to see a warning once per server lifetime when
-        using unstable_cacheLife.
+        This page calls a "use cache" function that uses the unstable_cacheLife API twice. We expect
+        to see a warning once per server lifetime when using unstable_cacheLife.
       </div>
       <div>{stable}</div>
       <div>{unstable1}</div>

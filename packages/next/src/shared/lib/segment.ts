@@ -21,9 +21,7 @@ export function addSearchParamsIfPageSegment(
 
   if (isPageSegment) {
     const stringifiedQuery = JSON.stringify(searchParams)
-    return stringifiedQuery !== '{}'
-      ? PAGE_SEGMENT_KEY + '?' + stringifiedQuery
-      : PAGE_SEGMENT_KEY
+    return stringifiedQuery !== '{}' ? PAGE_SEGMENT_KEY + '?' + stringifiedQuery : PAGE_SEGMENT_KEY
   }
 
   return segment
@@ -38,10 +36,7 @@ export function computeSelectedLayoutSegment(
   }
 
   // For 'children', use first segment; for other parallel routes, use last segment
-  const rawSegment =
-    parallelRouteKey === 'children'
-      ? segments[0]
-      : segments[segments.length - 1]
+  const rawSegment = parallelRouteKey === 'children' ? segments[0] : segments[segments.length - 1]
 
   // If the default slot is showing, return null since it's not technically "selected" (it's a fallback)
   // Returning an internal value like `__DEFAULT__` would be confusing
@@ -76,12 +71,7 @@ export function getSelectedLayoutSegmentPath(
 
   segmentPath.push(segmentValue)
 
-  return getSelectedLayoutSegmentPath(
-    node,
-    parallelRouteKey,
-    false,
-    segmentPath
-  )
+  return getSelectedLayoutSegmentPath(node, parallelRouteKey, false, segmentPath)
 }
 
 export const PAGE_SEGMENT_KEY = '__PAGE__'

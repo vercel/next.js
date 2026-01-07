@@ -106,15 +106,7 @@ type ClientMessageUnsubscribe = {
 
 type ClientMessage = ClientMessageSubscribe | ClientMessageUnsubscribe
 
-type IssueSeverity =
-  | 'bug'
-  | 'fatal'
-  | 'error'
-  | 'warning'
-  | 'hint'
-  | 'note'
-  | 'suggestion'
-  | 'info'
+type IssueSeverity = 'bug' | 'fatal' | 'error' | 'warning' | 'hint' | 'note' | 'suggestion' | 'info'
 
 type IssueAsset = {
   path: string

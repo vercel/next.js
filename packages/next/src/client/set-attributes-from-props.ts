@@ -16,9 +16,7 @@ const ignoreProps = [
   'stylesheets',
 ]
 
-function isBooleanScriptAttribute(
-  attr: string
-): attr is 'async' | 'defer' | 'noModule' {
+function isBooleanScriptAttribute(attr: string): attr is 'async' | 'defer' | 'noModule' {
   return ['async', 'defer', 'noModule'].includes(attr)
 }
 
@@ -46,9 +44,7 @@ export function setAttributesFromProps(el: HTMLElement, props: object) {
     // (e.g. if we set them to false, this coerces to the string "false", which the browser interprets as true)
     if (
       value === false ||
-      (el.tagName === 'SCRIPT' &&
-        isBooleanScriptAttribute(attr) &&
-        (!value || value === 'false'))
+      (el.tagName === 'SCRIPT' && isBooleanScriptAttribute(attr) && (!value || value === 'false'))
     ) {
       // Call setAttribute before, as we need to set and unset the attribute to override force async:
       // https://html.spec.whatwg.org/multipage/scripting.html#script-force-async

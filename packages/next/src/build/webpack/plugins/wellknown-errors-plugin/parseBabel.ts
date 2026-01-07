@@ -21,15 +21,10 @@ export function getBabelError(
       // Remove file information, which instead is provided by webpack.
       .replace(/^.+?: /, '')
       // Remove column information from message
-      .replace(
-        new RegExp(`[^\\S\\r\\n]*\\(${lineNumber}:${column}\\)[^\\S\\r\\n]*`),
-        ''
-      )
+      .replace(new RegExp(`[^\\S\\r\\n]*\\(${lineNumber}:${column}\\)[^\\S\\r\\n]*`), '')
 
     return new SimpleWebpackError(
-      `${cyan(fileName)}:${yellow(lineNumber.toString())}:${yellow(
-        column.toString()
-      )}`,
+      `${cyan(fileName)}:${yellow(lineNumber.toString())}:${yellow(column.toString())}`,
       red(bold('Syntax error')).concat(`: ${message}`)
     )
   }

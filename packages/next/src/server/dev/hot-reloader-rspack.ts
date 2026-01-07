@@ -39,9 +39,7 @@ export default class HotReloaderRspack extends HotReloaderWebpack {
     // a page that previously failed to build might not be rebuilt on the next request.
     await super.buildFallbackError()
 
-    const rspackStartSpan = this.hotReloaderSpan.traceChild(
-      'rspack-after-compile'
-    )
+    const rspackStartSpan = this.hotReloaderSpan.traceChild('rspack-after-compile')
     await rspackStartSpan.traceAsyncFn(async () => {
       const hash = createHash('sha1')
       multiCompiler.compilers.forEach((compiler) => {
@@ -68,12 +66,10 @@ export default class HotReloaderRspack extends HotReloaderWebpack {
         'built-entries.json'
       )
 
-      const hasBuiltEntriesCache = await fs
-        .access(this.builtEntriesCachePath)
-        .then(
-          () => true,
-          () => false
-        )
+      const hasBuiltEntriesCache = await fs.access(this.builtEntriesCachePath).then(
+        () => true,
+        () => false
+      )
       if (hasBuiltEntriesCache) {
         try {
           const builtEntries: ReturnType<typeof getEntries> = JSON.parse(
@@ -124,9 +120,7 @@ export default class HotReloaderRspack extends HotReloaderWebpack {
                     if (
                       !('hash' in builtEntries[entryKey]) ||
                       builtEntries[entryKey].hash !==
-                        (await calculateFileHash(
-                          entryData.absoluteEntryFilePath
-                        ))
+                        (await calculateFileHash(entryData.absoluteEntryFilePath))
                     ) {
                       delete builtEntries[entryKey]
                       return
@@ -173,8 +167,7 @@ export default class HotReloaderRspack extends HotReloaderWebpack {
       Object.keys(entries).map(async (entryName) => {
         const entry = entries[entryName]
         if (entry.status !== BUILT) return
-        const result =
-          /^(client|server|edge-server)@(app|pages|root)@(.*)/g.exec(entryName)
+        const result = /^(client|server|edge-server)@(app|pages|root)@(.*)/g.exec(entryName)
         const [, key /* pageType */, ,] = result! // this match should always happen
         if (key === 'client' && !this.isClientCacheEnabled) return
         if (key === 'server' && !this.isServerCacheEnabled) return
@@ -202,22 +195,17 @@ export default class HotReloaderRspack extends HotReloaderWebpack {
       })
     )
 
-    const hasBuitEntriesCache = await fs
-      .access(this.builtEntriesCachePath!)
-      .then(
-        () => true,
-        () => false
-      )
+    const hasBuitEntriesCache = await fs.access(this.builtEntriesCachePath!).then(
+      () => true,
+      () => false
+    )
     try {
       if (!hasBuitEntriesCache) {
         await fs.mkdir(path.dirname(this.builtEntriesCachePath!), {
           recursive: true,
         })
       }
-      await fs.writeFile(
-        this.builtEntriesCachePath!,
-        JSON.stringify(builtEntries, null, 2)
-      )
+      await fs.writeFile(this.builtEntriesCachePath!, JSON.stringify(builtEntries, null, 2))
     } catch (error) {
       console.error('Rspack failed to write built entries cache: ', error)
     }

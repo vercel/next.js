@@ -6,10 +6,7 @@ import {
   type webpack,
 } from 'next/dist/compiled/webpack/webpack'
 import { RSC_MOD_REF_PROXY_ALIAS } from '../../../../lib/constants'
-import {
-  BARREL_OPTIMIZATION_PREFIX,
-  RSC_MODULE_TYPES,
-} from '../../../../shared/lib/constants'
+import { BARREL_OPTIMIZATION_PREFIX, RSC_MODULE_TYPES } from '../../../../shared/lib/constants'
 import { warnOnce } from '../../../../shared/lib/utils/warn-once'
 import { getRSCModuleInformation } from '../../../analysis/get-page-static-info'
 import { formatBarrelOptimizedResource } from '../../utils'
@@ -19,13 +16,9 @@ type SourceType = javascript.JavascriptParser['sourceType'] | 'commonjs'
 
 const noopHeadPath = require.resolve('next/dist/client/components/noop-head')
 // For edge runtime it will be aliased to esm version by webpack
-const MODULE_PROXY_PATH =
-  'next/dist/build/webpack/loaders/next-flight-loader/module-proxy'
+const MODULE_PROXY_PATH = 'next/dist/build/webpack/loaders/next-flight-loader/module-proxy'
 
-export function getAssumedSourceType(
-  mod: webpack.Module,
-  sourceType: SourceType
-): SourceType {
+export function getAssumedSourceType(mod: webpack.Module, sourceType: SourceType): SourceType {
   const buildInfo = getModuleBuildInfo(mod)
   const detectedClientEntryType = buildInfo?.rsc?.clientEntryType
   const clientRefs = buildInfo?.rsc?.clientRefs || []
@@ -90,18 +83,12 @@ export default function transformSource(
   // differentiate them.
   let resourceKey: string = this.resourcePath
   if (module.matchResource?.startsWith(BARREL_OPTIMIZATION_PREFIX)) {
-    resourceKey = formatBarrelOptimizedResource(
-      resourceKey,
-      module.matchResource
-    )
+    resourceKey = formatBarrelOptimizedResource(resourceKey, module.matchResource)
   }
 
   // A client boundary.
   if (buildInfo.rsc?.type === RSC_MODULE_TYPES.client) {
-    const assumedSourceType = getAssumedSourceType(
-      module,
-      sourceTypeFromModule(module)
-    )
+    const assumedSourceType = getAssumedSourceType(module, sourceTypeFromModule(module))
 
     const clientRefs = buildInfo.rsc.clientRefs!
     const stringifiedResourceKey = JSON.stringify(resourceKey)
@@ -215,10 +202,7 @@ module.exports = createProxy(${stringifiedResourceKey})
     }
   }
 
-  const replacedSource = source.replace(
-    RSC_MOD_REF_PROXY_ALIAS,
-    MODULE_PROXY_PATH
-  )
+  const replacedSource = source.replace(RSC_MOD_REF_PROXY_ALIAS, MODULE_PROXY_PATH)
   this.callback(null, replacedSource, sourceMap)
 }
 

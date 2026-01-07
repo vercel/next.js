@@ -64,14 +64,10 @@ describe('acceptLanguage', () => {
     expect(acceptLanguage('en, da', ['da-DK', 'en-GB'])).toEqual('da-DK')
     expect(acceptLanguage('en, da', ['en', 'en-GB'])).toEqual('en')
     expect(acceptLanguage('da, en-GB', ['da-DK', 'en-GB'])).toEqual('da-DK')
-    expect(acceptLanguage('en, en-GB', ['en-US', 'en-GB', 'da-DK'])).toEqual(
-      'en-US'
-    )
+    expect(acceptLanguage('en, en-GB', ['en-US', 'en-GB', 'da-DK'])).toEqual('en-US')
   })
 
   it('explicit preference overrides range match', () => {
-    expect(acceptLanguage('da, en-GB', ['da-DK', 'en-GB', 'da'])).toEqual(
-      'en-GB'
-    )
+    expect(acceptLanguage('da, en-GB', ['da-DK', 'en-GB', 'da'])).toEqual('en-GB')
   })
 })

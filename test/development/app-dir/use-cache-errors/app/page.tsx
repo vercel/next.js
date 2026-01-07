@@ -3,11 +3,7 @@
 import { useActionState } from 'react'
 import { useCachedStuff } from './module-with-use-cache'
 
-function OtherClientComponent({
-  getCachedStuff,
-}: {
-  getCachedStuff: () => Promise<string>
-}) {
+function OtherClientComponent({ getCachedStuff }: { getCachedStuff: () => Promise<string> }) {
   const [result, formAction] = useActionState(getCachedStuff, null)
 
   return (

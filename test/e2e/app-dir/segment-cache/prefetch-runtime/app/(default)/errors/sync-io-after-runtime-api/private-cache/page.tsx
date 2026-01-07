@@ -11,8 +11,8 @@ export default async function Page() {
     <main>
       <DebugRenderKind />
       <p id="intro">
-        This page performs sync IO after awaiting a private cache, so we should
-        only see the error in a runtime prefetch
+        This page performs sync IO after awaiting a private cache, so we should only see the error
+        in a runtime prefetch
       </p>
       <Suspense fallback={<div style={{ color: 'grey' }}>Loading 1...</div>}>
         <RuntimePrefetchable />

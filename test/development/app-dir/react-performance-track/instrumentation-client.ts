@@ -12,9 +12,7 @@ declare global {
   interface Window {
     reactServerRequests: {
       /** For tests */
-      getSnapshot: () => Array<
-        Omit<ReactServerRequests[number], 'startTime' | 'endTime' | 'type'>
-      >
+      getSnapshot: () => Array<Omit<ReactServerRequests[number], 'startTime' | 'endTime' | 'type'>>
       getStoreSnapshot(): ReactServerRequests
       subscribe(callback: () => void): () => void
     }

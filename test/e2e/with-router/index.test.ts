@@ -6,60 +6,51 @@ describe('withRouter', () => {
     files: __dirname,
   })
 
-  ;(isTurbopack && isNextDev ? describe.skip : describe)(
-    'production mode',
-    () => {
-      it('allows observation of navigation events using withRouter', async () => {
-        const browser = await next.browser('/a')
-        await browser.waitForElementByCss('#page-a')
+  ;(isTurbopack && isNextDev ? describe.skip : describe)('production mode', () => {
+    it('allows observation of navigation events using withRouter', async () => {
+      const browser = await next.browser('/a')
+      await browser.waitForElementByCss('#page-a')
 
-        let activePage = await browser.elementByCss('.active').text()
-        expect(activePage).toBe('Foo')
+      let activePage = await browser.elementByCss('.active').text()
+      expect(activePage).toBe('Foo')
 
-        await browser.elementByCss('button').click()
-        await browser.waitForElementByCss('#page-b')
+      await browser.elementByCss('button').click()
+      await browser.waitForElementByCss('#page-b')
 
-        activePage = await browser.elementByCss('.active').text()
-        expect(activePage).toBe('Bar')
-      })
+      activePage = await browser.elementByCss('.active').text()
+      expect(activePage).toBe('Bar')
+    })
 
-      it('allows observation of navigation events using top level Router', async () => {
-        const browser = await next.browser('/a')
-        await browser.waitForElementByCss('#page-a')
+    it('allows observation of navigation events using top level Router', async () => {
+      const browser = await next.browser('/a')
+      await browser.waitForElementByCss('#page-a')
 
-        let activePage = await browser
-          .elementByCss('.active-top-level-router')
-          .text()
-        expect(activePage).toBe('Foo')
+      let activePage = await browser.elementByCss('.active-top-level-router').text()
+      expect(activePage).toBe('Foo')
 
-        await browser.elementByCss('button').click()
-        await browser.waitForElementByCss('#page-b')
+      await browser.elementByCss('button').click()
+      await browser.waitForElementByCss('#page-b')
 
-        activePage = await browser
-          .elementByCss('.active-top-level-router')
-          .text()
-        expect(activePage).toBe('Bar')
-      })
+      activePage = await browser.elementByCss('.active-top-level-router').text()
+      expect(activePage).toBe('Bar')
+    })
 
-      it('allows observation of navigation events using top level Router deprecated behavior', async () => {
-        const browser = await next.browser('/a')
-        await browser.waitForElementByCss('#page-a')
+    it('allows observation of navigation events using top level Router deprecated behavior', async () => {
+      const browser = await next.browser('/a')
+      await browser.waitForElementByCss('#page-a')
 
-        let activePage = await browser
-          .elementByCss('.active-top-level-router-deprecated-behavior')
-          .text()
-        expect(activePage).toBe('Foo')
+      let activePage = await browser
+        .elementByCss('.active-top-level-router-deprecated-behavior')
+        .text()
+      expect(activePage).toBe('Foo')
 
-        await browser.elementByCss('button').click()
-        await browser.waitForElementByCss('#page-b')
+      await browser.elementByCss('button').click()
+      await browser.waitForElementByCss('#page-b')
 
-        activePage = await browser
-          .elementByCss('.active-top-level-router-deprecated-behavior')
-          .text()
-        expect(activePage).toBe('Bar')
-      })
-    }
-  )
+      activePage = await browser.elementByCss('.active-top-level-router-deprecated-behavior').text()
+      expect(activePage).toBe('Bar')
+    })
+  })
 
   if (isNextDev) {
     describe('SSR', () => {

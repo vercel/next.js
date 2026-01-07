@@ -49,8 +49,7 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
             <FileIcon lang={fileExtension} />
           </span>
           <span data-text>
-            {getFrameSource(stackFrame)} @{' '}
-            <HotlinkedText text={stackFrame.methodName} />
+            {getFrameSource(stackFrame)} @ <HotlinkedText text={stackFrame.methodName} />
           </span>
           <button
             aria-label="Open in editor"

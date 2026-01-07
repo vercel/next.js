@@ -1,5 +1,9 @@
 {
   "private": true,
+  "browser": {
+    "fs": false,
+    "path": false
+  },
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -18,9 +22,5 @@
     "@types/react": "^18.2.17",
     "@types/react-dom": "^18.2.7",
     "typescript": "^5.1.6"
-  },
-  "browser": {
-    "fs": false,
-    "path": false
   }
 }

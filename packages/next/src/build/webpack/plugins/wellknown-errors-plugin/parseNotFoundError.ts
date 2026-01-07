@@ -59,8 +59,7 @@ async function getSourceFrame(
   compilation: any
 ): Promise<{ frame: string; line1: string; column1: string }> {
   try {
-    const loc =
-      input.loc || input.dependencies.map((d: any) => d.loc).filter(Boolean)[0]
+    const loc = input.loc || input.dependencies.map((d: any) => d.loc).filter(Boolean)[0]
     const module = input.module as webpack.Module
     const originalSource = module.originalSource()
     const sourceMap = originalSource?.map() ?? undefined
@@ -106,11 +105,7 @@ function getFormattedFileName(
   lineNumber?: string,
   column?: string
 ): string {
-  if (
-    module.loaders?.find((loader: any) =>
-      /next-font-loader[/\\]index.js/.test(loader.loader)
-    )
-  ) {
+  if (module.loaders?.find((loader: any) => /next-font-loader[/\\]index.js/.test(loader.loader))) {
     // Parse the query and get the path of the file where the font function was called.
     // provided by next-swc next-transform-font
     return JSON.parse(module.resourceResolveData.query.slice(1)).path
@@ -132,20 +127,13 @@ export async function getNotFoundError(
 ) {
   if (
     input.name !== 'ModuleNotFoundError' &&
-    !(
-      input.name === 'ModuleBuildError' &&
-      /Error: Can't resolve '.+' in /.test(input.message)
-    )
+    !(input.name === 'ModuleBuildError' && /Error: Can't resolve '.+' in /.test(input.message))
   ) {
     return false
   }
 
   try {
-    const { frame, line1, column1 } = await getSourceFrame(
-      input,
-      fileName,
-      compilation
-    )
+    const { frame, line1, column1 } = await getSourceFrame(input, fileName, compilation)
 
     const errorMessage = input.error.message
       .replace(/ in '.*?'/, '')
@@ -153,9 +141,7 @@ export async function getNotFoundError(
 
     const importTrace = () => {
       const moduleTrace = getModuleTrace(input, compilation)
-        .map(({ origin }) =>
-          origin.readableIdentifier(compilation.requestShortener)
-        )
+        .map(({ origin }) => origin.readableIdentifier(compilation.requestShortener))
         .filter(
           (name) =>
             name &&
@@ -178,12 +164,7 @@ export async function getNotFoundError(
       '\nhttps://nextjs.org/docs/messages/module-not-found\n' +
       importTrace()
 
-    const formattedFileName = getFormattedFileName(
-      fileName,
-      module,
-      line1,
-      column1
-    )
+    const formattedFileName = getFormattedFileName(fileName, module, line1, column1)
 
     return new SimpleWebpackError(formattedFileName, message)
   } catch (err) {

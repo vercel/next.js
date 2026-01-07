@@ -4,12 +4,9 @@ import Link from 'next/link'
 
 export default async function Page() {
   const randomCookie = (await cookies()).get('random')
-  const data = await fetch(
-    'https://next-data-api-endpoint.vercel.app/api/random?page',
-    {
-      next: { revalidate: 3600, tags: ['thankyounext'] },
-    }
-  ).then((res) => res.text())
+  const data = await fetch('https://next-data-api-endpoint.vercel.app/api/random?page', {
+    next: { revalidate: 3600, tags: ['thankyounext'] },
+  }).then((res) => res.text())
 
   return (
     <>
@@ -33,10 +30,7 @@ export default async function Page() {
         </button>
       </form>
       <p>
-        random cookie:{' '}
-        <span id="random-cookie">
-          {JSON.stringify({ cookie: randomCookie })}
-        </span>
+        random cookie: <span id="random-cookie">{JSON.stringify({ cookie: randomCookie })}</span>
       </p>
     </>
   )

@@ -10,12 +10,7 @@ const nextConfig = {
     '/': [
       path.relative(
         process.cwd(),
-        path.resolve(
-          require.resolve('typescript/package.json'),
-          '..',
-          'lib',
-          'lib.*.d.ts'
-        )
+        path.resolve(require.resolve('typescript/package.json'), '..', 'lib', 'lib.*.d.ts')
       ),
       './node_modules/@types/node/**',
     ],

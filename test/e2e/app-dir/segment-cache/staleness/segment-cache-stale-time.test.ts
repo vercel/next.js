@@ -164,9 +164,7 @@ describe('segment cache (staleness)', () => {
     // Navigate to the dynamic page
     await act(
       async () => {
-        const toggle = await browser.elementByCss(
-          'input[data-link-accordion="/dynamic"]'
-        )
+        const toggle = await browser.elementByCss('input[data-link-accordion="/dynamic"]')
         await toggle.click()
         const link = await browser.elementByCss('a[href="/dynamic"]')
         await link.click()
@@ -175,9 +173,7 @@ describe('segment cache (staleness)', () => {
         includes: 'Dynamic content',
       }
     )
-    expect(await browser.elementById('dynamic-content').text()).toBe(
-      'Dynamic content'
-    )
+    expect(await browser.elementById('dynamic-content').text()).toBe('Dynamic content')
 
     await browser.back()
 
@@ -190,9 +186,7 @@ describe('segment cache (staleness)', () => {
       const link = await browser.elementByCss('a[href="/dynamic"]')
       await link.click()
       // The next page is immediately rendered
-      expect(await browser.elementById('dynamic-content').text()).toBe(
-        'Dynamic content'
-      )
+      expect(await browser.elementById('dynamic-content').text()).toBe('Dynamic content')
     }, 'no-requests')
 
     await browser.back()
@@ -208,9 +202,7 @@ describe('segment cache (staleness)', () => {
       },
       { includes: 'Dynamic content' }
     )
-    expect(await browser.elementById('dynamic-content').text()).toBe(
-      'Dynamic content'
-    )
+    expect(await browser.elementById('dynamic-content').text()).toBe('Dynamic content')
   })
 
   it('caches omitted from the prerender should not affect when the prefetch is expired', async () => {
@@ -227,9 +219,7 @@ describe('segment cache (staleness)', () => {
     // Reveal the link to trigger a prefetch
     await act(
       async () => {
-        await browser
-          .elementByCss('input[data-link-accordion="/seconds"]')
-          .click()
+        await browser.elementByCss('input[data-link-accordion="/seconds"]').click()
         await browser.elementByCss('a[href="/seconds"]')
       },
       {
@@ -251,9 +241,7 @@ describe('segment cache (staleness)', () => {
     // The cache with `cacheLife('seconds'`) should not affect the stale time of the prefetch,
     // because we omit it from the prerender, so we shouldn't refetch anything yet.
     await act(async () => {
-      await browser
-        .elementByCss('input[data-link-accordion="/seconds"]')
-        .click()
+      await browser.elementByCss('input[data-link-accordion="/seconds"]').click()
       await browser.elementByCss('a[href="/seconds"]')
     }, 'no-requests')
 
@@ -270,9 +258,7 @@ describe('segment cache (staleness)', () => {
     // so we should issue a new request.
     await act(
       async () => {
-        await browser
-          .elementByCss('input[data-link-accordion="/seconds"]')
-          .click()
+        await browser.elementByCss('input[data-link-accordion="/seconds"]').click()
         await browser.elementByCss('a[href="/seconds"]')
       },
       {

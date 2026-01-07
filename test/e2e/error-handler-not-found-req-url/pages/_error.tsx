@@ -7,13 +7,7 @@ Error.getInitialProps = (ctx: NextPageContext) => {
   }
 }
 
-export default function Error({
-  reqUrl,
-  asPath,
-}: {
-  reqUrl?: string
-  asPath?: string
-}) {
+export default function Error({ reqUrl, asPath }: { reqUrl?: string; asPath?: string }) {
   return (
     <p>
       reqUrl: {reqUrl}, asPath: {asPath}

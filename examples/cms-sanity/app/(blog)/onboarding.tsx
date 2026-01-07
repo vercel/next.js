@@ -46,9 +46,7 @@ export default function Onboarding() {
       </svg>
       <div>
         <h3 className="text-sm font-semibold text-gray-900">No posts</h3>
-        <p className="mt-1 text-sm text-gray-500">
-          Get started by creating a new post.
-        </p>
+        <p className="mt-1 text-sm text-gray-500">Get started by creating a new post.</p>
       </div>
 
       <div>

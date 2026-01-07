@@ -4,10 +4,7 @@ import { join, dirname } from 'path'
 import fs from 'fs'
 import type { __ApiPreviewProps } from '../server/api-utils'
 import { reduceAppConfig, isAppBuiltinPage } from './utils'
-import {
-  getAppPageStaticInfo,
-  getPageStaticInfo,
-} from './analysis/get-page-static-info'
+import { getAppPageStaticInfo, getPageStaticInfo } from './analysis/get-page-static-info'
 import type { PageExtensions } from './page-extensions-type'
 
 import { PAGE_TYPES } from '../lib/page-types'

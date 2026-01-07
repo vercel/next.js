@@ -2,6 +2,8 @@
   "name": "@next/react-refresh-utils",
   "version": "16.1.1-canary.16",
   "description": "An experimental package providing utilities for React Refresh.",
+  "license": "MIT",
+  "author": "Joe Haddad <timer@vercel.com>",
   "repository": {
     "url": "vercel/next.js",
     "directory": "packages/react-refresh-utils"
@@ -9,12 +11,14 @@
   "files": [
     "dist"
   ],
-  "author": "Joe Haddad <timer@vercel.com>",
-  "license": "MIT",
   "scripts": {
     "build": "node ../../scripts/rm.mjs dist && tsc -d -p tsconfig.json",
     "prepublishOnly": "cd ../../ && turbo run build",
     "dev": "tsc -d -w -p tsconfig.json"
+  },
+  "devDependencies": {
+    "react-refresh": "0.12.0",
+    "webpack": "^4 || ^5"
   },
   "peerDependencies": {
     "react-refresh": "0.12.0",
@@ -24,9 +28,5 @@
     "webpack": {
       "optional": true
     }
-  },
-  "devDependencies": {
-    "react-refresh": "0.12.0",
-    "webpack": "^4 || ^5"
   }
 }

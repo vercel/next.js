@@ -40,10 +40,7 @@ import { getNextPathnameInfo } from '../../shared/lib/router/utils/get-next-path
 import { getHostname } from '../../shared/lib/get-hostname'
 import { detectDomainLocale } from '../../shared/lib/i18n/detect-domain-locale'
 import { MockedResponse } from './mock-request'
-import {
-  HMR_MESSAGE_SENT_TO_BROWSER,
-  type AppIsrManifestMessage,
-} from '../dev/hot-reloader-types'
+import { HMR_MESSAGE_SENT_TO_BROWSER, type AppIsrManifestMessage } from '../dev/hot-reloader-types'
 import { normalizedAssetPrefix } from '../../shared/lib/normalized-asset-prefix'
 import { NEXT_PATCH_SYMBOL } from './patch-fetch'
 import type { ServerInitResult } from './render-server'
@@ -51,10 +48,7 @@ import { filterInternalHeaders } from './server-ipc/utils'
 import { blockCrossSite } from './router-utils/block-cross-site'
 import { traceGlobals } from '../../trace/shared'
 import { NoFallbackError } from '../../shared/lib/no-fallback-error.external'
-import {
-  RouterServerContextSymbol,
-  routerServerGlobal,
-} from './router-utils/router-server-context'
+import { RouterServerContextSymbol, routerServerGlobal } from './router-utils/router-server-context'
 import {
   handleChromeDevtoolsWorkspaceRequest,
   isChromeDevtoolsWorkspaceUrl,
@@ -67,10 +61,7 @@ const isNextFont = (pathname: string | null) =>
 
 export type RenderServer = Pick<
   typeof import('./render-server'),
-  | 'initialize'
-  | 'clearModuleContext'
-  | 'propagateServerField'
-  | 'getServerField'
+  'initialize' | 'clearModuleContext' | 'propagateServerField' | 'getServerField'
 >
 
 export interface LazyRenderServerInstance {
@@ -189,8 +180,7 @@ export async function initialize(opts: {
     }
   }
 
-  renderServer.instance =
-    require('./render-server') as typeof import('./render-server')
+  renderServer.instance = require('./render-server') as typeof import('./render-server')
 
   const requestHandlerImpl: WorkerRequestHandler = async (req, res) => {
     addRequestMeta(req, 'relativeProjectDir', relativeProjectDir)
@@ -200,11 +190,7 @@ export async function initialize(opts: {
       filterInternalHeaders(req.headers)
     }
 
-    if (
-      !opts.minimalMode &&
-      config.i18n &&
-      config.i18n.localeDetection !== false
-    ) {
+    if (!opts.minimalMode && config.i18n && config.i18n.localeDetection !== false) {
       const urlParts = (req.url || '').split('?', 1)
       let urlNoQuery = urlParts[0] || ''
 
@@ -221,8 +207,7 @@ export async function initialize(opts: {
         getHostname({ hostname: urlNoQuery }, req.headers)
       )
 
-      const defaultLocale =
-        domainLocale?.defaultLocale || config.i18n.defaultLocale
+      const defaultLocale = domainLocale?.defaultLocale || config.i18n.defaultLocale
 
       const { getLocaleRedirect } =
         require('../../shared/lib/i18n/get-locale-redirect') as typeof import('../../shared/lib/i18n/get-locale-redirect')
@@ -237,9 +222,7 @@ export async function initialize(opts: {
         pathLocale: pathnameInfo.locale,
         urlParsed: {
           ...parsedUrl,
-          pathname: pathnameInfo.locale
-            ? `/${pathnameInfo.locale}${urlNoQuery}`
-            : urlNoQuery,
+          pathname: pathnameInfo.locale ? `/${pathnameInfo.locale}${urlNoQuery}` : urlNoQuery,
         },
       })
 
@@ -278,9 +261,7 @@ export async function initialize(opts: {
           `/${getRequestMeta(req, 'locale')}/api`
         )
       ) {
-        invokePath = fsChecker.handleLocale(
-          removePathPrefix(invokePath, config.basePath)
-        ).pathname
+        invokePath = fsChecker.handleLocale(removePathPrefix(invokePath, config.basePath)).pathname
       }
 
       if (
@@ -314,8 +295,7 @@ export async function initialize(opts: {
       debug('invokeRender', req.url, req.headers)
 
       try {
-        const initResult =
-          await renderServer?.instance?.initialize(renderServerOpts)
+        const initResult = await renderServer?.instance?.initialize(renderServerOpts)
         try {
           await initResult?.requestHandler(req, res)
         } catch (err) {
@@ -344,14 +324,7 @@ export async function initialize(opts: {
 
       // handle hot-reloader first
       if (development) {
-        if (
-          blockCrossSite(
-            req,
-            res,
-            development.config.allowedDevOrigins,
-            opts.hostname
-          )
-        ) {
+        if (blockCrossSite(req, res, development.config.allowedDevOrigins, opts.hostname)) {
           return
         }
 
@@ -361,20 +334,13 @@ export async function initialize(opts: {
         // so that the development bundler can find the correct file
         if (config.basePath && pathHasPrefix(origUrl, config.basePath)) {
           req.url = removePathPrefix(origUrl, config.basePath)
-        } else if (
-          config.assetPrefix &&
-          pathHasPrefix(origUrl, config.assetPrefix)
-        ) {
+        } else if (config.assetPrefix && pathHasPrefix(origUrl, config.assetPrefix)) {
           req.url = removePathPrefix(origUrl, config.assetPrefix)
         }
 
         const parsedUrl = parseUrlUtil(req.url || '/')
 
-        const hotReloaderResult = await development.bundler.hotReloader.run(
-          req,
-          res,
-          parsedUrl
-        )
+        const hotReloaderResult = await development.bundler.hotReloader.run(req, res, parsedUrl)
 
         if (hotReloaderResult.finished) {
           return hotReloaderResult
@@ -383,20 +349,14 @@ export async function initialize(opts: {
         req.url = origUrl
       }
 
-      const {
-        finished,
-        parsedUrl,
-        statusCode,
-        resHeaders,
-        bodyStream,
-        matchedOutput,
-      } = await resolveRoutes({
-        req,
-        res,
-        isUpgradeReq: false,
-        signal: signalFromNodeResponse(res),
-        invokedOutputs,
-      })
+      const { finished, parsedUrl, statusCode, resHeaders, bodyStream, matchedOutput } =
+        await resolveRoutes({
+          req,
+          res,
+          isUpgradeReq: false,
+          signal: signalFromNodeResponse(res),
+          invokedOutputs,
+        })
 
       if (res.closed || res.finished) {
         return
@@ -407,10 +367,7 @@ export async function initialize(opts: {
 
         if (config.basePath && pathHasPrefix(origUrl, config.basePath)) {
           req.url = removePathPrefix(origUrl, config.basePath)
-        } else if (
-          config.assetPrefix &&
-          pathHasPrefix(origUrl, config.assetPrefix)
-        ) {
+        } else if (config.assetPrefix && pathHasPrefix(origUrl, config.assetPrefix)) {
           req.url = removePathPrefix(origUrl, config.assetPrefix)
         }
 
@@ -492,10 +449,7 @@ export async function initialize(opts: {
           return
         }
 
-        if (
-          !res.getHeader('cache-control') &&
-          matchedOutput.type === 'nextStaticFolder'
-        ) {
+        if (!res.getHeader('cache-control') && matchedOutput.type === 'nextStaticFolder') {
           if (opts.dev && !isNextFont(parsedUrl.pathname)) {
             res.setHeader(
               'Cache-Control',
@@ -504,10 +458,7 @@ export async function initialize(opts: {
                 : 'no-store, must-revalidate'
             )
           } else {
-            res.setHeader(
-              'Cache-Control',
-              'public, max-age=31536000, immutable'
-            )
+            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
           }
         }
         if (!(req.method === 'GET' || req.method === 'HEAD')) {
@@ -560,9 +511,7 @@ export async function initialize(opts: {
             416,
           ])
 
-          let validErrorStatus = POSSIBLE_ERROR_CODE_FROM_SERVE_STATIC.has(
-            err.statusCode
-          )
+          let validErrorStatus = POSSIBLE_ERROR_CODE_FROM_SERVE_STATIC.has(err.statusCode)
 
           // normalize non-allowed status codes
           if (!validErrorStatus) {
@@ -573,14 +522,9 @@ export async function initialize(opts: {
             const invokePath = `/${err.statusCode}`
             const invokeStatus = err.statusCode
             res.statusCode = err.statusCode
-            return await invokeRender(
-              parseUrlUtil(invokePath),
-              invokePath,
-              handleIndex,
-              {
-                invokeStatus,
-              }
-            )
+            return await invokeRender(parseUrlUtil(invokePath), invokePath, handleIndex, {
+              invokeStatus,
+            })
           }
           throw err
         }
@@ -589,14 +533,9 @@ export async function initialize(opts: {
       if (matchedOutput) {
         invokedOutputs.add(matchedOutput.itemPath)
 
-        return await invokeRender(
-          parsedUrl,
-          parsedUrl.pathname || '/',
-          handleIndex,
-          {
-            invokeOutput: matchedOutput.itemPath,
-          }
-        )
+        return await invokeRender(parsedUrl, parsedUrl.pathname || '/', handleIndex, {
+          invokeOutput: matchedOutput.itemPath,
+        })
       }
 
       // We want the original pathname without any basePath or proxy rewrites.
@@ -606,24 +545,15 @@ export async function initialize(opts: {
       }
 
       // 404 case
-      res.setHeader(
-        'Cache-Control',
-        'private, no-cache, no-store, max-age=0, must-revalidate'
-      )
+      res.setHeader('Cache-Control', 'private, no-cache, no-store, max-age=0, must-revalidate')
 
       let realRequestPathname = parsedUrl.pathname ?? ''
       if (realRequestPathname) {
         if (config.basePath) {
-          realRequestPathname = removePathPrefix(
-            realRequestPathname,
-            config.basePath
-          )
+          realRequestPathname = removePathPrefix(realRequestPathname, config.basePath)
         }
         if (config.assetPrefix) {
-          realRequestPathname = removePathPrefix(
-            realRequestPathname,
-            config.assetPrefix
-          )
+          realRequestPathname = removePathPrefix(realRequestPathname, config.assetPrefix)
         }
         if (config.i18n) {
           realRequestPathname = removePathPrefix(
@@ -655,14 +585,9 @@ export async function initialize(opts: {
       res.statusCode = 404
 
       if (appNotFound) {
-        return await invokeRender(
-          parsedUrl,
-          UNDERSCORE_NOT_FOUND_ROUTE,
-          handleIndex,
-          {
-            invokeStatus: 404,
-          }
-        )
+        return await invokeRender(parsedUrl, UNDERSCORE_NOT_FOUND_ROUTE, handleIndex, {
+          invokeStatus: 404,
+        })
       }
 
       await invokeRender(parsedUrl, '/404', handleIndex, {
@@ -717,9 +642,7 @@ export async function initialize(opts: {
     server: opts.server,
     serverFields: {
       ...(development?.bundler?.serverFields || {}),
-      setIsrStatus: development?.service?.setIsrStatus.bind(
-        development?.service
-      ),
+      setIsrStatus: development?.service?.setIsrStatus.bind(development?.service),
     } satisfies ServerFields,
     experimentalTestProxy: !!config.experimental.testProxy,
     experimentalHttpsServer: !!opts.experimentalHttpsServer,
@@ -756,9 +679,7 @@ export async function initialize(opts: {
     setReactDebugChannel: development?.config.experimental.reactDebugChannel
       ? development?.service?.setReactDebugChannel.bind(development?.service)
       : undefined,
-    sendErrorsToBrowser: development?.service?.sendErrorsToBrowser.bind(
-      development?.service
-    ),
+    sendErrorsToBrowser: development?.service?.sendErrorsToBrowser.bind(development?.service),
   }
 
   const logError = async (
@@ -801,14 +722,7 @@ export async function initialize(opts: {
       })
 
       if (opts.dev && development && req.url) {
-        if (
-          blockCrossSite(
-            req,
-            socket,
-            development.config.allowedDevOrigins,
-            opts.hostname
-          )
-        ) {
+        if (blockCrossSite(req, socket, development.config.allowedDevOrigins, opts.hostname)) {
           return
         }
         const { basePath, assetPrefix } = config

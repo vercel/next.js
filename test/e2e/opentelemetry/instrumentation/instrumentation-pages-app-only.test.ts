@@ -27,9 +27,7 @@ for (const { app, src, pathname, text } of [
     text: 'Page',
   },
 ]) {
-  describe(`instrumentation ${app ? 'app' : 'pages'}${
-    src ? ' src/' : ''
-  }`, () => {
+  describe(`instrumentation ${app ? 'app' : 'pages'}${src ? ' src/' : ''}`, () => {
     const curDir = app ? 'app' : 'pages'
     const oppositeDir = app ? 'pages' : 'app'
 
@@ -42,9 +40,7 @@ for (const { app, src, pathname, text } of [
       packageJson: {
         scripts: {
           'setup-dir': `mv instrumentation-minimal.ts instrumentation.ts; rm -rf ${oppositeDir}${
-            src
-              ? `; mkdir src; mv ${curDir} src/; mv instrumentation.ts src/`
-              : ''
+            src ? `; mkdir src; mv ${curDir} src/; mv instrumentation.ts src/` : ''
           }`,
           dev: 'pnpm setup-dir && next dev',
           build: 'pnpm setup-dir && next build',

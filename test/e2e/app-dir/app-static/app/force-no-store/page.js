@@ -4,9 +4,7 @@ export const fetchCache = 'force-no-store'
 
 export default function Page() {
   const getData = cache(() =>
-    fetch('https://next-data-api-endpoint.vercel.app/api/random?page', {}).then(
-      (res) => res.text()
-    )
+    fetch('https://next-data-api-endpoint.vercel.app/api/random?page', {}).then((res) => res.text())
   )
   const dataPromise = getData()
   const data = use(dataPromise)

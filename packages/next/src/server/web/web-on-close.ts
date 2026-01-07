@@ -1,10 +1,7 @@
 /** Monitor when the consumer finishes reading the response body.
 that's as close as we can get to `res.on('close')` using web APIs.
 */
-export function trackBodyConsumed(
-  body: string | ReadableStream,
-  onEnd: () => void
-): BodyInit {
+export function trackBodyConsumed(body: string | ReadableStream, onEnd: () => void): BodyInit {
   if (typeof body === 'string') {
     const generator = async function* generate() {
       const encoder = new TextEncoder()

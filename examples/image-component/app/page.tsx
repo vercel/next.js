@@ -5,9 +5,7 @@ import ViewSource from "../components/view-source";
 import vercel from "../public/vercel.png";
 import type { PropsWithChildren } from "react";
 
-const Code = (props: PropsWithChildren<{}>) => (
-  <code className={styles.inlineCode} {...props} />
-);
+const Code = (props: PropsWithChildren<{}>) => <code className={styles.inlineCode} {...props} />;
 
 const Index = () => (
   <div className={styles.container}>
@@ -16,10 +14,8 @@ const Index = () => (
       <h1>Image Component with Next.js</h1>
       <p>
         This page demonstrates the usage of the{" "}
-        <a href="https://nextjs.org/docs/api-reference/next/image">
-          next/image
-        </a>{" "}
-        component with live examples.
+        <a href="https://nextjs.org/docs/api-reference/next/image">next/image</a> component with
+        live examples.
       </p>
       <p>
         This component is designed to{" "}
@@ -31,8 +27,8 @@ const Index = () => (
       <hr className={styles.hr} />
       <h2 id="examples">Examples</h2>
       <p>
-        Try it the examples below (you may need to disable cache in dev tools to
-        see the effect if you already visited):
+        Try it the examples below (you may need to disable cache in dev tools to see the effect if
+        you already visited):
       </p>
       <ul>
         <li>
@@ -60,13 +56,10 @@ const Index = () => (
       <hr className={styles.hr} />
       <h2 id="internal">Internal Image</h2>
       <p>
-        The following is an example of a reference to an internal image from the{" "}
-        <Code>public</Code> directory.
+        The following is an example of a reference to an internal image from the <Code>public</Code>{" "}
+        directory.
       </p>
-      <p>
-        This image is intentionally large so you have to scroll down to the next
-        image.
-      </p>
+      <p>This image is intentionally large so you have to scroll down to the next image.</p>
       <Image
         alt="Vercel logo"
         src={vercel}
@@ -84,8 +77,8 @@ const Index = () => (
         <Code>assets.vercel.com</Code>.
       </p>
       <p>
-        External images must be configured in <Code>next.config.js</Code> using
-        the <Code>remotePatterns</Code> property.
+        External images must be configured in <Code>next.config.js</Code> using the{" "}
+        <Code>remotePatterns</Code> property.
       </p>
       <Image
         alt="Next.js logo"
@@ -99,9 +92,7 @@ const Index = () => (
       />
       <hr className={styles.hr} />
       <h2 id="more">Learn More</h2>
-      <p>
-        You can optionally configure a cloud provider, device sizes, and more!
-      </p>
+      <p>You can optionally configure a cloud provider, device sizes, and more!</p>
       <p>
         Checkout the{" "}
         <a href="https://nextjs.org/docs/basic-features/image-optimization">

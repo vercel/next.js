@@ -211,9 +211,7 @@ export type PostConnection = {
 
 /** Input to create a new Post */
 export type PostCreateInput = {
-  comments?: InputMaybe<
-    Array<InputMaybe<PostCommentRelatePostCommentCreateRelationInput>>
-  >;
+  comments?: InputMaybe<Array<InputMaybe<PostCommentRelatePostCommentCreateRelationInput>>>;
   slug: Scalars["String"];
   title: Scalars["String"];
 };
@@ -236,9 +234,7 @@ export type PostEdge = {
 
 /** Input to create a new Post */
 export type PostUpdateInput = {
-  comments?: InputMaybe<
-    Array<InputMaybe<PostCommentRelatePostCommentUpdateRelationInput>>
-  >;
+  comments?: InputMaybe<Array<InputMaybe<PostCommentRelatePostCommentUpdateRelationInput>>>;
   slug?: InputMaybe<Scalars["String"]>;
   title?: InputMaybe<Scalars["String"]>;
 };

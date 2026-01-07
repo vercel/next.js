@@ -105,9 +105,7 @@ export class ReactServerResult {
 
   tee() {
     if (this._stream === null) {
-      throw new Error(
-        'Cannot tee a ReactServerResult that has already been consumed'
-      )
+      throw new Error('Cannot tee a ReactServerResult that has already been consumed')
     }
     const tee = this._stream.tee()
     this._stream = tee[0]
@@ -116,9 +114,7 @@ export class ReactServerResult {
 
   consume() {
     if (this._stream === null) {
-      throw new Error(
-        'Cannot consume a ReactServerResult that has already been consumed'
-      )
+      throw new Error('Cannot consume a ReactServerResult that has already been consumed')
     }
     const stream = this._stream
     this._stream = null
@@ -208,9 +204,7 @@ export class ReactServerPrerenderResult {
   }
 }
 
-function createUnclosingStream(
-  chunks: Array<Uint8Array>
-): ReadableStream<Uint8Array> {
+function createUnclosingStream(chunks: Array<Uint8Array>): ReadableStream<Uint8Array> {
   let i = 0
   return new ReadableStream({
     async pull(controller) {
@@ -224,9 +218,7 @@ function createUnclosingStream(
   })
 }
 
-function createClosingStream(
-  chunks: Array<Uint8Array>
-): ReadableStream<Uint8Array> {
+function createClosingStream(chunks: Array<Uint8Array>): ReadableStream<Uint8Array> {
   let i = 0
   return new ReadableStream({
     async pull(controller) {
@@ -239,9 +231,7 @@ function createClosingStream(
   })
 }
 
-export async function processPrelude(
-  unprocessedPrelude: ReadableStream<Uint8Array>
-) {
+export async function processPrelude(unprocessedPrelude: ReadableStream<Uint8Array>) {
   const [prelude, peek] = unprocessedPrelude.tee()
 
   const reader = peek.getReader()

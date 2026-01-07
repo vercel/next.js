@@ -130,9 +130,7 @@ describe('use-cache-search-params', () => {
     })
 
     it('should show an error when searchParams are used inside of a cached generateMetadata', async () => {
-      const browser = await next.browser(
-        '/search-params-used-generate-metadata?title=foo'
-      )
+      const browser = await next.browser('/search-params-used-generate-metadata?title=foo')
 
       await expect(browser).toDisplayRedbox(`
        {
@@ -150,9 +148,7 @@ describe('use-cache-search-params', () => {
     })
 
     it('should show an error when searchParams are used inside of a cached generateViewport', async () => {
-      const browser = await next.browser(
-        '/search-params-used-generate-viewport?color=red'
-      )
+      const browser = await next.browser('/search-params-used-generate-viewport?color=red')
 
       await expect(browser).toDisplayRedbox(`
        {
@@ -176,29 +172,17 @@ describe('use-cache-search-params', () => {
     it('should fail the build with errors', async () => {
       const { cliOutput } = await next.build()
 
-      expect(cliOutput).toInclude(
-        getExpectedErrorMessage('/search-params-used')
-      )
+      expect(cliOutput).toInclude(getExpectedErrorMessage('/search-params-used'))
 
-      expect(cliOutput).toInclude(
-        getExpectedErrorMessage('/search-params-caught')
-      )
+      expect(cliOutput).toInclude(getExpectedErrorMessage('/search-params-caught'))
 
-      expect(cliOutput).not.toInclude(
-        getExpectedErrorMessage('/search-params-unused')
-      )
+      expect(cliOutput).not.toInclude(getExpectedErrorMessage('/search-params-unused'))
 
-      expect(cliOutput).toInclude(
-        'Error occurred prerendering page "/search-params-used"'
-      )
+      expect(cliOutput).toInclude('Error occurred prerendering page "/search-params-used"')
 
-      expect(cliOutput).toInclude(
-        'Error occurred prerendering page "/search-params-caught"'
-      )
+      expect(cliOutput).toInclude('Error occurred prerendering page "/search-params-caught"')
 
-      expect(cliOutput).not.toInclude(
-        'Error occurred prerendering page "/search-params-unused"'
-      )
+      expect(cliOutput).not.toInclude('Error occurred prerendering page "/search-params-unused"')
     })
 
     it('should resume a cached page that does not access search params without hydration errors', async () => {
@@ -224,9 +208,7 @@ describe('use-cache-search-params', () => {
       // Note: When cacheComponents is not enabled, the page is not actually
       // prerendered, but because the page is cached on the first page load, the
       // date should still be the same for the second page load.
-      expect(await browser.elementById('page-date').text()).toBe(
-        prerenderedPageDate
-      )
+      expect(await browser.elementById('page-date').text()).toBe(prerenderedPageDate)
 
       // There should also be no hydration errors due to a buildtime date being
       // replaced by a new runtime date.

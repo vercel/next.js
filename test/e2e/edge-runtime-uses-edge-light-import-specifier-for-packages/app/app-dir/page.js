@@ -5,8 +5,6 @@ export const runtime = 'edge'
 
 export default function AppDirPage() {
   return (
-    <pre id="result">
-      {JSON.stringify({ edgeLightPackage, edgeLightPackageExports }, null, 2)}
-    </pre>
+    <pre id="result">{JSON.stringify({ edgeLightPackage, edgeLightPackageExports }, null, 2)}</pre>
   )
 }

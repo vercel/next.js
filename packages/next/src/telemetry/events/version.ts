@@ -103,12 +103,8 @@ export function eventCliSession(
     localeDomainsCount: i18n?.domains ? i18n.domains.length : null,
     localeDetectionEnabled: !i18n ? null : i18n.localeDetection !== false,
     imageDomainsCount: images?.domains ? images.domains.length : null,
-    imageRemotePatternsCount: images?.remotePatterns
-      ? images.remotePatterns.length
-      : null,
-    imageLocalPatternsCount: images?.localPatterns
-      ? images.localPatterns.length
-      : null,
+    imageRemotePatternsCount: images?.remotePatterns ? images.remotePatterns.length : null,
+    imageLocalPatternsCount: images?.localPatterns ? images.localPatterns.length : null,
     imageSizes: images?.imageSizes ? images.imageSizes.join(',') : null,
     imageQualities: images?.qualities ? images.qualities.join(',') : null,
     imageLoader: images?.loader,

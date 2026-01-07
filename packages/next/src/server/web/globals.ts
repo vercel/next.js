@@ -1,13 +1,8 @@
-import type {
-  InstrumentationModule,
-  InstrumentationOnRequestError,
-} from '../instrumentation/types'
+import type { InstrumentationModule, InstrumentationOnRequestError } from '../instrumentation/types'
 
 declare const _ENTRIES: any
 
-export async function getEdgeInstrumentationModule(): Promise<
-  InstrumentationModule | undefined
-> {
+export async function getEdgeInstrumentationModule(): Promise<InstrumentationModule | undefined> {
   const instrumentation =
     '_ENTRIES' in globalThis &&
     _ENTRIES.middleware_instrumentation &&

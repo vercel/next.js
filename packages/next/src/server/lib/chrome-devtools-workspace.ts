@@ -9,9 +9,7 @@ import { getStorageDirectory } from '../cache-dir'
 // Keep the uuid in memory as it should never change during the lifetime of the server.
 let workspaceUUID: string | null = null
 
-export function isChromeDevtoolsWorkspaceUrl(
-  pathname: string | undefined
-): boolean {
+export function isChromeDevtoolsWorkspaceUrl(pathname: string | undefined): boolean {
   return pathname === '/.well-known/appspecific/com.chrome.devtools.json'
 }
 
@@ -21,13 +19,7 @@ export async function handleChromeDevtoolsWorkspaceRequest(
   config: NextConfigRuntime
 ): Promise<void> {
   response.setHeader('Content-Type', 'application/json')
-  response.end(
-    JSON.stringify(
-      await getChromeDevtoolsWorkspace(opts.dir, config.distDir),
-      null,
-      2
-    )
-  )
+  response.end(JSON.stringify(await getChromeDevtoolsWorkspace(opts.dir, config.distDir), null, 2))
 }
 
 /**
@@ -54,10 +46,7 @@ async function getChromeDevtoolsWorkspace(
     if (cacheBaseDir === undefined) {
       workspaceUUID = randomUUID()
     } else {
-      const cachedUUIDPath = path.join(
-        cacheBaseDir,
-        'chrome-devtools-workspace-uuid'
-      )
+      const cachedUUIDPath = path.join(cacheBaseDir, 'chrome-devtools-workspace-uuid')
       try {
         workspaceUUID = await fs.promises.readFile(cachedUUIDPath, 'utf8')
       } catch {

@@ -27,8 +27,7 @@ interface TurbopackBrowserBaseContext<M> extends TurbopackBaseContext<M> {
   R: ResolvePathFromModule
 }
 
-const browserContextPrototype =
-  Context.prototype as TurbopackBrowserBaseContext<unknown>
+const browserContextPrototype = Context.prototype as TurbopackBrowserBaseContext<unknown>
 
 // Provided by build or dev base
 declare function instantiateModule(
@@ -42,10 +41,7 @@ type RuntimeParams = {
   runtimeModuleIds: ModuleId[]
 }
 
-type ChunkRegistration = [
-  chunkPath: ChunkScript,
-  ...([RuntimeParams] | CompressedModuleFactories),
-]
+type ChunkRegistration = [chunkPath: ChunkScript, ...([RuntimeParams] | CompressedModuleFactories)]
 
 type ChunkList = {
   script: ChunkListScript
@@ -125,18 +121,12 @@ function factoryNotAvailableMessage(
       instantiationReason = 'because of an HMR update'
       break
     default:
-      invariant(
-        sourceType,
-        (sourceType) => `Unknown source type: ${sourceType}`
-      )
+      invariant(sourceType, (sourceType) => `Unknown source type: ${sourceType}`)
   }
   return `Module ${moduleId} was instantiated ${instantiationReason}, but the module factory is not available.`
 }
 
-function loadChunk(
-  this: TurbopackBrowserBaseContext<Module>,
-  chunkData: ChunkData
-): Promise<void> {
+function loadChunk(this: TurbopackBrowserBaseContext<Module>, chunkData: ChunkData): Promise<void> {
   return loadChunkInternal(SourceType.Parent, this.m.id, chunkData)
 }
 browserContextPrototype.l = loadChunk
@@ -223,15 +213,9 @@ async function loadChunkInternal(
 }
 
 const loadedChunk = Promise.resolve(undefined)
-const instrumentedBackendLoadChunks = new WeakMap<
-  Promise<any>,
-  Promise<any> | typeof loadedChunk
->()
+const instrumentedBackendLoadChunks = new WeakMap<Promise<any>, Promise<any> | typeof loadedChunk>()
 // Do not make this async. React relies on referential equality of the returned Promise.
-function loadChunkByUrl(
-  this: TurbopackBrowserBaseContext<Module>,
-  chunkUrl: ChunkUrl
-) {
+function loadChunkByUrl(this: TurbopackBrowserBaseContext<Module>, chunkUrl: ChunkUrl) {
   return loadChunkByUrlInternal(SourceType.Parent, this.m.id, chunkUrl)
 }
 browserContextPrototype.L = loadChunkByUrl
@@ -263,15 +247,10 @@ function loadChunkByUrlInternal(
           loadReason = 'from an HMR update'
           break
         default:
-          invariant(
-            sourceType,
-            (sourceType) => `Unknown source type: ${sourceType}`
-          )
+          invariant(sourceType, (sourceType) => `Unknown source type: ${sourceType}`)
       }
       let error = new Error(
-        `Failed to load chunk ${chunkUrl} ${loadReason}${
-          cause ? `: ${cause}` : ''
-        }`,
+        `Failed to load chunk ${chunkUrl} ${loadReason}${cause ? `: ${cause}` : ''}`,
         cause ? { cause } : undefined
       )
       error.name = 'ChunkLoadError'
@@ -296,10 +275,7 @@ function loadChunkPath(
 /**
  * Returns an absolute url to an asset.
  */
-function resolvePathFromModule(
-  this: TurbopackBaseContext<Module>,
-  moduleId: string
-): string {
+function resolvePathFromModule(this: TurbopackBaseContext<Module>, moduleId: string): string {
   const exported = this.r(moduleId)
   return exported?.default ?? exported
 }
@@ -333,10 +309,7 @@ browserContextPrototype.b = getWorkerBlobURL
 /**
  * Instantiates a runtime module.
  */
-function instantiateRuntimeModule(
-  moduleId: ModuleId,
-  chunkPath: ChunkPath
-): Module {
+function instantiateRuntimeModule(moduleId: ModuleId, chunkPath: ChunkPath): Module {
   return instantiateModule(moduleId, SourceType.Runtime, chunkPath)
 }
 /**
@@ -353,9 +326,7 @@ function getChunkRelativeUrl(chunkPath: ChunkPath | ChunkListPath): ChunkUrl {
  * Return the ChunkPath from a ChunkScript.
  */
 function getPathFromScript(chunkScript: ChunkPath | ChunkScript): ChunkPath
-function getPathFromScript(
-  chunkScript: ChunkListPath | ChunkListScript
-): ChunkListPath
+function getPathFromScript(chunkScript: ChunkListPath | ChunkListScript): ChunkListPath
 function getPathFromScript(
   chunkScript: ChunkPath | ChunkListPath | ChunkScript | ChunkListScript
 ): ChunkPath | ChunkListPath {
@@ -367,9 +338,7 @@ function getPathFromScript(
       ? TURBOPACK_NEXT_CHUNK_URLS.pop()!
       : chunkScript.getAttribute('src')!
   const src = decodeURIComponent(chunkUrl.replace(/[?#].*$/, ''))
-  const path = src.startsWith(CHUNK_BASE_PATH)
-    ? src.slice(CHUNK_BASE_PATH.length)
-    : src
+  const path = src.startsWith(CHUNK_BASE_PATH) ? src.slice(CHUNK_BASE_PATH.length) : src
   return path as ChunkPath | ChunkListPath
 }
 
@@ -395,13 +364,7 @@ function loadWebAssembly(
   edgeModule: () => WebAssembly.Module,
   importsObj: WebAssembly.Imports
 ): Promise<Exports> {
-  return BACKEND.loadWebAssembly(
-    SourceType.Parent,
-    this.m.id,
-    chunkPath,
-    edgeModule,
-    importsObj
-  )
+  return BACKEND.loadWebAssembly(SourceType.Parent, this.m.id, chunkPath, edgeModule, importsObj)
 }
 contextPrototype.w = loadWebAssembly
 
@@ -410,11 +373,6 @@ function loadWebAssemblyModule(
   chunkPath: ChunkPath,
   edgeModule: () => WebAssembly.Module
 ): Promise<WebAssembly.Module> {
-  return BACKEND.loadWebAssemblyModule(
-    SourceType.Parent,
-    this.m.id,
-    chunkPath,
-    edgeModule
-  )
+  return BACKEND.loadWebAssemblyModule(SourceType.Parent, this.m.id, chunkPath, edgeModule)
 }
 contextPrototype.u = loadWebAssemblyModule

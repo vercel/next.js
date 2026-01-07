@@ -24,18 +24,14 @@ describe('app dir - css', () => {
         // Should body text in red
         await check(
           async () =>
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('.p')).color`
-            ),
+            await browser.eval(`window.getComputedStyle(document.querySelector('.p')).color`),
           'rgb(255, 0, 0)'
         )
 
         // Should inject global css for .green selectors
         await check(
           async () =>
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('.green')).color`
-            ),
+            await browser.eval(`window.getComputedStyle(document.querySelector('.green')).color`),
           'rgb(0, 128, 0)'
         )
       })
@@ -68,9 +64,7 @@ describe('app dir - css', () => {
         const browser = await next.browser('/css/css-page')
         await check(
           async () =>
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('h1')).color`
-            ),
+            await browser.eval(`window.getComputedStyle(document.querySelector('h1')).color`),
           'rgb(255, 0, 0)'
         )
       })
@@ -79,9 +73,7 @@ describe('app dir - css', () => {
         const browser = await next.browser('/css/css-page')
         await check(
           async () =>
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('#cssm')).color`
-            ),
+            await browser.eval(`window.getComputedStyle(document.querySelector('#cssm')).color`),
           'rgb(0, 0, 255)'
         )
       })
@@ -95,9 +87,7 @@ describe('app dir - css', () => {
         const browser = await next.browser('/css/css-page-shared-loading')
         await check(
           async () =>
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('#cssm')).color`
-            ),
+            await browser.eval(`window.getComputedStyle(document.querySelector('#cssm')).color`),
           'rgb(0, 0, 255)'
         )
       })
@@ -110,9 +100,7 @@ describe('app dir - css', () => {
         // Should render h1 in red
         await check(
           async () =>
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('h1')).color`
-            ),
+            await browser.eval(`window.getComputedStyle(document.querySelector('h1')).color`),
           'rgb(255, 0, 0)'
         )
       })
@@ -123,9 +111,7 @@ describe('app dir - css', () => {
         // Should render button in red
         await check(
           async () =>
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('button')).color`
-            ),
+            await browser.eval(`window.getComputedStyle(document.querySelector('button')).color`),
           'rgb(255, 0, 0)'
         )
       })
@@ -138,9 +124,7 @@ describe('app dir - css', () => {
         // Should render p in red
         await check(
           async () =>
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('p')).color`
-            ),
+            await browser.eval(`window.getComputedStyle(document.querySelector('p')).color`),
           'rgb(255, 0, 0)'
         )
       })
@@ -151,9 +135,7 @@ describe('app dir - css', () => {
         // Should render `b` in blue
         await check(
           async () =>
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('b')).color`
-            ),
+            await browser.eval(`window.getComputedStyle(document.querySelector('b')).color`),
           'rgb(0, 0, 255)'
         )
       })
@@ -210,9 +192,7 @@ describe('app dir - css', () => {
         const browser = await next.browser('/template/servercomponent')
         await check(
           async () =>
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('h1')).color`
-            ),
+            await browser.eval(`window.getComputedStyle(document.querySelector('h1')).color`),
           'rgb(255, 0, 0)'
         )
       })
@@ -221,9 +201,7 @@ describe('app dir - css', () => {
         const browser = await next.browser('/not-found/clientcomponent')
         await check(
           async () =>
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('h1')).color`
-            ),
+            await browser.eval(`window.getComputedStyle(document.querySelector('h1')).color`),
           'rgb(255, 0, 0)'
         )
       })
@@ -232,9 +210,7 @@ describe('app dir - css', () => {
         const browser = await next.browser('/not-found/servercomponent')
         await check(
           async () =>
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('h1')).color`
-            ),
+            await browser.eval(`window.getComputedStyle(document.querySelector('h1')).color`),
           'rgb(255, 0, 0)'
         )
       })
@@ -243,9 +219,7 @@ describe('app dir - css', () => {
         const browser = await next.browser('/this-path-does-not-exist')
         await check(
           async () =>
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('h1')).color`
-            ),
+            await browser.eval(`window.getComputedStyle(document.querySelector('h1')).color`),
           'rgb(210, 105, 30)'
         )
       })
@@ -254,9 +228,7 @@ describe('app dir - css', () => {
         const browser = await next.browser('/random-non-existing-path')
         await check(
           async () =>
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('h1')).color`
-            ),
+            await browser.eval(`window.getComputedStyle(document.querySelector('h1')).color`),
           'rgb(210, 105, 30)'
         )
         await check(
@@ -290,9 +262,7 @@ describe('app dir - css', () => {
         const browser = await next.browser('/mdx')
         await check(
           async () =>
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('h1')).color`
-            ),
+            await browser.eval(`window.getComputedStyle(document.querySelector('h1')).color`),
           'rgb(255, 0, 0)'
         )
       })
@@ -303,9 +273,7 @@ describe('app dir - css', () => {
         const html = await next.render('/dashboard')
 
         const stylesheets = [
-          ...html.matchAll(
-            /<link rel="stylesheet" href="[^<]+\.css(\?v=\d+)?"/g
-          ),
+          ...html.matchAll(/<link rel="stylesheet" href="[^<]+\.css(\?v=\d+)?"/g),
         ].length
         expect(stylesheets).toBe(3)
       })
@@ -315,14 +283,10 @@ describe('app dir - css', () => {
       it('should have inner layers take precedence over outer layers', async () => {
         const browser = await next.browser('/ordering')
         expect(
-          await browser.eval(
-            `window.getComputedStyle(document.querySelector('h1')).color`
-          )
+          await browser.eval(`window.getComputedStyle(document.querySelector('h1')).color`)
         ).toBe('rgb(255, 0, 0)')
         expect(
-          await browser.eval(
-            `window.getComputedStyle(document.querySelector('h2')).color`
-          )
+          await browser.eval(`window.getComputedStyle(document.querySelector('h2')).color`)
         ).toBe('rgb(255, 0, 0)')
       })
     })
@@ -335,36 +299,22 @@ describe('app dir - css', () => {
         // h1 should be red
         const browser = await next.browser('/ordering')
         expect(
-          await browser.eval(
-            `window.getComputedStyle(document.querySelector('h1')).color`
-          )
+          await browser.eval(`window.getComputedStyle(document.querySelector('h1')).color`)
         ).toBe('rgb(255, 0, 0)')
         expect(
-          await browser.eval(
-            `window.getComputedStyle(document.querySelector('h2')).color`
-          )
+          await browser.eval(`window.getComputedStyle(document.querySelector('h2')).color`)
         ).toBe('rgb(255, 0, 0)')
 
         try {
-          await next.patchFile(
-            filePath,
-            origContent.replace('<h1>Hello</h1>', '<h1>Hello!</h1>')
-          )
+          await next.patchFile(filePath, origContent.replace('<h1>Hello</h1>', '<h1>Hello!</h1>'))
 
           // Wait for HMR to trigger
-          await check(
-            () => browser.eval(`document.querySelector('h1').textContent`),
-            'Hello!'
-          )
+          await check(() => browser.eval(`document.querySelector('h1').textContent`), 'Hello!')
           expect(
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('h1')).color`
-            )
+            await browser.eval(`window.getComputedStyle(document.querySelector('h1')).color`)
           ).toBe('rgb(255, 0, 0)')
           expect(
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('h2')).color`
-            )
+            await browser.eval(`window.getComputedStyle(document.querySelector('h2')).color`)
           ).toBe('rgb(255, 0, 0)')
         } finally {
           await next.patchFile(filePath, origContent)
@@ -382,17 +332,11 @@ describe('app dir - css', () => {
           try {
             await next.patchFile(
               filePath,
-              origContent.replace(
-                '<div>hello!</div>',
-                '<div>hello world!</div>'
-              )
+              origContent.replace('<div>hello!</div>', '<div>hello world!</div>')
             )
 
             // Wait for HMR to trigger
-            await check(
-              () => browser.elementByCss('body').text(),
-              'hello world!'
-            )
+            await check(() => browser.elementByCss('body').text(), 'hello world!')
 
             expect(
               await browser.eval(
@@ -427,10 +371,7 @@ describe('app dir - css', () => {
         try {
           await next.patchFile(
             filePath,
-            origContent.replace(
-              'background-color: red;',
-              'background-color: blue;'
-            )
+            origContent.replace('background-color: red;', 'background-color: blue;')
           )
 
           // Wait for HMR to trigger
@@ -480,9 +421,7 @@ describe('app dir - css', () => {
           const initialHtml = await next.render('/css/css-duplicate-2/server')
 
           if (process.env.IS_TURBOPACK_TEST) {
-            expect(
-              initialHtml.match(/app_css_css-duplicate-2_[\w]+\.css/g).length
-            ).toBe(5)
+            expect(initialHtml.match(/app_css_css-duplicate-2_[\w]+\.css/g).length).toBe(5)
           } else {
             // Even if it's deduped by Float, it should still only be included once in the payload.
 
@@ -713,9 +652,7 @@ describe('app dir - css', () => {
         // h1 should be red
         const browser = await next.browser('/css/css-page')
         expect(
-          await browser.eval(
-            `window.getComputedStyle(document.querySelector('h1')).color`
-          )
+          await browser.eval(`window.getComputedStyle(document.querySelector('h1')).color`)
         ).toBe('rgb(255, 0, 0)')
 
         try {
@@ -723,10 +660,7 @@ describe('app dir - css', () => {
 
           // Wait for HMR to trigger
           await check(
-            () =>
-              browser.eval(
-                `window.getComputedStyle(document.querySelector('h1')).color`
-              ),
+            () => browser.eval(`window.getComputedStyle(document.querySelector('h1')).color`),
             'rgb(0, 0, 255)'
           )
         } finally {
@@ -741,19 +675,14 @@ describe('app dir - css', () => {
         // h1 should be red
         const browser = await next.browser('/css/css-client')
         expect(
-          await browser.eval(
-            `window.getComputedStyle(document.querySelector('h1')).color`
-          )
+          await browser.eval(`window.getComputedStyle(document.querySelector('h1')).color`)
         ).toBe('rgb(255, 0, 0)')
 
         try {
           await next.patchFile(filePath, origContent.replace('red', 'blue'))
 
           await check(
-            () =>
-              browser.eval(
-                `window.getComputedStyle(document.querySelector('h1')).color`
-              ),
+            () => browser.eval(`window.getComputedStyle(document.querySelector('h1')).color`),
             'rgb(0, 0, 255)'
           )
         } finally {
@@ -836,10 +765,7 @@ describe('app dir - css', () => {
         ).toBe('rgb(165, 42, 42)')
 
         try {
-          await next.patchFile(
-            filePath1,
-            origContent1.replace('color: burlywood;', 'color: red;')
-          )
+          await next.patchFile(filePath1, origContent1.replace('color: burlywood;', 'color: red;'))
           await check(
             () =>
               browser.eval(
@@ -852,10 +778,7 @@ describe('app dir - css', () => {
         }
 
         try {
-          await next.patchFile(
-            filePath2,
-            origContent2.replace('color: brown', 'color: red')
-          )
+          await next.patchFile(filePath2, origContent2.replace('color: brown', 'color: red'))
           await check(
             () =>
               browser.eval(

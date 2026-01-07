@@ -1,5 +1,5 @@
 {
+  "name": "guest-app",
   "version": "0.0.1",
-  "private": true,
-  "name": "guest-app"
+  "private": true
 }

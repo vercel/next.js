@@ -32,10 +32,7 @@ export const getServerSideProps = ({ params }) => {
     let statusCode = undefined
 
     if (params.post.includes('statusCode-')) {
-      statusCode = parseInt(
-        params.post.split('statusCode-').pop().split('-').shift(),
-        10
-      )
+      statusCode = parseInt(params.post.split('statusCode-').pop().split('-').shift(), 10)
     }
 
     if (params.post.includes('permanent')) {

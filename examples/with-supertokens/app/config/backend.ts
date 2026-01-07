@@ -68,8 +68,7 @@ export let backendConfig = (): TypeInput => {
                 clients: [
                   {
                     clientId: "4398792-WXpqVXRiazdRMGNJdEZIa3RVQXc6MTpjaQ",
-                    clientSecret:
-                      "BivMbtwmcygbRLNQ0zk45yxvW246tnYnTFFq-LH39NwZMxFpdC",
+                    clientSecret: "BivMbtwmcygbRLNQ0zk45yxvW246tnYnTFFq-LH39NwZMxFpdC",
                   },
                 ],
               },

@@ -31,10 +31,7 @@ interface TurbopackNodeBuildContext extends TurbopackBaseContext<Module> {
 
 const nodeContextPrototype = Context.prototype as TurbopackNodeBuildContext
 
-type ModuleFactory = (
-  this: Module['exports'],
-  context: TurbopackNodeBuildContext
-) => unknown
+type ModuleFactory = (this: Module['exports'], context: TurbopackNodeBuildContext) => unknown
 
 const url = require('url') as typeof import('url')
 
@@ -46,10 +43,7 @@ nodeContextPrototype.c = moduleCache
 /**
  * Returns an absolute path to the given module's id.
  */
-function resolvePathFromModule(
-  this: TurbopackBaseContext<Module>,
-  moduleId: string
-): string {
+function resolvePathFromModule(this: TurbopackBaseContext<Module>, moduleId: string): string {
   const exported = this.r(moduleId)
   const exportedPath = exported?.default ?? exported
   if (typeof exportedPath !== 'string') {
@@ -80,10 +74,7 @@ function clearChunkCache() {
   chunkCache.clear()
 }
 
-function loadRuntimeChunkPath(
-  sourcePath: ChunkPath,
-  chunkPath: ChunkPath
-): void {
+function loadRuntimeChunkPath(sourcePath: ChunkPath, chunkPath: ChunkPath): void {
   if (!isJs(chunkPath)) {
     // We only support loading JS chunks in Node.js.
     // This branch can be hit when trying to load a CSS chunk.
@@ -112,10 +103,7 @@ function loadRuntimeChunkPath(
   }
 }
 
-function loadChunkAsync(
-  this: TurbopackBaseContext<Module>,
-  chunkData: ChunkData
-): Promise<void> {
+function loadChunkAsync(this: TurbopackBaseContext<Module>, chunkData: ChunkData): Promise<void> {
   const chunkPath = typeof chunkData === 'string' ? chunkData : chunkData.path
   if (!isJs(chunkPath)) {
     // We only support loading JS chunks in Node.js.
@@ -148,10 +136,7 @@ function loadChunkAsync(
 }
 contextPrototype.l = loadChunkAsync
 
-function loadChunkAsyncByUrl(
-  this: TurbopackBaseContext<Module>,
-  chunkUrl: string
-) {
+function loadChunkAsyncByUrl(this: TurbopackBaseContext<Module>, chunkUrl: string) {
   const path = url.fileURLToPath(new URL(chunkUrl, RUNTIME_ROOT)) as ChunkPath
   return loadChunkAsync.call(this, path)
 }
@@ -168,10 +153,7 @@ function loadWebAssembly(
 }
 contextPrototype.w = loadWebAssembly
 
-function loadWebAssemblyModule(
-  chunkPath: ChunkPath,
-  _edgeModule: () => WebAssembly.Module
-) {
+function loadWebAssemblyModule(chunkPath: ChunkPath, _edgeModule: () => WebAssembly.Module) {
   const resolved = path.resolve(RUNTIME_ROOT, chunkPath)
 
   return compileWebAssemblyFromPath(resolved)
@@ -184,11 +166,7 @@ function getWorkerBlobURL(_chunks: ChunkPath[]): string {
 
 nodeContextPrototype.b = getWorkerBlobURL
 
-function instantiateModule(
-  id: ModuleId,
-  sourceType: SourceType,
-  sourceData: SourceData
-): Module {
+function instantiateModule(id: ModuleId, sourceType: SourceType, sourceData: SourceData): Module {
   const moduleFactory = moduleFactories.get(id)
   if (typeof moduleFactory !== 'function') {
     // This can happen if modules incorrectly handle HMR disposes/updates,
@@ -203,10 +181,7 @@ function instantiateModule(
         instantiationReason = `because it was required from module ${sourceData}`
         break
       default:
-        invariant(
-          sourceType,
-          (sourceType) => `Unknown source type: ${sourceType}`
-        )
+        invariant(sourceType, (sourceType) => `Unknown source type: ${sourceType}`)
     }
     throw new Error(
       `Module ${id} was instantiated ${instantiationReason}, but the module factory is not available.`
@@ -217,10 +192,7 @@ function instantiateModule(
   const exports = module.exports
   moduleCache[id] = module
 
-  const context = new (Context as any as ContextConstructor<Module>)(
-    module,
-    exports
-  )
+  const context = new (Context as any as ContextConstructor<Module>)(module, exports)
   // NOTE(alexkirsz) This can fail when the module encounters a runtime error.
   try {
     moduleFactory(context, module, exports)
@@ -242,10 +214,7 @@ function instantiateModule(
  * Retrieves a module from the cache, or instantiate it if it is not cached.
  */
 // @ts-ignore
-function getOrInstantiateModuleFromParent(
-  id: ModuleId,
-  sourceModule: Module
-): Module {
+function getOrInstantiateModuleFromParent(id: ModuleId, sourceModule: Module): Module {
   const module = moduleCache[id]
 
   if (module) {
@@ -262,10 +231,7 @@ function getOrInstantiateModuleFromParent(
 /**
  * Instantiates a runtime module.
  */
-function instantiateRuntimeModule(
-  chunkPath: ChunkPath,
-  moduleId: ModuleId
-): Module {
+function instantiateRuntimeModule(chunkPath: ChunkPath, moduleId: ModuleId): Module {
   return instantiateModule(moduleId, SourceType.Runtime, chunkPath)
 }
 
@@ -273,10 +239,7 @@ function instantiateRuntimeModule(
  * Retrieves a module from the cache, or instantiate it as a runtime module if it is not cached.
  */
 // @ts-ignore TypeScript doesn't separate this module space from the browser runtime
-function getOrInstantiateRuntimeModule(
-  chunkPath: ChunkPath,
-  moduleId: ModuleId
-): Module {
+function getOrInstantiateRuntimeModule(chunkPath: ChunkPath, moduleId: ModuleId): Module {
   const module = moduleCache[moduleId]
   if (module) {
     if (module.error) {

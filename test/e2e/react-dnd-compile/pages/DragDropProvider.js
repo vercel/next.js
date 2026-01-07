@@ -26,9 +26,5 @@ function getOrCreateDndContext() {
 export default function DragDropProvider(props) {
   const dndContextValue = getOrCreateDndContext()
 
-  return (
-    <DndContext.Provider value={dndContextValue}>
-      {props.children}
-    </DndContext.Provider>
-  )
+  return <DndContext.Provider value={dndContextValue}>{props.children}</DndContext.Provider>
 }

@@ -23,9 +23,9 @@ describe.each([
     it('should have CSS for page', async () => {
       const browser = await next.browser('/page2')
 
-      expect(
-        await browser.elementByCss('.blue-text').getComputedCss('color')
-      ).toBe(colorToRgb('blue'))
+      expect(await browser.elementByCss('.blue-text').getComputedCss('color')).toBe(
+        colorToRgb('blue')
+      )
     })
   })
 
@@ -36,28 +36,24 @@ describe.each([
 
         const desiredText = 'hello world'
         await browser.elementById('text-input').type(desiredText)
-        expect(await browser.elementById('text-input').getValue()).toBe(
-          desiredText
-        )
+        expect(await browser.elementById('text-input').getValue()).toBe(desiredText)
 
-        expect(
-          await browser.elementByCss('.red-text').getComputedCss('color')
-        ).toBe(colorToRgb('red'))
+        expect(await browser.elementByCss('.red-text').getComputedCss('color')).toBe(
+          colorToRgb('red')
+        )
 
         await next.patchFile('styles/global1.scss', (contents) => {
           return contents.replace('$var: red', '$var: purple')
         })
 
         await retry(async () => {
-          expect(
-            await browser.elementByCss('.red-text').getComputedCss('color')
-          ).toBe(colorToRgb('purple'))
+          expect(await browser.elementByCss('.red-text').getComputedCss('color')).toBe(
+            colorToRgb('purple')
+          )
         })
 
         // ensure text remained
-        expect(await browser.elementById('text-input').getValue()).toBe(
-          desiredText
-        )
+        expect(await browser.elementById('text-input').getValue()).toBe(desiredText)
       })
     })
   }
@@ -66,9 +62,9 @@ describe.each([
     it('should have CSS for page', async () => {
       const browser = await next.browser('/page2')
 
-      expect(
-        await browser.elementByCss('.blue-text').getComputedCss('color')
-      ).toBe(colorToRgb('blue'))
+      expect(await browser.elementByCss('.blue-text').getComputedCss('color')).toBe(
+        colorToRgb('blue')
+      )
     })
   })
 })

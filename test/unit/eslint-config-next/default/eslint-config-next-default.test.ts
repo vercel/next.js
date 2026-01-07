@@ -33,8 +33,7 @@ describe('eslint-config-next', () => {
       },
     })
 
-    expect(getEslintConfigSnapshot(eslintConfigAfterSetup))
-      .toMatchInlineSnapshot(`
+    expect(getEslintConfigSnapshot(eslintConfigAfterSetup)).toMatchInlineSnapshot(`
      {
        "language": "@/js",
        "linterOptions": {

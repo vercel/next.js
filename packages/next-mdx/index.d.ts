@@ -26,11 +26,7 @@ declare namespace nextMDX {
     options?: {
       [Key in keyof Options]: Key extends PluggableListName
         ?
-            | (
-                | string
-                | [name: string, ...options: any[]]
-                | NonNullable<Options[Key]>[number]
-              )[]
+            | (string | [name: string, ...options: any[]] | NonNullable<Options[Key]>[number])[]
             | Options[Key]
         : Options[Key]
     }

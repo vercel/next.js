@@ -163,8 +163,7 @@ const tests = {
           </html>
         );
       }`,
-      filename:
-        'C:\\Users\\username\\projects\\project-name\\src\\app\\layout.tsx',
+      filename: 'C:\\Users\\username\\projects\\project-name\\src\\app\\layout.tsx',
     },
   ],
   invalid: [
@@ -235,8 +234,7 @@ const tests = {
           </html>
         );
       }`,
-      filename:
-        'C:\\Users\\username\\projects\\project-name\\pages\\layout.tsx',
+      filename: 'C:\\Users\\username\\projects\\project-name\\pages\\layout.tsx',
       errors: [{ message }],
     },
     {
@@ -272,8 +270,7 @@ const tests = {
           </html>
         );
       }`,
-      filename:
-        'C:\\Users\\username\\projects\\project-name\\src\\pages\\layout.tsx',
+      filename: 'C:\\Users\\username\\projects\\project-name\\src\\pages\\layout.tsx',
       errors: [{ message }],
     },
   ],

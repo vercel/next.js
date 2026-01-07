@@ -4,10 +4,7 @@ import type { ReactNode } from 'react'
 import { useEffect, startTransition } from 'react'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import formatWebpackMessages from '../../../../shared/lib/format-webpack-messages'
-import {
-  REACT_REFRESH_FULL_RELOAD,
-  REACT_REFRESH_FULL_RELOAD_FROM_ERROR,
-} from '../shared'
+import { REACT_REFRESH_FULL_RELOAD, REACT_REFRESH_FULL_RELOAD_FROM_ERROR } from '../shared'
 import {
   dispatcher,
   getSerializedOverlayState,
@@ -55,9 +52,7 @@ let mostRecentCompilationHash: any = null
 let __nextDevClientId = Math.round(Math.random() * 100 + Date.now())
 let reloading = false
 let webpackStartMsSinceEpoch: number | null = null
-const turbopackHmr: TurbopackHmr | null = process.env.TURBOPACK
-  ? new TurbopackHmr()
-  : null
+const turbopackHmr: TurbopackHmr | null = process.env.TURBOPACK ? new TurbopackHmr() : null
 
 let pendingHotUpdateWebpack = Promise.resolve()
 let resolvePendingHotUpdateWebpack: () => void = () => {}
@@ -113,15 +108,9 @@ function afterApplyUpdates(fn: any) {
   }
 }
 
-export function performFullReload(
-  err: any,
-  sendMessage: (data: string) => void
-) {
+export function performFullReload(err: any, sendMessage: (data: string) => void) {
   const stackTrace =
-    err &&
-    ((err.stack && err.stack.split('\n').slice(0, 5).join('\n')) ||
-      err.message ||
-      err + '')
+    err && ((err.stack && err.stack.split('\n').slice(0, 5).join('\n')) || err.message || err + '')
 
   sendMessage(
     JSON.stringify({
@@ -146,10 +135,7 @@ function tryApplyUpdatesWebpack(sendMessage: (message: string) => void) {
     return
   }
 
-  function handleApplyUpdates(
-    err: any,
-    updatedModules: (string | number)[] | null
-  ) {
+  function handleApplyUpdates(err: any, updatedModules: (string | number)[] | null) {
     if (err || RuntimeErrorHandler.hadRuntimeError || updatedModules == null) {
       if (err) {
         console.warn(REACT_REFRESH_FULL_RELOAD)
@@ -170,12 +156,7 @@ function tryApplyUpdatesWebpack(sendMessage: (message: string) => void) {
 
     dispatcher.onRefresh()
     resolvePendingHotUpdateWebpack()
-    reportHmrLatency(
-      sendMessage,
-      updatedModules,
-      webpackStartMsSinceEpoch!,
-      Date.now()
-    )
+    reportHmrLatency(sendMessage, updatedModules, webpackStartMsSinceEpoch!, Date.now())
 
     if (process.env.__NEXT_TEST_MODE) {
       afterApplyUpdates(() => {
@@ -306,14 +287,10 @@ export function processMessage(
       const { errors, warnings } = message
 
       // Is undefined when it's a 'built' event
-      if ('versionInfo' in message)
-        dispatcher.onVersionInfo(message.versionInfo)
-      if ('debug' in message && message.debug)
-        dispatcher.onDebugInfo(message.debug)
-      if ('devIndicator' in message)
-        dispatcher.onDevIndicator(message.devIndicator)
-      if ('devToolsConfig' in message)
-        dispatcher.onDevToolsConfig(message.devToolsConfig)
+      if ('versionInfo' in message) dispatcher.onVersionInfo(message.versionInfo)
+      if ('debug' in message && message.debug) dispatcher.onDebugInfo(message.debug)
+      if ('devIndicator' in message) dispatcher.onDevIndicator(message.devIndicator)
+      if ('devToolsConfig' in message) dispatcher.onDevToolsConfig(message.devToolsConfig)
 
       const hasErrors = Boolean(errors && errors.length)
       // Compilation with errors (e.g. syntax error or missing modules).
@@ -410,10 +387,7 @@ export function processMessage(
       // server with any subsequent requests.
       document.cookie = `${NEXT_HMR_REFRESH_HASH_COOKIE}=${message.hash};path=/`
 
-      if (
-        RuntimeErrorHandler.hadRuntimeError ||
-        document.documentElement.id === '__next_error__'
-      ) {
+      if (RuntimeErrorHandler.hadRuntimeError || document.documentElement.id === '__next_error__') {
         if (reloading) return
         reloading = true
         return window.location.reload()
@@ -527,9 +501,7 @@ export function processMessage(
           }
         },
         (err) => {
-          console.error(
-            new Error('Failed to deserialize errors.', { cause: err })
-          )
+          console.error(new Error('Failed to deserialize errors.', { cause: err }))
         }
       )
       return
@@ -569,17 +541,13 @@ export default function HotReload({
     // eslint-disable-next-line react-hooks/rules-of-hooks
     useEffect(() => {
       if (!staticIndicatorState) {
-        throw new InvariantError(
-          'Expected staticIndicatorState to be defined in dev mode.'
-        )
+        throw new InvariantError('Expected staticIndicatorState to be defined in dev mode.')
       }
 
       staticIndicatorState.pathname = pathname
 
       if (staticIndicatorState.appIsrManifest) {
-        const isStatic = pathname
-          ? staticIndicatorState.appIsrManifest[pathname]
-          : undefined
+        const isStatic = pathname ? staticIndicatorState.appIsrManifest[pathname] : undefined
 
         dispatcher.onStaticIndicator(
           isStatic === undefined ? 'pending' : isStatic ? 'static' : 'dynamic'

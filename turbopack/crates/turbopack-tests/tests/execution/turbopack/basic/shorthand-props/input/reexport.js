@@ -48,9 +48,4 @@ export const double_nested_with_identity2 = {
   }),
 }
 
-export {
-  nested,
-  nested_with_identity,
-  double_nested,
-  double_nested_with_identity,
-}
+export { nested, nested_with_identity, double_nested, double_nested_with_identity }

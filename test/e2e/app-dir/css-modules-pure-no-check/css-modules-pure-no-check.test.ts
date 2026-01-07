@@ -29,9 +29,7 @@ describe('css-modules-pure-no-check', () => {
       const cssCode = await res.text()
 
       expect(cssCode).toInclude(`.global{font-weight:700}`)
-      expect(cssCode).toInclude(
-        `::view-transition-old(root){animation-duration:.3s}`
-      )
+      expect(cssCode).toInclude(`::view-transition-old(root){animation-duration:.3s}`)
     })
   }
 })

@@ -80,7 +80,5 @@ export class RedirectErrorBoundary extends React.Component<
 
 export function RedirectBoundary({ children }: { children: React.ReactNode }) {
   const router = useRouter()
-  return (
-    <RedirectErrorBoundary router={router}>{children}</RedirectErrorBoundary>
-  )
+  return <RedirectErrorBoundary router={router}>{children}</RedirectErrorBoundary>
 }

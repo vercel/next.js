@@ -19,9 +19,7 @@ const packages = {
   next: realPathIfAny(`${PROJECT_DIR}/node_modules/next`),
   'next-swc': realPathIfAny(`${PROJECT_DIR}/node_modules/@next/swc`),
   'next-mdx': realPathIfAny(`${PROJECT_DIR}/node_modules/@next/mdx`),
-  'next-bundle-analyzer': realPathIfAny(
-    `${PROJECT_DIR}/node_modules/@next/bundle-anlyzer`
-  ),
+  'next-bundle-analyzer': realPathIfAny(`${PROJECT_DIR}/node_modules/@next/bundle-anlyzer`),
 }
 
 for (const [key, path] of Object.entries(packages)) {

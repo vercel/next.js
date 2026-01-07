@@ -7,9 +7,7 @@ describe('validateFontFunctionCall errors', () => {
         '', // default import
         undefined
       )
-    ).toThrowErrorMatchingInlineSnapshot(
-      `"next/font/google has no default export"`
-    )
+    ).toThrowErrorMatchingInlineSnapshot(`"next/font/google has no default export"`)
   })
 
   test('Unknown font', () => {
@@ -75,17 +73,15 @@ describe('validateFontFunctionCall errors', () => {
   })
 
   test('Invalid subset in call', async () => {
-    expect(() =>
-      validateGoogleFontFunctionCall('Inter', { subsets: ['latin', 'oops'] })
-    ).toThrowErrorMatchingInlineSnapshot(`
+    expect(() => validateGoogleFontFunctionCall('Inter', { subsets: ['latin', 'oops'] }))
+      .toThrowErrorMatchingInlineSnapshot(`
         "Unknown subset \`oops\` for font \`Inter\`.
         Available subsets: \`cyrillic\`, \`cyrillic-ext\`, \`greek\`, \`greek-ext\`, \`latin\`, \`latin-ext\`, \`vietnamese\`"
       `)
   })
 
   test('Missing subsets in config and call', async () => {
-    expect(() => validateGoogleFontFunctionCall('Inter', {}))
-      .toThrowErrorMatchingInlineSnapshot(`
+    expect(() => validateGoogleFontFunctionCall('Inter', {})).toThrowErrorMatchingInlineSnapshot(`
       "Preload is enabled but no subsets were specified for font \`Inter\`. Please specify subsets or disable preloading if your intended subset can't be preloaded.
       Available subsets: \`cyrillic\`, \`cyrillic-ext\`, \`greek\`, \`greek-ext\`, \`latin\`, \`latin-ext\`, \`vietnamese\`
 
@@ -100,9 +96,7 @@ describe('validateFontFunctionCall errors', () => {
         axes: [],
         subsets: ['latin'],
       })
-    ).toThrowErrorMatchingInlineSnapshot(
-      `"Axes can only be defined for variable fonts."`
-    )
+    ).toThrowErrorMatchingInlineSnapshot(`"Axes can only be defined for variable fonts."`)
   })
 
   test('Setting axes on variable font with incorrect weight', async () => {

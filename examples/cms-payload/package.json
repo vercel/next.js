@@ -1,4 +1,5 @@
 {
+  "private": true,
   "scripts": {
     "dev": "next dev",
     "start": "next start",
@@ -39,6 +40,5 @@
     "nodemon": "^2.0.6",
     "ts-node": "^9.1.1",
     "typescript": "^4.8.4"
-  },
-  "private": true
+  }
 }

@@ -5,9 +5,7 @@ describe('interception-routes-output-export', () => {
   it('should error when using interception routes with static export', async () => {
     if (isNextStart) {
       const { code, stderr } = await nextBuild(__dirname, [], { stderr: true })
-      expect(stderr).toContain(
-        'Intercepting routes are not supported with static export.'
-      )
+      expect(stderr).toContain('Intercepting routes are not supported with static export.')
       expect(code).toBe(1)
     } else if (isNextDev) {
       let stderr = ''
@@ -19,9 +17,7 @@ describe('interception-routes-output-export', () => {
       })
 
       await retry(async () => {
-        expect(stderr).toContain(
-          'Intercepting routes are not supported with static export.'
-        )
+        expect(stderr).toContain('Intercepting routes are not supported with static export.')
       })
 
       await killApp(app)

@@ -32,11 +32,7 @@
       "request": "launch",
       "cwd": "${workspaceFolder}",
       "runtimeExecutable": "node",
-      "runtimeArgs": [
-        "packages/next/dist/bin/next",
-        "${input:nextCommand}",
-        "${input:appDirname}"
-      ],
+      "runtimeArgs": ["packages/next/dist/bin/next", "${input:nextCommand}", "${input:appDirname}"],
       "console": "integratedTerminal",
       "skipFiles": ["<node_internals>/**"],
       "sourceMapPathOverrides": {
@@ -67,11 +63,7 @@
       "request": "launch",
       "cwd": "${workspaceFolder}",
       "runtimeExecutable": "node",
-      "runtimeArgs": [
-        "packages/next/dist/bin/next",
-        "${input:nextCommand}",
-        "${fileDirname}"
-      ],
+      "runtimeArgs": ["packages/next/dist/bin/next", "${input:nextCommand}", "${fileDirname}"],
       "console": "integratedTerminal",
       "skipFiles": ["<node_internals>/**"],
       "sourceMapPathOverrides": {

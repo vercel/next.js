@@ -154,31 +154,19 @@ describe('build-spinners', () => {
         compiledIdx = i
       }
 
-      if (
-        optimizedBuildIdx === -1 &&
-        line.includes('Creating an optimized production build')
-      ) {
+      if (optimizedBuildIdx === -1 && line.includes('Creating an optimized production build')) {
         optimizedBuildIdx = i
       }
 
-      if (
-        collectingPageDataIdx === -1 &&
-        line.includes('Collecting page data')
-      ) {
+      if (collectingPageDataIdx === -1 && line.includes('Collecting page data')) {
         collectingPageDataIdx = i
       }
 
-      if (
-        generatingStaticIdx === -1 &&
-        line.includes('Generating static pages')
-      ) {
+      if (generatingStaticIdx === -1 && line.includes('Generating static pages')) {
         generatingStaticIdx = i
       }
 
-      if (
-        finalizingOptimization === -1 &&
-        line.includes('Finalizing page optimization')
-      ) {
+      if (finalizingOptimization === -1 && line.includes('Finalizing page optimization')) {
         finalizingOptimization = i
       }
     }

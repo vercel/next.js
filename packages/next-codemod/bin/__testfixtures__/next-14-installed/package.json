@@ -4,10 +4,10 @@
     "dev": "next dev"
   },
   "dependencies": {
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
     "next": "14.3.0-canary.44",
     "react": "18.2.0",
-    "react-dom": "18.2.0",
-    "@types/react": "^18.2.0",
-    "@types/react-dom": "^18.2.0"
+    "react-dom": "18.2.0"
   }
 }

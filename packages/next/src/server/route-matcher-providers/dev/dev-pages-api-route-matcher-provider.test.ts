@@ -74,11 +74,7 @@ describe('DevPagesAPIRouteMatcherProvider', () => {
             ...files,
           ]),
         }
-        const matcher = new DevPagesAPIRouteMatcherProvider(
-          dir,
-          extensions,
-          reader
-        )
+        const matcher = new DevPagesAPIRouteMatcherProvider(dir, extensions, reader)
         const matchers = await matcher.matchers()
         expect(matchers).toHaveLength(1)
         expect(reader.read).toHaveBeenCalledWith(dir)

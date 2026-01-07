@@ -21,9 +21,7 @@ export function findFontFilesInCss(css: string, subsetsToPreload?: string[]) {
       const googleFontFileUrl = /src: url\((.+?)\)/.exec(line)?.[1]
       if (
         googleFontFileUrl &&
-        !fontFiles.some(
-          (foundFile) => foundFile.googleFontFileUrl === googleFontFileUrl
-        )
+        !fontFiles.some((foundFile) => foundFile.googleFontFileUrl === googleFontFileUrl)
       ) {
         // Found the font file in the @font-face declaration.
         fontFiles.push({

@@ -1,7 +1,4 @@
-import type {
-  FlightRouterState,
-  CacheNode,
-} from '../../../../shared/lib/app-router-types'
+import type { FlightRouterState, CacheNode } from '../../../../shared/lib/app-router-types'
 import { DEFAULT_SEGMENT_KEY } from '../../../../shared/lib/segment'
 import { createRouterCacheKey } from '../create-router-cache-key'
 
@@ -26,9 +23,7 @@ function findHeadInCacheImpl(
 
   // First try the 'children' parallel route if it exists
   // when starting from the "root", this corresponds with the main page component
-  const parallelRoutesKeys = Object.keys(parallelRoutes).filter(
-    (key) => key !== 'children'
-  )
+  const parallelRoutesKeys = Object.keys(parallelRoutes).filter((key) => key !== 'children')
 
   // if we are at the root, we need to check the children slot first
   if ('children' in parallelRoutes) {

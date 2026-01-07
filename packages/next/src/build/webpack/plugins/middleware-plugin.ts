@@ -1,7 +1,4 @@
-import type {
-  AssetBinding,
-  EdgeMiddlewareMeta,
-} from '../loaders/get-module-build-info'
+import type { AssetBinding, EdgeMiddlewareMeta } from '../loaders/get-module-build-info'
 import type { EdgeSSRMeta } from '../loaders/get-module-build-info'
 import type { ProxyMatcher } from '../../analysis/get-page-static-info'
 import { getNamedMiddlewareRegex } from '../../../shared/lib/router/utils/route-regex'
@@ -29,10 +26,7 @@ import type { Telemetry } from '../../../telemetry/storage'
 import { traceGlobals } from '../../../trace/shared'
 import { EVENT_BUILD_FEATURE_USAGE } from '../../../telemetry/events'
 import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
-import {
-  INSTRUMENTATION_HOOK_FILENAME,
-  WEBPACK_LAYERS,
-} from '../../../lib/constants'
+import { INSTRUMENTATION_HOOK_FILENAME, WEBPACK_LAYERS } from '../../../lib/constants'
 import type { CustomRoutes } from '../../../lib/load-custom-routes'
 import { isInterceptionRouteRewrite } from '../../../lib/generate-interception-routes-rewrites'
 import { getDynamicCodeEvaluationError } from './wellknown-errors-plugin/parse-dynamic-code-evaluation-error'
@@ -113,15 +107,8 @@ function getEntryFiles(
       }
       files.push(
         ...entryFiles
-          .filter(
-            (file) =>
-              file.startsWith('app/') && !file.endsWith('.hot-update.js')
-          )
-          .map(
-            (file) =>
-              'server/' +
-              file.replace(/\.js$/, '_' + CLIENT_REFERENCE_MANIFEST + '.js')
-          )
+          .filter((file) => file.startsWith('app/') && !file.endsWith('.hot-update.js'))
+          .map((file) => 'server/' + file.replace(/\.js$/, '_' + CLIENT_REFERENCE_MANIFEST + '.js'))
       )
     }
     if (!opts.dev && !meta.edgeSSR.isAppDir) {
@@ -145,9 +132,7 @@ function getEntryFiles(
   }
 
   files.push(
-    ...entryFiles
-      .filter((file) => !file.endsWith('.hot-update.js'))
-      .map((file) => 'server/' + file)
+    ...entryFiles.filter((file) => !file.endsWith('.hot-update.js')).map((file) => 'server/' + file)
   )
 
   return files
@@ -167,9 +152,7 @@ function getCreateAssets(params: {
       sortedMiddleware: [],
     }
 
-    const hasInstrumentationHook = compilation.entrypoints.has(
-      INSTRUMENTATION_HOOK_FILENAME
-    )
+    const hasInstrumentationHook = compilation.entrypoints.has(INSTRUMENTATION_HOOK_FILENAME)
 
     // we only emit this entry for the edge runtime since it doesn't have access to a routes manifest
     // and we don't need to provide the entire route manifest, just the interception routes.
@@ -179,9 +162,7 @@ function getCreateAssets(params: {
     compilation.emitAsset(
       `${INTERCEPTION_ROUTE_REWRITE_MANIFEST}.js`,
       new sources.RawSource(
-        `self.__INTERCEPTION_ROUTE_REWRITE_MANIFEST=${JSON.stringify(
-          interceptionRewrites
-        )}`
+        `self.__INTERCEPTION_ROUTE_REWRITE_MANIFEST=${JSON.stringify(interceptionRewrites)}`
       ) as unknown as webpack.sources.RawSource
     )
 
@@ -193,16 +174,12 @@ function getCreateAssets(params: {
       // There should always be metadata for the entrypoint.
       const metadata = metadataByEntry.get(entrypoint.name)
       const page =
-        metadata?.edgeMiddleware?.page ||
-        metadata?.edgeSSR?.page ||
-        metadata?.edgeApiFunction?.page
+        metadata?.edgeMiddleware?.page || metadata?.edgeSSR?.page || metadata?.edgeApiFunction?.page
       if (!page) {
         continue
       }
 
-      const matcherSource = metadata.edgeSSR?.isAppDir
-        ? normalizeAppPath(page)
-        : page
+      const matcherSource = metadata.edgeSSR?.isAppDir ? normalizeAppPath(page) : page
 
       const catchAll = !metadata.edgeSSR && !metadata.edgeApiFunction
 
@@ -218,12 +195,7 @@ function getCreateAssets(params: {
 
       const isEdgeFunction = !!(metadata.edgeApiFunction || metadata.edgeSSR)
       const edgeFunctionDefinition: EdgeFunctionDefinition = {
-        files: getEntryFiles(
-          entrypoint.getFiles(),
-          metadata,
-          hasInstrumentationHook,
-          opts
-        ),
+        files: getEntryFiles(entrypoint.getFiles(), metadata, hasInstrumentationHook, opts),
         name: entrypoint.name,
         page: page,
         matchers,
@@ -288,9 +260,7 @@ function isInMiddlewareLayer(parser: webpack.javascript.JavascriptParser) {
 }
 
 function isNodeJsModule(moduleName: string) {
-  return (require('module') as typeof import('module')).builtinModules.includes(
-    moduleName
-  )
+  return (require('module') as typeof import('module')).builtinModules.includes(moduleName)
 }
 
 function isBunModule(moduleName: string) {
@@ -358,12 +328,8 @@ function registerUnsupportedApiHooks(
     }
     parser.hooks.call.for(expression).tap(NAME, warnForUnsupportedApi)
     parser.hooks.expression.for(expression).tap(NAME, warnForUnsupportedApi)
-    parser.hooks.callMemberChain
-      .for(expression)
-      .tap(NAME, warnForUnsupportedApi)
-    parser.hooks.expressionMemberChain
-      .for(expression)
-      .tap(NAME, warnForUnsupportedApi)
+    parser.hooks.callMemberChain.for(expression).tap(NAME, warnForUnsupportedApi)
+    parser.hooks.expressionMemberChain.for(expression).tap(NAME, warnForUnsupportedApi)
   }
 
   const warnForUnsupportedProcessApi = (node: any, [callee]: string[]) => {
@@ -381,12 +347,8 @@ function registerUnsupportedApiHooks(
     return true
   }
 
-  parser.hooks.callMemberChain
-    .for('process')
-    .tap(NAME, warnForUnsupportedProcessApi)
-  parser.hooks.expressionMemberChain
-    .for('process')
-    .tap(NAME, warnForUnsupportedProcessApi)
+  parser.hooks.callMemberChain.for('process').tap(NAME, warnForUnsupportedProcessApi)
+  parser.hooks.expressionMemberChain.for('process').tap(NAME, warnForUnsupportedProcessApi)
 }
 
 function getCodeAnalyzer(params: {
@@ -442,10 +404,7 @@ function getCodeAnalyzer(params: {
       }
 
       const { ConstDependency } = wp.dependencies
-      const dep1 = new ConstDependency(
-        '__next_eval__(function() { return ',
-        expr.range[0]
-      )
+      const dep1 = new ConstDependency('__next_eval__(function() { return ', expr.range[0])
       dep1.loc = expr.loc
       parser.state.module.addPresentationalDependency(dep1)
       const dep2 = new ConstDependency('})', expr.range[1])
@@ -559,9 +518,7 @@ Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime`,
       hooks.call.for(`${prefix}eval`).tap(NAME, handleWrapExpression)
       hooks.call.for(`${prefix}Function`).tap(NAME, handleWrapExpression)
       hooks.new.for(`${prefix}Function`).tap(NAME, handleWrapExpression)
-      hooks.call
-        .for(`${prefix}WebAssembly.compile`)
-        .tap(NAME, handleWrapWasmCompileExpression)
+      hooks.call.for(`${prefix}WebAssembly.compile`).tap(NAME, handleWrapWasmCompileExpression)
       hooks.call
         .for(`${prefix}WebAssembly.instantiate`)
         .tap(NAME, handleWrapWasmInstantiateExpression)
@@ -584,10 +541,7 @@ async function codeAnalyzerBySwc(
 ) {
   const binding = require('../../swc') as typeof import('../../swc')
   for (const module of modules) {
-    if (
-      module.layer !== WEBPACK_LAYERS.middleware &&
-      module.layer !== WEBPACK_LAYERS.apiEdge
-    ) {
+    if (module.layer !== WEBPACK_LAYERS.middleware && module.layer !== WEBPACK_LAYERS.apiEdge) {
       continue
     }
     if (module.constructor.name !== 'NormalModule') {
@@ -641,8 +595,7 @@ function getExtractMetadata(params: {
         continue
       }
       const entryDependency = entry.dependencies?.[0]
-      const resolvedModule =
-        compilation.moduleGraph.getResolvedModule(entryDependency)
+      const resolvedModule = compilation.moduleGraph.getResolvedModule(entryDependency)
       if (!resolvedModule) {
         continue
       }
@@ -673,9 +626,7 @@ function getExtractMetadata(params: {
         const preferredRegion = route.preferredRegion
         entryMetadata.regions =
           // Ensures preferredRegion is always an array in the manifest.
-          typeof preferredRegion === 'string'
-            ? [preferredRegion]
-            : preferredRegion
+          typeof preferredRegion === 'string' ? [preferredRegion] : preferredRegion
       }
 
       let ogImageGenerationCount = 0
@@ -725,34 +676,20 @@ function getExtractMetadata(params: {
               payload: {
                 file: route?.absolutePagePath.replace(rootDir ?? '', ''),
                 config: route?.middlewareConfig,
-                fileWithDynamicCode: module.userRequest.replace(
-                  rootDir ?? '',
-                  ''
-                ),
+                fileWithDynamicCode: module.userRequest.replace(rootDir ?? '', ''),
               },
             })
           }
           if (
-            !isDynamicCodeEvaluationAllowed(
-              module.userRequest,
-              route?.middlewareConfig,
-              rootDir
-            )
+            !isDynamicCodeEvaluationAllowed(module.userRequest, route?.middlewareConfig, rootDir)
           ) {
             const message = `Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Edge Runtime ${
               typeof buildInfo.usingIndirectEval !== 'boolean'
-                ? `\nUsed by ${Array.from(buildInfo.usingIndirectEval).join(
-                    ', '
-                  )}`
+                ? `\nUsed by ${Array.from(buildInfo.usingIndirectEval).join(', ')}`
                 : ''
             }\nLearn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`
             compilation.errors.push(
-              getDynamicCodeEvaluationError(
-                message,
-                module,
-                compilation,
-                compiler
-              )
+              getDynamicCodeEvaluationError(message, module, compilation, compiler)
             )
           }
         }

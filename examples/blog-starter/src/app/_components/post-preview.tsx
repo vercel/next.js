@@ -13,14 +13,7 @@ type Props = {
   slug: string;
 };
 
-export function PostPreview({
-  title,
-  coverImage,
-  date,
-  excerpt,
-  author,
-  slug,
-}: Props) {
+export function PostPreview({ title, coverImage, date, excerpt, author, slug }: Props) {
   return (
     <div>
       <div className="mb-5">

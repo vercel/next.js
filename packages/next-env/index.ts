@@ -53,10 +53,7 @@ export function processEnv(
     initialEnv = Object.assign({}, process.env)
   }
   // only reload env when forceReload is specified
-  if (
-    !forceReload &&
-    (process.env.__NEXT_PROCESSED_ENV || loadedEnvFiles.length === 0)
-  ) {
+  if (!forceReload && (process.env.__NEXT_PROCESSED_ENV || loadedEnvFiles.length === 0)) {
     return [process.env as Env]
   }
   // flag that we processed the environment values already.
@@ -75,18 +72,14 @@ export function processEnv(
       if (
         result.parsed &&
         !previousLoadedEnvFiles.some(
-          (item) =>
-            item.contents === envFile.contents && item.path === envFile.path
+          (item) => item.contents === envFile.contents && item.path === envFile.path
         )
       ) {
         onReload?.(envFile.path)
       }
 
       for (const key of Object.keys(result.parsed || {})) {
-        if (
-          typeof parsed[key] === 'undefined' &&
-          typeof origEnv[key] === 'undefined'
-        ) {
+        if (typeof parsed[key] === 'undefined' && typeof origEnv[key] === 'undefined') {
           // We're being imprecise in the type system - assume parsed[key] can be undefined
           // eslint-disable-next-line @typescript-eslint/no-non-null-asserted-optional-chain
           parsed[key] = result.parsed?.[key]!
@@ -96,10 +89,7 @@ export function processEnv(
       // Add the parsed env to the loadedEnvFiles
       envFile.env = result.parsed || {}
     } catch (err) {
-      log.error(
-        `Failed to load env from ${path.join(dir || '', envFile.path)}`,
-        err
-      )
+      log.error(`Failed to load env from ${path.join(dir || '', envFile.path)}`, err)
     }
   }
   return [Object.assign(process.env, parsed), parsed]
@@ -169,12 +159,6 @@ export function loadEnvConfig(
       }
     }
   }
-  ;[combinedEnv, parsedEnv] = processEnv(
-    cachedLoadedEnvFiles,
-    dir,
-    log,
-    forceReload,
-    onReload
-  )
+  ;[combinedEnv, parsedEnv] = processEnv(cachedLoadedEnvFiles, dir, log, forceReload, onReload)
   return { combinedEnv, parsedEnv, loadedEnvFiles: cachedLoadedEnvFiles }
 }

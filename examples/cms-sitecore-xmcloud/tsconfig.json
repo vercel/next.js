@@ -6,9 +6,7 @@
       "lib/*": ["src/lib/*"],
       "temp/*": ["src/temp/*"],
       "assets/*": ["src/assets/*"],
-      "graphql-types": [
-        "node_modules/@types/graphql-let/__generated__/__types__"
-      ]
+      "graphql-types": ["node_modules/@types/graphql-let/__generated__/__types__"]
     },
     "target": "es5",
     "lib": ["dom", "dom.iterable", "esnext"],

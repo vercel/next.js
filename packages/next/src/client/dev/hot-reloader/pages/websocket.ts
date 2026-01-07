@@ -47,10 +47,7 @@ export function connectHMR(options: { path: string; assetPrefix: string }) {
       const message: HmrMessageSentToBrowser = JSON.parse(event.data)
 
       if (message.type === HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_CONNECTED) {
-        if (
-          serverSessionId !== null &&
-          serverSessionId !== message.data.sessionId
-        ) {
+        if (serverSessionId !== null && serverSessionId !== message.data.sessionId) {
           // Either the server's session id has changed and it's a new server, or
           // it's been too long since we disconnected and we should reload the page.
           // There could be 1) unhandled server errors and/or 2) stale content.

@@ -5,11 +5,7 @@ import { realpathSync } from './realpath'
 
 const Module = require('module') as typeof import('module')
 
-export const resolveFrom = (
-  fromDirectory: string,
-  moduleId: string,
-  silent?: boolean
-) => {
+export const resolveFrom = (fromDirectory: string, moduleId: string, silent?: boolean) => {
   if (typeof fromDirectory !== 'string') {
     throw new TypeError(
       `Expected \`fromDir\` to be of type \`string\`, got \`${typeof fromDirectory}\``

@@ -14,13 +14,7 @@ describe('on-request-error - server-action-error', () => {
 
   const outputLogPath = 'output-log.json'
 
-  async function validateErrorRecord({
-    errorMessage,
-    url,
-  }: {
-    errorMessage: string
-    url: string
-  }) {
+  async function validateErrorRecord({ errorMessage, url }: { errorMessage: string; url: string }) {
     // Assert the instrumentation is called
     await retry(async () => {
       const recordLogLines = next.cliOutput

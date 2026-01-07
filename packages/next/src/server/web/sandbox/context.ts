@@ -5,10 +5,7 @@ import type {
 } from '../../../build/webpack/plugins/middleware-plugin'
 import type { UnwrapPromise } from '../../../lib/coalesced-function'
 import { AsyncLocalStorage } from 'async_hooks'
-import {
-  COMPILER_NAMES,
-  EDGE_UNSUPPORTED_NODE_APIS,
-} from '../../../shared/lib/constants'
+import { COMPILER_NAMES, EDGE_UNSUPPORTED_NODE_APIS } from '../../../shared/lib/constants'
 import { EdgeRuntime } from 'next/dist/compiled/edge-runtime'
 import { readFileSync, promises as fs } from 'fs'
 import { validateURL } from '../utils'
@@ -22,10 +19,7 @@ import UtilImplementation from 'node:util'
 import AsyncHooksImplementation from 'node:async_hooks'
 import { intervalsManager, timeoutsManager } from './resource-managers'
 import { createLocalRequestContext } from '../../after/builtin-request-context'
-import {
-  patchErrorInspectEdgeLite,
-  patchErrorInspectNodeJS,
-} from '../../patch-error-inspect'
+import { patchErrorInspectEdgeLite, patchErrorInspectNodeJS } from '../../patch-error-inspect'
 
 interface ModuleContext {
   runtime: EdgeRuntime
@@ -97,9 +91,7 @@ export async function clearModuleContext(path: string) {
   }
 }
 
-async function loadWasm(
-  wasm: AssetBinding[]
-): Promise<Record<string, WebAssembly.Module>> {
+async function loadWasm(wasm: AssetBinding[]): Promise<Record<string, WebAssembly.Module>> {
   const modules: Record<string, WebAssembly.Module> = {}
 
   await Promise.all(
@@ -189,10 +181,7 @@ function getDecorateUnhandledRejection(runtime: EdgeRuntime) {
 }
 
 const NativeModuleMap = (() => {
-  const mods: Record<
-    `node:${(typeof SUPPORTED_NATIVE_MODULES)[number]}`,
-    unknown
-  > = {
+  const mods: Record<`node:${(typeof SUPPORTED_NATIVE_MODULES)[number]}`, unknown> = {
     'node:buffer': pick(BufferImplementation, [
       'constants',
       'kMaxLength',
@@ -209,10 +198,7 @@ const NativeModuleMap = (() => {
       'on',
       'once',
     ]),
-    'node:async_hooks': pick(AsyncHooksImplementation, [
-      'AsyncLocalStorage',
-      'AsyncResource',
-    ]),
+    'node:async_hooks': pick(AsyncHooksImplementation, ['AsyncLocalStorage', 'AsyncResource']),
     'node:assert': pick(AssertImplementation, [
       'AssertionError',
       'deepEqual',
@@ -263,9 +249,7 @@ async function createModuleContext(options: ModuleContextOptions) {
   const wasm = await loadWasm(edgeFunctionEntry.wasm ?? [])
   const runtime = new EdgeRuntime({
     codeGeneration:
-      process.env.NODE_ENV !== 'production'
-        ? { strings: true, wasm: true }
-        : undefined,
+      process.env.NODE_ENV !== 'production' ? { strings: true, wasm: true } : undefined,
     extend: (context) => {
       context.process = createProcessPolyfill(edgeFunctionEntry.env)
 
@@ -304,49 +288,49 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`
         return fn()
       }
 
-      context.__next_webassembly_compile__ =
-        function __next_webassembly_compile__(fn: Function) {
-          const key = fn.toString()
-          if (!warnedWasmCodegens.has(key)) {
-            const warning = getServerError(
-              new Error(`Dynamic WASM code generation (e. g. 'WebAssembly.compile') not allowed in Edge Runtime.
+      context.__next_webassembly_compile__ = function __next_webassembly_compile__(fn: Function) {
+        const key = fn.toString()
+        if (!warnedWasmCodegens.has(key)) {
+          const warning = getServerError(
+            new Error(`Dynamic WASM code generation (e. g. 'WebAssembly.compile') not allowed in Edge Runtime.
 Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
-              COMPILER_NAMES.edgeServer
-            )
-            warning.name = 'DynamicWasmCodeGenerationWarning'
-            Error.captureStackTrace(warning, __next_webassembly_compile__)
-            warnedWasmCodegens.add(key)
-            options.onWarning(warning)
-          }
-          return fn()
+            COMPILER_NAMES.edgeServer
+          )
+          warning.name = 'DynamicWasmCodeGenerationWarning'
+          Error.captureStackTrace(warning, __next_webassembly_compile__)
+          warnedWasmCodegens.add(key)
+          options.onWarning(warning)
         }
+        return fn()
+      }
 
-      context.__next_webassembly_instantiate__ =
-        async function __next_webassembly_instantiate__(fn: Function) {
-          const result = await fn()
+      context.__next_webassembly_instantiate__ = async function __next_webassembly_instantiate__(
+        fn: Function
+      ) {
+        const result = await fn()
 
-          // If a buffer is given, WebAssembly.instantiate returns an object
-          // containing both a module and an instance while it returns only an
-          // instance if a WASM module is given. Utilize the fact to determine
-          // if the WASM code generation happens.
-          //
-          // https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/instantiate#primary_overload_%E2%80%94_taking_wasm_binary_code
-          const instantiatedFromBuffer = result.hasOwnProperty('module')
+        // If a buffer is given, WebAssembly.instantiate returns an object
+        // containing both a module and an instance while it returns only an
+        // instance if a WASM module is given. Utilize the fact to determine
+        // if the WASM code generation happens.
+        //
+        // https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/instantiate#primary_overload_%E2%80%94_taking_wasm_binary_code
+        const instantiatedFromBuffer = result.hasOwnProperty('module')
 
-          const key = fn.toString()
-          if (instantiatedFromBuffer && !warnedWasmCodegens.has(key)) {
-            const warning = getServerError(
-              new Error(`Dynamic WASM code generation ('WebAssembly.instantiate' with a buffer parameter) not allowed in Edge Runtime.
+        const key = fn.toString()
+        if (instantiatedFromBuffer && !warnedWasmCodegens.has(key)) {
+          const warning = getServerError(
+            new Error(`Dynamic WASM code generation ('WebAssembly.instantiate' with a buffer parameter) not allowed in Edge Runtime.
 Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
-              COMPILER_NAMES.edgeServer
-            )
-            warning.name = 'DynamicWasmCodeGenerationWarning'
-            Error.captureStackTrace(warning, __next_webassembly_instantiate__)
-            warnedWasmCodegens.add(key)
-            options.onWarning(warning)
-          }
-          return result
+            COMPILER_NAMES.edgeServer
+          )
+          warning.name = 'DynamicWasmCodeGenerationWarning'
+          Error.captureStackTrace(warning, __next_webassembly_instantiate__)
+          warnedWasmCodegens.add(key)
+          options.onWarning(warning)
         }
+        return result
+      }
 
       const __fetch = context.fetch
       context.fetch = async (input, init = {}) => {
@@ -402,10 +386,7 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
       context.Request = class extends __Request {
         next?: NextFetchRequestConfig | undefined
         constructor(input: URL | RequestInfo, init?: RequestInit | undefined) {
-          const url =
-            typeof input !== 'string' && 'url' in input
-              ? input.url
-              : String(input)
+          const url = typeof input !== 'string' && 'url' in input ? input.url : String(input)
 
           if (typeof input === 'string') {
             validateURL(url)
@@ -435,26 +416,20 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
       context.AsyncLocalStorage = AsyncLocalStorage
 
       // @ts-ignore the timeouts have weird types in the edge runtime
-      context.setInterval = (...args: Parameters<typeof setInterval>) =>
-        intervalsManager.add(args)
+      context.setInterval = (...args: Parameters<typeof setInterval>) => intervalsManager.add(args)
 
       // @ts-ignore the timeouts have weird types in the edge runtime
-      context.clearInterval = (interval: number) =>
-        intervalsManager.remove(interval)
+      context.clearInterval = (interval: number) => intervalsManager.remove(interval)
 
       // @ts-ignore the timeouts have weird types in the edge runtime
-      context.setTimeout = (...args: Parameters<typeof setTimeout>) =>
-        timeoutsManager.add(args)
+      context.setTimeout = (...args: Parameters<typeof setTimeout>) => timeoutsManager.add(args)
 
       // @ts-ignore the timeouts have weird types in the edge runtime
-      context.clearTimeout = (timeout: number) =>
-        timeoutsManager.remove(timeout)
+      context.clearTimeout = (timeout: number) => timeoutsManager.remove(timeout)
 
       // Duplicated from packages/next/src/server/after/builtin-request-context.ts
       // because we need to use the sandboxed `Symbol.for`, not the one from the outside
-      const NEXT_REQUEST_CONTEXT_SYMBOL = context.Symbol.for(
-        '@next/request-context'
-      )
+      const NEXT_REQUEST_CONTEXT_SYMBOL = context.Symbol.for('@next/request-context')
       Object.defineProperty(context, NEXT_REQUEST_CONTEXT_SYMBOL, {
         enumerable: false,
         value: edgeSandboxNextRequestContext,
@@ -467,10 +442,7 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
   const decorateUnhandledError = getDecorateUnhandledError(runtime)
   runtime.context.addEventListener('error', decorateUnhandledError)
   const decorateUnhandledRejection = getDecorateUnhandledRejection(runtime)
-  runtime.context.addEventListener(
-    'unhandledrejection',
-    decorateUnhandledRejection
-  )
+  runtime.context.addEventListener('unhandledrejection', decorateUnhandledRejection)
 
   patchErrorInspectEdgeLite(runtime.context.Error)
   // An Error from within the Edge Runtime could also bubble up into the Node.js process.
@@ -514,14 +486,11 @@ export async function getModuleContext(options: ModuleContextOptions): Promise<{
   paths: Map<string, string>
   warnedEvals: Set<string>
 }> {
-  let lazyModuleContext:
-    | UnwrapPromise<ReturnType<typeof getModuleContextShared>>
-    | undefined
+  let lazyModuleContext: UnwrapPromise<ReturnType<typeof getModuleContextShared>> | undefined
 
   if (options.useCache) {
     lazyModuleContext =
-      moduleContexts.get(options.moduleName) ||
-      (await getModuleContextShared(options))
+      moduleContexts.get(options.moduleName) || (await getModuleContextShared(options))
   }
 
   if (!lazyModuleContext) {

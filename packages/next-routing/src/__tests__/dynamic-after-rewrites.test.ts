@@ -9,9 +9,7 @@ function createReadableStream(): ReadableStream {
   })
 }
 
-function createBaseParams(
-  overrides: Partial<ResolveRoutesParams> = {}
-): ResolveRoutesParams {
+function createBaseParams(overrides: Partial<ResolveRoutesParams> = {}): ResolveRoutesParams {
   return {
     url: new URL('https://example.com/'),
     buildId: 'BUILD_ID',

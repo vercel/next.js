@@ -47,9 +47,7 @@ function validatePrefixMatch(
     }
 
     // One has an interception marker, the other doesn't.
-    if (
-      pathSegment.interceptionMarker !== targetPathSegment.interceptionMarker
-    ) {
+    if (pathSegment.interceptionMarker !== targetPathSegment.interceptionMarker) {
       return false
     }
 
@@ -120,11 +118,7 @@ export function extractPathnameRouteParamSegmentsFromLoaderTree(
 
     // Only add to path if it's a real segment that appears in the URL
     // Route groups and parallel markers don't contribute to URL pathname
-    if (
-      appSegment &&
-      appSegment.type !== 'route-group' &&
-      appSegment.type !== 'parallel-route'
-    ) {
+    if (appSegment && appSegment.type !== 'route-group' && appSegment.type !== 'parallel-route') {
       updatedPath = [...currentPath, appSegment]
       nextDepth = depth + 1
     }
@@ -164,13 +158,7 @@ export function extractPathnameRouteParamSegmentsFromLoaderTree(
 
       // Resolve parameter value if it's not already known.
       if (!params.hasOwnProperty(paramName)) {
-        const paramValue = resolveParamValue(
-          paramName,
-          paramType,
-          depth,
-          route,
-          params
-        )
+        const paramValue = resolveParamValue(paramName, paramType, depth, route, params)
 
         if (paramValue !== undefined) {
           params[paramName] = paramValue

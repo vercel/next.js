@@ -12,8 +12,8 @@ export default async function Page() {
     <main>
       <DebugRenderKind />
       <p>
-        This page uses cookies (from a private cache) and no uncached IO, So it
-        should be completely prefetchable with a runtime prefetch.
+        This page uses cookies (from a private cache) and no uncached IO, So it should be completely
+        prefetchable with a runtime prefetch.
       </p>
       <Suspense fallback={<div style={{ color: 'grey' }}>Loading 1...</div>}>
         <RuntimePrefetchable />

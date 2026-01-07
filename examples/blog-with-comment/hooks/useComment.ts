@@ -16,11 +16,9 @@ export default function useComments() {
   const { getAccessTokenSilently } = useAuth0();
   const [text, setText] = useState("");
 
-  const { data: comments, mutate } = useSWR<Comment[]>(
-    "/api/comment",
-    fetcher,
-    { fallbackData: [] },
-  );
+  const { data: comments, mutate } = useSWR<Comment[]>("/api/comment", fetcher, {
+    fallbackData: [],
+  });
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

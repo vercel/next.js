@@ -1,9 +1,5 @@
 import { FetchStrategy } from './types'
-import type {
-  NormalizedPathname,
-  NormalizedSearch,
-  NormalizedNextUrl,
-} from './cache-key'
+import type { NormalizedPathname, NormalizedSearch, NormalizedNextUrl } from './cache-key'
 import type { RouteTree } from './cache'
 import { Fallback, type FallbackType } from './cache-map'
 import { HEAD_REQUEST_KEY } from '../../../shared/lib/segment-cache/segment-value-encoding'
@@ -234,8 +230,7 @@ export function getSegmentVaryPathForRequest(
     // Static prefetches never include search params, so they can be reused
     // across all possible search param values.
     const doesVaryOnSearchParams =
-      fetchStrategy === FetchStrategy.Full ||
-      fetchStrategy === FetchStrategy.PPRRuntime
+      fetchStrategy === FetchStrategy.Full || fetchStrategy === FetchStrategy.PPRRuntime
 
     if (!doesVaryOnSearchParams) {
       // The response from the the server will not vary on search params. Clone

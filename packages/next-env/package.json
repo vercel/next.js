@@ -1,25 +1,25 @@
 {
   "name": "@next/env",
   "version": "16.1.1-canary.16",
+  "description": "Next.js dotenv file loading",
   "keywords": [
-    "react",
+    "dotenv",
     "next",
     "next.js",
-    "dotenv"
+    "react"
   ],
-  "description": "Next.js dotenv file loading",
+  "license": "MIT",
+  "author": "Next.js Team <support@vercel.com>",
   "repository": {
     "type": "git",
     "url": "https://github.com/vercel/next.js",
     "directory": "packages/next-env"
   },
-  "author": "Next.js Team <support@vercel.com>",
-  "license": "MIT",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
   "files": [
     "dist"
   ],
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "dev": "ncc build ./index.ts -w -o dist/",
     "prebuild:source": "node ../../scripts/rm.mjs dist",

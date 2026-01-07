@@ -57,16 +57,10 @@ function runTests(isDev: boolean) {
     const browser = await webdriver(appPort, '/')
 
     expect(await browser.elementByCss('#router-locale').text()).toBe('en-US')
-    expect(await browser.elementByCss('#router-default-locale').text()).toBe(
-      'en-US'
-    )
-    expect(await browser.elementByCss('#router-pathname').text()).toBe(
-      '/[[...slug]]'
-    )
+    expect(await browser.elementByCss('#router-default-locale').text()).toBe('en-US')
+    expect(await browser.elementByCss('#router-pathname').text()).toBe('/[[...slug]]')
     expect(await browser.elementByCss('#router-as-path').text()).toBe('/')
-    expect(
-      JSON.parse(await browser.elementByCss('#router-locales').text())
-    ).toEqual(locales)
+    expect(JSON.parse(await browser.elementByCss('#router-locales').text())).toEqual(locales)
     expect(JSON.parse(await browser.elementByCss('#props').text())).toEqual({
       params: {},
       locale: 'en-US',
@@ -83,16 +77,10 @@ function runTests(isDev: boolean) {
     await check(() => browser.eval('window.location.pathname'), '/nl-NL')
 
     expect(await browser.elementByCss('#router-locale').text()).toBe('nl-NL')
-    expect(await browser.elementByCss('#router-default-locale').text()).toBe(
-      'en-US'
-    )
-    expect(await browser.elementByCss('#router-pathname').text()).toBe(
-      '/[[...slug]]'
-    )
+    expect(await browser.elementByCss('#router-default-locale').text()).toBe('en-US')
+    expect(await browser.elementByCss('#router-pathname').text()).toBe('/[[...slug]]')
     expect(await browser.elementByCss('#router-as-path').text()).toBe('/')
-    expect(
-      JSON.parse(await browser.elementByCss('#router-locales').text())
-    ).toEqual(locales)
+    expect(JSON.parse(await browser.elementByCss('#router-locales').text())).toEqual(locales)
     expect(JSON.parse(await browser.elementByCss('#props').text())).toEqual({
       params: {},
       locale: 'nl-NL',
@@ -105,16 +93,10 @@ function runTests(isDev: boolean) {
     await check(() => browser.elementByCss('#router-locale').text(), 'en-US')
 
     expect(await browser.elementByCss('#router-locale').text()).toBe('en-US')
-    expect(await browser.elementByCss('#router-default-locale').text()).toBe(
-      'en-US'
-    )
-    expect(await browser.elementByCss('#router-pathname').text()).toBe(
-      '/[[...slug]]'
-    )
+    expect(await browser.elementByCss('#router-default-locale').text()).toBe('en-US')
+    expect(await browser.elementByCss('#router-pathname').text()).toBe('/[[...slug]]')
     expect(await browser.elementByCss('#router-as-path').text()).toBe('/')
-    expect(
-      JSON.parse(await browser.elementByCss('#router-locales').text())
-    ).toEqual(locales)
+    expect(JSON.parse(await browser.elementByCss('#router-locales').text())).toEqual(locales)
     expect(JSON.parse(await browser.elementByCss('#props').text())).toEqual({
       params: {},
       locale: 'en-US',
@@ -128,24 +110,13 @@ function runTests(isDev: boolean) {
 
     await browser.elementByCss('#to-locale-another').click()
 
-    await check(
-      () => browser.eval('window.location.pathname'),
-      '/nl-NL/another'
-    )
+    await check(() => browser.eval('window.location.pathname'), '/nl-NL/another')
 
     expect(await browser.elementByCss('#router-locale').text()).toBe('nl-NL')
-    expect(await browser.elementByCss('#router-default-locale').text()).toBe(
-      'en-US'
-    )
-    expect(await browser.elementByCss('#router-pathname').text()).toBe(
-      '/[[...slug]]'
-    )
-    expect(await browser.elementByCss('#router-as-path').text()).toBe(
-      '/another'
-    )
-    expect(
-      JSON.parse(await browser.elementByCss('#router-locales').text())
-    ).toEqual(locales)
+    expect(await browser.elementByCss('#router-default-locale').text()).toBe('en-US')
+    expect(await browser.elementByCss('#router-pathname').text()).toBe('/[[...slug]]')
+    expect(await browser.elementByCss('#router-as-path').text()).toBe('/another')
+    expect(JSON.parse(await browser.elementByCss('#router-locales').text())).toEqual(locales)
     expect(JSON.parse(await browser.elementByCss('#props').text())).toEqual({
       params: {
         slug: ['another'],
@@ -160,16 +131,10 @@ function runTests(isDev: boolean) {
     await check(() => browser.elementByCss('#router-locale').text(), 'en-US')
 
     expect(await browser.elementByCss('#router-locale').text()).toBe('en-US')
-    expect(await browser.elementByCss('#router-default-locale').text()).toBe(
-      'en-US'
-    )
-    expect(await browser.elementByCss('#router-pathname').text()).toBe(
-      '/[[...slug]]'
-    )
+    expect(await browser.elementByCss('#router-default-locale').text()).toBe('en-US')
+    expect(await browser.elementByCss('#router-pathname').text()).toBe('/[[...slug]]')
     expect(await browser.elementByCss('#router-as-path').text()).toBe('/')
-    expect(
-      JSON.parse(await browser.elementByCss('#router-locales').text())
-    ).toEqual(locales)
+    expect(JSON.parse(await browser.elementByCss('#router-locales').text())).toEqual(locales)
     expect(JSON.parse(await browser.elementByCss('#props').text())).toEqual({
       params: {},
       locale: 'en-US',
@@ -198,9 +163,7 @@ function runTests(isDev: boolean) {
         console.log({ hrefs })
 
         assert.deepEqual(
-          hrefs.map((href) =>
-            new URL(href).pathname.replace(/^\/_next\/data\/[^/]+/, '')
-          ),
+          hrefs.map((href) => new URL(href).pathname.replace(/^\/_next\/data\/[^/]+/, '')),
           [
             '/en-US.json',
             '/en-US/another.json',
@@ -217,32 +180,26 @@ function runTests(isDev: boolean) {
 }
 
 describe('i18n Support Root Catch-all', () => {
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
-    'development mode',
-    () => {
-      beforeAll(async () => {
-        await fs.remove(join(appDir, '.next'))
-        appPort = await findPort()
-        app = await launchApp(appDir, appPort)
-      })
-      afterAll(() => killApp(app))
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
+    beforeAll(async () => {
+      await fs.remove(join(appDir, '.next'))
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(() => killApp(app))
 
-      runTests(true)
-    }
-  )
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      beforeAll(async () => {
-        await fs.remove(join(appDir, '.next'))
-        await nextBuild(appDir)
-        appPort = await findPort()
-        app = await nextStart(appDir, appPort)
-        buildPagesDir = join(appDir, '.next/server')
-      })
-      afterAll(() => killApp(app))
+    runTests(true)
+  })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
+    beforeAll(async () => {
+      await fs.remove(join(appDir, '.next'))
+      await nextBuild(appDir)
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+      buildPagesDir = join(appDir, '.next/server')
+    })
+    afterAll(() => killApp(app))
 
-      runTests(false)
-    }
-  )
+    runTests(false)
+  })
 })

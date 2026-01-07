@@ -4,8 +4,7 @@ const url = 'https://nextjs.org/docs/messages/no-duplicate-head'
 export default defineRule({
   meta: {
     docs: {
-      description:
-        'Prevent duplicate usage of `<Head>` in `pages/_document.js`.',
+      description: 'Prevent duplicate usage of `<Head>` in `pages/_document.js`.',
       recommended: true,
       url,
     },
@@ -40,11 +39,7 @@ export default defineRule({
           return
         }
 
-        if (
-          node.argument &&
-          'children' in node.argument &&
-          node.argument.children
-        ) {
+        if (node.argument && 'children' in node.argument && node.argument.children) {
           // @ts-expect-error - `node.argument` could be a `JSXElement` which has property `children`
           const headComponents = node.argument.children.filter(
             (childrenNode) =>

@@ -1,6 +1,7 @@
 {
   "name": "basic-css",
   "version": "1.0.0",
+  "license": "ISC",
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -14,7 +15,6 @@
     "react-dom": "^16.7.0",
     "styled-jsx-plugin-postcss": "0.1.0"
   },
-  "license": "ISC",
   "postcss": {
     "plugins": {
       "lost": {},

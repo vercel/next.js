@@ -9,10 +9,7 @@ contextPrototype.c = moduleCache
  */
 // @ts-ignore
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-function getOrInstantiateRuntimeModule(
-  chunkPath: ChunkPath,
-  moduleId: ModuleId
-): Module {
+function getOrInstantiateRuntimeModule(chunkPath: ChunkPath, moduleId: ModuleId): Module {
   const module = moduleCache[moduleId]
   if (module) {
     if (module.error) {
@@ -30,9 +27,10 @@ function getOrInstantiateRuntimeModule(
 // Used by the backend
 // @ts-ignore
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-const getOrInstantiateModuleFromParent: GetOrInstantiateModuleFromParent<
-  Module
-> = (id, sourceModule) => {
+const getOrInstantiateModuleFromParent: GetOrInstantiateModuleFromParent<Module> = (
+  id,
+  sourceModule
+) => {
   const module = moduleCache[id]
 
   if (module) {
@@ -45,11 +43,7 @@ const getOrInstantiateModuleFromParent: GetOrInstantiateModuleFromParent<
   return instantiateModule(id, SourceType.Parent, sourceModule.id)
 }
 
-function instantiateModule(
-  id: ModuleId,
-  sourceType: SourceType,
-  sourceData: SourceData
-): Module {
+function instantiateModule(id: ModuleId, sourceType: SourceType, sourceData: SourceData): Module {
   const moduleFactory = moduleFactories.get(id)
   if (typeof moduleFactory !== 'function') {
     // This can happen if modules incorrectly handle HMR disposes/updates,
@@ -64,10 +58,7 @@ function instantiateModule(
   moduleCache[id] = module
 
   // NOTE(alexkirsz) This can fail when the module encounters a runtime error.
-  const context = new (Context as any as ContextConstructor<Module>)(
-    module,
-    exports
-  )
+  const context = new (Context as any as ContextConstructor<Module>)(module, exports)
   try {
     moduleFactory(context, module, exports)
   } catch (error) {

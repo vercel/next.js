@@ -13,13 +13,7 @@ describe('ReactRefreshModule', () => {
     const { session } = sandbox
     await session.waitForNoRedbox()
 
-    const variables = [
-      '_a',
-      '_b',
-      'currentExports',
-      'prevExports',
-      'isNoLongerABoundary',
-    ]
+    const variables = ['_a', '_b', 'currentExports', 'prevExports', 'isNoLongerABoundary']
 
     for await (const variable of variables) {
       await session.patch(
@@ -31,9 +25,7 @@ describe('ReactRefreshModule', () => {
         }`
       )
       await session.waitForNoRedbox()
-      expect(next.cliOutput).not.toContain(
-        `'${variable}' has already been declared`
-      )
+      expect(next.cliOutput).not.toContain(`'${variable}' has already been declared`)
     }
   })
 })

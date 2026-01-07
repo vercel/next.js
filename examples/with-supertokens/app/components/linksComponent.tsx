@@ -49,14 +49,7 @@ export const LinksComponent = () => {
     <div className={styles.bottomLinksContainer}>
       {links.map((link) => {
         if (link.name === "Sign Out") {
-          return (
-            <SignOutLink
-              name={link.name}
-              link={link.link}
-              icon={link.icon}
-              key={link.name}
-            />
-          );
+          return <SignOutLink name={link.name} link={link.link} icon={link.icon} key={link.name} />;
         }
 
         return (
@@ -66,11 +59,7 @@ export const LinksComponent = () => {
             key={link.name}
             target="_blank"
           >
-            <Image
-              className={styles.linkIcon}
-              src={link.icon}
-              alt={link.name}
-            />
+            <Image className={styles.linkIcon} src={link.icon} alt={link.name} />
             <div role={"button"}>{link.name}</div>
           </Link>
         );

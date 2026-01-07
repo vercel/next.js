@@ -37,19 +37,14 @@ export default function Counter() {
         *2
       </button>
       <form>
-        <button
-          id="redirect-relative"
-          formAction={() => redirectAction('/redirect-target')}
-        >
+        <button id="redirect-relative" formAction={() => redirectAction('/redirect-target')}>
           redirect to a relative URL
         </button>
       </form>
       <form>
         <button
           id="redirect-absolute"
-          formAction={() =>
-            redirectAction(`${location.origin}/redirect-target`)
-          }
+          formAction={() => redirectAction(`${location.origin}/redirect-target`)}
         >
           redirect to a absolute URL
         </button>
@@ -58,9 +53,7 @@ export default function Counter() {
         <button
           id="redirect-external"
           formAction={() =>
-            redirectAction(
-              'https://next-data-api-endpoint.vercel.app/api/random?page'
-            )
+            redirectAction('https://next-data-api-endpoint.vercel.app/api/random?page')
           }
         >
           redirect external

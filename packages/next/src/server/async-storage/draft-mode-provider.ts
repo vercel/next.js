@@ -4,10 +4,7 @@ import type { ResponseCookies } from '../web/spec-extension/cookies'
 import type { BaseNextRequest } from '../base-http'
 import type { NextRequest } from '../web/spec-extension/request'
 
-import {
-  COOKIE_NAME_PRERENDER_BYPASS,
-  checkIsOnDemandRevalidate,
-} from '../api-utils'
+import { COOKIE_NAME_PRERENDER_BYPASS, checkIsOnDemandRevalidate } from '../api-utils'
 import type { __ApiPreviewProps } from '../api-utils'
 
 export class DraftModeProvider {
@@ -35,19 +32,17 @@ export class DraftModeProvider {
     // The logic for draftMode() is very similar to tryGetPreviewData()
     // but Draft Mode does not have any data associated with it.
     const isOnDemandRevalidate =
-      previewProps &&
-      checkIsOnDemandRevalidate(req, previewProps).isOnDemandRevalidate
+      previewProps && checkIsOnDemandRevalidate(req, previewProps).isOnDemandRevalidate
 
     const cookieValue = cookies.get(COOKIE_NAME_PRERENDER_BYPASS)?.value
 
     this._isEnabled = Boolean(
       !isOnDemandRevalidate &&
-        cookieValue &&
-        previewProps &&
-        (cookieValue === previewProps.previewModeId ||
-          // In dev mode, the cookie can be actual hash value preview id but the preview props can still be `development-id`.
-          (process.env.NODE_ENV !== 'production' &&
-            previewProps.previewModeId === 'development-id'))
+      cookieValue &&
+      previewProps &&
+      (cookieValue === previewProps.previewModeId ||
+        // In dev mode, the cookie can be actual hash value preview id but the preview props can still be `development-id`.
+        (process.env.NODE_ENV !== 'production' && previewProps.previewModeId === 'development-id'))
     )
 
     this._previewModeId = previewProps?.previewModeId
@@ -60,9 +55,7 @@ export class DraftModeProvider {
 
   enable() {
     if (!this._previewModeId) {
-      throw new Error(
-        'Invariant: previewProps missing previewModeId this should never happen'
-      )
+      throw new Error('Invariant: previewProps missing previewModeId this should never happen')
     }
 
     this._mutableCookies.set({

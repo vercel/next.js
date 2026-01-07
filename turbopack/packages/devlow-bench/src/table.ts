@@ -21,11 +21,7 @@ import minimist from 'minimist'
 
   let data = JSON.parse(await readFile(args._[0], 'utf-8')) as any[]
 
-  const getValue = (
-    data: any,
-    name: string | string[],
-    includeKey: boolean
-  ): string => {
+  const getValue = (data: any, name: string | string[], includeKey: boolean): string => {
     if (name === 'value') {
       return data.text as string
     }
@@ -46,9 +42,7 @@ import minimist from 'minimist'
 
   for (const [key, value] of Object.entries(args)) {
     if (knownArgs.has(key)) continue
-    const values = (Array.isArray(value) ? value : [value]).map((v) =>
-      v.toString()
-    )
+    const values = (Array.isArray(value) ? value : [value]).map((v) => v.toString())
     data = data.filter((item) => {
       const itemValue = getValue(item, key, false)
       if (itemValue === '') return false

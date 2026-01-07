@@ -85,10 +85,7 @@ function calculateTitleFontSizes(titleBarHeight: number): {
 
 const textWidthCache = new Map<string, number>()
 const TEXT_WIDTH_CACHE_SIZE = 30_000 // Shouldn't be more than a few megabytes of memory
-function measureTextCached(
-  ctx: CanvasRenderingContext2D,
-  text: string
-): number {
+function measureTextCached(ctx: CanvasRenderingContext2D, text: string): number {
   const cacheKey = `${ctx.font}|${text}`
 
   let width = textWidthCache.get(cacheKey)
@@ -145,20 +142,11 @@ function truncateTextWithEllipsisIfNeeded(
   return bestLength > 0 ? `${text.slice(0, bestLength)}...` : '...'
 }
 
-function findNodeAtPosition(
-  node: LayoutNode,
-  x: number,
-  y: number
-): LayoutNode | null {
+function findNodeAtPosition(node: LayoutNode, x: number, y: number): LayoutNode | null {
   const { rect } = node
 
   // Check if point is within this node's bounds
-  if (
-    x < rect.x ||
-    x > rect.x + rect.width ||
-    y < rect.y ||
-    y > rect.y + rect.height
-  ) {
+  if (x < rect.x || x > rect.x + rect.width || y < rect.y || y > rect.y + rect.height) {
     return null
   }
 
@@ -233,9 +221,7 @@ function nodeOrDescendantsMatchSearch(
     let originalNode = originalData
     for (let i = 1; i < path.length; i++) {
       if (!originalNode.children) return false
-      const found = originalNode.children.find(
-        (child) => child.name === path[i]
-      )
+      const found = originalNode.children.find((child) => child.name === path[i])
       if (!found) return false
       originalNode = found
     }
@@ -254,9 +240,7 @@ function nodeOrDescendantsMatchSearch(
   // Check if any descendants match (for regular directories)
   if (node.children) {
     for (const child of node.children) {
-      if (
-        nodeOrDescendantsMatchSearch(child, path, searchQuery, originalData)
-      ) {
+      if (nodeOrDescendantsMatchSearch(child, path, searchQuery, originalData)) {
         return true
       }
     }
@@ -285,8 +269,7 @@ function drawTreemap(
   // Check if this node is on the focused path
   // When we wrap the layout with ancestors, nodes on the focus path should be drawn
   // as title bars, and only the focused node's children should be drawn in full.
-  const focusedSourceIndex =
-    focusedAncestorChain[focusedAncestorChain.length - 1]
+  const focusedSourceIndex = focusedAncestorChain[focusedAncestorChain.length - 1]
 
   if (focusedAncestorChain.length > 1 && sourceIndex !== undefined) {
     const isOnFocusPath = focusedAncestorChain.includes(sourceIndex)
@@ -312,12 +295,7 @@ function drawTreemap(
         ctx.font = `600 ${titleFontSize}px ${UI_FONT}`
         ctx.textAlign = 'left'
         ctx.textBaseline = 'middle'
-        ctx.fillText(
-          name,
-          rect.x + 8,
-          rect.y + titleBarHeight / 2,
-          rect.width - 16
-        )
+        ctx.fillText(name, rect.x + 8, rect.y + titleBarHeight / 2, rect.width - 16)
       }
 
       if (children) {
@@ -348,14 +326,7 @@ function drawTreemap(
   if (searchQuery && searchQuery.trim() !== '') {
     // Search mode: fade out nodes that don't match
     if (type === 'directory' || type === 'collapsed-directory') {
-      if (
-        !nodeOrDescendantsMatchSearch(
-          node,
-          currentPath,
-          searchQuery,
-          originalData
-        )
-      ) {
+      if (!nodeOrDescendantsMatchSearch(node, currentPath, searchQuery, originalData)) {
         fadeOut = true
       }
     } else {
@@ -371,8 +342,7 @@ function drawTreemap(
       hoveredAncestorChain ?? (useSelectionFade ? selectedAncestorChain : [])
 
     if (activeAncestorChain.length > 0) {
-      const activeSourceIndex =
-        activeAncestorChain[activeAncestorChain.length - 1]
+      const activeSourceIndex = activeAncestorChain[activeAncestorChain.length - 1]
       const isActiveNode = sourceIndex === activeSourceIndex
       const isAncestorOfActive = activeAncestorChain.includes(sourceIndex)
 
@@ -435,19 +405,11 @@ function drawTreemap(
 
         ctx.globalAlpha = opacity * 0.75
         ctx.font = `${sizeFontSize}px ${UI_FONT}`
-        ctx.fillText(
-          sizeText,
-          rect.x + rect.width / 2,
-          rect.y + rect.height / 2 + lineHeight / 2
-        )
+        ctx.fillText(sizeText, rect.x + rect.width / 2, rect.y + rect.height / 2 + lineHeight / 2)
         ctx.globalAlpha = opacity
       } else {
         // Only name fits, draw it centered
-        ctx.fillText(
-          displayName,
-          rect.x + rect.width / 2,
-          rect.y + rect.height / 2
-        )
+        ctx.fillText(displayName, rect.x + rect.width / 2, rect.y + rect.height / 2)
       }
     }
 
@@ -485,8 +447,7 @@ function drawTreemap(
       ctx.lineTo(rect.x + rect.width, rect.y + titleBarHeight)
       ctx.stroke()
 
-      const { titleFontSize, sizeFontSize } =
-        calculateTitleFontSizes(titleBarHeight)
+      const { titleFontSize, sizeFontSize } = calculateTitleFontSizes(titleBarHeight)
       const sizeText = formatBytes(node.size)
       const centerY = rect.y + titleBarHeight / 2
       const gap = 6
@@ -500,11 +461,7 @@ function drawTreemap(
       const nameX = rect.x + 8
       const availableNameWidth = Math.max(0, rect.width - 16 - sizeWidth - gap)
       ctx.font = `600 ${titleFontSize}px ${UI_FONT}`
-      const displayName = truncateTextWithEllipsisIfNeeded(
-        ctx,
-        name,
-        availableNameWidth
-      )
+      const displayName = truncateTextWithEllipsisIfNeeded(ctx, name, availableNameWidth)
 
       ctx.fillStyle = colors.text
       ctx.textAlign = 'left'
@@ -555,8 +512,7 @@ function drawTreemap(
       ctx.lineTo(rect.x + rect.width, rect.y + titleBarHeight)
       ctx.stroke()
 
-      const { titleFontSize, sizeFontSize } =
-        calculateTitleFontSizes(titleBarHeight)
+      const { titleFontSize, sizeFontSize } = calculateTitleFontSizes(titleBarHeight)
       const sizeText = formatBytes(node.size)
       const centerY = rect.y + titleBarHeight / 2
       const gap = 6
@@ -569,11 +525,7 @@ function drawTreemap(
       const nameX = rect.x + 8
       const availableNameWidth = Math.max(0, rect.width - 16 - sizeWidth - gap)
       ctx.font = `600 ${titleFontSize}px ${UI_FONT}`
-      const displayName = truncateTextWithEllipsisIfNeeded(
-        ctx,
-        name,
-        availableNameWidth
-      )
+      const displayName = truncateTextWithEllipsisIfNeeded(ctx, name, availableNameWidth)
 
       ctx.fillStyle = colors.text
       ctx.textAlign = 'left'
@@ -594,18 +546,14 @@ function drawTreemap(
 
     if (children) {
       for (const child of children) {
-        const childFadeOut =
-          searchQuery && searchQuery.trim() !== '' ? false : fadeOut
+        const childFadeOut = searchQuery && searchQuery.trim() !== '' ? false : fadeOut
 
         // Determine if children are inside active subtree
         // Children are inside if: this node is active OR we're already inside
         const activeAncestorChain =
-          hoveredAncestorChain ??
-          (useSelectionFade ? selectedAncestorChain : [])
-        const activeSourceIndex =
-          activeAncestorChain[activeAncestorChain.length - 1]
-        const childInsideActiveSubtree =
-          insideActiveSubtree || sourceIndex === activeSourceIndex
+          hoveredAncestorChain ?? (useSelectionFade ? selectedAncestorChain : [])
+        const activeSourceIndex = activeAncestorChain[activeAncestorChain.length - 1]
+        const childInsideActiveSubtree = insideActiveSubtree || sourceIndex === activeSourceIndex
 
         drawTreemap(
           ctx,
@@ -760,12 +708,7 @@ export function TreemapVisualizer({
 
   // Build ancestor chain for hovered node (only used for dimming)
   const hoveredAncestorChain = useMemo(() => {
-    if (
-      !shouldDimOthers ||
-      !hoveredNode ||
-      hoveredNode.sourceIndex === undefined
-    )
-      return null
+    if (!shouldDimOthers || !hoveredNode || hoveredNode.sourceIndex === undefined) return null
 
     const chain: number[] = []
     let currentIndex = hoveredNode.sourceIndex
@@ -1038,14 +981,8 @@ function getThemeColors() {
     dirBg: dark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(230, 230, 230, 0.1)',
     dirBorder: dark ? 'rgba(255, 255, 255, 0.5)' : 'rgba(180, 180, 180, 0.6)',
     dirTitleBg: dark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(230, 230, 230, 0.1)',
-    dirTitleBorder: dark
-      ? 'rgba(255, 255, 255, 0.4)'
-      : 'rgba(180, 180, 180, 0.5)',
-    collapsedBg: dark
-      ? 'rgba(128, 128, 128, 0.15)'
-      : 'rgba(230, 230, 230, 0.2)',
-    collapsedText: dark
-      ? 'rgba(255, 255, 255, 0.5)'
-      : 'rgba(128, 128, 128, 0.6)',
+    dirTitleBorder: dark ? 'rgba(255, 255, 255, 0.4)' : 'rgba(180, 180, 180, 0.5)',
+    collapsedBg: dark ? 'rgba(128, 128, 128, 0.15)' : 'rgba(230, 230, 230, 0.2)',
+    collapsedText: dark ? 'rgba(255, 255, 255, 0.5)' : 'rgba(128, 128, 128, 0.6)',
   }
 }

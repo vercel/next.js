@@ -12,14 +12,11 @@ export default async function page(props) {
   let data
 
   if (process.env.NEXT_PHASE !== 'phase-production-build') {
-    data = await fetchRetry(
-      'https://next-data-api-endpoint.vercel.app/api/random',
-      {
-        headers: {
-          Authorization: 'Bearer my-token',
-        },
-      }
-    ).then((res) => res.text())
+    data = await fetchRetry('https://next-data-api-endpoint.vercel.app/api/random', {
+      headers: {
+        Authorization: 'Bearer my-token',
+      },
+    }).then((res) => res.text())
   }
 
   return (

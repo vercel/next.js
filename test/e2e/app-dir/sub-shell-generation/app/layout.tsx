@@ -8,9 +8,7 @@ export default async function Root({ children }: { children: ReactNode }) {
     <html>
       <body>
         <div id="root-layout">Root Layout: ({getSentinelValue()})</div>
-        <Suspense fallback={<p id="loading">Loading...</p>}>
-          {children}
-        </Suspense>
+        <Suspense fallback={<p id="loading">Loading...</p>}>{children}</Suspense>
       </body>
     </html>
   )

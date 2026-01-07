@@ -2,9 +2,7 @@ import type { SchedulerFn } from './scheduler'
 
 import { DetachedPromise } from './detached-promise'
 
-type CacheKeyFn<K, C extends string | number | null> = (
-  key: K
-) => PromiseLike<C> | C
+type CacheKeyFn<K, C extends string | number | null> = (key: K) => PromiseLike<C> | C
 
 type BatcherOptions<K, C extends string | number | null> = {
   cacheKeyFn?: CacheKeyFn<K, C>
@@ -44,8 +42,7 @@ export class Batcher<K, V, C extends string | number | null> {
     options?: BatcherOptions<K, K>
   ): Batcher<K, V, K>
   public static create<K, V, C extends string | number | null>(
-    options: BatcherOptions<K, C> &
-      Required<Pick<BatcherOptions<K, C>, 'cacheKeyFn'>>
+    options: BatcherOptions<K, C> & Required<Pick<BatcherOptions<K, C>, 'cacheKeyFn'>>
   ): Batcher<K, V, C>
   public static create<K, V, C extends string | number | null>(
     options?: BatcherOptions<K, C>

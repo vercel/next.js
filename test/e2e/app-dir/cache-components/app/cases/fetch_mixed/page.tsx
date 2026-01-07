@@ -7,14 +7,13 @@ export default async function Page() {
   return (
     <>
       <p>
-        This page fetches using cache inside one component and without cache
-        inside another component.
+        This page fetches using cache inside one component and without cache inside another
+        component.
       </p>
       <p>Each component is wrapped in a Suspense boundary.</p>
       <p>
-        With PPR this page should have a static shell that includes the cached
-        fetch result and a loading state for the boundary surrounding the
-        uncached fetch result.
+        With PPR this page should have a static shell that includes the cached fetch result and a
+        loading state for the boundary surrounding the uncached fetch result.
       </p>
       <p>Without PPR this page should be dynamic.</p>
       <Suspense fallback="loading...">
@@ -51,8 +50,6 @@ const fetchRandomCached = async (entropy: string) => {
 }
 
 const fetchRandom = async (entropy: string) => {
-  const response = await fetch(
-    'https://next-data-api-endpoint.vercel.app/api/random?b=' + entropy
-  )
+  const response = await fetch('https://next-data-api-endpoint.vercel.app/api/random?b=' + entropy)
   return response.text()
 }

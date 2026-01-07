@@ -34,9 +34,7 @@ const Form = forwardRef<HTMLFormElement, FormProps>(function FormComponent(
   // Validate `prefetch`
   if (process.env.NODE_ENV === 'development') {
     if (prefetchProp !== undefined) {
-      console.error(
-        'Passing `prefetch` to a <Form> has no effect in the pages directory.'
-      )
+      console.error('Passing `prefetch` to a <Form> has no effect in the pages directory.')
     }
   }
 

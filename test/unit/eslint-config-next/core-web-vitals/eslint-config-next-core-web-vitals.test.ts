@@ -32,8 +32,7 @@ describe('eslint-config-next/core-web-vitals', () => {
       },
     })
 
-    expect(getEslintConfigSnapshot(eslintConfigAfterSetup))
-      .toMatchInlineSnapshot(`
+    expect(getEslintConfigSnapshot(eslintConfigAfterSetup)).toMatchInlineSnapshot(`
      {
        "language": "@/js",
        "linterOptions": {

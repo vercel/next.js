@@ -32,9 +32,7 @@ const runTests = (isDev) => {
       async function test(scriptID: string) {
         const script = await browser.elementByCss(`script#${scriptID}`)
         const dataAttr = await script.getAttribute('data-nscript')
-        const endScripts = await browser.elementsByCss(
-          `#__NEXT_DATA__ ~ script#${scriptID}`
-        )
+        const endScripts = await browser.elementsByCss(`#__NEXT_DATA__ ~ script#${scriptID}`)
 
         // Renders script tag
         expect(script).toBeDefined()
@@ -64,9 +62,7 @@ const runTests = (isDev) => {
       async function test(scriptId: string, css?: string) {
         const script = await browser.elementByCss(`script#${scriptId}`)
         const dataAttr = await script.getAttribute('data-nscript')
-        const endScripts = await browser.elementsByCss(
-          `#__NEXT_DATA__ ~ #${scriptId}`
-        )
+        const endScripts = await browser.elementsByCss(`#__NEXT_DATA__ ~ #${scriptId}`)
 
         // Renders script tag
         expect(script).toBeDefined()
@@ -114,14 +110,10 @@ const runTests = (isDev) => {
           ).length
         } else {
           // In production mode, content hashes are used
-          scriptCount = $(
-            `#${id} ~ script[src^="/_next/static/chunks/"]`
-          ).length
+          scriptCount = $(`#${id} ~ script[src^="/_next/static/chunks/"]`).length
         }
       } else {
-        scriptCount = $(
-          `#${id} ~ script[src^="/_next/static/chunks/main"]`
-        ).length
+        scriptCount = $(`#${id} ~ script[src^="/_next/static/chunks/main"]`).length
       }
       expect(scriptCount).toBeGreaterThan(0)
     }
@@ -151,14 +143,10 @@ const runTests = (isDev) => {
           ).length
         } else {
           // In production mode, content hashes are used
-          scriptCount = $(
-            `#${id} ~ script[src^="/_next/static/chunks/"]`
-          ).length
+          scriptCount = $(`#${id} ~ script[src^="/_next/static/chunks/"]`).length
         }
       } else {
-        scriptCount = $(
-          `#${id} ~ script[src^="/_next/static/chunks/main"]`
-        ).length
+        scriptCount = $(`#${id} ~ script[src^="/_next/static/chunks/main"]`).length
       }
       expect(scriptCount).toBeGreaterThan(0)
     }
@@ -172,9 +160,7 @@ const runTests = (isDev) => {
       browser = await webdriver(appPort, '/')
 
       // beforeInteractive scripts should load once
-      let documentBIScripts = await browser.elementsByCss(
-        '[src$="scriptBeforeInteractive"]'
-      )
+      let documentBIScripts = await browser.elementsByCss('[src$="scriptBeforeInteractive"]')
       expect(documentBIScripts.length).toBe(2)
 
       await browser.waitForElementByCss('[href="/page1"]').click()
@@ -182,9 +168,7 @@ const runTests = (isDev) => {
       await browser.waitForElementByCss('.container')
 
       // Ensure beforeInteractive script isn't duplicated on navigation
-      documentBIScripts = await browser.elementsByCss(
-        '[src$="scriptBeforeInteractive"]'
-      )
+      documentBIScripts = await browser.elementsByCss('[src$="scriptBeforeInteractive"]')
       expect(documentBIScripts.length).toBe(2)
     } finally {
       if (browser) await browser.close()
@@ -224,8 +208,8 @@ const runTests = (isDev) => {
     if (!isDev) {
       // Script is inserted before CSS
       expect(
-        $(`#inline-before ~ link[href^="/_next/static/"]`).filter(
-          (i, element) => $(element).attr('href')?.endsWith('.css')
+        $(`#inline-before ~ link[href^="/_next/static/"]`).filter((i, element) =>
+          $(element).attr('href')?.endsWith('.css')
         ).length
       ).toBeGreaterThan(0)
     }
@@ -240,9 +224,7 @@ const runTests = (isDev) => {
       const logs = await browser.log()
       // not only should inline script run, but also should only run once
       expect(
-        logs.filter((log) =>
-          log.message.includes('beforeInteractive inline script run')
-        ).length
+        logs.filter((log) => log.message.includes('beforeInteractive inline script run')).length
       ).toBe(1)
     } finally {
       if (browser) await browser.close()
@@ -272,14 +254,10 @@ const runTests = (isDev) => {
 
   if (!isDev) {
     it('Error message is shown if Partytown is not installed locally', async () => {
-      const { stdout, stderr } = await nextBuild(
-        appWithPartytownMissingDir,
-        [],
-        {
-          stdout: true,
-          stderr: true,
-        }
-      )
+      const { stdout, stderr } = await nextBuild(appWithPartytownMissingDir, [], {
+        stdout: true,
+        stderr: true,
+      })
       const output = stdout + stderr
 
       expect(output.replace(/[\n\r]/g, '')).toMatch(
@@ -340,29 +318,26 @@ describe('Next.js Script - Primary Strategies - Strict Mode', () => {
 })
 
 describe('Next.js Script - Primary Strategies - Production Mode', () => {
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      beforeAll(async () => {
-        await nextBuild(appDir)
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
+    beforeAll(async () => {
+      await nextBuild(appDir)
 
-        const app = nextServer({
-          dir: appDir,
-          dev: false,
-          quiet: true,
-        })
-
-        server = await startApp(
-          // @ts-expect-error -- Discovered when converting from JS to TS
-          app
-        )
-        appPort = server.address().port
-      })
-      afterAll(async () => {
-        await stopApp(server)
+      const app = nextServer({
+        dir: appDir,
+        dev: false,
+        quiet: true,
       })
 
-      runTests(false)
-    }
-  )
+      server = await startApp(
+        // @ts-expect-error -- Discovered when converting from JS to TS
+        app
+      )
+      appPort = server.address().port
+    })
+    afterAll(async () => {
+      await stopApp(server)
+    })
+
+    runTests(false)
+  })
 })

@@ -1,9 +1,7 @@
 import { bold, cyan } from '../../../../../lib/picocolors'
 
 export function getGlobalImportError() {
-  return `Global CSS ${bold(
-    'cannot'
-  )} be imported from files other than your ${bold(
+  return `Global CSS ${bold('cannot')} be imported from files other than your ${bold(
     'Custom <App>'
   )}. Due to the Global nature of stylesheets, and to avoid conflicts, Please move all first-party global CSS imports to ${cyan(
     'pages/_app.js'

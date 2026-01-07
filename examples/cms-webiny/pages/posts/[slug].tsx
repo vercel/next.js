@@ -27,9 +27,7 @@ export default function Post({ post, morePosts, preview }) {
           <>
             <article className="mb-32">
               <Head>
-                <title>
-                  {`${post.title} | Next.js Blog Example with ${CMS_NAME}`}
-                </title>
+                <title>{`${post.title} | Next.js Blog Example with ${CMS_NAME}`}</title>
                 <meta property="og:image" content={post.featuredImage} />
               </Head>
               <PostHeader
@@ -41,9 +39,7 @@ export default function Post({ post, morePosts, preview }) {
               <PostBody content={post.body} />
             </article>
             <SectionSeparator />
-            {morePosts.data.length > 0 && (
-              <MoreStories posts={morePosts.data} />
-            )}
+            {morePosts.data.length > 0 && <MoreStories posts={morePosts.data} />}
           </>
         )}
       </Container>

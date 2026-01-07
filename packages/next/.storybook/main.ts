@@ -47,12 +47,7 @@ const config: StorybookConfig = {
       return false
     })
 
-    if (
-      cssRule &&
-      typeof cssRule === 'object' &&
-      'use' in cssRule &&
-      Array.isArray(cssRule.use)
-    ) {
+    if (cssRule && typeof cssRule === 'object' && 'use' in cssRule && Array.isArray(cssRule.use)) {
       // Find the style-loader in the use array
       const styleLoaderIndex = cssRule.use.findIndex((loader) => {
         if (typeof loader === 'string') return loader.includes('style-loader')

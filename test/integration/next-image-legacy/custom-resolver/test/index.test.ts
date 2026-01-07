@@ -16,47 +16,42 @@ function runTests() {
     )
   })
   it('should add a srcset based on the custom resolver', async () => {
-    expect(
-      await browser.elementById('basic-image').getAttribute('srcset')
-    ).toBe(
+    expect(await browser.elementById('basic-image').getAttribute('srcset')).toBe(
       'https://customresolver.com/foo.jpg?w~~480,q~~60 1x, https://customresolver.com/foo.jpg?w~~1024,q~~60 2x'
     )
   })
   it('should support the unoptimized attribute', async () => {
-    expect(
-      await browser.elementById('unoptimized-image').getAttribute('src')
-    ).toBe('https://arbitraryurl.com/foo.jpg')
+    expect(await browser.elementById('unoptimized-image').getAttribute('src')).toBe(
+      'https://arbitraryurl.com/foo.jpg'
+    )
   })
 }
 
 describe('Custom Resolver Tests', () => {
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
+    beforeAll(async () => {
+      await nextBuild(appDir)
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(() => killApp(app))
+    describe('SSR Custom Loader Tests', () => {
       beforeAll(async () => {
-        await nextBuild(appDir)
-        appPort = await findPort()
-        app = await nextStart(appDir, appPort)
+        browser = await webdriver(appPort, '/')
       })
-      afterAll(() => killApp(app))
-      describe('SSR Custom Loader Tests', () => {
-        beforeAll(async () => {
-          browser = await webdriver(appPort, '/')
-        })
-        afterAll(async () => {
-          browser = null
-        })
-        runTests()
+      afterAll(async () => {
+        browser = null
       })
-      describe('Client-side Custom Loader Tests', () => {
-        beforeAll(async () => {
-          browser = await webdriver(appPort, '/client-side')
-        })
-        afterAll(async () => {
-          browser = null
-        })
-        runTests()
+      runTests()
+    })
+    describe('Client-side Custom Loader Tests', () => {
+      beforeAll(async () => {
+        browser = await webdriver(appPort, '/client-side')
       })
-    }
-  )
+      afterAll(async () => {
+        browser = null
+      })
+      runTests()
+    })
+  })
 })

@@ -68,58 +68,48 @@ describe('edge api can use async local storage', () => {
 
   afterEach(() => next.destroy())
 
-  it.each(cases)(
-    'cans use $title per request',
-    async ({ code, expectResponse }) => {
-      next = await createNext({
-        files: {
-          'pages/index.js': `
+  it.each(cases)('cans use $title per request', async ({ code, expectResponse }) => {
+    next = await createNext({
+      files: {
+        'pages/index.js': `
             export default function () { return <div>Hello, world!</div> }
           `,
-          'pages/api/async.js': code,
-        },
-      })
-      const ids = Array.from({ length: 100 }, (_, i) => `req-${i}`)
+        'pages/api/async.js': code,
+      },
+    })
+    const ids = Array.from({ length: 100 }, (_, i) => `req-${i}`)
 
-      const responses = await Promise.all(
-        ids.map((id) =>
-          fetchViaHTTP(
-            next.url,
-            '/api/async',
-            {},
-            { headers: { 'req-id': id } }
-          ).then((response) =>
-            response.headers.get('content-type')?.startsWith('application/json')
-              ? response.json().then((json) => ({
-                  status: response.status,
-                  json,
-                  text: null,
-                }))
-              : response.text().then((text) => ({
-                  status: response.status,
-                  json: null,
-                  text,
-                }))
-          )
+    const responses = await Promise.all(
+      ids.map((id) =>
+        fetchViaHTTP(next.url, '/api/async', {}, { headers: { 'req-id': id } }).then((response) =>
+          response.headers.get('content-type')?.startsWith('application/json')
+            ? response.json().then((json) => ({
+                status: response.status,
+                json,
+                text: null,
+              }))
+            : response.text().then((text) => ({
+                status: response.status,
+                json: null,
+                text,
+              }))
         )
       )
-      const rankById = new Map(ids.map((id, rank) => [id, rank]))
+    )
+    const rankById = new Map(ids.map((id, rank) => [id, rank]))
 
-      const errors: Error[] = []
-      for (const [rank, response] of responses.entries()) {
-        try {
-          expectResponse(response, ids[rank])
-        } catch (error) {
-          const received = response.json?.id
-          console.log(
-            `response #${rank} has id from request #${rankById.get(received)}`
-          )
-          errors.push(error as Error)
-        }
-      }
-      if (errors.length) {
-        throw errors[0]
+    const errors: Error[] = []
+    for (const [rank, response] of responses.entries()) {
+      try {
+        expectResponse(response, ids[rank])
+      } catch (error) {
+        const received = response.json?.id
+        console.log(`response #${rank} has id from request #${rankById.get(received)}`)
+        errors.push(error as Error)
       }
     }
-  )
+    if (errors.length) {
+      throw errors[0]
+    }
+  })
 })

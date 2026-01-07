@@ -20,9 +20,7 @@ export default async function Index() {
   return (
     <div>
       <h1>Page with after() that tries to set cookies</h1>
-      <div id="cookie">
-        Cookie: {JSON.stringify(cookieStore.get('testCookie')?.value ?? null)}
-      </div>
+      <div id="cookie">Cookie: {JSON.stringify(cookieStore.get('testCookie')?.value ?? null)}</div>
       <form action={action}>
         <button type="submit">Submit</button>
       </form>

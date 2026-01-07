@@ -2,15 +2,10 @@ import { RedirectStatusCode } from '../client/components/redirect-status-code'
 
 export const allowedStatusCodes = new Set([301, 302, 303, 307, 308])
 
-export function getRedirectStatus(route: {
-  statusCode?: number
-  permanent?: boolean
-}): number {
+export function getRedirectStatus(route: { statusCode?: number; permanent?: boolean }): number {
   return (
     route.statusCode ||
-    (route.permanent
-      ? RedirectStatusCode.PermanentRedirect
-      : RedirectStatusCode.TemporaryRedirect)
+    (route.permanent ? RedirectStatusCode.PermanentRedirect : RedirectStatusCode.TemporaryRedirect)
   )
 }
 
@@ -21,9 +16,7 @@ export function modifyRouteRegex(regex: string, restrictedPaths?: string[]) {
   if (restrictedPaths) {
     regex = regex.replace(
       /\^/,
-      `^(?!${restrictedPaths
-        .map((path) => path.replace(/\//g, '\\/'))
-        .join('|')})`
+      `^(?!${restrictedPaths.map((path) => path.replace(/\//g, '\\/')).join('|')})`
     )
   }
   regex = regex.replace(/\$$/, '(?:\\/)?$')

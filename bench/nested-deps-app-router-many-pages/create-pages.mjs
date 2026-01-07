@@ -9,10 +9,7 @@ const templateDir = path.resolve(dirname, 'template')
 
 fs.mkdirSync(appDir, { recursive: true })
 
-fs.copyFileSync(
-  path.join(templateDir, 'root-layout.js'),
-  path.join(appDir, 'layout.js')
-)
+fs.copyFileSync(path.join(templateDir, 'root-layout.js'), path.join(appDir, 'layout.js'))
 
 for (let i = 0; i < 1000; i++) {
   const pageDir = path.join(appDir, 'page' + i)

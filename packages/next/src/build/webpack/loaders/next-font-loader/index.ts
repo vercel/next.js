@@ -7,8 +7,7 @@ import postcssNextFontPlugin from './postcss-next-font'
 import { promisify } from 'util'
 
 export default async function nextFontLoader(this: any) {
-  const nextFontLoaderSpan =
-    this.currentTraceSpan.traceChild('next-font-loader')
+  const nextFontLoaderSpan = this.currentTraceSpan.traceChild('next-font-loader')
   return nextFontLoaderSpan.traceAsyncFn(async () => {
     const callback = this.async()
 
@@ -31,9 +30,7 @@ export default async function nextFontLoader(this: any) {
 
     // Throw error if @next/font is used in _document.js
     if (/pages[\\/]_document\./.test(relativeFilePathFromRoot)) {
-      const err = new Error(
-        `${bold('Cannot')} be used within ${cyan('pages/_document.js')}.`
-      )
+      const err = new Error(`${bold('Cannot')} be used within ${cyan('pages/_document.js')}.`)
       err.name = 'NextFontError'
       if (process.env.NEXT_RSPACK) {
         // Rspack uses miette for error formatting, which automatically includes stack
@@ -45,13 +42,7 @@ export default async function nextFontLoader(this: any) {
       return
     }
 
-    const {
-      isDev,
-      isServer,
-      assetPrefix,
-      fontLoaderPath,
-      postcss: getPostcss,
-    } = this.getOptions()
+    const { isDev, isServer, assetPrefix, fontLoaderPath, postcss: getPostcss } = this.getOptions()
 
     if (assetPrefix && !/^\/|https?:\/\//.test(assetPrefix)) {
       const err = new Error(
@@ -81,9 +72,7 @@ export default async function nextFontLoader(this: any) {
       const opts = { context: this.rootContext, content }
       const interpolatedName = loaderUtils.interpolateName(
         this,
-        `static/media/[hash]${isUsingSizeAdjust ? '-s' : ''}${
-          preload ? '.p' : ''
-        }.${ext}`,
+        `static/media/[hash]${isUsingSizeAdjust ? '-s' : ''}${preload ? '.p' : ''}.${ext}`,
         opts
       )
       const outputPath = `${assetPrefix}/_next/${interpolatedName}`
@@ -108,9 +97,7 @@ export default async function nextFontLoader(this: any) {
             emitFontFile,
             resolve: (src: string) =>
               promisify(this.resolve)(
-                path.dirname(
-                  path.join(this.rootContext, relativeFilePathFromRoot)
-                ),
+                path.dirname(path.join(this.rootContext, relativeFilePathFromRoot)),
                 src.startsWith('.') ? src : `./${src}`
               ),
             isDev,
@@ -125,30 +112,23 @@ export default async function nextFontLoader(this: any) {
       const exports: { name: any; value: any }[] = []
 
       // Generate a hash from the CSS content. Used to generate classnames
-      const fontFamilyHash = loaderUtils.getHashDigest(
-        Buffer.from(css),
-        'sha1',
-        'hex',
-        6
-      )
+      const fontFamilyHash = loaderUtils.getHashDigest(Buffer.from(css), 'sha1', 'hex', 6)
 
       // Add CSS classes, exports and make the font-family locally scoped by turning it unguessable
-      const result = await nextFontLoaderSpan
-        .traceChild('postcss')
-        .traceAsyncFn(() =>
-          postcss(
-            postcssNextFontPlugin({
-              exports,
-              fallbackFonts,
-              weight,
-              style,
-              adjustFontFallback,
-              variable,
-            })
-          ).process(css, {
-            from: undefined,
+      const result = await nextFontLoaderSpan.traceChild('postcss').traceAsyncFn(() =>
+        postcss(
+          postcssNextFontPlugin({
+            exports,
+            fallbackFonts,
+            weight,
+            style,
+            adjustFontFallback,
+            variable,
           })
-        )
+        ).process(css, {
+          from: undefined,
+        })
+      )
 
       const ast = {
         type: 'postcss',

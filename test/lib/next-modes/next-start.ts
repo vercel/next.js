@@ -75,11 +75,7 @@ export class NextStartInstance extends NextInstance {
           this.childProcess.on('exit', (code, signal) => {
             this.childProcess = undefined
             if (code || signal)
-              reject(
-                new Error(
-                  `next build failed with code/signal ${code || signal}`
-                )
-              )
+              reject(new Error(`next build failed with code/signal ${code || signal}`))
             else resolve()
           })
           const prerenderedCallback = (msg: string) => {
@@ -93,10 +89,7 @@ export class NextStartInstance extends NextInstance {
           }
           this.on('stdout', prerenderedCallback)
         } catch (err) {
-          require('console').error(
-            `Failed to run ${shellQuote(buildArgs)}`,
-            err
-          )
+          require('console').error(`Failed to run ${shellQuote(buildArgs)}`, err)
           setTimeout(() => process.exit(1), 0)
         }
       })
@@ -104,11 +97,7 @@ export class NextStartInstance extends NextInstance {
       this._buildId = (
         await fs
           .readFile(
-            path.join(
-              this.testDir,
-              this.nextConfig?.distDir || '.next',
-              'BUILD_ID'
-            ),
+            path.join(this.testDir, this.nextConfig?.distDir || '.next', 'BUILD_ID'),
             'utf8'
           )
           .catch(() => '')
@@ -124,9 +113,7 @@ export class NextStartInstance extends NextInstance {
         this.childProcess.on('close', (code, signal) => {
           this.childProcess = undefined
           if (code || signal) {
-            let message = `next start exited unexpectedly with code/signal ${
-              code || signal
-            }`
+            let message = `next start exited unexpectedly with code/signal ${code || signal}`
             if (!this.isStopping) {
               require('console').error(message)
             }
@@ -134,10 +121,7 @@ export class NextStartInstance extends NextInstance {
           }
         })
 
-        const serverReadyTimeoutId = this.setServerReadyTimeout(
-          reject,
-          this.startServerTimeout
-        )
+        const serverReadyTimeoutId = this.setServerReadyTimeout(reject, this.startServerTimeout)
 
         const readyCb = (msg) => {
           const colorStrippedMsg = stripAnsi(msg)
@@ -190,9 +174,7 @@ export class NextStartInstance extends NextInstance {
     return buildArgs
   }
 
-  private getSpawnOpts(
-    env?: Record<string, string>
-  ): import('child_process').SpawnOptions {
+  private getSpawnOpts(env?: Record<string, string>): import('child_process').SpawnOptions {
     return {
       cwd: this.testDir,
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -208,13 +190,9 @@ export class NextStartInstance extends NextInstance {
     }
   }
 
-  public async build(
-    options: { env?: Record<string, string>; args?: string[] } = {}
-  ) {
+  public async build(options: { env?: Record<string, string>; args?: string[] } = {}) {
     if (this.childProcess) {
-      throw new Error(
-        `can not run export while server is running, use next.stop() first`
-      )
+      throw new Error(`can not run export while server is running, use next.stop() first`)
     }
 
     let result = await new Promise<{
@@ -241,14 +219,7 @@ export class NextStartInstance extends NextInstance {
 
     this._buildId = (
       await fs
-        .readFile(
-          path.join(
-            this.testDir,
-            this.nextConfig?.distDir || '.next',
-            'BUILD_ID'
-          ),
-          'utf8'
-        )
+        .readFile(path.join(this.testDir, this.nextConfig?.distDir || '.next', 'BUILD_ID'), 'utf8')
         .catch(() => '')
     ).trim()
 
@@ -266,11 +237,7 @@ export class NextStartInstance extends NextInstance {
     const prerenderAge = performance.now() - this._prerenderFinishedTimeMS
     const minWaitTime = minAgeMS - prerenderAge
     if (minWaitTime > 0) {
-      console.log(
-        'Need to wait %dms to guarantee prerender age of %dms',
-        minWaitTime,
-        minAgeMS
-      )
+      console.log('Need to wait %dms to guarantee prerender age of %dms', minWaitTime, minAgeMS)
       await new Promise((resolve) => {
         setTimeout(resolve, minWaitTime)
       })

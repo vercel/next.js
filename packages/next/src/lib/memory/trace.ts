@@ -48,10 +48,7 @@ export function getAllMemoryUsageSpans(): MemoryUsage[] {
  * Records a snapshot of memory usage at this moment in time to the .next/trace
  * file.
  */
-export function traceMemoryUsage(
-  description: string,
-  parentSpan?: Span | undefined
-): void {
+export function traceMemoryUsage(description: string, parentSpan?: Span | undefined): void {
   const memoryUsage = process.memoryUsage()
   const v8HeapStatistics = v8.getHeapStatistics()
   const heapUsed = v8HeapStatistics.used_heap_size
@@ -64,10 +61,7 @@ export function traceMemoryUsage(
   }
   allMemoryUsage.push(tracedMemoryUsage)
   const tracedMemoryUsageAsStrings = Object.fromEntries(
-    Object.entries(tracedMemoryUsage).map(([key, value]) => [
-      key,
-      String(value),
-    ])
+    Object.entries(tracedMemoryUsage).map(([key, value]) => [key, String(value)])
   )
   if (parentSpan) {
     parentSpan.traceChild('memory-usage', tracedMemoryUsageAsStrings)
@@ -82,11 +76,7 @@ export function traceMemoryUsage(
     info(`Memory usage report at "${description}":`)
     info(` - RSS: ${(memoryUsage.rss / 1024 / 1024).toFixed(2)} MB`)
     info(` - Heap Used: ${(heapUsed / 1024 / 1024).toFixed(2)} MB`)
-    info(
-      ` - Heap Total Allocated: ${(memoryUsage.heapTotal / 1024 / 1024).toFixed(
-        2
-      )} MB`
-    )
+    info(` - Heap Total Allocated: ${(memoryUsage.heapTotal / 1024 / 1024).toFixed(2)} MB`)
     info(` - Heap Max: ${(heapMax / 1024 / 1024).toFixed(2)} MB`)
     info(` - Percentage Heap Used: ${percentageHeapUsed.toFixed(2)}%`)
     info('***************************************')
@@ -94,10 +84,7 @@ export function traceMemoryUsage(
 
     if (percentageHeapUsed > HEAP_SNAPSHOT_THRESHOLD_PERCENT) {
       const distDir = traceGlobals.get('distDir')
-      const heapFilename = join(
-        distDir,
-        `${description.replace(' ', '-')}.heapsnapshot`
-      )
+      const heapFilename = join(distDir, `${description.replace(' ', '-')}.heapsnapshot`)
       warn(
         bold(
           `Heap usage is close to the limit. ${percentageHeapUsed.toFixed(
@@ -108,17 +95,13 @@ export function traceMemoryUsage(
       if (!alreadyGeneratedHeapSnapshot) {
         warn(
           bold(
-            `Saving heap snapshot to ${heapFilename}.  ${italic(
-              'Note: this will take some time.'
-            )}`
+            `Saving heap snapshot to ${heapFilename}.  ${italic('Note: this will take some time.')}`
           )
         )
         v8.writeHeapSnapshot(heapFilename)
         alreadyGeneratedHeapSnapshot = true
       } else {
-        warn(
-          'Skipping heap snapshot generation since heap snapshot has already been generated.'
-        )
+        warn('Skipping heap snapshot generation since heap snapshot has already been generated.')
       }
     }
   }

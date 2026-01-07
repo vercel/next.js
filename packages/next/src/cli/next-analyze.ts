@@ -37,9 +37,7 @@ const nextAnalyze = async (options: NextAnalyzeOptions, directory?: string) => {
   }
 
   if (profile) {
-    warn(
-      `Profiling is enabled. ${italic('Note: This may affect performance.')}`
-    )
+    warn(`Profiling is enabled. ${italic('Note: This may affect performance.')}`)
   }
 
   const dir = getProjectDir(directory)

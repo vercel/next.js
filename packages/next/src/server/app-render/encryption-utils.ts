@@ -3,9 +3,7 @@ import { getServerActionsManifest } from './manifests-singleton'
 
 let __next_loaded_action_key: CryptoKey
 
-export function arrayBufferToString(
-  buffer: ArrayBuffer | Uint8Array<ArrayBufferLike>
-) {
+export function arrayBufferToString(buffer: ArrayBuffer | Uint8Array<ArrayBufferLike>) {
   const bytes = new Uint8Array(buffer)
   const len = bytes.byteLength
 
@@ -72,8 +70,7 @@ export async function getActionEncryptionKey() {
   const serverActionsManifest = getServerActionsManifest()
 
   const rawKey =
-    process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY ||
-    serverActionsManifest.encryptionKey
+    process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY || serverActionsManifest.encryptionKey
 
   if (rawKey === undefined) {
     throw new InvariantError('Missing encryption key for Server Actions')

@@ -84,330 +84,279 @@ const testExitSignal = async (
 }
 
 describe('CLI Usage', () => {
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      describe('start', () => {
-        test('should exit when SIGINT is signalled', async () => {
-          require('console').log('before build')
-          await fs.remove(join(dirBasic, '.next'))
-          await nextBuild(dirBasic, undefined, {
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
+    describe('start', () => {
+      test('should exit when SIGINT is signalled', async () => {
+        require('console').log('before build')
+        await fs.remove(join(dirBasic, '.next'))
+        await nextBuild(dirBasic, undefined, {
+          onStdout(msg) {
+            console.log(msg)
+          },
+          onStderr(msg) {
+            console.log(msg)
+          },
+        })
+        require('console').log('build finished')
+
+        const port = await findPort()
+        await testExitSignal('SIGINT', ['start', dirBasic, '-p', port], /- Local:/)
+      })
+      test('should exit when SIGTERM is signalled', async () => {
+        await fs.remove(join(dirBasic, '.next'))
+        await nextBuild(dirBasic, undefined, {
+          onStdout(msg) {
+            console.log(msg)
+          },
+          onStderr(msg) {
+            console.log(msg)
+          },
+        })
+        const port = await findPort()
+        await testExitSignal('SIGTERM', ['start', dirBasic, '-p', port], /- Local:/)
+      })
+
+      test('--help', async () => {
+        const help = await runNextCommand(['start', '--help'], {
+          stdout: true,
+        })
+        expect(help.stdout).toMatch(/Starts Next.js in production mode/)
+      })
+
+      test('-h', async () => {
+        const help = await runNextCommand(['start', '-h'], {
+          stdout: true,
+        })
+        expect(help.stdout).toMatch(/Starts Next.js in production mode/)
+      })
+
+      test('should format IPv6 addresses correctly', async () => {
+        await nextBuild(dirBasic)
+        const port = await findPort()
+
+        let stdout = ''
+        const app = await runNextCommandDev(
+          ['start', dirBasic, '--hostname', '::', '--port', '' + port],
+          undefined,
+          {
+            nextStart: true,
             onStdout(msg) {
-              console.log(msg)
+              stdout += msg
             },
-            onStderr(msg) {
-              console.log(msg)
-            },
-          })
-          require('console').log('build finished')
-
-          const port = await findPort()
-          await testExitSignal(
-            'SIGINT',
-            ['start', dirBasic, '-p', port],
-            /- Local:/
-          )
-        })
-        test('should exit when SIGTERM is signalled', async () => {
-          await fs.remove(join(dirBasic, '.next'))
-          await nextBuild(dirBasic, undefined, {
-            onStdout(msg) {
-              console.log(msg)
-            },
-            onStderr(msg) {
-              console.log(msg)
-            },
-          })
-          const port = await findPort()
-          await testExitSignal(
-            'SIGTERM',
-            ['start', dirBasic, '-p', port],
-            /- Local:/
-          )
-        })
-
-        test('--help', async () => {
-          const help = await runNextCommand(['start', '--help'], {
-            stdout: true,
-          })
-          expect(help.stdout).toMatch(/Starts Next.js in production mode/)
-        })
-
-        test('-h', async () => {
-          const help = await runNextCommand(['start', '-h'], {
-            stdout: true,
-          })
-          expect(help.stdout).toMatch(/Starts Next.js in production mode/)
-        })
-
-        test('should format IPv6 addresses correctly', async () => {
-          await nextBuild(dirBasic)
-          const port = await findPort()
-
-          let stdout = ''
-          const app = await runNextCommandDev(
-            ['start', dirBasic, '--hostname', '::', '--port', '' + port],
-            undefined,
-            {
-              nextStart: true,
-              onStdout(msg) {
-                stdout += msg
-              },
-            }
-          )
-
-          try {
-            await retry(() => {
-              // Only display when hostname is provided
-              expect(stdout).toMatch(
-                new RegExp(`Network:\\s*http://\\[::\\]:${port}`)
-              )
-              expect(stdout).toMatch(new RegExp(`http://\\[::1\\]:${port}`))
-            })
-          } finally {
-            await killApp(app)
           }
-        })
+        )
 
-        test('should warn when unknown argument provided', async () => {
-          const { stderr } = await runNextCommand(['start', '--random'], {
-            stderr: true,
+        try {
+          await retry(() => {
+            // Only display when hostname is provided
+            expect(stdout).toMatch(new RegExp(`Network:\\s*http://\\[::\\]:${port}`))
+            expect(stdout).toMatch(new RegExp(`http://\\[::1\\]:${port}`))
           })
-          expect(stderr).toEqual(`error: unknown option '--random'\n`)
-        })
-        test('should not throw UnhandledPromiseRejectionWarning', async () => {
-          const { stderr } = await runNextCommand(['start', '--random'], {
-            stderr: true,
-          })
-          expect(stderr).not.toContain('UnhandledPromiseRejectionWarning')
-        })
-
-        test('duplicate sass deps', async () => {
-          const port = await findPort()
-
-          let stderr = ''
-          let instance = await launchApp(dirDuplicateSass, port, {
-            onStderr(msg) {
-              stderr += msg
-            },
-          })
-
-          try {
-            await check(() => stderr, /both `sass` and `node-sass` installed/)
-          } finally {
-            await killApp(instance).catch(() => {})
-          }
-        })
-
-        test('invalid directory', async () => {
-          const output = await runNextCommand(['start', 'non-existent'], {
-            stderr: true,
-          })
-          expect(output.stderr).toContain(
-            'Invalid project directory provided, no such directory'
-          )
-        })
-
-        test('--keepAliveTimeout string arg', async () => {
-          const { stderr } = await runNextCommand(
-            ['start', '--keepAliveTimeout', 'string'],
-            {
-              stderr: true,
-            }
-          )
-          expect(stderr).toContain(
-            `error: option '--keepAliveTimeout <keepAliveTimeout>' argument 'string' is invalid. 'string' is not a non-negative number.`
-          )
-        })
-
-        test('--keepAliveTimeout negative number', async () => {
-          const { stderr } = await runNextCommand(
-            ['start', '--keepAliveTimeout=-100'],
-            {
-              stderr: true,
-            }
-          )
-          expect(stderr).toContain(
-            `error: option '--keepAliveTimeout <keepAliveTimeout>' argument '-100' is invalid. '-100' is not a non-negative number.`
-          )
-        })
-
-        test('--keepAliveTimeout Infinity', async () => {
-          const { stderr } = await runNextCommand(
-            ['start', '--keepAliveTimeout', 'Infinity'],
-            {
-              stderr: true,
-            }
-          )
-          expect(stderr).toContain(
-            `error: option '--keepAliveTimeout <keepAliveTimeout>' argument 'Infinity' is invalid. 'Infinity' is not a non-negative number.`
-          )
-        })
-
-        test('--keepAliveTimeout happy path', async () => {
-          const { stderr } = await runNextCommand(
-            ['start', '--keepAliveTimeout', '100'],
-            {
-              stderr: true,
-            }
-          )
-          expect(stderr).not.toContain(
-            `error: option '--keepAliveTimeout <keepAliveTimeout>' argument '100' is invalid. '100' is not a non-negative number.`
-          )
-        })
-
-        test('should not start on a port out of range', async () => {
-          const invalidPort = '300001'
-          const { stderr } = await runNextCommand(
-            ['start', '--port', invalidPort],
-            {
-              stderr: true,
-            }
-          )
-
-          expect(stderr).toContain(`options.port should be >= 0 and < 65536.`)
-        })
-
-        test('should not start on a reserved port', async () => {
-          const reservedPort = '4045'
-          const { stderr } = await runNextCommand(
-            ['start', '--port', reservedPort],
-            {
-              stderr: true,
-            }
-          )
-
-          expect(stderr).toContain(
-            `Bad port: "${reservedPort}" is reserved for npp`
-          )
-        })
+        } finally {
+          await killApp(app)
+        }
       })
 
-      describe('telemetry', () => {
-        test('--help', async () => {
-          const help = await runNextCommand(['telemetry', '--help'], {
-            stdout: true,
-          })
-          expect(help.stdout).toMatch(
-            /Allows you to enable or disable Next\.js'/
-          )
+      test('should warn when unknown argument provided', async () => {
+        const { stderr } = await runNextCommand(['start', '--random'], {
+          stderr: true,
         })
-
-        test('-h', async () => {
-          const help = await runNextCommand(['telemetry', '-h'], {
-            stdout: true,
-          })
-          expect(help.stdout).toMatch(
-            /Allows you to enable or disable Next\.js'/
-          )
+        expect(stderr).toEqual(`error: unknown option '--random'\n`)
+      })
+      test('should not throw UnhandledPromiseRejectionWarning', async () => {
+        const { stderr } = await runNextCommand(['start', '--random'], {
+          stderr: true,
         })
-
-        test('should warn when unknown argument provided', async () => {
-          const { stderr } = await runNextCommand(['telemetry', '--random'], {
-            stderr: true,
-          })
-          expect(stderr).toEqual(`error: unknown option '--random'\n`)
-        })
-        test('should not throw UnhandledPromiseRejectionWarning', async () => {
-          const { stderr } = await runNextCommand(['telemetry', '--random'], {
-            stderr: true,
-          })
-          expect(stderr).not.toContain('UnhandledPromiseRejectionWarning')
-        })
+        expect(stderr).not.toContain('UnhandledPromiseRejectionWarning')
       })
 
-      describe('build', () => {
-        test('--help', async () => {
-          const help = await runNextCommand(['build', '--help'], {
-            stdout: true,
-          })
-          expect(help.stdout).toMatch(/Creates an optimized production build/)
+      test('duplicate sass deps', async () => {
+        const port = await findPort()
+
+        let stderr = ''
+        let instance = await launchApp(dirDuplicateSass, port, {
+          onStderr(msg) {
+            stderr += msg
+          },
         })
 
-        test('-h', async () => {
-          const help = await runNextCommand(['build', '-h'], {
-            stdout: true,
-          })
-          expect(help.stdout).toMatch(/Creates an optimized production build/)
-        })
-
-        test('should warn when unknown argument provided', async () => {
-          const { stderr } = await runNextCommand(['build', '--random'], {
-            stderr: true,
-          })
-          expect(stderr).toEqual(`error: unknown option '--random'\n`)
-        })
-        test('should not throw UnhandledPromiseRejectionWarning', async () => {
-          const { stderr } = await runNextCommand(['build', '--random'], {
-            stderr: true,
-          })
-          expect(stderr).not.toContain('UnhandledPromiseRejectionWarning')
-        })
-
-        test('should exit when SIGINT is signalled', async () => {
-          await testExitSignal('SIGINT', ['build', dirBasic], undefined, 130)
-        })
-
-        test('should exit when SIGTERM is signalled', async () => {
-          await testExitSignal('SIGTERM', ['build', dirBasic], undefined, 143)
-        })
-
-        test('invalid directory', async () => {
-          const output = await runNextCommand(['build', 'non-existent'], {
-            stderr: true,
-          })
-          expect(output.stderr).toContain(
-            'Invalid project directory provided, no such directory'
-          )
-        })
+        try {
+          await check(() => stderr, /both `sass` and `node-sass` installed/)
+        } finally {
+          await killApp(instance).catch(() => {})
+        }
       })
-    }
-  )
+
+      test('invalid directory', async () => {
+        const output = await runNextCommand(['start', 'non-existent'], {
+          stderr: true,
+        })
+        expect(output.stderr).toContain('Invalid project directory provided, no such directory')
+      })
+
+      test('--keepAliveTimeout string arg', async () => {
+        const { stderr } = await runNextCommand(['start', '--keepAliveTimeout', 'string'], {
+          stderr: true,
+        })
+        expect(stderr).toContain(
+          `error: option '--keepAliveTimeout <keepAliveTimeout>' argument 'string' is invalid. 'string' is not a non-negative number.`
+        )
+      })
+
+      test('--keepAliveTimeout negative number', async () => {
+        const { stderr } = await runNextCommand(['start', '--keepAliveTimeout=-100'], {
+          stderr: true,
+        })
+        expect(stderr).toContain(
+          `error: option '--keepAliveTimeout <keepAliveTimeout>' argument '-100' is invalid. '-100' is not a non-negative number.`
+        )
+      })
+
+      test('--keepAliveTimeout Infinity', async () => {
+        const { stderr } = await runNextCommand(['start', '--keepAliveTimeout', 'Infinity'], {
+          stderr: true,
+        })
+        expect(stderr).toContain(
+          `error: option '--keepAliveTimeout <keepAliveTimeout>' argument 'Infinity' is invalid. 'Infinity' is not a non-negative number.`
+        )
+      })
+
+      test('--keepAliveTimeout happy path', async () => {
+        const { stderr } = await runNextCommand(['start', '--keepAliveTimeout', '100'], {
+          stderr: true,
+        })
+        expect(stderr).not.toContain(
+          `error: option '--keepAliveTimeout <keepAliveTimeout>' argument '100' is invalid. '100' is not a non-negative number.`
+        )
+      })
+
+      test('should not start on a port out of range', async () => {
+        const invalidPort = '300001'
+        const { stderr } = await runNextCommand(['start', '--port', invalidPort], {
+          stderr: true,
+        })
+
+        expect(stderr).toContain(`options.port should be >= 0 and < 65536.`)
+      })
+
+      test('should not start on a reserved port', async () => {
+        const reservedPort = '4045'
+        const { stderr } = await runNextCommand(['start', '--port', reservedPort], {
+          stderr: true,
+        })
+
+        expect(stderr).toContain(`Bad port: "${reservedPort}" is reserved for npp`)
+      })
+    })
+
+    describe('telemetry', () => {
+      test('--help', async () => {
+        const help = await runNextCommand(['telemetry', '--help'], {
+          stdout: true,
+        })
+        expect(help.stdout).toMatch(/Allows you to enable or disable Next\.js'/)
+      })
+
+      test('-h', async () => {
+        const help = await runNextCommand(['telemetry', '-h'], {
+          stdout: true,
+        })
+        expect(help.stdout).toMatch(/Allows you to enable or disable Next\.js'/)
+      })
+
+      test('should warn when unknown argument provided', async () => {
+        const { stderr } = await runNextCommand(['telemetry', '--random'], {
+          stderr: true,
+        })
+        expect(stderr).toEqual(`error: unknown option '--random'\n`)
+      })
+      test('should not throw UnhandledPromiseRejectionWarning', async () => {
+        const { stderr } = await runNextCommand(['telemetry', '--random'], {
+          stderr: true,
+        })
+        expect(stderr).not.toContain('UnhandledPromiseRejectionWarning')
+      })
+    })
+
+    describe('build', () => {
+      test('--help', async () => {
+        const help = await runNextCommand(['build', '--help'], {
+          stdout: true,
+        })
+        expect(help.stdout).toMatch(/Creates an optimized production build/)
+      })
+
+      test('-h', async () => {
+        const help = await runNextCommand(['build', '-h'], {
+          stdout: true,
+        })
+        expect(help.stdout).toMatch(/Creates an optimized production build/)
+      })
+
+      test('should warn when unknown argument provided', async () => {
+        const { stderr } = await runNextCommand(['build', '--random'], {
+          stderr: true,
+        })
+        expect(stderr).toEqual(`error: unknown option '--random'\n`)
+      })
+      test('should not throw UnhandledPromiseRejectionWarning', async () => {
+        const { stderr } = await runNextCommand(['build', '--random'], {
+          stderr: true,
+        })
+        expect(stderr).not.toContain('UnhandledPromiseRejectionWarning')
+      })
+
+      test('should exit when SIGINT is signalled', async () => {
+        await testExitSignal('SIGINT', ['build', dirBasic], undefined, 130)
+      })
+
+      test('should exit when SIGTERM is signalled', async () => {
+        await testExitSignal('SIGTERM', ['build', dirBasic], undefined, 143)
+      })
+
+      test('invalid directory', async () => {
+        const output = await runNextCommand(['build', 'non-existent'], {
+          stderr: true,
+        })
+        expect(output.stderr).toContain('Invalid project directory provided, no such directory')
+      })
+    })
+  })
 
   describe('no command', () => {
     test('--help', async () => {
       const help = await runNextCommand(['--help'], {
         stdout: true,
       })
-      expect(help.stdout).toMatch(
-        /The Next.js CLI allows you to develop, build, start/
-      )
+      expect(help.stdout).toMatch(/The Next.js CLI allows you to develop, build, start/)
     })
 
     test('-h', async () => {
       const help = await runNextCommand(['-h'], {
         stdout: true,
       })
-      expect(help.stdout).toMatch(
-        /The Next.js CLI allows you to develop, build, start/
-      )
+      expect(help.stdout).toMatch(/The Next.js CLI allows you to develop, build, start/)
     })
 
     test('--version', async () => {
       const output = await runNextCommand(['--version'], {
         stdout: true,
       })
-      expect(output.stdout).toMatch(
-        new RegExp(`Next\\.js v${pkg.version.replace(/\./g, '\\.')}`)
-      )
+      expect(output.stdout).toMatch(new RegExp(`Next\\.js v${pkg.version.replace(/\./g, '\\.')}`))
     })
 
     test('-v', async () => {
       const output = await runNextCommand(['--version'], {
         stdout: true,
       })
-      expect(output.stdout).toMatch(
-        new RegExp(`Next\\.js v${pkg.version.replace(/\./g, '\\.')}`)
-      )
+      expect(output.stdout).toMatch(new RegExp(`Next\\.js v${pkg.version.replace(/\./g, '\\.')}`))
     })
 
     test('invalid directory', async () => {
       const output = await runNextCommand(['non-existent'], {
         stderr: true,
       })
-      expect(output.stderr).toContain(
-        'Invalid project directory provided, no such directory'
-      )
+      expect(output.stderr).toContain('Invalid project directory provided, no such directory')
     })
 
     test('detects command typos', async () => {
@@ -448,15 +397,11 @@ describe('CLI Usage', () => {
     test('custom directory', async () => {
       const port = await findPort()
       let output = ''
-      const app = await runNextCommandDev(
-        [dirBasic, '--port', '' + port],
-        undefined,
-        {
-          onStdout(msg) {
-            output += stripAnsi(msg)
-          },
-        }
-      )
+      const app = await runNextCommandDev([dirBasic, '--port', '' + port], undefined, {
+        onStdout(msg) {
+          output += stripAnsi(msg)
+        },
+      })
       try {
         await check(() => output, /- Local:/i)
       } finally {
@@ -467,21 +412,14 @@ describe('CLI Usage', () => {
     test('--port', async () => {
       const port = await findPort()
       let output = ''
-      const app = await runNextCommandDev(
-        [dirBasic, '--port', '' + port],
-        undefined,
-        {
-          onStdout(msg) {
-            output += stripAnsi(msg)
-          },
-        }
-      )
+      const app = await runNextCommandDev([dirBasic, '--port', '' + port], undefined, {
+        onStdout(msg) {
+          output += stripAnsi(msg)
+        },
+      })
       try {
         await check(() => output, new RegExp(`http://localhost:${port}`))
-        await check(
-          () => output,
-          /Network:\s*http:\/\/[\d]{1,}\.[\d]{1,}\.[\d]{1,}/
-        )
+        await check(() => output, /Network:\s*http:\/\/[\d]{1,}\.[\d]{1,}\.[\d]{1,}/)
       } finally {
         await killApp(app)
       }
@@ -490,21 +428,14 @@ describe('CLI Usage', () => {
     test('--port 0', async () => {
       const port = await findPort()
       let output = ''
-      const app = await runNextCommandDev(
-        [dirBasic, '--port', '' + port],
-        undefined,
-        {
-          onStdout(msg) {
-            output += stripAnsi(msg)
-          },
-        }
-      )
+      const app = await runNextCommandDev([dirBasic, '--port', '' + port], undefined, {
+        onStdout(msg) {
+          output += stripAnsi(msg)
+        },
+      })
       try {
         await check(() => output, new RegExp(`http://localhost:${port}`))
-        await check(
-          () => output,
-          /Network:\s*http:\/\/[\d]{1,}\.[\d]{1,}\.[\d]{1,}/
-        )
+        await check(() => output, /Network:\s*http:\/\/[\d]{1,}\.[\d]{1,}\.[\d]{1,}/)
       } finally {
         await killApp(app)
       }
@@ -545,19 +476,15 @@ describe('CLI Usage', () => {
       const port = await findPort()
       let output = ''
       let errOutput = ''
-      const app = await runNextCommandDev(
-        [dirBasic, '--port', '' + port],
-        undefined,
-        {
-          onStdout(msg) {
-            output += stripAnsi(msg)
-          },
-          onStderr(msg) {
-            errOutput += stripAnsi(msg)
-          },
-          env: { NODE_OPTIONS: '--inspect' },
-        }
-      )
+      const app = await runNextCommandDev([dirBasic, '--port', '' + port], undefined, {
+        onStdout(msg) {
+          output += stripAnsi(msg)
+        },
+        onStderr(msg) {
+          errOutput += stripAnsi(msg)
+        },
+        env: { NODE_OPTIONS: '--inspect' },
+      })
       try {
         await check(() => output, new RegExp(`http://localhost:${port}`))
         await check(() => output, /- Debugger port:\s+\d+/)
@@ -572,18 +499,14 @@ describe('CLI Usage', () => {
       const port = await findPort()
       let output = ''
       let errOutput = ''
-      const app = await runNextCommandDev(
-        [dirBasic, '--port', '' + port, '--inspect'],
-        undefined,
-        {
-          onStdout(msg) {
-            output += stripAnsi(msg)
-          },
-          onStderr(msg) {
-            errOutput += stripAnsi(msg)
-          },
-        }
-      )
+      const app = await runNextCommandDev([dirBasic, '--port', '' + port, '--inspect'], undefined, {
+        onStdout(msg) {
+          output += stripAnsi(msg)
+        },
+        onStderr(msg) {
+          errOutput += stripAnsi(msg)
+        },
+      })
       try {
         await check(() => output, new RegExp(`http://localhost:${port}`))
         await check(() => output, /- Debugger port:\s+9229/)
@@ -650,19 +573,15 @@ describe('CLI Usage', () => {
       const port = await findPort()
       let output = ''
       let errOutput = ''
-      const app = await runNextCommandDev(
-        [dirBasic, '--port', '' + port],
-        undefined,
-        {
-          onStdout(msg) {
-            output += stripAnsi(msg)
-          },
-          onStderr(msg) {
-            errOutput += stripAnsi(msg)
-          },
-          env: { NODE_OPTIONS: '--inspect=:0' },
-        }
-      )
+      const app = await runNextCommandDev([dirBasic, '--port', '' + port], undefined, {
+        onStdout(msg) {
+          output += stripAnsi(msg)
+        },
+        onStderr(msg) {
+          errOutput += stripAnsi(msg)
+        },
+        env: { NODE_OPTIONS: '--inspect=:0' },
+      })
       try {
         await check(() => output, new RegExp(`http://localhost:${port}`))
         await check(() => output, /- Debugger port:\s+\d+/)
@@ -679,28 +598,21 @@ describe('CLI Usage', () => {
       const port = await findPort()
       let output = ''
       let errOutput = ''
-      const app = await runNextCommandDev(
-        [dirBasic, '--port', '' + port],
-        undefined,
-        {
-          cwd: dirBasic,
-          onStdout(msg) {
-            output += stripAnsi(msg)
-          },
-          onStderr(msg) {
-            errOutput += stripAnsi(msg)
-          },
-          env: {
-            NODE_OPTIONS:
-              '--require "./file with spaces to-require-with-node-require-option.js"',
-          },
-        }
-      )
+      const app = await runNextCommandDev([dirBasic, '--port', '' + port], undefined, {
+        cwd: dirBasic,
+        onStdout(msg) {
+          output += stripAnsi(msg)
+        },
+        onStderr(msg) {
+          errOutput += stripAnsi(msg)
+        },
+        env: {
+          NODE_OPTIONS: '--require "./file with spaces to-require-with-node-require-option.js"',
+        },
+      })
       try {
         await check(() => output, new RegExp(`http://localhost:${port}`))
-        expect(output).toContain(
-          'FILE_WITH_SPACES_TO_REQUIRE_WITH_NODE_REQUIRE_OPTION'
-        )
+        expect(output).toContain('FILE_WITH_SPACES_TO_REQUIRE_WITH_NODE_REQUIRE_OPTION')
         expect(errOutput).toBe('')
       } finally {
         await killApp(app)
@@ -712,27 +624,21 @@ describe('CLI Usage', () => {
       const port = await findPort()
       let output = ''
       let errOutput = ''
-      const app = await runNextCommandDev(
-        [dirBasic, '--port', '' + port],
-        undefined,
-        {
-          cwd: dirBasic,
-          onStdout(msg) {
-            output += stripAnsi(msg)
-          },
-          onStderr(msg) {
-            errOutput += stripAnsi(msg)
-          },
-          env: {
-            NODE_OPTIONS: '--require "./file with spaces to --require.js"',
-          },
-        }
-      )
+      const app = await runNextCommandDev([dirBasic, '--port', '' + port], undefined, {
+        cwd: dirBasic,
+        onStdout(msg) {
+          output += stripAnsi(msg)
+        },
+        onStderr(msg) {
+          errOutput += stripAnsi(msg)
+        },
+        env: {
+          NODE_OPTIONS: '--require "./file with spaces to --require.js"',
+        },
+      })
       try {
         await check(() => output, new RegExp(`http://localhost:${port}`))
-        expect(output).toContain(
-          'FILE_WITH_SPACES_TO_REQUIRE_WITH_NODE_REQUIRE_OPTION'
-        )
+        expect(output).toContain('FILE_WITH_SPACES_TO_REQUIRE_WITH_NODE_REQUIRE_OPTION')
         expect(errOutput).toBe('')
       } finally {
         await killApp(app)
@@ -742,16 +648,12 @@ describe('CLI Usage', () => {
     test('-p', async () => {
       const port = await findPort()
       let output = ''
-      const app = await runNextCommandDev(
-        [dirBasic, '-p', '' + port],
-        undefined,
-        {
-          onStdout(msg) {
-            output += stripAnsi(msg)
-          },
-          env: { NODE_OPTIONS: '--inspect' },
-        }
-      )
+      const app = await runNextCommandDev([dirBasic, '-p', '' + port], undefined, {
+        onStdout(msg) {
+          output += stripAnsi(msg)
+        },
+        env: { NODE_OPTIONS: '--inspect' },
+      })
       try {
         await check(() => output, new RegExp(`http://localhost:${port}`))
       } finally {
@@ -799,9 +701,7 @@ describe('CLI Usage', () => {
       })
 
       expect(stdout).toMatch('')
-      expect(stderr).toMatch(
-        `Bad port: "${TCP_MUX_PORT}" is reserved for tcpmux`
-      )
+      expect(stderr).toMatch(`Bad port: "${TCP_MUX_PORT}" is reserved for tcpmux`)
     })
 
     test('--hostname', async () => {
@@ -817,10 +717,7 @@ describe('CLI Usage', () => {
         }
       )
       try {
-        await check(
-          () => output,
-          new RegExp(`Network:\\s*http://0.0.0.0:${port}`)
-        )
+        await check(() => output, new RegExp(`Network:\\s*http://0.0.0.0:${port}`))
         await check(() => output, new RegExp(`http://localhost:${port}`))
       } finally {
         await killApp(app)
@@ -840,10 +737,7 @@ describe('CLI Usage', () => {
         }
       )
       try {
-        await check(
-          () => output,
-          new RegExp(`Network:\\s*http://0.0.0.0:${port}`)
-        )
+        await check(() => output, new RegExp(`Network:\\s*http://0.0.0.0:${port}`))
         await check(() => output, new RegExp(`http://localhost:${port}`))
       } finally {
         await killApp(app)
@@ -882,10 +776,7 @@ describe('CLI Usage', () => {
     })
 
     test('--experimental-https with provided key/cert', async () => {
-      const keyFile = path.resolve(
-        __dirname,
-        '../certificates/localhost-key.pem'
-      )
+      const keyFile = path.resolve(__dirname, '../certificates/localhost-key.pem')
       const certFile = path.resolve(__dirname, '../certificates/localhost.pem')
       const port = await findPort()
       let output = ''
@@ -928,10 +819,7 @@ describe('CLI Usage', () => {
       )
       try {
         // Only display when hostname is provided
-        await check(
-          () => output,
-          new RegExp(`Network:\\s*\\http://\\[::\\]:${port}`)
-        )
+        await check(() => output, new RegExp(`Network:\\s*\\http://\\[::\\]:${port}`))
         await check(() => output, new RegExp(`http://\\[::1\\]:${port}`))
       } finally {
         await killApp(app).catch(() => {})
@@ -964,9 +852,7 @@ describe('CLI Usage', () => {
       const output = await runNextCommand(['dev', 'non-existent'], {
         stderr: true,
       })
-      expect(output.stderr).toContain(
-        'Invalid project directory provided, no such directory'
-      )
+      expect(output.stderr).toContain('Invalid project directory provided, no such directory')
     })
   })
 
@@ -976,9 +862,7 @@ describe('CLI Usage', () => {
         stdout: true,
         stderr: true,
       })
-      expect(help.stderr).toMatch(
-        `error: unknown option '--help'\n(Did you mean --help?)`
-      )
+      expect(help.stderr).toMatch(`error: unknown option '--help'\n(Did you mean --help?)`)
       expect(help.code).toBe(1)
     })
 

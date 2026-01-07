@@ -8,9 +8,7 @@ import './style.css'
 export default function Page() {
   useEffect(() => {
     console.log(
-      (window.__log =
-        'background = ' +
-        window.getComputedStyle(document.body).backgroundColor)
+      (window.__log = 'background = ' + window.getComputedStyle(document.body).backgroundColor)
     )
   }, [])
 

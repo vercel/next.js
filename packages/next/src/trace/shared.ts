@@ -13,6 +13,4 @@ export const setGlobal = (key: any, val: any) => {
 }
 
 export const traceId =
-  process.env.TRACE_ID ||
-  process.env.NEXT_PRIVATE_TRACE_ID ||
-  randomBytes(8).toString('hex')
+  process.env.TRACE_ID || process.env.NEXT_PRIVATE_TRACE_ID || randomBytes(8).toString('hex')

@@ -147,9 +147,7 @@ export default function generator(plop: NodePlopAPI): void {
           path: path.join(errorsRoot, `{{ toFileName name }}.mdx`),
           templateFile: path.join(errorsRoot, `template.txt`),
         },
-        `Url for the error: https://nextjs.org/docs/messages/${helpers.toFileName(
-          name
-        )}`,
+        `Url for the error: https://nextjs.org/docs/messages/${helpers.toFileName(name)}`,
       ]
     },
   })

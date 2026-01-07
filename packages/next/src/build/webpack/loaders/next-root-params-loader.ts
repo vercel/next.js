@@ -12,40 +12,37 @@ export type RootParamsLoaderOpts = {
 
 type CollectedRootParams = Set<string>
 
-const rootParamsLoader: webpack.LoaderDefinitionFunction<RootParamsLoaderOpts> =
-  async function () {
-    const { appDir, pageExtensions } = this.getOptions()
+const rootParamsLoader: webpack.LoaderDefinitionFunction<RootParamsLoaderOpts> = async function () {
+  const { appDir, pageExtensions } = this.getOptions()
 
-    const allRootParams = await collectRootParamsFromFileSystem({
-      appDir,
-      pageExtensions,
-    })
-    // invalidate the result whenever a file/directory is added/removed inside the app dir or its subdirectories,
-    // because that might mean that a root layout has been moved.
-    this.addContextDependency(appDir)
+  const allRootParams = await collectRootParamsFromFileSystem({
+    appDir,
+    pageExtensions,
+  })
+  // invalidate the result whenever a file/directory is added/removed inside the app dir or its subdirectories,
+  // because that might mean that a root layout has been moved.
+  this.addContextDependency(appDir)
 
-    // If there's no root params, there's nothing to generate.
-    if (allRootParams.size === 0) {
-      return 'export {}'
-    }
-
-    // Generate a getter for each root param we found.
-    const sortedRootParamNames = Array.from(allRootParams).sort()
-    const content = [
-      `import { getRootParam } from 'next/dist/server/request/root-params';`,
-      ...sortedRootParamNames.map((paramName) => {
-        return `export function ${paramName}() { return getRootParam('${paramName}'); }`
-      }),
-    ].join('\n')
-
-    return content
+  // If there's no root params, there's nothing to generate.
+  if (allRootParams.size === 0) {
+    return 'export {}'
   }
+
+  // Generate a getter for each root param we found.
+  const sortedRootParamNames = Array.from(allRootParams).sort()
+  const content = [
+    `import { getRootParam } from 'next/dist/server/request/root-params';`,
+    ...sortedRootParamNames.map((paramName) => {
+      return `export function ${paramName}() { return getRootParam('${paramName}'); }`
+    }),
+  ].join('\n')
+
+  return content
+}
 
 export default rootParamsLoader
 
-async function collectRootParamsFromFileSystem(
-  opts: Parameters<typeof findRootLayouts>[0]
-) {
+async function collectRootParamsFromFileSystem(opts: Parameters<typeof findRootLayouts>[0]) {
   return collectRootParams({
     appDir: opts.appDir,
     rootLayoutFilePaths: await findRootLayouts(opts),
@@ -81,9 +78,7 @@ async function findRootLayouts({
   appDir: string
   pageExtensions: string[]
 }) {
-  const layoutFilenameRegex = new RegExp(
-    `^layout\\.(?:${pageExtensions.join('|')})$`
-  )
+  const layoutFilenameRegex = new RegExp(`^layout\\.(?:${pageExtensions.join('|')})$`)
 
   async function visit(directory: string): Promise<string[]> {
     let dir: Awaited<ReturnType<(typeof fs)['readdir']>>
@@ -91,12 +86,7 @@ async function findRootLayouts({
       dir = await fs.readdir(directory, { withFileTypes: true })
     } catch (err) {
       // If the directory was removed before we managed to read it, just ignore it.
-      if (
-        err &&
-        typeof err === 'object' &&
-        'code' in err &&
-        err.code === 'ENOENT'
-      ) {
+      if (err && typeof err === 'object' && 'code' in err && err.code === 'ENOENT') {
         return []
       }
 

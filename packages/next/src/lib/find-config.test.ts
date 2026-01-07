@@ -47,10 +47,7 @@ describe('findConfig()', () => {
         if (configCodeType === 'js') {
           configCodeType = pkgConfigType === 'module' ? 'mjs' : 'cjs'
         }
-        await writeFile(
-          join(tmpDir, `awsome.config.${ext}`),
-          configCode[configCodeType]
-        )
+        await writeFile(join(tmpDir, `awsome.config.${ext}`), configCode[configCodeType])
 
         // Test
         const actualConfig = await findConfig(tmpDir, 'awsome')

@@ -2,14 +2,7 @@
 
 import { remove } from 'fs-extra'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
-import {
-  fetchViaHTTP,
-  findPort,
-  killApp,
-  launchApp,
-  nextBuild,
-  waitFor,
-} from 'next-test-utils'
+import { fetchViaHTTP, findPort, killApp, launchApp, nextBuild, waitFor } from 'next-test-utils'
 import { join } from 'path'
 
 jest.setTimeout(1000 * 60 * 2)
@@ -60,87 +53,81 @@ describe.each([
 ])('$title using Node.js API', ({ computeRoute }) => {
   const appDir = join(__dirname, '..')
 
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
-    'development mode',
-    () => {
-      let output = ''
-      let appPort: number
-      let app = null
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
+    let output = ''
+    let appPort: number
+    let app = null
 
-      beforeEach(() => {
-        output = ''
+    beforeEach(() => {
+      output = ''
+    })
+    beforeAll(async () => {
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort, {
+        onStdout(msg) {
+          output += msg
+        },
+        onStderr(msg) {
+          output += msg
+        },
       })
-      beforeAll(async () => {
-        appPort = await findPort()
-        app = await launchApp(appDir, appPort, {
-          onStdout(msg) {
-            output += msg
-          },
-          onStderr(msg) {
-            output += msg
-          },
-        })
-      })
+    })
 
-      afterAll(() => killApp(app))
+    afterAll(() => killApp(app))
 
-      it.each(undefinedProperties.map((api) => ({ api })))(
-        'does not throw on using $api',
-        async ({ api }) => {
-          const res = await fetchViaHTTP(appPort, computeRoute(api))
-          expect(res.status).toBe(200)
-          await waitFor(500)
-          expect(output).not.toInclude(`A Node.js API is used (${api})`)
-        }
-      )
-
-      it.each([
-        ...unsupportedFunctions.map((api) => ({
-          api,
-          errorHighlight: `${api}(`,
-        })),
-        ...unsupportedClasses.map((api) => ({
-          api,
-          errorHighlight: `new ${api}(`,
-        })),
-      ])(`throws error when using $api`, async ({ api, errorHighlight }) => {
+    it.each(undefinedProperties.map((api) => ({ api })))(
+      'does not throw on using $api',
+      async ({ api }) => {
         const res = await fetchViaHTTP(appPort, computeRoute(api))
-        expect(res.status).toBe(500)
+        expect(res.status).toBe(200)
         await waitFor(500)
-        expect(output)
-          .toInclude(`A Node.js API is used (${api}) which is not supported in the Edge Runtime.
+        expect(output).not.toInclude(`A Node.js API is used (${api})`)
+      }
+    )
+
+    it.each([
+      ...unsupportedFunctions.map((api) => ({
+        api,
+        errorHighlight: `${api}(`,
+      })),
+      ...unsupportedClasses.map((api) => ({
+        api,
+        errorHighlight: `new ${api}(`,
+      })),
+    ])(`throws error when using $api`, async ({ api, errorHighlight }) => {
+      const res = await fetchViaHTTP(appPort, computeRoute(api))
+      expect(res.status).toBe(500)
+      await waitFor(500)
+      expect(output)
+        .toInclude(`A Node.js API is used (${api}) which is not supported in the Edge Runtime.
 Learn more: https://nextjs.org/docs/api-reference/edge-runtime`)
-        expect(stripAnsi(output)).toInclude(errorHighlight)
-      })
-    }
-  )
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      let buildResult
+      expect(stripAnsi(output)).toInclude(errorHighlight)
+    })
+  })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
+    let buildResult
 
-      beforeAll(async () => {
-        await remove(join(appDir, '.next'))
-        buildResult = await nextBuild(appDir, undefined, {
-          stderr: true,
-          stdout: true,
-        })
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+      buildResult = await nextBuild(appDir, undefined, {
+        stderr: true,
+        stdout: true,
       })
+    })
 
-      it.each(
-        [...unsupportedFunctions, ...unsupportedClasses].map((api, index) => ({
-          api,
-        }))
-      )(`warns for $api during build`, ({ api }) => {
+    it.each(
+      [...unsupportedFunctions, ...unsupportedClasses].map((api, index) => ({
+        api,
+      }))
+    )(`warns for $api during build`, ({ api }) => {
+      expect(buildResult.stderr).toContain(`A Node.js API is used (${api}`)
+    })
+
+    it.each([...undefinedProperties].map((api) => ({ api })))(
+      'does not warn on using $api',
+      ({ api }) => {
         expect(buildResult.stderr).toContain(`A Node.js API is used (${api}`)
-      })
-
-      it.each([...undefinedProperties].map((api) => ({ api })))(
-        'does not warn on using $api',
-        ({ api }) => {
-          expect(buildResult.stderr).toContain(`A Node.js API is used (${api}`)
-        }
-      )
-    }
-  )
+      }
+    )
+  })
 })

@@ -30,9 +30,7 @@ export default function Page() {
       >
         The current page
       </h1>
-      {finishedRefresh && (
-        <div id="refreshed">Refreshed page successfully!</div>
-      )}
+      {finishedRefresh && <div id="refreshed">Refreshed page successfully!</div>}
     </>
   )
 }

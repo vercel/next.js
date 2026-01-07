@@ -67,9 +67,7 @@ export default async function Page() {
         <div className="flex justify-center items-center bg-black rounded-full w-16 sm:w-24 h-16 sm:h-24 my-8">
           <VercelLogo className="h-8 sm:h-16 invert p-3 mb-1" />
         </div>
-        <h1 className="text-lg sm:text-2xl font-bold mb-2">
-          Help us prioritize our roadmap
-        </h1>
+        <h1 className="text-lg sm:text-2xl font-bold mb-2">Help us prioritize our roadmap</h1>
         <h2 className="text-md sm:text-xl mx-4">
           Create or vote up features you want to see in our product.
         </h2>
@@ -78,8 +76,7 @@ export default async function Page() {
           <hr className="border-1 border-gray-200 my-8 mx-8 w-full" />
           <div className="mx-8 w-full">
             <p className="flex text-gray-500">
-              Leave your email address here to be notified when feature requests
-              are released.
+              Leave your email address here to be notified when feature requests are released.
             </p>
             <form className="relative my-4" action={saveEmail}>
               <input
@@ -110,10 +107,7 @@ export default async function Page() {
                 className="flex rounded focus:outline-none focus:ring focus:ring-blue-300 mb-4 sm:mb-0 min-w-max"
                 href={`https://vercel.com/new/git/external?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-redis&project-name=redis-roadmap&repository-name=redis-roadmap&demo-title=Redis%20Roadmap&demo-description=Create%20and%20upvote%20features%20for%20your%20product.&demo-url=https%3A%2F%2Froadmap-redis.vercel.app%2F&stores=%5B%7B"type"%3A"kv"%7D%5D&`}
               >
-                <img
-                  src="https://vercel.com/button"
-                  alt="Vercel Deploy Button"
-                />
+                <img src="https://vercel.com/button" alt="Vercel Deploy Button" />
               </a>
             </div>
           </div>

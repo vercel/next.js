@@ -2,9 +2,7 @@ import { unstable_noStore } from 'next/cache'
 
 async function getUncachedRandomData() {
   unstable_noStore()
-  const res = await fetch(
-    'https://next-data-api-endpoint.vercel.app/api/random?another-no-cache'
-  )
+  const res = await fetch('https://next-data-api-endpoint.vercel.app/api/random?another-no-cache')
   const data = await res.json()
   return data
 }

@@ -10,10 +10,10 @@
     "build-nocache": "rimraf .next && pnpm build-application"
   },
   "devDependencies": {
-    "fuzzponent": "workspace:*",
     "cross-env": "^7.0.3",
+    "fuzzponent": "workspace:*",
+    "next": "workspace:*",
     "pretty-ms": "^7.0.1",
-    "rimraf": "^3.0.2",
-    "next": "workspace:*"
+    "rimraf": "^3.0.2"
   }
 }

@@ -30,16 +30,12 @@ describe('dynamic-interception-route-revalidate', () => {
     })
 
     // make sure we're still on the intercepted page
-    expect(await browser.hasElementByCssSelector('#intercepted-page')).toBe(
-      true
-    )
+    expect(await browser.hasElementByCssSelector('#intercepted-page')).toBe(true)
 
     // refresh the page to get the full (non-intercepted) page
     await browser.refresh()
 
-    expect(await browser.hasElementByCssSelector('#intercepted-page')).toBe(
-      false
-    )
+    expect(await browser.hasElementByCssSelector('#intercepted-page')).toBe(false)
     expect(await browser.hasElementByCssSelector('#full-page')).toBe(true)
   })
 })

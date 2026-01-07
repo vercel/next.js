@@ -1,12 +1,6 @@
 import fs from 'fs/promises'
 
-export async function after({
-  distDir,
-  projectDir,
-}: {
-  distDir: string
-  projectDir: string
-}) {
+export async function after({ distDir, projectDir }: { distDir: string; projectDir: string }) {
   try {
     console.log(`Using distDir: ${distDir}`)
     console.log(`Using projectDir: ${projectDir}`)

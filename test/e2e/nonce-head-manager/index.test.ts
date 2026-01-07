@@ -20,34 +20,29 @@ describe('nonce head manager', () => {
   async function runTests(url) {
     const browser = await webdriver(next.url, url)
     await check(
-      async () =>
-        await browser.eval(`JSON.stringify(window.scriptExecutionIds)`),
+      async () => await browser.eval(`JSON.stringify(window.scriptExecutionIds)`),
       '["src-1.js"]'
     )
 
     await browser.elementByCss('#force-rerender').click()
     await check(
-      async () =>
-        await browser.eval(`document.getElementById('h1').textContent`),
+      async () => await browser.eval(`document.getElementById('h1').textContent`),
       'Count 1'
     )
     await check(
-      async () =>
-        await browser.eval(`JSON.stringify(window.scriptExecutionIds)`),
+      async () => await browser.eval(`JSON.stringify(window.scriptExecutionIds)`),
       '["src-1.js"]'
     )
 
     await browser.elementByCss('#change-script').click()
     await check(
-      async () =>
-        await browser.eval(`JSON.stringify(window.scriptExecutionIds)`),
+      async () => await browser.eval(`JSON.stringify(window.scriptExecutionIds)`),
       '["src-1.js","src-2.js"]'
     )
 
     await browser.elementByCss('#change-script').click()
     await check(
-      async () =>
-        await browser.eval(`JSON.stringify(window.scriptExecutionIds)`),
+      async () => await browser.eval(`JSON.stringify(window.scriptExecutionIds)`),
       '["src-1.js","src-2.js","src-1.js"]'
     )
   }

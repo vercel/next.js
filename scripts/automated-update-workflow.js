@@ -34,9 +34,7 @@ async function main() {
   await exec(`git commit --message ${branchName}`)
 
   const changesResult = await exec(`git diff HEAD~ --name-only`)
-  const changedFiles = changesResult.stdout
-    .split('\n')
-    .filter((line) => line.trim())
+  const changedFiles = changesResult.stdout.split('\n').filter((line) => line.trim())
 
   if (changedFiles.length === 0) {
     console.log('No files changed skipping.')
@@ -81,9 +79,7 @@ async function main() {
 
   if (previousPullRequests.length) {
     for await (const previousPullRequest of previousPullRequests) {
-      console.log(
-        `Closing previous pull request: ${previousPullRequest.html_url}`
-      )
+      console.log(`Closing previous pull request: ${previousPullRequest.html_url}`)
 
       await octokit.rest.pulls.update({
         owner,

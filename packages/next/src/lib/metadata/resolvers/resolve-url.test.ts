@@ -13,9 +13,7 @@ describe('metadata: resolveUrl', () => {
   })
 
   it('should return url itself when metadataBase is null or url is valid URL', () => {
-    expect(resolveUrl('https://example.com/abc', null)).toEqual(
-      new URL('https://example.com/abc')
-    )
+    expect(resolveUrl('https://example.com/abc', null)).toEqual(new URL('https://example.com/abc'))
     expect(resolveUrl(new URL('https://example.com/def'), null)).toEqual(
       new URL('https://example.com/def')
     )
@@ -23,17 +21,11 @@ describe('metadata: resolveUrl', () => {
 
   it('should compose with metadataBase when url is relative or absolute', () => {
     const metadataBase = new URL('https://example.com/abc')
-    expect(resolveUrl('/def', metadataBase)).toEqual(
-      new URL('https://example.com/abc/def')
-    )
+    expect(resolveUrl('/def', metadataBase)).toEqual(new URL('https://example.com/abc/def'))
 
-    expect(resolveUrl('../def', metadataBase)).toEqual(
-      new URL('https://example.com/def')
-    )
+    expect(resolveUrl('../def', metadataBase)).toEqual(new URL('https://example.com/def'))
 
-    expect(resolveUrl('foo', metadataBase)).toEqual(
-      new URL('https://example.com/abc/foo')
-    )
+    expect(resolveUrl('foo', metadataBase)).toEqual(new URL('https://example.com/abc/foo'))
   })
 
   it('should ignore metadataBase when url is valid URL', () => {
@@ -58,15 +50,11 @@ describe('resolveAbsoluteUrlWithPathname', () => {
     const resolver = (url: string | URL) =>
       resolveAbsoluteUrlWithPathname(url, metadataBase, pathname, opts)
     it('should resolve absolute internal url', () => {
-      expect(resolver('https://example.com/foo')).toBe(
-        'https://example.com/foo'
-      )
+      expect(resolver('https://example.com/foo')).toBe('https://example.com/foo')
     })
 
     it('should resolve absolute internal url with query', () => {
-      expect(resolver('https://example.com/?foo=bar')).toBe(
-        'https://example.com/?foo=bar'
-      )
+      expect(resolver('https://example.com/?foo=bar')).toBe('https://example.com/?foo=bar')
     })
   })
 
@@ -84,44 +72,26 @@ describe('resolveAbsoluteUrlWithPathname', () => {
     })
 
     it('should add trailing slash to absolute internal url', () => {
-      expect(resolver('https://example.com/foo')).toBe(
-        'https://example.com/foo/'
-      )
-      expect(resolver(new URL('https://example.com/foo'))).toBe(
-        'https://example.com/foo/'
-      )
+      expect(resolver('https://example.com/foo')).toBe('https://example.com/foo/')
+      expect(resolver(new URL('https://example.com/foo'))).toBe('https://example.com/foo/')
     })
 
     it('should not add trailing slash to external url', () => {
-      expect(resolver('https://external.org/foo')).toBe(
-        'https://external.org/foo'
-      )
-      expect(resolver(new URL('https://external.org/foo'))).toBe(
-        'https://external.org/foo'
-      )
+      expect(resolver('https://external.org/foo')).toBe('https://external.org/foo')
+      expect(resolver(new URL('https://external.org/foo'))).toBe('https://external.org/foo')
     })
 
     it('should not add trailing slash to absolute internal url with query', () => {
-      expect(resolver('https://example.com/foo?bar')).toBe(
-        'https://example.com/foo?bar'
-      )
-      expect(resolver(new URL('https://example.com/foo?bar'))).toBe(
-        'https://example.com/foo?bar'
-      )
-      expect(resolver('https://example.com/?foo=bar')).toBe(
-        'https://example.com/?foo=bar'
-      )
+      expect(resolver('https://example.com/foo?bar')).toBe('https://example.com/foo?bar')
+      expect(resolver(new URL('https://example.com/foo?bar'))).toBe('https://example.com/foo?bar')
+      expect(resolver('https://example.com/?foo=bar')).toBe('https://example.com/?foo=bar')
     })
 
     it('should not add trailing slash to relative url with query', () => {
       expect(resolver('/foo?bar')).toBe('https://example.com/foo?bar')
-      expect(resolver(new URL('/foo?bar', metadataBase))).toBe(
-        'https://example.com/foo?bar'
-      )
+      expect(resolver(new URL('/foo?bar', metadataBase))).toBe('https://example.com/foo?bar')
       expect(resolver('/?foo=bar')).toBe('https://example.com/?foo=bar')
-      expect(resolver(new URL('/?foo=bar', metadataBase))).toBe(
-        'https://example.com/?foo=bar'
-      )
+      expect(resolver(new URL('/?foo=bar', metadataBase))).toBe('https://example.com/?foo=bar')
     })
 
     it('should not add trailing slash to relative url that matches file pattern', () => {
@@ -130,9 +100,7 @@ describe('resolveAbsoluteUrlWithPathname', () => {
       expect(resolver(new URL('/.well-known/bar.jpg', metadataBase))).toBe(
         'https://example.com/.well-known/bar.jpg/'
       )
-      expect(resolver(new URL('/foo.html', metadataBase))).toBe(
-        'https://example.com/foo.html'
-      )
+      expect(resolver(new URL('/foo.html', metadataBase))).toBe('https://example.com/foo.html')
     })
   })
 })
@@ -161,35 +129,27 @@ describe('getSocialImageFallbackMetadataBase', () => {
     it('should return localhost url in local dev mode', () => {
       // @ts-expect-error override process env
       process.env.NODE_ENV = 'development'
-      expect(getSocialImageFallbackMetadataBaseHelper()).toBe(
-        'http://localhost:3000/'
-      )
+      expect(getSocialImageFallbackMetadataBaseHelper()).toBe('http://localhost:3000/')
     })
 
     it('should return local url in local build mode', () => {
       // @ts-expect-error override process env
       process.env.NODE_ENV = 'production'
-      expect(getSocialImageFallbackMetadataBaseHelper()).toBe(
-        'http://localhost:3000/'
-      )
+      expect(getSocialImageFallbackMetadataBaseHelper()).toBe('http://localhost:3000/')
     })
 
     it('should return localhost url in local dev mode with experimental https', () => {
       // @ts-expect-error override process env
       process.env.NODE_ENV = 'development'
       process.env.__NEXT_EXPERIMENTAL_HTTPS = '1'
-      expect(getSocialImageFallbackMetadataBaseHelper()).toBe(
-        'https://localhost:3000/'
-      )
+      expect(getSocialImageFallbackMetadataBaseHelper()).toBe('https://localhost:3000/')
     })
 
     it('should return localhost url in local build mode with experimental https', () => {
       // @ts-expect-error override process env
       process.env.NODE_ENV = 'production'
       process.env.__NEXT_EXPERIMENTAL_HTTPS = '1'
-      expect(getSocialImageFallbackMetadataBaseHelper()).toBe(
-        'https://localhost:3000/'
-      )
+      expect(getSocialImageFallbackMetadataBaseHelper()).toBe('https://localhost:3000/')
     })
 
     it('should prefer branch url in preview deployment if presents', () => {
@@ -198,9 +158,7 @@ describe('getSocialImageFallbackMetadataBase', () => {
       process.env.VERCEL_ENV = 'preview'
       process.env.VERCEL_BRANCH_URL = 'branch-url'
       process.env.VERCEL_URL = 'vercel-url'
-      expect(getSocialImageFallbackMetadataBaseHelper()).toBe(
-        'https://branch-url/'
-      )
+      expect(getSocialImageFallbackMetadataBaseHelper()).toBe('https://branch-url/')
     })
 
     it('should return vercel url in preview deployment if only it presents', () => {
@@ -208,9 +166,7 @@ describe('getSocialImageFallbackMetadataBase', () => {
       process.env.NODE_ENV = 'production'
       process.env.VERCEL_ENV = 'preview'
       process.env.VERCEL_URL = 'vercel-url'
-      expect(getSocialImageFallbackMetadataBaseHelper()).toBe(
-        'https://vercel-url/'
-      )
+      expect(getSocialImageFallbackMetadataBaseHelper()).toBe('https://vercel-url/')
     })
 
     it('should return project production url in production deployment', () => {
@@ -219,9 +175,7 @@ describe('getSocialImageFallbackMetadataBase', () => {
       process.env.VERCEL_ENV = 'production'
       process.env.VERCEL_URL = 'vercel-url'
       process.env.VERCEL_PROJECT_PRODUCTION_URL = 'production-url'
-      expect(getSocialImageFallbackMetadataBaseHelper()).toBe(
-        'https://production-url/'
-      )
+      expect(getSocialImageFallbackMetadataBaseHelper()).toBe('https://production-url/')
     })
   })
 })

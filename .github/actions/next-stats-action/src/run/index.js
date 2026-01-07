@@ -20,13 +20,7 @@ const BUNDLERS = [
 
 async function runConfigs(
   configs = [],
-  {
-    statsConfig,
-    relativeStatsAppDir,
-    mainRepoPkgPaths,
-    diffRepoPkgPaths,
-    bundlerFilter = null,
-  },
+  { statsConfig, relativeStatsAppDir, mainRepoPkgPaths, diffRepoPkgPaths, bundlerFilter = null },
   diffing = false
 ) {
   // Filter bundlers based on input
@@ -35,14 +29,10 @@ async function runConfigs(
     : BUNDLERS
 
   if (bundlerFilter && bundlersToRun.length === 0) {
-    throw new Error(
-      `Invalid bundler filter: ${bundlerFilter}. Must be 'webpack' or 'turbopack'`
-    )
+    throw new Error(`Invalid bundler filter: ${bundlerFilter}. Must be 'webpack' or 'turbopack'`)
   }
 
-  logger(
-    `Running benchmarks for bundlers: ${bundlersToRun.map((b) => b.name).join(', ')}`
-  )
+  logger(`Running benchmarks for bundlers: ${bundlersToRun.map((b) => b.name).join(', ')}`)
 
   const results = []
 
@@ -80,9 +70,7 @@ async function runConfigs(
       await linkPkgs(statsAppDir, pkgPaths)
 
       if (!diffing) {
-        curStats.General.nodeModulesSize = await getDirSize(
-          path.join(statsAppDir, 'node_modules')
-        )
+        curStats.General.nodeModulesSize = await getDirSize(path.join(statsAppDir, 'node_modules'))
       }
 
       // Run builds for selected bundler(s) and collect stats separately
@@ -90,13 +78,8 @@ async function runConfigs(
         logger(`\n=== ${bundler.name} Production Build ===`)
 
         // Build base command without --webpack flag (we add it per bundler)
-        const baseBuildCommand = statsConfig.appBuildCommand.replace(
-          / --webpack/g,
-          ''
-        )
-        const buildCommand = bundler.flag
-          ? `${baseBuildCommand} ${bundler.flag}`
-          : baseBuildCommand
+        const baseBuildCommand = statsConfig.appBuildCommand.replace(/ --webpack/g, '')
+        const buildCommand = bundler.flag ? `${baseBuildCommand} ${bundler.flag}` : baseBuildCommand
 
         // Run multiple fresh build iterations for stable timing
         const freshBuildTimes = []
@@ -136,8 +119,7 @@ async function runConfigs(
         logger(
           `  Cached build: median=${cachedStats.median}ms, range=${cachedStats.min}-${cachedStats.max}ms`
         )
-        curStats.General[`buildDurationCached${bundler.suffix}`] =
-          cachedStats.median
+        curStats.General[`buildDurationCached${bundler.suffix}`] = cachedStats.median
 
         // Apply renames to get deterministic output names (after cached builds)
         for (const rename of config.renames) {
@@ -148,10 +130,7 @@ async function runConfigs(
               : rename.dest
             if (result === dest) continue
             try {
-              await fs.rename(
-                path.join(statsAppDir, result),
-                path.join(statsAppDir, dest)
-              )
+              await fs.rename(path.join(statsAppDir, result), path.join(statsAppDir, dest))
             } catch (e) {
               // File may not exist for this bundler
             }
@@ -159,21 +138,12 @@ async function runConfigs(
         }
 
         // Collect file stats for this bundler (after renames for deterministic names)
-        const collectedStats = await collectStats(
-          config,
-          statsConfig,
-          false,
-          bundler.suffix
-        )
+        const collectedStats = await collectStats(config, statsConfig, false, bundler.suffix)
 
         for (const key of Object.keys(collectedStats)) {
           // Prefix group names with bundler suffix (except General which is shared)
           const groupKey = key === 'General' ? key : `${key} (${bundler.name})`
-          curStats[groupKey] = Object.assign(
-            {},
-            curStats[groupKey],
-            collectedStats[key]
-          )
+          curStats[groupKey] = Object.assign({}, curStats[groupKey], collectedStats[key])
         }
       }
 
@@ -295,10 +265,7 @@ async function linkPkgs(pkgDir = '', pkgPaths) {
   }
   await fs.writeFile(pkgJsonPath, JSON.stringify(pkgData, null, 2), 'utf8')
 
-  await exec(
-    `cd ${pkgDir} && pnpm install --strict-peer-dependencies=false`,
-    false
-  )
+  await exec(`cd ${pkgDir} && pnpm install --strict-peer-dependencies=false`, false)
 }
 
 module.exports = runConfigs

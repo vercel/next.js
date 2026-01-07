@@ -21,10 +21,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWAR
 // Implementation of this PR: https://github.com/jamiebuilds/react-loadable/pull/132
 // Modified to strip out unneeded results for Next's specific use case
 
-import type {
-  DynamicCssManifest,
-  ReactLoadableManifest,
-} from '../../../server/load-components'
+import type { DynamicCssManifest, ReactLoadableManifest } from '../../../server/load-components'
 import path from 'path'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import { DYNAMIC_CSS_MANIFEST } from '../../../shared/lib/constants'
@@ -47,10 +44,7 @@ function getOriginModuleFromDependency(
   return compilation.moduleGraph.getParentModule(dep)
 }
 
-function getChunkGroupFromBlock(
-  compilation: any,
-  block: any
-): webpack.Compilation['chunkGroups'] {
+function getChunkGroupFromBlock(compilation: any, block: any): webpack.Compilation['chunkGroups'] {
   return compilation.chunkGraph.getBlockChunkGroup(block)
 }
 
@@ -91,19 +85,14 @@ function buildManifest(
         if (!module) return
 
         // get the module containing the import()
-        const originModule = getOriginModuleFromDependency(
-          compilation,
-          dependency
-        )
+        const originModule = getOriginModuleFromDependency(compilation, dependency)
         const originRequest: string | undefined = originModule?.resource
         if (!originRequest) return
 
         // We construct a "unique" key from origin module and request
         // It's not perfect unique, but that will be fine for us.
         // We also need to construct the same in the babel plugin.
-        const key = `${path.relative(projectSrcDir, originRequest)} -> ${
-          dependency.request
-        }`
+        const key = `${path.relative(projectSrcDir, originRequest)} -> ${dependency.request}`
 
         // Capture all files that need to be loaded.
         const files = new Set<string>()
@@ -123,8 +112,7 @@ function buildManifest(
         // are already loaded. In this case we only need need
         // the module id and no files
         if (chunkGroup) {
-          for (const chunk of (chunkGroup as any)
-            .chunks as webpack.Compilation['chunks']) {
+          for (const chunk of (chunkGroup as any).chunks as webpack.Compilation['chunks']) {
             chunk.files.forEach((file: string) => {
               if (
                 (file.endsWith('.js') || file.endsWith('.css')) &&
@@ -187,9 +175,7 @@ export class ReactLoadablePlugin {
   }
 
   createAssets(compiler: any, compilation: any) {
-    const projectSrcDir = this.pagesOrAppDir
-      ? path.dirname(this.pagesOrAppDir)
-      : undefined
+    const projectSrcDir = this.pagesOrAppDir ? path.dirname(this.pagesOrAppDir) : undefined
     const shouldCreateDynamicCssManifest = !this.dev && this.isPagesDir
     const { reactLoadableManifest, dynamicCssManifest } = buildManifest(
       compiler,
@@ -208,9 +194,7 @@ export class ReactLoadablePlugin {
       compilation.emitAsset(
         this.runtimeAsset,
         new sources.RawSource(
-          `self.__REACT_LOADABLE_MANIFEST=${JSON.stringify(
-            JSON.stringify(reactLoadableManifest)
-          )}`
+          `self.__REACT_LOADABLE_MANIFEST=${JSON.stringify(JSON.stringify(reactLoadableManifest))}`
         )
       )
     }
@@ -228,9 +212,7 @@ export class ReactLoadablePlugin {
       compilation.emitAsset(
         `server/${DYNAMIC_CSS_MANIFEST}.js`,
         new sources.RawSource(
-          `self.__DYNAMIC_CSS_MANIFEST=${JSON.stringify(
-            JSON.stringify(dynamicCssManifest)
-          )}`
+          `self.__DYNAMIC_CSS_MANIFEST=${JSON.stringify(JSON.stringify(dynamicCssManifest))}`
         )
       )
     }

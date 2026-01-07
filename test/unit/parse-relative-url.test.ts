@@ -27,66 +27,42 @@ describe('parseRelativeUrl', () => {
   })
 
   it('should parse relative url', () => {
-    check(
-      'http://example.com:3210/someA/pathB?fooC=barD#hashE',
-      '/someF/pathG?fooH=barI#hashJ',
-      {
-        pathname: '/someF/pathG',
-        search: '?fooH=barI',
-        hash: '#hashJ',
-      }
-    )
+    check('http://example.com:3210/someA/pathB?fooC=barD#hashE', '/someF/pathG?fooH=barI#hashJ', {
+      pathname: '/someF/pathG',
+      search: '?fooH=barI',
+      hash: '#hashJ',
+    })
   })
 
   it('should parse relative url when start with dot', () => {
-    check(
-      'http://example.com:3210/someA/pathB?fooC=barD#hashE',
-      './someF/pathG?fooH=barI#hashJ',
-      {
-        pathname: '/someA/someF/pathG',
-        search: '?fooH=barI',
-        hash: '#hashJ',
-      }
-    )
-    check(
-      'http://example.com:3210/someA/pathB',
-      '../someF/pathG?fooH=barI#hashJ',
-      {
-        pathname: '/someF/pathG',
-        search: '?fooH=barI',
-        hash: '#hashJ',
-      }
-    )
-    check(
-      'http://example.com:3210/someA/pathB',
-      '../../someF/pathG?fooH=barI#hashJ',
-      {
-        pathname: '/someF/pathG',
-        search: '?fooH=barI',
-        hash: '#hashJ',
-      }
-    )
+    check('http://example.com:3210/someA/pathB?fooC=barD#hashE', './someF/pathG?fooH=barI#hashJ', {
+      pathname: '/someA/someF/pathG',
+      search: '?fooH=barI',
+      hash: '#hashJ',
+    })
+    check('http://example.com:3210/someA/pathB', '../someF/pathG?fooH=barI#hashJ', {
+      pathname: '/someF/pathG',
+      search: '?fooH=barI',
+      hash: '#hashJ',
+    })
+    check('http://example.com:3210/someA/pathB', '../../someF/pathG?fooH=barI#hashJ', {
+      pathname: '/someF/pathG',
+      search: '?fooH=barI',
+      hash: '#hashJ',
+    })
   })
 
   it('should parse relative url on special protocol', () => {
-    check(
-      'ionic://localhost/someA/pathB?fooC=barD#hashE',
-      '/someF/pathG?fooH=barI#hashJ',
-      {
-        pathname: '/someF/pathG',
-        search: '?fooH=barI',
-        hash: '#hashJ',
-      }
-    )
-    check(
-      'file:///someA/pathB?fooC=barD#hashE',
-      '/someF/pathG?fooH=barI#hashJ',
-      {
-        pathname: '/someF/pathG',
-        search: '?fooH=barI',
-        hash: '#hashJ',
-      }
-    )
+    check('ionic://localhost/someA/pathB?fooC=barD#hashE', '/someF/pathG?fooH=barI#hashJ', {
+      pathname: '/someF/pathG',
+      search: '?fooH=barI',
+      hash: '#hashJ',
+    })
+    check('file:///someA/pathB?fooC=barD#hashE', '/someF/pathG?fooH=barI#hashJ', {
+      pathname: '/someF/pathG',
+      search: '?fooH=barI',
+      hash: '#hashJ',
+    })
   })
 
   it('should parse the full url with current origin', () => {

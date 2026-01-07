@@ -20,9 +20,7 @@ describe('CSS Import from node_modules', () => {
       const { exitCode, cliOutput } = await next.build()
       expect(exitCode).not.toBe(0)
       if (isRspack) {
-        expect(cliOutput).toMatch(
-          /RspackResolver\(NotFound\(\\?"nprogress\/nprogress.css\\?"\)\)/
-        )
+        expect(cliOutput).toMatch(/RspackResolver\(NotFound\(\\?"nprogress\/nprogress.css\\?"\)\)/)
       } else {
         expect(cliOutput).toMatch(/Can't resolve '[^']*?nprogress[^']*?'/)
       }

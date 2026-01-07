@@ -10,13 +10,11 @@ export default async function Page({
   return (
     <>
       <p>
-        This page renders two components. Both call a simulated IO function. The
-        whole page is wrapped in "use cache".
+        This page renders two components. Both call a simulated IO function. The whole page is
+        wrapped in "use cache".
       </p>
       <p>Niether component is wrapped in a Suspense boundary</p>
-      <p>
-        With PPR this page should be entirely static because all IO is cached.
-      </p>
+      <p>With PPR this page should be entirely static because all IO is cached.</p>
       <p>Without PPR this page should be static because all IO is cached.</p>
       <ComponentOne />
       <ComponentTwo />

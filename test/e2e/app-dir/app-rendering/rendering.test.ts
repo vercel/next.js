@@ -87,8 +87,7 @@ describe('app dir rendering', () => {
       // expect(revalidateCacheHeader).toBe('STALE')
 
       // TODO: implement
-      const { $: $revalidated /* cacheHeader: revalidatedCacheHeader */ } =
-        await getPage()
+      const { $: $revalidated /* cacheHeader: revalidatedCacheHeader */ } = await getPage()
       // expect(revalidatedCacheHeader).toBe('REVALIDATED')
 
       const layoutNowRevalidated = $revalidated('#layout-now').text()

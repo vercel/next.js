@@ -18,8 +18,7 @@ export interface OriginalStackFramesRequest {
 
 export type OriginalStackFramesResponse = OriginalStackFrameResponseResult[]
 
-export type OriginalStackFrameResponseResult =
-  PromiseSettledResult<OriginalStackFrameResponse>
+export type OriginalStackFrameResponseResult = PromiseSettledResult<OriginalStackFrameResponse>
 
 export interface OriginalStackFrameResponse {
   originalStackFrame: (StackFrame & { ignored: boolean }) | null
@@ -46,14 +45,14 @@ export function ignoreListAnonymousStackFramesIfSandwiched(
       )
     },
     (response) => {
-      return response.status === 'fulfilled' &&
-        response.value.originalStackFrame !== null
+      return response.status === 'fulfilled' && response.value.originalStackFrame !== null
         ? response.value.originalStackFrame.methodName
         : ''
     },
     (response) => {
-      ;(response as PromiseFulfilledResult<OriginalStackFrameResponse>)
-        .value.originalStackFrame!.ignored = true
+      ;(
+        response as PromiseFulfilledResult<OriginalStackFrameResponse>
+      ).value.originalStackFrame!.ignored = true
     }
   )
 }

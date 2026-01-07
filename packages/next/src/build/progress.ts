@@ -5,8 +5,7 @@ import createSpinner from './spinner'
 function divideSegments(number: number, segments: number): number[] {
   const result = []
   while (number > 0 && segments > 0) {
-    const dividedNumber =
-      number < segments ? number : Math.floor(number / segments)
+    const dividedNumber = number < segments ? number : Math.floor(number / segments)
 
     number -= dividedNumber
     segments--

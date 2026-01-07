@@ -123,11 +123,7 @@ const loadScript = (props: ScriptProps): void => {
     afterLoad()
   } else if (children) {
     el.textContent =
-      typeof children === 'string'
-        ? children
-        : Array.isArray(children)
-          ? children.join('')
-          : ''
+      typeof children === 'string' ? children : Array.isArray(children) ? children.join('') : ''
 
     afterLoad()
   } else if (src) {
@@ -209,8 +205,7 @@ function Script(props: ScriptProps): JSX.Element | null {
   } = props
 
   // Context is available only during SSR
-  let { updateScripts, scripts, getIsSsr, appDir, nonce } =
-    useContext(HeadManagerContext)
+  let { updateScripts, scripts, getIsSsr, appDir, nonce } = useContext(HeadManagerContext)
 
   // if a nonce is explicitly passed to the script tag, favor that over the automatic handling
   nonce = restProps.nonce || nonce
@@ -318,8 +313,7 @@ function Script(props: ScriptProps): JSX.Element | null {
         // For inlined scripts, we put the content in `children`.
         if (restProps.dangerouslySetInnerHTML) {
           // Casting since lib.dom.d.ts doesn't have TrustedHTML yet.
-          restProps.children = restProps.dangerouslySetInnerHTML
-            .__html as string
+          restProps.children = restProps.dangerouslySetInnerHTML.__html as string
           delete restProps.dangerouslySetInnerHTML
         }
 

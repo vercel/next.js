@@ -65,8 +65,6 @@ describe('Next.js sandbox Request constructor', () => {
 
   it('should throw Next.js specific error for relative URLs', () => {
     const { Request: NextRequest } = moduleContext.runtime.context
-    expect(() => new NextRequest('/urls-b')).toThrow(
-      'Please use only absolute URLs'
-    )
+    expect(() => new NextRequest('/urls-b')).toThrow('Please use only absolute URLs')
   })
 })

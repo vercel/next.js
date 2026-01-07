@@ -9,16 +9,9 @@ export function ErrorOverlayBottomStack({
   const stackCount = Math.min(errorCount - activeIdx - 1, 2)
   return (
     <div aria-hidden className="error-overlay-bottom-stack">
-      <div
-        className="error-overlay-bottom-stack-stack"
-        data-stack-count={stackCount}
-      >
-        <div className="error-overlay-bottom-stack-layer error-overlay-bottom-stack-layer-1">
-          1
-        </div>
-        <div className="error-overlay-bottom-stack-layer error-overlay-bottom-stack-layer-2">
-          2
-        </div>
+      <div className="error-overlay-bottom-stack-stack" data-stack-count={stackCount}>
+        <div className="error-overlay-bottom-stack-layer error-overlay-bottom-stack-layer-1">1</div>
+        <div className="error-overlay-bottom-stack-layer error-overlay-bottom-stack-layer-2">2</div>
       </div>
     </div>
   )

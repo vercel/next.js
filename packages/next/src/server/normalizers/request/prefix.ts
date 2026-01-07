@@ -3,9 +3,7 @@ import type { Normalizer } from '../normalizer'
 export class PrefixPathnameNormalizer implements Normalizer {
   constructor(private readonly prefix: string) {
     if (prefix.endsWith('/')) {
-      throw new Error(
-        `PrefixPathnameNormalizer: prefix "${prefix}" should not end with a slash`
-      )
+      throw new Error(`PrefixPathnameNormalizer: prefix "${prefix}" should not end with a slash`)
     }
   }
 

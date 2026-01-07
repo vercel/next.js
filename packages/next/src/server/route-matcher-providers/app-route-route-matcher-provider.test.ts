@@ -48,22 +48,19 @@ describe('AppRouteRouteMatcherProvider', () => {
           bundlePath: 'app/users/route',
         },
       },
-    ])(
-      'returns the correct routes for $route.pathname',
-      async ({ manifest, route }) => {
-        const loader: ManifestLoader = {
-          load: jest.fn(() => ({
-            '/dashboard/users/[id]/page': 'app/dashboard/users/[id]/page.js',
-            '/dashboard/users/page': 'app/dashboard/users/page.js',
-            ...manifest,
-          })),
-        }
-        const provider = new AppRouteRouteMatcherProvider('<root>', loader)
-        const matchers = await provider.matchers()
-
-        expect(matchers).toHaveLength(1)
-        expect(matchers[0].definition).toEqual(route)
+    ])('returns the correct routes for $route.pathname', async ({ manifest, route }) => {
+      const loader: ManifestLoader = {
+        load: jest.fn(() => ({
+          '/dashboard/users/[id]/page': 'app/dashboard/users/[id]/page.js',
+          '/dashboard/users/page': 'app/dashboard/users/page.js',
+          ...manifest,
+        })),
       }
-    )
+      const provider = new AppRouteRouteMatcherProvider('<root>', loader)
+      const matchers = await provider.matchers()
+
+      expect(matchers).toHaveLength(1)
+      expect(matchers[0].definition).toEqual(route)
+    })
   })
 })

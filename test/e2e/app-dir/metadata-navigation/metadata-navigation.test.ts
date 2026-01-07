@@ -1,10 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import {
-  createMultiDomMatcher,
-  createMultiHtmlMatcher,
-  getTitle,
-  retry,
-} from 'next-test-utils'
+import { createMultiDomMatcher, createMultiHtmlMatcher, getTitle, retry } from 'next-test-utils'
 
 describe('app dir - metadata navigation', () => {
   const { next } = nextTestSetup({
@@ -41,10 +36,7 @@ describe('app dir - metadata navigation', () => {
       for (const el of $('script').toArray()) {
         const text = $(el).text()
         if (text.startsWith(flightDataPrefix)) {
-          flightText += text.slice(
-            flightDataPrefix.length,
-            -flightDataSuffix.length
-          )
+          flightText += text.slice(flightDataPrefix.length, -flightDataSuffix.length)
         }
       }
       expect(flightText).toContain('Local found boundary')
@@ -58,9 +50,7 @@ describe('app dir - metadata navigation', () => {
       })
 
       const browser = await next.browser('/async/not-found')
-      expect(await browser.elementByCss('h2').text()).toBe(
-        'Local found boundary'
-      )
+      expect(await browser.elementByCss('h2').text()).toBe('Local found boundary')
 
       const matchMultiDom = createMultiDomMatcher(browser)
       await matchMultiDom('meta', 'name', 'content', {
@@ -81,9 +71,7 @@ describe('app dir - metadata navigation', () => {
       expect(res.status).toBe(200)
       const browser = await next.browser('/async/redirect')
       await retry(async () => {
-        expect(await browser.elementByCss('p').text()).toBe(
-          'redirect dest page'
-        )
+        expect(await browser.elementByCss('p').text()).toBe('redirect dest page')
       })
     })
 
@@ -115,10 +103,7 @@ describe('app dir - metadata navigation', () => {
       // collect server action requests
       let isActionSent = false
       browser.on('request', (req) => {
-        if (
-          req.method() === 'POST' &&
-          req.url().endsWith('/server-action/not-found')
-        ) {
+        if (req.method() === 'POST' && req.url().endsWith('/server-action/not-found')) {
           isActionSent = true
         }
       })
@@ -130,11 +115,9 @@ describe('app dir - metadata navigation', () => {
       })
 
       expect(await browser.elementsByCss('meta[name="robots"]')).toHaveLength(1)
-      expect(
-        await browser
-          .elementByCss('meta[name="robots"]')
-          .getAttribute('content')
-      ).toBe('noindex, nofollow')
+      expect(await browser.elementByCss('meta[name="robots"]').getAttribute('content')).toBe(
+        'noindex, nofollow'
+      )
     })
   })
 })

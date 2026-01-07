@@ -6,9 +6,7 @@ import type { PackageManager } from './get-pkg-manager'
  * Runs `next typegen` using the package manager to execute the locally installed Next.js binary.
  * Assumes the current working directory is the project root where Next is installed.
  */
-export async function runTypegen(
-  packageManager: PackageManager
-): Promise<void> {
+export async function runTypegen(packageManager: PackageManager): Promise<void> {
   return new Promise((resolve, reject) => {
     // Determine the command and arguments based on the package manager
     let command: string

@@ -48,24 +48,18 @@ describe('cache-indicator', () => {
       // Wait for the badge to appear and show cache-bypassing status
       await retry(async () => {
         const badge = await browser.elementByCss('[data-next-badge]')
-        const cacheBypassingAttr = await badge.getAttribute(
-          'data-cache-bypassing'
-        )
+        const cacheBypassingAttr = await badge.getAttribute('data-cache-bypassing')
         expect(cacheBypassingAttr).toBe('true')
       })
 
       // Verify the cache bypass badge is visible
       await retry(async () => {
-        const hasCacheBypassBadge = await browser.hasElementByCss(
-          '[data-cache-bypass-badge]'
-        )
+        const hasCacheBypassBadge = await browser.hasElementByCss('[data-cache-bypass-badge]')
         expect(hasCacheBypassBadge).toBe(true)
       })
 
       // Verify the badge shows "Cache disabled" text
-      const badgeButton = await browser.elementByCss(
-        '[data-cache-bypass-badge] [data-issues-open]'
-      )
+      const badgeButton = await browser.elementByCss('[data-cache-bypass-badge] [data-issues-open]')
       const badgeText = await badgeButton.text()
       expect(badgeText).toBe('Cache disabled')
     })
@@ -77,9 +71,7 @@ describe('cache-indicator', () => {
 
       // Wait for initial cache-bypassing badge
       await retry(async () => {
-        const hasCacheBypassBadge = await browser.hasElementByCss(
-          '[data-cache-bypass-badge]'
-        )
+        const hasCacheBypassBadge = await browser.hasElementByCss('[data-cache-bypass-badge]')
         expect(hasCacheBypassBadge).toBe(true)
       })
 
@@ -95,16 +87,12 @@ describe('cache-indicator', () => {
 
       // Verify cache-bypassing badge persists after navigation
       await retry(async () => {
-        const hasCacheBypassBadge = await browser.hasElementByCss(
-          '[data-cache-bypass-badge]'
-        )
+        const hasCacheBypassBadge = await browser.hasElementByCss('[data-cache-bypass-badge]')
         expect(hasCacheBypassBadge).toBe(true)
       })
 
       // Verify the badge still shows "Cache disabled" text
-      const badgeButton = await browser.elementByCss(
-        '[data-cache-bypass-badge] [data-issues-open]'
-      )
+      const badgeButton = await browser.elementByCss('[data-cache-bypass-badge] [data-issues-open]')
       const badgeText = await badgeButton.text()
       expect(badgeText).toBe('Cache disabled')
     })
@@ -116,16 +104,12 @@ describe('cache-indicator', () => {
 
       // Wait for the cache-bypassing badge to appear
       await retry(async () => {
-        const hasCacheBypassBadge = await browser.hasElementByCss(
-          '[data-cache-bypass-badge]'
-        )
+        const hasCacheBypassBadge = await browser.hasElementByCss('[data-cache-bypass-badge]')
         expect(hasCacheBypassBadge).toBe(true)
       })
 
       // Click the cache bypass badge
-      const badgeButton = await browser.elementByCss(
-        '[data-cache-bypass-badge] [data-issues-open]'
-      )
+      const badgeButton = await browser.elementByCss('[data-cache-bypass-badge] [data-issues-open]')
       await badgeButton.click()
 
       // Verify devtools menu opens
@@ -142,9 +126,7 @@ describe('cache-indicator', () => {
 
       // Wait for the cache-bypassing badge to appear
       await retry(async () => {
-        const hasCacheBypassBadge = await browser.hasElementByCss(
-          '[data-cache-bypass-badge]'
-        )
+        const hasCacheBypassBadge = await browser.hasElementByCss('[data-cache-bypass-badge]')
         expect(hasCacheBypassBadge).toBe(true)
       })
 
@@ -156,9 +138,7 @@ describe('cache-indicator', () => {
 
       // Verify badge is dismissed
       await retry(async () => {
-        const hasCacheBypassBadge = await browser.hasElementByCss(
-          '[data-cache-bypass-badge]'
-        )
+        const hasCacheBypassBadge = await browser.hasElementByCss('[data-cache-bypass-badge]')
         expect(hasCacheBypassBadge).toBe(false)
       })
     })

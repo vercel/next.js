@@ -83,9 +83,7 @@ export function getConventionPathByType(
     | 'global-error'
 ) {
   const modules = tree[2]
-  const conventionPath = modules[conventionType]
-    ? modules[conventionType][1]
-    : undefined
+  const conventionPath = modules[conventionType] ? modules[conventionType][1] : undefined
   if (conventionPath) {
     return normalizeConventionFilePath(dir, conventionPath)
   }

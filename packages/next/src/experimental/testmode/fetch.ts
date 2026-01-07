@@ -1,8 +1,4 @@
-import type {
-  ProxyFetchRequest,
-  ProxyFetchResponse,
-  ProxyResponse,
-} from './proxy'
+import type { ProxyFetchRequest, ProxyFetchResponse, ProxyResponse } from './proxy'
 import { getTestReqInfo, type TestRequestReader } from './context'
 
 type Fetch = typeof fetch
@@ -36,10 +32,7 @@ function getTestStack(): string {
   return stack.join('    ')
 }
 
-async function buildProxyRequest(
-  testData: string,
-  request: Request
-): Promise<ProxyFetchRequest> {
+async function buildProxyRequest(testData: string, request: Request): Promise<ProxyFetchRequest> {
   const {
     url,
     method,
@@ -60,9 +53,7 @@ async function buildProxyRequest(
       url,
       method,
       headers: [...Array.from(headers), ['next-test-stack', getTestStack()]],
-      body: body
-        ? Buffer.from(await request.arrayBuffer()).toString('base64')
-        : null,
+      body: body ? Buffer.from(await request.arrayBuffer()).toString('base64') : null,
       cache,
       credentials,
       integrity,
@@ -82,10 +73,7 @@ function buildResponse(proxyResponse: ProxyFetchResponse): Response {
   })
 }
 
-export async function handleFetch(
-  originalFetch: Fetch,
-  request: Request
-): Promise<Response> {
+export async function handleFetch(originalFetch: Fetch, request: Request): Promise<Response> {
   const testInfo = getTestReqInfo(request, reader)
   if (!testInfo) {
     // Passthrough non-test requests.
@@ -114,9 +102,7 @@ export async function handleFetch(
       return originalFetch(request)
     case 'abort':
     case 'unhandled':
-      throw new Error(
-        `Proxy request aborted [${request.method} ${request.url}]`
-      )
+      throw new Error(`Proxy request aborted [${request.method} ${request.url}]`)
     case 'fetch':
       return buildResponse(proxyResponse)
     default:
@@ -125,10 +111,7 @@ export async function handleFetch(
 }
 
 export function interceptFetch(originalFetch: Fetch) {
-  global.fetch = function testFetch(
-    input: FetchInputArg,
-    init?: FetchInitArg
-  ): Promise<Response> {
+  global.fetch = function testFetch(input: FetchInputArg, init?: FetchInitArg): Promise<Response> {
     // Passthrough internal requests.
     // @ts-ignore
     if (init?.next?.internal) {

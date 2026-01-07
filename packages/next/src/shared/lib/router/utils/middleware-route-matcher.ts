@@ -4,21 +4,11 @@ import type { Params } from '../../../../server/request/params'
 import { matchHas } from './prepare-destination'
 
 export interface MiddlewareRouteMatch {
-  (
-    pathname: string | null | undefined,
-    request: BaseNextRequest,
-    query: Params
-  ): boolean
+  (pathname: string | null | undefined, request: BaseNextRequest, query: Params): boolean
 }
 
-export function getMiddlewareRouteMatcher(
-  matchers: ProxyMatcher[]
-): MiddlewareRouteMatch {
-  return (
-    pathname: string | null | undefined,
-    req: BaseNextRequest,
-    query: Params
-  ) => {
+export function getMiddlewareRouteMatcher(matchers: ProxyMatcher[]): MiddlewareRouteMatch {
+  return (pathname: string | null | undefined, req: BaseNextRequest, query: Params) => {
     for (const matcher of matchers) {
       const routeMatch = new RegExp(matcher.regexp).exec(pathname!)
       if (!routeMatch) {

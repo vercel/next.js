@@ -23,11 +23,7 @@ export function calcBackoffMs(attempt: number): number {
   return Math.min(INITIAL_RETRY_MS * Math.pow(2, attempt), MAX_RETRY_MS)
 }
 
-function unlinkPath(
-  p: string,
-  isDir = false,
-  attempt = 0
-): Promise<void> | void {
+function unlinkPath(p: string, isDir = false, attempt = 0): Promise<void> | void {
   try {
     if (isDir) {
       fs.rmdirSync(p)
@@ -37,10 +33,7 @@ function unlinkPath(
   } catch (e) {
     const code = isError(e) && e.code
     if (
-      (code === 'EBUSY' ||
-        code === 'ENOTEMPTY' ||
-        code === 'EPERM' ||
-        code === 'EMFILE') &&
+      (code === 'EBUSY' || code === 'ENOTEMPTY' || code === 'EPERM' || code === 'EMFILE') &&
       attempt < MAX_RETRIES
     ) {
       // retrying is unlikely to succeed on POSIX platforms, but Windows can

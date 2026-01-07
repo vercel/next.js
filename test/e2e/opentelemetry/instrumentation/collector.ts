@@ -6,11 +6,7 @@ export interface Collector {
   shutdown: () => Promise<void>
 }
 
-export async function connectCollector({
-  port,
-}: {
-  port: number
-}): Promise<Collector> {
+export async function connectCollector({ port }: { port: number }): Promise<Collector> {
   const spans: SavedSpan[] = []
 
   const server = new HttpServer(async (req, res) => {

@@ -18,10 +18,7 @@ const appDir = join(__dirname, '../')
 let appPort: number
 let app: Awaited<ReturnType<typeof launchApp>>
 
-async function getSrc(
-  browser: Awaited<ReturnType<typeof webdriver>>,
-  id: string
-) {
+async function getSrc(browser: Awaited<ReturnType<typeof webdriver>>, id: string) {
   const src = await browser.elementById(id).getAttribute('src')
   if (src) {
     const url = new URL(src, `http://localhost:${appPort}`)
@@ -90,8 +87,7 @@ function runTests(mode: 'dev' | 'server') {
         version: 1,
         images: {
           contentDispositionType: 'attachment',
-          contentSecurityPolicy:
-            "script-src 'none'; frame-src 'none'; sandbox;",
+          contentSecurityPolicy: "script-src 'none'; frame-src 'none'; sandbox;",
           dangerouslyAllowLocalIP: false,
           dangerouslyAllowSVG: false,
           deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
@@ -114,10 +110,7 @@ function runTests(mode: 'dev' | 'server') {
           minimumCacheTTL: 14400,
           path: '/_next/image',
           qualities: [42, 69, 88],
-          sizes: [
-            640, 750, 828, 1080, 1200, 1920, 2048, 3840, 32, 48, 64, 96, 128,
-            256, 384,
-          ],
+          sizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840, 32, 48, 64, 96, 128, 256, 384],
           unoptimized: false,
         },
       })
@@ -126,33 +119,27 @@ function runTests(mode: 'dev' | 'server') {
 }
 
 describe('Image localPatterns config', () => {
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
-    'development mode',
-    () => {
-      beforeAll(async () => {
-        appPort = await findPort()
-        app = await launchApp(appDir, appPort)
-      })
-      afterAll(async () => {
-        await killApp(app)
-      })
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
+    beforeAll(async () => {
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+    })
 
-      runTests('dev')
-    }
-  )
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      beforeAll(async () => {
-        await nextBuild(appDir)
-        appPort = await findPort()
-        app = await nextStart(appDir, appPort)
-      })
-      afterAll(async () => {
-        await killApp(app)
-      })
+    runTests('dev')
+  })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
+    beforeAll(async () => {
+      await nextBuild(appDir)
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+    })
 
-      runTests('server')
-    }
-  )
+    runTests('server')
+  })
 })

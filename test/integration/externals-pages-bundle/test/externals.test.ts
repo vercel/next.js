@@ -2,14 +2,7 @@
 
 import fs from 'fs/promises'
 import { join } from 'path'
-import {
-  killApp,
-  launchApp,
-  findPort,
-  File,
-  renderViaHTTP,
-  getDistDir,
-} from 'next-test-utils'
+import { killApp, launchApp, findPort, File, renderViaHTTP, getDistDir } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
 
@@ -26,9 +19,7 @@ describe('default', () => {
       await renderViaHTTP(port, '/')
       if (process.env.IS_TURBOPACK_TEST) {
         const ssrPath = join(appDir, `${getDistDir()}/server/chunks/ssr`)
-        const pageBundleBasenames = (await fs.readdir(ssrPath)).filter((p) =>
-          p.match(/\.js$/)
-        )
+        const pageBundleBasenames = (await fs.readdir(ssrPath)).filter((p) => p.match(/\.js$/))
         expect(pageBundleBasenames).not.toBeEmpty()
         let allBundles = ''
         for (const basename of pageBundleBasenames) {

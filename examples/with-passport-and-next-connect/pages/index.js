@@ -2,9 +2,7 @@ import { useUser, fetcher } from "../lib/hooks";
 import useSWR from "swr";
 
 function UserList() {
-  const {
-    data: { users } = {},
-  } = useSWR("/api/users", fetcher);
+  const { data: { users } = {} } = useSWR("/api/users", fetcher);
   return (
     <>
       <h2>All users</h2>
@@ -34,8 +32,7 @@ export default function HomePage() {
     <>
       <h1>
         <a href="http://www.passportjs.org/">Passport.js</a> +{" "}
-        <a href="https://github.com/hoangvvo/next-connect">next-connect</a>{" "}
-        Example
+        <a href="https://github.com/hoangvvo/next-connect">next-connect</a> Example
       </h1>
       <h2>Steps to test the example:</h2>
       <h3>Sign up</h3>
@@ -43,9 +40,7 @@ export default function HomePage() {
         <li>Click Sign up and enter a username and password.</li>
         <li>You will be logged in and redirected home.</li>
         <li>Click Logout. You will be redirected home.</li>
-        <li>
-          Try sign up again with the same username, you will see an error.
-        </li>
+        <li>Try sign up again with the same username, you will see an error.</li>
       </ol>
       <h3>Sign in</h3>
       <ol>
@@ -59,10 +54,7 @@ export default function HomePage() {
         <li>Enter a new name and click Update profile.</li>
         <li>Notice how the name in Your profile has changed.</li>
         <li>Click Delete profile</li>
-        <li>
-          The user is removed and is no longer shown in All users section in
-          Home
-        </li>
+        <li>The user is removed and is no longer shown in All users section in Home</li>
       </ol>
       {user && (
         <>

@@ -15,10 +15,7 @@ import {
   signalFromNodeResponse,
 } from '../../server/web/spec-extension/adapters/next-request'
 import { toNodeOutgoingHttpHeaders } from '../../server/web/utils'
-import type {
-  MockedRequest,
-  MockedResponse,
-} from '../../server/lib/mock-request'
+import type { MockedRequest, MockedResponse } from '../../server/lib/mock-request'
 import { isDynamicUsageError } from '../helpers/is-dynamic-usage-error'
 import { isStaticGenEnabled } from '../../server/route-modules/app-route/helpers/is-static-gen-enabled'
 import type { ExperimentalConfig } from '../../server/config-shared'
@@ -154,10 +151,7 @@ export async function exportAppRoute(
 
     // Write the request metadata to a file.
     const meta = { status: response.status, headers }
-    fileWriter.append(
-      htmlFilepath.replace(/\.html$/, NEXT_META_SUFFIX),
-      JSON.stringify(meta)
-    )
+    fileWriter.append(htmlFilepath.replace(/\.html$/, NEXT_META_SUFFIX), JSON.stringify(meta))
 
     return {
       cacheControl: { revalidate, expire },

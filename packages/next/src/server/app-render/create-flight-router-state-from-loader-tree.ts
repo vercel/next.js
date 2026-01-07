@@ -1,8 +1,5 @@
 import type { LoaderTree } from '../lib/app-dir-module'
-import {
-  HasLoadingBoundary,
-  type FlightRouterState,
-} from '../../shared/lib/app-router-types'
+import { HasLoadingBoundary, type FlightRouterState } from '../../shared/lib/app-router-types'
 import type { GetDynamicParamFromSegment } from './app-render'
 import { addSearchParamsIfPageSegment } from '../../shared/lib/segment'
 
@@ -37,10 +34,7 @@ function createFlightRouterStateFromLoaderTreeImpl(
       includeHasLoadingBoundary,
       didFindRootLayout
     )
-    if (
-      includeHasLoadingBoundary &&
-      child[5] !== HasLoadingBoundary.SubtreeHasNoLoadingBoundary
-    ) {
+    if (includeHasLoadingBoundary && child[5] !== HasLoadingBoundary.SubtreeHasNoLoadingBoundary) {
       childHasLoadingBoundary = true
     }
     children[parallelRouteKey] = child

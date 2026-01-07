@@ -12,13 +12,9 @@ import ImportsDefault from 'my-cjs-package/imports'
 import * as ImportsNamed from 'my-cjs-package/imports'
 import { named as namedImports } from 'my-cjs-package/imports'
 
-const pendingDynamicExports = import('my-cjs-package/exports').then((mod) =>
-  JSON.stringify(mod)
-)
+const pendingDynamicExports = import('my-cjs-package/exports').then((mod) => JSON.stringify(mod))
 
-const pendingDynamicImports = import('my-cjs-package/imports').then((mod) =>
-  JSON.stringify(mod)
-)
+const pendingDynamicImports = import('my-cjs-package/imports').then((mod) => JSON.stringify(mod))
 
 export default function Client() {
   return (

@@ -1,5 +1,5 @@
 // Return attributes and values of a node in a convenient way:
-/* example: 
+/* example:
     <ExampleElement attr1="15" attr2>
     {   attr1: {
             hasValue: true,

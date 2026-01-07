@@ -20,9 +20,7 @@ describe('dynamic on hover', () => {
     })
 
     // This Link's unstable_dynamicOnHover prop is set to true
-    const linkVisibilityToggle = await browser.elementByCss(
-      'input[data-link-accordion="/dynamic"]'
-    )
+    const linkVisibilityToggle = await browser.elementByCss('input[data-link-accordion="/dynamic"]')
 
     // Reveal the link to start prefetching. Since the link has not been hovered
     // yet, the prefetch only includes static data.

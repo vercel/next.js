@@ -1,6 +1,6 @@
 {
-  "private": true,
   "name": "import-conditions",
+  "private": true,
   "dependencies": {
     "library-with-exports": "link:./library-with-exports"
   }

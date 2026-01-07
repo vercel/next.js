@@ -9,10 +9,7 @@ import {
 } from 'react-server-dom-webpack/client'
 import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
 import { onRecoverableError } from './react-client-callbacks/on-recoverable-error'
-import {
-  onCaughtError,
-  onUncaughtError,
-} from './react-client-callbacks/error-boundary-callbacks'
+import { onCaughtError, onUncaughtError } from './react-client-callbacks/error-boundary-callbacks'
 import { callServer } from './app-call-server'
 import { findSourceMapURL } from './app-find-source-map-url'
 import {
@@ -39,8 +36,7 @@ const appElement: HTMLElement | Document = document
 const encoder = new TextEncoder()
 
 let initialServerDataBuffer: (string | Uint8Array)[] | undefined = undefined
-let initialServerDataWriter: ReadableStreamDefaultController | undefined =
-  undefined
+let initialServerDataWriter: ReadableStreamDefaultController | undefined = undefined
 let initialServerDataLoaded = false
 let initialServerDataFlushed = false
 
@@ -174,9 +170,7 @@ if (process.env.NODE_ENV !== 'production') {
   readable.name = 'hydration'
 }
 
-let debugChannel:
-  | { readable?: ReadableStream; writable?: WritableStream }
-  | undefined
+let debugChannel: { readable?: ReadableStream; writable?: WritableStream } | undefined
 
 if (
   process.env.NODE_ENV !== 'production' &&
@@ -202,21 +196,15 @@ if (clientResumeFetch) {
       debugChannel,
     })
   ).then(async (fallbackInitialRSCPayload) =>
-    createInitialRSCPayloadFromFallbackPrerender(
-      await clientResumeFetch,
-      fallbackInitialRSCPayload
-    )
+    createInitialRSCPayloadFromFallbackPrerender(await clientResumeFetch, fallbackInitialRSCPayload)
   )
 } else {
-  initialServerResponse = createFromReadableStream<InitialRSCPayload>(
-    readable,
-    {
-      callServer,
-      findSourceMapURL,
-      debugChannel,
-      startTime: 0,
-    }
-  )
+  initialServerResponse = createFromReadableStream<InitialRSCPayload>(readable, {
+    callServer,
+    findSourceMapURL,
+    debugChannel,
+    startTime: 0,
+  })
 }
 
 function ServerRoot({
@@ -242,19 +230,13 @@ function ServerRoot({
   if (process.env.NODE_ENV === 'development' && initialRSCPayload.m) {
     // We provide missing slot information in a context provider only during development
     // as we log some additional information about the missing slots in the console.
-    return (
-      <MissingSlotContext value={initialRSCPayload.m}>
-        {router}
-      </MissingSlotContext>
-    )
+    return <MissingSlotContext value={initialRSCPayload.m}>{router}</MissingSlotContext>
   }
 
   return router
 }
 
-const StrictModeIfEnabled = process.env.__NEXT_STRICT_MODE_APP
-  ? React.StrictMode
-  : React.Fragment
+const StrictModeIfEnabled = process.env.__NEXT_STRICT_MODE_APP ? React.StrictMode : React.Fragment
 
 function Root({ children }: React.PropsWithChildren<{}>) {
   if (process.env.__NEXT_TEST_MODE) {
@@ -286,10 +268,7 @@ const reactRootOptions: ReactDOMClient.RootOptions = {
 }
 
 export type ClientInstrumentationHooks = {
-  onRouterTransitionStart?: (
-    url: string,
-    navigationType: 'push' | 'replace' | 'traverse'
-  ) => void
+  onRouterTransitionStart?: (url: string, navigationType: 'push' | 'replace' | 'traverse') => void
 }
 
 export async function hydrate(
@@ -346,9 +325,7 @@ export async function hydrate(
         require('../next-devtools/userspace/app/client-entry') as typeof import('../next-devtools/userspace/app/client-entry')
 
       // Note this won't cause hydration mismatch because we are doing CSR w/o hydration
-      element = (
-        <RootLevelDevOverlayElement>{element}</RootLevelDevOverlayElement>
-      )
+      element = <RootLevelDevOverlayElement>{element}</RootLevelDevOverlayElement>
     }
 
     ReactDOMClient.createRoot(appElement, reactRootOptions).render(element)
@@ -363,8 +340,7 @@ export async function hydrate(
 
   // TODO-APP: Remove this logic when Float has GC built-in in development.
   if (process.env.NODE_ENV !== 'production') {
-    const { linkGc } =
-      require('./app-link-gc') as typeof import('./app-link-gc')
+    const { linkGc } = require('./app-link-gc') as typeof import('./app-link-gc')
     linkGc()
   }
 }

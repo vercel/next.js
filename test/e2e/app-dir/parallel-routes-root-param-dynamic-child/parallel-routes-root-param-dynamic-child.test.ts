@@ -67,9 +67,7 @@ describe('parallel-routes-root-param-dynamic-child', () => {
       async (locale) => {
         const { browser } = await createBrowserActor(`/${locale}`)
 
-        expect(await browser.elementByCss('#locale-page').text()).toBe(
-          `Locale: ${locale}`
-        )
+        expect(await browser.elementByCss('#locale-page').text()).toBe(`Locale: ${locale}`)
       }
     )
 
@@ -87,33 +85,21 @@ describe('parallel-routes-root-param-dynamic-child', () => {
         const { browser, act } = await createBrowserActor('/en')
 
         await act(async () => {
-          await browser
-            .elementByCss(`[href="/${locale}/no-gsp/stories/dynamic-123"]`)
-            .click()
+          await browser.elementByCss(`[href="/${locale}/no-gsp/stories/dynamic-123"]`).click()
         })
 
-        expect(await browser.elementByCss('#story-locale').text()).toBe(
-          `Locale: ${locale}`
-        )
-        expect(await browser.elementByCss('#story-slug').text()).toBe(
-          'Story: dynamic-123'
-        )
+        expect(await browser.elementByCss('#story-locale').text()).toBe(`Locale: ${locale}`)
+        expect(await browser.elementByCss('#story-slug').text()).toBe('Story: dynamic-123')
       }
     )
 
     it('should allow dynamic params even with /es locale', async () => {
       // Even though /es is not in the root generateStaticParams,
       // no-gsp routes should still work because they don't enforce static params
-      const { browser } = await createBrowserActor(
-        '/es/no-gsp/stories/dynamic-123'
-      )
+      const { browser } = await createBrowserActor('/es/no-gsp/stories/dynamic-123')
 
-      expect(await browser.elementByCss('#story-locale').text()).toBe(
-        'Locale: es'
-      )
-      expect(await browser.elementByCss('#story-slug').text()).toBe(
-        'Story: dynamic-123'
-      )
+      expect(await browser.elementByCss('#story-locale').text()).toBe('Locale: es')
+      expect(await browser.elementByCss('#story-slug').text()).toBe('Story: dynamic-123')
     })
   })
 
@@ -125,17 +111,11 @@ describe('parallel-routes-root-param-dynamic-child', () => {
           const { browser, act } = await createBrowserActor(`/${locale}`)
 
           await act(async () => {
-            await browser
-              .elementByCss(`[href="/${locale}/gsp/stories/static-123"]`)
-              .click()
+            await browser.elementByCss(`[href="/${locale}/gsp/stories/static-123"]`).click()
           })
 
-          expect(await browser.elementByCss('#story-locale').text()).toBe(
-            `Locale: ${locale}`
-          )
-          expect(await browser.elementByCss('#story-slug').text()).toBe(
-            'Story: static-123'
-          )
+          expect(await browser.elementByCss('#story-locale').text()).toBe(`Locale: ${locale}`)
+          expect(await browser.elementByCss('#story-slug').text()).toBe('Story: static-123')
         }
       )
 
@@ -152,14 +132,10 @@ describe('parallel-routes-root-param-dynamic-child', () => {
           const { browser, act } = await createBrowserActor(`/${locale}`)
 
           await act(async () => {
-            await browser
-              .elementByCss(`[href="/${locale}/gsp/stories/dynamic-123"]`)
-              .click()
+            await browser.elementByCss(`[href="/${locale}/gsp/stories/dynamic-123"]`).click()
           })
 
-          expect(await browser.elementByCss('.next-error-h1').text()).toBe(
-            '404'
-          )
+          expect(await browser.elementByCss('.next-error-h1').text()).toBe('404')
         }
       )
 

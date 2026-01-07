@@ -5,10 +5,7 @@ export default function Page() {
   return (
     <ul>
       <li>
-        Server value:{' '}
-        {typeof MY_SERVER_VARIABLE === 'string'
-          ? MY_SERVER_VARIABLE
-          : 'not set'}
+        Server value: {typeof MY_SERVER_VARIABLE === 'string' ? MY_SERVER_VARIABLE : 'not set'}
       </li>
       <li>
         Client value: <ClientValue />

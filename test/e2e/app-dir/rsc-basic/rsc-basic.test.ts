@@ -2,10 +2,7 @@ import path from 'path'
 import { check, getDistDir } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 import cheerio from 'cheerio'
-import {
-  NEXT_RSC_UNION_QUERY,
-  RSC_HEADER,
-} from 'next/dist/client/components/app-router-headers'
+import { NEXT_RSC_UNION_QUERY, RSC_HEADER } from 'next/dist/client/components/app-router-headers'
 
 // TODO: We should decide on an established pattern for gating test assertions
 // on experimental flags. For example, as a first step we could all the common
@@ -41,14 +38,10 @@ describe('app dir - rsc basics', () => {
         // Check that the client-side manifest is correct before any requests
         const clientReferenceManifest = JSON.parse(
           (
-            await next.readFile(
-              `${getDistDir()}/server/app/page_client-reference-manifest.js`
-            )
+            await next.readFile(`${getDistDir()}/server/app/page_client-reference-manifest.js`)
           ).match(/]=(.+)$/)[1]
         )
-        const clientModulesNames = Object.keys(
-          clientReferenceManifest.clientModules
-        )
+        const clientModulesNames = Object.keys(clientReferenceManifest.clientModules)
         clientModulesNames.every((name) => {
           const [, key] = name.split('#', 2)
           return key === undefined || key === '' || key === 'default'
@@ -76,54 +69,42 @@ describe('app dir - rsc basics', () => {
   it('should correctly render page returning null', async () => {
     const browser = await next.browser('/return-null/page')
     expect(
-      await browser
-        .elementByCss('#return-null-layout', { state: 'attached' })
-        .text()
+      await browser.elementByCss('#return-null-layout', { state: 'attached' }).text()
     ).toBeEmpty()
   })
 
   it('should correctly render component returning null', async () => {
     const browser = await next.browser('/return-null/component')
     expect(
-      await browser
-        .elementByCss('#return-null-layout', { state: 'attached' })
-        .text()
+      await browser.elementByCss('#return-null-layout', { state: 'attached' }).text()
     ).toBeEmpty()
   })
 
   it('should correctly render layout returning null', async () => {
     const browser = await next.browser('/return-null/layout')
     expect(
-      await browser
-        .elementByCss('#return-null-layout', { state: 'attached' })
-        .text()
+      await browser.elementByCss('#return-null-layout', { state: 'attached' }).text()
     ).toBeEmpty()
   })
 
   it('should correctly render page returning undefined', async () => {
     const browser = await next.browser('/return-undefined/page')
     expect(
-      await browser
-        .elementByCss('#return-undefined-layout', { state: 'attached' })
-        .text()
+      await browser.elementByCss('#return-undefined-layout', { state: 'attached' }).text()
     ).toBeEmpty()
   })
 
   it('should correctly render component returning undefined', async () => {
     const browser = await next.browser('/return-undefined/component')
     expect(
-      await browser
-        .elementByCss('#return-undefined-layout', { state: 'attached' })
-        .text()
+      await browser.elementByCss('#return-undefined-layout', { state: 'attached' }).text()
     ).toBeEmpty()
   })
 
   it('should correctly render layout returning undefined', async () => {
     const browser = await next.browser('/return-undefined/layout')
     expect(
-      await browser
-        .elementByCss('#return-undefined-layout', { state: 'attached' })
-        .text()
+      await browser.elementByCss('#return-undefined-layout', { state: 'attached' }).text()
     ).toBeEmpty()
   })
 
@@ -173,9 +154,7 @@ describe('app dir - rsc basics', () => {
       internalQueries.some((query) => content.includes(query))
     )
     expect(hasNextInternalQuery).toBe(false)
-    expect(next.cliOutput).not.toContain(
-      'Each child in a list should have a unique "key" prop'
-    )
+    expect(next.cliOutput).not.toContain('Each child in a list should have a unique "key" prop')
   })
 
   it('should reuse the inline flight response without sending extra requests', async () => {
@@ -229,18 +208,13 @@ describe('app dir - rsc basics', () => {
     await browser.waitForElementByCss('#goto-streaming-rsc').click()
 
     // Wait for navigation and streaming to finish.
-    await check(
-      () => browser.elementByCss('#content').text(),
-      'next_streaming_data'
-    )
+    await check(() => browser.elementByCss('#content').text(), 'next_streaming_data')
     expect(await browser.url()).toBe(`${next.url}/streaming-rsc`)
   })
 
   it('should handle streaming server components correctly', async () => {
     const browser = await next.browser('/streaming-rsc')
-    const content = await browser.eval(
-      `document.querySelector('#content').innerText`
-    )
+    const content = await browser.eval(`document.querySelector('#content').innerText`)
     expect(content).toMatchInlineSnapshot('"next_streaming_data"')
   })
 
@@ -249,22 +223,19 @@ describe('app dir - rsc basics', () => {
     expect(html).toContain('dynamic data!')
   })
 
-  describe.each(['node', 'edge'])(
-    'client references with TLA (%s)',
-    (runtime) => {
-      let url = `/async-client${runtime === 'edge' ? '/edge' : ''}`
+  describe.each(['node', 'edge'])('client references with TLA (%s)', (runtime) => {
+    let url = `/async-client${runtime === 'edge' ? '/edge' : ''}`
 
-      it('should support TLA in sync client reference imports', async () => {
-        const html = await next.render(url + '/sync')
-        expect(html).toContain('client async')
-      })
+    it('should support TLA in sync client reference imports', async () => {
+      const html = await next.render(url + '/sync')
+      expect(html).toContain('client async')
+    })
 
-      it('should support TLA in lazy client reference', async () => {
-        const html = await next.render(url + '/lazy')
-        expect(html).toContain('client async')
-      })
-    }
-  )
+    it('should support TLA in lazy client reference', async () => {
+      const html = await next.render(url + '/lazy')
+      expect(html).toContain('client async')
+    })
+  })
 
   if (isPPREnabledByDefault) {
     // TODO: Figure out why this test is flaky when PPR is enabled
@@ -403,9 +374,7 @@ describe('app dir - rsc basics', () => {
   describe.each(['node', 'edge'])(`%s`, (runtime) => {
     it('should handle dynamic routes when URL segment matches the folder bracket syntax', async () => {
       const browser = await next.browser(`/${runtime}/dynamic/[id]`)
-      expect(await browser.elementByCss('body').text()).toBe(
-        'dynamic route [id] page'
-      )
+      expect(await browser.elementByCss('body').text()).toBe('dynamic route [id] page')
     })
   })
 
@@ -460,9 +429,7 @@ describe('app dir - rsc basics', () => {
   // TODO: (PPR) remove once PPR is stable
   // TODO(new-dev-overlay): remove once new dev overlay is stable
   const bundledReactVersionPattern =
-    process.env.__NEXT_CACHE_COMPONENTS === 'true'
-      ? '-experimental-'
-      : '-canary-'
+    process.env.__NEXT_CACHE_COMPONENTS === 'true' ? '-experimental-' : '-canary-'
 
   it('should not use bundled react for pages with app', async () => {
     const ssrPaths = ['/pages-react', '/edge-pages-react']
@@ -481,14 +448,9 @@ describe('app dir - rsc basics', () => {
     await Promise.all(promises)
 
     const resApp$ = await next.render$('/app-react')
-    const ssrAppReactVersions = [
-      await resApp$('#react').text(),
-      await resApp$('#react-dom').text(),
-    ]
+    const ssrAppReactVersions = [await resApp$('#react').text(), await resApp$('#react-dom').text()]
 
-    ssrAppReactVersions.forEach((version) =>
-      expect(version).toMatch(bundledReactVersionPattern)
-    )
+    ssrAppReactVersions.forEach((version) => expect(version).toMatch(bundledReactVersionPattern))
 
     const browser = await next.browser('/pages-react')
     const browserPagesReactVersions = await browser.eval(`
@@ -518,13 +480,7 @@ describe('app dir - rsc basics', () => {
 
   it('should use canary react for app', async () => {
     const resPages$ = await next.render$('/app-react')
-    const [
-      ssrReact,
-      ssrReactDOM,
-      ssrClientReact,
-      ssrClientReactDOM,
-      ssrClientReactDOMServer,
-    ] = [
+    const [ssrReact, ssrReactDOM, ssrClientReact, ssrClientReactDOM, ssrClientReactDOMServer] = [
       resPages$('#react').text(),
       resPages$('#react-dom').text(),
       resPages$('#client-react').text(),
@@ -542,9 +498,7 @@ describe('app dir - rsc basics', () => {
       ssrReactDOM: expect.stringMatching(bundledReactVersionPattern),
       ssrClientReact: expect.stringMatching(bundledReactVersionPattern),
       ssrClientReactDOM: expect.stringMatching(bundledReactVersionPattern),
-      ssrClientReactDOMServer: expect.stringMatching(
-        bundledReactVersionPattern
-      ),
+      ssrClientReactDOMServer: expect.stringMatching(bundledReactVersionPattern),
     })
 
     const browser = await next.browser('/app-react')
@@ -574,18 +528,14 @@ describe('app dir - rsc basics', () => {
       browserReactDOM: expect.stringMatching(bundledReactVersionPattern),
       browserClientReact: expect.stringMatching(bundledReactVersionPattern),
       browserClientReactDOM: expect.stringMatching(bundledReactVersionPattern),
-      browserClientReactDOMServer: expect.stringMatching(
-        bundledReactVersionPattern
-      ),
+      browserClientReactDOMServer: expect.stringMatching(bundledReactVersionPattern),
     })
   })
 
   it('should be able to call legacy react-dom/server APIs in client components', async () => {
     const $ = await next.render$('/app-react')
     const content = $('#markup').text()
-    expect(content).toBe(
-      '<div class="react-static-markup">React Static Markup</div>'
-    )
+    expect(content).toBe('<div class="react-static-markup">React Static Markup</div>')
 
     if (isNextDev) {
       const filePath = 'app/app-react/client-react.js'
@@ -599,9 +549,7 @@ describe('app dir - rsc basics', () => {
       )
 
       const browser = await next.browser('/app-react')
-      const markupContentInBrowser = await browser
-        .elementByCss('#markup')
-        .text()
+      const markupContentInBrowser = await browser.elementByCss('#markup').text()
       expect(markupContentInBrowser).toBe(
         '<div class="react-static-markup">React Static Markup</div>'
       )
@@ -624,9 +572,7 @@ describe('app dir - rsc basics', () => {
     expect(await browser.eval(`window.partial_hydration_suspense_result`)).toBe(
       'next_streaming_fallback'
     )
-    expect(await browser.eval(`window.partial_hydration_counter_result`)).toBe(
-      'count: 1'
-    )
+    expect(await browser.eval(`window.partial_hydration_counter_result`)).toBe('count: 1')
   })
 
   if (isNextStart) {
@@ -638,9 +584,7 @@ describe('app dir - rsc basics', () => {
       const files = ['middleware-build-manifest.js', 'middleware-manifest.json']
 
       let promises = files.map(async (file) => {
-        expect(
-          await next.hasFile(path.join(`${getDistDir()}/server`, file))
-        ).toBe(true)
+        expect(await next.hasFile(path.join(`${getDistDir()}/server`, file))).toBe(true)
       })
       await Promise.all(promises)
 

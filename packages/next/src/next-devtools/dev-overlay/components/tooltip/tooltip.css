@@ -25,32 +25,28 @@
 }
 
 .tooltip-arrow--top {
-  border-width: var(--arrow-size, 6px) var(--arrow-size, 6px) 0
-    var(--arrow-size, 6px);
+  border-width: var(--arrow-size, 6px) var(--arrow-size, 6px) 0 var(--arrow-size, 6px);
   border-top-color: var(--color-gray-1000);
   bottom: 0;
   transform: translateY(100%);
 }
 
 .tooltip-arrow--bottom {
-  border-width: 0 var(--arrow-size, 6px) var(--arrow-size, 6px)
-    var(--arrow-size, 6px);
+  border-width: 0 var(--arrow-size, 6px) var(--arrow-size, 6px) var(--arrow-size, 6px);
   border-bottom-color: var(--color-gray-1000);
   top: 0;
   transform: translateY(-100%);
 }
 
 .tooltip-arrow--left {
-  border-width: var(--arrow-size, 6px) 0 var(--arrow-size, 6px)
-    var(--arrow-size, 6px);
+  border-width: var(--arrow-size, 6px) 0 var(--arrow-size, 6px) var(--arrow-size, 6px);
   border-left-color: var(--color-gray-1000);
   right: 0;
   transform: translateX(100%);
 }
 
 .tooltip-arrow--right {
-  border-width: var(--arrow-size, 6px) var(--arrow-size, 6px)
-    var(--arrow-size, 6px) 0;
+  border-width: var(--arrow-size, 6px) var(--arrow-size, 6px) var(--arrow-size, 6px) 0;
   border-right-color: var(--color-gray-1000);
   left: 0;
   transform: translateX(-100%);

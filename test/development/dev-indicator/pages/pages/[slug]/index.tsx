@@ -15,11 +15,7 @@ export const getStaticPaths = async () => {
   }
 }
 
-export const getStaticProps = async ({
-  params,
-}: {
-  params: { slug: string }
-}) => {
+export const getStaticProps = async ({ params }: { params: { slug: string } }) => {
   return {
     props: {
       slug: params.slug,

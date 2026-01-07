@@ -18,17 +18,13 @@ describe('create-next-app with package manager yarn', () => {
       throw new Error('This test needs to be run with `node run-tests.js`.')
     }
 
-    const pkgPaths = new Map<string, string>(
-      JSON.parse(process.env.NEXT_TEST_PKG_PATHS)
-    )
+    const pkgPaths = new Map<string, string>(JSON.parse(process.env.NEXT_TEST_PKG_PATHS))
 
     nextTgzFilename = pkgPaths.get('next')
 
     await command('yarn', ['--version'])
       // install yarn if not available
-      .catch(() =>
-        command('corepack', ['prepare', '--activate', 'yarn@1.22.19'])
-      )
+      .catch(() => command('corepack', ['prepare', '--activate', 'yarn@1.22.19']))
       .catch(() => command('npm', ['i', '-g', 'yarn']))
   })
 
@@ -115,14 +111,10 @@ describe('create-next-app with package manager yarn', () => {
   it('should use yarn when user-agent is yarn with example', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'user-agent-yarn-with-example'
-      const res = await run(
-        [projectName, '--example', FULL_EXAMPLE_PATH],
-        nextTgzFilename,
-        {
-          cwd,
-          env: { npm_config_user_agent: 'yarn' },
-        }
-      )
+      const res = await run([projectName, '--example', FULL_EXAMPLE_PATH], nextTgzFilename, {
+        cwd,
+        env: { npm_config_user_agent: 'yarn' },
+      })
 
       expect(res.exitCode).toBe(0)
       projectFilesShouldExist({

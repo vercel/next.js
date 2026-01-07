@@ -9,17 +9,13 @@ export const unstable_prefetch = {
 
 type AnySearchParams = { [key: string]: string | string[] | undefined }
 
-export default async function Page({
-  searchParams,
-}: {
-  searchParams: Promise<AnySearchParams>
-}) {
+export default async function Page({ searchParams }: { searchParams: Promise<AnySearchParams> }) {
   return (
     <main>
       <DebugRenderKind />
       <p>
-        This page uses search params (passed to a private cache) and some
-        uncached IO, so parts of it should be runtime-prefetchable.
+        This page uses search params (passed to a private cache) and some uncached IO, so parts of
+        it should be runtime-prefetchable.
       </p>
       <Suspense fallback={<div style={{ color: 'grey' }}>Loading 1...</div>}>
         <RuntimePrefetchable searchParams={searchParams} />
@@ -28,11 +24,7 @@ export default async function Page({
   )
 }
 
-async function RuntimePrefetchable({
-  searchParams,
-}: {
-  searchParams: Promise<AnySearchParams>
-}) {
+async function RuntimePrefetchable({ searchParams }: { searchParams: Promise<AnySearchParams> }) {
   const searchParam = await privateCache(searchParams)
   return (
     <div style={{ border: '1px solid blue', padding: '1em' }}>

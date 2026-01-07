@@ -24,24 +24,18 @@ export function VersionStalenessInfo({
         rel="noopener noreferrer"
         href="https://nextjs.org/docs/messages/version-staleness"
       >
-        <EclipseIcon
-          className={cx('version-staleness-indicator', indicatorClass)}
-        />
+        <EclipseIcon className={cx('version-staleness-indicator', indicatorClass)} />
         <span data-nextjs-version-checker title={title}>
           {text}
         </span>
-        <span className={cx(isTurbopack && 'turbopack-text')}>
-          {bundlerName}
-        </span>
+        <span className={cx(isTurbopack && 'turbopack-text')}>{bundlerName}</span>
       </a>
     )
   }
 
   return (
     <span className="nextjs-container-build-error-version-status dialog-exclude-closing-from-outside-click">
-      <EclipseIcon
-        className={cx('version-staleness-indicator', indicatorClass)}
-      />
+      <EclipseIcon className={cx('version-staleness-indicator', indicatorClass)} />
       <span data-nextjs-version-checker title={title}>
         {text}
       </span>

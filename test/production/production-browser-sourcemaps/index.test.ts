@@ -44,9 +44,7 @@ describe('Production browser sourcemaps', () => {
         const buildManifest = getBuildManifest(next.testDir)
 
         // These currently don't have sourcemaps
-        let polyfillFiles = new Set(
-          buildManifest.polyfillFiles.map((f) => '/' + path.basename(f))
-        )
+        let polyfillFiles = new Set(buildManifest.polyfillFiles.map((f) => '/' + path.basename(f)))
 
         const staticDir = path.join(next.testDir, '.next', 'static', 'chunks')
         const browserFiles = await recursiveReadDir(staticDir)
@@ -67,9 +65,7 @@ describe('Production browser sourcemaps', () => {
           const jsFiles = buildManifest.pages[page]
           for (const file of jsFiles) {
             const jsPath = path.join(next.testDir, '.next', file)
-            expect(await sourceMapExistsForFile(jsPath)).toBe(
-              productionBrowserSourceMaps
-            )
+            expect(await sourceMapExistsForFile(jsPath)).toBe(productionBrowserSourceMaps)
           }
         }
       })

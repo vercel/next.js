@@ -21,9 +21,7 @@ describe('TypeScript basic', () => {
   afterAll(() => next.destroy())
 
   it('should not have eslint setup started', async () => {
-    expect(next.cliOutput).not.toContain(
-      'How would you like to configure ESLint'
-    )
+    expect(next.cliOutput).not.toContain('How would you like to configure ESLint')
   })
 
   it('have built and started correctly', async () => {
@@ -32,19 +30,13 @@ describe('TypeScript basic', () => {
   })
 
   // Turbopack doesn't support Babel built-in.
-  ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
-    'should work with babel',
-    async () => {
-      await next.stop()
-      await next.patchFile(
-        '.babelrc',
-        JSON.stringify({ presets: ['next/babel'] })
-      )
-      await next.start()
+  ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)('should work with babel', async () => {
+    await next.stop()
+    await next.patchFile('.babelrc', JSON.stringify({ presets: ['next/babel'] }))
+    await next.start()
 
-      const html = await renderViaHTTP(next.url, '/')
-      // eslint-disable-next-line jest/no-standalone-expect
-      expect(html).toContain('hello world')
-    }
-  )
+    const html = await renderViaHTTP(next.url, '/')
+    // eslint-disable-next-line jest/no-standalone-expect
+    expect(html).toContain('hello world')
+  })
 })

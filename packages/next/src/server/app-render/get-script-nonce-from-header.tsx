@@ -1,8 +1,6 @@
 import { ESCAPE_REGEX } from '../htmlescape'
 
-export function getScriptNonceFromHeader(
-  cspHeaderValue: string
-): string | undefined {
+export function getScriptNonceFromHeader(cspHeaderValue: string): string | undefined {
   const directives = cspHeaderValue
     // Directives are split by ';'.
     .split(';')
@@ -26,12 +24,7 @@ export function getScriptNonceFromHeader(
     .slice(1)
     .map((source) => source.trim())
     // Find the first source with the 'nonce-' prefix.
-    .find(
-      (source) =>
-        source.startsWith("'nonce-") &&
-        source.length > 8 &&
-        source.endsWith("'")
-    )
+    .find((source) => source.startsWith("'nonce-") && source.length > 8 && source.endsWith("'"))
     // Grab the nonce by trimming the 'nonce-' prefix.
     ?.slice(7, -1)
 

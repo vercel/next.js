@@ -1,7 +1,4 @@
-import {
-  isPlainObject,
-  getObjectClassLabel,
-} from '../shared/lib/is-plain-object'
+import { isPlainObject, getObjectClassLabel } from '../shared/lib/is-plain-object'
 
 const regexpPlainIdentifier = /^[A-Za-z_$][A-Za-z0-9_$]*$/
 
@@ -15,11 +12,7 @@ export class SerializableError extends Error {
   }
 }
 
-export function isSerializableProps(
-  page: string,
-  method: string,
-  input: any
-): true {
+export function isSerializableProps(page: string, method: string, input: any): true {
   if (!isPlainObject(input)) {
     throw new SerializableError(
       page,
@@ -46,11 +39,7 @@ export function isSerializableProps(
     visited.set(value, path)
   }
 
-  function isSerializable(
-    refs: Map<any, string>,
-    value: any,
-    path: string
-  ): true {
+  function isSerializable(refs: Map<any, string>, value: any, path: string): true {
     const type = typeof value
     if (
       // `null` can be serialized, but not `undefined`.
@@ -87,8 +76,7 @@ export function isSerializableProps(
 
           const newRefs = new Map(refs)
           return (
-            isSerializable(newRefs, key, nextPath) &&
-            isSerializable(newRefs, nestedValue, nextPath)
+            isSerializable(newRefs, key, nextPath) && isSerializable(newRefs, nestedValue, nextPath)
           )
         })
       ) {
@@ -132,9 +120,7 @@ export function isSerializableProps(
       '`' +
         type +
         '`' +
-        (type === 'object'
-          ? ` ("${Object.prototype.toString.call(value)}")`
-          : '') +
+        (type === 'object' ? ` ("${Object.prototype.toString.call(value)}")` : '') +
         ' cannot be serialized as JSON. Please only return JSON serializable data types.'
     )
   }

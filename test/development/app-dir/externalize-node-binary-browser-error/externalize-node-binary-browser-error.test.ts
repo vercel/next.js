@@ -1,9 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import {
-  waitForRedbox,
-  getRedboxDescription,
-  getRedboxSource,
-} from 'next-test-utils'
+import { waitForRedbox, getRedboxDescription, getRedboxSource } from 'next-test-utils'
 
 // FIXME: er-enable when we have a better implementation of node binary resolving
 describe.skip('externalize-node-binary-browser-error', () => {

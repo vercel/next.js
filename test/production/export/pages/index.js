@@ -21,18 +21,10 @@ export default () => (
       <Link href="/dynamic?text=cool+dynamic+text" id="get-initial-props">
         getInitialProps
       </Link>
-      <Link
-        href="/dynamic?text=next+export+is+nice"
-        as="/dynamic/one"
-        id="dynamic-1"
-      >
+      <Link href="/dynamic?text=next+export+is+nice" as="/dynamic/one" id="dynamic-1">
         Dynamic 1
       </Link>
-      <Link
-        href="/dynamic?text=Vercel+is+awesome"
-        as="/dynamic/two"
-        id="dynamic-2"
-      >
+      <Link href="/dynamic?text=Vercel+is+awesome" as="/dynamic/two" id="dynamic-2">
         Dynamic 2
       </Link>
       <Link href="/dynamic?text=Vercel+is+awesome#cool" id="with-hash">

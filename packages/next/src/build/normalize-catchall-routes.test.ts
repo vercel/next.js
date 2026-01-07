@@ -30,9 +30,7 @@ describe('normalizeCatchallRoutes', () => {
         '/parallel-nested-catchall/foo/page',
         '/parallel-nested-catchall/@slot/foo/page',
       ],
-      '/parallel-nested-catchall/foo/[id]': [
-        '/parallel-nested-catchall/foo/[id]/page',
-      ],
+      '/parallel-nested-catchall/foo/[id]': ['/parallel-nested-catchall/foo/[id]/page'],
       '/parallel-nested-catchall/foo/[...catchAll]': [
         '/parallel-nested-catchall/@slot/foo/[...catchAll]/page',
       ],
@@ -158,10 +156,7 @@ describe('normalizeCatchallRoutes', () => {
         '/nested/[foo]/[bar]/@slot0/default',
         '/nested/[foo]/[bar]/@slot2/default',
       ],
-      '/nested/[foo]/[bar]': [
-        '/nested/[foo]/[bar]/@slot0/page',
-        '/nested/[foo]/[bar]/@slot1/page',
-      ],
+      '/nested/[foo]/[bar]': ['/nested/[foo]/[bar]/@slot0/page', '/nested/[foo]/[bar]/@slot1/page'],
       '/nested/[foo]/[bar]/[baz]': [
         '/nested/[foo]/[bar]/@slot0/[baz]/page',
         '/nested/[foo]/[bar]/@slot1/[baz]/page',

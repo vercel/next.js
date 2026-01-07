@@ -35,9 +35,7 @@ const runTests = () => {
     )
     const stderr = await getStderr()
 
-    expect(stderr).toContain(
-      '`headers` field cannot be empty for route {"source":"/:path*"'
-    )
+    expect(stderr).toContain('`headers` field cannot be empty for route {"source":"/:path*"')
   })
 
   it('should error when source and destination length is exceeded', async () => {
@@ -172,9 +170,7 @@ const runTests = () => {
     )
 
     expect(stderr).toContain('Invalid `has` item:')
-    expect(stderr).toContain(
-      `invalid type "cookiee" for {"type":"cookiee","key":"loggedIn"}`
-    )
+    expect(stderr).toContain(`invalid type "cookiee" for {"type":"cookiee","key":"loggedIn"}`)
     expect(stderr).toContain(
       `invalid \`has\` item found for route {"source":"/hello","destination":"/another","has":[{"type":"cookiee","key":"loggedIn"}],"permanent":false}`
     )
@@ -183,9 +179,7 @@ const runTests = () => {
     expect(stderr).toContain(
       `invalid type "headerr", invalid key "undefined" for {"type":"headerr"}`
     )
-    expect(stderr).toContain(
-      `invalid type "queryr" for {"type":"queryr","key":"hello"}`
-    )
+    expect(stderr).toContain(`invalid type "queryr" for {"type":"queryr","key":"hello"}`)
     expect(stderr).toContain(
       `invalid \`has\` items found for route {"source":"/hello","destination":"/another","permanent":false,"has":[{"type":"headerr"},{"type":"queryr","key":"hello"}]}`
     )
@@ -270,9 +264,7 @@ const runTests = () => {
     )
     const stderr = await getStderr()
 
-    expect(stderr).toContain(
-      `\`destination\` is missing for route {"source":"/hello"}`
-    )
+    expect(stderr).toContain(`\`destination\` is missing for route {"source":"/hello"}`)
 
     expect(stderr).toContain(
       `\`source\` is not a string for route {"source":123,"destination":"/another"}`
@@ -309,18 +301,14 @@ const runTests = () => {
     expect(stderr).toContain(`Reason: Pattern cannot start with "?" at 11`)
     expect(stderr).toContain(`/feedback/(?!general)`)
 
-    expect(stderr).not.toContain(
-      'Valid redirect statusCode values are 301, 302, 303, 307, 308'
-    )
+    expect(stderr).not.toContain('Valid redirect statusCode values are 301, 302, 303, 307, 308')
 
     expect(stderr).toContain(
       `The route /hello rewrites urls outside of the basePath. Please use a destination that starts with \`http://\` or \`https://\` https://nextjs.org/docs/messages/invalid-external-rewrite`
     )
 
     expect(stderr).toContain('Invalid `has` item:')
-    expect(stderr).toContain(
-      `invalid type "cookiee" for {"type":"cookiee","key":"loggedIn"}`
-    )
+    expect(stderr).toContain(`invalid type "cookiee" for {"type":"cookiee","key":"loggedIn"}`)
     expect(stderr).toContain(
       `invalid \`has\` item found for route {"source":"/hello","destination":"/another","has":[{"type":"cookiee","key":"loggedIn"}]}`
     )
@@ -329,9 +317,7 @@ const runTests = () => {
     expect(stderr).toContain(
       `invalid type "headerr", invalid key "undefined" for {"type":"headerr"}`
     )
-    expect(stderr).toContain(
-      `invalid type "queryr" for {"type":"queryr","key":"hello"}`
-    )
+    expect(stderr).toContain(`invalid type "queryr" for {"type":"queryr","key":"hello"}`)
     expect(stderr).toContain(
       `invalid \`has\` items found for route {"source":"/hello","destination":"/another","has":[{"type":"headerr"},{"type":"queryr","key":"hello"}]}`
     )
@@ -464,18 +450,14 @@ const runTests = () => {
       'invalid field: destination for route {"source":"/again","destination":"/another","headers":[{"key":"x-first","value":"idk"}]}'
     )
 
-    expect(stderr).toContain(
-      `The route null is not a valid object with \`source\` and \`headers\``
-    )
+    expect(stderr).toContain(`The route null is not a valid object with \`source\` and \`headers\``)
 
     expect(stderr).toContain(
       `The route "string" is not a valid object with \`source\` and \`headers\``
     )
 
     expect(stderr).toContain('Invalid `has` item:')
-    expect(stderr).toContain(
-      `invalid type "cookiee" for {"type":"cookiee","key":"loggedIn"}`
-    )
+    expect(stderr).toContain(`invalid type "cookiee" for {"type":"cookiee","key":"loggedIn"}`)
     expect(stderr).toContain(
       `invalid \`has\` item found for route {"source":"/hello","has":[{"type":"cookiee","key":"loggedIn"}],"headers":[{"key":"x-hello","value":"world"}]}`
     )
@@ -484,9 +466,7 @@ const runTests = () => {
     expect(stderr).toContain(
       `invalid type "headerr", invalid key "undefined" for {"type":"headerr"}`
     )
-    expect(stderr).toContain(
-      `invalid type "queryr" for {"type":"queryr","key":"hello"}`
-    )
+    expect(stderr).toContain(`invalid type "queryr" for {"type":"queryr","key":"hello"}`)
     expect(stderr).toContain(
       `invalid \`has\` items found for route {"source":"/hello","has":[{"type":"headerr"},{"type":"queryr","key":"hello"}],"headers":[{"key":"x-hello","value":"world"}]}`
     )
@@ -578,39 +558,33 @@ const runTests = () => {
 
 describe('Errors on invalid custom routes', () => {
   afterAll(() => fs.remove(nextConfigPath))
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
-    'development mode',
-    () => {
-      let stderr = ''
-      beforeAll(() => {
-        getStderr = async () => {
-          const port = await findPort()
-          await launchApp(appDir, port, {
-            onStderr: (msg) => {
-              stderr += msg
-            },
-          })
-          return stderr
-        }
-      })
-      afterEach(() => {
-        stderr = ''
-      })
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
+    let stderr = ''
+    beforeAll(() => {
+      getStderr = async () => {
+        const port = await findPort()
+        await launchApp(appDir, port, {
+          onStderr: (msg) => {
+            stderr += msg
+          },
+        })
+        return stderr
+      }
+    })
+    afterEach(() => {
+      stderr = ''
+    })
 
-      runTests()
-    }
-  )
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      beforeAll(() => {
-        getStderr = async () => {
-          const { stderr } = await nextBuild(appDir, [], { stderr: true })
-          return stderr
-        }
-      })
+    runTests()
+  })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
+    beforeAll(() => {
+      getStderr = async () => {
+        const { stderr } = await nextBuild(appDir, [], { stderr: true })
+        return stderr
+      }
+    })
 
-      runTests()
-    }
-  )
+    runTests()
+  })
 })

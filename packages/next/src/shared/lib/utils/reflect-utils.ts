@@ -12,10 +12,7 @@ export function describeStringPropertyAccess(target: string, prop: string) {
   return `\`${target}[${JSON.stringify(prop)}]\``
 }
 
-export function describeHasCheckingStringProperty(
-  target: string,
-  prop: string
-) {
+export function describeHasCheckingStringProperty(target: string, prop: string) {
   const stringifiedProp = JSON.stringify(prop)
   return `\`Reflect.has(${target}, ${stringifiedProp})\`, \`${stringifiedProp} in ${target}\`, or similar`
 }

@@ -18,9 +18,7 @@ export default function ProductCard({ product }) {
           fill
           className={cn(
             "object-cover duration-700 ease-in-out group-hover:opacity-75	",
-            isLoading
-              ? "scale-110 blur-2xl grayscale"
-              : "scale-100 blur-0 grayscale-0",
+            isLoading ? "scale-110 blur-2xl grayscale" : "scale-100 blur-0 grayscale-0",
           )}
           onLoad={() => setLoading(false)}
         />
@@ -29,9 +27,7 @@ export default function ProductCard({ product }) {
         <h3>{product.name}</h3>
         <p>${product.price}</p>
       </div>
-      <p className="mt-1 text-sm italic text-gray-500">
-        {product.shortDescription}
-      </p>
+      <p className="mt-1 text-sm italic text-gray-500">{product.shortDescription}</p>
     </Link>
   );
 }

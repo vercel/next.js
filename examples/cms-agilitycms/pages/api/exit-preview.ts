@@ -1,9 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 
-export default async function handler(
-  _req: NextApiRequest,
-  res: NextApiResponse,
-) {
+export default async function handler(_req: NextApiRequest, res: NextApiResponse) {
   // Exit Draft Mode by removing the cookie
   res.setDraftMode({ enable: false });
 

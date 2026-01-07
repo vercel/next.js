@@ -8,15 +8,14 @@ import dynamic from "next/dynamic";
 
 const DynamicComponent1 = dynamic(() => import("./_components/hello1"));
 
-const DynamicComponent2WithCustomLoading = dynamic(
-  () => import("./_components/hello2"),
-  { loading: () => <p>Loading caused by client page transition ...</p> },
-);
+const DynamicComponent2WithCustomLoading = dynamic(() => import("./_components/hello2"), {
+  loading: () => <p>Loading caused by client page transition ...</p>,
+});
 
-const DynamicComponent3WithNoSSR = dynamic(
-  () => import("./_components/hello3"),
-  { loading: () => <p>Loading ...</p>, ssr: false },
-);
+const DynamicComponent3WithNoSSR = dynamic(() => import("./_components/hello3"), {
+  loading: () => <p>Loading ...</p>,
+  ssr: false,
+});
 
 const DynamicComponent4 = dynamic(() => import("./_components/hello4"));
 

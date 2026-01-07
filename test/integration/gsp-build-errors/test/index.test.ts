@@ -13,14 +13,12 @@ const writePage = async (content, testPage = join(pagesDir, 'test.js')) => {
 }
 
 describe('GSP build errors', () => {
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      afterEach(() => fs.remove(pagesDir))
-      ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
-        'should fail build from module not found',
-        async () => {
-          await writePage(`
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
+    afterEach(() => fs.remove(pagesDir))
+    ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
+      'should fail build from module not found',
+      async () => {
+        await writePage(`
       __non_webpack_require__('a-cool-module')
 
       export function getStaticProps() {
@@ -33,16 +31,16 @@ describe('GSP build errors', () => {
         return null
       }
     `)
-          const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
-          // eslint-disable-next-line jest/no-standalone-expect
-          expect(code).toBe(1)
-          // eslint-disable-next-line jest/no-standalone-expect
-          expect(stderr).toContain('a-cool-module')
-        }
-      )
+        const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
+        // eslint-disable-next-line jest/no-standalone-expect
+        expect(code).toBe(1)
+        // eslint-disable-next-line jest/no-standalone-expect
+        expect(stderr).toContain('a-cool-module')
+      }
+    )
 
-      it('should fail build from ENOENT in getStaticProps', async () => {
-        await writePage(`
+    it('should fail build from ENOENT in getStaticProps', async () => {
+      await writePage(`
 
       export function getStaticProps() {
         require('fs').readFileSync('a-cool-file')
@@ -55,13 +53,13 @@ describe('GSP build errors', () => {
         return null
       }
     `)
-        const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
-        expect(code).toBe(1)
-        expect(stderr).toContain('a-cool-file')
-      })
+      const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
+      expect(code).toBe(1)
+      expect(stderr).toContain('a-cool-file')
+    })
 
-      it('should fail build on normal error in getStaticProps', async () => {
-        await writePage(`
+    it('should fail build on normal error in getStaticProps', async () => {
+      await writePage(`
       export function getStaticProps() {
         throw new Error('a cool error')
         return {
@@ -73,13 +71,13 @@ describe('GSP build errors', () => {
         return null
       }
     `)
-        const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
-        expect(code).toBe(1)
-        expect(stderr).toContain('a cool error')
-      })
+      const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
+      expect(code).toBe(1)
+      expect(stderr).toContain('a cool error')
+    })
 
-      it('should fail build from undefined error in getStaticProps', async () => {
-        await writePage(`
+    it('should fail build from undefined error in getStaticProps', async () => {
+      await writePage(`
       export function getStaticProps() {
         throw undefined
         return {
@@ -91,13 +89,13 @@ describe('GSP build errors', () => {
         return null
       }
     `)
-        const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
-        expect(code).toBe(1)
-        expect(stderr).toContain('undefined')
-      })
+      const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
+      expect(code).toBe(1)
+      expect(stderr).toContain('undefined')
+    })
 
-      it('should fail build from string error in getStaticProps', async () => {
-        await writePage(`
+    it('should fail build from string error in getStaticProps', async () => {
+      await writePage(`
       export function getStaticProps() {
         throw 'a string error'
         return {
@@ -109,13 +107,13 @@ describe('GSP build errors', () => {
         return null
       }
     `)
-        const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
-        expect(code).toBe(1)
-        expect(stderr).toContain('a string error')
-      })
+      const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
+      expect(code).toBe(1)
+      expect(stderr).toContain('a string error')
+    })
 
-      it('should handle non-serializable error in getStaticProps', async () => {
-        await writePage(`
+    it('should handle non-serializable error in getStaticProps', async () => {
+      await writePage(`
       export function getStaticProps() {
         const err = new Error('my custom error')
         err.hello = 'world'
@@ -134,14 +132,14 @@ describe('GSP build errors', () => {
         return null
       }
     `)
-        const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
-        expect(code).toBe(1)
-        expect(stderr).toContain('my custom error')
-      })
+      const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
+      expect(code).toBe(1)
+      expect(stderr).toContain('my custom error')
+    })
 
-      it('should handle non-serializable error in getStaticPaths', async () => {
-        await writePage(
-          `
+    it('should handle non-serializable error in getStaticPaths', async () => {
+      await writePage(
+        `
       export function getStaticProps() {
         return {
           props: {}
@@ -167,12 +165,11 @@ describe('GSP build errors', () => {
         return null
       }
     `,
-          join(pagesDir, '[slug].js')
-        )
-        const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
-        expect(code).toBe(1)
-        expect(stderr).toContain('my custom error')
-      })
-    }
-  )
+        join(pagesDir, '[slug].js')
+      )
+      const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
+      expect(code).toBe(1)
+      expect(stderr).toContain('my custom error')
+    })
+  })
 })

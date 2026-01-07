@@ -1,9 +1,9 @@
 {
   "name": "@vercel/turbopack-next",
   "version": "0.0.0",
+  "private": true,
   "description": "turbopack next runtime",
   "license": "UNLICENSED",
-  "private": true,
   "scripts": {
     "build": "pnpm check",
     "check": "tsc --noEmit"

@@ -23,9 +23,7 @@ describe('external-redirect', () => {
         })
       },
     })
-    const button = await browser.elementById(
-      'external-redirect-from-action-on-click'
-    )
+    const button = await browser.elementById('external-redirect-from-action-on-click')
     await button.click()
     await page.waitForNavigation('http://localhost:9292')
     expect(await page.innerHTML('body')).toBe('External page')

@@ -37,8 +37,7 @@ export function ClientPageRoot({
     // When Cache Components is enabled, the server does not pass the params as
     // props; they are parsed on the client and passed via context.
     const layoutRouterContext = use(LayoutRouterContext)
-    params =
-      layoutRouterContext !== null ? layoutRouterContext.parentParams : {}
+    params = layoutRouterContext !== null ? layoutRouterContext.parentParams : {}
 
     // This is an intentional behavior change: when Cache Components is enabled,
     // client segments receive the "canonical" search params, not the

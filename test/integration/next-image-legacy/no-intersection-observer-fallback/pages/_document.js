@@ -5,9 +5,7 @@ export default class MyDocument extends Document {
     return (
       <Html>
         <Head crossOrigin="anonymous">
-          <script
-            dangerouslySetInnerHTML={{ __html: 'IntersectionObserver = null' }}
-          />
+          <script dangerouslySetInnerHTML={{ __html: 'IntersectionObserver = null' }} />
         </Head>
         <body>
           <Main />

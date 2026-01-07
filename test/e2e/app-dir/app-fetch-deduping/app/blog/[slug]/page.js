@@ -19,9 +19,9 @@ export async function generateStaticParams() {
 }
 
 export default async function Page() {
-  const data = await fetch(
-    `http://localhost:${process.env.TEST_SERVER_PORT}`
-  ).then((res) => res.text())
+  const data = await fetch(`http://localhost:${process.env.TEST_SERVER_PORT}`).then((res) =>
+    res.text()
+  )
 
   return (
     <>

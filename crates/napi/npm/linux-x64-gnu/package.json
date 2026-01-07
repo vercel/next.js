@@ -1,11 +1,15 @@
 {
   "name": "@next/swc-linux-x64-gnu",
   "version": "0.0.0",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/vercel/next.js",
     "directory": "crates/napi/npm/linux-x64-gnu"
   },
+  "files": [
+    "next-swc.linux-x64-gnu.node"
+  ],
   "os": [
     "linux"
   ],
@@ -16,10 +20,6 @@
     "glibc"
   ],
   "main": "next-swc.linux-x64-gnu.node",
-  "files": [
-    "next-swc.linux-x64-gnu.node"
-  ],
-  "license": "MIT",
   "engines": {
     "node": ">= 10"
   }

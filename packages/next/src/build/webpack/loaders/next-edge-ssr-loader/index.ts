@@ -83,19 +83,15 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
     const cacheHandlers = JSON.parse(cacheHandlersStringified || '{}')
 
     if (!cacheHandlers.default) {
-      cacheHandlers.default = require.resolve(
-        '../../../../server/lib/cache-handlers/default.external'
-      )
+      cacheHandlers.default =
+        require.resolve('../../../../server/lib/cache-handlers/default.external')
     }
 
     const middlewareConfig: ProxyConfig = JSON.parse(
       Buffer.from(middlewareConfigBase64, 'base64').toString()
     )
 
-    const appDirLoader = Buffer.from(
-      appDirLoaderBase64 || '',
-      'base64'
-    ).toString()
+    const appDirLoader = Buffer.from(appDirLoaderBase64 || '', 'base64').toString()
     const isAppDir = pagesType === 'app'
 
     const buildInfo = getModuleBuildInfo(this._module as any)
@@ -111,10 +107,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       middlewareConfig,
     }
 
-    const pagePath = this.utils.contextify(
-      this.context || this.rootContext,
-      absolutePagePath
-    )
+    const pagePath = this.utils.contextify(this.context || this.rootContext, absolutePagePath)
     const appPath = absoluteAppPath
       ? this.utils.contextify(
           this.context || this.rootContext,
@@ -171,12 +164,8 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
         },
         {
           pageRouteModuleOptions: JSON.stringify(getRouteModuleOptions(page)),
-          errorRouteModuleOptions: JSON.stringify(
-            getRouteModuleOptions('/_error')
-          ),
-          user500RouteModuleOptions: JSON.stringify(
-            getRouteModuleOptions('/500')
-          ),
+          errorRouteModuleOptions: JSON.stringify(getRouteModuleOptions('/_error')),
+          user500RouteModuleOptions: JSON.stringify(getRouteModuleOptions('/500')),
         },
         {
           userland500Page: userland500Path,

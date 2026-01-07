@@ -56,10 +56,7 @@ export function initializeCacheHandlers(cacheMaxMemorySize: number): boolean {
 
     if (reference[handlersSymbol].RemoteCache) {
       debug?.('setting "remote" cache handler from symbol')
-      reference[handlersMapSymbol].set(
-        'remote',
-        reference[handlersSymbol].RemoteCache
-      )
+      reference[handlersMapSymbol].set('remote', reference[handlersSymbol].RemoteCache)
     } else {
       debug?.('setting "remote" cache handler from default')
       reference[handlersMapSymbol].set('remote', fallback)
@@ -113,9 +110,7 @@ export function getCacheHandlers(): SetIterator<CacheHandler> | undefined {
  * are not initialized.
  * @throws If the cache handlers are not initialized.
  */
-export function getCacheHandlerEntries():
-  | MapIterator<[string, CacheHandler]>
-  | undefined {
+export function getCacheHandlerEntries(): MapIterator<[string, CacheHandler]> | undefined {
   if (!reference[handlersMapSymbol]) {
     return undefined
   }
@@ -128,10 +123,7 @@ export function getCacheHandlerEntries():
  * @param kind - The kind of cache handler to set.
  * @param cacheHandler - The cache handler to set.
  */
-export function setCacheHandler(
-  kind: string,
-  cacheHandler: CacheHandler
-): void {
+export function setCacheHandler(kind: string, cacheHandler: CacheHandler): void {
   // This should never be called before initializeCacheHandlers.
   if (!reference[handlersMapSymbol] || !reference[handlersSetSymbol]) {
     throw new Error('Cache handlers not initialized')

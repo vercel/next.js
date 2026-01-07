@@ -3,9 +3,7 @@
  */
 
 import traverse from 'next/dist/compiled/babel/traverse'
-import generate, {
-  type GeneratorResult,
-} from 'next/dist/compiled/babel/generator'
+import generate, { type GeneratorResult } from 'next/dist/compiled/babel/generator'
 import normalizeFile from 'next/dist/compiled/babel/core-lib-normalize-file'
 import normalizeOpts from 'next/dist/compiled/babel/core-lib-normalize-opts'
 import loadBlockHoistPlugin from 'next/dist/compiled/babel/core-lib-block-hoist-plugin'

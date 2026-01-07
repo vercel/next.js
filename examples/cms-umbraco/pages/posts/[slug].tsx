@@ -49,15 +49,11 @@ export default function PostDetails({ post, morePosts, preview }: Props) {
                 author={post.author}
               />
               <PostBody content={post.content} />
-              <footer>
-                {post.tags?.length > 0 && <Tags tags={post.tags} />}
-              </footer>
+              <footer>{post.tags?.length > 0 && <Tags tags={post.tags} />}</footer>
             </article>
 
             <SectionSeparator />
-            {morePosts && morePosts.length > 0 && (
-              <MoreStories posts={morePosts} />
-            )}
+            {morePosts && morePosts.length > 0 && <MoreStories posts={morePosts} />}
           </>
         )}
       </Container>
@@ -78,13 +74,7 @@ type Params = {
   slug: string;
 };
 
-export async function getStaticProps({
-  params,
-  preview,
-}: {
-  params: Params;
-  preview: boolean;
-}) {
+export async function getStaticProps({ params, preview }: { params: Params; preview: boolean }) {
   const postAndMorePosts = await getPostAndMorePosts(params.slug, preview);
 
   return {

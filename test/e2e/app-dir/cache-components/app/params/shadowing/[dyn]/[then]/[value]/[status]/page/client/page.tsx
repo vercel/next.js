@@ -13,25 +13,22 @@ export default function Page({
   return (
     <section>
       <p>
-        This Page accesses params that have name collisions with Promise
-        properties. When synchronous access is available we assert that you can
-        access non colliding param names directly and all params if you await
+        This Page accesses params that have name collisions with Promise properties. When
+        synchronous access is available we assert that you can access non colliding param names
+        directly and all params if you await
       </p>
       <ul>
         <li>
           dyn: <span id="param-dyn">{getValueAsString(use(params).dyn)}</span>
         </li>
         <li>
-          then:{' '}
-          <span id="param-then">{getValueAsString(use(params).then)}</span>
+          then: <span id="param-then">{getValueAsString(use(params).then)}</span>
         </li>
         <li>
-          value:{' '}
-          <span id="param-value">{getValueAsString(use(params).value)}</span>
+          value: <span id="param-value">{getValueAsString(use(params).value)}</span>
         </li>
         <li>
-          status:{' '}
-          <span id="param-status">{getValueAsString(use(params).status)}</span>
+          status: <span id="param-status">{getValueAsString(use(params).status)}</span>
         </li>
       </ul>
       <div>

@@ -149,9 +149,7 @@ export const formatDebugAddress = ({ host, port }: DebugAddress): string => {
  *
  * @returns An object with the host and port of the debug address.
  */
-export const getParsedDebugAddress = (
-  address: string | boolean | undefined
-): DebugAddress => {
+export const getParsedDebugAddress = (address: string | boolean | undefined): DebugAddress => {
   if (!address || typeof address !== 'string') {
     return { host: undefined, port: 9229 }
   }
@@ -172,9 +170,7 @@ export const getParsedDebugAddress = (
  * @param args The arguments to be stringified.
  * @returns A string with the arguments.
  */
-export function formatNodeOptions(
-  args: Record<string, string | boolean | undefined>
-): string {
+export function formatNodeOptions(args: Record<string, string | boolean | undefined>): string {
   return Object.entries(args)
     .map(([key, value]) => {
       if (value === true) {
@@ -185,9 +181,7 @@ export function formatNodeOptions(
         return `--${key}=${
           // Values with spaces need to be quoted. We use JSON.stringify to
           // also escape any nested quotes.
-          value.includes(' ') && !value.startsWith('"')
-            ? JSON.stringify(value)
-            : value
+          value.includes(' ') && !value.startsWith('"') ? JSON.stringify(value) : value
         }`
       }
 
@@ -197,10 +191,7 @@ export function formatNodeOptions(
     .join(' ')
 }
 
-export function getParsedNodeOptions(): Record<
-  string,
-  string | boolean | undefined
-> {
+export function getParsedNodeOptions(): Record<string, string | boolean | undefined> {
   const args = [...process.execArgv, ...getNodeOptionsArgs()]
   if (args.length === 0) return {}
 

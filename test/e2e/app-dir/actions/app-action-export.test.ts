@@ -35,8 +35,6 @@ describe('app-dir action handling - next export', () => {
   })
 
   it('should error when use export output for server actions', async () => {
-    expect(next.cliOutput).toContain(
-      `Server Actions are not supported with static export.`
-    )
+    expect(next.cliOutput).toContain(`Server Actions are not supported with static export.`)
   })
 })

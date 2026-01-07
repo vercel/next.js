@@ -113,9 +113,7 @@ describe('LRUCache', () => {
 
       expect(cache.has('key1')).toBe(false)
       expect(cache.size).toBe(0)
-      expect(consoleSpy).toHaveBeenCalledWith(
-        'Single item size exceeds maxSize'
-      )
+      expect(consoleSpy).toHaveBeenCalledWith('Single item size exceeds maxSize')
 
       consoleSpy.mockRestore()
     })

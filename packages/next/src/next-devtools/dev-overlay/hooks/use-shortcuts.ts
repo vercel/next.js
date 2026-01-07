@@ -16,12 +16,7 @@ export function useShortcuts(
       if (e.altKey) keys.push('Alt')
       if (e.shiftKey) keys.push('Shift')
 
-      if (
-        e.key !== 'Meta' &&
-        e.key !== 'Control' &&
-        e.key !== 'Alt' &&
-        e.key !== 'Shift'
-      ) {
+      if (e.key !== 'Meta' && e.key !== 'Control' && e.key !== 'Alt' && e.key !== 'Shift') {
         keys.push(e.code)
       }
 

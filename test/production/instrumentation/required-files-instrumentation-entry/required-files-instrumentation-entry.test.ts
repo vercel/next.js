@@ -1,9 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
 async function readRequiredFilesManifest(next: any) {
-  const manifest = JSON.parse(
-    await next.readFile('.next/required-server-files.json')
-  )
+  const manifest = JSON.parse(await next.readFile('.next/required-server-files.json'))
   return manifest.files
 }
 

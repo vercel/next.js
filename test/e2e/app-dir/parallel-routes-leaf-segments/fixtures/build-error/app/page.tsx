@@ -5,15 +5,13 @@ export default function HomePage() {
     <div>
       <h1>Build Error Scenarios Test</h1>
       <p>
-        These routes SHOULD cause MissingDefaultParallelRouteError because they
-        have parallel routes without default.tsx files AND have child routes.
+        These routes SHOULD cause MissingDefaultParallelRouteError because they have parallel routes
+        without default.tsx files AND have child routes.
       </p>
       <nav>
         <ul>
           <li>
-            <Link href="/with-children">
-              Non-Leaf Segment with Children (SHOULD ERROR)
-            </Link>
+            <Link href="/with-children">Non-Leaf Segment with Children (SHOULD ERROR)</Link>
           </li>
           <li>
             <Link href="/with-groups-and-children">

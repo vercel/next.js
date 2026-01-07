@@ -13,9 +13,7 @@ describe('prefetching-not-found', () => {
     await browser.elementByCss("[href='/fake-link']").click()
 
     await retry(async () => {
-      expect(await browser.elementByCss('body').text()).toContain(
-        'This page could not be found.'
-      )
+      expect(await browser.elementByCss('body').text()).toContain('This page could not be found.')
     })
 
     await browser.elementByCss("[href='/']").click()
@@ -29,9 +27,7 @@ describe('prefetching-not-found', () => {
     // collisions that would cause the not-found page to remain rendered when
     // following a link to the home page.
     browser = await next.browser('/fake-link')
-    expect(await browser.elementByCss('body').text()).toContain(
-      'This page could not be found.'
-    )
+    expect(await browser.elementByCss('body').text()).toContain('This page could not be found.')
 
     await browser.elementByCss("[href='/']").click()
 

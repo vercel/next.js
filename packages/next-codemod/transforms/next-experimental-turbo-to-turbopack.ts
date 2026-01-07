@@ -95,10 +95,7 @@ export default function transformer(
       ) {
         // Create a new property with the renamed key
         specialProps.push(
-          j.objectProperty(
-            j.identifier(RENAMED_EXPERIMENTAL_PROPERTIES[prop.key.name]),
-            prop.value
-          )
+          j.objectProperty(j.identifier(RENAMED_EXPERIMENTAL_PROPERTIES[prop.key.name]), prop.value)
         )
       } else {
         // Keep the property for turbopack
@@ -184,10 +181,7 @@ export default function transformer(
 
       // Get the property name being assigned (e.g., sourceMaps)
       let propName: string | undefined = undefined
-      if (
-        path.node.left.property &&
-        path.node.left.property.type === 'Identifier'
-      ) {
+      if (path.node.left.property && path.node.left.property.type === 'Identifier') {
         propName = path.node.left.property.name
       } else {
         return
@@ -198,10 +192,7 @@ export default function transformer(
         const newAssignment = j.assignmentExpression(
           '=',
           j.memberExpression(
-            j.memberExpression(
-              j.identifier(varName),
-              j.identifier('experimental')
-            ),
+            j.memberExpression(j.identifier(varName), j.identifier('experimental')),
             j.identifier(RENAMED_EXPERIMENTAL_PROPERTIES[propName])
           ),
           path.node.right
@@ -214,10 +205,7 @@ export default function transformer(
         const newAssignment = j.assignmentExpression(
           '=',
           j.memberExpression(
-            j.memberExpression(
-              j.identifier(varName),
-              j.identifier('turbopack')
-            ),
+            j.memberExpression(j.identifier(varName), j.identifier('turbopack')),
             j.identifier(propName)
           ),
           path.node.right
@@ -253,17 +241,10 @@ export default function transformer(
     if (!varName) return
 
     // Check if this matches the pattern: config.experimental.turbo.resolveAlias.foo
-    if (
-      props.length >= 3 &&
-      props[0] === 'experimental' &&
-      props[1] === 'turbo'
-    ) {
+    if (props.length >= 3 && props[0] === 'experimental' && props[1] === 'turbo') {
       // Get the final property name, only if it's an Identifier
       let finalProp: string | undefined = undefined
-      if (
-        path.node.left.property &&
-        path.node.left.property.type === 'Identifier'
-      ) {
+      if (path.node.left.property && path.node.left.property.type === 'Identifier') {
         finalProp = path.node.left.property.name
       } else {
         // If not an Identifier, skip this assignment
@@ -274,10 +255,7 @@ export default function transformer(
       const middleProps = props.slice(2) // e.g. ['resolveAlias']
 
       // Start building the new left side: config.turbopack
-      let newLeft = j.memberExpression(
-        j.identifier(varName),
-        j.identifier('turbopack')
-      )
+      let newLeft = j.memberExpression(j.identifier(varName), j.identifier('turbopack'))
 
       // Add the middle properties
       for (const prop of middleProps) {
@@ -287,11 +265,7 @@ export default function transformer(
       // Add the final property
       newLeft = j.memberExpression(newLeft, j.identifier(finalProp))
 
-      const newAssignment = j.assignmentExpression(
-        '=',
-        newLeft,
-        path.node.right
-      )
+      const newAssignment = j.assignmentExpression('=', newLeft, path.node.right)
 
       j(path).replaceWith(newAssignment)
       hasChanges = true
@@ -303,12 +277,7 @@ export default function transformer(
 }
 
 function isStaticProperty(
-  prop:
-    | Property
-    | ObjectProperty
-    | SpreadElement
-    | SpreadProperty
-    | ObjectMethod
+  prop: Property | ObjectProperty | SpreadElement | SpreadProperty | ObjectMethod
 ): prop is Property | ObjectProperty {
   return prop.type === 'Property' || prop.type === 'ObjectProperty'
 }

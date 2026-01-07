@@ -10,9 +10,7 @@ function isPromiseType(type: tsModule.Type, typeChecker: tsModule.TypeChecker) {
   if (!typeReferenceType.target) return false
 
   // target should be Promise or Promise<...>
-  if (
-    !/^Promise(<.+>)?$/.test(typeChecker.typeToString(typeReferenceType.target))
-  ) {
+  if (!/^Promise(<.+>)?$/.test(typeChecker.typeToString(typeReferenceType.target))) {
     return false
   }
 
@@ -25,10 +23,7 @@ function isFunctionReturningPromise(
   ts: typeof tsModule
 ) {
   const type = typeChecker.getTypeAtLocation(node)
-  const signatures = typeChecker.getSignaturesOfType(
-    type,
-    ts.SignatureKind.Call
-  )
+  const signatures = typeChecker.getSignaturesOfType(type, ts.SignatureKind.Call)
 
   let isPromise = true
   if (signatures.length) {
@@ -105,10 +100,7 @@ const serverBoundary = {
             ts.isIdentifier(initializer))
         ) {
           diagnostics.push(
-            ...serverBoundary.getSemanticDiagnosticsForFunctionExport(
-              source,
-              initializer
-            )
+            ...serverBoundary.getSemanticDiagnosticsForFunctionExport(source, initializer)
           )
         } else {
           diagnostics.push({

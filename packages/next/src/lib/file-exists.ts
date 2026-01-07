@@ -6,10 +6,7 @@ export enum FileType {
   Directory = 'directory',
 }
 
-export async function fileExists(
-  fileName: string,
-  type?: FileType
-): Promise<boolean> {
+export async function fileExists(fileName: string, type?: FileType): Promise<boolean> {
   try {
     if (type === FileType.File) {
       const stats = await promises.stat(fileName)
@@ -21,10 +18,7 @@ export async function fileExists(
 
     return existsSync(fileName)
   } catch (err) {
-    if (
-      isError(err) &&
-      (err.code === 'ENOENT' || err.code === 'ENAMETOOLONG')
-    ) {
+    if (isError(err) && (err.code === 'ENOENT' || err.code === 'ENAMETOOLONG')) {
       return false
     }
     throw err

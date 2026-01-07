@@ -14,8 +14,8 @@ export default async function Page({ params }: { params: Promise<Params> }) {
     <main>
       <DebugRenderKind />
       <p id="intro">
-        This page performs sync IO after awaiting params, so we should only see
-        the error in a runtime prefetch
+        This page performs sync IO after awaiting params, so we should only see the error in a
+        runtime prefetch
       </p>
       <Suspense fallback={<div style={{ color: 'grey' }}>Loading 1...</div>}>
         <RuntimePrefetchable params={params} />
@@ -26,10 +26,6 @@ export default async function Page({ params }: { params: Promise<Params> }) {
 
 async function RuntimePrefetchable({ params }: { params: Promise<Params> }) {
   const res = await params
-  console.log(
-    'RuntimePrefetchable :: awaited params',
-    res,
-    workUnitAsyncStorage.getStore()
-  )
+  console.log('RuntimePrefetchable :: awaited params', res, workUnitAsyncStorage.getStore())
   return <div id="timestamp">Timestamp: {Date.now()}</div>
 }

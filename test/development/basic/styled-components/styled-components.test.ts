@@ -49,14 +49,10 @@ describe('styled-components SWC transform', () => {
     const browser = await webdriver(next.url, '/')
 
     expect(
-      await browser.eval(
-        `window.getComputedStyle(document.querySelector('#btn')).color`
-      )
+      await browser.eval(`window.getComputedStyle(document.querySelector('#btn')).color`)
     ).toBe('rgb(255, 255, 255)')
     expect(
-      await browser.eval(
-        `window.getComputedStyle(document.querySelector('#wrap-div')).color`
-      )
+      await browser.eval(`window.getComputedStyle(document.querySelector('#wrap-div')).color`)
     ).toBe('rgb(0, 0, 0)')
   })
 
@@ -78,8 +74,6 @@ describe('styled-components SWC transform', () => {
       outputs.push(args)
     })
     await renderViaHTTP(next.url, '/')
-    expect(
-      outputs.filter((output) => output.trim() === '__render__').length
-    ).toBe(1)
+    expect(outputs.filter((output) => output.trim() === '__render__').length).toBe(1)
   })
 })

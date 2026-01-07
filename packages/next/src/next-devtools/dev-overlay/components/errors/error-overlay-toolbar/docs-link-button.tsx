@@ -38,11 +38,7 @@ export function DocsLinkButton({ errorMessage }: { errorMessage: string }) {
         className="docs-link-button"
         disabled
       >
-        <DocsIcon
-          className="error-overlay-toolbar-button-icon"
-          width={14}
-          height={14}
-        />
+        <DocsIcon className="error-overlay-toolbar-button-icon" width={14} height={14} />
       </button>
     )
   }
@@ -56,11 +52,7 @@ export function DocsLinkButton({ errorMessage }: { errorMessage: string }) {
       target="_blank"
       rel="noopener noreferrer"
     >
-      <DocsIcon
-        className="error-overlay-toolbar-button-icon"
-        width={14}
-        height={14}
-      />
+      <DocsIcon className="error-overlay-toolbar-button-icon" width={14} height={14} />
     </a>
   )
 }

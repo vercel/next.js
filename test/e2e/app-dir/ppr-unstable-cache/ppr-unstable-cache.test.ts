@@ -55,9 +55,7 @@ describe('ppr-unstable-cache', () => {
 
     expect(generations).toHaveLength(2)
 
-    const first = await next
-      .render$('/')
-      .then(($) => JSON.parse($('#data').text()))
+    const first = await next.render$('/').then(($) => JSON.parse($('#data').text()))
 
     expect(generations).toHaveLength(2)
 
@@ -66,9 +64,7 @@ describe('ppr-unstable-cache', () => {
 
     // Try a few more times, we should always get the same result.
     for (let i = 0; i < 3; i++) {
-      const again = await next
-        .render$('/')
-        .then(($) => JSON.parse($('#data').text()))
+      const again = await next.render$('/').then(($) => JSON.parse($('#data').text()))
 
       expect(generations).toHaveLength(2)
       expect(first).toEqual(again)
@@ -79,9 +75,7 @@ describe('ppr-unstable-cache', () => {
     expect(revalidate.status).toBe(200)
     await revalidate.text()
 
-    const revalidated = await next
-      .render$('/')
-      .then(($) => JSON.parse($('#data').text()))
+    const revalidated = await next.render$('/').then(($) => JSON.parse($('#data').text()))
 
     // Expect that the `cache: no-store` value has been updated, but not
     // the `cache: force-cache` value.
@@ -96,8 +90,6 @@ describe('ppr-unstable-cache', () => {
 
     // Ensure that the `force-cache` value has not been updated, and only called
     // once.
-    expect(generations.filter((g) => g.startsWith('force-cache'))).toHaveLength(
-      1
-    )
+    expect(generations.filter((g) => g.startsWith('force-cache'))).toHaveLength(1)
   })
 })

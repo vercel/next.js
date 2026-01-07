@@ -17,8 +17,7 @@ interface ComponentProps {
 
 const DefaultContainer = (props: ComponentProps): JSX.Element => {
   const { sitecoreContext } = useSitecoreContext();
-  const containerStyles =
-    props.params && props.params.Styles ? props.params.Styles : "";
+  const containerStyles = props.params && props.params.Styles ? props.params.Styles : "";
   const styles = `${props.params.GridParameters} ${containerStyles}`.trimEnd();
   const phKey = `container-${props.params.DynamicPlaceholderId}`;
   const id = props.params.RenderingIdentifier;
@@ -26,23 +25,15 @@ const DefaultContainer = (props: ComponentProps): JSX.Element => {
   let backgroundStyle: { [key: string]: string } = {};
 
   if (backgroundImage) {
-    const prefix = `${
-      sitecoreContext.pageState !== "normal" ? "/sitecore/shell" : ""
-    }/-/media/`;
-    backgroundImage = `${backgroundImage
-      ?.match(BACKGROUND_REG_EXP)
-      ?.pop()
-      ?.replace(/-/gi, "")}`;
+    const prefix = `${sitecoreContext.pageState !== "normal" ? "/sitecore/shell" : ""}/-/media/`;
+    backgroundImage = `${backgroundImage?.match(BACKGROUND_REG_EXP)?.pop()?.replace(/-/gi, "")}`;
     backgroundStyle = {
       backgroundImage: `url('${prefix}${backgroundImage}')`,
     };
   }
 
   return (
-    <div
-      className={`component container-default ${styles}`}
-      id={id ? id : undefined}
-    >
+    <div className={`component container-default ${styles}`} id={id ? id : undefined}>
       <div className="component-content" style={backgroundStyle}>
         <div className="row">
           <Placeholder name={phKey} rendering={props.rendering} />

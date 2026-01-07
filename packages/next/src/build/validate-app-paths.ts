@@ -1,7 +1,4 @@
-import {
-  getParamProperties,
-  type SegmentParam,
-} from '../shared/lib/router/utils/get-segment-param'
+import { getParamProperties, type SegmentParam } from '../shared/lib/router/utils/get-segment-param'
 import {
   isInterceptionAppRoute,
   parseAppRoute,
@@ -119,9 +116,7 @@ function validateAppRoute(route: NormalizedAppRoute): void {
 
     // Check if catch-all is not at the end
     if (hasCatchAll && i > catchAllPosition) {
-      throw new Error(
-        `Catch-all must be the last part of the URL in route "${route.pathname}".`
-      )
+      throw new Error(`Catch-all must be the last part of the URL in route "${route.pathname}".`)
     }
     if (hasOptionalCatchAllInPath && i > catchAllPosition) {
       throw new Error(
@@ -165,9 +160,7 @@ function parseAndValidateAppPath(path: string): NormalizedAppRoute {
  * - (..)test -> (..)test
  * - (..)[slug] -> (..)[*]
  */
-function normalizeSegments(
-  segments: readonly NormalizedAppRouteSegment[]
-): string {
+function normalizeSegments(segments: readonly NormalizedAppRouteSegment[]): string {
   return (
     '/' +
     segments
@@ -199,9 +192,7 @@ function normalizeSegments(
  * @returns Array of validated routes
  * @throws Error if validation fails
  */
-export function validateAppPaths(
-  appPaths: readonly string[]
-): NormalizedAppRoute[] {
+export function validateAppPaths(appPaths: readonly string[]): NormalizedAppRoute[] {
   // First, validate each path individually
   const paramsByPath = new Map<string, NormalizedAppRoute>()
   for (const path of appPaths) {
@@ -215,10 +206,7 @@ export function validateAppPaths(
     // Check if the last segment is an optional catch-all and check to see if
     // there is a route with the same specificity that conflicts with it.
     const lastSegment = route.segments[route.segments.length - 1]
-    if (
-      lastSegment?.type === 'dynamic' &&
-      lastSegment.param.paramType === 'optional-catchall'
-    ) {
+    if (lastSegment?.type === 'dynamic' && lastSegment.param.paramType === 'optional-catchall') {
       const prefixSegments = route.segments.slice(0, -1)
       const normalizedPrefix = normalizeSegments(prefixSegments)
 

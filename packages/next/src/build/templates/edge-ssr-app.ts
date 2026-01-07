@@ -1,9 +1,5 @@
 import '../../server/web/globals'
-import {
-  adapter,
-  type EdgeHandler,
-  type NextRequestHint,
-} from '../../server/web/adapter'
+import { adapter, type EdgeHandler, type NextRequestHint } from '../../server/web/adapter'
 import { IncrementalCache } from '../../server/lib/incremental-cache'
 
 import * as pageMod from 'VAR_USERLAND'
@@ -46,10 +42,7 @@ if (rscManifest && rscServerManifest) {
 
 export const ComponentMod = pageMod
 
-async function requestHandler(
-  req: NextRequestHint,
-  event: NextFetchEvent
-): Promise<Response> {
+async function requestHandler(req: NextRequestHint, event: NextFetchEvent): Promise<Response> {
   let srcPage = 'VAR_PAGE'
 
   const normalizedSrcPage = normalizeAppPath(srcPage)
@@ -90,10 +83,7 @@ async function requestHandler(
 
   const isPossibleServerAction = getIsPossibleServerAction(req)
   const botType = getBotType(req.headers.get('User-Agent') || '')
-  const { isOnDemandRevalidate } = checkIsOnDemandRevalidate(
-    req,
-    prerenderManifest.preview
-  )
+  const { isOnDemandRevalidate } = checkIsOnDemandRevalidate(req, prerenderManifest.preview)
 
   const closeController = new CloseController()
 
@@ -156,10 +146,8 @@ async function requestHandler(
         dynamicOnHover: Boolean(nextConfig.experimental.dynamicOnHover),
         inlineCss: Boolean(nextConfig.experimental.inlineCss),
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
-        clientTraceMetadata:
-          nextConfig.experimental.clientTraceMetadata || ([] as any),
-        clientParamParsingOrigins:
-          nextConfig.experimental.clientParamParsingOrigins,
+        clientTraceMetadata: nextConfig.experimental.clientTraceMetadata || ([] as any),
+        clientParamParsingOrigins: nextConfig.experimental.clientParamParsingOrigins,
         maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
           nextConfig.experimental.maxPostponedStateSize
         ),
@@ -178,12 +166,7 @@ async function requestHandler(
       },
       onAfterTaskError: () => {},
 
-      onInstrumentationRequestError: (
-        error,
-        _request,
-        errorContext,
-        silenceLog
-      ) =>
+      onInstrumentationRequestError: (error, _request, errorContext, silenceLog) =>
         pageRouteModule.onRequestError(
           baseReq,
           error,
@@ -196,13 +179,8 @@ async function requestHandler(
   }
   let finalStatus = 200
 
-  const renderResultToResponse = (
-    result: RenderResult<AppPageRenderResultMetadata>
-  ): Response => {
-    const varyHeader = pageRouteModule.getVaryHeader(
-      resolvedPathname,
-      interceptionRoutePatterns
-    )
+  const renderResultToResponse = (result: RenderResult<AppPageRenderResultMetadata>): Response => {
+    const varyHeader = pageRouteModule.getVaryHeader(resolvedPathname, interceptionRoutePatterns)
     // Handle null responses
     if (result.isNull) {
       finalStatus = 500
@@ -246,10 +224,7 @@ async function requestHandler(
     // Handle static response
     if (!result.isDynamic) {
       const body = result.toUnchunkedString()
-      headers.set(
-        'Content-Length',
-        String(new TextEncoder().encode(body).length)
-      )
+      headers.set('Content-Length', String(new TextEncoder().encode(body).length))
       closeController.dispatchClose()
       return new Response(body, {
         status: finalStatus,
@@ -278,48 +253,43 @@ async function requestHandler(
 
   const invokeRender = async (span?: Span): Promise<Response> => {
     try {
-      const result = await pageRouteModule
-        .render(baseReq, baseRes, renderContext)
-        .finally(() => {
-          if (!span) return
+      const result = await pageRouteModule.render(baseReq, baseRes, renderContext).finally(() => {
+        if (!span) return
+
+        span.setAttributes({
+          'http.status_code': finalStatus,
+          'next.rsc': false,
+        })
+
+        const rootSpanAttributes = tracer.getRootSpanAttributes()
+        // We were unable to get attributes, probably OTEL is not enabled
+        if (!rootSpanAttributes) {
+          return
+        }
+
+        if (rootSpanAttributes.get('next.span_type') !== BaseServerSpan.handleRequest) {
+          console.warn(
+            `Unexpected root span type '${rootSpanAttributes.get(
+              'next.span_type'
+            )}'. Please report this Next.js issue https://github.com/vercel/next.js`
+          )
+          return
+        }
+
+        const route = normalizedSrcPage
+        if (route) {
+          const name = `${req.method} ${route}`
 
           span.setAttributes({
-            'http.status_code': finalStatus,
-            'next.rsc': false,
+            'next.route': route,
+            'http.route': route,
+            'next.span_name': name,
           })
-
-          const rootSpanAttributes = tracer.getRootSpanAttributes()
-          // We were unable to get attributes, probably OTEL is not enabled
-          if (!rootSpanAttributes) {
-            return
-          }
-
-          if (
-            rootSpanAttributes.get('next.span_type') !==
-            BaseServerSpan.handleRequest
-          ) {
-            console.warn(
-              `Unexpected root span type '${rootSpanAttributes.get(
-                'next.span_type'
-              )}'. Please report this Next.js issue https://github.com/vercel/next.js`
-            )
-            return
-          }
-
-          const route = normalizedSrcPage
-          if (route) {
-            const name = `${req.method} ${route}`
-
-            span.setAttributes({
-              'next.route': route,
-              'http.route': route,
-              'next.span_name': name,
-            })
-            span.updateName(name)
-          } else {
-            span.updateName(`${req.method} ${srcPage}`)
-          }
-        })
+          span.updateName(name)
+        } else {
+          span.updateName(`${req.method} ${srcPage}`)
+        }
+      })
 
       return renderResultToResponse(result)
     } catch (err) {

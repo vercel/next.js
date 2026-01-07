@@ -10,16 +10,10 @@ export async function generateStaticParams() {
   ]
 }
 
-export default function LowCardLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function LowCardLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
-      <Suspense
-        fallback={<div id="lowcard-fallback">loading lowcard children</div>}
-      >
+      <Suspense fallback={<div id="lowcard-fallback">loading lowcard children</div>}>
         {children}
       </Suspense>
       <span id="lowcard">{getSentinelValue()}</span>

@@ -13,24 +13,16 @@ describe('repeated-dev-edits', () => {
     expect(await browser.elementByCss('p').text()).toBe('version-1')
 
     const pagePath = 'pages/index.tsx'
-    const pageContent = String(
-      await fs.readFile(path.join(__dirname, pagePath))
-    )
+    const pageContent = String(await fs.readFile(path.join(__dirname, pagePath)))
 
-    await next.patchFile(
-      pagePath,
-      pageContent.replaceAll('version-1', 'version-2')
-    )
+    await next.patchFile(pagePath, pageContent.replaceAll('version-1', 'version-2'))
     await browser.waitForElementByCss('#version-2')
     expect(await browser.elementByCss('p').text()).toBe('version-2')
 
     // Verify no hydration mismatch:
     await waitForNoRedbox(browser)
 
-    await next.patchFile(
-      pagePath,
-      pageContent.replaceAll('version-1', 'version-3')
-    )
+    await next.patchFile(pagePath, pageContent.replaceAll('version-1', 'version-3'))
     await browser.waitForElementByCss('#version-3')
     expect(await browser.elementByCss('p').text()).toBe('version-3')
 

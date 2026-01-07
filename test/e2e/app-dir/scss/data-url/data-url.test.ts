@@ -13,22 +13,17 @@ describe.each([
       },
     },
   },
-])(
-  'SCSS Support loader handling Data Urls ($dependencies)',
-  ({ dependencies, nextConfig }) => {
-    const { next } = nextTestSetup({
-      files: __dirname,
-      dependencies,
-      nextConfig,
-    })
+])('SCSS Support loader handling Data Urls ($dependencies)', ({ dependencies, nextConfig }) => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    dependencies,
+    nextConfig,
+  })
 
-    it('should render the module', async () => {
-      const browser = await next.browser('/')
-      const redText = await browser.elementByCss('.red-text')
-      expect(await redText.getComputedCss('color')).toBe(colorToRgb('red'))
-      expect(await redText.getComputedCss('background-image')).toMatch(
-        /url\("data:[^"]+"\)$/
-      )
-    })
-  }
-)
+  it('should render the module', async () => {
+    const browser = await next.browser('/')
+    const redText = await browser.elementByCss('.red-text')
+    expect(await redText.getComputedCss('color')).toBe(colorToRgb('red'))
+    expect(await redText.getComputedCss('background-image')).toMatch(/url\("data:[^"]+"\)$/)
+  })
+})

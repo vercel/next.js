@@ -51,12 +51,8 @@ export default function Page({ env }) {
       <p>{JSON.stringify(env)}</p>
       <div id="nextConfigEnv">{process.env.nextConfigEnv}</div>
       <div id="nextConfigPublicEnv">{process.env.nextConfigPublicEnv}</div>
-      <div id="nextConfigNewPublicEnv">
-        {process.env.NEXT_PUBLIC_NEW_NEXT_CONFIG_VALUE}
-      </div>
-      <div id="nextPublicEmptyEnvVar">
-        content: {`${process.env.NEXT_PUBLIC_EMPTY_ENV_VAR}`}
-      </div>
+      <div id="nextConfigNewPublicEnv">{process.env.NEXT_PUBLIC_NEW_NEXT_CONFIG_VALUE}</div>
+      <div id="nextPublicEmptyEnvVar">content: {`${process.env.NEXT_PUBLIC_EMPTY_ENV_VAR}`}</div>
     </>
   )
 }

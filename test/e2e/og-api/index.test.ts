@@ -56,20 +56,13 @@ describe('og-api', () => {
       expect(next.cliOutput).not.toContain('Failed to copy traced files')
 
       let manifest = await fs.readJSON(
-        join(
-          next.testDir,
-          '.next/standalone/.next/server/middleware-manifest.json'
-        )
+        join(next.testDir, '.next/standalone/.next/server/middleware-manifest.json')
       )
       let apiOg = manifest.functions['/api/og']
-      let files = apiOg.files.concat(
-        [...apiOg.wasm, ...apiOg.assets].map((f) => f.filePath)
-      )
+      let files = apiOg.files.concat([...apiOg.wasm, ...apiOg.assets].map((f) => f.filePath))
 
       for (let f of files) {
-        expect(
-          await fs.pathExists(join(next.testDir, '.next/standalone/.next', f))
-        ).toBe(true)
+        expect(await fs.pathExists(join(next.testDir, '.next/standalone/.next', f))).toBe(true)
       }
     })
   }

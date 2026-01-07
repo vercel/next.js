@@ -22,9 +22,7 @@ describe('Validations for <Link legacyBehavior>', () => {
   describe('When rendering from a Server Component', () => {
     describe('Rendering <Link> directly', () => {
       it('warns if the child is a synchronous server component', async () => {
-        const browser = await next.browser(
-          '/validations/rsc-that-renders-link/synchronous'
-        )
+        const browser = await next.browser('/validations/rsc-that-renders-link/synchronous')
 
         if (isNextDev) {
           await expect(browser).toDisplayCollapsedRedbox(`
@@ -66,9 +64,7 @@ describe('Validations for <Link legacyBehavior>', () => {
       })
 
       it('warns and throws an error if the child is an asynchronous server component', async () => {
-        const browser = await next.browser(
-          '/validations/rsc-that-renders-link/asynchronous'
-        )
+        const browser = await next.browser('/validations/rsc-that-renders-link/asynchronous')
 
         if (isNextDev) {
           await expect(browser).toDisplayRedbox(`
@@ -112,9 +108,7 @@ describe('Validations for <Link legacyBehavior>', () => {
 
       if (!process.env.__NEXT_EXPERIMENTAL_DEBUG_CHANNEL) {
         it('does not warn or throw if you pass a client component', async () => {
-          const browser = await next.browser(
-            '/validations/rsc-that-renders-link/client'
-          )
+          const browser = await next.browser('/validations/rsc-that-renders-link/client')
 
           if (isNextDev) {
             await waitForNoRedbox(browser)
@@ -137,9 +131,7 @@ describe('Validations for <Link legacyBehavior>', () => {
       }
 
       it('warns if the child is a lazy component', async () => {
-        const browser = await next.browser(
-          '/validations/rsc-that-renders-link/lazy'
-        )
+        const browser = await next.browser('/validations/rsc-that-renders-link/lazy')
 
         if (isNextDev) {
           await expect(browser).toDisplayRedbox(`
@@ -183,9 +175,7 @@ describe('Validations for <Link legacyBehavior>', () => {
 
     describe('Rendering a Client Component that renders <Link>', () => {
       it('does not warn if the child is a synchronous server component', async () => {
-        const browser = await next.browser(
-          '/validations/rsc-that-renders-client/synchronous'
-        )
+        const browser = await next.browser('/validations/rsc-that-renders-client/synchronous')
 
         if (isNextDev) {
           await waitForNoRedbox(browser)
@@ -195,9 +185,7 @@ describe('Validations for <Link legacyBehavior>', () => {
       })
 
       it('throws an error if the child is an asynchronous server component', async () => {
-        const browser = await next.browser(
-          '/validations/rsc-that-renders-client/asynchronous'
-        )
+        const browser = await next.browser('/validations/rsc-that-renders-client/asynchronous')
 
         if (isNextDev) {
           await expect(browser).toDisplayRedbox(`
@@ -228,9 +216,7 @@ describe('Validations for <Link legacyBehavior>', () => {
 
       if (!process.env.__NEXT_EXPERIMENTAL_DEBUG_CHANNEL) {
         it('does not warn or throw if you pass a client component', async () => {
-          const browser = await next.browser(
-            '/validations/rsc-that-renders-client/client'
-          )
+          const browser = await next.browser('/validations/rsc-that-renders-client/client')
 
           if (isNextDev) {
             await waitForNoRedbox(browser)
@@ -285,9 +271,7 @@ describe('Validations for <Link legacyBehavior>', () => {
     })
 
     it('errors if there are multiple children', async () => {
-      const browser = await next.browser(
-        '/validations/client/multiple-children'
-      )
+      const browser = await next.browser('/validations/client/multiple-children')
 
       if (isNextDev) {
         await expect(browser).toDisplayRedbox(`
@@ -368,13 +352,9 @@ function getContentBetween({
 }): string {
   const lines = input.split('\n')
 
-  const startIdx = startContent
-    ? lines.findIndex((line) => line.includes(startContent))
-    : -1
+  const startIdx = startContent ? lines.findIndex((line) => line.includes(startContent)) : -1
 
-  const endIdx = endContent
-    ? lines.findIndex((line) => line.includes(endContent))
-    : -1
+  const endIdx = endContent ? lines.findIndex((line) => line.includes(endContent)) : -1
 
   if (startContent && startIdx < 0) return ''
   if (endContent && endIdx >= 0 && endIdx <= startIdx) return ''

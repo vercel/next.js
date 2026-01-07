@@ -19,13 +19,7 @@ const Page = () => {
         style={{ objectFit: 'cover' }}
       />
 
-      <Image
-        id="img-responsive"
-        src="/test.jpg"
-        width="400"
-        height="400"
-        sizes="100vw"
-      />
+      <Image id="img-responsive" src="/test.jpg" width="400" height="400" sizes="100vw" />
 
       <footer>Footer</footer>
     </div>

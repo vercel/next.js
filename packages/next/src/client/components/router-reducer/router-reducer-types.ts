@@ -1,8 +1,5 @@
 import type { CacheNode } from '../../../shared/lib/app-router-types'
-import type {
-  FlightRouterState,
-  FlightSegmentPath,
-} from '../../../shared/lib/app-router-types'
+import type { FlightRouterState, FlightSegmentPath } from '../../../shared/lib/app-router-types'
 import type { NavigationSeed } from '../segment-cache/navigation'
 import type { FetchServerResponseResult } from './fetch-server-response'
 

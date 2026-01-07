@@ -4,8 +4,7 @@ let butter;
 
 const previewSetting = process.env.PREVIEW;
 // make preview mode by default
-const preview =
-  previewSetting === "true" || previewSetting === undefined ? 1 : 0;
+const preview = previewSetting === "true" || previewSetting === undefined ? 1 : 0;
 
 try {
   butter = Butter(process.env.NEXT_PUBLIC_BUTTER_CMS_API_KEY, preview);

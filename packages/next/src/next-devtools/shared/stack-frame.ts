@@ -4,10 +4,7 @@ import type {
   OriginalStackFramesRequest,
   StackFrame,
 } from '../server/shared'
-import {
-  isWebpackInternalResource,
-  formatFrameSourceFile,
-} from './webpack-module-path'
+import { isWebpackInternalResource, formatFrameSourceFile } from './webpack-module-path'
 
 export type { StackFrame }
 
@@ -27,9 +24,7 @@ interface RejectedOriginalStackFrame extends OriginalStackFrameResponse {
   sourceStackFrame: StackFrame
 }
 
-export type OriginalStackFrame =
-  | ResolvedOriginalStackFrame
-  | RejectedOriginalStackFrame
+export type OriginalStackFrame = ResolvedOriginalStackFrame | RejectedOriginalStackFrame
 
 function getOriginalStackFrame(
   source: StackFrame,
@@ -107,9 +102,7 @@ export async function getOriginalStackFrames(
   // that the error overlay can render.
   if (res && res.ok && res.status !== 204) {
     const data = await res.json()
-    return Promise.all(
-      frames.map((frame, index) => getOriginalStackFrame(frame, data[index]))
-    )
+    return Promise.all(frames.map((frame, index) => getOriginalStackFrame(frame, data[index])))
   } else {
     if (res) {
       reason = await res.text()

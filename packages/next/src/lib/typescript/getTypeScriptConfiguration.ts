@@ -17,14 +17,9 @@ export async function getTypeScriptConfiguration(
       getNewLine: () => os.EOL,
     }
 
-    const { config, error } = typescript.readConfigFile(
-      tsConfigPath,
-      typescript.sys.readFile
-    )
+    const { config, error } = typescript.readConfigFile(tsConfigPath, typescript.sys.readFile)
     if (error) {
-      throw new FatalError(
-        typescript.formatDiagnostic(error, formatDiagnosticsHost)
-      )
+      throw new FatalError(typescript.formatDiagnostic(error, formatDiagnosticsHost))
     }
 
     let configToParse: any = config
@@ -53,9 +48,7 @@ export async function getTypeScriptConfiguration(
     }
 
     if (result.errors?.length) {
-      throw new FatalError(
-        typescript.formatDiagnostic(result.errors[0], formatDiagnosticsHost)
-      )
+      throw new FatalError(typescript.formatDiagnostic(result.errors[0], formatDiagnosticsHost))
     }
 
     return result

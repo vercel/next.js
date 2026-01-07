@@ -112,9 +112,7 @@ export function createDynamicValidationState(): DynamicValidationState {
   }
 }
 
-export function getFirstDynamicReason(
-  trackingState: DynamicTrackingState
-): undefined | string {
+export function getFirstDynamicReason(trackingState: DynamicTrackingState): undefined | string {
   return trackingState.dynamicAccesses[0]?.expression
 }
 
@@ -165,11 +163,7 @@ export function markCurrentScopeAsDynamic(
   if (workUnitStore) {
     switch (workUnitStore.type) {
       case 'prerender-ppr':
-        return postponeWithTracking(
-          store.route,
-          expression,
-          workUnitStore.dynamicTracking
-        )
+        return postponeWithTracking(store.route, expression, workUnitStore.dynamicTracking)
       case 'prerender-legacy':
         workUnitStore.revalidate = 0
 
@@ -268,9 +262,7 @@ function abortOnSynchronousDynamicDataAccess(
     dynamicTracking.dynamicAccesses.push({
       // When we aren't debugging, we don't need to create another error for the
       // stack trace.
-      stack: dynamicTracking.isDebugDynamicAccesses
-        ? new Error().stack
-        : undefined,
+      stack: dynamicTracking.isDebugDynamicAccesses ? new Error().stack : undefined,
       expression,
     })
   }
@@ -361,9 +353,7 @@ export function postponeWithTracking(
     dynamicTracking.dynamicAccesses.push({
       // When we aren't debugging, we don't need to create another error for the
       // stack trace.
-      stack: dynamicTracking.isDebugDynamicAccesses
-        ? new Error().stack
-        : undefined,
+      stack: dynamicTracking.isDebugDynamicAccesses ? new Error().stack : undefined,
       expression,
     })
   }
@@ -380,11 +370,7 @@ function createPostponeReason(route: string, expression: string) {
 }
 
 export function isDynamicPostpone(err: unknown) {
-  if (
-    typeof err === 'object' &&
-    err !== null &&
-    typeof (err as any).message === 'string'
-  ) {
+  if (typeof err === 'object' && err !== null && typeof (err as any).message === 'string') {
     return isDynamicPostponeReason((err as any).message)
   }
   return false
@@ -392,12 +378,8 @@ export function isDynamicPostpone(err: unknown) {
 
 function isDynamicPostponeReason(reason: string) {
   return (
-    reason.includes(
-      'needs to bail out of prerendering at this point because it used'
-    ) &&
-    reason.includes(
-      'Learn more: https://nextjs.org/docs/messages/ppr-caught-error'
-    )
+    reason.includes('needs to bail out of prerendering at this point because it used') &&
+    reason.includes('Learn more: https://nextjs.org/docs/messages/ppr-caught-error')
   )
 }
 
@@ -419,9 +401,7 @@ type DigestError = Error & {
   digest: string
 }
 
-export function isPrerenderInterruptedError(
-  error: unknown
-): error is DigestError {
+export function isPrerenderInterruptedError(error: unknown): error is DigestError {
   return (
     typeof error === 'object' &&
     error !== null &&
@@ -432,9 +412,7 @@ export function isPrerenderInterruptedError(
   )
 }
 
-export function accessedDynamicData(
-  dynamicAccesses: Array<DynamicAccess>
-): boolean {
+export function accessedDynamicData(dynamicAccesses: Array<DynamicAccess>): boolean {
   return dynamicAccesses.length > 0
 }
 
@@ -449,9 +427,7 @@ export function consumeDynamicAccess(
   return serverDynamic.dynamicAccesses
 }
 
-export function formatDynamicAPIAccesses(
-  dynamicAccesses: Array<DynamicAccess>
-): string[] {
+export function formatDynamicAPIAccesses(dynamicAccesses: Array<DynamicAccess>): string[] {
   return dynamicAccesses
     .filter(
       (access): access is Required<DynamicAccess> =>
@@ -540,9 +516,7 @@ export function createHangingInputAbortSignal(
         // end up waiting for the input.
         const runtimeStagePromise = getRuntimeStagePromise(workUnitStore)
         if (runtimeStagePromise) {
-          runtimeStagePromise.then(() =>
-            scheduleOnNextTick(() => controller.abort())
-          )
+          runtimeStagePromise.then(() => scheduleOnNextTick(() => controller.abort()))
         } else {
           scheduleOnNextTick(() => controller.abort())
         }
@@ -562,16 +536,11 @@ export function createHangingInputAbortSignal(
   }
 }
 
-export function annotateDynamicAccess(
-  expression: string,
-  prerenderStore: PrerenderStoreModern
-) {
+export function annotateDynamicAccess(expression: string, prerenderStore: PrerenderStoreModern) {
   const dynamicTracking = prerenderStore.dynamicTracking
   if (dynamicTracking) {
     dynamicTracking.dynamicAccesses.push({
-      stack: dynamicTracking.isDebugDynamicAccesses
-        ? new Error().stack
-        : undefined,
+      stack: dynamicTracking.isDebugDynamicAccesses ? new Error().stack : undefined,
       expression,
     })
   }
@@ -590,24 +559,14 @@ export function useDynamicRouteParams(expression: string) {
           // We are in a prerender with cacheComponents semantics. We are going to
           // hang here and never resolve. This will cause the currently
           // rendering component to effectively be a dynamic hole.
-          React.use(
-            makeHangingPromise(
-              workUnitStore.renderSignal,
-              workStore.route,
-              expression
-            )
-          )
+          React.use(makeHangingPromise(workUnitStore.renderSignal, workStore.route, expression))
         }
         break
       }
       case 'prerender-ppr': {
         const fallbackParams = workUnitStore.fallbackRouteParams
         if (fallbackParams && fallbackParams.size > 0) {
-          return postponeWithTracking(
-            workStore.route,
-            expression,
-            workUnitStore.dynamicTracking
-          )
+          return postponeWithTracking(workStore.route, expression, workUnitStore.dynamicTracking)
         }
         break
       }
@@ -645,13 +604,7 @@ export function useDynamicSearchParams(expression: string) {
 
   switch (workUnitStore.type) {
     case 'prerender-client': {
-      React.use(
-        makeHangingPromise(
-          workUnitStore.renderSignal,
-          workStore.route,
-          expression
-        )
-      )
+      React.use(makeHangingPromise(workUnitStore.renderSignal, workStore.route, expression))
       break
     }
     case 'prerender-legacy':
@@ -701,12 +654,8 @@ const hasSuspenseBeforeRootLayoutWithoutBodyOrImplicitBodyRegex = new RegExp(
   `\\n\\s+at Suspense \\(<anonymous>\\)(?:(?!\\n\\s+at (?:${bodyAndImplicitTags}) \\(<anonymous>\\))[\\s\\S])*?\\n\\s+at ${ROOT_LAYOUT_BOUNDARY_NAME} \\([^\\n]*\\)`
 )
 
-const hasMetadataRegex = new RegExp(
-  `\\n\\s+at ${METADATA_BOUNDARY_NAME}[\\n\\s]`
-)
-const hasViewportRegex = new RegExp(
-  `\\n\\s+at ${VIEWPORT_BOUNDARY_NAME}[\\n\\s]`
-)
+const hasMetadataRegex = new RegExp(`\\n\\s+at ${METADATA_BOUNDARY_NAME}[\\n\\s]`)
+const hasViewportRegex = new RegExp(`\\n\\s+at ${VIEWPORT_BOUNDARY_NAME}[\\n\\s]`)
 const hasOutletRegex = new RegExp(`\\n\\s+at ${OUTLET_BOUNDARY_NAME}[\\n\\s]`)
 
 export function trackAllowedDynamicAccess(
@@ -724,11 +673,7 @@ export function trackAllowedDynamicAccess(
   } else if (hasViewportRegex.test(componentStack)) {
     dynamicValidation.hasDynamicViewport = true
     return
-  } else if (
-    hasSuspenseBeforeRootLayoutWithoutBodyOrImplicitBodyRegex.test(
-      componentStack
-    )
-  ) {
+  } else if (hasSuspenseBeforeRootLayoutWithoutBodyOrImplicitBodyRegex.test(componentStack)) {
     // For Suspense within body, the prelude wouldn't be empty so it wouldn't violate the empty static shells rule.
     // But if you have Suspense above body, the prelude is empty but we allow that because having Suspense
     // is an explicit signal from the user that they acknowledge the empty shell and want dynamic rendering.
@@ -742,9 +687,7 @@ export function trackAllowedDynamicAccess(
     return
   } else if (clientDynamic.syncDynamicErrorWithStack) {
     // This task was the task that called the sync error.
-    dynamicValidation.dynamicErrors.push(
-      clientDynamic.syncDynamicErrorWithStack
-    )
+    dynamicValidation.dynamicErrors.push(clientDynamic.syncDynamicErrorWithStack)
     return
   } else {
     const message =
@@ -777,11 +720,7 @@ export function trackDynamicHoleInRuntimeShell(
     const error = createErrorWithComponentOrOwnerStack(message, componentStack)
     dynamicValidation.dynamicErrors.push(error)
     return
-  } else if (
-    hasSuspenseBeforeRootLayoutWithoutBodyOrImplicitBodyRegex.test(
-      componentStack
-    )
-  ) {
+  } else if (hasSuspenseBeforeRootLayoutWithoutBodyOrImplicitBodyRegex.test(componentStack)) {
     // For Suspense within body, the prelude wouldn't be empty so it wouldn't violate the empty static shells rule.
     // But if you have Suspense above body, the prelude is empty but we allow that because having Suspense
     // is an explicit signal from the user that they acknowledge the empty shell and want dynamic rendering.
@@ -795,9 +734,7 @@ export function trackDynamicHoleInRuntimeShell(
     return
   } else if (clientDynamic.syncDynamicErrorWithStack) {
     // This task was the task that called the sync error.
-    dynamicValidation.dynamicErrors.push(
-      clientDynamic.syncDynamicErrorWithStack
-    )
+    dynamicValidation.dynamicErrors.push(clientDynamic.syncDynamicErrorWithStack)
     return
   } else {
     const message = `Route "${workStore.route}": Uncached data or \`connection()\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route`
@@ -826,11 +763,7 @@ export function trackDynamicHoleInStaticShell(
     const error = createErrorWithComponentOrOwnerStack(message, componentStack)
     dynamicValidation.dynamicErrors.push(error)
     return
-  } else if (
-    hasSuspenseBeforeRootLayoutWithoutBodyOrImplicitBodyRegex.test(
-      componentStack
-    )
-  ) {
+  } else if (hasSuspenseBeforeRootLayoutWithoutBodyOrImplicitBodyRegex.test(componentStack)) {
     // For Suspense within body, the prelude wouldn't be empty so it wouldn't violate the empty static shells rule.
     // But if you have Suspense above body, the prelude is empty but we allow that because having Suspense
     // is an explicit signal from the user that they acknowledge the empty shell and want dynamic rendering.
@@ -844,9 +777,7 @@ export function trackDynamicHoleInStaticShell(
     return
   } else if (clientDynamic.syncDynamicErrorWithStack) {
     // This task was the task that called the sync error.
-    dynamicValidation.dynamicErrors.push(
-      clientDynamic.syncDynamicErrorWithStack
-    )
+    dynamicValidation.dynamicErrors.push(clientDynamic.syncDynamicErrorWithStack)
     return
   } else {
     const message = `Route "${workStore.route}": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route`
@@ -860,10 +791,7 @@ export function trackDynamicHoleInStaticShell(
  * In dev mode, we prefer using the owner stack, otherwise the provided
  * component stack is used.
  */
-function createErrorWithComponentOrOwnerStack(
-  message: string,
-  componentStack: string
-) {
+function createErrorWithComponentOrOwnerStack(message: string, componentStack: string) {
   const ownerStack =
     process.env.NODE_ENV !== 'production' && React.captureOwnerStack
       ? React.captureOwnerStack()
@@ -882,10 +810,7 @@ export enum PreludeState {
   Errored = 2,
 }
 
-export function logDisallowedDynamicError(
-  workStore: WorkStore,
-  error: Error
-): void {
+export function logDisallowedDynamicError(workStore: WorkStore, error: Error): void {
   console.error(error)
 
   if (!workStore.dev) {
@@ -908,10 +833,7 @@ export function throwIfDisallowedDynamic(
   serverDynamic: DynamicTrackingState
 ): void {
   if (serverDynamic.syncDynamicErrorWithStack) {
-    logDisallowedDynamicError(
-      workStore,
-      serverDynamic.syncDynamicErrorWithStack
-    )
+    logDisallowedDynamicError(workStore, serverDynamic.syncDynamicErrorWithStack)
     throw new StaticGenBailoutError()
   }
 
@@ -956,10 +878,7 @@ export function throwIfDisallowedDynamic(
       throw new StaticGenBailoutError()
     }
   } else {
-    if (
-      dynamicValidation.hasAllowedDynamic === false &&
-      dynamicValidation.hasDynamicMetadata
-    ) {
+    if (dynamicValidation.hasAllowedDynamic === false && dynamicValidation.hasDynamicMetadata) {
       console.error(
         `Route "${workStore.route}" has a \`generateMetadata\` that depends on Request data (\`cookies()\`, etc...) or uncached external data (\`fetch(...)\`, etc...) when the rest of the route does not. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata`
       )

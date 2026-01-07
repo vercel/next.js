@@ -10,9 +10,7 @@ interface ICardProps {
 
 const Card: React.FC<ICardProps> = ({ content, url, method }): JSX.Element => (
   <a className={styles.container} target="_blank" href={url} rel="noreferrer">
-    <div className={`${method === "get" ? styles.get : styles.post}`}>
-      {method.toUpperCase()}
-    </div>
+    <div className={`${method === "get" ? styles.get : styles.post}`}>{method.toUpperCase()}</div>
     <p>{content}</p>
     <div className={styles.image_container}>
       <Image src="/arrow.png" alt="Sketch arrow" width={20} height={20} />

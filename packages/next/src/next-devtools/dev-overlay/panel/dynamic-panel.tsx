@@ -3,10 +3,7 @@ import { useDevOverlayContext } from '../../dev-overlay.browser'
 import { INDICATOR_PADDING } from '../components/devtools-indicator/devtools-indicator'
 import { ResizeHandle } from '../components/devtools-panel/resize/resize-handle'
 import { ResizeProvider } from '../components/devtools-panel/resize/resize-provider'
-import {
-  DragHandle,
-  DragProvider,
-} from '../components/errors/dev-tools-indicator/drag-context'
+import { DragHandle, DragProvider } from '../components/errors/dev-tools-indicator/drag-context'
 import { Draggable } from '../components/errors/dev-tools-indicator/draggable'
 import { useClickOutsideAndEscape } from '../components/errors/dev-tools-indicator/utils'
 import { usePanelRouterContext } from '../menu/context'
@@ -22,10 +19,7 @@ import { getIndicatorOffset } from '../utils/indicator-metrics'
 import { saveDevToolsConfig } from '../utils/save-devtools-config'
 import './dynamic-panel.css'
 
-function resolveCSSValue(
-  value: string | number,
-  dimension: 'width' | 'height' = 'width'
-): number {
+function resolveCSSValue(value: string | number, dimension: 'width' | 'height' = 'width'): number {
   if (typeof value === 'number') return value
 
   // kinda hacky, might be a better way to do this
@@ -133,39 +127,30 @@ export function DynamicPanel({
   const resizeContainerRef = useRef<HTMLDivElement>(null)
   const { triggerRef } = usePanelRouterContext()
 
-  useClickOutsideAndEscape(
-    resizeContainerRef,
-    triggerRef,
-    mounted,
-    (reason) => {
-      switch (reason) {
-        case 'escape': {
+  useClickOutsideAndEscape(resizeContainerRef, triggerRef, mounted, (reason) => {
+    switch (reason) {
+      case 'escape': {
+        setPanel('panel-selector')
+        return
+      }
+      case 'outside': {
+        if (closeOnClickOutside) {
           setPanel('panel-selector')
-          return
         }
-        case 'outside': {
-          if (closeOnClickOutside) {
-            setPanel('panel-selector')
-          }
-          return
-        }
-        default: {
-          return null!
-        }
+        return
+      }
+      default: {
+        return null!
       }
     }
-  )
+  })
 
   const indicatorOffset = getIndicatorOffset(state)
 
-  const [indicatorVertical, indicatorHorizontal] = state.devToolsPosition.split(
-    '-',
-    2
-  )
+  const [indicatorVertical, indicatorHorizontal] = state.devToolsPosition.split('-', 2)
 
   const verticalOffset =
-    panelVertical === indicatorVertical &&
-    panelHorizontal === indicatorHorizontal
+    panelVertical === indicatorVertical && panelHorizontal === indicatorHorizontal
       ? indicatorOffset
       : INDICATOR_PADDING
 
@@ -190,17 +175,14 @@ export function DynamicPanel({
   const maxWidth = resolvedDimensions.maxWidth
   const maxHeight = resolvedDimensions.maxHeight
 
-  const panelSizeKey = name
-    ? `${STORE_KEY_PANEL_SIZE_PREFIX}_${name}`
-    : STORE_KEY_SHARED_PANEL_SIZE
+  const panelSizeKey = name ? `${STORE_KEY_PANEL_SIZE_PREFIX}_${name}` : STORE_KEY_SHARED_PANEL_SIZE
   const panelSize = state.devToolsPanelSize[panelSizeKey]
 
   return (
     <ResizeProvider
       value={{
         resizeRef: resizeContainerRef,
-        initialSize:
-          sizeConfig.kind === 'resizable' ? sizeConfig.initialSize : sizeConfig,
+        initialSize: sizeConfig.kind === 'resizable' ? sizeConfig.initialSize : sizeConfig,
         minWidth,
         minHeight,
         maxWidth,
@@ -223,13 +205,9 @@ export function DynamicPanel({
             ...(isResizable
               ? {
                   '--panel-min-width': minWidth ? `${minWidth}px` : undefined,
-                  '--panel-min-height': minHeight
-                    ? `${minHeight}px`
-                    : undefined,
+                  '--panel-min-height': minHeight ? `${minHeight}px` : undefined,
                   '--panel-max-width': maxWidth ? `${maxWidth}px` : undefined,
-                  '--panel-max-height': maxHeight
-                    ? `${maxHeight}px`
-                    : undefined,
+                  '--panel-max-height': maxHeight ? `${maxHeight}px` : undefined,
                 }
               : {
                   '--panel-height': `${panelSize ? panelSize.height : sizeConfig.height}px`,
@@ -279,60 +257,30 @@ export function DynamicPanel({
                 }}
               >
                 <DragHandle>{header}</DragHandle>
-                <div
-                  data-nextjs-scrollable-content
-                  className="draggable-content"
-                >
+                <div data-nextjs-scrollable-content className="draggable-content">
                   {children}
                 </div>
               </div>
               {isResizable && (
                 <>
-                  {(!sizeConfig.sides ||
-                    sizeConfig.sides.includes('vertical')) && (
+                  {(!sizeConfig.sides || sizeConfig.sides.includes('vertical')) && (
                     <>
-                      <ResizeHandle
-                        position={devtoolsPanelPosition}
-                        direction="top"
-                      />
-                      <ResizeHandle
-                        position={devtoolsPanelPosition}
-                        direction="bottom"
-                      />
+                      <ResizeHandle position={devtoolsPanelPosition} direction="top" />
+                      <ResizeHandle position={devtoolsPanelPosition} direction="bottom" />
                     </>
                   )}
-                  {(!sizeConfig.sides ||
-                    sizeConfig.sides.includes('horizontal')) && (
+                  {(!sizeConfig.sides || sizeConfig.sides.includes('horizontal')) && (
                     <>
-                      <ResizeHandle
-                        position={devtoolsPanelPosition}
-                        direction="right"
-                      />
-                      <ResizeHandle
-                        position={devtoolsPanelPosition}
-                        direction="left"
-                      />
+                      <ResizeHandle position={devtoolsPanelPosition} direction="right" />
+                      <ResizeHandle position={devtoolsPanelPosition} direction="left" />
                     </>
                   )}
-                  {(!sizeConfig.sides ||
-                    sizeConfig.sides.includes('diagonal')) && (
+                  {(!sizeConfig.sides || sizeConfig.sides.includes('diagonal')) && (
                     <>
-                      <ResizeHandle
-                        position={devtoolsPanelPosition}
-                        direction="top-left"
-                      />
-                      <ResizeHandle
-                        position={devtoolsPanelPosition}
-                        direction="top-right"
-                      />
-                      <ResizeHandle
-                        position={devtoolsPanelPosition}
-                        direction="bottom-left"
-                      />
-                      <ResizeHandle
-                        position={devtoolsPanelPosition}
-                        direction="bottom-right"
-                      />
+                      <ResizeHandle position={devtoolsPanelPosition} direction="top-left" />
+                      <ResizeHandle position={devtoolsPanelPosition} direction="top-right" />
+                      <ResizeHandle position={devtoolsPanelPosition} direction="bottom-left" />
+                      <ResizeHandle position={devtoolsPanelPosition} direction="bottom-right" />
                     </>
                   )}
                 </>

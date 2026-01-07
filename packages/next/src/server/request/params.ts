@@ -1,7 +1,4 @@
-import {
-  workAsyncStorage,
-  type WorkStore,
-} from '../app-render/work-async-storage.external'
+import { workAsyncStorage, type WorkStore } from '../app-render/work-async-storage.external'
 import type { OpaqueFallbackRouteParams } from './fallback-params'
 
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
@@ -26,10 +23,7 @@ import {
   describeStringPropertyAccess,
   wellKnownProperties,
 } from '../../shared/lib/utils/reflect-utils'
-import {
-  makeDevtoolsIOAwarePromise,
-  makeHangingPromise,
-} from '../dynamic-rendering-utils'
+import { makeDevtoolsIOAwarePromise, makeHangingPromise } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-storage.external'
 import { RenderStage } from '../app-render/staged-rendering'
@@ -48,17 +42,11 @@ export function createParamsFromClient(
       case 'prerender-client':
       case 'prerender-ppr':
       case 'prerender-legacy':
-        return createStaticPrerenderParams(
-          underlyingParams,
-          workStore,
-          workUnitStore
-        )
+        return createStaticPrerenderParams(underlyingParams, workStore, workUnitStore)
       case 'cache':
       case 'private-cache':
       case 'unstable-cache':
-        throw new InvariantError(
-          'createParamsFromClient should not be called in cache contexts.'
-        )
+        throw new InvariantError('createParamsFromClient should not be called in cache contexts.')
       case 'prerender-runtime':
         throw new InvariantError(
           'createParamsFromClient should not be called in a runtime prerender.'
@@ -101,11 +89,7 @@ export function createServerParamsForRoute(
       case 'prerender-client':
       case 'prerender-ppr':
       case 'prerender-legacy':
-        return createStaticPrerenderParams(
-          underlyingParams,
-          workStore,
-          workUnitStore
-        )
+        return createStaticPrerenderParams(underlyingParams, workStore, workUnitStore)
       case 'cache':
       case 'private-cache':
       case 'unstable-cache':
@@ -147,11 +131,7 @@ export function createServerParamsForServerSegment(
       case 'prerender-client':
       case 'prerender-ppr':
       case 'prerender-legacy':
-        return createStaticPrerenderParams(
-          underlyingParams,
-          workStore,
-          workUnitStore
-        )
+        return createStaticPrerenderParams(underlyingParams, workStore, workUnitStore)
       case 'cache':
       case 'private-cache':
       case 'unstable-cache':
@@ -182,14 +162,10 @@ export function createServerParamsForServerSegment(
   throwInvariantForMissingStore()
 }
 
-export function createPrerenderParamsForClientSegment(
-  underlyingParams: Params
-): Promise<Params> {
+export function createPrerenderParamsForClientSegment(underlyingParams: Params): Promise<Params> {
   const workStore = workAsyncStorage.getStore()
   if (!workStore) {
-    throw new InvariantError(
-      'Missing workStore in createPrerenderParamsForClientSegment'
-    )
+    throw new InvariantError('Missing workStore in createPrerenderParamsForClientSegment')
   }
 
   const workUnitStore = workUnitAsyncStorage.getStore()
@@ -205,11 +181,7 @@ export function createPrerenderParamsForClientSegment(
               // to consider the awaiting of this params object "dynamic". Since
               // we are in cacheComponents mode we encode this as a promise that never
               // resolves.
-              return makeHangingPromise(
-                workUnitStore.renderSignal,
-                workStore.route,
-                '`params`'
-              )
+              return makeHangingPromise(workUnitStore.renderSignal, workStore.route, '`params`')
             }
           }
         }
@@ -251,11 +223,7 @@ function createStaticPrerenderParams(
             // to consider the awaiting of this params object "dynamic". Since
             // we are in cacheComponents mode we encode this as a promise that never
             // resolves.
-            return makeHangingParams(
-              underlyingParams,
-              workStore,
-              prerenderStore
-            )
+            return makeHangingParams(underlyingParams, workStore, prerenderStore)
           }
         }
       }
@@ -266,12 +234,7 @@ function createStaticPrerenderParams(
       if (fallbackParams) {
         for (const key in underlyingParams) {
           if (fallbackParams.has(key)) {
-            return makeErroringParams(
-              underlyingParams,
-              fallbackParams,
-              workStore,
-              prerenderStore
-            )
+            return makeErroringParams(underlyingParams, fallbackParams, workStore, prerenderStore)
           }
         }
       }
@@ -290,10 +253,7 @@ function createRuntimePrerenderParams(
   underlyingParams: Params,
   workUnitStore: PrerenderStoreModernRuntime
 ): Promise<Params> {
-  return delayUntilRuntimeStage(
-    workUnitStore,
-    makeUntrackedParams(underlyingParams)
-  )
+  return delayUntilRuntimeStage(workUnitStore, makeUntrackedParams(underlyingParams))
 }
 
 function createRenderParamsInProd(underlyingParams: Params): Promise<Params> {
@@ -342,10 +302,7 @@ const fallbackParamsProxyHandler: ProxyHandler<Promise<Params>> = {
             )
           }
 
-          return new Proxy(
-            originalMethod.apply(target, args),
-            fallbackParamsProxyHandler
-          )
+          return new Proxy(originalMethod.apply(target, args), fallbackParamsProxyHandler)
         },
       }[prop]
     }
@@ -365,11 +322,7 @@ function makeHangingParams(
   }
 
   const promise = new Proxy(
-    makeHangingPromise<Params>(
-      prerenderStore.renderSignal,
-      workStore.route,
-      '`params`'
-    ),
+    makeHangingPromise<Params>(prerenderStore.renderSignal, workStore.route, '`params`'),
     fallbackParamsProxyHandler
   )
 
@@ -414,18 +367,10 @@ function makeErroringParams(
             // will be no `dynamic = "error"`
             if (prerenderStore.type === 'prerender-ppr') {
               // PPR Prerender (no cacheComponents)
-              postponeWithTracking(
-                workStore.route,
-                expression,
-                prerenderStore.dynamicTracking
-              )
+              postponeWithTracking(workStore.route, expression, prerenderStore.dynamicTracking)
             } else {
               // Legacy Prerender
-              throwToInterruptStaticGeneration(
-                expression,
-                workStore,
-                prerenderStore
-              )
+              throwToInterruptStaticGeneration(expression, workStore, prerenderStore)
             }
           },
           enumerable: true,
@@ -467,11 +412,7 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
     })
     // @ts-expect-error
     promise.displayName = 'params'
-    return instrumentParamsPromiseWithDevWarnings(
-      underlyingParams,
-      promise,
-      workStore
-    )
+    return instrumentParamsPromiseWithDevWarnings(underlyingParams, promise, workStore)
   }
 
   const cachedParams = CachedParams.get(underlyingParams)
@@ -483,11 +424,7 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
   // supports copying with spread and we don't want to unnecessarily
   // instrument the promise with spreadable properties of ReactPromise.
   const promise = hasFallbackParams
-    ? makeDevtoolsIOAwarePromise(
-        underlyingParams,
-        requestStore,
-        RenderStage.Runtime
-      )
+    ? makeDevtoolsIOAwarePromise(underlyingParams, requestStore, RenderStage.Runtime)
     : // We don't want to force an environment transition when this params is not part of the fallback params set
       Promise.resolve(underlyingParams)
 
@@ -544,14 +481,9 @@ function instrumentParamsPromiseWithDevWarnings(
   })
 }
 
-const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(
-  createParamsAccessError
-)
+const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(createParamsAccessError)
 
-function createParamsAccessError(
-  route: string | undefined,
-  expression: string
-) {
+function createParamsAccessError(route: string | undefined, expression: string) {
   const prefix = route ? `Route "${route}" ` : 'This route '
   return new Error(
     `${prefix}used ${expression}. ` +

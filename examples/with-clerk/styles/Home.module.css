@@ -82,8 +82,7 @@
       rgba(255, 255, 255, 0.5) 50%,
       rgba(255, 255, 255, 0) 80%
     ),
-    linear-gradient(#f2f2f2 16px, transparent 0),
-    linear-gradient(#f2f2f2 16px, transparent 0),
+    linear-gradient(#f2f2f2 16px, transparent 0), linear-gradient(#f2f2f2 16px, transparent 0),
     linear-gradient(#f2f2f2 16px, transparent 0);
 
   background-repeat: repeat-y;

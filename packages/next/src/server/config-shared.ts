@@ -2,10 +2,7 @@ import os from 'os'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { Header, Redirect, Rewrite } from '../lib/load-custom-routes'
 import { imageConfigDefault } from '../shared/lib/image-config'
-import type {
-  ImageConfig,
-  ImageConfigComplete,
-} from '../shared/lib/image-config'
+import type { ImageConfig, ImageConfigComplete } from '../shared/lib/image-config'
 import type { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/subresource-integrity-plugin'
 import type { WEB_VITALS } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
@@ -85,12 +82,7 @@ export interface StyledComponentsConfig {
   cssProp?: boolean
 }
 
-export type JSONValue =
-  | string
-  | number
-  | boolean
-  | JSONValue[]
-  | { [k: string]: JSONValue }
+export type JSONValue = string | number | boolean | JSONValue[] | { [k: string]: JSONValue }
 
 // At the moment, Turbopack options must be JSON-serializable, so restrict values.
 export type TurbopackLoaderOptions = Record<string, JSONValue>
@@ -145,10 +137,7 @@ export interface TurbopackOptions {
    *
    * @see [Resolve Alias](https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#resolving-aliases)
    */
-  resolveAlias?: Record<
-    string,
-    string | string[] | Record<string, string | string[]>
-  >
+  resolveAlias?: Record<string, string | string[] | Record<string, string | string[]>>
 
   /**
    * (`next --turbopack` only) A list of extensions to resolve when importing files.
@@ -1470,9 +1459,7 @@ export const defaultConfig = Object.freeze({
   },
   logging: {},
   compiler: {},
-  expireTime: process.env.NEXT_PRIVATE_CDN_CONSUMED_SWR_CACHE_CONTROL
-    ? undefined
-    : 31536000, // one year
+  expireTime: process.env.NEXT_PRIVATE_CDN_CONSUMED_SWR_CACHE_CONTROL ? undefined : 31536000, // one year
   staticPageGenerationTimeout: 60,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
@@ -1545,8 +1532,7 @@ export const defaultConfig = Object.freeze({
     manualClientBasePath: false,
     cpus: Math.max(
       1,
-      (Number(process.env.CIRCLE_NODE_TOTAL) ||
-        (os.cpus() || { length: 1 }).length) - 1
+      (Number(process.env.CIRCLE_NODE_TOTAL) || (os.cpus() || { length: 1 }).length) - 1
     ),
     memoryBasedWorkersCount: false,
     imgOptConcurrency: null,
@@ -1584,9 +1570,7 @@ export const defaultConfig = Object.freeze({
     strictRouteTypes: false,
     viewTransition: false,
     removeUncaughtErrorAndRejectionListeners: false,
-    validateRSCRequestHeaders: !!(
-      process.env.__NEXT_TEST_MODE || !isStableBuild()
-    ),
+    validateRSCRequestHeaders: !!(process.env.__NEXT_TEST_MODE || !isStableBuild()),
     staleTimes: {
       dynamic: 0,
       static: 300,
@@ -1754,8 +1738,7 @@ export function getNextConfigRuntime(
         useSkewCookie: ex.useSkewCookie,
         preloadEntriesOnStart: ex.preloadEntriesOnStart,
         hideLogsAfterAbort: ex.hideLogsAfterAbort,
-        removeUncaughtErrorAndRejectionListeners:
-          ex.removeUncaughtErrorAndRejectionListeners,
+        removeUncaughtErrorAndRejectionListeners: ex.removeUncaughtErrorAndRejectionListeners,
         imgOptConcurrency: ex.imgOptConcurrency,
         imgOptMaxInputPixels: ex.imgOptMaxInputPixels,
         imgOptSequentialRead: ex.imgOptSequentialRead,
@@ -1774,9 +1757,7 @@ export function getNextConfigRuntime(
     : {}
 
   let runtimeConfig: Requiredish<NextConfigRuntime> = {
-    deploymentId: config.experimental.runtimeServerDeploymentId
-      ? ''
-      : config.deploymentId,
+    deploymentId: config.experimental.runtimeServerDeploymentId ? '' : config.deploymentId,
 
     configFileName: undefined,
     env: undefined,

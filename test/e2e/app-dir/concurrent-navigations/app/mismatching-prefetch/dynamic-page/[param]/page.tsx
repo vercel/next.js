@@ -15,15 +15,9 @@ export default async function Page({
 }: PageProps<'/mismatching-prefetch/dynamic-page/[param]'>) {
   const { param } = await params
   return (
-    <Suspense
-      fallback={
-        <div id={`dynamic-page-loading-${param}`}>{`Loading ${param}...`}</div>
-      }
-    >
+    <Suspense fallback={<div id={`dynamic-page-loading-${param}`}>{`Loading ${param}...`}</div>}>
       <DynamicContent>
-        <div
-          id={`dynamic-page-content-${param}`}
-        >{`Dynamic page ${param}`}</div>
+        <div id={`dynamic-page-content-${param}`}>{`Dynamic page ${param}`}</div>
       </DynamicContent>
     </Suspense>
   )

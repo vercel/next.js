@@ -12,11 +12,7 @@ const ErrorLoader: webpack.LoaderDefinitionFunction = function () {
   const resource = this._module?.issuer?.resource ?? null
   const context = this.rootContext ?? this._compiler?.context
 
-  const issuer = resource
-    ? context
-      ? path.relative(context, resource)
-      : resource
-    : null
+  const issuer = resource ? (context ? path.relative(context, resource) : resource) : null
 
   const err = new Error(reason + (issuer ? `\nLocation: ${cyan(issuer)}` : ''))
   this.emitError(err)

@@ -1,12 +1,6 @@
 /* eslint-env jest */
 
-import {
-  nextServer,
-  runNextCommand,
-  startApp,
-  stopApp,
-  waitFor,
-} from 'next-test-utils'
+import { nextServer, runNextCommand, startApp, stopApp, waitFor } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
@@ -33,25 +27,22 @@ function runTests() {
 }
 
 describe('route cancel via CSS', () => {
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      beforeAll(async () => {
-        await runNextCommand(['build', appDir])
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
+    beforeAll(async () => {
+      await runNextCommand(['build', appDir])
 
-        app = nextServer({
-          dir: appDir,
-          dev: false,
-          quiet: true,
-        })
-
-        server = await startApp(app)
-        appPort = server.address().port
+      app = nextServer({
+        dir: appDir,
+        dev: false,
+        quiet: true,
       })
 
-      afterAll(() => stopApp(server))
+      server = await startApp(app)
+      appPort = server.address().port
+    })
 
-      runTests()
-    }
-  )
+    afterAll(() => stopApp(server))
+
+    runTests()
+  })
 })

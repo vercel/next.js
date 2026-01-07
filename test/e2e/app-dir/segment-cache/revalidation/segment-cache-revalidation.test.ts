@@ -138,9 +138,7 @@ describe('segment cache (revalidation)', () => {
 
     // Navigate to the target page.
     await act(async () => {
-      const button = await browser.elementByCss(
-        'form[action="/greeting"] button'
-      )
+      const button = await browser.elementByCss('form[action="/greeting"] button')
       await button.click()
       // Navigation should finish immedately because the page is
       // fully prefetched.
@@ -283,9 +281,7 @@ describe('segment cache (revalidation)', () => {
     // Navigate to page B
     await act(
       async () => {
-        const link = await browser.elementByCss(
-          'a[href="/refetch-on-new-base-tree/b"]'
-        )
+        const link = await browser.elementByCss('a[href="/refetch-on-new-base-tree/b"]')
         await link.click()
         const content = await browser.elementById('page-b-content')
         expect(await content.innerHTML()).toBe('Page B content')
@@ -303,9 +299,7 @@ describe('segment cache (revalidation)', () => {
     // Navigate to page A
     await act(
       async () => {
-        const link = await browser.elementByCss(
-          'a[href="/refetch-on-new-base-tree/a"]'
-        )
+        const link = await browser.elementByCss('a[href="/refetch-on-new-base-tree/a"]')
         await link.click()
         const content = await browser.elementById('page-a-content')
         expect(await content.innerHTML()).toBe('Page A content')

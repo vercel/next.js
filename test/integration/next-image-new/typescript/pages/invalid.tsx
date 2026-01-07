@@ -5,13 +5,7 @@ const Invalid = () => {
   return (
     <div>
       <h1>Invalid TS</h1>
-      <Image
-        id="invalid-src"
-        alt="invalid-src"
-        src={new Date()}
-        width={500}
-        height={500}
-      />
+      <Image id="invalid-src" alt="invalid-src" src={new Date()} width={500} height={500} />
       <Image
         id="invalid-width"
         alt="invalid-width"

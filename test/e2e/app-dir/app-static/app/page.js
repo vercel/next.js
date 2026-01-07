@@ -3,9 +3,9 @@ import { Button } from './button'
 export default async function Page() {
   console.log('rendering index')
 
-  const data = await fetch(
-    'https://next-data-api-endpoint.vercel.app/api/random?page'
-  ).then((res) => res.text())
+  const data = await fetch('https://next-data-api-endpoint.vercel.app/api/random?page').then(
+    (res) => res.text()
+  )
 
   return (
     <>

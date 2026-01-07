@@ -27,10 +27,7 @@ export const safeStringifyWithDepth = configure({
  * - not read/attempt to serialize promises (next will console error if you do that, and will cause this program to infinitely recurse)
  * - if we read a proxy that throws (no way to detect if something is a proxy), explain to the user we can't read this data
  */
-export function preLogSerializationClone<T>(
-  value: T,
-  seen = new WeakMap()
-): any {
+export function preLogSerializationClone<T>(value: T, seen = new WeakMap()): any {
   if (value === undefined) return UNDEFINED_MARKER
   if (value === null || typeof value !== 'object') return value
   if (seen.has(value as object)) return seen.get(value as object)

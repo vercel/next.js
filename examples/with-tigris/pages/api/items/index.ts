@@ -33,10 +33,7 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse<Response>) {
 
 // GET /api/items -- gets items from collection
 // POST /api/items {ToDoItem} -- inserts a new item to collection
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<Response>,
-) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse<Response>) {
   switch (req.method) {
     case "GET":
       await handleGet(req, res);

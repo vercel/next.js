@@ -31,17 +31,9 @@ export default async function Page() {
           revalidatePath('/revalidate-and-use')
         }
 
-        return Promise.all([
-          initialCachedValue,
-          getCachedValue(),
-          fetchCachedValue(),
-        ])
+        return Promise.all([initialCachedValue, getCachedValue(), fetchCachedValue()])
       }}
-      initialValues={await Promise.all([
-        getCachedValue(),
-        getCachedValue(),
-        fetchCachedValue(),
-      ])}
+      initialValues={await Promise.all([getCachedValue(), getCachedValue(), fetchCachedValue()])}
     />
   )
 }

@@ -2,13 +2,7 @@
 
 import { join } from 'path'
 import webdriver from 'next-webdriver'
-import {
-  launchApp,
-  killApp,
-  findPort,
-  nextBuild,
-  nextStart,
-} from 'next-test-utils'
+import { launchApp, killApp, findPort, nextBuild, nextStart } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
 const locales = ['en', 'fr', 'de', 'it']
@@ -40,9 +34,7 @@ const runTests = () => {
         `${locale === 'en' ? '' : `/${locale}`}/my-custom-gone-path`
       )
 
-      expect(
-        JSON.parse(await browser.elementByCss('#error-props').text())
-      ).toEqual(
+      expect(JSON.parse(await browser.elementByCss('#error-props').text())).toEqual(
         expect.objectContaining({
           locale,
           statusCode: 410,
@@ -58,9 +50,7 @@ const runTests = () => {
         `${locale === 'en' ? '' : `/${locale}`}/my-custom-gone-path/other-path`
       )
 
-      expect(
-        JSON.parse(await browser.elementByCss('#error-props').text())
-      ).toEqual(
+      expect(JSON.parse(await browser.elementByCss('#error-props').text())).toEqual(
         expect.objectContaining({
           locale,
           statusCode: 404,
@@ -96,9 +86,7 @@ const runTests = () => {
 
       await browser.eval('window.next.router.push("/my-custom-gone-path")')
 
-      expect(
-        JSON.parse(await browser.elementByCss('#error-props').text())
-      ).toEqual(
+      expect(JSON.parse(await browser.elementByCss('#error-props').text())).toEqual(
         expect.objectContaining({
           locale,
         })
@@ -108,27 +96,21 @@ const runTests = () => {
 }
 
 describe('Custom routes i18n custom error', () => {
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
-    'development mode',
-    () => {
-      beforeAll(async () => {
-        appPort = await findPort()
-        app = await launchApp(appDir, appPort)
-      })
-      afterAll(() => killApp(app))
-      runTests()
-    }
-  )
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      beforeAll(async () => {
-        await nextBuild(appDir)
-        appPort = await findPort()
-        app = await nextStart(appDir, appPort)
-      })
-      afterAll(() => killApp(app))
-      runTests()
-    }
-  )
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
+    beforeAll(async () => {
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(() => killApp(app))
+    runTests()
+  })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
+    beforeAll(async () => {
+      await nextBuild(appDir)
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(() => killApp(app))
+    runTests()
+  })
 })

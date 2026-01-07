@@ -3,39 +3,30 @@ import cheerio from 'cheerio'
 import { promisify } from 'node:util'
 import { join } from 'node:path'
 import { nextTestSetup } from 'e2e-utils'
-import {
-  check,
-  fetchViaHTTP,
-  normalizeRegEx,
-  retry,
-  waitFor,
-} from 'next-test-utils'
+import { check, fetchViaHTTP, normalizeRegEx, retry, waitFor } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
 const glob = promisify(globOrig)
 
 describe('app-dir static/dynamic handling', () => {
-  const { next, isNextDev, isNextStart, isNextDeploy, isTurbopack } =
-    nextTestSetup({
-      files: __dirname,
-      env: {
-        NEXT_DEBUG_BUILD: '1',
-        ...(process.env.CUSTOM_CACHE_HANDLER
-          ? {
-              CUSTOM_CACHE_HANDLER: process.env.CUSTOM_CACHE_HANDLER,
-            }
-          : {}),
-      },
-    })
+  const { next, isNextDev, isNextStart, isNextDeploy, isTurbopack } = nextTestSetup({
+    files: __dirname,
+    env: {
+      NEXT_DEBUG_BUILD: '1',
+      ...(process.env.CUSTOM_CACHE_HANDLER
+        ? {
+            CUSTOM_CACHE_HANDLER: process.env.CUSTOM_CACHE_HANDLER,
+          }
+        : {}),
+    },
+  })
 
   let prerenderManifest
   let buildCliOutputIndex = 0
 
   beforeAll(async () => {
     if (isNextStart) {
-      prerenderManifest = JSON.parse(
-        await next.readFile('.next/prerender-manifest.json')
-      )
+      prerenderManifest = JSON.parse(await next.readFile('.next/prerender-manifest.json'))
       buildCliOutputIndex = next.cliOutput.length
     }
   })
@@ -173,9 +164,7 @@ describe('app-dir static/dynamic handling', () => {
         const res1 = await next.fetch('/specify-new-tags/one-tag')
         expect(res1.status).toBe(200)
 
-        const revalidateRes = await next.fetch(
-          '/api/revalidate-tag-node?tag=thankyounext'
-        )
+        const revalidateRes = await next.fetch('/api/revalidate-tag-node?tag=thankyounext')
         expect((await revalidateRes.json()).revalidated).toBe(true)
 
         const res2 = await next.fetch('/specify-new-tags/two-tags')
@@ -196,9 +185,7 @@ describe('app-dir static/dynamic handling', () => {
   if (isNextStart) {
     it('should propagate unstable_cache tags correctly', async () => {
       const meta = JSON.parse(
-        await next.readFile(
-          '.next/server/app/variable-revalidate/revalidate-360-isr.meta'
-        )
+        await next.readFile('.next/server/app/variable-revalidate/revalidate-360-isr.meta')
       )
       expect(meta.headers['x-next-cache-tags']).toContain('unstable_cache_tag1')
     })
@@ -207,9 +194,7 @@ describe('app-dir static/dynamic handling', () => {
       const $ = await next.render$('/force-dynamic-fetch-cache/no-fetch-cache')
       const initData = $('#data').text()
       await retry(async () => {
-        const $2 = await next.render$(
-          '/force-dynamic-fetch-cache/no-fetch-cache'
-        )
+        const $2 = await next.render$('/force-dynamic-fetch-cache/no-fetch-cache')
         expect($2('#data').text()).toBeTruthy()
         expect($2('#data').text()).not.toBe(initData)
       })
@@ -255,9 +240,7 @@ describe('app-dir static/dynamic handling', () => {
       const $ = await next.render$('/force-dynamic-fetch-cache/default-cache')
       const initData = $('#data').text()
       await retry(async () => {
-        const $2 = await next.render$(
-          '/force-dynamic-fetch-cache/default-cache'
-        )
+        const $2 = await next.render$('/force-dynamic-fetch-cache/default-cache')
         expect($2('#data').text()).toBeTruthy()
         expect($2('#data').text()).not.toBe(initData)
       })
@@ -277,14 +260,10 @@ describe('app-dir static/dynamic handling', () => {
     })
 
     it('fetchCache config should supercede dynamic config when force-dynamic is used', async () => {
-      const $ = await next.render$(
-        '/force-dynamic-fetch-cache/with-fetch-cache'
-      )
+      const $ = await next.render$('/force-dynamic-fetch-cache/with-fetch-cache')
       const initData = $('#data').text()
       await retry(async () => {
-        const $2 = await next.render$(
-          '/force-dynamic-fetch-cache/with-fetch-cache'
-        )
+        const $2 = await next.render$('/force-dynamic-fetch-cache/with-fetch-cache')
         expect($2('#data').text()).toBeTruthy()
         expect($2('#data').text()).toBe(initData)
       })
@@ -357,28 +336,25 @@ describe('app-dir static/dynamic handling', () => {
     {
       path: '/react-fetch-deduping-edge',
     },
-  ])(
-    'should correctly de-dupe fetch without next cache $path',
-    async ({ path }) => {
-      for (let i = 0; i < 5; i++) {
-        const res = await next.fetch(path, {
-          redirect: 'manual',
-        })
+  ])('should correctly de-dupe fetch without next cache $path', async ({ path }) => {
+    for (let i = 0; i < 5; i++) {
+      const res = await next.fetch(path, {
+        redirect: 'manual',
+      })
 
-        expect(res.status).toBe(200)
-        const html = await res.text()
-        const $ = cheerio.load(html)
+      expect(res.status).toBe(200)
+      const html = await res.text()
+      const $ = cheerio.load(html)
 
-        const data1 = $('#data-1').text()
-        const data2 = $('#data-2').text()
+      const data1 = $('#data-1').text()
+      const data2 = $('#data-2').text()
 
-        expect(data1).toBeTruthy()
-        expect(data1).toBe(data2)
+      expect(data1).toBeTruthy()
+      expect(data1).toBe(data2)
 
-        await waitFor(250)
-      }
+      await waitFor(250)
     }
-  )
+  })
 
   it.each([
     { pathname: '/unstable-cache-node' },
@@ -530,70 +506,57 @@ describe('app-dir static/dynamic handling', () => {
         type: 'node route handler',
         revalidateApi: '/api/revalidate-tag-node',
       },
-    ])(
-      'it should revalidate tag correctly with $type',
-      async ({ revalidateApi }) => {
-        const initRes = await next.fetch('/variable-revalidate/revalidate-360')
-        const html = await initRes.text()
-        const $ = cheerio.load(html)
-        const initLayoutData = $('#layout-data').text()
-        const initPageData = $('#page-data').text()
-        const initNestedCacheData = $('#nested-cache').text()
+    ])('it should revalidate tag correctly with $type', async ({ revalidateApi }) => {
+      const initRes = await next.fetch('/variable-revalidate/revalidate-360')
+      const html = await initRes.text()
+      const $ = cheerio.load(html)
+      const initLayoutData = $('#layout-data').text()
+      const initPageData = $('#page-data').text()
+      const initNestedCacheData = $('#nested-cache').text()
 
-        const routeHandlerRes = await next.fetch(
-          '/route-handler/revalidate-360'
-        )
-        const initRouteHandlerData = await routeHandlerRes.json()
+      const routeHandlerRes = await next.fetch('/route-handler/revalidate-360')
+      const initRouteHandlerData = await routeHandlerRes.json()
 
-        const edgeRouteHandlerRes = await next.fetch(
-          '/route-handler-edge/revalidate-360'
-        )
-        const initEdgeRouteHandlerRes = await edgeRouteHandlerRes.json()
+      const edgeRouteHandlerRes = await next.fetch('/route-handler-edge/revalidate-360')
+      const initEdgeRouteHandlerRes = await edgeRouteHandlerRes.json()
 
-        expect(initLayoutData).toBeTruthy()
-        expect(initPageData).toBeTruthy()
+      expect(initLayoutData).toBeTruthy()
+      expect(initPageData).toBeTruthy()
 
-        await check(async () => {
-          const revalidateRes = await next.fetch(
-            `${revalidateApi}?tag=thankyounext`
-          )
-          expect((await revalidateRes.json()).revalidated).toBe(true)
+      await check(async () => {
+        const revalidateRes = await next.fetch(`${revalidateApi}?tag=thankyounext`)
+        expect((await revalidateRes.json()).revalidated).toBe(true)
 
-          const newRes = await next.fetch('/variable-revalidate/revalidate-360')
-          const cacheHeader = newRes.headers.get('x-nextjs-cache')
+        const newRes = await next.fetch('/variable-revalidate/revalidate-360')
+        const cacheHeader = newRes.headers.get('x-nextjs-cache')
 
-          if ((global as any).isNextStart && cacheHeader) {
-            expect(cacheHeader).toBe('MISS')
-          }
-          const newHtml = await newRes.text()
-          const new$ = cheerio.load(newHtml)
-          const newLayoutData = new$('#layout-data').text()
-          const newPageData = new$('#page-data').text()
-          const newNestedCacheData = new$('#nested-cache').text()
+        if ((global as any).isNextStart && cacheHeader) {
+          expect(cacheHeader).toBe('MISS')
+        }
+        const newHtml = await newRes.text()
+        const new$ = cheerio.load(newHtml)
+        const newLayoutData = new$('#layout-data').text()
+        const newPageData = new$('#page-data').text()
+        const newNestedCacheData = new$('#nested-cache').text()
 
-          const newRouteHandlerRes = await next.fetch(
-            '/route-handler/revalidate-360'
-          )
-          const newRouteHandlerData = await newRouteHandlerRes.json()
+        const newRouteHandlerRes = await next.fetch('/route-handler/revalidate-360')
+        const newRouteHandlerData = await newRouteHandlerRes.json()
 
-          const newEdgeRouteHandlerRes = await next.fetch(
-            '/route-handler-edge/revalidate-360'
-          )
-          const newEdgeRouteHandlerData = await newEdgeRouteHandlerRes.json()
+        const newEdgeRouteHandlerRes = await next.fetch('/route-handler-edge/revalidate-360')
+        const newEdgeRouteHandlerData = await newEdgeRouteHandlerRes.json()
 
-          expect(newLayoutData).toBeTruthy()
-          expect(newPageData).toBeTruthy()
-          expect(newRouteHandlerData).toBeTruthy()
-          expect(newEdgeRouteHandlerData).toBeTruthy()
-          expect(newLayoutData).not.toBe(initLayoutData)
-          expect(newPageData).not.toBe(initPageData)
-          expect(newNestedCacheData).not.toBe(initNestedCacheData)
-          expect(newRouteHandlerData).not.toEqual(initRouteHandlerData)
-          expect(newEdgeRouteHandlerData).not.toEqual(initEdgeRouteHandlerRes)
-          return 'success'
-        }, 'success')
-      }
-    )
+        expect(newLayoutData).toBeTruthy()
+        expect(newPageData).toBeTruthy()
+        expect(newRouteHandlerData).toBeTruthy()
+        expect(newEdgeRouteHandlerData).toBeTruthy()
+        expect(newLayoutData).not.toBe(initLayoutData)
+        expect(newPageData).not.toBe(initPageData)
+        expect(newNestedCacheData).not.toBe(initNestedCacheData)
+        expect(newRouteHandlerData).not.toEqual(initRouteHandlerData)
+        expect(newEdgeRouteHandlerData).not.toEqual(initEdgeRouteHandlerRes)
+        return 'success'
+      }, 'success')
+    })
   }
 
   // On-Demand Revalidate has not effect in dev since app routes
@@ -618,9 +581,7 @@ describe('app-dir static/dynamic handling', () => {
       }
 
       if (isNextStart) {
-        expect(next.cliOutput.substring(buildCliOutputIndex)).not.toContain(
-          'rendering index'
-        )
+        expect(next.cliOutput.substring(buildCliOutputIndex)).not.toContain('rendering index')
       }
     })
 
@@ -633,50 +594,41 @@ describe('app-dir static/dynamic handling', () => {
         type: 'node route handler',
         revalidateApi: '/api/revalidate-path-node',
       },
-    ])(
-      'it should revalidate correctly with $type',
-      async ({ revalidateApi }) => {
-        const initRes = await next.fetch(
-          '/variable-revalidate/revalidate-360-isr'
+    ])('it should revalidate correctly with $type', async ({ revalidateApi }) => {
+      const initRes = await next.fetch('/variable-revalidate/revalidate-360-isr')
+      const html = await initRes.text()
+      const $ = cheerio.load(html)
+      const initLayoutData = $('#layout-data').text()
+      const initPageData = $('#page-data').text()
+
+      expect(initLayoutData).toBeTruthy()
+      expect(initPageData).toBeTruthy()
+
+      await check(async () => {
+        const revalidateRes = await next.fetch(
+          `${revalidateApi}?path=/variable-revalidate/revalidate-360-isr`
         )
-        const html = await initRes.text()
-        const $ = cheerio.load(html)
-        const initLayoutData = $('#layout-data').text()
-        const initPageData = $('#page-data').text()
+        expect((await revalidateRes.json()).revalidated).toBe(true)
 
-        expect(initLayoutData).toBeTruthy()
-        expect(initPageData).toBeTruthy()
+        const newRes = await next.fetch('/variable-revalidate/revalidate-360-isr')
+        const newHtml = await newRes.text()
+        const new$ = cheerio.load(newHtml)
+        const newLayoutData = new$('#layout-data').text()
+        const newPageData = new$('#page-data').text()
 
-        await check(async () => {
-          const revalidateRes = await next.fetch(
-            `${revalidateApi}?path=/variable-revalidate/revalidate-360-isr`
-          )
-          expect((await revalidateRes.json()).revalidated).toBe(true)
-
-          const newRes = await next.fetch(
-            '/variable-revalidate/revalidate-360-isr'
-          )
-          const newHtml = await newRes.text()
-          const new$ = cheerio.load(newHtml)
-          const newLayoutData = new$('#layout-data').text()
-          const newPageData = new$('#page-data').text()
-
-          expect(newLayoutData).toBeTruthy()
-          expect(newPageData).toBeTruthy()
-          expect(newLayoutData).not.toBe(initLayoutData)
-          expect(newPageData).not.toBe(initPageData)
-          return 'success'
-        }, 'success')
-      }
-    )
+        expect(newLayoutData).toBeTruthy()
+        expect(newPageData).toBeTruthy()
+        expect(newLayoutData).not.toBe(initLayoutData)
+        expect(newPageData).not.toBe(initPageData)
+        return 'success'
+      }, 'success')
+    })
   }
 
   // On-Demand Revalidate has not effect in dev
   if (!(global as any).isNextDev && !process.env.CUSTOM_CACHE_HANDLER) {
     it('should revalidate all fetches during on-demand revalidate', async () => {
-      const initRes = await next.fetch(
-        '/variable-revalidate/revalidate-360-isr'
-      )
+      const initRes = await next.fetch('/variable-revalidate/revalidate-360-isr')
       const html = await initRes.text()
       const $ = cheerio.load(html)
       const initLayoutData = $('#layout-data').text()
@@ -691,9 +643,7 @@ describe('app-dir static/dynamic handling', () => {
         )
         expect((await revalidateRes.json()).revalidated).toBe(true)
 
-        const newRes = await next.fetch(
-          '/variable-revalidate/revalidate-360-isr'
-        )
+        const newRes = await next.fetch('/variable-revalidate/revalidate-360-isr')
         const newHtml = await newRes.text()
         const new$ = cheerio.load(newHtml)
         const newLayoutData = new$('#layout-data').text()
@@ -726,9 +676,7 @@ describe('app-dir static/dynamic handling', () => {
 
   if (!process.env.CUSTOM_CACHE_HANDLER) {
     it('should revalidate correctly with config and fetch revalidate', async () => {
-      const initial$ = await next.render$(
-        '/variable-config-revalidate/revalidate-3'
-      )
+      const initial$ = await next.render$('/variable-config-revalidate/revalidate-3')
       const initialDate = initial$('#date').text()
       const initialRandomData = initial$('#random-data').text()
 
@@ -3246,9 +3194,7 @@ describe('app-dir static/dynamic handling', () => {
     })
 
     it('should log fetch metrics to the diagnostics directory', async () => {
-      const fetchMetrics = JSON.parse(
-        await next.readFile('.next/diagnostics/fetch-metrics.json')
-      )
+      const fetchMetrics = JSON.parse(await next.readFile('.next/diagnostics/fetch-metrics.json'))
 
       const indexFetchMetrics = fetchMetrics['/']
 
@@ -3262,8 +3208,7 @@ describe('app-dir static/dynamic handling', () => {
         cacheReason: expect.any(String),
       })
 
-      const otherPageMetrics =
-        fetchMetrics['/variable-revalidate/headers-instance']
+      const otherPageMetrics = fetchMetrics['/variable-revalidate/headers-instance']
 
       expect(otherPageMetrics).toHaveLength(4)
       expect(otherPageMetrics).toEqual(
@@ -3281,12 +3226,8 @@ describe('app-dir static/dynamic handling', () => {
     })
 
     it('should have correct cache tags for prerendered path', async () => {
-      const firstMeta = await next.readJSON(
-        '.next/server/app/prerendered-not-found/first.meta'
-      )
-      const secondMeta = await next.readJSON(
-        '.next/server/app/prerendered-not-found/second.meta'
-      )
+      const firstMeta = await next.readJSON('.next/server/app/prerendered-not-found/first.meta')
+      const secondMeta = await next.readJSON('.next/server/app/prerendered-not-found/second.meta')
 
       expect(firstMeta.status).toBe(404)
       expect(firstMeta.headers['x-next-cache-tags']).toBe(
@@ -3356,23 +3297,18 @@ describe('app-dir static/dynamic handling', () => {
         try {
           data = JSON.parse(dataJSON)
         } catch (cause) {
-          throw new Error(
-            `Failed to parse JSON from data-start attribute: "${dataJSON}"`,
-            { cause }
-          )
+          throw new Error(`Failed to parse JSON from data-start attribute: "${dataJSON}"`, {
+            cause,
+          })
         }
       }
 
       const startedResponding = +data.start
       if (Number.isNaN(startedResponding)) {
-        throw new Error(
-          `Expected start to be a number. Received: "${data.start}"`
-        )
+        throw new Error(`Expected start to be a number. Received: "${data.start}"`)
       }
       if (startedStreaming === -1) {
-        throw new Error(
-          'Expected startedStreaming to be set. This is a bug in the test.'
-        )
+        throw new Error('Expected startedStreaming to be set. This is a bug in the test.')
       }
 
       // We just want to ensure the response isn't blocked on revalidating the fetch.
@@ -3415,15 +3351,9 @@ describe('app-dir static/dynamic handling', () => {
       const cur$ = cheerio.load(curHtml)
 
       try {
-        expect(cur$('#data-no-cache').text()).not.toBe(
-          prev$('#data-no-cache').text()
-        )
-        expect(cur$('#data-force-cache').text()).toBe(
-          prev$('#data-force-cache').text()
-        )
-        expect(cur$('#data-revalidate-cache').text()).toBe(
-          prev$('#data-revalidate-cache').text()
-        )
+        expect(cur$('#data-no-cache').text()).not.toBe(prev$('#data-no-cache').text())
+        expect(cur$('#data-force-cache').text()).toBe(prev$('#data-force-cache').text())
+        expect(cur$('#data-revalidate-cache').text()).toBe(prev$('#data-revalidate-cache').text())
         expect(cur$('#data-revalidate-and-fetch-cache').text()).toBe(
           prev$('#data-revalidate-and-fetch-cache').text()
         )
@@ -3431,9 +3361,7 @@ describe('app-dir static/dynamic handling', () => {
           prev$('#data-revalidate-and-fetch-cache').text()
         )
 
-        expect(cur$('#data-auto-cache').text()).not.toBe(
-          prev$('data-auto-cache').text()
-        )
+        expect(cur$('#data-auto-cache').text()).not.toBe(prev$('data-auto-cache').text())
       } finally {
         prevHtml = curHtml
         prev$ = cur$
@@ -3456,15 +3384,9 @@ describe('app-dir static/dynamic handling', () => {
       const curHtml = await curRes.text()
       const cur$ = cheerio.load(curHtml)
 
-      expect(cur$('#data-default-cache').text()).not.toBe(
-        prev$('#data-default-cache').text()
-      )
-      expect(cur$('#data-request-cache').text()).not.toBe(
-        prev$('#data-request-cache').text()
-      )
-      expect(cur$('#data-cache-auto').text()).not.toBe(
-        prev$('#data-cache-auto').text()
-      )
+      expect(cur$('#data-default-cache').text()).not.toBe(prev$('#data-default-cache').text())
+      expect(cur$('#data-request-cache').text()).not.toBe(prev$('#data-request-cache').text())
+      expect(cur$('#data-cache-auto').text()).not.toBe(prev$('#data-cache-auto').text())
     })
   })
 
@@ -3483,18 +3405,12 @@ describe('app-dir static/dynamic handling', () => {
       const cur$ = cheerio.load(curHtml)
 
       expect(cur$('#data-no-cache').text()).toBe(prev$('#data-no-cache').text())
-      expect(cur$('#data-force-cache').text()).toBe(
-        prev$('#data-force-cache').text()
-      )
-      expect(cur$('#data-revalidate-cache').text()).toBe(
-        prev$('#data-revalidate-cache').text()
-      )
+      expect(cur$('#data-force-cache').text()).toBe(prev$('#data-force-cache').text())
+      expect(cur$('#data-revalidate-cache').text()).toBe(prev$('#data-revalidate-cache').text())
       expect(cur$('#data-revalidate-and-fetch-cache').text()).toBe(
         prev$('#data-revalidate-and-fetch-cache').text()
       )
-      expect(cur$('#data-auto-cache').text()).toBe(
-        prev$('#data-auto-cache').text()
-      )
+      expect(cur$('#data-auto-cache').text()).toBe(prev$('#data-auto-cache').text())
     })
   })
 
@@ -3513,9 +3429,7 @@ describe('app-dir static/dynamic handling', () => {
       const curHtml = await curRes.text()
       const cur$ = cheerio.load(curHtml)
 
-      expect(cur$('#data-force-cache').text()).toBe(
-        prev$('#data-force-cache').text()
-      )
+      expect(cur$('#data-force-cache').text()).toBe(prev$('#data-force-cache').text())
 
       prevValue = cur$('#data-force-cache').text()
     })
@@ -3549,21 +3463,13 @@ describe('app-dir static/dynamic handling', () => {
       const cur$ = cheerio.load(curHtml)
 
       try {
-        expect(cur$('#data-no-cache').text()).not.toBe(
-          prev$('#data-no-cache').text()
-        )
-        expect(cur$('#data-force-cache').text()).toBe(
-          prev$('#data-force-cache').text()
-        )
-        expect(cur$('#data-revalidate-cache').text()).toBe(
-          prev$('#data-revalidate-cache').text()
-        )
+        expect(cur$('#data-no-cache').text()).not.toBe(prev$('#data-no-cache').text())
+        expect(cur$('#data-force-cache').text()).toBe(prev$('#data-force-cache').text())
+        expect(cur$('#data-revalidate-cache').text()).toBe(prev$('#data-revalidate-cache').text())
         expect(cur$('#data-revalidate-and-fetch-cache').text()).toBe(
           prev$('#data-revalidate-and-fetch-cache').text()
         )
-        expect(cur$('#data-auto-cache').text()).not.toBe(
-          prev$('#data-auto-cache').text()
-        )
+        expect(cur$('#data-auto-cache').text()).not.toBe(prev$('#data-auto-cache').text())
       } finally {
         prevHtml = curHtml
         prev$ = cur$
@@ -3574,10 +3480,7 @@ describe('app-dir static/dynamic handling', () => {
 
   if (isNextDev) {
     it('should bypass fetch cache with cache-control: no-cache', async () => {
-      const res = await fetchViaHTTP(
-        next.url,
-        '/variable-revalidate/revalidate-3'
-      )
+      const res = await fetchViaHTTP(next.url, '/variable-revalidate/revalidate-3')
 
       expect(res.status).toBe(200)
       const html = await res.text()
@@ -3586,16 +3489,11 @@ describe('app-dir static/dynamic handling', () => {
       const layoutData = $('#layout-data').text()
       const pageData = $('#page-data').text()
 
-      const res2 = await fetchViaHTTP(
-        next.url,
-        '/variable-revalidate/revalidate-3',
-        undefined,
-        {
-          headers: {
-            'cache-control': 'no-cache',
-          },
-        }
-      )
+      const res2 = await fetchViaHTTP(next.url, '/variable-revalidate/revalidate-3', undefined, {
+        headers: {
+          'cache-control': 'no-cache',
+        },
+      })
 
       expect(res2.status).toBe(200)
       const html2 = await res2.text()
@@ -3607,9 +3505,7 @@ describe('app-dir static/dynamic handling', () => {
     // TODO: re-implement this in a way that'll support PFPR
     if (!process.env.__NEXT_CACHE_COMPONENTS) {
       it('should not error with dynamic server usage with force-static', async () => {
-        const res = await next.fetch(
-          '/static-to-dynamic-error-forced/static-bailout-1'
-        )
+        const res = await next.fetch('/static-to-dynamic-error-forced/static-bailout-1')
         const outputIndex = next.cliOutput.length
         const html = await res.text()
 
@@ -3641,9 +3537,7 @@ describe('app-dir static/dynamic handling', () => {
       expect($('#data-url-cached').text()).toBe(
         'https://next-data-api-endpoint.vercel.app/api/random?a1'
       )
-      expect($('#data-value-default-cache').text()).toBe(
-        $('#data-value-cached').text()
-      )
+      expect($('#data-value-default-cache').text()).toBe($('#data-value-cached').text())
     })
 
     if (!process.env.__NEXT_CACHE_COMPONENTS) {
@@ -3779,9 +3673,7 @@ describe('app-dir static/dynamic handling', () => {
   // cache handler
   if (!process.env.CUSTOM_CACHE_HANDLER) {
     it('should honor fetch cache in generateStaticParams', async () => {
-      const initialRes = await next.fetch(
-        `/partial-gen-params-no-additional-lang/en/first`
-      )
+      const initialRes = await next.fetch(`/partial-gen-params-no-additional-lang/en/first`)
 
       expect(initialRes.status).toBe(200)
 
@@ -3793,9 +3685,7 @@ describe('app-dir static/dynamic handling', () => {
 
       if (isNextDev) {
         await check(() => {
-          const matches = stripAnsi(next.cliOutput).match(
-            /partial-gen-params fetch ([\d]{1,})/
-          )
+          const matches = stripAnsi(next.cliOutput).match(/partial-gen-params fetch ([\d]{1,})/)
 
           if (matches?.[1]) {
             langFetchSlug = matches[1]
@@ -3811,17 +3701,13 @@ describe('app-dir static/dynamic handling', () => {
         const routes = Object.keys(prerenderManifest.routes)
 
         for (const route of routes) {
-          const langSlug = route.match(
-            /partial-gen-params-no-additional-lang\/en\/([\d]{1,})/
-          )?.[1]
+          const langSlug = route.match(/partial-gen-params-no-additional-lang\/en\/([\d]{1,})/)?.[1]
 
           if (langSlug) {
             langFetchSlug = langSlug
           }
 
-          const slugSlug = route.match(
-            /partial-gen-params-no-additional-slug\/en\/([\d]{1,})/
-          )?.[1]
+          const slugSlug = route.match(/partial-gen-params-no-additional-slug\/en\/([\d]{1,})/)?.[1]
 
           if (slugSlug) {
             slugFetchSlug = slugSlug
@@ -3855,10 +3741,7 @@ describe('app-dir static/dynamic handling', () => {
 
   it('should honor fetch cache correctly', async () => {
     await check(async () => {
-      const res = await fetchViaHTTP(
-        next.url,
-        '/variable-revalidate/revalidate-3'
-      )
+      const res = await fetchViaHTTP(next.url, '/variable-revalidate/revalidate-3')
       expect(res.status).toBe(200)
       const html = await res.text()
       const $ = cheerio.load(html)
@@ -3867,10 +3750,7 @@ describe('app-dir static/dynamic handling', () => {
       const pageData = $('#page-data').text()
       const pageData2 = $('#page-data-2').text()
 
-      const res2 = await fetchViaHTTP(
-        next.url,
-        '/variable-revalidate/revalidate-3'
-      )
+      const res2 = await fetchViaHTTP(next.url, '/variable-revalidate/revalidate-3')
       expect(res2.status).toBe(200)
       const html2 = await res2.text()
       const $2 = cheerio.load(html2)
@@ -3891,10 +3771,7 @@ describe('app-dir static/dynamic handling', () => {
 
   it('should honor fetch cache correctly (edge)', async () => {
     await check(async () => {
-      const res = await fetchViaHTTP(
-        next.url,
-        '/variable-revalidate-edge/revalidate-3'
-      )
+      const res = await fetchViaHTTP(next.url, '/variable-revalidate-edge/revalidate-3')
       expect(res.status).toBe(200)
       const html = await res.text()
       const $ = cheerio.load(html)
@@ -3905,10 +3782,7 @@ describe('app-dir static/dynamic handling', () => {
         const layoutData = $('#layout-data').text()
         const pageData = $('#page-data').text()
 
-        const res2 = await fetchViaHTTP(
-          next.url,
-          '/variable-revalidate-edge/revalidate-3'
-        )
+        const res2 = await fetchViaHTTP(next.url, '/variable-revalidate-edge/revalidate-3')
         expect(res2.status).toBe(200)
         const html2 = await res2.text()
         const $2 = cheerio.load(html2)
@@ -3922,10 +3796,7 @@ describe('app-dir static/dynamic handling', () => {
 
   it('should cache correctly with authorization header and revalidate', async () => {
     await check(async () => {
-      const res = await fetchViaHTTP(
-        next.url,
-        '/variable-revalidate/authorization'
-      )
+      const res = await fetchViaHTTP(next.url, '/variable-revalidate/authorization')
       expect(res.status).toBe(200)
       const html = await res.text()
       const $ = cheerio.load(html)
@@ -3933,10 +3804,7 @@ describe('app-dir static/dynamic handling', () => {
       const layoutData = $('#layout-data').text()
       const pageData = $('#page-data').text()
 
-      const res2 = await fetchViaHTTP(
-        next.url,
-        '/variable-revalidate/authorization'
-      )
+      const res2 = await fetchViaHTTP(next.url, '/variable-revalidate/authorization')
       expect(res2.status).toBe(200)
       const html2 = await res2.text()
       const $2 = cheerio.load(html2)
@@ -3952,15 +3820,11 @@ describe('app-dir static/dynamic handling', () => {
   })
 
   it('should skip fetch cache when an authorization header is present after dynamic usage', async () => {
-    const initialReq = await next.fetch(
-      '/variable-revalidate/authorization/route-cookies'
-    )
+    const initialReq = await next.fetch('/variable-revalidate/authorization/route-cookies')
     const initialJson = await initialReq.json()
 
     await retry(async () => {
-      const req = await next.fetch(
-        '/variable-revalidate/authorization/route-cookies'
-      )
+      const req = await next.fetch('/variable-revalidate/authorization/route-cookies')
       const json = await req.json()
 
       expect(json).not.toEqual(initialJson)
@@ -3968,15 +3832,11 @@ describe('app-dir static/dynamic handling', () => {
   })
 
   it('should skip fetch cache when accessing request properties', async () => {
-    const initialReq = await next.fetch(
-      '/variable-revalidate/authorization/route-request'
-    )
+    const initialReq = await next.fetch('/variable-revalidate/authorization/route-request')
     const initialJson = await initialReq.json()
 
     await retry(async () => {
-      const req = await next.fetch(
-        '/variable-revalidate/authorization/route-request'
-      )
+      const req = await next.fetch('/variable-revalidate/authorization/route-request')
       const json = await req.json()
 
       expect(json).not.toEqual(initialJson)
@@ -3984,10 +3844,7 @@ describe('app-dir static/dynamic handling', () => {
   })
 
   it('should not cache correctly with POST method request init', async () => {
-    const res = await fetchViaHTTP(
-      next.url,
-      '/variable-revalidate-edge/post-method-request'
-    )
+    const res = await fetchViaHTTP(next.url, '/variable-revalidate-edge/post-method-request')
     expect(res.status).toBe(200)
     const html = await res.text()
     const $ = cheerio.load(html)
@@ -3995,10 +3852,7 @@ describe('app-dir static/dynamic handling', () => {
     const pageData2 = $('#page-data2').text()
 
     for (let i = 0; i < 3; i++) {
-      const res2 = await fetchViaHTTP(
-        next.url,
-        '/variable-revalidate-edge/post-method-request'
-      )
+      const res2 = await fetchViaHTTP(next.url, '/variable-revalidate-edge/post-method-request')
       expect(res2.status).toBe(200)
       const html2 = await res2.text()
       const $2 = cheerio.load(html2)
@@ -4009,10 +3863,7 @@ describe('app-dir static/dynamic handling', () => {
 
   it('should cache correctly with post method and revalidate', async () => {
     await check(async () => {
-      const res = await fetchViaHTTP(
-        next.url,
-        '/variable-revalidate/post-method'
-      )
+      const res = await fetchViaHTTP(next.url, '/variable-revalidate/post-method')
       expect(res.status).toBe(200)
       const html = await res.text()
       const $ = cheerio.load(html)
@@ -4030,10 +3881,7 @@ describe('app-dir static/dynamic handling', () => {
       expect(dataBody3).not.toBe(dataBody4)
       expect(dataBody4).not.toBe(dataBody5)
 
-      const res2 = await fetchViaHTTP(
-        next.url,
-        '/variable-revalidate/post-method'
-      )
+      const res2 = await fetchViaHTTP(next.url, '/variable-revalidate/post-method')
       expect(res2.status).toBe(200)
       const html2 = await res2.text()
       const $2 = cheerio.load(html2)
@@ -4051,10 +3899,7 @@ describe('app-dir static/dynamic handling', () => {
 
   it('should cache correctly with post method and revalidate edge', async () => {
     await check(async () => {
-      const res = await fetchViaHTTP(
-        next.url,
-        '/variable-revalidate-edge/post-method'
-      )
+      const res = await fetchViaHTTP(next.url, '/variable-revalidate-edge/post-method')
       expect(res.status).toBe(200)
       const html = await res.text()
       const $ = cheerio.load(html)
@@ -4066,10 +3911,7 @@ describe('app-dir static/dynamic handling', () => {
       const dataBody3 = $('#data-body3').text()
       const dataBody4 = $('#data-body4').text()
 
-      const res2 = await fetchViaHTTP(
-        next.url,
-        '/variable-revalidate-edge/post-method'
-      )
+      const res2 = await fetchViaHTTP(next.url, '/variable-revalidate-edge/post-method')
       expect(res2.status).toBe(200)
       const html2 = await res2.text()
       const $2 = cheerio.load(html2)
@@ -4086,10 +3928,7 @@ describe('app-dir static/dynamic handling', () => {
 
   it('should cache correctly with POST method and revalidate', async () => {
     await check(async () => {
-      const res = await fetchViaHTTP(
-        next.url,
-        '/variable-revalidate/post-method'
-      )
+      const res = await fetchViaHTTP(next.url, '/variable-revalidate/post-method')
       expect(res.status).toBe(200)
       const html = await res.text()
       const $ = cheerio.load(html)
@@ -4097,10 +3936,7 @@ describe('app-dir static/dynamic handling', () => {
       const layoutData = $('#layout-data').text()
       const pageData = $('#page-data').text()
 
-      const res2 = await fetchViaHTTP(
-        next.url,
-        '/variable-revalidate/post-method'
-      )
+      const res2 = await fetchViaHTTP(next.url, '/variable-revalidate/post-method')
       expect(res2.status).toBe(200)
       const html2 = await res2.text()
       const $2 = cheerio.load(html2)
@@ -4146,9 +3982,7 @@ describe('app-dir static/dynamic handling', () => {
       const layoutData = $('#layout-data').text()
       const pageData = $('#page-data').text()
 
-      expect(JSON.parse(pageData).jp).toBe(
-        '超鬼畜！激辛ボム兵スピンジャンプ　Bomb Spin Jump'
-      )
+      expect(JSON.parse(pageData).jp).toBe('超鬼畜！激辛ボム兵スピンジャンプ　Bomb Spin Jump')
 
       const res2 = await fetchViaHTTP(next.url, '/variable-revalidate/encoding')
       expect(res2.status).toBe(200)
@@ -4163,10 +3997,7 @@ describe('app-dir static/dynamic handling', () => {
 
   it('should cache correctly with utf8 encoding edge', async () => {
     await check(async () => {
-      const res = await fetchViaHTTP(
-        next.url,
-        '/variable-revalidate-edge/encoding'
-      )
+      const res = await fetchViaHTTP(next.url, '/variable-revalidate-edge/encoding')
       expect(res.status).toBe(200)
       const html = await res.text()
       const $ = cheerio.load(html)
@@ -4174,14 +4005,9 @@ describe('app-dir static/dynamic handling', () => {
       const layoutData = $('#layout-data').text()
       const pageData = $('#page-data').text()
 
-      expect(JSON.parse(pageData).jp).toBe(
-        '超鬼畜！激辛ボム兵スピンジャンプ　Bomb Spin Jump'
-      )
+      expect(JSON.parse(pageData).jp).toBe('超鬼畜！激辛ボム兵スピンジャンプ　Bomb Spin Jump')
 
-      const res2 = await fetchViaHTTP(
-        next.url,
-        '/variable-revalidate-edge/encoding'
-      )
+      const res2 = await fetchViaHTTP(next.url, '/variable-revalidate-edge/encoding')
       expect(res2.status).toBe(200)
       const html2 = await res2.text()
       const $2 = cheerio.load(html2)
@@ -4204,10 +4030,7 @@ describe('app-dir static/dynamic handling', () => {
 
       expect(pageData).toBe('{"hello":"world"}')
 
-      const res2 = await fetchViaHTTP(
-        next.url,
-        '/variable-revalidate-edge/body'
-      )
+      const res2 = await fetchViaHTTP(next.url, '/variable-revalidate-edge/body')
       expect(res2.status).toBe(200)
       const html2 = await res2.text()
       const $2 = cheerio.load(html2)
@@ -4238,10 +4061,7 @@ describe('app-dir static/dynamic handling', () => {
     const html = await res.text()
     const $ = cheerio.load(html)
 
-    expect(JSON.parse($('#headers').text())).toIncludeAllMembers([
-      'cookie',
-      'another',
-    ])
+    expect(JSON.parse($('#headers').text())).toIncludeAllMembers(['cookie', 'another'])
     expect(JSON.parse($('#cookies').text())).toEqual([
       {
         name: 'myCookie',
@@ -4472,9 +4292,7 @@ describe('app-dir static/dynamic handling', () => {
       const browser = await next.browser('/blog/tim')
       await browser.eval('window.beforeNav = 1')
 
-      expect(
-        await browser.eval('document.documentElement.innerHTML')
-      ).toContain('/blog/[author]')
+      expect(await browser.eval('document.documentElement.innerHTML')).toContain('/blog/[author]')
       await browser.elementByCss('#author-2').click()
 
       await check(async () => {
@@ -4487,9 +4305,7 @@ describe('app-dir static/dynamic handling', () => {
 
       await check(async () => {
         const params = JSON.parse(await browser.elementByCss('#params').text())
-        return params.author === 'tim' && params.slug === 'first-post'
-          ? 'found'
-          : params
+        return params.author === 'tim' && params.slug === 'first-post' ? 'found' : params
       }, 'found')
 
       expect(await browser.eval('window.beforeNav')).toBe(1)
@@ -4610,22 +4426,13 @@ describe('app-dir static/dynamic handling', () => {
   describe('useSearchParams', () => {
     describe('client', () => {
       it('should bailout to client rendering - with suspense boundary', async () => {
-        const url =
-          '/hooks/use-search-params/with-suspense?first=value&second=other&third'
+        const url = '/hooks/use-search-params/with-suspense?first=value&second=other&third'
         const browser = await next.browser(url)
 
         expect(await browser.elementByCss('#params-first').text()).toBe('value')
-        expect(await browser.elementByCss('#params-second').text()).toBe(
-          'other'
-        )
-        expect(
-          await browser
-            .elementByCss('#params-third', { state: 'attached' })
-            .text()
-        ).toBe('')
-        expect(await browser.elementByCss('#params-not-real').text()).toBe(
-          'N/A'
-        )
+        expect(await browser.elementByCss('#params-second').text()).toBe('other')
+        expect(await browser.elementByCss('#params-third', { state: 'attached' }).text()).toBe('')
+        expect(await browser.elementByCss('#params-not-real').text()).toBe('N/A')
 
         const $ = await next.render$(url)
         // dynamic page doesn't have bail out
@@ -4641,9 +4448,7 @@ describe('app-dir static/dynamic handling', () => {
         expect(await browser.elementByCss('#params-first').text()).toBe('N/A')
         expect(await browser.elementByCss('#params-second').text()).toBe('N/A')
         expect(await browser.elementByCss('#params-third').text()).toBe('N/A')
-        expect(await browser.elementByCss('#params-not-real').text()).toBe(
-          'N/A'
-        )
+        expect(await browser.elementByCss('#params-not-real').text()).toBe('N/A')
 
         await browser.elementById('to-use-search-params').click()
         await browser.waitForElementByCss('#hooks-use-search-params')
@@ -4652,9 +4457,7 @@ describe('app-dir static/dynamic handling', () => {
         expect(await browser.elementByCss('#params-first').text()).toBe('1')
         expect(await browser.elementByCss('#params-second').text()).toBe('2')
         expect(await browser.elementByCss('#params-third').text()).toBe('3')
-        expect(await browser.elementByCss('#params-not-real').text()).toBe(
-          'N/A'
-        )
+        expect(await browser.elementByCss('#params-not-real').text()).toBe('N/A')
       })
 
       // TODO-APP: re-enable after investigating rewrite params
@@ -4667,9 +4470,7 @@ describe('app-dir static/dynamic handling', () => {
           expect(await browser.elementByCss('#params-first').text()).toBe('a')
           expect(await browser.elementByCss('#params-second').text()).toBe('b')
           expect(await browser.elementByCss('#params-third').text()).toBe('c')
-          expect(await browser.elementByCss('#params-not-real').text()).toBe(
-            'N/A'
-          )
+          expect(await browser.elementByCss('#params-not-real').text()).toBe('N/A')
         })
       }
     })
@@ -4709,17 +4510,13 @@ describe('app-dir static/dynamic handling', () => {
 
       const browser = await next.browser('/hooks/use-pathname/slug')
 
-      expect(await browser.elementByCss('#pathname').text()).toBe(
-        '/hooks/use-pathname/slug'
-      )
+      expect(await browser.elementByCss('#pathname').text()).toBe('/hooks/use-pathname/slug')
     })
 
     it('should have values from canonical url on rewrite', async () => {
       const browser = await next.browser('/rewritten-use-pathname')
 
-      expect(await browser.elementByCss('#pathname').text()).toBe(
-        '/rewritten-use-pathname'
-      )
+      expect(await browser.elementByCss('#pathname').text()).toBe('/rewritten-use-pathname')
     })
   })
 
@@ -4827,34 +4624,29 @@ describe('app-dir static/dynamic handling', () => {
       expect(data).toEqual('typeof cachedData: undefined')
     })
 
-    it.each(['no-store', 'no-cache'])(
-      'should not error when calling a fetch %s',
-      async (cache) => {
-        const browser = await next.browser(`/unstable-cache/fetch/${cache}`)
+    it.each(['no-store', 'no-cache'])('should not error when calling a fetch %s', async (cache) => {
+      const browser = await next.browser(`/unstable-cache/fetch/${cache}`)
 
-        try {
-          const first = await browser.waitForElementByCss('#data').text()
-          expect(first).not.toBe('')
+      try {
+        const first = await browser.waitForElementByCss('#data').text()
+        expect(first).not.toBe('')
 
-          // Ensure the data is the same after 3 refreshes.
-          for (let i = 0; i < 3; i++) {
-            await browser.refresh()
-            const refreshed = await browser.waitForElementByCss('#data').text()
-            expect(refreshed).toEqual(first)
-          }
-        } finally {
-          await browser.close()
+        // Ensure the data is the same after 3 refreshes.
+        for (let i = 0; i < 3; i++) {
+          await browser.refresh()
+          const refreshed = await browser.waitForElementByCss('#data').text()
+          expect(refreshed).toEqual(first)
         }
+      } finally {
+        await browser.close()
       }
-    )
+    })
   })
 
   it('should keep querystring on static page', async () => {
     const browser = await next.browser('/blog/tim?message=hello-world')
     const checkUrl = async () =>
-      expect(await browser.url()).toBe(
-        next.url + '/blog/tim?message=hello-world'
-      )
+      expect(await browser.url()).toBe(next.url + '/blog/tim?message=hello-world')
 
     checkUrl()
     await waitFor(1000)
@@ -4901,9 +4693,7 @@ describe('app-dir static/dynamic handling', () => {
         const data2 = dom2('#now').text()
         expect(data1 && data2).toBeTruthy()
         expect(data1).toEqual(data2)
-        expect(
-          next.cliOutput.substring(cliOutputStart).match(/Load data/g)
-        ).toBeNull()
+        expect(next.cliOutput.substring(cliOutputStart).match(/Load data/g)).toBeNull()
       })
     }
     if (!process.env.CUSTOM_CACHE_HANDLER && isNextDev) {
@@ -4923,9 +4713,7 @@ describe('app-dir static/dynamic handling', () => {
         expect(data1).not.toEqual(data2)
 
         await check(async () => {
-          expect(
-            next.cliOutput.substring(cliOutputStart).match(/Load data/g).length
-          ).toBe(2)
+          expect(next.cliOutput.substring(cliOutputStart).match(/Load data/g).length).toBe(2)
           expect(stripAnsi(next.cliOutput.substring(cliOutputStart))).toMatch(
             /Failed to set Next.js data cache for http:\/\/localhost:.*?\/api\/large-data, items over 2MB can not be cached/
           )
@@ -4950,9 +4738,7 @@ describe('app-dir static/dynamic handling', () => {
         expect(data1).toEqual(data2)
 
         await check(async () => {
-          expect(
-            next.cliOutput.substring(cliOutputStart).match(/Load data/g).length
-          ).toBe(1)
+          expect(next.cliOutput.substring(cliOutputStart).match(/Load data/g).length).toBe(1)
           return 'success'
         }, 'success')
 
@@ -4973,9 +4759,7 @@ describe('app-dir static/dynamic handling', () => {
       const res = await next.fetch('/api/update-tag-error')
       const data = await res.json()
 
-      expect(data.error).toContain(
-        'updateTag can only be called from within a Server Action'
-      )
+      expect(data.error).toContain('updateTag can only be called from within a Server Action')
     })
 
     it('should successfully update tag when called from server action', async () => {
@@ -5009,9 +4793,7 @@ describe('app-dir static/dynamic handling', () => {
       let dataAfterRevalidate
       await retry(async () => {
         await browser.refresh()
-        dataAfterRevalidate = JSON.parse(
-          await browser.elementByCss('#data').text()
-        )
+        dataAfterRevalidate = JSON.parse(await browser.elementByCss('#data').text())
 
         expect(dataAfterRevalidate).toBeDefined()
         expect(dataAfterRevalidate).not.toBe(initialData)
@@ -5051,9 +4833,7 @@ describe('app-dir static/dynamic handling', () => {
           // Click deprecated button to trigger server action with revalidateTag (no second arg)
           await browser.elementByCss('#deprecated-button').click()
           const output = next.cliOutput.substring(cliOutputStart)
-          expect(output).toContain(
-            '"revalidateTag" without the second argument is now deprecated'
-          )
+          expect(output).toContain('"revalidateTag" without the second argument is now deprecated')
         })
       })
     }

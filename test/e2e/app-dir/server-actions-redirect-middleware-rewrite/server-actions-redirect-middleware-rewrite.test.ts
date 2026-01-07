@@ -11,9 +11,7 @@ describe('app-dir - server-actions-redirect-middleware-rewrite.test', () => {
     await browser.waitForElementByCss('button').click()
 
     await retry(async () => {
-      expect(await browser.waitForElementByCss('#redirected').text()).toBe(
-        'Redirected'
-      )
+      expect(await browser.waitForElementByCss('#redirected').text()).toBe('Redirected')
     })
     expect(await browser.url()).toBe(`${next.url}/redirect`)
   })
@@ -23,9 +21,7 @@ describe('app-dir - server-actions-redirect-middleware-rewrite.test', () => {
     await browser.waitForElementByCss('button').click()
 
     await retry(async () => {
-      expect(await browser.waitForElementByCss('#redirected').text()).toBe(
-        'Redirected'
-      )
+      expect(await browser.waitForElementByCss('#redirected').text()).toBe('Redirected')
 
       expect(await browser.url()).toBe(`${next.url}/redirect`)
     })

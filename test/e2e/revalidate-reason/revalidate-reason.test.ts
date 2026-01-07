@@ -25,12 +25,8 @@ describe('revalidate-reason', () => {
   }
 
   it('should support revalidateReason: "build"', async () => {
-    expect(next.cliOutput).toContain(
-      'revalidate-reason/pages/index.tsx revalidateReason: build'
-    )
-    expect(next.cliOutput).toContain(
-      'revalidate-reason/pages/stale.tsx revalidateReason: build'
-    )
+    expect(next.cliOutput).toContain('revalidate-reason/pages/index.tsx revalidateReason: build')
+    expect(next.cliOutput).toContain('revalidate-reason/pages/stale.tsx revalidateReason: build')
   })
 
   it('should support revalidateReason: "on-demand"', async () => {

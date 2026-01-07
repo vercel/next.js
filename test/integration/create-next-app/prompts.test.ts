@@ -10,9 +10,7 @@ describe('create-next-app prompts', () => {
       throw new Error('This test needs to be run with `node run-tests.js`.')
     }
 
-    const pkgPaths = new Map<string, string>(
-      JSON.parse(process.env.NEXT_TEST_PKG_PATHS)
-    )
+    const pkgPaths = new Map<string, string>(JSON.parse(process.env.NEXT_TEST_PKG_PATHS))
 
     nextTgzFilename = pkgPaths.get('next')
   })
@@ -196,12 +194,7 @@ describe('create-next-app prompts', () => {
           projectFilesShouldExist({
             cwd,
             projectName,
-            files: [
-              'app',
-              'package.json',
-              'postcss.config.mjs',
-              'tsconfig.json',
-            ],
+            files: ['app', 'package.json', 'postcss.config.mjs', 'tsconfig.json'],
           })
           resolve()
         })
@@ -340,16 +333,10 @@ describe('create-next-app prompts', () => {
           output += data
           process.stdout.write(data)
         })
-        await check(
-          () => output,
-          /Would you like to reset the saved preferences/
-        )
+        await check(() => output, /Would you like to reset the saved preferences/)
         // cursor forward, choose 'Yes' for reset preferences
         childProcess.stdin.write('\u001b[C\n')
-        await check(
-          () => output,
-          /The preferences have been reset successfully/
-        )
+        await check(() => output, /The preferences have been reset successfully/)
       })
     })
   })

@@ -1,9 +1,6 @@
 'use client'
 
-import {
-  useSelectedLayoutSegments,
-  useSelectedLayoutSegment,
-} from 'next/navigation'
+import { useSelectedLayoutSegments, useSelectedLayoutSegment } from 'next/navigation'
 
 export default function Page() {
   const selectedLayoutSegments = useSelectedLayoutSegments()

@@ -43,8 +43,6 @@ describe('Async modules', () => {
   ;(dev ? it.skip : it)('can render async error page', async () => {
     const browser = await next.browser('/make-error')
     // eslint-disable-next-line jest/no-standalone-expect
-    expect(await browser.elementByCss('#content-error').text()).toBe(
-      'hello error'
-    )
+    expect(await browser.elementByCss('#content-error').text()).toBe('hello error')
   })
 })

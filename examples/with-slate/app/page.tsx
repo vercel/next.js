@@ -6,9 +6,7 @@ import { Slate, Editable, withReact } from "slate-react";
 
 const initialValue: Descendant[] = [
   {
-    children: [
-      { text: "This is editable plain text, just like a <textarea>!" },
-    ],
+    children: [{ text: "This is editable plain text, just like a <textarea>!" }],
   },
 ];
 
@@ -28,9 +26,7 @@ export default function IndexPage() {
       editor={editor}
       initialValue={initialValue}
       onChange={async (value) => {
-        const isAstChange = editor.operations.some(
-          (op) => "set_selection" !== op.type,
-        );
+        const isAstChange = editor.operations.some((op) => "set_selection" !== op.type);
         if (isAstChange) {
           // You might want to debounce the following call!
           const responseData = await saveEditorState(value);

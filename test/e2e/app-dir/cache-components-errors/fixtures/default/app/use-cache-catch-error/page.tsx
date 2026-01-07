@@ -5,9 +5,7 @@ export default async function Page() {
 
   return (
     <>
-      <p>
-        This page catches an error that's thrown in `'use cache'` at runtime.
-      </p>
+      <p>This page catches an error that's thrown in `'use cache'` at runtime.</p>
       <CatchingComponent />
     </>
   )

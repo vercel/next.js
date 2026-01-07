@@ -43,8 +43,7 @@ export function createTestLog() {
       // Capture the stack trace of `assert` so that Jest will report the
       // error as originating from the `assert` call instead of here.
       const error = new Error(
-        'Expected sequence of events did not occur.\n\n' +
-          createDiff(expectedEvents, actualEvents)
+        'Expected sequence of events did not occur.\n\n' + createDiff(expectedEvents, actualEvents)
       )
       Error.captureStackTrace(error, assert)
       throw error
@@ -115,8 +114,7 @@ export function createTestLog() {
         // instead of inside this internal function.
         const error = pendingExpectation.error
         error.message =
-          'Expected sequence of events did not occur.\n\n' +
-          createDiff(expectedEvents, events)
+          'Expected sequence of events did not occur.\n\n' + createDiff(expectedEvents, events)
 
         events = []
         pendingExpectation.reject(error)

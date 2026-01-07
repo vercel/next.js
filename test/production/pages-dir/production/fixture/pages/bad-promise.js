@@ -4,9 +4,7 @@ export default () => {
   }
   return (
     <>
-      <script
-        dangerouslySetInnerHTML={{ __html: 'window.Promise = undefined' }}
-      />
+      <script dangerouslySetInnerHTML={{ __html: 'window.Promise = undefined' }} />
     </>
   )
 }

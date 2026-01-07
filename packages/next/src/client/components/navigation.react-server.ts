@@ -1,9 +1,7 @@
 import { ReadonlyURLSearchParams } from './readonly-url-search-params'
 
 export function unstable_isUnrecognizedActionError(): boolean {
-  throw new Error(
-    '`unstable_isUnrecognizedActionError` can only be used on the client.'
-  )
+  throw new Error('`unstable_isUnrecognizedActionError` can only be used on the client.')
 }
 
 export { redirect, permanentRedirect } from './redirect'

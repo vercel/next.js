@@ -42,11 +42,7 @@ const SearchBox = () => {
         onChange={(event) => searchbox.refine(event.currentTarget.value)}
         className="w-full h-10 px-3 overflow-hidden rounded-lg shadow-md"
       />
-      {status === "stalled" ? (
-        <div className="my-5 text-center text-primary">Loading...</div>
-      ) : (
-        ""
-      )}
+      {status === "stalled" ? <div className="my-5 text-center text-primary">Loading...</div> : ""}
     </form>
   );
 };
@@ -80,11 +76,7 @@ export default function Home() {
       <main className="py-12 mx-3 font-sans sm:mx-auto sm:max-w-md">
         <h1 className="mb-12">
           <Link href="https://meilisearch.com/docs" target="_blank">
-            <Image
-              src={logo}
-              alt="Meilisearch"
-              title="Meilisearch docs"
-            ></Image>
+            <Image src={logo} alt="Meilisearch" title="Meilisearch docs"></Image>
           </Link>
         </h1>
         <InstantSearch

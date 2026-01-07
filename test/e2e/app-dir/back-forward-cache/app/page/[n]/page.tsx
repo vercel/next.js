@@ -1,11 +1,7 @@
 import { Suspense } from 'react'
 import { StatefulClientComponent } from './stateful-client-component'
 
-export default async function Page({
-  params,
-}: {
-  params: Promise<{ n: string }>
-}) {
+export default async function Page({ params }: { params: Promise<{ n: string }> }) {
   const { n } = await params
   return (
     <>

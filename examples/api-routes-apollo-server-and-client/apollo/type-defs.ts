@@ -6,7 +6,7 @@ export const typeDefs = gql`
     name: String!
     status: String!
   }
-
+  
   type Query {
     viewer: User
   }

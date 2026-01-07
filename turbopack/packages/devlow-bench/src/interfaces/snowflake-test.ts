@@ -5,14 +5,10 @@ import { mock, test } from 'node:test'
 test('sending measurements to the batch endpoint', async () => {
   const requests: Array<[string, RequestInit]> = []
 
-  const fetchMock = mock.method(
-    global,
-    'fetch',
-    (req: string, options: RequestInit) => {
-      requests.push([req, options])
-      return Promise.resolve(Response.json({}))
-    }
-  )
+  const fetchMock = mock.method(global, 'fetch', (req: string, options: RequestInit) => {
+    requests.push([req, options])
+    return Promise.resolve(Response.json({}))
+  })
 
   const iface = createInterface({
     gatewayUri: 'http://127.0.0.1/v1/batch',

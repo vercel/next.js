@@ -31,9 +31,7 @@ function escapeExistingBrackets(pattern: string, projectDir: string): string {
     const exists = fs.existsSync(path.join(projectDir, pathPrefix))
 
     result += pattern.slice(lastIndex, match.index)
-    result += exists
-      ? match[0].replace(/\[/g, '\\[').replace(/\]/g, '\\]')
-      : match[0]
+    result += exists ? match[0].replace(/\[/g, '\\[').replace(/\]/g, '\\]') : match[0]
     lastIndex = match.index + match[0].length
   }
 
@@ -73,9 +71,7 @@ export async function resolveBuildPaths(
       }
     } catch (error) {
       throw new Error(
-        `Failed to resolve pattern "${trimmed}": ${
-          isError(error) ? error.message : String(error)
-        }`
+        `Failed to resolve pattern "${trimmed}": ${isError(error) ? error.message : String(error)}`
       )
     }
   }

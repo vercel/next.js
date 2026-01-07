@@ -22,9 +22,7 @@ describe('app-dir - metadata-streaming', () => {
     await browser.elementByCss('[href="/parallel-routes/test-page"]').click()
 
     await retry(async () => {
-      expect(await browser.elementByCss('title').text()).toContain(
-        'Dynamic api'
-      )
+      expect(await browser.elementByCss('title').text()).toContain('Dynamic api')
     })
 
     expect((await browser.elementsByCss('title')).length).toBe(1)
@@ -36,9 +34,7 @@ describe('app-dir - metadata-streaming', () => {
 
     // Wait for navigation is finished and metadata is updated
     await retry(async () => {
-      expect(await browser.elementByCss('title').text()).toContain(
-        'Dynamic api'
-      )
+      expect(await browser.elementByCss('title').text()).toContain('Dynamic api')
     })
 
     await retry(async () => {
@@ -50,9 +46,7 @@ describe('app-dir - metadata-streaming', () => {
     const browser = await next.browser('/parallel-routes-default')
 
     expect((await browser.elementsByCss('title')).length).toBe(1)
-    expect(await browser.elementByCss('title').text()).toBe(
-      'parallel-routes-default layout title'
-    )
+    expect(await browser.elementByCss('title').text()).toBe('parallel-routes-default layout title')
 
     const $ = await next.render$('/parallel-routes-default')
     expect($('title').length).toBe(1)
@@ -65,22 +59,14 @@ describe('app-dir - metadata-streaming', () => {
     // navigating between them should change the title metadata
     const browser = await next.browser('/parallel-routes-no-children/first')
     await retry(async () => {
-      expect(await browser.elementByCss('title').text()).toBe(
-        'first page - @bar'
-      )
+      expect(await browser.elementByCss('title').text()).toBe('first page - @bar')
     })
     // go to second page
-    await browser
-      .elementByCss('[href="/parallel-routes-no-children/second"]')
-      .click()
+    await browser.elementByCss('[href="/parallel-routes-no-children/second"]').click()
     // wait for navigation to finish
     await retry(async () => {
-      expect(await browser.elementByCss('#bar-page').text()).toBe(
-        'test-page @bar - 2'
-      )
+      expect(await browser.elementByCss('#bar-page').text()).toBe('test-page @bar - 2')
     })
-    expect(await browser.elementByCss('title').text()).toBe(
-      'second page - @bar'
-    )
+    expect(await browser.elementByCss('title').text()).toBe('second page - @bar')
   })
 })

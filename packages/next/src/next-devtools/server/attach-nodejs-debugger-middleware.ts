@@ -32,9 +32,7 @@ export function getAttachNodejsDebuggerMiddleware() {
       }
       const inspectorURL = new URL(inspectorURLRaw)
 
-      const debugInfoListResponse = await fetch(
-        `http://${inspectorURL.host}/json/list`
-      )
+      const debugInfoListResponse = await fetch(`http://${inspectorURL.host}/json/list`)
       const debugInfoList = await debugInfoListResponse.json()
       if (!Array.isArray(debugInfoList) || debugInfoList.length === 0) {
         throw new Error('No debug targets found')

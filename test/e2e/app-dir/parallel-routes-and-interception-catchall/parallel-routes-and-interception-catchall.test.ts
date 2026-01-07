@@ -20,9 +20,7 @@ describe('parallel-routes-and-interception-catchall', () => {
       .click()
       .waitForElementByCss('#cart-modal-intercept')
 
-    expect(await browser.elementById('cart-modal-intercept').text()).toBe(
-      'Cart Modal'
-    )
+    expect(await browser.elementById('cart-modal-intercept').text()).toBe('Cart Modal')
 
     // Children slot should still be the same
     expect(await browser.elementById('children-slot').text()).toBe(homeContent)

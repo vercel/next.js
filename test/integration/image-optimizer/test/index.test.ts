@@ -44,9 +44,7 @@ describe('Image Optimizer', () => {
       await killApp(app).catch(() => {})
       await nextConfig.restore()
 
-      expect(stderr).toContain(
-        'Array must contain at most 50 element(s) at "images.domains"'
-      )
+      expect(stderr).toContain('Array must contain at most 50 element(s) at "images.domains"')
     })
 
     it('should error when localPatterns length exceeds 25', async () => {
@@ -71,9 +69,7 @@ describe('Image Optimizer', () => {
       await killApp(app).catch(() => {})
       await nextConfig.restore()
 
-      expect(stderr).toContain(
-        'Array must contain at most 25 element(s) at "images.localPatterns"'
-      )
+      expect(stderr).toContain('Array must contain at most 25 element(s) at "images.localPatterns"')
     })
 
     it('should error when localPatterns has invalid prop', async () => {
@@ -96,9 +92,7 @@ describe('Image Optimizer', () => {
       await killApp(app).catch(() => {})
       await nextConfig.restore()
 
-      expect(stderr).toContain(
-        `Unrecognized key(s) in object: 'foo' at "images.localPatterns[0]"`
-      )
+      expect(stderr).toContain(`Unrecognized key(s) in object: 'foo' at "images.localPatterns[0]"`)
     })
 
     it('should error when remotePatterns length exceeds 50', async () => {
@@ -148,9 +142,7 @@ describe('Image Optimizer', () => {
       await killApp(app).catch(() => {})
       await nextConfig.restore()
 
-      expect(stderr).toContain(
-        `Unrecognized key(s) in object: 'foo' at "images.remotePatterns[0]"`
-      )
+      expect(stderr).toContain(`Unrecognized key(s) in object: 'foo' at "images.remotePatterns[0]"`)
     })
 
     it('should error when remotePatterns is missing hostname', async () => {
@@ -173,9 +165,7 @@ describe('Image Optimizer', () => {
       await killApp(app).catch(() => {})
       await nextConfig.restore()
 
-      expect(stderr).toContain(
-        `"images.remotePatterns[0].hostname" is missing, expected string`
-      )
+      expect(stderr).toContain(`"images.remotePatterns[0].hostname" is missing, expected string`)
     })
 
     it('should error when sizes length exceeds 25', async () => {
@@ -198,9 +188,7 @@ describe('Image Optimizer', () => {
       await killApp(app).catch(() => {})
       await nextConfig.restore()
 
-      expect(stderr).toContain(
-        `Array must contain at most 25 element(s) at "images.deviceSizes"`
-      )
+      expect(stderr).toContain(`Array must contain at most 25 element(s) at "images.deviceSizes"`)
     })
 
     it('should error when deviceSizes contains invalid widths', async () => {
@@ -264,10 +252,7 @@ describe('Image Optimizer', () => {
         '{ /* replaceme */ }',
         JSON.stringify({
           images: {
-            qualities: [
-              1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
-              20, 21,
-            ],
+            qualities: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21],
           },
         })
       )
@@ -282,9 +267,7 @@ describe('Image Optimizer', () => {
       await killApp(app).catch(() => {})
       await nextConfig.restore()
 
-      expect(stderr).toContain(
-        `Array must contain at most 20 element(s) at "images.qualities"`
-      )
+      expect(stderr).toContain(`Array must contain at most 20 element(s) at "images.qualities"`)
     })
 
     it('should error when qualities array has a value thats not an integer', async () => {
@@ -307,9 +290,7 @@ describe('Image Optimizer', () => {
       await killApp(app).catch(() => {})
       await nextConfig.restore()
 
-      expect(stderr).toContain(
-        `Expected integer, received float at "images.qualities[3]"`
-      )
+      expect(stderr).toContain(`Expected integer, received float at "images.qualities[3]"`)
     })
 
     it('should error when qualities array is empty', async () => {
@@ -332,9 +313,7 @@ describe('Image Optimizer', () => {
       await killApp(app).catch(() => {})
       await nextConfig.restore()
 
-      expect(stderr).toContain(
-        `Array must contain at least 1 element(s) at "images.qualities"`
-      )
+      expect(stderr).toContain(`Array must contain at least 1 element(s) at "images.qualities"`)
     })
 
     it('should error when loader contains invalid value', async () => {
@@ -482,9 +461,7 @@ describe('Image Optimizer', () => {
       await killApp(app).catch(() => {})
       await nextConfig.restore()
 
-      expect(stderr).toContain(
-        `Expected boolean, received string at "images.dangerouslyAllowSVG"`
-      )
+      expect(stderr).toContain(`Expected boolean, received string at "images.dangerouslyAllowSVG"`)
     })
 
     it('should error when images.contentSecurityPolicy is not a string', async () => {
@@ -507,9 +484,7 @@ describe('Image Optimizer', () => {
       await killApp(app).catch(() => {})
       await nextConfig.restore()
 
-      expect(stderr).toContain(
-        `Expected string, received number at "images.contentSecurityPolicy"`
-      )
+      expect(stderr).toContain(`Expected string, received number at "images.contentSecurityPolicy"`)
     })
 
     it('should error when assetPrefix is provided but is invalid', async () => {
@@ -532,9 +507,7 @@ describe('Image Optimizer', () => {
         })
 
         await retry(() => {
-          expect(stderr).toContain(
-            `Invalid assetPrefix provided. Original error:`
-          )
+          expect(stderr).toContain(`Invalid assetPrefix provided. Original error:`)
           expect(stderr).toContain(`Invalid URL`)
         })
       } finally {
@@ -563,9 +536,7 @@ describe('Image Optimizer', () => {
       await killApp(app).catch(() => {})
       await nextConfig.restore()
 
-      expect(stderr).toContain(
-        `Expected array, received string at "images.remotePatterns"`
-      )
+      expect(stderr).toContain(`Expected array, received string at "images.remotePatterns"`)
     })
 
     it('should error when images.remotePatterns URL has invalid protocol', async () => {
@@ -659,9 +630,7 @@ describe('Image Optimizer', () => {
       await killApp(app).catch(() => {})
       await nextConfig.restore()
 
-      expect(stderr).toContain(
-        `Expected boolean, received string at "images.unoptimized"`
-      )
+      expect(stderr).toContain(`Expected boolean, received string at "images.unoptimized"`)
     })
   })
 
@@ -692,17 +661,15 @@ describe('Image Optimizer', () => {
   })
 
   describe('Server support for headers in next.config.js', () => {
-    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-      'production mode',
-      () => {
-        const size = 96 // defaults defined in server/config.ts
-        let app
-        let appPort
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
+      const size = 96 // defaults defined in server/config.ts
+      let app
+      let appPort
 
-        beforeAll(async () => {
-          nextConfig.replace(
-            '{ /* replaceme */ }',
-            `{
+      beforeAll(async () => {
+        nextConfig.replace(
+          '{ /* replaceme */ }',
+          `{
         async headers() {
           return [
             {
@@ -717,62 +684,49 @@ describe('Image Optimizer', () => {
           ]
         },
       }`
-          )
-          await nextBuild(appDir)
-          await cleanImagesDir(imagesDir)
-          appPort = await findPort()
-          app = await nextStart(appDir, appPort)
-        })
-        afterAll(async () => {
-          await killApp(app)
-          nextConfig.restore()
-        })
+        )
+        await nextBuild(appDir)
+        await cleanImagesDir(imagesDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(async () => {
+        await killApp(app)
+        nextConfig.restore()
+      })
 
-        it('should set max-age header', async () => {
-          const query = { url: '/test.png', w: size, q: 75 }
-          const opts = { headers: { accept: 'image/webp' } }
-          const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
-          expect(res.status).toBe(200)
-          expect(res.headers.get('Cache-Control')).toBe(
-            `public, max-age=14400, must-revalidate`
-          )
-          expect(res.headers.get('Content-Disposition')).toBe(
-            `attachment; filename="test.webp"`
-          )
+      it('should set max-age header', async () => {
+        const query = { url: '/test.png', w: size, q: 75 }
+        const opts = { headers: { accept: 'image/webp' } }
+        const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+        expect(res.status).toBe(200)
+        expect(res.headers.get('Cache-Control')).toBe(`public, max-age=14400, must-revalidate`)
+        expect(res.headers.get('Content-Disposition')).toBe(`attachment; filename="test.webp"`)
 
-          await check(async () => {
-            const files = await fsToJson(imagesDir)
+        await check(async () => {
+          const files = await fsToJson(imagesDir)
 
-            let found = false
-            const maxAge = '14400'
+          let found = false
+          const maxAge = '14400'
 
-            Object.keys(files).forEach((dir) => {
-              if (
-                Object.keys(files[dir]).some((file) =>
-                  file.includes(`${maxAge}.`)
-                )
-              ) {
-                found = true
-              }
-            })
-            return found ? 'success' : 'failed'
-          }, 'success')
-        })
+          Object.keys(files).forEach((dir) => {
+            if (Object.keys(files[dir]).some((file) => file.includes(`${maxAge}.`))) {
+              found = true
+            }
+          })
+          return found ? 'success' : 'failed'
+        }, 'success')
+      })
 
-        it('should not set max-age header when not matching next.config.js', async () => {
-          const query = { url: '/test.jpg', w: size, q: 75 }
-          const opts = { headers: { accept: 'image/webp' } }
-          const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
-          expect(res.status).toBe(200)
-          expect(res.headers.get('Cache-Control')).toBe(
-            `public, max-age=14400, must-revalidate`
-          )
-          expect(res.headers.get('Content-Disposition')).toBe(
-            `attachment; filename="test.webp"`
-          )
-        })
-      }
-    )
+      it('should not set max-age header when not matching next.config.js', async () => {
+        const query = { url: '/test.jpg', w: size, q: 75 }
+        const opts = { headers: { accept: 'image/webp' } }
+        const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+        expect(res.status).toBe(200)
+        expect(res.headers.get('Cache-Control')).toBe(`public, max-age=14400, must-revalidate`)
+        expect(res.headers.get('Content-Disposition')).toBe(`attachment; filename="test.webp"`)
+      })
+    })
   })
 
   describe('dev support next.config.js cloudinary loader', () => {
@@ -866,14 +820,12 @@ describe('Image Optimizer', () => {
   })
 
   describe('External rewrite support with for serving static content in images', () => {
-    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-      'production mode',
-      () => {
-        let app
-        let appPort
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
+      let app
+      let appPort
 
-        beforeAll(async () => {
-          const newConfig = `{
+      beforeAll(async () => {
+        const newConfig = `{
         async rewrites() {
           return [
             {
@@ -883,54 +835,47 @@ describe('Image Optimizer', () => {
           ]
         },
       }`
-          nextConfig.replace('{ /* replaceme */ }', newConfig)
-          await nextBuild(appDir)
-          await cleanImagesDir(imagesDir)
-          appPort = await findPort()
-          app = await nextStart(appDir, appPort)
-        })
-        afterAll(async () => {
-          await killApp(app)
-          nextConfig.restore()
-        })
+        nextConfig.replace('{ /* replaceme */ }', newConfig)
+        await nextBuild(appDir)
+        await cleanImagesDir(imagesDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(async () => {
+        await killApp(app)
+        nextConfig.restore()
+      })
 
-        it('should return response when image is served from an external rewrite', async () => {
-          await cleanImagesDir(imagesDir)
+      it('should return response when image is served from an external rewrite', async () => {
+        await cleanImagesDir(imagesDir)
 
-          const query = { url: '/next-js/next-js-bg.png', w: 64, q: 75 }
-          const opts = { headers: { accept: 'image/webp' } }
-          const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
-          expect(res.status).toBe(200)
-          expect(res.headers.get('Content-Type')).toBe('image/webp')
-          expect(res.headers.get('Cache-Control')).toBe(
-            `public, max-age=31536000, must-revalidate`
-          )
-          expect(res.headers.get('Vary')).toBe('Accept')
-          expect(res.headers.get('Content-Disposition')).toBe(
-            `attachment; filename="next-js-bg.webp"`
-          )
+        const query = { url: '/next-js/next-js-bg.png', w: 64, q: 75 }
+        const opts = { headers: { accept: 'image/webp' } }
+        const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+        expect(res.status).toBe(200)
+        expect(res.headers.get('Content-Type')).toBe('image/webp')
+        expect(res.headers.get('Cache-Control')).toBe(`public, max-age=31536000, must-revalidate`)
+        expect(res.headers.get('Vary')).toBe('Accept')
+        expect(res.headers.get('Content-Disposition')).toBe(
+          `attachment; filename="next-js-bg.webp"`
+        )
 
-          await check(async () => {
-            const files = await fsToJson(imagesDir)
+        await check(async () => {
+          const files = await fsToJson(imagesDir)
 
-            let found = false
-            const maxAge = '31536000'
+          let found = false
+          const maxAge = '31536000'
 
-            Object.keys(files).forEach((dir) => {
-              if (
-                Object.keys(files[dir]).some((file) =>
-                  file.includes(`${maxAge}.`)
-                )
-              ) {
-                found = true
-              }
-            })
-            return found ? 'success' : 'failed'
-          }, 'success')
-          await expectWidth(res, 64)
-        })
-      }
-    )
+          Object.keys(files).forEach((dir) => {
+            if (Object.keys(files[dir]).some((file) => file.includes(`${maxAge}.`))) {
+              found = true
+            }
+          })
+          return found ? 'success' : 'failed'
+        }, 'success')
+        await expectWidth(res, 64)
+      })
+    })
   })
 
   describe('dev support for dynamic blur placeholder', () => {

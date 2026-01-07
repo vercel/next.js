@@ -93,9 +93,7 @@ export async function createApp({
 
       if (!repoInfo) {
         console.error(
-          `Found invalid GitHub URL: ${red(
-            `"${example}"`
-          )}. Please fix the URL and try again.`
+          `Found invalid GitHub URL: ${red(`"${example}"`)}. Please fix the URL and try again.`
         )
         process.exit(1)
       }
@@ -118,9 +116,7 @@ export async function createApp({
           `Could not locate an example named ${red(
             `"${example}"`
           )}. It could be due to the following:\n`,
-          `1. Your spelling of example ${red(
-            `"${example}"`
-          )} might be incorrect.\n`,
+          `1. Your spelling of example ${red(`"${example}"`)} might be incorrect.\n`,
           `2. You might not be connected to the internet or you are behind a proxy.`
         )
         process.exit(1)
@@ -134,9 +130,7 @@ export async function createApp({
     console.error(
       'The application path is not writable, please check folder permissions and try again.'
     )
-    console.error(
-      'It is likely you do not have write permissions for this folder.'
-    )
+    console.error('It is likely you do not have write permissions for this folder.')
     process.exit(1)
   }
 
@@ -166,21 +160,13 @@ export async function createApp({
     try {
       if (repoInfo) {
         const repoInfo2 = repoInfo
-        console.log(
-          `Downloading files from repo ${cyan(
-            example
-          )}. This might take a moment.`
-        )
+        console.log(`Downloading files from repo ${cyan(example)}. This might take a moment.`)
         console.log()
         await retry(() => downloadAndExtractRepo(root, repoInfo2), {
           retries: 3,
         })
       } else {
-        console.log(
-          `Downloading files for example ${cyan(
-            example
-          )}. This might take a moment.`
-        )
+        console.log(`Downloading files for example ${cyan(example)}. This might take a moment.`)
         console.log()
         await retry(() => downloadAndExtractExample(root, example), {
           retries: 3,
@@ -194,17 +180,12 @@ export async function createApp({
           typeof (err as { message?: unknown }).message === 'string'
         )
       }
-      throw new DownloadError(
-        isErrorLike(reason) ? reason.message : reason + ''
-      )
+      throw new DownloadError(isErrorLike(reason) ? reason.message : reason + '')
     }
     // Copy `.gitignore` if the application did not provide one
     const ignorePath = join(root, '.gitignore')
     if (!existsSync(ignorePath)) {
-      copyFileSync(
-        getTemplateFile({ template, mode, file: 'gitignore' }),
-        ignorePath
-      )
+      copyFileSync(getTemplateFile({ template, mode, file: 'gitignore' }), ignorePath)
     }
 
     // Copy `next-env.d.ts` to any example that is typescript

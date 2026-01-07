@@ -11,12 +11,7 @@ type PostHeaderType = {
   author: Author;
 };
 
-export default function PostHeader({
-  title,
-  coverImage,
-  date,
-  author,
-}: PostHeaderType) {
+export default function PostHeader({ title, coverImage, date, author }: PostHeaderType) {
   return (
     <>
       <PostTitle title={title} />

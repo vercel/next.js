@@ -1,8 +1,8 @@
 {
   "name": "with-electron",
   "version": "1.0.0",
-  "main": "index.js",
   "license": "MIT",
+  "main": "index.js",
   "dependencies": {
     "electron": "5.0.0",
     "spectron": "7.0.0"

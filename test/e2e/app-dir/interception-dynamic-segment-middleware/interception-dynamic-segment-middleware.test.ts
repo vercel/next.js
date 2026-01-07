@@ -18,9 +18,7 @@ describe('interception-dynamic-segment-middleware', () => {
       expect(await browser.elementById('modal').text()).toBe('default')
     })
     await retry(async () => {
-      expect(await browser.elementById('children').text()).toMatch(
-        /not intercepted/
-      )
+      expect(await browser.elementById('children').text()).toMatch(/not intercepted/)
     })
   })
 

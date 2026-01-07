@@ -28,13 +28,7 @@ if (verifyFile(npm3Binary)) {
 } else if (verifyFile(npm2Binary)) {
   ffmpegPath = npm2Binary
 } else {
-  throw (
-    'Could not find ffmpeg executable, tried "' +
-    npm3Binary +
-    '" and "' +
-    npm2Binary +
-    '"'
-  )
+  throw 'Could not find ffmpeg executable, tried "' + npm3Binary + '" and "' + npm2Binary + '"'
 }
 
 var version = packageJson.ffmpeg || packageJson.version

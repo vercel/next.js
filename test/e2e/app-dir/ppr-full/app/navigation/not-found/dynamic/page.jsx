@@ -10,9 +10,7 @@ const NotFound = () => {
 export default function NotFoundPage() {
   return (
     <>
-      <Suspense
-        fallback={<Dynamic pathname="/navigation/not-found/dynamic" fallback />}
-      >
+      <Suspense fallback={<Dynamic pathname="/navigation/not-found/dynamic" fallback />}>
         <Dynamic pathname="/navigation/not-found/dynamic" />
       </Suspense>
       <NotFound />

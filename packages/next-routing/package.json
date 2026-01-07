@@ -1,25 +1,25 @@
 {
   "name": "@next/routing",
   "version": "16.1.1-canary.16",
+  "description": "Next.js shared route resolving",
   "keywords": [
-    "react",
     "next",
     "next.js",
+    "react",
     "routing"
   ],
-  "description": "Next.js shared route resolving",
+  "license": "MIT",
+  "author": "Next.js Team <support@vercel.com>",
   "repository": {
     "type": "git",
     "url": "https://github.com/vercel/next.js",
     "directory": "packages/next-routing"
   },
-  "author": "Next.js Team <support@vercel.com>",
-  "license": "MIT",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
   "files": [
     "dist"
   ],
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "dev": "ncc build ./src/index.ts -w -o dist/",
     "prerelease": "node ../../scripts/rm.mjs dist",

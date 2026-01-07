@@ -28,11 +28,7 @@ describe('Trailing slashes with trailingSlash: false', () => {
     // visited url, expected page, expected router path
     ['/', '/index.js', '/'],
     ['/about', '/about.js', '/about'],
-    [
-      '/catch-all/hello/world',
-      '/catch-all/[...slug].js',
-      '/catch-all/[...slug]',
-    ],
+    ['/catch-all/hello/world', '/catch-all/[...slug].js', '/catch-all/[...slug]'],
     ['/about?hello=world', '/about.js', '/about'],
   ])
 
@@ -47,34 +43,23 @@ describe('Trailing slashes with trailingSlash: false', () => {
   ])
 
   testExternalLinkShouldRewriteTo(next, [
-    [
-      `/external-linker?href=${encodeURI('https://nextjs.org')}`,
-      'https://nextjs.org',
-    ],
-    [
-      `/external-linker?href=${encodeURI('https://nextjs.org/')}`,
-      'https://nextjs.org/',
-    ],
+    [`/external-linker?href=${encodeURI('https://nextjs.org')}`, 'https://nextjs.org'],
+    [`/external-linker?href=${encodeURI('https://nextjs.org/')}`, 'https://nextjs.org/'],
   ])
 
   // only prod builds have a manifest
-  ;(isNextStart ? it : it.skip)(
-    'should have a redirect in the routesmanifest',
-    async () => {
-      const manifest = await next.readJSON(
-        join('.next', 'routes-manifest.json')
-      )
-      expect(manifest).toEqual(
-        expect.objectContaining({
-          redirects: expect.arrayContaining([
-            expect.objectContaining({
-              source: '/:path+/',
-              destination: '/:path+',
-              statusCode: 308,
-            }),
-          ]),
-        })
-      )
-    }
-  )
+  ;(isNextStart ? it : it.skip)('should have a redirect in the routesmanifest', async () => {
+    const manifest = await next.readJSON(join('.next', 'routes-manifest.json'))
+    expect(manifest).toEqual(
+      expect.objectContaining({
+        redirects: expect.arrayContaining([
+          expect.objectContaining({
+            source: '/:path+/',
+            destination: '/:path+',
+            statusCode: 308,
+          }),
+        ]),
+      })
+    )
+  })
 })

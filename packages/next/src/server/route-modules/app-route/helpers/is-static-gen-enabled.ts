@@ -7,9 +7,7 @@ import type { AppRouteModule } from '../module.compiled'
 //   - revalidate > 0
 //   - revalidate = false
 //   - generateStaticParams
-export function isStaticGenEnabled(
-  mod: AppRouteModule['routeModule']['userland']
-) {
+export function isStaticGenEnabled(mod: AppRouteModule['routeModule']['userland']) {
   return (
     mod.dynamic === 'force-static' ||
     mod.dynamic === 'error' ||

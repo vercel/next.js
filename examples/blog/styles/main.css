@@ -58,8 +58,7 @@ h2 {
   font-variation-settings: "wght" 750;
 }
 
-@media screen and (min-device-pixel-ratio: 1.5),
-  screen and (min-resolution: 1.5dppx) {
+@media screen and (min-device-pixel-ratio: 1.5), screen and (min-resolution: 1.5dppx) {
   body {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;

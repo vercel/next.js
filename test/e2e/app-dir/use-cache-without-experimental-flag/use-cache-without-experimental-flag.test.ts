@@ -108,9 +108,7 @@ describe('use-cache-without-experimental-flag', () => {
       const errorSource = await getRedboxSource(browser)
 
       if (isTurbopack) {
-        expect(errorDescription).toMatchInlineSnapshot(
-          `"Ecmascript file had an error"`
-        )
+        expect(errorDescription).toMatchInlineSnapshot(`"Ecmascript file had an error"`)
       } else if (isRspack) {
         expect(errorDescription).toMatchInlineSnapshot(
           `"  ╰─▶   × Error:   x To use "use cache", please enable the feature flag \`cacheComponents\` in your Next.js config."`
@@ -198,10 +196,7 @@ function getBuildOutput(cliOutput: string): string {
       }
 
       lines.push(stripAnsi(line))
-    } else if (
-      line.includes('Build error occurred') ||
-      line.includes('Failed to compile')
-    ) {
+    } else if (line.includes('Build error occurred') || line.includes('Failed to compile')) {
       skipLines = false
     }
   }

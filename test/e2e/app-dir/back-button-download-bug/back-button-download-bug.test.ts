@@ -23,9 +23,7 @@ describe.skip('app-dir back button download bug', () => {
 
       await browser.back()
 
-      expect(await browser.waitForElementByCss('#home-page').text()).toBe(
-        'Home!'
-      )
+      expect(await browser.waitForElementByCss('#home-page').text()).toBe('Home!')
     })
   })
 })

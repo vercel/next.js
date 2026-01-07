@@ -17,12 +17,10 @@ if (process.env.NEXT_DEPLOYMENT_ID) {
     encodeURIPath(getChunkScriptFilename(...args)) + suffix
 
   const getChunkCssFilename = __webpack_require__.k
-  __webpack_require__.k = (...args: any[]) =>
-    getChunkCssFilename(...args) + suffix
+  __webpack_require__.k = (...args: any[]) => getChunkCssFilename(...args) + suffix
 
   const getMiniCssFilename = __webpack_require__.miniCssF
-  __webpack_require__.miniCssF = (...args: any[]) =>
-    getMiniCssFilename(...args) + suffix
+  __webpack_require__.miniCssF = (...args: any[]) => getMiniCssFilename(...args) + suffix
 } else {
   const getChunkScriptFilename = __webpack_require__.u
   __webpack_require__.u = (...args: any[]) =>

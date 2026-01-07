@@ -46,12 +46,7 @@ function getWebpackIgnoreCommentValue(index: any, nodes: any, inBetween?: any) {
   return matched && matched[2] === 'true'
 }
 
-function shouldHandleURL(
-  url: any,
-  declaration: any,
-  result: any,
-  isSupportDataURLInNewURL: any
-) {
+function shouldHandleURL(url: any, declaration: any, result: any, isSupportDataURLInNewURL: any) {
   if (url.length === 0) {
     result.warn(`Unable to find uri in '${declaration.toString()}'`, {
       node: declaration,
@@ -77,12 +72,7 @@ function shouldHandleURL(
   return true
 }
 
-function parseDeclaration(
-  declaration: any,
-  key: any,
-  result: any,
-  isSupportDataURLInNewURL: any
-) {
+function parseDeclaration(declaration: any, key: any, result: any, isSupportDataURLInNewURL: any) {
   if (!needParseDeclaration.test(declaration[key])) {
     return
   }
@@ -131,10 +121,7 @@ function parseDeclaration(
     if (isUrlFunc.test(valueNode.value)) {
       needIgnore = getWebpackIgnoreCommentValue(index, valueNodes, inBetween)
 
-      if (
-        (isIgnoreOnDeclaration && typeof needIgnore === 'undefined') ||
-        needIgnore
-      ) {
+      if ((isIgnoreOnDeclaration && typeof needIgnore === 'undefined') || needIgnore) {
         if (needIgnore) {
           needIgnore = undefined
         }
@@ -148,9 +135,7 @@ function parseDeclaration(
       url = normalizeUrl(url, isStringValue)
 
       // Do not traverse inside `url`
-      if (
-        !shouldHandleURL(url, declaration, result, isSupportDataURLInNewURL)
-      ) {
+      if (!shouldHandleURL(url, declaration, result, isSupportDataURLInNewURL)) {
         return false
       }
 
@@ -179,10 +164,7 @@ function parseDeclaration(
         if (type === 'function' && isUrlFunc.test(value)) {
           needIgnore = getWebpackIgnoreCommentValue(innerIndex, valueNode.nodes)
 
-          if (
-            (isIgnoreOnDeclaration && typeof needIgnore === 'undefined') ||
-            needIgnore
-          ) {
+          if ((isIgnoreOnDeclaration && typeof needIgnore === 'undefined') || needIgnore) {
             if (needIgnore) {
               needIgnore = undefined
             }
@@ -192,15 +174,11 @@ function parseDeclaration(
 
           const { nodes } = nNode
           const isStringValue = nodes.length !== 0 && nodes[0].type === 'string'
-          let url = isStringValue
-            ? nodes[0].value
-            : valueParser.stringify(nodes)
+          let url = isStringValue ? nodes[0].value : valueParser.stringify(nodes)
           url = normalizeUrl(url, isStringValue)
 
           // Do not traverse inside `url`
-          if (
-            !shouldHandleURL(url, declaration, result, isSupportDataURLInNewURL)
-          ) {
+          if (!shouldHandleURL(url, declaration, result, isSupportDataURLInNewURL)) {
             return false
           }
 
@@ -223,10 +201,7 @@ function parseDeclaration(
         } else if (type === 'string') {
           needIgnore = getWebpackIgnoreCommentValue(innerIndex, valueNode.nodes)
 
-          if (
-            (isIgnoreOnDeclaration && typeof needIgnore === 'undefined') ||
-            needIgnore
-          ) {
+          if ((isIgnoreOnDeclaration && typeof needIgnore === 'undefined') || needIgnore) {
             if (needIgnore) {
               needIgnore = undefined
             }
@@ -237,9 +212,7 @@ function parseDeclaration(
           let url = normalizeUrl(value, true)
 
           // Do not traverse inside `url`
-          if (
-            !shouldHandleURL(url, declaration, result, isSupportDataURLInNewURL)
-          ) {
+          if (!shouldHandleURL(url, declaration, result, isSupportDataURLInNewURL)) {
             return false
           }
 
@@ -279,12 +252,7 @@ const plugin = (options: any = {}) => {
       return {
         Declaration(declaration: any) {
           const { isSupportDataURLInNewURL } = options
-          const parsedURL = parseDeclaration(
-            declaration,
-            'value',
-            result,
-            isSupportDataURLInNewURL
-          )
+          const parsedURL = parseDeclaration(declaration, 'value', result, isSupportDataURLInNewURL)
 
           if (!parsedURL) {
             return
@@ -348,11 +316,7 @@ const plugin = (options: any = {}) => {
 
           let hasUrlImportHelper = false
 
-          for (
-            let index = 0;
-            index <= resolvedDeclarations.length - 1;
-            index++
-          ) {
+          for (let index = 0; index <= resolvedDeclarations.length - 1; index++) {
             const item = resolvedDeclarations[index]
 
             if (!item) {
@@ -363,9 +327,7 @@ const plugin = (options: any = {}) => {
               options.imports.push({
                 type: 'get_url_import',
                 importName: '___CSS_LOADER_GET_URL_IMPORT___',
-                url: options.urlHandler(
-                  require.resolve('../runtime/getUrl.js')
-                ),
+                url: options.urlHandler(require.resolve('../runtime/getUrl.js')),
                 index: -1,
               })
 
@@ -383,9 +345,7 @@ const plugin = (options: any = {}) => {
               options.imports.push({
                 type: 'url',
                 importName,
-                url: options.needToResolveURL
-                  ? options.urlHandler(newUrl)
-                  : JSON.stringify(newUrl),
+                url: options.needToResolveURL ? options.urlHandler(newUrl) : JSON.stringify(newUrl),
                 index,
               })
             }

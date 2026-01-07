@@ -20,10 +20,8 @@ describe('navigating without a prefetch', () => {
     })
 
     // The page suspends on the client, so we should display the `loading` that we got from the dynamic response.
-    expect(
-      await browser
-        .elementByCss('#loading-component', { state: 'visible' })
-        .text()
-    ).toContain('Loading...')
+    expect(await browser.elementByCss('#loading-component', { state: 'visible' }).text()).toContain(
+      'Loading...'
+    )
   })
 })

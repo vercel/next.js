@@ -16,8 +16,7 @@ export default async function Page({
         page highcard: <span id="param-copied-highcard">{copied.highcard}</span>
       </div>
       <div>
-        param key count:{' '}
-        <span id="param-key-count">{Object.keys(copied).length}</span>
+        param key count: <span id="param-key-count">{Object.keys(copied).length}</span>
       </div>
       <span id="page">{getSentinelValue()}</span>
     </section>

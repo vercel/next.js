@@ -9,13 +9,9 @@ export function deleteBrowserDynamicChunks(next) {
     .filter((filename) => {
       const filePath = path.join(clientChunkDir, filename)
       const isJsFile = filename.endsWith('.js')
-      const fileContent = isJsFile
-        ? fs.readFileSync(filePath, { encoding: 'utf8' })
-        : ''
+      const fileContent = isJsFile ? fs.readFileSync(filePath, { encoding: 'utf8' }) : ''
 
-      return (
-        isJsFile && fileContent && fileContent.includes('large test content')
-      )
+      return isJsFile && fileContent && fileContent.includes('large test content')
     })
     .map((file) => path.join(clientChunkDir, file))
 

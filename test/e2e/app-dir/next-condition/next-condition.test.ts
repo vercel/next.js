@@ -646,9 +646,7 @@ describe('`next-js` Condition - middleware (legacy)', () => {
       let cliIndex = next.cliOutput.length
       const $ = await next.render$('/')
 
-      const middlewareOutput = formatMiddlewareOutput(
-        next.cliOutput.slice(cliIndex)
-      )
+      const middlewareOutput = formatMiddlewareOutput(next.cliOutput.slice(cliIndex))
       expect(middlewareOutput).toMatchInlineSnapshot(`
        "CJSExportsDefault: {
          default: 'EXPORTS DEFAULT SERVER - Default Export',
@@ -691,9 +689,7 @@ describe('`next-js` Condition - proxy', () => {
       let cliIndex = next.cliOutput.length
       const $ = await next.render$('/')
 
-      const middlewareOutput = formatMiddlewareOutput(
-        next.cliOutput.slice(cliIndex)
-      )
+      const middlewareOutput = formatMiddlewareOutput(next.cliOutput.slice(cliIndex))
       expect(middlewareOutput).toMatchInlineSnapshot(`
          "CJSExportsDefault: {
            default: 'EXPORTS DEFAULT SERVER - Default Export',
@@ -721,8 +717,7 @@ describe('`next-js` Condition - instrumentation', () => {
     overrideFiles: {
       'sym-linked-packages': new FileRef(__dirname + '/packages'),
     },
-    dependencies: require('./fixtures/instrumentation/package.json')
-      .dependencies,
+    dependencies: require('./fixtures/instrumentation/package.json').dependencies,
     // Deploy tests are broken with `config.serverExternalPackages`
     skipDeployment: true,
   })
@@ -783,16 +778,10 @@ function formatHtmlText(html) {
 
 function formatMiddlewareOutput(cliOutput) {
   return (
-    cliOutput.match(
-      /==== MIDDLEWARE START ====(.*?)==== MIDDLEWARE END ====/s
-    )?.[1] ?? ''
+    cliOutput.match(/==== MIDDLEWARE START ====(.*?)==== MIDDLEWARE END ====/s)?.[1] ?? ''
   ).trim()
 }
 
 function formatRegisterOutput(cliOutput) {
-  return (
-    cliOutput.match(
-      /==== REGISTER START ====(.*?)==== REGISTER END ====/s
-    )?.[1] ?? ''
-  ).trim()
+  return (cliOutput.match(/==== REGISTER START ====(.*?)==== REGISTER END ====/s)?.[1] ?? '').trim()
 }

@@ -1,9 +1,4 @@
-import {
-  a as a3,
-  b as b3,
-  local as local3,
-  outer as outer3,
-} from 'package-reexport'
+import { a as a3, b as b3, local as local3, outer as outer3 } from 'package-reexport'
 it('should optimize a used star reexport from module with side effects', () => {
   expect(a3).toBe('a')
   expect(b3).toBe('b')

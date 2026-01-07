@@ -1,8 +1,5 @@
 import { PrerenderManifestMatcher } from './prerender-manifest-matcher'
-import type {
-  PrerenderManifest,
-  DynamicPrerenderManifestRoute,
-} from '../../../../build'
+import type { PrerenderManifest, DynamicPrerenderManifestRoute } from '../../../../build'
 import { RenderingMode } from '../../../../build/rendering-mode'
 
 // Helper function to create a mock PrerenderManifest
@@ -65,10 +62,7 @@ describe('PrerenderManifestMatcher', () => {
           '/[category]/[id]': catchAllRoute,
         })
 
-        const matcher = new PrerenderManifestMatcher(
-          '/[category]/[id]',
-          manifest
-        )
+        const matcher = new PrerenderManifestMatcher('/[category]/[id]', manifest)
 
         const result = matcher.match('/products/123')
 
@@ -102,10 +96,7 @@ describe('PrerenderManifestMatcher', () => {
           '/products/[id]': route,
         })
 
-        const matcher = new PrerenderManifestMatcher(
-          '/[category]/[id]',
-          manifest
-        )
+        const matcher = new PrerenderManifestMatcher('/[category]/[id]', manifest)
 
         const result = matcher.match('/non-matching-path')
 
@@ -121,10 +112,7 @@ describe('PrerenderManifestMatcher', () => {
           '/products/[id]': route,
         })
 
-        const matcher = new PrerenderManifestMatcher(
-          '/[category]/[id]',
-          manifest
-        )
+        const matcher = new PrerenderManifestMatcher('/[category]/[id]', manifest)
 
         const result = matcher.match('/products/123')
 

@@ -12,10 +12,7 @@ import {
 } from '../../shared/lib/app-router-context.shared-runtime'
 import type { CacheNode } from '../../shared/lib/app-router-types'
 import { ACTION_RESTORE } from './router-reducer/router-reducer-types'
-import type {
-  AppHistoryState,
-  AppRouterState,
-} from './router-reducer/router-reducer-types'
+import type { AppHistoryState, AppRouterState } from './router-reducer/router-reducer-types'
 import { createHrefFromUrl } from './router-reducer/create-href-from-url'
 import {
   SearchParamsContext,
@@ -52,11 +49,7 @@ const globalMutable: {
   pendingMpaPath?: string
 } = {}
 
-function HistoryUpdater({
-  appRouterState,
-}: {
-  appRouterState: AppRouterState
-}) {
+function HistoryUpdater({ appRouterState }: { appRouterState: AppRouterState }) {
   useInsertionEffect(() => {
     if (process.env.__NEXT_APP_NAV_FAIL_HANDLING) {
       // clear pending URL as navigation is no longer
@@ -112,8 +105,7 @@ function copyNextJsInternalHistoryState(data: any) {
   if (__NA) {
     data.__NA = __NA
   }
-  const __PRIVATE_NEXTJS_INTERNALS_TREE =
-    currentState?.__PRIVATE_NEXTJS_INTERNALS_TREE
+  const __PRIVATE_NEXTJS_INTERNALS_TREE = currentState?.__PRIVATE_NEXTJS_INTERNALS_TREE
   if (__PRIVATE_NEXTJS_INTERNALS_TREE) {
     data.__PRIVATE_NEXTJS_INTERNALS_TREE = __PRIVATE_NEXTJS_INTERNALS_TREE
   }
@@ -121,17 +113,12 @@ function copyNextJsInternalHistoryState(data: any) {
   return data
 }
 
-function Head({
-  headCacheNode,
-}: {
-  headCacheNode: CacheNode | null
-}): React.ReactNode {
+function Head({ headCacheNode }: { headCacheNode: CacheNode | null }): React.ReactNode {
   // If this segment has a `prefetchHead`, it's the statically prefetched data.
   // We should use that on initial render instead of `head`. Then we'll switch
   // to `head` when the dynamic response streams in.
   const head = headCacheNode !== null ? headCacheNode.head : null
-  const prefetchHead =
-    headCacheNode !== null ? headCacheNode.prefetchHead : null
+  const prefetchHead = headCacheNode !== null ? headCacheNode.prefetchHead : null
 
   // If no prefetch data is available, then we go straight to rendering `head`.
   const resolvedPrefetchRsc = prefetchHead !== null ? prefetchHead : head
@@ -168,9 +155,7 @@ function Router({
     return {
       // This is turned into a readonly class in `useSearchParams`
       searchParams: url.searchParams,
-      pathname: hasBasePath(url.pathname)
-        ? removeBasePath(url.pathname)
-        : url.pathname,
+      pathname: hasBasePath(url.pathname) ? removeBasePath(url.pathname) : url.pathname,
     }
   }, [canonicalUrl])
 
@@ -197,10 +182,7 @@ function Router({
     // would trigger the mpa navigation logic again from the lines below.
     // This will restore the router to the initial state in the event that the app is restored from bfcache.
     function handlePageShow(event: PageTransitionEvent) {
-      if (
-        !event.persisted ||
-        !window.history.state?.__PRIVATE_NEXTJS_INTERNALS_TREE
-      ) {
+      if (!event.persisted || !window.history.state?.__PRIVATE_NEXTJS_INTERNALS_TREE) {
         return
       }
 
@@ -226,9 +208,7 @@ function Router({
   useEffect(() => {
     // Ensure that any redirect errors that bubble up outside of the RedirectBoundary
     // are caught and handled by the router.
-    function handleUnhandledRedirect(
-      event: ErrorEvent | PromiseRejectionEvent
-    ) {
+    function handleUnhandledRedirect(event: ErrorEvent | PromiseRejectionEvent) {
       const error = 'reason' in event ? event.reason : event.error
       if (isRedirectError(error)) {
         event.preventDefault()
@@ -286,14 +266,10 @@ function Router({
 
   useEffect(() => {
     const originalPushState = window.history.pushState.bind(window.history)
-    const originalReplaceState = window.history.replaceState.bind(
-      window.history
-    )
+    const originalReplaceState = window.history.replaceState.bind(window.history)
 
     // Ensure the canonical URL in the Next.js Router is updated when the URL is changed so that `usePathname` and `useSearchParams` hold the pushed values.
-    const applyUrlFromHistoryPushReplace = (
-      url: string | URL | null | undefined
-    ) => {
+    const applyUrlFromHistoryPushReplace = (url: string | URL | null | undefined) => {
       const href = window.location.href
       const appHistoryState: AppHistoryState | undefined =
         window.history.state?.__PRIVATE_NEXTJS_INTERNALS_TREE
@@ -375,10 +351,7 @@ function Router({
       // TODO-APP: Ideally the back button should not use startTransition as it should apply the updates synchronously
       // Without startTransition works if the cache is there for this path
       startTransition(() => {
-        dispatchTraverseAction(
-          window.location.href,
-          event.state.__PRIVATE_NEXTJS_INTERNALS_TREE
-        )
+        dispatchTraverseAction(window.location.href, event.state.__PRIVATE_NEXTJS_INTERNALS_TREE)
       })
     }
 
@@ -488,16 +461,11 @@ function Router({
     if (typeof window !== 'undefined') {
       const { DevRootHTTPAccessFallbackBoundary } =
         require('./dev-root-http-access-fallback-boundary') as typeof import('./dev-root-http-access-fallback-boundary')
-      content = (
-        <DevRootHTTPAccessFallbackBoundary>
-          {content}
-        </DevRootHTTPAccessFallbackBoundary>
-      )
+      content = <DevRootHTTPAccessFallbackBoundary>{content}</DevRootHTTPAccessFallbackBoundary>
     }
-    const HotReloader: typeof import('../dev/hot-reloader/app/hot-reloader-app').default =
-      (
-        require('../dev/hot-reloader/app/hot-reloader-app') as typeof import('../dev/hot-reloader/app/hot-reloader-app')
-      ).default
+    const HotReloader: typeof import('../dev/hot-reloader/app/hot-reloader-app').default = (
+      require('../dev/hot-reloader/app/hot-reloader-app') as typeof import('../dev/hot-reloader/app/hot-reloader-app')
+    ).default
 
     content = (
       <HotReloader
@@ -510,10 +478,7 @@ function Router({
     )
   } else {
     content = (
-      <RootErrorBoundary
-        errorComponent={globalError[0]}
-        errorStyles={globalError[1]}
-      >
+      <RootErrorBoundary errorComponent={globalError[0]} errorStyles={globalError[1]}>
         {content}
       </RootErrorBoundary>
     )
@@ -523,15 +488,11 @@ function Router({
     <>
       <HistoryUpdater appRouterState={state} />
       <RuntimeStyles />
-      <NavigationPromisesContext.Provider
-        value={instrumentedNavigationPromises}
-      >
+      <NavigationPromisesContext.Provider value={instrumentedNavigationPromises}>
         <PathParamsContext.Provider value={pathParams}>
           <PathnameContext.Provider value={pathname}>
             <SearchParamsContext.Provider value={searchParams}>
-              <GlobalLayoutRouterContext.Provider
-                value={globalLayoutRouterContext}
-              >
+              <GlobalLayoutRouterContext.Provider value={globalLayoutRouterContext}>
                 {/* TODO: We should be able to remove this context. useRouter
                     should import from app-router-instance instead. It's only
                     necessary because useRouter is shared between Pages and
@@ -575,11 +536,7 @@ export default function AppRouter({
 
   // At the very top level, use the default GlobalError component as the final fallback.
   // When the app router itself fails, which means the framework itself fails, we show the default error.
-  return (
-    <RootErrorBoundary errorComponent={DefaultGlobalError}>
-      {router}
-    </RootErrorBoundary>
-  )
+  return <RootErrorBoundary errorComponent={DefaultGlobalError}>{router}</RootErrorBoundary>
 }
 
 const runtimeStyles = new Set<string>()

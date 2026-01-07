@@ -88,44 +88,28 @@ describe('metadata-files-static-output-group-route', () => {
   })
 
   it('should serve static files when requested to its route for group page', async () => {
-    const [
-      appleIconRes,
-      iconRes,
-      opengraphImageRes,
-      twitterImageRes,
-      sitemapRes,
-    ] = await Promise.all([
-      next.fetch(`/group/apple-icon-131tc6.png`),
-      next.fetch(`/group/icon-131tc6.png`),
-      next.fetch(`/group/opengraph-image-131tc6.png`),
-      next.fetch(`/group/twitter-image-131tc6.png`),
-      next.fetch('/group/sitemap.xml'),
-    ])
+    const [appleIconRes, iconRes, opengraphImageRes, twitterImageRes, sitemapRes] =
+      await Promise.all([
+        next.fetch(`/group/apple-icon-131tc6.png`),
+        next.fetch(`/group/icon-131tc6.png`),
+        next.fetch(`/group/opengraph-image-131tc6.png`),
+        next.fetch(`/group/twitter-image-131tc6.png`),
+        next.fetch('/group/sitemap.xml'),
+      ])
 
     // Compare response content with actual files
-    const [
-      actualAppleIcon,
-      actualIcon,
-      actualOpengraphImage,
-      actualTwitterImage,
-      actualSitemap,
-    ] = await Promise.all([
-      next.readFileBuffer('app/(group)/group/apple-icon.png'),
-      next.readFileBuffer('app/(group)/group/icon.png'),
-      next.readFileBuffer('app/(group)/group/opengraph-image.png'),
-      next.readFileBuffer('app/(group)/group/twitter-image.png'),
-      next.readFile('app/(group)/group/sitemap.xml'),
-    ])
+    const [actualAppleIcon, actualIcon, actualOpengraphImage, actualTwitterImage, actualSitemap] =
+      await Promise.all([
+        next.readFileBuffer('app/(group)/group/apple-icon.png'),
+        next.readFileBuffer('app/(group)/group/icon.png'),
+        next.readFileBuffer('app/(group)/group/opengraph-image.png'),
+        next.readFileBuffer('app/(group)/group/twitter-image.png'),
+        next.readFile('app/(group)/group/sitemap.xml'),
+      ])
 
     expect({
-      appleIcon: Buffer.compare(
-        Buffer.from(await appleIconRes.arrayBuffer()),
-        actualAppleIcon
-      ),
-      icon: Buffer.compare(
-        Buffer.from(await iconRes.arrayBuffer()),
-        actualIcon
-      ),
+      appleIcon: Buffer.compare(Buffer.from(await appleIconRes.arrayBuffer()), actualAppleIcon),
+      icon: Buffer.compare(Buffer.from(await iconRes.arrayBuffer()), actualIcon),
       opengraphImage: Buffer.compare(
         Buffer.from(await opengraphImageRes.arrayBuffer()),
         actualOpengraphImage

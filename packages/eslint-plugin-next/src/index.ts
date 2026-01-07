@@ -64,8 +64,7 @@ const plugin = {
     'next-script-for-ga': nextScriptForGa,
     'no-assign-module-variable': noAssignModuleVariable,
     'no-async-client-component': noAsyncClientComponent,
-    'no-before-interactive-script-outside-document':
-      noBeforeInteractiveScriptOutsideDocument,
+    'no-before-interactive-script-outside-document': noBeforeInteractiveScriptOutsideDocument,
     'no-css-tags': noCssTags,
     'no-document-import-in-page': noDocumentImportInPage,
     'no-duplicate-head': noDuplicateHead,

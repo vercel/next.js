@@ -20,13 +20,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const slug = nextSlugToWpSlug(params.slug);
   const isPreview = slug.includes("preview");
 
-  const { contentNode } = await fetchGraphQL<{ contentNode: ContentNode }>(
-    print(SeoQuery),
-    {
-      slug: isPreview ? slug.split("preview/")[1] : slug,
-      idType: isPreview ? "DATABASE_ID" : "URI",
-    },
-  );
+  const { contentNode } = await fetchGraphQL<{ contentNode: ContentNode }>(print(SeoQuery), {
+    slug: isPreview ? slug.split("preview/")[1] : slug,
+    idType: isPreview ? "DATABASE_ID" : "URI",
+  });
 
   if (!contentNode) {
     return notFound();

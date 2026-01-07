@@ -25,11 +25,7 @@ export function createServerPathnameForMetadata(
       case 'prerender-client':
       case 'prerender-ppr':
       case 'prerender-legacy': {
-        return createPrerenderPathname(
-          underlyingPathname,
-          workStore,
-          workUnitStore
-        )
+        return createPrerenderPathname(underlyingPathname, workStore, workUnitStore)
       }
       case 'cache':
       case 'private-cache':
@@ -39,10 +35,7 @@ export function createServerPathnameForMetadata(
         )
 
       case 'prerender-runtime':
-        return delayUntilRuntimeStage(
-          workUnitStore,
-          createRenderPathname(underlyingPathname)
-        )
+        return delayUntilRuntimeStage(workUnitStore, createRenderPathname(underlyingPathname))
       case 'request':
         return createRenderPathname(underlyingPathname)
       default:
@@ -106,11 +99,7 @@ function makeErroringPathname<T>(
   promise.then = (onfulfilled, onrejected) => {
     if (reject) {
       try {
-        postponeWithTracking(
-          workStore.route,
-          'metadata relative url resolving',
-          dynamicTracking
-        )
+        postponeWithTracking(workStore.route, 'metadata relative url resolving', dynamicTracking)
       } catch (error) {
         reject(error)
         reject = null

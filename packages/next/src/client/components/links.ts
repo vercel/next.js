@@ -50,9 +50,7 @@ type NonPrefetchableLinkInstance = LinkOrFormInstanceShared & {
 
 type PrefetchableInstance = PrefetchableLinkInstance | FormInstance
 
-export type LinkInstance =
-  | PrefetchableLinkInstance
-  | NonPrefetchableLinkInstance
+export type LinkInstance = PrefetchableLinkInstance | NonPrefetchableLinkInstance
 
 // Tracks the most recently navigated link instance. When null, indicates
 // the current navigation was not initiated by a link click.
@@ -85,9 +83,7 @@ export function unmountLinkForCurrentNavigation(link: LinkInstance) {
 
 // Use a WeakMap to associate a Link instance with its DOM element. This is
 // used by the IntersectionObserver to track the link's visibility.
-const prefetchable:
-  | WeakMap<Element, PrefetchableInstance>
-  | Map<Element, PrefetchableInstance> =
+const prefetchable: WeakMap<Element, PrefetchableInstance> | Map<Element, PrefetchableInstance> =
   typeof WeakMap === 'function' ? new WeakMap() : new Map()
 
 // A Set of the currently visible links. We re-prefetch visible links after a
@@ -132,11 +128,8 @@ function coercePrefetchableUrl(href: string): URL | null {
       // TODO: Consider removing the throw from the inner function, or change it
       // to reportError. Or maybe the error isn't even necessary for automatic
       // prefetches, just navigations.
-      const reportErrorFn =
-        typeof reportError === 'function' ? reportError : console.error
-      reportErrorFn(
-        `Cannot prefetch '${href}' because it cannot be converted to a URL.`
-      )
+      const reportErrorFn = typeof reportError === 'function' ? reportError : console.error
+      reportErrorFn(`Cannot prefetch '${href}' because it cannot be converted to a URL.`)
       return null
     }
   } else {
@@ -264,10 +257,7 @@ export function onNavigationIntent(
   }
   // Prefetch the link on hover/touchstart.
   if (instance !== undefined) {
-    if (
-      process.env.__NEXT_DYNAMIC_ON_HOVER &&
-      unstable_upgradeToDynamicPrefetch
-    ) {
+    if (process.env.__NEXT_DYNAMIC_ON_HOVER && unstable_upgradeToDynamicPrefetch) {
       // Switch to a full prefetch
       instance.fetchStrategy = FetchStrategy.Full
     }
@@ -327,10 +317,7 @@ function rescheduleLinkPrefetch(
   }
 }
 
-export function pingVisibleLinks(
-  nextUrl: string | null,
-  tree: FlightRouterState
-) {
+export function pingVisibleLinks(nextUrl: string | null, tree: FlightRouterState) {
   // For each currently visible link, cancel the existing prefetch task (if it
   // exists) and schedule a new one. This is effectively the same as if all the
   // visible links left and then re-entered the viewport.

@@ -1,8 +1,5 @@
 import { createPrerenderResumeDataCache } from '../resume-data-cache/resume-data-cache'
-import {
-  streamFromString,
-  streamToString,
-} from '../stream-utils/node-web-streams-helper'
+import { streamFromString, streamToString } from '../stream-utils/node-web-streams-helper'
 import {
   DynamicState,
   getDynamicDataPostponedState,

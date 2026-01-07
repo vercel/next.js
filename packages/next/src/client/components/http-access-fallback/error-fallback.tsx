@@ -1,12 +1,6 @@
 import { styles } from '../styles/access-error-styles'
 
-export function HTTPAccessErrorFallback({
-  status,
-  message,
-}: {
-  status: number
-  message: string
-}) {
+export function HTTPAccessErrorFallback({ status, message }: { status: number; message: string }) {
   return (
     <>
       {/* <head> */}

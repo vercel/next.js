@@ -24,22 +24,19 @@ export async function fetchGraphQL<T = any>(
       },
     });
 
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_WORDPRESS_API_URL}/graphql`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(authHeader && { Authorization: authHeader }),
-          ...headers,
-        },
-        body,
-        cache: preview ? "no-cache" : "default",
-        next: {
-          tags: ["wordpress"],
-        },
+    const response = await fetch(`${process.env.NEXT_PUBLIC_WORDPRESS_API_URL}/graphql`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(authHeader && { Authorization: authHeader }),
+        ...headers,
       },
-    );
+      body,
+      cache: preview ? "no-cache" : "default",
+      next: {
+        tags: ["wordpress"],
+      },
+    });
 
     if (!response.ok) {
       console.error("Response Status:", response);

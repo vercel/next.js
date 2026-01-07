@@ -40,8 +40,7 @@ export default function Home() {
         <StitchesLogo />
         <Text as="h1">Hello, from Stitches.</Text>
         <Text>
-          For full documentation, visit{" "}
-          <Link href="https://stitches.dev">stitches.dev</Link>.
+          For full documentation, visit <Link href="https://stitches.dev">stitches.dev</Link>.
         </Text>
       </Container>
     </Box>

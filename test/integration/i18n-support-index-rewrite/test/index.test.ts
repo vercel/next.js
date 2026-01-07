@@ -22,10 +22,7 @@ let app
 const runTests = () => {
   it('should rewrite index route correctly', async () => {
     for (const locale of locales) {
-      const html = await renderViaHTTP(
-        appPort,
-        `/${locale === 'en' ? '' : locale}`
-      )
+      const html = await renderViaHTTP(appPort, `/${locale === 'en' ? '' : locale}`)
       const $ = cheerio.load(html)
 
       expect(JSON.parse($('#props').text())).toEqual({
@@ -40,10 +37,7 @@ const runTests = () => {
 
   it('should handle index rewrite on client correctly', async () => {
     for (const locale of locales) {
-      const browser = await webdriver(
-        appPort,
-        `${locale === 'en' ? '' : `/${locale}`}/hello`
-      )
+      const browser = await webdriver(appPort, `${locale === 'en' ? '' : `/${locale}`}/hello`)
 
       expect(JSON.parse(await browser.elementByCss('#props').text())).toEqual({
         params: {
@@ -76,27 +70,21 @@ const runTests = () => {
 }
 
 describe('Custom routes i18n support index rewrite', () => {
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
-    'development mode',
-    () => {
-      beforeAll(async () => {
-        appPort = await findPort()
-        app = await launchApp(appDir, appPort)
-      })
-      afterAll(() => killApp(app))
-      runTests()
-    }
-  )
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      beforeAll(async () => {
-        await nextBuild(appDir)
-        appPort = await findPort()
-        app = await nextStart(appDir, appPort)
-      })
-      afterAll(() => killApp(app))
-      runTests()
-    }
-  )
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
+    beforeAll(async () => {
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(() => killApp(app))
+    runTests()
+  })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
+    beforeAll(async () => {
+      await nextBuild(appDir)
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(() => killApp(app))
+    runTests()
+  })
 })

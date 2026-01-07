@@ -22,9 +22,7 @@ function useMqtt({
     if (!topicHandlers || topicHandlers.length === 0) return () => {};
 
     try {
-      clientRef.current = options
-        ? MQTT.connect(uri, options)
-        : MQTT.connect(uri);
+      clientRef.current = options ? MQTT.connect(uri, options) : MQTT.connect(uri);
     } catch (error) {
       console.error("error", error);
     }

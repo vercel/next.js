@@ -38,14 +38,10 @@ describe('deprecation-warnings', () => {
       expect(logs).toContain('Please use `experimental.proxyPrefetch` instead')
 
       expect(logs).toContain('experimental.middlewareClientMaxBodySize')
-      expect(logs).toContain(
-        'Please use `experimental.proxyClientMaxBodySize` instead'
-      )
+      expect(logs).toContain('Please use `experimental.proxyClientMaxBodySize` instead')
 
       expect(logs).toContain('experimental.externalMiddlewareRewritesResolve')
-      expect(logs).toContain(
-        'Please use `experimental.externalProxyRewritesResolve` instead'
-      )
+      expect(logs).toContain('Please use `experimental.externalProxyRewritesResolve` instead')
 
       expect(logs).toContain('skipMiddlewareUrlNormalize')
       expect(logs).toContain('Please use `skipProxyUrlNormalize` instead')

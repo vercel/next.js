@@ -40,15 +40,11 @@ export type NormalizedFlightData = {
 // that gets passed to `createInitialRouterState` doesn't conform to the `FlightDataPath` type (it's missing the root segment)
 // we're currently exporting it so we can use it directly. This should be fixed as part of the unification of
 // the different ways we express `FlightSegmentPath`.
-export function getFlightDataPartsFromPath(
-  flightDataPath: FlightDataPath
-): NormalizedFlightData {
+export function getFlightDataPartsFromPath(flightDataPath: FlightDataPath): NormalizedFlightData {
   // Pick the last 4 items from the `FlightDataPath` to get the [tree, seedData, viewport, isHeadPartial].
   const flightDataPathLength = 4
   // tree, seedData, and head are *always* the last three items in the `FlightDataPath`.
-  const [tree, seedData, head, isHeadPartial] = flightDataPath.slice(
-    -flightDataPathLength
-  )
+  const [tree, seedData, head, isHeadPartial] = flightDataPath.slice(-flightDataPathLength)
   // The `FlightSegmentPath` is everything except the last three items. For a root render, it won't be present.
   const segmentPath = flightDataPath.slice(0, -flightDataPathLength)
 
@@ -153,11 +149,7 @@ function fillInFallbackFlightRouterStateImpl(
   } else {
     const paramName = originalSegment[0]
     const paramType = originalSegment[2]
-    const paramValue = parseDynamicParamFromURLPart(
-      paramType,
-      pathnameParts,
-      pathnamePartsIndex
-    )
+    const paramValue = parseDynamicParamFromURLPart(paramType, pathnameParts, pathnamePartsIndex)
     const cacheKey = getCacheKeyForDynamicParam(paramValue, renderedSearch)
     newSegment = [paramName, cacheKey, paramType]
     doesAppearInURL = true
@@ -165,9 +157,7 @@ function fillInFallbackFlightRouterStateImpl(
 
   // Only increment the index if the segment appears in the URL. If it's a
   // "virtual" segment, like a route group, it remains the same.
-  const childPathnamePartsIndex = doesAppearInURL
-    ? pathnamePartsIndex + 1
-    : pathnamePartsIndex
+  const childPathnamePartsIndex = doesAppearInURL ? pathnamePartsIndex + 1 : pathnamePartsIndex
 
   const children = flightRouterState[1]
   const newChildren: { [key: string]: FlightRouterState } = {}
@@ -191,26 +181,20 @@ function fillInFallbackFlightRouterStateImpl(
   return newState
 }
 
-export function getNextFlightSegmentPath(
-  flightSegmentPath: FlightSegmentPath
-): FlightSegmentPath {
+export function getNextFlightSegmentPath(flightSegmentPath: FlightSegmentPath): FlightSegmentPath {
   // Since `FlightSegmentPath` is a repeated tuple of `Segment` and `ParallelRouteKey`, we slice off two items
   // to get the next segment path.
   return flightSegmentPath.slice(2)
 }
 
-export function normalizeFlightData(
-  flightData: FlightData
-): NormalizedFlightData[] | string {
+export function normalizeFlightData(flightData: FlightData): NormalizedFlightData[] | string {
   // FlightData can be a string when the server didn't respond with a proper flight response,
   // or when a redirect happens, to signal to the client that it needs to perform an MPA navigation.
   if (typeof flightData === 'string') {
     return flightData
   }
 
-  return flightData.map((flightDataPath) =>
-    getFlightDataPartsFromPath(flightDataPath)
-  )
+  return flightData.map((flightDataPath) => getFlightDataPartsFromPath(flightDataPath))
 }
 
 /**
@@ -258,8 +242,7 @@ function stripClientOnlyDataFromFlightRouterState(
   // Recursively process parallel routes
   const cleanedParallelRoutes: { [key: string]: FlightRouterState } = {}
   for (const [key, childState] of Object.entries(parallelRoutes)) {
-    cleanedParallelRoutes[key] =
-      stripClientOnlyDataFromFlightRouterState(childState)
+    cleanedParallelRoutes[key] = stripClientOnlyDataFromFlightRouterState(childState)
   }
 
   const result: FlightRouterState = [
@@ -285,10 +268,7 @@ function stripClientOnlyDataFromFlightRouterState(
  * client-side data from being sent to the server.
  */
 function stripSearchParamsFromPageSegment(segment: Segment): Segment {
-  if (
-    typeof segment === 'string' &&
-    segment.startsWith(PAGE_SEGMENT_KEY + '?')
-  ) {
+  if (typeof segment === 'string' && segment.startsWith(PAGE_SEGMENT_KEY + '?')) {
     return PAGE_SEGMENT_KEY
   }
   return segment
@@ -299,8 +279,6 @@ function stripSearchParamsFromPageSegment(segment: Segment): Segment {
  * Client-only markers like 'refresh' are stripped, while server-needed markers
  * like 'refetch' and 'inside-shared-layout' are preserved.
  */
-function shouldPreserveRefreshMarker(
-  refreshMarker: FlightRouterState[3]
-): boolean {
+function shouldPreserveRefreshMarker(refreshMarker: FlightRouterState[3]): boolean {
   return Boolean(refreshMarker && refreshMarker !== 'refresh')
 }

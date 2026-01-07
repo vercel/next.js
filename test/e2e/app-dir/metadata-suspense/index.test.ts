@@ -17,9 +17,7 @@ describe('app dir - metadata dynamic routes suspense', () => {
       },
     })
     expect($('head title').text()).toBe('My title')
-    expect($('head meta[name="application-name"]').attr('content')).toBe(
-      'suspense-app'
-    )
+    expect($('head meta[name="application-name"]').attr('content')).toBe('suspense-app')
 
     // unique title
     expect($('title').length).toBe(1)

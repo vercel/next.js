@@ -6,10 +6,7 @@ import type { BaseNextRequest } from '../../../../server/base-http'
 
 import { escapeStringRegexp } from '../../escape-regexp'
 import { parseUrl, type ParsedUrl } from './parse-url'
-import {
-  INTERCEPTION_ROUTE_MARKERS,
-  isInterceptionRouteAppPath,
-} from './interception-routes'
+import { INTERCEPTION_ROUTE_MARKERS, isInterceptionRouteAppPath } from './interception-routes'
 import { getCookieParser } from '../../../../server/api-utils/get-cookie-parser'
 import type { Params } from '../../../../server/request/params'
 import { safePathToRegexp, safeCompile } from './route-match-utils'
@@ -114,9 +111,7 @@ export function matchHas(
     return false
   }
 
-  const allMatch =
-    has.every((item) => hasMatch(item)) &&
-    !missing.some((item) => hasMatch(item))
+  const allMatch = has.every((item) => hasMatch(item)) && !missing.some((item) => hasMatch(item))
 
   if (allMatch) {
     return params
@@ -132,19 +127,10 @@ export function compileNonPath(value: string, params: Params): string {
   for (const key of Object.keys(params)) {
     if (value.includes(`:${key}`)) {
       value = value
-        .replace(
-          new RegExp(`:${key}\\*`, 'g'),
-          `:${key}--ESCAPED_PARAM_ASTERISKS`
-        )
-        .replace(
-          new RegExp(`:${key}\\?`, 'g'),
-          `:${key}--ESCAPED_PARAM_QUESTION`
-        )
+        .replace(new RegExp(`:${key}\\*`, 'g'), `:${key}--ESCAPED_PARAM_ASTERISKS`)
+        .replace(new RegExp(`:${key}\\?`, 'g'), `:${key}--ESCAPED_PARAM_QUESTION`)
         .replace(new RegExp(`:${key}\\+`, 'g'), `:${key}--ESCAPED_PARAM_PLUS`)
-        .replace(
-          new RegExp(`:${key}(?!\\w)`, 'g'),
-          `--ESCAPED_PARAM_COLON${key}`
-        )
+        .replace(new RegExp(`:${key}(?!\\w)`, 'g'), `--ESCAPED_PARAM_COLON${key}`)
     }
   }
   value = value
@@ -222,11 +208,7 @@ export function prepareDestination(args: {
 }) {
   const parsedDestination = parseDestination(args)
 
-  const {
-    hostname: destHostname,
-    query: destQuery,
-    search: destSearch,
-  } = parsedDestination
+  const { hostname: destHostname, query: destQuery, search: destSearch } = parsedDestination
 
   // The following code assumes that the pathname here includes the hash if it's
   // present.
@@ -282,14 +264,9 @@ export function prepareDestination(args: {
 
   // add path params to query if it's not a redirect and not
   // already defined in destination query or path
-  let paramKeys = Object.keys(args.params).filter(
-    (name) => name !== 'nextInternalLocale'
-  )
+  let paramKeys = Object.keys(args.params).filter((name) => name !== 'nextInternalLocale')
 
-  if (
-    args.appendParamsToQuery &&
-    !paramKeys.some((key) => destParams.includes(key))
-  ) {
+  if (args.appendParamsToQuery && !paramKeys.some((key) => destParams.includes(key))) {
     for (const key of paramKeys) {
       if (!(key in destQuery)) {
         destQuery[key] = args.params[key]
@@ -303,9 +280,7 @@ export function prepareDestination(args: {
   // so we need to add it to the params object.
   if (isInterceptionRouteAppPath(destPath)) {
     for (const segment of destPath.split('/')) {
-      const marker = INTERCEPTION_ROUTE_MARKERS.find((m) =>
-        segment.startsWith(m)
-      )
+      const marker = INTERCEPTION_ROUTE_MARKERS.find((m) => segment.startsWith(m))
       if (marker) {
         if (marker === '(..)(..)') {
           args.params['0'] = '(..)'
@@ -327,9 +302,7 @@ export function prepareDestination(args: {
     }
     parsedDestination.pathname = pathname
     parsedDestination.hash = `${hash ? '#' : ''}${hash || ''}`
-    parsedDestination.search = destSearch
-      ? compileNonPath(destSearch, args.params)
-      : ''
+    parsedDestination.search = destSearch ? compileNonPath(destSearch, args.params) : ''
   } catch (err: any) {
     if (err.message.match(/Expected .*? to not repeat, but got an array/)) {
       throw new Error(

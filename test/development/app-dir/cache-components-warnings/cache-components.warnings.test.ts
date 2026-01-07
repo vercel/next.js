@@ -11,15 +11,9 @@ describe.skip('dynamic-requests warnings', () => {
 
   it('warns on reading the current time in the prerender portion of a dev render', async () => {
     await next.fetch('/platform/render/time')
-    expect(next.cliOutput).not.toContain(
-      'Route "/platform/prerender/time" used `Date()`'
-    )
-    expect(next.cliOutput).not.toContain(
-      'Route "/platform/prerender/time" used `new Date()`'
-    )
-    expect(next.cliOutput).not.toContain(
-      'Route "/platform/prerender/time" used `Date.now()`'
-    )
+    expect(next.cliOutput).not.toContain('Route "/platform/prerender/time" used `Date()`')
+    expect(next.cliOutput).not.toContain('Route "/platform/prerender/time" used `new Date()`')
+    expect(next.cliOutput).not.toContain('Route "/platform/prerender/time" used `Date.now()`')
     expect(next.cliOutput).not.toContain(
       'Route "/platform/prerender/time" used `performance.now()`'
     )

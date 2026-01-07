@@ -43,9 +43,7 @@ const myAdapter = {
         try {
           await fs.promises.access(output.filePath, fs.constants.F_OK)
         } catch (err) {
-          validationErrors.push(
-            `Missing file for output ${output.id}: ${output.filePath}`
-          )
+          validationErrors.push(`Missing file for output ${output.id}: ${output.filePath}`)
         }
       }
 
@@ -53,10 +51,7 @@ const myAdapter = {
       if (output.type === 'PRERENDER' && output.fallback) {
         if (output.fallback.filePath) {
           try {
-            await fs.promises.access(
-              output.fallback.filePath,
-              fs.constants.F_OK
-            )
+            await fs.promises.access(output.fallback.filePath, fs.constants.F_OK)
           } catch (err) {
             validationErrors.push(
               `Missing fallback file for prerender ${output.id}: ${JSON.stringify(output, null, 2)}`
@@ -88,9 +83,7 @@ const myAdapter = {
           try {
             await fs.promises.access(wasmPath, fs.constants.F_OK)
           } catch (err) {
-            validationErrors.push(
-              `Missing wasm file for output ${output.id} (${key}): ${wasmPath}`
-            )
+            validationErrors.push(`Missing wasm file for output ${output.id} (${key}): ${wasmPath}`)
           }
         }
       }
@@ -100,10 +93,7 @@ const myAdapter = {
     // Segment routes match the pattern: .segments/.+.segment.rsc
     const segmentRoutes = ctx.routing.dynamicRoutes.filter((route) => {
       // Check if the source or destination contains segment routes
-      return (
-        route.sourceRegex.includes('.segments/') ||
-        route.sourceRegex.includes('.segment.rsc')
-      )
+      return route.sourceRegex.includes('.segments/') || route.sourceRegex.includes('.segment.rsc')
     })
 
     // Ensure we have segment routes when we have app pages
@@ -113,9 +103,7 @@ const myAdapter = {
           'Expected segment routes in routing.dynamicRoutes when app pages exist'
         )
       } else {
-        console.log(
-          `Found ${segmentRoutes.length} segment routes in routing.dynamicRoutes`
-        )
+        console.log(`Found ${segmentRoutes.length} segment routes in routing.dynamicRoutes`)
       }
     }
 
@@ -153,14 +141,10 @@ const myAdapter = {
     // Check that each pathname has both .rsc and non .rsc versions
     for (const [pathname, versions] of appPagePathnames.entries()) {
       if (!versions.rsc) {
-        validationErrors.push(
-          `App page ${pathname} is missing corresponding .rsc pathname`
-        )
+        validationErrors.push(`App page ${pathname} is missing corresponding .rsc pathname`)
       }
       if (!versions.nonRsc) {
-        validationErrors.push(
-          `App page ${pathname}.rsc is missing corresponding non .rsc pathname`
-        )
+        validationErrors.push(`App page ${pathname}.rsc is missing corresponding non .rsc pathname`)
       }
     }
 
@@ -175,20 +159,13 @@ const myAdapter = {
       for (const error of validationErrors) {
         console.error(`  - ${error}`)
       }
-      throw new Error(
-        `Adapter validation failed with ${validationErrors.length} error(s)`
-      )
+      throw new Error(`Adapter validation failed with ${validationErrors.length} error(s)`)
     }
 
     console.log('Validation passed: All output files exist on filesystem')
-    console.log(
-      `Segment routes validated: ${segmentRoutes.length} routes found`
-    )
+    console.log(`Segment routes validated: ${segmentRoutes.length} routes found`)
 
-    await fs.promises.writeFile(
-      'build-complete.json',
-      JSON.stringify(ctx, null, 2)
-    )
+    await fs.promises.writeFile('build-complete.json', JSON.stringify(ctx, null, 2))
   },
 }
 

@@ -4,9 +4,7 @@ import type { ImageProps } from "./types";
 
 const cache = new Map<ImageProps, string>();
 
-export default async function getBase64ImageUrl(
-  image: ImageProps,
-): Promise<string> {
+export default async function getBase64ImageUrl(image: ImageProps): Promise<string> {
   let url = cache.get(image);
   if (url) {
     return url;

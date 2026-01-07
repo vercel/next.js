@@ -44,14 +44,10 @@ it('should not bundle the other alternatives', () => {
   require('package-without-exports/entry3')
   const modules = Array.from(__turbopack_modules__.keys())
   expect(modules).toContainEqual(
-    expect.stringMatching(
-      /input\/node_modules\/package-without-exports\/entry3\.js/
-    )
+    expect.stringMatching(/input\/node_modules\/package-without-exports\/entry3\.js/)
   )
   expect(modules).not.toContainEqual(
-    expect.stringMatching(
-      /input\/node_modules\/package-without-exports\/entry3\/index/
-    )
+    expect.stringMatching(/input\/node_modules\/package-without-exports\/entry3\/index/)
   )
 })
 
@@ -59,14 +55,10 @@ it('should not bundle the other alternatives', () => {
   require('package-without-exports')
   const modules = Array.from(__turbopack_modules__.keys())
   expect(modules).toContainEqual(
-    expect.stringMatching(
-      /input\/node_modules\/package-without-exports\/module\.js/
-    )
+    expect.stringMatching(/input\/node_modules\/package-without-exports\/module\.js/)
   )
   expect(modules).not.toContainEqual(
-    expect.stringMatching(
-      /input\/node_modules\/package-without-exports\/main\.js/
-    )
+    expect.stringMatching(/input\/node_modules\/package-without-exports\/main\.js/)
   )
   expect(modules).not.toContainEqual(
     expect.stringMatching(/input\/node_modules\/package-without-exports\/index/)

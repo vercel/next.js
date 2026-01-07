@@ -22,12 +22,7 @@ module.exports = /******/ (function (modules) {
     /******/ // Execute the module function
     /******/ var threw = true
     /******/ try {
-      /******/ modules[moduleId].call(
-        module.exports,
-        module,
-        module.exports,
-        __webpack_require__
-      )
+      /******/ modules[moduleId].call(module.exports, module, module.exports, __webpack_require__)
       /******/ threw = false
       /******/
     } finally {
@@ -82,13 +77,7 @@ module.exports = /******/ (function (modules) {
   /******/ __webpack_require__.t = function (value, mode) {
     /******/ if (mode & 1) value = __webpack_require__(value)
     /******/ if (mode & 8) return value
-    /******/ if (
-      mode & 4 &&
-      typeof value === 'object' &&
-      value &&
-      value.__esModule
-    )
-      return value
+    /******/ if (mode & 4 && typeof value === 'object' && value && value.__esModule) return value
     /******/ var ns = Object.create(null)
     /******/ __webpack_require__.r(ns)
     /******/ Object.defineProperty(ns, 'default', {
@@ -144,11 +133,7 @@ module.exports = /******/ (function (modules) {
       /***/
     },
 
-    /***/ PicC: /***/ function (
-      module,
-      __webpack_exports__,
-      __webpack_require__
-    ) {
+    /***/ PicC: /***/ function (module, __webpack_exports__, __webpack_require__) {
       'use strict'
       __webpack_require__.r(__webpack_exports__)
       /* harmony export (binding) */ __webpack_require__.d(
@@ -158,12 +143,10 @@ module.exports = /******/ (function (modules) {
           return handler
         }
       )
-      /* harmony import */ var path__WEBPACK_IMPORTED_MODULE_0__ =
-        __webpack_require__('oyvS')
+      /* harmony import */ var path__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__('oyvS')
       /* harmony import */ var path__WEBPACK_IMPORTED_MODULE_0___default =
         /*#__PURE__*/ __webpack_require__.n(path__WEBPACK_IMPORTED_MODULE_0__)
-      /* harmony import */ var fs__WEBPACK_IMPORTED_MODULE_1__ =
-        __webpack_require__('mw/K')
+      /* harmony import */ var fs__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__('mw/K')
       /* harmony import */ var fs__WEBPACK_IMPORTED_MODULE_1___default =
         /*#__PURE__*/ __webpack_require__.n(fs__WEBPACK_IMPORTED_MODULE_1__)
 

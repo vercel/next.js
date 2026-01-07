@@ -12,11 +12,7 @@ import type {
 import { createParserFromPath } from '../lib/parser'
 import { isNextConfigFile } from './lib/utils'
 
-function findAndReplaceProps(
-  j: JSCodeshift,
-  root: Collection,
-  tagName: string
-) {
+function findAndReplaceProps(j: JSCodeshift, root: Collection, tagName: string) {
   const layoutToStyle: Record<string, Record<string, string> | null> = {
     intrinsic: { maxWidth: '100%', height: 'auto' },
     responsive: { width: '100%', height: 'auto' },
@@ -77,9 +73,7 @@ function findAndReplaceProps(
             a.value?.type === 'JSXExpressionContainer' &&
             a.value.expression.type === 'Identifier'
           ) {
-            styleExpProps = [
-              j.spreadElement(j.identifier(a.value.expression.name)),
-            ]
+            styleExpProps = [j.spreadElement(j.identifier(a.value.expression.name))]
           } else {
             console.warn('Unknown style attribute value detected', a.value)
           }
@@ -123,9 +117,7 @@ function findAndReplaceProps(
           style.objectPosition = objectPosition
         }
         Object.entries(style).forEach(([key, value]) => {
-          styleExpProps.push(
-            j.objectProperty(j.identifier(key), j.stringLiteral(value))
-          )
+          styleExpProps.push(j.objectProperty(j.identifier(key), j.stringLiteral(value)))
         })
         const styleAttribute = j.jsxAttribute(
           j.jsxIdentifier('style'),
@@ -151,11 +143,7 @@ function findAndReplaceProps(
     })
 }
 
-function nextConfigTransformer(
-  j: JSCodeshift,
-  root: Collection,
-  appDir: string
-) {
+function nextConfigTransformer(j: JSCodeshift, root: Collection, appDir: string) {
   let pathPrefix = ''
   let loaderType = ''
   root.find(j.ObjectExpression).forEach((o) => {
@@ -198,11 +186,7 @@ function nextConfigTransformer(
           const importSpecifier = `./${loaderType}-loader.js`
           const filePath = join(appDir, importSpecifier)
           properties.push(
-            j.property(
-              'init',
-              j.identifier('loaderFile'),
-              j.literal(importSpecifier)
-            )
+            j.property('init', j.identifier('loaderFile'), j.literal(importSpecifier))
           )
           images.value.properties = properties
           const normalizeSrc = `const normalizeSrc = (src) => src[0] === '/' ? src.slice(1) : src`
@@ -255,11 +239,7 @@ function nextConfigTransformer(
   return root
 }
 
-export default function transformer(
-  file: FileInfo,
-  _api: API,
-  options: Options
-) {
+export default function transformer(file: FileInfo, _api: API, options: Options) {
   const j = createParserFromPath(file.path)
   const root = j(file.source)
 
@@ -309,11 +289,7 @@ export default function transformer(
       requireExp.value.callee.name === 'require'
     ) {
       let firstArg = requireExp.value.arguments[0]
-      if (
-        firstArg &&
-        firstArg.type === 'StringLiteral' &&
-        firstArg.value === 'next/legacy/image'
-      ) {
+      if (firstArg && firstArg.type === 'StringLiteral' && firstArg.value === 'next/legacy/image') {
         const tagName = requireExp?.parentPath?.value?.id?.name
         if (tagName) {
           requireExp.value.arguments[0] = j.stringLiteral('next/image')

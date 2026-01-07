@@ -64,10 +64,7 @@ module.exports =
       //   less likely to break the ordering of existing rules.
       let wildcardGlob = '{*,next-mdx-rule}'
       let wildcardRule = inputConfig.turbopack?.rules?.[wildcardGlob] ?? []
-      wildcardRule = [
-        ...(Array.isArray(wildcardRule) ? wildcardRule : [wildcardRule]),
-        mdxRule,
-      ]
+      wildcardRule = [...(Array.isArray(wildcardRule) ? wildcardRule : [wildcardRule]), mdxRule]
 
       nextConfig.turbopack = {
         ...inputConfig?.turbopack,
@@ -77,8 +74,7 @@ module.exports =
         },
         resolveAlias: {
           ...inputConfig?.turbopack?.resolveAlias,
-          'next-mdx-import-source-file':
-            '@vercel/turbopack-next/mdx-import-source',
+          'next-mdx-import-source-file': '@vercel/turbopack-next/mdx-import-source',
         },
       }
     }

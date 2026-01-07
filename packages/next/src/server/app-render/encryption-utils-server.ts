@@ -103,27 +103,23 @@ export async function generateEncryptionKeyBase64({
 }) {
   // This avoids it being generated multiple times in parallel.
   if (!__next_encryption_key_generation_promise) {
-    __next_encryption_key_generation_promise = loadOrGenerateKey(
-      distDir,
-      isBuild,
-      async () => {
-        const providedKey = process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
+    __next_encryption_key_generation_promise = loadOrGenerateKey(distDir, isBuild, async () => {
+      const providedKey = process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
 
-        if (providedKey) {
-          return providedKey
-        }
-        const key = await crypto.subtle.generateKey(
-          {
-            name: 'AES-GCM',
-            length: 256,
-          },
-          true,
-          ['encrypt', 'decrypt']
-        )
-        const exported = await crypto.subtle.exportKey('raw', key)
-        return btoa(arrayBufferToString(exported))
+      if (providedKey) {
+        return providedKey
       }
-    )
+      const key = await crypto.subtle.generateKey(
+        {
+          name: 'AES-GCM',
+          length: 256,
+        },
+        true,
+        ['encrypt', 'decrypt']
+      )
+      const exported = await crypto.subtle.exportKey('raw', key)
+      return btoa(arrayBufferToString(exported))
+    })
   }
   return __next_encryption_key_generation_promise
 }

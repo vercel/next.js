@@ -26,8 +26,7 @@ export default function PostsPreview({
               <AuthorCard author={author} />
             </li>
             <li>
-              <i className="lni lni-calendar"></i>{" "}
-              <HumanDate dateString={date} />
+              <i className="lni lni-calendar"></i> <HumanDate dateString={date} />
             </li>
             {tags.map((tag) => (
               <li key={tag.slug}>
@@ -40,12 +39,7 @@ export default function PostsPreview({
         </div>
         {coverImage && (
           <div className="single-post-thumbnail">
-            <Image
-              src={coverImage}
-              alt={coverImageAlt}
-              layout="fill"
-              objectFit="cover"
-            />
+            <Image src={coverImage} alt={coverImageAlt} layout="fill" objectFit="cover" />
           </div>
         )}
         <div

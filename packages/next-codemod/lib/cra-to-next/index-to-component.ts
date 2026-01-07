@@ -6,11 +6,7 @@ export const indexContext = {
   nestedRender: false,
 }
 
-export default function transformer(
-  file: FileInfo,
-  _api: API,
-  options: Options
-) {
+export default function transformer(file: FileInfo, _api: API, options: Options) {
   const j = createParserFromPath(file.path)
   const root = j(file.source)
   let hasModifications = false
@@ -68,9 +64,7 @@ export default function transformer(
               j.returnStatement(
                 // TODO: remove React.StrictMode wrapper and use
                 // next.config.js option instead?
-                path.node.arguments.find(
-                  (a) => a.type === 'JSXElement'
-                ) as JSXElement
+                path.node.arguments.find((a) => a.type === 'JSXElement') as JSXElement
               ),
             ])
           )
@@ -85,9 +79,7 @@ export default function transformer(
 
   indexContext.multipleRenderRoots = foundReactRender > 1
   hasModifications =
-    hasModifications &&
-    !indexContext.nestedRender &&
-    !indexContext.multipleRenderRoots
+    hasModifications && !indexContext.nestedRender && !indexContext.multipleRenderRoots
 
   // TODO: move function passed to reportWebVitals if present to
   // _app reportWebVitals and massage values to expected shape

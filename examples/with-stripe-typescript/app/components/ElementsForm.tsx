@@ -3,12 +3,7 @@
 import type { StripeError } from "@stripe/stripe-js";
 
 import * as React from "react";
-import {
-  useStripe,
-  useElements,
-  PaymentElement,
-  Elements,
-} from "@stripe/react-stripe-js";
+import { useStripe, useElements, PaymentElement, Elements } from "@stripe/react-stripe-js";
 
 import CustomDonationInput from "./CustomDonationInput";
 import StripeTestCards from "./StripeTestCards";
@@ -156,10 +151,7 @@ function CheckoutForm(): JSX.Element {
         <button
           className="elements-style-background"
           type="submit"
-          disabled={
-            !["initial", "succeeded", "error"].includes(payment.status) ||
-            !stripe
-          }
+          disabled={!["initial", "succeeded", "error"].includes(payment.status) || !stripe}
         >
           Donate {formatAmountForDisplay(input.customDonation, config.CURRENCY)}
         </button>

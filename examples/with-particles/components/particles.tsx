@@ -102,12 +102,7 @@ const ParticlesComponent = () => {
   };
 
   return (
-    <Particles
-      id="particles"
-      init={particlesInit}
-      loaded={particlesLoaded}
-      options={options}
-    />
+    <Particles id="particles" init={particlesInit} loaded={particlesLoaded} options={options} />
   );
 };
 

@@ -121,9 +121,7 @@ describe('dev indicator - route type', () => {
 
             await waitForStaticIndicator(browser, 'Dynamic')
 
-            await browser
-              .elementByCss("[href='/app/static-indicator/static']")
-              .click()
+            await browser.elementByCss("[href='/app/static-indicator/static']").click()
 
             await waitForStaticIndicator(browser, 'Static')
           })
@@ -161,9 +159,7 @@ describe('dev indicator - route type', () => {
 
             await waitForStaticIndicator(browser, 'Static')
 
-            await browser
-              .elementByCss("[href='/app/static-indicator/dynamic']")
-              .click()
+            await browser.elementByCss("[href='/app/static-indicator/dynamic']").click()
 
             await waitForStaticIndicator(browser, 'Dynamic')
           })

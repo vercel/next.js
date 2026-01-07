@@ -1,7 +1,4 @@
-import type {
-  DynamicPrerenderManifestRoute,
-  PrerenderManifest,
-} from '../../../../build'
+import type { DynamicPrerenderManifestRoute, PrerenderManifest } from '../../../../build'
 import type { DeepReadonly } from '../../../../shared/lib/deep-readonly'
 import {
   getRouteMatcher,
@@ -37,10 +34,7 @@ type Matcher = {
  */
 export class PrerenderManifestMatcher {
   private readonly matchers: Array<Matcher>
-  constructor(
-    pathname: string,
-    prerenderManifest: DeepReadonly<PrerenderManifest>
-  ) {
+  constructor(pathname: string, prerenderManifest: DeepReadonly<PrerenderManifest>) {
     this.matchers = Object.entries(prerenderManifest.dynamicRoutes)
       .filter(([source, route]) => {
         // If the pathname is a fallback source route, or the source route is
@@ -57,9 +51,7 @@ export class PrerenderManifestMatcher {
    * @param pathname - The pathname to match.
    * @returns The dynamic route that matches the pathname.
    */
-  public match(
-    pathname: string
-  ): DeepReadonly<DynamicPrerenderManifestRoute> | null {
+  public match(pathname: string): DeepReadonly<DynamicPrerenderManifestRoute> | null {
     // Iterate over the matchers. They're already in the correct order of
     // specificity as they were inserted into the prerender manifest that way
     // and iterating over them with Object.entries guarantees that.

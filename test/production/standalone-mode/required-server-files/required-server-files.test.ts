@@ -37,16 +37,9 @@ describe('required server files', () => {
         pages: new FileRef(join(__dirname, 'pages')),
         lib: new FileRef(join(__dirname, 'lib')),
         'middleware.js': new FileRef(
-          join(
-            __dirname,
-            process.env.TEST_NODE_MIDDLEWARE
-              ? 'middleware-node.js'
-              : 'middleware.js'
-          )
+          join(__dirname, process.env.TEST_NODE_MIDDLEWARE ? 'middleware-node.js' : 'middleware.js')
         ),
-        'instrumentation.js': new FileRef(
-          join(__dirname, 'instrumentation.js')
-        ),
+        'instrumentation.js': new FileRef(join(__dirname, 'instrumentation.js')),
         'cache-handler.js': new FileRef(join(__dirname, 'cache-handler.js')),
         'data.txt': new FileRef(join(__dirname, 'data.txt')),
         '.env': new FileRef(join(__dirname, '.env')),
@@ -93,13 +86,8 @@ describe('required server files', () => {
     let { exitCode } = await next.build()
     expect(exitCode).toBe(0)
 
-    requiredFilesManifest = JSON.parse(
-      await next.readFile('.next/required-server-files.json')
-    )
-    await fs.move(
-      join(next.testDir, '.next/standalone'),
-      join(next.testDir, 'standalone')
-    )
+    requiredFilesManifest = JSON.parse(await next.readFile('.next/required-server-files.json'))
+    await fs.move(join(next.testDir, '.next/standalone'), join(next.testDir, 'standalone'))
     for (const file of await fs.readdir(next.testDir)) {
       if (file !== 'standalone') {
         await fs.remove(join(next.testDir, file))
@@ -173,21 +161,14 @@ describe('required server files', () => {
     const toRename = `standalone/.next/server/pages/route-resolving/[slug]/[project].html`
     await next.renameFile(toRename, `${toRename}.bak`)
     try {
-      const res = await fetchViaHTTP(
-        appPort,
-        '/route-resolving/import/first',
-        undefined,
-        {
-          redirect: 'manual',
-          headers: {
-            'x-matched-path': '/route-resolving/import/[slug]',
-          },
-        }
-      )
+      const res = await fetchViaHTTP(appPort, '/route-resolving/import/first', undefined, {
+        redirect: 'manual',
+        headers: {
+          'x-matched-path': '/route-resolving/import/[slug]',
+        },
+      })
       expect(res.status).toBe(307)
-      expect(new URL(res.headers.get('location'), 'http://n').pathname).toBe(
-        '/somewhere'
-      )
+      expect(new URL(res.headers.get('location'), 'http://n').pathname).toBe('/somewhere')
 
       await waitFor(3000)
       expect(stderr).not.toContain('ENOENT')
@@ -236,9 +217,7 @@ describe('required server files', () => {
         redirect: 'manual',
       })
       expect(res.status).toBe(307)
-      expect(new URL(res.headers.get('location'), 'http://n').pathname).toBe(
-        dest
-      )
+      expect(new URL(res.headers.get('location'), 'http://n').pathname).toBe(dest)
       expect(res.headers.get('cache-control')).toBe(cacheControl)
       expect(res.headers.get('cdn-cache-control')).toBe(cdnCacheControl)
 
@@ -362,42 +341,35 @@ describe('required server files', () => {
     'should warn when "next" is imported directly',
     async () => {
       await renderViaHTTP(appPort, '/gssp')
-      await check(
-        () => stderr,
-        /"next" should not be imported directly, imported in/
-      )
+      await check(() => stderr, /"next" should not be imported directly, imported in/)
     }
   )
 
   it('`compress` should be `false` in nextEnv', async () => {
-    expect(
-      await fs.readFileSync(join(next.testDir, 'standalone/server.js'), 'utf8')
-    ).toContain('"compress":false')
+    expect(await fs.readFileSync(join(next.testDir, 'standalone/server.js'), 'utf8')).toContain(
+      '"compress":false'
+    )
   })
 
   it('`cacheHandler` should have correct path', async () => {
-    expect(
-      await fs.pathExists(join(next.testDir, 'standalone/cache-handler.js'))
-    ).toBe(true)
+    expect(await fs.pathExists(join(next.testDir, 'standalone/cache-handler.js'))).toBe(true)
 
-    expect(
-      await fs.readFileSync(join(next.testDir, 'standalone/server.js'), 'utf8')
-    ).toContain('"cacheHandler":"../cache-handler.js"')
+    expect(await fs.readFileSync(join(next.testDir, 'standalone/server.js'), 'utf8')).toContain(
+      '"cacheHandler":"../cache-handler.js"'
+    )
   })
 
   it('`cacheMaxMemorySize` should be disabled by setting to 0', async () => {
-    expect(
-      await fs.readFileSync(join(next.testDir, 'standalone/server.js'), 'utf8')
-    ).toContain('"cacheMaxMemorySize":0')
+    expect(await fs.readFileSync(join(next.testDir, 'standalone/server.js'), 'utf8')).toContain(
+      '"cacheMaxMemorySize":0'
+    )
   })
 
   it('should output middleware correctly', async () => {
     if (process.env.TEST_NODE_MIDDLEWARE) {
-      expect(
-        await fs.pathExists(
-          join(next.testDir, 'standalone/.next/server/middleware.js')
-        )
-      ).toBe(true)
+      expect(await fs.pathExists(join(next.testDir, 'standalone/.next/server/middleware.js'))).toBe(
+        true
+      )
     } else {
       let manifest = await fs.readJSON(
         join(next.testDir, 'standalone/.next/server/middleware-manifest.json')
@@ -411,9 +383,7 @@ describe('required server files', () => {
       console.log(files)
       for (const file of files) {
         try {
-          expect(
-            await fs.pathExists(join(next.testDir, 'standalone/.next', file))
-          ).toBe(true)
+          expect(await fs.pathExists(join(next.testDir, 'standalone/.next', file))).toBe(true)
         } catch (err) {
           throw new Error('Missing file ' + file)
         }
@@ -456,14 +426,9 @@ describe('required server files', () => {
     const props = JSON.parse($('#props').text())
     expect(props.gspCalls).toBeDefined()
 
-    const res2 = await fetchViaHTTP(
-      appPort,
-      `/_next/data/${next.buildId}/gsp.json`,
-      undefined,
-      {
-        redirect: 'manual',
-      }
-    )
+    const res2 = await fetchViaHTTP(appPort, `/_next/data/${next.buildId}/gsp.json`, undefined, {
+      redirect: 'manual',
+    })
     expect(res2.status).toBe(200)
     expect(res2.headers.get('x-nextjs-cache')).toBeFalsy()
     const { pageProps: props2 } = await res2.json()
@@ -480,14 +445,9 @@ describe('required server files', () => {
     const props3 = JSON.parse($2('#props').text())
     expect(props3.gspCalls).toBeDefined()
 
-    const res4 = await fetchViaHTTP(
-      appPort,
-      `/_next/data/${next.buildId}/index.json`,
-      undefined,
-      {
-        redirect: 'manual',
-      }
-    )
+    const res4 = await fetchViaHTTP(appPort, `/_next/data/${next.buildId}/index.json`, undefined, {
+      redirect: 'manual',
+    })
     expect(res4.status).toBe(200)
     const { pageProps: props4 } = await res4.json()
     expect(props4.gspCalls).toBe(props3.gspCalls)
@@ -522,17 +482,12 @@ describe('required server files', () => {
       await next.readFile('standalone/.next/prerender-manifest.json')
     ).preview
 
-    const res = await fetchViaHTTP(
-      appPort,
-      '/optional-ssg/only-generated-1',
-      undefined,
-      {
-        headers: {
-          'x-prerender-revalidate': previewProps.previewModeId,
-          'x-prerender-revalidate-if-generated': '1',
-        },
-      }
-    )
+    const res = await fetchViaHTTP(appPort, '/optional-ssg/only-generated-1', undefined, {
+      headers: {
+        'x-prerender-revalidate': previewProps.previewModeId,
+        'x-prerender-revalidate-if-generated': '1',
+      },
+    })
     expect(res.status).toBe(200)
   })
 
@@ -545,9 +500,7 @@ describe('required server files', () => {
     })
     expect(res.status).toBe(200)
     expect(res.headers.get('cache-control')).toBe('s-maxage=1')
-    expect(res.headers.get('cdn-cache-control')).toBe(
-      'max-age=1, stale-while-revalidate=31535999'
-    )
+    expect(res.headers.get('cdn-cache-control')).toBe('max-age=1, stale-while-revalidate=31535999')
 
     await waitFor(2000)
     await next.patchFile('standalone/data.txt', 'hide')
@@ -557,9 +510,7 @@ describe('required server files', () => {
     })
     expect(res2.status).toBe(404)
     expect(res2.headers.get('cache-control')).toBe('s-maxage=1')
-    expect(res2.headers.get('cdn-cache-control')).toBe(
-      'max-age=1, stale-while-revalidate=31535999'
-    )
+    expect(res2.headers.get('cdn-cache-control')).toBe('max-age=1, stale-while-revalidate=31535999')
   })
 
   it('should set correct SWR headers with notFound gssp', async () => {
@@ -569,9 +520,7 @@ describe('required server files', () => {
       redirect: 'manual',
     })
     expect(res.status).toBe(200)
-    expect(res.headers.get('cache-control')).toBe(
-      's-maxage=1, stale-while-revalidate=31535999'
-    )
+    expect(res.headers.get('cache-control')).toBe('s-maxage=1, stale-while-revalidate=31535999')
 
     await next.patchFile('standalone/data.txt', 'hide')
 
@@ -581,9 +530,7 @@ describe('required server files', () => {
     await next.patchFile('standalone/data.txt', 'show')
 
     expect(res2.status).toBe(404)
-    expect(res2.headers.get('cache-control')).toBe(
-      's-maxage=1, stale-while-revalidate=31535999'
-    )
+    expect(res2.headers.get('cache-control')).toBe('s-maxage=1, stale-while-revalidate=31535999')
   })
 
   it('should render SSR page correctly', async () => {
@@ -650,10 +597,7 @@ describe('required server files', () => {
     expect(isNaN(data3.random)).toBe(false)
 
     const { pageProps: data4 } = JSON.parse(
-      await renderViaHTTP(
-        appPort,
-        `/_next/data/${next.buildId}/fallback/third.json`
-      )
+      await renderViaHTTP(appPort, `/_next/data/${next.buildId}/fallback/third.json`)
     )
     expect(data4.hello).toBe('world')
     expect(data4.slug).toBe('third')
@@ -685,16 +629,11 @@ describe('required server files', () => {
   })
 
   it('should render dynamic SSR page correctly with x-matched-path', async () => {
-    const html = await renderViaHTTP(
-      appPort,
-      '/some-other-path?nxtPslug=first',
-      undefined,
-      {
-        headers: {
-          'x-matched-path': '/dynamic/[slug]',
-        },
-      }
-    )
+    const html = await renderViaHTTP(appPort, '/some-other-path?nxtPslug=first', undefined, {
+      headers: {
+        'x-matched-path': '/dynamic/[slug]',
+      },
+    })
     const $ = cheerio.load(html)
     const data = JSON.parse($('#props').text())
 
@@ -702,16 +641,11 @@ describe('required server files', () => {
     expect($('#slug').text()).toBe('first')
     expect(data.hello).toBe('world')
 
-    const html2 = await renderViaHTTP(
-      appPort,
-      '/some-other-path?nxtPslug=second',
-      undefined,
-      {
-        headers: {
-          'x-matched-path': '/dynamic/[slug]',
-        },
-      }
-    )
+    const html2 = await renderViaHTTP(appPort, '/some-other-path?nxtPslug=second', undefined, {
+      headers: {
+        'x-matched-path': '/dynamic/[slug]',
+      },
+    })
     const $2 = cheerio.load(html2)
     const data2 = JSON.parse($2('#props').text())
 
@@ -720,16 +654,11 @@ describe('required server files', () => {
     expect(isNaN(data2.random)).toBe(false)
     expect(data2.random).not.toBe(data.random)
 
-    const html3 = await renderViaHTTP(
-      appPort,
-      '/some-other-path?nxtPslug=second',
-      undefined,
-      {
-        headers: {
-          'x-matched-path': '/dynamic/[slug]',
-        },
-      }
-    )
+    const html3 = await renderViaHTTP(appPort, '/some-other-path?nxtPslug=second', undefined, {
+      headers: {
+        'x-matched-path': '/dynamic/[slug]',
+      },
+    })
     const $3 = cheerio.load(html3)
     const data3 = JSON.parse($3('#props').text())
 
@@ -871,17 +800,12 @@ describe('required server files', () => {
   })
 
   it('should render fallback optional catch-all route correctly with x-matched-path and routes-matches', async () => {
-    const html = await renderViaHTTP(
-      appPort,
-      '/catch-all/[[...rest]]',
-      undefined,
-      {
-        headers: {
-          'x-matched-path': '/catch-all/[[...rest]]',
-          'x-now-route-matches': '',
-        },
-      }
-    )
+    const html = await renderViaHTTP(appPort, '/catch-all/[[...rest]]', undefined, {
+      headers: {
+        'x-matched-path': '/catch-all/[[...rest]]',
+        'x-now-route-matches': '',
+      },
+    })
     const $ = cheerio.load(html)
     const data = JSON.parse($('#props').text())
 
@@ -889,19 +813,14 @@ describe('required server files', () => {
     expect(data.params).toEqual({})
     expect(data.hello).toBe('world')
 
-    const html2 = await renderViaHTTP(
-      appPort,
-      '/catch-all/[[...rest]]',
-      undefined,
-      {
-        headers: {
-          'x-matched-path': '/catch-all/[[...rest]]',
-          'x-now-route-matches': createNowRouteMatches({
-            rest: 'hello',
-          }).toString(),
-        },
-      }
-    )
+    const html2 = await renderViaHTTP(appPort, '/catch-all/[[...rest]]', undefined, {
+      headers: {
+        'x-matched-path': '/catch-all/[[...rest]]',
+        'x-now-route-matches': createNowRouteMatches({
+          rest: 'hello',
+        }).toString(),
+      },
+    })
     const $2 = cheerio.load(html2)
     const data2 = JSON.parse($2('#props').text())
 
@@ -910,19 +829,14 @@ describe('required server files', () => {
     expect(isNaN(data2.random)).toBe(false)
     expect(data2.random).not.toBe(data.random)
 
-    const html3 = await renderViaHTTP(
-      appPort,
-      '/catch-all/[[...rest]]',
-      undefined,
-      {
-        headers: {
-          'x-matched-path': '/catch-all/[[...rest]]',
-          'x-now-route-matches': createNowRouteMatches({
-            rest: 'hello/world',
-          }).toString(),
-        },
-      }
-    )
+    const html3 = await renderViaHTTP(appPort, '/catch-all/[[...rest]]', undefined, {
+      headers: {
+        'x-matched-path': '/catch-all/[[...rest]]',
+        'x-now-route-matches': createNowRouteMatches({
+          rest: 'hello/world',
+        }).toString(),
+      },
+    })
     const $3 = cheerio.load(html3)
     const data3 = JSON.parse($3('#props').text())
 
@@ -1234,25 +1148,19 @@ describe('required server files', () => {
         const data = JSON.parse(content)
         props = data.pageProps
       } catch (_) {
-        props = JSON.parse(cheerio.load(content)('#__NEXT_DATA__').text()).props
-          .pageProps
+        props = JSON.parse(cheerio.load(content)('#__NEXT_DATA__').text()).props.pageProps
       }
       expect(props.params).toEqual({})
     }
   })
 
   it('should normalize optional values correctly for SSG page with encoded slash', async () => {
-    const res = await fetchViaHTTP(
-      appPort,
-      '/optional-ssg/[[...rest]]',
-      undefined,
-      {
-        headers: {
-          'x-matched-path': '/optional-ssg/[[...rest]]',
-          'x-now-route-matches': 'nxtPrest=en%2Fes%2Fhello%252Fworld',
-        },
-      }
-    )
+    const res = await fetchViaHTTP(appPort, '/optional-ssg/[[...rest]]', undefined, {
+      headers: {
+        'x-matched-path': '/optional-ssg/[[...rest]]',
+        'x-now-route-matches': 'nxtPrest=en%2Fes%2Fhello%252Fworld',
+      },
+    })
 
     const html = await res.text()
     const $ = cheerio.load(html)
@@ -1406,13 +1314,9 @@ describe('required server files', () => {
 
       if (!process.env.TEST_NODE_MIDDLEWARE) {
         if (process.env.IS_TURBOPACK_TEST) {
-          expect(
-            fs.existsSync(join(standaloneDir, '.next/server/edge/chunks'))
-          ).toBe(true)
+          expect(fs.existsSync(join(standaloneDir, '.next/server/edge/chunks'))).toBe(true)
         } else {
-          expect(
-            fs.existsSync(join(standaloneDir, '.next/server/edge-chunks'))
-          ).toBe(true)
+          expect(fs.existsSync(join(standaloneDir, '.next/server/edge-chunks'))).toBe(true)
         }
       }
 
@@ -1427,16 +1331,11 @@ describe('required server files', () => {
   })
 
   it('should correctly handle a mismatch in buildIds when normalizing next data', async () => {
-    const res = await fetchViaHTTP(
-      appPort,
-      `/_next/data/${nanoid()}/index.json`,
-      undefined,
-      {
-        headers: {
-          'x-matched-path': '/[teamSlug]/[project]/[id]/[suffix]',
-        },
-      }
-    )
+    const res = await fetchViaHTTP(appPort, `/_next/data/${nanoid()}/index.json`, undefined, {
+      headers: {
+        'x-matched-path': '/[teamSlug]/[project]/[id]/[suffix]',
+      },
+    })
 
     expect(res.status).toBe(404)
   })

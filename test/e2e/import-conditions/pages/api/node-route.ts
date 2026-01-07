@@ -7,10 +7,7 @@ export const config = {
   runtime: 'nodejs',
 }
 
-export default function handler(
-  request: NextApiRequest,
-  response: NextApiResponse
-) {
+export default function handler(request: NextApiRequest, response: NextApiResponse) {
   return response.status(200).json({
     react: react.condition,
     serverFavoringBrowser: serverFavoringBrowser.condition,

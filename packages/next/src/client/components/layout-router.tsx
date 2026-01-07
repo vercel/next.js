@@ -42,17 +42,14 @@ import { getParamValueFromCacheKey } from '../route-params'
 import type { Params } from '../../server/request/params'
 import { isDeferredRsc } from './router-reducer/ppr-navigations'
 
-const __DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE = (
-  ReactDOM as any
-).__DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE
+const __DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE = (ReactDOM as any)
+  .__DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE
 
 // TODO-APP: Replace with new React API for finding dom nodes without a `ref` when available
 /**
  * Wraps ReactDOM.findDOMNode with additional logic to hide React Strict Mode warning
  */
-function findDOMNode(
-  instance: React.ReactInstance | null | undefined
-): Element | Text | null {
+function findDOMNode(instance: React.ReactInstance | null | undefined): Element | Text | null {
   // Tree-shake for server bundle
   if (typeof window === 'undefined') return null
 
@@ -63,16 +60,7 @@ function findDOMNode(
   return internal_reactDOMfindDOMNode(instance)
 }
 
-const rectProperties = [
-  'bottom',
-  'height',
-  'left',
-  'right',
-  'top',
-  'width',
-  'x',
-  'y',
-] as const
+const rectProperties = ['bottom', 'height', 'left', 'right', 'top', 'width', 'x', 'y'] as const
 /**
  * Check if a HTMLElement is hidden or fixed/sticky position
  */
@@ -134,17 +122,13 @@ class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerPr
       if (
         focusAndScrollRef.segmentPaths.length !== 0 &&
         !focusAndScrollRef.segmentPaths.some((scrollRefSegmentPath) =>
-          segmentPath.every((segment, index) =>
-            matchSegment(segment, scrollRefSegmentPath[index])
-          )
+          segmentPath.every((segment, index) => matchSegment(segment, scrollRefSegmentPath[index]))
         )
       ) {
         return
       }
 
-      let domNode:
-        | ReturnType<typeof getHashFragmentDomNode>
-        | ReturnType<typeof findDOMNode> = null
+      let domNode: ReturnType<typeof getHashFragmentDomNode> | ReturnType<typeof findDOMNode> = null
       const hashFragment = focusAndScrollRef.hashFragment
 
       if (hashFragment) {
@@ -315,8 +299,7 @@ function InnerLayoutRouter({
   // to `rsc` when the dynamic response streams in.
   //
   // If no prefetch data is available, then we go straight to rendering `rsc`.
-  const resolvedPrefetchRsc =
-    cacheNode.prefetchRsc !== null ? cacheNode.prefetchRsc : cacheNode.rsc
+  const resolvedPrefetchRsc = cacheNode.prefetchRsc !== null ? cacheNode.prefetchRsc : cacheNode.rsc
 
   // We use `useDeferredValue` to handle switching between the prefetched and
   // final values. The second argument is returned on initial render, then it
@@ -354,10 +337,7 @@ function InnerLayoutRouter({
     const { createNestedLayoutNavigationPromises } =
       require('./navigation-devtools') as typeof import('./navigation-devtools')
 
-    navigationPromises = createNestedLayoutNavigationPromises(
-      tree,
-      parentNavPromises
-    )
+    navigationPromises = createNestedLayoutNavigationPromises(tree, parentNavPromises)
   }
 
   let children = resolvedRsc
@@ -539,10 +519,7 @@ export default function OuterLayoutRouter({
   // if or when the user navigates to them again.
   //
   // bfcacheEntry is a linked list of FlightRouterStates.
-  let bfcacheEntry: RouterBFCacheEntry | null = useRouterBFCache(
-    activeTree,
-    activeStateKey
-  )
+  let bfcacheEntry: RouterBFCacheEntry | null = useRouterBFCache(activeTree, activeStateKey)
   let children: Array<React.ReactNode> = []
   do {
     const tree = bfcacheEntry.tree
@@ -571,9 +548,7 @@ export default function OuterLayoutRouter({
         require('../../next-devtools/userspace/app/segment-explorer-node') as typeof import('../../next-devtools/userspace/app/segment-explorer-node')
 
       const pagePrefix = normalizeAppPath(url)
-      segmentViewStateNode = (
-        <SegmentViewStateNode key={pagePrefix} page={pagePrefix} />
-      )
+      segmentViewStateNode = <SegmentViewStateNode key={pagePrefix} page={pagePrefix} />
 
       segmentBoundaryTriggerNode = (
         <>
@@ -635,10 +610,7 @@ export default function OuterLayoutRouter({
               errorStyles={errorStyles}
               errorScripts={errorScripts}
             >
-              <LoadingBoundary
-                name={debugNameToDisplay}
-                loading={loadingModuleData}
-              >
+              <LoadingBoundary name={debugNameToDisplay} loading={loadingModuleData}>
                 <HTTPAccessFallbackBoundary
                   notFound={notFound}
                   forbidden={forbidden}

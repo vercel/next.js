@@ -7,8 +7,7 @@ export default async function Page() {
   return (
     <>
       <p>
-        cookie slot (sentinel):{' '}
-        <span id="value">{sentinel ? sentinel.value : 'no cookie'}</span>
+        cookie slot (sentinel): <span id="value">{sentinel ? sentinel.value : 'no cookie'}</span>
       </p>
       <div id="page-slot">{getSentinelValue()}</div>
     </>

@@ -14,9 +14,7 @@ describe('scripts', () => {
     async (routerType) => {
       const browser = await next.browser(routerType === 'app' ? '/' : '/pages')
       expect(await browser.elementByCss('p').text()).toBe('hello world')
-      const scripts = (await browser.elementsByCss(
-        'script'
-      )) as ElementHandle<HTMLScriptElement>[]
+      const scripts = (await browser.elementsByCss('script')) as ElementHandle<HTMLScriptElement>[]
       expect(scripts.length).toBeGreaterThan(0)
       for (const script of scripts) {
         const src = await script.evaluate((script) => script.src)

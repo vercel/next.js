@@ -21,9 +21,6 @@ async function buildServer() {
 
 const server$ = buildServer();
 
-export default async function apiHandler(
-  req: NextApiRequest,
-  res: NextApiResponse,
-) {
+export default async function apiHandler(req: NextApiRequest, res: NextApiResponse) {
   return (await server$).requestListener(req, res);
 }

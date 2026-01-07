@@ -1,11 +1,6 @@
 import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
-import {
-  renderViaHTTP,
-  startStaticServer,
-  check,
-  getBrowserBodyText,
-} from 'next-test-utils'
+import { renderViaHTTP, startStaticServer, check, getBrowserBodyText } from 'next-test-utils'
 import { AddressInfo, Server } from 'net'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
@@ -42,9 +37,7 @@ describe('static export', () => {
     await next.patchFile(nextConfigPath, nextConfig)
 
     server = await startStaticServer(path.join(next.testDir, outdir))
-    serverNoTrailSlash = await startStaticServer(
-      path.join(next.testDir, outNoTrailSlash)
-    )
+    serverNoTrailSlash = await startStaticServer(path.join(next.testDir, outNoTrailSlash))
     port = (server.address() as AddressInfo).port
     portNoTrailSlash = (serverNoTrailSlash.address() as AddressInfo).port
   })
@@ -86,15 +79,11 @@ describe('static export', () => {
   it('should handle trailing slash in getStaticPaths', async () => {
     expect(await fileExist(path.join(outdir, 'gssp/foo/index.html'))).toBe(true)
 
-    expect(await fileExist(path.join(outNoTrailSlash, 'gssp/foo.html'))).toBe(
-      true
-    )
+    expect(await fileExist(path.join(outNoTrailSlash, 'gssp/foo.html'))).toBe(true)
   })
 
   it('should only output 404.html without trailingSlash', async () => {
-    expect(await fileExist(path.join(outNoTrailSlash, '404/index.html'))).toBe(
-      false
-    )
+    expect(await fileExist(path.join(outNoTrailSlash, '404/index.html'))).toBe(false)
 
     expect(await fileExist(path.join(outNoTrailSlash, '404.html'))).toBe(true)
   })
@@ -118,9 +107,7 @@ describe('static export', () => {
       const { cliOutput } = await next.build()
       await next.patchFile(nextConfigPath, nextConfig)
 
-      expect(cliOutput).toContain(
-        'https://nextjs.org/docs/messages/export-path-mismatch'
-      )
+      expect(cliOutput).toContain('https://nextjs.org/docs/messages/export-path-mismatch')
     })
   })
 
@@ -135,9 +122,7 @@ describe('static export', () => {
 
     it('should add trailing slash on Link', async () => {
       const browser = await webdriver(port, '/')
-      const link = await browser
-        .elementByCss('#about-via-link')
-        .getAttribute('href')
+      const link = await browser.elementByCss('#about-via-link').getAttribute('href')
 
       expect(link.slice(-1)).toBe('/')
     })
@@ -151,27 +136,21 @@ describe('static export', () => {
 
     it('should preserve hash symbol on empty hash Link', async () => {
       const browser = await webdriver(port, '/empty-hash-link')
-      const link = await browser
-        .elementByCss('#empty-hash-link')
-        .getAttribute('href')
+      const link = await browser.elementByCss('#empty-hash-link').getAttribute('href')
 
       expect(link).toMatch(/\/hello\/#$/)
     })
 
     it('should preserve question mark on empty query Link', async () => {
       const browser = await webdriver(port, '/empty-query-link')
-      const link = await browser
-        .elementByCss('#empty-query-link')
-        .getAttribute('href')
+      const link = await browser.elementByCss('#empty-query-link').getAttribute('href')
 
       expect(link).toMatch(/\/hello\/\?$/)
     })
 
     it('should not add trailing slash on Link when disabled', async () => {
       const browser = await webdriver(portNoTrailSlash, '/')
-      const link = await browser
-        .elementByCss('#about-via-link')
-        .getAttribute('href')
+      const link = await browser.elementByCss('#about-via-link').getAttribute('href')
 
       expect(link.slice(-1)).not.toBe('/')
     })
@@ -283,10 +262,7 @@ describe('static export', () => {
         .click()
         .waitForElementByCss('#dynamic-imports-page')
 
-      await check(
-        () => getBrowserBodyText(browser),
-        /Welcome to dynamic imports/
-      )
+      await check(() => getBrowserBodyText(browser), /Welcome to dynamic imports/)
 
       await browser.close()
     })
@@ -359,14 +335,9 @@ describe('static export', () => {
       it('should render the home page', async () => {
         const browser = await webdriver(port, '/')
 
-        await browser.eval(
-          'document.getElementById("level1-home-page").click()'
-        )
+        await browser.eval('document.getElementById("level1-home-page").click()')
 
-        await check(
-          () => getBrowserBodyText(browser),
-          /This is the Level1 home page/
-        )
+        await check(() => getBrowserBodyText(browser), /This is the Level1 home page/)
 
         await browser.close()
       })
@@ -374,14 +345,9 @@ describe('static export', () => {
       it('should render the about page', async () => {
         const browser = await webdriver(port, '/')
 
-        await browser.eval(
-          'document.getElementById("level1-about-page").click()'
-        )
+        await browser.eval('document.getElementById("level1-about-page").click()')
 
-        await check(
-          () => getBrowserBodyText(browser),
-          /This is the Level1 about page/
-        )
+        await check(() => getBrowserBodyText(browser), /This is the Level1 about page/)
 
         await browser.close()
       })
@@ -479,9 +445,7 @@ describe('static export', () => {
       const { cliOutput } = await next.build()
       await next.patchFile(nextConfigPath, nextConfig)
 
-      expect(cliOutput).toContain(
-        'https://nextjs.org/docs/messages/api-routes-static-export'
-      )
+      expect(cliOutput).toContain('https://nextjs.org/docs/messages/api-routes-static-export')
     })
   })
 

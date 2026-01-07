@@ -19,11 +19,7 @@ const safeCallbackQueue = (callback: () => void) => {
 export function displayContent(): Promise<void> {
   return new Promise((resolve) => {
     safeCallbackQueue(function () {
-      for (
-        var x = document.querySelectorAll('[data-next-hide-fouc]'),
-          i = x.length;
-        i--;
-      ) {
+      for (var x = document.querySelectorAll('[data-next-hide-fouc]'), i = x.length; i--; ) {
         x[i].parentNode!.removeChild(x[i])
       }
       resolve()

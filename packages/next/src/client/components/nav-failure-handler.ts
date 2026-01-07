@@ -6,13 +6,9 @@ export function handleHardNavError(error: unknown): boolean {
     error &&
     typeof window !== 'undefined' &&
     window.next.__pendingUrl &&
-    createHrefFromUrl(new URL(window.location.href)) !==
-      createHrefFromUrl(window.next.__pendingUrl)
+    createHrefFromUrl(new URL(window.location.href)) !== createHrefFromUrl(window.next.__pendingUrl)
   ) {
-    console.error(
-      `Error occurred during navigation, falling back to hard navigation`,
-      error
-    )
+    console.error(`Error occurred during navigation, falling back to hard navigation`, error)
     window.location.href = window.next.__pendingUrl.toString()
     return true
   }
@@ -24,9 +20,7 @@ export function useNavFailureHandler() {
     // this if is only for DCE of the feature flag not conditional
     // eslint-disable-next-line react-hooks/rules-of-hooks
     useEffect(() => {
-      const uncaughtExceptionHandler = (
-        evt: ErrorEvent | PromiseRejectionEvent
-      ) => {
+      const uncaughtExceptionHandler = (evt: ErrorEvent | PromiseRejectionEvent) => {
         const error = 'reason' in evt ? evt.reason : evt.error
         // if we have an unhandled exception/rejection during
         // a navigation we fall back to a hard navigation to
@@ -37,10 +31,7 @@ export function useNavFailureHandler() {
       window.addEventListener('error', uncaughtExceptionHandler)
       return () => {
         window.removeEventListener('error', uncaughtExceptionHandler)
-        window.removeEventListener(
-          'unhandledrejection',
-          uncaughtExceptionHandler
-        )
+        window.removeEventListener('unhandledrejection', uncaughtExceptionHandler)
       }
     }, [])
   }

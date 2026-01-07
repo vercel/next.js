@@ -1,12 +1,6 @@
 /* eslint-env jest */
 
-import {
-  fetchViaHTTP,
-  findPort,
-  killApp,
-  nextBuild,
-  nextStart,
-} from 'next-test-utils'
+import { fetchViaHTTP, findPort, killApp, nextBuild, nextStart } from 'next-test-utils'
 import execa from 'execa'
 import fs from 'fs-extra'
 import { join } from 'path'
@@ -35,14 +29,7 @@ describe('sharp api', () => {
     expect(res.headers.get('content-type')).toBe('image/png')
     expect((await res.arrayBuffer()).byteLength).toBeGreaterThan(0)
     const traceFile = await fs.readJson(
-      join(
-        appDir,
-        '.next',
-        'server',
-        'pages',
-        'api',
-        'custom-sharp.js.nft.json'
-      )
+      join(appDir, '.next', 'server', 'pages', 'api', 'custom-sharp.js.nft.json')
     )
     expect(traceFile.files.some((file) => file.includes('sharp/'))).toBe(true)
   })

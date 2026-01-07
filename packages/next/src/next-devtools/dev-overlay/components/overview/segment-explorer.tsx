@@ -1,8 +1,5 @@
 import './segment-explorer.css'
-import {
-  useSegmentTree,
-  type SegmentTrieNode,
-} from '../../segment-explorer-trie'
+import { useSegmentTree, type SegmentTrieNode } from '../../segment-explorer-trie'
 import { cx } from '../../utils/cx'
 import { SegmentBoundaryTrigger } from './segment-boundary-trigger'
 import { Tooltip } from '../tooltip/tooltip'
@@ -86,13 +83,9 @@ function SegmentExplorerFooter({
         disabled={!hasActiveOverrides}
         type="button"
       >
-        <span className="segment-explorer-footer-text">
-          Clear Segment Overrides
-        </span>
+        <span className="segment-explorer-footer-text">Clear Segment Overrides</span>
         {hasActiveOverrides && (
-          <span className="segment-explorer-footer-badge">
-            {activeBoundariesCount}
-          </span>
+          <span className="segment-explorer-footer-badge">{activeBoundariesCount}</span>
         )}
       </button>
     </div>
@@ -182,10 +175,7 @@ function PageSegmentTreeLayerPresentation({
   node: SegmentTrieNode
   level: number
 }) {
-  const childrenKeys = useMemo(
-    () => Object.keys(node.children),
-    [node.children]
-  )
+  const childrenKeys = useMemo(() => Object.keys(node.children), [node.children])
 
   const missingGlobalError = useMemo(() => {
     const existingBoundaries: string[] = []
@@ -196,8 +186,7 @@ function PageSegmentTreeLayerPresentation({
       const isGlobalConvention = boundaryType === GLOBAL_ERROR_BOUNDARY_TYPE
       if (
         // If global-* convention is not built-in, it's existed
-        (isGlobalConvention &&
-          !isBuiltinBoundaryFile(childNode.value.pagePath)) ||
+        (isGlobalConvention && !isBuiltinBoundaryFile(childNode.value.pagePath)) ||
         (!isGlobalConvention &&
           // If it's non global boundary, we check if file is boundary type
           isBoundaryFile(childNode.value.type))
@@ -206,9 +195,7 @@ function PageSegmentTreeLayerPresentation({
       }
     })
 
-    return (
-      level === 0 && !existingBoundaries.includes(GLOBAL_ERROR_BOUNDARY_TYPE)
-    )
+    return level === 0 && !existingBoundaries.includes(GLOBAL_ERROR_BOUNDARY_TYPE)
   }, [node.children, childrenKeys, level])
 
   const sortedChildrenKeys = childrenKeys.sort((a, b) => {
@@ -315,8 +302,7 @@ function PageSegmentTreeLayerPresentation({
       const boundaryType = getBoundaryOriginFileType(childNode.value.type)
 
       if (boundaryType in boundaries) {
-        boundaries[boundaryType as keyof typeof boundaries] =
-          childNode.value.pagePath || null
+        boundaries[boundaryType as keyof typeof boundaries] = childNode.value.pagePath || null
       }
     }
   })
@@ -386,8 +372,7 @@ function PageSegmentTreeLayerPresentation({
                         <Tooltip
                           key={fileChildSegment}
                           className={
-                            'segment-explorer-file-label-tooltip--' +
-                            (isBuiltin ? 'lg' : 'sm')
+                            'segment-explorer-file-label-tooltip--' + (isBuiltin ? 'lg' : 'sm')
                           }
                           direction={isBuiltin ? 'right' : 'top'}
                           title={tooltipMessage}
@@ -406,10 +391,7 @@ function PageSegmentTreeLayerPresentation({
                   </span>
                 )}
                 {firstChild && firstChild.value && (
-                  <SegmentBoundaryTrigger
-                    nodeState={firstChild.value}
-                    boundaries={boundaries}
-                  />
+                  <SegmentBoundaryTrigger nodeState={firstChild.value} boundaries={boundaries} />
                 )}
               </div>
             </div>
@@ -425,9 +407,7 @@ function PageSegmentTreeLayerPresentation({
 
         // If it's an folder segment without any files under it,
         // merge it with the segment in the next level.
-        const nextSegment = hasFilesChildren
-          ? childSegment
-          : segment + ' / ' + childSegment
+        const nextSegment = hasFilesChildren ? childSegment : segment + ' / ' + childSegment
         return (
           <PageSegmentTreeLayerPresentation
             key={childSegment}
@@ -448,11 +428,7 @@ function openInEditor({ filePath }: { filePath: string }) {
     // The editor launcher will complete the full path for it.
     isAppRelativePath: '1',
   })
-  fetch(
-    `${
-      process.env.__NEXT_ROUTER_BASEPATH || ''
-    }/__nextjs_launch-editor?${params.toString()}`
-  )
+  fetch(`${process.env.__NEXT_ROUTER_BASEPATH || ''}/__nextjs_launch-editor?${params.toString()}`)
 }
 
 export function InfoIcon(props: React.SVGProps<SVGSVGElement>) {

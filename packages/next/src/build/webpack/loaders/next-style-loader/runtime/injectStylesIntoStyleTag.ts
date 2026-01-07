@@ -25,10 +25,7 @@ const getTargetElement = (function () {
       let styleTarget: any = document.querySelector(target)
 
       // Special case to return head of iframe instead of iframe itself
-      if (
-        window.HTMLIFrameElement &&
-        styleTarget instanceof window.HTMLIFrameElement
-      ) {
+      if (window.HTMLIFrameElement && styleTarget instanceof window.HTMLIFrameElement) {
         try {
           // This will throw an exception if access to iframe is blocked
           // due to cross-origin restrictions
@@ -102,8 +99,7 @@ function insertStyleElement(options: any) {
   const attributes = options.attributes || {}
 
   if (typeof attributes.nonce === 'undefined') {
-    const nonce =
-      typeof __webpack_nonce__ !== 'undefined' ? __webpack_nonce__ : null
+    const nonce = typeof __webpack_nonce__ !== 'undefined' ? __webpack_nonce__ : null
 
     if (nonce) {
       attributes.nonce = nonce
@@ -152,11 +148,7 @@ const replaceText = (function replaceText() {
 })()
 
 function applyToSingletonTag(style: any, index: any, remove: any, obj: any) {
-  const css = remove
-    ? ''
-    : obj.media
-      ? '@media ' + obj.media + ' {' + obj.css + '}'
-      : obj.css
+  const css = remove ? '' : obj.media ? '@media ' + obj.media + ' {' + obj.css + '}' : obj.css
 
   // For old IE
   /* istanbul ignore if  */

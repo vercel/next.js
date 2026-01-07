@@ -8,9 +8,7 @@ import type { HistoryState } from 'next/dist/shared/lib/router/router'
 
 const emitPopsStateEvent = (browser: Playwright, state: HistoryState) =>
   browser.eval(
-    `window.dispatchEvent(new PopStateEvent("popstate", { state: ${JSON.stringify(
-      state
-    )} }))`
+    `window.dispatchEvent(new PopStateEvent("popstate", { state: ${JSON.stringify(state)} }))`
   )
 
 describe('Event with stale state - static route previously was dynamic', () => {

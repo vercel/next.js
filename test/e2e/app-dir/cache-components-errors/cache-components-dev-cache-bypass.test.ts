@@ -18,8 +18,7 @@ describe('Cache Components Errors', () => {
           headers: { 'cache-control': 'no-cache' },
         })
 
-        expect(stripGetLines(next.cliOutput.slice(from)))
-          .toMatchInlineSnapshot(`
+        expect(stripGetLines(next.cliOutput.slice(from))).toMatchInlineSnapshot(`
          "Route / is rendering with server caches disabled. For this navigation, Component Metadata in React DevTools will not accurately reflect what is statically prerenderable and runtime prefetchable. See more info here: https://nextjs.org/docs/messages/cache-bypass-in-dev
          "
         `)
@@ -32,8 +31,7 @@ describe('Cache Components Errors', () => {
           headers: { 'cache-control': 'no-cache', RSC: '1' },
         })
 
-        expect(stripGetLines(next.cliOutput.slice(from)))
-          .toMatchInlineSnapshot(`
+        expect(stripGetLines(next.cliOutput.slice(from))).toMatchInlineSnapshot(`
          "Route /other is rendering with server caches disabled. For this navigation, Component Metadata in React DevTools will not accurately reflect what is statically prerenderable and runtime prefetchable. See more info here: https://nextjs.org/docs/messages/cache-bypass-in-dev
          "
         `)
@@ -44,9 +42,7 @@ describe('Cache Components Errors', () => {
 
         await next.fetch('/')
 
-        expect(stripGetLines(next.cliOutput.slice(from))).toMatchInlineSnapshot(
-          `""`
-        )
+        expect(stripGetLines(next.cliOutput.slice(from))).toMatchInlineSnapshot(`""`)
       })
 
       it('does not warn if you render without cache-control: no-cache in dev on client navigation', async () => {
@@ -56,9 +52,7 @@ describe('Cache Components Errors', () => {
           headers: { RSC: '1' },
         })
 
-        expect(stripGetLines(next.cliOutput.slice(from))).toMatchInlineSnapshot(
-          `""`
-        )
+        expect(stripGetLines(next.cliOutput.slice(from))).toMatchInlineSnapshot(`""`)
       })
     } else {
       it('does not warn if you render with cache-control: no-cache in dev on initial page load', async () => {
@@ -68,9 +62,7 @@ describe('Cache Components Errors', () => {
           headers: { 'cache-control': 'no-cache' },
         })
 
-        expect(stripGetLines(next.cliOutput.slice(from))).toMatchInlineSnapshot(
-          `""`
-        )
+        expect(stripGetLines(next.cliOutput.slice(from))).toMatchInlineSnapshot(`""`)
       })
 
       it('does not warn if you render with cache-control: no-cache in dev on client navigation', async () => {
@@ -80,9 +72,7 @@ describe('Cache Components Errors', () => {
           headers: { 'cache-control': 'no-cache' },
         })
 
-        expect(stripGetLines(next.cliOutput.slice(from))).toMatchInlineSnapshot(
-          `""`
-        )
+        expect(stripGetLines(next.cliOutput.slice(from))).toMatchInlineSnapshot(`""`)
       })
 
       it('does not warn if you render without cache-control: no-cache in dev on initial page load in start', async () => {
@@ -90,9 +80,7 @@ describe('Cache Components Errors', () => {
 
         await next.fetch('/')
 
-        expect(stripGetLines(next.cliOutput.slice(from))).toMatchInlineSnapshot(
-          `""`
-        )
+        expect(stripGetLines(next.cliOutput.slice(from))).toMatchInlineSnapshot(`""`)
       })
 
       it('does not warn if you render without cache-control: no-cache in dev on client navigation in start', async () => {
@@ -102,16 +90,12 @@ describe('Cache Components Errors', () => {
           headers: { RSC: '1' },
         })
 
-        expect(stripGetLines(next.cliOutput.slice(from))).toMatchInlineSnapshot(
-          `""`
-        )
+        expect(stripGetLines(next.cliOutput.slice(from))).toMatchInlineSnapshot(`""`)
       })
     }
   })
 })
 
 function stripGetLines(input: string): string {
-  return input
-    .replace(/^\s*GET.*(?:\r?\n|$)/gm, '')
-    .replace(/^\s*[○✓].*(?:\r?\n|$)/gm, '')
+  return input.replace(/^\s*GET.*(?:\r?\n|$)/gm, '').replace(/^\s*[○✓].*(?:\r?\n|$)/gm, '')
 }

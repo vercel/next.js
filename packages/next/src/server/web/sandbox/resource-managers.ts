@@ -21,10 +21,7 @@ abstract class ResourceManager<T, Args> {
   }
 }
 
-class IntervalsManager extends ResourceManager<
-  number,
-  Parameters<typeof setInterval>
-> {
+class IntervalsManager extends ResourceManager<number, Parameters<typeof setInterval>> {
   create(args: Parameters<typeof setInterval>) {
     // TODO: use the edge runtime provided `setInterval` instead
     return webSetIntervalPolyfill(...args)
@@ -35,10 +32,7 @@ class IntervalsManager extends ResourceManager<
   }
 }
 
-class TimeoutsManager extends ResourceManager<
-  number,
-  Parameters<typeof setTimeout>
-> {
+class TimeoutsManager extends ResourceManager<number, Parameters<typeof setTimeout>> {
   create(args: Parameters<typeof setTimeout>) {
     // TODO: use the edge runtime provided `setTimeout` instead
     return webSetTimeoutPolyfill(...args)

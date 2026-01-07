@@ -8,7 +8,9 @@ import type { DynamicTrackingState } from './dynamic-rendering'
 import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
 
 // Share the instance module in the next-shared layer
-import { workUnitAsyncStorageInstance } from './work-unit-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
+import { workUnitAsyncStorageInstance } from './work-unit-async-storage-instance' with {
+  'turbopack-transition': 'next-shared',
+}
 import type { ServerComponentsHmrCache } from '../response-cache'
 import type {
   RenderResumeDataCache,
@@ -102,25 +104,19 @@ export type PrerenderStoreModern =
   | PrerenderStoreModernRuntime
 
 /** Like `PrerenderStoreModern`, but only including static prerenders (i.e. not runtime prerenders) */
-export type StaticPrerenderStoreModern = Exclude<
-  PrerenderStoreModern,
-  PrerenderStoreModernRuntime
->
+export type StaticPrerenderStoreModern = Exclude<PrerenderStoreModern, PrerenderStoreModernRuntime>
 
 export interface PrerenderStoreModernClient
-  extends PrerenderStoreModernCommon,
-    StaticPrerenderStoreCommon {
+  extends PrerenderStoreModernCommon, StaticPrerenderStoreCommon {
   readonly type: 'prerender-client'
 }
 
 export interface PrerenderStoreModernServer
-  extends PrerenderStoreModernCommon,
-    StaticPrerenderStoreCommon {
+  extends PrerenderStoreModernCommon, StaticPrerenderStoreCommon {
   readonly type: 'prerender'
 }
 
-export interface PrerenderStoreModernRuntime
-  extends PrerenderStoreModernCommon {
+export interface PrerenderStoreModernRuntime extends PrerenderStoreModernCommon {
   readonly type: 'prerender-runtime'
 
   /**
@@ -148,9 +144,7 @@ export interface RevalidateStore {
   tags: null | string[]
 }
 
-interface PrerenderStoreModernCommon
-  extends CommonWorkUnitStore,
-    RevalidateStore {
+interface PrerenderStoreModernCommon extends CommonWorkUnitStore, RevalidateStore {
   /**
    * The render signal is aborted after React's `prerender` function is aborted
    * (using a separate signal), which happens in two cases:
@@ -225,9 +219,7 @@ interface StaticPrerenderStoreCommon {
   readonly allowEmptyStaticShell: boolean
 }
 
-export interface PrerenderStorePPR
-  extends CommonWorkUnitStore,
-    RevalidateStore {
+export interface PrerenderStorePPR extends CommonWorkUnitStore, RevalidateStore {
   readonly type: 'prerender-ppr'
   readonly rootParams: Params
   readonly dynamicTracking: null | DynamicTrackingState
@@ -244,26 +236,17 @@ export interface PrerenderStorePPR
   prerenderResumeDataCache: PrerenderResumeDataCache
 }
 
-export interface PrerenderStoreLegacy
-  extends CommonWorkUnitStore,
-    RevalidateStore {
+export interface PrerenderStoreLegacy extends CommonWorkUnitStore, RevalidateStore {
   readonly type: 'prerender-legacy'
   readonly rootParams: Params
 }
 
-export type PrerenderStore =
-  | PrerenderStoreLegacy
-  | PrerenderStorePPR
-  | PrerenderStoreModern
+export type PrerenderStore = PrerenderStoreLegacy | PrerenderStorePPR | PrerenderStoreModern
 
 // /** Like `PrerenderStoreModern`, but only including static prerenders (i.e. not runtime prerenders) */
-export type StaticPrerenderStore = Exclude<
-  PrerenderStore,
-  PrerenderStoreModernRuntime
->
+export type StaticPrerenderStore = Exclude<PrerenderStore, PrerenderStoreModernRuntime>
 
-export interface CommonCacheStore
-  extends Omit<CommonWorkUnitStore, 'implicitTags'> {
+export interface CommonCacheStore extends Omit<CommonWorkUnitStore, 'implicitTags'> {
   /**
    * A cache work unit store might not always have an outer work unit store,
    * from which implicit tags could be inherited.
@@ -432,10 +415,7 @@ export function getHmrRefreshHash(
   return undefined
 }
 
-export function isHmrRefresh(
-  workStore: WorkStore,
-  workUnitStore: WorkUnitStore
-): boolean {
+export function isHmrRefresh(workStore: WorkStore, workUnitStore: WorkUnitStore): boolean {
   if (workStore.dev) {
     switch (workUnitStore.type) {
       case 'cache':
@@ -510,9 +490,7 @@ export function getDraftModeProviderForCacheScope(
   return undefined
 }
 
-export function getCacheSignal(
-  workUnitStore: WorkUnitStore
-): CacheSignal | null {
+export function getCacheSignal(workUnitStore: WorkUnitStore): CacheSignal | null {
   switch (workUnitStore.type) {
     case 'prerender':
     case 'prerender-client':
@@ -536,9 +514,7 @@ export function getCacheSignal(
   }
 }
 
-export function getRuntimeStagePromise(
-  workUnitStore: WorkUnitStore
-): Promise<void> | null {
+export function getRuntimeStagePromise(workUnitStore: WorkUnitStore): Promise<void> | null {
   switch (workUnitStore.type) {
     case 'prerender-runtime':
     case 'private-cache':

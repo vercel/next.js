@@ -6,11 +6,7 @@ const Page = () => {
     <>
       <h1>Content for page 1</h1>
       <div>
-        <Link
-          data-next-shallow-push
-          shallow
-          href={{ query: { params: 'testParams' } }}
-        >
+        <Link data-next-shallow-push shallow href={{ query: { params: 'testParams' } }}>
           Shallow push
         </Link>
       </div>

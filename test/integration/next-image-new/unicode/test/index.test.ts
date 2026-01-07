@@ -31,9 +31,7 @@ function runTests(mode: 'server' | 'dev') {
 
   it('should load internal unicode image', async () => {
     const src = await browser.elementById('internal').getAttribute('src')
-    expect(src).toMatch(
-      '/_next/image?url=%2F%C3%A4%C3%B6%C3%BC%C5%A1%C4%8D%C5%99%C3%AD.png'
-    )
+    expect(src).toMatch('/_next/image?url=%2F%C3%A4%C3%B6%C3%BC%C5%A1%C4%8D%C5%99%C3%AD.png')
     const fullSrc = new URL(src, `http://localhost:${appPort}`)
     const res = await fetch(fullSrc)
     expect(res.status).toBe(200)
@@ -73,8 +71,7 @@ function runTests(mode: 'server' | 'dev') {
         version: 1,
         images: {
           contentDispositionType: 'attachment',
-          contentSecurityPolicy:
-            "script-src 'none'; frame-src 'none'; sandbox;",
+          contentSecurityPolicy: "script-src 'none'; frame-src 'none'; sandbox;",
           dangerouslyAllowLocalIP: false,
           dangerouslyAllowSVG: false,
           deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
@@ -87,11 +84,9 @@ function runTests(mode: 'server' | 'dev') {
           remotePatterns: [
             {
               protocol: 'https',
-              hostname:
-                '^(?:^(?:image\\-optimization\\-test\\.vercel\\.app)$)$',
+              hostname: '^(?:^(?:image\\-optimization\\-test\\.vercel\\.app)$)$',
               port: '',
-              pathname:
-                '^(?:\\/(?!\\.{1,2}(?:\\/|$))(?:(?:(?!(?:^|\\/)\\.{1,2}(?:\\/|$)).)*?))$',
+              pathname: '^(?:\\/(?!\\.{1,2}(?:\\/|$))(?:(?:(?!(?:^|\\/)\\.{1,2}(?:\\/|$)).)*?))$',
               search: '',
             },
           ],
@@ -107,10 +102,7 @@ function runTests(mode: 'server' | 'dev') {
           minimumCacheTTL: 14400,
           path: '/_next/image',
           qualities: [75],
-          sizes: [
-            640, 750, 828, 1080, 1200, 1920, 2048, 3840, 32, 48, 64, 96, 128,
-            256, 384,
-          ],
+          sizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840, 32, 48, 64, 96, 128, 256, 384],
           unoptimized: false,
         },
       })
@@ -119,39 +111,33 @@ function runTests(mode: 'server' | 'dev') {
 }
 
 describe('Image Component Unicode Image URL', () => {
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
-    'development mode',
-    () => {
-      beforeAll(async () => {
-        appPort = await findPort()
-        app = await launchApp(appDir, appPort)
-        browser = await webdriver(appPort, '/')
-      })
-      afterAll(async () => {
-        await killApp(app)
-        if (browser) {
-          browser.close()
-        }
-      })
-      runTests('dev')
-    }
-  )
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      beforeAll(async () => {
-        await nextBuild(appDir)
-        appPort = await findPort()
-        app = await nextStart(appDir, appPort)
-        browser = await webdriver(appPort, '/')
-      })
-      afterAll(async () => {
-        await killApp(app)
-        if (browser) {
-          browser.close()
-        }
-      })
-      runTests('server')
-    }
-  )
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
+    beforeAll(async () => {
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+      browser = await webdriver(appPort, '/')
+    })
+    afterAll(async () => {
+      await killApp(app)
+      if (browser) {
+        browser.close()
+      }
+    })
+    runTests('dev')
+  })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
+    beforeAll(async () => {
+      await nextBuild(appDir)
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+      browser = await webdriver(appPort, '/')
+    })
+    afterAll(async () => {
+      await killApp(app)
+      if (browser) {
+        browser.close()
+      }
+    })
+    runTests('server')
+  })
 })

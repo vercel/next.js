@@ -4,14 +4,10 @@ import path from 'path'
   'app dir - typed-routes-with-webpack-worker',
   () => {
     it('builds successfully without errors', async () => {
-      const output = await nextBuild(
-        path.join(__dirname, 'good-routes'),
-        undefined,
-        {
-          stdout: true,
-          stderr: true,
-        }
-      )
+      const output = await nextBuild(path.join(__dirname, 'good-routes'), undefined, {
+        stdout: true,
+        stderr: true,
+      })
 
       // check for the experimental flag warning
       expect(output.stdout).toContain('webpackBuildWorker')
@@ -22,23 +18,17 @@ import path from 'path'
     })
 
     it('builds with valid errors', async () => {
-      const output = await nextBuild(
-        path.join(__dirname, 'bad-routes'),
-        undefined,
-        {
-          stdout: true,
-          stderr: true,
-        }
-      )
+      const output = await nextBuild(path.join(__dirname, 'bad-routes'), undefined, {
+        stdout: true,
+        stderr: true,
+      })
 
       // check for the experimental flag warning
       expect(output.stdout).toContain('webpackBuildWorker')
       // should have a failed build
       expect(output.code).toBe(1)
       // with correct error
-      expect(output.stderr).toContain(
-        `"/asdfasdfasdf" is not an existing route.`
-      )
+      expect(output.stderr).toContain(`"/asdfasdfasdf" is not an existing route.`)
     })
   }
 )

@@ -4,13 +4,7 @@ import { join } from 'path'
 import http from 'http'
 import httpProxy from 'http-proxy'
 import webdriver from 'next-webdriver'
-import {
-  findPort,
-  killApp,
-  launchApp,
-  nextBuild,
-  nextStart,
-} from 'next-test-utils'
+import { findPort, killApp, launchApp, nextBuild, nextStart } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
 
@@ -52,84 +46,78 @@ describe('SSG data 404', () => {
     return
   }
 
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
-    'development mode',
-    () => {
-      beforeAll(async () => {
-        appPort = await findPort()
-        app = await launchApp(appDir, appPort)
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
+    beforeAll(async () => {
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
 
-        const proxy = httpProxy.createProxyServer({
-          target: `http://localhost:${appPort}`,
-        })
-        proxyPort = await findPort()
-
-        proxyServer = http.createServer((req, res) => {
-          req.on('error', (e) => {
-            require('console').error(e)
-          })
-          res.on('error', (e) => {
-            require('console').error(e)
-          })
-          if (should404Data && req.url.match(/\/_next\/data/)) {
-            res.statusCode = 404
-            return res.end('not found')
-          }
-          proxy.web(req, res)
-        })
-
-        await new Promise<void>((resolve) => {
-          proxyServer.listen(proxyPort, () => resolve())
-        })
+      const proxy = httpProxy.createProxyServer({
+        target: `http://localhost:${appPort}`,
       })
-      afterAll(async () => {
-        await killApp(app)
-        proxyServer.close()
+      proxyPort = await findPort()
+
+      proxyServer = http.createServer((req, res) => {
+        req.on('error', (e) => {
+          require('console').error(e)
+        })
+        res.on('error', (e) => {
+          require('console').error(e)
+        })
+        if (should404Data && req.url.match(/\/_next\/data/)) {
+          res.statusCode = 404
+          return res.end('not found')
+        }
+        proxy.web(req, res)
       })
 
-      runTests()
-    }
-  )
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      beforeAll(async () => {
-        await nextBuild(appDir)
+      await new Promise<void>((resolve) => {
+        proxyServer.listen(proxyPort, () => resolve())
+      })
+    })
+    afterAll(async () => {
+      await killApp(app)
+      proxyServer.close()
+    })
 
-        appPort = await findPort()
-        app = await nextStart(appDir, appPort)
+    runTests()
+  })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
+    beforeAll(async () => {
+      await nextBuild(appDir)
 
-        const proxy = httpProxy.createProxyServer({
-          target: `http://localhost:${appPort}`,
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+
+      const proxy = httpProxy.createProxyServer({
+        target: `http://localhost:${appPort}`,
+      })
+      proxyPort = await findPort()
+
+      proxyServer = http.createServer((req, res) => {
+        req.on('error', (e) => {
+          require('console').error(e)
         })
-        proxyPort = await findPort()
-
-        proxyServer = http.createServer((req, res) => {
-          req.on('error', (e) => {
-            require('console').error(e)
-          })
-          res.on('error', (e) => {
-            require('console').error(e)
-          })
-          if (should404Data && req.url.match(/\/_next\/data/)) {
-            res.statusCode = 404
-            return res.end('not found')
-          }
-          proxy.web(req, res, undefined, (e) => {
-            require('console').error(e)
-          })
+        res.on('error', (e) => {
+          require('console').error(e)
         })
-
-        await new Promise<void>((resolve) => {
-          proxyServer.listen(proxyPort, () => resolve())
+        if (should404Data && req.url.match(/\/_next\/data/)) {
+          res.statusCode = 404
+          return res.end('not found')
+        }
+        proxy.web(req, res, undefined, (e) => {
+          require('console').error(e)
         })
       })
-      afterAll(async () => {
-        await killApp(app)
-        proxyServer.close()
-      })
 
-      runTests()
-    }
-  )
+      await new Promise<void>((resolve) => {
+        proxyServer.listen(proxyPort, () => resolve())
+      })
+    })
+    afterAll(async () => {
+      await killApp(app)
+      proxyServer.close()
+    })
+
+    runTests()
+  })
 })

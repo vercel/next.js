@@ -13,27 +13,22 @@ class ComponentPropsPlugin implements Plugin {
     this.componentPropsService = new ComponentPropsService();
   }
 
-  async exec(
-    props: SitecorePageProps,
-    context: GetServerSidePropsContext | GetStaticPropsContext,
-  ) {
+  async exec(props: SitecorePageProps, context: GetServerSidePropsContext | GetStaticPropsContext) {
     if (!props.layoutData.sitecore.route) return props;
 
     // Retrieve component props using side-effects defined on components level
     if (isServerSidePropsContext(context)) {
-      props.componentProps =
-        await this.componentPropsService.fetchServerSideComponentProps({
-          layoutData: props.layoutData,
-          context,
-          componentModule,
-        });
+      props.componentProps = await this.componentPropsService.fetchServerSideComponentProps({
+        layoutData: props.layoutData,
+        context,
+        componentModule,
+      });
     } else {
-      props.componentProps =
-        await this.componentPropsService.fetchStaticComponentProps({
-          layoutData: props.layoutData,
-          context,
-          componentModule,
-        });
+      props.componentProps = await this.componentPropsService.fetchStaticComponentProps({
+        layoutData: props.layoutData,
+        context,
+        componentModule,
+      });
     }
 
     return props;

@@ -1,11 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import {
-  PayloadMeUser,
-  PayloadAdminBarProps,
-  PayloadAdminBar,
-} from "payload-admin-bar";
+import { PayloadMeUser, PayloadAdminBarProps, PayloadAdminBar } from "payload-admin-bar";
 import { Gutter } from "../Gutter";
 import classes from "./index.module.scss";
 
@@ -19,11 +15,7 @@ export const AdminBar: React.FC<{
   const [user, setUser] = useState<PayloadMeUser>();
 
   return (
-    <div
-      className={[classes.adminBar, user && classes.show]
-        .filter(Boolean)
-        .join(" ")}
-    >
+    <div className={[classes.adminBar, user && classes.show].filter(Boolean).join(" ")}>
       <Gutter className={classes.blockContainer}>
         <PayloadAdminBar
           {...adminBarProps}

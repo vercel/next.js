@@ -1,6 +1,4 @@
-const Index = ({ query }) => (
-  <pre id="query-content">{JSON.stringify(query)}</pre>
-)
+const Index = ({ query }) => <pre id="query-content">{JSON.stringify(query)}</pre>
 
 Index.getInitialProps = ({ query }) => ({ query })
 

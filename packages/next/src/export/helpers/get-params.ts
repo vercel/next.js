@@ -1,7 +1,4 @@
-import {
-  type RouteMatchFn,
-  getRouteMatcher,
-} from '../../shared/lib/router/utils/route-matcher'
+import { type RouteMatchFn, getRouteMatcher } from '../../shared/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
 
 // The last page and matcher that this function handled.

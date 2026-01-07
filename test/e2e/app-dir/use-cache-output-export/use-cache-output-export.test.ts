@@ -23,9 +23,7 @@ describe('use-cache-output-export', () => {
     if (isNextStart) {
       const { cliOutput } = await next.build()
 
-      expect(cliOutput).not.toInclude(
-        'Server Actions are not supported with static export.'
-      )
+      expect(cliOutput).not.toInclude('Server Actions are not supported with static export.')
 
       server = await startCleanStaticServer(join(next.testDir, 'out'))
       const { port } = server.address() as AddressInfo

@@ -6,8 +6,8 @@ export default async function Page() {
   return (
     <>
       <p>
-        This page errors during the prospective render during build. It errors
-        on the first render during dev.
+        This page errors during the prospective render during build. It errors on the first render
+        during dev.
       </p>
       <Indirection>
         <ErrorFirstTime />

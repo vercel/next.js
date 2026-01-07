@@ -8,10 +8,7 @@ export const findSourceMapURL =
           return null
         }
 
-        if (
-          filename.startsWith(document.location.origin) &&
-          filename.includes('/_next/static')
-        ) {
+        if (filename.startsWith(document.location.origin) && filename.includes('/_next/static')) {
           // This is a request for a client chunk. This can only happen when
           // using Turbopack. In this case, since we control how those source
           // maps are generated, we can safely assume that the sourceMappingURL

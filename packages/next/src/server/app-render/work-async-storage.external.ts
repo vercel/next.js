@@ -7,7 +7,9 @@ import type { AfterContext } from '../after/after-context'
 import type { CacheLife } from '../use-cache/cache-life'
 
 // Share the instance module in the next-shared layer
-import { workAsyncStorageInstance } from './work-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
+import { workAsyncStorageInstance } from './work-async-storage-instance' with {
+  'turbopack-transition': 'next-shared',
+}
 import type { LazyResult } from '../lib/lazy-result'
 import type { DigestedError } from './create-error-handler'
 import type { ActionRevalidationKind } from '../../shared/lib/action-revalidation-kind'
@@ -96,9 +98,7 @@ export interface WorkStore {
 
   buildId: string
 
-  readonly reactLoadableManifest?: DeepReadonly<
-    Record<string, { files: string[] }>
-  >
+  readonly reactLoadableManifest?: DeepReadonly<Record<string, { files: string[] }>>
   readonly assetPrefix?: string
   readonly nonce?: string
 
@@ -112,10 +112,7 @@ export interface WorkStore {
    * might include request-specific things like `cookies()` inside a
    * `React.cache()`.
    */
-  runInCleanSnapshot: <R, TArgs extends any[]>(
-    fn: (...args: TArgs) => R,
-    ...args: TArgs
-  ) => R
+  runInCleanSnapshot: <R, TArgs extends any[]>(fn: (...args: TArgs) => R, ...args: TArgs) => R
 
   reactServerErrorsByDigest: Map<string, DigestedError>
 }

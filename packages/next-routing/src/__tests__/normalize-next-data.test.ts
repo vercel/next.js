@@ -9,9 +9,7 @@ function createReadableStream(): ReadableStream {
   })
 }
 
-function createBaseParams(
-  overrides: Partial<ResolveRoutesParams> = {}
-): ResolveRoutesParams {
+function createBaseParams(overrides: Partial<ResolveRoutesParams> = {}): ResolveRoutesParams {
   return {
     url: new URL('https://example.com/'),
     buildId: 'BUILD_ID',
@@ -56,9 +54,7 @@ describe('normalizeNextData - beforeMiddleware', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe(
-      '/_next/data/BUILD_ID/api/blog/post.json'
-    )
+    expect(result.matchedPathname).toBe('/_next/data/BUILD_ID/api/blog/post.json')
   })
 
   it('should normalize with basePath', async () => {
@@ -84,9 +80,7 @@ describe('normalizeNextData - beforeMiddleware', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe(
-      '/base/_next/data/BUILD_ID/api/page.json'
-    )
+    expect(result.matchedPathname).toBe('/base/_next/data/BUILD_ID/api/page.json')
   })
 })
 
@@ -194,9 +188,7 @@ describe('normalizeNextData - afterFiles', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe(
-      '/_next/data/BUILD_ID/internal/users.json'
-    )
+    expect(result.matchedPathname).toBe('/_next/data/BUILD_ID/internal/users.json')
   })
 })
 
@@ -246,8 +238,7 @@ describe('normalizeNextData - dynamic routes', () => {
         ],
         dynamicRoutes: [
           {
-            sourceRegex:
-              '^/_next/data/BUILD_ID/users/(?<username>[^/]+)\\.json$',
+            sourceRegex: '^/_next/data/BUILD_ID/users/(?<username>[^/]+)\\.json$',
             destination: '/_next/data/BUILD_ID/users/alice.json',
           },
         ],
@@ -296,9 +287,7 @@ describe('normalizeNextData - dynamic routes', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe(
-      '/_next/data/BUILD_ID/posts/post-1.json'
-    )
+    expect(result.matchedPathname).toBe('/_next/data/BUILD_ID/posts/post-1.json')
     expect(result.routeMatches).toEqual({
       '1': 'post-1',
       slug: 'post-1',

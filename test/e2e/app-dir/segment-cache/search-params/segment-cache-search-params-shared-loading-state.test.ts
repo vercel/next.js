@@ -16,14 +16,11 @@ describe('segment cache (search params shared loading state)', () => {
       'pathname and different search params',
     async () => {
       let act: ReturnType<typeof createRouterAct>
-      const browser = await next.browser(
-        '/search-params-shared-loading-state',
-        {
-          beforePageLoad(page) {
-            act = createRouterAct(page)
-          },
-        }
-      )
+      const browser = await next.browser('/search-params-shared-loading-state', {
+        beforePageLoad(page) {
+          act = createRouterAct(page)
+        },
+      })
 
       // Reveal and prefetch the link without search params
       const revealFirstLink = await browser.elementByCss(
@@ -68,12 +65,8 @@ describe('segment cache (search params shared loading state)', () => {
         // Verify the navigation completed successfully
         const staticContent = await browser.elementById('static-content')
         expect(await staticContent.text()).toBe('Static content')
-        const searchParamsContent = await browser.elementById(
-          'search-params-content'
-        )
-        expect(await searchParamsContent.text()).toBe(
-          'Search param value: test'
-        )
+        const searchParamsContent = await browser.elementById('search-params-content')
+        expect(await searchParamsContent.text()).toBe('Search param value: test')
       }, 'no-requests')
     }
   )

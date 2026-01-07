@@ -16,16 +16,12 @@ describe('config-testing-utils', () => {
         url: 'https://nextjs.org/test',
         nextConfig: {
           async redirects() {
-            return [
-              { source: '/test', destination: '/test2', permanent: false },
-            ]
+            return [{ source: '/test', destination: '/test2', permanent: false }]
           },
         },
       })
       expect(response.status).toEqual(307)
-      expect(response.headers.get('location')).toEqual(
-        'https://nextjs.org/test2'
-      )
+      expect(response.headers.get('location')).toEqual('https://nextjs.org/test2')
     })
 
     it('handles redirect with params', async () => {
@@ -44,9 +40,7 @@ describe('config-testing-utils', () => {
         },
       })
       expect(response.status).toEqual(307)
-      expect(response.headers.get('location')).toEqual(
-        'https://nextjs.org/test2/foo'
-      )
+      expect(response.headers.get('location')).toEqual('https://nextjs.org/test2/foo')
     })
 
     it('handles redirect with query params', async () => {
@@ -65,9 +59,7 @@ describe('config-testing-utils', () => {
         },
       })
       expect(response.status).toEqual(308)
-      expect(response.headers.get('location')).toEqual(
-        'https://nextjs.org/test2?slug=foo'
-      )
+      expect(response.headers.get('location')).toEqual('https://nextjs.org/test2?slug=foo')
     })
 
     it("ignores redirect that doesn't match has", async () => {
@@ -123,9 +115,7 @@ describe('config-testing-utils', () => {
         },
       })
       expect(response.status).toEqual(307)
-      expect(response.headers.get('location')).toEqual(
-        'https://nextjs.org/test2/foo'
-      )
+      expect(response.headers.get('location')).toEqual('https://nextjs.org/test2/foo')
     })
 
     it('redirects take precedence over rewrites', async () => {
@@ -152,9 +142,7 @@ describe('config-testing-utils', () => {
         },
       })
       expect(response.status).toEqual(307)
-      expect(response.headers.get('location')).toEqual(
-        'https://nextjs.org/test2/foo'
-      )
+      expect(response.headers.get('location')).toEqual('https://nextjs.org/test2/foo')
     })
   })
 

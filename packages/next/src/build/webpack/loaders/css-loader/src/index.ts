@@ -17,10 +17,7 @@ function getModulesOptions(rawOptions: any, loaderContext: any) {
     if (!isModules) {
       return false
     }
-  } else if (
-    typeof rawOptions.modules === 'boolean' &&
-    rawOptions.modules === false
-  ) {
+  } else if (typeof rawOptions.modules === 'boolean' && rawOptions.modules === false) {
     return false
   }
 
@@ -38,17 +35,12 @@ function getModulesOptions(rawOptions: any, loaderContext: any) {
     exportOnlyLocals: false,
   }
 
-  if (
-    typeof rawOptions.modules === 'boolean' ||
-    typeof rawOptions.modules === 'string'
-  ) {
-    modulesOptions.mode =
-      typeof rawOptions.modules === 'string' ? rawOptions.modules : 'local'
+  if (typeof rawOptions.modules === 'boolean' || typeof rawOptions.modules === 'string') {
+    modulesOptions.mode = typeof rawOptions.modules === 'string' ? rawOptions.modules : 'local'
   } else {
     if (rawOptions.modules) {
       if (typeof rawOptions.modules.auto === 'boolean') {
-        const isModules =
-          rawOptions.modules.auto && moduleRegExp.test(resourcePath)
+        const isModules = rawOptions.modules.auto && moduleRegExp.test(resourcePath)
 
         if (!isModules) {
           return false
@@ -102,9 +94,7 @@ function getModulesOptions(rawOptions: any, loaderContext: any) {
 function normalizeOptions(rawOptions: any, loaderContext: any) {
   if (rawOptions.icss) {
     loaderContext.emitWarning(
-      new Error(
-        'The "icss" option is deprecated, use "modules.compileType: "icss"" instead'
-      )
+      new Error('The "icss" option is deprecated, use "modules.compileType: "icss"" instead')
     )
   }
 
@@ -117,25 +107,17 @@ function normalizeOptions(rawOptions: any, loaderContext: any) {
     // TODO remove in the next major release
     icss: typeof rawOptions.icss === 'undefined' ? false : rawOptions.icss,
     sourceMap:
-      typeof rawOptions.sourceMap === 'boolean'
-        ? rawOptions.sourceMap
-        : loaderContext.sourceMap,
+      typeof rawOptions.sourceMap === 'boolean' ? rawOptions.sourceMap : loaderContext.sourceMap,
     importLoaders:
       typeof rawOptions.importLoaders === 'string'
         ? parseInt(rawOptions.importLoaders, 10)
         : rawOptions.importLoaders,
-    esModule:
-      typeof rawOptions.esModule === 'undefined' ? true : rawOptions.esModule,
+    esModule: typeof rawOptions.esModule === 'undefined' ? true : rawOptions.esModule,
     fontLoader: rawOptions.fontLoader,
   }
 }
 
-export default async function loader(
-  this: any,
-  content: string,
-  map: any,
-  meta: any
-) {
+export default async function loader(this: any, content: string, map: any, meta: any) {
   const rawOptions = this.getOptions()
 
   const plugins: any[] = []
@@ -202,10 +184,7 @@ export default async function loader(
             filter: getFilter(options.import, this.resourcePath),
             resolver,
             urlHandler: (url: any) =>
-              stringifyRequest(
-                this,
-                getPreRequester(this)(options.importLoaders) + url
-              ),
+              stringifyRequest(this, getPreRequester(this)(options.importLoaders) + url),
           })
         )
       }
@@ -254,10 +233,7 @@ export default async function loader(
             rootContext: this.rootContext,
             resolver: icssResolver,
             urlHandler: (url: string) =>
-              stringifyRequest(
-                this,
-                getPreRequester(this)(options.importLoaders) + url
-              ),
+              stringifyRequest(this, getPreRequester(this)(options.importLoaders) + url),
           })
         )
       }
@@ -293,9 +269,7 @@ export default async function loader(
           this.addDependency(error.file)
         }
 
-        throw error.name === 'CssSyntaxError'
-          ? new CssSyntaxError(error)
-          : error
+        throw error.name === 'CssSyntaxError' ? new CssSyntaxError(error) : error
       }
 
       for (const warning of result.warnings()) {

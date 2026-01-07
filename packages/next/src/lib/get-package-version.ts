@@ -10,11 +10,7 @@ type PackageJsonDependencies = {
 
 let cachedDeps: Promise<PackageJsonDependencies>
 
-export function getDependencies({
-  cwd,
-}: {
-  cwd: string
-}): Promise<PackageJsonDependencies> {
+export function getDependencies({ cwd }: { cwd: string }): Promise<PackageJsonDependencies> {
   if (cachedDeps) {
     return cachedDeps
   }
@@ -47,10 +43,7 @@ export async function getPackageVersion({
     return null
   }
 
-  const cwd2 =
-    cwd.endsWith(path.posix.sep) || cwd.endsWith(path.win32.sep)
-      ? cwd
-      : `${cwd}/`
+  const cwd2 = cwd.endsWith(path.posix.sep) || cwd.endsWith(path.win32.sep) ? cwd : `${cwd}/`
 
   try {
     const targetPath = require.resolve(`${name}/package.json`, {

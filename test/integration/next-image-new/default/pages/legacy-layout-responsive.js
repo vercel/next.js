@@ -5,8 +5,8 @@ export default function Page() {
     <div className="page">
       <h1>Using legacy prop layout="responsive"</h1>
       <p>
-        Even though we don't support "layout" in next/image, we can try to
-        correct the style and print a warning.
+        Even though we don't support "layout" in next/image, we can try to correct the style and
+        print a warning.
       </p>
       <Image
         id="img"

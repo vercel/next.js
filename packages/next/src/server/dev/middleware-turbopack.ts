@@ -11,10 +11,7 @@ import {
 import { middlewareResponse } from '../../next-devtools/server/middleware-response'
 import path from 'path'
 import { openFileInEditor } from '../../next-devtools/server/launch-editor'
-import {
-  SourceMapConsumer,
-  type NullableMappedPosition,
-} from 'next/dist/compiled/source-map08'
+import { SourceMapConsumer, type NullableMappedPosition } from 'next/dist/compiled/source-map08'
 import type { Project, TurbopackStackFrame } from '../../build/swc/types'
 import {
   type ModernSourceMapPayload,
@@ -133,9 +130,7 @@ function parseFile(fileParam: string | null): string | undefined {
   return devirtualizeReactServerURL(fileParam)
 }
 
-function createStackFrames(
-  body: OriginalStackFramesRequest
-): TurbopackStackFrame[] {
+function createStackFrames(body: OriginalStackFramesRequest): TurbopackStackFrame[] {
   const { frames, isServer } = body
 
   return frames
@@ -157,9 +152,7 @@ function createStackFrames(
     .filter((f): f is TurbopackStackFrame => f !== undefined)
 }
 
-function createStackFrame(
-  searchParams: URLSearchParams
-): TurbopackStackFrame | undefined {
+function createStackFrame(searchParams: URLSearchParams): TurbopackStackFrame | undefined {
   const file = parseFile(searchParams.get('file'))
 
   if (!file) {
@@ -217,10 +210,7 @@ async function nativeTraceSource(
         traced = null
       } else {
         const sourceContent: string | null =
-          consumer.sourceContentFor(
-            originalPosition.source,
-            /* returnNullOnMissing */ true
-          ) ?? null
+          consumer.sourceContentFor(originalPosition.source, /* returnNullOnMissing */ true) ?? null
 
         traced = { originalPosition, sourceContent }
       }
@@ -239,15 +229,10 @@ async function nativeTraceSource(
       // TODO(veil): Upstream a method to sourcemap consumer that immediately says if a frame is ignored or not.
       let ignored = false
       if (applicableSourceMap === undefined) {
-        console.error(
-          'No applicable source map found in sections for frame',
-          frame
-        )
+        console.error('No applicable source map found in sections for frame', frame)
       } else {
         // TODO: O(n^2). Consider moving `ignoreList` into a Set
-        const sourceIndex = applicableSourceMap.sources.indexOf(
-          originalPosition.source!
-        )
+        const sourceIndex = applicableSourceMap.sources.indexOf(originalPosition.source!)
         ignored =
           applicableSourceMap.ignoreList?.includes(sourceIndex) ??
           // When sourcemap is not available, fallback to checking `frame.file`.
@@ -266,8 +251,7 @@ async function nativeTraceSource(
             ?.replace('__webpack_exports__.', '') || '<unknown>',
         file: originalPosition.source,
         line1: originalPosition.line,
-        column1:
-          originalPosition.column === null ? null : originalPosition.column + 1,
+        column1: originalPosition.column === null ? null : originalPosition.column + 1,
         // TODO: c&p from async createOriginalStackFrame but why not frame.arguments?
         arguments: [],
         ignored,
@@ -298,10 +282,7 @@ async function createOriginalStackFrame(
   }
 
   let normalizedStackFrameLocation = traced.frame.file
-  if (
-    normalizedStackFrameLocation !== null &&
-    normalizedStackFrameLocation.startsWith('file://')
-  ) {
+  if (normalizedStackFrameLocation !== null && normalizedStackFrameLocation.startsWith('file://')) {
     normalizedStackFrameLocation = path.relative(
       projectPath,
       fileURLToPath(normalizedStackFrameLocation)
@@ -370,11 +351,7 @@ export function getOverlayMiddleware({
       let openEditorResult
       if (isAppRelativePath) {
         const relativeFilePath = searchParams.get('file') || ''
-        const appPath = path.join(
-          'app',
-          isSrcDir ? 'src' : '',
-          relativeFilePath
-        )
+        const appPath = path.join('app', isSrcDir ? 'src' : '', relativeFilePath)
         openEditorResult = await openFileInEditor(appPath, 1, 1, projectPath)
       } else {
         const frame = createStackFrame(searchParams)
@@ -388,10 +365,7 @@ export function getOverlayMiddleware({
       }
 
       if (openEditorResult.error) {
-        return middlewareResponse.internalServerError(
-          res,
-          openEditorResult.error
-        )
+        return middlewareResponse.internalServerError(res, openEditorResult.error)
       }
       if (!openEditorResult.found) {
         return middlewareResponse.notFound(res)
@@ -459,12 +433,9 @@ export function getSourceMapMiddleware(project: Project) {
     } catch (cause) {
       return middlewareResponse.internalServerError(
         res,
-        new Error(
-          `Failed to get source map for '${filename}'. This is a bug in Next.js`,
-          {
-            cause,
-          }
-        )
+        new Error(`Failed to get source map for '${filename}'. This is a bug in Next.js`, {
+          cause,
+        })
       )
     }
 
@@ -497,11 +468,7 @@ export async function getOriginalStackFrames({
   return Promise.all(
     stackFrames.map(async (frame) => {
       try {
-        const stackFrame = await createOriginalStackFrame(
-          project,
-          projectPath,
-          frame
-        )
+        const stackFrame = await createOriginalStackFrame(project, projectPath, frame)
         if (stackFrame === null) {
           return {
             status: 'rejected',

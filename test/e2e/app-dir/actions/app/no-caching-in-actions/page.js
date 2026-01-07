@@ -8,9 +8,7 @@ export default function Page() {
   return (
     <>
       <h1>No Caching in Actions: {isPending ? 'pending' : 'not pending'}</h1>
-      {result !== null ? (
-        <pre id="fetched-data">{JSON.stringify(result)}</pre>
-      ) : null}
+      {result !== null ? <pre id="fetched-data">{JSON.stringify(result)}</pre> : null}
       <button
         id="trigger-fetch"
         onClick={() =>

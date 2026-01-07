@@ -33,30 +33,18 @@ const runTests = () => {
     expect(await browser.elementById('static-unoptimized')).toBeTruthy()
   })
   it('Should use immutable cache-control header for static import', async () => {
-    await browser.eval(
-      `document.getElementById("basic-static").scrollIntoView()`
-    )
+    await browser.eval(`document.getElementById("basic-static").scrollIntoView()`)
     await waitFor(1000)
-    const url = await browser.eval(
-      `document.getElementById("basic-static").src`
-    )
+    const url = await browser.eval(`document.getElementById("basic-static").src`)
     const res = await fetch(url)
-    expect(res.headers.get('cache-control')).toBe(
-      'public, max-age=315360000, immutable'
-    )
+    expect(res.headers.get('cache-control')).toBe('public, max-age=315360000, immutable')
   })
   it('Should use immutable cache-control header even when unoptimized', async () => {
-    await browser.eval(
-      `document.getElementById("static-unoptimized").scrollIntoView()`
-    )
+    await browser.eval(`document.getElementById("static-unoptimized").scrollIntoView()`)
     await waitFor(1000)
-    const url = await browser.eval(
-      `document.getElementById("static-unoptimized").src`
-    )
+    const url = await browser.eval(`document.getElementById("static-unoptimized").src`)
     const res = await fetch(url)
-    expect(res.headers.get('cache-control')).toBe(
-      'public, max-age=31536000, immutable'
-    )
+    expect(res.headers.get('cache-control')).toBe('public, max-age=31536000, immutable')
   })
   it('Should automatically provide an image height and width', async () => {
     expect(html).toContain('width:400px;height:300px')
@@ -69,15 +57,11 @@ const runTests = () => {
     const $ = cheerio.load(html)
     // The base64 snapshot is not necessarily stable across OSs and Architectures
     if (process.env.IS_TURBOPACK_TEST) {
-      expect(
-        replaceDataUrl($('#basic-static').attr('style'))
-      ).toMatchInlineSnapshot(
+      expect(replaceDataUrl($('#basic-static').attr('style'))).toMatchInlineSnapshot(
         `"position:absolute;top:0;left:0;bottom:0;right:0;box-sizing:border-box;padding:0;border:none;margin:auto;display:block;width:0;height:0;min-width:100%;max-width:100%;min-height:100%;max-height:100%;background-size:cover;background-position:0% 0%;filter:blur(20px);background-image:url("data:<REPLACED>")"`
       )
     } else {
-      expect(
-        replaceDataUrl($('#basic-static').attr('style'))
-      ).toMatchInlineSnapshot(
+      expect(replaceDataUrl($('#basic-static').attr('style'))).toMatchInlineSnapshot(
         `"position:absolute;top:0;left:0;bottom:0;right:0;box-sizing:border-box;padding:0;border:none;margin:auto;display:block;width:0;height:0;min-width:100%;max-width:100%;min-height:100%;max-height:100%;background-size:cover;background-position:0% 0%;filter:blur(20px);background-image:url("data:<REPLACED>")"`
       )
     }
@@ -106,9 +90,7 @@ const runTests = () => {
   })
 
   it('should load staticprops imported image', async () => {
-    const src = await browser
-      .elementById('basic-staticprop')
-      .getAttribute('src')
+    const src = await browser.elementById('basic-staticprop').getAttribute('src')
     expect(src).toMatch(
       /_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Fexif-rotation(.+)\.jpg&w=256&q=75/
     )
@@ -119,51 +101,42 @@ const runTests = () => {
 }
 
 describe('Build Error Tests', () => {
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      it('should throw build error when import statement is used with missing file', async () => {
-        await indexPage.replace(
-          '../public/foo/test-rect.jpg',
-          '../public/foo/test-rect-broken.jpg'
-        )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
+    it('should throw build error when import statement is used with missing file', async () => {
+      await indexPage.replace('../public/foo/test-rect.jpg', '../public/foo/test-rect-broken.jpg')
 
-        const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
-        await indexPage.restore()
+      const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
+      await indexPage.restore()
 
-        expect(stderr).toContain(
-          "Module not found: Can't resolve '../public/foo/test-rect-broken.jpg"
-        )
-        // should contain the importing module
-        if (process.env.IS_TURBOPACK_TEST) {
-          // For this test with Turbopack the root of the project is the root of the Next.js repository because it's not isolated.
-          expect(stderr).toContain('pages/static-img.js')
-        } else {
-          expect(stderr).toContain('./pages/static-img.js')
-        }
-        // should contain a import trace
-        expect(stderr).not.toContain('Import trace for requested module')
-      })
-    }
-  )
+      expect(stderr).toContain(
+        "Module not found: Can't resolve '../public/foo/test-rect-broken.jpg"
+      )
+      // should contain the importing module
+      if (process.env.IS_TURBOPACK_TEST) {
+        // For this test with Turbopack the root of the project is the root of the Next.js repository because it's not isolated.
+        expect(stderr).toContain('pages/static-img.js')
+      } else {
+        expect(stderr).toContain('./pages/static-img.js')
+      }
+      // should contain a import trace
+      expect(stderr).not.toContain('Import trace for requested module')
+    })
+  })
 })
 describe('Static Image Component Tests', () => {
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      beforeAll(async () => {
-        await nextBuild(appDir)
-        appPort = await findPort()
-        app = await nextStart(appDir, appPort)
-        html = await renderViaHTTP(appPort, '/static-img')
-        browser = await webdriver(appPort, '/static-img')
-      })
-      afterAll(async () => {
-        await killApp(app)
-      })
-      runTests()
-    }
-  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
+    beforeAll(async () => {
+      await nextBuild(appDir)
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+      html = await renderViaHTTP(appPort, '/static-img')
+      browser = await webdriver(appPort, '/static-img')
+    })
+    afterAll(async () => {
+      await killApp(app)
+    })
+    runTests()
+  })
 })
 
 function replaceDataUrl(styles) {

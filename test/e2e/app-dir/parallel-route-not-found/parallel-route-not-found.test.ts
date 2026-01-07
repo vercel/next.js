@@ -9,9 +9,7 @@ describe('parallel-route-not-found', () => {
   it.skip('should handle a layout that attempts to render a missing parallel route', async () => {
     const browser = await next.browser('/no-bar-slot')
     const logs = await browser.log()
-    expect(await browser.elementByCss('body').text()).toContain(
-      'This page could not be found'
-    )
+    expect(await browser.elementByCss('body').text()).toContain('This page could not be found')
     const warnings = logs.filter((log) => log.source === 'warning')
     if (isNextDev) {
       expect(warnings.length).toBe(1)
@@ -29,9 +27,7 @@ describe('parallel-route-not-found', () => {
     const browser = await next.browser('/both-slots-missing')
     const logs = await browser.log()
 
-    expect(await browser.elementByCss('body').text()).toContain(
-      'This page could not be found'
-    )
+    expect(await browser.elementByCss('body').text()).toContain('This page could not be found')
 
     const warnings = logs.filter((log) => log.source === 'warning')
     if (isNextDev) {
@@ -49,9 +45,7 @@ describe('parallel-route-not-found', () => {
     const browser = await next.browser('/has-both-slots/not-found-error')
     const logs = await browser.log()
 
-    expect(await browser.elementByCss('body').text()).toContain(
-      'This page could not be found'
-    )
+    expect(await browser.elementByCss('body').text()).toContain('This page could not be found')
 
     const warnings = logs.filter((log) => log.source === 'warning')
     expect(warnings.length).toBe(0)
@@ -61,9 +55,7 @@ describe('parallel-route-not-found', () => {
     const browser = await next.browser('/has-both-slots')
     const logs = await browser.log()
 
-    expect(await browser.elementByCss('body').text()).toContain(
-      'Has Both Slots'
-    )
+    expect(await browser.elementByCss('body').text()).toContain('Has Both Slots')
     expect(await browser.elementByCss('body').text()).toContain('@foo slot')
     expect(await browser.elementByCss('body').text()).toContain('@bar slot')
 
@@ -76,9 +68,7 @@ describe('parallel-route-not-found', () => {
 
     // The page's `generateMetadata` function threw a `notFound()` error,
     // so we should see the not found page.
-    expect(await browser.elementByCss('body').text()).toContain(
-      'Custom Not Found!'
-    )
+    expect(await browser.elementByCss('body').text()).toContain('Custom Not Found!')
   })
 
   it('should handle `notFound()` in a slot', async () => {
@@ -86,9 +76,7 @@ describe('parallel-route-not-found', () => {
 
     // The page's `generateMetadata` function threw a `notFound()` error,
     // so we should see the not found page.
-    expect(await browser.elementByCss('body').text()).toContain(
-      'Custom Not Found!'
-    )
+    expect(await browser.elementByCss('body').text()).toContain('Custom Not Found!')
   })
 
   // TODO-APP: This test should probably work. But we only provide a not-found boundary for the children slot.
@@ -98,18 +86,14 @@ describe('parallel-route-not-found', () => {
 
     // The page's `generateMetadata` function threw a `notFound()` error,
     // so we should see the not found page.
-    expect(await browser.elementByCss('body').text()).toContain(
-      'Custom Not Found!'
-    )
+    expect(await browser.elementByCss('body').text()).toContain('Custom Not Found!')
   })
 
   if (isNextDev) {
     it('should not log any warnings for a regular not found page', async () => {
       const browser = await next.browser('/this-page-doesnt-exist')
       const logs = await browser.log()
-      expect(await browser.elementByCss('body').text()).toContain(
-        'This page could not be found'
-      )
+      expect(await browser.elementByCss('body').text()).toContain('This page could not be found')
       const warnings = logs.filter((log) => log.source === 'warning')
       expect(warnings.length).toBe(0)
     })

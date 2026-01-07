@@ -23,10 +23,7 @@ describe('Middleware Responses', () => {
 
     it(`${label}responds with multiple cookies`, async () => {
       const res = await fetchViaHTTP(next.url, `${locale}/two-cookies`)
-      expect(res.headers.raw()['set-cookie']).toEqual([
-        'foo=chocochip',
-        'bar=chocochip',
-      ])
+      expect(res.headers.raw()['set-cookie']).toEqual(['foo=chocochip', 'bar=chocochip'])
     })
 
     it(`${label}should not fail when returning a stream`, async () => {
@@ -64,10 +61,7 @@ describe('Middleware Responses', () => {
     })
 
     it(`${label}should respond with two headers`, async () => {
-      const res = await fetchViaHTTP(
-        next.url,
-        `${locale}/header?nested-header=true`
-      )
+      const res = await fetchViaHTTP(next.url, `${locale}/header?nested-header=true`)
       expect(res.headers.get('x-first-header')).toBe('valid')
       expect(res.headers.get('x-nested-header')).toBe('valid')
     })

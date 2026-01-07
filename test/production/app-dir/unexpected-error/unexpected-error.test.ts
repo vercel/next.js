@@ -11,9 +11,7 @@ describe('unexpected-error', () => {
   })
 
   it('cannot change response status when streaming has started', async () => {
-    const res = await next.fetch(
-      '/ssr-unexpected-error-after-streaming?error=true'
-    )
+    const res = await next.fetch('/ssr-unexpected-error-after-streaming?error=true')
     expect(res.status).toBe(200)
   })
 

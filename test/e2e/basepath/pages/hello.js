@@ -22,11 +22,7 @@ function Page() {
         <h1>dynamic page</h1>
       </Link>
       <br />
-      <Link
-        href="/catchall/[...parts]"
-        as="/catchall/hello/world"
-        id="catchall-link"
-      >
+      <Link href="/catchall/[...parts]" as="/catchall/hello/world" id="catchall-link">
         <h1>catchall page</h1>
       </Link>
       <br />

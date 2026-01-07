@@ -34,9 +34,7 @@ describe('app dir - not found with default 404 page', () => {
     const browser = await next.browser('/non-existent')
     await browser.waitForElementByCss('.next-error-h1')
     expect(await browser.elementByCss('.next-error-h1').text()).toBe('404')
-    expect(await browser.elementByCss('html').getAttribute('class')).toBe(
-      'root-layout-html'
-    )
+    expect(await browser.elementByCss('html').getAttribute('class')).toBe('root-layout-html')
   })
 
   it('should return 404 status code for default not-found page', async () => {
@@ -68,9 +66,7 @@ describe('app dir - not found with default 404 page', () => {
     await browser.waitForElementByCss('.next-error-h1')
 
     expect(await browser.elementByCss('h1').text()).toBe('404')
-    expect(await browser.elementByCss('h2').text()).toBe(
-      'This page could not be found.'
-    )
+    expect(await browser.elementByCss('h2').text()).toBe('This page could not be found.')
   })
 
   it('should be able to navigate to page with calling not-found in metadata', async () => {
@@ -80,16 +76,12 @@ describe('app dir - not found with default 404 page', () => {
     await browser.waitForElementByCss('.next-error-h1')
 
     expect(await browser.elementByCss('h1').text()).toBe('404')
-    expect(await browser.elementByCss('h2').text()).toBe(
-      'This page could not be found.'
-    )
+    expect(await browser.elementByCss('h2').text()).toBe('This page could not be found.')
   })
 
   it('should render default not found for group routes if not found is not defined', async () => {
     const browser = await next.browser('/group-dynamic/123')
-    expect(await browser.elementByCss('#page').text()).toBe(
-      'group-dynamic [id]'
-    )
+    expect(await browser.elementByCss('#page').text()).toBe('group-dynamic [id]')
 
     await browser.loadPage(next.url + '/group-dynamic/404')
     await waitForNoRedbox(browser)

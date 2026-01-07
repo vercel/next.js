@@ -7,17 +7,13 @@ describe.skip('app-dir - metadata-streaming-config', () => {
   })
 
   it('should have the default streaming metadata config output in routes-manifest.json', async () => {
-    const requiredServerFiles = JSON.parse(
-      await next.readFile('.next/required-server-files.json')
-    )
+    const requiredServerFiles = JSON.parse(await next.readFile('.next/required-server-files.json'))
 
     expect(requiredServerFiles.config.htmlLimitedBots).toMatchInlineSnapshot(
       `"[\\w-]+-Google|Google-[\\w-]+|Chrome-Lighthouse|Slurp|DuckDuckBot|baiduspider|yandex|sogou|bitlybot|tumblr|vkShare|quora link preview|redditbot|ia_archiver|Bingbot|BingPreview|applebot|facebookexternalhit|facebookcatalog|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview|Yeti|googleweblight"`
     )
 
-    const prerenderManifest = JSON.parse(
-      await next.readFile('.next/prerender-manifest.json')
-    )
+    const prerenderManifest = JSON.parse(await next.readFile('.next/prerender-manifest.json'))
     const { routes } = prerenderManifest
 
     const bypassConfigs = Object.keys(routes)

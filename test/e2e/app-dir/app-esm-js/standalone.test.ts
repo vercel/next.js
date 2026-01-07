@@ -2,12 +2,7 @@ import { FileRef, nextTestSetup } from 'e2e-utils'
 import fs from 'fs-extra'
 import os from 'os'
 import path from 'path'
-import {
-  findPort,
-  initNextServerScript,
-  killApp,
-  fetchViaHTTP,
-} from 'next-test-utils'
+import { findPort, initNextServerScript, killApp, fetchViaHTTP } from 'next-test-utils'
 
 if (!(globalThis as any).isNextStart) {
   it('should skip for non-next start', () => {})
@@ -37,10 +32,7 @@ if (!(globalThis as any).isNextStart) {
     it('should work correctly with output standalone', async () => {
       const tmpFolder = path.join(os.tmpdir(), 'next-standalone-' + Date.now())
       await fs.mkdirp(tmpFolder)
-      await fs.writeFile(
-        path.join(tmpFolder, 'package.json'),
-        '{"type": "module"}'
-      )
+      await fs.writeFile(path.join(tmpFolder, 'package.json'), '{"type": "module"}')
       const distFolder = path.join(tmpFolder, 'test')
       await fs.move(path.join(next.testDir, '.next/standalone'), distFolder)
       let server: any

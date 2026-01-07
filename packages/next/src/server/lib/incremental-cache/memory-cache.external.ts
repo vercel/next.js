@@ -21,11 +21,8 @@ export function getMemoryCache(maxMemoryCacheSize: number) {
       // rough estimate of size of cache value
       return (
         value.html.length +
-        (JSON.stringify(
-          value.kind === CachedRouteKind.APP_PAGE
-            ? value.rscData
-            : value.pageData
-        )?.length || 0)
+        (JSON.stringify(value.kind === CachedRouteKind.APP_PAGE ? value.rscData : value.pageData)
+          ?.length || 0)
       )
     })
   }

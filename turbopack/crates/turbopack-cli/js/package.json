@@ -1,9 +1,9 @@
 {
   "name": "@vercel/turbopack-cli",
   "version": "0.0.0",
+  "private": true,
   "description": "Turbopack-cli runtime",
   "license": "UNLICENSED",
-  "private": true,
   "scripts": {
     "check": "tsc --noEmit"
   },

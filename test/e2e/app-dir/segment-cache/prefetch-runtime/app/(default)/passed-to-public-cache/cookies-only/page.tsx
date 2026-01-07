@@ -12,8 +12,8 @@ export default async function Page() {
     <main>
       <DebugRenderKind />
       <p>
-        This page uses cookies (from a private cache) and no uncached IO, So it
-        should be completely prefetchable with a runtime prefetch.
+        This page uses cookies (from a private cache) and no uncached IO, So it should be completely
+        prefetchable with a runtime prefetch.
       </p>
       <Suspense fallback={<div style={{ color: 'grey' }}>Loading 1...</div>}>
         <RuntimePrefetchable />
@@ -28,9 +28,7 @@ async function RuntimePrefetchable() {
   // We've already awaited cookies, but we still want to make sure
   // that the cache doesn't consider them a hanging promise
   const cookieValue = await publicCache(
-    cookies().then(
-      (cookieStore) => cookieStore.get('testCookie')?.value ?? null
-    )
+    cookies().then((cookieStore) => cookieStore.get('testCookie')?.value ?? null)
   )
   return (
     <div style={{ border: '1px solid blue', padding: '1em' }}>

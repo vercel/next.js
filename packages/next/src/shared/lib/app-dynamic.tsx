@@ -26,9 +26,7 @@ export type DynamicOptions<P = {}> = LoadableGeneratedOptions & {
 
 export type LoadableOptions<P = {}> = DynamicOptions<P>
 
-export type LoadableFn<P = {}> = (
-  opts: LoadableOptions<P>
-) => React.ComponentType<P>
+export type LoadableFn<P = {}> = (opts: LoadableOptions<P>) => React.ComponentType<P>
 
 export type LoadableComponent<P = {}> = React.ComponentType<P>
 

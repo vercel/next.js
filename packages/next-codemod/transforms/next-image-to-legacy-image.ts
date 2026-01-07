@@ -1,11 +1,7 @@
 import type { API, FileInfo, Options } from 'jscodeshift'
 import { createParserFromPath } from '../lib/parser'
 
-export default function transformer(
-  file: FileInfo,
-  _api: API,
-  options: Options
-) {
+export default function transformer(file: FileInfo, _api: API, options: Options) {
   const j = createParserFromPath(file.path)
   const root = j(file.source)
 
@@ -23,10 +19,7 @@ export default function transformer(
   root.find(j.AwaitExpression).forEach((awaitExp) => {
     const arg = awaitExp.value.argument
     if (arg?.type === 'CallExpression' && arg.callee.type === 'Import') {
-      if (
-        arg.arguments[0].type === 'StringLiteral' &&
-        arg.arguments[0].value === 'next/image'
-      ) {
+      if (arg.arguments[0].type === 'StringLiteral' && arg.arguments[0].value === 'next/image') {
         arg.arguments[0] = j.stringLiteral('next/legacy/image')
       }
     }
@@ -64,11 +57,7 @@ export default function transformer(
       requireExp.value.callee.name === 'require'
     ) {
       let firstArg = requireExp.value.arguments[0]
-      if (
-        firstArg &&
-        firstArg.type === 'StringLiteral' &&
-        firstArg.value === 'next/image'
-      ) {
+      if (firstArg && firstArg.type === 'StringLiteral' && firstArg.value === 'next/image') {
         requireExp.value.arguments[0] = j.stringLiteral('next/legacy/image')
       }
     }
@@ -82,11 +71,7 @@ export default function transformer(
       requireExp.value.callee.name === 'require'
     ) {
       let firstArg = requireExp.value.arguments[0]
-      if (
-        firstArg &&
-        firstArg.type === 'StringLiteral' &&
-        firstArg.value === 'next/future/image'
-      ) {
+      if (firstArg && firstArg.type === 'StringLiteral' && firstArg.value === 'next/future/image') {
         requireExp.value.arguments[0] = j.stringLiteral('next/image')
       }
     }

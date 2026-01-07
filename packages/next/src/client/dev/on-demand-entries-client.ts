@@ -15,8 +15,7 @@ export default async () => {
       // to ping the source page that returned notFound: true instead
       const notFoundSrcPage = self.__NEXT_DATA__.notFoundSrcPage
       const pathname =
-        (Router.pathname === '/404' || Router.pathname === '/_error') &&
-        notFoundSrcPage
+        (Router.pathname === '/404' || Router.pathname === '/_error') && notFoundSrcPage
           ? notFoundSrcPage
           : Router.pathname
 

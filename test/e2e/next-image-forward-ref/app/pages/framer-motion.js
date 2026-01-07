@@ -4,15 +4,7 @@ import { motion } from 'framer-motion'
 import testPng from '../images/test.png'
 
 const CustomImage = React.forwardRef((props, ref) => (
-  <Image
-    ref={ref}
-    id="img"
-    src={testPng}
-    width={300}
-    height={300}
-    alt="test img"
-    {...props}
-  />
+  <Image ref={ref} id="img" src={testPng} width={300} height={300} alt="test img" {...props} />
 ))
 
 const MotionImage = motion(CustomImage)

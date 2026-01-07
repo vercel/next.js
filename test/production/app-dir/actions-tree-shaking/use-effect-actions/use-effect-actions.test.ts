@@ -1,8 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import {
-  getActionsRoutesStateByRuntime,
-  markLayoutAsEdge,
-} from '../_testing/utils'
+import { getActionsRoutesStateByRuntime, markLayoutAsEdge } from '../_testing/utils'
 
 describe('actions-tree-shaking - use-effect-actions', () => {
   const { next } = nextTestSetup({

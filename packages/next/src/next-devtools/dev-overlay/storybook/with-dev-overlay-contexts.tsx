@@ -1,8 +1,5 @@
 import { useRef, useState, type Dispatch, type SetStateAction } from 'react'
-import {
-  DevOverlayContext,
-  useDevOverlayContext,
-} from '../../dev-overlay.browser'
+import { DevOverlayContext, useDevOverlayContext } from '../../dev-overlay.browser'
 import { RenderErrorContext } from '../dev-overlay'
 import { PanelRouterContext, type PanelStateKind } from '../menu/context'
 import { INITIAL_OVERLAY_STATE } from '../shared'
@@ -21,60 +18,53 @@ interface WithDevOverlayContextsOptions {
   shadowRoot?: ShadowRoot
 }
 
-export const withDevOverlayContexts =
-  (options?: WithDevOverlayContextsOptions) => (Story: any) => {
-    const parentContext = useDevOverlayContext()
-    const [panel, setPanel] = useState<PanelStateKind | null>(
-      options?.panel ?? null
-    )
-    const [selectedIndex, setSelectedIndex] = useState(
-      options?.selectedIndex ?? -1
-    )
-    const triggerRef = useRef<HTMLButtonElement>(null)
+export const withDevOverlayContexts = (options?: WithDevOverlayContextsOptions) => (Story: any) => {
+  const parentContext = useDevOverlayContext()
+  const [panel, setPanel] = useState<PanelStateKind | null>(options?.panel ?? null)
+  const [selectedIndex, setSelectedIndex] = useState(options?.selectedIndex ?? -1)
+  const triggerRef = useRef<HTMLButtonElement>(null)
 
-    const defaultState: OverlayState = {
-      ...INITIAL_OVERLAY_STATE,
-      routerType: 'app',
-      isErrorOverlayOpen: false,
-      ...options?.state,
-    }
+  const defaultState: OverlayState = {
+    ...INITIAL_OVERLAY_STATE,
+    routerType: 'app',
+    isErrorOverlayOpen: false,
+    ...options?.state,
+  }
 
-    const defaultDispatch = options?.dispatch || (() => {})
+  const defaultDispatch = options?.dispatch || (() => {})
 
-    const shadowRoot = options?.shadowRoot ?? parentContext?.shadowRoot
-    if (shadowRoot == null) {
-      throw new Error(
-        '`options.shadowRoot` is required without a parent context'
-      )
-    }
+  const shadowRoot = options?.shadowRoot ?? parentContext?.shadowRoot
+  if (shadowRoot == null) {
+    throw new Error('`options.shadowRoot` is required without a parent context')
+  }
 
-    return (
-      <DevOverlayContext.Provider
+  return (
+    <DevOverlayContext.Provider
+      value={{
+        state: defaultState,
+        dispatch: defaultDispatch,
+        getSquashedHydrationErrorDetails: () => null,
+        shadowRoot,
+      }}
+    >
+      <RenderErrorContext.Provider
         value={{
-          state: defaultState,
-          dispatch: defaultDispatch,
-          getSquashedHydrationErrorDetails: () => null,
-          shadowRoot,
+          runtimeErrors: options?.runtimeErrors ?? [],
+          totalErrorCount: options?.totalErrorCount ?? 0,
         }}
       >
-        <RenderErrorContext.Provider
+        <PanelRouterContext.Provider
           value={{
-            runtimeErrors: options?.runtimeErrors ?? [],
-            totalErrorCount: options?.totalErrorCount ?? 0,
+            panel,
+            setPanel: options?.setPanel ?? setPanel,
+            triggerRef,
+            selectedIndex,
+            setSelectedIndex: options?.setSelectedIndex ?? setSelectedIndex,
           }}
         >
-          <PanelRouterContext.Provider
-            value={{
-              panel,
-              setPanel: options?.setPanel ?? setPanel,
-              triggerRef,
-              selectedIndex,
-              setSelectedIndex: options?.setSelectedIndex ?? setSelectedIndex,
-            }}
-          >
-            <Story />
-          </PanelRouterContext.Provider>
-        </RenderErrorContext.Provider>
-      </DevOverlayContext.Provider>
-    )
-  }
+          <Story />
+        </PanelRouterContext.Provider>
+      </RenderErrorContext.Provider>
+    </DevOverlayContext.Provider>
+  )
+}

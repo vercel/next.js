@@ -6,10 +6,7 @@ import { isFileSystemCacheEnabledForBuild } from '../../shared/lib/turbopack/uti
 import { NextBuildContext } from '../build-context'
 import { createDefineEnv, getBindingsSync } from '../swc'
 import { installBindings } from '../swc/install-bindings'
-import {
-  handleRouteType,
-  rawEntrypointsToEntrypoints,
-} from '../handle-entrypoints'
+import { handleRouteType, rawEntrypointsToEntrypoints } from '../handle-entrypoints'
 import { TurbopackManifestLoader } from '../../shared/lib/turbopack/manifest-loader'
 import { promises as fs } from 'fs'
 import { PHASE_PRODUCTION_BUILD } from '../../shared/lib/constants'
@@ -81,8 +78,7 @@ export async function turbopackBuild(): Promise<{
       previewProps,
       browserslistQuery: supportedBrowsers.join(', '),
       noMangling,
-      writeRoutesHashesManifest:
-        !!process.env.NEXT_TURBOPACK_WRITE_ROUTES_HASHES_MANIFEST,
+      writeRoutesHashesManifest: !!process.env.NEXT_TURBOPACK_WRITE_ROUTES_HASHES_MANIFEST,
       currentNodeJsVersion,
     },
     {
@@ -103,10 +99,7 @@ export async function turbopackBuild(): Promise<{
     await fs.mkdir(path.join(distDir, 'static', buildId), {
       recursive: true,
     })
-    await fs.writeFile(
-      path.join(distDir, 'package.json'),
-      '{"type": "commonjs"}'
-    )
+    await fs.writeFile(path.join(distDir, 'package.json'), '{"type": "commonjs"}')
 
     let appDirOnly = NextBuildContext.appDirOnly!
     const entrypoints = await project.writeAllEntrypointsToDisk(appDirOnly)
@@ -181,15 +174,9 @@ export async function turbopackBuild(): Promise<{
           ]
         : []),
       entrypoints.instrumentation &&
-        manifestLoader.loadMiddlewareManifest(
-          'instrumentation',
-          'instrumentation'
-        ),
+        manifestLoader.loadMiddlewareManifest('instrumentation', 'instrumentation'),
       entrypoints.middleware &&
-        (await manifestLoader.loadMiddlewareManifest(
-          'middleware',
-          'middleware'
-        )),
+        (await manifestLoader.loadMiddlewareManifest('middleware', 'middleware')),
     ])
 
     manifestLoader.writeManifests({
@@ -219,9 +206,7 @@ export async function turbopackBuild(): Promise<{
 let shutdownPromise: Promise<void> | undefined
 export async function workerMain(workerData: {
   buildContext: typeof NextBuildContext
-}): Promise<
-  Omit<Awaited<ReturnType<typeof turbopackBuild>>, 'shutdownPromise'>
-> {
+}): Promise<Omit<Awaited<ReturnType<typeof turbopackBuild>>, 'shutdownPromise'>> {
   // setup new build context from the serialized data passed from the parent
   Object.assign(NextBuildContext, workerData.buildContext)
 

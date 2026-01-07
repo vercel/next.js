@@ -19,8 +19,7 @@ export default defineType({
     }),
     defineField({
       name: "description",
-      description:
-        "Used both for the <meta> description tag for SEO, and the blog subheader.",
+      description: "Used both for the <meta> description tag for SEO, and the blog subheader.",
       title: "Description",
       type: "array",
       initialValue: demo.description,
@@ -52,8 +51,7 @@ export default defineType({
     }),
     defineField({
       name: "footer",
-      description:
-        "This is a block of text that will be displayed at the bottom of the page.",
+      description: "This is a block of text that will be displayed at the bottom of the page.",
       title: "Footer Info",
       type: "array",
       of: [

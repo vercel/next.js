@@ -40,12 +40,8 @@ it('does noop changing to an invalid hostname', () => {
 })
 
 it('preserves the fragment', () => {
-  const url = new NextURL(
-    'https://example.com/path/to?param1=value1#this-is-fragment'
-  )
-  expect(url.toString()).toEqual(
-    'https://example.com/path/to?param1=value1#this-is-fragment'
-  )
+  const url = new NextURL('https://example.com/path/to?param1=value1#this-is-fragment')
+  expect(url.toString()).toEqual('https://example.com/path/to?param1=value1#this-is-fragment')
 })
 
 it('allows to change the whole href', () => {
@@ -117,9 +113,7 @@ it('doesnt allow to set an unexisting locale', () => {
   }
 
   expect(error).toBeInstanceOf(TypeError)
-  expect(error.message).toEqual(
-    'The NextURL configuration includes no locale "foo"'
-  )
+  expect(error.message).toEqual('The NextURL configuration includes no locale "foo"')
 })
 
 it('always get a default locale', () => {
@@ -260,16 +254,11 @@ it('does not add locale for api route', () => {
 })
 
 it('correctly parses a prefetch url', async () => {
-  const url = new NextURL(
-    '/_next/data/1234/en/hello.json',
-    'http://127.0.0.1:3000'
-  )
+  const url = new NextURL('/_next/data/1234/en/hello.json', 'http://127.0.0.1:3000')
   expect(url.buildId).toEqual('1234')
   expect(url.pathname).toEqual('/en/hello')
   expect(url.locale).toEqual('')
-  expect(String(url)).toEqual(
-    'http://localhost:3000/_next/data/1234/en/hello.json'
-  )
+  expect(String(url)).toEqual('http://localhost:3000/_next/data/1234/en/hello.json')
 })
 
 it('correctly handles trailing slash in _next/data', async () => {
@@ -300,69 +289,47 @@ it('correctly handles trailing slash in _next/data with basePath', async () => {
 
   expect(url.pathname).toEqual('/abc/')
   expect(url.locale).toEqual('')
-  expect(String(url)).toEqual(
-    'http://localhost:3000/docs/_next/data/1234/abc.json'
-  )
+  expect(String(url)).toEqual('http://localhost:3000/docs/_next/data/1234/abc.json')
 })
 
 it('correctly parses a prefetch index url', async () => {
-  const url = new NextURL(
-    '/_next/data/development/index.json',
-    'http://127.0.0.1:3000'
-  )
+  const url = new NextURL('/_next/data/development/index.json', 'http://127.0.0.1:3000')
   expect(url.pathname).toEqual('/')
 })
 
 it('correctly parses a prefetch url with i18n', async () => {
-  const url = new NextURL(
-    '/_next/data/development/en/hello.json',
-    'http://127.0.0.1:3000',
-    {
-      nextConfig: {
-        i18n: {
-          defaultLocale: 'en',
-          locales: ['en', 'es', 'fr'],
-        },
+  const url = new NextURL('/_next/data/development/en/hello.json', 'http://127.0.0.1:3000', {
+    nextConfig: {
+      i18n: {
+        defaultLocale: 'en',
+        locales: ['en', 'es', 'fr'],
       },
-    }
-  )
+    },
+  })
   expect(url.buildId).toEqual('development')
   expect(url.pathname).toEqual('/hello')
   expect(url.locale).toEqual('en')
-  expect(String(url)).toEqual(
-    'http://localhost:3000/_next/data/development/en/hello.json'
-  )
+  expect(String(url)).toEqual('http://localhost:3000/_next/data/development/en/hello.json')
 })
 
 it('allows to update the pathname for a prefetch url', async () => {
-  const url = new NextURL(
-    '/_next/data/development/en/hello.json',
-    'http://127.0.0.1:3000',
-    {
-      nextConfig: {
-        i18n: {
-          defaultLocale: 'en',
-          locales: ['en', 'es', 'fr'],
-        },
+  const url = new NextURL('/_next/data/development/en/hello.json', 'http://127.0.0.1:3000', {
+    nextConfig: {
+      i18n: {
+        defaultLocale: 'en',
+        locales: ['en', 'es', 'fr'],
       },
-    }
-  )
+    },
+  })
 
   url.pathname = '/foo'
-  expect(String(url)).toEqual(
-    'http://localhost:3000/_next/data/development/en/foo.json'
-  )
+  expect(String(url)).toEqual('http://localhost:3000/_next/data/development/en/foo.json')
 })
 
 it('allows to update the pathname to the root path for a prefetch url', async () => {
-  const url = new NextURL(
-    '/_next/data/development/hello.json',
-    'http://127.0.0.1:3000'
-  )
+  const url = new NextURL('/_next/data/development/hello.json', 'http://127.0.0.1:3000')
   url.pathname = '/'
-  expect(String(url)).toEqual(
-    'http://localhost:3000/_next/data/development/index.json'
-  )
+  expect(String(url)).toEqual('http://localhost:3000/_next/data/development/index.json')
 })
 
 it('preserves the trailingSlash', async () => {

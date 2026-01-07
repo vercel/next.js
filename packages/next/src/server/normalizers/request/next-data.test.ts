@@ -58,10 +58,7 @@ describe('NextDataPathnameNormalizer', () => {
       ]
       for (const pathname of pathnames) {
         expect(normalizer.normalize(pathname)).toBe(
-          pathname.substring(
-            '/_next/data/build-id'.length,
-            pathname.length - '.json'.length
-          )
+          pathname.substring('/_next/data/build-id'.length, pathname.length - '.json'.length)
         )
       }
     })

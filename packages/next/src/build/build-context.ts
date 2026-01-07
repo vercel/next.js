@@ -19,9 +19,7 @@ export function resumePluginState(resumedState?: Record<string, any>) {
 // This method gives you the plugin state with typed and mutable value fields
 // behind a proxy so we can lazily initialize the values **after** resuming the
 // plugin state.
-export function getProxiedPluginState<State extends Record<string, any>>(
-  initialState: State
-) {
+export function getProxiedPluginState<State extends Record<string, any>>(initialState: State) {
   return new Proxy(pluginState, {
     get(target, key: string) {
       if (typeof target[key] === 'undefined') {
@@ -87,9 +85,7 @@ export const NextBuildContext: Partial<{
   reactProductionProfiling: boolean
   noMangling: boolean
   appDirOnly: boolean
-  clientRouterFilters: Parameters<
-    typeof getBaseWebpackConfig
-  >[1]['clientRouterFilters']
+  clientRouterFilters: Parameters<typeof getBaseWebpackConfig>[1]['clientRouterFilters']
   previewModeId: string
   fetchCacheKeyPrefix?: string
   allowedRevalidateHeaderKeys?: string[]

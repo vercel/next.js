@@ -7,23 +7,13 @@ describe('app-dir - app routes errors', () => {
   })
 
   describe('bad lowercase exports', () => {
-    it.each([
-      ['get'],
-      ['head'],
-      ['options'],
-      ['post'],
-      ['put'],
-      ['delete'],
-      ['patch'],
-    ])(
+    it.each([['get'], ['head'], ['options'], ['post'], ['put'], ['delete'], ['patch']])(
       'should print an error when using lowercase %p in dev',
       async (method: string) => {
         await next.fetch('/lowercase/' + method)
 
         await check(() => {
-          expect(next.cliOutput).toContain(
-            `Detected lowercase method '${method}' in`
-          )
+          expect(next.cliOutput).toContain(`Detected lowercase method '${method}' in`)
           expect(next.cliOutput).toContain(
             `Export the uppercase '${method.toUpperCase()}' method name to fix this error.`
           )

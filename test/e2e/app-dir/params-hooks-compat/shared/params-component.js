@@ -11,11 +11,7 @@ export function ParamsComponent() {
 
       <h2>useSearchParams()</h2>
       <pre id="use-search-params">
-        {JSON.stringify(
-          Object.fromEntries(searchParams ? searchParams.entries() : []),
-          null,
-          2
-        )}
+        {JSON.stringify(Object.fromEntries(searchParams ? searchParams.entries() : []), null, 2)}
       </pre>
     </div>
   )

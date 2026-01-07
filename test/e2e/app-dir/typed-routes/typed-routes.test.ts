@@ -57,9 +57,7 @@ describe('typed-routes', () => {
       )
 
       await retry(async () => {
-        const routeTypesContent = await next.readFile(
-          `${next.distDir}/types/routes.d.ts`
-        )
+        const routeTypesContent = await next.readFile(`${next.distDir}/types/routes.d.ts`)
 
         expect(routeTypesContent).toContain(
           'type LayoutRoutes = "/" | "/dashboard" | "/new-layout"'
@@ -93,9 +91,7 @@ type InvalidRoute = RouteContext<'/api/users/invalid'>`
       // clean up for future tests
       await next.deleteFile('app/type-testing.ts')
 
-      expect(cliOutput).toContain(
-        `Type '"/dasboard"' does not satisfy the constraint 'AppRoutes'.`
-      )
+      expect(cliOutput).toContain(`Type '"/dasboard"' does not satisfy the constraint 'AppRoutes'.`)
       expect(cliOutput).toContain(
         `Type '"/api/users/invalid"' does not satisfy the constraint 'AppRouteHandlerRoutes'.`
       )

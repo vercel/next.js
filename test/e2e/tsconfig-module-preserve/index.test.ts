@@ -2,8 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
-const strictRouteTypes =
-  process.env.__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES === 'true'
+const strictRouteTypes = process.env.__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES === 'true'
 
 describe('tsconfig module: preserve', () => {
   const { next, skipped } = nextTestSetup({
@@ -31,9 +30,7 @@ describe('tsconfig module: preserve', () => {
 
     await retry(() => {
       output = stripAnsi(next.cliOutput)
-      expect(output).toContain(
-        'The following mandatory changes were made to your tsconfig.json'
-      )
+      expect(output).toContain('The following mandatory changes were made to your tsconfig.json')
     })
 
     expect(output).not.toContain('moduleResolution')

@@ -163,8 +163,7 @@ describe('app dir - metadata dynamic routes', () => {
           '/sitemap.xml/route': 'app/sitemap.xml/route.js',
 
           // dynamic
-          '/gsp/sitemap/[__metadata_id__]/route':
-            'app/gsp/sitemap/[__metadata_id__]/route.js',
+          '/gsp/sitemap/[__metadata_id__]/route': 'app/gsp/sitemap/[__metadata_id__]/route.js',
           '/(group)/dynamic/[size]/apple-icon-ahg52g/[__metadata_id__]/route':
             'app/(group)/dynamic/[size]/apple-icon-ahg52g/[__metadata_id__]/route.js',
         })
@@ -311,12 +310,8 @@ describe('app dir - metadata dynamic routes', () => {
     it('should support params as argument in dynamic routes', async () => {
       const big$ = await next.render$('/dynamic/big')
       const small$ = await next.render$('/dynamic/small')
-      const bigOgUrl = new URL(
-        big$('meta[property="og:image"]').attr('content')
-      )
-      const smallOgUrl = new URL(
-        small$('meta[property="og:image"]').attr('content')
-      )
+      const bigOgUrl = new URL(big$('meta[property="og:image"]').attr('content'))
+      const smallOgUrl = new URL(small$('meta[property="og:image"]').attr('content'))
       const bufferBig = await (await next.fetch(bigOgUrl.pathname)).buffer()
       const bufferSmall = await (await next.fetch(smallOgUrl.pathname)).buffer()
 
@@ -361,16 +356,10 @@ describe('app dir - metadata dynamic routes', () => {
       it('should generate dynamic route if dynamic config is force-dynamic', async () => {
         const dynamicRoute = '/route-config/sitemap.xml'
 
-        expect(
-          await next.hasFile(`.next/server/app${dynamicRoute}/route.js`)
-        ).toBe(true)
+        expect(await next.hasFile(`.next/server/app${dynamicRoute}/route.js`)).toBe(true)
         // dynamic routes should not have body and meta files
-        expect(await next.hasFile(`.next/server/app${dynamicRoute}.body`)).toBe(
-          false
-        )
-        expect(await next.hasFile(`.next/server/app${dynamicRoute}.meta`)).toBe(
-          false
-        )
+        expect(await next.hasFile(`.next/server/app${dynamicRoute}.body`)).toBe(false)
+        expect(await next.hasFile(`.next/server/app${dynamicRoute}.meta`)).toBe(false)
       })
     })
   }
@@ -408,9 +397,7 @@ describe('app dir - metadata dynamic routes', () => {
     const ogImageUrl = $('meta[property="og:image"]').attr('content')
     const twitterImageUrl = $('meta[name="twitter:image"]').attr('content')
     const twitterTitle = $('meta[name="twitter:title"]').attr('content')
-    const twitterDescription = $('meta[name="twitter:description"]').attr(
-      'content'
-    )
+    const twitterDescription = $('meta[name="twitter:description"]').attr('content')
 
     expect($('link[rel="favicon"]')).toHaveLength(0)
 
@@ -453,9 +440,7 @@ describe('app dir - metadata dynamic routes', () => {
     expect(twitterImageUrl).toMatch(hashRegex)
 
     // alt text
-    expect($('meta[property="og:image:alt"]').attr('content')).toBe(
-      'Open Graph'
-    )
+    expect($('meta[property="og:image:alt"]').attr('content')).toBe('Open Graph')
     expect($('meta[name="twitter:image:alt"]').attr('content')).toBe('Twitter')
   })
 
@@ -470,9 +455,7 @@ describe('app dir - metadata dynamic routes', () => {
       expect(ogImageUrl).toMatch(
         isNextDeploy ? /https:\/\/[\w-]+.vercel.app/ : /http:\/\/localhost:\d+/
       )
-      expect(ogImageUrl).toMatch(
-        /\/metadata-base\/unset\/opengraph-image2\/10\d/
-      )
+      expect(ogImageUrl).toMatch(/\/metadata-base\/unset\/opengraph-image2\/10\d/)
     })
 
     expect(twitterImage).toMatch(
@@ -487,9 +470,7 @@ describe('app dir - metadata dynamic routes', () => {
         await next.readFile('.next/server/middleware-manifest.json')
       )
       const functionRoutes = Object.keys(middlewareManifest.functions)
-      const edgeRoute = functionRoutes.find((route) =>
-        route.startsWith('/(group)/twitter-image-')
-      )
+      const edgeRoute = functionRoutes.find((route) => route.startsWith('/(group)/twitter-image-'))
       expect(edgeRoute).toMatch(/\/\(group\)\/twitter-image-\w{6}\/route/)
     })
 
@@ -508,9 +489,7 @@ describe('app dir - metadata dynamic routes', () => {
     })
 
     it('should contain generated routes in prerender manifest', async () => {
-      const prerenderManifest = JSON.parse(
-        await next.readFile('.next/prerender-manifest.json')
-      )
+      const prerenderManifest = JSON.parse(await next.readFile('.next/prerender-manifest.json'))
       const routes = Object.keys(prerenderManifest.routes).sort()
 
       // contains the dynamic metadata routes

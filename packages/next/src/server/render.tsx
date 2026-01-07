@@ -17,11 +17,7 @@ import type {
 } from '../shared/lib/utils'
 import type { ImageConfigComplete } from '../shared/lib/image-config'
 import type { Redirect } from '../lib/load-custom-routes'
-import {
-  type NextApiRequestCookies,
-  type __ApiPreviewProps,
-  setLazyProp,
-} from './api-utils'
+import { type NextApiRequestCookies, type __ApiPreviewProps, setLazyProp } from './api-utils'
 import { getCookieParser } from './api-utils/get-cookie-parser'
 import type { LoadComponentsReturnType } from './load-components'
 import type {
@@ -68,11 +64,7 @@ import Loadable from '../shared/lib/loadable.shared-runtime'
 import { LoadableContext } from '../shared/lib/loadable-context.shared-runtime'
 import { RouterContext } from '../shared/lib/router-context.shared-runtime'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
-import {
-  getDisplayName,
-  isResSent,
-  loadGetInitialProps,
-} from '../shared/lib/utils'
+import { getDisplayName, isResSent, loadGetInitialProps } from '../shared/lib/utils'
 import { HtmlContext } from '../shared/lib/html-context.shared-runtime'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
@@ -80,10 +72,7 @@ import { getRequestMeta } from './request-meta'
 import { allowedStatusCodes, getRedirectStatus } from '../lib/redirect-status'
 import RenderResult, { type PagesRenderResultMetadata } from './render-result'
 import isError from '../lib/is-error'
-import {
-  streamToString,
-  renderToInitialFizzStream,
-} from './stream-utils/node-web-streams-helper'
+import { streamToString, renderToInitialFizzStream } from './stream-utils/node-web-streams-helper'
 import { ImageConfigContext } from '../shared/lib/image-config-context.shared-runtime'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { stripInternalQueries } from './internal-utils'
@@ -117,12 +106,8 @@ if (process.env.NEXT_RUNTIME !== 'edge') {
   tryGetPreviewData = (
     require('./api-utils/node/try-get-preview-data') as typeof import('./api-utils/node/try-get-preview-data')
   ).tryGetPreviewData
-  warn = (
-    require('../build/output/log') as typeof import('../build/output/log')
-  ).warn
-  postProcessHTML = (
-    require('./post-process') as typeof import('./post-process')
-  ).postProcessHTML
+  warn = (require('../build/output/log') as typeof import('../build/output/log')).warn
+  postProcessHTML = (require('./post-process') as typeof import('./post-process')).postProcessHTML
 } else {
   warn = console.warn.bind(console)
   postProcessHTML = async (html: string) => html
@@ -226,17 +211,11 @@ function enhanceComponents(
 
   return {
     App: options.enhanceApp ? options.enhanceApp(App) : App,
-    Component: options.enhanceComponent
-      ? options.enhanceComponent(Component)
-      : Component,
+    Component: options.enhanceComponent ? options.enhanceComponent(Component) : Component,
   }
 }
 
-function renderPageTree(
-  App: AppType,
-  Component: NextComponentType,
-  props: any
-) {
+function renderPageTree(App: AppType, Component: NextComponentType, props: any) {
   return <App Component={Component} {...props} />
 }
 
@@ -291,8 +270,7 @@ export type RenderOptsPartial = {
   }
 }
 
-export type RenderOpts = LoadComponentsReturnType<PagesModule> &
-  RenderOptsPartial
+export type RenderOpts = LoadComponentsReturnType<PagesModule> & RenderOptsPartial
 
 /**
  * Shared context used for all page renders.
@@ -375,26 +353,18 @@ function checkRedirectValues(
   } else if (hasPermanent && typeof permanent !== 'boolean') {
     errors.push(`\`permanent\` must be \`true\` or \`false\``)
   } else if (hasStatusCode && !allowedStatusCodes.has(statusCode!)) {
-    errors.push(
-      `\`statusCode\` must undefined or one of ${[...allowedStatusCodes].join(
-        ', '
-      )}`
-    )
+    errors.push(`\`statusCode\` must undefined or one of ${[...allowedStatusCodes].join(', ')}`)
   }
   const destinationType = typeof destination
 
   if (destinationType !== 'string') {
-    errors.push(
-      `\`destination\` should be string but received ${destinationType}`
-    )
+    errors.push(`\`destination\` should be string but received ${destinationType}`)
   }
 
   const basePathType = typeof basePath
 
   if (basePathType !== 'undefined' && basePathType !== 'boolean') {
-    errors.push(
-      `\`basePath\` should be undefined or a false, received ${basePathType}`
-    )
+    errors.push(`\`basePath\` should be undefined or a false, received ${basePathType}`)
   }
 
   if (errors.length > 0) {
@@ -408,8 +378,7 @@ function checkRedirectValues(
 }
 
 export function errorToJSON(err: Error) {
-  let source: typeof COMPILER_NAMES.server | typeof COMPILER_NAMES.edgeServer =
-    'server'
+  let source: typeof COMPILER_NAMES.server | typeof COMPILER_NAMES.edgeServer = 'server'
 
   if (process.env.NEXT_RUNTIME !== 'edge') {
     source = getErrorSource(err) || 'server'
@@ -457,8 +426,7 @@ export async function renderToHTMLImpl(
 
   const metadata: PagesRenderResultMetadata = {}
 
-  metadata.assetQueryString =
-    (renderOpts.dev && renderOpts.assetQueryString) || ''
+  metadata.assetQueryString = (renderOpts.dev && renderOpts.assetQueryString) || ''
 
   if (renderOpts.dev && !metadata.assetQueryString) {
     const userAgent = (req.headers['user-agent'] || '').toLowerCase()
@@ -507,8 +475,7 @@ export async function renderToHTMLImpl(
 
   let Document = extra.Document
 
-  let Component: React.ComponentType<{}> | ((props: any) => JSX.Element) =
-    renderOpts.Component
+  let Component: React.ComponentType<{}> | ((props: any) => JSX.Element) = renderOpts.Component
   const OriginComponent = Component
 
   const isFallback = renderContext.isFallback ?? false
@@ -519,8 +486,7 @@ export async function renderToHTMLImpl(
 
   const isSSG = !!getStaticProps
   const isBuildTimeSSG = isSSG && renderOpts.nextExport
-  const defaultAppGetInitialProps =
-    App.getInitialProps === (App as any).origGetInitialProps
+  const defaultAppGetInitialProps = App.getInitialProps === (App as any).origGetInitialProps
 
   const hasPageGetInitialProps = !!(Component as any)?.getInitialProps
   const hasPageScripts = (Component as any)?.unstable_scriptLoader
@@ -529,14 +495,9 @@ export async function renderToHTMLImpl(
 
   const defaultErrorGetInitialProps =
     pathname === '/_error' &&
-    (Component as any).getInitialProps ===
-      (Component as any).origGetInitialProps
+    (Component as any).getInitialProps === (Component as any).origGetInitialProps
 
-  if (
-    renderOpts.nextExport &&
-    hasPageGetInitialProps &&
-    !defaultErrorGetInitialProps
-  ) {
+  if (renderOpts.nextExport && hasPageGetInitialProps && !defaultErrorGetInitialProps) {
     warn(
       `Detected getInitialProps on page '${pathname}'` +
         ` while running export. It's recommended to use getStaticProps` +
@@ -546,10 +507,7 @@ export async function renderToHTMLImpl(
   }
 
   let isAutoExport =
-    !hasPageGetInitialProps &&
-    defaultAppGetInitialProps &&
-    !isSSG &&
-    !getServerSideProps
+    !hasPageGetInitialProps && defaultAppGetInitialProps && !isSSG && !getServerSideProps
 
   // if we are running from experimental compile and the page
   // would normally be automatically statically optimized
@@ -608,21 +566,15 @@ export async function renderToHTMLImpl(
     const { isValidElementType } =
       require('next/dist/compiled/react-is') as typeof import('next/dist/compiled/react-is')
     if (!isValidElementType(Component)) {
-      throw new Error(
-        `The default export is not a React Component in page: "${pathname}"`
-      )
+      throw new Error(`The default export is not a React Component in page: "${pathname}"`)
     }
 
     if (!isValidElementType(App)) {
-      throw new Error(
-        `The default export is not a React Component in page: "/_app"`
-      )
+      throw new Error(`The default export is not a React Component in page: "/_app"`)
     }
 
     if (!isValidElementType(Document)) {
-      throw new Error(
-        `The default export is not a React Component in page: "/_document"`
-      )
+      throw new Error(`The default export is not a React Component in page: "/_document"`)
     }
 
     if (isAutoExport || isFallback) {
@@ -636,17 +588,10 @@ export async function renderToHTMLImpl(
     }
 
     if (pathname === '/404' && (hasPageGetInitialProps || getServerSideProps)) {
-      throw new Error(
-        `\`pages/404\` ${STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR}`
-      )
+      throw new Error(`\`pages/404\` ${STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR}`)
     }
-    if (
-      STATIC_STATUS_PAGES.includes(pathname) &&
-      (hasPageGetInitialProps || getServerSideProps)
-    ) {
-      throw new Error(
-        `\`pages${pathname}\` ${STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR}`
-      )
+    if (STATIC_STATUS_PAGES.includes(pathname) && (hasPageGetInitialProps || getServerSideProps)) {
+      throw new Error(`\`pages${pathname}\` ${STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR}`)
     }
 
     if (renderOpts?.setIsrStatus) {
@@ -654,15 +599,9 @@ export async function renderToHTMLImpl(
     }
   }
 
-  for (const methodName of [
-    'getStaticProps',
-    'getServerSideProps',
-    'getStaticPaths',
-  ]) {
+  for (const methodName of ['getStaticProps', 'getServerSideProps', 'getStaticPaths']) {
     if ((Component as any)?.[methodName]) {
-      throw new Error(
-        `page ${pathname} ${methodName} ${GSSP_COMPONENT_MEMBER_ERROR}`
-      )
+      throw new Error(`page ${pathname} ${methodName} ${GSSP_COMPONENT_MEMBER_ERROR}`)
     }
   }
 
@@ -680,12 +619,7 @@ export async function renderToHTMLImpl(
     // Reads of this are cached on the `req` object, so this should resolve
     // instantly. There's no need to pass this data down from a previous
     // invoke.
-    previewData = tryGetPreviewData(
-      req,
-      res,
-      previewProps,
-      !!renderOpts.multiZoneDraftMode
-    )
+    previewData = tryGetPreviewData(req, res, previewProps, !!renderOpts.multiZoneDraftMode)
     isPreview = previewData !== false
   }
 
@@ -730,19 +664,14 @@ export async function renderToHTMLImpl(
   }
 
   const csp =
-    req.headers['content-security-policy'] ||
-    req.headers['content-security-policy-report-only']
+    req.headers['content-security-policy'] || req.headers['content-security-policy-report-only']
 
-  const nonce =
-    typeof csp === 'string' ? getScriptNonceFromHeader(csp) : undefined
+  const nonce = typeof csp === 'string' ? getScriptNonceFromHeader(csp) : undefined
 
   const AppContainer = ({ children }: { children: JSX.Element }) => (
     <AppRouterContext.Provider value={appRouter}>
       <SearchParamsContext.Provider value={adaptForSearchParams(router)}>
-        <PathnameContextProviderAdapter
-          router={router}
-          isAutoExport={isAutoExport}
-        >
+        <PathnameContextProviderAdapter router={router} isAutoExport={isAutoExport}>
           <PathParamsContext.Provider value={adaptForPathParams(router)}>
             <RouterContext.Provider value={router}>
               <HeadManagerContext.Provider
@@ -835,8 +764,7 @@ export async function renderToHTMLImpl(
   }
   let props: any
 
-  const nextExport =
-    !isSSG && (renderOpts.nextExport || (dev && (isAutoExport || isFallback)))
+  const nextExport = !isSSG && (renderOpts.nextExport || (dev && (isAutoExport || isFallback)))
 
   const styledJsxInsertedHTML = () => {
     const styles = jsxStyleRegistry.styles()
@@ -901,11 +829,7 @@ export async function renderToHTMLImpl(
     }
 
     const invalidKeys = Object.keys(data).filter(
-      (key) =>
-        key !== 'revalidate' &&
-        key !== 'props' &&
-        key !== 'redirect' &&
-        key !== 'notFound'
+      (key) => key !== 'revalidate' && key !== 'props' && key !== 'redirect' && key !== 'notFound'
     )
 
     if (invalidKeys.includes('unstable_revalidate')) {
@@ -939,11 +863,7 @@ export async function renderToHTMLImpl(
       metadata.isNotFound = true
     }
 
-    if (
-      'redirect' in data &&
-      data.redirect &&
-      typeof data.redirect === 'object'
-    ) {
+    if ('redirect' in data && data.redirect && typeof data.redirect === 'object') {
       checkRedirectValues(data.redirect as Redirect, req, 'getStaticProps')
 
       if (isBuildTimeSSG) {
@@ -969,9 +889,7 @@ export async function renderToHTMLImpl(
       !isSerializableProps(pathname, 'getStaticProps', (data as any).props)
     ) {
       // this fn should throw an error instead of ever returning `false`
-      throw new Error(
-        'invariant: getStaticProps did not return valid props. Please report this.'
-      )
+      throw new Error('invariant: getStaticProps did not return valid props. Please report this.')
     }
 
     let revalidate: Revalidate
@@ -1011,10 +929,7 @@ export async function renderToHTMLImpl(
         // the most up-to-date page possible, but without a 1-to-1
         // request-refresh ratio.
         revalidate = 1
-      } else if (
-        data.revalidate === false ||
-        typeof data.revalidate === 'undefined'
-      ) {
+      } else if (data.revalidate === false || typeof data.revalidate === 'undefined') {
         // By default, we never revalidate.
         revalidate = false
       } else {
@@ -1029,11 +944,7 @@ export async function renderToHTMLImpl(
       revalidate = false
     }
 
-    props.pageProps = Object.assign(
-      {},
-      props.pageProps,
-      'props' in data ? data.props : undefined
-    )
+    props.pageProps = Object.assign({}, props.pageProps, 'props' in data ? data.props : undefined)
 
     // pass up cache control and props for export
     metadata.cacheControl = { revalidate, expire: undefined }
@@ -1116,10 +1027,7 @@ export async function renderToHTMLImpl(
     } catch (serverSidePropsError: any) {
       // remove not found error code to prevent triggering legacy
       // 404 rendering
-      if (
-        isError(serverSidePropsError) &&
-        serverSidePropsError.code === 'ENOENT'
-      ) {
+      if (isError(serverSidePropsError) && serverSidePropsError.code === 'ENOENT') {
         delete serverSidePropsError.code
       }
       throw serverSidePropsError
@@ -1241,9 +1149,7 @@ export async function renderToHTMLImpl(
           ...filteredBuildManifest.pages,
           [page]: [
             ...filteredBuildManifest.pages[page],
-            ...filteredBuildManifest.lowPriorityFiles.filter((f) =>
-              f.includes('_buildManifest')
-            ),
+            ...filteredBuildManifest.lowPriorityFiles.filter((f) => f.includes('_buildManifest')),
           ],
         },
         lowPriorityFiles: filteredBuildManifest.lowPriorityFiles.filter(
@@ -1262,9 +1168,9 @@ export async function renderToHTMLImpl(
     // 1. Using `Document.getInitialProps` in the Edge runtime.
     // 2. Using the class component `Document` with concurrent features.
 
-    const BuiltinFunctionalDocument: DocumentType | undefined = (
-      Document as any
-    )[NEXT_BUILTIN_DOCUMENT]
+    const BuiltinFunctionalDocument: DocumentType | undefined = (Document as any)[
+      NEXT_BUILTIN_DOCUMENT
+    ]
 
     if (process.env.NEXT_RUNTIME === 'edge' && Document.getInitialProps) {
       // In the Edge runtime, `Document.getInitialProps` isn't supported.
@@ -1307,8 +1213,11 @@ export async function renderToHTMLImpl(
           )
         }
 
-        const { App: EnhancedApp, Component: EnhancedComponent } =
-          enhanceComponents(options, App, Component)
+        const { App: EnhancedApp, Component: EnhancedComponent } = enhanceComponents(
+          options,
+          App,
+          Component
+        )
 
         const stream = await renderShell(EnhancedApp, EnhancedComponent)
         await stream.allReady
@@ -1317,10 +1226,7 @@ export async function renderToHTMLImpl(
         return { html, head }
       }
       const documentCtx = { ...ctx, renderPage }
-      const docProps: DocumentInitialProps = await loadGetInitialProps(
-        Document,
-        documentCtx
-      )
+      const docProps: DocumentInitialProps = await loadGetInitialProps(Document, documentCtx)
       // the response might be finished on the getInitialProps call
       if (isResSent(res) && !isSSG) return null
 
@@ -1355,10 +1261,7 @@ export async function renderToHTMLImpl(
     }
 
     // Always using react concurrent rendering mode with required react version 18.x
-    const renderShell = async (
-      EnhancedApp: AppType,
-      EnhancedComponent: NextComponentType
-    ) => {
+    const renderShell = async (EnhancedApp: AppType, EnhancedComponent: NextComponentType) => {
       const content = renderContent(EnhancedApp, EnhancedComponent)
       return await renderToInitialFizzStream({
         ReactDOMServer: ReactDOMServerPages,
@@ -1371,9 +1274,7 @@ export async function renderToHTMLImpl(
 
     // If it has getInitialProps, we will render the shell in `renderPage`.
     // Otherwise we do it right now.
-    let documentInitialPropsRes:
-      | {}
-      | Awaited<ReturnType<typeof loadDocumentInitialProps>>
+    let documentInitialPropsRes: {} | Awaited<ReturnType<typeof loadDocumentInitialProps>>
 
     const [rawStyledJsxInsertedHTML, content] = await Promise.all([
       renderToString(styledJsxInsertedHTML()),
@@ -1460,14 +1361,8 @@ export async function renderToHTMLImpl(
 
   const docComponentsRendered: DocumentProps['docComponentsRendered'] = {}
 
-  const {
-    assetPrefix,
-    defaultLocale,
-    disableOptimizedLoading,
-    domainLocales,
-    locale,
-    locales,
-  } = renderOpts
+  const { assetPrefix, defaultLocale, disableOptimizedLoading, domainLocales, locale, locales } =
+    renderOpts
   const htmlProps: HtmlProps = {
     __NEXT_DATA__: {
       props, // The result of getInitialProps
@@ -1479,10 +1374,7 @@ export async function renderToHTMLImpl(
       autoExport: isAutoExport === true ? true : undefined, // If this is an auto exported page
       isFallback,
       isExperimentalCompile,
-      dynamicIds:
-        dynamicImportsIds.size === 0
-          ? undefined
-          : Array.from(dynamicImportsIds),
+      dynamicIds: dynamicImportsIds.size === 0 ? undefined : Array.from(dynamicImportsIds),
       err: renderOpts.err ? serializeError(dev, renderOpts.err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
       gsp: !!getStaticProps ? true : undefined, // whether the page is getStaticProps
       gssp: !!getServerSideProps ? true : undefined, // whether the page is getServerSideProps
@@ -1506,9 +1398,7 @@ export async function renderToHTMLImpl(
     assetPrefix,
     // Only enabled in production as development mode has features relying on HMR (style injection for example)
     unstable_runtimeJS:
-      process.env.NODE_ENV === 'production'
-        ? pageConfig.unstable_runtimeJS
-        : undefined,
+      process.env.NODE_ENV === 'production' ? pageConfig.unstable_runtimeJS : undefined,
     unstable_JsPreload: pageConfig.unstable_JsPreload,
     assetQueryString,
     scriptLoader,
@@ -1524,8 +1414,7 @@ export async function renderToHTMLImpl(
     runtime: globalRuntime,
     largePageDataBytes: renderOpts.largePageDataBytes,
     nextFontManifest: renderOpts.nextFontManifest,
-    experimentalClientTraceMetadata:
-      renderOpts.experimental.clientTraceMetadata,
+    experimentalClientTraceMetadata: renderOpts.experimental.clientTraceMetadata,
   }
 
   const document = (
@@ -1534,9 +1423,8 @@ export async function renderToHTMLImpl(
     </HtmlContext.Provider>
   )
 
-  const documentHTML = await getTracer().trace(
-    RenderSpan.renderToString,
-    async () => renderToString(document)
+  const documentHTML = await getTracer().trace(RenderSpan.renderToString, async () =>
+    renderToString(document)
   )
 
   if (process.env.NODE_ENV !== 'production') {
@@ -1550,9 +1438,7 @@ export async function renderToHTMLImpl(
     }
 
     if (nonRenderedComponents.length) {
-      const missingComponentList = nonRenderedComponents
-        .map((e) => `<${e} />`)
-        .join(', ')
+      const missingComponentList = nonRenderedComponents.map((e) => `<${e} />`).join(', ')
       const plural = nonRenderedComponents.length !== 1 ? 's' : ''
       console.warn(
         `Your custom Document (pages/_document) did not render all the required subcomponent${plural}.\n` +

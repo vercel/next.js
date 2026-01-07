@@ -35,11 +35,7 @@ interface AcceptFunction {
   (errorHandler?: AcceptErrorHandler): void
 
   // accept updates for the given modules
-  (
-    modules?: string | string[],
-    callback?: AcceptCallback,
-    errorHandler?: AcceptErrorHandler
-  ): void
+  (modules?: string | string[], callback?: AcceptCallback, errorHandler?: AcceptErrorHandler): void
 }
 
 interface Hot {

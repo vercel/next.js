@@ -1,7 +1,4 @@
-import {
-  createOpaqueFallbackRouteParams,
-  getFallbackRouteParams,
-} from './fallback-params'
+import { createOpaqueFallbackRouteParams, getFallbackRouteParams } from './fallback-params'
 import type { FallbackRouteParam } from '../../build/static-paths/types'
 import type AppPageRouteModule from '../route-modules/app-page/module'
 import type { LoaderTree } from '../lib/app-dir-module'
@@ -116,11 +113,7 @@ describe('getFallbackRouteParams', () => {
 
     it('should extract optional catchall segment', () => {
       // Tree: /[[...slug]]
-      const loaderTree = createLoaderTree(
-        '',
-        {},
-        createLoaderTree('[[...slug]]')
-      )
+      const loaderTree = createLoaderTree('', {}, createLoaderTree('[[...slug]]'))
       const routeModule = createMockRouteModule(loaderTree)
       const result = getFallbackRouteParams('/[[...slug]]', routeModule)
 
@@ -146,10 +139,7 @@ describe('getFallbackRouteParams', () => {
         )
       )
       const routeModule = createMockRouteModule(loaderTree)
-      const result = getFallbackRouteParams(
-        '/blog/[category]/posts/[slug]',
-        routeModule
-      )
+      const result = getFallbackRouteParams('/blog/[category]/posts/[slug]', routeModule)
 
       expect(result).not.toBeNull()
       expect(result!.size).toBe(2)
@@ -179,10 +169,7 @@ describe('getFallbackRouteParams', () => {
         createLoaderTree('[teamSlug]', {}, createLoaderTree('[projectSlug]'))
       )
       const routeModule = createMockRouteModule(loaderTree)
-      const result = getFallbackRouteParams(
-        '/vercel/[projectSlug]',
-        routeModule
-      )
+      const result = getFallbackRouteParams('/vercel/[projectSlug]', routeModule)
 
       expect(result).not.toBeNull()
       // Only projectSlug should be a fallback param, vercel is static
@@ -315,10 +302,7 @@ describe('getFallbackRouteParams', () => {
         )
       )
       const routeModule = createMockRouteModule(loaderTree)
-      const result = getFallbackRouteParams(
-        '/gallery/(..)photo/[photoId]',
-        routeModule
-      )
+      const result = getFallbackRouteParams('/gallery/(..)photo/[photoId]', routeModule)
 
       expect(result).not.toBeNull()
       expect(result!.size).toBe(1)
@@ -327,11 +311,7 @@ describe('getFallbackRouteParams', () => {
 
     it('should extract intercepted param when marker is part of the segment itself', () => {
       // Tree: /(.)[photoId] - the interception marker is PART OF the dynamic segment
-      const loaderTree = createLoaderTree(
-        '',
-        {},
-        createLoaderTree('(.)[photoId]')
-      )
+      const loaderTree = createLoaderTree('', {}, createLoaderTree('(.)[photoId]'))
       const routeModule = createMockRouteModule(loaderTree)
       const result = getFallbackRouteParams('/[photoId]', routeModule)
 
@@ -363,18 +343,11 @@ describe('getFallbackRouteParams', () => {
         '',
         {},
         createLoaderTree('[id]', {
-          modal: createLoaderTree(
-            '(.)photo',
-            {},
-            createLoaderTree('[photoId]')
-          ),
+          modal: createLoaderTree('(.)photo', {}, createLoaderTree('[photoId]')),
         })
       )
       const routeModule = createMockRouteModule(loaderTree)
-      const result = getFallbackRouteParams(
-        '/[id]/(.)photo/[photoId]',
-        routeModule
-      )
+      const result = getFallbackRouteParams('/[id]/(.)photo/[photoId]', routeModule)
 
       expect(result).not.toBeNull()
       expect(result!.size).toBe(2)
@@ -391,19 +364,12 @@ describe('getFallbackRouteParams', () => {
           'photos',
           {},
           createLoaderTree('[id]', {
-            modal: createLoaderTree(
-              '(.)photo',
-              {},
-              createLoaderTree('[photoId]')
-            ),
+            modal: createLoaderTree('(.)photo', {}, createLoaderTree('[photoId]')),
           })
         )
       )
       const routeModule = createMockRouteModule(loaderTree)
-      const result = getFallbackRouteParams(
-        '/photos/[id]/(.)photo/[photoId]',
-        routeModule
-      )
+      const result = getFallbackRouteParams('/photos/[id]/(.)photo/[photoId]', routeModule)
 
       expect(result).not.toBeNull()
       expect(result!.size).toBe(2)
@@ -422,19 +388,12 @@ describe('getFallbackRouteParams', () => {
           '(marketing)',
           {},
           createLoaderTree('[lang]', {
-            modal: createLoaderTree(
-              '(.)photo',
-              {},
-              createLoaderTree('[photoId]')
-            ),
+            modal: createLoaderTree('(.)photo', {}, createLoaderTree('[photoId]')),
           })
         )
       )
       const routeModule = createMockRouteModule(loaderTree)
-      const result = getFallbackRouteParams(
-        '/[lang]/(.)photo/[photoId]',
-        routeModule
-      )
+      const result = getFallbackRouteParams('/[lang]/(.)photo/[photoId]', routeModule)
 
       expect(result).not.toBeNull()
       expect(result!.size).toBe(2)
@@ -454,11 +413,7 @@ describe('getFallbackRouteParams', () => {
             'products',
             {},
             createLoaderTree('[category]', {
-              modal: createLoaderTree(
-                '(.)product',
-                {},
-                createLoaderTree('[productId]')
-              ),
+              modal: createLoaderTree('(.)product', {}, createLoaderTree('[productId]')),
             })
           )
         )
@@ -488,10 +443,7 @@ describe('getFallbackRouteParams', () => {
         )
       )
       const routeModule = createMockRouteModule(loaderTree)
-      const result = getFallbackRouteParams(
-        '/en/products/[category]',
-        routeModule
-      )
+      const result = getFallbackRouteParams('/en/products/[category]', routeModule)
 
       expect(result).not.toBeNull()
       expect(result!.size).toBe(1)
@@ -506,18 +458,11 @@ describe('getFallbackRouteParams', () => {
         '',
         {},
         createLoaderTree('[locale]', {
-          modal: createLoaderTree(
-            '(.)photo',
-            {},
-            createLoaderTree('[photoId]')
-          ),
+          modal: createLoaderTree('(.)photo', {}, createLoaderTree('[photoId]')),
         })
       )
       const routeModule = createMockRouteModule(loaderTree)
-      const result = getFallbackRouteParams(
-        '/en/(.)photo/[photoId]',
-        routeModule
-      )
+      const result = getFallbackRouteParams('/en/(.)photo/[photoId]', routeModule)
 
       expect(result).not.toBeNull()
       expect(result!.size).toBe(1)

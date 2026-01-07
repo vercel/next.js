@@ -83,10 +83,7 @@ describe('config', () => {
 
   it('Should throw when an invalid target is provided', async () => {
     await expect(async () => {
-      await loadConfig(
-        PHASE_DEVELOPMENT_SERVER,
-        join(__dirname, '_resolvedata', 'invalid-target')
-      )
+      await loadConfig(PHASE_DEVELOPMENT_SERVER, join(__dirname, '_resolvedata', 'invalid-target'))
     }).rejects.toThrow(/The "target" property is no longer supported/)
   })
 

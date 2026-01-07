@@ -31,15 +31,11 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
 ;(async () => {
   try {
     if (existsSync(path.join(__dirname, '../SKIP_NEXT_STATS.txt'))) {
-      console.log(
-        'SKIP_NEXT_STATS.txt file present, exiting stats generation..'
-      )
+      console.log('SKIP_NEXT_STATS.txt file present, exiting stats generation..')
       process.exit(0)
     }
 
-    const { stdout: gitName } = await exec(
-      'git config user.name && git config user.email'
-    )
+    const { stdout: gitName } = await exec('git config user.name && git config user.email')
     console.log('git author result:', gitName)
 
     // clone PR/newer repository/ref first to get settings
@@ -131,11 +127,10 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
       }
 
       await fs
-        .cp(
-          path.join(__dirname, '../native'),
-          path.join(dir, 'packages/next-swc/native'),
-          { recursive: true, force: true }
-        )
+        .cp(path.join(__dirname, '../native'), path.join(dir, 'packages/next-swc/native'), {
+          recursive: true,
+          force: true,
+        })
         .catch(console.error)
 
       logger(`Linking packages in ${dir}`)
@@ -168,11 +163,7 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
       const { githubToken, ...safeActionInfo } = actionInfo
       await fs.writeFile(
         resultsPath,
-        JSON.stringify(
-          { results, actionInfo: safeActionInfo, statsConfig },
-          null,
-          2
-        )
+        JSON.stringify({ results, actionInfo: safeActionInfo, statsConfig }, null, 2)
       )
       logger(`Saved results to ${resultsPath}`)
     } else {

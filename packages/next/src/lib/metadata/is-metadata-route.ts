@@ -113,20 +113,13 @@ function getCompiledRegexes(
   const suffixMatcher = variantsMatcher + groupSuffix
 
   // Pre-compute extension arrays to avoid repeated concatenation
-  const robotsExts =
-    pageExtensions.length > 0 ? [...pageExtensions, 'txt'] : ['txt']
+  const robotsExts = pageExtensions.length > 0 ? [...pageExtensions, 'txt'] : ['txt']
   const manifestExts =
-    pageExtensions.length > 0
-      ? [...pageExtensions, 'webmanifest', 'json']
-      : ['webmanifest', 'json']
+    pageExtensions.length > 0 ? [...pageExtensions, 'webmanifest', 'json'] : ['webmanifest', 'json']
 
   const regexes = [
-    new RegExp(
-      `^[\\\\/]robots${getExtensionRegexString(robotsExts, null)}${trailingMatcher}`
-    ),
-    new RegExp(
-      `^[\\\\/]manifest${getExtensionRegexString(manifestExts, null)}${trailingMatcher}`
-    ),
+    new RegExp(`^[\\\\/]robots${getExtensionRegexString(robotsExts, null)}${trailingMatcher}`),
+    new RegExp(`^[\\\\/]manifest${getExtensionRegexString(manifestExts, null)}${trailingMatcher}`),
     // FAVICON_REGEX removed - already handled in fastPathCheck
     new RegExp(
       `[\\\\/]sitemap${getExtensionRegexString(['xml'], pageExtensions)}${trailingMatcher}`

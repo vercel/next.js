@@ -2,12 +2,7 @@ import { redirect } from 'navigation'
 
 async function action(formData) {
   'use server'
-  redirect(
-    '/header?name=' +
-      formData.get('name') +
-      '&hidden-info=' +
-      formData.get('hidden-info')
-  )
+  redirect('/header?name=' + formData.get('name') + '&hidden-info=' + formData.get('hidden-info'))
 }
 
 export default function Form() {

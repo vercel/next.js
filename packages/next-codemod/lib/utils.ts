@@ -18,14 +18,8 @@ export function checkGitStatus(force) {
       console.log(`WARNING: ${errorMessage}. Forcibly continuing.`)
     } else {
       console.log('Thank you for using @next/codemod!')
-      console.log(
-        yellow(
-          '\nBut before we continue, please stash or commit your git changes.'
-        )
-      )
-      console.log(
-        '\nYou may use the --force flag to override this safety check.'
-      )
+      console.log(yellow('\nBut before we continue, please stash or commit your git changes.'))
+      console.log('\nYou may use the --force flag to override this safety check.')
       process.exit(1)
     }
   }
@@ -61,8 +55,7 @@ export const TRANSFORMER_INQUIRER_CHOICES = [
     version: '10.0.0',
   },
   {
-    title:
-      'Automatically migrates a Create React App project to Next.js (experimental)',
+    title: 'Automatically migrates a Create React App project to Next.js (experimental)',
     value: 'cra-to-next',
     version: '11.0.0',
   },
@@ -101,8 +94,7 @@ export const TRANSFORMER_INQUIRER_CHOICES = [
     version: '14.0.0',
   },
   {
-    title:
-      'Install `@vercel/functions` to replace `geo` and `ip` properties on `NextRequest`',
+    title: 'Install `@vercel/functions` to replace `geo` and `ip` properties on `NextRequest`',
     value: 'next-request-geo-ip',
     version: '15.0.0-canary.153',
   },
@@ -138,8 +130,7 @@ export const TRANSFORMER_INQUIRER_CHOICES = [
     version: '16.0.0-canary.10',
   },
   {
-    title:
-      'Remove `experimental_ppr` Route Segment Config from App Router pages and layouts',
+    title: 'Remove `experimental_ppr` Route Segment Config from App Router pages and layouts',
     value: 'remove-experimental-ppr',
     version: '16.0.0-canary.11',
   },

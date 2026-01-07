@@ -19,9 +19,7 @@ const optionalEsmPart = `((${pathSeparators}esm)?${pathSeparators})`
 const externalFileEnd = '(\\.external(\\.js)?)$'
 const nextDist = `next${pathSeparators}dist`
 
-const externalPattern = new RegExp(
-  `${nextDist}${optionalEsmPart}.*${externalFileEnd}`
-)
+const externalPattern = new RegExp(`${nextDist}${optionalEsmPart}.*${externalFileEnd}`)
 
 const nodeModulesRegex = /node_modules[/\\].*\.[mc]?js$/
 
@@ -35,9 +33,7 @@ export function isResourceInPackages(
     packageDirMapping && packageDirMapping.has(p)
       ? resource.startsWith(packageDirMapping.get(p)! + path.sep)
       : resource.includes(
-          path.sep +
-            path.join('node_modules', p.replace(/\//g, path.sep)) +
-            path.sep
+          path.sep + path.join('node_modules', p.replace(/\//g, path.sep)) + path.sep
         )
   )
 }
@@ -50,10 +46,7 @@ export async function resolveExternal(
   isEsmRequested: boolean,
   getResolve: (
     options: ResolveOptions
-  ) => (
-    resolveContext: string,
-    resolveRequest: string
-  ) => Promise<[string | null, boolean]>,
+  ) => (resolveContext: string, resolveRequest: string) => Promise<[string | null, boolean]>,
   isLocalCallback?: (res: string) => any,
   baseResolveCheck = true,
   esmResolveOptions: any = NODE_ESM_RESOLVE_OPTIONS,
@@ -67,8 +60,7 @@ export async function resolveExternal(
   let res: string | null = null
   let isEsm: boolean = false
 
-  const preferEsmOptions =
-    esmExternals && isEsmRequested ? [true, false] : [false]
+  const preferEsmOptions = esmExternals && isEsmRequested ? [true, false] : [false]
 
   for (const preferEsm of preferEsmOptions) {
     const resolveOptions = preferEsm ? esmResolveOptions : nodeResolveOptions
@@ -106,9 +98,7 @@ export async function resolveExternal(
       let baseRes: string | null
       let baseIsEsm: boolean
       try {
-        const baseResolve = getResolve(
-          isEsm ? baseEsmResolveOptions : baseResolveOptions
-        )
+        const baseResolve = getResolve(isEsm ? baseEsmResolveOptions : baseResolveOptions)
         ;[baseRes, baseIsEsm] = await baseResolve(dir, request)
       } catch (err) {
         baseRes = null
@@ -151,10 +141,7 @@ export function makeExternalHandler({
     layer: WebpackLayerName | null,
     getResolve: (
       options: any
-    ) => (
-      resolveContext: string,
-      resolveRequest: string
-    ) => Promise<[string | null, boolean]>
+    ) => (resolveContext: string, resolveRequest: string) => Promise<[string | null, boolean]>
   ) {
     // We need to externalize internal requests for files intended to
     // not be bundled.
@@ -241,18 +228,14 @@ export function makeExternalHandler({
       }
 
       if (
-        /^next[\\/]dist[\\/]shared[\\/](?!lib[\\/]router[\\/]router)/.test(
-          request
-        ) ||
+        /^next[\\/]dist[\\/]shared[\\/](?!lib[\\/]router[\\/]router)/.test(request) ||
         /^next[\\/]dist[\\/]compiled[\\/].*\.c?js$/.test(request)
       ) {
         return `commonjs ${request}`
       }
 
       if (
-        /^next[\\/]dist[\\/]esm[\\/]shared[\\/](?!lib[\\/]router[\\/]router)/.test(
-          request
-        ) ||
+        /^next[\\/]dist[\\/]esm[\\/]shared[\\/](?!lib[\\/]router[\\/]router)/.test(request) ||
         /^next[\\/]dist[\\/]compiled[\\/].*\.mjs$/.test(request)
       ) {
         return `module ${request}`
@@ -316,10 +299,7 @@ export function makeExternalHandler({
     }
 
     // Webpack itself has to be compiled because it doesn't always use module relative paths
-    if (
-      /node_modules[/\\]webpack/.test(res) ||
-      /node_modules[/\\]css-loader/.test(res)
-    ) {
+    if (/node_modules[/\\]webpack/.test(res) || /node_modules[/\\]css-loader/.test(res)) {
       return
     }
 
@@ -388,11 +368,7 @@ function resolveBundlingOptOutPackages({
 
     const shouldBeBundled =
       shouldBundlePages ||
-      isResourceInPackages(
-        resolvedRes,
-        transpiledPackages,
-        resolvedExternalPackageDirs
-      )
+      isResourceInPackages(resolvedRes, transpiledPackages, resolvedExternalPackageDirs)
 
     if (!shouldBeBundled) {
       return `${externalType} ${request}` // Externalize if not bundled or opted out
@@ -415,8 +391,6 @@ function resolveNextExternal(localRes: string) {
   if (isExternal) {
     // it's important we return the path that starts with `next/dist/` here instead of the absolute path
     // otherwise NFT will get tripped up
-    return `commonjs ${normalizePathSep(
-      localRes.replace(/.*?next[/\\]dist/, 'next/dist')
-    )}`
+    return `commonjs ${normalizePathSep(localRes.replace(/.*?next[/\\]dist/, 'next/dist'))}`
   }
 }

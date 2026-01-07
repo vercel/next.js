@@ -4,11 +4,7 @@ import { MDXRemote, type MDXRemoteProps } from "next-mdx-remote/rsc";
 import { Greet } from "./greet";
 import styles from "./mdx.module.css";
 
-function CustomLink({
-  href,
-  children,
-  ...props
-}: React.LinkHTMLAttributes<HTMLAnchorElement>) {
+function CustomLink({ href, children, ...props }: React.LinkHTMLAttributes<HTMLAnchorElement>) {
   if (href?.startsWith("/")) {
     return (
       <Link href={href} className={styles.a} {...props}>
@@ -26,13 +22,7 @@ function CustomLink({
   }
 
   return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className={styles.a}
-      {...props}
-    >
+    <a href={href} target="_blank" rel="noopener noreferrer" className={styles.a} {...props}>
       {children}
     </a>
   );
@@ -44,10 +34,5 @@ export function CustomMDX(props: MDXRemoteProps) {
     Greet: Greet,
   };
 
-  return (
-    <MDXRemote
-      {...props}
-      components={{ ...components, ...(props.components || {}) }}
-    />
-  );
+  return <MDXRemote {...props} components={{ ...components, ...(props.components || {}) }} />;
 }

@@ -21,9 +21,7 @@ async function main() {
   const attempts = isFlakeDetectionMode ? 3 : 1
 
   if (testMode && !['dev', 'deploy', 'start'].includes(testMode)) {
-    throw new Error(
-      `Invalid test mode: ${testMode}. Must be one of: dev, deploy, start`
-    )
+    throw new Error(`Invalid test mode: ${testMode}. Must be one of: dev, deploy, start`)
   }
 
   const rawGroup = argv['group']
@@ -31,9 +29,7 @@ async function main() {
   let groupTotal = 1
 
   if (rawGroup) {
-    ;[currentGroup, groupTotal] = rawGroup
-      .split('/')
-      .map((item) => Number(item))
+    ;[currentGroup, groupTotal] = rawGroup.split('/').map((item) => Number(item))
   }
 
   /** @type import('execa').Options */
@@ -60,11 +56,7 @@ async function main() {
         fileGroups[i] = []
       }
 
-      if (
-        smallestGroup &&
-        fileGroups[i] &&
-        fileGroups[i].length < smallestGroup.length
-      ) {
+      if (smallestGroup && fileGroups[i] && fileGroups[i].length < smallestGroup.length) {
         smallestGroup = fileGroups[i]
         smallestGroupIdx = i
       }
@@ -100,9 +92,7 @@ async function main() {
         if (res.ok) {
           return res
         } else if (i < retries - 1) {
-          console.log(
-            `Attempt ${i + 1} failed. Retrying in ${timeout / 1000} seconds...`
-          )
+          console.log(`Attempt ${i + 1} failed. Retrying in ${timeout / 1000} seconds...`)
           await new Promise((resolve) => setTimeout(resolve, timeout))
         } else {
           if (res.status === 404) {
@@ -112,9 +102,7 @@ async function main() {
                 `Once the "Deploy Preview tarball" job has finished, a retry should fix this error.`
             )
           }
-          throw new Error(
-            `Failed to verify artifacts for commit ${commitSha}: ${res.status}`
-          )
+          throw new Error(`Failed to verify artifacts for commit ${commitSha}: ${res.status}`)
         }
       }
     }
@@ -138,16 +126,12 @@ async function main() {
       : undefined
 
   if (NEXT_EXTERNAL_TESTS_FILTERS) {
-    console.log(
-      `Applying external tests filter: ${NEXT_EXTERNAL_TESTS_FILTERS}`
-    )
+    console.log(`Applying external tests filter: ${NEXT_EXTERNAL_TESTS_FILTERS}`)
   }
 
   if (isFlakeDetectionMode && testMode !== 'deploy') {
     for (let i = 0; i < attempts; i++) {
-      console.log(
-        `\n\nRun ${i + 1}/${attempts} for ${testMode} tests (Turbopack)`
-      )
+      console.log(`\n\nRun ${i + 1}/${attempts} for ${testMode} tests (Turbopack)`)
       await execa('node', [...RUN_TESTS_ARGS, ...currentTests], {
         ...EXECA_OPTS_STDIO,
         env: {

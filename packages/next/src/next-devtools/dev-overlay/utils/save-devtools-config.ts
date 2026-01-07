@@ -30,10 +30,7 @@ function flushPatch() {
 export function saveDevToolsConfig(patch: DevToolsConfig) {
   const validation = devToolsConfigSchema.safeParse(patch)
   if (!validation.success) {
-    console.warn(
-      '[Next.js DevTools] Invalid config patch:',
-      validation.error.message
-    )
+    console.warn('[Next.js DevTools] Invalid config patch:', validation.error.message)
     return
   }
 

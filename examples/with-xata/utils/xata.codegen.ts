@@ -1,9 +1,4 @@
-import {
-  BaseClientOptions,
-  buildClient,
-  SchemaInference,
-  XataRecord,
-} from "@xata.io/client";
+import { BaseClientOptions, buildClient, SchemaInference, XataRecord } from "@xata.io/client";
 
 const tables = [
   {

@@ -13,9 +13,7 @@
  *
  * @param useWasmBinary - Whether to use WASM bindings instead of native bindings
  */
-export async function installBindings(
-  useWasmBinary: boolean = false
-): Promise<void> {
+export async function installBindings(useWasmBinary: boolean = false): Promise<void> {
   // Lazy require to avoid loading swc/index (and transitively webpack-config/React)
   // before NODE_ENV is set
   const { loadBindings } = require('./index') as typeof import('./index')

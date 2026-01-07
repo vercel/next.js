@@ -2,11 +2,7 @@
 
 import * as React from 'react'
 import { Button } from '@/components/ui/button'
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { ChevronDown, CheckIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -50,9 +46,7 @@ export function MultiSelect({
   const [open, setOpen] = React.useState(false)
 
   function handleToggle(optionValue: string, checked: boolean) {
-    const newValue = checked
-      ? [...value, optionValue]
-      : value.filter((v) => v !== optionValue)
+    const newValue = checked ? [...value, optionValue] : value.filter((v) => v !== optionValue)
     if (newValue.length > 0) {
       onValueChange(newValue)
     }
@@ -89,10 +83,7 @@ export function MultiSelect({
         >
           <div className="flex items-center gap-1">
             {triggerIcon && (
-              <span
-                className="shrink-0 text-muted-foreground"
-                aria-hidden="true"
-              >
+              <span className="shrink-0 text-muted-foreground" aria-hidden="true">
                 {triggerIcon}
               </span>
             )}
@@ -114,9 +105,7 @@ export function MultiSelect({
           const checkboxes = Array.from(
             e.currentTarget.querySelectorAll('input[type="checkbox"]')
           ) as HTMLInputElement[]
-          const currentIndex = checkboxes.indexOf(
-            document.activeElement as HTMLInputElement
-          )
+          const currentIndex = checkboxes.indexOf(document.activeElement as HTMLInputElement)
 
           if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
             e.preventDefault()

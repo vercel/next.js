@@ -9,11 +9,7 @@ import { PHASE_ANALYZE } from '../../shared/lib/constants'
 import { turbopackAnalyze, type AnalyzeContext } from '../turbopack-analyze'
 import { durationToString } from '../duration-to-string'
 import { cp, writeFile, mkdir } from 'node:fs/promises'
-import {
-  collectAppFiles,
-  collectPagesFiles,
-  createPagesMapping,
-} from '../entries'
+import { collectAppFiles, collectPagesFiles, createPagesMapping } from '../entries'
 import { createValidFileMatcher } from '../../server/lib/find-page-file'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import { PAGE_TYPES } from '../../lib/page-types'
@@ -71,8 +67,7 @@ export default async function analyze({
       appDirOnly,
     }
 
-    const { duration: analyzeDuration, shutdownPromise } =
-      await turbopackAnalyze(analyzeContext)
+    const { duration: analyzeDuration, shutdownPromise } = await turbopackAnalyze(analyzeContext)
 
     const durationString = durationToString(analyzeDuration)
     const analyzeDir = path.join(distDir, 'diagnostics/analyze')
@@ -85,10 +80,7 @@ export default async function analyze({
       recursive: true,
     })
     await mkdir(path.join(analyzeDir, 'data'), { recursive: true })
-    await writeFile(
-      path.join(analyzeDir, 'data', 'routes.json'),
-      JSON.stringify(routes, null, 2)
-    )
+    await writeFile(path.join(analyzeDir, 'data', 'routes.json'), JSON.stringify(routes, null, 2))
 
     let logMessage = `Analyze completed in ${durationString}.`
     if (output) {
@@ -144,12 +136,8 @@ async function collectRoutesForAnalyze(
     throw new Error('No pages or app directory found.')
   }
 
-  const { appPaths } = appDir
-    ? await collectAppFiles(appDir, validFileMatcher)
-    : { appPaths: [] }
-  const pagesPaths = pagesDir
-    ? await collectPagesFiles(pagesDir, validFileMatcher)
-    : null
+  const { appPaths } = appDir ? await collectAppFiles(appDir, validFileMatcher) : { appPaths: [] }
+  const pagesPaths = pagesDir ? await collectPagesFiles(pagesDir, validFileMatcher) : null
 
   const appMapping = await createPagesMapping({
     pagePaths: appPaths,
@@ -175,9 +163,7 @@ async function collectRoutesForAnalyze(
 
   const pageKeys = {
     pages: pagesMapping ? Object.keys(pagesMapping) : [],
-    app: appMapping
-      ? Object.keys(appMapping).map((key) => normalizeAppPath(key))
-      : undefined,
+    app: appMapping ? Object.keys(appMapping).map((key) => normalizeAppPath(key)) : undefined,
   }
 
   // Load custom routes

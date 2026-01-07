@@ -3,10 +3,7 @@ import fetchComment from "../../lib/fetchComment";
 import createComments from "../../lib/createComment";
 import deleteComments from "../../lib/deleteComment";
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse,
-) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   switch (req.method) {
     case "GET":
       return fetchComment(req, res);

@@ -17,10 +17,7 @@ export default function Form() {
       <form onSubmit={handleSubmit}>
         <label>
           <span>Message:</span>
-          <textarea
-            onChange={(e) => setMessage(e.target.value)}
-            value={message}
-          />
+          <textarea onChange={(e) => setMessage(e.target.value)} value={message} />
         </label>
         <button type="submit">submit</button>
       </form>

@@ -1,29 +1,19 @@
 import path from 'path'
 import fs from 'fs'
 
-import {
-  ALLOWED_LAYOUT_PROPS,
-  ALLOWED_PAGE_PROPS,
-  NEXT_TS_ERRORS,
-} from '../constant'
+import { ALLOWED_LAYOUT_PROPS, ALLOWED_PAGE_PROPS, NEXT_TS_ERRORS } from '../constant'
 import { getTs, isPageFile, isPositionInsideNode } from '../utils'
 
 import type tsModule from 'typescript/lib/tsserverlibrary'
 
 const entry = {
   // Give auto completion for the component's props
-  getCompletionsAtPosition(
-    fileName: string,
-    node: tsModule.FunctionDeclaration,
-    position: number
-  ) {
+  getCompletionsAtPosition(fileName: string, node: tsModule.FunctionDeclaration, position: number) {
     const ts = getTs()
     const entries: tsModule.CompletionEntry[] = []
 
     // Default export function might not accept parameters
-    const paramNode = node.parameters?.[0] as
-      | tsModule.ParameterDeclaration
-      | undefined
+    const paramNode = node.parameters?.[0] as tsModule.ParameterDeclaration | undefined
 
     if (paramNode && isPositionInsideNode(position, paramNode)) {
       const props = paramNode?.name

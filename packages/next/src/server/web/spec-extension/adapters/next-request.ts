@@ -54,10 +54,7 @@ export function signalFromNodeResponse(response: Writable): AbortSignal {
 }
 
 export class NextRequestAdapter {
-  public static fromBaseNextRequest(
-    request: BaseNextRequest,
-    signal: AbortSignal
-  ): NextRequest {
+  public static fromBaseNextRequest(request: BaseNextRequest, signal: AbortSignal): NextRequest {
     if (
       // The type check here ensures that `req` is correctly typed, and the
       // environment variable check provides dead code elimination.
@@ -77,10 +74,7 @@ export class NextRequestAdapter {
     }
   }
 
-  public static fromNodeNextRequest(
-    request: NodeNextRequest,
-    signal: AbortSignal
-  ): NextRequest {
+  public static fromNodeNextRequest(request: NodeNextRequest, signal: AbortSignal): NextRequest {
     // HEAD and GET requests can not have a body.
     let body: BodyInit | null = null
     if (request.method !== 'GET' && request.method !== 'HEAD' && request.body) {

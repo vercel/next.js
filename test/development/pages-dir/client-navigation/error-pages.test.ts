@@ -35,18 +35,14 @@ describe('Client navigation on error pages', () => {
     it('should 404 on not existent page', async () => {
       const browser = await next.browser('/non-existent')
       expect(await browser.elementByCss('h1').text()).toBe('404')
-      expect(await browser.elementByCss('h2').text()).toBe(
-        'This page could not be found.'
-      )
+      expect(await browser.elementByCss('h2').text()).toBe('This page could not be found.')
       await browser.close()
     })
 
     it('should 404 on wrong casing', async () => {
       const browser = await next.browser('/nAv/AbOuT')
       expect(await browser.elementByCss('h1').text()).toBe('404')
-      expect(await browser.elementByCss('h2').text()).toBe(
-        'This page could not be found.'
-      )
+      expect(await browser.elementByCss('h2').text()).toBe('This page could not be found.')
       await browser.close()
     })
 
@@ -59,9 +55,7 @@ describe('Client navigation on error pages', () => {
     it('should 404 on wrong casing of url dynamic param', async () => {
       const browser = await next.browser('/dynamic/dynamic-part/RoUtE')
       expect(await browser.elementByCss('h1').text()).toBe('404')
-      expect(await browser.elementByCss('h2').text()).toBe(
-        'This page could not be found.'
-      )
+      expect(await browser.elementByCss('h2').text()).toBe('This page could not be found.')
       await browser.close()
     })
 

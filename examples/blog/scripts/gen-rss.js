@@ -16,9 +16,7 @@ async function generate() {
     posts.map(async (name) => {
       if (name.startsWith("index.")) return;
 
-      const content = await fs.readFile(
-        path.join(__dirname, "..", "pages", "posts", name),
-      );
+      const content = await fs.readFile(path.join(__dirname, "..", "pages", "posts", name));
       const frontmatter = matter(content);
 
       feed.item({

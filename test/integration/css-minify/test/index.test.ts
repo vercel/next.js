@@ -2,13 +2,7 @@
 
 import { join } from 'path'
 import cheerio from 'cheerio'
-import {
-  killApp,
-  findPort,
-  nextStart,
-  nextBuild,
-  renderViaHTTP,
-} from 'next-test-utils'
+import { killApp, findPort, nextStart, nextBuild, renderViaHTTP } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
 let appPort
@@ -21,9 +15,7 @@ function runTests() {
     const href = $('link[rel="preload"]').attr('href')
     const css = await renderViaHTTP(appPort, href)
     if (process.env.IS_TURBOPACK_TEST) {
-      expect(css).toContain(
-        '.a{--var-1:-50%;--var-2:-50%}.b{--var-1:0;--var-2:-50%}'
-      )
+      expect(css).toContain('.a{--var-1:-50%;--var-2:-50%}.b{--var-1:0;--var-2:-50%}')
     } else {
       expect(css).toMatchInlineSnapshot(
         `".a{--var-1:0;--var-2:0;--var-1:-50%;--var-2:-50%}.b{--var-1:0;--var-2:0;--var-2:-50%}"`
@@ -33,18 +25,15 @@ function runTests() {
 }
 
 describe('css-minify', () => {
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      beforeAll(async () => {
-        await nextBuild(appDir)
-        appPort = await findPort()
-        app = await nextStart(appDir, appPort)
-      })
-      afterAll(async () => {
-        await killApp(app)
-      })
-      runTests()
-    }
-  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
+    beforeAll(async () => {
+      await nextBuild(appDir)
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+    })
+    runTests()
+  })
 })

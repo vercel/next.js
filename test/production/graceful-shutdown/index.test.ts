@@ -34,88 +34,87 @@ describe('Graceful Shutdown', () => {
 
     runTests(true)
   })
-  ;(process.env.IS_TURBOPACK_TEST && !process.env.TURBOPACK_BUILD
-    ? describe.skip
-    : describe)('production (next start)', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-    })
-    beforeEach(async () => {
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterEach(() => killApp(app))
-
-    runTests()
-  })
-  ;(process.env.IS_TURBOPACK_TEST && !process.env.TURBOPACK_BUILD
-    ? describe.skip
-    : describe)('production (standalone mode)', () => {
-    let next: NextInstance
-    let serverFile
-
-    const projectFiles = {
-      'next.config.mjs': `export default { output: 'standalone' }`,
-    }
-
-    for (const file of glob.sync('*', { cwd: appDir, dot: false })) {
-      projectFiles[file] = new FileRef(join(appDir, file))
-    }
-
-    beforeAll(async () => {
-      next = await createNext({
-        files: projectFiles,
-        dependencies: {
-          swr: 'latest',
-        },
+  ;(process.env.IS_TURBOPACK_TEST && !process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'production (next start)',
+    () => {
+      beforeAll(async () => {
+        await nextBuild(appDir)
       })
-
-      await next.stop()
-
-      await fs.move(
-        join(next.testDir, '.next/standalone'),
-        join(next.testDir, 'standalone')
-      )
-
-      for (const file of await fs.readdir(next.testDir)) {
-        if (file !== 'standalone') {
-          await fs.remove(join(next.testDir, file))
-        }
-      }
-      const files = glob.sync('**/*', {
-        cwd: join(next.testDir, 'standalone/.next/server/pages'),
-        dot: true,
+      beforeEach(async () => {
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
       })
+      afterEach(() => killApp(app))
 
-      for (const file of files) {
-        if (file.endsWith('.json') || file.endsWith('.html')) {
-          await fs.remove(join(next.testDir, '.next/server', file))
-        }
+      runTests()
+    }
+  )
+  ;(process.env.IS_TURBOPACK_TEST && !process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'production (standalone mode)',
+    () => {
+      let next: NextInstance
+      let serverFile
+
+      const projectFiles = {
+        'next.config.mjs': `export default { output: 'standalone' }`,
       }
 
-      serverFile = join(next.testDir, 'standalone/server.js')
-    })
+      for (const file of glob.sync('*', { cwd: appDir, dot: false })) {
+        projectFiles[file] = new FileRef(join(appDir, file))
+      }
 
-    beforeEach(async () => {
-      appPort = await findPort()
-      app = await initNextServerScript(
-        serverFile,
-        /✓ Ready in \d+m?s/,
-        {
-          ...process.env,
-          NEXT_EXIT_TIMEOUT_MS: '10',
-          PORT: appPort.toString(),
-        },
-        undefined,
-        { cwd: next.testDir }
-      )
-    })
-    afterEach(() => killApp(app))
+      beforeAll(async () => {
+        next = await createNext({
+          files: projectFiles,
+          dependencies: {
+            swr: 'latest',
+          },
+        })
 
-    afterAll(() => next.destroy())
+        await next.stop()
 
-    runTests()
-  })
+        await fs.move(join(next.testDir, '.next/standalone'), join(next.testDir, 'standalone'))
+
+        for (const file of await fs.readdir(next.testDir)) {
+          if (file !== 'standalone') {
+            await fs.remove(join(next.testDir, file))
+          }
+        }
+        const files = glob.sync('**/*', {
+          cwd: join(next.testDir, 'standalone/.next/server/pages'),
+          dot: true,
+        })
+
+        for (const file of files) {
+          if (file.endsWith('.json') || file.endsWith('.html')) {
+            await fs.remove(join(next.testDir, '.next/server', file))
+          }
+        }
+
+        serverFile = join(next.testDir, 'standalone/server.js')
+      })
+
+      beforeEach(async () => {
+        appPort = await findPort()
+        app = await initNextServerScript(
+          serverFile,
+          /✓ Ready in \d+m?s/,
+          {
+            ...process.env,
+            NEXT_EXIT_TIMEOUT_MS: '10',
+            PORT: appPort.toString(),
+          },
+          undefined,
+          { cwd: next.testDir }
+        )
+      })
+      afterEach(() => killApp(app))
+
+      afterAll(() => next.destroy())
+
+      runTests()
+    }
+  )
 })
 
 function runTests(dev = false) {
@@ -124,9 +123,7 @@ function runTests(dev = false) {
       const appKilledPromise = once(app, 'exit')
 
       // let the dev server compile the route before running the test
-      await expect(
-        fetchViaHTTP(appPort, '/api/long-running')
-      ).resolves.toBeDefined()
+      await expect(fetchViaHTTP(appPort, '/api/long-running')).resolves.toBeDefined()
 
       const resPromise = fetchViaHTTP(appPort, '/api/long-running')
 
@@ -197,10 +194,7 @@ function runTests(dev = false) {
         expect(app.exitCode).toBe(null)
 
         // The app should start rejecting new connections soon
-        await waitForAppToStartRefusingConnections(
-          () => fetchViaHTTP(appPort, '/api/fast'),
-          1000
-        )
+        await waitForAppToStartRefusingConnections(() => fetchViaHTTP(appPort, '/api/fast'), 1000)
 
         // Original request responds as expected without being interrupted
         await expect(resPromise).resolves.toBeDefined()
@@ -220,10 +214,7 @@ function runTests(dev = false) {
         expect(app.exitCode).toBe(null)
 
         // The app should start rejecting connections soon
-        await waitForAppToStartRefusingConnections(
-          () => fetchViaHTTP(appPort, '/api/fast'),
-          1000
-        )
+        await waitForAppToStartRefusingConnections(() => fetchViaHTTP(appPort, '/api/fast'), 1000)
 
         // App finally shuts down
         expect(await appKilledPromise).toEqual([0, null])

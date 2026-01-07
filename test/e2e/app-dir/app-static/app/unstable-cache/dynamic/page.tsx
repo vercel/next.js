@@ -27,9 +27,7 @@ export default async function Page() {
     <div>
       <p>random: {Math.random()}</p>
       <p id="cached-data">cachedData: {cachedData.random}</p>
-      <p id="draft-mode-enabled">
-        draft mode enabled: {cachedData.draftModeEnabled.toString()}
-      </p>
+      <p id="draft-mode-enabled">draft mode enabled: {cachedData.draftModeEnabled.toString()}</p>
       <RevalidateButton onClick={revalidate} />
     </div>
   )

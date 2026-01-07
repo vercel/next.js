@@ -12,9 +12,7 @@ describe('initial-css-not-found', () => {
 
     // Simply check that our css was served and applied.
     expect(
-      await browser.eval(
-        `window.getComputedStyle(document.querySelector('body')).color`
-      )
+      await browser.eval(`window.getComputedStyle(document.querySelector('body')).color`)
     ).toBe('rgb(255, 0, 0)')
   })
 })

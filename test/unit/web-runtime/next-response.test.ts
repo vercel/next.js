@@ -16,18 +16,14 @@ it('automatically parses and formats JSON', async () => {
     body: { message: 'hello!' },
   })
 
-  expect(
-    await toJSON(NextResponse.json({ status: 'success' }, { status: 201 }))
-  ).toMatchObject({
+  expect(await toJSON(NextResponse.json({ status: 'success' }, { status: 201 }))).toMatchObject({
     contentType: 'application/json',
     body: { status: 'success' },
     status: 201,
   })
 
   expect(
-    await toJSON(
-      NextResponse.json({ error: { code: 'bad_request' } }, { status: 400 })
-    )
+    await toJSON(NextResponse.json({ error: { code: 'bad_request' } }, { status: 400 }))
   ).toMatchObject({
     contentType: 'application/json',
     body: { error: { code: 'bad_request' } },

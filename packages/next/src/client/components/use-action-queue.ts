@@ -15,9 +15,7 @@ let dispatch: Dispatch<ReducerActions> | null = null
 
 export function dispatchAppRouterAction(action: ReducerActions) {
   if (dispatch === null) {
-    throw new Error(
-      'Internal Next.js error: Router action dispatched before initialization.'
-    )
+    throw new Error('Internal Next.js error: Router action dispatched before initialization.')
   }
   dispatch(action)
 }
@@ -28,9 +26,7 @@ const promisesWithDebugInfo: WeakMap<
   Promise<AppRouterState> & { _debugInfo?: Array<unknown> }
 > = __DEV__ ? new WeakMap() : (null as any)
 
-export function useActionQueue(
-  actionQueue: AppRouterActionQueue
-): AppRouterState {
+export function useActionQueue(actionQueue: AppRouterActionQueue): AppRouterState {
   const [state, setState] = React.useState<ReducerState>(actionQueue.state)
 
   // Because of a known issue that requires to decode Flight streams inside the
@@ -52,8 +48,7 @@ export function useActionQueue(
       })
     }
   } else {
-    dispatch = (action: ReducerActions) =>
-      actionQueue.dispatch(action, setState)
+    dispatch = (action: ReducerActions) => actionQueue.dispatch(action, setState)
   }
 
   // When navigating to a non-prefetched route, then App Router state will be
@@ -88,7 +83,5 @@ export function useActionQueue(
     return state
   }, [state])
 
-  return isThenable(stateWithDebugInfo)
-    ? use(stateWithDebugInfo)
-    : stateWithDebugInfo
+  return isThenable(stateWithDebugInfo) ? use(stateWithDebugInfo) : stateWithDebugInfo
 }

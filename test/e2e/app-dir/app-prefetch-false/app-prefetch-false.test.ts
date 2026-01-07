@@ -41,9 +41,7 @@ describe('app-prefetch-false', () => {
       await browser.elementByCss('[href="/foo"]').click()
       await browser.elementByCss('[href="/foo/bar"]').click()
       console.log('getRequests()', getRequests())
-      expect(
-        getRequests().filter(([req]) => getPathname(req) === '/foo/bar').length
-      ).toBe(1)
+      expect(getRequests().filter(([req]) => getPathname(req) === '/foo/bar').length).toBe(1)
     })
   }
 })

@@ -71,11 +71,7 @@ const Page = () => {
         placeholder="blur"
         blurDataURL="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs="
       />
-      <Image
-        id="no-width-and-height"
-        alt="no-width-and-height"
-        src={testTall}
-      />
+      <Image id="no-width-and-height" alt="no-width-and-height" src={testTall} />
       <Image
         id="object-src-with-placeholder"
         alt="object-src-with-placeholder"

@@ -7,19 +7,11 @@ export default function Page() {
         getStaticProps
       </Link>
       <br />
-      <Link
-        href="/gsp-fallback/[slug]"
-        as="/gsp-fallback/prerendered"
-        id="gsp-prerender-link"
-      >
+      <Link href="/gsp-fallback/[slug]" as="/gsp-fallback/prerendered" id="gsp-prerender-link">
         getStaticPaths prerendered
       </Link>
       <br />
-      <Link
-        href="/gsp-fallback/[slug]"
-        as="/gsp-fallback/fallback"
-        id="gsp-fallback-link"
-      >
+      <Link href="/gsp-fallback/[slug]" as="/gsp-fallback/fallback" id="gsp-fallback-link">
         getStaticPaths fallback
       </Link>
       <br />

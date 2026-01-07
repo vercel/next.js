@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  useReducer,
-  useContext,
-  createContext,
-  ReactNode,
-  Dispatch,
-} from "react";
+import { useReducer, useContext, createContext, ReactNode, Dispatch } from "react";
 
 type CounterState = number;
 type CounterAction =
@@ -19,9 +13,7 @@ type CounterAction =
     };
 
 const CounterStateContext = createContext<CounterState>(0);
-const CounterDispatchContext = createContext<Dispatch<CounterAction>>(
-  () => null,
-);
+const CounterDispatchContext = createContext<Dispatch<CounterAction>>(() => null);
 
 const reducer = (state: CounterState, action: CounterAction) => {
   switch (action.type) {
@@ -41,16 +33,11 @@ type CounterProviderProps = {
   initialValue?: number;
 };
 
-export const CounterProvider = ({
-  children,
-  initialValue = 0,
-}: CounterProviderProps) => {
+export const CounterProvider = ({ children, initialValue = 0 }: CounterProviderProps) => {
   const [state, dispatch] = useReducer(reducer, initialValue);
   return (
     <CounterDispatchContext.Provider value={dispatch}>
-      <CounterStateContext.Provider value={state}>
-        {children}
-      </CounterStateContext.Provider>
+      <CounterStateContext.Provider value={state}>{children}</CounterStateContext.Provider>
     </CounterDispatchContext.Provider>
   );
 };

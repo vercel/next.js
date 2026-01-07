@@ -10,9 +10,7 @@ describe('parallel-routes-catchall-dynamic-segment', () => {
 
     // we have a top-level catch-all but the /nested dir doesn't have a default/page until the /[foo]/[bar] segment
     // so we expect the top-level catch-all to render
-    expect(await browser.elementById('children').text()).toBe(
-      '/[locale]/[[...catchAll]]/page.tsx'
-    )
+    expect(await browser.elementById('children').text()).toBe('/[locale]/[[...catchAll]]/page.tsx')
 
     browser = await next.browser('/en/nested/foo/bar')
 

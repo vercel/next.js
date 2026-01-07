@@ -10,13 +10,10 @@ import styles from "../styles/Home.module.css";
 export default function Home() {
   const [messages, setMessages] = useState<TextMessage[]>([]);
 
-  const [channel, ably] = useChannel(
-    "some-channel-name",
-    async (message: Types.Message) => {
-      console.log("Received Ably message", message);
-      setMessages((messages) => [...messages, message.data]);
-    },
-  );
+  const [channel, ably] = useChannel("some-channel-name", async (message: Types.Message) => {
+    console.log("Received Ably message", message);
+    setMessages((messages) => [...messages, message.data]);
+  });
 
   const [presenceData, updateStatus] = usePresence("your-channel-name");
 
@@ -39,10 +36,7 @@ export default function Home() {
       </Head>
 
       <h1>Realtime Edge Messaging with Next and Ably</h1>
-      <p>
-        Use the buttons below to send and receive messages or to update your
-        status.
-      </p>
+      <p>Use the buttons below to send and receive messages or to update your status.</p>
 
       <main className={styles.main}>
         <h2>Present Clients</h2>
@@ -96,12 +90,7 @@ export default function Home() {
           rel="noopener noreferrer"
         >
           <span>
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              width={100}
-              height={32}
-            />
+            <Image src="/vercel.svg" alt="Vercel Logo" width={100} height={32} />
           </span>
         </a>
         and

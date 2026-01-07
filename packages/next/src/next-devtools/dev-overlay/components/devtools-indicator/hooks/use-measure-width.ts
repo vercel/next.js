@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react'
 
-export function useMeasureWidth(
-  ref: React.RefObject<HTMLDivElement | null>
-): number {
+export function useMeasureWidth(ref: React.RefObject<HTMLDivElement | null>): number {
   const [width, setWidth] = useState<number>(0)
 
   useEffect(() => {

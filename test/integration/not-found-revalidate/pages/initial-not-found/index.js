@@ -2,10 +2,7 @@ import fs from 'fs'
 import path from 'path'
 
 export async function getStaticProps() {
-  const data = await fs.promises.readFile(
-    path.join(process.cwd(), 'data.txt'),
-    'utf8'
-  )
+  const data = await fs.promises.readFile(path.join(process.cwd(), 'data.txt'), 'utf8')
 
   console.log('revalidate', { data })
 

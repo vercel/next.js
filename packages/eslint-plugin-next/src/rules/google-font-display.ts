@@ -29,8 +29,7 @@ export default defineRule({
 
         const hrefValue = attributes.value('href')
         const isGoogleFont =
-          typeof hrefValue === 'string' &&
-          hrefValue.startsWith('https://fonts.googleapis.com/css')
+          typeof hrefValue === 'string' && hrefValue.startsWith('https://fonts.googleapis.com/css')
 
         if (isGoogleFont) {
           const params = new URLSearchParams(hrefValue.split('?', 2)[1])
@@ -44,9 +43,7 @@ export default defineRule({
             displayValue === 'block' ||
             displayValue === 'fallback'
           ) {
-            message = `${
-              displayValue[0].toUpperCase() + displayValue.slice(1)
-            } is not recommended.`
+            message = `${displayValue[0].toUpperCase() + displayValue.slice(1)} is not recommended.`
           }
         }
 

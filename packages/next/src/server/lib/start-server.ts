@@ -25,10 +25,7 @@ import setupDebug from 'next/dist/compiled/debug'
 import { RESTART_EXIT_CODE } from './utils'
 import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
-import {
-  CONFIG_FILES,
-  PHASE_DEVELOPMENT_SERVER,
-} from '../../shared/lib/constants'
+import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../../shared/lib/constants'
 import { getStartServerInfo, logStartInfo } from './app-info-log'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import { type Span, trace, flushAllTraces } from '../../trace'
@@ -98,16 +95,12 @@ async function getProcessIdUsingPort(port: number): Promise<string | null> {
         )
       }
     } catch (cause) {
-      handleError(
-        new Error('Unexpected error during process lookup', { cause })
-      )
+      handleError(new Error('Unexpected error during process lookup', { cause }))
     }
   })
 
   const timeoutId = setTimeout(() => {
-    processLookupController.abort(
-      `PID detection timed out after ${timeoutMs}ms for port ${port}.`
-    )
+    processLookupController.abort(`PID detection timed out after ${timeoutMs}ms for port ${port}.`)
   }, timeoutMs)
 
   pidPromise.finally(() => clearTimeout(timeoutId))
@@ -166,30 +159,19 @@ export async function getRequestHandlers({
   })
 }
 
-export async function startServer(
-  serverOptions: StartServerOptions
-): Promise<void> {
-  const {
-    dir,
-    isDev,
-    hostname,
-    minimalMode,
-    allowRetry,
-    keepAliveTimeout,
-    selfSignedCertificate,
-  } = serverOptions
+export async function startServer(serverOptions: StartServerOptions): Promise<void> {
+  const { dir, isDev, hostname, minimalMode, allowRetry, keepAliveTimeout, selfSignedCertificate } =
+    serverOptions
   let { port } = serverOptions
 
   process.title = `next-server (v${process.env.__NEXT_VERSION})`
   let handlersReady = () => {}
   let handlersError = () => {}
 
-  let handlersPromise: Promise<void> | undefined = new Promise<void>(
-    (resolve, reject) => {
-      handlersReady = resolve
-      handlersError = reject
-    }
-  )
+  let handlersPromise: Promise<void> | undefined = new Promise<void>((resolve, reject) => {
+    handlersReady = resolve
+    handlersError = reject
+  })
   let requestHandler: WorkerRequestHandler = async (
     req: IncomingMessage,
     res: ServerResponse
@@ -200,11 +182,7 @@ export async function startServer(
     }
     throw new Error('Invariant request handler was not setup')
   }
-  let upgradeHandler: WorkerUpgradeHandler = async (
-    req,
-    socket,
-    head
-  ): Promise<void> => {
+  let upgradeHandler: WorkerUpgradeHandler = async (req, socket, head): Promise<void> => {
     if (handlersPromise) {
       await handlersPromise
       return upgradeHandler(req, socket, head)
@@ -216,9 +194,7 @@ export async function startServer(
 
   // setup server listener as fast as possible
   if (selfSignedCertificate && !isDev) {
-    throw new Error(
-      'Using a self signed certificate is only supported with `next dev`.'
-    )
+    throw new Error('Using a self signed certificate is only supported with `next dev`.')
   }
 
   async function requestListener(req: IncomingMessage, res: ServerResponse) {
@@ -235,17 +211,10 @@ export async function startServer(
       console.error(err)
     } finally {
       if (isDev) {
-        if (
-          v8.getHeapStatistics().used_heap_size >
-          0.8 * v8.getHeapStatistics().heap_size_limit
-        ) {
-          Log.warn(
-            `Server is approaching the used memory threshold, restarting...`
-          )
+        if (v8.getHeapStatistics().used_heap_size > 0.8 * v8.getHeapStatistics().heap_size_limit) {
+          Log.warn(`Server is approaching the used memory threshold, restarting...`)
           trace('server-restart-close-to-memory-threshold', undefined, {
-            'memory.heapSizeLimit': String(
-              v8.getHeapStatistics().heap_size_limit
-            ),
+            'memory.heapSizeLimit': String(v8.getHeapStatistics().heap_size_limit),
             'memory.heapUsed': String(v8.getHeapStatistics().used_heap_size),
           }).stop()
           await flushAllTraces()
@@ -282,13 +251,7 @@ export async function startServer(
   const originalPort = port
 
   server.on('error', (err: NodeJS.ErrnoException) => {
-    if (
-      allowRetry &&
-      port &&
-      isDev &&
-      err.code === 'EADDRINUSE' &&
-      portRetryCount < 10
-    ) {
+    if (allowRetry && port && isDev && err.code === 'EADDRINUSE' && portRetryCount < 10) {
       port += 1
       portRetryCount += 1
       server.listen(port, hostname)
@@ -305,9 +268,7 @@ export async function startServer(
     server.on('listening', async () => {
       const addr = server.address()
       const actualHostname = formatHostname(
-        typeof addr === 'object'
-          ? addr?.address || hostname || 'localhost'
-          : addr
+        typeof addr === 'object' ? addr?.address || hostname || 'localhost' : addr
       )
       const formattedHostname =
         !hostname || actualHostname === '0.0.0.0'
@@ -331,8 +292,7 @@ export async function startServer(
         }
       }
 
-      const networkHostname =
-        hostname ?? getNetworkHost(isIPv6(actualHostname) ? 'IPv6' : 'IPv4')
+      const networkHostname = hostname ?? getNetworkHost(isIPv6(actualHostname) ? 'IPv6' : 'IPv4')
 
       const protocol = selfSignedCertificate ? 'https' : 'http'
 
@@ -415,9 +375,7 @@ export async function startServer(
                 const { traceGlobals } =
                   require('../../trace/shared') as typeof import('../../trace/shared')
                 const telemetry = traceGlobals.get('telemetry') as
-                  | InstanceType<
-                      typeof import('../../telemetry/storage').Telemetry
-                    >
+                  | InstanceType<typeof import('../../telemetry/storage').Telemetry>
                   | undefined
                 if (telemetry) {
                   // Use flushDetached to avoid blocking process exit
@@ -462,11 +420,7 @@ export async function startServer(
 
         const startServerProcessDuration =
           performance.mark('next-start-end') &&
-          performance.measure(
-            'next-start-duration',
-            'next-start',
-            'next-start-end'
-          ).duration
+          performance.measure('next-start-duration', 'next-start', 'next-start-end').duration
 
         handlersReady()
         const formatDurationText =
@@ -495,10 +449,7 @@ export async function startServer(
   })
 
   if (isDev) {
-    function watchConfigFiles(
-      dirToWatch: string,
-      onChange: (filename: string) => void
-    ) {
+    function watchConfigFiles(dirToWatch: string, onChange: (filename: string) => void) {
       const wp = new Watchpack()
       wp.watch({
         files: CONFIG_FILES.map((file) => path.join(dirToWatch, file)),
@@ -525,12 +476,7 @@ export async function startServer(
 
 if (process.env.NEXT_PRIVATE_WORKER && process.send) {
   process.addListener('message', async (msg: any) => {
-    if (
-      msg &&
-      typeof msg === 'object' &&
-      msg.nextWorkerOptions &&
-      process.send
-    ) {
+    if (msg && typeof msg === 'object' && msg.nextWorkerOptions && process.send) {
       startServerSpan = trace('start-dev-server', undefined, {
         cpus: String(os.cpus().length),
         platform: os.platform(),
@@ -538,19 +484,11 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
         'memory.totalMem': String(os.totalmem()),
         'memory.heapSizeLimit': String(v8.getHeapStatistics().heap_size_limit),
       })
-      await startServerSpan.traceAsyncFn(() =>
-        startServer(msg.nextWorkerOptions)
-      )
+      await startServerSpan.traceAsyncFn(() => startServer(msg.nextWorkerOptions))
       const memoryUsage = process.memoryUsage()
       startServerSpan.setAttribute('memory.rss', String(memoryUsage.rss))
-      startServerSpan.setAttribute(
-        'memory.heapTotal',
-        String(memoryUsage.heapTotal)
-      )
-      startServerSpan.setAttribute(
-        'memory.heapUsed',
-        String(memoryUsage.heapUsed)
-      )
+      startServerSpan.setAttribute('memory.heapTotal', String(memoryUsage.heapTotal))
+      startServerSpan.setAttribute('memory.heapUsed', String(memoryUsage.heapUsed))
       process.send({ nextServerReady: true, port: process.env.PORT })
     }
   })

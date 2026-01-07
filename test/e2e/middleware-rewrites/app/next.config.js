@@ -30,8 +30,7 @@ module.exports = {
         },
         {
           source: '/external-rewrite-body',
-          destination:
-            'https://next-data-api-endpoint.vercel.app/api/echo-body',
+          destination: 'https://next-data-api-endpoint.vercel.app/api/echo-body',
         },
       ],
       fallback: [],

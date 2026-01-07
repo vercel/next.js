@@ -2,9 +2,7 @@ import { formatServerError } from './format-server-error'
 
 describe('formatServerError', () => {
   it('should not append message several times', () => {
-    const err = new Error(
-      'Class extends value undefined is not a constructor or null'
-    )
+    const err = new Error('Class extends value undefined is not a constructor or null')
 
     // Before
     expect(err.message).toMatchInlineSnapshot(

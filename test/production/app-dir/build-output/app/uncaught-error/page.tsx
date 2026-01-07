@@ -7,13 +7,11 @@ export default function Page() {
   return (
     <>
       <p>
-        This page should be statically generated even though we threw an
-        unhandled exception in a setTimeout.
+        This page should be statically generated even though we threw an unhandled exception in a
+        setTimeout.
       </p>
       <p id="sentinel">
-        {process.env.NEXT_PHASE === PHASE_PRODUCTION_BUILD
-          ? 'at buildtime'
-          : 'at runtime'}
+        {process.env.NEXT_PHASE === PHASE_PRODUCTION_BUILD ? 'at buildtime' : 'at runtime'}
       </p>
     </>
   )

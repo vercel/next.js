@@ -34,9 +34,7 @@ export default function Page({ params }) {
   // Read all matching logs and print them
   let storage = Object.fromEntries(
     Object.entries(sessionStorage).flatMap(([key, value]) =>
-      key.startsWith(`${storageKey}/`)
-        ? [[key.slice(storageKey.length + 1), value]]
-        : []
+      key.startsWith(`${storageKey}/`) ? [[key.slice(storageKey.length + 1), value]] : []
     )
   )
 

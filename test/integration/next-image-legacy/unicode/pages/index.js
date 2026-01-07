@@ -14,12 +14,7 @@ const Page = () => {
         width={400}
         height={400}
       />
-      <Image
-        id="internal-space"
-        src="/hello%20world.jpg"
-        width={200}
-        height={200}
-      />
+      <Image id="internal-space" src="/hello%20world.jpg" width={200} height={200} />
       <Image
         id="external-space"
         src="https://image-optimization-test.vercel.app/hello%20world.jpg"

@@ -23,9 +23,9 @@ describe.each([
     })
     it('should render the module', async () => {
       const browser = await next.browser('/')
-      expect(
-        await browser.elementByCss('.red-text').getComputedCss('color')
-      ).toBe(colorToRgb('red'))
+      expect(await browser.elementByCss('.red-text').getComputedCss('color')).toBe(
+        colorToRgb('red')
+      )
     })
   }
 )

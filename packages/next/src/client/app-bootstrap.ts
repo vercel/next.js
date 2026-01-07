@@ -65,13 +65,8 @@ export function appBootstrap(hydrate: (assetPrefix: string) => void) {
     // set to `1`. Otherwise the following is optimized out.
     if (process.env.__NEXT_EXPERIMENTAL_STATIC_SHELL_DEBUGGING === '1') {
       const search = new URLSearchParams(window.location.search)
-      if (
-        search.get('__nextppronly') === 'fallback' ||
-        search.get('__nextppronly') === '1'
-      ) {
-        console.warn(
-          `Skipping hydration due to __nextppronly=${search.get('__nextppronly')}`
-        )
+      if (search.get('__nextppronly') === 'fallback' || search.get('__nextppronly') === '1') {
+        console.warn(`Skipping hydration due to __nextppronly=${search.get('__nextppronly')}`)
         return
       }
     }

@@ -19,18 +19,13 @@ type LayoutSegmentPromisesCache = {
   selectedLayoutSegmentsPromises: Map<string, InstrumentedPromise<string[]>>
 }
 
-const layoutSegmentPromisesCache = new WeakMap<
-  FlightRouterState,
-  LayoutSegmentPromisesCache
->()
+const layoutSegmentPromisesCache = new WeakMap<FlightRouterState, LayoutSegmentPromisesCache>()
 
 /**
  * Creates instrumented promises for layout segment hooks at a given tree level.
  * This is dev-only code for React Suspense DevTools instrumentation.
  */
-function createLayoutSegmentPromises(
-  tree: FlightRouterState
-): LayoutSegmentPromisesCache | null {
+function createLayoutSegmentPromises(tree: FlightRouterState): LayoutSegmentPromisesCache | null {
   if (process.env.NODE_ENV === 'production') {
     return null
   }
@@ -115,10 +110,7 @@ export function createRootNavigationPromises(
 
   const promises: NavigationPromises = {
     pathname: createDevToolsInstrumentedPromise('usePathname', pathname),
-    searchParams: createDevToolsInstrumentedPromise(
-      'useSearchParams',
-      readonlySearchParams
-    ),
+    searchParams: createDevToolsInstrumentedPromise('useSearchParams', readonlySearchParams),
     params: createDevToolsInstrumentedPromise('useParams', pathParams),
     ...layoutSegmentPromises,
   }

@@ -1,7 +1,4 @@
-import {
-  DEFAULT_SERIF_FONT,
-  DEFAULT_SANS_SERIF_FONT,
-} from '../shared/lib/constants'
+import { DEFAULT_SERIF_FONT, DEFAULT_SANS_SERIF_FONT } from '../shared/lib/constants'
 const capsizeFontsMetrics = require('next/dist/server/capsize-font-metrics.json')
 
 function formatName(str: string): string {
@@ -19,15 +16,12 @@ function formatOverrideValue(val: number) {
 export function calculateSizeAdjustValues(fontName: string) {
   const fontKey = formatName(fontName)
   const fontMetrics = capsizeFontsMetrics[fontKey]
-  let { category, ascent, descent, lineGap, unitsPerEm, xWidthAvg } =
-    fontMetrics
+  let { category, ascent, descent, lineGap, unitsPerEm, xWidthAvg } = fontMetrics
   const mainFontAvgWidth = xWidthAvg / unitsPerEm
-  const fallbackFont =
-    category === 'serif' ? DEFAULT_SERIF_FONT : DEFAULT_SANS_SERIF_FONT
+  const fallbackFont = category === 'serif' ? DEFAULT_SERIF_FONT : DEFAULT_SANS_SERIF_FONT
   const fallbackFontName = formatName(fallbackFont.name)
   const fallbackFontMetrics = capsizeFontsMetrics[fallbackFontName]
-  const fallbackFontAvgWidth =
-    fallbackFontMetrics.xWidthAvg / fallbackFontMetrics.unitsPerEm
+  const fallbackFontAvgWidth = fallbackFontMetrics.xWidthAvg / fallbackFontMetrics.unitsPerEm
   let sizeAdjust = xWidthAvg ? mainFontAvgWidth / fallbackFontAvgWidth : 1
 
   ascent = formatOverrideValue(ascent / (unitsPerEm * sizeAdjust))

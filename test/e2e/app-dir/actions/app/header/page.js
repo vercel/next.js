@@ -1,11 +1,6 @@
 import UI from './ui'
 
-import {
-  getCookie,
-  getHeader,
-  setCookie,
-  setCookieAndRedirect,
-} from './actions'
+import { getCookie, getHeader, setCookie, setCookieAndRedirect } from './actions'
 import { validator } from './validator'
 
 export default function Page() {

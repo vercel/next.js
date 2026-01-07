@@ -28,11 +28,9 @@ describe('segment cache (MPA navigations)', () => {
     // The expando should not be present because we did a full-page navigation.
     await retry(async () => {
       const htmlAfterNav = await browser.elementByCss('html')
-      expect(
-        await htmlAfterNav.evaluate(
-          (el) => (el as ElementWithExpando).__expando
-        )
-      ).toBe(undefined)
+      expect(await htmlAfterNav.evaluate((el) => (el as ElementWithExpando).__expando)).toBe(
+        undefined
+      )
     })
   })
 
@@ -59,11 +57,9 @@ describe('segment cache (MPA navigations)', () => {
       // The expando should not be present because we did a full-page navigation.
       await retry(async () => {
         const htmlAfterNav = await browser.elementByCss('html')
-        expect(
-          await htmlAfterNav.evaluate(
-            (el) => (el as ElementWithExpando).__expando
-          )
-        ).toBe(undefined)
+        expect(await htmlAfterNav.evaluate((el) => (el as ElementWithExpando).__expando)).toBe(
+          undefined
+        )
       })
     }
   )

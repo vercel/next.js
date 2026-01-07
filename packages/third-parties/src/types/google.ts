@@ -5,12 +5,7 @@ declare global {
   }
 }
 
-type JSONValue =
-  | string
-  | number
-  | boolean
-  | JSONValue[]
-  | { [key: string]: JSONValue }
+type JSONValue = string | number | boolean | JSONValue[] | { [key: string]: JSONValue }
 
 type GTMParamsBaseParams = {
   dataLayer?: { [key: string]: JSONValue }

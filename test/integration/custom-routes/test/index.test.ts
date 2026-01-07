@@ -60,22 +60,19 @@ const runTests = (isDev = false) => {
       content: /could not be found/,
       status: 404,
     },
-  ])(
-    'should honor caseSensitiveRoutes config for $path',
-    async ({ path, status, content }) => {
-      const res = await fetchViaHTTP(appPort, path, undefined, {
-        redirect: 'manual',
-      })
+  ])('should honor caseSensitiveRoutes config for $path', async ({ path, status, content }) => {
+    const res = await fetchViaHTTP(appPort, path, undefined, {
+      redirect: 'manual',
+    })
 
-      if (status) {
-        expect(res.status).toBe(status)
-      }
-
-      if (content) {
-        expect(await res.text()).toMatch(content)
-      }
+    if (status) {
+      expect(res.status).toBe(status)
     }
-  )
+
+    if (content) {
+      expect(await res.text()).toMatch(content)
+    }
+  })
 
   it('should successfully rewrite a WebSocket request', async () => {
     const messages = []
@@ -92,10 +89,7 @@ const runTests = (isDev = false) => {
       })
     })
 
-    await check(
-      () => (messages.length > 0 ? 'success' : JSON.stringify(messages)),
-      'success'
-    )
+    await check(() => (messages.length > 0 ? 'success' : JSON.stringify(messages)), 'success')
     ws.close()
     expect([...externalServerHits]).toEqual(['/_next/webpack-hmr?page=/about'])
   })
@@ -104,9 +98,7 @@ const runTests = (isDev = false) => {
     const messages = []
     try {
       const ws = await new Promise<WebSocket>((resolve, reject) => {
-        let socket = new WebSocket(
-          `ws://localhost:${appPort}/websocket-to-page`
-        )
+        let socket = new WebSocket(`ws://localhost:${appPort}/websocket-to-page`)
         socket.on('message', (data) => {
           messages.push(data.toString())
         })
@@ -129,10 +121,7 @@ const runTests = (isDev = false) => {
     expect(initial.status).toBe(200)
     expect(await initial.text()).toContain('this page is overridden')
 
-    const nextData = await fetchViaHTTP(
-      appPort,
-      `/_next/data/${buildId}/overridden/first.json`
-    )
+    const nextData = await fetchViaHTTP(appPort, `/_next/data/${buildId}/overridden/first.json`)
     expect(nextData.status).toBe(200)
     expect(await nextData.json()).toEqual({
       pageProps: { params: { slug: 'first' } },
@@ -160,14 +149,9 @@ const runTests = (isDev = false) => {
       },
     ]) {
       const { post } = expected
-      const res = await fetchViaHTTP(
-        appPort,
-        '/has-rewrite-8',
-        `?post=${post}`,
-        {
-          redirect: 'manual',
-        }
-      )
+      const res = await fetchViaHTTP(appPort, '/has-rewrite-8', `?post=${post}`, {
+        redirect: 'manual',
+      })
 
       expect(res.status).toBe(200)
 
@@ -192,10 +176,7 @@ const runTests = (isDev = false) => {
 
     const browser = await webdriver(appPort, '/nav')
     await browser.elementByCss('#to-before-files-overridden').click()
-    await check(
-      () => browser.eval('document.documentElement.innerHTML'),
-      /Example Domain/
-    )
+    await check(() => browser.eval('document.documentElement.innerHTML'), /Example Domain/)
   })
 
   it('should handle beforeFiles rewrite to dynamic route correctly', async () => {
@@ -211,16 +192,11 @@ const runTests = (isDev = false) => {
     const browser = await webdriver(appPort, '/nav')
     await browser.eval('window.beforeNav = 1')
     await browser.elementByCss('#to-before-files-dynamic').click()
-    await check(
-      () => browser.eval('document.documentElement.innerHTML'),
-      /_sport\/\[slug\]/
-    )
+    await check(() => browser.eval('document.documentElement.innerHTML'), /_sport\/\[slug\]/)
     expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
       slug: 'nfl',
     })
-    expect(await browser.elementByCss('#pathname').text()).toBe(
-      '/_sport/[slug]'
-    )
+    expect(await browser.elementByCss('#pathname').text()).toBe('/_sport/[slug]')
     expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
@@ -237,16 +213,11 @@ const runTests = (isDev = false) => {
     const browser = await webdriver(appPort, '/nav')
     await browser.eval('window.beforeNav = 1')
     await browser.elementByCss('#to-before-files-dynamic-again').click()
-    await check(
-      () => browser.eval('document.documentElement.innerHTML'),
-      /_sport\/\[slug\]\/test/
-    )
+    await check(() => browser.eval('document.documentElement.innerHTML'), /_sport\/\[slug\]\/test/)
     expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
       slug: 'nfl',
     })
-    expect(await browser.elementByCss('#pathname').text()).toBe(
-      '/_sport/[slug]/test'
-    )
+    expect(await browser.elementByCss('#pathname').text()).toBe('/_sport/[slug]/test')
     expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
@@ -265,9 +236,7 @@ const runTests = (isDev = false) => {
     const browser = await webdriver(appPort, '/')
     await browser.eval('window.beforeNav = 1')
 
-    expect(await browser.eval('document.documentElement.innerHTML')).toContain(
-      'multi-rewrites'
-    )
+    expect(await browser.eval('document.documentElement.innerHTML')).toContain('multi-rewrites')
 
     await browser.eval('next.router.push("/rewriting-to-auto-export")')
     await browser.waitForElementByCss('#auto-export')
@@ -309,10 +278,7 @@ const runTests = (isDev = false) => {
     const browser = await webdriver(appPort, '/nav')
 
     await browser.eval('window.beforeNav = 1')
-    await browser
-      .elementByCss('#to-old-blog')
-      .click()
-      .waitForElementByCss('#hello')
+    await browser.elementByCss('#to-old-blog').click().waitForElementByCss('#hello')
     expect(await browser.elementByCss('#hello').text()).toContain('Hello')
   })
 
@@ -326,10 +292,7 @@ const runTests = (isDev = false) => {
 
   it('should parse params correctly for rewrite to auto-export dynamic page', async () => {
     const browser = await webdriver(appPort, '/rewriting-to-auto-export')
-    await check(
-      () => browser.eval(() => document.documentElement.innerHTML),
-      /auto-export.*?hello/
-    )
+    await check(() => browser.eval(() => document.documentElement.innerHTML), /auto-export.*?hello/)
     expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
       rewrite: '1',
       slug: 'hello',
@@ -337,14 +300,9 @@ const runTests = (isDev = false) => {
   })
 
   it('should provide params correctly for rewrite to auto-export non-dynamic page', async () => {
-    const browser = await webdriver(
-      appPort,
-      '/rewriting-to-another-auto-export/first'
-    )
+    const browser = await webdriver(appPort, '/rewriting-to-another-auto-export/first')
 
-    expect(await browser.elementByCss('#auto-export-another').text()).toBe(
-      'auto-export another'
-    )
+    expect(await browser.elementByCss('#auto-export-another').text()).toBe('auto-export another')
     expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
       rewrite: '1',
       path: ['first'],
@@ -391,53 +349,40 @@ const runTests = (isDev = false) => {
     const res1 = await fetchViaHTTP(appPort, '/redir-chain1', undefined, {
       redirect: 'manual',
     })
-    const res1location = new URL(res1.headers.get('location'), res1.url)
-      .pathname
+    const res1location = new URL(res1.headers.get('location'), res1.url).pathname
     expect(res1.status).toBe(301)
     expect(res1location).toBe('/redir-chain2')
 
     const res2 = await fetchViaHTTP(appPort, res1location, undefined, {
       redirect: 'manual',
     })
-    const res2location = new URL(res2.headers.get('location'), res2.url)
-      .pathname
+    const res2location = new URL(res2.headers.get('location'), res2.url).pathname
     expect(res2.status).toBe(302)
     expect(res2location).toBe('/redir-chain3')
 
     const res3 = await fetchViaHTTP(appPort, res2location, undefined, {
       redirect: 'manual',
     })
-    const res3location = new URL(res3.headers.get('location'), res3.url)
-      .pathname
+    const res3location = new URL(res3.headers.get('location'), res3.url).pathname
     expect(res3.status).toBe(303)
     expect(res3location).toBe('/')
   })
 
   it('should not match redirect for /_next', async () => {
-    const res = await fetchViaHTTP(
-      appPort,
-      '/_next/has-redirect-5',
-      undefined,
-      {
-        headers: {
-          'x-test-next': 'true',
-        },
-        redirect: 'manual',
-      }
-    )
+    const res = await fetchViaHTTP(appPort, '/_next/has-redirect-5', undefined, {
+      headers: {
+        'x-test-next': 'true',
+      },
+      redirect: 'manual',
+    })
     expect(res.status).toBe(404)
 
-    const res2 = await fetchViaHTTP(
-      appPort,
-      '/another/has-redirect-5',
-      undefined,
-      {
-        headers: {
-          'x-test-next': 'true',
-        },
-        redirect: 'manual',
-      }
-    )
+    const res2 = await fetchViaHTTP(appPort, '/another/has-redirect-5', undefined, {
+      headers: {
+        'x-test-next': 'true',
+      },
+      redirect: 'manual',
+    })
     expect(res2.status).toBe(307)
   })
 
@@ -460,18 +405,10 @@ const runTests = (isDev = false) => {
   })
 
   it('should redirect with hash successfully', async () => {
-    const res = await fetchViaHTTP(
-      appPort,
-      '/docs/router-status/500',
-      undefined,
-      {
-        redirect: 'manual',
-      }
-    )
-    const { pathname, hash, search } = new URL(
-      res.headers.get('location'),
-      res.url
-    )
+    const res = await fetchViaHTTP(appPort, '/docs/router-status/500', undefined, {
+      redirect: 'manual',
+    })
+    const { pathname, hash, search } = new URL(res.headers.get('location'), res.url)
     expect(res.status).toBe(301)
     expect(pathname).toBe('/docs/v2/network/status-codes')
     expect(hash).toBe('#500')
@@ -489,14 +426,9 @@ const runTests = (isDev = false) => {
   })
 
   it('should redirect successfully with catchall', async () => {
-    const res = await fetchViaHTTP(
-      appPort,
-      '/catchall-redirect/hello/world',
-      undefined,
-      {
-        redirect: 'manual',
-      }
-    )
+    const res = await fetchViaHTTP(appPort, '/catchall-redirect/hello/world', undefined, {
+      redirect: 'manual',
+    })
     const { pathname, search } = new URL(res.headers.get('location'), res.url)
     expect(res.status).toBe(307)
     expect(pathname).toBe('/somewhere')
@@ -537,10 +469,7 @@ const runTests = (isDev = false) => {
   })
 
   it('should have correct params for catchall rewrite', async () => {
-    const html = await renderViaHTTP(
-      appPort,
-      '/catchall-rewrite/hello/world?a=b'
-    )
+    const html = await renderViaHTTP(appPort, '/catchall-rewrite/hello/world?a=b')
     const $ = cheerio.load(html)
     expect(JSON.parse($('#__NEXT_DATA__').html()).query).toEqual({
       a: 'b',
@@ -577,18 +506,10 @@ const runTests = (isDev = false) => {
   })
 
   it('should allow params in query for redirect', async () => {
-    const res = await fetchViaHTTP(
-      appPort,
-      '/query-redirect/hello/world?a=b',
-      undefined,
-      {
-        redirect: 'manual',
-      }
-    )
-    const { pathname, searchParams } = new URL(
-      res.headers.get('location'),
-      res.url
-    )
+    const res = await fetchViaHTTP(appPort, '/query-redirect/hello/world?a=b', undefined, {
+      redirect: 'manual',
+    })
+    const { pathname, searchParams } = new URL(res.headers.get('location'), res.url)
     expect(res.status).toBe(307)
     expect(pathname).toBe('/with-params')
     expect(Object.fromEntries(searchParams)).toEqual({
@@ -607,10 +528,7 @@ const runTests = (isDev = false) => {
         redirect: 'manual',
       }
     )
-    const { pathname, searchParams } = new URL(
-      res.headers.get('location'),
-      res.url
-    )
+    const { pathname, searchParams } = new URL(res.headers.get('location'), res.url)
     expect(res.status).toBe(307)
     expect(pathname).toBe('/with-params')
     expect(Object.fromEntries(searchParams)).toEqual({
@@ -695,10 +613,7 @@ const runTests = (isDev = false) => {
   it('should work with rewrite when manually specifying href/as', async () => {
     const browser = await webdriver(appPort, '/nav')
     await browser.eval('window.beforeNav = 1')
-    await browser
-      .elementByCss('#to-params-manual')
-      .click()
-      .waitForElementByCss('#query')
+    await browser.elementByCss('#to-params-manual').click().waitForElementByCss('#query')
 
     expect(await browser.eval('window.beforeNav')).toBe(1)
     const query = JSON.parse(await browser.elementByCss('#query').text())
@@ -711,10 +626,7 @@ const runTests = (isDev = false) => {
   it('should work with rewrite when only specifying href', async () => {
     const browser = await webdriver(appPort, '/nav')
     await browser.eval('window.beforeNav = 1')
-    await browser
-      .elementByCss('#to-params')
-      .click()
-      .waitForElementByCss('#query')
+    await browser.elementByCss('#to-params').click().waitForElementByCss('#query')
 
     expect(await browser.eval('window.beforeNav')).toBe(1)
     const query = JSON.parse(await browser.elementByCss('#query').text())
@@ -727,10 +639,7 @@ const runTests = (isDev = false) => {
   it('should work with rewrite when only specifying href and ends in dynamic route', async () => {
     const browser = await webdriver(appPort, '/nav')
     await browser.eval('window.beforeNav = 1')
-    await browser
-      .elementByCss('#to-rewritten-dynamic')
-      .click()
-      .waitForElementByCss('#auto-export')
+    await browser.elementByCss('#to-rewritten-dynamic').click().waitForElementByCss('#auto-export')
 
     expect(await browser.eval('window.beforeNav')).toBe(1)
 
@@ -755,10 +664,7 @@ const runTests = (isDev = false) => {
 
   it('should match /_next file after rewrite', async () => {
     await renderViaHTTP(appPort, '/hello')
-    const data = await renderViaHTTP(
-      appPort,
-      `/hidden/_next/static/${buildId}/_buildManifest.js`
-    )
+    const data = await renderViaHTTP(appPort, `/hidden/_next/static/${buildId}/_buildManifest.js`)
     expect(data).toContain('/hello')
   })
 
@@ -801,9 +707,7 @@ const runTests = (isDev = false) => {
 
   it('should apply params header key/values with URL that has port', async () => {
     const res = await fetchViaHTTP(appPort, '/with-params/url2/first')
-    expect(res.headers.get('x-url')).toBe(
-      'https://example.com:8080?hello=first'
-    )
+    expect(res.headers.get('x-url')).toBe('https://example.com:8080?hello=first')
   })
 
   it('should support named pattern for header key/values', async () => {
@@ -847,14 +751,9 @@ const runTests = (isDev = false) => {
   })
 
   it('should support named like unnamed parameters correctly', async () => {
-    const res = await fetchViaHTTP(
-      appPort,
-      '/named-like-unnamed/first',
-      undefined,
-      {
-        redirect: 'manual',
-      }
-    )
+    const res = await fetchViaHTTP(appPort, '/named-like-unnamed/first', undefined, {
+      redirect: 'manual',
+    })
     const { pathname } = new URL(res.headers.get('location') || '', res.url)
     expect(res.status).toBe(307)
     expect(pathname).toBe('/first')
@@ -880,12 +779,8 @@ const runTests = (isDev = false) => {
     )
     expect(res.status).toBe(308)
 
-    expect(res.headers.get('location').split('?')[1]).toBe(
-      '%E3%83%86%E3%82%B9%E3%83%88=%E3%81%82'
-    )
-    expect(res.headers.get('refresh')).toBe(
-      '0;url=/?%E3%83%86%E3%82%B9%E3%83%88=%E3%81%82'
-    )
+    expect(res.headers.get('location').split('?')[1]).toBe('%E3%83%86%E3%82%B9%E3%83%88=%E3%81%82')
+    expect(res.headers.get('refresh')).toBe('0;url=/?%E3%83%86%E3%82%B9%E3%83%88=%E3%81%82')
   })
 
   it('should handle basic api rewrite successfully', async () => {
@@ -917,10 +812,7 @@ const runTests = (isDev = false) => {
       }
     )
 
-    const { pathname, hostname, searchParams } = new URL(
-      res.headers.get('location') || '',
-      res.url
-    )
+    const { pathname, hostname, searchParams } = new URL(res.headers.get('location') || '', res.url)
     expect(res.status).toBe(307)
     expect(pathname).toBe(encodeURI('/\\google.com/about'))
     expect(hostname).not.toBe('google.com')
@@ -928,37 +820,24 @@ const runTests = (isDev = false) => {
   })
 
   it('should handle unnamed parameters with multi-match successfully', async () => {
-    const html = await renderViaHTTP(
-      appPort,
-      '/unnamed-params/nested/first/second/hello/world'
-    )
+    const html = await renderViaHTTP(appPort, '/unnamed-params/nested/first/second/hello/world')
     const params = JSON.parse(cheerio.load(html)('p').text())
     expect(params).toEqual({ test: 'hello' })
   })
 
   it('should handle named regex parameters with multi-match successfully', async () => {
-    const res = await fetchViaHTTP(
-      appPort,
-      '/docs/integrations/v2-some/thing',
-      undefined,
-      {
-        redirect: 'manual',
-      }
-    )
+    const res = await fetchViaHTTP(appPort, '/docs/integrations/v2-some/thing', undefined, {
+      redirect: 'manual',
+    })
     const { pathname } = new URL(res.headers.get('location') || '', res.url)
     expect(res.status).toBe(307)
     expect(pathname).toBe('/integrations/-some/thing')
   })
 
   it('should redirect with URL in query correctly', async () => {
-    const res = await fetchViaHTTP(
-      appPort,
-      '/to-external-with-query',
-      undefined,
-      {
-        redirect: 'manual',
-      }
-    )
+    const res = await fetchViaHTTP(appPort, '/to-external-with-query', undefined, {
+      redirect: 'manual',
+    })
 
     expect(res.status).toBe(307)
     expect(res.headers.get('location')).toBe(
@@ -967,14 +846,9 @@ const runTests = (isDev = false) => {
   })
 
   it('should redirect with URL in query correctly non-encoded', async () => {
-    const res = await fetchViaHTTP(
-      appPort,
-      '/to-external-with-query',
-      undefined,
-      {
-        redirect: 'manual',
-      }
-    )
+    const res = await fetchViaHTTP(appPort, '/to-external-with-query', undefined, {
+      redirect: 'manual',
+    })
 
     expect(res.status).toBe(307)
     expect(res.headers.get('location')).toBe(
@@ -1267,9 +1141,7 @@ const runTests = (isDev = false) => {
     await browser.elementByCss('#to-overridden').click()
     await browser.waitForElementByCss('#query')
 
-    expect(await browser.eval('window.next.router.pathname')).toBe(
-      '/with-params'
-    )
+    expect(await browser.eval('window.next.router.pathname')).toBe('/with-params')
     expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
       overridden: '1',
       overrideMe: '1',
@@ -1395,14 +1267,9 @@ const runTests = (isDev = false) => {
   })
 
   it('should match has query redirect with duplicate query key', async () => {
-    const res = await fetchViaHTTP(
-      appPort,
-      '/has-redirect-7',
-      '?hello=world&hello=another',
-      {
-        redirect: 'manual',
-      }
-    )
+    const res = await fetchViaHTTP(appPort, '/has-redirect-7', '?hello=world&hello=another', {
+      redirect: 'manual',
+    })
     expect(res.status).toBe(307)
     const parsed = new URL(res.headers.get('location'), res.url)
 
@@ -1488,9 +1355,7 @@ const runTests = (isDev = false) => {
 
   if (!isDev) {
     it('should output routes-manifest successfully', async () => {
-      const manifest = await fs.readJSON(
-        join(appDir, '.next/routes-manifest.json')
-      )
+      const manifest = await fs.readJSON(join(appDir, '.next/routes-manifest.json'))
 
       for (const route of [
         ...manifest.dynamicRoutes,
@@ -2521,9 +2386,7 @@ const runTests = (isDev = false) => {
     })
 
     it('should have redirects/rewrites in build output with debug flag', async () => {
-      const manifest = await fs.readJSON(
-        join(appDir, '.next/routes-manifest.json')
-      )
+      const manifest = await fs.readJSON(join(appDir, '.next/routes-manifest.json'))
       const cleanStdout = stripAnsi(stdout)
       expect(cleanStdout).toContain('Redirects')
       expect(cleanStdout).toContain('Rewrites')
@@ -2589,39 +2452,36 @@ describe('Custom routes', () => {
     externalServer.close()
     await fs.writeFile(nextConfigPath, nextConfigRestoreContent)
   })
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
-    'development mode',
-    () => {
-      let nextConfigContent
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
+    let nextConfigContent
 
-      beforeAll(async () => {
-        // ensure cache with rewrites disabled doesn't persist
-        // after enabling rewrites
-        await fs.remove(join(appDir, '.next'))
-        nextConfigContent = await fs.readFile(nextConfigPath, 'utf8')
-        await fs.writeFile(
-          nextConfigPath,
-          nextConfigContent.replace('// no-rewrites comment', 'return []')
-        )
+    beforeAll(async () => {
+      // ensure cache with rewrites disabled doesn't persist
+      // after enabling rewrites
+      await fs.remove(join(appDir, '.next'))
+      nextConfigContent = await fs.readFile(nextConfigPath, 'utf8')
+      await fs.writeFile(
+        nextConfigPath,
+        nextConfigContent.replace('// no-rewrites comment', 'return []')
+      )
 
-        const tempPort = await findPort()
-        const tempApp = await launchApp(appDir, tempPort)
-        await renderViaHTTP(tempPort, '/')
+      const tempPort = await findPort()
+      const tempApp = await launchApp(appDir, tempPort)
+      await renderViaHTTP(tempPort, '/')
 
-        await killApp(tempApp)
-        await fs.writeFile(nextConfigPath, nextConfigContent)
+      await killApp(tempApp)
+      await fs.writeFile(nextConfigPath, nextConfigContent)
 
-        appPort = await findPort()
-        app = await launchApp(appDir, appPort)
-        buildId = 'development'
-      })
-      afterAll(async () => {
-        await fs.writeFile(nextConfigPath, nextConfigContent)
-        await killApp(app)
-      })
-      runTests(true)
-    }
-  )
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+      buildId = 'development'
+    })
+    afterAll(async () => {
+      await fs.writeFile(nextConfigPath, nextConfigContent)
+      await killApp(app)
+    })
+    runTests(true)
+  })
 
   describe('no-op rewrite', () => {
     beforeAll(async () => {
@@ -2642,34 +2502,27 @@ describe('Custom routes', () => {
       )
     })
   })
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      beforeAll(async () => {
-        const { stdout: buildStdout, stderr: buildStderr } = await nextBuild(
-          appDir,
-          ['-d'],
-          {
-            stdout: true,
-            stderr: true,
-          }
-        )
-        stdout = buildStdout
-        stderr = buildStderr
-        appPort = await findPort()
-        app = await nextStart(appDir, appPort)
-        buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
+    beforeAll(async () => {
+      const { stdout: buildStdout, stderr: buildStderr } = await nextBuild(appDir, ['-d'], {
+        stdout: true,
+        stderr: true,
       })
-      afterAll(() => killApp(app))
-      runTests()
+      stdout = buildStdout
+      stderr = buildStderr
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+    })
+    afterAll(() => killApp(app))
+    runTests()
 
-      it('should not show warning for custom routes when not next export', async () => {
-        expect(stderr).not.toContain(
-          `rewrites, redirects, and headers are not applied when exporting your application detected`
-        )
-      })
-    }
-  )
+    it('should not show warning for custom routes when not next export', async () => {
+      expect(stderr).not.toContain(
+        `rewrites, redirects, and headers are not applied when exporting your application detected`
+      )
+    })
+  })
 
   describe('should load custom routes when only one type is used', () => {
     const runSoloTests = (isDev: boolean) => {
@@ -2766,46 +2619,33 @@ describe('Custom routes', () => {
       })
     }
 
-    ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
-      'development mode',
-      () => {
-        runSoloTests(true)
-      }
-    )
-    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-      'production mode',
-      () => {
-        runSoloTests(false)
-      }
-    )
+    ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
+      runSoloTests(true)
+    })
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
+      runSoloTests(false)
+    })
   })
 })
 
 describe('export', () => {
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      beforeAll(async () => {
-        nextConfig.replace('// REPLACEME', `output: 'export',`)
-        const { stdout: buildStdout, stderr: buildStderr } = await nextBuild(
-          appDir,
-          ['-d'],
-          {
-            stdout: true,
-            stderr: true,
-          }
-        )
-
-        stdout = buildStdout
-        stderr = buildStderr
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
+    beforeAll(async () => {
+      nextConfig.replace('// REPLACEME', `output: 'export',`)
+      const { stdout: buildStdout, stderr: buildStderr } = await nextBuild(appDir, ['-d'], {
+        stdout: true,
+        stderr: true,
       })
-      afterAll(() => nextConfig.restore())
 
-      it('should not show warning for custom routes when not next export', async () => {
-        expect(stderr).not.toContain(
-          `rewrites, redirects, and headers are not applied when exporting your application detected`
-        )
-      })
-    }
-  )
+      stdout = buildStdout
+      stderr = buildStderr
+    })
+    afterAll(() => nextConfig.restore())
+
+    it('should not show warning for custom routes when not next export', async () => {
+      expect(stderr).not.toContain(
+        `rewrites, redirects, and headers are not applied when exporting your application detected`
+      )
+    })
+  })
 })

@@ -103,13 +103,9 @@ describe('ReactRefreshRegression app', () => {
       `
     )
 
-    expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('0')
+    expect(await session.evaluate(() => document.querySelector('p').textContent)).toBe('0')
     await session.evaluate(() => document.querySelector('button').click())
-    expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('1')
+    expect(await session.evaluate(() => document.querySelector('p').textContent)).toBe('1')
 
     await session.patch(
       'app/page.js',
@@ -130,13 +126,9 @@ describe('ReactRefreshRegression app', () => {
       `
     )
 
-    expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('Count: 1')
+    expect(await session.evaluate(() => document.querySelector('p').textContent)).toBe('Count: 1')
     await session.evaluate(() => document.querySelector('button').click())
-    expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('Count: 2')
+    expect(await session.evaluate(() => document.querySelector('p').textContent)).toBe('Count: 2')
   })
 
   // https://github.com/vercel/next.js/issues/13978
@@ -174,17 +166,11 @@ describe('ReactRefreshRegression app', () => {
       `
     )
 
-    await check(
-      () => session.evaluate(() => document.querySelector('p').textContent),
-      '0'
-    )
+    await check(() => session.evaluate(() => document.querySelector('p').textContent), '0')
 
     await session.evaluate(() => document.querySelector('button').click())
 
-    await check(
-      () => session.evaluate(() => document.querySelector('p').textContent),
-      '1'
-    )
+    await check(() => session.evaluate(() => document.querySelector('p').textContent), '1')
 
     await session.patch(
       'index.js',
@@ -205,17 +191,11 @@ describe('ReactRefreshRegression app', () => {
       `
     )
 
-    await check(
-      () => session.evaluate(() => document.querySelector('p').textContent),
-      'Count: 1'
-    )
+    await check(() => session.evaluate(() => document.querySelector('p').textContent), 'Count: 1')
 
     await session.evaluate(() => document.querySelector('button').click())
 
-    await check(
-      () => session.evaluate(() => document.querySelector('p').textContent),
-      'Count: 2'
-    )
+    await check(() => session.evaluate(() => document.querySelector('p').textContent), 'Count: 2')
   })
 
   // https://github.com/vercel/next.js/issues/13978
@@ -256,15 +236,10 @@ describe('ReactRefreshRegression app', () => {
       `
     )
 
-    await check(
-      () => session.evaluate(() => document.querySelector('p').textContent),
-      '0'
-    )
+    await check(() => session.evaluate(() => document.querySelector('p').textContent), '0')
 
     await session.evaluate(() => document.querySelector('button').click())
-    expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('1')
+    expect(await session.evaluate(() => document.querySelector('p').textContent)).toBe('1')
   })
 
   // https://github.com/vercel/next.js/issues/11504
@@ -272,16 +247,12 @@ describe('ReactRefreshRegression app', () => {
     await using sandbox = await createSandbox(next)
     const { session } = sandbox
 
-    await session.patch(
-      'app/page.js',
-      `export default function () { throw new Error('boom'); }`
-    )
+    await session.patch('app/page.js', `export default function () { throw new Error('boom'); }`)
 
     await session.waitForRedbox()
 
     const source = await session.getRedboxSource()
-    expect(source.split(/\r?\n/g).slice(2).join('\n').replace(/^\n+/, ''))
-      .toMatchInlineSnapshot(`
+    expect(source.split(/\r?\n/g).slice(2).join('\n').replace(/^\n+/, '')).toMatchInlineSnapshot(`
       "> 1 | export default function () { throw new Error('boom'); }
           |                                    ^"
     `)
@@ -299,8 +270,7 @@ describe('ReactRefreshRegression app', () => {
     await session.waitForRedbox()
 
     const source = await session.getRedboxSource()
-    expect(source.split(/\r?\n/g).slice(2).join('\n').replace(/^\n+/, ''))
-      .toMatchInlineSnapshot(`
+    expect(source.split(/\r?\n/g).slice(2).join('\n').replace(/^\n+/, '')).toMatchInlineSnapshot(`
       "> 1 | export default function Page() { throw new Error('boom'); }
           |                                        ^"
     `)
@@ -321,8 +291,7 @@ describe('ReactRefreshRegression app', () => {
     await session.waitForRedbox()
 
     const source = await session.getRedboxSource()
-    expect(source.split(/\r?\n/g).slice(2).join('\n').replace(/^\n+/, ''))
-      .toMatchInlineSnapshot(`
+    expect(source.split(/\r?\n/g).slice(2).join('\n').replace(/^\n+/, '')).toMatchInlineSnapshot(`
         "  1 | 'use client'
         > 2 | export default function Page() { throw new Error('boom'); }
             |                                        ^"
@@ -358,28 +327,22 @@ describe('ReactRefreshRegression app', () => {
     await using sandbox = await createSandbox(next, files)
     const { session } = sandbox
 
-    expect(
-      await session.evaluate(
-        () => document.querySelector('#content').textContent
-      )
-    ).toBe('Hello World!')
+    expect(await session.evaluate(() => document.querySelector('#content').textContent)).toBe(
+      'Hello World!'
+    )
 
     let didNotReload = await session.patch('app/content.mdx', `Hello Foo!`)
     expect(didNotReload).toBe(true)
     await session.waitForNoRedbox()
-    expect(
-      await session.evaluate(
-        () => document.querySelector('#content').textContent
-      )
-    ).toBe('Hello Foo!')
+    expect(await session.evaluate(() => document.querySelector('#content').textContent)).toBe(
+      'Hello Foo!'
+    )
 
     didNotReload = await session.patch('app/content.mdx', `Hello Bar!`)
     expect(didNotReload).toBe(true)
     await session.waitForNoRedbox()
-    expect(
-      await session.evaluate(
-        () => document.querySelector('#content').textContent
-      )
-    ).toBe('Hello Bar!')
+    expect(await session.evaluate(() => document.querySelector('#content').textContent)).toBe(
+      'Hello Bar!'
+    )
   })
 })

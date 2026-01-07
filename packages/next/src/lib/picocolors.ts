@@ -19,22 +19,13 @@
 const { env, stdout } = globalThis?.process ?? {}
 
 const enabled =
-  env &&
-  !env.NO_COLOR &&
-  (env.FORCE_COLOR || (stdout?.isTTY && !env.CI && env.TERM !== 'dumb'))
+  env && !env.NO_COLOR && (env.FORCE_COLOR || (stdout?.isTTY && !env.CI && env.TERM !== 'dumb'))
 
-const replaceClose = (
-  str: string,
-  close: string,
-  replace: string,
-  index: number
-): string => {
+const replaceClose = (str: string, close: string, replace: string, index: number): string => {
   const start = str.substring(0, index) + replace
   const end = str.substring(index + close.length)
   const nextIndex = end.indexOf(close)
-  return ~nextIndex
-    ? start + replaceClose(end, close, replace, nextIndex)
-    : start + end
+  return ~nextIndex ? start + replaceClose(end, close, replace, nextIndex) : start + end
 }
 
 const formatter = (open: string, close: string, replace = open) => {

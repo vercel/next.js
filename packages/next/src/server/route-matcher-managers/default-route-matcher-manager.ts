@@ -56,8 +56,9 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
       const matchers: Array<RouteMatcher> = []
 
       // Get all the providers matchers.
-      const providersMatchers: ReadonlyArray<ReadonlyArray<RouteMatcher>> =
-        await Promise.all(this.providers.map((provider) => provider.matchers()))
+      const providersMatchers: ReadonlyArray<ReadonlyArray<RouteMatcher>> = await Promise.all(
+        this.providers.map((provider) => provider.matchers())
+      )
 
       // Use this to detect duplicate pathnames.
       const all = new Map<string, RouteMatcher>()
@@ -81,9 +82,7 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
             // the retrieval of the `other` will actually return the array
             // reference used by all other duplicates. This is why ReadonlyArray
             // is so important! Array's are always references!
-            const others = duplicates[matcher.definition.pathname] ?? [
-              duplicate,
-            ]
+            const others = duplicates[matcher.definition.pathname] ?? [duplicate]
             others.push(matcher)
             duplicates[matcher.definition.pathname] = others
 
@@ -110,9 +109,7 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
       // the manifest matchers, will return the same matcher each time.
       if (
         this.previousMatchers.length === matchers.length &&
-        this.previousMatchers.every(
-          (cachedMatcher, index) => cachedMatcher === matchers[index]
-        )
+        this.previousMatchers.every((cachedMatcher, index) => cachedMatcher === matchers[index])
       ) {
         return
       }
@@ -253,9 +250,7 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
     // before it was recompiled (an error). We also don't want to affect request
     // times.
     if (this.lastCompilationID !== this.compilationID) {
-      throw new Error(
-        'Invariant: expected routes to have been loaded before match'
-      )
+      throw new Error('Invariant: expected routes to have been loaded before match')
     }
 
     // Ensure that path matching is done with a leading slash.

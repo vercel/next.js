@@ -34,15 +34,12 @@ describe('postNextTelemetryPayload', () => {
 
     await postNextTelemetryPayload(payload)
 
-    expect(mockFetch).toHaveBeenCalledWith(
-      'https://telemetry.nextjs.org/api/v1/record',
-      {
-        method: 'POST',
-        body: JSON.stringify(payload),
-        headers: { 'content-type': 'application/json' },
-        signal: expect.any(AbortSignal),
-      }
-    )
+    expect(mockFetch).toHaveBeenCalledWith('https://telemetry.nextjs.org/api/v1/record', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+      headers: { 'content-type': 'application/json' },
+      signal: expect.any(AbortSignal),
+    })
   })
 
   it('retries on failure', async () => {

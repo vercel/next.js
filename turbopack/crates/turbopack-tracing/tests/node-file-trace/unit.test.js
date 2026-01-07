@@ -10,11 +10,7 @@ const readFile = gracefulFS.promises.readFile
 
 global._unit = true
 
-const nodeGypTests = [
-  'datadog-pprof-node-gyp',
-  'microtime-node-gyp',
-  'zeromq-node-gyp',
-]
+const nodeGypTests = ['datadog-pprof-node-gyp', 'microtime-node-gyp', 'zeromq-node-gyp']
 
 const skipOnWindows = [
   'datadog-pprof-node-gyp',
@@ -71,10 +67,7 @@ afterEach(resetFileIOMocks)
 for (const { testName, isRoot } of unitTests) {
   const testSuffix = `${testName} from ${isRoot ? 'root' : 'cwd'}`
   const nodeVersion = parseInt(process.versions.node.split('.')[0], 10)
-  if (
-    process.platform === 'win32' &&
-    (isRoot || skipOnWindows.includes(testName))
-  ) {
+  if (process.platform === 'win32' && (isRoot || skipOnWindows.includes(testName))) {
     console.log(`Skipping unit test on Windows: ${testSuffix}`)
     continue
   }
@@ -143,9 +136,7 @@ for (const { testName, isRoot } of unitTests) {
       // Type: { conditions?: string[] }
       let testOpts = {}
       try {
-        testOpts = JSON.parse(
-          fs.readFileSync(join(unitPath, 'test-opts.json')).toString()
-        )
+        testOpts = JSON.parse(fs.readFileSync(join(unitPath, 'test-opts.json')).toString())
       } catch {
         // Ignore.
       }
@@ -168,8 +159,7 @@ for (const { testName, isRoot } of unitTests) {
           analysis: !testName.startsWith('basic-analysis'),
           mixedModules: true,
           // Ignore unit test output "actual.js", and ignore GitHub Actions preinstalled packages
-          ignore: (str) =>
-            str.endsWith('/actual.js') || str.startsWith('usr/local'),
+          ignore: (str) => str.endsWith('/actual.js') || str.startsWith('usr/local'),
           readFile: readFileMock,
           resolve: testName.startsWith('resolve-hook')
             ? (id, parent) => `custom-resolution-${id}`
@@ -178,10 +168,7 @@ for (const { testName, isRoot } of unitTests) {
       )
 
       const normalizeFilesRoot = (f) =>
-        (isRoot ? relative(join('./', __dirname, '..'), f) : f).replace(
-          /\\/g,
-          '/'
-        )
+        (isRoot ? relative(join('./', __dirname, '..'), f) : f).replace(/\\/g, '/')
 
       const normalizeInputRoot = (f) =>
         isRoot ? join('./', unitPath, f) : join('test/unit', testName, f)
@@ -203,9 +190,7 @@ for (const { testName, isRoot } of unitTests) {
         }
 
         expect(
-          [...collectFiles(normalizeInputRoot('input.js'))]
-            .map(normalizeFilesRoot)
-            .sort()
+          [...collectFiles(normalizeInputRoot('input.js'))].map(normalizeFilesRoot).sort()
         ).toEqual([
           'package.json',
           'test/unit/multi-input/asset-2.txt',
@@ -215,9 +200,7 @@ for (const { testName, isRoot } of unitTests) {
           'test/unit/multi-input/input-2.js',
         ])
         expect(
-          [...collectFiles(normalizeInputRoot('input-2.js'))]
-            .map(normalizeFilesRoot)
-            .sort()
+          [...collectFiles(normalizeInputRoot('input-2.js'))].map(normalizeFilesRoot).sort()
         ).toEqual([
           'package.json',
           'test/unit/multi-input/asset-2.txt',
@@ -227,9 +210,7 @@ for (const { testName, isRoot } of unitTests) {
           'test/unit/multi-input/input-2.js',
         ])
         expect(
-          [...collectFiles(normalizeInputRoot('input-3.js'))]
-            .map(normalizeFilesRoot)
-            .sort()
+          [...collectFiles(normalizeInputRoot('input-3.js'))].map(normalizeFilesRoot).sort()
         ).toEqual([
           'package.json',
           'test/unit/multi-input/asset.txt',
@@ -237,9 +218,7 @@ for (const { testName, isRoot } of unitTests) {
         ])
 
         expect(
-          [...collectFiles(normalizeInputRoot('input-4.js'))]
-            .map(normalizeFilesRoot)
-            .sort()
+          [...collectFiles(normalizeInputRoot('input-4.js'))].map(normalizeFilesRoot).sort()
         ).toEqual([
           'package.json',
           'test/unit/multi-input/child-4.js',
@@ -256,10 +235,7 @@ for (const { testName, isRoot } of unitTests) {
         expect(getReasonType('child-4.js')).toEqual(['dependency'])
         expect(getReasonType('asset.txt')).toEqual(['asset'])
         expect(getReasonType('asset-2.txt')).toEqual(['asset'])
-        expect(getReasonType('style.module.css')).toEqual([
-          'dependency',
-          'asset',
-        ])
+        expect(getReasonType('style.module.css')).toEqual(['dependency', 'asset'])
       }
       let sortedFileList = [...fileList].sort()
 
@@ -280,9 +256,7 @@ for (const { testName, isRoot } of unitTests) {
 
       let expected
       try {
-        expected = JSON.parse(
-          fs.readFileSync(join(unitPath, outputFileName)).toString()
-        )
+        expected = JSON.parse(fs.readFileSync(join(unitPath, outputFileName)).toString())
         if (process.platform === 'win32') {
           // When using Windows, the expected output should use backslash
           expected = expected.map((str) => str.replace(/\//g, '\\'))
@@ -300,37 +274,22 @@ for (const { testName, isRoot } of unitTests) {
         expect(sortedFileList).toEqual(expected)
       } catch (e) {
         console.warn(reasons)
-        fs.writeFileSync(
-          join(unitPath, 'actual.js'),
-          JSON.stringify(sortedFileList, null, 2)
-        )
+        fs.writeFileSync(join(unitPath, 'actual.js'), JSON.stringify(sortedFileList, null, 2))
         throw e
       }
 
       if (cached) {
         // Everything should be cached in the second run, except for `processed-dependency` which adds 1 new input file
         expect(stat).toHaveBeenCalledTimes(0)
-        expect(readlink).toHaveBeenCalledTimes(
-          testName === 'processed-dependency' ? 1 : 0
-        )
-        expect(readFile).toHaveBeenCalledTimes(
-          testName === 'processed-dependency' ? 1 : 0
-        )
-        expect(analyze).toHaveBeenCalledTimes(
-          testName === 'processed-dependency' ? 1 : 0
-        )
+        expect(readlink).toHaveBeenCalledTimes(testName === 'processed-dependency' ? 1 : 0)
+        expect(readFile).toHaveBeenCalledTimes(testName === 'processed-dependency' ? 1 : 0)
+        expect(analyze).toHaveBeenCalledTimes(testName === 'processed-dependency' ? 1 : 0)
       } else {
         // Ensure all cached calls are only called once per file. The expected count is the count of calls unique per path
         const uniqueStatCalls = new Set(stat.mock.calls.map((call) => call[0]))
-        const uniqueReadlinkCalls = new Set(
-          readlink.mock.calls.map((call) => call[0])
-        )
-        const uniqueReadFileCalls = new Set(
-          readFile.mock.calls.map((call) => call[0])
-        )
-        const uniqueAnalyzeFileCalls = new Set(
-          analyze.mock.calls.map((call) => call[0])
-        )
+        const uniqueReadlinkCalls = new Set(readlink.mock.calls.map((call) => call[0]))
+        const uniqueReadFileCalls = new Set(readFile.mock.calls.map((call) => call[0]))
+        const uniqueAnalyzeFileCalls = new Set(analyze.mock.calls.map((call) => call[0]))
         expect(stat).toHaveBeenCalledTimes(uniqueStatCalls.size)
         expect(readlink).toHaveBeenCalledTimes(uniqueReadlinkCalls.size)
         expect(readFile).toHaveBeenCalledTimes(uniqueReadFileCalls.size)

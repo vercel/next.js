@@ -10,12 +10,8 @@ describe('ignoreLoggingIncomingRequests', () => {
   it('should respect boolean config', () => {
     const req = createMockRequest('/test')
 
-    expect(
-      ignoreLoggingIncomingRequests(req, { incomingRequests: false })
-    ).toBe(true)
-    expect(ignoreLoggingIncomingRequests(req, { incomingRequests: true })).toBe(
-      false
-    )
+    expect(ignoreLoggingIncomingRequests(req, { incomingRequests: false })).toBe(true)
+    expect(ignoreLoggingIncomingRequests(req, { incomingRequests: true })).toBe(false)
   })
 
   it('should not ignore when no ignore patterns configured', () => {
@@ -32,20 +28,11 @@ describe('ignoreLoggingIncomingRequests', () => {
       },
     }
 
-    expect(
-      ignoreLoggingIncomingRequests(createMockRequest('/api/test'), config)
-    ).toBe(true)
-    expect(
-      ignoreLoggingIncomingRequests(createMockRequest('/healthcheck'), config)
-    ).toBe(true)
-    expect(
-      ignoreLoggingIncomingRequests(
-        createMockRequest('/_next/static/test.js'),
-        config
-      )
-    ).toBe(true)
-    expect(
-      ignoreLoggingIncomingRequests(createMockRequest('/page'), config)
-    ).toBe(false)
+    expect(ignoreLoggingIncomingRequests(createMockRequest('/api/test'), config)).toBe(true)
+    expect(ignoreLoggingIncomingRequests(createMockRequest('/healthcheck'), config)).toBe(true)
+    expect(ignoreLoggingIncomingRequests(createMockRequest('/_next/static/test.js'), config)).toBe(
+      true
+    )
+    expect(ignoreLoggingIncomingRequests(createMockRequest('/page'), config)).toBe(false)
   })
 })

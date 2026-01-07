@@ -14,23 +14,15 @@ export default function Home() {
       <div />
       <Link href="/blank-page?foo=bar">Redirect me with URL params intact</Link>
       <div />
-      <Link href="/redirect-to-google">
-        Redirect me to Google (with no body response)
-      </Link>
+      <Link href="/redirect-to-google">Redirect me to Google (with no body response)</Link>
       <div />
-      <Link href="/redirect-to-google">
-        Redirect me to Google (with no stream response)
-      </Link>
+      <Link href="/redirect-to-google">Redirect me to Google (with no stream response)</Link>
       <div />
       <Link href="/redirect-me-alot">Redirect me alot (chained requests)</Link>
       <div />
       <Link href="/infinite-loop">Redirect me alot (infinite loop)</Link>
       <div />
-      <Link
-        href="/to?pathname=/api/ok"
-        locale="nl"
-        id="link-to-api-with-locale"
-      >
+      <Link href="/to?pathname=/api/ok" locale="nl" id="link-to-api-with-locale">
         Redirect me to api with locale
       </Link>
       <div />

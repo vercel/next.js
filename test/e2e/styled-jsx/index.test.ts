@@ -21,18 +21,14 @@ describe('styled-jsx', () => {
 
   it('should render styles during CSR', async () => {
     const browser = await next.browser('/')
-    const color = await browser.eval(
-      `getComputedStyle(document.querySelector('button')).color`
-    )
+    const color = await browser.eval(`getComputedStyle(document.querySelector('button')).color`)
 
     expect(color).toMatch('0, 255, 255')
   })
 
   it('should render styles inside TypeScript', async () => {
     const browser = await next.browser('/typescript')
-    const color = await browser.eval(
-      `getComputedStyle(document.querySelector('button')).color`
-    )
+    const color = await browser.eval(`getComputedStyle(document.querySelector('button')).color`)
 
     expect(color).toMatch('255, 0, 0')
   })

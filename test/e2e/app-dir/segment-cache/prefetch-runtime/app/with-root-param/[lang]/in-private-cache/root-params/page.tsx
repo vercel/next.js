@@ -13,10 +13,9 @@ export default async function Page() {
     <main>
       <DebugRenderKind />
       <p>
-        This page uses root params (inside a private cache) and some uncached
-        IO. Private caches are only rendered during runtime prefetches and
-        navigation requests, so they won't be part of a static prefetch, but
-        they should be part of a runtime prefetch.
+        This page uses root params (inside a private cache) and some uncached IO. Private caches are
+        only rendered during runtime prefetches and navigation requests, so they won't be part of a
+        static prefetch, but they should be part of a runtime prefetch.
       </p>
       <Suspense fallback="Loading 1...">
         <RuntimePrefetchable />

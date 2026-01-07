@@ -77,10 +77,7 @@ async function getNextConfig() {
  */
 function getBinaryVersion(binaryName: string) {
   try {
-    return childProcess
-      .execFileSync(binaryName, ['--version'])
-      .toString()
-      .trim()
+    return childProcess.execFileSync(binaryName, ['--version']).toString().trim()
   } catch {
     try {
       return childProcess.execSync(`${binaryName} --version`).toString().trim()
@@ -119,16 +116,12 @@ async function printInfo() {
     }
   } catch (e) {
     console.warn(
-      `${yellow(
-        bold('warn')
-      )}  - Failed to fetch latest canary version. (Reason: ${
+      `${yellow(bold('warn'))}  - Failed to fetch latest canary version. (Reason: ${
         (e as Error).message
       }.)
       Detected "${installedRelease}". Visit https://github.com/vercel/next.js/releases.
       Make sure to try the latest canary version (eg.: \`npm install next@canary\`) to confirm the issue still exists before creating a new issue.
-      \nLearn more: ${cyan(
-        'https://nextjs.org/docs/messages/opening-an-issue'
-      )}`
+      \nLearn more: ${cyan('https://nextjs.org/docs/messages/opening-an-issue')}`
     )
   }
 
@@ -181,8 +174,7 @@ async function runSharedDependencyCheck(
   const currentPlatform = os.platform()
   const spawn =
     require('next/dist/compiled/cross-spawn') as typeof import('next/dist/compiled/cross-spawn')
-  const { getSupportedArchTriples } =
-    require('../build/swc') as typeof import('../build/swc')
+  const { getSupportedArchTriples } = require('../build/swc') as typeof import('../build/swc')
   const triples = getSupportedArchTriples()[currentPlatform]?.[os.arch()] ?? []
   // First, check if system have a tool installed. We can't install these by our own.
 
@@ -215,8 +207,7 @@ async function runSharedDependencyCheck(
       resolved = require.resolve(triplePkgName)
     } catch (e) {
       return {
-        messages:
-          'Cannot find next-swc installation, skipping dependencies check',
+        messages: 'Cannot find next-swc installation, skipping dependencies check',
         result: 'skipped',
       }
     }
@@ -255,14 +246,8 @@ async function printVerboseInfo() {
   const fs = require('fs') as typeof import('fs')
   const currentPlatform = os.platform()
 
-  if (
-    currentPlatform !== 'win32' &&
-    currentPlatform !== 'linux' &&
-    currentPlatform !== 'darwin'
-  ) {
-    console.log(
-      'Unsupported platform, only win32, linux, darwin are supported.'
-    )
+  if (currentPlatform !== 'win32' && currentPlatform !== 'linux' && currentPlatform !== 'darwin') {
+    console.log('Unsupported platform, only win32, linux, darwin are supported.')
     return
   }
 
@@ -341,8 +326,7 @@ async function printVerboseInfo() {
             }
           }
 
-          const { header, javascriptHeap, sharedObjects } =
-            report as any as Record<string, any>
+          const { header, javascriptHeap, sharedObjects } = report as any as Record<string, any>
           // Delete some fields potentially containing sensitive information.
           delete header?.cwd
           delete header?.commandLine
@@ -372,11 +356,8 @@ async function printVerboseInfo() {
           // First, try to load next-swc via loadBindings.
           try {
             let nextConfig = await getNextConfig()
-            const { loadBindings } =
-              require('../build/swc') as typeof import('../build/swc')
-            const bindings = await loadBindings(
-              nextConfig.experimental?.useWasmBinary
-            )
+            const { loadBindings } = require('../build/swc') as typeof import('../build/swc')
+            const bindings = await loadBindings(nextConfig.experimental?.useWasmBinary)
             // Run arbitrary function to verify the bindings are loaded correctly.
             const target = bindings.getTargetTriple()
 
@@ -423,9 +404,7 @@ async function printVerboseInfo() {
                 loadError = (e as Error).message
               }
 
-              output.push(
-                `${pkgName} exists: ${fileExists} for the triple ${loadSuccess}`
-              )
+              output.push(`${pkgName} exists: ${fileExists} for the triple ${loadSuccess}`)
               if (loadError) {
                 output.push(`${pkgName} load failed: ${loadError ?? 'unknown'}`)
               }
@@ -434,11 +413,7 @@ async function printVerboseInfo() {
                 return true
               }
             } catch (e) {
-              output.push(
-                `${pkgName} resolve failed: ${
-                  (e as Error).message ?? 'unknown'
-                }`
-              )
+              output.push(`${pkgName} resolve failed: ${(e as Error).message ?? 'unknown'}`)
             }
             return false
           }
@@ -543,9 +518,7 @@ async function printVerboseInfo() {
         title: task.title,
         result: {
           messages: undefined,
-          output: `[SKIPPED (${os.platform()} / ${task.targetPlatform})] ${
-            task.title
-          }`,
+          output: `[SKIPPED (${os.platform()} / ${task.targetPlatform})] ${task.title}`,
           result: 'skipped',
         },
       })
@@ -558,9 +531,7 @@ async function printVerboseInfo() {
       taskResult = await taskScript()
     } catch (e) {
       taskResult = {
-        messages: `Unexpected failure while running diagnostics: ${
-          (e as Error).message
-        }`,
+        messages: `Unexpected failure while running diagnostics: ${(e as Error).message}`,
         result: 'fail',
       }
     }

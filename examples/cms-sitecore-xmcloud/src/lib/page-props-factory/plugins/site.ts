@@ -7,10 +7,7 @@ import config from "temp/config";
 class SitePlugin implements Plugin {
   order = 0;
 
-  async exec(
-    props: SitecorePageProps,
-    context: GetServerSidePropsContext | GetStaticPropsContext,
-  ) {
+  async exec(props: SitecorePageProps, context: GetServerSidePropsContext | GetStaticPropsContext) {
     if (context.preview) return props;
 
     // Resolve site by name

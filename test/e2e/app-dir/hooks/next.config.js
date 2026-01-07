@@ -4,8 +4,7 @@ module.exports = {
       afterFiles: [
         {
           source: '/rewritten-use-search-params',
-          destination:
-            '/hooks/use-search-params?first=value&second=other%20value&third',
+          destination: '/hooks/use-search-params?first=value&second=other%20value&third',
         },
         {
           source: '/rewritten-use-pathname',
@@ -13,8 +12,7 @@ module.exports = {
         },
         {
           source: '/hooks/use-selected-layout-segment/rewritten',
-          destination:
-            '/hooks/use-selected-layout-segment/first/slug3/second/catch/all',
+          destination: '/hooks/use-selected-layout-segment/first/slug3/second/catch/all',
         },
       ],
     }

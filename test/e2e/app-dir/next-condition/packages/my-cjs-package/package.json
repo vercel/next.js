@@ -1,10 +1,22 @@
 {
   "name": "my-cjs-package",
   "version": "0.0.0",
-  "type": "commonjs",
   "files": [
     "src"
   ],
+  "type": "commonjs",
+  "imports": {
+    "#imports": {
+      "next-js": {
+        "react-server": "./src/imports/imports.next.server.cjs",
+        "default": "./src/imports/imports.next.default.cjs"
+      },
+      "default": {
+        "react-server": "./src/imports/imports.default.server.cjs",
+        "default": "./src/imports/imports.default.default.cjs"
+      }
+    }
+  },
   "exports": {
     "./exports": {
       "next-js": {
@@ -17,17 +29,5 @@
       }
     },
     "./imports": "./src/imports.cjs"
-  },
-  "imports": {
-    "#imports": {
-      "next-js": {
-        "react-server": "./src/imports/imports.next.server.cjs",
-        "default": "./src/imports/imports.next.default.cjs"
-      },
-      "default": {
-        "react-server": "./src/imports/imports.default.server.cjs",
-        "default": "./src/imports/imports.default.default.cjs"
-      }
-    }
   }
 }

@@ -57,10 +57,7 @@ export function AppRouterAnnouncer({ tree }: { tree: FlightRouterState }) {
 
     // Only announce the title change, but not for the first load because screen
     // readers do that automatically.
-    if (
-      previousTitle.current !== undefined &&
-      previousTitle.current !== currentTitle
-    ) {
+    if (previousTitle.current !== undefined && previousTitle.current !== currentTitle) {
       setRouteAnnouncement(currentTitle)
     }
     previousTitle.current = currentTitle

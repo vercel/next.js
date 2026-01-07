@@ -8,11 +8,7 @@ export const FootNotes = ({ children }) => (
 )
 
 export const Ref = ({ id }) => (
-  <a
-    href={`#f${id}`}
-    id={`s${id}`}
-    className="relative text-xs top-[-5px] no-underline"
-  >
+  <a href={`#f${id}`} id={`s${id}`} className="relative text-xs top-[-5px] no-underline">
     [{id}]
   </a>
 )

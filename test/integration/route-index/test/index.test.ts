@@ -1,14 +1,7 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import {
-  findPort,
-  launchApp,
-  killApp,
-  nextBuild,
-  nextStart,
-  fetchViaHTTP,
-} from 'next-test-utils'
+import { findPort, launchApp, killApp, nextBuild, nextStart, fetchViaHTTP } from 'next-test-utils'
 
 let app
 let appPort
@@ -34,10 +27,7 @@ const runTests = () => {
   })
 
   it('should handle /index/?bar%60%3C%25%22%27%7B%24%2A%25%5C correctly', async () => {
-    const res = await fetchViaHTTP(
-      appPort,
-      '/index/?bar%60%3C%25%22%27%7B%24%2A%25%5C'
-    )
+    const res = await fetchViaHTTP(appPort, '/index/?bar%60%3C%25%22%27%7B%24%2A%25%5C')
     expect(res.status).toBe(200)
   })
 
@@ -48,29 +38,23 @@ const runTests = () => {
 }
 
 describe('Route index handling', () => {
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
-    'development mode',
-    () => {
-      beforeAll(async () => {
-        appPort = await findPort()
-        app = await launchApp(appDir, appPort)
-      })
-      afterAll(() => killApp(app))
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
+    beforeAll(async () => {
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(() => killApp(app))
 
-      runTests()
-    }
-  )
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      beforeAll(async () => {
-        await nextBuild(appDir)
-        appPort = await findPort()
-        app = await nextStart(appDir, appPort)
-      })
-      afterAll(() => killApp(app))
+    runTests()
+  })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
+    beforeAll(async () => {
+      await nextBuild(appDir)
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(() => killApp(app))
 
-      runTests()
-    }
-  )
+    runTests()
+  })
 })

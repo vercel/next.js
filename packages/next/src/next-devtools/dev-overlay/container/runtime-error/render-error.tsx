@@ -2,10 +2,7 @@ import type { OverlayState } from '../../shared'
 import type { StackFrame } from '../../../shared/stack-frame'
 
 import { useMemo, useState, useEffect } from 'react'
-import {
-  getErrorByType,
-  type ReadyRuntimeError,
-} from '../../utils/get-error-by-type'
+import { getErrorByType, type ReadyRuntimeError } from '../../utils/get-error-by-type'
 
 export type SupportedErrorEvent = {
   id: number

@@ -39,10 +39,7 @@ const PagesSegmentConfigSchema = z.object({
  * @param route - The route of the page.
  * @returns The parsed page segment config.
  */
-export function parsePagesSegmentConfig(
-  data: unknown,
-  route: string
-): PagesSegmentConfig {
+export function parsePagesSegmentConfig(data: unknown, route: string): PagesSegmentConfig {
   const parsed = PagesSegmentConfigSchema.safeParse(data, {})
   if (!parsed.success) {
     throw formatZodError(
@@ -59,8 +56,7 @@ export function parsePagesSegmentConfig(
  *
  * @internal - required to exclude zod types from the build
  */
-export const PagesSegmentConfigSchemaKeys =
-  PagesSegmentConfigSchema.keyof().options
+export const PagesSegmentConfigSchemaKeys = PagesSegmentConfigSchema.keyof().options
 
 export type PagesSegmentConfigConfig = {
   /**

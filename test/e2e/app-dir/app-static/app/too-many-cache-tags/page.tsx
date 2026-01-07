@@ -6,12 +6,9 @@ export default async function Page() {
   for (let i = 0; i < 130; i++) {
     tags.push(`tag-${i}`)
   }
-  const data = await fetch(
-    'https://next-data-api-endpoint.vercel.app/api/random',
-    {
-      next: { tags },
-    }
-  ).then((res) => res.text())
+  const data = await fetch('https://next-data-api-endpoint.vercel.app/api/random', {
+    next: { tags },
+  }).then((res) => res.text())
 
   return (
     <>

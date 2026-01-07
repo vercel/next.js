@@ -62,9 +62,9 @@ let lastStore: OutputState = {
 function hasStoreChanged(nextStore: OutputState) {
   if (
     (
-      [
-        ...new Set([...Object.keys(lastStore), ...Object.keys(nextStore)]),
-      ] as Array<keyof OutputState>
+      [...new Set([...Object.keys(lastStore), ...Object.keys(nextStore)])] as Array<
+        keyof OutputState
+      >
     ).every((key) => Object.is(lastStore[key], nextStore[key]))
   ) {
     return false
@@ -111,11 +111,7 @@ store.subscribe((state) => {
         if (!loadingLogTimer) {
           // Only log compiling if compiled is not finished quickly
           loadingLogTimer = setTimeout(() => {
-            if (
-              triggerUrl &&
-              triggerUrl !== trigger &&
-              process.env.NEXT_TRIGGER_URL
-            ) {
+            if (triggerUrl && triggerUrl !== trigger && process.env.NEXT_TRIGGER_URL) {
               Log.wait(`Compiling ${trigger} (${triggerUrl}) ...`)
             } else {
               Log.wait(`Compiling ${trigger} ...`)
@@ -146,9 +142,7 @@ store.subscribe((state) => {
     const time = Date.now() - startTime
     startTime = 0
 
-    timeMessage =
-      ' ' +
-      (time > 2000 ? `in ${Math.round(time / 100) / 10}s` : `in ${time}ms`)
+    timeMessage = ' ' + (time > 2000 ? `in ${Math.round(time / 100) / 10}s` : `in ${time}ms`)
   }
 
   let modulesMessage = ''
@@ -165,9 +159,7 @@ store.subscribe((state) => {
   }
 
   if (state.typeChecking) {
-    Log.info(
-      `bundled ${trigger}${timeMessage}${modulesMessage}, type checking...`
-    )
+    Log.info(`bundled ${trigger}${timeMessage}${modulesMessage}, type checking...`)
     return
   }
 

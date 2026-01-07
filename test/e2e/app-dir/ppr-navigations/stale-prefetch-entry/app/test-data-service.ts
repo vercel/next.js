@@ -17,20 +17,15 @@ async function getTestData(key: string, isStatic: boolean): Promise<string> {
     // If environment variable is not set, resolve automatically after a delay.
     // This is so you can run the test app locally without spinning up a
     // data server.
-    await new Promise<void>((resolve) =>
-      setTimeout(() => resolve(), ARTIFICIAL_DELAY)
-    )
+    await new Promise<void>((resolve) => setTimeout(() => resolve(), ARTIFICIAL_DELAY))
     if (!isStatic) {
       unstable_noStore()
     }
     return key
   }
-  const response = await fetch(
-    TEST_DATA_SERVICE_URL + '?' + searchParams.toString(),
-    {
-      cache: isStatic ? 'force-cache' : 'no-store',
-    }
-  )
+  const response = await fetch(TEST_DATA_SERVICE_URL + '?' + searchParams.toString(), {
+    cache: isStatic ? 'force-cache' : 'no-store',
+  })
   const text = await response.text()
   if (response.status !== 200) {
     throw new Error(text)

@@ -1,6 +1,5 @@
 {
   "private": true,
-  "productName": "ElectronNext",
   "main": "main/index.js",
   "scripts": {
     "clean": "rimraf dist renderer/.next renderer/out",
@@ -9,12 +8,9 @@
     "pack-app": "npm run build && electron-builder --dir",
     "dist": "npm run build && electron-builder"
   },
-  "build": {
-    "asar": true,
-    "files": [
-      "main",
-      "renderer/out"
-    ]
+  "dependencies": {
+    "electron-is-dev": "^1.1.0",
+    "electron-next": "^3.1.5"
   },
   "devDependencies": {
     "electron": "^12.0.2",
@@ -23,8 +19,12 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
-  "dependencies": {
-    "electron-is-dev": "^1.1.0",
-    "electron-next": "^3.1.5"
-  }
+  "build": {
+    "asar": true,
+    "files": [
+      "main",
+      "renderer/out"
+    ]
+  },
+  "productName": "ElectronNext"
 }

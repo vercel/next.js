@@ -46,10 +46,7 @@ export default function ShallowLayout({ children }) {
           </Link>
         </div>
         <div>
-          <Link
-            href="/pushstate-new-searchparams"
-            id="to-pushstate-new-searchparams"
-          >
+          <Link href="/pushstate-new-searchparams" id="to-pushstate-new-searchparams">
             To PushState new SearchParams
           </Link>
         </div>
@@ -69,18 +66,12 @@ export default function ShallowLayout({ children }) {
           </Link>
         </div>
         <div>
-          <Link
-            href="/replacestate-new-searchparams"
-            id="to-replacestate-new-searchparams"
-          >
+          <Link href="/replacestate-new-searchparams" id="to-replacestate-new-searchparams">
             To ReplaceState new SearchParams
           </Link>
         </div>
         <div>
-          <Link
-            href="/replacestate-new-pathname"
-            id="to-replacestate-new-pathname"
-          >
+          <Link href="/replacestate-new-pathname" id="to-replacestate-new-pathname">
             To ReplaceState new pathname
           </Link>
         </div>

@@ -13,8 +13,7 @@ const LINKS = [
     url: "https://nextjs.org/docs",
   },
   {
-    description:
-      "Maintain your flow by managing your Xata Workspace without ever leaving VS Code.",
+    description: "Maintain your flow by managing your Xata Workspace without ever leaving VS Code.",
     title: "Xata VS Code Extension",
     url: "https://marketplace.visualstudio.com/items?itemName=xata.xata",
   },
@@ -27,10 +26,7 @@ const LINKS = [
 
 const xata = getXataClient();
 
-export default async function writeLinksToXata(
-  _req: NextApiRequest,
-  res: NextApiResponse,
-) {
+export default async function writeLinksToXata(_req: NextApiRequest, res: NextApiResponse) {
   await xata.db.nextjs_with_xata_example.create(LINKS);
   res.json({
     ok: true,

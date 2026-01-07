@@ -1,15 +1,12 @@
 export const revalidate = 0
 
 export default async function Page({ params }) {
-  const data = await fetch(
-    'https://next-data-api-endpoint.vercel.app/api/random',
-    {
-      next: {
-        tags: ['ssr-page'],
-        revalidate: 3,
-      },
-    }
-  ).then((res) => res.text())
+  const data = await fetch('https://next-data-api-endpoint.vercel.app/api/random', {
+    next: {
+      tags: ['ssr-page'],
+      revalidate: 3,
+    },
+  }).then((res) => res.text())
 
   return (
     <>

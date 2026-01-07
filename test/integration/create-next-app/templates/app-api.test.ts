@@ -51,9 +51,7 @@ describe('create-next-app --api (Headless App)', () => {
       throw new Error('This test needs to be run with `node run-tests.js`.')
     }
 
-    const pkgPaths = new Map<string, string>(
-      JSON.parse(process.env.NEXT_TEST_PKG_PATHS)
-    )
+    const pkgPaths = new Map<string, string>(JSON.parse(process.env.NEXT_TEST_PKG_PATHS))
 
     nextTgzFilename = pkgPaths.get('next')!
   })
@@ -161,14 +159,7 @@ describe('create-next-app --api (Headless App)', () => {
       await useTempDir(async (cwd) => {
         const projectName = 'app-turbo'
         const { exitCode } = await run(
-          [
-            projectName,
-            '--ts',
-            '--api',
-            '--webpack',
-            '--no-src-dir',
-            '--no-import-alias',
-          ],
+          [projectName, '--ts', '--api', '--webpack', '--no-src-dir', '--no-import-alias'],
           nextTgzFilename,
           {
             cwd,

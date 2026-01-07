@@ -2,11 +2,7 @@ import React, { Suspense } from 'react'
 import NavBar from './nav-bar'
 import DebugMode from './debug-mode'
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html>
       <body>

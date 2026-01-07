@@ -9,10 +9,7 @@ import {
   type CompilerNameValues,
 } from '../../../shared/lib/constants'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
-import {
-  NODE_ESM_RESOLVE_OPTIONS,
-  NODE_RESOLVE_OPTIONS,
-} from '../../webpack-config'
+import { NODE_ESM_RESOLVE_OPTIONS, NODE_RESOLVE_OPTIONS } from '../../webpack-config'
 import type { NextConfigComplete } from '../../../server/config-shared'
 import picomatch from 'next/dist/compiled/picomatch'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
@@ -22,10 +19,7 @@ import { isMetadataRouteFile } from '../../../lib/metadata/is-metadata-route'
 import { getCompilationSpan } from '../utils'
 
 const PLUGIN_NAME = 'TraceEntryPointsPlugin'
-export const TRACE_IGNORES = [
-  '**/*/next/dist/server/next.js',
-  '**/*/next/dist/bin/next',
-]
+export const TRACE_IGNORES = ['**/*/next/dist/server/next.js', '**/*/next/dist/bin/next']
 
 const NOT_TRACEABLE = [
   '.wasm',
@@ -57,11 +51,7 @@ export function getFilesMapFromReasons(
   // separately
   const parentFilesMap = new Map<string, Map<string, { ignored: boolean }>>()
 
-  function propagateToParents(
-    parents: Set<string>,
-    file: string,
-    seen = new Set<string>()
-  ) {
+  function propagateToParents(parents: Set<string>, file: string, seen = new Set<string>()) {
     for (const parent of parents || []) {
       if (!seen.has(parent)) {
         seen.add(parent)
@@ -85,14 +75,9 @@ export function getFilesMapFromReasons(
 
   for (const file of fileList!) {
     const reason = reasons!.get(file)
-    const isInitial =
-      reason?.type.length === 1 && reason.type.includes('initial')
+    const isInitial = reason?.type.length === 1 && reason.type.includes('initial')
 
-    if (
-      !reason ||
-      !reason.parents ||
-      (isInitial && reason.parents.size === 0)
-    ) {
+    if (!reason || !reason.parents || (isInitial && reason.parents.size === 0)) {
       continue
     }
     propagateToParents(reason.parents, file)
@@ -186,9 +171,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
       for (const entrypoint of compilation.entrypoints.values()) {
         const entryFiles = new Set<string>()
 
-        for (const chunk of entrypoint
-          .getEntrypointChunk()
-          .getAllReferencedChunks()) {
+        for (const chunk of entrypoint.getEntrypointChunk().getAllReferencedChunks()) {
           for (const file of chunk.files) {
             if (isTraceable(file)) {
               const filePath = nodePath.join(outputPath, file)
@@ -226,24 +209,20 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
 
       for (const [entrypoint, entryFiles] of entryFilesMap) {
         const traceOutputName = `${outputPrefix}${entrypoint.name}.js.nft.json`
-        const traceOutputPath = nodePath.dirname(
-          nodePath.join(outputPath, traceOutputName)
-        )
+        const traceOutputPath = nodePath.dirname(nodePath.join(outputPath, traceOutputName))
 
         // don't include the entry itself in the trace
-        entryFiles.delete(
-          nodePath.join(outputPath, `${outputPrefix}${entrypoint.name}.js`)
-        )
+        entryFiles.delete(nodePath.join(outputPath, `${outputPrefix}${entrypoint.name}.js`))
 
         if (entrypoint.name.startsWith('app/') && this.appDir) {
           const appDirRelativeEntryPath =
-            this.buildTraceContext.entriesTrace?.absolutePathByEntryName[
-              entrypoint.name
-            ]?.replace(this.appDir, '')
+            this.buildTraceContext.entriesTrace?.absolutePathByEntryName[entrypoint.name]?.replace(
+              this.appDir,
+              ''
+            )
 
           const entryIsStaticMetadataRoute =
-            appDirRelativeEntryPath &&
-            isMetadataRouteFile(appDirRelativeEntryPath, [], true)
+            appDirRelativeEntryPath && isMetadataRouteFile(appDirRelativeEntryPath, [], true)
 
           // Include the client reference manifest in the trace, but not for
           // static metadata routes, for which we don't generate those.
@@ -252,10 +231,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
               nodePath.join(
                 outputPath,
                 outputPrefix,
-                entrypoint.name.replace(/%5F/g, '_') +
-                  '_' +
-                  CLIENT_REFERENCE_MANIFEST +
-                  '.js'
+                entrypoint.name.replace(/%5F/g, '_') + '_' + CLIENT_REFERENCE_MANIFEST + '.js'
               )
             )
           }
@@ -265,16 +241,11 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
 
         await Promise.all(
           [
-            ...new Set([
-              ...entryFiles,
-              ...(this.entryTraces.get(entrypoint.name)?.keys() || []),
-            ]),
+            ...new Set([...entryFiles, ...(this.entryTraces.get(entrypoint.name)?.keys() || [])]),
           ].map(async (file) => {
             const fileInfo = this.entryTraces.get(entrypoint.name)?.get(file)
 
-            const relativeFile = nodePath
-              .relative(traceOutputPath, file)
-              .replace(/\\/g, '/')
+            const relativeFile = nodePath.relative(traceOutputPath, file).replace(/\\/g, '/')
 
             if (file) {
               if (!fileInfo?.bundled) {
@@ -309,295 +280,252 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
     readlink: any,
     stat: any
   ) {
-    compilation.hooks.finishModules.tapAsync(
-      PLUGIN_NAME,
-      async (_stats: any, callback: any) => {
-        const finishModulesSpan =
-          traceEntrypointsPluginSpan.traceChild('finish-modules')
-        await finishModulesSpan
-          .traceAsyncFn(async () => {
-            // we create entry -> module maps so that we can
-            // look them up faster instead of having to iterate
-            // over the compilation modules list
-            const entryNameMap = new Map<string, string>()
-            const entryModMap = new Map<string, any>()
-            const additionalEntries = new Map<string, Map<string, any>>()
-            const absolutePathByEntryName = new Map<string, string>()
+    compilation.hooks.finishModules.tapAsync(PLUGIN_NAME, async (_stats: any, callback: any) => {
+      const finishModulesSpan = traceEntrypointsPluginSpan.traceChild('finish-modules')
+      await finishModulesSpan
+        .traceAsyncFn(async () => {
+          // we create entry -> module maps so that we can
+          // look them up faster instead of having to iterate
+          // over the compilation modules list
+          const entryNameMap = new Map<string, string>()
+          const entryModMap = new Map<string, any>()
+          const additionalEntries = new Map<string, Map<string, any>>()
+          const absolutePathByEntryName = new Map<string, string>()
 
-            const depModMap = new Map<string, any>()
+          const depModMap = new Map<string, any>()
 
-            await finishModulesSpan
-              .traceChild('get-entries')
-              .traceAsyncFn(async () => {
-                for (const [name, entry] of compilation.entries.entries()) {
-                  const normalizedName = name?.replace(/\\/g, '/')
+          await finishModulesSpan.traceChild('get-entries').traceAsyncFn(async () => {
+            for (const [name, entry] of compilation.entries.entries()) {
+              const normalizedName = name?.replace(/\\/g, '/')
 
-                  const isPage = normalizedName.startsWith('pages/')
-                  const isApp =
-                    this.appDirEnabled && normalizedName.startsWith('app/')
+              const isPage = normalizedName.startsWith('pages/')
+              const isApp = this.appDirEnabled && normalizedName.startsWith('app/')
 
-                  if (isApp || isPage) {
-                    for (const dep of entry.dependencies) {
-                      if (!dep) continue
-                      const entryMod = getModuleFromDependency(compilation, dep)
+              if (isApp || isPage) {
+                for (const dep of entry.dependencies) {
+                  if (!dep) continue
+                  const entryMod = getModuleFromDependency(compilation, dep)
 
-                      // Handle case where entry is a loader coming from Next.js.
-                      // For example edge-loader or app-loader.
-                      if (entryMod && entryMod.resource === '') {
-                        const moduleBuildInfo = getModuleBuildInfo(entryMod)
-                        // All loaders that are used to create entries have a `route` property on the buildInfo.
-                        if (moduleBuildInfo.route) {
-                          const absolutePath = getPageFilePath({
-                            absolutePagePath:
-                              moduleBuildInfo.route.absolutePagePath,
-                            rootDir: this.rootDir,
-                            appDir: this.appDir,
-                            pagesDir: this.pagesDir,
-                          })
+                  // Handle case where entry is a loader coming from Next.js.
+                  // For example edge-loader or app-loader.
+                  if (entryMod && entryMod.resource === '') {
+                    const moduleBuildInfo = getModuleBuildInfo(entryMod)
+                    // All loaders that are used to create entries have a `route` property on the buildInfo.
+                    if (moduleBuildInfo.route) {
+                      const absolutePath = getPageFilePath({
+                        absolutePagePath: moduleBuildInfo.route.absolutePagePath,
+                        rootDir: this.rootDir,
+                        appDir: this.appDir,
+                        pagesDir: this.pagesDir,
+                      })
 
-                          // Ensures we don't handle non-pages.
-                          if (
-                            (this.pagesDir &&
-                              absolutePath.startsWith(this.pagesDir)) ||
-                            (this.appDir &&
-                              absolutePath.startsWith(this.appDir))
-                          ) {
-                            entryModMap.set(absolutePath, entryMod)
-                            entryNameMap.set(absolutePath, name)
-                            absolutePathByEntryName.set(name, absolutePath)
-                          }
-                        }
-
-                        // If there was no `route` property, we can assume that it was something custom instead.
-                        // In order to trace these we add them to the additionalEntries map.
-                        if (entryMod.request) {
-                          let curMap = additionalEntries.get(name)
-
-                          if (!curMap) {
-                            curMap = new Map()
-                            additionalEntries.set(name, curMap)
-                          }
-                          depModMap.set(entryMod.request, entryMod)
-                          curMap.set(entryMod.resource, entryMod)
-                        }
-                      }
-
-                      if (entryMod && entryMod.resource) {
-                        entryNameMap.set(entryMod.resource, name)
-                        entryModMap.set(entryMod.resource, entryMod)
-
-                        let curMap = additionalEntries.get(name)
-
-                        if (!curMap) {
-                          curMap = new Map()
-                          additionalEntries.set(name, curMap)
-                        }
-                        depModMap.set(entryMod.resource, entryMod)
-                        curMap.set(entryMod.resource, entryMod)
+                      // Ensures we don't handle non-pages.
+                      if (
+                        (this.pagesDir && absolutePath.startsWith(this.pagesDir)) ||
+                        (this.appDir && absolutePath.startsWith(this.appDir))
+                      ) {
+                        entryModMap.set(absolutePath, entryMod)
+                        entryNameMap.set(absolutePath, name)
+                        absolutePathByEntryName.set(name, absolutePath)
                       }
                     }
+
+                    // If there was no `route` property, we can assume that it was something custom instead.
+                    // In order to trace these we add them to the additionalEntries map.
+                    if (entryMod.request) {
+                      let curMap = additionalEntries.get(name)
+
+                      if (!curMap) {
+                        curMap = new Map()
+                        additionalEntries.set(name, curMap)
+                      }
+                      depModMap.set(entryMod.request, entryMod)
+                      curMap.set(entryMod.resource, entryMod)
+                    }
                   }
-                }
-              })
 
-            const readFile = async (
-              path: string
-            ): Promise<Buffer | string | null> => {
-              const mod = depModMap.get(path) || entryModMap.get(path)
+                  if (entryMod && entryMod.resource) {
+                    entryNameMap.set(entryMod.resource, name)
+                    entryModMap.set(entryMod.resource, entryMod)
 
-              // map the transpiled source when available to avoid
-              // parse errors in node-file-trace
-              let source: Buffer | string = mod?.originalSource?.()?.buffer()
-              return source || ''
-            }
+                    let curMap = additionalEntries.get(name)
 
-            const entryPaths = Array.from(entryModMap.keys())
-
-            const collectDependencies = async (mod: any, parent: string) => {
-              if (!mod || !mod.dependencies) return
-
-              for (const dep of mod.dependencies) {
-                const depMod = getModuleFromDependency(compilation, dep)
-
-                if (depMod?.resource && !depModMap.get(depMod.resource)) {
-                  depModMap.set(depMod.resource, depMod)
-                  await collectDependencies(depMod, parent)
+                    if (!curMap) {
+                      curMap = new Map()
+                      additionalEntries.set(name, curMap)
+                    }
+                    depModMap.set(entryMod.resource, entryMod)
+                    curMap.set(entryMod.resource, entryMod)
+                  }
                 }
               }
             }
-            const entriesToTrace = [...entryPaths]
+          })
+
+          const readFile = async (path: string): Promise<Buffer | string | null> => {
+            const mod = depModMap.get(path) || entryModMap.get(path)
+
+            // map the transpiled source when available to avoid
+            // parse errors in node-file-trace
+            let source: Buffer | string = mod?.originalSource?.()?.buffer()
+            return source || ''
+          }
+
+          const entryPaths = Array.from(entryModMap.keys())
+
+          const collectDependencies = async (mod: any, parent: string) => {
+            if (!mod || !mod.dependencies) return
+
+            for (const dep of mod.dependencies) {
+              const depMod = getModuleFromDependency(compilation, dep)
+
+              if (depMod?.resource && !depModMap.get(depMod.resource)) {
+                depModMap.set(depMod.resource, depMod)
+                await collectDependencies(depMod, parent)
+              }
+            }
+          }
+          const entriesToTrace = [...entryPaths]
+
+          for (const entry of entryPaths) {
+            await collectDependencies(entryModMap.get(entry), entry)
+            const entryName = entryNameMap.get(entry)!
+            const curExtraEntries = additionalEntries.get(entryName)
+
+            if (curExtraEntries) {
+              entriesToTrace.push(...curExtraEntries.keys())
+            }
+          }
+
+          const contextDirectory = this.tracingRoot
+          const chunks = [...entriesToTrace]
+
+          this.buildTraceContext.entriesTrace = {
+            action: {
+              action: 'print',
+              input: chunks,
+              contextDirectory,
+              processCwd: this.rootDir,
+            },
+            appDir: this.rootDir,
+            depModArray: Array.from(depModMap.keys()),
+            entryNameMap: Object.fromEntries(entryNameMap),
+            absolutePathByEntryName: Object.fromEntries(absolutePathByEntryName),
+            outputPath: compilation.outputOptions.path!,
+          }
+
+          let fileList: Set<string>
+          let reasons: NodeFileTraceReasons
+          const ignores = [...TRACE_IGNORES, ...this.traceIgnores, '**/node_modules/**']
+
+          // pre-compile the ignore matcher to avoid repeating on every ignoreFn call
+          const isIgnoreMatcher = picomatch(ignores, {
+            contains: true,
+            dot: true,
+          })
+          const ignoreFn = (path: string) => {
+            return isIgnoreMatcher(path)
+          }
+
+          await finishModulesSpan
+            .traceChild('node-file-trace-plugin', {
+              traceEntryCount: entriesToTrace.length + '',
+            })
+            .traceAsyncFn(async () => {
+              const result = await nodeFileTrace(entriesToTrace, {
+                base: this.tracingRoot,
+                processCwd: this.rootDir,
+                readFile,
+                readlink,
+                stat,
+                resolve: doResolve
+                  ? async (id, parent, job, isCjs) => {
+                      return doResolve(id, parent, job, !isCjs)
+                    }
+                  : undefined,
+                ignore: ignoreFn,
+                mixedModules: true,
+              })
+              // @ts-ignore
+              fileList = result.fileList
+              result.esmFileList.forEach((file) => fileList.add(file))
+              reasons = result.reasons
+            })
+
+          await finishModulesSpan.traceChild('collect-traced-files').traceAsyncFn(() => {
+            const parentFilesMap = getFilesMapFromReasons(fileList, reasons, (file) => {
+              // if a file was imported and a loader handled it
+              // we don't include it in the trace e.g.
+              // static image imports, CSS imports
+              file = nodePath.join(this.tracingRoot, file)
+              const depMod = depModMap.get(file)
+              const isAsset = reasons
+                .get(nodePath.relative(this.tracingRoot, file))
+                ?.type.includes('asset')
+
+              return !isAsset && Array.isArray(depMod?.loaders) && depMod.loaders.length > 0
+            })
 
             for (const entry of entryPaths) {
-              await collectDependencies(entryModMap.get(entry), entry)
               const entryName = entryNameMap.get(entry)!
+              const normalizedEntry = nodePath.relative(this.tracingRoot, entry)
               const curExtraEntries = additionalEntries.get(entryName)
+              const finalDeps = new Map<string, { bundled: boolean }>()
+
+              // ensure we include entry source file as well for
+              // hash comparison
+              finalDeps.set(entry, {
+                bundled: true,
+              })
+
+              for (const [dep, info] of parentFilesMap.get(normalizedEntry)?.entries() || []) {
+                finalDeps.set(nodePath.join(this.tracingRoot, dep), {
+                  bundled: info.ignored,
+                })
+              }
 
               if (curExtraEntries) {
-                entriesToTrace.push(...curExtraEntries.keys())
-              }
-            }
+                for (const extraEntry of curExtraEntries.keys()) {
+                  const normalizedExtraEntry = nodePath.relative(this.tracingRoot, extraEntry)
+                  finalDeps.set(extraEntry, { bundled: false })
 
-            const contextDirectory = this.tracingRoot
-            const chunks = [...entriesToTrace]
-
-            this.buildTraceContext.entriesTrace = {
-              action: {
-                action: 'print',
-                input: chunks,
-                contextDirectory,
-                processCwd: this.rootDir,
-              },
-              appDir: this.rootDir,
-              depModArray: Array.from(depModMap.keys()),
-              entryNameMap: Object.fromEntries(entryNameMap),
-              absolutePathByEntryName: Object.fromEntries(
-                absolutePathByEntryName
-              ),
-              outputPath: compilation.outputOptions.path!,
-            }
-
-            let fileList: Set<string>
-            let reasons: NodeFileTraceReasons
-            const ignores = [
-              ...TRACE_IGNORES,
-              ...this.traceIgnores,
-              '**/node_modules/**',
-            ]
-
-            // pre-compile the ignore matcher to avoid repeating on every ignoreFn call
-            const isIgnoreMatcher = picomatch(ignores, {
-              contains: true,
-              dot: true,
-            })
-            const ignoreFn = (path: string) => {
-              return isIgnoreMatcher(path)
-            }
-
-            await finishModulesSpan
-              .traceChild('node-file-trace-plugin', {
-                traceEntryCount: entriesToTrace.length + '',
-              })
-              .traceAsyncFn(async () => {
-                const result = await nodeFileTrace(entriesToTrace, {
-                  base: this.tracingRoot,
-                  processCwd: this.rootDir,
-                  readFile,
-                  readlink,
-                  stat,
-                  resolve: doResolve
-                    ? async (id, parent, job, isCjs) => {
-                        return doResolve(id, parent, job, !isCjs)
-                      }
-                    : undefined,
-                  ignore: ignoreFn,
-                  mixedModules: true,
-                })
-                // @ts-ignore
-                fileList = result.fileList
-                result.esmFileList.forEach((file) => fileList.add(file))
-                reasons = result.reasons
-              })
-
-            await finishModulesSpan
-              .traceChild('collect-traced-files')
-              .traceAsyncFn(() => {
-                const parentFilesMap = getFilesMapFromReasons(
-                  fileList,
-                  reasons,
-                  (file) => {
-                    // if a file was imported and a loader handled it
-                    // we don't include it in the trace e.g.
-                    // static image imports, CSS imports
-                    file = nodePath.join(this.tracingRoot, file)
-                    const depMod = depModMap.get(file)
-                    const isAsset = reasons
-                      .get(nodePath.relative(this.tracingRoot, file))
-                      ?.type.includes('asset')
-
-                    return (
-                      !isAsset &&
-                      Array.isArray(depMod?.loaders) &&
-                      depMod.loaders.length > 0
-                    )
-                  }
-                )
-
-                for (const entry of entryPaths) {
-                  const entryName = entryNameMap.get(entry)!
-                  const normalizedEntry = nodePath.relative(
-                    this.tracingRoot,
-                    entry
-                  )
-                  const curExtraEntries = additionalEntries.get(entryName)
-                  const finalDeps = new Map<string, { bundled: boolean }>()
-
-                  // ensure we include entry source file as well for
-                  // hash comparison
-                  finalDeps.set(entry, {
-                    bundled: true,
-                  })
-
-                  for (const [dep, info] of parentFilesMap
-                    .get(normalizedEntry)
-                    ?.entries() || []) {
+                  for (const [dep, info] of parentFilesMap.get(normalizedExtraEntry)?.entries() ||
+                    []) {
                     finalDeps.set(nodePath.join(this.tracingRoot, dep), {
                       bundled: info.ignored,
                     })
                   }
-
-                  if (curExtraEntries) {
-                    for (const extraEntry of curExtraEntries.keys()) {
-                      const normalizedExtraEntry = nodePath.relative(
-                        this.tracingRoot,
-                        extraEntry
-                      )
-                      finalDeps.set(extraEntry, { bundled: false })
-
-                      for (const [dep, info] of parentFilesMap
-                        .get(normalizedExtraEntry)
-                        ?.entries() || []) {
-                        finalDeps.set(nodePath.join(this.tracingRoot, dep), {
-                          bundled: info.ignored,
-                        })
-                      }
-                    }
-                  }
-                  this.entryTraces.set(entryName, finalDeps)
                 }
-              })
+              }
+              this.entryTraces.set(entryName, finalDeps)
+            }
           })
-          .then(
-            () => callback(),
-            (err) => callback(err)
-          )
-      }
-    )
+        })
+        .then(
+          () => callback(),
+          (err) => callback(err)
+        )
+    })
   }
 
   apply(compiler: webpack.Compiler) {
     compiler.hooks.compilation.tap(PLUGIN_NAME, (compilation) => {
-      const compilationSpan =
-        getCompilationSpan(compilation) || getCompilationSpan(compiler)!
-      const traceEntrypointsPluginSpan = compilationSpan.traceChild(
-        'next-trace-entrypoint-plugin'
-      )
+      const compilationSpan = getCompilationSpan(compilation) || getCompilationSpan(compiler)!
+      const traceEntrypointsPluginSpan = compilationSpan.traceChild('next-trace-entrypoint-plugin')
 
       const readlink = async (path: string): Promise<string | null> => {
         try {
           return await new Promise((resolve, reject) => {
-            ;(
-              compilation.inputFileSystem
-                .readlink as typeof import('fs').readlink
-            )(path, (err, link) => {
-              if (err) return reject(err)
-              resolve(link)
-            })
+            ;(compilation.inputFileSystem.readlink as typeof import('fs').readlink)(
+              path,
+              (err, link) => {
+                if (err) return reject(err)
+                resolve(link)
+              }
+            )
           })
         } catch (e) {
-          if (
-            isError(e) &&
-            (e.code === 'EINVAL' || e.code === 'ENOENT' || e.code === 'UNKNOWN')
-          ) {
+          if (isError(e) && (e.code === 'EINVAL' || e.code === 'ENOENT' || e.code === 'UNKNOWN')) {
             return null
           }
           throw e
@@ -606,13 +534,10 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
       const stat = async (path: string): Promise<import('fs').Stats | null> => {
         try {
           return await new Promise((resolve, reject) => {
-            ;(compilation.inputFileSystem.stat as typeof import('fs').stat)(
-              path,
-              (err, stats) => {
-                if (err) return reject(err)
-                resolve(stats)
-              }
-            )
+            ;(compilation.inputFileSystem.stat as typeof import('fs').stat)(path, (err, stats) => {
+              if (err) return reject(err)
+              resolve(stats)
+            })
           })
         } catch (e) {
           if (isError(e) && (e.code === 'ENOENT' || e.code === 'ENOTDIR')) {
@@ -644,9 +569,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
           return segments.length ? segments[0] : null
         }
 
-        const getResolve = (
-          options: Parameters<typeof resolver.withOptions>[0]
-        ) => {
+        const getResolve = (options: Parameters<typeof resolver.withOptions>[0]) => {
           const curResolver = resolver.withOptions(options)
 
           return (
@@ -685,9 +608,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
                     // package.json could be needed for resolving e.g. stylis
                     // stylis/package.json -> stylis/dist/umd/package.json
                     if (result.includes('node_modules')) {
-                      let requestPath = result
-                        .replace(/\\/g, '/')
-                        .replace(/\0/g, '')
+                      let requestPath = result.replace(/\\/g, '/').replace(/\0/g, '')
 
                       if (
                         !nodePath.isAbsolute(request) &&
@@ -706,10 +627,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
 
                       const rootSeparatorIndex = requestPath.indexOf('/')
                       let separatorIndex: number
-                      while (
-                        (separatorIndex = requestPath.lastIndexOf('/')) >
-                        rootSeparatorIndex
-                      ) {
+                      while ((separatorIndex = requestPath.lastIndexOf('/')) > rootSeparatorIndex) {
                         requestPath = requestPath.slice(0, separatorIndex)
                         const curPackageJsonPath = `${requestPath}/package.json`
                         if (await job.isFile(curPackageJsonPath)) {
@@ -784,13 +702,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
           return res.replace(/\0/g, '')
         }
 
-        this.tapfinishModules(
-          compilation,
-          traceEntrypointsPluginSpan,
-          doResolve,
-          readlink,
-          stat
-        )
+        this.tapfinishModules(compilation, traceEntrypointsPluginSpan, doResolve, readlink, stat)
       })
     })
   }

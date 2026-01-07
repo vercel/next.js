@@ -8,11 +8,7 @@ export const metadata: Metadata = {
   description: "A Next.js web application on GitHub Pages",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body className={inter.className}>{children}</body>

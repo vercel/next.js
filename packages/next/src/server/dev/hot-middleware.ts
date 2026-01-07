@@ -75,8 +75,7 @@ export class WebpackHotMiddleware {
   private clientsByHtmlRequestId: Map<string, ws> = new Map()
   private closed = false
   private clientLatestStats: { ts: number; stats: webpack.Stats } | null = null
-  private middlewareLatestStats: { ts: number; stats: webpack.Stats } | null =
-    null
+  private middlewareLatestStats: { ts: number; stats: webpack.Stats } | null = null
   private serverLatestStats: { ts: number; stats: webpack.Stats } | null = null
 
   constructor(
@@ -86,21 +85,12 @@ export class WebpackHotMiddleware {
     private config: NextConfigComplete,
     private devToolsConfig: DevToolsConfig
   ) {
-    compilers[0].hooks.invalid.tap(
-      'webpack-hot-middleware',
-      this.onClientInvalid
-    )
+    compilers[0].hooks.invalid.tap('webpack-hot-middleware', this.onClientInvalid)
     compilers[0].hooks.done.tap('webpack-hot-middleware', this.onClientDone)
-    compilers[1].hooks.invalid.tap(
-      'webpack-hot-middleware',
-      this.onServerInvalid
-    )
+    compilers[1].hooks.invalid.tap('webpack-hot-middleware', this.onServerInvalid)
     compilers[1].hooks.done.tap('webpack-hot-middleware', this.onServerDone)
     compilers[2].hooks.done.tap('webpack-hot-middleware', this.onEdgeServerDone)
-    compilers[2].hooks.invalid.tap(
-      'webpack-hot-middleware',
-      this.onEdgeServerInvalid
-    )
+    compilers[2].hooks.invalid.tap('webpack-hot-middleware', this.onEdgeServerInvalid)
   }
 
   onClientInvalid = () => {
@@ -180,10 +170,7 @@ export class WebpackHotMiddleware {
       }
     })
 
-    const syncStats = getStatsForSyncEvent(
-      this.clientLatestStats,
-      this.serverLatestStats
-    )
+    const syncStats = getStatsForSyncEvent(this.clientLatestStats, this.serverLatestStats)
 
     if (syncStats) {
       const stats = statsToJson(syncStats)
@@ -197,10 +184,7 @@ export class WebpackHotMiddleware {
         type: HMR_MESSAGE_SENT_TO_BROWSER.SYNC,
         hash: stats.hash!,
         errors: [...(stats.errors || []), ...(middlewareStats.errors || [])],
-        warnings: [
-          ...(stats.warnings || []),
-          ...(middlewareStats.warnings || []),
-        ],
+        warnings: [...(stats.warnings || []), ...(middlewareStats.warnings || [])],
         versionInfo: this.versionInfo,
         debug: {
           devtoolsFrontendUrl: this.devtoolsFrontendUrl,
@@ -310,15 +294,10 @@ export class WebpackHotMiddleware {
   }
 
   hasClients = () => {
-    return (
-      this.clientsWithoutHtmlRequestId.size + this.clientsByHtmlRequestId.size >
-      0
-    )
+    return this.clientsWithoutHtmlRequestId.size + this.clientsByHtmlRequestId.size > 0
   }
 
   getClientCount = () => {
-    return (
-      this.clientsWithoutHtmlRequestId.size + this.clientsByHtmlRequestId.size
-    )
+    return this.clientsWithoutHtmlRequestId.size + this.clientsByHtmlRequestId.size
   }
 }

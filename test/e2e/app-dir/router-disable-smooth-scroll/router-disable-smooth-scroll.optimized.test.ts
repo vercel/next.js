@@ -49,9 +49,7 @@ describe('router smooth scroll optimization', () => {
       const logs = await browser.log()
       expect(
         logs.some((log) =>
-          log.message.includes(
-            'Detected `scroll-behavior: smooth` on the `<html>` element.'
-          )
+          log.message.includes('Detected `scroll-behavior: smooth` on the `<html>` element.')
         )
       ).toBe(false)
     })
@@ -118,9 +116,7 @@ describe('router smooth scroll optimization (optimized early exit)', () => {
       const logs = await browser.log()
       expect(
         logs.some((log) =>
-          log.message.includes(
-            'Detected `scroll-behavior: smooth` on the `<html>` element.'
-          )
+          log.message.includes('Detected `scroll-behavior: smooth` on the `<html>` element.')
         )
       ).toBe(shouldWarn)
     })

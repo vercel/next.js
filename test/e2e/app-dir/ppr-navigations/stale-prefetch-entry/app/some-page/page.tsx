@@ -3,9 +3,7 @@ import { getDynamicTestData, getStaticTestData } from '../test-data-service'
 import Link from 'next/link'
 
 async function Dynamic({ dataKey }) {
-  return (
-    <div id="dynamic">{await getDynamicTestData(`${dataKey} [dynamic]`)}</div>
-  )
+  return <div id="dynamic">{await getDynamicTestData(`${dataKey} [dynamic]`)}</div>
 }
 
 async function Static({ dataKey }) {

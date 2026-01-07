@@ -14,9 +14,7 @@ export async function getStaticPaths() {
 }
 
 export async function getStaticProps({ params, revalidateReason }) {
-  console.log(
-    `getStaticProps({ revalidateReason: ${JSON.stringify(revalidateReason)} })`
-  )
+  console.log(`getStaticProps({ revalidateReason: ${JSON.stringify(revalidateReason)} })`)
   return {
     props: {
       params,

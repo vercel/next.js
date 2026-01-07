@@ -46,12 +46,7 @@ export interface FetchEventResult {
   fetchMetrics?: FetchMetrics
 }
 
-export type NextMiddlewareResult =
-  | NextResponse
-  | Response
-  | null
-  | undefined
-  | void
+export type NextMiddlewareResult = NextResponse | Response | null | undefined | void
 
 /**
  * Middleware allows you to run code before a request is completed.

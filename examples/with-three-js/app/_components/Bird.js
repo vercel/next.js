@@ -12,8 +12,7 @@ export default function Bird({ speed, factor, url, ...props }) {
   );
 
   useFrame((state, delta) => {
-    ref.current.rotation.y +=
-      Math.sin((delta * factor) / 2) * Math.cos((delta * factor) / 2) * 1.5;
+    ref.current.rotation.y += Math.sin((delta * factor) / 2) * Math.cos((delta * factor) / 2) * 1.5;
     mixer.update(delta * speed);
   });
 

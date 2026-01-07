@@ -1,19 +1,13 @@
 import { updateTag } from 'next/cache'
 
 export default async function Page() {
-  const data1 = await fetch(
-    'https://next-data-api-endpoint.vercel.app/api/random?a',
-    {
-      next: { tags: ['thankyounext'] },
-    }
-  ).then((res) => res.text())
+  const data1 = await fetch('https://next-data-api-endpoint.vercel.app/api/random?a', {
+    next: { tags: ['thankyounext'] },
+  }).then((res) => res.text())
 
-  const data2 = await fetch(
-    'https://next-data-api-endpoint.vercel.app/api/random?b',
-    {
-      next: { tags: ['justputit'] },
-    }
-  ).then((res) => res.text())
+  const data2 = await fetch('https://next-data-api-endpoint.vercel.app/api/random?b', {
+    next: { tags: ['justputit'] },
+  }).then((res) => res.text())
 
   return (
     <>

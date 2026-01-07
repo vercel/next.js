@@ -160,8 +160,7 @@ describe('segment cache prefetch scheduling', () => {
   })
 
   it(
-    'cancels a viewport-initiated prefetch if the link leaves the viewport ' +
-      'before it finishes',
+    'cancels a viewport-initiated prefetch if the link leaves the viewport ' + 'before it finishes',
     async () => {
       let act: ReturnType<typeof createRouterAct>
       const browser = await next.browser('/cancellation', {

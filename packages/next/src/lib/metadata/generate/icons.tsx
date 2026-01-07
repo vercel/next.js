@@ -29,21 +29,14 @@ export function IconsMetadata({ icons }: { icons: ResolvedMetadata['icons'] }) {
   const otherList = icons.other
 
   const hasIcon = Boolean(
-    shortcutList?.length ||
-      iconList?.length ||
-      appleList?.length ||
-      otherList?.length
+    shortcutList?.length || iconList?.length || appleList?.length || otherList?.length
   )
   if (!hasIcon) return null
 
   return MetaFilter([
-    shortcutList
-      ? shortcutList.map((icon) => IconLink({ rel: 'shortcut icon', icon }))
-      : null,
+    shortcutList ? shortcutList.map((icon) => IconLink({ rel: 'shortcut icon', icon })) : null,
     iconList ? iconList.map((icon) => IconLink({ rel: 'icon', icon })) : null,
-    appleList
-      ? appleList.map((icon) => IconLink({ rel: 'apple-touch-icon', icon }))
-      : null,
+    appleList ? appleList.map((icon) => IconLink({ rel: 'apple-touch-icon', icon })) : null,
     otherList ? otherList.map((icon) => IconDescriptorLink({ icon })) : null,
     hasIcon ? <IconMark /> : null,
   ])

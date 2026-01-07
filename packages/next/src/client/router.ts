@@ -105,18 +105,14 @@ coreMethodFields.forEach((field) => {
 routerEvents.forEach((event) => {
   singletonRouter.ready(() => {
     Router.events.on(event, (...args) => {
-      const eventField = `on${event.charAt(0).toUpperCase()}${event.substring(
-        1
-      )}`
+      const eventField = `on${event.charAt(0).toUpperCase()}${event.substring(1)}`
       const _singletonRouter = singletonRouter as any
       if (_singletonRouter[eventField]) {
         try {
           _singletonRouter[eventField](...args)
         } catch (err) {
           console.error(`Error when running the Router event: ${eventField}`)
-          console.error(
-            isError(err) ? `${err.message}\n${err.stack}` : err + ''
-          )
+          console.error(isError(err) ? `${err.message}\n${err.stack}` : err + '')
         }
       }
     })
@@ -152,9 +148,7 @@ export function useRouter(): NextRouter {
  * This should **not** be used inside the server.
  * @internal
  */
-export function createRouter(
-  ...args: ConstructorParameters<typeof Router>
-): Router {
+export function createRouter(...args: ConstructorParameters<typeof Router>): Router {
   singletonRouter.router = new Router(...args)
   singletonRouter.readyCallbacks.forEach((cb) => cb())
   singletonRouter.readyCallbacks = []

@@ -17,8 +17,7 @@ module.exports = {
         headers: [
           {
             key: "Content-Security-Policy",
-            value:
-              "frame-ancestors https://*.builder.io https://builder.io http://localhost:1234",
+            value: "frame-ancestors https://*.builder.io https://builder.io http://localhost:1234",
           },
         ],
       },

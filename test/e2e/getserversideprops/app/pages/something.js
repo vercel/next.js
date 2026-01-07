@@ -15,15 +15,7 @@ export async function getServerSideProps({ params, query, resolvedUrl }) {
   }
 }
 
-export default ({
-  world,
-  time,
-  params,
-  random,
-  query,
-  appProps,
-  resolvedUrl,
-}) => {
+export default ({ world, time, params, random, query, appProps, resolvedUrl }) => {
   const router = useRouter()
 
   return (

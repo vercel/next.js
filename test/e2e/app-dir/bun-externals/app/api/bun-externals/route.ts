@@ -19,9 +19,7 @@ export async function GET() {
     } catch (e: any) {
       // Expected: Cannot find module error when not in Bun runtime
       // This confirms the module was externalized (not bundled)
-      results[name] = e.message.includes('Cannot find module')
-        ? 'external'
-        : 'error'
+      results[name] = e.message.includes('Cannot find module') ? 'external' : 'error'
     }
   }
 

@@ -33,22 +33,13 @@ const ActiveLink = ({
       const activePathname = new URL(pathname, location.href).pathname;
 
       const newClassName =
-        linkPathname === activePathname
-          ? `${className} ${activeClassName}`.trim()
-          : className;
+        linkPathname === activePathname ? `${className} ${activeClassName}`.trim() : className;
 
       if (newClassName !== computedClassName) {
         setComputedClassName(newClassName);
       }
     }
-  }, [
-    pathname,
-    props.as,
-    props.href,
-    activeClassName,
-    className,
-    computedClassName,
-  ]);
+  }, [pathname, props.as, props.href, activeClassName, className, computedClassName]);
 
   return (
     <Link className={computedClassName} {...props}>

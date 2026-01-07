@@ -59,10 +59,7 @@ export type ClientLogEntry =
   | ConsoleEntry<unknown>
   | ConsoleErrorEntry<unknown>
   | FormattedErrorEntry
-export type ServerLogEntry =
-  | ConsoleEntry<string>
-  | ConsoleErrorEntry<string>
-  | FormattedErrorEntry
+export type ServerLogEntry = ConsoleEntry<string> | ConsoleErrorEntry<string> | FormattedErrorEntry
 
 export const UNDEFINED_MARKER = '__next_tagged_undefined'
 
@@ -80,9 +77,7 @@ export function patchConsoleMethod<T extends keyof Console>(
     (descriptor.configurable || descriptor.writable) &&
     typeof descriptor.value === 'function'
   ) {
-    const originalMethod = descriptor.value as Console[T] extends (
-      ...args: any[]
-    ) => any
+    const originalMethod = descriptor.value as Console[T] extends (...args: any[]) => any
       ? Console[T]
       : never
     const originalName = Object.getOwnPropertyDescriptor(originalMethod, 'name')

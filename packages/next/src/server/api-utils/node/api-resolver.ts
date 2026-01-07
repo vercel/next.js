@@ -146,11 +146,7 @@ function setDraftMode<T>(
     require('next/dist/compiled/cookie') as typeof import('next/dist/compiled/cookie')
   const previous = res.getHeader('Set-Cookie')
   res.setHeader(`Set-Cookie`, [
-    ...(typeof previous === 'string'
-      ? [previous]
-      : Array.isArray(previous)
-        ? previous
-        : []),
+    ...(typeof previous === 'string' ? [previous] : Array.isArray(previous) ? previous : []),
     serialize(COOKIE_NAME_PRERENDER_BYPASS, options.previewModeId, {
       httpOnly: true,
       sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
@@ -182,21 +178,15 @@ function setPreviewData<T>(
 
   const jsonwebtoken =
     require('next/dist/compiled/jsonwebtoken') as typeof import('next/dist/compiled/jsonwebtoken')
-  const { encryptWithSecret } =
-    require('../../crypto-utils') as typeof import('../../crypto-utils')
+  const { encryptWithSecret } = require('../../crypto-utils') as typeof import('../../crypto-utils')
   const payload = jsonwebtoken.sign(
     {
-      data: encryptWithSecret(
-        Buffer.from(options.previewModeEncryptionKey),
-        JSON.stringify(data)
-      ),
+      data: encryptWithSecret(Buffer.from(options.previewModeEncryptionKey), JSON.stringify(data)),
     },
     options.previewModeSigningKey,
     {
       algorithm: 'HS256',
-      ...(options.maxAge !== undefined
-        ? { expiresIn: options.maxAge }
-        : undefined),
+      ...(options.maxAge !== undefined ? { expiresIn: options.maxAge } : undefined),
     }
   )
 
@@ -212,11 +202,7 @@ function setPreviewData<T>(
     require('next/dist/compiled/cookie') as typeof import('next/dist/compiled/cookie')
   const previous = res.getHeader('Set-Cookie')
   res.setHeader(`Set-Cookie`, [
-    ...(typeof previous === 'string'
-      ? [previous]
-      : Array.isArray(previous)
-        ? previous
-        : []),
+    ...(typeof previous === 'string' ? [previous] : Array.isArray(previous) ? previous : []),
     serialize(COOKIE_NAME_PRERENDER_BYPASS, options.previewModeId, {
       httpOnly: true,
       sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
@@ -266,9 +252,7 @@ async function revalidate(
         }
       : {}),
   }
-  const allowedRevalidateHeaderKeys = [
-    ...(context.allowedRevalidateHeaderKeys || []),
-  ]
+  const allowedRevalidateHeaderKeys = [...(context.allowedRevalidateHeaderKeys || [])]
 
   if (context.trustHostHeader || context.dev) {
     allowedRevalidateHeaderKeys.push('cookie')
@@ -306,8 +290,7 @@ async function revalidate(
       // we use the cache header to determine successful revalidate as
       // a non-200 status code can be returned from a successful revalidate
       // e.g. notFound: true returns 404 status code but is successful
-      const cacheHeader =
-        res.headers.get('x-vercel-cache') || res.headers.get('x-nextjs-cache')
+      const cacheHeader = res.headers.get('x-vercel-cache') || res.headers.get('x-nextjs-cache')
 
       if (
         cacheHeader?.toUpperCase() !== 'REVALIDATED' &&
@@ -317,14 +300,10 @@ async function revalidate(
         throw new Error(`Invalid response ${res.status}`)
       }
     } else {
-      throw new Error(
-        `Invariant: missing internal router-server-methods this is an internal bug`
-      )
+      throw new Error(`Invariant: missing internal router-server-methods this is an internal bug`)
     }
   } catch (err: unknown) {
-    throw new Error(
-      `Failed to revalidate ${urlPath}: ${isError(err) ? err.message : err}`
-    )
+    throw new Error(`Failed to revalidate ${urlPath}: ${isError(err) ? err.message : err}`)
   }
 }
 
@@ -368,9 +347,7 @@ export async function apiResolver(
       tryGetPreviewData(req, res, apiContext, !!apiContext.multiZoneDraftMode)
     )
     // Checking if preview mode is enabled
-    setLazyProp({ req: apiReq }, 'preview', () =>
-      apiReq.previewData !== false ? true : undefined
-    )
+    setLazyProp({ req: apiReq }, 'preview', () => (apiReq.previewData !== false ? true : undefined))
     // Set draftMode to the same value as preview
     setLazyProp({ req: apiReq }, 'draftMode', () => apiReq.preview)
 
@@ -416,8 +393,7 @@ export async function apiResolver(
       setDraftMode(apiRes, Object.assign({}, apiContext, options))
     apiRes.setPreviewData = (data, options = {}) =>
       setPreviewData(apiRes, data, Object.assign({}, apiContext, options))
-    apiRes.clearPreviewData = (options = {}) =>
-      clearPreviewData(apiRes, options)
+    apiRes.clearPreviewData = (options = {}) => clearPreviewData(apiRes, options)
     apiRes.revalidate = (
       urlPath: string,
       opts?: {
@@ -442,9 +418,7 @@ export async function apiResolver(
             'API route returned a Response object in the Node.js runtime, this is not supported. Please use `runtime: "edge"` instead: https://nextjs.org/docs/api-routes/edge-api-routes'
           )
         }
-        console.warn(
-          `API handler should not return a value, received ${typeof apiRouteResult}.`
-        )
+        console.warn(`API handler should not return a value, received ${typeof apiRouteResult}.`)
       }
 
       if (!externalResolver && !isResSent(res) && !wasPiped) {

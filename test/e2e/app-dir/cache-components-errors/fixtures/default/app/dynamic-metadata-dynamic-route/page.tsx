@@ -9,9 +9,8 @@ export default async function Page() {
   return (
     <>
       <p>
-        This page has dynamic content and generateMetadata is also dynamic.
-        generateMetadata being dynamic in this context is fine because it isn't
-        the only reason the page is dynamic.
+        This page has dynamic content and generateMetadata is also dynamic. generateMetadata being
+        dynamic in this context is fine because it isn't the only reason the page is dynamic.
       </p>
       <Suspense fallback={<Fallback />}>
         <Dynamic />

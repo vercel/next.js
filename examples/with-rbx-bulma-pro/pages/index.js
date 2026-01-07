@@ -21,8 +21,7 @@ const Home = () => (
             <Link href="https://github.com/vercel/next.js/tree/canary/examples">
               <Title as="h3">Examples &rarr;</Title>
               <p>
-                Find other example boilerplates on the{" "}
-                <code>create-next-app</code> site
+                Find other example boilerplates on the <code>create-next-app</code> site
               </p>
             </Link>
           </Content>

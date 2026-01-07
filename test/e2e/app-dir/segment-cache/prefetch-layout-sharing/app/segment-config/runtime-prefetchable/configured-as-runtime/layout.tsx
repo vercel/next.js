@@ -11,15 +11,10 @@ export default async function SubLayout({ children }) {
         <h3>Sub-layout</h3>
         <DebugRenderKind />
         <p id="static-content-sub-layout">
-          This sub-layout uses cookies, but did not specify that it should be
-          runtime prefetchable, so it should be prefetched statically by
-          default.
+          This sub-layout uses cookies, but did not specify that it should be runtime prefetchable,
+          so it should be prefetched statically by default.
         </p>
-        <Suspense
-          fallback={
-            <div id="runtime-prefetchable-fallback-sub-layout">Loading ...</div>
-          }
-        >
+        <Suspense fallback={<div id="runtime-prefetchable-fallback-sub-layout">Loading ...</div>}>
           <RuntimePrefetchable />
         </Suspense>
       </div>

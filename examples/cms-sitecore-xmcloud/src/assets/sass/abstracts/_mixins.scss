@@ -70,11 +70,7 @@ $break-mobile-large: 992px;
     }
   }
 }
-@mixin border-basic(
-  $position: all,
-  $border-color: $border-gray,
-  $border-width: 1px
-) {
+@mixin border-basic($position: all, $border-color: $border-gray, $border-width: 1px) {
   @if ($position!=all) {
     border-#{$position}-width: $border-width;
     border-#{$position}-style: solid;
@@ -97,10 +93,7 @@ $break-mobile-large: 992px;
     $direction: 180deg;
   }
   background: nth(nth($color-stops, 1), 1);
-  background: -webkit-linear-gradient(
-    legacy-direction($direction),
-    $color-stops
-  );
+  background: -webkit-linear-gradient(legacy-direction($direction), $color-stops);
   background: linear-gradient($direction, $color-stops);
 }
 @mixin default-link-button {

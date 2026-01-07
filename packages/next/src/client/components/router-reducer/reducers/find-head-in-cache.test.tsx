@@ -1,7 +1,4 @@
-import type {
-  FlightRouterState,
-  CacheNode,
-} from '../../../../shared/lib/app-router-types'
+import type { FlightRouterState, CacheNode } from '../../../../shared/lib/app-router-types'
 import { findHeadInCache } from './find-head-in-cache'
 
 const navigatedAt = -1

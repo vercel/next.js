@@ -8,8 +8,7 @@ export const NEXT_INTERCEPTION_MARKER_PREFIX = 'nxtI'
 
 export const MATCHED_PATH_HEADER = 'x-matched-path'
 export const PRERENDER_REVALIDATE_HEADER = 'x-prerender-revalidate'
-export const PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER =
-  'x-prerender-revalidate-if-generated'
+export const PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER = 'x-prerender-revalidate-if-generated'
 
 export const RSC_SEGMENTS_DIR_SUFFIX = '.segments'
 export const RSC_SEGMENT_SUFFIX = '.segment.rsc'
@@ -21,8 +20,7 @@ export const NEXT_BODY_SUFFIX = '.body'
 
 export const NEXT_CACHE_TAGS_HEADER = 'x-next-cache-tags'
 export const NEXT_CACHE_REVALIDATED_TAGS_HEADER = 'x-next-revalidated-tags'
-export const NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER =
-  'x-next-revalidate-tag-token'
+export const NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER = 'x-next-revalidate-tag-token'
 
 export const NEXT_RESUME_HEADER = 'next-resume'
 
@@ -62,11 +60,9 @@ export const RSC_MOD_REF_PROXY_ALIAS = 'private-next-rsc-mod-ref-proxy'
 export const RSC_ACTION_VALIDATE_ALIAS = 'private-next-rsc-action-validate'
 export const RSC_ACTION_PROXY_ALIAS = 'private-next-rsc-server-reference'
 export const RSC_CACHE_WRAPPER_ALIAS = 'private-next-rsc-cache-wrapper'
-export const RSC_DYNAMIC_IMPORT_WRAPPER_ALIAS =
-  'private-next-rsc-track-dynamic-import'
+export const RSC_DYNAMIC_IMPORT_WRAPPER_ALIAS = 'private-next-rsc-track-dynamic-import'
 export const RSC_ACTION_ENCRYPTION_ALIAS = 'private-next-rsc-action-encryption'
-export const RSC_ACTION_CLIENT_WRAPPER_ALIAS =
-  'private-next-rsc-action-client-wrapper'
+export const RSC_ACTION_CLIENT_WRAPPER_ALIAS = 'private-next-rsc-action-client-wrapper'
 
 export const PUBLIC_DIR_MIDDLEWARE_CONFLICT = `You can not have a '_next' folder inside of your public folder. This conflicts with the internal '/_next' route. https://nextjs.org/docs/messages/public-next-folder-conflict`
 
@@ -165,16 +161,12 @@ const WEBPACK_LAYERS_NAMES = {
   pagesDirNode: 'pages-dir-node',
 } as const
 
-export type WebpackLayerName =
-  (typeof WEBPACK_LAYERS_NAMES)[keyof typeof WEBPACK_LAYERS_NAMES]
+export type WebpackLayerName = (typeof WEBPACK_LAYERS_NAMES)[keyof typeof WEBPACK_LAYERS_NAMES]
 
 const WEBPACK_LAYERS = {
   ...WEBPACK_LAYERS_NAMES,
   GROUP: {
-    builtinReact: [
-      WEBPACK_LAYERS_NAMES.reactServerComponents,
-      WEBPACK_LAYERS_NAMES.actionBrowser,
-    ],
+    builtinReact: [WEBPACK_LAYERS_NAMES.reactServerComponents, WEBPACK_LAYERS_NAMES.actionBrowser],
     serverOnly: [
       WEBPACK_LAYERS_NAMES.reactServerComponents,
       WEBPACK_LAYERS_NAMES.actionBrowser,
@@ -186,10 +178,7 @@ const WEBPACK_LAYERS = {
       WEBPACK_LAYERS_NAMES.apiNode,
       WEBPACK_LAYERS_NAMES.apiEdge,
     ],
-    clientOnly: [
-      WEBPACK_LAYERS_NAMES.serverSideRendering,
-      WEBPACK_LAYERS_NAMES.appPagesBrowser,
-    ],
+    clientOnly: [WEBPACK_LAYERS_NAMES.serverSideRendering, WEBPACK_LAYERS_NAMES.appPagesBrowser],
     bundled: [
       WEBPACK_LAYERS_NAMES.reactServerComponents,
       WEBPACK_LAYERS_NAMES.actionBrowser,

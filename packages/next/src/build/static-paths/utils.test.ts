@@ -468,12 +468,7 @@ describe('resolveRouteParamsFromTree', () => {
       const fallbackRouteParams: FallbackRouteParam[] = []
 
       expect(() =>
-        resolveRouteParamsFromTree(
-          loaderTree,
-          params,
-          route,
-          fallbackRouteParams
-        )
+        resolveRouteParamsFromTree(loaderTree, params, route, fallbackRouteParams)
       ).toThrow(/Unexpected empty path segments/)
     })
 
@@ -496,12 +491,7 @@ describe('resolveRouteParamsFromTree', () => {
       const fallbackRouteParams: FallbackRouteParam[] = []
 
       expect(() =>
-        resolveRouteParamsFromTree(
-          loaderTree,
-          params,
-          route,
-          fallbackRouteParams
-        )
+        resolveRouteParamsFromTree(loaderTree, params, route, fallbackRouteParams)
       ).toThrow(/Unexpected empty path segments/)
     })
   })
@@ -691,24 +681,14 @@ describe('resolveRouteParamsFromTree', () => {
       // Route group - should NOT increment depth
       const routeGroupParams: Params = {}
       const routeGroupFallback: FallbackRouteParam[] = []
-      resolveRouteParamsFromTree(
-        routeGroupTree,
-        routeGroupParams,
-        route,
-        routeGroupFallback
-      )
+      resolveRouteParamsFromTree(routeGroupTree, routeGroupParams, route, routeGroupFallback)
       // Gets all segments because route group doesn't increment depth
       expect(routeGroupParams.path).toEqual(['photo', '123'])
 
       // Interception route - SHOULD increment depth
       const interceptionParams: Params = {}
       const interceptionFallback: FallbackRouteParam[] = []
-      resolveRouteParamsFromTree(
-        interceptionTree,
-        interceptionParams,
-        route,
-        interceptionFallback
-      )
+      resolveRouteParamsFromTree(interceptionTree, interceptionParams, route, interceptionFallback)
       // Gets segments from depth 1 because (.)photo increments depth
       expect(interceptionParams.path).toEqual(['123'])
     })
@@ -847,10 +827,7 @@ describe('resolveRouteParamsFromTree', () => {
         )
       )
       const params: Params = { category: 'electronics' }
-      const route = parseAppRoute(
-        '/products/electronics/brand/apple/price/high',
-        true
-      )
+      const route = parseAppRoute('/products/electronics/brand/apple/price/high', true)
       const fallbackRouteParams: FallbackRouteParam[] = []
 
       resolveRouteParamsFromTree(loaderTree, params, route, fallbackRouteParams)

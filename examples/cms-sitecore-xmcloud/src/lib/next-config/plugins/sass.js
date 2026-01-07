@@ -9,11 +9,7 @@ const sassPlugin = (nextConfig = {}) => {
     sassOptions: {
       importer: new SassAlias({
         "@sass": path.join(__dirname, "../../../assets", "sass"),
-        "@fontawesome": path.join(
-          __dirname,
-          "../../../../node_modules",
-          "font-awesome",
-        ),
+        "@fontawesome": path.join(__dirname, "../../../../node_modules", "font-awesome"),
       }).getImporter(),
     },
   });

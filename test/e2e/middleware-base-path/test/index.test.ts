@@ -23,9 +23,7 @@ describe('Middleware base tests', () => {
   it('should execute from absolute paths', async () => {
     const browser = await webdriver(next.url, '/redirect-with-basepath')
     try {
-      expect(await browser.eval(`window.location.pathname`)).toBe(
-        '/root/redirect-with-basepath'
-      )
+      expect(await browser.eval(`window.location.pathname`)).toBe('/root/redirect-with-basepath')
     } finally {
       await browser.close()
     }

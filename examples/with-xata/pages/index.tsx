@@ -63,8 +63,7 @@ export default function IndexPage({
           <section>
             <h2>No records found.</h2>
             <strong>
-              Create a `nextjs_with_xata_example` and push some useful links to
-              see them here.
+              Create a `nextjs_with_xata_example` and push some useful links to see them here.
             </strong>
             <button
               type="button"

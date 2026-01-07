@@ -52,9 +52,7 @@ describe('writeConfigurationDefaults()', () => {
         experimentalStrictRouteTypes
       )
 
-      const tsConfig = JSON.parse(
-        await readFile(tsConfigPath, { encoding: 'utf8' })
-      )
+      const tsConfig = JSON.parse(await readFile(tsConfigPath, { encoding: 'utf8' }))
 
       expect(tsConfig).toMatchInlineSnapshot(`
        {
@@ -94,8 +92,7 @@ describe('writeConfigurationDefaults()', () => {
        }
       `)
 
-      expect(stripAnsi(consoleLogSpy.mock.calls.flat().join('\n')))
-        .toMatchInlineSnapshot(`
+      expect(stripAnsi(consoleLogSpy.mock.calls.flat().join('\n'))).toMatchInlineSnapshot(`
        "
          We detected TypeScript in your project and reconfigured your tsconfig.json file for you. Strict-mode is set to false by default.
          The following suggested values were added to your tsconfig.json. These values can be changed to fit your project's needs:
@@ -124,11 +121,9 @@ describe('writeConfigurationDefaults()', () => {
     })
 
     it('does not warn about disabled strict mode if strict mode was already enabled', async () => {
-      await writeFile(
-        tsConfigPath,
-        JSON.stringify({ compilerOptions: { strict: true } }),
-        { encoding: 'utf8' }
-      )
+      await writeFile(tsConfigPath, JSON.stringify({ compilerOptions: { strict: true } }), {
+        encoding: 'utf8',
+      })
 
       await writeConfigurationDefaults(
         ts.version,

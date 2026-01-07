@@ -20,44 +20,13 @@ let app
 
 describe('distDir', () => {
   describe('With basic usage', () => {
-    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-      'production mode',
-      () => {
-        beforeAll(async () => {
-          await fs.remove(join(appDir, '.next'))
-          await fs.remove(join(appDir, 'dist'))
-          await nextBuild(appDir, [])
-          appPort = await findPort()
-          app = await nextStart(appDir, appPort)
-        })
-        afterAll(() => killApp(app))
-
-        it('should render the page', async () => {
-          const html = await renderViaHTTP(appPort, '/')
-          expect(html).toMatch(/Hello World/)
-        })
-
-        it('should build the app within the given `dist` directory', async () => {
-          expect(
-            fs.existsSync(join(__dirname, `/../dist/${BUILD_ID_FILE}`))
-          ).toBeTruthy()
-        })
-        it('should not build the app within the default `.next` directory', async () => {
-          expect(
-            fs.existsSync(join(__dirname, `/../${getDistDir()}`))
-          ).toBeFalsy()
-        })
-      }
-    )
-  })
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
-    'development mode',
-    () => {
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
       beforeAll(async () => {
-        await fs.remove(join(appDir, getDistDir()))
+        await fs.remove(join(appDir, '.next'))
         await fs.remove(join(appDir, 'dist'))
+        await nextBuild(appDir, [])
         appPort = await findPort()
-        app = await launchApp(appDir, appPort)
+        app = await nextStart(appDir, appPort)
       })
       afterAll(() => killApp(app))
 
@@ -67,47 +36,58 @@ describe('distDir', () => {
       })
 
       it('should build the app within the given `dist` directory', async () => {
-        // In isolated dev build, the distDir for development is `distDir/dev`
-        expect(
-          fs.existsSync(join(__dirname, `/../dist/dev/${BUILD_MANIFEST}`))
-        ).toBeTruthy()
+        expect(fs.existsSync(join(__dirname, `/../dist/${BUILD_ID_FILE}`))).toBeTruthy()
       })
       it('should not build the app within the default `.next` directory', async () => {
-        expect(
-          fs.existsSync(join(__dirname, `/../${getDistDir()}`))
-        ).toBeFalsy()
+        expect(fs.existsSync(join(__dirname, `/../${getDistDir()}`))).toBeFalsy()
       })
-    }
-  )
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      it('should throw error with invalid distDir', async () => {
-        const origNextConfig = await fs.readFile(nextConfig, 'utf8')
-        await fs.writeFile(nextConfig, `module.exports = { distDir: '' }`)
-        const { stderr } = await nextBuild(appDir, [], {
-          stderr: true,
-        })
-        await fs.writeFile(nextConfig, origNextConfig)
+    })
+  })
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
+    beforeAll(async () => {
+      await fs.remove(join(appDir, getDistDir()))
+      await fs.remove(join(appDir, 'dist'))
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(() => killApp(app))
 
-        expect(stderr).toContain(
-          'Invalid distDir provided, distDir can not be an empty string. Please remove this config or set it to undefined'
-        )
+    it('should render the page', async () => {
+      const html = await renderViaHTTP(appPort, '/')
+      expect(html).toMatch(/Hello World/)
+    })
+
+    it('should build the app within the given `dist` directory', async () => {
+      // In isolated dev build, the distDir for development is `distDir/dev`
+      expect(fs.existsSync(join(__dirname, `/../dist/dev/${BUILD_MANIFEST}`))).toBeTruthy()
+    })
+    it('should not build the app within the default `.next` directory', async () => {
+      expect(fs.existsSync(join(__dirname, `/../${getDistDir()}`))).toBeFalsy()
+    })
+  })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
+    it('should throw error with invalid distDir', async () => {
+      const origNextConfig = await fs.readFile(nextConfig, 'utf8')
+      await fs.writeFile(nextConfig, `module.exports = { distDir: '' }`)
+      const { stderr } = await nextBuild(appDir, [], {
+        stderr: true,
       })
+      await fs.writeFile(nextConfig, origNextConfig)
 
-      it('should handle undefined distDir', async () => {
-        const origNextConfig = await fs.readFile(nextConfig, 'utf8')
-        await fs.writeFile(
-          nextConfig,
-          `module.exports = { distDir: undefined }`
-        )
-        const { stderr } = await nextBuild(appDir, [], {
-          stderr: true,
-        })
-        await fs.writeFile(nextConfig, origNextConfig)
+      expect(stderr).toContain(
+        'Invalid distDir provided, distDir can not be an empty string. Please remove this config or set it to undefined'
+      )
+    })
 
-        expect(stderr).toBeEmpty()
+    it('should handle undefined distDir', async () => {
+      const origNextConfig = await fs.readFile(nextConfig, 'utf8')
+      await fs.writeFile(nextConfig, `module.exports = { distDir: undefined }`)
+      const { stderr } = await nextBuild(appDir, [], {
+        stderr: true,
       })
-    }
-  )
+      await fs.writeFile(nextConfig, origNextConfig)
+
+      expect(stderr).toBeEmpty()
+    })
+  })
 })

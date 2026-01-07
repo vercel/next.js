@@ -22,10 +22,7 @@ import { recursiveReadDir } from '../../../lib/recursive-readdir'
 import { isDynamicRoute } from '../../../shared/lib/router/utils'
 import { escapeStringRegexp } from '../../../shared/lib/escape-regexp'
 import { getPathMatch } from '../../../shared/lib/router/utils/path-match'
-import {
-  getNamedRouteRegex,
-  getRouteRegex,
-} from '../../../shared/lib/router/utils/route-regex'
+import { getNamedRouteRegex, getRouteRegex } from '../../../shared/lib/router/utils/route-regex'
 import { getRouteMatcher } from '../../../shared/lib/router/utils/route-matcher'
 import { pathHasPrefix } from '../../../shared/lib/router/utils/path-has-prefix'
 import { normalizeLocalePath } from '../../../shared/lib/i18n/normalize-locale-path'
@@ -77,19 +74,14 @@ export const buildCustomRoute = <T>(
   basePath?: string,
   caseSensitive?: boolean
 ): T & { match: PatchMatcher; check?: boolean; regex: string } => {
-  const restrictedRedirectPaths = ['/_next'].map((p) =>
-    basePath ? `${basePath}${p}` : p
-  )
+  const restrictedRedirectPaths = ['/_next'].map((p) => (basePath ? `${basePath}${p}` : p))
   let builtRegex = ''
   const match = getPathMatch(item.source, {
     strict: true,
     removeUnnamedParams: true,
     regexModifier: (regex: string) => {
       if (!(item as any).internal) {
-        regex = modifyRouteRegex(
-          regex,
-          type === 'redirect' ? restrictedRedirectPaths : undefined
-        )
+        regex = modifyRouteRegex(regex, type === 'redirect' ? restrictedRedirectPaths : undefined)
       }
       builtRegex = regex
       return builtRegex
@@ -114,11 +106,7 @@ export async function setupFsCheck(opts: {
   const getItemsLru = !opts.dev
     ? new LRUCache<FsOutput | null>(1024 * 1024, function length(value) {
         if (!value) return 0
-        return (
-          (value.fsPath || '').length +
-          value.itemPath.length +
-          value.type.length
-        )
+        return (value.fsPath || '').length + value.itemPath.length + value.type.length
       })
     : undefined
 
@@ -141,9 +129,7 @@ export async function setupFsCheck(opts: {
   const staticMetadataFiles = new Map<string, string>()
   let dynamicRoutes: FilesystemDynamicRoute[] = []
 
-  let middlewareMatcher:
-    | ReturnType<typeof getMiddlewareRouteMatcher>
-    | undefined = () => false
+  let middlewareMatcher: ReturnType<typeof getMiddlewareRouteMatcher> | undefined = () => false
 
   const distDir = path.join(opts.dir, opts.config.distDir)
   const publicFolderPath = path.join(opts.dir, 'public')
@@ -201,10 +187,7 @@ export async function setupFsCheck(opts: {
       for (const file of await recursiveReadDir(nextStaticFolderPath)) {
         // Ensure filename is encoded and normalized.
         nextStaticFolderItems.add(
-          path.posix.join(
-            '/_next/static',
-            encodeURIPath(normalizePathSep(file))
-          )
+          path.posix.join('/_next/static', encodeURIPath(normalizePathSep(file)))
         )
       }
     } catch (err) {
@@ -213,16 +196,8 @@ export async function setupFsCheck(opts: {
 
     const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
     const prerenderManifestPath = path.join(distDir, PRERENDER_MANIFEST)
-    const middlewareManifestPath = path.join(
-      distDir,
-      'server',
-      MIDDLEWARE_MANIFEST
-    )
-    const functionsConfigManifestPath = path.join(
-      distDir,
-      'server',
-      FUNCTIONS_CONFIG_MANIFEST
-    )
+    const middlewareManifestPath = path.join(distDir, 'server', MIDDLEWARE_MANIFEST)
+    const functionsConfigManifestPath = path.join(distDir, 'server', FUNCTIONS_CONFIG_MANIFEST)
     const pagesManifestPath = path.join(distDir, 'server', PAGES_MANIFEST)
     const appRoutesManifestPath = path.join(distDir, APP_PATH_ROUTES_MANIFEST)
 
@@ -242,9 +217,7 @@ export async function setupFsCheck(opts: {
       await fs.readFile(functionsConfigManifestPath, 'utf8').catch(() => '{}')
     ) as FunctionsConfigManifest
 
-    const pagesManifest = JSON.parse(
-      await fs.readFile(pagesManifestPath, 'utf8')
-    )
+    const pagesManifest = JSON.parse(await fs.readFile(pagesManifestPath, 'utf8'))
     const appRoutesManifest = JSON.parse(
       await fs.readFile(appRoutesManifestPath, 'utf8').catch(() => '{}')
     )
@@ -252,9 +225,7 @@ export async function setupFsCheck(opts: {
     for (const key of Object.keys(pagesManifest)) {
       // ensure the non-locale version is in the set
       if (opts.config.i18n) {
-        pageFiles.add(
-          normalizeLocalePath(key, opts.config.i18n.locales).pathname
-        )
+        pageFiles.add(normalizeLocalePath(key, opts.config.i18n.locales).pathname)
       } else {
         pageFiles.add(key)
       }
@@ -307,9 +278,7 @@ export async function setupFsCheck(opts: {
     }
 
     if (middlewareManifest.middleware?.['/']?.matchers) {
-      middlewareMatcher = getMiddlewareRouteMatcher(
-        middlewareManifest.middleware?.['/']?.matchers
-      )
+      middlewareMatcher = getMiddlewareRouteMatcher(middlewareManifest.middleware?.['/']?.matchers)
     } else if (functionsConfigManifest?.functions['/_middleware']) {
       middlewareMatcher = getMiddlewareRouteMatcher(
         functionsConfigManifest.functions['/_middleware'].matchers ?? [
@@ -440,9 +409,7 @@ export async function setupFsCheck(opts: {
     dynamicRoutes,
     nextDataRoutes,
 
-    exportPathMapRoutes: undefined as
-      | undefined
-      | ReturnType<typeof buildCustomRoute<Rewrite>>[],
+    exportPathMapRoutes: undefined as undefined | ReturnType<typeof buildCustomRoute<Rewrite>>[],
 
     devVirtualFsItems: new Set<string>(),
 
@@ -564,10 +531,7 @@ export async function setupFsCheck(opts: {
           } catch {}
         }
 
-        if (
-          type === 'nextStaticFolder' &&
-          !pathHasPrefix(curItemPath, '/_next/static')
-        ) {
+        if (type === 'nextStaticFolder' && !pathHasPrefix(curItemPath, '/_next/static')) {
           continue
         }
 
@@ -583,15 +547,9 @@ export async function setupFsCheck(opts: {
           curItemPath = curItemPath.substring(nextDataPrefix.length - 1)
 
           // remove .json postfix
-          curItemPath = curItemPath.substring(
-            0,
-            curItemPath.length - '.json'.length
-          )
+          curItemPath = curItemPath.substring(0, curItemPath.length - '.json'.length)
           const curLocaleResult = handleLocale(curItemPath)
-          curItemPath =
-            curLocaleResult.pathname === '/index'
-              ? '/'
-              : curLocaleResult.pathname
+          curItemPath = curLocaleResult.pathname === '/index' ? '/' : curLocaleResult.pathname
 
           locale = curLocaleResult.locale
 
@@ -657,11 +615,7 @@ export async function setupFsCheck(opts: {
           // have to wait on the watcher
           if (!matchedItem && opts.dev) {
             const isStaticAsset = (
-              [
-                'nextStaticFolder',
-                'publicFolder',
-                'legacyStaticFolder',
-              ] as (typeof type)[]
+              ['nextStaticFolder', 'publicFolder', 'legacyStaticFolder'] as (typeof type)[]
             ).includes(type)
 
             if (isStaticAsset && itemsRoot) {
@@ -686,9 +640,7 @@ export async function setupFsCheck(opts: {
 
               // Attempt to ensure the page/app file is compiled and ready
               if (ensureFn) {
-                const ensureItemPath = isAppFile
-                  ? normalizeMetadataRoute(curItemPath)
-                  : curItemPath
+                const ensureItemPath = isAppFile ? normalizeMetadataRoute(curItemPath) : curItemPath
 
                 try {
                   await ensureFn({ type, itemPath: ensureItemPath })

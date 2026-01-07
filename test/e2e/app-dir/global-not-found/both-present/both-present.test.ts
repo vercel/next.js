@@ -11,21 +11,13 @@ describe('global-not-found - both-present', () => {
     expect($('#global-error-title').text()).toBe('global-not-found')
 
     const browser = await next.browser('/does-not-exist')
-    expect(await browser.elementByCss('#global-error-title').text()).toBe(
-      'global-not-found'
-    )
-    expect(
-      await browser.elementByCss('html').getAttribute('data-global-not-found')
-    ).toBe('true')
+    expect(await browser.elementByCss('#global-error-title').text()).toBe('global-not-found')
+    expect(await browser.elementByCss('html').getAttribute('data-global-not-found')).toBe('true')
   })
 
   it('should render not-found boundary when calling notFound() in a page', async () => {
     const browser = await next.browser('/call-not-found')
-    expect(await browser.elementByCss('#not-found-boundary').text()).toBe(
-      'not-found.js'
-    )
-    expect(
-      await browser.elementByCss('html').getAttribute('data-global-not-found')
-    ).toBeNull()
+    expect(await browser.elementByCss('#not-found-boundary').text()).toBe('not-found.js')
+    expect(await browser.elementByCss('html').getAttribute('data-global-not-found')).toBeNull()
   })
 })

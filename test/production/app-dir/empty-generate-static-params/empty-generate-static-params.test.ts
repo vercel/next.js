@@ -28,9 +28,7 @@ describe('empty-generate-static-params', () => {
       // With PPR enabled, the initial request doesn't send back a cache header
       const isPPREnabled = process.env.__NEXT_CACHE_COMPONENTS === 'true'
 
-      expect(firstResponse.headers.get('x-nextjs-cache')).toBe(
-        isPPREnabled ? null : 'MISS'
-      )
+      expect(firstResponse.headers.get('x-nextjs-cache')).toBe(isPPREnabled ? null : 'MISS')
 
       retry(async () => {
         const secondResponse = await next.fetch('/foo')

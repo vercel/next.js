@@ -2,9 +2,7 @@ import { getFontAxes } from './get-font-axes'
 
 describe('getFontAxes errors', () => {
   test('Setting axes on font without definable axes', () => {
-    expect(() =>
-      getFontAxes('Lora', ['variable'], [], [])
-    ).toThrowErrorMatchingInlineSnapshot(
+    expect(() => getFontAxes('Lora', ['variable'], [], [])).toThrowErrorMatchingInlineSnapshot(
       `"Font \`Lora\` has no definable \`axes\`"`
     )
   })

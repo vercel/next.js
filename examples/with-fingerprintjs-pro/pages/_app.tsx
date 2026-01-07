@@ -11,9 +11,7 @@ import { Nav } from "../components/Nav";
 import type { AppProps } from "next/app";
 import type { CacheStrategyPath, RouterProps } from "../components/types";
 
-const getFingerprintJsProProviderByCacheStrategy = (
-  cacheStrategy: CacheStrategyPath,
-) => {
+const getFingerprintJsProProviderByCacheStrategy = (cacheStrategy: CacheStrategyPath) => {
   switch (cacheStrategy) {
     case "no-cache":
       return WithoutCache;

@@ -9,10 +9,7 @@ import { warn, warnOnce } from '../output/log'
 import { installDependencies } from '../../lib/install-dependencies'
 import { getNodeOptionsArgs } from '../../server/lib/utils'
 
-function resolveSWCOptions(
-  cwd: string,
-  compilerOptions: CompilerOptions
-): SWCOptions {
+function resolveSWCOptions(cwd: string, compilerOptions: CompilerOptions): SWCOptions {
   return {
     jsc: {
       parser: {
@@ -55,39 +52,29 @@ async function verifyTypeScriptSetup(cwd: string, configFileName: string) {
       'code' in error &&
       error.code === 'MODULE_NOT_FOUND'
     ) {
-      warn(
-        `Installing TypeScript as it was not found while loading "${configFileName}".`
-      )
+      warn(`Installing TypeScript as it was not found while loading "${configFileName}".`)
 
-      await installDependencies(cwd, [{ pkg: 'typescript' }], true).catch(
-        (err) => {
-          if (err && typeof err === 'object' && 'command' in err) {
-            console.error(
-              `Failed to install TypeScript, please install it manually to continue:\n` +
-                (err as any).command +
-                '\n'
-            )
-          }
-          throw err
+      await installDependencies(cwd, [{ pkg: 'typescript' }], true).catch((err) => {
+        if (err && typeof err === 'object' && 'command' in err) {
+          console.error(
+            `Failed to install TypeScript, please install it manually to continue:\n` +
+              (err as any).command +
+              '\n'
+          )
         }
-      )
+        throw err
+      })
     }
   }
 }
 
 async function getTsConfig(cwd: string): Promise<CompilerOptions> {
-  const ts: typeof import('typescript') = require(
-    require.resolve('typescript', { paths: [cwd] })
-  )
+  const ts: typeof import('typescript') = require(require.resolve('typescript', { paths: [cwd] }))
 
   // NOTE: This doesn't fully cover the edge case for setting
   // "typescript.tsconfigPath" in next config which is currently
   // a restriction.
-  const tsConfigPath = ts.findConfigFile(
-    cwd,
-    ts.sys.fileExists,
-    'tsconfig.json'
-  )
+  const tsConfigPath = ts.findConfigFile(cwd, ts.sys.fileExists, 'tsconfig.json')
 
   if (!tsConfigPath) {
     // It is ok to not return ts.getDefaultCompilerOptions() because
@@ -96,11 +83,7 @@ async function getTsConfig(cwd: string): Promise<CompilerOptions> {
   }
 
   const configFile = ts.readConfigFile(tsConfigPath, ts.sys.readFile)
-  const parsedCommandLine = ts.parseJsonConfigFileContent(
-    configFile.config,
-    ts.sys,
-    cwd
-  )
+  const parsedCommandLine = ts.parseJsonConfigFileContent(configFile.config, ts.sys, cwd)
 
   return parsedCommandLine.options
 }
@@ -188,10 +171,7 @@ async function handleCJS({
     }
 
     // filename & extension don't matter here
-    const config = requireFromString(
-      code,
-      resolve(cwd, 'next.config.compiled.js')
-    )
+    const config = requireFromString(code, resolve(cwd, 'next.config.compiled.js'))
     // At this point we have already loaded the bindings without this configuration setting due to the `transform` call above.
     // Possibly we fell back to wasm in which case, it all works out but if not we need to warn
     // that the configuration was ignored.

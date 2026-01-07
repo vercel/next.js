@@ -10,21 +10,13 @@ export type Dependencies = {
   resolved: Map<string, string>
 }
 
-export async function installDependencies(
-  baseDir: string,
-  deps: any,
-  dev: boolean = false
-) {
+export async function installDependencies(baseDir: string, deps: any, dev: boolean = false) {
   const packageManager = getPkgManager(baseDir)
   const isOnline = await getOnline()
 
   if (deps.length) {
     console.log()
-    console.log(
-      `Installing ${
-        dev ? 'devDependencies' : 'dependencies'
-      } (${packageManager}):`
-    )
+    console.log(`Installing ${dev ? 'devDependencies' : 'dependencies'} (${packageManager}):`)
     for (const dep of deps) {
       console.log(`- ${cyan(dep.pkg)}`)
     }

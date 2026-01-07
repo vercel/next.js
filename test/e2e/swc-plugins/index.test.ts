@@ -49,9 +49,7 @@ module.exports = {
         `)
       } else {
         // TODO missing proper error with Webpack
-        await expect(browser).toDisplayRedbox(
-          `"Expected Redbox but found no visible one."`
-        )
+        await expect(browser).toDisplayRedbox(`"Expected Redbox but found no visible one."`)
       }
     })
   })

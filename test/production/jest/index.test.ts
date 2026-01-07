@@ -9,8 +9,7 @@ describe('next/jest', () => {
   beforeAll(async () => {
     next = await createNext({
       files: {
-        'public/vercel.svg':
-          '<svg width="24" height="24" xmlns="http://www.w3.org/2000/svg"/>',
+        'public/vercel.svg': '<svg width="24" height="24" xmlns="http://www.w3.org/2000/svg"/>',
         'components/comp.js': `
           export default function Comp() {
             return <h1>Hello Dynamic</h1>;
@@ -126,9 +125,7 @@ describe('next/jest', () => {
             expect(router.push._isMockFunction).toBeTruthy()
           })
         `,
-        'pages/my-font.woff2': new FileRef(
-          join(__dirname, 'basic', 'my-font.woff2')
-        ),
+        'pages/my-font.woff2': new FileRef(join(__dirname, 'basic', 'my-font.woff2')),
       },
       dependencies: {
         '@next/font': 'canary',

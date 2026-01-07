@@ -70,10 +70,7 @@ export function findBestPatternMatch<T>(
 
   for (const v of values) {
     const pattern = getPattern(v)
-    if (
-      isPatternMatch(pattern, candidate) &&
-      pattern.prefix.length > longestMatchPrefixLength
-    ) {
+    if (isPatternMatch(pattern, candidate) && pattern.prefix.length > longestMatchPrefixLength) {
       longestMatchPrefixLength = pattern.prefix.length
       matchedValue = v
     }
@@ -118,10 +115,7 @@ export function isString(text: unknown): text is string {
  * E.g.: matchedText(tryParsePattern("foo*baz"), "foobarbaz") === "bar"
  */
 export function matchedText(pattern: Pattern, candidate: string): string {
-  return candidate.substring(
-    pattern.prefix.length,
-    candidate.length - pattern.suffix.length
-  )
+  return candidate.substring(pattern.prefix.length, candidate.length - pattern.suffix.length)
 }
 
 export function patternText({ prefix, suffix }: Pattern): string {
@@ -134,10 +128,7 @@ export function patternText({ prefix, suffix }: Pattern): string {
  */
 function forEachBail<TEntry>(
   array: TEntry[],
-  iterator: (
-    entry: TEntry,
-    entryCallback: (err?: any, result?: any) => void
-  ) => void,
+  iterator: (entry: TEntry, entryCallback: (err?: any, result?: any) => void) => void,
   callback: (err?: any, result?: any) => void
 ): void {
   if (array.length === 0) return callback()
@@ -190,11 +181,7 @@ export class JsConfigPathsPlugin implements ResolvePluginPlugin {
       .getHook('described-resolve')
       .tapAsync(
         'JsConfigPathsPlugin',
-        (
-          request: any,
-          resolveContext: any,
-          callback: (err?: any, result?: any) => void
-        ) => {
+        (request: any, resolveContext: any, callback: (err?: any, result?: any) => void) => {
           const resolvedBaseUrl = this.resolvedBaseUrl
           if (resolvedBaseUrl === undefined) {
             return callback()
@@ -250,9 +237,7 @@ export class JsConfigPathsPlugin implements ResolvePluginPlugin {
           forEachBail(
             paths[matchedPatternText],
             (subst, pathCallback) => {
-              const curPath = matchedStar
-                ? subst.replace('*', matchedStar)
-                : subst
+              const curPath = matchedStar ? subst.replace('*', matchedStar) : subst
               // Ensure .d.ts is not matched
               if (curPath.endsWith('.d.ts')) {
                 // try next path candidate

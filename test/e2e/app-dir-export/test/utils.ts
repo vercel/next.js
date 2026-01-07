@@ -210,10 +210,7 @@ export function runTests({
   beforeAll(async () => {
     if (trailingSlash !== undefined) {
       await next.patchFile('next.config.js', (content) =>
-        content.replace(
-          'trailingSlash: true,',
-          `trailingSlash: ${trailingSlash},`
-        )
+        content.replace('trailingSlash: true,', `trailingSlash: ${trailingSlash},`)
       )
     }
 
@@ -221,9 +218,7 @@ export function runTests({
       await next.patchFile('app/another/[slug]/page.js', (content) =>
         content.replace(
           `export const dynamic = 'force-static'`,
-          dynamicPage === 'undefined'
-            ? ''
-            : `export const dynamic = ${dynamicPage}`
+          dynamicPage === 'undefined' ? '' : `export const dynamic = ${dynamicPage}`
         )
       )
     }
@@ -249,10 +244,7 @@ export function runTests({
         content.replace('export function generateStaticParams', 'function noop')
       )
     } else if (generateStaticParamsOpt === 'set client') {
-      await next.patchFile(
-        'app/another/[slug]/page.js',
-        (content) => '"use client"\n' + content
-      )
+      await next.patchFile('app/another/[slug]/page.js', (content) => '"use client"\n' + content)
     }
   })
 
@@ -296,78 +288,46 @@ export function runTests({
     } else {
       const a = (n: number) => `li:nth-child(${n}) a`
       const browser = await webdriver(port, '/')
-      await retry(async () =>
-        expect(await browser.elementByCss('h1').text()).toContain('Home')
-      )
-      expect(await browser.elementByCss(a(1)).text()).toBe(
-        'another no trailingslash'
-      )
+      await retry(async () => expect(await browser.elementByCss('h1').text()).toContain('Home'))
+      expect(await browser.elementByCss(a(1)).text()).toBe('another no trailingslash')
       await browser.elementByCss(a(1)).click()
 
-      await retry(async () =>
-        expect(await browser.elementByCss('h1').text()).toContain('Another')
-      )
-      expect(await browser.elementByCss(a(1)).text()).toBe(
-        'Visit the home page'
-      )
+      await retry(async () => expect(await browser.elementByCss('h1').text()).toContain('Another'))
+      expect(await browser.elementByCss(a(1)).text()).toBe('Visit the home page')
       await browser.elementByCss(a(1)).click()
 
-      await retry(async () =>
-        expect(await browser.elementByCss('h1').text()).toContain('Home')
-      )
-      expect(await browser.elementByCss(a(2)).text()).toBe(
-        'another has trailingslash'
-      )
+      await retry(async () => expect(await browser.elementByCss('h1').text()).toContain('Home'))
+      expect(await browser.elementByCss(a(2)).text()).toBe('another has trailingslash')
       await browser.elementByCss(a(2)).click()
 
-      await retry(async () =>
-        expect(await browser.elementByCss('h1').text()).toContain('Another')
-      )
-      expect(await browser.elementByCss(a(1)).text()).toBe(
-        'Visit the home page'
-      )
+      await retry(async () => expect(await browser.elementByCss('h1').text()).toContain('Another'))
+      expect(await browser.elementByCss(a(1)).text()).toBe('Visit the home page')
       await browser.elementByCss(a(1)).click()
 
-      await retry(async () =>
-        expect(await browser.elementByCss('h1').text()).toContain('Home')
-      )
+      await retry(async () => expect(await browser.elementByCss('h1').text()).toContain('Home'))
       expect(await browser.elementByCss(a(3)).text()).toBe('another first page')
       await browser.elementByCss(a(3)).click()
-      await retry(async () =>
-        expect(await browser.elementByCss('h1').text()).toContain('first')
-      )
+      await retry(async () => expect(await browser.elementByCss('h1').text()).toContain('first'))
       expect(await browser.elementByCss(a(1)).text()).toBe('Visit another page')
       await browser.elementByCss(a(1)).click()
 
-      await retry(async () =>
-        expect(await browser.elementByCss('h1').text()).toContain('Another')
-      )
-      expect(await browser.elementByCss(a(4)).text()).toBe(
-        'another second page'
-      )
+      await retry(async () => expect(await browser.elementByCss('h1').text()).toContain('Another'))
+      expect(await browser.elementByCss(a(4)).text()).toBe('another second page')
       await browser.elementByCss(a(4)).click()
 
-      await retry(async () =>
-        expect(await browser.elementByCss('h1').text()).toContain('second')
-      )
+      await retry(async () => expect(await browser.elementByCss('h1').text()).toContain('second'))
       expect(await browser.elementByCss(a(1)).text()).toBe('Visit another page')
       await browser.elementByCss(a(1)).click()
 
-      await retry(async () =>
-        expect(await browser.elementByCss('h1').text()).toContain('Another')
-      )
+      await retry(async () => expect(await browser.elementByCss('h1').text()).toContain('Another'))
       expect(await browser.elementByCss(a(5)).text()).toBe('image import page')
       await browser.elementByCss(a(5)).click()
 
       await retry(async () =>
-        expect(await browser.elementByCss('h1').text()).toContain(
-          'Image Import'
-        )
+        expect(await browser.elementByCss('h1').text()).toContain('Image Import')
       )
       expect(await browser.elementByCss(a(2)).text()).toBe('View the image')
-      expect(await browser.elementByCss(a(2)).getAttribute('href')).toMatch(
-        /\/test\.(.*)\.png/
-      )
+      expect(await browser.elementByCss(a(2)).getAttribute('href')).toMatch(/\/test\.(.*)\.png/)
       const res1 = await fetchViaHTTP(port, '/api/json')
       expect(res1.status).toBe(200)
       expect(await res1.json()).toEqual({ answer: 42 })
@@ -379,13 +339,9 @@ export function runTests({
       if (!isNextDev) {
         let outputDir = join(next.testDir, 'out')
         if (trailingSlash) {
-          expect(await getFiles(outputDir)).toEqual(
-            expectedWhenTrailingSlashTrue
-          )
+          expect(await getFiles(outputDir)).toEqual(expectedWhenTrailingSlashTrue)
         } else {
-          expect(await getFiles(outputDir)).toEqual(
-            expectedWhenTrailingSlashFalse
-          )
+          expect(await getFiles(outputDir)).toEqual(expectedWhenTrailingSlashFalse)
         }
         const html404 = await fs.readFile(join(outputDir, '404.html'), 'utf8')
         expect(html404).toContain('<h1>My custom not found page</h1>')

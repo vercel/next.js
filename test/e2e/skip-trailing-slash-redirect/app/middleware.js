@@ -34,13 +34,9 @@ export default function handler(req) {
       pathname = '/'
     }
 
-    console.log(
-      `rewriting to https://middleware-external-rewrite-target.vercel.app${pathname}`
-    )
+    console.log(`rewriting to https://middleware-external-rewrite-target.vercel.app${pathname}`)
 
-    return NextResponse.rewrite(
-      `https://middleware-external-rewrite-target.vercel.app${pathname}`
-    )
+    return NextResponse.rewrite(`https://middleware-external-rewrite-target.vercel.app${pathname}`)
   }
 
   if (req.nextUrl.pathname.startsWith('/_next/data/missing-id')) {

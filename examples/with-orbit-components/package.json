@@ -12,9 +12,9 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "autoprefixer": "^10.4.20",
     "@types/node": "^22.10.2",
     "@types/react": "^19.0.1",
+    "autoprefixer": "^10.4.20",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.16",
     "typescript": "^5.7.2"

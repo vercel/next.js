@@ -13,44 +13,33 @@ describe.each([
       },
     },
   },
-])(
-  '3rd Party CSS Module Support ($dependencies)',
-  ({ dependencies, nextConfig }) => {
-    const { next } = nextTestSetup({
-      files: __dirname,
-      dependencies,
-      nextConfig,
-    })
+])('3rd Party CSS Module Support ($dependencies)', ({ dependencies, nextConfig }) => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    dependencies,
+    nextConfig,
+  })
 
-    it('should render the module', async () => {
-      const browser = await next.browser('/')
-      // Bar
-      expect(
-        await browser
-          .elementByCss('#verify-div .bar')
-          .getComputedCss('background-color')
-      ).toBe(colorToRgb('blue'))
+  it('should render the module', async () => {
+    const browser = await next.browser('/')
+    // Bar
+    expect(await browser.elementByCss('#verify-div .bar').getComputedCss('background-color')).toBe(
+      colorToRgb('blue')
+    )
 
-      // Baz
-      expect(
-        await browser
-          .elementByCss('#verify-div .baz')
-          .getComputedCss('background-color')
-      ).toBe(colorToRgb('blue'))
+    // Baz
+    expect(await browser.elementByCss('#verify-div .baz').getComputedCss('background-color')).toBe(
+      colorToRgb('blue')
+    )
 
-      // Lol
-      expect(
-        await browser
-          .elementByCss('#verify-div .lol')
-          .getComputedCss('background-color')
-      ).toBe(colorToRgb('red'))
+    // Lol
+    expect(await browser.elementByCss('#verify-div .lol').getComputedCss('background-color')).toBe(
+      colorToRgb('red')
+    )
 
-      // Lel
-      expect(
-        await browser
-          .elementByCss('#verify-div .lel')
-          .getComputedCss('background-color')
-      ).toBe(colorToRgb('green'))
-    })
-  }
-)
+    // Lel
+    expect(await browser.elementByCss('#verify-div .lel').getComputedCss('background-color')).toBe(
+      colorToRgb('green')
+    )
+  })
+})

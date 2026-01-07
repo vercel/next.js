@@ -6,9 +6,7 @@ import { outdent } from 'outdent'
 import { Playwright } from 'next-webdriver'
 
 function getStaleness(browser: Playwright) {
-  return browser
-    .waitForElementByCss('.nextjs-container-build-error-version-status')
-    .text()
+  return browser.waitForElementByCss('.nextjs-container-build-error-version-status').text()
 }
 
 describe('Error Overlay version staleness', () => {
@@ -19,16 +17,12 @@ describe('Error Overlay version staleness', () => {
 
   it('should show version staleness in runtime error', async () => {
     // Set next to outdated version
-    const nextPackageJson = JSON.parse(
-      await next.readFile('node_modules/next/package.json')
-    )
+    const nextPackageJson = JSON.parse(await next.readFile('node_modules/next/package.json'))
     nextPackageJson.version = '1.0.0'
 
     await using sandbox = await createSandbox(
       next,
-      new Map([
-        ['node_modules/next/package.json', JSON.stringify(nextPackageJson)],
-      ])
+      new Map([['node_modules/next/package.json', JSON.stringify(nextPackageJson)]])
     )
     const { session, browser } = sandbox
     await session.patch(
@@ -67,16 +61,12 @@ describe('Error Overlay version staleness', () => {
 
   it('should show version staleness in render error', async () => {
     // Set next to outdated version
-    const nextPackageJson = JSON.parse(
-      await next.readFile('node_modules/next/package.json')
-    )
+    const nextPackageJson = JSON.parse(await next.readFile('node_modules/next/package.json'))
     nextPackageJson.version = '2.0.0'
 
     await using sandbox = await createSandbox(
       next,
-      new Map([
-        ['node_modules/next/package.json', JSON.stringify(nextPackageJson)],
-      ])
+      new Map([['node_modules/next/package.json', JSON.stringify(nextPackageJson)]])
     )
     const { session, browser } = sandbox
     await session.patch(
@@ -109,16 +99,12 @@ describe('Error Overlay version staleness', () => {
 
   it('should show version staleness in build error', async () => {
     // Set next to outdated version
-    const nextPackageJson = JSON.parse(
-      await next.readFile('node_modules/next/package.json')
-    )
+    const nextPackageJson = JSON.parse(await next.readFile('node_modules/next/package.json'))
     nextPackageJson.version = '3.0.0'
 
     await using sandbox = await createSandbox(
       next,
-      new Map([
-        ['node_modules/next/package.json', JSON.stringify(nextPackageJson)],
-      ])
+      new Map([['node_modules/next/package.json', JSON.stringify(nextPackageJson)]])
     )
     const { session, browser } = sandbox
     await session.patch(

@@ -27,12 +27,7 @@ import { prepend, remove } from './file-protocol'
 
 const ORPHAN_CR_REGEX = /\r(?!\n)(.|\n)?/g
 
-export default function process(
-  postcss: any,
-  sourceFile: any,
-  sourceContent: any,
-  params: any
-) {
+export default function process(postcss: any, sourceFile: any, sourceContent: any, params: any) {
   // #107 libsass emits orphan CR not considered newline, postcss does consider newline (content vs source-map mismatch)
 
   postcssPlugin.postcss = true
@@ -83,10 +78,7 @@ export default function process(
           startPosOriginal.source &&
           remove(path.dirname(startPosOriginal.source))
         if (directory) {
-          declaration.value = params.transformDeclaration(
-            declaration.value,
-            directory
-          )
+          declaration.value = params.transformDeclaration(declaration.value, directory)
         }
         // source-map present but invalid entry
         else if (params.sourceMapConsumer) {

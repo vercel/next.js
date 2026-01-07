@@ -9,10 +9,7 @@ export function StatefulClientComponent({ n }: { n: string }) {
   return (
     <div>
       <div>
-        <button
-          id={'increment-button-' + n}
-          onClick={() => setCount(count + 1)}
-        >
+        <button id={'increment-button-' + n} onClick={() => setCount(count + 1)}>
           Increment
         </button>
         <span id={'counter-display-' + n}>Count: {count}</span>

@@ -13,10 +13,5 @@ export function Input() {
     window.history.replaceState({ query }, null, `?q=${query}`)
   }, [query])
 
-  return (
-    <input
-      onChange={(event) => setQuery(event.currentTarget.value)}
-      value={query}
-    />
-  )
+  return <input onChange={(event) => setQuery(event.currentTarget.value)} value={query} />
 }

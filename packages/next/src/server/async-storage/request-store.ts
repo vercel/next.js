@@ -6,10 +6,7 @@ import type { NextRequest } from '../web/spec-extension/request'
 import type { __ApiPreviewProps } from '../api-utils'
 
 import { FLIGHT_HEADERS } from '../../client/components/app-router-headers'
-import {
-  HeadersAdapter,
-  type ReadonlyHeaders,
-} from '../web/spec-extension/adapters/headers'
+import { HeadersAdapter, type ReadonlyHeaders } from '../web/spec-extension/adapters/headers'
 import {
   MutableRequestCookiesAdapter,
   RequestCookiesAdapter,
@@ -209,9 +206,7 @@ function createRequestStoreImpl(
       if (!cache.cookies) {
         // if middleware is setting cookie(s), then include those in
         // the initial cached cookies so they can be read in render
-        const requestCookies = new RequestCookies(
-          HeadersAdapter.from(req.headers)
-        )
+        const requestCookies = new RequestCookies(HeadersAdapter.from(req.headers))
 
         mergeMiddlewareCookies(req, requestCookies)
 
@@ -240,8 +235,7 @@ function createRequestStoreImpl(
     },
     get userspaceMutableCookies() {
       if (!cache.userspaceMutableCookies) {
-        const userspaceMutableCookies =
-          createCookiesWithMutableAccessCheck(this)
+        const userspaceMutableCookies = createCookiesWithMutableAccessCheck(this)
         cache.userspaceMutableCookies = userspaceMutableCookies
       }
       return cache.userspaceMutableCookies
@@ -261,15 +255,12 @@ function createRequestStoreImpl(
     renderResumeDataCache: renderResumeDataCache ?? null,
     isHmrRefresh,
     serverComponentsHmrCache:
-      serverComponentsHmrCache ||
-      (globalThis as any).__serverComponentsHmrCache,
+      serverComponentsHmrCache || (globalThis as any).__serverComponentsHmrCache,
     devFallbackParams,
   }
 }
 
 export function synchronizeMutableCookies(store: RequestStore) {
   // TODO: does this need to update headers as well?
-  store.cookies = RequestCookiesAdapter.seal(
-    responseCookiesToRequestCookies(store.mutableCookies)
-  )
+  store.cookies = RequestCookiesAdapter.seal(responseCookiesToRequestCookies(store.mutableCookies))
 }

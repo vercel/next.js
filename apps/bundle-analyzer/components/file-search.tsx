@@ -15,16 +15,10 @@ export function FileSearch({ value, onChange }: FileSearchProps) {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (
-        e.key === '/' &&
-        !['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)
-      ) {
+      if (e.key === '/' && !['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)) {
         e.preventDefault()
         inputRef.current?.focus()
-      } else if (
-        e.key === 'Escape' &&
-        document.activeElement === inputRef.current
-      ) {
+      } else if (e.key === 'Escape' && document.activeElement === inputRef.current) {
         e.preventDefault()
         onChange('')
         inputRef.current?.blur()
@@ -55,9 +49,7 @@ export function FileSearch({ value, onChange }: FileSearchProps) {
         placeholder="Search files..."
         className="w-48 focus:w-80 transition-all duration-200 pr-8"
       />
-      {!value && !focused && (
-        <Kbd className="absolute right-2 top-1/2 -translate-y-1/2">/</Kbd>
-      )}
+      {!value && !focused && <Kbd className="absolute right-2 top-1/2 -translate-y-1/2">/</Kbd>}
     </div>
   )
 }

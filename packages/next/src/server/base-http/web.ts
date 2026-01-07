@@ -16,11 +16,7 @@ export class WebNextRequest extends BaseNextRequest<ReadableStream | null> {
   constructor(request: NextRequestHint) {
     const url = new URL(request.url)
 
-    super(
-      request.method,
-      url.href.slice(url.origin.length),
-      request.clone().body
-    )
+    super(request.method, url.href.slice(url.origin.length), request.clone().body)
     this.request = request
     this.fetchMetrics = request.fetchMetrics
 
@@ -112,9 +108,7 @@ export class WebNextResponse extends BaseNextResponse<WritableStream> {
 
     // if the response is streaming, onClose() can still be called after this point.
     const canAddListenersLater = typeof bodyInit !== 'string'
-    const shouldTrackBody = canAddListenersLater
-      ? true
-      : this.closeController.listeners > 0
+    const shouldTrackBody = canAddListenersLater ? true : this.closeController.listeners > 0
 
     if (shouldTrackBody) {
       bodyInit = trackBodyConsumed(body, () => {
@@ -131,9 +125,7 @@ export class WebNextResponse extends BaseNextResponse<WritableStream> {
 
   public onClose(callback: () => void) {
     if (this.closeController.isClosed) {
-      throw new InvariantError(
-        'Cannot call onClose on a WebNextResponse that is already closed'
-      )
+      throw new InvariantError('Cannot call onClose on a WebNextResponse that is already closed')
     }
     return this.closeController.onClose(callback)
   }

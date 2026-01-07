@@ -1,12 +1,6 @@
 'use client'
 
-export default function RootError({
-  error,
-  reset,
-}: {
-  error: Error
-  reset: () => void
-}) {
+export default function RootError({ error, reset }: { error: Error; reset: () => void }) {
   return (
     <div>
       <h2>Root Error: {error.message}</h2>

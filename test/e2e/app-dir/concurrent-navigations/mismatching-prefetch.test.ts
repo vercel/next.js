@@ -46,9 +46,7 @@ describe('mismatching prefetch', () => {
           await link.click()
           // Immeidately after the click, the app navigates to the loading state
           // that was prefetched, which is for page A.
-          const pageALoading = await browser.elementById(
-            'dynamic-page-loading-a'
-          )
+          const pageALoading = await browser.elementById('dynamic-page-loading-a')
           expect(relativeHref(await browser.url())).toBe(
             '/mismatching-prefetch/dynamic-page/a?mismatch-rewrite=./b'
           )

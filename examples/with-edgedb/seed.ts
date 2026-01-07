@@ -15,15 +15,13 @@ const posts = [
   },
   {
     title: "Star EdgeDB on GitHub",
-    content:
-      "The repo is at [github.com/edgedb/edgedb](https://www.github.com/edgedb/edgedb).",
+    content: "The repo is at [github.com/edgedb/edgedb](https://www.github.com/edgedb/edgedb).",
     published: true,
     authorName: "Polly",
   },
   {
     title: "Try the EdgeDB query builder for TypeScript",
-    content:
-      "The docs are [here](https://www.edgedb.com/docs/clients/01_js/index).",
+    content: "The docs are [here](https://www.edgedb.com/docs/clients/01_js/index).",
     published: false,
     authorName: "Polly",
   },

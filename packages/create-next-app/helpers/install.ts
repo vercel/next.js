@@ -16,9 +16,7 @@ export async function install(
 ): Promise<void> {
   const args: string[] = ['install']
   if (!isOnline) {
-    console.log(
-      yellow('You appear to be offline.\nFalling back to the local cache.')
-    )
+    console.log(yellow('You appear to be offline.\nFalling back to the local cache.'))
     args.push('--offline')
   }
   /**

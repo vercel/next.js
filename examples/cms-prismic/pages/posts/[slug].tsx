@@ -37,8 +37,7 @@ export default function Post({ post, morePosts, preview }: PostProps) {
             <article>
               <Head>
                 <title>
-                  {asText(post.data.title)} | Next.js Blog Example with{" "}
-                  {CMS_NAME}
+                  {asText(post.data.title)} | Next.js Blog Example with {CMS_NAME}
                 </title>
                 <meta
                   property="og:image"
@@ -58,9 +57,7 @@ export default function Post({ post, morePosts, preview }: PostProps) {
               <PostBody slices={post.data.slices} />
             </article>
             <SectionSeparator />
-            {morePosts && morePosts.length > 0 && (
-              <MoreStories posts={morePosts} />
-            )}
+            {morePosts && morePosts.length > 0 && <MoreStories posts={morePosts} />}
           </>
         )}
       </Container>
@@ -72,9 +69,7 @@ export async function getStaticProps({
   params,
   preview = false,
   previewData,
-}: GetStaticPropsContext<{ slug: string }>): Promise<
-  GetStaticPropsResult<PostProps>
-> {
+}: GetStaticPropsContext<{ slug: string }>): Promise<GetStaticPropsResult<PostProps>> {
   const client = createClient({ previewData });
 
   const [post, morePosts] = await Promise.all([

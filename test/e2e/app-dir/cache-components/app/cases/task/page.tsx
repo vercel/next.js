@@ -7,16 +7,13 @@ export default async function Page() {
   return (
     <>
       <p>
-        This page renders a component that requires async IO. It is simulated
-        using setTimeout(f, 1000).
+        This page renders a component that requires async IO. It is simulated using setTimeout(f,
+        1000).
       </p>
+      <p>This component simulated IO component is rendered inside a Suspense boundary</p>
       <p>
-        This component simulated IO component is rendered inside a Suspense
-        boundary
-      </p>
-      <p>
-        With PPR this page should be partially static, showing the fallback of
-        the Suspense boundary surrounding our simulated IO.
+        With PPR this page should be partially static, showing the fallback of the Suspense boundary
+        surrounding our simulated IO.
       </p>
       <p>Without PPR this page should be dynamic.</p>
       <Suspense fallback="loading...">

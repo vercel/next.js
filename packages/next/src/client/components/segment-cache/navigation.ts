@@ -4,10 +4,7 @@ import type {
   FlightSegmentPath,
 } from '../../../shared/lib/app-router-types'
 import type { CacheNode } from '../../../shared/lib/app-router-types'
-import type {
-  HeadData,
-  LoadingModuleData,
-} from '../../../shared/lib/app-router-types'
+import type { HeadData, LoadingModuleData } from '../../../shared/lib/app-router-types'
 import type { NormalizedFlightData } from '../../flight-data-helpers'
 import { fetchServerResponse } from '../router-reducer/fetch-server-response'
 import {
@@ -150,11 +147,7 @@ export function navigate(
     const optimisticRoute = requestOptimisticRouteCacheEntry(now, url, nextUrl)
     if (optimisticRoute !== null) {
       // We have an optimistic route tree. Proceed with the normal flow.
-      const snapshot = readRenderSnapshotFromCache(
-        now,
-        optimisticRoute,
-        optimisticRoute.tree
-      )
+      const snapshot = readRenderSnapshotFromCache(now, optimisticRoute, optimisticRoute.tree)
       const prefetchFlightRouterState = snapshot.flightRouterState
       const prefetchSeedData = snapshot.seedData
       const headSnapshot = readHeadSnapshotFromCache(now, optimisticRoute)
@@ -377,12 +370,8 @@ function readRenderSnapshotFromCache(
         // an in-progress request. Since it's extremely likely to arrive
         // before the dynamic data response, we might as well use it.
         const promiseForFulfilledEntry = waitForSegmentCacheEntry(segmentEntry)
-        rsc = promiseForFulfilledEntry.then((entry) =>
-          entry !== null ? entry.rsc : null
-        )
-        loading = promiseForFulfilledEntry.then((entry) =>
-          entry !== null ? entry.loading : null
-        )
+        rsc = promiseForFulfilledEntry.then((entry) => (entry !== null ? entry.rsc : null))
+        loading = promiseForFulfilledEntry.then((entry) => (entry !== null ? entry.loading : null))
         // Because the request is still pending, we typically don't know yet
         // whether the response will be partial. We shouldn't skip this segment
         // during the dynamic navigation request. Otherwise, we might need to
@@ -423,13 +412,7 @@ function readRenderSnapshotFromCache(
   const hasRuntimePrefetch = false
 
   return {
-    flightRouterState: [
-      segment,
-      childRouterStates,
-      null,
-      null,
-      tree.isRootLayout,
-    ],
+    flightRouterState: [segment, childRouterStates, null, null, tree.isRootLayout],
     seedData: [rsc, childSeedDatas, loading, isPartial, hasRuntimePrefetch],
   }
 }
@@ -451,9 +434,7 @@ function readHeadSnapshotFromCache(
       }
       case EntryStatus.Pending: {
         const promiseForFulfilledEntry = waitForSegmentCacheEntry(segmentEntry)
-        rsc = promiseForFulfilledEntry.then((entry) =>
-          entry !== null ? entry.rsc : null
-        )
+        rsc = promiseForFulfilledEntry.then((entry) => (entry !== null ? entry.rsc : null))
         isPartial = segmentEntry.isPartial
         break
       }
@@ -472,12 +453,7 @@ function readHeadSnapshotFromCache(
 // during the normal flow when diffing the route tree, but for an unprefetched
 // navigation, where we don't know the structure of the target route, we use
 // this instead.
-const DynamicRequestTreeForEntireRoute: FlightRouterState = [
-  '',
-  {},
-  null,
-  'refetch',
-]
+const DynamicRequestTreeForEntireRoute: FlightRouterState = ['', {}, null, 'refetch']
 
 async function navigateDynamicallyWithNoPrefetch(
   now: number,
@@ -533,12 +509,7 @@ async function navigateDynamicallyWithNoPrefetch(
     }
   }
 
-  const {
-    flightData,
-    canonicalUrl,
-    renderedSearch,
-    debugInfo: debugInfoFromResponse,
-  } = result
+  const { flightData, canonicalUrl, renderedSearch, debugInfo: debugInfoFromResponse } = result
   if (debugInfoFromResponse !== null) {
     collectedDebugInfo.push(...debugInfoFromResponse)
   }
@@ -597,12 +568,7 @@ export function convertServerPatchToFullTree(
   let baseTree: FlightRouterState = currentTree
   let baseData: CacheNodeSeedData | null = null
   let head: HeadData | null = null
-  for (const {
-    segmentPath,
-    tree: treePatch,
-    seedData: dataPatch,
-    head: headPatch,
-  } of flightData) {
+  for (const { segmentPath, tree: treePatch, seedData: dataPatch, head: headPatch } of flightData) {
     const result = convertServerPatchToFullTreeImpl(
       baseTree,
       baseData,
@@ -662,9 +628,7 @@ function convertServerPatchToFullTreeImpl(
   for (const parallelRouteKey in baseTreeChildren) {
     const childBaseRouterState = baseTreeChildren[parallelRouteKey]
     const childBaseSeedData =
-      baseSeedDataChildren !== null
-        ? (baseSeedDataChildren[parallelRouteKey] ?? null)
-        : null
+      baseSeedDataChildren !== null ? (baseSeedDataChildren[parallelRouteKey] ?? null) : null
     if (parallelRouteKey === updatedParallelRouteKey) {
       const result = convertServerPatchToFullTreeImpl(
         childBaseRouterState,
@@ -707,13 +671,7 @@ function convertServerPatchToFullTreeImpl(
 
   // Clone the CacheNodeSeedData tree.
   const isEmptySeedDataPartial = true
-  clonedSeedData = [
-    null,
-    newSeedDataChildren,
-    null,
-    isEmptySeedDataPartial,
-    false,
-  ]
+  clonedSeedData = [null, newSeedDataChildren, null, isEmptySeedDataPartial, false]
 
   return {
     tree: clonedTree,

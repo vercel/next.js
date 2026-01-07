@@ -23,10 +23,7 @@ export function useActiveRuntimeError({
     [activeIdx, runtimeErrors]
   )
 
-  const errorDetails = useErrorDetails(
-    activeError?.error,
-    getSquashedHydrationErrorDetails
-  )
+  const errorDetails = useErrorDetails(activeError?.error, getSquashedHydrationErrorDetails)
 
   if (isLoading || !activeError) {
     return {

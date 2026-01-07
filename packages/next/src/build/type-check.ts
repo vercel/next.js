@@ -34,17 +34,14 @@ function verifyTypeScriptSetup(
   pagesDir: string | undefined,
   debugBuildPaths: { app?: string[]; pages?: string[] } | undefined
 ) {
-  const typeCheckWorker = new Worker(
-    require.resolve('../lib/verify-typescript-setup'),
-    {
-      exposedMethods: ['verifyTypeScriptSetup'],
-      debuggerPortOffset: -1,
-      isolatedMemory: false,
-      numWorkers: 1,
-      enableWorkerThreads,
-      maxRetries: 0,
-    }
-  ) as Worker & {
+  const typeCheckWorker = new Worker(require.resolve('../lib/verify-typescript-setup'), {
+    exposedMethods: ['verifyTypeScriptSetup'],
+    debuggerPortOffset: -1,
+    isolatedMemory: false,
+    numWorkers: 1,
+    enableWorkerThreads,
+    maxRetries: 0,
+  }) as Worker & {
     verifyTypeScriptSetup: typeof import('../lib/verify-typescript-setup').verifyTypeScriptSetup
   }
 

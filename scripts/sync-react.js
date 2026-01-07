@@ -52,9 +52,7 @@ async function getSchedulerVersion(reactVersion) {
     },
   })
   if (!response.ok) {
-    throw new Error(
-      `${url}: ${response.status} ${response.statusText}\n${await response.text()}`
-    )
+    throw new Error(`${url}: ${response.status} ${response.statusText}\n${await response.text()}`)
   }
 
   const manifest = await response.json()
@@ -73,9 +71,7 @@ async function getSchedulerVersion(reactVersion) {
 async function sync({ channel, newVersionStr, noInstall }) {
   const useExperimental = channel === 'experimental'
   const cwd = process.cwd()
-  const pkgJson = JSON.parse(
-    await fsp.readFile(path.join(cwd, 'package.json'), 'utf-8')
-  )
+  const pkgJson = JSON.parse(await fsp.readFile(path.join(cwd, 'package.json'), 'utf-8'))
   const devDependencies = pkgJson.devDependencies
   const pnpmOverrides = pkgJson.pnpm.overrides
   const baseVersionStr = devDependencies[
@@ -98,20 +94,14 @@ async function sync({ channel, newVersionStr, noInstall }) {
     if (version.endsWith(baseVersionStr)) {
       devDependencies[dep] = version.replace(baseVersionStr, newVersionStr)
     } else if (version.endsWith(baseSchedulerVersionStr)) {
-      devDependencies[dep] = version.replace(
-        baseSchedulerVersionStr,
-        newSchedulerVersionStr
-      )
+      devDependencies[dep] = version.replace(baseSchedulerVersionStr, newSchedulerVersionStr)
     }
   }
   for (const [dep, version] of Object.entries(pnpmOverrides)) {
     if (version.endsWith(baseVersionStr)) {
       pnpmOverrides[dep] = version.replace(baseVersionStr, newVersionStr)
     } else if (version.endsWith(baseSchedulerVersionStr)) {
-      pnpmOverrides[dep] = version.replace(
-        baseSchedulerVersionStr,
-        newSchedulerVersionStr
-      )
+      pnpmOverrides[dep] = version.replace(baseSchedulerVersionStr, newSchedulerVersionStr)
     }
   }
   await fsp.writeFile(
@@ -192,9 +182,7 @@ async function findHighestNPMReactVersion(versionLike) {
   )
   if (stderr) {
     console.error(stderr)
-    throw new Error(
-      `Failed to read highest react@${versionLike} version from npm.`
-    )
+    throw new Error(`Failed to read highest react@${versionLike} version from npm.`)
   }
 
   const result = JSON.parse(stdout)
@@ -263,9 +251,7 @@ async function main() {
     newVersionStr === ''
   ) {
     newVersionStr = await findHighestNPMReactVersion(defaultLatestChannel)
-    console.log(
-      `--version was not provided. Using react@${defaultLatestChannel}: ${newVersionStr}`
-    )
+    console.log(`--version was not provided. Using react@${defaultLatestChannel}: ${newVersionStr}`)
   }
 
   const newVersionInfo = extractInfoFromReactVersion(newVersionStr)
@@ -285,13 +271,7 @@ Or, run this command with no arguments to use the most recently published versio
   if (createPull) {
     const { exitCode, all, command } = await execa(
       'git',
-      [
-        'ls-remote',
-        '--exit-code',
-        '--heads',
-        'origin',
-        `refs/heads/${branchName}`,
-      ],
+      ['ls-remote', '--exit-code', '--heads', 'origin', `refs/heads/${branchName}`],
       { reject: false }
     )
 
@@ -305,19 +285,12 @@ Or, run this command with no arguments to use the most recently published versio
       )
       return
     } else {
-      throw new Error(
-        `Failed to check if the branch already existed:\n${command}: ${all}`
-      )
+      throw new Error(`Failed to check if the branch already existed:\n${command}: ${all}`)
     }
   }
 
-  const rootManifest = JSON.parse(
-    await fsp.readFile(path.join(cwd, 'package.json'), 'utf-8')
-  )
-  const baseVersionStr = rootManifest.devDependencies['react-builtin'].replace(
-    /^npm:react@/,
-    ''
-  )
+  const rootManifest = JSON.parse(await fsp.readFile(path.join(cwd, 'package.json'), 'utf-8'))
+  const baseVersionStr = rootManifest.devDependencies['react-builtin'].replace(/^npm:react@/, '')
 
   await sync({
     newVersionStr: `0.0.0-experimental-${newSha}-${newDateString}`,
@@ -338,9 +311,7 @@ Or, run this command with no arguments to use the most recently published versio
 
   const baseVersionInfo = extractInfoFromReactVersion(baseVersionStr)
   if (!baseVersionInfo) {
-    throw new Error(
-      'Base react version does not match expected format: ' + baseVersionStr
-    )
+    throw new Error('Base react version does not match expected format: ' + baseVersionStr)
   }
 
   const syncPagesRouterReact = activePagesRouterReact === null
@@ -348,9 +319,7 @@ Or, run this command with no arguments to use the most recently published versio
     ? newVersionStr
     : activePagesRouterReact
   const pagesRouterReactVersion = `^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ${newActivePagesRouterReactVersion}`
-  const highestPagesRouterReactVersion = await findHighestNPMReactVersion(
-    pagesRouterReactVersion
-  )
+  const highestPagesRouterReactVersion = await findHighestNPMReactVersion(pagesRouterReactVersion)
   const { sha: baseSha, dateString: baseDateString } = baseVersionInfo
 
   for (const fileName of filesReferencingReactPeerDependencyVersion) {
@@ -361,9 +330,7 @@ Or, run this command with no arguments to use the most recently published versio
     )
     if (previousHighestVersionMatch === null) {
       errors.push(
-        new Error(
-          `${fileName}: Is this file still referencing the React peer dependency version?`
-        )
+        new Error(`${fileName}: Is this file still referencing the React peer dependency version?`)
       )
     } else {
       const updatedSource = previousSource.replace(
@@ -485,8 +452,7 @@ Or, run this command with no arguments to use the most recently published versio
     }
   } catch (error) {
     console.error(error)
-    prDescription +=
-      '\nFailed to fetch changelog from GitHub. Changes were applied, anyway.\n'
+    prDescription += '\nFailed to fetch changelog from GitHub. Changes were applied, anyway.\n'
   }
 
   if (!install) {

@@ -16,9 +16,7 @@ export default async function Page({
       </div>
       <div>
         <h2>Search Params:</h2>
-        <pre id="search-params-value">
-          {JSON.stringify(resolvedSearchParams, null, 2)}
-        </pre>
+        <pre id="search-params-value">{JSON.stringify(resolvedSearchParams, null, 2)}</pre>
       </div>
     </>
   )

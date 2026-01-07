@@ -1,13 +1,7 @@
 import type { ComponentType } from 'react'
-import type {
-  CacheNodeSeedData,
-  LoadingModuleData,
-} from '../../shared/lib/app-router-types'
+import type { CacheNodeSeedData, LoadingModuleData } from '../../shared/lib/app-router-types'
 import type { PreloadCallbacks } from './types'
-import {
-  isClientReference,
-  isUseCacheFunction,
-} from '../../lib/client-and-server-references'
+import { isClientReference, isUseCacheFunction } from '../../lib/client-and-server-references'
 import { getLayoutOrPageModule } from '../lib/app-dir-module'
 import type { LoaderTree } from '../lib/app-dir-module'
 import { interopDefault } from './interop-default'
@@ -23,10 +17,7 @@ import { NextNodeServerSpan } from '../lib/trace/constants'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import type { Params } from '../request/params'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
-import type {
-  UseCacheLayoutProps,
-  UseCachePageProps,
-} from '../use-cache/use-cache-wrapper'
+import type { UseCacheLayoutProps, UseCachePageProps } from '../use-cache/use-cache-wrapper'
 import { DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
 import {
   BOUNDARY_PREFIX,
@@ -62,10 +53,7 @@ export function createComponentTree(props: {
   )
 }
 
-function errorMissingDefaultExport(
-  pagePath: string,
-  convention: string
-): never {
+function errorMissingDefaultExport(pagePath: string, convention: string): never {
   const normalizedPagePath = pagePath === '/' ? '' : pagePath
   throw new Error(
     `The default export is not a React Component in "${normalizedPagePath}/${convention}"`
@@ -127,8 +115,7 @@ async function createComponentTreeInternal(
     query,
   } = ctx
 
-  const { page, conventionPath, segment, modules, parallelRoutes } =
-    parseLoaderTree(tree)
+  const { page, conventionPath, segment, modules, parallelRoutes } = parseLoaderTree(tree)
 
   const {
     layout,
@@ -142,9 +129,7 @@ async function createComponentTreeInternal(
 
   const injectedCSSWithCurrentLayout = new Set(injectedCSS)
   const injectedJSWithCurrentLayout = new Set(injectedJS)
-  const injectedFontPreloadTagsWithCurrentLayout = new Set(
-    injectedFontPreloadTags
-  )
+  const injectedFontPreloadTagsWithCurrentLayout = new Set(injectedFontPreloadTags)
 
   const layerAssets = getLayerAssets({
     preloadCallbacks,
@@ -206,8 +191,7 @@ async function createComponentTreeInternal(
   /**
    * Checks if the current segment or any level above it has a root layout.
    */
-  const rootLayoutIncludedAtThisLevelOrAbove =
-    rootLayoutIncluded || rootLayoutAtThisLevel
+  const rootLayoutIncludedAtThisLevelOrAbove = rootLayoutIncluded || rootLayoutAtThisLevel
 
   const [NotFound, notFoundStyles] = notFound
     ? await createComponentStylesAndScripts({
@@ -353,8 +337,7 @@ async function createComponentTreeInternal(
   //
   // For dynamic requests, this must always be `false` because dynamic responses
   // are never partial.
-  const isPossiblyPartialResponse =
-    isStaticGeneration && experimental.isRoutePPREnabled === true
+  const isPossiblyPartialResponse = isStaticGeneration && experimental.isRoutePPREnabled === true
 
   const LayoutOrPage: ComponentType<any> | undefined = layoutOrPageMod
     ? interopDefault(layoutOrPageMod)
@@ -368,17 +351,11 @@ async function createComponentTreeInternal(
   if (process.env.NODE_ENV === 'development' || isStaticGeneration) {
     const { isValidElementType } =
       require('next/dist/compiled/react-is') as typeof import('next/dist/compiled/react-is')
-    if (
-      typeof MaybeComponent !== 'undefined' &&
-      !isValidElementType(MaybeComponent)
-    ) {
+    if (typeof MaybeComponent !== 'undefined' && !isValidElementType(MaybeComponent)) {
       errorMissingDefaultExport(pagePath, modType ?? 'page')
     }
 
-    if (
-      typeof ErrorComponent !== 'undefined' &&
-      !isValidElementType(ErrorComponent)
-    ) {
+    if (typeof ErrorComponent !== 'undefined' && !isValidElementType(ErrorComponent)) {
       errorMissingDefaultExport(pagePath, 'error')
     }
 
@@ -394,10 +371,7 @@ async function createComponentTreeInternal(
       errorMissingDefaultExport(pagePath, 'forbidden')
     }
 
-    if (
-      typeof Unauthorized !== 'undefined' &&
-      !isValidElementType(Unauthorized)
-    ) {
+    if (typeof Unauthorized !== 'undefined' && !isValidElementType(Unauthorized)) {
       errorMissingDefaultExport(pagePath, 'unauthorized')
     }
   }
@@ -421,14 +395,13 @@ async function createComponentTreeInternal(
       ? process.env.__NEXT_EDGE_PROJECT_DIR
       : ctx.renderOpts.dir) || ''
 
-  const [notFoundElement, notFoundFilePath] =
-    await createBoundaryConventionElement({
-      ctx,
-      conventionName: 'not-found',
-      Component: NotFound,
-      styles: notFoundStyles,
-      tree,
-    })
+  const [notFoundElement, notFoundFilePath] = await createBoundaryConventionElement({
+    ctx,
+    conventionName: 'not-found',
+    Component: NotFound,
+    styles: notFoundStyles,
+    tree,
+  })
 
   const [forbiddenElement] = await createBoundaryConventionElement({
     ctx,
@@ -450,23 +423,15 @@ async function createComponentTreeInternal(
   // into an object.
   const parallelRouteMap = await Promise.all(
     Object.keys(parallelRoutes).map(
-      async (
-        parallelRouteKey
-      ): Promise<[string, React.ReactNode, CacheNodeSeedData | null]> => {
+      async (parallelRouteKey): Promise<[string, React.ReactNode, CacheNodeSeedData | null]> => {
         const isChildrenRouteKey = parallelRouteKey === 'children'
         const parallelRoute = parallelRoutes[parallelRouteKey]
 
-        const notFoundComponent = isChildrenRouteKey
-          ? notFoundElement
-          : undefined
+        const notFoundComponent = isChildrenRouteKey ? notFoundElement : undefined
 
-        const forbiddenComponent = isChildrenRouteKey
-          ? forbiddenElement
-          : undefined
+        const forbiddenComponent = isChildrenRouteKey ? forbiddenElement : undefined
 
-        const unauthorizedComponent = isChildrenRouteKey
-          ? unauthorizedElement
-          : undefined
+        const unauthorizedComponent = isChildrenRouteKey ? unauthorizedElement : undefined
 
         // if we're prefetching and that there's a Loading component, we bail out
         // otherwise we keep rendering for the prefetch.
@@ -515,9 +480,7 @@ async function createComponentTreeInternal(
             // When we detect the default fallback (which triggers a 404), we collect the missing slots
             // to provide more helpful debug information during development mode.
             const parsedTree = parseLoaderTree(parallelRoute)
-            if (
-              parsedTree.conventionPath?.endsWith(PARALLEL_ROUTE_DEFAULT_PATH)
-            ) {
+            if (parsedTree.conventionPath?.endsWith(PARALLEL_ROUTE_DEFAULT_PATH)) {
               missingSlots.add(parallelRouteKey)
             }
           }
@@ -700,11 +663,7 @@ async function createComponentTreeInternal(
   // along the parent path of a force-dynamic segment will hit this condition effectively making the entire
   // render force-dynamic. We should refactor this function so that we can correctly track which segments
   // need to be dynamic
-  if (
-    workStore.isStaticGeneration &&
-    workStore.forceDynamic &&
-    experimental.isRoutePPREnabled
-  ) {
+  if (workStore.isStaticGeneration && workStore.forceDynamic && experimental.isRoutePPREnabled) {
     return [
       createElement(
         Fragment,
@@ -726,10 +685,7 @@ async function createComponentTreeInternal(
 
   const isClientComponent = isClientReference(layoutOrPageMod)
 
-  if (
-    process.env.NODE_ENV === 'development' &&
-    'params' in parallelRouteProps
-  ) {
+  if (process.env.NODE_ENV === 'development' && 'params' in parallelRouteProps) {
     // @TODO consider making this an error and running the check in build as well
     console.error(
       `"params" is a reserved prop in Layouts and Pages and cannot be used as the name of a parallel route in ${segment}`
@@ -749,10 +705,8 @@ async function createComponentTreeInternal(
           serverProvidedParams: null,
         })
       } else if (isStaticGeneration) {
-        const promiseOfParams =
-          createPrerenderParamsForClientSegment(currentParams)
-        const promiseOfSearchParams =
-          createPrerenderSearchParamsForClientPage(workStore)
+        const promiseOfParams = createPrerenderParamsForClientSegment(currentParams)
+        const promiseOfSearchParams = createPrerenderSearchParamsForClientPage(workStore)
         pageElement = createElement(ClientPageRoot, {
           Component: PageComponent,
           serverProvidedParams: {
@@ -774,10 +728,7 @@ async function createComponentTreeInternal(
     } else {
       // If we are passing params to a server component Page we need to track
       // their usage in case the current render mode tracks dynamic API usage.
-      const params = createServerParamsForServerSegment(
-        currentParams,
-        workStore
-      )
+      const params = createServerParamsForServerSegment(currentParams, workStore)
 
       // If we are passing searchParams to a server component Page we need to
       // track their usage in case the current render mode tracks dynamic API
@@ -785,8 +736,7 @@ async function createComponentTreeInternal(
       let searchParams = createServerSearchParamsForServerPage(query, workStore)
 
       if (isUseCacheFunction(PageComponent)) {
-        const UseCachePageComponent: ComponentType<UseCachePageProps> =
-          PageComponent
+        const UseCachePageComponent: ComponentType<UseCachePageProps> = PageComponent
 
         pageElement = createElement(UseCachePageComponent, {
           params: params,
@@ -853,8 +803,7 @@ async function createComponentTreeInternal(
           serverProvidedParams: null,
         })
       } else if (isStaticGeneration) {
-        const promiseOfParams =
-          createPrerenderParamsForClientSegment(currentParams)
+        const promiseOfParams = createPrerenderParamsForClientSegment(currentParams)
 
         clientSegment = createElement(ClientSegmentRoot, {
           Component: SegmentComponent,
@@ -911,11 +860,7 @@ async function createComponentTreeInternal(
           SegmentComponent,
           currentParams,
         })
-        if (
-          notfoundClientSegment ||
-          forbiddenClientSegment ||
-          unauthorizedClientSegment
-        ) {
+        if (notfoundClientSegment || forbiddenClientSegment || unauthorizedClientSegment) {
           segmentNode = createElement(
             HTTPAccessFallbackBoundary,
             {
@@ -948,16 +893,12 @@ async function createComponentTreeInternal(
         )
       }
     } else {
-      const params = createServerParamsForServerSegment(
-        currentParams,
-        workStore
-      )
+      const params = createServerParamsForServerSegment(currentParams, workStore)
 
       let serverSegment: React.ReactNode
 
       if (isUseCacheFunction(SegmentComponent)) {
-        const UseCacheLayoutComponent: ComponentType<UseCacheLayoutProps> =
-          SegmentComponent
+        const UseCacheLayoutComponent: ComponentType<UseCacheLayoutProps> = SegmentComponent
 
         serverSegment = createElement(
           UseCacheLayoutComponent,
@@ -1147,12 +1088,7 @@ async function createBoundaryConventionElement({
   tree,
 }: {
   ctx: AppRenderContext
-  conventionName:
-    | 'not-found'
-    | 'error'
-    | 'loading'
-    | 'forbidden'
-    | 'unauthorized'
+  conventionName: 'not-found' | 'error' | 'loading' | 'forbidden' | 'unauthorized'
   Component: ComponentType<any> | undefined
   styles: React.ReactNode | undefined
   tree: LoaderTree

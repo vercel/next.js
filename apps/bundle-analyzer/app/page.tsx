@@ -25,14 +25,7 @@ import { computeActiveEntries, computeModuleDepthMap } from '@/lib/module-graph'
 import { fetchStrict } from '@/lib/utils'
 import { formatBytes } from '@/lib/utils'
 import { SizeMode } from '@/lib/treemap-layout'
-import {
-  Monitor,
-  Server,
-  FileCode,
-  FileJson,
-  Palette,
-  Package,
-} from 'lucide-react'
+import { Monitor, Server, FileCode, FileJson, Palette, Package } from 'lucide-react'
 
 enum Environment {
   Client = 'client',
@@ -41,16 +34,10 @@ enum Environment {
 
 export default function Home() {
   const [selectedRoute, setSelectedRoute] = useState<string | null>(null)
-  const [environmentFilter, setEnvironmentFilter] = useState<Environment>(
-    Environment.Client
-  )
+  const [environmentFilter, setEnvironmentFilter] = useState<Environment>(Environment.Client)
   const [typeFilter, setTypeFilter] = useState(['js', 'css', 'json'])
-  const [selectedSourceIndex, setSelectedSourceIndex] = useState<number | null>(
-    null
-  )
-  const [focusedSourceIndex, setFocusedSourceIndex] = useState<number | null>(
-    null
-  )
+  const [selectedSourceIndex, setSelectedSourceIndex] = useState<number | null>(null)
+  const [focusedSourceIndex, setFocusedSourceIndex] = useState<number | null>(null)
 
   const {
     data: modulesData,
@@ -251,20 +238,14 @@ export default function Home() {
           <div className="text-sm text-muted-foreground">
             {hoveredNodeInfo ? (
               <>
-                <span className="font-medium text-foreground">
-                  {hoveredNodeInfo.name}
-                </span>
+                <span className="font-medium text-foreground">{hoveredNodeInfo.name}</span>
                 <span className="ml-2 text-muted-foreground">
                   {`${formatBytes(hoveredNodeInfo.size)} compressed`}
                 </span>
                 {(hoveredNodeInfo.server || hoveredNodeInfo.client) && (
                   <span className="ml-2 inline-flex gap-1">
-                    {hoveredNodeInfo.client && (
-                      <Badge variant="client">client</Badge>
-                    )}
-                    {hoveredNodeInfo.server && (
-                      <Badge variant="server">server</Badge>
-                    )}
+                    {hoveredNodeInfo.client && <Badge variant="client">client</Badge>}
+                    {hoveredNodeInfo.server && <Badge variant="server">server</Badge>}
                   </span>
                 )}
               </>
@@ -340,9 +321,7 @@ function TopBar({
           <>
             <Select
               value={environmentFilter}
-              onValueChange={(value: Environment) =>
-                setEnvironmentFilter(value)
-              }
+              onValueChange={(value: Environment) => setEnvironmentFilter(value)}
             >
               <SelectTrigger className="w-28">
                 <SelectValue />

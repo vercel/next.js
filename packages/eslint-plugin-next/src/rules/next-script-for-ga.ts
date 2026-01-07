@@ -43,19 +43,14 @@ export default defineRule({
             node,
             message: ERROR_MSG_GOOGLE_ANALYTICS,
           })
-        } else if (
-          typeof src === 'string' &&
-          src.includes(GOOGLE_TAG_MANAGER_URL)
-        ) {
+        } else if (typeof src === 'string' && src.includes(GOOGLE_TAG_MANAGER_URL)) {
           return context.report({
             node,
             message: ERROR_MSG_GOOGLE_TAG_MANAGER,
           })
         }
 
-        const dangerouslySetInnerHTML = attributes.value(
-          'dangerouslySetInnerHTML'
-        )
+        const dangerouslySetInnerHTML = attributes.value('dangerouslySetInnerHTML')
         // Check if inline script is being used to add GA.
         // https://developers.google.com/analytics/devguides/collection/analyticsjs#the_google_analytics_tag
         // https://developers.google.com/tag-manager/quickstart
@@ -67,10 +62,7 @@ export default defineRule({
               node,
               message: ERROR_MSG_GOOGLE_ANALYTICS,
             })
-          } else if (
-            htmlContent &&
-            htmlContent.includes(GOOGLE_TAG_MANAGER_SRC)
-          ) {
+          } else if (htmlContent && htmlContent.includes(GOOGLE_TAG_MANAGER_SRC)) {
             context.report({
               node,
               message: ERROR_MSG_GOOGLE_TAG_MANAGER,

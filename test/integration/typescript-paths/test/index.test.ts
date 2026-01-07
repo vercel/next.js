@@ -3,13 +3,7 @@
 import { join } from 'path'
 import cheerio from 'cheerio'
 import * as path from 'path'
-import {
-  renderViaHTTP,
-  findPort,
-  launchApp,
-  killApp,
-  File,
-} from 'next-test-utils'
+import { renderViaHTTP, findPort, launchApp, killApp, File } from 'next-test-utils'
 import * as JSON5 from 'json5'
 
 const appDir = join(__dirname, '..')
@@ -71,10 +65,7 @@ describe('typescript paths without baseurl', () => {
       '@c/*': ['./components/*'],
       '@lib/*': ['./lib/a/*', './lib/b/*'],
       '@mycomponent': ['./components/hello.tsx'],
-      'd-ts-alias': [
-        './components/alias-to-d-ts.d.ts',
-        './components/alias-to-d-ts.tsx',
-      ],
+      'd-ts-alias': ['./components/alias-to-d-ts.d.ts', './components/alias-to-d-ts.tsx'],
     }
     tsconfig.write(JSON.stringify(tsconfigContent, null, 2))
   })

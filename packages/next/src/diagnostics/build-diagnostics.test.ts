@@ -2,15 +2,10 @@ import { mkdtemp, readFile } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { setGlobal } from '../trace/shared'
-import {
-  recordFrameworkVersion,
-  updateBuildDiagnostics,
-} from './build-diagnostics'
+import { recordFrameworkVersion, updateBuildDiagnostics } from './build-diagnostics'
 
 async function readBuildDiagnostics(dir: string) {
-  return JSON.parse(
-    await readFile(join(dir, 'diagnostics', 'build-diagnostics.json'), 'utf8')
-  )
+  return JSON.parse(await readFile(join(dir, 'diagnostics', 'build-diagnostics.json'), 'utf8'))
 }
 
 describe('build-diagnostics', () => {

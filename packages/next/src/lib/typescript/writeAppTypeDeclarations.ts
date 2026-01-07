@@ -56,9 +56,7 @@ export async function writeAppTypeDeclarations({
   }
 
   if (hasAppDir && hasPagesDir) {
-    lines.push(
-      '/// <reference types="next/navigation-types/compat/navigation" />'
-    )
+    lines.push('/// <reference types="next/navigation-types/compat/navigation" />')
   }
 
   const routeTypesPath = path.posix.join(

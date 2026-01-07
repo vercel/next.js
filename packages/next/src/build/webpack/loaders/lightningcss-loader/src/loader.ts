@@ -74,9 +74,7 @@ function createUrlAndImportVisitor(
       imports.push({
         type: 'get_url_import',
         importName: '___CSS_LOADER_GET_URL_IMPORT___',
-        url: JSON.stringify(
-          require.resolve('../../css-loader/src/runtime/getUrl.js')
-        ),
+        url: JSON.stringify(require.resolve('../../css-loader/src/runtime/getUrl.js')),
         index: -1,
       })
 
@@ -125,10 +123,7 @@ function createUrlAndImportVisitor(
     Rule: {
       import(node: any) {
         if (visitorOptions.importFilter) {
-          const needKeep = visitorOptions.importFilter(
-            node.value.url,
-            node.value.media
-          )
+          const needKeep = visitorOptions.importFilter(node.value.url, node.value.media)
 
           if (!needKeep) {
             return node
@@ -305,14 +300,10 @@ export async function LightningCssLoader(
     imports.unshift({
       type: 'api_import',
       importName: '___CSS_LOADER_API_IMPORT___',
-      url: stringifyRequest(
-        this,
-        require.resolve('../../css-loader/src/runtime/api')
-      ),
+      url: stringifyRequest(this, require.resolve('../../css-loader/src/runtime/api')),
     })
   }
-  const transform =
-    implementation?.transformCss ?? getBindingsSync().css.lightning.transform
+  const transform = implementation?.transformCss ?? getBindingsSync().css.lightning.transform
 
   const replacedUrls = new Map<number, string>()
   const icssReplacedUrls = new Map<number, string>()
@@ -321,10 +312,7 @@ export async function LightningCssLoader(
   const urlImportVisitor = createUrlAndImportVisitor(
     {
       urlHandler: (url: any) =>
-        stringifyRequest(
-          this,
-          getPreRequester(this)(options.importLoaders ?? 0) + url
-        ),
+        stringifyRequest(this, getPreRequester(this)(options.importLoaders ?? 0) + url),
       urlFilter: getFilter(options.url, this.resourcePath),
       importFilter: getFilter(options.import, this.resourcePath),
 
@@ -343,10 +331,7 @@ export async function LightningCssLoader(
     replacements,
     replacedUrls: icssReplacedUrls,
     urlHandler: (url: string) =>
-      stringifyRequest(
-        this,
-        getPreRequester(this)(options.importLoaders) + url
-      ),
+      stringifyRequest(this, getPreRequester(this)(options.importLoaders) + url),
   })
 
   // This works by returned visitors are not conflicting.
@@ -367,17 +352,14 @@ export async function LightningCssLoader(
       visitor,
       cssModules: options.modules
         ? {
-            pattern: process.env.__NEXT_TEST_MODE
-              ? '[name]__[local]'
-              : '[name]__[hash]__[local]',
+            pattern: process.env.__NEXT_TEST_MODE ? '[name]__[local]' : '[name]__[hash]__[local]',
           }
         : undefined,
       filename: this.resourcePath,
       code: encoder.encode(source),
       sourceMap: this.sourceMap,
       targets: getTargets({ targets: userTargets, key: ECacheKey.loader }),
-      inputSourceMap:
-        this.sourceMap && prevMap ? JSON.stringify(prevMap) : undefined,
+      inputSourceMap: this.sourceMap && prevMap ? JSON.stringify(prevMap) : undefined,
       include: 1, // Features.Nesting
     })
     let cssCodeAsString = code.toString()
@@ -437,11 +419,9 @@ export async function LightningCssLoader(
         const [pathname, ,] = url.split(/(\?)?#/, 3)
 
         const request = requestify(pathname, this.rootContext)
-        const resolvedUrl = await resolveRequests(
-          importResolver,
-          this.context,
-          [...new Set([request, url])]
-        )
+        const resolvedUrl = await resolveRequests(importResolver, this.context, [
+          ...new Set([request, url]),
+        ])
 
         for (const importItem of imports) {
           importItem.url = importItem.url.replace(

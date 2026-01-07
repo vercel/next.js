@@ -40,10 +40,9 @@ export default async function handler(req: NextRequest): Promise<Response> {
   const old = streamable
 
   if (!old) {
-    return new Response(
-      'The streamable from the prime request is unexpectedly not available',
-      { status: 500 }
-    )
+    return new Response('The streamable from the prime request is unexpectedly not available', {
+      status: 500,
+    })
   }
 
   streamable = undefined

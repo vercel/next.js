@@ -23,48 +23,32 @@ export async function middleware(request) {
     })
   }
 
-  if (
-    url.pathname.includes(
-      '/middleware-external-rewrite-body-headers-return-body'
-    )
-  ) {
+  if (url.pathname.includes('/middleware-external-rewrite-body-headers-return-body')) {
     const tmpHeaders = new Headers(request.headers)
 
     tmpHeaders.set('x-hello-from-middleware1', 'hello')
 
-    return NextResponse.rewrite(
-      'https://next-data-api-endpoint.vercel.app/api/echo-body',
-      {
-        request: {
-          headers: tmpHeaders,
-        },
-      }
-    )
+    return NextResponse.rewrite('https://next-data-api-endpoint.vercel.app/api/echo-body', {
+      request: {
+        headers: tmpHeaders,
+      },
+    })
   }
 
-  if (
-    url.pathname.includes(
-      '/middleware-external-rewrite-body-headers-return-headers'
-    )
-  ) {
+  if (url.pathname.includes('/middleware-external-rewrite-body-headers-return-headers')) {
     const tmpHeaders = new Headers(request.headers)
 
     tmpHeaders.set('x-hello-from-middleware1', 'hello')
 
-    return NextResponse.rewrite(
-      'https://next-data-api-endpoint.vercel.app/api/echo-headers',
-      {
-        request: {
-          headers: tmpHeaders,
-        },
-      }
-    )
+    return NextResponse.rewrite('https://next-data-api-endpoint.vercel.app/api/echo-headers', {
+      request: {
+        headers: tmpHeaders,
+      },
+    })
   }
 
   if (url.pathname.includes('/middleware-external-rewrite-body')) {
-    return NextResponse.rewrite(
-      'https://next-data-api-endpoint.vercel.app/api/echo-body'
-    )
+    return NextResponse.rewrite('https://next-data-api-endpoint.vercel.app/api/echo-body')
   }
 
   if (url.pathname.includes('/rewrite-to-static')) {
@@ -80,9 +64,7 @@ export async function middleware(request) {
   if (url.pathname.startsWith('/about') && url.searchParams.has('override')) {
     const isExternal = url.searchParams.get('override') === 'external'
     return NextResponse.rewrite(
-      isExternal
-        ? 'https://example.vercel.sh'
-        : new URL('/ab-test/a', request.url)
+      isExternal ? 'https://example.vercel.sh' : new URL('/ab-test/a', request.url)
     )
   }
 
@@ -149,9 +131,7 @@ export async function middleware(request) {
 
   if (url.pathname === '/dynamic-no-cache/1') {
     const rewriteUrl =
-      request.headers.get('purpose') === 'prefetch'
-        ? '/dynamic-no-cache/1'
-        : '/dynamic-no-cache/2'
+      request.headers.get('purpose') === 'prefetch' ? '/dynamic-no-cache/1' : '/dynamic-no-cache/2'
 
     url.pathname = rewriteUrl
 
@@ -165,9 +145,7 @@ export async function middleware(request) {
     url.searchParams.get('path') === 'rewrite-me-without-hard-navigation'
   ) {
     url.searchParams.set('middleware', 'foo')
-    url.pathname = request.cookies.has('about-bypass')
-      ? '/about-bypass'
-      : '/about'
+    url.pathname = request.cookies.has('about-bypass') ? '/about-bypass' : '/about'
 
     return NextResponse.rewrite(url, {
       headers: { 'x-middleware-cache': 'no-cache' },

@@ -24,11 +24,7 @@ const handleSigTerm = () => process.exit(0)
 process.on('SIGINT', handleSigTerm)
 process.on('SIGTERM', handleSigTerm)
 
-const onPromptState = (state: {
-  value: InitialReturnValue
-  aborted: boolean
-  exited: boolean
-}) => {
+const onPromptState = (state: { value: InitialReturnValue; aborted: boolean; exited: boolean }) => {
   if (state.aborted) {
     // If we don't re-enable the terminal cursor before exiting
     // the program, the cursor will remain hidden
@@ -39,11 +35,7 @@ const onPromptState = (state: {
 }
 
 const program = new Command(packageJson.name)
-  .version(
-    packageJson.version,
-    '-v, --version',
-    'Output the current version of create-next-app.'
-  )
+  .version(packageJson.version, '-v, --version', 'Output the current version of create-next-app.')
   .argument('[directory]')
   .usage('[directory] [options]')
   .helpOption('-h, --help', 'Display this help message.')
@@ -58,36 +50,15 @@ const program = new Command(packageJson.name)
   .option('--turbopack', 'Enable Turbopack as the bundler.')
   .option('--webpack', 'Enable Webpack as the bundler.')
   .option('--rspack', 'Enable Rspack as the bundler.')
-  .option(
-    '--import-alias <prefix/*>',
-    'Specify import alias to use (default "@/*").'
-  )
+  .option('--import-alias <prefix/*>', 'Specify import alias to use (default "@/*").')
   .option('--api', 'Initialize a headless API using the App Router.')
   .option('--empty', 'Initialize an empty project.')
-  .option(
-    '--use-npm',
-    'Explicitly tell the CLI to bootstrap the application using npm.'
-  )
-  .option(
-    '--use-pnpm',
-    'Explicitly tell the CLI to bootstrap the application using pnpm.'
-  )
-  .option(
-    '--use-yarn',
-    'Explicitly tell the CLI to bootstrap the application using Yarn.'
-  )
-  .option(
-    '--use-bun',
-    'Explicitly tell the CLI to bootstrap the application using Bun.'
-  )
-  .option(
-    '--reset, --reset-preferences',
-    'Reset the preferences saved for create-next-app.'
-  )
-  .option(
-    '--skip-install',
-    'Explicitly tell the CLI to skip installing packages.'
-  )
+  .option('--use-npm', 'Explicitly tell the CLI to bootstrap the application using npm.')
+  .option('--use-pnpm', 'Explicitly tell the CLI to bootstrap the application using pnpm.')
+  .option('--use-yarn', 'Explicitly tell the CLI to bootstrap the application using Yarn.')
+  .option('--use-bun', 'Explicitly tell the CLI to bootstrap the application using Bun.')
+  .option('--reset, --reset-preferences', 'Reset the preferences saved for create-next-app.')
+  .option('--skip-install', 'Explicitly tell the CLI to skip installing packages.')
   .option('--yes', 'Use saved preferences or defaults for unprovided options.')
   .option(
     '-e, --example <example-name|github-url>',
@@ -195,21 +166,15 @@ async function run(): Promise<void> {
   const validation = validateNpmName(appName)
   if (!validation.valid) {
     console.error(
-      `Could not create a project called ${red(
-        `"${appName}"`
-      )} because of npm naming restrictions:`
+      `Could not create a project called ${red(`"${appName}"`)} because of npm naming restrictions:`
     )
 
-    validation.problems.forEach((p) =>
-      console.error(`    ${red(bold('*'))} ${p}`)
-    )
+    validation.problems.forEach((p) => console.error(`    ${red(bold('*'))} ${p}`))
     process.exit(1)
   }
 
   if (opts.example === true) {
-    console.error(
-      'Please provide an example name or url, otherwise remove the example option.'
-    )
+    console.error('Please provide an example name or url, otherwise remove the example option.')
     process.exit(1)
   }
 
@@ -218,10 +183,7 @@ async function run(): Promise<void> {
   }
 
   const example = typeof opts.example === 'string' && opts.example.trim()
-  const preferences = (conf.get('preferences') || {}) as Record<
-    string,
-    boolean | string
-  >
+  const preferences = (conf.get('preferences') || {}) as Record<string, boolean | string>
 
   /**
    * If the user does not provide the necessary flags, prompt them for their
@@ -263,9 +225,7 @@ async function run(): Promise<void> {
     ]
 
     // Helper to format settings for display based on displayConfig
-    const formatSettingsDescription = (
-      settings: Record<string, boolean | string>
-    ) => {
+    const formatSettingsDescription = (settings: Record<string, boolean | string>) => {
       const descriptions: string[] = []
 
       for (const config of displayConfig) {
@@ -400,8 +360,7 @@ async function run(): Promise<void> {
 
     // Determine linter choice if not specified via CLI flags
     // Support both --no-linter (new) and --no-eslint (legacy) for backward compatibility
-    const noLinter =
-      args.includes('--no-linter') || args.includes('--no-eslint')
+    const noLinter = args.includes('--no-linter') || args.includes('--no-eslint')
 
     if (!opts.eslint && !opts.biome && !noLinter && !opts.api) {
       if (skipPrompt) {
@@ -437,10 +396,7 @@ async function run(): Promise<void> {
               description: 'Skip linter configuration',
             },
           ],
-          initial:
-            linterIndexMap[
-              getPrefOrDefault('linter') as keyof typeof linterIndexMap
-            ],
+          initial: linterIndexMap[getPrefOrDefault('linter') as keyof typeof linterIndexMap],
         })
 
         opts.eslint = linter === 'eslint'
@@ -465,11 +421,7 @@ async function run(): Promise<void> {
       preferences.eslint = false
     }
 
-    if (
-      !opts.reactCompiler &&
-      !args.includes('--no-react-compiler') &&
-      !opts.api
-    ) {
+    if (!opts.reactCompiler && !args.includes('--no-react-compiler') && !opts.api) {
       if (skipPrompt) {
         opts.reactCompiler = getPrefOrDefault('reactCompiler')
       } else {
@@ -546,10 +498,7 @@ async function run(): Promise<void> {
     }
 
     const importAliasPattern = /^[^*"]+\/\*\s*$/
-    if (
-      typeof opts.importAlias !== 'string' ||
-      !importAliasPattern.test(opts.importAlias)
-    ) {
+    if (typeof opts.importAlias !== 'string' || !importAliasPattern.test(opts.importAlias)) {
       if (skipPrompt) {
         // We don't use preferences here because the default value is @/* regardless of existing preferences
         opts.importAlias = defaults.importAlias
@@ -688,10 +637,7 @@ async function exit(reason: { command?: string }) {
   if (reason.command) {
     console.log(`  ${cyan(reason.command)} has failed.`)
   } else {
-    console.log(
-      red('Unexpected error. Please report it as a bug:') + '\n',
-      reason
-    )
+    console.log(red('Unexpected error. Please report it as a bug:') + '\n', reason)
   }
   console.log()
   await notifyUpdate()

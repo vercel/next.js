@@ -31,8 +31,7 @@ interface HTTPAccessFallbackBoundaryProps {
   missingSlots?: Set<string>
 }
 
-interface HTTPAccessFallbackErrorBoundaryProps
-  extends HTTPAccessFallbackBoundaryProps {
+interface HTTPAccessFallbackErrorBoundaryProps extends HTTPAccessFallbackBoundaryProps {
   pathname: string | null
   missingSlots?: Set<string>
 }
@@ -120,12 +119,9 @@ class HTTPAccessFallbackErrorBoundary extends React.Component<
     }
 
     if (triggeredStatus) {
-      const isNotFound =
-        triggeredStatus === HTTPAccessErrorStatus.NOT_FOUND && notFound
-      const isForbidden =
-        triggeredStatus === HTTPAccessErrorStatus.FORBIDDEN && forbidden
-      const isUnauthorized =
-        triggeredStatus === HTTPAccessErrorStatus.UNAUTHORIZED && unauthorized
+      const isNotFound = triggeredStatus === HTTPAccessErrorStatus.NOT_FOUND && notFound
+      const isForbidden = triggeredStatus === HTTPAccessErrorStatus.FORBIDDEN && forbidden
+      const isUnauthorized = triggeredStatus === HTTPAccessErrorStatus.UNAUTHORIZED && unauthorized
 
       // If there's no matched boundary in this layer, keep throwing the error by rendering the children
       if (!(isNotFound || isForbidden || isUnauthorized)) {

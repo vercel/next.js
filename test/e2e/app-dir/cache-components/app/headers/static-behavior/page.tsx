@@ -25,8 +25,7 @@ async function Component() {
   if (hasHeader) {
     return (
       <div>
-        header{' '}
-        <span id="x-sentinel">{(await headers()).get('x-sentinel')}</span>
+        header <span id="x-sentinel">{(await headers()).get('x-sentinel')}</span>
       </div>
     )
   } else {

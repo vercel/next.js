@@ -37,19 +37,14 @@ function processZodErrorMessage(issue: ZodIssue) {
     path = ''
   }
 
-  if (
-    issue.code === 'invalid_type' &&
-    issue.received === ZodParsedType.undefined
-  ) {
+  if (issue.code === 'invalid_type' && issue.received === ZodParsedType.undefined) {
     // Missing key in object.
     return `${path} is missing, expected ${issue.expected}`
   }
 
   if (issue.code === 'invalid_enum_value') {
     // Remove "Invalid enum value" prefix from zod default error message
-    return `Expected ${util.joinValues(issue.options)}, received '${
-      issue.received
-    }' at ${path}`
+    return `Expected ${util.joinValues(issue.options)}, received '${issue.received}' at ${path}`
   }
 
   return message + (path ? ` at ${path}` : '')

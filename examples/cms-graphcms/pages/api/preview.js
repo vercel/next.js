@@ -3,10 +3,7 @@ import { getPreviewPostBySlug } from "../../lib/graphcms";
 export default async function handler(req, res) {
   // Check the secret and next parameters
   // This secret should only be known to this API route and the CMS
-  if (
-    req.query.secret !== process.env.GRAPHCMS_PREVIEW_SECRET ||
-    !req.query.slug
-  ) {
+  if (req.query.secret !== process.env.GRAPHCMS_PREVIEW_SECRET || !req.query.slug) {
     return res.status(401).json({ message: "Invalid token" });
   }
 

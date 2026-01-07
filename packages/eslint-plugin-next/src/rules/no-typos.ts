@@ -1,11 +1,7 @@
 import { defineRule } from '../utils/define-rule'
 import * as path from 'path'
 
-const NEXT_EXPORT_FUNCTIONS = [
-  'getStaticProps',
-  'getStaticPaths',
-  'getServerSideProps',
-]
+const NEXT_EXPORT_FUNCTIONS = ['getStaticProps', 'getStaticPaths', 'getServerSideProps']
 
 // 0 is the exact match
 const THRESHOLD = 1

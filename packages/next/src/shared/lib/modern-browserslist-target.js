@@ -5,11 +5,6 @@
  * These are the minimum browser versions that we consider "modern" and thus compile for by default.
  * This list was generated using `pnpm browserslist "baseline widely available"` on 2025-10-01.
  */
-const MODERN_BROWSERSLIST_TARGET = [
-  'chrome 111',
-  'edge 111',
-  'firefox 111',
-  'safari 16.4',
-]
+const MODERN_BROWSERSLIST_TARGET = ['chrome 111', 'edge 111', 'firefox 111', 'safari 16.4']
 
 module.exports = MODERN_BROWSERSLIST_TARGET

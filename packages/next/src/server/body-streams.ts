@@ -20,10 +20,7 @@ export function requestToBodyStream(
   })
 }
 
-function replaceRequestBody<T extends IncomingMessage>(
-  base: T,
-  stream: Readable
-): T {
+function replaceRequestBody<T extends IncomingMessage>(base: T, stream: Readable): T {
   for (const key in stream) {
     let v = stream[key as keyof Readable] as any
     if (typeof v === 'function') {
@@ -46,12 +43,10 @@ export function getCloneableBody<T extends IncomingMessage>(
 ): CloneableBody {
   let buffered: Readable | null = null
 
-  const endPromise = new Promise<void | { error?: unknown }>(
-    (resolve, reject) => {
-      readable.on('end', resolve)
-      readable.on('error', reject)
-    }
-  ).catch((error) => {
+  const endPromise = new Promise<void | { error?: unknown }>((resolve, reject) => {
+    readable.on('end', resolve)
+    readable.on('error', reject)
+  }).catch((error) => {
     return { error }
   })
 

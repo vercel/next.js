@@ -14,8 +14,7 @@ const formatSlug =
     }
 
     if (operation === "create") {
-      const fallbackData =
-        (data && data[fallback]) || (originalDoc && originalDoc[fallback]);
+      const fallbackData = (data && data[fallback]) || (originalDoc && originalDoc[fallback]);
 
       if (fallbackData && typeof fallbackData === "string") {
         return format(fallbackData);

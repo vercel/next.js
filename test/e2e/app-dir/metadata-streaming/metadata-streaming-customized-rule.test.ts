@@ -42,9 +42,7 @@ describe('app-dir - metadata-streaming-customized-rule', () => {
 
   if (isNextDev) {
     it('should not have schema issue', () => {
-      expect(next.cliOutput).not.toContain(
-        'Invalid next.config.js options detected'
-      )
+      expect(next.cliOutput).not.toContain('Invalid next.config.js options detected')
     })
   }
 })

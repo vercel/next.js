@@ -1,8 +1,8 @@
 {
   "name": "partytown",
   "version": "1.0.0",
-  "main": "index.js",
   "license": "MIT",
+  "main": "index.js",
   "dependencies": {
     "@builder.io/partytown": "0.4.2"
   }

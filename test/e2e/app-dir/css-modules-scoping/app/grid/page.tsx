@@ -5,10 +5,7 @@ export default function Page() {
       <div id="header" className={`${styles['grid-item']} ${styles['header']}`}>
         Header
       </div>
-      <div
-        id="sidebar"
-        className={`${styles['grid-item']} ${styles['sidebar']}`}
-      >
+      <div id="sidebar" className={`${styles['grid-item']} ${styles['sidebar']}`}>
         Sidebar
       </div>
       <div id="main" className={`${styles['grid-item']} ${styles['main']}`}>

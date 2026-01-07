@@ -30,10 +30,7 @@ export interface DebugBuildPaths {
  * Check if a file path matches any of the debug build paths.
  * Both filePath and debugPaths are resolved file paths from glob.
  */
-function fileMatchesDebugPaths(
-  filePath: string,
-  debugPaths: string[]
-): boolean {
+function fileMatchesDebugPaths(filePath: string, debugPaths: string[]): boolean {
   return debugPaths.includes(filePath)
 }
 
@@ -48,10 +45,7 @@ export async function runTypeCheck(
   dirs?: TypeCheckDirs,
   debugBuildPaths?: DebugBuildPaths
 ): Promise<TypeCheckResult> {
-  const effectiveConfiguration = await getTypeScriptConfiguration(
-    typescript,
-    tsConfigPath
-  )
+  const effectiveConfiguration = await getTypeScriptConfiguration(typescript, tsConfigPath)
 
   // When isolatedDevBuild is enabled, tsconfig includes both .next/types and
   // .next/dev/types to avoid config churn between dev/build modes. During build,
@@ -59,20 +53,12 @@ export async function runTypeCheck(
   // errors when routes have been deleted since the last dev session.
   let fileNames = effectiveConfiguration.fileNames
   const resolvedIsolatedDevBuild =
-    isolatedDevBuild === undefined
-      ? defaultConfig.experimental.isolatedDevBuild
-      : isolatedDevBuild
+    isolatedDevBuild === undefined ? defaultConfig.experimental.isolatedDevBuild : isolatedDevBuild
 
   // Get the dev types path to filter (null if not applicable)
-  const devTypesDir = getDevTypesPath(
-    baseDir,
-    distDir,
-    resolvedIsolatedDevBuild
-  )
+  const devTypesDir = getDevTypesPath(baseDir, distDir, resolvedIsolatedDevBuild)
   if (devTypesDir) {
-    fileNames = fileNames.filter(
-      (fileName) => !fileName.startsWith(devTypesDir)
-    )
+    fileNames = fileNames.filter((fileName) => !fileName.startsWith(devTypesDir))
   }
 
   // Apply debug build paths filter if specified
@@ -134,9 +120,7 @@ export async function runTypeCheck(
     noEmit: true,
   }
 
-  let program:
-    | import('typescript').Program
-    | import('typescript').BuilderProgram
+  let program: import('typescript').Program | import('typescript').BuilderProgram
   let incremental = false
   if ((options.incremental || options.composite) && cacheDir) {
     if (options.composite) {
@@ -166,9 +150,7 @@ export async function runTypeCheck(
     // matches **/*.(spec|test).*
     /(?<=[\\/.])(?:spec|test)\.[^\\/]+$/,
   ]
-  const regexIgnoredFile = new RegExp(
-    ignoreRegex.map((r) => r.source).join('|')
-  )
+  const regexIgnoredFile = new RegExp(ignoreRegex.map((r) => r.source).join('|'))
 
   const allDiagnostics = typescript
     .getPreEmitDiagnostics(program as import('typescript').Program)
@@ -177,12 +159,8 @@ export async function runTypeCheck(
 
   const firstError =
     allDiagnostics.find(
-      (d) =>
-        d.category === typescript.DiagnosticCategory.Error && Boolean(d.file)
-    ) ??
-    allDiagnostics.find(
-      (d) => d.category === typescript.DiagnosticCategory.Error
-    )
+      (d) => d.category === typescript.DiagnosticCategory.Error && Boolean(d.file)
+    ) ?? allDiagnostics.find((d) => d.category === typescript.DiagnosticCategory.Error)
 
   // In test mode, we want to check all diagnostics, not just the first one.
   if (process.env.__NEXT_TEST_MODE) {
@@ -192,19 +170,11 @@ export async function runTypeCheck(
         .map(
           (d) =>
             '[Test Mode] ' +
-            getFormattedDiagnostic(
-              typescript,
-              baseDir,
-              distDir,
-              d,
-              isAppDirEnabled
-            )
+            getFormattedDiagnostic(typescript, baseDir, distDir, d, isAppDirEnabled)
         )
 
       console.error(
-        '\n\n===== TS errors =====\n\n' +
-          allErrors.join('\n\n') +
-          '\n\n===== TS errors =====\n\n'
+        '\n\n===== TS errors =====\n\n' + allErrors.join('\n\n') + '\n\n===== TS errors =====\n\n'
       )
 
       // Make sure all stdout is flushed before we exit.
@@ -214,21 +184,13 @@ export async function runTypeCheck(
 
   if (firstError) {
     throw new CompileError(
-      getFormattedDiagnostic(
-        typescript,
-        baseDir,
-        distDir,
-        firstError,
-        isAppDirEnabled
-      )
+      getFormattedDiagnostic(typescript, baseDir, distDir, firstError, isAppDirEnabled)
     )
   }
 
   const warnings = allDiagnostics
     .filter((d) => d.category === typescript.DiagnosticCategory.Warning)
-    .map((d) =>
-      getFormattedDiagnostic(typescript, baseDir, distDir, d, isAppDirEnabled)
-    )
+    .map((d) => getFormattedDiagnostic(typescript, baseDir, distDir, d, isAppDirEnabled))
 
   return {
     hasWarnings: true,

@@ -89,9 +89,7 @@ describe('Client navigation scroll', () => {
 
   it('should scroll to top when the scroll option is set to true', async () => {
     const browser = await next.browser('/nav/shallow-routing')
-    await browser.eval(() =>
-      document.querySelector('#increaseWithScroll').scrollIntoView()
-    )
+    await browser.eval(() => document.querySelector('#increaseWithScroll').scrollIntoView())
     const scrollPosition = await browser.eval('window.pageYOffset')
 
     expect(scrollPosition).toBeGreaterThan(3000)

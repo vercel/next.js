@@ -47,9 +47,7 @@ describe('Trace', () => {
       // Check that the serialized .next/trace file looks correct.
       await flushAllTraces()
       const traceFilename = join(tmpDir, 'trace')
-      const serializedTraces = JSON.parse(
-        await readFile(traceFilename, 'utf-8')
-      )
+      const serializedTraces = JSON.parse(await readFile(traceFilename, 'utf-8'))
       expect(serializedTraces).toMatchObject([
         {
           id: 2,

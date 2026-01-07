@@ -20,17 +20,9 @@ describe('standalone mode - tracing-side-effects-false', () => {
 
     let trace = await next.readJSON('.next/server/app/page.js.nft.json')
 
-    expect(trace.files).toContainEqual(
-      expect.stringMatching(/node_modules\/foo\/index\.js$/)
-    )
-    expect(trace.files).toContainEqual(
-      expect.stringMatching(/node_modules\/foo\/package\.json$/)
-    )
-    expect(trace.files).toContainEqual(
-      expect.stringMatching(/node_modules\/foo\/side-effect\.js$/)
-    )
-    expect(trace.files).toContainEqual(
-      expect.stringMatching(/node_modules\/foo\/value\.js$/)
-    )
+    expect(trace.files).toContainEqual(expect.stringMatching(/node_modules\/foo\/index\.js$/))
+    expect(trace.files).toContainEqual(expect.stringMatching(/node_modules\/foo\/package\.json$/))
+    expect(trace.files).toContainEqual(expect.stringMatching(/node_modules\/foo\/side-effect\.js$/))
+    expect(trace.files).toContainEqual(expect.stringMatching(/node_modules\/foo\/value\.js$/))
   })
 })

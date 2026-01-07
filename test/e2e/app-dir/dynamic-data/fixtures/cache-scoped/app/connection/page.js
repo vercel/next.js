@@ -8,8 +8,8 @@ export default async function Page(props) {
   return (
     <div>
       <section>
-        This example uses `connection()` inside `unstable_cache` which should
-        cause the build to fail
+        This example uses `connection()` inside `unstable_cache` which should cause the build to
+        fail
       </section>
     </div>
   )

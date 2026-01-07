@@ -24,9 +24,7 @@ describe.each([
 
     it('should render the page', async () => {
       const browser = await next.browser('/')
-      expect(
-        await browser.elementByCss('#nm-div').getComputedCss('color')
-      ).toBe(colorToRgb('red'))
+      expect(await browser.elementByCss('#nm-div').getComputedCss('color')).toBe(colorToRgb('red'))
     })
   }
 )

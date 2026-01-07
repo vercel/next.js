@@ -52,17 +52,10 @@ export function build() {
   buildNext('2')
 }
 
-export async function start(
-  mainPort = 3000,
-  nextPort1 = mainPort + 1,
-  nextPort2 = mainPort + 2
-) {
+export async function start(mainPort = 3000, nextPort1 = mainPort + 1, nextPort2 = mainPort + 2) {
   // Start two different Next.js servers, one with BUILD_ID=1 and one
   // with BUILD_ID=2
-  const [next1, next2] = await Promise.all([
-    spawnNext('1', nextPort1),
-    spawnNext('2', nextPort2),
-  ])
+  const [next1, next2] = await Promise.all([spawnNext('1', nextPort1), spawnNext('2', nextPort2)])
 
   // Create a proxy server. If search params include `deployment=2`, proxy to
   // to the second next server. Otherwise, proxy to the first.

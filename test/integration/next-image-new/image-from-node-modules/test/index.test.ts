@@ -1,11 +1,5 @@
 /* eslint-env jest */
-import {
-  killApp,
-  findPort,
-  nextStart,
-  nextBuild,
-  launchApp,
-} from 'next-test-utils'
+import { killApp, findPort, nextStart, nextBuild, launchApp } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
@@ -16,14 +10,10 @@ let app
 function runTests(getOutput: () => string) {
   it('should apply image config for node_modules', async () => {
     const browser = await webdriver(appPort, '/')
-    const src = await browser
-      .elementById('image-from-node-modules')
-      .getAttribute('src')
+    const src = await browser.elementById('image-from-node-modules').getAttribute('src')
     expect(src).toMatch('i.imgur.com')
 
-    const srcset = await browser
-      .elementById('image-from-node-modules')
-      .getAttribute('srcset')
+    const srcset = await browser.elementById('image-from-node-modules').getAttribute('srcset')
     expect(srcset).toMatch('1234')
   })
 
@@ -35,26 +25,23 @@ function runTests(getOutput: () => string) {
 }
 
 describe('Image Component from node_modules prod mode', () => {
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      let output = ''
-      beforeAll(async () => {
-        const result = await nextBuild(appDir, [], {
-          stderr: true,
-          stdout: true,
-        })
-        output = (result.stderr ?? '') + (result.stdout ?? '')
-        appPort = await findPort()
-        app = await nextStart(appDir, appPort)
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
+    let output = ''
+    beforeAll(async () => {
+      const result = await nextBuild(appDir, [], {
+        stderr: true,
+        stdout: true,
       })
-      afterAll(async () => {
-        await killApp(app)
-      })
+      output = (result.stderr ?? '') + (result.stdout ?? '')
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+    })
 
-      runTests(() => output)
-    }
-  )
+    runTests(() => output)
+  })
 })
 
 describe('Image Component from node_modules development mode', () => {

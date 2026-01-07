@@ -1,8 +1,5 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
-import {
-  BARREL_OPTIMIZATION_PREFIX,
-  RSC_MODULE_TYPES,
-} from '../../../shared/lib/constants'
+import { BARREL_OPTIMIZATION_PREFIX, RSC_MODULE_TYPES } from '../../../shared/lib/constants'
 import { getModuleBuildInfo } from './get-module-build-info'
 import { regexCSS } from './utils'
 
@@ -41,9 +38,7 @@ export default function transformSource(
     .filter(({ request }) => (isServer ? !regexCSS.test(request) : true))
     .map(({ request, ids }: FlightClientEntryModuleItem) => {
       const importPath = JSON.stringify(
-        request.startsWith(BARREL_OPTIMIZATION_PREFIX)
-          ? request.replace(':', '!=!')
-          : request
+        request.startsWith(BARREL_OPTIMIZATION_PREFIX) ? request.replace(':', '!=!') : request
       )
 
       // When we cannot determine the export names, we use eager mode to include the whole module.

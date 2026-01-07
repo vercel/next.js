@@ -8,15 +8,11 @@ describe('parseUrlFromText', () => {
 
   it('should extract multiple URLs from text', () => {
     const text = 'Visit https://react.dev and https://vercel.com'
-    expect(parseUrlFromText(text)).toEqual([
-      'https://react.dev',
-      'https://vercel.com',
-    ])
+    expect(parseUrlFromText(text)).toEqual(['https://react.dev', 'https://vercel.com'])
   })
 
   it('should handle URLs with paths and query parameters', () => {
-    const text =
-      'Link: https://nextjs.org/docs/getting-started?query=123#fragment'
+    const text = 'Link: https://nextjs.org/docs/getting-started?query=123#fragment'
     expect(parseUrlFromText(text)).toEqual([
       'https://nextjs.org/docs/getting-started?query=123#fragment',
     ])

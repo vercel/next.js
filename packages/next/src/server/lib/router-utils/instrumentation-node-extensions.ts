@@ -55,9 +55,7 @@ function extendTracerProviderForCacheComponents(): void {
     }
     const originalStartSpan = tracer.startSpan
     tracer.startSpan = (...startSpanArgs) => {
-      return workUnitAsyncStorage.exit(() =>
-        originalStartSpan.apply(tracer, startSpanArgs)
-      )
+      return workUnitAsyncStorage.exit(() => originalStartSpan.apply(tracer, startSpanArgs))
     }
 
     const originalStartActiveSpan = tracer.startActiveSpan
@@ -70,20 +68,11 @@ function extendTracerProviderForCacheComponents(): void {
       }
 
       let fnIdx: number = 0
-      if (
-        startActiveSpanArgs.length === 2 &&
-        typeof startActiveSpanArgs[1] === 'function'
-      ) {
+      if (startActiveSpanArgs.length === 2 && typeof startActiveSpanArgs[1] === 'function') {
         fnIdx = 1
-      } else if (
-        startActiveSpanArgs.length === 3 &&
-        typeof startActiveSpanArgs[2] === 'function'
-      ) {
+      } else if (startActiveSpanArgs.length === 3 && typeof startActiveSpanArgs[2] === 'function') {
         fnIdx = 2
-      } else if (
-        startActiveSpanArgs.length > 3 &&
-        typeof startActiveSpanArgs[3] === 'function'
-      ) {
+      } else if (startActiveSpanArgs.length > 3 && typeof startActiveSpanArgs[3] === 'function') {
         fnIdx = 3
       }
 
@@ -94,10 +83,7 @@ function extendTracerProviderForCacheComponents(): void {
             'A Cache Function (`use cache`) was passed to startActiveSpan which means it will receive a Span argument with a possibly random ID on every invocation leading to cache misses. Provide a wrapping function around the Cache Function that does not forward the Span argument to avoid this issue.'
           )
         }
-        startActiveSpanArgs[fnIdx] = withWorkUnitContext(
-          workUnitStore,
-          originalFn
-        )
+        startActiveSpanArgs[fnIdx] = withWorkUnitContext(workUnitStore, originalFn)
       }
 
       return workUnitAsyncStorage.exit(() => {
@@ -113,10 +99,6 @@ function extendTracerProviderForCacheComponents(): void {
 
 const WeakTracers = new WeakSet<Tracer>()
 
-function withWorkUnitContext(
-  workUnitStore: WorkUnitStore,
-  fn: (...args: any[]) => any
-) {
-  return (...args: any[]) =>
-    workUnitAsyncStorage.run(workUnitStore, fn, ...args)
+function withWorkUnitContext(workUnitStore: WorkUnitStore, fn: (...args: any[]) => any) {
+  return (...args: any[]) => workUnitAsyncStorage.run(workUnitStore, fn, ...args)
 }

@@ -19,12 +19,9 @@ export async function generateStaticParams() {
 }
 
 export default async function Page({ params: { timezone } }) {
-  const data = await fetch(
-    `https://worldtimeapi.org/api/timezone/${timezone}`,
-    {
-      next: { tags: ["time-data"] },
-    },
-  );
+  const data = await fetch(`https://worldtimeapi.org/api/timezone/${timezone}`, {
+    next: { tags: ["time-data"] },
+  });
 
   if (!data.ok) {
     notFound();
@@ -46,10 +43,7 @@ export default async function Page({ params: { timezone } }) {
           {timeData.timezone} Time {timeData.datetime}
         </div>
         <Suspense fallback={null}>
-          <CacheStateWatcher
-            revalidateAfter={revalidate * 1000}
-            time={timeData.unixtime * 1000}
-          />
+          <CacheStateWatcher revalidateAfter={revalidate * 1000} time={timeData.unixtime * 1000} />
         </Suspense>
         <RevalidateFrom />
       </main>

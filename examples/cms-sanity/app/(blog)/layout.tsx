@@ -2,11 +2,7 @@ import "../globals.css";
 
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import type { Metadata } from "next";
-import {
-  VisualEditing,
-  toPlainText,
-  type PortableTextBlock,
-} from "next-sanity";
+import { VisualEditing, toPlainText, type PortableTextBlock } from "next-sanity";
 import { Inter } from "next/font/google";
 import { draftMode } from "next/headers";
 
@@ -55,11 +51,7 @@ const inter = Inter({
   display: "swap",
 });
 
-export default async function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const data = await sanityFetch({ query: settingsQuery });
   const footer = data?.footer || [];
   const { isEnabled: isDraftMode } = await draftMode();

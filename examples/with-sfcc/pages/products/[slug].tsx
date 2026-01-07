@@ -20,9 +20,7 @@ export default function Product({ product }) {
             <h1 className="mt-3 text-4xl font-bold text-gray-500 sm:text-3xl sm:tracking-tight lg:text-3xl">
               ${product.price}
             </h1>
-            <div className="mt-10 mb-5 border-t border-gray-200 pt-10 font-bold">
-              Description
-            </div>
+            <div className="mt-10 mb-5 border-t border-gray-200 pt-10 font-bold">Description</div>
             <p className="max-w-xl">{product.longDescription}</p>
           </div>
         </div>

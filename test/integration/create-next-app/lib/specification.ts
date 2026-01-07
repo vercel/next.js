@@ -24,28 +24,13 @@ export type ProjectSpecification = {
  */
 export const projectSpecification: ProjectSpecification = {
   global: {
-    files: [
-      'package.json',
-      'eslint.config.mjs',
-      'node_modules/next',
-      '.gitignore',
-    ],
-    deps: [
-      'next',
-      'react',
-      'react-dom',
-      ...(process.env.NEXT_RSPACK ? ['next-rspack'] : []),
-    ],
+    files: ['package.json', 'eslint.config.mjs', 'node_modules/next', '.gitignore'],
+    deps: ['next', 'react', 'react-dom', ...(process.env.NEXT_RSPACK ? ['next-rspack'] : [])],
     devDeps: ['eslint', 'eslint-config-next'],
   },
   default: {
     js: {
-      files: [
-        'pages/index.js',
-        'pages/_app.js',
-        'pages/api/hello.js',
-        'jsconfig.json',
-      ],
+      files: ['pages/index.js', 'pages/_app.js', 'pages/api/hello.js', 'jsconfig.json'],
       deps: [],
       devDeps: [],
     },
@@ -58,12 +43,7 @@ export const projectSpecification: ProjectSpecification = {
         'next-env.d.ts',
       ],
       deps: [],
-      devDeps: [
-        '@types/node',
-        '@types/react',
-        '@types/react-dom',
-        'typescript',
-      ],
+      devDeps: ['@types/node', '@types/react', '@types/react-dom', 'typescript'],
     },
   },
   'default-empty': {
@@ -73,19 +53,9 @@ export const projectSpecification: ProjectSpecification = {
       devDeps: [],
     },
     ts: {
-      files: [
-        'pages/index.tsx',
-        'pages/_app.tsx',
-        'tsconfig.json',
-        'next-env.d.ts',
-      ],
+      files: ['pages/index.tsx', 'pages/_app.tsx', 'tsconfig.json', 'next-env.d.ts'],
       deps: [],
-      devDeps: [
-        '@types/node',
-        '@types/react',
-        '@types/react-dom',
-        'typescript',
-      ],
+      devDeps: ['@types/node', '@types/react', '@types/react-dom', 'typescript'],
     },
   },
   'default-tw': {
@@ -122,12 +92,7 @@ export const projectSpecification: ProjectSpecification = {
   },
   'default-tw-empty': {
     js: {
-      files: [
-        'jsconfig.json',
-        'pages/_app.js',
-        'pages/index.js',
-        'postcss.config.mjs',
-      ],
+      files: ['jsconfig.json', 'pages/_app.js', 'pages/index.js', 'postcss.config.mjs'],
       deps: [],
       devDeps: ['@tailwindcss/postcss', 'tailwindcss'],
     },
@@ -158,18 +123,8 @@ export const projectSpecification: ProjectSpecification = {
     },
     ts: {
       deps: [],
-      devDeps: [
-        '@types/node',
-        '@types/react',
-        '@types/react-dom',
-        'typescript',
-      ],
-      files: [
-        'app/page.tsx',
-        'app/layout.tsx',
-        'tsconfig.json',
-        'next-env.d.ts',
-      ],
+      devDeps: ['@types/node', '@types/react', '@types/react-dom', 'typescript'],
+      files: ['app/page.tsx', 'app/layout.tsx', 'tsconfig.json', 'next-env.d.ts'],
     },
   },
   'app-api': {
@@ -181,12 +136,7 @@ export const projectSpecification: ProjectSpecification = {
     ts: {
       deps: ['next', ...(process.env.NEXT_RSPACK ? ['next-rspack'] : [])],
       devDeps: ['@types/node', '@types/react', 'typescript'],
-      files: [
-        'app/route.ts',
-        'app/[slug]/route.ts',
-        'tsconfig.json',
-        'next-env.d.ts',
-      ],
+      files: ['app/route.ts', 'app/[slug]/route.ts', 'tsconfig.json', 'next-env.d.ts'],
     },
   },
   'app-empty': {
@@ -197,30 +147,15 @@ export const projectSpecification: ProjectSpecification = {
     },
     ts: {
       deps: [],
-      devDeps: [
-        '@types/node',
-        '@types/react',
-        '@types/react-dom',
-        'typescript',
-      ],
-      files: [
-        'app/page.tsx',
-        'app/layout.tsx',
-        'tsconfig.json',
-        'next-env.d.ts',
-      ],
+      devDeps: ['@types/node', '@types/react', '@types/react-dom', 'typescript'],
+      files: ['app/page.tsx', 'app/layout.tsx', 'tsconfig.json', 'next-env.d.ts'],
     },
   },
   'app-tw': {
     js: {
       deps: [],
       devDeps: ['@tailwindcss/postcss', 'tailwindcss'],
-      files: [
-        'app/layout.js',
-        'app/page.js',
-        'jsconfig.json',
-        'postcss.config.mjs',
-      ],
+      files: ['app/layout.js', 'app/page.js', 'jsconfig.json', 'postcss.config.mjs'],
     },
     ts: {
       deps: [],
@@ -245,12 +180,7 @@ export const projectSpecification: ProjectSpecification = {
     js: {
       deps: [],
       devDeps: ['@tailwindcss/postcss', 'tailwindcss'],
-      files: [
-        'app/layout.js',
-        'app/page.js',
-        'jsconfig.json',
-        'postcss.config.mjs',
-      ],
+      files: ['app/layout.js', 'app/page.js', 'jsconfig.json', 'postcss.config.mjs'],
     },
     ts: {
       deps: [],
@@ -282,17 +212,10 @@ export type GetProjectSettingsArgs = {
 
 export const mapSrcFiles = (files: string[], srcDir?: boolean) =>
   files.map((file) =>
-    srcDir && SRC_DIR_NAMES.some((name) => file.startsWith(name))
-      ? path.join('src', file)
-      : file
+    srcDir && SRC_DIR_NAMES.some((name) => file.startsWith(name)) ? path.join('src', file) : file
   )
 
-export const getProjectSetting = ({
-  template,
-  mode,
-  setting,
-  srcDir,
-}: GetProjectSettingsArgs) => {
+export const getProjectSetting = ({ template, mode, setting, srcDir }: GetProjectSettingsArgs) => {
   return [
     ...projectSpecification.global[setting],
     ...mapSrcFiles(projectSpecification[template][mode][setting], srcDir),

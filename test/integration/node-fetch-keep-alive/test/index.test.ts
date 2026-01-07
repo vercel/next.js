@@ -2,14 +2,7 @@
 
 import { join } from 'path'
 import { createServer } from 'http'
-import {
-  fetchViaHTTP,
-  nextBuild,
-  findPort,
-  nextStart,
-  launchApp,
-  killApp,
-} from 'next-test-utils'
+import { fetchViaHTTP, nextBuild, findPort, nextStart, launchApp, killApp } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 
 const appDir = join(__dirname, '../')
@@ -38,34 +31,31 @@ describe('node-fetch-keep-alive', () => {
 
     runTests()
   })
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      beforeAll(async () => {
-        mockServer = createServer((req, res) => {
-          // we can test request headers by sending them
-          // back with the response
-          const { connection } = req.headers
-          res.end(JSON.stringify({ connection }))
-        })
-        mockServer.listen(44001)
-        const { stdout, stderr } = await nextBuild(appDir, [], {
-          stdout: true,
-          stderr: true,
-        })
-        if (stdout) console.log(stdout)
-        if (stderr) console.error(stderr)
-        appPort = await findPort()
-        app = await nextStart(appDir, appPort)
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
+    beforeAll(async () => {
+      mockServer = createServer((req, res) => {
+        // we can test request headers by sending them
+        // back with the response
+        const { connection } = req.headers
+        res.end(JSON.stringify({ connection }))
       })
-      afterAll(async () => {
-        await killApp(app)
-        mockServer.close()
+      mockServer.listen(44001)
+      const { stdout, stderr } = await nextBuild(appDir, [], {
+        stdout: true,
+        stderr: true,
       })
+      if (stdout) console.log(stdout)
+      if (stderr) console.error(stderr)
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+      mockServer.close()
+    })
 
-      runTests()
-    }
-  )
+    runTests()
+  })
 
   function runTests() {
     it('should send keep-alive for json API', async () => {

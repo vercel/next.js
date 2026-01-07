@@ -33,14 +33,10 @@ export function getServerActionRequestMetadata(
     req.method === 'POST' && contentType?.startsWith('multipart/form-data')
   )
   const isFetchAction = Boolean(
-    actionId !== undefined &&
-      typeof actionId === 'string' &&
-      req.method === 'POST'
+    actionId !== undefined && typeof actionId === 'string' && req.method === 'POST'
   )
 
-  const isPossibleServerAction = Boolean(
-    isFetchAction || isURLEncodedAction || isMultipartAction
-  )
+  const isPossibleServerAction = Boolean(isFetchAction || isURLEncodedAction || isMultipartAction)
 
   return {
     actionId,

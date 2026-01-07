@@ -10,11 +10,7 @@ module.exports = {
     ];
   },
   redirects() {
-    const sourcesRequiringAuthToken = [
-      "/",
-      "/landing-page/:slug*",
-      "/blog/:path*",
-    ];
+    const sourcesRequiringAuthToken = ["/", "/landing-page/:slug*", "/blog/:path*"];
 
     return process.env.NEXT_PUBLIC_BUTTER_CMS_API_KEY
       ? [

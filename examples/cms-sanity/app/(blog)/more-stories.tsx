@@ -7,10 +7,7 @@ import DateComponent from "./date";
 import { sanityFetch } from "@/sanity/lib/fetch";
 import { moreStoriesQuery } from "@/sanity/lib/queries";
 
-export default async function MoreStories(params: {
-  skip: string;
-  limit: number;
-}) {
+export default async function MoreStories(params: { skip: string; limit: number }) {
   const data = await sanityFetch({ query: moreStoriesQuery, params });
 
   return (
@@ -31,11 +28,7 @@ export default async function MoreStories(params: {
               <div className="mb-4 text-lg">
                 <DateComponent dateString={post.date} />
               </div>
-              {excerpt && (
-                <p className="text-pretty mb-4 text-lg leading-relaxed">
-                  {excerpt}
-                </p>
-              )}
+              {excerpt && <p className="text-pretty mb-4 text-lg leading-relaxed">{excerpt}</p>}
               {author && <Avatar name={author.name} picture={author.picture} />}
             </article>
           );

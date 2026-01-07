@@ -3,9 +3,9 @@ import { revalidate } from './actions'
 import { connection } from 'next/server'
 
 async function Random({ cached }: { cached?: boolean }) {
-  const data = await fetch(
-    'https://next-data-api-endpoint.vercel.app/api/random'
-  ).then((res) => res.text())
+  const data = await fetch('https://next-data-api-endpoint.vercel.app/api/random').then((res) =>
+    res.text()
+  )
 
   return (
     <>

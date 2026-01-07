@@ -6,8 +6,8 @@
     "start": "next start"
   },
   "dependencies": {
-    "graphql-yoga": "^3.2.1",
     "graphql": "^16.5.0",
+    "graphql-yoga": "^3.2.1",
     "next": "latest",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

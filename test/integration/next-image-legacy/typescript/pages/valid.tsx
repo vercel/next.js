@@ -80,11 +80,7 @@ const Page = () => {
         blurDataURL="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs="
       />
       <Image id="no-width-and-height" src={testTall} />
-      <Image
-        id="object-src-with-placeholder"
-        src={testTall}
-        placeholder="blur"
-      />
+      <Image id="object-src-with-placeholder" src={testTall} placeholder="blur" />
       <Image id="object-src-with-svg" src={svg} />
       <Image id="object-src-with-avif" src={avif} />
       <Image
@@ -94,10 +90,7 @@ const Page = () => {
         width={100}
         height={100}
       />
-      <ImageCard
-        id="image-card"
-        src="https://image-optimization-test.vercel.app/test.jpg"
-      />
+      <ImageCard id="image-card" src="https://image-optimization-test.vercel.app/test.jpg" />
       <DynamicSrcImage
         id="dynamic-src"
         src="https://image-optimization-test.vercel.app/test.jpg"

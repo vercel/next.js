@@ -17,9 +17,6 @@ MyDocument.getInitialProps = async (context) => {
 
   return {
     ...initialProps,
-    head: [
-      ...(initialProps?.head ?? []),
-      <meta name="test-head-initial-props" content="hello" />,
-    ],
+    head: [...(initialProps?.head ?? []), <meta name="test-head-initial-props" content="hello" />],
   }
 }

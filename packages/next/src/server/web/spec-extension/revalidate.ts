@@ -3,10 +3,7 @@ import {
   postponeWithTracking,
 } from '../../app-render/dynamic-rendering'
 import { isDynamicRoute } from '../../../shared/lib/router/utils'
-import {
-  NEXT_CACHE_IMPLICIT_TAG_ID,
-  NEXT_CACHE_SOFT_TAG_MAX_LENGTH,
-} from '../../../lib/constants'
+import { NEXT_CACHE_IMPLICIT_TAG_ID, NEXT_CACHE_SOFT_TAG_MAX_LENGTH } from '../../../lib/constants'
 import { workAsyncStorage } from '../../app-render/work-async-storage.external'
 import { workUnitAsyncStorage } from '../../app-render/work-unit-async-storage.external'
 import { DynamicServerError } from '../../../client/components/hooks-server-context'
@@ -65,11 +62,7 @@ export function refresh() {
   const workStore = workAsyncStorage.getStore()
   const workUnitStore = workUnitAsyncStorage.getStore()
 
-  if (
-    !workStore ||
-    workStore.page.endsWith('/route') ||
-    workUnitStore?.phase !== 'action'
-  ) {
+  if (!workStore || workStore.page.endsWith('/route') || workUnitStore?.phase !== 'action') {
     throw new Error(
       'refresh can only be called from within a Server Action. ' +
         'See more info here: https://nextjs.org/docs/app/api-reference/functions/refresh'
@@ -116,16 +109,10 @@ export function revalidatePath(originalPath: string, type?: 'layout' | 'page') {
   return revalidate(tags, `revalidatePath ${originalPath}`)
 }
 
-function revalidate(
-  tags: string[],
-  expression: string,
-  profile?: string | CacheLifeConfig
-) {
+function revalidate(tags: string[], expression: string, profile?: string | CacheLifeConfig) {
   const store = workAsyncStorage.getStore()
   if (!store || !store.incrementalCache) {
-    throw new Error(
-      `Invariant: static generation store missing in ${expression}`
-    )
+    throw new Error(`Invariant: static generation store missing in ${expression}`)
   }
 
   const workUnitStore = workUnitAsyncStorage.getStore()
@@ -163,11 +150,7 @@ function revalidate(
           `${expression} must not be used within a client component. Next.js should be preventing ${expression} from being included in client components statically, but did not in this case.`
         )
       case 'prerender-ppr':
-        return postponeWithTracking(
-          store.route,
-          expression,
-          workUnitStore.dynamicTracking
-        )
+        return postponeWithTracking(store.route, expression, workUnitStore.dynamicTracking)
       case 'prerender-legacy':
         workUnitStore.revalidate = 0
 
@@ -223,9 +206,7 @@ function revalidate(
   const cacheLife =
     profile && typeof profile === 'object'
       ? profile
-      : profile &&
-          typeof profile === 'string' &&
-          store?.cacheLifeProfiles?.[profile]
+      : profile && typeof profile === 'string' && store?.cacheLifeProfiles?.[profile]
         ? store.cacheLifeProfiles[profile]
         : undefined
 

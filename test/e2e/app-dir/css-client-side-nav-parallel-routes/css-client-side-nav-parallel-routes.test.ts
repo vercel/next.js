@@ -13,12 +13,12 @@ describe('css-client-side-nav-parallel-routes', () => {
 
     // transition might not be instant so we wrap in retry
     retry(async () => {
-      expect(
-        await browser.elementByCss('#global').getComputedCss('background-color')
-      ).toBe('rgb(0, 255, 0)')
-      expect(
-        await browser.elementByCss('#module').getComputedCss('background-color')
-      ).toBe('rgb(0, 255, 0)')
+      expect(await browser.elementByCss('#global').getComputedCss('background-color')).toBe(
+        'rgb(0, 255, 0)'
+      )
+      expect(await browser.elementByCss('#module').getComputedCss('background-color')).toBe(
+        'rgb(0, 255, 0)'
+      )
     })
   })
 })

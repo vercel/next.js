@@ -2,14 +2,7 @@
 
 import fs from 'fs-extra'
 import { join } from 'path'
-import {
-  launchApp,
-  killApp,
-  findPort,
-  nextBuild,
-  nextStart,
-  renderViaHTTP,
-} from 'next-test-utils'
+import { launchApp, killApp, findPort, nextBuild, nextStart, renderViaHTTP } from 'next-test-utils'
 
 let appDir = join(__dirname, '..')
 let buildId
@@ -23,11 +16,7 @@ const runTests = () => {
   })
 
   it('should rewrite to /_next/static correctly', async () => {
-    const bundlePath = await join(
-      '/docs/_next/static/',
-      buildId,
-      '_buildManifest.js'
-    )
+    const bundlePath = await join('/docs/_next/static/', buildId, '_buildManifest.js')
     const data = await renderViaHTTP(appPort, bundlePath)
     expect(data).toContain('/hello')
   })
@@ -44,29 +33,23 @@ const runTests = () => {
 }
 
 describe('Custom routes', () => {
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
-    'development mode',
-    () => {
-      beforeAll(async () => {
-        appPort = await findPort()
-        app = await launchApp(appDir, appPort)
-        buildId = 'development'
-      })
-      afterAll(() => killApp(app))
-      runTests()
-    }
-  )
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      beforeAll(async () => {
-        await nextBuild(appDir)
-        appPort = await findPort()
-        app = await nextStart(appDir, appPort)
-        buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
-      })
-      afterAll(() => killApp(app))
-      runTests()
-    }
-  )
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
+    beforeAll(async () => {
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+      buildId = 'development'
+    })
+    afterAll(() => killApp(app))
+    runTests()
+  })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
+    beforeAll(async () => {
+      await nextBuild(appDir)
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+    })
+    afterAll(() => killApp(app))
+    runTests()
+  })
 })

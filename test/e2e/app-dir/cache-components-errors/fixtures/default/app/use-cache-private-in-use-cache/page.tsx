@@ -3,10 +3,7 @@ export default async function Page() {
 
   return (
     <>
-      <p>
-        This page nests `'use cache: private'` in `'use cache'`, which triggers
-        an error.
-      </p>
+      <p>This page nests `'use cache: private'` in `'use cache'`, which triggers an error.</p>
       <Private />
     </>
   )

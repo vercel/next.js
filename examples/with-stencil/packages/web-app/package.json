@@ -2,6 +2,7 @@
   "name": "web-app",
   "version": "1.0.0",
   "private": true,
+  "license": "ISC",
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -11,6 +12,5 @@
     "next": "latest",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
-  },
-  "license": "ISC"
+  }
 }

@@ -13,15 +13,11 @@ export function isAppRouteRouteModule(
   return routeModule.definition.kind === RouteKind.APP_ROUTE
 }
 
-export function isAppPageRouteModule(
-  routeModule: RouteModule
-): routeModule is AppPageRouteModule {
+export function isAppPageRouteModule(routeModule: RouteModule): routeModule is AppPageRouteModule {
   return routeModule.definition.kind === RouteKind.APP_PAGE
 }
 
-export function isPagesRouteModule(
-  routeModule: RouteModule
-): routeModule is PagesRouteModule {
+export function isPagesRouteModule(routeModule: RouteModule): routeModule is PagesRouteModule {
   return routeModule.definition.kind === RouteKind.PAGES
 }
 

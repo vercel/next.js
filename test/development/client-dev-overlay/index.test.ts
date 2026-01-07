@@ -17,10 +17,7 @@ describe('client-dev-overlay', () => {
   })
 
   // The `Playwright.hasElementByCssSelector` cannot be used for elements inside a shadow DOM.
-  function elementExistsInNextJSPortalShadowDOM(
-    browser: Playwright,
-    selector: string
-  ) {
+  function elementExistsInNextJSPortalShadowDOM(browser: Playwright, selector: string) {
     return browser.eval(
       `!!document.querySelector('nextjs-portal').shadowRoot.querySelector('${selector}')`
     ) as any
@@ -56,21 +53,16 @@ describe('client-dev-overlay', () => {
     await getToast(browser).click()
 
     await retry(async () => {
-      expect(
-        await elementExistsInNextJSPortalShadowDOM(
-          browser,
-          selectors.fullScreenDialog
-        )
-      ).toBe(true)
+      expect(await elementExistsInNextJSPortalShadowDOM(browser, selectors.fullScreenDialog)).toBe(
+        true
+      )
     })
   })
 
   it('should be able to minimize the fullscreen overlay', async () => {
     const browser = await next.browser('/')
     await getMinimizeButton(browser).click()
-    expect(
-      await elementExistsInNextJSPortalShadowDOM(browser, selectors.toast)
-    ).toBe(true)
+    expect(await elementExistsInNextJSPortalShadowDOM(browser, selectors.toast)).toBe(true)
   })
 
   it('should keep the error indicator visible when there are errors', async () => {
@@ -115,9 +107,7 @@ describe('client-dev-overlay', () => {
   it('should have a role of "dialog" if the page is focused', async () => {
     const browser = await next.browser('/')
     await retry(async () => {
-      expect(
-        await elementExistsInNextJSPortalShadowDOM(browser, '[role="dialog"]')
-      ).toBe(true)
+      expect(await elementExistsInNextJSPortalShadowDOM(browser, '[role="dialog"]')).toBe(true)
     })
   })
 

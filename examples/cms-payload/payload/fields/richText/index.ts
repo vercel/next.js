@@ -1,8 +1,4 @@
-import {
-  RichTextElement,
-  RichTextField,
-  RichTextLeaf,
-} from "payload/dist/fields/config/types";
+import { RichTextElement, RichTextField, RichTextLeaf } from "payload/dist/fields/config/types";
 import deepMerge from "../../utilities/deepMerge";
 import elements from "./elements";
 import leaves from "./leaves";

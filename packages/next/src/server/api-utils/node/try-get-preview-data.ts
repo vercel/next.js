@@ -39,11 +39,7 @@ export function tryGetPreviewData(
   const tokenPreviewData = cookies.get(COOKIE_NAME_PRERENDER_DATA)?.value
 
   // Case: preview mode cookie set but data cookie is not set
-  if (
-    previewModeId &&
-    !tokenPreviewData &&
-    previewModeId === options.previewModeId
-  ) {
+  if (previewModeId && !tokenPreviewData && previewModeId === options.previewModeId) {
     // This is "Draft Mode" which doesn't use
     // previewData, so we return an empty object
     // for backwards compat with "Preview Mode".
@@ -92,8 +88,7 @@ export function tryGetPreviewData(
     return false
   }
 
-  const { decryptWithSecret } =
-    require('../../crypto-utils') as typeof import('../../crypto-utils')
+  const { decryptWithSecret } = require('../../crypto-utils') as typeof import('../../crypto-utils')
   const decryptedPreviewData = decryptWithSecret(
     Buffer.from(options.previewModeEncryptionKey),
     encryptedPreviewData.data

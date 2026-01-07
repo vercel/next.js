@@ -5,9 +5,7 @@ import fs from 'fs'
 import fsp from 'fs/promises'
 ;(async function () {
   if (process.env.NEXT_SKIP_NATIVE_POSTINSTALL) {
-    console.log(
-      `Skipping next-swc postinstall due to NEXT_SKIP_NATIVE_POSTINSTALL env`
-    )
+    console.log(`Skipping next-swc postinstall due to NEXT_SKIP_NATIVE_POSTINSTALL env`)
     return
   }
 
@@ -17,9 +15,7 @@ import fsp from 'fs/promises'
   const { version: nextVersion } = JSON.parse(
     fs.readFileSync(path.join(cwd, 'packages', 'next', 'package.json'))
   )
-  const { packageManager } = JSON.parse(
-    fs.readFileSync(path.join(cwd, 'package.json'))
-  )
+  const { packageManager } = JSON.parse(fs.readFileSync(path.join(cwd, 'package.json')))
 
   try {
     // if installed swc package version matches monorepo version
@@ -27,11 +23,8 @@ import fsp from 'fs/promises'
     for (const pkg of fs.readdirSync(path.join(cwd, 'node_modules', '@next'))) {
       if (
         pkg.startsWith('swc-') &&
-        JSON.parse(
-          fs.readFileSync(
-            path.join(cwd, 'node_modules', '@next', pkg, 'package.json')
-          )
-        ).version === nextVersion
+        JSON.parse(fs.readFileSync(path.join(cwd, 'node_modules', '@next', pkg, 'package.json')))
+          .version === nextVersion
       ) {
         console.log(`@next/${pkg}@${nextVersion} already installed, skipping`)
         return

@@ -52,9 +52,7 @@ export type RouterServerContext = Record<
   }
 >
 
-export const RouterServerContextSymbol = Symbol.for(
-  '@next/router-server-methods'
-)
+export const RouterServerContextSymbol = Symbol.for('@next/router-server-methods')
 
 export const routerServerGlobal = globalThis as typeof globalThis & {
   [RouterServerContextSymbol]?: RouterServerContext

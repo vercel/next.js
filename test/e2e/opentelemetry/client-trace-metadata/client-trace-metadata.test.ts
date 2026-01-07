@@ -13,15 +13,9 @@ describe('clientTraceMetadata', () => {
     it('should inject propagation data for a dynamically server-side-rendered page', async () => {
       const $ = await next.render$('/app-router/dynamic-page')
       const headHtml = $.html('head')
-      expect(headHtml).toContain(
-        '<meta name="my-test-key-1" content="my-test-value-1">'
-      )
-      expect(headHtml).toContain(
-        '<meta name="my-test-key-2" content="my-test-value-2">'
-      )
-      expect(headHtml).toMatch(
-        /<meta name="my-parent-span-id" content="[a-f0-9]{16}">/
-      )
+      expect(headHtml).toContain('<meta name="my-test-key-1" content="my-test-value-1">')
+      expect(headHtml).toContain('<meta name="my-test-key-2" content="my-test-value-2">')
+      expect(headHtml).toMatch(/<meta name="my-parent-span-id" content="[a-f0-9]{16}">/)
       expect(headHtml).not.toContain('non-metadata-key-3')
     })
 
@@ -52,15 +46,9 @@ describe('clientTraceMetadata', () => {
         it('should inject propagation data for a statically server-side-rendered page', async () => {
           const $ = await next.render$('/app-router/static-page')
           const headHtml = $.html('head')
-          expect(headHtml).toContain(
-            '<meta name="my-test-key-1" content="my-test-value-1">'
-          )
-          expect(headHtml).toContain(
-            '<meta name="my-test-key-2" content="my-test-value-2">'
-          )
-          expect(headHtml).toMatch(
-            /<meta name="my-parent-span-id" content="[a-f0-9]{16}">/
-          )
+          expect(headHtml).toContain('<meta name="my-test-key-1" content="my-test-value-1">')
+          expect(headHtml).toContain('<meta name="my-test-key-2" content="my-test-value-2">')
+          expect(headHtml).toMatch(/<meta name="my-parent-span-id" content="[a-f0-9]{16}">/)
           expect(headHtml).not.toContain('non-metadata-key-3')
         })
 
@@ -109,9 +97,7 @@ describe('clientTraceMetadata', () => {
         it('should not inject propagation data for a statically server-side-rendered page', async () => {
           const $ = await next.render$('/app-router/static-page')
           const headHtml = $.html('head')
-          expect(headHtml).not.toContain(
-            '<meta name="my-test-key-1" content="my-test-value-1">'
-          )
+          expect(headHtml).not.toContain('<meta name="my-test-key-1" content="my-test-value-1">')
           expect($.html('head')).not.toContain(
             '<meta name="my-test-key-2" content="my-test-value-2">'
           )
@@ -173,15 +159,9 @@ describe('clientTraceMetadata', () => {
     it('should inject propagation data for a dynamically server-side-rendered page', async () => {
       const $ = await next.render$('/pages-router/dynamic-page')
       const headHtml = $.html('head')
-      expect(headHtml).toContain(
-        '<meta name="my-test-key-1" content="my-test-value-1">'
-      )
-      expect(headHtml).toContain(
-        '<meta name="my-test-key-2" content="my-test-value-2">'
-      )
-      expect(headHtml).toMatch(
-        /<meta name="my-parent-span-id" content="[a-f0-9]{16}">/
-      )
+      expect(headHtml).toContain('<meta name="my-test-key-1" content="my-test-value-1">')
+      expect(headHtml).toContain('<meta name="my-test-key-2" content="my-test-value-2">')
+      expect(headHtml).toMatch(/<meta name="my-parent-span-id" content="[a-f0-9]{16}">/)
       expect(headHtml).not.toContain('non-metadata-key-3')
     })
 
@@ -206,15 +186,9 @@ describe('clientTraceMetadata', () => {
         it('should inject propagation data for a statically server-side-rendered page', async () => {
           const $ = await next.render$('/pages-router/static-page')
           const headHtml = $.html('head')
-          expect(headHtml).toContain(
-            '<meta name="my-test-key-1" content="my-test-value-1">'
-          )
-          expect(headHtml).toContain(
-            '<meta name="my-test-key-2" content="my-test-value-2">'
-          )
-          expect(headHtml).toMatch(
-            /<meta name="my-parent-span-id" content="[a-f0-9]{16}">/
-          )
+          expect(headHtml).toContain('<meta name="my-test-key-1" content="my-test-value-1">')
+          expect(headHtml).toContain('<meta name="my-test-key-2" content="my-test-value-2">')
+          expect(headHtml).toMatch(/<meta name="my-parent-span-id" content="[a-f0-9]{16}">/)
           expect(headHtml).not.toContain('non-metadata-key-3')
         })
 
@@ -263,9 +237,7 @@ describe('clientTraceMetadata', () => {
         it('should not inject propagation data for a statically server-side-rendered page', async () => {
           const $ = await next.render$('/pages-router/static-page')
           const headHtml = $.html('head')
-          expect(headHtml).not.toContain(
-            '<meta name="my-test-key-1" content="my-test-value-1">'
-          )
+          expect(headHtml).not.toContain('<meta name="my-test-key-1" content="my-test-value-1">')
           expect($.html('head')).not.toContain(
             '<meta name="my-test-key-2" content="my-test-value-2">'
           )

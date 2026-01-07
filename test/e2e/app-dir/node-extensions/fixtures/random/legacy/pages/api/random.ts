@@ -5,9 +5,6 @@ type ResponseData = {
   rand2: number
 }
 
-export default function handler(
-  _req: NextApiRequest,
-  res: NextApiResponse<ResponseData>
-) {
+export default function handler(_req: NextApiRequest, res: NextApiResponse<ResponseData>) {
   res.status(200).json({ rand1: Math.random(), rand2: Math.random() })
 }

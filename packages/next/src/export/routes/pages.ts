@@ -1,19 +1,12 @@
 import type { ExportRouteResult } from '../types'
-import type {
-  PagesRenderContext,
-  PagesSharedContext,
-  RenderOpts,
-} from '../../server/render'
+import type { PagesRenderContext, PagesSharedContext, RenderOpts } from '../../server/render'
 import type { LoadComponentsReturnType } from '../../server/load-components'
 import type { NextParsedUrlQuery } from '../../server/request-meta'
 import type { Params } from '../../server/request/params'
 
 import RenderResult from '../../server/render-result'
 import { join } from 'path'
-import type {
-  MockedRequest,
-  MockedResponse,
-} from '../../server/lib/mock-request'
+import type { MockedRequest, MockedResponse } from '../../server/lib/mock-request'
 import {
   HTML_CONTENT_TYPE_HEADER,
   NEXT_DATA_SUFFIX,
@@ -73,10 +66,7 @@ export async function exportPagesPage(
   let renderResult: RenderResult | undefined
 
   if (typeof components.Component === 'string') {
-    renderResult = RenderResult.fromStatic(
-      components.Component,
-      HTML_CONTENT_TYPE_HEADER
-    )
+    renderResult = RenderResult.fromStatic(components.Component, HTML_CONTENT_TYPE_HEADER)
 
     if (hasOrigQueryValues) {
       throw new Error(
@@ -109,15 +99,11 @@ export async function exportPagesPage(
 
   const ssgNotFound = renderResult?.metadata.isNotFound
 
-  const html =
-    renderResult && !renderResult.isNull ? renderResult.toUnchunkedString() : ''
+  const html = renderResult && !renderResult.isNull ? renderResult.toUnchunkedString() : ''
 
   const metadata = renderResult?.metadata || {}
   if (metadata.pageData) {
-    const dataFile = join(
-      pagesDataDir,
-      htmlFilename.replace(/\.html$/, NEXT_DATA_SUFFIX)
-    )
+    const dataFile = join(pagesDataDir, htmlFilename.replace(/\.html$/, NEXT_DATA_SUFFIX))
 
     fileWriter.append(dataFile, JSON.stringify(metadata.pageData))
   }

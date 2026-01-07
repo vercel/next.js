@@ -52,10 +52,7 @@ export async function toResponseCacheEntry(
       response.value?.kind === CachedRouteKind.PAGES
         ? ({
             kind: CachedRouteKind.PAGES,
-            html: RenderResult.fromStatic(
-              response.value.html,
-              HTML_CONTENT_TYPE_HEADER
-            ),
+            html: RenderResult.fromStatic(response.value.html, HTML_CONTENT_TYPE_HEADER),
             pageData: response.value.pageData,
             headers: response.value.headers,
             status: response.value.status,
@@ -63,10 +60,7 @@ export async function toResponseCacheEntry(
         : response.value?.kind === CachedRouteKind.APP_PAGE
           ? ({
               kind: CachedRouteKind.APP_PAGE,
-              html: RenderResult.fromStatic(
-                response.value.html,
-                HTML_CONTENT_TYPE_HEADER
-              ),
+              html: RenderResult.fromStatic(response.value.html, HTML_CONTENT_TYPE_HEADER),
               rscData: response.value.rscData,
               headers: response.value.headers,
               status: response.value.status,

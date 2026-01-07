@@ -14,10 +14,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <PlausibleProvider
-          domain={process.env.NEXT_PUBLIC_DOMAIN}
-          trackLocalhost
-        />
+        <PlausibleProvider domain={process.env.NEXT_PUBLIC_DOMAIN} trackLocalhost />
       </head>
       <body>
         <Header />

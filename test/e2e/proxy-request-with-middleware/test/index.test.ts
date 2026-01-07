@@ -27,9 +27,7 @@ describe('Requests not effected when middleware used', () => {
           key: 'value',
         })
       : undefined
-    it(`should proxy ${method} request ${
-      body ? 'with body' : ''
-    }`, async () => {
+    it(`should proxy ${method} request ${body ? 'with body' : ''}`, async () => {
       const headers = {
         'content-type': 'application/json',
         'x-custom-header': 'some value',
@@ -42,9 +40,7 @@ describe('Requests not effected when middleware used', () => {
       const data = await res.json()
       expect(data.method).toEqual(method)
       if (body) {
-        expect(data.headers['content-length'] || String(body.length)).toEqual(
-          String(body.length)
-        )
+        expect(data.headers['content-length'] || String(body.length)).toEqual(String(body.length))
       }
       expect(data.headers).toEqual(expect.objectContaining(headers))
     })

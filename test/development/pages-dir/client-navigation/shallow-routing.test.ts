@@ -80,9 +80,7 @@ describe('Client navigation with shallow routing', () => {
 
   it('should keep the scroll position on shallow routing', async () => {
     const browser = await next.browser('/nav/shallow-routing')
-    await browser.eval(() =>
-      document.querySelector('#increase').scrollIntoView()
-    )
+    await browser.eval(() => document.querySelector('#increase').scrollIntoView())
     const scrollPosition = await browser.eval('window.pageYOffset')
 
     expect(scrollPosition).toBeGreaterThan(3000)
@@ -99,9 +97,7 @@ describe('Client navigation with shallow routing', () => {
 
     expect(newScrollPosition2).toBe(0)
 
-    await browser.eval(() =>
-      document.querySelector('#invalidShallow').scrollIntoView()
-    )
+    await browser.eval(() => document.querySelector('#invalidShallow').scrollIntoView())
     const scrollPositionDown = await browser.eval('window.pageYOffset')
 
     expect(scrollPositionDown).toBeGreaterThan(3000)

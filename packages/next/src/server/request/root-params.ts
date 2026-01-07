@@ -3,10 +3,7 @@ import {
   postponeWithTracking,
   throwToInterruptStaticGeneration,
 } from '../app-render/dynamic-rendering'
-import {
-  workAsyncStorage,
-  type WorkStore,
-} from '../app-render/work-async-storage.external'
+import { workAsyncStorage, type WorkStore } from '../app-render/work-async-storage.external'
 import {
   workUnitAsyncStorage,
   type PrerenderStoreLegacy,
@@ -67,12 +64,7 @@ export function getRootParam(paramName: string): Promise<ParamValue> {
     case 'prerender-client':
     case 'prerender-ppr':
     case 'prerender-legacy': {
-      return createPrerenderRootParamPromise(
-        paramName,
-        workStore,
-        workUnitStore,
-        apiName
-      )
+      return createPrerenderRootParamPromise(paramName, workStore, workUnitStore, apiName)
     }
     case 'private-cache':
     case 'prerender-runtime':
@@ -110,31 +102,16 @@ function createPrerenderRootParamPromise(
     case 'prerender': {
       // We are in a cacheComponents prerender.
       // The param is a fallback, so it should be treated as dynamic.
-      if (
-        prerenderStore.fallbackRouteParams &&
-        prerenderStore.fallbackRouteParams.has(paramName)
-      ) {
-        return makeHangingPromise<ParamValue>(
-          prerenderStore.renderSignal,
-          workStore.route,
-          apiName
-        )
+      if (prerenderStore.fallbackRouteParams && prerenderStore.fallbackRouteParams.has(paramName)) {
+        return makeHangingPromise<ParamValue>(prerenderStore.renderSignal, workStore.route, apiName)
       }
       break
     }
     case 'prerender-ppr': {
       // We aren't in a cacheComponents prerender, but the param is a fallback,
       // so we need to make an erroring params object which will postpone/error if you access it
-      if (
-        prerenderStore.fallbackRouteParams &&
-        prerenderStore.fallbackRouteParams.has(paramName)
-      ) {
-        return makeErroringRootParamPromise(
-          paramName,
-          workStore,
-          prerenderStore,
-          apiName
-        )
+      if (prerenderStore.fallbackRouteParams && prerenderStore.fallbackRouteParams.has(paramName)) {
+        return makeErroringRootParamPromise(paramName, workStore, prerenderStore, apiName)
       }
       break
     }
@@ -165,18 +142,10 @@ async function makeErroringRootParamPromise(
   // TODO: remove this comment when cacheComponents is the default since there will be no `dynamic = "error"`
   switch (prerenderStore.type) {
     case 'prerender-ppr': {
-      return postponeWithTracking(
-        workStore.route,
-        expression,
-        prerenderStore.dynamicTracking
-      )
+      return postponeWithTracking(workStore.route, expression, prerenderStore.dynamicTracking)
     }
     case 'prerender-legacy': {
-      return throwToInterruptStaticGeneration(
-        expression,
-        workStore,
-        prerenderStore
-      )
+      return throwToInterruptStaticGeneration(expression, workStore, prerenderStore)
     }
     default: {
       prerenderStore satisfies never

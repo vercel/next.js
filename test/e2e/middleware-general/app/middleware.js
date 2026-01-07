@@ -54,9 +54,7 @@ export async function middleware(request) {
     return NextResponse.next()
   }
 
-  if (
-    url.pathname.includes('/_next/static/chunks/pages/_app-non-existent.js')
-  ) {
+  if (url.pathname.includes('/_next/static/chunks/pages/_app-non-existent.js')) {
     return NextResponse.rewrite('https://example.vercel.sh')
   }
 
@@ -260,8 +258,7 @@ export async function middleware(request) {
       'req-url-pathname': request.nextUrl.pathname,
       'req-url-query': request.nextUrl.searchParams.get('foo'),
       'req-url-locale': request.nextUrl.locale,
-      'req-url-params':
-        url.pathname !== '/static' ? JSON.stringify(params(request.url)) : '{}',
+      'req-url-params': url.pathname !== '/static' ? JSON.stringify(params(request.url)) : '{}',
     },
   })
 }

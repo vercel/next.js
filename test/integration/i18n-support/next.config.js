@@ -3,19 +3,7 @@ module.exports = {
   // trailingSlash: true,
   i18n: {
     // localeDetection: false,
-    locales: [
-      'nl-NL',
-      'nl-BE',
-      'nl',
-      'fr-BE',
-      'fr',
-      'en-US',
-      'en',
-      'go',
-      'go-BE',
-      'do',
-      'do-BE',
-    ],
+    locales: ['nl-NL', 'nl-BE', 'nl', 'fr-BE', 'fr', 'en-US', 'en', 'go', 'go-BE', 'do', 'do-BE'],
     defaultLocale: 'en-US',
     domains: [
       {

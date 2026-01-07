@@ -3,10 +3,7 @@ import Link from 'next/link'
 
 export async function getStaticPaths() {
   return {
-    paths: [
-      '/blog/post-1/comment-1',
-      { params: { post: 'post-2', comment: 'comment-2' } },
-    ],
+    paths: ['/blog/post-1/comment-1', { params: { post: 'post-2', comment: 'comment-2' } }],
     fallback: false,
   }
 }

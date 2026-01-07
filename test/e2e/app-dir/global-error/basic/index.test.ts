@@ -27,9 +27,7 @@ describe('app dir - global-error', () => {
        }
       `)
     }
-    expect(await browser.elementByCss('#error').text()).toBe(
-      'Global error: Client error'
-    )
+    expect(await browser.elementByCss('#error').text()).toBe('Global error: Client error')
   })
 
   it('should render global error for error in server components', async () => {
@@ -79,9 +77,7 @@ describe('app dir - global-error', () => {
       `)
     }
     expect(await browser.elementByCss('h1').text()).toBe('Global Error')
-    expect(await browser.elementByCss('#error').text()).toBe(
-      'Global error: client page error'
-    )
+    expect(await browser.elementByCss('#error').text()).toBe('Global error: client page error')
 
     expect(await browser.hasElementByCssSelector('#digest')).toBeFalsy()
   })
@@ -89,9 +85,7 @@ describe('app dir - global-error', () => {
   it('should catch metadata error in error boundary if presented', async () => {
     const browser = await next.browser('/metadata-error-with-boundary')
 
-    expect(await browser.elementByCss('#error').text()).toBe(
-      'Local error boundary'
-    )
+    expect(await browser.elementByCss('#error').text()).toBe('Local error boundary')
     expect(await browser.hasElementByCssSelector('#digest')).toBeFalsy()
   })
 
@@ -139,8 +133,6 @@ describe('app dir - global-error', () => {
       `)
     }
     expect(await browser.elementByCss('h1').text()).toBe('Global Error')
-    expect(await browser.elementByCss('#error').text()).toBe(
-      'Global error: nested error'
-    )
+    expect(await browser.elementByCss('#error').text()).toBe('Global error: nested error')
   })
 })

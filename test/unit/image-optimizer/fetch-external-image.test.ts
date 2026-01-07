@@ -1,8 +1,5 @@
 /* eslint-env jest */
-import {
-  fetchExternalImage,
-  ImageError,
-} from 'next/dist/server/image-optimizer'
+import { fetchExternalImage, ImageError } from 'next/dist/server/image-optimizer'
 
 describe('fetchExternalImage', () => {
   describe('response size limit', () => {

@@ -31,8 +31,7 @@ async function withRequestMetrics(
       (async () => {
         const url = response.request().url()
         const status = response.status()
-        const extension =
-          /^[^?#]+\.([a-z0-9]+)(?:[?#]|$)/i.exec(url)?.[1] ?? 'none'
+        const extension = /^[^?#]+\.([a-z0-9]+)(?:[?#]|$)/i.exec(url)?.[1] ?? 'none'
         const currentRequests = requestsByExtension.get(extension) ?? 0
         requestsByExtension.set(extension, currentRequests + 1)
         if (status >= 200 && status < 300) {
@@ -95,44 +94,20 @@ async function withRequestMetrics(
     await Promise.all(activePromises)
     let totalDownload = 0
     for (const [extension, size] of sizeByExtension.entries()) {
-      await reportMeasurement(
-        `${metricName}/responseSizes/${extension}`,
-        size,
-        'bytes'
-      )
+      await reportMeasurement(`${metricName}/responseSizes/${extension}`, size, 'bytes')
       totalDownload += size
     }
-    await reportMeasurement(
-      `${metricName}/responseSizes`,
-      totalDownload,
-      'bytes'
-    )
+    await reportMeasurement(`${metricName}/responseSizes`, totalDownload, 'bytes')
     let totalRequests = 0
     for (const [extension, count] of requestsByExtension.entries()) {
-      await reportMeasurement(
-        `${metricName}/requests/${extension}`,
-        count,
-        'requests'
-      )
+      await reportMeasurement(`${metricName}/requests/${extension}`, count, 'requests')
       totalRequests += count
     }
     await reportMeasurement(`${metricName}/requests`, totalRequests, 'requests')
     await reportMeasurement(`${metricName}/console/logs`, logCount, 'messages')
-    await reportMeasurement(
-      `${metricName}/console/warnings`,
-      warningCount,
-      'messages'
-    )
-    await reportMeasurement(
-      `${metricName}/console/errors`,
-      errorCount,
-      'messages'
-    )
-    await reportMeasurement(
-      `${metricName}/console/uncaught`,
-      uncaughtCount,
-      'messages'
-    )
+    await reportMeasurement(`${metricName}/console/warnings`, warningCount, 'messages')
+    await reportMeasurement(`${metricName}/console/errors`, errorCount, 'messages')
+    await reportMeasurement(`${metricName}/console/uncaught`, uncaughtCount, 'messages')
     await reportMeasurement(
       `${metricName}/console`,
       logCount + warningCount + errorCount + uncaughtCount,
@@ -150,11 +125,7 @@ async function withRequestMetrics(
  * @param timeoutMs - Amount of time to wait before continuing. In case of timeout, this function resolves
  * @returns
  */
-function networkIdle(
-  page: Page,
-  delayMs = 300,
-  timeoutMs = 180000
-): Promise<number> {
+function networkIdle(page: Page, delayMs = 300, timeoutMs = 180000): Promise<number> {
   return new Promise((resolve) => {
     const cleanup = () => {
       page.off('request', requestHandler)
@@ -208,9 +179,7 @@ function networkIdle(
       lastRequest = Date.now()
       const currentCount = requests.get(request.url())
       if (currentCount === undefined) {
-        console.error(
-          `Unexpected untracked but completed request ${request.url()}`
-        )
+        console.error(`Unexpected untracked but completed request ${request.url()}`)
         return
       }
 
@@ -285,9 +254,7 @@ class BrowserSessionImpl implements BrowserSession {
   async softNavigationByClick(metricName: string, selector: string) {
     const page = this.page
     if (!page) {
-      throw new Error(
-        'softNavigationByClick() must be called after hardNavigation()'
-      )
+      throw new Error('softNavigationByClick() must be called after hardNavigation()')
     }
     await withRequestMetrics(metricName, page, async () => {
       await measureTime(`${metricName}/start`)

@@ -27,10 +27,7 @@ export const server = createServer((request, response) => {
   // officially support or document. It's just here to illustrate how it would
   // be done in theory.
   if (/^\/rewrite-to-target-page\/?[^/]*$/.test(request.url)) {
-    const newUrl = request.url.replace(
-      '/rewrite-to-target-page',
-      '/target-page'
-    )
+    const newUrl = request.url.replace('/rewrite-to-target-page', '/target-page')
     console.log(`Rewriting ${request.url} to ${newUrl}`)
     request.url = newUrl
   }

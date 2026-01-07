@@ -1,8 +1,4 @@
-function Component({
-  searchParams,
-}: {
-  searchParams: Record<string, unknown>
-}) {
+function Component({ searchParams }: { searchParams: Record<string, unknown> }) {
   const a = searchParams.slug
   const b = searchParams.slug
 
@@ -10,11 +6,7 @@ function Component({
   return <pre>{JSON.stringify({ clonedSearchParams, a, b }, null, 2)}</pre>
 }
 
-export default function Page({
-  searchParams,
-}: {
-  searchParams: Record<string, unknown>
-}) {
+export default function Page({ searchParams }: { searchParams: Record<string, unknown> }) {
   const slug = searchParams.slug
 
   return (

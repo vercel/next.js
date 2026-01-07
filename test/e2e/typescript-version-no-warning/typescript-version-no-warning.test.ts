@@ -18,8 +18,6 @@ describe('typescript-version-no-warning', () => {
 
   it('should not print warning when new typescript version is used with next build', async () => {
     await next.start().catch(() => {})
-    expect(next.cliOutput).not.toContain(
-      'Minimum recommended TypeScript version is'
-    )
+    expect(next.cliOutput).not.toContain('Minimum recommended TypeScript version is')
   })
 })

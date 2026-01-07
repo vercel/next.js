@@ -94,11 +94,7 @@ function dimmedConsoleArgs(...inputArgs: any[]): any[] {
     }
   }
 
-  for (
-    argumentsPointer;
-    argumentsPointer < inputArgs.length;
-    ++argumentsPointer
-  ) {
+  for (argumentsPointer; argumentsPointer < inputArgs.length; ++argumentsPointer) {
     const arg = inputArgs[argumentsPointer]
     const argType = typeof arg
     if (argumentsPointer > 0) {
@@ -138,10 +134,7 @@ function dimmedConsoleArgs(...inputArgs: any[]): any[] {
   return [dim(`%c${template}`), dimStyle, ...newArgs]
 }
 
-function convertToDimmedArgs(
-  methodName: InterceptableConsoleMethod,
-  args: any[]
-): any[] {
+function convertToDimmedArgs(methodName: InterceptableConsoleMethod, args: any[]): any[] {
   switch (methodName) {
     case 'dir':
     case 'dirxml':
@@ -186,8 +179,7 @@ function patchConsoleMethod(methodName: InterceptableConsoleMethod): void {
       // the server React cacheSignal implementation. Any particular console call will be in one, the other, or neither
       // scope and these signals return null if you are out of scope so this can be called from a single global patch
       // and still work properly.
-      const signal =
-        getClientReact()?.cacheSignal() ?? getServerReact()?.cacheSignal()
+      const signal = getClientReact()?.cacheSignal() ?? getServerReact()?.cacheSignal()
       if (signal) {
         // We are in a React Server render and can consult the React cache signal to determine if logs
         // are now dimmable.
@@ -195,21 +187,9 @@ function patchConsoleMethod(methodName: InterceptableConsoleMethod): void {
           if (currentAbortedLogsStyle === HIDDEN_STYLE) {
             return
           }
-          return applyWithDimming.call(
-            this,
-            consoleStore,
-            originalMethod,
-            methodName,
-            args
-          )
+          return applyWithDimming.call(this, consoleStore, originalMethod, methodName, args)
         } else if (consoleStore?.dim === true) {
-          return applyWithDimming.call(
-            this,
-            consoleStore,
-            originalMethod,
-            methodName,
-            args
-          )
+          return applyWithDimming.call(this, consoleStore, originalMethod, methodName, args)
         } else {
           return originalMethod.apply(this, args)
         }
@@ -234,13 +214,7 @@ function patchConsoleMethod(methodName: InterceptableConsoleMethod): void {
             if (currentAbortedLogsStyle === HIDDEN_STYLE) {
               return
             }
-            return applyWithDimming.call(
-              this,
-              consoleStore,
-              originalMethod,
-              methodName,
-              args
-            )
+            return applyWithDimming.call(this, consoleStore, originalMethod, methodName, args)
           }
         // intentional fallthrough
         case 'prerender-legacy':
@@ -251,13 +225,7 @@ function patchConsoleMethod(methodName: InterceptableConsoleMethod): void {
         case 'request':
         case undefined:
           if (consoleStore?.dim === true) {
-            return applyWithDimming.call(
-              this,
-              consoleStore,
-              originalMethod,
-              methodName,
-              args
-            )
+            return applyWithDimming.call(this, consoleStore, originalMethod, methodName, args)
           } else {
             return originalMethod.apply(this, args)
           }

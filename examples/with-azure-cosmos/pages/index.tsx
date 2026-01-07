@@ -29,8 +29,7 @@ const Home = (props: Props) => {
         <h2 className="subtitle">You are connected to CosmosDB</h2>
       ) : (
         <h2 className="subtitle">
-          You are NOT connected to CosmosDB. Check the <code>README.md</code>{" "}
-          for instructions.
+          You are NOT connected to CosmosDB. Check the <code>README.md</code> for instructions.
         </h2>
       )}
 
@@ -45,16 +44,12 @@ const Home = (props: Props) => {
               <h3>Database </h3>
               <p>Name: {props.database?.name}</p>
               <div>{`Number of Containers : ${props.database?.numOfContainers}`}</div>
-              <div>{`Status : ${
-                props.database?.isConnected ? "Connected" : "Not Connected"
-              }`}</div>
+              <div>{`Status : ${props.database?.isConnected ? "Connected" : "Not Connected"}`}</div>
             </div>
             <div className="card">
               <h3>Container</h3>
               <p>Name: {props.container?.name}</p>
-              <div>{`Status : ${
-                props.database?.isConnected ? "Connected" : "Not Connected"
-              }`}</div>
+              <div>{`Status : ${props.database?.isConnected ? "Connected" : "Not Connected"}`}</div>
             </div>
           </div>
         </div>

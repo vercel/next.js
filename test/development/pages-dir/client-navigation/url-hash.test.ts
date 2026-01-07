@@ -31,11 +31,7 @@ describe('Client navigation with URL hash', () => {
       it('should not run getInitialProps', async () => {
         const browser = await next.browser('/nav/hash-changes')
 
-        const counter = await browser
-          .elementByCss('#via-link')
-          .click()
-          .elementByCss('p')
-          .text()
+        const counter = await browser.elementByCss('#via-link').click().elementByCss('p').text()
 
         expect(counter).toBe('COUNT: 0')
 
@@ -48,32 +44,28 @@ describe('Client navigation with URL hash', () => {
         // Scrolls to item 400 on the page
         await browser.elementByCss('#scroll-to-item-400').click()
 
-        const scrollPositionBeforeEmptyHash =
-          await browser.eval('window.pageYOffset')
+        const scrollPositionBeforeEmptyHash = await browser.eval('window.pageYOffset')
 
         expect(scrollPositionBeforeEmptyHash).toBe(7258)
 
         // Scrolls back to top when scrolling to `#` with no value.
         await browser.elementByCss('#via-empty-hash').click()
 
-        const scrollPositionAfterEmptyHash =
-          await browser.eval('window.pageYOffset')
+        const scrollPositionAfterEmptyHash = await browser.eval('window.pageYOffset')
 
         expect(scrollPositionAfterEmptyHash).toBe(0)
 
         // Scrolls to item 400 on the page
         await browser.elementByCss('#scroll-to-item-400').click()
 
-        const scrollPositionBeforeTopHash =
-          await browser.eval('window.pageYOffset')
+        const scrollPositionBeforeTopHash = await browser.eval('window.pageYOffset')
 
         expect(scrollPositionBeforeTopHash).toBe(7258)
 
         // Scrolls back to top when clicking link with href `#top`.
         await browser.elementByCss('#via-top-hash').click()
 
-        const scrollPositionAfterTopHash =
-          await browser.eval('window.pageYOffset')
+        const scrollPositionAfterTopHash = await browser.eval('window.pageYOffset')
 
         expect(scrollPositionAfterTopHash).toBe(0)
 
@@ -87,13 +79,9 @@ describe('Client navigation with URL hash', () => {
 
       it('should not scroll to hash when scroll={false} is set', async () => {
         const browser = await next.browser('/nav/hash-changes')
-        const curScroll = await browser.eval(
-          'document.documentElement.scrollTop'
-        )
+        const curScroll = await browser.eval('document.documentElement.scrollTop')
         await browser.elementByCss('#scroll-to-name-item-400-no-scroll').click()
-        expect(curScroll).toBe(
-          await browser.eval('document.documentElement.scrollTop')
-        )
+        expect(curScroll).toBe(await browser.eval('document.documentElement.scrollTop'))
       })
 
       it('should scroll to the specified position on the same page with a name property', async () => {
@@ -109,8 +97,7 @@ describe('Client navigation with URL hash', () => {
         // Scrolls back to top when scrolling to `#` with no value.
         await browser.elementByCss('#via-empty-hash').click()
 
-        const scrollPositionAfterEmptyHash =
-          await browser.eval('window.pageYOffset')
+        const scrollPositionAfterEmptyHash = await browser.eval('window.pageYOffset')
 
         expect(scrollPositionAfterEmptyHash).toBe(0)
       })
@@ -155,11 +142,7 @@ describe('Client navigation with URL hash', () => {
       it('should not run getInitialProps', async () => {
         const browser = await next.browser('/nav/hash-changes')
 
-        const counter = await browser
-          .elementByCss('#via-a')
-          .click()
-          .elementByCss('p')
-          .text()
+        const counter = await browser.elementByCss('#via-a').click().elementByCss('p').text()
 
         expect(counter).toBe('COUNT: 0')
 

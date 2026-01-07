@@ -1,12 +1,8 @@
-export function css(
-  strings: TemplateStringsArray,
-  ...keys: readonly string[]
-): string {
+export function css(strings: TemplateStringsArray, ...keys: readonly string[]): string {
   const lastIndex = strings.length - 1
   const str =
     // Convert template literal into a single line string
-    strings.slice(0, lastIndex).reduce((p, s, i) => p + s + keys[i], '') +
-    strings[lastIndex]
+    strings.slice(0, lastIndex).reduce((p, s, i) => p + s + keys[i], '') + strings[lastIndex]
 
   return (
     str

@@ -4,9 +4,7 @@ type Props = {
   data: string
 }
 
-export const getServerSideProps: GetServerSideProps<Props> = async (
-  context
-) => {
+export const getServerSideProps: GetServerSideProps<Props> = async (context) => {
   return {
     props: (async function () {
       return { data: 'some data' }

@@ -18,10 +18,7 @@ export default async function Page(props) {
 }
 
 export function generateStaticParams({ params }) {
-  console.log(
-    '/blog/[author]/[slug] generateStaticParams',
-    JSON.stringify(params)
-  )
+  console.log('/blog/[author]/[slug] generateStaticParams', JSON.stringify(params))
 
   switch (params.author) {
     case 'tim': {

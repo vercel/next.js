@@ -79,8 +79,7 @@ const sharedExternals = [
 
 const externalsMap = {
   './web/sandbox': 'next/dist/server/web/sandbox',
-  'next/dist/compiled/next-devtools':
-    'commonjs next/dist/next-devtools/dev-overlay.shim.js',
+  'next/dist/compiled/next-devtools': 'commonjs next/dist/next-devtools/dev-overlay.shim.js',
 }
 
 const externalsRegexMap = {
@@ -89,24 +88,12 @@ const externalsRegexMap = {
 
 const bundleTypes = {
   app: {
-    'app-page': path.join(
-      __dirname,
-      'dist/esm/server/route-modules/app-page/module.js'
-    ),
-    'app-route': path.join(
-      __dirname,
-      'dist/esm/server/route-modules/app-route/module.js'
-    ),
+    'app-page': path.join(__dirname, 'dist/esm/server/route-modules/app-page/module.js'),
+    'app-route': path.join(__dirname, 'dist/esm/server/route-modules/app-route/module.js'),
   },
   pages: {
-    pages: path.join(
-      __dirname,
-      'dist/esm/server/route-modules/pages/module.js'
-    ),
-    'pages-api': path.join(
-      __dirname,
-      'dist/esm/server/route-modules/pages-api/module.js'
-    ),
+    pages: path.join(__dirname, 'dist/esm/server/route-modules/pages/module.js'),
+    'pages-api': path.join(__dirname, 'dist/esm/server/route-modules/pages-api/module.js'),
   },
   server: {
     server: path.join(__dirname, 'dist/esm/server/next-server.js'),
@@ -196,8 +183,7 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
             minimizer: [
               new webpack.SwcJsMinimizerRspackPlugin({
                 minimizerOptions: {
-                  mangle:
-                    dev || process.env.NEXT_SERVER_NO_MANGLE ? false : true,
+                  mangle: dev || process.env.NEXT_SERVER_NO_MANGLE ? false : true,
                 },
               }),
             ],
@@ -211,24 +197,15 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
         'this.minimalMode': JSON.stringify(true),
         'this.renderOpts.dev': JSON.stringify(dev),
         'renderOpts.dev': JSON.stringify(dev),
-        'process.env.NODE_ENV': JSON.stringify(
-          dev ? 'development' : 'production'
-        ),
-        'process.env.__NEXT_EXPERIMENTAL_REACT': JSON.stringify(
-          experimental ? true : false
-        ),
+        'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production'),
+        'process.env.__NEXT_EXPERIMENTAL_REACT': JSON.stringify(experimental ? true : false),
         'process.env.NEXT_RUNTIME': JSON.stringify('nodejs'),
         'process.turbopack': JSON.stringify(turbo),
         'process.env.TURBOPACK': JSON.stringify(turbo),
       }),
       !!process.env.ANALYZE &&
         new BundleAnalyzerPlugin({
-          analyzerPort: calculateUniquePort(
-            dev,
-            turbo,
-            experimental,
-            bundleType
-          ),
+          analyzerPort: calculateUniquePort(dev, turbo, experimental, bundleType),
           openAnalyzer: false,
           ...(process.env.CI
             ? {
@@ -237,9 +214,7 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
                   __dirname,
                   `dist/compiled/next-server/report.${dev ? 'dev' : 'prod'}-${
                     turbo ? 'turbo' : 'webpack'
-                  }-${
-                    experimental ? 'experimental' : 'stable'
-                  }-${bundleType}.html`
+                  }-${experimental ? 'experimental' : 'stable'}-${bundleType}.html`
                 ),
               }
             : {}),

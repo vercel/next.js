@@ -35,9 +35,7 @@ describe('Edge Compiler can import asset assets', () => {
       handler: 'image-file',
     })
     const buffer: Buffer = await response.buffer()
-    const image = await fs.readFile(
-      path.join(__dirname, './app/src/vercel.png')
-    )
+    const image = await fs.readFile(path.join(__dirname, './app/src/vercel.png'))
     expect(buffer.equals(image)).toBeTrue()
   })
 
@@ -54,36 +52,24 @@ describe('Edge Compiler can import asset assets', () => {
   // Cannot read the file on deployment
   if (!isNextDeploy) {
     it('extracts all the assets from the bundle', async () => {
-      const manifestPath = path.join(
-        next.testDir,
-        next.distDir,
-        'server/middleware-manifest.json'
-      )
+      const manifestPath = path.join(next.testDir, next.distDir, 'server/middleware-manifest.json')
       const manifest = await readJson(manifestPath)
-      const orderedAssets = manifest.functions['/api/edge'].assets.sort(
-        (a, z) => {
-          return String(a.name).localeCompare(z.name)
-        }
-      )
+      const orderedAssets = manifest.functions['/api/edge'].assets.sort((a, z) => {
+        return String(a.name).localeCompare(z.name)
+      })
 
       if (isTurbopack) {
         expect(orderedAssets).toMatchObject([
           {
-            name: expect.stringMatching(
-              /server\/edge\/assets\/text-file\.[0-9a-f]{8}\.txt$/
-            ),
+            name: expect.stringMatching(/server\/edge\/assets\/text-file\.[0-9a-f]{8}\.txt$/),
             filePath: expect.stringMatching(/^server\/edge\/assets\/text-file/),
           },
           {
-            name: expect.stringMatching(
-              /^server\/edge\/assets\/vercel\.[0-9a-f]{8}\.png$/
-            ),
+            name: expect.stringMatching(/^server\/edge\/assets\/vercel\.[0-9a-f]{8}\.png$/),
             filePath: expect.stringMatching(/^server\/edge\/assets\/vercel/),
           },
           {
-            name: expect.stringMatching(
-              /^server\/edge\/assets\/world\.[0-9a-f]{8}\.json/
-            ),
+            name: expect.stringMatching(/^server\/edge\/assets\/world\.[0-9a-f]{8}\.json/),
             filePath: expect.stringMatching(/^server\/edge\/assets\/world/),
           },
         ])
@@ -91,21 +77,15 @@ describe('Edge Compiler can import asset assets', () => {
         expect(orderedAssets).toMatchObject([
           {
             name: expect.stringMatching(/^text-file\.[0-9a-f]{16}\.txt$/),
-            filePath: expect.stringMatching(
-              /^server\/edge-chunks\/asset_text-file/
-            ),
+            filePath: expect.stringMatching(/^server\/edge-chunks\/asset_text-file/),
           },
           {
             name: expect.stringMatching(/^vercel\.[0-9a-f]{16}\.png$/),
-            filePath: expect.stringMatching(
-              /^server\/edge-chunks\/asset_vercel/
-            ),
+            filePath: expect.stringMatching(/^server\/edge-chunks\/asset_vercel/),
           },
           {
             name: expect.stringMatching(/^world\.[0-9a-f]{16}\.json/),
-            filePath: expect.stringMatching(
-              /^server\/edge-chunks\/asset_world/
-            ),
+            filePath: expect.stringMatching(/^server\/edge-chunks\/asset_world/),
           },
         ])
       }

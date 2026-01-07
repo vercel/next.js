@@ -4,9 +4,7 @@ import path from 'path'
 
 async function getData({ params }) {
   const data = JSON.parse(
-    fs.readFileSync(
-      path.join(process.cwd(), 'app/dashboard/deployments/[id]/data.json')
-    )
+    fs.readFileSync(path.join(process.cwd(), 'app/dashboard/deployments/[id]/data.json'))
   )
   console.log('data.json', data)
 

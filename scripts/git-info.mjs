@@ -14,9 +14,8 @@ export async function getGitInfo() {
 
   try {
     eventData =
-      JSON.parse(
-        await fs.readFile(process.env.GITHUB_EVENT_PATH || '', 'utf8')
-      )['pull_request'] || {}
+      JSON.parse(await fs.readFile(process.env.GITHUB_EVENT_PATH || '', 'utf8'))['pull_request'] ||
+      {}
   } catch (_) {}
 
   const branchName =
@@ -34,8 +33,7 @@ export async function getGitInfo() {
     process.env.GITHUB_SHA ||
     (await exec('git rev-parse HEAD')).stdout.trim()
 
-  const isCanary =
-    branchName === 'canary' && remoteUrl.includes('vercel/next.js')
+  const isCanary = branchName === 'canary' && remoteUrl.includes('vercel/next.js')
 
   return { branchName, remoteUrl, commitSha, isCanary }
 }
@@ -45,10 +43,7 @@ export async function getGitInfo() {
  * @returns {Promise<string>} The git revision to diff against
  */
 export async function getDiffRevision() {
-  if (
-    process.env.GITHUB_ACTIONS === 'true' &&
-    process.env.GITHUB_EVENT_NAME === 'pull_request'
-  ) {
+  if (process.env.GITHUB_ACTIONS === 'true' && process.env.GITHUB_EVENT_NAME === 'pull_request') {
     // GH Actions for `pull_request` run on the merge commit so HEAD~1:
     // 1. includes all changes in the PR
     //    e.g. in

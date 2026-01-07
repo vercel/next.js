@@ -36,11 +36,9 @@ describe.each([
 
     it('should render the page', async () => {
       const browser = await next.browser('/')
-      expect(
-        await browser
-          .elementByCss('#nprogress .bar')
-          .getComputedCss('background-color')
-      ).toBe('rgb(34, 153, 221)')
+      expect(await browser.elementByCss('#nprogress .bar').getComputedCss('background-color')).toBe(
+        'rgb(34, 153, 221)'
+      )
     })
   }
 )

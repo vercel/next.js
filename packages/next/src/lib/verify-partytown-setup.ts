@@ -40,15 +40,9 @@ async function missingDependencyError(dir: string) {
   )
 }
 
-async function copyPartytownStaticFiles(
-  deps: NecessaryDependencies,
-  staticDir: string
-) {
+async function copyPartytownStaticFiles(deps: NecessaryDependencies, staticDir: string) {
   const partytownLibDir = path.join(staticDir, '~partytown')
-  const hasPartytownLibDir = await fileExists(
-    partytownLibDir,
-    FileType.Directory
-  )
+  const hasPartytownLibDir = await fileExists(partytownLibDir, FileType.Directory)
 
   if (hasPartytownLibDir) {
     await promises.rm(partytownLibDir, { recursive: true, force: true })
@@ -61,10 +55,7 @@ async function copyPartytownStaticFiles(
   await copyLibFiles(partytownLibDir)
 }
 
-export async function verifyPartytownSetup(
-  dir: string,
-  targetDir: string
-): Promise<void> {
+export async function verifyPartytownSetup(dir: string, targetDir: string): Promise<void> {
   try {
     const partytownDeps: NecessaryDependencies = hasNecessaryDependencies(dir, [
       {

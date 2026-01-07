@@ -3,9 +3,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 const regenerate = async (req: NextApiRequest, res: NextApiResponse) => {
   if (req.query.secret !== process.env.NEXT_PRIVATE_REGENERATION_SECRET) {
     console.error("Error regenerating: Invalid Token.");
-    return res
-      .status(401)
-      .json({ message: "Error regenerating:  Invalid token" });
+    return res.status(401).json({ message: "Error regenerating:  Invalid token" });
   }
 
   if (typeof req.query.path === "string") {

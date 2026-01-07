@@ -31,10 +31,7 @@ export const getStaticPaths = async ({ locales }) => {
 
   return {
     paths: locales.reduce(
-      (paths, locale) => [
-        ...paths,
-        ...mySlugs.map((slug) => ({ locale, params: { slug } })),
-      ],
+      (paths, locale) => [...paths, ...mySlugs.map((slug) => ({ locale, params: { slug } }))],
       []
     ),
     fallback: 'blocking',

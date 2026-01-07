@@ -17,10 +17,7 @@ export type RouteCacheKey = Opaque<
   }
 >
 
-export function createCacheKey(
-  originalHref: string,
-  nextUrl: string | null
-): RouteCacheKey {
+export function createCacheKey(originalHref: string, nextUrl: string | null): RouteCacheKey {
   const originalUrl = new URL(originalHref)
   const cacheKey = {
     pathname: originalUrl.pathname as NormalizedPathname,

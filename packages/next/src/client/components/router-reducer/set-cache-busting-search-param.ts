@@ -26,10 +26,7 @@ import type { RequestHeaders } from './fetch-server-response'
  * TODO: Since we need to use a search param anyway, we could simplify by removing the custom
  * headers approach entirely and just use search params.
  */
-export const setCacheBustingSearchParam = (
-  url: URL,
-  headers: RequestHeaders
-): void => {
+export const setCacheBustingSearchParam = (url: URL, headers: RequestHeaders): void => {
   const uniqueCacheKey = computeCacheBustingSearchParam(
     headers[NEXT_ROUTER_PREFETCH_HEADER],
     headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER],
@@ -55,10 +52,7 @@ export const setCacheBustingSearchParam = (
  *
  * Note: This function mutates the input URL directly and does not return anything.
  */
-export const setCacheBustingSearchParamWithHash = (
-  url: URL,
-  hash: string
-): void => {
+export const setCacheBustingSearchParamWithHash = (url: URL, hash: string): void => {
   /**
    * Note that we intentionally do not use `url.searchParams.set` here:
    *
@@ -71,9 +65,7 @@ export const setCacheBustingSearchParamWithHash = (
    * logic below.
    */
   const existingSearch = url.search
-  const rawQuery = existingSearch.startsWith('?')
-    ? existingSearch.slice(1)
-    : existingSearch
+  const rawQuery = existingSearch.startsWith('?') ? existingSearch.slice(1) : existingSearch
 
   // Always remove any existing cache busting param and add a fresh one to ensure
   // we have the correct value based on current request headers

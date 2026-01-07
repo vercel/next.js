@@ -49,10 +49,7 @@ function runTests(dev = false) {
       ? 'development'
       : await fs.readFile(join(appDir, '.next', 'BUILD_ID'), 'utf8')
 
-    const res2 = await fetchViaHTTP(
-      appPort,
-      `/api/proxy-self?buildId=${buildId}`
-    )
+    const res2 = await fetchViaHTTP(appPort, `/api/proxy-self?buildId=${buildId}`)
     expect(res2.status).toBe(200)
     expect(await res2.text()).toContain('__SSG_MANIFEST')
   })
@@ -102,12 +99,7 @@ function runTests(dev = false) {
   })
 
   it('should return 404 for undefined path', async () => {
-    const { status } = await fetchViaHTTP(
-      appPort,
-      '/api/not/unexisting/page/really',
-      null,
-      {}
-    )
+    const { status } = await fetchViaHTTP(appPort, '/api/not/unexisting/page/really', null, {})
     expect(status).toEqual(404)
   })
 
@@ -125,15 +117,11 @@ function runTests(dev = false) {
     })
 
     expect(res.status).toEqual(204)
-    expect(res.headers.get('access-control-allow-methods')).toEqual(
-      'GET,POST,OPTIONS'
-    )
+    expect(res.headers.get('access-control-allow-methods')).toEqual('GET,POST,OPTIONS')
   })
 
   it('should work with index api', async () => {
-    const text = await fetchViaHTTP(appPort, '/api', null, {}).then(
-      (res) => res.ok && res.text()
-    )
+    const text = await fetchViaHTTP(appPort, '/api', null, {}).then((res) => res.ok && res.text())
     expect(text).toEqual('Index should work')
   })
 
@@ -196,9 +184,7 @@ function runTests(dev = false) {
     const res = await fetchViaHTTP(appPort, '/api/bool', null, {})
     const body = res.ok ? await res.json() : null
     expect(res.status).toBe(200)
-    expect(res.headers.get('content-type')).toBe(
-      'application/json; charset=utf-8'
-    )
+    expect(res.headers.get('content-type')).toBe('application/json; charset=utf-8')
     expect(body).toBe(true)
   })
 
@@ -218,9 +204,7 @@ function runTests(dev = false) {
     const res = await fetchViaHTTP(appPort, '/api/json-null')
     const body = res.ok ? await res.json() : 'Not null'
     expect(res.status).toBe(200)
-    expect(res.headers.get('content-type')).toBe(
-      'application/json; charset=utf-8'
-    )
+    expect(res.headers.get('content-type')).toBe('application/json; charset=utf-8')
     expect(body).toBe(null)
   })
 
@@ -396,12 +380,9 @@ function runTests(dev = false) {
   })
 
   it('should parse query correctly', async () => {
-    const data = await fetchViaHTTP(
-      appPort,
-      '/api/query?a=1&b=2&a=3',
-      null,
-      {}
-    ).then((res) => res.ok && res.json())
+    const data = await fetchViaHTTP(appPort, '/api/query?a=1&b=2&a=3', null, {}).then(
+      (res) => res.ok && res.json()
+    )
     expect(data).toEqual({ a: ['1', '3'], b: '2' })
   })
 
@@ -446,12 +427,9 @@ function runTests(dev = false) {
   })
 
   it('should work with dynamic params and search string', async () => {
-    const data = await fetchViaHTTP(
-      appPort,
-      '/api/post-1?val=1',
-      null,
-      {}
-    ).then((res) => res.ok && res.json())
+    const data = await fetchViaHTTP(appPort, '/api/post-1?val=1', null, {}).then(
+      (res) => res.ok && res.json()
+    )
 
     expect(data).toEqual({ val: '1', post: 'post-1' })
   })
@@ -464,23 +442,17 @@ function runTests(dev = false) {
   })
 
   it('should prioritize a non-dynamic page', async () => {
-    const data = await fetchViaHTTP(
-      appPort,
-      '/api/post-1/comments',
-      null,
-      {}
-    ).then((res) => res.ok && res.json())
+    const data = await fetchViaHTTP(appPort, '/api/post-1/comments', null, {}).then(
+      (res) => res.ok && res.json()
+    )
 
     expect(data).toEqual([{ message: 'Prioritize a non-dynamic api page' }])
   })
 
   it('should return data on dynamic nested route', async () => {
-    const data = await fetchViaHTTP(
-      appPort,
-      '/api/post-1/comment-1',
-      null,
-      {}
-    ).then((res) => res.ok && res.json())
+    const data = await fetchViaHTTP(appPort, '/api/post-1/comment-1', null, {}).then(
+      (res) => res.ok && res.json()
+    )
 
     expect(data).toEqual({ post: 'post-1', comment: 'comment-1' })
   })
@@ -492,12 +464,9 @@ function runTests(dev = false) {
   })
 
   it('should return data on dynamic optional nested route', async () => {
-    const data = await fetchViaHTTP(
-      appPort,
-      '/api/blog/post-1/comment/1',
-      null,
-      {}
-    ).then((res) => res.ok && res.json())
+    const data = await fetchViaHTTP(appPort, '/api/blog/post-1/comment/1', null, {}).then(
+      (res) => res.ok && res.json()
+    )
 
     expect(data).toEqual({ post: 'post-1', id: '1' })
   })
@@ -539,10 +508,7 @@ function runTests(dev = false) {
 
   it('should warn with configured size if response body is larger than configured size', async () => {
     await check(async () => {
-      let res = await fetchViaHTTP(
-        appPort,
-        '/api/large-response-with-config-size'
-      )
+      let res = await fetchViaHTTP(appPort, '/api/large-response-with-config-size')
       expect(res.ok).toBeTruthy()
       expect(stderr).toContain(
         'API response for /api/large-response-with-config-size exceeds 5MB. API Routes are meant to respond quickly.'
@@ -555,9 +521,7 @@ function runTests(dev = false) {
     it('should compile only server code in development', async () => {
       await fetchViaHTTP(appPort, '/api/users')
 
-      expect(() => getPageFileFromBuildManifest(appDir, '/api/users')).toThrow(
-        /No files for page/
-      )
+      expect(() => getPageFileFromBuildManifest(appDir, '/api/users')).toThrow(/No files for page/)
 
       expect(getPageFileFromPagesManifest(appDir, '/api/users')).toBeTruthy()
     })
@@ -622,10 +586,7 @@ function runTests(dev = false) {
 
     it('should build api routes', async () => {
       const pagesManifest = JSON.parse(
-        await fs.readFile(
-          join(appDir, `.next/${mode}/pages-manifest.json`),
-          'utf8'
-        )
+        await fs.readFile(join(appDir, `.next/${mode}/pages-manifest.json`), 'utf8')
       )
       expect(Object.keys(pagesManifest).includes('/api/[post]')).toBeTruthy()
 
@@ -637,9 +598,7 @@ function runTests(dev = false) {
       const buildManifest = JSON.parse(
         await fs.readFile(join(appDir, '.next/build-manifest.json'), 'utf8')
       )
-      expect(
-        Object.keys(buildManifest.pages).includes('/api-conflict')
-      ).toBeTruthy()
+      expect(Object.keys(buildManifest.pages).includes('/api-conflict')).toBeTruthy()
     })
   }
 }
@@ -659,18 +618,15 @@ describe('API routes', () => {
 
     runTests(true)
   })
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      beforeAll(async () => {
-        await nextBuild(appDir)
-        mode = 'server'
-        appPort = await findPort()
-        app = await nextStart(appDir, appPort)
-      })
-      afterAll(() => killApp(app))
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
+    beforeAll(async () => {
+      await nextBuild(appDir)
+      mode = 'server'
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(() => killApp(app))
 
-      runTests()
-    }
-  )
+    runTests()
+  })
 })

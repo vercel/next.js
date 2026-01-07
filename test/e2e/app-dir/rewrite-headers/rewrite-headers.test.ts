@@ -467,62 +467,55 @@ describe('rewrite-headers', () => {
     skipDeployment: true,
   })
 
-  describe.each(cases)(
-    '$name ($pathname)',
-    ({ pathname, headers = {}, expected }) => {
-      let response
-      beforeAll(async () => {
-        const url = new URL(pathname, 'http://localhost')
+  describe.each(cases)('$name ($pathname)', ({ pathname, headers = {}, expected }) => {
+    let response
+    beforeAll(async () => {
+      const url = new URL(pathname, 'http://localhost')
 
-        // Add cache busting param for RSC requests
-        if (headers.rsc === '1') {
-          const cacheBustingParam = computeCacheBustingSearchParam(
-            headers['next-router-prefetch'],
-            headers['next-router-segment-prefetch'],
-            undefined,
-            undefined
-          )
-          if (cacheBustingParam) {
-            // Preserve existing search params if any
-            const existingSearch = url.search
-            const rawQuery = existingSearch.startsWith('?')
-              ? existingSearch.slice(1)
-              : existingSearch
-            const pairs = rawQuery.split('&').filter(Boolean)
-            pairs.push(`_rsc=${cacheBustingParam}`)
-            url.search = pairs.length ? `?${pairs.join('&')}` : ''
-          }
+      // Add cache busting param for RSC requests
+      if (headers.rsc === '1') {
+        const cacheBustingParam = computeCacheBustingSearchParam(
+          headers['next-router-prefetch'],
+          headers['next-router-segment-prefetch'],
+          undefined,
+          undefined
+        )
+        if (cacheBustingParam) {
+          // Preserve existing search params if any
+          const existingSearch = url.search
+          const rawQuery = existingSearch.startsWith('?') ? existingSearch.slice(1) : existingSearch
+          const pairs = rawQuery.split('&').filter(Boolean)
+          pairs.push(`_rsc=${cacheBustingParam}`)
+          url.search = pairs.length ? `?${pairs.join('&')}` : ''
         }
+      }
 
-        response = await next.fetch(url.toString(), { headers })
-        if (response.status !== 200) {
-          throw new Error(
-            `Expected status 200, got ${response.status} for ${pathname}`
-          )
+      response = await next.fetch(url.toString(), { headers })
+      if (response.status !== 200) {
+        throw new Error(`Expected status 200, got ${response.status} for ${pathname}`)
+      }
+    })
+
+    it('should have the expected headers', () => {
+      const headers = Object.fromEntries(response.headers.entries())
+
+      // This is so that the following check works. If we expect that the
+      // header is null, but it's not present, we need to set it to null.
+      Object.entries(expected).forEach(([key, value]) => {
+        if (value === null && !headers[key]) {
+          headers[key] = null
         }
       })
 
-      it('should have the expected headers', () => {
-        const headers = Object.fromEntries(response.headers.entries())
-
-        // This is so that the following check works. If we expect that the
-        // header is null, but it's not present, we need to set it to null.
-        Object.entries(expected).forEach(([key, value]) => {
-          if (value === null && !headers[key]) {
-            headers[key] = null
-          }
-        })
-
-        // Remove any headers that we're not testing for to simplify the test
-        // output.
-        Object.keys(headers).forEach((key) => {
-          if (!targets.includes(key as Target)) {
-            delete headers[key]
-          }
-        })
-
-        expect(headers).toEqual(expected)
+      // Remove any headers that we're not testing for to simplify the test
+      // output.
+      Object.keys(headers).forEach((key) => {
+        if (!targets.includes(key as Target)) {
+          delete headers[key]
+        }
       })
-    }
-  )
+
+      expect(headers).toEqual(expected)
+    })
+  })
 })

@@ -7,20 +7,13 @@ const Page = () => {
   return (
     <div>
       <h1>Test onError</h1>
-      <p>
-        If error occurred while loading image, native onError should be called.
-      </p>
+      <p>If error occurred while loading image, native onError should be called.</p>
       <button id="toggle" onClick={() => setClicked(!clicked)}>
         Toggle
       </button>
 
       <ImageWithMessage id="1" src="/test.png" width={200} height={200} />
-      <ImageWithMessage
-        id="2"
-        src={clicked ? '/404.jpg' : '/test.jpg'}
-        width="200"
-        height="200"
-      />
+      <ImageWithMessage id="2" src={clicked ? '/404.jpg' : '/test.jpg'} width="200" height="200" />
       <div id="footer" />
     </div>
   )

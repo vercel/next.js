@@ -1,19 +1,11 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { getPostBySlug } from "../../lib/api";
 
-export default async function preview(
-  req: NextApiRequest,
-  res: NextApiResponse,
-) {
+export default async function preview(req: NextApiRequest, res: NextApiResponse) {
   // Check the secret and next parameters
   // This secret should only be known to this API route and the CMS
-  if (
-    req.query.secret !== process.env.KONTENT_PREVIEW_SECRET ||
-    !req.query.slug
-  ) {
-    return res
-      .status(401)
-      .json({ message: "Invalid token or slug not specified" });
+  if (req.query.secret !== process.env.KONTENT_PREVIEW_SECRET || !req.query.slug) {
+    return res.status(401).json({ message: "Invalid token or slug not specified" });
   }
 
   // Fetch the headless CMS to check if the provided `slug` exists

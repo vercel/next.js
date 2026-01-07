@@ -19,10 +19,7 @@ describe('app-prefetch-false-loading', () => {
     await browser.elementByCss('[href="/en/testing/test"]').click()
     expect(await browser.hasElementByCssSelector('#loading')).toBeFalsy()
 
-    await check(
-      () => browser.hasElementByCssSelector('#nested-testing-page'),
-      true
-    )
+    await check(() => browser.hasElementByCssSelector('#nested-testing-page'), true)
 
     const newRandomNumber = await browser.elementById('random-number').text()
 
@@ -34,8 +31,7 @@ describe('app-prefetch-false-loading', () => {
     if (!isNextDeploy) {
       await check(() => {
         const logOccurrences =
-          next.cliOutput.slice(logStartIndex).split('re-fetching in layout')
-            .length - 1
+          next.cliOutput.slice(logStartIndex).split('re-fetching in layout').length - 1
 
         return logOccurrences
       }, 1)

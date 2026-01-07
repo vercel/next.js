@@ -5,9 +5,7 @@ const magicNumber = Math.random()
 const originalFetch = globalThis.fetch
 
 if (originalFetch.name === 'monkeyPatchedFetch') {
-  throw new Error(
-    'Patching over already patched fetch. This creates a memory leak.'
-  )
+  throw new Error('Patching over already patched fetch. This creates a memory leak.')
 }
 
 globalThis.fetch = async function monkeyPatchedFetch(

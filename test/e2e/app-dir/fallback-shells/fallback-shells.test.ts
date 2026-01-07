@@ -8,8 +8,7 @@ describe('fallback-shells', () => {
 
   describe('without IO', () => {
     it('should start and not postpone the response', async () => {
-      const { browser, response } =
-        await next.browserWithResponse('/without-io/world')
+      const { browser, response } = await next.browserWithResponse('/without-io/world')
 
       expect(await browser.elementById('slug').text()).toBe('Hello /world')
       const headers = response.headers()
@@ -33,9 +32,7 @@ describe('fallback-shells', () => {
               '/with-cached-io/with-static-params/with-suspense/params-in-page/bar'
             )
 
-            const lastModified = await browser
-              .elementById('last-modified')
-              .text()
+            const lastModified = await browser.elementById('last-modified').text()
             expect(lastModified).toInclude('Page /bar')
             expect(lastModified).toInclude('runtime')
 
@@ -87,13 +84,9 @@ describe('fallback-shells', () => {
                 '/with-cached-io/with-static-params/with-suspense/params-in-page/foo'
               )
 
-              const layoutDateRouteShell = await browser
-                .elementById('root-layout')
-                .text()
+              const layoutDateRouteShell = await browser.elementById('root-layout').text()
 
-              expect(layoutDateRouteShell).toInclude(
-                isNextDev ? 'runtime' : 'buildtime'
-              )
+              expect(layoutDateRouteShell).toInclude(isNextDev ? 'runtime' : 'buildtime')
 
               // `/bar` was not prerendered, and thus resumes the fallback shell.
               await browser.loadPage(
@@ -103,13 +96,9 @@ describe('fallback-shells', () => {
                 ).href
               )
 
-              const layoutDateFallbackShell = await browser
-                .elementById('root-layout')
-                .text()
+              const layoutDateFallbackShell = await browser.elementById('root-layout').text()
 
-              expect(layoutDateRouteShell).toInclude(
-                isNextDev ? 'runtime' : 'buildtime'
-              )
+              expect(layoutDateRouteShell).toInclude(isNextDev ? 'runtime' : 'buildtime')
 
               expect(layoutDateFallbackShell).toBe(layoutDateRouteShell)
             })
@@ -121,13 +110,9 @@ describe('fallback-shells', () => {
                 '/with-cached-io/with-static-params/with-suspense/params-in-page/foo'
               )
 
-              const layoutDateRouteShell = await browser
-                .elementById('layout')
-                .text()
+              const layoutDateRouteShell = await browser.elementById('layout').text()
 
-              expect(layoutDateRouteShell).toInclude(
-                isNextDev ? 'runtime' : 'buildtime'
-              )
+              expect(layoutDateRouteShell).toInclude(isNextDev ? 'runtime' : 'buildtime')
 
               // `/bar` was not prerendered, and thus resumes the fallback shell.
               await browser.loadPage(
@@ -137,13 +122,9 @@ describe('fallback-shells', () => {
                 ).href
               )
 
-              const layoutDateFallbackShell = await browser
-                .elementById('layout')
-                .text()
+              const layoutDateFallbackShell = await browser.elementById('layout').text()
 
-              expect(layoutDateRouteShell).toInclude(
-                isNextDev ? 'runtime' : 'buildtime'
-              )
+              expect(layoutDateRouteShell).toInclude(isNextDev ? 'runtime' : 'buildtime')
 
               expect(layoutDateFallbackShell).toBe(layoutDateRouteShell)
             })
@@ -156,9 +137,7 @@ describe('fallback-shells', () => {
               '/with-cached-io/with-static-params/with-suspense/params-not-in-page/bar'
             )
 
-            const lastModified = await browser
-              .elementById('last-modified')
-              .text()
+            const lastModified = await browser.elementById('last-modified').text()
             expect(lastModified).toInclude('Page /bar')
             expect(lastModified).toInclude('runtime')
 
@@ -183,9 +162,7 @@ describe('fallback-shells', () => {
               '/with-cached-io/with-static-params/with-suspense/params-then-in-page/bar'
             )
 
-            const lastModified = await browser
-              .elementById('last-modified')
-              .text()
+            const lastModified = await browser.elementById('last-modified').text()
             expect(lastModified).toInclude('Page /bar')
             expect(lastModified).toInclude('runtime')
 
@@ -210,9 +187,7 @@ describe('fallback-shells', () => {
               '/with-cached-io/with-static-params/with-suspense/params-transformed/bar'
             )
 
-            const lastModified = await browser
-              .elementById('last-modified')
-              .text()
+            const lastModified = await browser.elementById('last-modified').text()
             expect(lastModified).toInclude('Page /bar')
             expect(lastModified).toInclude('runtime')
 
@@ -239,9 +214,7 @@ describe('fallback-shells', () => {
               '/with-cached-io/with-static-params/without-suspense/params-in-page/bar'
             )
 
-            const lastModified = await browser
-              .elementById('last-modified')
-              .text()
+            const lastModified = await browser.elementById('last-modified').text()
             expect(lastModified).toInclude('Page /bar')
             expect(lastModified).toInclude('runtime')
 
@@ -274,9 +247,7 @@ describe('fallback-shells', () => {
               // interpret the param as a fallback param, and subsequently try to
               // render the fallback shell instead, which would fail because of the
               // missing parent suspense boundary.
-              const lastModified = await browser
-                .elementById('last-modified')
-                .text()
+              const lastModified = await browser.elementById('last-modified').text()
               expect(lastModified).toInclude('Page /%5Bslug%5D')
               expect(lastModified).toInclude('runtime')
             })
@@ -289,9 +260,7 @@ describe('fallback-shells', () => {
               '/with-cached-io/with-static-params/without-suspense/params-not-in-page/bar'
             )
 
-            const lastModified = await browser
-              .elementById('last-modified')
-              .text()
+            const lastModified = await browser.elementById('last-modified').text()
             expect(lastModified).toInclude('Page /bar')
             expect(lastModified).toInclude('runtime')
 
@@ -316,9 +285,7 @@ describe('fallback-shells', () => {
               '/with-cached-io/with-static-params/without-suspense/params-then-in-page/bar'
             )
 
-            const lastModified = await browser
-              .elementById('last-modified')
-              .text()
+            const lastModified = await browser.elementById('last-modified').text()
             expect(lastModified).toInclude('Page /bar')
             expect(lastModified).toInclude('runtime')
 
@@ -343,9 +310,7 @@ describe('fallback-shells', () => {
               '/with-cached-io/with-static-params/without-suspense/params-transformed/bar'
             )
 
-            const lastModified = await browser
-              .elementById('last-modified')
-              .text()
+            const lastModified = await browser.elementById('last-modified').text()
             expect(lastModified).toInclude('Page /bar')
             expect(lastModified).toInclude('runtime')
 

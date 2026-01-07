@@ -1,15 +1,9 @@
 import { PropsWithChildren } from "react";
-import {
-  CacheLocation,
-  FpjsProvider,
-  LoadOptions,
-} from "@fingerprintjs/fingerprintjs-pro-react";
+import { CacheLocation, FpjsProvider, LoadOptions } from "@fingerprintjs/fingerprintjs-pro-react";
 
 const fpjsPublicApiKey = process.env.NEXT_PUBLIC_FPJS_PUBLIC_API_KEY as string;
 
-export const SessionStorageCache: React.FC<PropsWithChildren> = ({
-  children,
-}) => {
+export const SessionStorageCache: React.FC<PropsWithChildren> = ({ children }) => {
   const loadOptions: LoadOptions = {
     apiKey: fpjsPublicApiKey,
   };
@@ -22,12 +16,9 @@ export const SessionStorageCache: React.FC<PropsWithChildren> = ({
     >
       <div className="App">
         <header className="header">
-          <h2>
-            Solution with a custom implementation of a session storage cache
-          </h2>
+          <h2>Solution with a custom implementation of a session storage cache</h2>
           <div className="subheader">
-            New API call made after a key expires or is cleared from the local
-            storage
+            New API call made after a key expires or is cleared from the local storage
           </div>
         </header>
         {children}

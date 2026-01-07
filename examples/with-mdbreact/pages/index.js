@@ -30,9 +30,7 @@ export default function Home() {
             <MDBCard className="my-3">
               <MDBCardBody>
                 <MDBCardTitle tag="h5">Documentation</MDBCardTitle>
-                <MDBCardText>
-                  Find in-depth information about Next.js features and API.
-                </MDBCardText>
+                <MDBCardText>Find in-depth information about Next.js features and API.</MDBCardText>
                 <MDBBtn
                   color="primary"
                   size="sm"
@@ -68,9 +66,7 @@ export default function Home() {
             <MDBCard className="my-3">
               <MDBCardBody>
                 <MDBCardTitle tag="h5">Examples</MDBCardTitle>
-                <MDBCardText>
-                  Discover and deploy boilerplate example Next.js projects.
-                </MDBCardText>
+                <MDBCardText>Discover and deploy boilerplate example Next.js projects.</MDBCardText>
                 <MDBBtn
                   color="primary"
                   size="sm"
@@ -87,8 +83,7 @@ export default function Home() {
               <MDBCardBody>
                 <MDBCardTitle tag="h5">Deploy</MDBCardTitle>
                 <MDBCardText>
-                  Instantly deploy your Next.js site to a public URL with
-                  Vercel.
+                  Instantly deploy your Next.js site to a public URL with Vercel.
                 </MDBCardText>
                 <MDBBtn
                   color="primary"

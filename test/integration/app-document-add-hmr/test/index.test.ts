@@ -43,17 +43,13 @@ describe('_app/_document add HMR', () => {
 
       await check(async () => {
         const html = await browser.eval('document.documentElement.innerHTML')
-        return html.includes('custom _app') && html.includes('index page')
-          ? 'success'
-          : html
+        return html.includes('custom _app') && html.includes('index page') ? 'success' : html
       }, 'success')
     } finally {
       await fs.remove(appPage)
       await check(async () => {
         const html = await browser.eval('document.documentElement.innerHTML')
-        return !html.includes('custom _app') && html.includes('index page')
-          ? 'restored'
-          : html
+        return !html.includes('custom _app') && html.includes('index page') ? 'restored' : html
       }, 'restored')
     }
   })
@@ -98,17 +94,13 @@ describe('_app/_document add HMR', () => {
 
       await check(async () => {
         const html = await browser.eval('document.documentElement.innerHTML')
-        return html.includes('custom _document') && html.includes('index page')
-          ? 'success'
-          : html
+        return html.includes('custom _document') && html.includes('index page') ? 'success' : html
       }, 'success')
     } finally {
       await fs.remove(documentPage)
       await check(async () => {
         const html = await browser.eval('document.documentElement.innerHTML')
-        return !html.includes('custom _document') && html.includes('index page')
-          ? 'restored'
-          : html
+        return !html.includes('custom _document') && html.includes('index page') ? 'restored' : html
       }, 'restored')
     }
   })

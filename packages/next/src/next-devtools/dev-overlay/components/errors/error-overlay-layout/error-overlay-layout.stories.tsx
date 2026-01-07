@@ -27,9 +27,7 @@ export const Default: Story = {
       staleness: 'fresh',
     },
     children: (
-      <div style={{ margin: '1rem' }}>
-        Module not found: Cannot find module './missing-module'
-      </div>
+      <div style={{ margin: '1rem' }}>Module not found: Cannot find module './missing-module'</div>
     ),
   },
 }

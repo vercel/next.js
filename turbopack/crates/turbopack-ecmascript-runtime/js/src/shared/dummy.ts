@@ -7,7 +7,4 @@
  * This interface will be implemented by runtimes.
  */
 
-declare function getOrInstantiateModuleFromParent<M>(
-  id: ModuleId,
-  sourceModule: M
-): M
+declare function getOrInstantiateModuleFromParent<M>(id: ModuleId, sourceModule: M): M

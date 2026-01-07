@@ -8,17 +8,13 @@ export const unstable_prefetch = {
   samples: [{ cookies: [] }],
 }
 
-export default async function Page({
-  searchParams,
-}: {
-  searchParams: Promise<AnySearchParams>
-}) {
+export default async function Page({ searchParams }: { searchParams: Promise<AnySearchParams> }) {
   return (
     <main>
       <DebugRenderKind />
       <p id="intro">
-        This page performs sync IO after awaiting searchParams, so we should
-        only see the error in a runtime prefetch
+        This page performs sync IO after awaiting searchParams, so we should only see the error in a
+        runtime prefetch
       </p>
       <Suspense fallback={<div style={{ color: 'grey' }}>Loading 1...</div>}>
         <RuntimePrefetchable searchParams={searchParams} />
@@ -27,11 +23,7 @@ export default async function Page({
   )
 }
 
-async function RuntimePrefetchable({
-  searchParams,
-}: {
-  searchParams: Promise<AnySearchParams>
-}) {
+async function RuntimePrefetchable({ searchParams }: { searchParams: Promise<AnySearchParams> }) {
   await searchParams
   return <div id="timestamp">Timestamp: {Date.now()}</div>
 }

@@ -1,8 +1,6 @@
 import type { ParsedUrlQuery } from 'querystring'
 
-export function searchParamsToUrlQuery(
-  searchParams: URLSearchParams
-): ParsedUrlQuery {
+export function searchParamsToUrlQuery(searchParams: URLSearchParams): ParsedUrlQuery {
   const query: ParsedUrlQuery = {}
   for (const [key, value] of searchParams.entries()) {
     const existing = query[key]
@@ -22,10 +20,7 @@ function stringifyUrlQueryParam(param: unknown): string {
     return param
   }
 
-  if (
-    (typeof param === 'number' && !isNaN(param)) ||
-    typeof param === 'boolean'
-  ) {
+  if ((typeof param === 'number' && !isNaN(param)) || typeof param === 'boolean') {
     return String(param)
   } else {
     return ''
