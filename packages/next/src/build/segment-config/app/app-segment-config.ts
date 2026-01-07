@@ -15,7 +15,9 @@ const RuntimeSampleSchema = z
     cookies: z.array(CookieSchema).optional(),
     headers: z.array(z.tuple([z.string(), z.string()])).optional(),
     params: z.record(z.union([z.string(), z.array(z.string())])).optional(),
-    searchParams: z.record(z.union([z.string(), z.array(z.string()), z.undefined()])).optional(),
+    searchParams: z
+      .record(z.union([z.string(), z.array(z.string()), z.undefined()]))
+      .optional(),
   })
   .strict()
 
@@ -36,7 +38,10 @@ const RuntimePrefetchSchema = z
   })
   .strict()
 
-const PrefetchSchema = z.discriminatedUnion('mode', [StaticPrefetchSchema, RuntimePrefetchSchema])
+const PrefetchSchema = z.discriminatedUnion('mode', [
+  StaticPrefetchSchema,
+  RuntimePrefetchSchema,
+])
 
 export type Prefetch = StaticPrefetch | RuntimePrefetch
 export type PrefetchForTypeCheckInternal = __GenericPrefetch | Prefetch
@@ -88,7 +93,9 @@ const AppSegmentConfigSchema = z.object({
   /**
    * The number of seconds to revalidate the page or false to disable revalidation.
    */
-  revalidate: z.union([z.number().int().nonnegative(), z.literal(false)]).optional(),
+  revalidate: z
+    .union([z.number().int().nonnegative(), z.literal(false)])
+    .optional(),
 
   /**
    * Whether the page supports dynamic parameters.
@@ -98,7 +105,9 @@ const AppSegmentConfigSchema = z.object({
   /**
    * The dynamic behavior of the page.
    */
-  dynamic: z.enum(['auto', 'error', 'force-static', 'force-dynamic']).optional(),
+  dynamic: z
+    .enum(['auto', 'error', 'force-static', 'force-dynamic'])
+    .optional(),
 
   /**
    * The caching behavior of the page.
@@ -142,7 +151,10 @@ const AppSegmentConfigSchema = z.object({
  * @param route - The route of the app.
  * @returns The parsed app segment config.
  */
-export function parseAppSegmentConfig(data: unknown, route: string): AppSegmentConfig {
+export function parseAppSegmentConfig(
+  data: unknown,
+  route: string
+): AppSegmentConfig {
   const parsed = AppSegmentConfigSchema.safeParse(data, {
     errorMap: (issue, ctx) => {
       if (issue.path.length === 1) {

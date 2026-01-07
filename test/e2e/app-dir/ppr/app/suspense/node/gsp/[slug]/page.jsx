@@ -17,9 +17,10 @@ export default async function Page(props) {
 }
 
 async function Component({ id }) {
-  const dynamicData = await fetch(`https://next-data-api-endpoint.vercel.app/api/random?id=${id}`, {
-    cache: 'no-store',
-  })
+  const dynamicData = await fetch(
+    `https://next-data-api-endpoint.vercel.app/api/random?id=${id}`,
+    { cache: 'no-store' }
+  )
 
   const randomNumber = await dynamicData.json()
 

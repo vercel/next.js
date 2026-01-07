@@ -65,7 +65,9 @@ function runTests(mode) {
     let browser = await webdriver(appPort, '/docs')
     try {
       await check(async () => {
-        const result = await browser.eval(`document.getElementById('basic-image').naturalWidth`)
+        const result = await browser.eval(
+          `document.getElementById('basic-image').naturalWidth`
+        )
 
         if (result === 0) {
           throw new Error('Incorrectly loaded image')
@@ -88,11 +90,17 @@ function runTests(mode) {
   it('should update the image on src change', async () => {
     let browser = await webdriver(appPort, '/docs/update')
     try {
-      await check(() => browser.eval(`document.getElementById("update-image").src`), /test\.jpg/)
+      await check(
+        () => browser.eval(`document.getElementById("update-image").src`),
+        /test\.jpg/
+      )
 
       await browser.eval(`document.getElementById("toggle").click()`)
 
-      await check(() => browser.eval(`document.getElementById("update-image").src`), /test\.png/)
+      await check(
+        () => browser.eval(`document.getElementById("update-image").src`),
+        /test\.png/
+      )
     } finally {
       await browser.close()
     }
@@ -102,7 +110,9 @@ function runTests(mode) {
     let browser = await webdriver(appPort, '/docs/flex')
     try {
       await check(async () => {
-        const result = await browser.eval(`document.getElementById('basic-image').width`)
+        const result = await browser.eval(
+          `document.getElementById('basic-image').width`
+        )
         if (result === 0) {
           throw new Error('Incorrectly loaded image')
         }
@@ -121,7 +131,9 @@ function runTests(mode) {
       const height = 700
       const delta = 250
       const id = 'fixed1'
-      expect(await getSrc(browser, id)).toBe('/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75')
+      expect(await getSrc(browser, id)).toBe(
+        '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75'
+      )
       expect(await browser.elementById(id).getAttribute('srcset')).toBe(
         '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75 1x, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75 2x'
       )
@@ -175,7 +187,10 @@ function runTests(mode) {
       const newHeight = await getComputed(browser, id, 'height')
       expect(newWidth).toBeLessThan(width)
       expect(newHeight).toBeLessThan(height)
-      expect(getRatio(newWidth, newHeight)).toBeCloseTo(getRatio(width, height), 1)
+      expect(getRatio(newWidth, newHeight)).toBeCloseTo(
+        getRatio(width, height),
+        1
+      )
     } finally {
       await browser.close()
     }
@@ -213,7 +228,10 @@ function runTests(mode) {
       const newHeight = await getComputed(browser, id, 'height')
       expect(newWidth).toBeLessThan(width)
       expect(newHeight).toBeLessThan(height)
-      expect(getRatio(newWidth, newHeight)).toBeCloseTo(getRatio(width, height), 1)
+      expect(getRatio(newWidth, newHeight)).toBeCloseTo(
+        getRatio(width, height),
+        1
+      )
     } finally {
       await browser.close()
     }
@@ -251,7 +269,10 @@ function runTests(mode) {
       const newHeight = await getComputed(browser, id, 'height')
       expect(newWidth).toBe(width)
       expect(newHeight).toBe(height)
-      expect(getRatio(newWidth, newHeight)).toBeCloseTo(getRatio(width, height), 1)
+      expect(getRatio(newWidth, newHeight)).toBeCloseTo(
+        getRatio(width, height),
+        1
+      )
     } finally {
       await browser.close()
     }
@@ -295,7 +316,9 @@ function runTests(mode) {
       expect(await getComputed(browser, id, 'width')).toBe(smallWidth)
       expect(await getComputed(browser, id, 'height')).toBe(smallHeight)
 
-      const objectFit = await browser.eval(`document.getElementById("${id}").style.objectFit`)
+      const objectFit = await browser.eval(
+        `document.getElementById("${id}").style.objectFit`
+      )
       const objectPosition = await browser.eval(
         `document.getElementById("${id}").style.objectPosition`
       )
@@ -340,7 +363,10 @@ function runTests(mode) {
       const newHeight = await getComputed(browser, id, 'height')
       expect(newWidth).toBeLessThan(width)
       expect(newHeight).toBeLessThan(height)
-      expect(getRatio(newWidth, newHeight)).toBeCloseTo(getRatio(width, height), 1)
+      expect(getRatio(newWidth, newHeight)).toBeCloseTo(
+        getRatio(width, height),
+        1
+      )
     } finally {
       await browser.close()
     }
@@ -367,7 +393,10 @@ function runTests(mode) {
     })
 
     it('should show invalid src error when protocol-relative', async () => {
-      const browser = await webdriver(appPort, '/docs/invalid-src-proto-relative')
+      const browser = await webdriver(
+        appPort,
+        '/docs/invalid-src-proto-relative'
+      )
 
       await waitForRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
@@ -437,23 +466,29 @@ function runTests(mode) {
 }
 
 describe('Image Component basePath Tests', () => {
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-    runTests('dev')
-  })
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+      runTests('dev')
+    }
+  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-    runTests('server')
-  })
+      runTests('server')
+    }
+  )
 })

@@ -74,7 +74,9 @@ export class StagedRenderingController {
       return false
     }
 
-    const boundaryStage = this.hasRuntimePrefetch ? RenderStage.Dynamic : RenderStage.Runtime
+    const boundaryStage = this.hasRuntimePrefetch
+      ? RenderStage.Dynamic
+      : RenderStage.Runtime
     return this.currentStage < boundaryStage
   }
 
@@ -174,7 +176,9 @@ export class StagedRenderingController {
     }
   }
 
-  advanceStage(stage: RenderStage.Static | RenderStage.Runtime | RenderStage.Dynamic) {
+  advanceStage(
+    stage: RenderStage.Static | RenderStage.Runtime | RenderStage.Dynamic
+  ) {
     // If we're already at the target stage or beyond, do nothing.
     // (this can happen e.g. if sync IO advanced us to the dynamic stage)
     if (stage <= this.currentStage) {
@@ -241,7 +245,11 @@ export class StagedRenderingController {
   ) {
     const ioTriggerPromise = this.getStagePromise(stage)
 
-    const promise = makeDevtoolsIOPromiseFromIOTrigger(ioTriggerPromise, displayName, resolvedValue)
+    const promise = makeDevtoolsIOPromiseFromIOTrigger(
+      ioTriggerPromise,
+      displayName,
+      resolvedValue
+    )
 
     // Analogously to `makeHangingPromise`, we might reject this promise if the signal is invoked.
     // (e.g. in the case where we don't want want the render to proceed to the dynamic stage and abort it).

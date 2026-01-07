@@ -70,7 +70,8 @@ export function forEachEntryModule(
     )
       continue
 
-    let entryModule: NormalModule = compilation.moduleGraph.getResolvedModule(entryDependency)
+    let entryModule: NormalModule =
+      compilation.moduleGraph.getResolvedModule(entryDependency)
 
     if (
       request.startsWith('next-edge-ssr-loader?') ||
@@ -88,7 +89,10 @@ export function forEachEntryModule(
   }
 }
 
-export function formatBarrelOptimizedResource(resource: string, matchResource: string) {
+export function formatBarrelOptimizedResource(
+  resource: string,
+  matchResource: string
+) {
   return `${resource}@${matchResource}`
 }
 
@@ -115,7 +119,9 @@ export function getModuleReferencesInOrder(
   return connections.map((c) => c.connection)
 }
 
-export function getCompilationSpan(compilation: Compiler | Compilation): Span | undefined {
+export function getCompilationSpan(
+  compilation: Compiler | Compilation
+): Span | undefined {
   const compilationSpans = process.env.NEXT_RSPACK
     ? rspackCompilationSpans
     : webpackCompilationSpans

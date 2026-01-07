@@ -23,7 +23,9 @@ export default function Index(props) {
   return (
     <div id="route">
       gsp route:{' '}
-      {props.params.slug === undefined ? 'undefined' : `[${props.params.slug.join('|')}]`}
+      {props.params.slug === undefined
+        ? 'undefined'
+        : `[${props.params.slug.join('|')}]`}
     </div>
   )
 }

@@ -43,21 +43,38 @@ describe('preferred-region', () => {
 
       // Test our fix: Node.js route should have both maxDuration and regions
       expect(functionsConfigManifest.functions).toHaveProperty('/api/test')
-      expect(functionsConfigManifest.functions['/api/test']).toHaveProperty('maxDuration', 100)
-      expect(functionsConfigManifest.functions['/api/test']).toHaveProperty('regions')
-      expect(functionsConfigManifest.functions['/api/test'].regions).toEqual(['iad1'])
+      expect(functionsConfigManifest.functions['/api/test']).toHaveProperty(
+        'maxDuration',
+        100
+      )
+      expect(functionsConfigManifest.functions['/api/test']).toHaveProperty(
+        'regions'
+      )
+      expect(functionsConfigManifest.functions['/api/test'].regions).toEqual([
+        'iad1',
+      ])
 
       // Edge route should also be in functions manifest with regions
       expect(functionsConfigManifest.functions).toHaveProperty('/api/test-edge')
-      expect(functionsConfigManifest.functions['/api/test-edge']).toHaveProperty('maxDuration', 100)
-      expect(functionsConfigManifest.functions['/api/test-edge']).toHaveProperty('regions')
-      expect(functionsConfigManifest.functions['/api/test-edge'].regions).toEqual(['iad1'])
+      expect(
+        functionsConfigManifest.functions['/api/test-edge']
+      ).toHaveProperty('maxDuration', 100)
+      expect(
+        functionsConfigManifest.functions['/api/test-edge']
+      ).toHaveProperty('regions')
+      expect(
+        functionsConfigManifest.functions['/api/test-edge'].regions
+      ).toEqual(['iad1'])
 
       // Edge runtime should also work correctly in middleware manifest - check for regions only
       const edgeRoutePath = '/api/test-edge/route'
       expect(middlewareManifest.functions).toHaveProperty(edgeRoutePath)
-      expect(middlewareManifest.functions[edgeRoutePath]).toHaveProperty('regions')
-      expect(middlewareManifest.functions[edgeRoutePath].regions).toEqual(['iad1'])
+      expect(middlewareManifest.functions[edgeRoutePath]).toHaveProperty(
+        'regions'
+      )
+      expect(middlewareManifest.functions[edgeRoutePath].regions).toEqual([
+        'iad1',
+      ])
     }
   })
 })

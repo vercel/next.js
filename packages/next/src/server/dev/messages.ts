@@ -9,7 +9,9 @@ export const FAST_REFRESH_RUNTIME_RELOAD =
 
 const textEncoder = new TextEncoder()
 
-export function createBinaryHmrMessageData(message: BinaryHmrMessageSentToBrowser): Uint8Array {
+export function createBinaryHmrMessageData(
+  message: BinaryHmrMessageSentToBrowser
+): Uint8Array {
   switch (message.type) {
     case HMR_MESSAGE_SENT_TO_BROWSER.ERRORS_TO_SHOW_IN_BROWSER: {
       const { serializedErrors } = message
@@ -28,7 +30,9 @@ export function createBinaryHmrMessageData(message: BinaryHmrMessageSentToBrowse
       const requestIdLength = requestIdBytes.length
 
       if (requestIdLength > 255) {
-        throw new InvariantError('Request ID is too long for the binary HMR message.')
+        throw new InvariantError(
+          'Request ID is too long for the binary HMR message.'
+        )
       }
 
       const chunkLength = chunk ? chunk.length : 0
@@ -47,7 +51,9 @@ export function createBinaryHmrMessageData(message: BinaryHmrMessageSentToBrowse
       return data
     }
     default: {
-      throw new InvariantError(`Invalid binary HMR message of type ${(message as any).type}`)
+      throw new InvariantError(
+        `Invalid binary HMR message of type ${(message as any).type}`
+      )
     }
   }
 }

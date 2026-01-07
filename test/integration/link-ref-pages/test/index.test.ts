@@ -42,9 +42,13 @@ const didPrefetch = async (pathname) => {
   await retry(async () => {
     const links = await browser.elementsByCss('link[rel=prefetch]')
 
-    const hrefs = await Promise.all(links.map((link) => link.getAttribute('href')))
+    const hrefs = await Promise.all(
+      links.map((link) => link.getAttribute('href'))
+    )
 
-    expect(hrefs).toEqual(expect.arrayContaining([expect.stringContaining(chunk)]))
+    expect(hrefs).toEqual(
+      expect.arrayContaining([expect.stringContaining(chunk)])
+    )
   })
 
   await browser.close()
@@ -60,59 +64,65 @@ function runCommonTests() {
 }
 
 describe('Invalid hrefs', () => {
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-    runCommonTests()
+      runCommonTests()
 
-    it('should not show error for function component with forwardRef', async () => {
-      await noError('/function')
-    })
+      it('should not show error for function component with forwardRef', async () => {
+        await noError('/function')
+      })
 
-    it('should not show error for class component as child of next/link', async () => {
-      await noError('/class')
-    })
+      it('should not show error for class component as child of next/link', async () => {
+        await noError('/class')
+      })
 
-    it('should handle child ref with React.createRef', async () => {
-      await noError('/child-ref')
-    })
+      it('should handle child ref with React.createRef', async () => {
+        await noError('/child-ref')
+      })
 
-    it('should handle child ref that is a function', async () => {
-      await noError('/child-ref-func')
-    })
+      it('should handle child ref that is a function', async () => {
+        await noError('/child-ref-func')
+      })
 
-    it('should handle child ref that is a function that returns a cleanup function', async () => {
-      await noError('/child-ref-func-cleanup')
-    })
-  })
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+      it('should handle child ref that is a function that returns a cleanup function', async () => {
+        await noError('/child-ref-func-cleanup')
+      })
+    }
+  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-    runCommonTests()
+      runCommonTests()
 
-    it('should preload with forwardRef', async () => {
-      await didPrefetch('/function')
-    })
+      it('should preload with forwardRef', async () => {
+        await didPrefetch('/function')
+      })
 
-    it('should preload with child ref with React.createRef', async () => {
-      await didPrefetch('/child-ref')
-    })
+      it('should preload with child ref with React.createRef', async () => {
+        await didPrefetch('/child-ref')
+      })
 
-    it('should preload with child ref with function', async () => {
-      await didPrefetch('/child-ref-func')
-    })
+      it('should preload with child ref with function', async () => {
+        await didPrefetch('/child-ref-func')
+      })
 
-    it('should preload with child ref with function that returns a cleanup function', async () => {
-      await didPrefetch('/child-ref-func-cleanup')
-    })
-  })
+      it('should preload with child ref with function that returns a cleanup function', async () => {
+        await didPrefetch('/child-ref-func-cleanup')
+      })
+    }
+  )
 })

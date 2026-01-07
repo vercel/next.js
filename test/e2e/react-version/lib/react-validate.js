@@ -13,7 +13,8 @@ function getReactConditionByModule(React_) {
 
 function getReactDomConditionByModule(ReactDOM_) {
   const ReactDOM = Object(ReactDOM_)
-  const isReactServer = ReactDOM.useFormState === undefined && ReactDOM.preload !== undefined
+  const isReactServer =
+    ReactDOM.useFormState === undefined && ReactDOM.preload !== undefined
   return isReactServer ? 'react-server' : 'default'
 }
 

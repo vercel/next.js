@@ -1,6 +1,12 @@
 import path from 'path'
 import { createNext, FileRef, NextInstance } from 'e2e-utils'
-import { fetchViaHTTP, findPort, initNextServerScript, killApp, retry } from 'next-test-utils'
+import {
+  fetchViaHTTP,
+  findPort,
+  initNextServerScript,
+  killApp,
+  retry,
+} from 'next-test-utils'
 
 describe('global-default-cache-handler', () => {
   let appPort: number
@@ -47,7 +53,10 @@ describe('global-default-cache-handler', () => {
 
     appPort = await findPort()
 
-    require('console').error('starting standalone mode', path.join(next.testDir, standaloneServer))
+    require('console').error(
+      'starting standalone mode',
+      path.join(next.testDir, standaloneServer)
+    )
 
     server = await initNextServerScript(
       path.join(next.testDir, standaloneServer),

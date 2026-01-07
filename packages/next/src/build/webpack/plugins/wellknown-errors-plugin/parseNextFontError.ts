@@ -1,10 +1,15 @@
 import { SimpleWebpackError } from './simpleWebpackError'
 
-export function getNextFontError(err: Error, module: any): SimpleWebpackError | false {
+export function getNextFontError(
+  err: Error,
+  module: any
+): SimpleWebpackError | false {
   try {
     const resourceResolveData = module.resourceResolveData
     if (
-      !module.loaders.find((loader: any) => /next-font-loader[/\\]index.js/.test(loader.loader))
+      !module.loaders.find((loader: any) =>
+        /next-font-loader[/\\]index.js/.test(loader.loader)
+      )
     ) {
       return false
     }
@@ -15,10 +20,16 @@ export function getNextFontError(err: Error, module: any): SimpleWebpackError | 
 
     if (err.name === 'NextFontError') {
       // Known error thrown by @next/font, display the error message
-      return new SimpleWebpackError(file, `\`next/font\` error:\n${err.message}`)
+      return new SimpleWebpackError(
+        file,
+        `\`next/font\` error:\n${err.message}`
+      )
     } else {
       // Unknown error thrown by @next/font
-      return new SimpleWebpackError(file, `An error occurred in \`next/font\`.\n\n${err.stack}`)
+      return new SimpleWebpackError(
+        file,
+        `An error occurred in \`next/font\`.\n\n${err.stack}`
+      )
     }
   } catch {
     return false

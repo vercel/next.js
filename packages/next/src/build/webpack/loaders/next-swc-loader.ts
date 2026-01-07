@@ -40,9 +40,15 @@ import {
   type SwcTransformTelemetryOutput,
 } from '../plugins/telemetry-plugin/update-telemetry-loader-context-from-swc'
 import type { LoaderContext } from 'webpack'
-import { COMPILER_NAMES, type CompilerNameValues } from '../../../shared/lib/constants'
+import {
+  COMPILER_NAMES,
+  type CompilerNameValues,
+} from '../../../shared/lib/constants'
 
-const maybeExclude = (excludePath: string, transpilePackages: string[]): boolean => {
+const maybeExclude = (
+  excludePath: string,
+  transpilePackages: string[]
+): boolean => {
   if (babelIncludeRegexes.some((r) => r.test(excludePath))) {
     return false
   }
@@ -74,7 +80,8 @@ export interface SWCLoaderOptions {
 
 // these are exact code conditions checked
 // for to force transpiling a `node_module`
-const FORCE_TRANSPILE_CONDITIONS = /next\/font|next\/dynamic|use server|use client|use cache/
+const FORCE_TRANSPILE_CONDITIONS =
+  /next\/font|next\/dynamic|use server|use client|use cache/
 // same as above, but including `import(...)`.
 // (note the optional whitespace: `import  (...)` is also syntactically valid)
 const FORCE_TRANSPILE_CONDITIONS_WITH_IMPORT = new RegExp(
@@ -95,7 +102,10 @@ async function loaderTransform(
   }
 
   let loaderOptions: SWCLoaderOptions = this.getOptions() || {}
-  const shouldMaybeExclude = maybeExclude(filename, loaderOptions.transpilePackages || [])
+  const shouldMaybeExclude = maybeExclude(
+    filename,
+    loaderOptions.transpilePackages || []
+  )
 
   const trackDynamicImports = shouldTrackDynamicImports(loaderOptions)
 
@@ -137,7 +147,9 @@ async function loaderTransform(
     filename,
     isServer,
     isPageFile,
-    development: this.mode === 'development' || !!nextConfig.experimental?.allowDevelopmentBuild,
+    development:
+      this.mode === 'development' ||
+      !!nextConfig.experimental?.allowDevelopmentBuild,
     isCacheComponents: nextConfig.cacheComponents,
     hasReactRefresh,
     modularizeImports: nextConfig?.modularizeImports,
@@ -184,9 +196,13 @@ async function loaderTransform(
     programmaticOptions.jsc &&
     programmaticOptions.jsc.transform &&
     programmaticOptions.jsc.transform.react &&
-    !Object.prototype.hasOwnProperty.call(programmaticOptions.jsc.transform.react, 'development')
+    !Object.prototype.hasOwnProperty.call(
+      programmaticOptions.jsc.transform.react,
+      'development'
+    )
   ) {
-    programmaticOptions.jsc.transform.react.development = this.mode === 'development'
+    programmaticOptions.jsc.transform.react.development =
+      this.mode === 'development'
   }
 
   return transform(source as any, programmaticOptions).then(
@@ -216,13 +232,17 @@ function shouldTrackDynamicImports(loaderOptions: SWCLoaderOptions): boolean {
   )
 }
 
-const EXCLUDED_PATHS = /[\\/](cache[\\/][^\\/]+\.zip[\\/]node_modules|__virtual__)[\\/]/g
+const EXCLUDED_PATHS =
+  /[\\/](cache[\\/][^\\/]+\.zip[\\/]node_modules|__virtual__)[\\/]/g
 
 export function pitch(this: any) {
   const callback = this.async()
   let loaderOptions: SWCLoaderOptions = this.getOptions() || {}
 
-  const shouldMaybeExclude = maybeExclude(this.resourcePath, loaderOptions.transpilePackages || [])
+  const shouldMaybeExclude = maybeExclude(
+    this.resourcePath,
+    loaderOptions.transpilePackages || []
+  )
 
   ;(async () => {
     if (
@@ -244,7 +264,11 @@ export function pitch(this: any) {
   }, callback)
 }
 
-export default function swcLoader(this: any, inputSource: string, inputSourceMap: any) {
+export default function swcLoader(
+  this: any,
+  inputSource: string,
+  inputSourceMap: any
+) {
   const callback = this.async()
   // Install bindings early so they are definitely available to the loader.
   // When run by webpack in next this is already done with correct configuration so this is a no-op.

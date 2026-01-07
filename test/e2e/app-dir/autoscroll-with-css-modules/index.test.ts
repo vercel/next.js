@@ -14,14 +14,22 @@ describe('router autoscrolling on navigation with css modules', () => {
   const getLeftScroll = async (browser: Playwright) =>
     await browser.eval('document.documentElement.scrollLeft')
 
-  const waitForScrollToComplete = (browser, options: { x: number; y: number }) =>
+  const waitForScrollToComplete = (
+    browser,
+    options: { x: number; y: number }
+  ) =>
     check(async () => {
       const top = await getTopScroll(browser)
       const left = await getLeftScroll(browser)
-      return top === options.y && left === options.x ? 'success' : JSON.stringify({ top, left })
+      return top === options.y && left === options.x
+        ? 'success'
+        : JSON.stringify({ top, left })
     }, 'success')
 
-  const scrollTo = async (browser: Playwright, options: { x: number; y: number }) => {
+  const scrollTo = async (
+    browser: Playwright,
+    options: { x: number; y: number }
+  ) => {
     await browser.eval(`window.scrollTo(${options.x}, ${options.y})`)
     await waitForScrollToComplete(browser, options)
   }

@@ -25,7 +25,9 @@ export namespace Components {
 }
 
 declare global {
-  interface HTMLMyComponentElement extends Components.MyComponent, HTMLStencilElement {}
+  interface HTMLMyComponentElement
+    extends Components.MyComponent,
+      HTMLStencilElement {}
   var HTMLMyComponentElement: {
     prototype: HTMLMyComponentElement;
     new (): HTMLMyComponentElement;
@@ -61,7 +63,8 @@ export { LocalJSX as JSX };
 declare module "@stencil/core" {
   export namespace JSX {
     interface IntrinsicElements {
-      "my-component": LocalJSX.MyComponent & JSXBase.HTMLAttributes<HTMLMyComponentElement>;
+      "my-component": LocalJSX.MyComponent &
+        JSXBase.HTMLAttributes<HTMLMyComponentElement>;
     }
   }
 }

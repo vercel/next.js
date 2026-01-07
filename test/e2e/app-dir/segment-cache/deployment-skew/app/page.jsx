@@ -4,7 +4,9 @@ export default function Page() {
   return (
     <ul>
       <li>
-        <LinkAccordion href="/dynamic-page">Dynamic page, same deployment</LinkAccordion>
+        <LinkAccordion href="/dynamic-page">
+          Dynamic page, same deployment
+        </LinkAccordion>
       </li>
       <li>
         <LinkAccordion href="/dynamic-page?deployment=2">
@@ -12,7 +14,9 @@ export default function Page() {
         </LinkAccordion>
       </li>
       <li>
-        <LinkAccordion href="/static-page">Static page, same deployment</LinkAccordion>
+        <LinkAccordion href="/static-page">
+          Static page, same deployment
+        </LinkAccordion>
       </li>
       <li>
         <LinkAccordion href="/static-page?deployment=2">

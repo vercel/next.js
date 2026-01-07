@@ -44,7 +44,6 @@ The root `conductor.json` defines:
 ### Creating a New Workspace
 
 In the Conductor app:
-
 1. Add this repository
 2. Create a new workspace with a descriptive name
 3. The setup script will automatically install dependencies and build
@@ -71,7 +70,6 @@ cd ../next.js-worktrees/my-feature
 ## Managing Worktrees
 
 View all worktrees:
-
 ```bash
 git worktree list
 ```
@@ -79,19 +77,16 @@ git worktree list
 ## Best Practices
 
 ### Disk Space Management
-
 - Each worktree uses ~500MB-1GB after build
 - Run `pnpm sweep` periodically to clean Rust build artifacts
 - Remove unused worktrees with `git worktree remove <path>`
 
 ### Development Workflow
-
 1. **Never run `pnpm build` while `pnpm dev` is active** (causes build corruption)
 2. Use `pnpm test-dev-turbo` for fastest test iteration
 3. Use `NEXT_SKIP_ISOLATE=1` for faster test runs during development
 
 ### Parallel Agent Recommendations
-
 - Limit to 3-4 concurrent agents to avoid:
   - GitHub API rate limits
   - Disk space exhaustion
@@ -100,9 +95,7 @@ git worktree list
 ## Troubleshooting
 
 ### Build Corruption
-
 If builds become corrupted:
-
 ```bash
 # Kill any running dev processes
 pkill -f "pnpm dev"
@@ -114,7 +107,6 @@ pnpm build
 ```
 
 ### Worktree Issues
-
 ```bash
 # List worktrees with status
 git worktree list

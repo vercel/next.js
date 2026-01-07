@@ -2,7 +2,9 @@ import type { RenderOpts } from './render'
 
 import { nonNullable } from '../lib/non-nullable'
 
-type PostProcessorFunction = ((html: string) => Promise<string>) | ((html: string) => string)
+type PostProcessorFunction =
+  | ((html: string) => Promise<string>)
+  | ((html: string) => string)
 
 async function postProcessHTML(
   content: string,

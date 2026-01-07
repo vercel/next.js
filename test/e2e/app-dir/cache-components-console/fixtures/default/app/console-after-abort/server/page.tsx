@@ -2,7 +2,11 @@ import { headers } from 'next/headers'
 
 async function cachedConsoleCalls(outBadge: string, errBadge: string) {
   'use cache'
-  console.info(`${outBadge} /console-after-abort/server: template(one: %s, two: %s)`, 'one', 'two')
+  console.info(
+    `${outBadge} /console-after-abort/server: template(one: %s, two: %s)`,
+    'one',
+    'two'
+  )
   console.log(
     `${outBadge} /console-after-abort/server: This is a console page` +
       ". Don't match the codeframe."
@@ -28,15 +32,23 @@ export default async function ConsolePage() {
   const outBadge = `:::${i}:out:::`
   const errBadge = `:::${i++}:err:::`
 
-  console.log(`${outBadge} /console-after-abort/server: logging before trying await headers()`)
+  console.log(
+    `${outBadge} /console-after-abort/server: logging before trying await headers()`
+  )
   try {
     await headers()
   } catch (error) {
-    console.error(`${errBadge} /console-after-abort/server: caught error trying await headers()`)
+    console.error(
+      `${errBadge} /console-after-abort/server: caught error trying await headers()`
+    )
   }
   // We add some delay because in tests this sometimes runs after the second render pass
   // has already started and that can lead to out-of-order console logs.
-  console.info(`${outBadge} /console-after-abort/server: template(one: %s, two: %s)`, 'one', 'two')
+  console.info(
+    `${outBadge} /console-after-abort/server: template(one: %s, two: %s)`,
+    'one',
+    'two'
+  )
   console.log(
     `${outBadge} /console-after-abort/server: This is a console page` +
       ". Don't match the codeframe."

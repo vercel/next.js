@@ -11,6 +11,8 @@ describe('bad-file-structure', () => {
     await next.build()
 
     const output = next.cliOutput
-    expect(output).toContain('`pages` and `app` directories should be under the same folder')
+    expect(output).toContain(
+      '`pages` and `app` directories should be under the same folder'
+    )
   })
 })

@@ -2,16 +2,18 @@
   "name": "test-component",
   "version": "1.0.0",
   "private": true,
-  "license": "MIT",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "es2015": "dist/esm/index.mjs",
+  "es2017": "dist/esm/index.mjs",
+  "types": "dist/types/index.d.ts",
+  "collection": "dist/collection/collection-manifest.json",
+  "collection:main": "dist/collection/index.js",
+  "unpkg": "dist/test-component/test-component.js",
   "files": [
     "dist/",
     "loader/"
   ],
-  "main": "dist/index.js",
-  "module": "dist/index.mjs",
-  "types": "dist/types/index.d.ts",
-  "unpkg": "dist/test-component/test-component.js",
-  "es2015": "dist/esm/index.mjs",
   "scripts": {
     "build": "stencil build --docs",
     "start": "stencil build --dev --watch --serve",
@@ -22,7 +24,5 @@
   "devDependencies": {
     "@stencil/core": "^1.8.4"
   },
-  "collection": "dist/collection/collection-manifest.json",
-  "collection:main": "dist/collection/index.js",
-  "es2017": "dist/esm/index.mjs"
+  "license": "MIT"
 }

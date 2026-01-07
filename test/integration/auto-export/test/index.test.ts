@@ -2,7 +2,14 @@
 
 import webdriver from 'next-webdriver'
 import path from 'path'
-import { nextBuild, nextStart, findPort, killApp, launchApp, check } from 'next-test-utils'
+import {
+  nextBuild,
+  nextStart,
+  findPort,
+  killApp,
+  launchApp,
+  check,
+} from 'next-test-utils'
 
 const appDir = path.join(__dirname, '..')
 let appPort
@@ -34,7 +41,10 @@ const runTests = () => {
 
   it('should update asPath after mount', async () => {
     const browser = await webdriver(appPort, '/zeit/cmnt-2')
-    await check(() => browser.eval(`document.documentElement.innerHTML`), /\/zeit\/cmnt-2/)
+    await check(
+      () => browser.eval(`document.documentElement.innerHTML`),
+      /\/zeit\/cmnt-2/
+    )
   })
 
   it('should not replace URL with page name while asPath is delayed', async () => {
@@ -47,19 +57,22 @@ const runTests = () => {
 }
 
 describe('Auto Export', () => {
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
 
-    afterAll(async () => {
-      await killApp(app)
-    })
+      afterAll(async () => {
+        await killApp(app)
+      })
 
-    runTests()
-  })
+      runTests()
+    }
+  )
 
   describe('dev', () => {
     beforeAll(async () => {

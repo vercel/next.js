@@ -37,13 +37,21 @@ export function normalizeRewritesForBuildManifest(
   rewrites: CustomRoutes['rewrites']
 ): CustomRoutes['rewrites'] {
   return {
-    afterFiles: rewrites.afterFiles?.map(processRoute)?.map((item) => normalizeRewrite(item)),
-    beforeFiles: rewrites.beforeFiles?.map(processRoute)?.map((item) => normalizeRewrite(item)),
-    fallback: rewrites.fallback?.map(processRoute)?.map((item) => normalizeRewrite(item)),
+    afterFiles: rewrites.afterFiles
+      ?.map(processRoute)
+      ?.map((item) => normalizeRewrite(item)),
+    beforeFiles: rewrites.beforeFiles
+      ?.map(processRoute)
+      ?.map((item) => normalizeRewrite(item)),
+    fallback: rewrites.fallback
+      ?.map(processRoute)
+      ?.map((item) => normalizeRewrite(item)),
   }
 }
 
-export function createEdgeRuntimeManifest(originAssetMap: Partial<BuildManifest>): string {
+export function createEdgeRuntimeManifest(
+  originAssetMap: Partial<BuildManifest>
+): string {
   const manifestFilenames = ['_buildManifest.js', '_ssgManifest.js']
 
   const assetMap: Partial<BuildManifest> = {
@@ -53,7 +61,11 @@ export function createEdgeRuntimeManifest(originAssetMap: Partial<BuildManifest>
 
   // we use globalThis here because middleware can be node
   // which doesn't have "self"
-  const manifestDefCode = `globalThis.__BUILD_MANIFEST = ${JSON.stringify(assetMap, null, 2)};\n`
+  const manifestDefCode = `globalThis.__BUILD_MANIFEST = ${JSON.stringify(
+    assetMap,
+    null,
+    2
+  )};\n`
   // edge lowPriorityFiles item: '"/static/" + process.env.__NEXT_BUILD_ID + "/low-priority.js"'.
   // Since lowPriorityFiles is not fixed and relying on `process.env.__NEXT_BUILD_ID`, we'll produce code creating it dynamically.
   const lowPriorityFilesCode =

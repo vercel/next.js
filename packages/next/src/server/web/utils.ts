@@ -1,5 +1,8 @@
 import type { OutgoingHttpHeaders } from 'http'
-import { NEXT_INTERCEPTION_MARKER_PREFIX, NEXT_QUERY_PARAM_PREFIX } from '../../lib/constants'
+import {
+  NEXT_INTERCEPTION_MARKER_PREFIX,
+  NEXT_QUERY_PARAM_PREFIX,
+} from '../../lib/constants'
 
 /**
  * Converts a Node.js IncomingHttpHeaders object to a Headers object. Any
@@ -10,7 +13,9 @@ import { NEXT_INTERCEPTION_MARKER_PREFIX, NEXT_QUERY_PARAM_PREFIX } from '../../
  * @param nodeHeaders the headers object to convert
  * @returns the converted headers object
  */
-export function fromNodeOutgoingHttpHeaders(nodeHeaders: OutgoingHttpHeaders): Headers {
+export function fromNodeOutgoingHttpHeaders(
+  nodeHeaders: OutgoingHttpHeaders
+): Headers {
   const headers = new Headers()
   for (let [key, value] of Object.entries(nodeHeaders)) {
     const values = Array.isArray(value) ? value : [value]
@@ -109,7 +114,9 @@ export function splitCookiesString(cookiesString: string) {
  * @param headers the headers object to convert
  * @returns the converted headers object
  */
-export function toNodeOutgoingHttpHeaders(headers: Headers): OutgoingHttpHeaders {
+export function toNodeOutgoingHttpHeaders(
+  headers: Headers
+): OutgoingHttpHeaders {
   const nodeHeaders: OutgoingHttpHeaders = {}
   const cookies: string[] = []
   if (headers) {

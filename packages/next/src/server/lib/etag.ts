@@ -35,10 +35,17 @@ export const fnv1a52 = (str: string) => {
     v2 = t2 & 65535
   }
 
-  return (v3 & 15) * 281474976710656 + v2 * 4294967296 + v1 * 65536 + (v0 ^ (v3 >> 4))
+  return (
+    (v3 & 15) * 281474976710656 +
+    v2 * 4294967296 +
+    v1 * 65536 +
+    (v0 ^ (v3 >> 4))
+  )
 }
 
 export const generateETag = (payload: string, weak = false) => {
   const prefix = weak ? 'W/"' : '"'
-  return prefix + fnv1a52(payload).toString(36) + payload.length.toString(36) + '"'
+  return (
+    prefix + fnv1a52(payload).toString(36) + payload.length.toString(36) + '"'
+  )
 }

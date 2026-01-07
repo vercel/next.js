@@ -2,7 +2,13 @@
 
 import fs from 'fs-extra'
 import { join } from 'path'
-import { findPort, killApp, launchApp, check, renderViaHTTP } from 'next-test-utils'
+import {
+  findPort,
+  killApp,
+  launchApp,
+  check,
+  renderViaHTTP,
+} from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
 const docPath = join(appDir, 'pages/_document.js')

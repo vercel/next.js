@@ -36,7 +36,10 @@ type Props = {
   locales?: string[];
 };
 
-export const getServerSideProps: GetServerSideProps<Props> = async ({ locale, locales }) => {
+export const getServerSideProps: GetServerSideProps<Props> = async ({
+  locale,
+  locales,
+}) => {
   return {
     props: {
       locale,

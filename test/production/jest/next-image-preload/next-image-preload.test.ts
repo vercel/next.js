@@ -36,10 +36,14 @@ describe('next/jest', () => {
   afterAll(() => next.destroy())
 
   it('Should not throw preload is undefined error', async () => {
-    const { stdout, stderr } = await execa('pnpm', ['jest', 'tests/index.test.tsx'], {
-      cwd: next.testDir,
-      reject: false,
-    })
+    const { stdout, stderr } = await execa(
+      'pnpm',
+      ['jest', 'tests/index.test.tsx'],
+      {
+        cwd: next.testDir,
+        reject: false,
+      }
+    )
     // Uncaught [TypeError: (0 , _reactdom.preload) is not a function]
     expect(stdout + stderr).not.toContain('is not a function')
   })

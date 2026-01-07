@@ -25,7 +25,10 @@ import { imageConfigDefault } from '../shared/lib/image-config'
 import type { ImageConfig } from '../shared/lib/image-config'
 import { loadEnvConfig, updateInitialEnv } from '@next/env'
 import { flushTelemetry } from '../telemetry/flush-telemetry'
-import { findRootDirAndLockFiles, warnDuplicatedLockFiles } from '../lib/find-root'
+import {
+  findRootDirAndLockFiles,
+  warnDuplicatedLockFiles,
+} from '../lib/find-root'
 import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
 import { pathHasPrefix } from '../shared/lib/router/utils/path-has-prefix'
 import { matchRemotePattern } from '../shared/lib/match-remote-pattern'
@@ -61,17 +64,22 @@ function normalizeNextConfigZodErrors(
       // We exit the build when encountering an error in the images config
       shouldExit = true
     }
-    if (issue.code === 'unrecognized_keys' && issue.path[0] === 'experimental') {
+    if (
+      issue.code === 'unrecognized_keys' &&
+      issue.path[0] === 'experimental'
+    ) {
       if (message.includes('turbopackPersistentCachingForBuild')) {
         // We exit the build when encountering an error in the turbopackPersistentCaching config
         shouldExit = true
-        message += "\nUse 'experimental.turbopackFileSystemCacheForBuild' instead."
+        message +=
+          "\nUse 'experimental.turbopackFileSystemCacheForBuild' instead."
         message +=
           '\nLearn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache'
       } else if (message.includes('turbopackPersistentCaching')) {
         // We exit the build when encountering an error in the turbopackPersistentCaching config
         shouldExit = true
-        message += "\nUse 'experimental.turbopackFileSystemCacheForDev' instead."
+        message +=
+          "\nUse 'experimental.turbopackFileSystemCacheForDev' instead."
         message +=
           '\nLearn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache'
       }
@@ -211,7 +219,9 @@ export function warnOptionHasBeenMovedOutOfExperimental(
       ;(current as any)[key] = (current as any)[key] || {}
       current = (current as any)[key]
     }
-    ;(current as any)[newKeys.shift()!] = (config.experimental as any)[oldExperimentalKey]
+    ;(current as any)[newKeys.shift()!] = (config.experimental as any)[
+      oldExperimentalKey
+    ]
   }
 
   return config
@@ -270,76 +280,85 @@ function assignDefaultsAndValidate(
     delete (userConfig as any).exportTrailingSlash
   }
 
-  const config = Object.keys(userConfig).reduce<{ [key: string]: any }>((currentConfig, key) => {
-    const value = (userConfig as any)[key]
+  const config = Object.keys(userConfig).reduce<{ [key: string]: any }>(
+    (currentConfig, key) => {
+      const value = (userConfig as any)[key]
 
-    if (value === undefined || value === null) {
-      return currentConfig
-    }
-
-    if (key === 'distDir') {
-      if (typeof value !== 'string') {
-        throw new Error(`Specified distDir is not a string, found type "${typeof value}"`)
-      }
-      const userDistDir = value.trim()
-
-      // don't allow public as the distDir as this is a reserved folder for
-      // public files
-      if (userDistDir === 'public') {
-        throw new Error(
-          `The 'public' directory is reserved in Next.js and can not be set as the 'distDir'. https://nextjs.org/docs/messages/can-not-output-to-public`
-        )
-      }
-      // make sure distDir isn't an empty string as it can result in the provided
-      // directory being deleted in development mode
-      if (userDistDir.length === 0) {
-        throw new Error(
-          `Invalid distDir provided, distDir can not be an empty string. Please remove this config or set it to undefined`
-        )
-      }
-    }
-
-    if (key === 'pageExtensions') {
-      if (!Array.isArray(value)) {
-        throw new Error(
-          `Specified pageExtensions is not an array of strings, found "${value}". Please update this config or remove it.`
-        )
+      if (value === undefined || value === null) {
+        return currentConfig
       }
 
-      if (!value.length) {
-        throw new Error(
-          `Specified pageExtensions is an empty array. Please update it with the relevant extensions or remove it.`
-        )
-      }
-
-      value.forEach((ext) => {
-        if (typeof ext !== 'string') {
+      if (key === 'distDir') {
+        if (typeof value !== 'string') {
           throw new Error(
-            `Specified pageExtensions is not an array of strings, found "${ext}" of type "${typeof ext}". Please update this config or remove it.`
+            `Specified distDir is not a string, found type "${typeof value}"`
           )
         }
-      })
-    }
+        const userDistDir = value.trim()
 
-    const defaultValue = (defaultConfig as Record<string, unknown>)[key]
-
-    if (!!value && value.constructor === Object && typeof defaultValue === 'object') {
-      currentConfig[key] = {
-        ...defaultValue,
-        ...Object.keys(value).reduce<any>((c, k) => {
-          const v = value[k]
-          if (v !== undefined && v !== null) {
-            c[k] = v
-          }
-          return c
-        }, {}),
+        // don't allow public as the distDir as this is a reserved folder for
+        // public files
+        if (userDistDir === 'public') {
+          throw new Error(
+            `The 'public' directory is reserved in Next.js and can not be set as the 'distDir'. https://nextjs.org/docs/messages/can-not-output-to-public`
+          )
+        }
+        // make sure distDir isn't an empty string as it can result in the provided
+        // directory being deleted in development mode
+        if (userDistDir.length === 0) {
+          throw new Error(
+            `Invalid distDir provided, distDir can not be an empty string. Please remove this config or set it to undefined`
+          )
+        }
       }
-    } else {
-      currentConfig[key] = value
-    }
 
-    return currentConfig
-  }, {}) as NextConfig & { configFileName: string }
+      if (key === 'pageExtensions') {
+        if (!Array.isArray(value)) {
+          throw new Error(
+            `Specified pageExtensions is not an array of strings, found "${value}". Please update this config or remove it.`
+          )
+        }
+
+        if (!value.length) {
+          throw new Error(
+            `Specified pageExtensions is an empty array. Please update it with the relevant extensions or remove it.`
+          )
+        }
+
+        value.forEach((ext) => {
+          if (typeof ext !== 'string') {
+            throw new Error(
+              `Specified pageExtensions is not an array of strings, found "${ext}" of type "${typeof ext}". Please update this config or remove it.`
+            )
+          }
+        })
+      }
+
+      const defaultValue = (defaultConfig as Record<string, unknown>)[key]
+
+      if (
+        !!value &&
+        value.constructor === Object &&
+        typeof defaultValue === 'object'
+      ) {
+        currentConfig[key] = {
+          ...defaultValue,
+          ...Object.keys(value).reduce<any>((c, k) => {
+            const v = value[k]
+            if (v !== undefined && v !== null) {
+              c[k] = v
+            }
+            return c
+          }, {}),
+        }
+      } else {
+        currentConfig[key] = value
+      }
+
+      return currentConfig
+    },
+    {}
+  ) as NextConfig & { configFileName: string }
 
   const result = {
     ...defaultConfig,
@@ -355,14 +374,21 @@ function assignDefaultsAndValidate(
     result.experimental.trustHostHeader = true
   }
 
-  if (result.experimental?.allowDevelopmentBuild && process.env.NODE_ENV !== 'development') {
+  if (
+    result.experimental?.allowDevelopmentBuild &&
+    process.env.NODE_ENV !== 'development'
+  ) {
     throw new Error(
       `The experimental.allowDevelopmentBuild option requires NODE_ENV to be explicitly set to 'development'.`
     )
   }
 
   // Validate sassOptions.functions is not used with Turbopack
-  if (process.env.TURBOPACK && result.sassOptions && 'functions' in result.sassOptions) {
+  if (
+    process.env.TURBOPACK &&
+    result.sassOptions &&
+    'functions' in result.sassOptions
+  ) {
     throw new Error(
       `The "sassOptions.functions" option is not supported when using Turbopack. ` +
         `Custom Sass functions are only available with webpack. ` +
@@ -409,7 +435,9 @@ function assignDefaultsAndValidate(
   }
 
   if (typeof result.basePath !== 'string') {
-    throw new Error(`Specified basePath is not a string, found type "${typeof result.basePath}"`)
+    throw new Error(
+      `Specified basePath is not a string, found type "${typeof result.basePath}"`
+    )
   }
 
   if (result.basePath !== '') {
@@ -420,12 +448,16 @@ function assignDefaultsAndValidate(
     }
 
     if (!result.basePath.startsWith('/')) {
-      throw new Error(`Specified basePath has to start with a /, found "${result.basePath}"`)
+      throw new Error(
+        `Specified basePath has to start with a /, found "${result.basePath}"`
+      )
     }
 
     if (result.basePath !== '/') {
       if (result.basePath.endsWith('/')) {
-        throw new Error(`Specified basePath should not end with /, found "${result.basePath}"`)
+        throw new Error(
+          `Specified basePath should not end with /, found "${result.basePath}"`
+        )
       }
 
       if (result.assetPrefix === '') {
@@ -451,7 +483,8 @@ function assignDefaultsAndValidate(
       }
       // avoid double-pushing the same pattern if it already exists
       const hasMatch = images.localPatterns.some(
-        (pattern) => pattern.pathname === '/_next/static/media/**' && pattern.search === ''
+        (pattern) =>
+          pattern.pathname === '/_next/static/media/**' && pattern.search === ''
       )
       if (!hasMatch) {
         // static import images are automatically allowed
@@ -517,7 +550,9 @@ function assignDefaultsAndValidate(
             })
           }
         } catch (error) {
-          throw new Error(`Invalid assetPrefix provided. Original error: ${error}`)
+          throw new Error(
+            `Invalid assetPrefix provided. Original error: ${error}`
+          )
         }
       }
     }
@@ -569,7 +604,9 @@ function assignDefaultsAndValidate(
       }
       const absolutePath = join(dir, images.loaderFile)
       if (!existsSync(absolutePath)) {
-        throw new Error(`Specified images.loaderFile does not exist at "${absolutePath}".`)
+        throw new Error(
+          `Specified images.loaderFile does not exist at "${absolutePath}".`
+        )
       }
       images.loaderFile = absolutePath
     }
@@ -598,7 +635,13 @@ function assignDefaultsAndValidate(
     configFileName,
     silent
   )
-  warnOptionHasBeenMovedOutOfExperimental(result, 'relay', 'compiler.relay', configFileName, silent)
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'relay',
+    'compiler.relay',
+    configFileName,
+    silent
+  )
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'styledComponents',
@@ -627,7 +670,13 @@ function assignDefaultsAndValidate(
     configFileName,
     silent
   )
-  warnOptionHasBeenMovedOutOfExperimental(result, 'swrDelta', 'expireTime', configFileName, silent)
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'swrDelta',
+    'expireTime',
+    configFileName,
+    silent
+  )
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'typedRoutes',
@@ -677,7 +726,13 @@ function assignDefaultsAndValidate(
     configFileName,
     silent
   )
-  warnOptionHasBeenMovedOutOfExperimental(result, 'cacheLife', 'cacheLife', configFileName, silent)
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'cacheLife',
+    'cacheLife',
+    configFileName,
+    silent
+  )
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'cacheHandlers',
@@ -695,8 +750,11 @@ function assignDefaultsAndValidate(
     result.output = 'standalone'
   }
 
-  if (typeof result.experimental?.serverActions?.bodySizeLimit !== 'undefined') {
-    const bytes = require('next/dist/compiled/bytes') as typeof import('next/dist/compiled/bytes')
+  if (
+    typeof result.experimental?.serverActions?.bodySizeLimit !== 'undefined'
+  ) {
+    const bytes =
+      require('next/dist/compiled/bytes') as typeof import('next/dist/compiled/bytes')
     const bodySizeLimit = result.experimental.serverActions.bodySizeLimit
     let value: number | null
 
@@ -752,13 +810,15 @@ function assignDefaultsAndValidate(
     userConfig.experimental?.proxyClientMaxBodySize === undefined &&
     userConfig.experimental?.middlewareClientMaxBodySize !== undefined
   ) {
-    result.experimental.proxyClientMaxBodySize = userConfig.experimental.middlewareClientMaxBodySize
+    result.experimental.proxyClientMaxBodySize =
+      userConfig.experimental.middlewareClientMaxBodySize
   }
   if (
     userConfig.experimental?.proxyPrefetch === undefined &&
     userConfig.experimental?.middlewarePrefetch !== undefined
   ) {
-    result.experimental.proxyPrefetch = userConfig.experimental.middlewarePrefetch
+    result.experimental.proxyPrefetch =
+      userConfig.experimental.middlewarePrefetch
   }
   if (
     userConfig.experimental?.externalProxyRewritesResolve === undefined &&
@@ -779,7 +839,8 @@ function assignDefaultsAndValidate(
     userConfig.experimental?.proxyPrefetch !== undefined &&
     userConfig.experimental?.middlewarePrefetch === undefined
   ) {
-    result.experimental.middlewarePrefetch = userConfig.experimental.proxyPrefetch
+    result.experimental.middlewarePrefetch =
+      userConfig.experimental.proxyPrefetch
   }
   if (
     userConfig.experimental?.externalProxyRewritesResolve !== undefined &&
@@ -801,7 +862,8 @@ function assignDefaultsAndValidate(
     let normalizedValue: number
 
     if (typeof proxyClientMaxBodySize === 'string') {
-      const bytes = require('next/dist/compiled/bytes') as typeof import('next/dist/compiled/bytes')
+      const bytes =
+        require('next/dist/compiled/bytes') as typeof import('next/dist/compiled/bytes')
       normalizedValue = bytes.parse(proxyClientMaxBodySize)
     } else if (typeof proxyClientMaxBodySize === 'number') {
       normalizedValue = proxyClientMaxBodySize
@@ -841,17 +903,24 @@ function assignDefaultsAndValidate(
     silent
   )
 
-  if (result?.outputFileTracingRoot && !isAbsolute(result.outputFileTracingRoot)) {
+  if (
+    result?.outputFileTracingRoot &&
+    !isAbsolute(result.outputFileTracingRoot)
+  ) {
     result.outputFileTracingRoot = resolve(result.outputFileTracingRoot)
     if (!silent) {
-      Log.warn(`outputFileTracingRoot should be absolute, using: ${result.outputFileTracingRoot}`)
+      Log.warn(
+        `outputFileTracingRoot should be absolute, using: ${result.outputFileTracingRoot}`
+      )
     }
   }
 
   if (result?.turbopack?.root && !isAbsolute(result.turbopack.root)) {
     result.turbopack.root = resolve(result.turbopack.root)
     if (!silent) {
-      Log.warn(`turbopack.root should be absolute, using: ${result.turbopack.root}`)
+      Log.warn(
+        `turbopack.root should be absolute, using: ${result.turbopack.root}`
+      )
     }
   }
 
@@ -861,7 +930,10 @@ function assignDefaultsAndValidate(
     ciEnvironment.hasNextSupport &&
     process.env.NEXT_DEPLOYMENT_ID
   ) {
-    if (result.deploymentId != null && result.deploymentId !== process.env.NEXT_DEPLOYMENT_ID) {
+    if (
+      result.deploymentId != null &&
+      result.deploymentId !== process.env.NEXT_DEPLOYMENT_ID
+    ) {
       throw new Error(
         `The NEXT_DEPLOYMENT_ID environment variable value "${process.env.NEXT_DEPLOYMENT_ID}" does not match the provided deploymentId "${result.deploymentId}" in the config.`
       )
@@ -895,7 +967,9 @@ function assignDefaultsAndValidate(
   }
 
   if (!rootDir) {
-    throw new Error('Failed to find the root directory of the project. This is a bug in Next.js.')
+    throw new Error(
+      'Failed to find the root directory of the project. This is a bug in Next.js.'
+    )
   }
 
   // Ensure both properties are set to the same value
@@ -955,7 +1029,8 @@ function assignDefaultsAndValidate(
 
         const defaultLocaleDuplicate = i18n.domains?.find(
           (altItem) =>
-            altItem.defaultLocale === item.defaultLocale && altItem.domain !== item.domain
+            altItem.defaultLocale === item.defaultLocale &&
+            altItem.domain !== item.domain
         )
 
         if (!silent && defaultLocaleDuplicate) {
@@ -1004,13 +1079,17 @@ function assignDefaultsAndValidate(
       )
     }
 
-    const invalidLocales = i18n.locales.filter((locale: any) => typeof locale !== 'string')
+    const invalidLocales = i18n.locales.filter(
+      (locale: any) => typeof locale !== 'string'
+    )
 
     if (invalidLocales.length > 0) {
       throw new Error(
         `Specified i18n.locales contains invalid values (${invalidLocales
           .map(String)
-          .join(', ')}), locales must be valid locale tags provided as strings e.g. "en-US".\n` +
+          .join(
+            ', '
+          )}), locales must be valid locale tags provided as strings e.g. "en-US".\n` +
           `See here for list of valid language sub-tags: http://www.iana.org/assignments/language-subtag-registry/language-subtag-registry`
       )
     }
@@ -1049,7 +1128,10 @@ function assignDefaultsAndValidate(
 
     const localeDetectionType = typeof i18n.localeDetection
 
-    if (localeDetectionType !== 'boolean' && localeDetectionType !== 'undefined') {
+    if (
+      localeDetectionType !== 'boolean' &&
+      localeDetectionType !== 'undefined'
+    ) {
       throw new Error(
         `Specified i18n.localeDetection should be undefined or a boolean received ${localeDetectionType}.\nSee more info here: https://nextjs.org/docs/messages/invalid-i18n-config`
       )
@@ -1058,7 +1140,12 @@ function assignDefaultsAndValidate(
 
   if (result.devIndicators !== false && result.devIndicators?.position) {
     const { position } = result.devIndicators
-    const allowedValues = ['top-left', 'top-right', 'bottom-left', 'bottom-right']
+    const allowedValues = [
+      'top-left',
+      'top-right',
+      'bottom-left',
+      'bottom-right',
+    ]
 
     if (!allowedValues.includes(position)) {
       throw new Error(
@@ -1096,7 +1183,8 @@ function assignDefaultsAndValidate(
         defaultCacheLifeProfile.revalidate = defaultDefault.revalidate
       }
       if (defaultCacheLifeProfile.expire === undefined) {
-        defaultCacheLifeProfile.expire = result.expireTime ?? defaultDefault.expire
+        defaultCacheLifeProfile.expire =
+          result.expireTime ?? defaultDefault.expire
       }
     }
   }
@@ -1117,7 +1205,8 @@ function assignDefaultsAndValidate(
       if (key === 'private') {
         invalidHandlerItems.push({
           key,
-          reason: 'The cache handler for "use cache: private" cannot be customized.',
+          reason:
+            'The cache handler for "use cache: private" cannot be customized.',
         })
       } else if (!allowedHandlerNameRegex.test(key)) {
         invalidHandlerItems.push({
@@ -1160,7 +1249,8 @@ function assignDefaultsAndValidate(
     },
   }
 
-  const userProvidedOptimizePackageImports = result.experimental?.optimizePackageImports || []
+  const userProvidedOptimizePackageImports =
+    result.experimental?.optimizePackageImports || []
 
   result.experimental.optimizePackageImports = [
     ...new Set([
@@ -1278,7 +1368,10 @@ function assignDefaultsAndValidate(
 
   // Store the distDirRoot in the config before it is modified by the isolatedDevBuild flag
   ;(result as NextConfigComplete).distDirRoot = result.distDir
-  if (phase === PHASE_DEVELOPMENT_SERVER && result.experimental.isolatedDevBuild) {
+  if (
+    phase === PHASE_DEVELOPMENT_SERVER &&
+    result.experimental.isolatedDevBuild
+  ) {
     result.distDir = join(result.distDir, 'dev')
   }
 
@@ -1294,7 +1387,9 @@ async function applyModifyConfig(
   // modify for specific times
   if (config.experimental?.adapterPath) {
     const adapterMod = interopDefault(
-      await import(pathToFileURL(require.resolve(config.experimental.adapterPath)).href)
+      await import(
+        pathToFileURL(require.resolve(config.experimental.adapterPath)).href
+      )
     ) as NextAdapter
 
     if (typeof adapterMod.modifyConfig === 'function') {
@@ -1430,7 +1525,9 @@ export default async function loadConfig(
   if (process.env.__NEXT_PRIVATE_STANDALONE_CONFIG) {
     // we don't apply assignDefaults or modifyConfig here as it
     // has already been applied
-    const standaloneConfig = JSON.parse(process.env.__NEXT_PRIVATE_STANDALONE_CONFIG)
+    const standaloneConfig = JSON.parse(
+      process.env.__NEXT_PRIVATE_STANDALONE_CONFIG
+    )
 
     // Cache the standalone config
     configCache.set(cacheKey, {
@@ -1546,11 +1643,16 @@ export default async function loadConfig(
     }
 
     const loadedConfig = Object.freeze(
-      (await normalizeConfig(phase, interopDefault(userConfigModule))) as NextConfig
+      (await normalizeConfig(
+        phase,
+        interopDefault(userConfigModule)
+      )) as NextConfig
     )
 
     if (loadedConfig.experimental) {
-      for (const name of Object.keys(loadedConfig.experimental) as (keyof ExperimentalConfig)[]) {
+      for (const name of Object.keys(
+        loadedConfig.experimental
+      ) as (keyof ExperimentalConfig)[]) {
         const value = loadedConfig.experimental[name]
 
         if (name.startsWith('turbopack') && !process.env.TURBOPACK) {
@@ -1558,7 +1660,11 @@ export default async function loadConfig(
           continue
         }
 
-        addConfiguredExperimentalFeature(configuredExperimentalFeatures, name, value)
+        addConfiguredExperimentalFeature(
+          configuredExperimentalFeatures,
+          name,
+          value
+        )
       }
     }
 
@@ -1570,13 +1676,18 @@ export default async function loadConfig(
 
     // Always validate the config against schema in non minimal mode
     if (!process.env.NEXT_MINIMAL && !silent) {
-      await validateConfigSchema(userConfig, configFileName, curLog.warn, (messages) => {
-        // Capture validation messages for MCP error reporting
-        if (messages.length > 0) {
-          const fullMessage = messages.join('\n')
-          NextInstanceErrorState.nextConfig.push(new Error(fullMessage))
+      await validateConfigSchema(
+        userConfig,
+        configFileName,
+        curLog.warn,
+        (messages) => {
+          // Capture validation messages for MCP error reporting
+          if (messages.length > 0) {
+            const fullMessage = messages.join('\n')
+            NextInstanceErrorState.nextConfig.push(new Error(fullMessage))
+          }
         }
-      })
+      )
     }
 
     if ((userConfig as any).target && (userConfig as any).target !== 'server') {
@@ -1591,9 +1702,11 @@ export default async function loadConfig(
     }
 
     if (userConfig.experimental?.useLightningcss) {
-      const { loadBindings } = require('../build/swc') as typeof import('../build/swc')
-      const isLightningSupported = (await loadBindings(userConfig.experimental?.useWasmBinary))?.css
-        ?.lightning
+      const { loadBindings } =
+        require('../build/swc') as typeof import('../build/swc')
+      const isLightningSupported = (
+        await loadBindings(userConfig.experimental?.useWasmBinary)
+      )?.css?.lightning
 
       if (!isLightningSupported) {
         curLog.warn(
@@ -1716,11 +1829,19 @@ function enforceExperimentalFeatures(
     phase: PHASE_TYPE
   }
 ) {
-  const { configuredExperimentalFeatures, debugPrerender, isDefaultConfig, phase } = options
+  const {
+    configuredExperimentalFeatures,
+    debugPrerender,
+    isDefaultConfig,
+    phase,
+  } = options
 
   config.experimental ??= {}
 
-  if (debugPrerender && (phase === PHASE_PRODUCTION_BUILD || phase === PHASE_EXPORT)) {
+  if (
+    debugPrerender &&
+    (phase === PHASE_PRODUCTION_BUILD || phase === PHASE_EXPORT)
+  ) {
     // TODO: This is not an experimental feature, but should be enabled alongside other prerender debugging features.
     config.enablePrerenderSourceMaps = true
 
@@ -1750,7 +1871,8 @@ function enforceExperimentalFeatures(
   if (
     process.env.__NEXT_CACHE_COMPONENTS === 'true' &&
     // We do respect an explicit value in the user config.
-    (config.cacheComponents === undefined || (isDefaultConfig && !config.cacheComponents))
+    (config.cacheComponents === undefined ||
+      (isDefaultConfig && !config.cacheComponents))
   ) {
     config.cacheComponents = true
   }
@@ -1814,14 +1936,17 @@ function enforceExperimentalFeatures(
   if (
     process.env.__NEXT_ENABLE_REACT_COMPILER === 'true' &&
     // We do respect an explicit value in the user config.
-    (config.reactCompiler === undefined || (isDefaultConfig && !config.reactCompiler))
+    (config.reactCompiler === undefined ||
+      (isDefaultConfig && !config.reactCompiler))
   ) {
     config.reactCompiler = true
     // TODO: Report if we enable non-experimental features via env
   }
 }
 
-function addConfiguredExperimentalFeature<KeyType extends keyof ExperimentalConfig>(
+function addConfiguredExperimentalFeature<
+  KeyType extends keyof ExperimentalConfig,
+>(
   configuredExperimentalFeatures: ConfiguredExperimentalFeature[],
   key: KeyType,
   value: ExperimentalConfig[KeyType],
@@ -1832,7 +1957,9 @@ function addConfiguredExperimentalFeature<KeyType extends keyof ExperimentalConf
   }
 }
 
-function setExperimentalFeatureForDebugPrerender<KeyType extends keyof ExperimentalConfig>(
+function setExperimentalFeatureForDebugPrerender<
+  KeyType extends keyof ExperimentalConfig,
+>(
   experimentalConfig: ExperimentalConfig,
   key: KeyType,
   value: ExperimentalConfig[KeyType],
@@ -1842,11 +1969,17 @@ function setExperimentalFeatureForDebugPrerender<KeyType extends keyof Experimen
     experimentalConfig[key] = value
 
     if (configuredExperimentalFeatures) {
-      const action = value === true ? 'enabled' : value === false ? 'disabled' : 'set'
+      const action =
+        value === true ? 'enabled' : value === false ? 'disabled' : 'set'
 
       const reason = `${action} by \`--debug-prerender\``
 
-      addConfiguredExperimentalFeature(configuredExperimentalFeatures, key, value, reason)
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        key,
+        value,
+        reason
+      )
     }
   }
 }
@@ -1907,7 +2040,8 @@ async function validateConfigSchema(
   onValidationMessages?: (messages: string[]) => void
 ) {
   // We only validate the config against schema in non minimal mode
-  const { configSchema } = require('./config-schema') as typeof import('./config-schema')
+  const { configSchema } =
+    require('./config-schema') as typeof import('./config-schema')
   const state = configSchema.safeParse(userConfig)
 
   if (!state.success) {
@@ -1951,7 +2085,9 @@ async function validateConfigSchema(
       errorMessages.push(
         'These configuration options are required or have been migrated. Please update your configuration.'
       )
-      errorMessages.push('See more info here: https://nextjs.org/docs/messages/invalid-next-config')
+      errorMessages.push(
+        'See more info here: https://nextjs.org/docs/messages/invalid-next-config'
+      )
 
       // Call the callback with validation messages if provided
       if (onValidationMessages) {

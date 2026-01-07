@@ -11,15 +11,18 @@ const expectedErr =
 ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'undefined webpack config error',
   () => {
-    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
-      it.skip('should show in production mode', async () => {
-        const result = await nextBuild(appDir, [], {
-          stdout: true,
-          stderr: true,
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+      'production mode',
+      () => {
+        it.skip('should show in production mode', async () => {
+          const result = await nextBuild(appDir, [], {
+            stdout: true,
+            stderr: true,
+          })
+          expect(result.stderr || '' + result.stdout || '').toMatch(expectedErr)
         })
-        expect(result.stderr || '' + result.stdout || '').toMatch(expectedErr)
-      })
-    })
+      }
+    )
 
     it('should show in development mode', async () => {
       let output = ''

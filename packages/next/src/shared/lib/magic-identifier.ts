@@ -139,7 +139,9 @@ export type TextPartType = 'raw' | 'deobfuscated'
  *
  * This is useful when you need to process or display deobfuscated and raw text differently.
  */
-export function deobfuscateTextParts(text: string): Array<[TextPartType, string]> {
+export function deobfuscateTextParts(
+  text: string
+): Array<[TextPartType, string]> {
   // First, remove free call wrappers
   const withoutFreeCall = removeFreeCallWrapper(text)
 

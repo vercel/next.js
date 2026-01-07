@@ -38,7 +38,9 @@ describe('app-dir - client-actions-tree-shaking', () => {
       join(appDir, `.next/server/app/${route}_client-reference-manifest.js`)
     )
     require(modulePath)
-    const clientManfiest = globalThis.__RSC_MANIFEST[route] as ClientReferenceManifest
+    const clientManfiest = globalThis.__RSC_MANIFEST[
+      route
+    ] as ClientReferenceManifest
     delete globalThis.__RSC_MANIFEST[route]
     delete require.cache[modulePath]
     const chunks = new Set<string>()
@@ -78,13 +80,19 @@ describe('app-dir - client-actions-tree-shaking', () => {
     const bundle3Files = getClientChunks(appDir, '/route-3/page')
 
     const bundle1Contents = await Promise.all(
-      bundle1Files.map((file: string) => fs.readFile(join(appDir, '.next', file), 'utf8'))
+      bundle1Files.map((file: string) =>
+        fs.readFile(join(appDir, '.next', file), 'utf8')
+      )
     )
     const bundle2Contents = await Promise.all(
-      bundle2Files.map((file: string) => fs.readFile(join(appDir, '.next', file), 'utf8'))
+      bundle2Files.map((file: string) =>
+        fs.readFile(join(appDir, '.next', file), 'utf8')
+      )
     )
     const bundle3Contents = await Promise.all(
-      bundle3Files.map((file: string) => fs.readFile(join(appDir, '.next', file), 'utf8'))
+      bundle3Files.map((file: string) =>
+        fs.readFile(join(appDir, '.next', file), 'utf8')
+      )
     )
 
     const bundle1Ids = bundle1Contents.flatMap((file: string) =>
@@ -112,14 +120,18 @@ describe('app-dir - client-actions-tree-shaking', () => {
     await browser.elementById('submit').click()
 
     await retry(() => {
-      expect(logs).toEqual(expect.arrayContaining([expect.stringContaining('This is action foo')]))
+      expect(logs).toEqual(
+        expect.arrayContaining([expect.stringContaining('This is action foo')])
+      )
     })
 
     const browser2 = await next.browser('/route-2')
     await browser2.elementById('submit').click()
 
     await retry(() => {
-      expect(logs).toEqual(expect.arrayContaining([expect.stringContaining('This is action bar')]))
+      expect(logs).toEqual(
+        expect.arrayContaining([expect.stringContaining('This is action bar')])
+      )
     })
   })
 })

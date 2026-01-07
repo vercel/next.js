@@ -1,6 +1,12 @@
-import type { ProxyConfig, ProxyMatcher } from '../../analysis/get-page-static-info'
+import type {
+  ProxyConfig,
+  ProxyMatcher,
+} from '../../analysis/get-page-static-info'
 import { getModuleBuildInfo } from './get-module-build-info'
-import { MIDDLEWARE_LOCATION_REGEXP, PROXY_LOCATION_REGEXP } from '../../../lib/constants'
+import {
+  MIDDLEWARE_LOCATION_REGEXP,
+  PROXY_LOCATION_REGEXP,
+} from '../../../lib/constants'
 import { loadEntrypoint } from '../../load-entrypoint'
 
 export type MiddlewareLoaderOptions = {
@@ -19,7 +25,9 @@ export function encodeMatchers(matchers: ProxyMatcher[]) {
 }
 
 export function decodeMatchers(encodedMatchers: string) {
-  return JSON.parse(Buffer.from(encodedMatchers, 'base64').toString()) as ProxyMatcher[]
+  return JSON.parse(
+    Buffer.from(encodedMatchers, 'base64').toString()
+  ) as ProxyMatcher[]
 }
 
 export default async function middlewareLoader(this: any) {
@@ -32,7 +40,10 @@ export default async function middlewareLoader(this: any) {
     middlewareConfig: middlewareConfigBase64,
   }: MiddlewareLoaderOptions = this.getOptions()
   const matchers = encodedMatchers ? decodeMatchers(encodedMatchers) : undefined
-  const pagePath = this.utils.contextify(this.context || this.rootContext, absolutePagePath)
+  const pagePath = this.utils.contextify(
+    this.context || this.rootContext,
+    absolutePagePath
+  )
 
   const middlewareConfig: ProxyConfig = JSON.parse(
     Buffer.from(middlewareConfigBase64, 'base64').toString()
@@ -41,8 +52,12 @@ export default async function middlewareLoader(this: any) {
   buildInfo.nextEdgeMiddleware = {
     matchers,
     page:
-      page.replace(new RegExp(`/(${MIDDLEWARE_LOCATION_REGEXP}|${PROXY_LOCATION_REGEXP})$`), '') ||
-      '/',
+      page.replace(
+        new RegExp(
+          `/(${MIDDLEWARE_LOCATION_REGEXP}|${PROXY_LOCATION_REGEXP})$`
+        ),
+        ''
+      ) || '/',
   }
   buildInfo.rootDir = rootDir
   buildInfo.route = {

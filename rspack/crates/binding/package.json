@@ -9,10 +9,6 @@
     "type": "git",
     "url": "git+https://github.com/vercel/next.js.git"
   },
-  "files": [
-    "index.d.ts",
-    "index.js"
-  ],
   "main": "index.js",
   "types": "index.d.ts",
   "exports": {
@@ -22,6 +18,10 @@
     },
     "./package.json": "./package.json"
   },
+  "files": [
+    "index.js",
+    "index.d.ts"
+  ],
   "scripts": {
     "build": "napi build --platform --release",
     "build:debug": "napi build --platform"

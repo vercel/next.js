@@ -29,7 +29,9 @@ module.exports = function actionInfo() {
 
     if (!GITHUB_REF) {
       // get the current branch name
-      GITHUB_REF = execSync(`cd "${cwd}" && git rev-parse --abbrev-ref HEAD`).toString().trim()
+      GITHUB_REF = execSync(`cd "${cwd}" && git rev-parse --abbrev-ref HEAD`)
+        .toString()
+        .trim()
     }
     if (!GIT_ROOT_DIR) {
       GIT_ROOT_DIR = path.join(parentDir, '/')
@@ -54,7 +56,9 @@ module.exports = function actionInfo() {
     isLocal: LOCAL_STATS,
     commitId: null,
     issueId: ISSUE_ID,
-    isRelease: GITHUB_REPOSITORY === 'vercel/next.js' && (GITHUB_REF || '').includes('canary'),
+    isRelease:
+      GITHUB_REPOSITORY === 'vercel/next.js' &&
+      (GITHUB_REF || '').includes('canary'),
   }
 
   if (info.isRelease) {

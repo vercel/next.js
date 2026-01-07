@@ -92,7 +92,10 @@ export default class DevToolsIgnorePlugin {
             }
 
             sourcemap[IGNORE_LIST] = ignoreList
-            compilation.updateAsset(name, new RawSource(JSON.stringify(sourcemap)))
+            compilation.updateAsset(
+              name,
+              new RawSource(JSON.stringify(sourcemap))
+            )
           }
         }
       )

@@ -58,7 +58,9 @@ describe('segment cache (metadata)', () => {
       // network requests, because both the segment data and the head were
       // fully prefetched.
       await act(async () => {
-        const link = await browser.elementByCss('a[href="/rewrite-to-page-with-dynamic-head"]')
+        const link = await browser.elementByCss(
+          'a[href="/rewrite-to-page-with-dynamic-head"]'
+        )
         await link.click()
         const pageContent = await browser.elementById('target-page')
         expect(await pageContent.text()).toBe('Target page')

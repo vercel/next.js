@@ -21,15 +21,23 @@ describe('config validation - validation only runs once', () => {
   it('should validate config only once in root process', async () => {
     await next.fetch('/')
     const output = stripAnsi(next.cliOutput)
-    const validationHeaderMatches = output.match(/Invalid next\.config\.js options detected:/g)
-    const validationHeaderCount = validationHeaderMatches ? validationHeaderMatches.length : 0
+    const validationHeaderMatches = output.match(
+      /Invalid next\.config\.js options detected:/g
+    )
+    const validationHeaderCount = validationHeaderMatches
+      ? validationHeaderMatches.length
+      : 0
 
     // Count occurrences of specific invalid option mentions
     const invalidOptionMatches = output.match(/invalidOption/g)
-    const invalidOptionCount = invalidOptionMatches ? invalidOptionMatches.length : 0
+    const invalidOptionCount = invalidOptionMatches
+      ? invalidOptionMatches.length
+      : 0
 
     const anotherBadKeyMatches = output.match(/anotherBadKey/g)
-    const anotherBadKeyCount = anotherBadKeyMatches ? anotherBadKeyMatches.length : 0
+    const anotherBadKeyCount = anotherBadKeyMatches
+      ? anotherBadKeyMatches.length
+      : 0
 
     // Expect validation to have occurred
     expect(output).toContain('Invalid next.config.js options detected')

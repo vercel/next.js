@@ -3,7 +3,9 @@ import path from 'path'
 import fs from 'fs'
 
 export async function getServerSideProps() {
-  const text = fs.readFileSync(path.join(process.cwd(), 'world.txt'), 'utf8').trim()
+  const text = fs
+    .readFileSync(path.join(process.cwd(), 'world.txt'), 'utf8')
+    .trim()
 
   return {
     props: {

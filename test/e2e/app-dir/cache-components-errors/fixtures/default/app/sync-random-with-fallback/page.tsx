@@ -3,13 +3,15 @@ import { Suspense, use } from 'react'
 import { IndirectionOne, IndirectionTwo, IndirectionThree } from './indirection'
 
 type SearchParams = { foo: string | string[] | undefined }
-export default async function Page(props: { searchParams: Promise<SearchParams> }) {
+export default async function Page(props: {
+  searchParams: Promise<SearchParams>
+}) {
   return (
     <>
       <p>
-        This page accesses Math.random() while prerendering but it does so late enough in the render
-        that all unfinished sub-trees have a defined Suspense boundary. This is fine and doesn't
-        need to error the build.
+        This page accesses Math.random() while prerendering but it does so late
+        enough in the render that all unfinished sub-trees have a defined
+        Suspense boundary. This is fine and doesn't need to error the build.
       </p>
       <Suspense fallback={<Fallback />}>
         <IndirectionOne>
@@ -53,8 +55,9 @@ function LongRunningComponent() {
   }
   return (
     <div>
-      this component took a long time to resolve (but still before the cacheComponents cutoff). It
-      might not be done before the Math.random() access happens.
+      this component took a long time to resolve (but still before the
+      cacheComponents cutoff). It might not be done before the Math.random()
+      access happens.
     </div>
   )
 }
@@ -62,8 +65,8 @@ function LongRunningComponent() {
 function ShortRunningComponent() {
   return (
     <div>
-      This component runs quickly (in a microtask). It should be finished before the Math.random()
-      access happens.
+      This component runs quickly (in a microtask). It should be finished before
+      the Math.random() access happens.
     </div>
   )
 }

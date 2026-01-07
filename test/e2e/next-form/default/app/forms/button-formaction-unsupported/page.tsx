@@ -26,7 +26,9 @@ function Home({ searchParams }: { searchParams: AnySearchParams }) {
         <button
           type="submit"
           formAction="/search"
-          formEncType={attribute === 'formEncType' ? 'multipart/form-data' : undefined}
+          formEncType={
+            attribute === 'formEncType' ? 'multipart/form-data' : undefined
+          }
           formMethod={attribute === 'formMethod' ? 'post' : undefined}
           formTarget={attribute === 'formTarget' ? 'bloop' : undefined}
         >
@@ -37,7 +39,11 @@ function Home({ searchParams }: { searchParams: AnySearchParams }) {
   )
 }
 
-export default function Page({ searchParams }: { searchParams: AnySearchParams }) {
+export default function Page({
+  searchParams,
+}: {
+  searchParams: AnySearchParams
+}) {
   return (
     <Suspense fallback={<div>Page is loading...</div>}>
       <Home searchParams={searchParams} />

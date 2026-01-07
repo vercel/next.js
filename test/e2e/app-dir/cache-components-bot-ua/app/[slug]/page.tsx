@@ -10,7 +10,11 @@ export async function generateMetadata(): Promise<Metadata> {
   }
 }
 
-export default async function Home({ params }: { params: Promise<{ slug: string }> }) {
+export default async function Home({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
   const { slug } = await params
   // Math.random() will cause SSG_BAILOUT if static generation runs
   // Bots should bypass static generation in PPR to avoid this error

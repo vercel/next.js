@@ -36,7 +36,11 @@ function browserslistToTargets(targets: Array<string>) {
       if (!parsedVersion) {
         return acc
       }
-      const versionDigit = version(parsedVersion[0], parsedVersion[1], parsedVersion[2])
+      const versionDigit = version(
+        parsedVersion[0],
+        parsedVersion[1],
+        parsedVersion[2]
+      )
 
       if (
         name === 'and_qq' ||

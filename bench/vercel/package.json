@@ -2,13 +2,13 @@
   "name": "bench-production",
   "version": "1.0.0",
   "description": "Scripts for benchmarking in production.",
-  "license": "ISC",
-  "author": "",
-  "type": "module",
   "main": "bench.js",
+  "type": "module",
   "scripts": {
     "bench": "node bench.js"
   },
+  "author": "",
+  "license": "ISC",
   "dependencies": {
     "@szmarczak/http-timer": "5.0.1",
     "asciichart": "1.5.25",

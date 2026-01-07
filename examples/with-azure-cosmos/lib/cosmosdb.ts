@@ -8,15 +8,21 @@ export type Cosmos = {
 };
 
 if (!process.env.COSMOSDB_CONNECTION_STRING) {
-  throw new Error('Invalid/Missing environment variable: "COSMOSDB_CONNECTION_STRING"');
+  throw new Error(
+    'Invalid/Missing environment variable: "COSMOSDB_CONNECTION_STRING"',
+  );
 }
 
 if (!process.env.COSMOSDB_DATABASE_NAME) {
-  throw new Error('Invalid/Missing environment variable: "COSMOSDB_DATABASE_NAME"');
+  throw new Error(
+    'Invalid/Missing environment variable: "COSMOSDB_DATABASE_NAME"',
+  );
 }
 
 if (!process.env.COSMOSDB_CONTAINER_NAME) {
-  throw new Error('Invalid/Missing environment variable: "COSMOSDB_CONTAINER_NAME"');
+  throw new Error(
+    'Invalid/Missing environment variable: "COSMOSDB_CONTAINER_NAME"',
+  );
 }
 
 const connectionString = process.env.COSMOSDB_CONNECTION_STRING;

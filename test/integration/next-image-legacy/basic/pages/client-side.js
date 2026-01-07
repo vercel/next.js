@@ -46,9 +46,27 @@ const ClientSide = () => {
         width={300}
         height={400}
       />
-      <Image id="preceding-slash-image" src="/fooslash.jpg" priority width={300} height={400} />
-      <Image id="icon-image-32" src="/icon.png" loading="eager" width={32} height={32} />
-      <Image id="icon-image-16" src="/icon.png" loading="eager" width={16} height={16} />
+      <Image
+        id="preceding-slash-image"
+        src="/fooslash.jpg"
+        priority
+        width={300}
+        height={400}
+      />
+      <Image
+        id="icon-image-32"
+        src="/icon.png"
+        loading="eager"
+        width={32}
+        height={32}
+      />
+      <Image
+        id="icon-image-16"
+        src="/icon.png"
+        loading="eager"
+        width={16}
+        height={16}
+      />
       <Image
         id="image-with-param-auto"
         src="foo.png?auto=compress"

@@ -59,7 +59,9 @@ describe('transpile packages', () => {
       const browser = await webdriver(next.url, '/css-modules')
 
       expect(
-        await browser.eval(`window.getComputedStyle(document.querySelector('h1')).backgroundColor`)
+        await browser.eval(
+          `window.getComputedStyle(document.querySelector('h1')).backgroundColor`
+        )
       ).toBe('rgb(0, 0, 255)')
     })
 
@@ -67,13 +69,17 @@ describe('transpile packages', () => {
       const browser = await webdriver(next.url, '/scss-modules')
 
       expect(
-        await browser.eval(`window.getComputedStyle(document.querySelector('h1')).backgroundColor`)
+        await browser.eval(
+          `window.getComputedStyle(document.querySelector('h1')).backgroundColor`
+        )
       ).toBe('rgb(0, 0, 255)')
     })
   })
   describe('optional deps', () => {
     it('should not throw an error when optional deps are not installed', async () => {
-      expect(next.cliOutput).not.toContain("Module not found: Error: Can't resolve 'foo'")
+      expect(next.cliOutput).not.toContain(
+        "Module not found: Error: Can't resolve 'foo'"
+      )
     })
 
     it('should hide dynammic module dependency errors from node_modules', async () => {

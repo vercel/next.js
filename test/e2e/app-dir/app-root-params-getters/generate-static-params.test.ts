@@ -22,11 +22,16 @@ describe('app-root-param-getters - generateStaticParams', () => {
 
   it('should be part of the static shell', async () => {
     const params = { lang: 'en', locale: 'us' }
-    const browser = await next.browser(`/${params.lang}/${params.locale}/other/1`, {
-      // prevent streaming (dynamic) content from being inserted into the DOM
-      disableJavaScript: true,
-    })
-    expect(await browser.elementByCss('main > p#root-params').text()).toBe(JSON.stringify(params))
+    const browser = await next.browser(
+      `/${params.lang}/${params.locale}/other/1`,
+      {
+        // prevent streaming (dynamic) content from being inserted into the DOM
+        disableJavaScript: true,
+      }
+    )
+    expect(await browser.elementByCss('main > p#root-params').text()).toBe(
+      JSON.stringify(params)
+    )
   })
 
   it('should allow reading root params that were not prerendered', async () => {

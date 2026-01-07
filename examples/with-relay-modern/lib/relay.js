@@ -45,6 +45,9 @@ export function initEnvironment(initialRecords) {
 }
 
 export function useEnvironment(initialRecords) {
-  const store = useMemo(() => initEnvironment(initialRecords), [initialRecords]);
+  const store = useMemo(
+    () => initEnvironment(initialRecords),
+    [initialRecords],
+  );
   return store;
 }

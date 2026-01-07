@@ -14,7 +14,12 @@ export default function NavBar() {
     <nav data-testid="navbar">
       <ul style={{ display: 'flex', listStyle: 'none', gap: '10px' }}>
         <li>
-          <Link prefetch={false} href="/" id="home-link" data-testid="home-link">
+          <Link
+            prefetch={false}
+            href="/"
+            id="home-link"
+            data-testid="home-link"
+          >
             Home <LoadingIndicator id="home" />
           </Link>
           <button
@@ -104,7 +109,10 @@ const LinkThatChangesHref = () => {
       <Link href={`/post/${postId}`} data-testid="changing-link">
         Link to post {postId} <LoadingIndicator id={`post-${postId}`} />
       </Link>
-      <button onClick={() => setPostId(postId + 1)} data-testid="increment-link-btn">
+      <button
+        onClick={() => setPostId(postId + 1)}
+        data-testid="increment-link-btn"
+      >
         Change link target
       </button>
     </div>

@@ -1,4 +1,11 @@
-import { a as a0, b as b0, c as c0, d as d0, e as e0, def as def0 } from 'package-named'
+import {
+  a as a0,
+  b as b0,
+  c as c0,
+  d as d0,
+  e as e0,
+  def as def0,
+} from 'package-named'
 it('should optimize named reexports from side effect free module', () => {
   expect(a0).toBe('a')
   expect(b0).toBe('b')

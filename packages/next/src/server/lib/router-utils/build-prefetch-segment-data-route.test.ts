@@ -2,7 +2,10 @@ import { buildPrefetchSegmentDataRoute } from './build-prefetch-segment-data-rou
 
 describe('buildPrefetchSegmentDataRoute', () => {
   it('should build a prefetch segment data route', () => {
-    const route = buildPrefetchSegmentDataRoute('/blog/[...slug]', '/$c$slug$[slug]/__PAGE__')
+    const route = buildPrefetchSegmentDataRoute(
+      '/blog/[...slug]',
+      '/$c$slug$[slug]/__PAGE__'
+    )
 
     expect(route).toMatchInlineSnapshot(`
      {

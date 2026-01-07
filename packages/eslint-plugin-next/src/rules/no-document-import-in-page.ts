@@ -6,7 +6,8 @@ const url = 'https://nextjs.org/docs/messages/no-document-import-in-page'
 export default defineRule({
   meta: {
     docs: {
-      description: 'Prevent importing `next/document` outside of `pages/_document.js`.',
+      description:
+        'Prevent importing `next/document` outside of `pages/_document.js`.',
       recommended: true,
       url,
     },

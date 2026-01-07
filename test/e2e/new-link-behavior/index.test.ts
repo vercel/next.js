@@ -64,7 +64,9 @@ describe('New Link Behavior', () => {
     const text = await browser.elementByCss('h1').text()
     expect(text).toBe('Onclick prevent default')
 
-    expect(await matchLogs(browser, 'link to home clicked but prevented')).toBe(true)
+    expect(await matchLogs(browser, 'link to home clicked but prevented')).toBe(
+      true
+    )
   })
 
   it('should render link with id', async () => {

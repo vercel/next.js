@@ -11,7 +11,10 @@ describe('turbopack-loader-file-dependencies', () => {
     const initialText = await $('p').text()
     expect(initialText).toBeTruthy()
 
-    await next.patchFile('utils/file-dependency.ts', 'export const magicValue = "magic-value-2";')
+    await next.patchFile(
+      'utils/file-dependency.ts',
+      'export const magicValue = "magic-value-2";'
+    )
 
     await waitFor(1000)
 

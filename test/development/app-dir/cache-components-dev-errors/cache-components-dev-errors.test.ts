@@ -1,6 +1,11 @@
 import stripAnsi from 'strip-ansi'
 import { nextTestSetup } from 'e2e-utils'
-import { waitForNoRedbox, waitForNoErrorToast, hasErrorToast, retry } from 'next-test-utils'
+import {
+  waitForNoRedbox,
+  waitForNoErrorToast,
+  hasErrorToast,
+  retry,
+} from 'next-test-utils'
 import { outdent } from 'outdent'
 
 describe('Cache Components Dev Errors', () => {
@@ -69,7 +74,9 @@ describe('Cache Components Dev Errors', () => {
       expect(cliOutput).toContain('GET /top-level-error 500')
     })
 
-    expect(next.cliOutput.slice(cliOutputLength)).not.toContain('unhandledRejection')
+    expect(next.cliOutput.slice(cliOutputLength)).not.toContain(
+      'unhandledRejection'
+    )
   })
 
   // NOTE: when update this snapshot, use `pnpm build` in packages/next to avoid next source code get mapped to source.
@@ -78,7 +85,9 @@ describe('Cache Components Dev Errors', () => {
     const browser = await next.browser('/no-accessed-data')
 
     await retry(() => {
-      expect(next.cliOutput.slice(outputIndex)).toContain('Error: Route "/no-accessed-data"')
+      expect(next.cliOutput.slice(outputIndex)).toContain(
+        'Error: Route "/no-accessed-data"'
+      )
     })
 
     expect(stripAnsi(next.cliOutput.slice(outputIndex))).toContain(

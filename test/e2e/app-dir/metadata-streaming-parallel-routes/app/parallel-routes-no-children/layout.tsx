@@ -11,7 +11,10 @@ export default function Layout({ bar, foo }) {
         {`to /parallel-routes-no-children/first`}
       </Link>
       <br />
-      <Link href="/parallel-routes-no-children/second" id="to-no-children-second">
+      <Link
+        href="/parallel-routes-no-children/second"
+        id="to-no-children-second"
+      >
         {`to /parallel-routes-no-children/second`}
       </Link>
       <br />

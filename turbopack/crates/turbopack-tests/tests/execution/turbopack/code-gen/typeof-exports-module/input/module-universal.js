@@ -34,7 +34,12 @@
       })
       /******/
       /******/ // Execute the module function
-      /******/ modules[moduleId].call(module.exports, module, module.exports, __webpack_require__)
+      /******/ modules[moduleId].call(
+        module.exports,
+        module,
+        module.exports,
+        __webpack_require__
+      )
       /******/
       /******/ // Flag the module as loaded
       /******/ module.l = true
@@ -83,7 +88,13 @@
     /******/ __webpack_require__.t = function (value, mode) {
       /******/ if (mode & 1) value = __webpack_require__(value)
       /******/ if (mode & 8) return value
-      /******/ if (mode & 4 && typeof value === 'object' && value && value.__esModule) return value
+      /******/ if (
+        mode & 4 &&
+        typeof value === 'object' &&
+        value &&
+        value.__esModule
+      )
+        return value
       /******/ var ns = Object.create(null)
       /******/ __webpack_require__.r(ns)
       /******/ Object.defineProperty(ns, 'default', {

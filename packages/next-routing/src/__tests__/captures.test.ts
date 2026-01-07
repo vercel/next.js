@@ -9,7 +9,9 @@ function createReadableStream(): ReadableStream {
   })
 }
 
-function createBaseParams(overrides: Partial<ResolveRoutesParams> = {}): ResolveRoutesParams {
+function createBaseParams(
+  overrides: Partial<ResolveRoutesParams> = {}
+): ResolveRoutesParams {
   return {
     url: new URL('https://example.com/'),
     buildId: 'BUILD_ID',
@@ -171,7 +173,9 @@ describe('Regex Captures in Destination', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.externalRewrite?.toString()).toBe('https://cdn.example.com/images/photo.jpg')
+    expect(result.externalRewrite?.toString()).toBe(
+      'https://cdn.example.com/images/photo.jpg'
+    )
   })
 
   it('should replace captures in redirect destination', async () => {
@@ -516,7 +520,9 @@ describe('Has Condition Captures in Destination', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.externalRewrite?.toString()).toBe('https://server-1.example.com/data')
+    expect(result.externalRewrite?.toString()).toBe(
+      'https://server-1.example.com/data'
+    )
   })
 
   it('should use has captures in redirect', async () => {
@@ -573,8 +579,10 @@ describe('Complex Capture Scenarios', () => {
         beforeMiddleware: [],
         beforeFiles: [
           {
-            sourceRegex: '^/projects/(?<project>[^/]+)/issues/(?<issueId>[^/]+)$',
-            destination: '/orgs/$xorg/users/$user/projects/$project/issues/$issueId',
+            sourceRegex:
+              '^/projects/(?<project>[^/]+)/issues/(?<issueId>[^/]+)$',
+            destination:
+              '/orgs/$xorg/users/$user/projects/$project/issues/$issueId',
             has: [
               {
                 type: 'header',
@@ -597,7 +605,9 @@ describe('Complex Capture Scenarios', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/orgs/myorg/users/john/projects/backend/issues/42')
+    expect(result.matchedPathname).toBe(
+      '/orgs/myorg/users/john/projects/backend/issues/42'
+    )
   })
 
   it('should handle same variable name multiple times in destination', async () => {

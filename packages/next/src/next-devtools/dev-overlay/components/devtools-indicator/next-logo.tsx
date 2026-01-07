@@ -7,7 +7,10 @@ import { css } from '../../utils/css'
 import { useDevOverlayContext } from '../../../dev-overlay.browser'
 import { useRenderErrorContext } from '../../dev-overlay'
 import { useDelayedRender } from '../../hooks/use-delayed-render'
-import { ACTION_ERROR_OVERLAY_CLOSE, ACTION_ERROR_OVERLAY_OPEN } from '../../shared'
+import {
+  ACTION_ERROR_OVERLAY_CLOSE,
+  ACTION_ERROR_OVERLAY_OPEN,
+} from '../../shared'
 import { usePanelRouterContext } from '../../menu/context'
 import { BASE_LOGO_SIZE } from '../../utils/indicator-metrics'
 import { StatusIndicator, Status, getCurrentStatus } from './status-indicator'
@@ -33,14 +36,18 @@ export function NextLogo({
     setIsErrorExpanded(hasError)
   }
   const [dismissed, setDismissed] = useState(false)
-  const newErrorDetected = useUpdateAnimation(totalErrorCount, SHORT_DURATION_MS)
+  const newErrorDetected = useUpdateAnimation(
+    totalErrorCount,
+    SHORT_DURATION_MS
+  )
 
   // Cache indicator state management
   const isCacheFilling = state.cacheIndicator === 'filling'
   const isCacheBypassing = state.cacheIndicator === 'bypass'
 
   // Determine if we should show any status (excluding cache bypass, which renders like error badge)
-  const shouldShowStatus = state.buildingIndicator || state.renderingIndicator || isCacheFilling
+  const shouldShowStatus =
+    state.buildingIndicator || state.renderingIndicator || isCacheFilling
 
   // Delay showing for 400ms to catch fast operations,
   // and keep visible for minimum time (longer for warnings)
@@ -62,7 +69,10 @@ export function NextLogo({
   const displayStatus = showStatusIndicator ? currentStatus : Status.None
 
   const isExpanded =
-    isErrorExpanded || isCacheBypassing || showStatusIndicator || state.disableDevIndicator
+    isErrorExpanded ||
+    isCacheBypassing ||
+    showStatusIndicator ||
+    state.disableDevIndicator
   const width = measuredWidth === 0 ? 'auto' : measuredWidth
 
   return (
@@ -74,7 +84,10 @@ export function NextLogo({
           '--duration-short': `${SHORT_DURATION_MS}ms`,
           // if the indicator is disabled, hide the badge
           // also allow the "disabled" state be dismissed, as long as there are no build errors
-          display: state.disableDevIndicator && (!hasError || dismissed) ? 'none' : 'block',
+          display:
+            state.disableDevIndicator && (!hasError || dismissed)
+              ? 'none'
+              : 'block',
         } as React.CSSProperties
       }
     >
@@ -90,22 +103,22 @@ export function NextLogo({
             --color-hover-alpha-error: hsla(0, 0%, 100%, 0.2);
             --color-hover-alpha-error-2: hsla(0, 0%, 100%, 0.25);
             --mark-size: calc(var(--size) - var(--size-2) * 2);
-          
+
             --focus-color: var(--color-blue-800);
             --focus-ring: 2px solid var(--focus-color);
-          
+
             &:has([data-next-badge][data-error='true']) {
               --focus-color: #fff;
             }
           }
-          
+
           [data-disabled-icon] {
             display: flex;
             align-items: center;
             justify-content: center;
             padding-right: 4px;
           }
-          
+
           [data-next-badge] {
             width: var(--size);
             height: var(--size);
@@ -129,66 +142,66 @@ export function NextLogo({
               width var(--duration-long) var(--timing),
               box-shadow var(--duration-long) var(--timing),
               background var(--duration-short) ease;
-          
+
             &:active[data-error='false'] {
               scale: 0.95;
             }
-          
+
             &[data-animate='true']:not(:hover) {
               scale: 1.02;
             }
-          
+
             &[data-error='false']:has([data-next-mark]:focus-visible) {
               outline: var(--focus-ring);
               outline-offset: 3px;
             }
-          
+
             &[data-error='true'] {
               background: #ca2a30;
               --color-inner-border: #e5484d;
-          
+
               [data-next-mark] {
                 background: var(--color-hover-alpha-error);
                 outline-offset: 0px;
-          
+
                 &:focus-visible {
                   outline: var(--focus-ring);
                   outline-offset: -1px;
                 }
-          
+
                 &:hover {
                   background: var(--color-hover-alpha-error-2);
                 }
               }
             }
-          
+
             &[data-cache-bypassing='true']:not([data-error='true']) {
               background: rgba(217, 119, 6, 0.95);
               --color-inner-border: rgba(245, 158, 11, 0.9);
-          
+
               [data-issues-open] {
                 color: white;
               }
             }
-          
+
             &[data-error-expanded='false'][data-error='true'] ~ [data-dot] {
               scale: 1;
             }
-          
+
             > div {
               display: flex;
             }
           }
-          
+
           [data-issues-collapse]:focus-visible {
             outline: var(--focus-ring);
           }
-          
+
           [data-issues]:has([data-issues-open]:focus-visible) {
             outline: var(--focus-ring);
             outline-offset: -1px;
           }
-          
+
           [data-dot] {
             content: '';
             width: var(--size-8);
@@ -204,7 +217,7 @@ export function NextLogo({
             transition: scale 200ms var(--timing);
             transition-delay: var(--duration-short);
           }
-          
+
           [data-issues] {
             --padding-left: 8px;
             display: flex;
@@ -216,20 +229,20 @@ export function NextLogo({
             margin-right: 2px;
             border-radius: var(--rounded-full);
             transition: background var(--duration-short) ease;
-          
+
             &:has([data-issues-open]:hover) {
               background: var(--color-hover-alpha-error);
             }
-          
+
             &:has([data-issues-collapse]) {
               padding-right: calc(var(--padding-left) / 2);
             }
-          
+
             [data-cross] {
               translate: 0px -1px;
             }
           }
-          
+
           [data-issues-open] {
             font-size: var(--size-13);
             color: white;
@@ -243,29 +256,29 @@ export function NextLogo({
             font-weight: 500;
             z-index: 2;
             white-space: nowrap;
-          
+
             &:focus-visible {
               outline: 0;
             }
           }
-          
+
           [data-issues-collapse] {
             width: var(--size-24);
             height: var(--size-24);
             border-radius: var(--rounded-full);
             transition: background var(--duration-short) ease;
-          
+
             &:hover {
               background: var(--color-hover-alpha-error);
             }
           }
-          
+
           [data-cross] {
             color: #fff;
             width: var(--size-12);
             height: var(--size-12);
           }
-          
+
           [data-next-mark] {
             width: var(--mark-size);
             height: var(--mark-size);
@@ -274,58 +287,58 @@ export function NextLogo({
             align-items: center;
             border-radius: var(--rounded-full);
             transition: background var(--duration-long) var(--timing);
-          
+
             &:focus-visible {
               outline: 0;
             }
-          
+
             &:hover {
               background: var(--color-hover-alpha-subtle);
             }
-          
+
             svg {
               flex-shrink: 0;
               width: var(--size-40);
               height: var(--size-40);
             }
           }
-          
+
           [data-issues-count-animation] {
             display: grid;
             place-items: center center;
             font-variant-numeric: tabular-nums;
-          
+
             &[data-animate='false'] {
               [data-issues-count-exit],
               [data-issues-count-enter] {
                 animation-duration: 0ms;
               }
             }
-          
+
             > * {
               grid-area: 1 / 1;
             }
-          
+
             [data-issues-count-exit] {
               animation: fadeOut 300ms var(--timing) forwards;
             }
-          
+
             [data-issues-count-enter] {
               animation: fadeIn 300ms var(--timing) forwards;
             }
           }
-          
+
           [data-issues-count-plural] {
             display: inline-block;
             &[data-animate='true'] {
               animation: fadeIn 300ms var(--timing) forwards;
             }
           }
-          
+
           .paused {
             stroke-dashoffset: 0;
           }
-          
+
           @keyframes fadeIn {
             0% {
               opacity: 0;
@@ -338,7 +351,7 @@ export function NextLogo({
               transform: translateY(0);
             }
           }
-          
+
           @keyframes fadeOut {
             0% {
               opacity: 1;
@@ -351,7 +364,7 @@ export function NextLogo({
               filter: blur(2px);
             }
           }
-          
+
           @media (prefers-reduced-motion) {
             [data-issues-count-exit],
             [data-issues-count-enter],
@@ -385,7 +398,10 @@ export function NextLogo({
               aria-label={`${isMenuOpen ? 'Close' : 'Open'} Next.js Dev Tools`}
               data-nextjs-dev-tools-button
               style={{
-                display: showStatusIndicator && !hasError && !isCacheBypassing ? 'none' : 'flex',
+                display:
+                  showStatusIndicator && !hasError && !isCacheBypassing
+                    ? 'none'
+                    : 'flex',
               }}
               {...buttonProps}
             >
@@ -432,7 +448,9 @@ export function NextLogo({
                           data-issues-count-plural
                           // This only needs to animate once the count changes from 1 -> 2,
                           // otherwise it should stay static between re-renders.
-                          data-animate={newErrorDetected && totalErrorCount === 2}
+                          data-animate={
+                            newErrorDetected && totalErrorCount === 2
+                          }
                         >
                           s
                         </span>
@@ -460,14 +478,20 @@ export function NextLogo({
               )}
               {/* Cache bypass badge shown when cache is being bypassed */}
               {isCacheBypassing && !hasError && !state.disableDevIndicator && (
-                <CacheBypassBadge onTriggerClick={onTriggerClick} triggerRef={triggerRef} />
+                <CacheBypassBadge
+                  onTriggerClick={onTriggerClick}
+                  triggerRef={triggerRef}
+                />
               )}
               {/* Status indicator shown when no errors and no cache bypass */}
               {showStatusIndicator &&
                 !hasError &&
                 !isCacheBypassing &&
                 !state.disableDevIndicator && (
-                  <StatusIndicator status={displayStatus} onClick={onTriggerClick} />
+                  <StatusIndicator
+                    status={displayStatus}
+                    onClick={onTriggerClick}
+                  />
                 )}
             </>
           )}

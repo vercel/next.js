@@ -14,7 +14,10 @@ import {
 import { nextTestSetup } from 'e2e-utils'
 import { outdent } from 'outdent'
 
-export function runErrorRecoveryHmrTest(nextConfig: { basePath: string; assetPrefix: string }) {
+export function runErrorRecoveryHmrTest(nextConfig: {
+  basePath: string
+  assetPrefix: string
+}) {
   const { next } = nextTestSetup({
     files: __dirname,
     nextConfig,
@@ -25,7 +28,9 @@ export function runErrorRecoveryHmrTest(nextConfig: { basePath: string; assetPre
   it('should recover from 404 after a page has been added', async () => {
     const browser = await next.browser(basePath + '/hmr/new-page')
 
-    expect(await browser.elementByCss('body').text()).toMatch(/This page could not be found/)
+    expect(await browser.elementByCss('body').text()).toMatch(
+      /This page could not be found/
+    )
 
     expect(next.cliOutput).toContain('GET /hmr/new-page 404')
     let cliOutputLength = next.cliOutput.length
@@ -38,22 +43,30 @@ export function runErrorRecoveryHmrTest(nextConfig: { basePath: string; assetPre
         await retry(async () => {
           expect(await getBrowserBodyText(browser)).toMatch(/the-new-page/)
         })
-        expect(next.cliOutput.slice(cliOutputLength)).toContain('GET /hmr/new-page 200')
+        expect(next.cliOutput.slice(cliOutputLength)).toContain(
+          'GET /hmr/new-page 200'
+        )
         cliOutputLength = next.cliOutput.length
       }
     )
 
     // page was deleted at the end of patchFile
     await retry(async () => {
-      expect(await getBrowserBodyText(browser)).toMatch(/This page could not be found/)
+      expect(await getBrowserBodyText(browser)).toMatch(
+        /This page could not be found/
+      )
     })
-    expect(next.cliOutput.slice(cliOutputLength)).toContain('GET /hmr/new-page 404')
+    expect(next.cliOutput.slice(cliOutputLength)).toContain(
+      'GET /hmr/new-page 404'
+    )
   })
 
   it('should recover from 404 after a page has been added with dynamic segments', async () => {
     const browser = await next.browser(basePath + '/hmr/foo/page')
 
-    expect(await browser.elementByCss('body').text()).toMatch(/This page could not be found/)
+    expect(await browser.elementByCss('body').text()).toMatch(
+      /This page could not be found/
+    )
 
     expect(next.cliOutput).toContain('GET /hmr/foo/page 404')
     let cliOutputLength = next.cliOutput.length
@@ -66,16 +79,22 @@ export function runErrorRecoveryHmrTest(nextConfig: { basePath: string; assetPre
         await retry(async () => {
           expect(await getBrowserBodyText(browser)).toMatch(/the-new-page/)
         })
-        expect(next.cliOutput.slice(cliOutputLength)).toContain('GET /hmr/foo/page 200')
+        expect(next.cliOutput.slice(cliOutputLength)).toContain(
+          'GET /hmr/foo/page 200'
+        )
         cliOutputLength = next.cliOutput.length
       }
     )
 
     // page was deleted at the end of patchFile
     await retry(async () => {
-      expect(await getBrowserBodyText(browser)).toMatch(/This page could not be found/)
+      expect(await getBrowserBodyText(browser)).toMatch(
+        /This page could not be found/
+      )
     })
-    expect(next.cliOutput.slice(cliOutputLength)).toContain('GET /hmr/foo/page 404')
+    expect(next.cliOutput.slice(cliOutputLength)).toContain(
+      'GET /hmr/foo/page 404'
+    )
   })
   ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
     // this test fails frequently with turbopack
@@ -117,7 +136,8 @@ export function runErrorRecoveryHmrTest(nextConfig: { basePath: string; assetPre
           await waitFor(3000)
 
           const logOccurrences =
-            next.cliOutput.slice(outputIndex).split('getInitialProps called').length - 1
+            next.cliOutput.slice(outputIndex).split('getInitialProps called')
+              .length - 1
           expect(logOccurrences).toBe(0)
         }
       )
@@ -127,7 +147,9 @@ export function runErrorRecoveryHmrTest(nextConfig: { basePath: string; assetPre
   it('should detect syntax errors and recover', async () => {
     const browser = await next.browser(basePath + '/hmr/about2')
     await retry(async () => {
-      expect(await getBrowserBodyText(browser)).toMatch(/This is the about page/)
+      expect(await getBrowserBodyText(browser)).toMatch(
+        /This is the about page/
+      )
     })
 
     await next.patchFile(
@@ -135,7 +157,9 @@ export function runErrorRecoveryHmrTest(nextConfig: { basePath: string; assetPre
       (content) => content.replace('</div>', 'div'),
       async () => {
         await waitForRedbox(browser)
-        const source = next.normalizeTestDirContent(await getRedboxSource(browser))
+        const source = next.normalizeTestDirContent(
+          await getRedboxSource(browser)
+        )
 
         if (process.env.IS_TURBOPACK_TEST) {
           expect(source).toMatchInlineSnapshot(`
@@ -203,7 +227,9 @@ export function runErrorRecoveryHmrTest(nextConfig: { basePath: string; assetPre
     )
 
     await retry(async () => {
-      expect(await getBrowserBodyText(browser)).toMatch(/This is the about page/)
+      expect(await getBrowserBodyText(browser)).toMatch(
+        /This is the about page/
+      )
     })
   })
 
@@ -221,12 +247,16 @@ export function runErrorRecoveryHmrTest(nextConfig: { basePath: string; assetPre
           await new Promise((resolve) => setTimeout(resolve, 2000))
 
           await waitForRedbox(browser)
-          expect(await getRedboxSource(browser)).toContain("Expected '</', got '<eof>'")
+          expect(await getRedboxSource(browser)).toContain(
+            "Expected '</', got '<eof>'"
+          )
         }
       )
 
       await retry(async () => {
-        expect(await getBrowserBodyText(browser)).toMatch(/This is the contact page/)
+        expect(await getBrowserBodyText(browser)).toMatch(
+          /This is the contact page/
+        )
       })
     })
   }
@@ -235,7 +265,9 @@ export function runErrorRecoveryHmrTest(nextConfig: { basePath: string; assetPre
     const browser = await next.browser(basePath + '/hmr/about3')
 
     await retry(async () => {
-      expect(await getBrowserBodyText(browser)).toMatch(/This is the about page/)
+      expect(await getBrowserBodyText(browser)).toMatch(
+        /This is the about page/
+      )
     })
 
     await next.patchFile(
@@ -248,7 +280,9 @@ export function runErrorRecoveryHmrTest(nextConfig: { basePath: string; assetPre
     )
 
     await retry(async () => {
-      expect(await getBrowserBodyText(browser)).toMatch(/This is the about page/)
+      expect(await getBrowserBodyText(browser)).toMatch(
+        /This is the about page/
+      )
     })
   })
 
@@ -256,12 +290,18 @@ export function runErrorRecoveryHmrTest(nextConfig: { basePath: string; assetPre
     const browser = await next.browser(basePath + '/hmr/about4')
 
     await retry(async () => {
-      expect(await getBrowserBodyText(browser)).toMatch(/This is the about page/)
+      expect(await getBrowserBodyText(browser)).toMatch(
+        /This is the about page/
+      )
     })
 
     await next.patchFile(
       join('pages', 'hmr', 'about4.js'),
-      (content) => content.replace('return', 'throw new Error("an-expected-error");\nreturn'),
+      (content) =>
+        content.replace(
+          'return',
+          'throw new Error("an-expected-error");\nreturn'
+        ),
       async () => {
         await waitForRedbox(browser)
         expect(await getRedboxSource(browser)).toMatch(/an-expected-error/)
@@ -269,7 +309,9 @@ export function runErrorRecoveryHmrTest(nextConfig: { basePath: string; assetPre
     )
 
     await retry(async () => {
-      expect(await getBrowserBodyText(browser)).toMatch(/This is the about page/)
+      expect(await getBrowserBodyText(browser)).toMatch(
+        /This is the about page/
+      )
     })
   })
 
@@ -277,12 +319,18 @@ export function runErrorRecoveryHmrTest(nextConfig: { basePath: string; assetPre
     const browser = await next.browser(basePath + '/hmr/about5')
 
     await retry(async () => {
-      expect(await getBrowserBodyText(browser)).toMatch(/This is the about page/)
+      expect(await getBrowserBodyText(browser)).toMatch(
+        /This is the about page/
+      )
     })
 
     await next.patchFile(
       join('pages', 'hmr', 'about5.js'),
-      (content) => content.replace('export default', 'export default {};\nexport const fn ='),
+      (content) =>
+        content.replace(
+          'export default',
+          'export default {};\nexport const fn ='
+        ),
       async () => {
         await waitForRedbox(browser)
         expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
@@ -292,7 +340,9 @@ export function runErrorRecoveryHmrTest(nextConfig: { basePath: string; assetPre
     )
 
     await retry(async () => {
-      expect(await getBrowserBodyText(browser)).toMatch(/This is the about page/)
+      expect(await getBrowserBodyText(browser)).toMatch(
+        /This is the about page/
+      )
     })
   })
 
@@ -300,13 +350,18 @@ export function runErrorRecoveryHmrTest(nextConfig: { basePath: string; assetPre
     const browser = await next.browser(basePath + '/hmr/about6')
 
     await retry(async () => {
-      expect(await getBrowserBodyText(browser)).toMatch(/This is the about page/)
+      expect(await getBrowserBodyText(browser)).toMatch(
+        /This is the about page/
+      )
     })
 
     await next.patchFile(
       join('pages', 'hmr', 'about6.js'),
       (content) =>
-        content.replace('export default', 'export default () => /search/;\nexport const fn ='),
+        content.replace(
+          'export default',
+          'export default () => /search/;\nexport const fn ='
+        ),
       async () => {
         await waitForRedbox(browser)
         // TODO: Replace this when webpack 5 is the default
@@ -317,7 +372,9 @@ export function runErrorRecoveryHmrTest(nextConfig: { basePath: string; assetPre
     )
 
     await retry(async () => {
-      expect(await getBrowserBodyText(browser)).toMatch(/This is the about page/)
+      expect(await getBrowserBodyText(browser)).toMatch(
+        /This is the about page/
+      )
     })
   })
 
@@ -327,12 +384,17 @@ export function runErrorRecoveryHmrTest(nextConfig: { basePath: string; assetPre
 
     const aboutContent = await next.readFile(aboutPage)
     await retry(async () => {
-      expect(await getBrowserBodyText(browser)).toMatch(/This is the about page/)
+      expect(await getBrowserBodyText(browser)).toMatch(
+        /This is the about page/
+      )
     })
 
     await next.patchFile(
       aboutPage,
-      aboutContent.replace('export default', 'export default undefined;\nexport const fn ='),
+      aboutContent.replace(
+        'export default',
+        'export default undefined;\nexport const fn ='
+      ),
       async () => {
         await waitForRedbox(browser)
         expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
@@ -342,7 +404,9 @@ export function runErrorRecoveryHmrTest(nextConfig: { basePath: string; assetPre
     )
 
     await retry(async () => {
-      expect(await getBrowserBodyText(browser)).toMatch(/This is the about page/)
+      expect(await getBrowserBodyText(browser)).toMatch(
+        /This is the about page/
+      )
     })
     await waitForNoRedbox(browser)
   })
@@ -351,7 +415,9 @@ export function runErrorRecoveryHmrTest(nextConfig: { basePath: string; assetPre
     const browser = await next.browser(basePath + '/hmr/about8')
 
     await retry(async () => {
-      expect(await getBrowserBodyText(browser)).toMatch(/This is the about page/)
+      expect(await getBrowserBodyText(browser)).toMatch(
+        /This is the about page/
+      )
     })
 
     await next.patchFile(
@@ -374,7 +440,8 @@ export function runErrorRecoveryHmrTest(nextConfig: { basePath: string; assetPre
               Read more: https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders"
             `)
         } else if (process.env.NEXT_RSPACK) {
-          expect(trimEndMultiline(await getRedboxSource(browser))).toMatchInlineSnapshot(`
+          expect(trimEndMultiline(await getRedboxSource(browser)))
+            .toMatchInlineSnapshot(`
            "./components/parse-error.xyz
              × Module parse failed:
              ╰─▶   × JavaScript parse error: Expression expected
@@ -414,7 +481,9 @@ export function runErrorRecoveryHmrTest(nextConfig: { basePath: string; assetPre
     )
 
     await retry(async () => {
-      expect(await getBrowserBodyText(browser)).toMatch(/This is the about page/)
+      expect(await getBrowserBodyText(browser)).toMatch(
+        /This is the about page/
+      )
     })
     await waitForNoRedbox(browser)
   })
@@ -423,7 +492,9 @@ export function runErrorRecoveryHmrTest(nextConfig: { basePath: string; assetPre
     const browser = await next.browser(basePath + '/hmr/about9')
 
     await retry(async () => {
-      expect(await getBrowserBodyText(browser)).toMatch(/This is the about page/)
+      expect(await getBrowserBodyText(browser)).toMatch(
+        /This is the about page/
+      )
     })
 
     await next.patchFile(
@@ -440,7 +511,8 @@ export function runErrorRecoveryHmrTest(nextConfig: { basePath: string; assetPre
 
         redboxSource = redboxSource.replace(`${next.testDir}`, '.')
         if (process.env.IS_TURBOPACK_TEST) {
-          expect(next.normalizeTestDirContent(redboxSource)).toMatchInlineSnapshot(`
+          expect(next.normalizeTestDirContent(redboxSource))
+            .toMatchInlineSnapshot(`
                     "./components/parse-error.js (3:1)
                     Parsing ecmascript source code failed
                       1 | This
@@ -484,9 +556,13 @@ export function runErrorRecoveryHmrTest(nextConfig: { basePath: string; assetPre
            ./pages/hmr/about9.js"
           `)
         } else {
-          redboxSource = redboxSource.substring(0, redboxSource.indexOf('`----'))
+          redboxSource = redboxSource.substring(
+            0,
+            redboxSource.indexOf('`----')
+          )
 
-          expect(next.normalizeTestDirContent(redboxSource)).toMatchInlineSnapshot(`
+          expect(next.normalizeTestDirContent(redboxSource))
+            .toMatchInlineSnapshot(`
             "./components/parse-error.js
             Error:   x Expression expected
                ,-[3:1]
@@ -503,7 +579,9 @@ export function runErrorRecoveryHmrTest(nextConfig: { basePath: string; assetPre
     )
 
     await retry(async () => {
-      expect(await getBrowserBodyText(browser)).toMatch(/This is the about page/)
+      expect(await getBrowserBodyText(browser)).toMatch(
+        /This is the about page/
+      )
     })
     await waitForNoRedbox(browser)
   })
@@ -515,7 +593,9 @@ export function runErrorRecoveryHmrTest(nextConfig: { basePath: string; assetPre
     await browser.elementByCss('#error-in-gip-link').click()
 
     await waitForRedbox(browser)
-    expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(`"an-expected-error-in-gip"`)
+    expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
+      `"an-expected-error-in-gip"`
+    )
 
     await next.patchFile(
       erroredPage,
@@ -534,7 +614,9 @@ export function runErrorRecoveryHmrTest(nextConfig: { basePath: string; assetPre
           if (text.includes('Hello')) {
             throw new Error('waiting')
           }
-          return expect(await getRedboxSource(browser)).toMatch(/an-expected-error-in-gip/)
+          return expect(await getRedboxSource(browser)).toMatch(
+            /an-expected-error-in-gip/
+          )
         })
       }
     )
@@ -543,7 +625,9 @@ export function runErrorRecoveryHmrTest(nextConfig: { basePath: string; assetPre
   it('should recover after an error reported via SSR', async () => {
     const browser = await next.browser(basePath + '/hmr/error-in-gip')
     await waitForRedbox(browser)
-    expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(`"an-expected-error-in-gip"`)
+    expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
+      `"an-expected-error-in-gip"`
+    )
 
     await next.patchFile(
       join('pages', 'hmr', 'error-in-gip.js'),
@@ -562,7 +646,9 @@ export function runErrorRecoveryHmrTest(nextConfig: { basePath: string; assetPre
       if (text.includes('Hello')) {
         throw new Error('waiting')
       }
-      return expect(await getRedboxSource(browser)).toMatch(/an-expected-error-in-gip/)
+      return expect(await getRedboxSource(browser)).toMatch(
+        /an-expected-error-in-gip/
+      )
     })
   })
 

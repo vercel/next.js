@@ -8,9 +8,13 @@ function readSsrError(): (Error & { digest?: string }) | null {
     return null
   }
 
-  const ssrErrorTemplateTag = document.querySelector('template[data-next-error-message]')
+  const ssrErrorTemplateTag = document.querySelector(
+    'template[data-next-error-message]'
+  )
   if (ssrErrorTemplateTag) {
-    const message: string = ssrErrorTemplateTag.getAttribute('data-next-error-message')!
+    const message: string = ssrErrorTemplateTag.getAttribute(
+      'data-next-error-message'
+    )!
     const stack = ssrErrorTemplateTag.getAttribute('data-next-error-stack')
     const digest = ssrErrorTemplateTag.getAttribute('data-next-error-digest')
     const error = new Error(message)
@@ -33,7 +37,11 @@ function readSsrError(): (Error & { digest?: string }) | null {
  * If it commits, we know we recovered from an SSR error.
  * If it doesn't commit, we errored again and React will take care of error reporting.
  */
-export function ReplaySsrOnlyErrors({ onBlockingError }: { onBlockingError: () => void }) {
+export function ReplaySsrOnlyErrors({
+  onBlockingError,
+}: {
+  onBlockingError: () => void
+}) {
   if (process.env.NODE_ENV !== 'production') {
     // Need to read during render. The attributes will be gone after commit.
     const ssrError = readSsrError()

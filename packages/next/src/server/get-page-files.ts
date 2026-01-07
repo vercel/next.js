@@ -16,12 +16,17 @@ export type BuildManifest = {
   }
 }
 
-export function getPageFiles(buildManifest: BuildManifest, page: string): readonly string[] {
+export function getPageFiles(
+  buildManifest: BuildManifest,
+  page: string
+): readonly string[] {
   const normalizedPage = denormalizePagePath(normalizePagePath(page))
   let files = buildManifest.pages[normalizedPage]
 
   if (!files) {
-    console.warn(`Could not find files for ${normalizedPage} in .next/build-manifest.json`)
+    console.warn(
+      `Could not find files for ${normalizedPage} in .next/build-manifest.json`
+    )
     return []
   }
 

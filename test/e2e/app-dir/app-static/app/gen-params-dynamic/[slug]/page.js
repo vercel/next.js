@@ -7,13 +7,16 @@ export async function generateStaticParams() {
 export default async function page(props) {
   const params = await props.params
   const { slug } = params
-  const data = await fetchRetry('https://next-data-api-endpoint.vercel.app/api/random', {
-    method: 'POST',
-    body: JSON.stringify({ hello: 'world' }),
-    next: {
-      revalidate: 0,
-    },
-  }).then((res) => res.text())
+  const data = await fetchRetry(
+    'https://next-data-api-endpoint.vercel.app/api/random',
+    {
+      method: 'POST',
+      body: JSON.stringify({ hello: 'world' }),
+      next: {
+        revalidate: 0,
+      },
+    }
+  ).then((res) => res.text())
 
   return (
     <>

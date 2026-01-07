@@ -87,7 +87,9 @@ function writeComponentFactory() {
  * removed components at runtime.
  */
 function watchComponentFactory() {
-  console.log(`Watching for changes to component factory sources in ${componentRootPath}...`);
+  console.log(
+    `Watching for changes to component factory sources in ${componentRootPath}...`,
+  );
 
   watchItems(componentRootPath, writeComponentFactory);
 }

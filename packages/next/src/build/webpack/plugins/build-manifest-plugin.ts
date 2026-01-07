@@ -69,7 +69,9 @@ export function generateClientManifest(
       if (page === '/_app') return
       // Filter out dependencies in the _app entry, because those will have already
       // been loaded by the client prior to a navigation event
-      const filteredDeps = dependencies.filter((dep) => !appDependencies.has(dep))
+      const filteredDeps = dependencies.filter(
+        (dep) => !appDependencies.has(dep)
+      )
 
       // The manifest can omit the page if it has no requirements
       if (filteredDeps.length) {
@@ -127,12 +129,15 @@ export default class BuildManifestPlugin {
   }
 
   createAssets(compiler: any, compilation: any) {
-    const compilationSpan = getCompilationSpan(compilation) ?? getCompilationSpan(compiler)
+    const compilationSpan =
+      getCompilationSpan(compilation) ?? getCompilationSpan(compiler)
     if (!compilationSpan) {
       throw new Error('No span found for compilation')
     }
 
-    const createAssetsSpan = compilationSpan.traceChild('NextJsBuildManifest-createassets')
+    const createAssetsSpan = compilationSpan.traceChild(
+      'NextJsBuildManifest-createassets'
+    )
 
     return createAssetsSpan.traceFn(() => {
       const entrypoints: Map<string, any> = compilation.entrypoints
@@ -151,7 +156,11 @@ export default class BuildManifestPlugin {
 
       if (this.appDirEnabled) {
         assetMap.rootMainFiles = [
-          ...new Set(getEntrypointFiles(entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_MAIN_APP))),
+          ...new Set(
+            getEntrypointFiles(
+              entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_MAIN_APP)
+            )
+          ),
         ]
       }
 
@@ -168,7 +177,9 @@ export default class BuildManifestPlugin {
             return false
           }
 
-          return p.info && CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL in p.info
+          return (
+            p.info && CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL in p.info
+          )
         })
         .map((v) => v.name)
 
@@ -193,10 +204,19 @@ export default class BuildManifestPlugin {
         // Add the runtime build manifest file (generated later in this file)
         // as a dependency for the app. If the flag is false, the file won't be
         // downloaded by the client.
-        const buildManifestPath = buildNodejsLowPriorityPath('_buildManifest.js', this.buildId)
-        const ssgManifestPath = buildNodejsLowPriorityPath('_ssgManifest.js', this.buildId)
+        const buildManifestPath = buildNodejsLowPriorityPath(
+          '_buildManifest.js',
+          this.buildId
+        )
+        const ssgManifestPath = buildNodejsLowPriorityPath(
+          '_ssgManifest.js',
+          this.buildId
+        )
         assetMap.lowPriorityFiles.push(buildManifestPath, ssgManifestPath)
-        compilation.emitAsset(ssgManifestPath, new sources.RawSource(srcEmptySsgManifest))
+        compilation.emitAsset(
+          ssgManifestPath,
+          new sources.RawSource(srcEmptySsgManifest)
+        )
       }
 
       assetMap.pages = Object.keys(assetMap.pages)

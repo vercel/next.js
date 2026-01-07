@@ -15,7 +15,9 @@ export type ExperimentalPPRConfig = boolean | 'incremental'
  *
  * @see {@link checkIsRoutePPREnabled} - for checking if a specific route has PPR enabled.
  */
-export function checkIsAppPPREnabled(config: ExperimentalPPRConfig | undefined): boolean {
+export function checkIsAppPPREnabled(
+  config: ExperimentalPPRConfig | undefined
+): boolean {
   // If the config is undefined, partial prerendering is disabled.
   if (typeof config === 'undefined') return false
 
@@ -37,7 +39,9 @@ export function checkIsAppPPREnabled(config: ExperimentalPPRConfig | undefined):
  *
  * @see {@link checkIsAppPPREnabled} for checking if the application has PPR enabled.
  */
-export function checkIsRoutePPREnabled(config: ExperimentalPPRConfig | undefined): boolean {
+export function checkIsRoutePPREnabled(
+  config: ExperimentalPPRConfig | undefined
+): boolean {
   // If the config is undefined, partial prerendering is disabled.
   if (typeof config === 'undefined') return false
 

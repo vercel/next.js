@@ -11,8 +11,12 @@ describe('prerender native module', () => {
   beforeAll(async () => {
     next = await createNext({
       files: {
-        pages: new FileRef(path.join(__dirname, 'prerender-native-module/pages')),
-        'data.sqlite': new FileRef(path.join(__dirname, 'prerender-native-module/data.sqlite')),
+        pages: new FileRef(
+          path.join(__dirname, 'prerender-native-module/pages')
+        ),
+        'data.sqlite': new FileRef(
+          path.join(__dirname, 'prerender-native-module/data.sqlite')
+        ),
       },
       dependencies: {
         sqlite: '4.0.22',
@@ -104,10 +108,14 @@ describe('prerender native module', () => {
         )
         const { version, files } = JSON.parse(contents)
         expect(version).toBe(1)
-        expect(check.tests.every((item) => files.some((file) => item.test(file)))).toBe(true)
+        expect(
+          check.tests.every((item) => files.some((file) => item.test(file)))
+        ).toBe(true)
 
         if (path.sep === '/') {
-          expect(check.notTests.some((item) => files.some((file) => item.test(file)))).toBe(false)
+          expect(
+            check.notTests.some((item) => files.some((file) => item.test(file)))
+          ).toBe(false)
         }
       }
     })

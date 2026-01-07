@@ -47,9 +47,12 @@ export interface BasicSourceMapPayload {
 
 export type ModernSourceMapPayload = BasicSourceMapPayload | IndexSourceMap
 
-export function sourceMapIgnoreListsEverything(sourceMap: BasicSourceMapPayload): boolean {
+export function sourceMapIgnoreListsEverything(
+  sourceMap: BasicSourceMapPayload
+): boolean {
   return (
-    sourceMap.ignoreList !== undefined && sourceMap.sources.length === sourceMap.ignoreList.length
+    sourceMap.ignoreList !== undefined &&
+    sourceMap.sources.length === sourceMap.ignoreList.length
   )
 }
 
@@ -82,7 +85,10 @@ export function findApplicableSourceMapPayload(
       const section = sections[middle]
       const offset = section.offset
 
-      if (offset.line < line0 || (offset.line === line0 && offset.column <= column0)) {
+      if (
+        offset.line < line0 ||
+        (offset.line === line0 && offset.column <= column0)
+      ) {
         result = section
         left = middle + 1
       } else {
@@ -153,15 +159,19 @@ export function filterStackFrameDEV(
 }
 
 const invalidSourceMap = Symbol('invalid-source-map')
-const sourceMapURLs = new LRUCache<string | typeof invalidSourceMap>(512 * 1024 * 1024, (url) =>
-  url === invalidSourceMap
-    ? // Ideally we'd account for key length. So we just guestimate a small source map
-      // so that we don't create a huge cache with empty source maps.
-      8 * 1024
-    : // these URLs contain only ASCII characters so .length is equal to Buffer.byteLength
-      url.length
+const sourceMapURLs = new LRUCache<string | typeof invalidSourceMap>(
+  512 * 1024 * 1024,
+  (url) =>
+    url === invalidSourceMap
+      ? // Ideally we'd account for key length. So we just guestimate a small source map
+        // so that we don't create a huge cache with empty source maps.
+        8 * 1024
+      : // these URLs contain only ASCII characters so .length is equal to Buffer.byteLength
+        url.length
 )
-export function findSourceMapURLDEV(scriptNameOrSourceURL: string): string | null {
+export function findSourceMapURLDEV(
+  scriptNameOrSourceURL: string
+): string | null {
   let sourceMapURL = sourceMapURLs.get(scriptNameOrSourceURL)
   if (sourceMapURL === undefined) {
     let sourceMapPayload: ModernSourceMapPayload | undefined
@@ -179,7 +189,9 @@ export function findSourceMapURLDEV(scriptNameOrSourceURL: string): string | nul
       // TODO: Might be more efficient to extract the relevant section from Index Maps.
       // Unclear if that search is worth the smaller payload we have to stringify.
       const sourceMapJSON = JSON.stringify(sourceMapPayload)
-      const sourceMapURLData = Buffer.from(sourceMapJSON, 'utf8').toString('base64')
+      const sourceMapURLData = Buffer.from(sourceMapJSON, 'utf8').toString(
+        'base64'
+      )
       sourceMapURL = `data:application/json;base64,${sourceMapURLData}`
     }
 
@@ -245,7 +257,8 @@ export function ignoreListAnonymousStackFramesIfSandwiched<Frame>(
       for (j; j < frames.length; j++) {
         const nextFrame = frames[j]
         const nextFrameIsAnonymous =
-          isAnonymousFrame(nextFrame) && isAnonymousFrameLikelyJSNative(getMethodName(nextFrame))
+          isAnonymousFrame(nextFrame) &&
+          isAnonymousFrameLikelyJSNative(getMethodName(nextFrame))
         if (nextFrameIsAnonymous) {
           continue
         }

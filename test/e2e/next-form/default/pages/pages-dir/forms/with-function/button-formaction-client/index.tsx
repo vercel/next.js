@@ -16,7 +16,11 @@ function Page() {
   const [query, setQuery] = React.useState('')
   return (
     <Form action="/pages-dir/search" id="search-form">
-      <input name="query" value={query} onChange={(e) => setQuery(e.target.value)} />
+      <input
+        name="query"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+      />
 
       <NavigateButton to={destination + '?' + new URLSearchParams({ query })}>
         Submit (client action)
@@ -25,7 +29,10 @@ function Page() {
   )
 }
 
-function NavigateButton({ to, ...props }: { to: string } & React.ComponentProps<'button'>) {
+function NavigateButton({
+  to,
+  ...props
+}: { to: string } & React.ComponentProps<'button'>) {
   const router = useRouter()
   const [, dispatch] = React.useActionState(() => {
     router.push(to)

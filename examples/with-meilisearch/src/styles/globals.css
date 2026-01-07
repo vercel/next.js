@@ -8,7 +8,8 @@ html {
   -moz-background-size: cover;
   -o-background-size: cover;
   background-size: cover;
-  background: linear-gradient(180deg, #35027a, #0e0021 2100px, #0e0021 4500px) no-repeat;
+  background: linear-gradient(180deg, #35027a, #0e0021 2100px, #0e0021 4500px)
+    no-repeat;
 }
 
 .ais-Highlight .ais-Highlight-highlighted {

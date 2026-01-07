@@ -16,7 +16,9 @@ describe('app dir - not-found - default', () => {
   if (isNextStart) {
     it('should contain noindex contain in the page', async () => {
       const html = await next.readFile('.next/server/app/_not-found.html')
-      const rsc = isPPREnabled ? 'noindex' : await next.readFile(`.next/server/app/_not-found.rsc`)
+      const rsc = isPPREnabled
+        ? 'noindex'
+        : await next.readFile(`.next/server/app/_not-found.rsc`)
 
       expect(html).toContain('noindex')
       expect(rsc).toContain('noindex')

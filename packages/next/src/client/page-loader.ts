@@ -87,7 +87,10 @@ export default class PageLoader {
 
   getMiddleware() {
     // Webpack production
-    if (process.env.NODE_ENV === 'production' && process.env.__NEXT_MIDDLEWARE_MATCHERS) {
+    if (
+      process.env.NODE_ENV === 'production' &&
+      process.env.__NEXT_MIDDLEWARE_MATCHERS
+    ) {
       const middlewareMatchers = process.env.__NEXT_MIDDLEWARE_MATCHERS
       window.__MIDDLEWARE_MATCHERS = middlewareMatchers
         ? (middlewareMatchers as any as ProxyMatcher[])
@@ -159,8 +162,14 @@ export default class PageLoader {
     }
 
     const getHrefForSlug = (path: string) => {
-      const dataRoute = getAssetPathFromRoute(removeTrailingSlash(addLocale(path, locale)), '.json')
-      return addBasePath(`/_next/data/${this.buildId}${dataRoute}${search}`, true)
+      const dataRoute = getAssetPathFromRoute(
+        removeTrailingSlash(addLocale(path, locale)),
+        '.json'
+      )
+      return addBasePath(
+        `/_next/data/${this.buildId}${dataRoute}${search}`,
+        true
+      )
     }
 
     return getHrefForSlug(

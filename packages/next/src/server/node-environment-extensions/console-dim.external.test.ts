@@ -8,7 +8,11 @@
 
 /* eslint-disable @next/internal/typechecked-require */
 
-type ReportableResult = ConsoleCallReport | ErrorReport | OutputReport | SerializableDataReport
+type ReportableResult =
+  | ConsoleCallReport
+  | ErrorReport
+  | OutputReport
+  | SerializableDataReport
 
 type ConsoleCallReport = {
   type: 'console-call'
@@ -122,7 +126,11 @@ describe('console-exit patches', () => {
         // First, replace console.log to track what storage context it runs in
         console.log = function (...args) {
           let dimmed = false
-          if (args.find((a) => (typeof a === 'string' ? a.includes('color:') : false))) {
+          if (
+            args.find((a) =>
+              typeof a === 'string' ? a.includes('color:') : false
+            )
+          ) {
             dimmed = true
           }
           reportResult({
@@ -166,7 +174,11 @@ describe('console-exit patches', () => {
         // Assign a new console.log after patching - this will NOT be wrapped
         console.log = function (...args) {
           let dimmed = false
-          if (args.find((a) => (typeof a === 'string' ? a.includes('color:') : false))) {
+          if (
+            args.find((a) =>
+              typeof a === 'string' ? a.includes('color:') : false
+            )
+          ) {
             dimmed = true
           }
           reportResult({
@@ -242,7 +254,11 @@ describe('console-exit patches', () => {
         // First, replace console.log to track what storage context it runs in
         console.log = function (...args) {
           let dimmed = false
-          if (args.find((a) => (typeof a === 'string' ? a.includes('color:') : false))) {
+          if (
+            args.find((a) =>
+              typeof a === 'string' ? a.includes('color:') : false
+            )
+          ) {
             dimmed = true
           }
           reportResult({
@@ -260,11 +276,14 @@ describe('console-exit patches', () => {
 
         const controller = new AbortController()
 
-        workUnitAsyncStorage.run({ type: 'prerender', renderSignal: controller.signal }, () => {
-          console.log('before abort')
-          controller.abort()
-          console.log('after abort')
-        })
+        workUnitAsyncStorage.run(
+          { type: 'prerender', renderSignal: controller.signal },
+          () => {
+            console.log('before abort')
+            controller.abort()
+            console.log('after abort')
+          }
+        )
       }
 
       const { consoleCalls, exitCode } = await runWorkerCode(testForWorker)
@@ -287,7 +306,11 @@ describe('console-exit patches', () => {
         console.log = function (...args) {
           originalLog(...args)
           let dimmed = false
-          if (args.find((a) => (typeof a === 'string' ? a.includes('color:') : false))) {
+          if (
+            args.find((a) =>
+              typeof a === 'string' ? a.includes('color:') : false
+            )
+          ) {
             dimmed = true
           }
           reportResult({

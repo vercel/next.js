@@ -6,7 +6,10 @@ import { client, e } from "../../client";
 
 import ReactMarkdown from "react-markdown";
 
-async function update(id: string, data: { title?: string; content?: string }): Promise<void> {
+async function update(
+  id: string,
+  data: { title?: string; content?: string },
+): Promise<void> {
   await fetch(`/api/post/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -50,8 +53,12 @@ const Post: React.FC<PostProps> = (props) => {
             maxWidth: "600px",
           }}
         >
-          <h1 style={{ paddingTop: "100px", margin: 0, paddingBottom: "8px" }}>{props.title}</h1>
-          <p style={{ fontSize: "14pt", margin: 0, color: "#888" }}>By {props.authorName}</p>
+          <h1 style={{ paddingTop: "100px", margin: 0, paddingBottom: "8px" }}>
+            {props.title}
+          </h1>
+          <p style={{ fontSize: "14pt", margin: 0, color: "#888" }}>
+            By {props.authorName}
+          </p>
           <br />
           <br />
           <ReactMarkdown>{props.content || ""}</ReactMarkdown>
@@ -144,7 +151,9 @@ const Post: React.FC<PostProps> = (props) => {
   );
 };
 
-export const getServerSideProps = async (context?: GetServerSidePropsContext) => {
+export const getServerSideProps = async (
+  context?: GetServerSidePropsContext,
+) => {
   const post = await e
     .select(e.Post, (post) => ({
       id: true,

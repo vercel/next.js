@@ -82,7 +82,10 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
           // icon.ts -> icon/route.ts
           const metadataPage = normalizeMetadataPageToRoute(page, false)
           const metadataPathname = normalizeMetadataPageToRoute(pathname, false)
-          const metadataBundlePath = normalizeMetadataPageToRoute(bundlePath, false)
+          const metadataBundlePath = normalizeMetadataPageToRoute(
+            bundlePath,
+            false
+          )
 
           const matcher = new AppRouteRouteMatcher({
             kind: RouteKind.APP_ROUTE,
@@ -102,7 +105,10 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
           // icon.ts -> icon/[__metadata_id__].ts
           const metadataPage = normalizeMetadataPageToRoute(page, true)
           const metadataPathname = normalizeMetadataPageToRoute(pathname, true)
-          const metadataBundlePath = normalizeMetadataPageToRoute(bundlePath, true)
+          const metadataBundlePath = normalizeMetadataPageToRoute(
+            bundlePath,
+            true
+          )
 
           const matcher = new AppRouteRouteMatcher({
             kind: RouteKind.APP_ROUTE,

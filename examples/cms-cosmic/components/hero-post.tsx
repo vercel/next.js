@@ -34,7 +34,10 @@ const HeroPost = (props: HeroPostProps) => {
         </div>
         <div>
           <p className="text-lg leading-relaxed mb-4">{excerpt}</p>
-          <Avatar name={author.title} picture={author.metadata.picture.imgix_url} />
+          <Avatar
+            name={author.title}
+            picture={author.metadata.picture.imgix_url}
+          />
         </div>
       </div>
     </section>

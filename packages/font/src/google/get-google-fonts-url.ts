@@ -20,7 +20,11 @@ export function getGoogleFontsUrl(
         variants.push([['wght', wght], ...(axes.variableAxes ?? [])])
       } else {
         for (const ital of axes.ital) {
-          variants.push([['ital', ital], ['wght', wght], ...(axes.variableAxes ?? [])])
+          variants.push([
+            ['ital', ital],
+            ['wght', wght],
+            ...(axes.variableAxes ?? []),
+          ])
         }
       }
     }
@@ -43,7 +47,10 @@ export function getGoogleFontsUrl(
     })
   }
 
-  let url = `https://fonts.googleapis.com/css2?family=${fontFamily.replace(/ /g, '+')}`
+  let url = `https://fonts.googleapis.com/css2?family=${fontFamily.replace(
+    / /g,
+    '+'
+  )}`
 
   if (variants.length > 0) {
     url = `${url}:${variants[0].map(([key]) => key).join(',')}@${variants

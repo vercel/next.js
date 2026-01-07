@@ -70,18 +70,29 @@ describe('matchLocalPattern', () => {
     expect(hasMatch([{ pathname: '/path/to' }], url)).toBe(false)
     expect(hasMatch([{ pathname: '/path/to/file' }], url)).toBe(true)
     expect(hasMatch([{ pathname: '/path/to/file' }], url)).toBe(true)
-    expect(hasMatch([{ pathname: '/path/to/file', search: '' }], url)).toBe(false)
-    expect(hasMatch([{ pathname: '/path/to/file', search: '?q=1' }], url)).toBe(false)
-    expect(hasMatch([{ pathname: '/path/to/file', search: '?q=1&a=two' }], url)).toBe(true)
+    expect(hasMatch([{ pathname: '/path/to/file', search: '' }], url)).toBe(
+      false
+    )
+    expect(hasMatch([{ pathname: '/path/to/file', search: '?q=1' }], url)).toBe(
+      false
+    )
+    expect(
+      hasMatch([{ pathname: '/path/to/file', search: '?q=1&a=two' }], url)
+    ).toBe(true)
     expect(hasMatch([{ pathname: '/path/**' }], url)).toBe(true)
     expect(hasMatch([{ pathname: '/path/to/**' }], url)).toBe(true)
     expect(hasMatch([{ pathname: '/path/to/f*' }], url)).toBe(true)
     expect(hasMatch([{ pathname: '/path/to/*le' }], url)).toBe(true)
     expect(hasMatch([{ pathname: '/path/*/file' }], url)).toBe(true)
     expect(hasMatch([{ pathname: '/*/to/file' }], url)).toBe(true)
-    expect(hasMatch([{ pathname: '/foo' }, { pathname: '/bar' }], url)).toBe(false)
+    expect(hasMatch([{ pathname: '/foo' }, { pathname: '/bar' }], url)).toBe(
+      false
+    )
     expect(
-      hasMatch([{ pathname: '/foo' }, { pathname: '/bar' }, { pathname: '/path/**' }], url)
+      hasMatch(
+        [{ pathname: '/foo' }, { pathname: '/bar' }, { pathname: '/path/**' }],
+        url
+      )
     ).toBe(true)
   })
 })

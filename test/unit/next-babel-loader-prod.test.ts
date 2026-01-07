@@ -24,7 +24,10 @@ const babel = async (code: string, queryOpts = {} as any) => {
       cwd: dir,
       isServer,
       distDir: path.resolve(dir, '.next'),
-      pagesDir: 'pagesDir' in queryOpts ? queryOpts.pagesDir : path.resolve(dir, 'pages'),
+      pagesDir:
+        'pagesDir' in queryOpts
+          ? queryOpts.pagesDir
+          : path.resolve(dir, 'pages'),
       cache: false,
       hasReactRefresh: false,
       transformMode: 'default',
@@ -55,7 +58,9 @@ describe('next-babel-loader', () => {
   describe('replace constants', () => {
     it('should replace typeof window expression nested', async () => {
       const code = await babel('function a(){console.log(typeof window)}')
-      expect(code).toMatchInlineSnapshot(`"function a() {  console.log("object");}"`)
+      expect(code).toMatchInlineSnapshot(
+        `"function a() {  console.log("object");}"`
+      )
     })
 
     it('should replace typeof window expression top level (client)', async () => {
@@ -69,8 +74,12 @@ describe('next-babel-loader', () => {
     })
 
     it('should replace typeof window in === expression nested', async () => {
-      const code = await babel(`function a(){console.log(typeof window === 'undefined')}`)
-      expect(code).toMatchInlineSnapshot(`"function a() {  console.log(false);}"`)
+      const code = await babel(
+        `function a(){console.log(typeof window === 'undefined')}`
+      )
+      expect(code).toMatchInlineSnapshot(
+        `"function a() {  console.log(false);}"`
+      )
     })
 
     it('should replace typeof window expression top level', async () => {
@@ -181,7 +190,9 @@ describe('next-babel-loader', () => {
           pagesDir: undefined,
         }
       )
-      expect(code.replace(/modules: \[".*?"/, 'modules:["/path/to/page"')).toMatchInlineSnapshot(
+      expect(
+        code.replace(/modules: \[".*?"/, 'modules:["/path/to/page"')
+      ).toMatchInlineSnapshot(
         `"var _jsxFileName = "index.js";import React from "react";var __jsx = React.createElement;import dynamic from 'next/dynamic';const Comp = dynamic(() => import('comp'), {  loadableGenerated: {    webpack: () => [require.resolveWeak('comp')]  }});export default function Page(props) {  return __jsx(Comp, {    __self: this,    __source: {      fileName: _jsxFileName,      lineNumber: 7,      columnNumber: 18    }  });}"`
       )
     })

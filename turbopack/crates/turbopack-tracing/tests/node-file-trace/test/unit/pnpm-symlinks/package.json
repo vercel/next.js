@@ -2,13 +2,13 @@
   "name": "pnpm-symlinks",
   "version": "1.0.0",
   "description": "",
-  "keywords": [],
-  "license": "ISC",
-  "author": "",
   "main": "actual.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
   "dependencies": {
     "parse5-htmlparser2-tree-adapter": "^6.0.1"
   }

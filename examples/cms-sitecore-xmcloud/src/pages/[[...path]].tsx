@@ -13,10 +13,17 @@ import {
 import { SitecorePageProps } from "lib/page-props";
 import { sitecorePagePropsFactory } from "lib/page-props-factory";
 // different componentFactory method will be used based on whether page is being edited
-import { componentFactory, editingComponentFactory } from "temp/componentFactory";
+import {
+  componentFactory,
+  editingComponentFactory,
+} from "temp/componentFactory";
 import { sitemapFetcher } from "lib/sitemap-fetcher";
 
-const SitecorePage = ({ notFound, componentProps, layoutData }: SitecorePageProps): JSX.Element => {
+const SitecorePage = ({
+  notFound,
+  componentProps,
+  layoutData,
+}: SitecorePageProps): JSX.Element => {
   useEffect(() => {
     // Since Sitecore editors do not support Fast Refresh, need to refresh editor chromes after Fast Refresh finished
     handleEditorFastRefresh();
@@ -34,7 +41,9 @@ const SitecorePage = ({ notFound, componentProps, layoutData }: SitecorePageProp
   return (
     <ComponentPropsContext value={componentProps}>
       <SitecoreContext
-        componentFactory={isEditing ? editingComponentFactory : componentFactory}
+        componentFactory={
+          isEditing ? editingComponentFactory : componentFactory
+        }
         layoutData={layoutData}
       >
         {/*
@@ -65,7 +74,10 @@ export const getStaticPaths: GetStaticPaths = async (context) => {
   let paths: StaticPath[] = [];
   let fallback: boolean | "blocking" = "blocking";
 
-  if (process.env.NODE_ENV !== "development" && !process.env.DISABLE_SSG_FETCH) {
+  if (
+    process.env.NODE_ENV !== "development" &&
+    !process.env.DISABLE_SSG_FETCH
+  ) {
     try {
       // Note: Next.js runs export in production mode
       paths = await sitemapFetcher.fetch(context);

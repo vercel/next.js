@@ -53,11 +53,13 @@ export default function resolveRewrites(
             host: document.location.hostname,
             'user-agent': navigator.userAgent,
           },
-          cookies: document.cookie.split('; ').reduce<Record<string, string>>((acc, item) => {
-            const [key, ...value] = item.split('=')
-            acc[key] = value.join('=')
-            return acc
-          }, {}),
+          cookies: document.cookie
+            .split('; ')
+            .reduce<Record<string, string>>((acc, item) => {
+              const [key, ...value] = item.split('=')
+              acc[key] = value.join('=')
+              return acc
+            }, {}),
         } as any,
         parsedAs.query,
         rewrite.has,

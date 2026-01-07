@@ -14,7 +14,11 @@ import type { OpenGraph } from './types/opengraph-types'
 import type { AppDirModules } from '../../build/webpack/loaders/next-app-loader'
 import type { MetadataContext } from './types/resolvers'
 import type { LoaderTree } from '../../server/lib/app-dir-module'
-import type { AbsoluteTemplateString, IconDescriptor, ResolvedIcons } from './types/metadata-types'
+import type {
+  AbsoluteTemplateString,
+  IconDescriptor,
+  ResolvedIcons,
+} from './types/metadata-types'
 import type { ParsedUrlQuery } from 'querystring'
 import type { StaticMetadata } from './types/icons'
 import type { WorkStore } from '../../server/app-render/work-async-storage.external'
@@ -25,11 +29,17 @@ import type { SearchParams } from '../../server/request/search-params'
 import 'server-only'
 
 import { cache } from 'react'
-import { createDefaultMetadata, createDefaultViewport } from './default-metadata'
+import {
+  createDefaultMetadata,
+  createDefaultViewport,
+} from './default-metadata'
 import { resolveOpenGraph, resolveTwitter } from './resolvers/resolve-opengraph'
 import { resolveTitle } from './resolvers/resolve-title'
 import { resolveAsArrayOrUndefined } from './generate/utils'
-import { getComponentTypeModule, getLayoutOrPageModule } from '../../server/lib/app-dir-module'
+import {
+  getComponentTypeModule,
+  getLayoutOrPageModule,
+} from '../../server/lib/app-dir-module'
 import { interopDefault } from '../interop-default'
 import {
   resolveAlternates,
@@ -49,7 +59,10 @@ import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import * as Log from '../../build/output/log'
 import { createServerParamsForMetadata } from '../../server/request/params'
 import type { MetadataBaseURL } from './resolvers/resolve-url'
-import { getUseCacheFunctionInfo, isUseCacheFunction } from '../client-and-server-references'
+import {
+  getUseCacheFunctionInfo,
+  isUseCacheFunction,
+} from '../client-and-server-references'
 import type {
   UseCacheLayoutProps,
   UseCachePageProps,
@@ -63,7 +76,10 @@ type Resolved<T> = T extends Metadata ? ResolvedMetadata : ResolvedViewport
 type InstrumentedResolver<TData> = ((
   parent: Promise<Resolved<TData>>
 ) => TData | Promise<TData>) & {
-  $$original: (props: unknown, parent: Promise<Resolved<TData>>) => TData | Promise<TData>
+  $$original: (
+    props: unknown,
+    parent: Promise<Resolved<TData>>
+  ) => TData | Promise<TData>
 }
 
 type MetadataResolver = InstrumentedResolver<Metadata>
@@ -71,7 +87,9 @@ type ViewportResolver = InstrumentedResolver<Viewport>
 
 export type MetadataErrorType = 'not-found' | 'forbidden' | 'unauthorized'
 
-export type MetadataItems = Array<[Metadata | MetadataResolver | null, StaticMetadata]>
+export type MetadataItems = Array<
+  [Metadata | MetadataResolver | null, StaticMetadata]
+>
 
 export type ViewportItems = Array<Viewport | ViewportResolver | null>
 
@@ -104,7 +122,8 @@ function isFavicon(icon: IconDescriptor | undefined): boolean {
 
   // turbopack appends a hash to all images
   return (
-    (icon.url === '/favicon.ico' || icon.url.toString().startsWith('/favicon.ico?')) &&
+    (icon.url === '/favicon.ico' ||
+      icon.url.toString().startsWith('/favicon.ico?')) &&
     icon.type === 'image/x-icon'
   )
 }
@@ -113,7 +132,9 @@ function convertUrlsToStrings<T>(input: T): WithStringifiedURLs<T> {
   if (input instanceof URL) {
     return input.toString() as unknown as WithStringifiedURLs<T>
   } else if (Array.isArray(input)) {
-    return input.map((item) => convertUrlsToStrings(item)) as WithStringifiedURLs<T>
+    return input.map((item) =>
+      convertUrlsToStrings(item)
+    ) as WithStringifiedURLs<T>
   } else if (input && typeof input === 'object') {
     const result: Record<string, unknown> = {}
     for (const [key, value] of Object.entries(input)) {
@@ -213,7 +234,9 @@ async function mergeMetadata(
   const newResolvedMetadata = structuredClone(resolvedMetadata)
 
   const metadataBase = normalizeMetadataBase(
-    metadata?.metadataBase !== undefined ? metadata.metadataBase : resolvedMetadata.metadataBase
+    metadata?.metadataBase !== undefined
+      ? metadata.metadataBase
+      : resolvedMetadata.metadataBase
   )
 
   for (const key_ in metadata) {
@@ -221,12 +244,20 @@ async function mergeMetadata(
 
     switch (key) {
       case 'title': {
-        newResolvedMetadata.title = resolveTitle(metadata.title, titleTemplates.title)
+        newResolvedMetadata.title = resolveTitle(
+          metadata.title,
+          titleTemplates.title
+        )
         break
       }
       case 'alternates': {
         newResolvedMetadata.alternates = convertUrlsToStrings(
-          await resolveAlternates(metadata.alternates, metadataBase, pathname, metadataContext)
+          await resolveAlternates(
+            metadata.alternates,
+            metadataBase,
+            pathname,
+            metadataContext
+          )
         )
         break
       }
@@ -244,7 +275,12 @@ async function mergeMetadata(
       }
       case 'twitter': {
         newResolvedMetadata.twitter = convertUrlsToStrings(
-          resolveTwitter(metadata.twitter, metadataBase, metadataContext, titleTemplates.twitter)
+          resolveTwitter(
+            metadata.twitter,
+            metadataBase,
+            metadataContext,
+            titleTemplates.twitter
+          )
         )
         break
       }
@@ -252,18 +288,26 @@ async function mergeMetadata(
         newResolvedMetadata.facebook = resolveFacebook(metadata.facebook)
         break
       case 'verification':
-        newResolvedMetadata.verification = resolveVerification(metadata.verification)
+        newResolvedMetadata.verification = resolveVerification(
+          metadata.verification
+        )
         break
 
       case 'icons': {
-        newResolvedMetadata.icons = convertUrlsToStrings(resolveIcons(metadata.icons))
+        newResolvedMetadata.icons = convertUrlsToStrings(
+          resolveIcons(metadata.icons)
+        )
         break
       }
       case 'appleWebApp':
-        newResolvedMetadata.appleWebApp = resolveAppleWebApp(metadata.appleWebApp)
+        newResolvedMetadata.appleWebApp = resolveAppleWebApp(
+          metadata.appleWebApp
+        )
         break
       case 'appLinks':
-        newResolvedMetadata.appLinks = convertUrlsToStrings(resolveAppLinks(metadata.appLinks))
+        newResolvedMetadata.appLinks = convertUrlsToStrings(
+          resolveAppLinks(metadata.appLinks)
+        )
         break
       case 'robots': {
         newResolvedMetadata.robots = resolveRobots(metadata.robots)
@@ -277,7 +321,9 @@ async function mergeMetadata(
         break
       }
       case 'authors': {
-        newResolvedMetadata[key] = convertUrlsToStrings(resolveAsArrayOrUndefined(metadata.authors))
+        newResolvedMetadata[key] = convertUrlsToStrings(
+          resolveAsArrayOrUndefined(metadata.authors)
+        )
         break
       }
       case 'itunes': {
@@ -336,10 +382,16 @@ async function mergeMetadata(
         newResolvedMetadata[key] = convertUrlsToStrings(metadata[key]) ?? null
         break
       case 'other':
-        newResolvedMetadata.other = Object.assign({}, newResolvedMetadata.other, metadata.other)
+        newResolvedMetadata.other = Object.assign(
+          {},
+          newResolvedMetadata.other,
+          metadata.other
+        )
         break
       case 'metadataBase':
-        newResolvedMetadata.metadataBase = metadataBase ? metadataBase.toString() : null
+        newResolvedMetadata.metadataBase = metadataBase
+          ? metadataBase.toString()
+          : null
         break
 
       case 'apple-touch-fullscreen': {
@@ -399,7 +451,9 @@ function mergeViewport({
 
       switch (key) {
         case 'themeColor': {
-          newResolvedViewport.themeColor = resolveThemeColor(viewport.themeColor)
+          newResolvedViewport.themeColor = resolveThemeColor(
+            viewport.themeColor
+          )
           break
         }
         case 'colorScheme':
@@ -508,7 +562,9 @@ async function collectStaticImagesFiles(
       interopDefault(await imageModule(props))
   )
 
-  return iconPromises?.length > 0 ? (await Promise.all(iconPromises))?.flat() : undefined
+  return iconPromises?.length > 0
+    ? (await Promise.all(iconPromises))?.flat()
+    : undefined
 }
 
 async function resolveStaticMetadata(
@@ -554,12 +610,15 @@ async function collectMetadata({
 }) {
   let mod
   let modType
-  const hasErrorConventionComponent = Boolean(errorConvention && tree[2][errorConvention])
+  const hasErrorConventionComponent = Boolean(
+    errorConvention && tree[2][errorConvention]
+  )
   if (errorConvention) {
     mod = await getComponentTypeModule(tree, 'layout')
     modType = errorConvention
   } else {
-    const { mod: layoutOrPageMod, modType: layoutOrPageModType } = await getLayoutOrPageModule(tree)
+    const { mod: layoutOrPageMod, modType: layoutOrPageModType } =
+      await getLayoutOrPageModule(tree)
     mod = layoutOrPageMod
     modType = layoutOrPageModType
   }
@@ -575,7 +634,9 @@ async function collectMetadata({
 
   if (hasErrorConventionComponent && errorConvention) {
     const errorMod = await getComponentTypeModule(tree, errorConvention)
-    const errorMetadataExport = errorMod ? getDefinedMetadata(errorMod, props, { route }) : null
+    const errorMetadataExport = errorMod
+      ? getDefinedMetadata(errorMod, props, { route })
+      : null
 
     errorMetadataItem[0] = errorMetadataExport
     errorMetadataItem[1] = staticFilesMetadata
@@ -600,12 +661,15 @@ async function collectViewport({
 }) {
   let mod
   let modType
-  const hasErrorConventionComponent = Boolean(errorConvention && tree[2][errorConvention])
+  const hasErrorConventionComponent = Boolean(
+    errorConvention && tree[2][errorConvention]
+  )
   if (errorConvention) {
     mod = await getComponentTypeModule(tree, 'layout')
     modType = errorConvention
   } else {
-    const { mod: layoutOrPageMod, modType: layoutOrPageModType } = await getLayoutOrPageModule(tree)
+    const { mod: layoutOrPageMod, modType: layoutOrPageModType } =
+      await getLayoutOrPageModule(tree)
     mod = layoutOrPageMod
     modType = layoutOrPageModType
   }
@@ -620,7 +684,9 @@ async function collectViewport({
 
   if (hasErrorConventionComponent && errorConvention) {
     const errorMod = await getComponentTypeModule(tree, errorConvention)
-    const errorViewportExport = errorMod ? getDefinedViewport(errorMod, props, { route }) : null
+    const errorViewportExport = errorMod
+      ? getDefinedViewport(errorMod, props, { route })
+      : null
 
     errorViewportItemRef.current = errorViewportExport
   }
@@ -663,7 +729,8 @@ async function resolveMetadataItemsImpl(
   workStore: WorkStore
 ): Promise<MetadataItems> {
   const [segment, parallelRoutes, { page }] = tree
-  const currentTreePrefix = treePrefix && treePrefix.length ? [...treePrefix, segment] : [segment]
+  const currentTreePrefix =
+    treePrefix && treePrefix.length ? [...treePrefix, segment] : [segment]
   const isPage = typeof page !== 'undefined'
 
   // Handle dynamic segment params.
@@ -758,7 +825,8 @@ async function resolveViewportItemsImpl(
   workStore: WorkStore
 ): Promise<ViewportItems> {
   const [segment, parallelRoutes, { page }] = tree
-  const currentTreePrefix = treePrefix && treePrefix.length ? [...treePrefix, segment] : [segment]
+  const currentTreePrefix =
+    treePrefix && treePrefix.length ? [...treePrefix, segment] : [segment]
   const isPage = typeof page !== 'undefined'
 
   // Handle dynamic segment params.
@@ -827,7 +895,8 @@ async function resolveViewportItemsImpl(
 type WithTitle = { title?: AbsoluteTemplateString | null }
 type WithDescription = { description?: string | null }
 
-const isTitleTruthy = (title: AbsoluteTemplateString | null | undefined) => !!title?.absolute
+const isTitleTruthy = (title: AbsoluteTemplateString | null | undefined) =>
+  !!title?.absolute
 const hasTitle = (metadata: WithTitle | null) => isTitleTruthy(metadata?.title)
 
 function inheritFromMetadata(
@@ -858,11 +927,15 @@ function postProcessMetadata(
     // If there's openGraph information but not configured in twitter,
     // inherit them from openGraph metadata.
     let autoFillProps: Partial<{
-      [Key in (typeof commonOgKeys)[number]]: NonNullable<ResolvedMetadata['openGraph']>[Key]
+      [Key in (typeof commonOgKeys)[number]]: NonNullable<
+        ResolvedMetadata['openGraph']
+      >[Key]
     }> = {}
     const hasTwTitle = hasTitle(twitter)
     const hasTwDescription = twitter?.description
-    const hasTwImages = Boolean(twitter?.hasOwnProperty('images') && twitter.images)
+    const hasTwImages = Boolean(
+      twitter?.hasOwnProperty('images') && twitter.images
+    )
     if (!hasTwTitle) {
       if (isTitleTruthy(openGraph.title)) {
         autoFillProps.title = openGraph.title
@@ -871,7 +944,8 @@ function postProcessMetadata(
       }
     }
     if (!hasTwDescription)
-      autoFillProps.description = openGraph.description || metadata.description || undefined
+      autoFillProps.description =
+        openGraph.description || metadata.description || undefined
     if (!hasTwImages) autoFillProps.images = openGraph.images
 
     if (Object.keys(autoFillProps).length > 0) {
@@ -920,7 +994,9 @@ function prerenderMetadata(metadataItems: MetadataItems) {
   // If the index is a function then it is a resolver and the next slot
   // is the corresponding result. If the index is not a function it is the result
   // itself.
-  const resolversAndResults: Array<((value: ResolvedMetadata) => void) | Result<Metadata>> = []
+  const resolversAndResults: Array<
+    ((value: ResolvedMetadata) => void) | Result<Metadata>
+  > = []
   for (let i = 0; i < metadataItems.length; i++) {
     const metadataExport = metadataItems[i][0]
     getResult<Metadata>(resolversAndResults, metadataExport)
@@ -932,7 +1008,9 @@ function prerenderViewport(viewportItems: ViewportItems) {
   // If the index is a function then it is a resolver and the next slot
   // is the corresponding result. If the index is not a function it is the result
   // itself.
-  const resolversAndResults: Array<((value: ResolvedViewport) => void) | Result<Viewport>> = []
+  const resolversAndResults: Array<
+    ((value: ResolvedViewport) => void) | Result<Viewport>
+  > = []
   for (let i = 0; i < viewportItems.length; i++) {
     const viewportExport = viewportItems[i]
     getResult<Viewport>(resolversAndResults, viewportExport)
@@ -943,7 +1021,9 @@ function prerenderViewport(viewportItems: ViewportItems) {
 const noop = () => {}
 
 function getResult<TData extends object>(
-  resolversAndResults: Array<((value: Resolved<TData>) => void) | Result<TData>>,
+  resolversAndResults: Array<
+    ((value: Resolved<TData>) => void) | Result<TData>
+  >,
   exportForResult: null | TData | InstrumentedResolver<TData>
 ) {
   if (typeof exportForResult === 'function') {
@@ -956,10 +1036,16 @@ function getResult<TData extends object>(
     // they must be called sequentially. This can be accomplished by wrapping
     // the call in a lazy promise, so that the original function is only called
     // when the result is actually awaited.
-    const useCacheFunctionInfo = getUseCacheFunctionInfo(exportForResult.$$original)
+    const useCacheFunctionInfo = getUseCacheFunctionInfo(
+      exportForResult.$$original
+    )
     if (useCacheFunctionInfo && useCacheFunctionInfo.usedArgs[1]) {
-      const promise = new Promise<Resolved<TData>>((resolve) => resolversAndResults.push(resolve))
-      resolversAndResults.push(createLazyResult(async () => exportForResult(promise)))
+      const promise = new Promise<Resolved<TData>>((resolve) =>
+        resolversAndResults.push(resolve)
+      )
+      resolversAndResults.push(
+        createLazyResult(async () => exportForResult(promise))
+      )
     } else {
       let result: TData | Promise<TData>
       if (useCacheFunctionInfo) {
@@ -970,7 +1056,9 @@ function getResult<TData extends object>(
         result = exportForResult()
       } else {
         result = exportForResult(
-          new Promise<Resolved<TData>>((resolve) => resolversAndResults.push(resolve))
+          new Promise<Resolved<TData>>((resolve) =>
+            resolversAndResults.push(resolve)
+          )
         )
       }
       resolversAndResults.push(result)
@@ -1084,7 +1172,10 @@ export async function accumulateMetadata(
     }
   }
 
-  if (leafSegmentStaticIcons.icon.length > 0 || leafSegmentStaticIcons.apple.length > 0) {
+  if (
+    leafSegmentStaticIcons.icon.length > 0 ||
+    leafSegmentStaticIcons.apple.length > 0
+  ) {
     if (!resolvedMetadata.icons) {
       resolvedMetadata.icons = {
         icon: [],
@@ -1106,10 +1197,17 @@ export async function accumulateMetadata(
     }
   }
 
-  return postProcessMetadata(resolvedMetadata, favicon, titleTemplates, metadataContext)
+  return postProcessMetadata(
+    resolvedMetadata,
+    favicon,
+    titleTemplates,
+    metadataContext
+  )
 }
 
-export async function accumulateViewport(viewportItems: ViewportItems): Promise<ResolvedViewport> {
+export async function accumulateViewport(
+  viewportItems: ViewportItems
+): Promise<ResolvedViewport> {
   let resolvedViewport: ResolvedViewport = createDefaultViewport()
 
   const resolversAndResults = prerenderViewport(viewportItems)
@@ -1160,7 +1258,12 @@ export async function resolveMetadata(
     getDynamicParamFromSegment,
     workStore
   )
-  return accumulateMetadata(workStore.route, metadataItems, pathname, metadataContext)
+  return accumulateMetadata(
+    workStore.route,
+    metadataItems,
+    pathname,
+    metadataContext
+  )
 }
 
 // Exposed API for viewport component, that directly resolve the loader tree and related context as resolved viewport.
@@ -1181,7 +1284,9 @@ export async function resolveViewport(
   return accumulateViewport(viewportItems)
 }
 
-function isPromiseLike<T>(value: unknown | PromiseLike<T>): value is PromiseLike<T> {
+function isPromiseLike<T>(
+  value: unknown | PromiseLike<T>
+): value is PromiseLike<T> {
   return (
     typeof value === 'object' &&
     value !== null &&

@@ -15,6 +15,8 @@ function parseSizeLimit(size: SizeLimit): number | undefined {
 /**
  * Parses the maxPostponedStateSize config value, using the default if not provided.
  */
-export function parseMaxPostponedStateSize(size: SizeLimit | undefined): number | undefined {
+export function parseMaxPostponedStateSize(
+  size: SizeLimit | undefined
+): number | undefined {
   return parseSizeLimit(size ?? DEFAULT_MAX_POSTPONED_STATE_SIZE)
 }

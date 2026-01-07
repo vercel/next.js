@@ -10,8 +10,8 @@
     "start": "next start"
   },
   "devDependencies": {
+    "rimraf": "6.0.1",
     "next": "workspace:*",
-    "playwright": "^1.40.0",
-    "rimraf": "6.0.1"
+    "playwright": "^1.40.0"
   }
 }

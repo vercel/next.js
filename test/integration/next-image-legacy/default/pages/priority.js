@@ -5,7 +5,13 @@ const Page = () => {
   return (
     <div>
       <p>Priority Page</p>
-      <Image priority id="basic-image" src="/test.jpg" width="400" height="400"></Image>
+      <Image
+        priority
+        id="basic-image"
+        src="/test.jpg"
+        width="400"
+        height="400"
+      ></Image>
       <Image
         priority
         id="basic-image-with-crossorigin"
@@ -30,7 +36,13 @@ const Page = () => {
         width="400"
         height="400"
       ></Image>
-      <Image loading="eager" id="load-eager" src="/test.png" width="400" height="400"></Image>
+      <Image
+        loading="eager"
+        id="load-eager"
+        src="/test.png"
+        width="400"
+        height="400"
+      ></Image>
       <Image
         priority
         id="responsive1"
@@ -49,7 +61,14 @@ const Page = () => {
       />
       <p id="stubtext">This is the priority page</p>
       <div style={{ height: '1000vh' }} />
-      <Image priority id="belowthefold" src="/test.tiff" width="400" height="400" alt="" />
+      <Image
+        priority
+        id="belowthefold"
+        src="/test.tiff"
+        width="400"
+        height="400"
+        alt=""
+      />
     </div>
   )
 }

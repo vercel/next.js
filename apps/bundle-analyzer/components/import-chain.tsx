@@ -13,7 +13,12 @@ import {
   MessageCircleQuestion,
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import type { AnalyzeData, ModuleIndex, ModulesData, SourceIndex } from '@/lib/analyze-data'
+import type {
+  AnalyzeData,
+  ModuleIndex,
+  ModulesData,
+  SourceIndex,
+} from '@/lib/analyze-data'
 import { splitIdent } from '@/lib/utils'
 import clsx from 'clsx'
 import { Button } from '@/components/ui/button'
@@ -62,7 +67,10 @@ function spitPathSegments(path: string): string[] {
   return Array.from(path.matchAll(/(.+?(?:\/|$))/g)).map(([i]) => i)
 }
 
-function getPathParts(currentPath: string, previousPath: string | null): PathPart[] {
+function getPathParts(
+  currentPath: string,
+  previousPath: string | null
+): PathPart[] {
   const currentSegments = spitPathSegments(currentPath)
 
   let commonCount = 0
@@ -99,7 +107,8 @@ function getPathParts(currentPath: string, previousPath: string | null): PathPar
     isCommon: i < commonCount,
     isLastCommon: i === commonCount - 1,
     isInfrastructure: i < infrastructureCount,
-    isPackageName: i >= infrastructureCount && i < infrastructureCount + packageNameCount,
+    isPackageName:
+      i >= infrastructureCount && i < infrastructureCount + packageNameCount,
   }))
 }
 
@@ -157,29 +166,32 @@ export function ImportChain({
     if (!startPath) return result
 
     // Get all module indices for the starting source
-    const startModuleIndices = getModuleIndicesFromSourceIndex(startFileId).filter(
-      (moduleIndex) => {
-        if (currentRouteOnly && !depthMap.has(moduleIndex)) {
+    const startModuleIndices = getModuleIndicesFromSourceIndex(
+      startFileId
+    ).filter((moduleIndex) => {
+      if (currentRouteOnly && !depthMap.has(moduleIndex)) {
+        return false
+      }
+      let module = modulesData.module(moduleIndex)
+      let layer = splitIdent(module?.ident || '').layer
+      if (layer) {
+        if (environmentFilter === 'client' && /ssr|rsc|route|api/.test(layer)) {
           return false
         }
-        let module = modulesData.module(moduleIndex)
-        let layer = splitIdent(module?.ident || '').layer
-        if (layer) {
-          if (environmentFilter === 'client' && /ssr|rsc|route|api/.test(layer)) {
-            return false
-          }
-          if (environmentFilter === 'server' && /client/.test(layer)) {
-            return false
-          }
+        if (environmentFilter === 'server' && /client/.test(layer)) {
+          return false
         }
-        return true
       }
-    )
+      return true
+    })
     if (startModuleIndices.length === 0) return result
 
     // Get the selected index for the start modules (default to 0)
     const selectedStartIdx = selectedIndices[0] ?? 0
-    const actualStartIdx = Math.min(selectedStartIdx, startModuleIndices.length - 1)
+    const actualStartIdx = Math.min(
+      selectedStartIdx,
+      startModuleIndices.length - 1
+    )
     const startModuleIndex = startModuleIndices[actualStartIdx]
     const startIdent = modulesData.module(startModuleIndex)?.ident ?? ''
 
@@ -202,21 +214,26 @@ export function ImportChain({
     while (true) {
       // Get dependents at the module level (sync and async)
       const dependentModuleIndices = [
-        ...modulesData.moduleDependents(currentModuleIndex).map((index: number) => ({
-          index,
-          async: false,
-          depth: depthMap.get(index) ?? Infinity,
-        })),
-        ...modulesData.asyncModuleDependents(currentModuleIndex).map((index: number) => ({
-          index,
-          async: true,
-          depth: depthMap.get(index) ?? Infinity,
-        })),
+        ...modulesData
+          .moduleDependents(currentModuleIndex)
+          .map((index: number) => ({
+            index,
+            async: false,
+            depth: depthMap.get(index) ?? Infinity,
+          })),
+        ...modulesData
+          .asyncModuleDependents(currentModuleIndex)
+          .map((index: number) => ({
+            index,
+            async: true,
+            depth: depthMap.get(index) ?? Infinity,
+          })),
       ]
 
       // Filter out dependents that would create a cycle
       const validDependents = dependentModuleIndices.filter(
-        ({ index, depth }) => !visitedModules.has(index) && (isFinite(depth) || !currentRouteOnly)
+        ({ index, depth }) =>
+          !visitedModules.has(index) && (isFinite(depth) || !currentRouteOnly)
       )
 
       if (validDependents.length === 0) {
@@ -298,7 +315,8 @@ export function ImportChain({
       const newIndices = [...prev]
       const currentIdx = newIndices[levelIndex] ?? 0
       const level = chain[levelIndex]
-      newIndices[levelIndex] = currentIdx > 0 ? currentIdx - 1 : level.totalCount - 1
+      newIndices[levelIndex] =
+        currentIdx > 0 ? currentIdx - 1 : level.totalCount - 1
       return newIndices.slice(0, levelIndex + 1)
     })
   }
@@ -308,7 +326,8 @@ export function ImportChain({
       const newIndices = [...prev]
       const currentIdx = newIndices[levelIndex] ?? 0
       const level = chain[levelIndex]
-      newIndices[levelIndex] = currentIdx < level.totalCount - 1 ? currentIdx + 1 : 0
+      newIndices[levelIndex] =
+        currentIdx < level.totalCount - 1 ? currentIdx + 1 : 0
       return newIndices.slice(0, levelIndex + 1)
     })
   }
@@ -319,7 +338,9 @@ export function ImportChain({
   return (
     <div className="space-y-2">
       <div className="flex items-center space-x-2">
-        <h3 className="text-xs font-semibold text-foreground flex-1">Import Chain</h3>
+        <h3 className="text-xs font-semibold text-foreground flex-1">
+          Import Chain
+        </h3>
         <label
           className="inline-flex items-center space-x-2 text-xs cursor-pointer"
           title="Only include dependent modules that are part of the current route's bundle"
@@ -351,9 +372,13 @@ export function ImportChain({
               {currentItemInfo?.isAsync && <div className="h-8" />}
               <div className="flex items-center justify-center gap-2 py-1">
                 {currentItemInfo?.isAsync && (
-                  <span className="text-xs text-muted-foreground italic">(async)</span>
+                  <span className="text-xs text-muted-foreground italic">
+                    (async)
+                  </span>
                 )}
-                {index > 0 ? <ArrowUp className="w-4 h-4 text-muted-foreground" /> : undefined}
+                {index > 0 ? (
+                  <ArrowUp className="w-4 h-4 text-muted-foreground" />
+                ) : undefined}
                 {level.totalCount > 1 && (
                   <div className="flex items-center gap-1 flex-none">
                     <button
@@ -402,7 +427,16 @@ export function ImportChain({
                     title={getTitle(level)}
                   >
                     {parts.map(
-                      ({ segment, isCommon, isLastCommon, isInfrastructure, isPackageName }, i) => (
+                      (
+                        {
+                          segment,
+                          isCommon,
+                          isLastCommon,
+                          isInfrastructure,
+                          isPackageName,
+                        },
+                        i
+                      ) => (
                         <span
                           key={i}
                           className={clsx(

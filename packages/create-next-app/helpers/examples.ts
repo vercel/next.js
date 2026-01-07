@@ -20,7 +20,10 @@ export async function isUrlOk(url: string): Promise<boolean> {
   }
 }
 
-export async function getRepoInfo(url: URL, examplePath?: string): Promise<RepoInfo | undefined> {
+export async function getRepoInfo(
+  url: URL,
+  examplePath?: string
+): Promise<RepoInfo | undefined> {
   const [, username, name, t, _branch, ...file] = url.pathname.split('/')
   const filePath = examplePath ? examplePath.replace(/^\//, '') : file.join('/')
 
@@ -34,7 +37,9 @@ export async function getRepoInfo(url: URL, examplePath?: string): Promise<RepoI
     (t === '' && _branch === undefined)
   ) {
     try {
-      const infoResponse = await fetch(`https://api.github.com/repos/${username}/${name}`)
+      const infoResponse = await fetch(
+        `https://api.github.com/repos/${username}/${name}`
+      )
       if (infoResponse.status !== 200) {
         return
       }
@@ -56,7 +61,12 @@ export async function getRepoInfo(url: URL, examplePath?: string): Promise<RepoI
   }
 }
 
-export function hasRepo({ username, name, branch, filePath }: RepoInfo): Promise<boolean> {
+export function hasRepo({
+  username,
+  name,
+  branch,
+  filePath,
+}: RepoInfo): Promise<boolean> {
   const contentsUrl = `https://api.github.com/repos/${username}/${name}/contents`
   const packagePath = `${filePath ? `/${filePath}` : ''}/package.json`
 
@@ -92,7 +102,9 @@ export async function downloadAndExtractRepo(
 ) {
   let rootPath: string | null = null
   await pipeline(
-    await downloadTarStream(`https://codeload.github.com/${username}/${name}/tar.gz/${branch}`),
+    await downloadTarStream(
+      `https://codeload.github.com/${username}/${name}/tar.gz/${branch}`
+    ),
     x({
       cwd: root,
       strip: filePath ? filePath.split('/').length + 1 : 1,
@@ -109,7 +121,9 @@ export async function downloadAndExtractRepo(
           rootPath = pathSegments.length ? pathSegments[0] : null
         }
 
-        return posixPath.startsWith(`${rootPath}${filePath ? `/${filePath}/` : '/'}`)
+        return posixPath.startsWith(
+          `${rootPath}${filePath ? `/${filePath}/` : '/'}`
+        )
       },
     })
   )
@@ -121,7 +135,9 @@ export async function downloadAndExtractExample(root: string, name: string) {
   }
 
   await pipeline(
-    await downloadTarStream('https://codeload.github.com/vercel/next.js/tar.gz/canary'),
+    await downloadTarStream(
+      'https://codeload.github.com/vercel/next.js/tar.gz/canary'
+    ),
     x({
       cwd: root,
       strip: 2 + name.split('/').length,

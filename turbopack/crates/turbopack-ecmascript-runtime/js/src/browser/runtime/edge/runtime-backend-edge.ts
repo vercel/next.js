@@ -139,7 +139,10 @@ let BACKEND: RuntimeBackend
   /**
    * Instantiates the runtime modules for the given chunk.
    */
-  function instantiateRuntimeModules(runtimeModuleIds: ModuleId[], chunkPath: ChunkPath) {
+  function instantiateRuntimeModules(
+    runtimeModuleIds: ModuleId[],
+    chunkPath: ChunkPath
+  ) {
     for (const moduleId of runtimeModuleIds) {
       getOrInstantiateRuntimeModule(chunkPath, moduleId)
     }

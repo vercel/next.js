@@ -12,11 +12,18 @@ describe('parallel-routes-layouts', () => {
     let layouts = await getLayoutHeadings(browser)
     expect(layouts).toHaveLength(4)
     expect(layouts).toEqual(
-      expect.arrayContaining(['Root Layout', 'Nested Layout', '@foo Layout', '@bar Layout'])
+      expect.arrayContaining([
+        'Root Layout',
+        'Nested Layout',
+        '@foo Layout',
+        '@bar Layout',
+      ])
     )
 
     // ensure nested/page is showing its contents
-    expect(await browser.elementById('nested-children').text()).toBe('Hello from Nested')
+    expect(await browser.elementById('nested-children').text()).toBe(
+      'Hello from Nested'
+    )
 
     // Ensure each slot is showing its contents
     expect(await browser.elementById('foo-children').text()).toBe('Foo Slot')
@@ -31,12 +38,19 @@ describe('parallel-routes-layouts', () => {
       // We still expect the previous active slots to be visible until reload even if they don't match
       layouts = await getLayoutHeadings(browser)
       expect(layouts).toEqual(
-        expect.arrayContaining(['Root Layout', 'Nested Layout', '@foo Layout', '@bar Layout'])
+        expect.arrayContaining([
+          'Root Layout',
+          'Nested Layout',
+          '@foo Layout',
+          '@bar Layout',
+        ])
       )
 
       expect(await browser.elementById('foo-children').text()).toBe('Foo Slot')
 
-      expect(await browser.elementById('nested-children').text()).toBe('Hello from Nested')
+      expect(await browser.elementById('nested-children').text()).toBe(
+        'Hello from Nested'
+      )
     })
 
     // Trigger a reload, which will clear the previous active slots and show the ones that explicitly have matched
@@ -46,10 +60,14 @@ describe('parallel-routes-layouts', () => {
 
     // the foo slot does not match on the subroute, so we don't expect the layout or page to be rendered
     expect(layouts).toHaveLength(3)
-    expect(layouts).toEqual(expect.arrayContaining(['Root Layout', 'Nested Layout', '@bar Layout']))
+    expect(layouts).toEqual(
+      expect.arrayContaining(['Root Layout', 'Nested Layout', '@bar Layout'])
+    )
 
     // we should now see defaults being rendered for both the page & foo slots
-    expect(await browser.elementById('nested-children').text()).toBe('default page')
+    expect(await browser.elementById('nested-children').text()).toBe(
+      'default page'
+    )
     expect(await browser.elementById('foo-slot').text()).toBe('@foo default')
   })
 })

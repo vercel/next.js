@@ -14,5 +14,7 @@ export default async function sitemap({
 
   const resolvedId = await id
 
-  return [{ url: `https://acme.com/${resolvedId}?sentinel=${getSentinelValue()}` }]
+  return [
+    { url: `https://acme.com/${resolvedId}?sentinel=${getSentinelValue()}` },
+  ]
 }

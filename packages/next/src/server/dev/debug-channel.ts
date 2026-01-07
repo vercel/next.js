@@ -1,12 +1,18 @@
 import { createBufferedTransformStream } from '../stream-utils/node-web-streams-helper'
-import { HMR_MESSAGE_SENT_TO_BROWSER, type HmrMessageSentToBrowser } from './hot-reloader-types'
+import {
+  HMR_MESSAGE_SENT_TO_BROWSER,
+  type HmrMessageSentToBrowser,
+} from './hot-reloader-types'
 
 export interface ReactDebugChannelForBrowser {
   readonly readable: ReadableStream<Uint8Array>
   // Might also get a writable stream as return channel in the future.
 }
 
-const reactDebugChannelsByHtmlRequestId = new Map<string, ReactDebugChannelForBrowser>()
+const reactDebugChannelsByHtmlRequestId = new Map<
+  string,
+  ReactDebugChannelForBrowser
+>()
 
 export function connectReactDebugChannel(
   requestId: string,

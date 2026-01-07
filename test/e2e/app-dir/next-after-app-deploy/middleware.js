@@ -1,6 +1,8 @@
 import { after } from 'next/server'
 
-export function middleware(/** @type {import ('next/server').NextRequest} */ request) {
+export function middleware(
+  /** @type {import ('next/server').NextRequest} */ request
+) {
   const url = new URL(request.url)
 
   const match = url.pathname.match(/^(?<prefix>\/[^/]+?)\/middleware/)

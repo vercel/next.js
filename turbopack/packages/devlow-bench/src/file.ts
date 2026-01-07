@@ -2,12 +2,17 @@ import { watch } from 'fs'
 import { access, constants } from 'fs/promises'
 import { dirname } from 'path'
 
-export async function waitForFile(path: string, timeout: number): Promise<void> {
+export async function waitForFile(
+  path: string,
+  timeout: number
+): Promise<void> {
   let currentAction = ''
   let timeoutRef
   const timeoutPromise = new Promise<void>((resolve, reject) => {
     timeoutRef = setTimeout(() => {
-      reject(new Error(`Timed out waiting for file ${path} (${currentAction}))`))
+      reject(
+        new Error(`Timed out waiting for file ${path} (${currentAction}))`)
+      )
     }, timeout || 60000)
   })
   const elements: string[] = []

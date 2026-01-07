@@ -29,7 +29,10 @@ cssnanoPlugin.postcss = true
 
 function noopTemplate(strings: TemplateStringsArray, ...keys: string[]) {
   const lastIndex = strings.length - 1
-  return strings.slice(0, lastIndex).reduce((p, s, i) => p + s + keys[i], '') + strings[lastIndex]
+  return (
+    strings.slice(0, lastIndex).reduce((p, s, i) => p + s + keys[i], '') +
+    strings[lastIndex]
+  )
 }
 
 describe('https://github.com/Timer/cssnano-preset-simple/issues/1', () => {
@@ -47,10 +50,13 @@ describe('cssnano accepts plugin configuration', () => {
       }
     `
 
-    const res = await postcss([cssnanoPlugin({ discardComments: {} })]).process(input, {
-      from: 'input.css',
-      to: 'output.css',
-    })
+    const res = await postcss([cssnanoPlugin({ discardComments: {} })]).process(
+      input,
+      {
+        from: 'input.css',
+        to: 'output.css',
+      }
+    )
 
     expect(res.css).not.toBe('p{color:#ff0}')
   })
@@ -63,13 +69,12 @@ describe('cssnano accepts plugin configuration', () => {
       }
     `
 
-    const res = await postcss([cssnanoPlugin({ discardComments: { removeAll: true } })]).process(
-      input,
-      {
-        from: 'input.css',
-        to: 'output.css',
-      }
-    )
+    const res = await postcss([
+      cssnanoPlugin({ discardComments: { removeAll: true } }),
+    ]).process(input, {
+      from: 'input.css',
+      to: 'output.css',
+    })
 
     expect(res.css).toBe('p{color:#ff0}')
   })

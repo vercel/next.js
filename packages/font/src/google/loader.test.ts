@@ -12,7 +12,11 @@ describe('next/font/google loader', () => {
 
   describe('URL from options', () => {
     const fixtures: Array<[string, any, string]> = [
-      ['Inter', {}, 'https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap'],
+      [
+        'Inter',
+        {},
+        'https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap',
+      ],
       [
         'Inter',
         { weight: '400' },
@@ -94,17 +98,29 @@ describe('next/font/google loader', () => {
         { weight: ['900', '400', '100'] },
         'https://fonts.googleapis.com/css2?family=Poppins:wght@100;400;900&display=swap',
       ],
-      ['Nabla', {}, 'https://fonts.googleapis.com/css2?family=Nabla&display=swap'],
+      [
+        'Nabla',
+        {},
+        'https://fonts.googleapis.com/css2?family=Nabla&display=swap',
+      ],
       [
         'Nabla',
         { axes: ['EDPT', 'EHLT'] },
         'https://fonts.googleapis.com/css2?family=Nabla:EDPT,EHLT@0..200,0..24&display=swap',
       ],
-      ['Ballet', {}, 'https://fonts.googleapis.com/css2?family=Ballet&display=swap'],
+      [
+        'Ballet',
+        {},
+        'https://fonts.googleapis.com/css2?family=Ballet&display=swap',
+      ],
     ]
     test.each(fixtures)(
       '%s',
-      async (functionName: string, fontFunctionArguments: any, expectedUrl: any) => {
+      async (
+        functionName: string,
+        fontFunctionArguments: any,
+        expectedUrl: any
+      ) => {
         mockFetchResource.mockResolvedValue(Buffer.from('OK'))
         const { css } = await nextFontGoogleFontLoader({
           functionName,

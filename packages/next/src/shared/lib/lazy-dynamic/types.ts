@@ -1,6 +1,8 @@
 export type ComponentModule<P = {}> = { default: React.ComponentType<P> }
 
-export declare type LoaderComponent<P = {}> = Promise<React.ComponentType<P> | ComponentModule<P>>
+export declare type LoaderComponent<P = {}> = Promise<
+  React.ComponentType<P> | ComponentModule<P>
+>
 
 export declare type Loader<P = {}> = () => LoaderComponent<P>
 

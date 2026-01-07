@@ -36,7 +36,10 @@ type Props = {
   locales?: string[];
 };
 
-export const getStaticProps: GetStaticProps<Props> = async ({ locale, locales }) => {
+export const getStaticProps: GetStaticProps<Props> = async ({
+  locale,
+  locales,
+}) => {
   return {
     props: {
       locale,

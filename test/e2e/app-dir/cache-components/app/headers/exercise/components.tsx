@@ -17,7 +17,11 @@ export function AllComponents<T extends Headers>({
       <GetSetCookie headers={headers} expression={expression} />
       <ForEach headers={headers} expression={expression} />
       <Keys headers={headers} expression={expression} />
-      <Values headers={headers} expression={expression} xSentinelValues={xSentinelValues} />
+      <Values
+        headers={headers}
+        expression={expression}
+        xSentinelValues={xSentinelValues}
+      />
       <Entries headers={headers} expression={expression} />
       <ForOf headers={headers} expression={expression} />
       <Spread headers={headers} expression={expression} />
@@ -25,7 +29,13 @@ export function AllComponents<T extends Headers>({
   )
 }
 
-function Append({ headers, expression }: { headers: Headers; expression: string }) {
+function Append({
+  headers,
+  expression,
+}: {
+  headers: Headers
+  expression: string
+}) {
   let result: string
   try {
     headers.append('x-sentinel', ' world')
@@ -43,14 +53,22 @@ function Append({ headers, expression }: { headers: Headers; expression: string 
         </li>
         <li>
           <label>x-sentinel value</label>
-          <span id={'append-value-x-sentinel'}>: {headers.get('x-sentinel')}</span>
+          <span id={'append-value-x-sentinel'}>
+            : {headers.get('x-sentinel')}
+          </span>
         </li>
       </ul>
     </section>
   )
 }
 
-function Delete({ headers, expression }: { headers: Headers; expression: string }) {
+function Delete({
+  headers,
+  expression,
+}: {
+  headers: Headers
+  expression: string
+}) {
   let result = 'no error'
   try {
     headers.delete('x-sentinel')
@@ -67,14 +85,22 @@ function Delete({ headers, expression }: { headers: Headers; expression: string 
         </li>
         <li>
           <label>x-sentinel value</label>
-          <span id={'delete-value-x-sentinel'}>: {headers.get('x-sentinel')}</span>
+          <span id={'delete-value-x-sentinel'}>
+            : {headers.get('x-sentinel')}
+          </span>
         </li>
       </ul>
     </section>
   )
 }
 
-function Get({ headers, expression }: { headers: Headers; expression: string }) {
+function Get({
+  headers,
+  expression,
+}: {
+  headers: Headers
+  expression: string
+}) {
   return (
     <section>
       <h2>{expression}.get('...')</h2>
@@ -85,7 +111,13 @@ function Get({ headers, expression }: { headers: Headers; expression: string }) 
   )
 }
 
-function Has({ headers, expression }: { headers: Headers; expression: string }) {
+function Has({
+  headers,
+  expression,
+}: {
+  headers: Headers
+  expression: string
+}) {
   return (
     <section>
       <h2>{expression}.has('...')</h2>
@@ -96,14 +128,22 @@ function Has({ headers, expression }: { headers: Headers; expression: string }) 
         </li>
         <li>
           <label>x-sentinel-foobar</label>
-          <span id={'has-x-sentinel-foobar'}>: {'' + headers.has('x-sentinel-foobar')}</span>
+          <span id={'has-x-sentinel-foobar'}>
+            : {'' + headers.has('x-sentinel-foobar')}
+          </span>
         </li>
       </ul>
     </section>
   )
 }
 
-function SetExercise({ headers, expression }: { headers: Headers; expression: string }) {
+function SetExercise({
+  headers,
+  expression,
+}: {
+  headers: Headers
+  expression: string
+}) {
   let result = 'no error'
   try {
     headers.set('x-sentinel', 'goodbye')
@@ -127,7 +167,13 @@ function SetExercise({ headers, expression }: { headers: Headers; expression: st
   )
 }
 
-function GetSetCookie({ headers, expression }: { headers: Headers; expression: string }) {
+function GetSetCookie({
+  headers,
+  expression,
+}: {
+  headers: Headers
+  expression: string
+}) {
   const result = headers.getSetCookie()
   return (
     <section>
@@ -137,7 +183,13 @@ function GetSetCookie({ headers, expression }: { headers: Headers; expression: s
   )
 }
 
-function ForEach({ headers, expression }: { headers: Headers; expression: string }) {
+function ForEach({
+  headers,
+  expression,
+}: {
+  headers: Headers
+  expression: string
+}) {
   let output = []
   headers.forEach((value, header) => {
     if (header.startsWith('x-sentinel')) {
@@ -157,7 +209,13 @@ function ForEach({ headers, expression }: { headers: Headers; expression: string
   )
 }
 
-function Keys({ headers, expression }: { headers: Headers; expression: string }) {
+function Keys({
+  headers,
+  expression,
+}: {
+  headers: Headers
+  expression: string
+}) {
   let output = []
   for (let header of headers.keys()) {
     if (header.startsWith('x-sentinel')) {
@@ -205,7 +263,13 @@ function Values({
   )
 }
 
-function Entries({ headers, expression }: { headers: Headers; expression: string }) {
+function Entries({
+  headers,
+  expression,
+}: {
+  headers: Headers
+  expression: string
+}) {
   let output = []
   for (let entry of headers.entries()) {
     if (entry[0].startsWith('x-sentinel')) {
@@ -225,7 +289,13 @@ function Entries({ headers, expression }: { headers: Headers; expression: string
   )
 }
 
-function ForOf({ headers, expression }: { headers: Headers; expression: string }) {
+function ForOf({
+  headers,
+  expression,
+}: {
+  headers: Headers
+  expression: string
+}) {
   let output = []
   for (let [headerName, value] of headers) {
     if (headerName.startsWith('x-sentinel')) {
@@ -245,7 +315,13 @@ function ForOf({ headers, expression }: { headers: Headers; expression: string }
   )
 }
 
-function Spread({ headers, expression }: { headers: Headers; expression: string }) {
+function Spread({
+  headers,
+  expression,
+}: {
+  headers: Headers
+  expression: string
+}) {
   let output = [...headers]
     .filter(([headerName]) => headerName.startsWith('x-sentinel'))
     .map((v) => {

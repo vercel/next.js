@@ -9,7 +9,9 @@ it('reflect .set into `set-cookie`', async () => {
   expect(response.cookies.get('foo')?.value).toBe(undefined)
   expect(response.cookies.get('foo')).toEqual(undefined)
 
-  response.cookies.set('foo', 'bar', { path: '/test' }).set('fooz', 'barz', { path: '/test2' })
+  response.cookies
+    .set('foo', 'bar', { path: '/test' })
+    .set('fooz', 'barz', { path: '/test2' })
 
   expect(response.cookies.get('foo')?.value).toBe('bar')
   expect(response.cookies.get('fooz')?.value).toBe('barz')
@@ -25,7 +27,9 @@ it('reflect .set into `set-cookie`', async () => {
     value: 'barz',
   })
 
-  expect(response.headers.get('set-cookie')).toBe('foo=bar; Path=/test, fooz=barz; Path=/test2')
+  expect(response.headers.get('set-cookie')).toBe(
+    'foo=bar; Path=/test, fooz=barz; Path=/test2'
+  )
   expect(
     Array.from(response.headers.entries()).filter((entry) => {
       return entry[0] === 'set-cookie'
@@ -37,12 +41,16 @@ it('reflect .set into `set-cookie`', async () => {
 })
 
 it('reflect .delete into `set-cookie`', async () => {
-  const { NextResponse } = await import('next/dist/server/web/spec-extension/response')
+  const { NextResponse } = await import(
+    'next/dist/server/web/spec-extension/response'
+  )
 
   const response = new NextResponse()
 
   response.cookies.set('foo', 'bar')
-  expect(Object.fromEntries(response.headers.entries())['set-cookie']).toBe('foo=bar; Path=/')
+  expect(Object.fromEntries(response.headers.entries())['set-cookie']).toBe(
+    'foo=bar; Path=/'
+  )
 
   expect(response.cookies.get('foo')?.value).toBe('bar')
   expect(response.cookies.get('foo')).toEqual({
@@ -52,7 +60,9 @@ it('reflect .delete into `set-cookie`', async () => {
   })
 
   response.cookies.set('fooz', 'barz')
-  expect(response.headers.get('set-cookie')).toBe('foo=bar; Path=/, fooz=barz; Path=/')
+  expect(response.headers.get('set-cookie')).toBe(
+    'foo=bar; Path=/, fooz=barz; Path=/'
+  )
   expect(
     Array.from(response.headers.entries()).filter((entry) => {
       return entry[0] === 'set-cookie'
@@ -98,7 +108,9 @@ it('reflect .delete into `set-cookie`', async () => {
 })
 
 it('response.cookie does not modify options', async () => {
-  const { NextResponse } = await import('next/dist/server/web/spec-extension/response')
+  const { NextResponse } = await import(
+    'next/dist/server/web/spec-extension/response'
+  )
 
   const options = { maxAge: 10000 }
   const response = new NextResponse(null, {

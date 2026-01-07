@@ -273,7 +273,13 @@
         {
           "role": "me",
           "permission": {
-            "columns": ["id", "created_at", "updated_at", "display_name", "avatar_url"],
+            "columns": [
+              "id",
+              "created_at",
+              "updated_at",
+              "display_name",
+              "avatar_url"
+            ],
             "filter": {
               "id": {
                 "_eq": "X-Hasura-User-Id"
@@ -284,7 +290,13 @@
         {
           "role": "user",
           "permission": {
-            "columns": ["id", "created_at", "updated_at", "display_name", "avatar_url"],
+            "columns": [
+              "id",
+              "created_at",
+              "updated_at",
+              "display_name",
+              "avatar_url"
+            ],
             "filter": {
               "id": {
                 "_eq": "X-Hasura-User-Id"

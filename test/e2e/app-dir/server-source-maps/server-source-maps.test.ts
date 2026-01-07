@@ -34,7 +34,9 @@ describe('app-dir - server source maps', () => {
       await next.render('/rsc-error-log')
 
       await retry(() => {
-        expect(next.cliOutput.slice(outputIndex)).toContain('Error: rsc-error-log')
+        expect(next.cliOutput.slice(outputIndex)).toContain(
+          'Error: rsc-error-log'
+        )
       })
       expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
         'Error: rsc-error-log' +
@@ -53,9 +55,13 @@ describe('app-dir - server source maps', () => {
       if (isTurbopack) {
         // TODO(veil): Sourcemap names
         // TODO(veil): relative paths in webpack
-        expect(normalizeCliOutput(next.cliOutput)).toContain('(app/rsc-error-log/page.js:4:17)')
         expect(normalizeCliOutput(next.cliOutput)).toContain(
-          '' + "\n> 4 |   const error = new Error('rsc-error-log')" + '\n    |                 ^'
+          '(app/rsc-error-log/page.js:4:17)'
+        )
+        expect(normalizeCliOutput(next.cliOutput)).toContain(
+          '' +
+            "\n> 4 |   const error = new Error('rsc-error-log')" +
+            '\n    |                 ^'
         )
       } else {
         // TODO(veil): line/column numbers are flaky in Webpack
@@ -69,7 +75,9 @@ describe('app-dir - server source maps', () => {
       await next.render('/rsc-error-log-cause')
 
       await retry(() => {
-        expect(next.cliOutput.slice(outputIndex)).toContain('Error: rsc-error-log-cause')
+        expect(next.cliOutput.slice(outputIndex)).toContain(
+          'Error: rsc-error-log-cause'
+        )
       })
       expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
         'Error: rsc-error-log-cause' +
@@ -108,7 +116,9 @@ describe('app-dir - server source maps', () => {
             '\n    |                 ^'
         )
         expect(normalizeCliOutput(next.cliOutput)).toContain(
-          '' + "\n  >  7 |   const error = new Error('Boom')" + '\n       |                 ^'
+          '' +
+            "\n  >  7 |   const error = new Error('Boom')" +
+            '\n       |                 ^'
         )
       } else {
         // TODO(veil): line/column numbers are flaky in Webpack
@@ -122,7 +132,9 @@ describe('app-dir - server source maps', () => {
       const browser = await next.browser('/ssr-error-log-ignore-listed')
 
       await retry(() => {
-        expect(next.cliOutput.slice(outputIndex)).toContain('Error: ssr-error-log-ignore-listed')
+        expect(next.cliOutput.slice(outputIndex)).toContain(
+          'Error: ssr-error-log-ignore-listed'
+        )
       })
       expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
         isTurbopack
@@ -351,7 +363,9 @@ describe('app-dir - server source maps', () => {
     await retry(() => {
       expect(cliOutput).toContain(
         // TODO: isNextDev ? 'UnnamedError: rsc-error-log-custom-name-Foo' : '[Error]: rsc-error-log-custom-name-Foo'
-        isNextDev ? 'Error: rsc-error-log-custom-name-Foo' : 'Error: rsc-error-log-custom-name-Foo'
+        isNextDev
+          ? 'Error: rsc-error-log-custom-name-Foo'
+          : 'Error: rsc-error-log-custom-name-Foo'
       )
     })
 
@@ -398,13 +412,17 @@ describe('app-dir - server source maps', () => {
         // One from filterStackFrameDEV.
         // One from findSourceMapURLDEV.
         expect(
-          normalizeCliOutput(next.cliOutput.slice(outputIndex)).split('Invalid source map.')
-            .length - 1
+          normalizeCliOutput(next.cliOutput.slice(outputIndex)).split(
+            'Invalid source map.'
+          ).length - 1
         ).toEqual(3)
       }
     } else {
       // Bundlers silently drop invalid sourcemaps.
-      expect(normalizeCliOutput(next.cliOutput).split('Invalid source map.').length - 1).toEqual(0)
+      expect(
+        normalizeCliOutput(next.cliOutput).split('Invalid source map.').length -
+          1
+      ).toEqual(0)
     }
   })
 
@@ -414,7 +432,9 @@ describe('app-dir - server source maps', () => {
 
     if (isNextDev) {
       await retry(() => {
-        expect(next.cliOutput.slice(outputIndex)).toContain('Error: module-evaluation')
+        expect(next.cliOutput.slice(outputIndex)).toContain(
+          'Error: module-evaluation'
+        )
       })
       const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
       if (isTurbopack) {
@@ -516,7 +536,10 @@ describe('app-dir - server source maps', () => {
         )
       } else {
         expect(
-          normalizeCliOutput(next.cliOutput).replaceAll(/at \d+ /g, 'at <WebpackModuleID> ')
+          normalizeCliOutput(next.cliOutput).replaceAll(
+            /at \d+ /g,
+            'at <WebpackModuleID> '
+          )
         ).toContain(
           '' +
             '\nError: module-evaluation' +

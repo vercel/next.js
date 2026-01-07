@@ -41,9 +41,15 @@ export async function getBlurImage(
     // Shrink the image's largest dimension
     if (imageSize.width >= imageSize.height) {
       blurWidth = BLUR_IMG_SIZE
-      blurHeight = Math.max(Math.round((imageSize.height / imageSize.width) * BLUR_IMG_SIZE), 1)
+      blurHeight = Math.max(
+        Math.round((imageSize.height / imageSize.width) * BLUR_IMG_SIZE),
+        1
+      )
     } else {
-      blurWidth = Math.max(Math.round((imageSize.width / imageSize.height) * BLUR_IMG_SIZE), 1)
+      blurWidth = Math.max(
+        Math.round((imageSize.width / imageSize.height) * BLUR_IMG_SIZE),
+        1
+      )
       blurHeight = BLUR_IMG_SIZE
     }
 
@@ -70,7 +76,8 @@ export async function getBlurImage(
       )
       const blurDataURLSpan = tracing('image-base64-tostring')
       blurDataURL = blurDataURLSpan.traceFn(
-        () => `data:image/${extension};base64,${resizedImage.toString('base64')}`
+        () =>
+          `data:image/${extension};base64,${resizedImage.toString('base64')}`
       )
     }
   }

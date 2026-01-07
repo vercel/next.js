@@ -29,7 +29,9 @@ export default function Post({ post, morePosts, preview }) {
           <>
             <article>
               <Head>
-                <title>{`${post.title} | Next.js Blog Example with ${CMS_NAME}`}</title>
+                <title>
+                  {`${post.title} | Next.js Blog Example with ${CMS_NAME}`}
+                </title>
                 <meta
                   property="og:image"
                   content={getImageUrl(post.coverImage, {
@@ -59,7 +61,9 @@ export default function Post({ post, morePosts, preview }) {
 
 export async function getStaticProps({ params, preview = false }) {
   const data = await getPostAndMorePosts(params.slug, preview);
-  const content = await markdownToHtml((data?.post?.items || [])[0]?.content || "");
+  const content = await markdownToHtml(
+    (data?.post?.items || [])[0]?.content || "",
+  );
 
   return {
     props: {

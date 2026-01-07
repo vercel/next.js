@@ -155,7 +155,10 @@ export default function WithFonts() {
       <div id="roboto-local-font-var2" className={robotoVar2.className}>
         {JSON.stringify(robotoVar2)}
       </div>
-      <div id="roboto-local-font-preload" className={robotoWithPreload.className}>
+      <div
+        id="roboto-local-font-preload"
+        className={robotoWithPreload.className}
+      >
         {JSON.stringify(robotoWithPreload)}
       </div>
     </>

@@ -20,15 +20,21 @@ export interface CacheHeaders {
   cdnCacheControl?: string
 }
 
-export function getCacheControlHeader({ revalidate, expire }: CacheControl): CacheHeaders {
+export function getCacheControlHeader({
+  revalidate,
+  expire,
+}: CacheControl): CacheHeaders {
   const swrHeader =
-    typeof revalidate === 'number' && expire !== undefined && revalidate < expire
+    typeof revalidate === 'number' &&
+    expire !== undefined &&
+    revalidate < expire
       ? `, stale-while-revalidate=${expire - revalidate}`
       : ''
 
   if (revalidate === 0) {
     return {
-      'Cache-Control': 'private, no-cache, no-store, max-age=0, must-revalidate',
+      'Cache-Control':
+        'private, no-cache, no-store, max-age=0, must-revalidate',
     }
   }
 

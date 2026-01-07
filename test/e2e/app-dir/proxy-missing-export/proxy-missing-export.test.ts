@@ -27,7 +27,10 @@ describe('proxy-missing-export', () => {
   }
 
   it('should error when proxy file has invalid export named middleware', async () => {
-    await writeFile(join(next.testDir, 'proxy.ts'), 'export function middleware() {}')
+    await writeFile(
+      join(next.testDir, 'proxy.ts'),
+      'export function middleware() {}'
+    )
 
     let cliOutput: string
 
@@ -55,7 +58,10 @@ ${errorMessage}`)
   })
 
   it('should NOT error when proxy file has a default function export', async () => {
-    await writeFile(join(next.testDir, 'proxy.ts'), 'export default function handler() {}')
+    await writeFile(
+      join(next.testDir, 'proxy.ts'),
+      'export default function handler() {}'
+    )
 
     await next.start()
 
@@ -91,7 +97,10 @@ ${errorMessage}`)
   })
 
   it('should NOT error when proxy file has a named declaration arrow function export', async () => {
-    await writeFile(join(next.testDir, 'proxy.ts'), 'const proxy = () => {}; export { proxy };')
+    await writeFile(
+      join(next.testDir, 'proxy.ts'),
+      'const proxy = () => {}; export { proxy };'
+    )
 
     await next.start()
 

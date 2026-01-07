@@ -34,7 +34,10 @@ module.exports = {
         node.callee.type !== 'Identifier' ||
         node.callee.name !== 'require' ||
         node.arguments.length !== 1 ||
-        !(node.arguments[0].type === 'Literal' || node.arguments[0].type === 'TemplateLiteral')
+        !(
+          node.arguments[0].type === 'Literal' ||
+          node.arguments[0].type === 'TemplateLiteral'
+        )
       ) {
         return
       }

@@ -2,7 +2,8 @@ import Image from "next/image";
 import ViewSource from "../../components/view-source";
 
 // Pixel GIF code adapted from https://stackoverflow.com/a/33919020/266535
-const keyStr = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
+const keyStr =
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
 
 const triplet = (e1: number, e2: number, e3: number) =>
   keyStr.charAt(e1 >> 2) +

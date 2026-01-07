@@ -8,7 +8,9 @@ export function ClientValue() {
   // Use `useEffect` to only evaluate this in the actual browser as client
   // components are still SSRed
   useEffect(() => {
-    setServerVar(typeof MY_SERVER_VARIABLE === 'string' ? MY_SERVER_VARIABLE : 'not set')
+    setServerVar(
+      typeof MY_SERVER_VARIABLE === 'string' ? MY_SERVER_VARIABLE : 'not set'
+    )
   }, [setServerVar])
 
   return <>{serverVar}</>

@@ -11,7 +11,9 @@ export async function getServerSideProps({ req, res }) {
       // TODO: this should only use request header once
       fromMiddleware:
         // start is using the separate renders as well
-        req.headers['x-from-middleware'] || res.getHeader('x-from-middleware') || null,
+        req.headers['x-from-middleware'] ||
+        res.getHeader('x-from-middleware') ||
+        null,
     },
   }
 }

@@ -50,7 +50,9 @@ export function install(
       args.push('--offline')
       console.log(yellow('You appear to be offline.'))
       if (packageManager !== 'npm') {
-        console.log(yellow(`Falling back to the local ${packageManager} cache.`))
+        console.log(
+          yellow(`Falling back to the local ${packageManager} cache.`)
+        )
       }
       console.log()
     }

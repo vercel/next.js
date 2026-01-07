@@ -27,7 +27,11 @@ function extractTestInfoFromRequest<R>(
   return { url, proxyPort, testData }
 }
 
-export function withRequest<R, T>(req: R, reader: TestRequestReader<R>, fn: () => T): T {
+export function withRequest<R, T>(
+  req: R,
+  reader: TestRequestReader<R>,
+  fn: () => T
+): T {
   const testReqInfo = extractTestInfoFromRequest(req, reader)
   if (!testReqInfo) {
     return fn()
@@ -35,7 +39,10 @@ export function withRequest<R, T>(req: R, reader: TestRequestReader<R>, fn: () =
   return testStorage.run(testReqInfo, fn)
 }
 
-export function getTestReqInfo<R>(req?: R, reader?: TestRequestReader<R>): TestReqInfo | undefined {
+export function getTestReqInfo<R>(
+  req?: R,
+  reader?: TestRequestReader<R>
+): TestReqInfo | undefined {
   const testReqInfo = testStorage.getStore()
   if (testReqInfo) {
     return testReqInfo

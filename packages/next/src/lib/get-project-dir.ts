@@ -9,7 +9,10 @@ export function getProjectDir(dir?: string, exitOnEnoent = true) {
   try {
     const realDir = realpathSync(resolvedDir)
 
-    if (resolvedDir !== realDir && resolvedDir.toLowerCase() === realDir.toLowerCase()) {
+    if (
+      resolvedDir !== realDir &&
+      resolvedDir.toLowerCase() === realDir.toLowerCase()
+    ) {
       warn(
         `Invalid casing detected for project dir, received ${resolvedDir} actual path ${realDir}, see more info here https://nextjs.org/docs/messages/invalid-project-dir-casing`
       )
@@ -30,11 +33,15 @@ export function getProjectDir(dir?: string, exitOnEnoent = true) {
         ])
 
         if (detectedTypo) {
-          return printAndExit(`"next ${dir}" does not exist. Did you mean "next ${detectedTypo}"?`)
+          return printAndExit(
+            `"next ${dir}" does not exist. Did you mean "next ${detectedTypo}"?`
+          )
         }
       }
 
-      return printAndExit(`Invalid project directory provided, no such directory: ${resolvedDir}`)
+      return printAndExit(
+        `Invalid project directory provided, no such directory: ${resolvedDir}`
+      )
     }
     throw err
   }

@@ -5,7 +5,11 @@ export function isBlockedPage(page: string): boolean {
 }
 
 type AnyFunc<T> = (this: T, ...args: any) => any
-export function debounce<T, F extends AnyFunc<T>>(fn: F, ms: number, maxWait = Infinity) {
+export function debounce<T, F extends AnyFunc<T>>(
+  fn: F,
+  ms: number,
+  maxWait = Infinity
+) {
   let timeoutId: undefined | NodeJS.Timeout
 
   // The time the debouncing function was first called during this debounce queue.

@@ -40,7 +40,9 @@ async function getPostsUrls({
   const posts = data.map((post: any) => {
     return {
       url: `${process.env.NEXT_PUBLIC_BASE_URL}${post.url}`,
-      lastModified: new Date(post.post_modified_date).toISOString().split("T")[0],
+      lastModified: new Date(post.post_modified_date)
+        .toISOString()
+        .split("T")[0],
     };
   });
 

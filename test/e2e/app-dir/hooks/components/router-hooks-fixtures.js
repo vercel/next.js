@@ -1,5 +1,9 @@
 import { useRouter as usePagesRouter } from 'next/router'
-import { usePathname, useRouter as useAppRouter, useSearchParams } from 'next/navigation'
+import {
+  usePathname,
+  useRouter as useAppRouter,
+  useSearchParams,
+} from 'next/navigation'
 import { useState, useEffect } from 'react'
 
 export const RouterHooksFixtures = () => {

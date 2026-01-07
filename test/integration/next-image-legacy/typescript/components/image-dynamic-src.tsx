@@ -6,7 +6,11 @@ type DynamicSrcImageProps = ImageProps & {
   srcString?: string
 }
 
-export function DynamicSrcImage({ srcString, src, ...props }: DynamicSrcImageProps) {
+export function DynamicSrcImage({
+  srcString,
+  src,
+  ...props
+}: DynamicSrcImageProps) {
   const newSrc = srcString || src
   return <Image {...props} src={newSrc} />
 }

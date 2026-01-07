@@ -3,7 +3,10 @@ import { getProjectDir } from '../lib/get-project-dir'
 import { printAndExit } from '../server/lib/utils'
 import loadConfig from '../server/config'
 import { PHASE_PRODUCTION_BUILD } from '../shared/lib/constants'
-import { hasNecessaryDependencies, type MissingDependency } from '../lib/has-necessary-dependencies'
+import {
+  hasNecessaryDependencies,
+  type MissingDependency,
+} from '../lib/has-necessary-dependencies'
 import { installDependencies } from '../lib/install-dependencies'
 import type { NextConfigComplete } from '../server/config-shared'
 import findUp from 'next/dist/compiled/find-up'
@@ -22,7 +25,9 @@ export type SupportedTestRunners = (typeof SUPPORTED_TEST_RUNNERS_LIST)[number]
 const requiredPackagesByTestRunner: {
   [k in SupportedTestRunners]: MissingDependency[]
 } = {
-  playwright: [{ file: 'playwright', pkg: '@playwright/test', exportsRestrict: false }],
+  playwright: [
+    { file: 'playwright', pkg: '@playwright/test', exportsRestrict: false },
+  ],
 }
 
 export async function nextTest(
@@ -78,12 +83,20 @@ export async function nextTest(
     case 'playwright':
       return runPlaywright(baseDir, nextConfig, testRunnerArgs)
     default:
-      return printAndExit(`Test runner ${configuredTestRunner} is not supported.`)
+      return printAndExit(
+        `Test runner ${configuredTestRunner} is not supported.`
+      )
   }
 }
 
-async function checkRequiredDeps(baseDir: string, testRunner: SupportedTestRunners) {
-  const deps = hasNecessaryDependencies(baseDir, requiredPackagesByTestRunner[testRunner])
+async function checkRequiredDeps(
+  baseDir: string,
+  testRunner: SupportedTestRunners
+) {
+  const deps = hasNecessaryDependencies(
+    baseDir,
+    requiredPackagesByTestRunner[testRunner]
+  )
   if (deps.missing.length > 0) {
     await installDependencies(baseDir, deps.missing, true)
 
@@ -114,9 +127,12 @@ async function runPlaywright(
 ) {
   await checkRequiredDeps(baseDir, 'playwright')
 
-  const playwrightConfigFile = await findUp(['playwright.config.js', 'playwright.config.ts'], {
-    cwd: baseDir,
-  })
+  const playwrightConfigFile = await findUp(
+    ['playwright.config.js', 'playwright.config.ts'],
+    {
+      cwd: baseDir,
+    }
+  )
 
   if (!playwrightConfigFile) {
     const { pagesDir, appDir } = findPagesDir(baseDir)

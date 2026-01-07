@@ -33,7 +33,9 @@ it('exported lets are live', () => {
 })
 
 it('exported bindings that are not mutated are not live', () => {
-  expect(Object.getOwnPropertyDescriptor(liveExports, 'obviouslyneverMutated')).toEqual({
+  expect(
+    Object.getOwnPropertyDescriptor(liveExports, 'obviouslyneverMutated')
+  ).toEqual({
     configurable: false,
     enumerable: true,
     value: 'obviouslyneverMutated',
@@ -45,7 +47,9 @@ it('exported bindings that are not mutated are not live', () => {
     value: 'neverMutated',
     writable: false,
   })
-  expect(Object.getOwnPropertyDescriptor(constDefaultExportFunction, 'default')).toEqual({
+  expect(
+    Object.getOwnPropertyDescriptor(constDefaultExportFunction, 'default')
+  ).toEqual({
     configurable: false,
     enumerable: true,
     value: constDefaultExportFunction.default,

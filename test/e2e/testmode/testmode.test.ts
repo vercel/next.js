@@ -19,13 +19,17 @@ describe('testmode', () => {
       onFetch: async (testData, request) => {
         if (
           request.method === 'GET' &&
-          ['https://example.com/', 'https://next-data-api-endpoint.vercel.app/api/random'].includes(
-            request.url
-          )
+          [
+            'https://example.com/',
+            'https://next-data-api-endpoint.vercel.app/api/random',
+          ].includes(request.url)
         ) {
           return new Response(testData)
         }
-        if (request.method === 'GET' && request.url === 'https://example.com/middleware') {
+        if (
+          request.method === 'GET' &&
+          request.url === 'https://example.com/middleware'
+        ) {
           return new Response(`middleware-${testData}`)
         }
         return undefined
@@ -93,12 +97,16 @@ describe('testmode', () => {
 
   describe('page router', () => {
     it('should handle getServerSideProps with fetch', async () => {
-      const html = await (await fetchForTest('/pages/getServerSidePropsFetch')).text()
+      const html = await (
+        await fetchForTest('/pages/getServerSidePropsFetch')
+      ).text()
       expect(html).toContain('<pre>test1</pre>')
     })
 
     it('should handle getServerSideProps with http.get', async () => {
-      const html = await (await fetchForTest('/pages/getServerSidePropsHttpGet')).text()
+      const html = await (
+        await fetchForTest('/pages/getServerSidePropsHttpGet')
+      ).text()
       expect(html).toContain('<pre>test1</pre>')
     })
 

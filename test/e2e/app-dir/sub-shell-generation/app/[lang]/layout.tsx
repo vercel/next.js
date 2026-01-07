@@ -15,7 +15,9 @@ export default async function LangLayout({
       <div id="lang-layout">Lang Layout: ({getSentinelValue()})</div>
       <h1>lang: {lang}</h1>
       <main>
-        <Suspense fallback={<p id="loading">Loading...</p>}>{children}</Suspense>
+        <Suspense fallback={<p id="loading">Loading...</p>}>
+          {children}
+        </Suspense>
       </main>
     </>
   )

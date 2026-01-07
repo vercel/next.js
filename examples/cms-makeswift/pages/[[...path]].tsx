@@ -1,13 +1,22 @@
 import "../lib/makeswift/register-components";
 
 import { Makeswift } from "@makeswift/runtime/next";
-import { GetStaticPathsResult, GetStaticPropsContext, GetStaticPropsResult } from "next";
+import {
+  GetStaticPathsResult,
+  GetStaticPropsContext,
+  GetStaticPropsResult,
+} from "next";
 
-import { Page as MakeswiftPage, PageProps as MakeswiftPageProps } from "@makeswift/runtime/next";
+import {
+  Page as MakeswiftPage,
+  PageProps as MakeswiftPageProps,
+} from "@makeswift/runtime/next";
 
 type ParsedUrlQuery = { path?: string[] };
 
-export async function getStaticPaths(): Promise<GetStaticPathsResult<ParsedUrlQuery>> {
+export async function getStaticPaths(): Promise<
+  GetStaticPathsResult<ParsedUrlQuery>
+> {
   const makeswift = new Makeswift(process.env.MAKESWIFT_SITE_API_KEY!);
   const pages = await makeswift.getPages();
 

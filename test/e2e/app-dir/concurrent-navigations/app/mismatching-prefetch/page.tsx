@@ -4,8 +4,8 @@ export default function Page() {
   return (
     <div>
       <p>
-        Tests what happens if a navigation resolves to a different route than the one that was
-        prefetched.
+        Tests what happens if a navigation resolves to a different route than
+        the one that was prefetched.
       </p>
       <div>
         <ul>

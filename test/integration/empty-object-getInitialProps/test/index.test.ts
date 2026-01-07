@@ -2,7 +2,14 @@
 
 import { join } from 'path'
 import webdriver from 'next-webdriver'
-import { renderViaHTTP, findPort, launchApp, killApp, waitFor, check } from 'next-test-utils'
+import {
+  renderViaHTTP,
+  findPort,
+  launchApp,
+  killApp,
+  waitFor,
+  check,
+} from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
 let output = ''
@@ -34,7 +41,9 @@ describe('Empty Project', () => {
     output = ''
     await renderViaHTTP(appPort, '/static')
     await waitFor(100)
-    expect(output).not.toMatch(/returned an empty object from `getInitialProps`/)
+    expect(output).not.toMatch(
+      /returned an empty object from `getInitialProps`/
+    )
   })
 
   it('should show empty object warning during client transition', async () => {

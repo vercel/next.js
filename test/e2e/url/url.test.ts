@@ -24,11 +24,17 @@ describe(`Handle new URL asset references`, () => {
   const serverFilePath = expect.stringMatching(
     /file:.*\/.next(\/dev)?\/server\/.*\/vercel\.[0-9a-f]{8}\.png$/
   )
-  const serverEdgeUrl = expect.stringMatching(/^blob:.*vercel\.[0-9a-f]{8,}\.png$/)
-  const clientFilePath = expect.stringMatching(/^\/_next\/static\/media\/vercel\.[0-9a-f]{8}\.png$/)
+  const serverEdgeUrl = expect.stringMatching(
+    /^blob:.*vercel\.[0-9a-f]{8,}\.png$/
+  )
+  const clientFilePath = expect.stringMatching(
+    /^\/_next\/static\/media\/vercel\.[0-9a-f]{8}\.png$/
+  )
 
   it('should respond on middleware api', async () => {
-    const data = await next.fetch('/middleware').then((res) => res.ok && res.json())
+    const data = await next
+      .fetch('/middleware')
+      .then((res) => res.ok && res.json())
 
     expect(data).toEqual({
       imported: expect.objectContaining({
@@ -43,7 +49,9 @@ describe(`Handle new URL asset references`, () => {
 
   describe('app router', () => {
     it('should respond on webmanifest', async () => {
-      const data = await next.fetch('/manifest.webmanifest').then((res) => res.ok && res.json())
+      const data = await next
+        .fetch('/manifest.webmanifest')
+        .then((res) => res.ok && res.json())
 
       expect(data).toEqual({
         short_name: 'Next.js',
@@ -56,12 +64,16 @@ describe(`Handle new URL asset references`, () => {
           },
         ],
         // TODO Webpack bug?
-        description: process.env.IS_TURBOPACK_TEST ? serverFilePath : clientFilePath,
+        description: process.env.IS_TURBOPACK_TEST
+          ? serverFilePath
+          : clientFilePath,
       })
     })
 
     it('should respond on opengraph-image', async () => {
-      const data = await next.fetch('/opengraph-image').then((res) => res.ok && res.json())
+      const data = await next
+        .fetch('/opengraph-image')
+        .then((res) => res.ok && res.json())
 
       expect(data).toEqual({
         imported: expect.objectContaining({
@@ -74,19 +86,29 @@ describe(`Handle new URL asset references`, () => {
 
     for (const page of ['/rsc', '/rsc-edge', '/client', '/client-edge']) {
       // TODO Webpack bug?
-      let shouldSkip = process.env.IS_TURBOPACK_TEST ? false : page.includes('edge')
+      let shouldSkip = process.env.IS_TURBOPACK_TEST
+        ? false
+        : page.includes('edge')
 
-      ;(shouldSkip ? it.skip : it)(`should render the ${page} page`, async () => {
-        const $ = await next.render$(page)
-        // eslint-disable-next-line jest/no-standalone-expect
-        expect($('main').text()).toMatch(expectedPage)
-      })
-      ;(shouldSkip ? it.skip : it)(`should client-render the ${page} page`, async () => {
-        const browser = await next.browser(page)
-        await retry(async () =>
-          expect(await browser.elementByCss('main').text()).toMatch(expectedPage)
-        )
-      })
+      ;(shouldSkip ? it.skip : it)(
+        `should render the ${page} page`,
+        async () => {
+          const $ = await next.render$(page)
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect($('main').text()).toMatch(expectedPage)
+        }
+      )
+      ;(shouldSkip ? it.skip : it)(
+        `should client-render the ${page} page`,
+        async () => {
+          const browser = await next.browser(page)
+          await retry(async () =>
+            expect(await browser.elementByCss('main').text()).toMatch(
+              expectedPage
+            )
+          )
+        }
+      )
     }
 
     it('should respond on API', async () => {
@@ -111,23 +133,35 @@ describe(`Handle new URL asset references`, () => {
       '/pages-edge/ssr',
     ]) {
       // TODO Webpack bug?
-      let shouldSkip = process.env.IS_TURBOPACK_TEST ? false : page.includes('edge')
+      let shouldSkip = process.env.IS_TURBOPACK_TEST
+        ? false
+        : page.includes('edge')
 
-      ;(shouldSkip ? it.skip : it)(`should render the ${page} page`, async () => {
-        const $ = await next.render$(page)
-        // eslint-disable-next-line jest/no-standalone-expect
-        expect($('main').text()).toMatch(expectedPage)
-      })
-      ;(shouldSkip ? it.skip : it)(`should client-render the ${page} page`, async () => {
-        const browser = await next.browser(page)
-        await retry(async () =>
-          expect(await browser.elementByCss('main').text()).toMatch(expectedPage)
-        )
-      })
+      ;(shouldSkip ? it.skip : it)(
+        `should render the ${page} page`,
+        async () => {
+          const $ = await next.render$(page)
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect($('main').text()).toMatch(expectedPage)
+        }
+      )
+      ;(shouldSkip ? it.skip : it)(
+        `should client-render the ${page} page`,
+        async () => {
+          const browser = await next.browser(page)
+          await retry(async () =>
+            expect(await browser.elementByCss('main').text()).toMatch(
+              expectedPage
+            )
+          )
+        }
+      )
     }
 
     it('should respond on API', async () => {
-      const data = await next.fetch('/api/pages/').then((res) => res.ok && res.json())
+      const data = await next
+        .fetch('/api/pages/')
+        .then((res) => res.ok && res.json())
 
       expect(data).toEqual({
         imported: expect.objectContaining({
@@ -139,7 +173,9 @@ describe(`Handle new URL asset references`, () => {
     })
 
     it('should respond on edge API', async () => {
-      const data = await next.fetch('/api/pages-edge/').then((res) => res.ok && res.json())
+      const data = await next
+        .fetch('/api/pages-edge/')
+        .then((res) => res.ok && res.json())
 
       expect(data).toEqual({
         imported: expect.objectContaining({

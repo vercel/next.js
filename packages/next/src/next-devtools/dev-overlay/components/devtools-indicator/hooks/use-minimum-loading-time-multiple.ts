@@ -11,7 +11,10 @@ import { useEffect, useRef, useState } from 'react'
  * @param interval - The time interval multiple in ms (default: 750ms)
  * @returns Current loading state that respects multiples of the interval
  */
-export function useMinimumLoadingTimeMultiple(isLoadingTrigger: boolean, interval = 750) {
+export function useMinimumLoadingTimeMultiple(
+  isLoadingTrigger: boolean,
+  interval = 750
+) {
   const [isLoading, setIsLoading] = useState(false)
   const loadStartTimeRef = useRef<number | null>(null)
   const timeoutIdRef = useRef<NodeJS.Timeout | null>(null)

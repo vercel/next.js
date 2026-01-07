@@ -1,13 +1,9 @@
 {
   "name": "@vercel/turbopack-ecmascript-runtime",
   "version": "0.0.0",
-  "private": true,
   "description": "Turbopack EcmaScript runtime code and utilities",
   "license": "UNLICENSED",
-  "exports": {
-    ".": "./src/main.js",
-    "./*": "./src/*.ts"
-  },
+  "private": true,
   "scripts": {
     "check": "run-p check:*",
     "check:nodejs": "tsc -p src/nodejs",
@@ -15,6 +11,10 @@
     "check:browser-runtime-base": "tsc -p src/browser/runtime/base",
     "check:browser-runtime-dom": "tsc -p src/browser/runtime/dom",
     "check:browser-runtime-edge": "tsc -p src/browser/runtime/edge"
+  },
+  "exports": {
+    ".": "./src/main.js",
+    "./*": "./src/*.ts"
   },
   "dependencies": {
     "@types/node": "^18.11.11"

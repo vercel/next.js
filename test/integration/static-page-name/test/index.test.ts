@@ -2,7 +2,14 @@
 
 import path from 'path'
 import webdriver from 'next-webdriver'
-import { launchApp, killApp, findPort, nextBuild, nextStart, renderViaHTTP } from 'next-test-utils'
+import {
+  launchApp,
+  killApp,
+  findPort,
+  nextBuild,
+  nextStart,
+  renderViaHTTP,
+} from 'next-test-utils'
 
 const appDir = path.join(__dirname, '..')
 let app
@@ -24,21 +31,27 @@ const runTests = () => {
 }
 
 describe('Static Page Name', () => {
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
-    runTests()
-  })
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      await nextBuild(appDir)
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
-    runTests()
-  })
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
+      runTests()
+    }
+  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        await nextBuild(appDir)
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
+      runTests()
+    }
+  )
 })

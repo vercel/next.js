@@ -48,7 +48,9 @@ export function interpolateParallelRouteParams(
   const interpolated = structuredClone(params)
 
   // Stack-based traversal with depth tracking
-  const stack: Array<{ tree: LoaderTree; depth: number }> = [{ tree: loaderTree, depth: 0 }]
+  const stack: Array<{ tree: LoaderTree; depth: number }> = [
+    { tree: loaderTree, depth: 0 },
+  ]
 
   // Parse the route from the provided page path.
   const route = parseAppRoute(pagePath, true)
@@ -68,18 +70,30 @@ export function interpolateParallelRouteParams(
     ) {
       const { paramName, paramType } = appSegment.param
 
-      const paramValue = resolveParamValue(paramName, paramType, depth, route, interpolated)
+      const paramValue = resolveParamValue(
+        paramName,
+        paramType,
+        depth,
+        route,
+        interpolated
+      )
 
       if (paramValue !== undefined) {
         interpolated[paramName] = paramValue
       } else if (paramType !== 'optional-catchall') {
-        throw new InvariantError(`Could not resolve param value for segment: ${paramName}`)
+        throw new InvariantError(
+          `Could not resolve param value for segment: ${paramName}`
+        )
       }
     }
 
     // Calculate next depth - increment if this is not a route group and not empty
     let nextDepth = depth
-    if (appSegment && appSegment.type !== 'route-group' && appSegment.type !== 'parallel-route') {
+    if (
+      appSegment &&
+      appSegment.type !== 'route-group' &&
+      appSegment.type !== 'parallel-route'
+    ) {
       nextDepth++
     }
 
@@ -137,7 +151,11 @@ export function getDynamicParam(
     // The value that is passed to user code.
     value,
     // The value that is rendered in the router tree.
-    treeSegment: [segmentKey, Array.isArray(value) ? value.join('/') : value, dynamicParamType],
+    treeSegment: [
+      segmentKey,
+      Array.isArray(value) ? value.join('/') : value,
+      dynamicParamType,
+    ],
     type: dynamicParamType,
   }
 }

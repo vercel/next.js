@@ -10,8 +10,17 @@ import { join, resolve } from 'path'
 import glob from 'glob'
 import Conf from 'next/dist/compiled/conf'
 
-import { getProjectSetting, mapSrcFiles, projectSpecification } from './specification'
-import { CustomTemplateOptions, DefaultTemplateOptions, ProjectDeps, ProjectFiles } from './types'
+import {
+  getProjectSetting,
+  mapSrcFiles,
+  projectSpecification,
+} from './specification'
+import {
+  CustomTemplateOptions,
+  DefaultTemplateOptions,
+  ProjectDeps,
+  ProjectFiles,
+} from './types'
 
 const cli = require.resolve('create-next-app/dist/index.js')
 
@@ -52,7 +61,10 @@ export const createNextApp = (
   })
 }
 
-export const projectShouldHaveNoGitChanges = ({ cwd, projectName }: DefaultTemplateOptions) => {
+export const projectShouldHaveNoGitChanges = ({
+  cwd,
+  projectName,
+}: DefaultTemplateOptions) => {
   const projectDirname = join(cwd, projectName)
 
   try {
@@ -65,7 +77,11 @@ export const projectShouldHaveNoGitChanges = ({ cwd, projectName }: DefaultTempl
   }
 }
 
-export const projectFilesShouldExist = ({ cwd, projectName, files }: ProjectFiles) => {
+export const projectFilesShouldExist = ({
+  cwd,
+  projectName,
+  files,
+}: ProjectFiles) => {
   const projectRoot = resolve(cwd, projectName)
   for (const file of files) {
     try {
@@ -81,7 +97,11 @@ export const projectFilesShouldExist = ({ cwd, projectName, files }: ProjectFile
   }
 }
 
-export const projectFilesShouldNotExist = ({ cwd, projectName, files }: ProjectFiles) => {
+export const projectFilesShouldNotExist = ({
+  cwd,
+  projectName,
+  files,
+}: ProjectFiles) => {
   const projectRoot = resolve(cwd, projectName)
   for (const file of files) {
     try {
@@ -97,7 +117,12 @@ export const projectFilesShouldNotExist = ({ cwd, projectName, files }: ProjectF
   }
 }
 
-export const projectDepsShouldBe = ({ cwd, projectName, type, deps }: ProjectDeps) => {
+export const projectDepsShouldBe = ({
+  cwd,
+  projectName,
+  type,
+  deps,
+}: ProjectDeps) => {
   const projectRoot = resolve(cwd, projectName)
   const pkgJson = require(resolve(projectRoot, 'package.json'))
   expect(Object.keys(pkgJson[type] || {}).sort()).toEqual(deps.sort())
@@ -117,11 +142,18 @@ export const shouldBeTemplateProject = ({
   })
 
   // Tailwind templates share the same files (tailwind.config.mjs, postcss.config.mjs)
-  if (!['app-tw', 'app-tw-empty', 'default-tw', 'default-tw-empty'].includes(template)) {
+  if (
+    !['app-tw', 'app-tw-empty', 'default-tw', 'default-tw-empty'].includes(
+      template
+    )
+  ) {
     projectFilesShouldNotExist({
       cwd,
       projectName,
-      files: mapSrcFiles(projectSpecification[template][mode === 'js' ? 'ts' : 'js'].files, srcDir),
+      files: mapSrcFiles(
+        projectSpecification[template][mode === 'js' ? 'ts' : 'js'].files,
+        srcDir
+      ),
     })
   }
 

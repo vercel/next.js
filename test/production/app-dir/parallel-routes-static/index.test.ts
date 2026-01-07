@@ -12,7 +12,9 @@ describe('app-dir parallel-routes-static', () => {
 
     // we do not output '.rsc' statically with cache components
     if (!process.env.__NEXT_CACHE_COMPONENTS) {
-      expect(await next.hasFile(`.next/server/app/nested/foo${rscExtension}`)).toBe(true)
+      expect(
+        await next.hasFile(`.next/server/app/nested/foo${rscExtension}`)
+      ).toBe(true)
     }
 
     expect(await next.hasFile('.next/server/app/nested/bar.html')).toBe(true)
@@ -20,7 +22,9 @@ describe('app-dir parallel-routes-static', () => {
 
     // we do not output '.rsc' statically with cache components
     if (!process.env.__NEXT_CACHE_COMPONENTS) {
-      expect(await next.hasFile(`.next/server/app/nested/bar${rscExtension}`)).toBe(true)
+      expect(
+        await next.hasFile(`.next/server/app/nested/bar${rscExtension}`)
+      ).toBe(true)
     }
   })
 })

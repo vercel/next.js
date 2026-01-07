@@ -8,7 +8,11 @@ export default function About() {
   return (
     <>
       <div>About</div>
-      {shouldload ? <DynamicShared /> : <button onClick={load}>Load module</button>}
+      {shouldload ? (
+        <DynamicShared />
+      ) : (
+        <button onClick={load}>Load module</button>
+      )}
       <Links />
     </>
   )

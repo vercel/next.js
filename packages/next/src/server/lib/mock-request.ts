@@ -9,7 +9,10 @@ import type { Socket } from 'net'
 import type { TLSSocket } from 'tls'
 
 import Stream from 'stream'
-import { fromNodeOutgoingHttpHeaders, toNodeOutgoingHttpHeaders } from '../web/utils'
+import {
+  fromNodeOutgoingHttpHeaders,
+  toNodeOutgoingHttpHeaders,
+} from '../web/utils'
 
 interface MockedRequestOptions {
   url: string
@@ -49,7 +52,13 @@ export class MockedRequest extends Stream.Readable implements IncomingMessage {
     },
   })
 
-  constructor({ url, headers, method, socket = null, readable }: MockedRequestOptions) {
+  constructor({
+    url,
+    headers,
+    method,
+    socket = null,
+    readable,
+  }: MockedRequestOptions) {
     super()
 
     this.url = url
@@ -174,7 +183,9 @@ export class MockedResponse extends Stream.Writable implements ServerResponse {
 
     this.statusCode = res.statusCode ?? 200
     this.socket = res.socket ?? null
-    this.headers = res.headers ? fromNodeOutgoingHttpHeaders(res.headers) : new Headers()
+    this.headers = res.headers
+      ? fromNodeOutgoingHttpHeaders(res.headers)
+      : new Headers()
 
     this.headPromise = new Promise<void>((resolve) => {
       this.headPromiseResolve = resolve
@@ -246,7 +257,11 @@ export class MockedResponse extends Stream.Writable implements ServerResponse {
    */
   public _implicitHeader() {}
 
-  public _write(chunk: Buffer | string, _encoding: string, callback: () => void) {
+  public _write(
+    chunk: Buffer | string,
+    _encoding: string,
+    callback: () => void
+  ) {
     this.write(chunk)
 
     // According to Node.js documentation, the callback MUST be invoked to
@@ -268,7 +283,11 @@ export class MockedResponse extends Stream.Writable implements ServerResponse {
   ): this
   public writeHead(
     statusCode: number,
-    statusMessage?: string | OutgoingHttpHeaders | OutgoingHttpHeader[] | undefined,
+    statusMessage?:
+      | string
+      | OutgoingHttpHeaders
+      | OutgoingHttpHeader[]
+      | undefined,
     headers?: OutgoingHttpHeaders | OutgoingHttpHeader[] | undefined
   ): this {
     if (!headers && typeof statusMessage !== 'string') {

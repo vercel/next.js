@@ -41,7 +41,10 @@ export function saveCpuProfile(): void {
       return
     }
 
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
+    const timestamp = new Date()
+      .toISOString()
+      .replace(/[:.]/g, '-')
+      .slice(0, 19)
     const baseName = privateCpuProfileName || 'cpu-profile'
     const filename = `${baseName}-${timestamp}.cpuprofile`
 
@@ -56,7 +59,8 @@ export function saveCpuProfile(): void {
     }
 
     fs.writeFileSync(outputPath, JSON.stringify(param.profile))
-    const { green } = require('../../lib/picocolors') as typeof import('../../lib/picocolors')
+    const { green } =
+      require('../../lib/picocolors') as typeof import('../../lib/picocolors')
     console.log(`\n${green('CPU profile saved:')} ${outputPath}`)
     console.log('Open in Chrome DevTools → Performance tab → Load profile')
   })

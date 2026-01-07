@@ -47,7 +47,11 @@ export function registerGetActionByIdTool(server: McpServer, distDir: string) {
           }
         }
 
-        const manifestPath = join(distDir, 'server', 'server-reference-manifest.json')
+        const manifestPath = join(
+          distDir,
+          'server',
+          'server-reference-manifest.json'
+        )
 
         let manifestContent: string
         try {
@@ -68,7 +72,8 @@ export function registerGetActionByIdTool(server: McpServer, distDir: string) {
         // Search in node entries
         if (manifest.node && manifest.node[actionId]) {
           const entry = manifest.node[actionId]
-          const isInlineAction = entry.exportedName.startsWith(INLINE_ACTION_PREFIX)
+          const isInlineAction =
+            entry.exportedName.startsWith(INLINE_ACTION_PREFIX)
           return {
             content: [
               {
@@ -78,7 +83,9 @@ export function registerGetActionByIdTool(server: McpServer, distDir: string) {
                     actionId,
                     runtime: 'node',
                     filename: entry.filename,
-                    functionName: isInlineAction ? 'inline server action' : entry.exportedName,
+                    functionName: isInlineAction
+                      ? 'inline server action'
+                      : entry.exportedName,
                     layer: entry.layer,
                     workers: entry.workers,
                   },
@@ -93,7 +100,8 @@ export function registerGetActionByIdTool(server: McpServer, distDir: string) {
         // Search in edge entries
         if (manifest.edge && manifest.edge[actionId]) {
           const entry = manifest.edge[actionId]
-          const isInlineAction = entry.exportedName.startsWith(INLINE_ACTION_PREFIX)
+          const isInlineAction =
+            entry.exportedName.startsWith(INLINE_ACTION_PREFIX)
           return {
             content: [
               {
@@ -103,7 +111,9 @@ export function registerGetActionByIdTool(server: McpServer, distDir: string) {
                     actionId,
                     runtime: 'edge',
                     filename: entry.filename,
-                    functionName: isInlineAction ? 'inline server action' : entry.exportedName,
+                    functionName: isInlineAction
+                      ? 'inline server action'
+                      : entry.exportedName,
                     layer: entry.layer,
                     workers: entry.workers,
                   },

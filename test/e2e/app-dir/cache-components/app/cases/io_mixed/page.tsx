@@ -8,14 +8,15 @@ export default async function Page() {
   return (
     <>
       <p>
-        This page renders two components. The first calls a simulated IO function wrapped in
-        `unstable_cache`. The second calls the simulated IO function without being wrapped in
-        `unstable_cache`.
+        This page renders two components. The first calls a simulated IO
+        function wrapped in `unstable_cache`. The second calls the simulated IO
+        function without being wrapped in `unstable_cache`.
       </p>
       <p>Each component is wrapped in a Suspense boundary</p>
       <p>
-        With PPR this page should have a static shell that includes the cached IO result and a
-        loading state for the boundary surrounding the uncached IO result.
+        With PPR this page should have a static shell that includes the cached
+        IO result and a loading state for the boundary surrounding the uncached
+        IO result.
       </p>
       <p>Without PPR this page should be dynamic.</p>
       <Suspense fallback="loading...">

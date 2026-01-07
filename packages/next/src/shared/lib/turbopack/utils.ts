@@ -1,4 +1,9 @@
-import type { Issue, PlainTraceItem, StyledString, TurbopackResult } from '../../../build/swc/types'
+import type {
+  Issue,
+  PlainTraceItem,
+  StyledString,
+  TurbopackResult,
+} from '../../../build/swc/types'
 
 import { bold, green, magenta, red } from '../../../lib/picocolors'
 import isInternal from '../is-internal'
@@ -59,7 +64,11 @@ export function processIssues(
   const relevantIssues = new Set()
 
   for (const issue of result.issues) {
-    if (issue.severity !== 'error' && issue.severity !== 'fatal' && issue.severity !== 'warning')
+    if (
+      issue.severity !== 'error' &&
+      issue.severity !== 'fatal' &&
+      issue.severity !== 'warning'
+    )
       continue
 
     const issueKey = getIssueKey(issue)
@@ -86,7 +95,10 @@ export function processIssues(
 export function formatIssue(issue: Issue) {
   const { filePath, title, description, detail, source, importTraces } = issue
   let { documentationLink } = issue
-  const formattedTitle = renderStyledStringToErrorAnsi(title).replace(/\n/g, '\n    ')
+  const formattedTitle = renderStyledStringToErrorAnsi(title).replace(
+    /\n/g,
+    '\n    '
+  )
 
   // TODO: Use error codes to identify these
   // TODO: Generalize adapting Turbopack errors to Next.js errors
@@ -105,7 +117,9 @@ export function formatIssue(issue: Issue) {
 
   if (source?.range) {
     const { start } = source.range
-    message = `${formattedFilePath}:${start.line + 1}:${start.column + 1}\n${formattedTitle}`
+    message = `${formattedFilePath}:${start.line + 1}:${
+      start.column + 1
+    }\n${formattedTitle}`
   } else if (formattedFilePath) {
     message = `${formattedFilePath}\n${formattedTitle}`
   } else {
@@ -141,8 +155,12 @@ export function formatIssue(issue: Issue) {
   }
 
   if (description) {
-    if (description.type === 'text' && description.value.includes(`Cannot find module 'sass'`)) {
-      message += "To use Next.js' built-in Sass support, you first need to install `sass`.\n"
+    if (
+      description.type === 'text' &&
+      description.value.includes(`Cannot find module 'sass'`)
+    ) {
+      message +=
+        "To use Next.js' built-in Sass support, you first need to install `sass`.\n"
       message += 'Run `npm i sass` or `yarn add sass` inside your workspace.\n'
       message += '\nLearn more: https://nextjs.org/docs/messages/install-sass\n'
     } else {
@@ -161,7 +179,8 @@ export function formatIssue(issue: Issue) {
     // different entry points (e.g. ssr, client)
     message += `Import trace${importTraces.length > 1 ? 's' : ''}:\n`
     const everyTraceHasADistinctRootLayer =
-      new Set(importTraces.map(leafLayerName).filter((l) => l != null)).size === importTraces.length
+      new Set(importTraces.map(leafLayerName).filter((l) => l != null)).size ===
+      importTraces.length
     for (let i = 0; i < importTraces.length; i++) {
       const trace = importTraces[i]
       const layer = leafLayerName(trace)
@@ -219,7 +238,11 @@ function identicalLayers(items: PlainTraceItem[]): boolean {
   return true
 }
 
-function formatIssueTrace(items: PlainTraceItem[], indent: string, printLayers: boolean): string {
+function formatIssueTrace(
+  items: PlainTraceItem[],
+  indent: string,
+  printLayers: boolean
+): string {
   return `${items
     .map((item) => {
       let r = indent
@@ -246,7 +269,9 @@ function isNodeModulesIssue(issue: Issue): boolean {
   if (issue.severity === 'warning' && issue.stage === 'config') {
     // Override for the externalize issue
     // `Package foo (serverExternalPackages or default list) can't be external`
-    if (renderStyledStringToErrorAnsi(issue.title).includes("can't be external")) {
+    if (
+      renderStyledStringToErrorAnsi(issue.title).includes("can't be external")
+    ) {
       return false
     }
   }
@@ -285,10 +310,14 @@ export function renderStyledStringToErrorAnsi(string: StyledString): string {
   }
 }
 
-export function isFileSystemCacheEnabledForDev(config: NextConfigComplete): boolean {
+export function isFileSystemCacheEnabledForDev(
+  config: NextConfigComplete
+): boolean {
   return config.experimental?.turbopackFileSystemCacheForDev || false
 }
 
-export function isFileSystemCacheEnabledForBuild(config: NextConfigComplete): boolean {
+export function isFileSystemCacheEnabledForBuild(
+  config: NextConfigComplete
+): boolean {
   return config.experimental?.turbopackFileSystemCacheForBuild || false
 }

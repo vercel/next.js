@@ -271,13 +271,18 @@ describe.each(process.env.IS_TURBOPACK_TEST ? ['turbo'] : ['strict', true])(
       if (
         ordering
           .map((page) => PAGES[page])
-          .some((page) => (mode === 'turbo' ? page.conflictTurbo || page.conflict : page.conflict))
+          .some((page) =>
+            mode === 'turbo'
+              ? page.conflictTurbo || page.conflict
+              : page.conflict
+          )
       ) {
         // Conflict scenarios won't support that case
         continue
       }
       // TODO fix this case
-      let broken = isNextDev || ordering.some((page) => PAGES[page].brokenLoading)
+      let broken =
+        isNextDev || ordering.some((page) => PAGES[page].brokenLoading)
       if (broken) {
         it.todo(name)
         continue
@@ -286,9 +291,11 @@ describe.each(process.env.IS_TURBOPACK_TEST ? ['turbo'] : ['strict', true])(
         const start = PAGES[ordering[0]]
         const browser = await next.browser(start.url)
         const check = async (pageInfo) => {
-          expect(await browser.waitForElementByCss(pageInfo.selector).getComputedCss('color')).toBe(
-            pageInfo.color
-          )
+          expect(
+            await browser
+              .waitForElementByCss(pageInfo.selector)
+              .getComputedCss('color')
+          ).toBe(pageInfo.color)
           if (pageInfo.background) {
             expect(
               await browser
@@ -319,18 +326,26 @@ describe.each(process.env.IS_TURBOPACK_TEST ? ['turbo'] : ['strict', 'loose'])(
   (mode: string) => {
     const { next, isNextDev } = nextTestSetup(options(mode))
     for (const ordering of allPairs) {
-      const name = `should load correct styles navigating ${ordering.join(' -> ')}`
+      const name = `should load correct styles navigating ${ordering.join(
+        ' -> '
+      )}`
       if (
         ordering
           .map((page) => PAGES[page])
-          .some((page) => (mode === 'turbo' ? page.conflictTurbo || page.conflict : page.conflict))
+          .some((page) =>
+            mode === 'turbo'
+              ? page.conflictTurbo || page.conflict
+              : page.conflict
+          )
       ) {
         // Conflict scenarios won't support that case
         continue
       }
       // TODO fix this case
       let broken = ordering.some(
-        (page) => PAGES[page].brokenLoading || (isNextDev && PAGES[page].brokenLoadingDev)
+        (page) =>
+          PAGES[page].brokenLoading ||
+          (isNextDev && PAGES[page].brokenLoadingDev)
       )
       if (broken) {
         it.todo(name)
@@ -340,9 +355,11 @@ describe.each(process.env.IS_TURBOPACK_TEST ? ['turbo'] : ['strict', 'loose'])(
         const start = PAGES[ordering[0]]
         const browser = await next.browser(start.url)
         const check = async (pageInfo) => {
-          expect(await browser.waitForElementByCss(pageInfo.selector).getComputedCss('color')).toBe(
-            pageInfo.color
-          )
+          expect(
+            await browser
+              .waitForElementByCss(pageInfo.selector)
+              .getComputedCss('color')
+          ).toBe(pageInfo.color)
         }
         const navigate = async (page) => {
           await browser.waitForElementByCss('#' + page).click()
@@ -372,11 +389,15 @@ describe.each(process.env.IS_TURBOPACK_TEST ? ['turbo'] : ['strict', 'loose'])(
       }
       it(name, async () => {
         const browser = await next.browser(pageInfo.url)
-        expect(await browser.waitForElementByCss(pageInfo.selector).getComputedCss('color')).toBe(
-          pageInfo.color
-        )
+        expect(
+          await browser
+            .waitForElementByCss(pageInfo.selector)
+            .getComputedCss('color')
+        ).toBe(pageInfo.color)
         if (!isNextDev) {
-          const stylesheets = await browser.elementsByCss("link[rel='stylesheet']")
+          const stylesheets = await browser.elementsByCss(
+            "link[rel='stylesheet']"
+          )
           const files = await Promise.all(
             Array.from(stylesheets).map((e) => e.getAttribute('href'))
           )

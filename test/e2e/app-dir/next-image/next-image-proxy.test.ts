@@ -22,8 +22,14 @@ describe('next-image-proxy', () => {
     proxyPort = await findPort()
 
     const ssl = {
-      key: fs.readFileSync(join(__dirname, 'certificates/localhost-key.pem'), 'utf8'),
-      cert: fs.readFileSync(join(__dirname, 'certificates/localhost.pem'), 'utf8'),
+      key: fs.readFileSync(
+        join(__dirname, 'certificates/localhost-key.pem'),
+        'utf8'
+      ),
+      cert: fs.readFileSync(
+        join(__dirname, 'certificates/localhost.pem'),
+        'utf8'
+      ),
     }
 
     const proxy = httpProxy.createProxyServer({
@@ -82,7 +88,9 @@ describe('next-image-proxy', () => {
       )
     }
 
-    const remote = await browser.elementByCss('#remote-app-page').getAttribute('src')
+    const remote = await browser
+      .elementByCss('#remote-app-page')
+      .getAttribute('src')
     if (process.env.IS_TURBOPACK_TEST) {
       expect(remote).toMatchInlineSnapshot(
         `"/_next/image?url=https%3A%2F%2Fimage-optimization-test.vercel.app%2Ftest.jpg&w=640&q=90"`

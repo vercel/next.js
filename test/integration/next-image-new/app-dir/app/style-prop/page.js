@@ -21,7 +21,13 @@ const Page = () => {
         style={{ width: '10px', borderRadius: '10px', margin: '15px' }}
         loading="eager"
       />
-      <Image id="without-styles" src="/test.webp" width={400} height={400} loading="eager" />
+      <Image
+        id="without-styles"
+        src="/test.webp"
+        width={400}
+        height={400}
+        loading="eager"
+      />
     </div>
   )
 }

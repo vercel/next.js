@@ -1,4 +1,7 @@
-import type { FlightRouterState, FlightSegmentPath } from '../../../../shared/lib/app-router-types'
+import type {
+  FlightRouterState,
+  FlightSegmentPath,
+} from '../../../../shared/lib/app-router-types'
 import { createHrefFromUrl } from '../create-href-from-url'
 import type {
   Mutable,
@@ -49,7 +52,9 @@ export function generateSegmentsFromPatch(
     return [[segment]]
   }
 
-  for (const [parallelRouteKey, parallelRoute] of Object.entries(parallelRoutes)) {
+  for (const [parallelRouteKey, parallelRoute] of Object.entries(
+    parallelRoutes
+  )) {
     for (const childSegment of generateSegmentsFromPatch(parallelRoute)) {
       // If the segment is empty, it means we are at the root of the tree
       if (segment === '') {
@@ -97,7 +102,9 @@ export function handleNavigationResult(
       const onlyHashChange =
         // We don't need to compare the origins, because client-driven
         // navigations are always same-origin.
-        url.pathname === oldUrl.pathname && url.search === oldUrl.search && url.hash !== oldUrl.hash
+        url.pathname === oldUrl.pathname &&
+        url.search === oldUrl.search &&
+        url.hash !== oldUrl.hash
       if (onlyHashChange) {
         // The only updated part of the URL is the hash.
         mutable.onlyHashChange = true
@@ -112,7 +119,8 @@ export function handleNavigationResult(
     }
     case NavigationResultTag.Async: {
       return result.data.then(
-        (asyncResult) => handleNavigationResult(url, state, mutable, pendingPush, asyncResult),
+        (asyncResult) =>
+          handleNavigationResult(url, state, mutable, pendingPush, asyncResult),
         // If the navigation failed, return the current state.
         // TODO: This matches the current behavior but we need to do something
         // better here if the network fails.
@@ -128,7 +136,10 @@ export function handleNavigationResult(
   }
 }
 
-export function navigateReducer(state: ReadonlyReducerState, action: NavigateAction): ReducerState {
+export function navigateReducer(
+  state: ReadonlyReducerState,
+  action: NavigateAction
+): ReducerState {
   const { url, isExternalUrl, navigateType, shouldScroll } = action
   const mutable: Mutable = {}
   const href = createHrefFromUrl(url)

@@ -31,7 +31,9 @@ export default class WebResponseCache {
     }
   ): Promise<ResponseCacheEntry | null> {
     // ensure on-demand revalidate doesn't block normal requests
-    const pendingResponseKey = key ? `${key}-${context.isOnDemandRevalidate ? '1' : '0'}` : null
+    const pendingResponseKey = key
+      ? `${key}-${context.isOnDemandRevalidate ? '1' : '0'}`
+      : null
 
     const pendingResponse = pendingResponseKey
       ? this.pendingResponses.get(pendingResponseKey)
@@ -53,7 +55,10 @@ export default class WebResponseCache {
     const resolve = (cacheEntry: ResponseCacheEntry | null) => {
       if (pendingResponseKey) {
         // Ensure all reads from the cache get the latest value.
-        this.pendingResponses.set(pendingResponseKey, Promise.resolve(cacheEntry))
+        this.pendingResponses.set(
+          pendingResponseKey,
+          Promise.resolve(cacheEntry)
+        )
       }
       if (!hasResolved) {
         hasResolved = true

@@ -11,20 +11,29 @@ export default class ForceCompleteRuntimePlugin {
   ])
 
   apply(compiler: webpack.Compiler) {
-    compiler.hooks.thisCompilation.tap('ForceCompleteRuntimePlugin', (compilation) => {
-      // Ensure that each chunk uses the complete Webpack runtime.
-      // That way soft nav to a new page has the full runtime available
-      // by the time the chunk loads.
-      // This is a workaround until we can get Webpack to include runtime updates
-      // in the Flight response or the Flight Client to wait for HMR updates.
-      compilation.hooks.afterChunks.tap({ name: 'ForceCompleteRuntimePlugin' }, (chunks) => {
-        for (const chunk of chunks) {
-          compilation.chunkGraph.addChunkRuntimeRequirements(chunk, this.allSharedRuntimeGlobals)
-          // Just need to add runtime requirements to one chunk since we only
-          // have one runtime chunk for all other chunks.
-          break
-        }
-      })
-    })
+    compiler.hooks.thisCompilation.tap(
+      'ForceCompleteRuntimePlugin',
+      (compilation) => {
+        // Ensure that each chunk uses the complete Webpack runtime.
+        // That way soft nav to a new page has the full runtime available
+        // by the time the chunk loads.
+        // This is a workaround until we can get Webpack to include runtime updates
+        // in the Flight response or the Flight Client to wait for HMR updates.
+        compilation.hooks.afterChunks.tap(
+          { name: 'ForceCompleteRuntimePlugin' },
+          (chunks) => {
+            for (const chunk of chunks) {
+              compilation.chunkGraph.addChunkRuntimeRequirements(
+                chunk,
+                this.allSharedRuntimeGlobals
+              )
+              // Just need to add runtime requirements to one chunk since we only
+              // have one runtime chunk for all other chunks.
+              break
+            }
+          }
+        )
+      }
+    )
   }
 }

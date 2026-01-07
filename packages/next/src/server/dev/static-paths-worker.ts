@@ -1,5 +1,8 @@
 import type { NextConfigComplete } from '../config-shared'
-import type { AppPageModule, AppPageRouteModule } from '../route-modules/app-page/module'
+import type {
+  AppPageModule,
+  AppPageRouteModule,
+} from '../route-modules/app-page/module'
 import type {
   AppRouteModule,
   AppRouteRouteModule,
@@ -14,7 +17,10 @@ import { loadComponents } from '../load-components'
 import { setHttpClientAndAgentOptions } from '../setup-http-agent-env'
 import type { IncrementalCache } from '../lib/incremental-cache'
 import { isAppPageRouteModule } from '../route-modules/checks'
-import { checkIsRoutePPREnabled, type ExperimentalPPRConfig } from '../lib/experimental/ppr'
+import {
+  checkIsRoutePPREnabled,
+  type ExperimentalPPRConfig,
+} from '../lib/experimental/ppr'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { collectRootParamKeys } from '../../build/segment-config/app/collect-root-param-keys'
 import { buildAppStaticPaths } from '../../build/static-paths/app'
@@ -114,11 +120,14 @@ export async function loadStaticPaths({
 
     const route = parseAppRoute(pathname, true)
     if (route.dynamicSegments.length === 0) {
-      throw new InvariantError(`Expected a dynamic route, but got a static route: ${pathname}`)
+      throw new InvariantError(
+        `Expected a dynamic route, but got a static route: ${pathname}`
+      )
     }
 
     const isRoutePPREnabled =
-      isAppPageRouteModule(routeModule) && checkIsRoutePPREnabled(config.pprConfig)
+      isAppPageRouteModule(routeModule) &&
+      checkIsRoutePPREnabled(config.pprConfig)
 
     const rootParamKeys = collectRootParamKeys(routeModule)
 
@@ -145,7 +154,9 @@ export async function loadStaticPaths({
   } else if (!components.getStaticPaths) {
     // We shouldn't get to this point since the worker should only be called for
     // SSG pages with getStaticPaths.
-    throw new InvariantError(`Failed to load page with getStaticPaths for ${pathname}`)
+    throw new InvariantError(
+      `Failed to load page with getStaticPaths for ${pathname}`
+    )
   }
 
   return buildPagesStaticPaths({

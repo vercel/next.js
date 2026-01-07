@@ -3,10 +3,11 @@ import path from 'path'
 
 describe('Exported runtimes value validation', () => {
   test('fails to build on malformed input', async () => {
-    const result = await nextBuild(path.resolve(__dirname, './invalid-runtime/app'), undefined, {
-      stdout: true,
-      stderr: true,
-    })
+    const result = await nextBuild(
+      path.resolve(__dirname, './invalid-runtime/app'),
+      undefined,
+      { stdout: true, stderr: true }
+    )
     expect(result).toMatchObject({
       code: 1,
       stderr: process.env.IS_TURBOPACK_TEST
@@ -20,10 +21,11 @@ describe('Exported runtimes value validation', () => {
   })
 
   test('fails the build on invalid middleware matcher', async () => {
-    const result = await nextBuild(path.resolve(__dirname, './invalid-middleware'), undefined, {
-      stdout: true,
-      stderr: true,
-    })
+    const result = await nextBuild(
+      path.resolve(__dirname, './invalid-middleware'),
+      undefined,
+      { stdout: true, stderr: true }
+    )
 
     // The build should fail to prevent unexpected behavior
     expect(result.code).toBe(1)
@@ -31,10 +33,14 @@ describe('Exported runtimes value validation', () => {
     // TODO: Turbopack matches the error message but omits the routing & error information
     if (process.env.IS_TURBOPACK_TEST) {
       expect(result.stderr).toEqual(
-        expect.stringContaining("Next.js can't recognize the exported `config` field in route")
+        expect.stringContaining(
+          "Next.js can't recognize the exported `config` field in route"
+        )
       )
       expect(result.stderr).toEqual(
-        expect.stringContaining(' Entry `matcher[1]` need to be static strings or static objects.')
+        expect.stringContaining(
+          ' Entry `matcher[1]` need to be static strings or static objects.'
+        )
       )
     } else {
       expect(result.stderr).toEqual(
@@ -44,16 +50,19 @@ describe('Exported runtimes value validation', () => {
       )
 
       expect(result.stderr).toEqual(
-        expect.stringContaining('Unknown identifier "dynamicPath" at "config.matcher[1]"')
+        expect.stringContaining(
+          'Unknown identifier "dynamicPath" at "config.matcher[1]"'
+        )
       )
     }
   })
 
   test('fails the build on unrecognized runtimes value', async () => {
-    const result = await nextBuild(path.resolve(__dirname, './unsupported-syntax/app'), undefined, {
-      stdout: true,
-      stderr: true,
-    })
+    const result = await nextBuild(
+      path.resolve(__dirname, './unsupported-syntax/app'),
+      undefined,
+      { stdout: true, stderr: true }
+    )
 
     // The build should fail to prevent unexpected behavior
     expect(result.code).toBe(1)
@@ -61,7 +70,9 @@ describe('Exported runtimes value validation', () => {
     // Template Literal with Expressions
     if (process.env.IS_TURBOPACK_TEST) {
       expect(result.stderr).toEqual(
-        expect.stringContaining("Next.js can't recognize the exported `config` field in route")
+        expect.stringContaining(
+          "Next.js can't recognize the exported `config` field in route"
+        )
       )
       // TODO: Turbopack has this information in issue.detail but it's not logged to the user.
       // expect(result.stderr).toEqual(
@@ -85,7 +96,9 @@ describe('Exported runtimes value validation', () => {
     // Binary Expression
     if (process.env.IS_TURBOPACK_TEST) {
       expect(result.stderr).toEqual(
-        expect.stringContaining("Next.js can't recognize the exported `config` field in route")
+        expect.stringContaining(
+          "Next.js can't recognize the exported `config` field in route"
+        )
       )
       // TODO: Turbopack has this information in issue.detail but it's not logged to the user.
       // expect(result.stderr).toEqual(
@@ -100,14 +113,18 @@ describe('Exported runtimes value validation', () => {
         )
       )
       expect(result.stderr).toEqual(
-        expect.stringContaining('Unsupported node type "BinaryExpression" at "config.runtime"')
+        expect.stringContaining(
+          'Unsupported node type "BinaryExpression" at "config.runtime"'
+        )
       )
     }
 
     // Spread Operator within Object Expression
     if (process.env.IS_TURBOPACK_TEST) {
       expect(result.stderr).toEqual(
-        expect.stringContaining("Next.js can't recognize the exported `config` field in route")
+        expect.stringContaining(
+          "Next.js can't recognize the exported `config` field in route"
+        )
       )
       // TODO: Turbopack has this information in issue.detail but it's not logged to the user.
       // expect(result.stderr).toEqual(
@@ -131,7 +148,9 @@ describe('Exported runtimes value validation', () => {
     // Spread Operator within Array Expression
     if (process.env.IS_TURBOPACK_TEST) {
       expect(result.stderr).toEqual(
-        expect.stringContaining("Next.js can't recognize the exported `config` field in route")
+        expect.stringContaining(
+          "Next.js can't recognize the exported `config` field in route"
+        )
       )
       // TODO: Turbopack has this information in issue.detail but it's not logged to the user.
       // expect(result.stderr).toEqual(
@@ -146,7 +165,9 @@ describe('Exported runtimes value validation', () => {
         )
       )
       // ensure only 1 occurrence of the log
-      expect(result.stderr.match(/field in route "\/array-spread-operator"/g)?.length).toBe(1)
+      expect(
+        result.stderr.match(/field in route "\/array-spread-operator"/g)?.length
+      ).toBe(1)
       expect(result.stderr).toEqual(
         expect.stringContaining(
           'Unsupported spread operator in the Array Expression at "config.runtime"'
@@ -157,7 +178,9 @@ describe('Exported runtimes value validation', () => {
     // Unknown Identifier
     if (process.env.IS_TURBOPACK_TEST) {
       expect(result.stderr).toEqual(
-        expect.stringContaining("Next.js can't recognize the exported `config` field in route")
+        expect.stringContaining(
+          "Next.js can't recognize the exported `config` field in route"
+        )
       )
       // TODO: Turbopack has this information in issue.detail but it's not logged to the user.
       // expect(result.stderr).toEqual(
@@ -172,14 +195,18 @@ describe('Exported runtimes value validation', () => {
         )
       )
       expect(result.stderr).toEqual(
-        expect.stringContaining('Unknown identifier "runtime" at "config.runtime".')
+        expect.stringContaining(
+          'Unknown identifier "runtime" at "config.runtime".'
+        )
       )
     }
 
     // Unknown Expression Type
     if (process.env.IS_TURBOPACK_TEST) {
       expect(result.stderr).toEqual(
-        expect.stringContaining("Next.js can't recognize the exported `config` field in route")
+        expect.stringContaining(
+          "Next.js can't recognize the exported `config` field in route"
+        )
       )
       // TODO: Turbopack has this information in issue.detail but it's not logged to the user.
       // expect(result.stderr).toEqual(
@@ -194,14 +221,18 @@ describe('Exported runtimes value validation', () => {
         )
       )
       expect(result.stderr).toEqual(
-        expect.stringContaining('Unsupported node type "CallExpression" at "config.runtime"')
+        expect.stringContaining(
+          'Unsupported node type "CallExpression" at "config.runtime"'
+        )
       )
     }
 
     // Unknown Object Key
     if (process.env.IS_TURBOPACK_TEST) {
       expect(result.stderr).toEqual(
-        expect.stringContaining("Next.js can't recognize the exported `config` field in route")
+        expect.stringContaining(
+          "Next.js can't recognize the exported `config` field in route"
+        )
       )
       // TODO: Turbopack has this information in issue.detail but it's not logged to the user.
       // expect(result.stderr).toEqual(

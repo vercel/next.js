@@ -66,7 +66,9 @@ describe('interception-dynamic-single-segment', () => {
 
     await retry(async () => {
       const modalText = await browser.elementById('modal').text()
-      expect(modalText).toContain('Modal: Settings for Team engineering in Org acme')
+      expect(modalText).toContain(
+        'Modal: Settings for Team engineering in Org acme'
+      )
     })
 
     // The children should still show the team page
@@ -79,7 +81,9 @@ describe('interception-dynamic-single-segment', () => {
     await browser.refresh()
     await retry(async () => {
       const childrenText = await browser.elementById('children').text()
-      expect(childrenText).toContain('Settings for Team engineering in Org acme')
+      expect(childrenText).toContain(
+        'Settings for Team engineering in Org acme'
+      )
     })
   })
 

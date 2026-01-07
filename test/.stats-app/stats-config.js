@@ -4,7 +4,10 @@ const path = require('path')
 const clientGlobs = [
   {
     name: 'Client Bundles (main)',
-    globs: ['.next/static/runtime/+(main|webpack)-*', '.next/static/chunks/!(polyfills*)'],
+    globs: [
+      '.next/static/runtime/+(main|webpack)-*',
+      '.next/static/chunks/!(polyfills*)',
+    ],
   },
   {
     name: 'Legacy Client Bundles (polyfills)',
@@ -12,7 +15,10 @@ const clientGlobs = [
   },
   {
     name: 'Client Pages',
-    globs: ['.next/static/BUILD_ID/pages/!(edge-repeated*)', '.next/static/css/**/*'],
+    globs: [
+      '.next/static/BUILD_ID/pages/!(edge-repeated*)',
+      '.next/static/css/**/*',
+    ],
   },
   {
     name: 'Client Build Manifests',
@@ -24,7 +30,10 @@ const clientGlobs = [
   },
   {
     name: 'Edge SSR bundle Size',
-    globs: ['.next/server/pages/edge-ssr.js', '.next/server/app/app-edge-ssr/page.js'],
+    globs: [
+      '.next/server/pages/edge-ssr.js',
+      '.next/server/app/app-edge-ssr/page.js',
+    ],
     getRequiredFiles: async (nextAppDir, fileName) => {
       if (fileName.startsWith('.next/server/app')) {
         const manifestJson = await fs.readFile(
@@ -36,9 +45,11 @@ const clientGlobs = [
           path.join(nextAppDir, fileName)
         )
 
-        const functionEntry = Object.values(manifest.functions).find((entry) => {
-          return entry.files.includes(manifestFileEntry)
-        })
+        const functionEntry = Object.values(manifest.functions).find(
+          (entry) => {
+            return entry.files.includes(manifestFileEntry)
+          }
+        )
 
         if (functionEntry === undefined) {
           throw new Error(
@@ -57,7 +68,10 @@ const clientGlobs = [
   },
   {
     name: 'Middleware size',
-    globs: ['.next/server/middleware*.js', '.next/server/edge-runtime-webpack.js'],
+    globs: [
+      '.next/server/middleware*.js',
+      '.next/server/edge-runtime-webpack.js',
+    ],
   },
   {
     name: 'Next Runtimes',

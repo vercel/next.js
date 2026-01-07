@@ -11,7 +11,9 @@ describe('create-next-app Biome configuration', () => {
       throw new Error('This test needs to be run with `node run-tests.js`.')
     }
 
-    const pkgPaths = new Map<string, string>(JSON.parse(process.env.NEXT_TEST_PKG_PATHS))
+    const pkgPaths = new Map<string, string>(
+      JSON.parse(process.env.NEXT_TEST_PKG_PATHS)
+    )
 
     nextTgzFilename = pkgPaths.get('next')
   })
@@ -69,9 +71,13 @@ describe('create-next-app Biome configuration', () => {
       const projectDir = join(cwd, projectName)
 
       // Run biome check on the generated project
-      const { exitCode: biomeExitCode, stdout } = await execa('npm', ['run', 'lint'], {
-        cwd: projectDir,
-      })
+      const { exitCode: biomeExitCode, stdout } = await execa(
+        'npm',
+        ['run', 'lint'],
+        {
+          cwd: projectDir,
+        }
+      )
 
       expect(biomeExitCode).toBe(0)
       expect(stdout).toContain('Checked')
@@ -102,9 +108,13 @@ describe('create-next-app Biome configuration', () => {
       const projectDir = join(cwd, projectName)
 
       // Run biome check on the generated project
-      const { exitCode: biomeExitCode, stdout } = await execa('npm', ['run', 'lint'], {
-        cwd: projectDir,
-      })
+      const { exitCode: biomeExitCode, stdout } = await execa(
+        'npm',
+        ['run', 'lint'],
+        {
+          cwd: projectDir,
+        }
+      )
 
       expect(biomeExitCode).toBe(0)
       expect(stdout).toContain('Checked')
@@ -135,9 +145,13 @@ describe('create-next-app Biome configuration', () => {
       const projectDir = join(cwd, projectName)
 
       // Run biome format on the generated project
-      const { exitCode: biomeFormatCode, stdout } = await execa('npm', ['run', 'format'], {
-        cwd: projectDir,
-      })
+      const { exitCode: biomeFormatCode, stdout } = await execa(
+        'npm',
+        ['run', 'format'],
+        {
+          cwd: projectDir,
+        }
+      )
 
       expect(biomeFormatCode).toBe(0)
       expect(stdout).toContain('Formatted')

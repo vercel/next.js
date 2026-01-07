@@ -130,6 +130,8 @@ export async function getPostAndMorePosts(slug, preview) {
 
   return {
     post: data?.PostItem,
-    morePosts: (data?.PostItems?.items || []).filter((item) => item.slug !== slug).slice(0, 2),
+    morePosts: (data?.PostItems?.items || [])
+      .filter((item) => item.slug !== slug)
+      .slice(0, 2),
   };
 }

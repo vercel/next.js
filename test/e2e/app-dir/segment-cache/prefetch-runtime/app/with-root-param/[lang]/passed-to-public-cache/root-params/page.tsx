@@ -13,9 +13,10 @@ export default async function Page() {
     <main>
       <DebugRenderKind />
       <p>
-        This page uses root params (passed to a private cache) and some uncached IO. Root params
-        should always be available in static prerenders, so a runtime prefetch should have them too,
-        and they should not be considered a hanging input.
+        This page uses root params (passed to a private cache) and some uncached
+        IO. Root params should always be available in static prerenders, so a
+        runtime prefetch should have them too, and they should not be considered
+        a hanging input.
       </p>
       <Suspense fallback="Loading 1...">
         <RuntimePrefetchable />

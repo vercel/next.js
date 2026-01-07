@@ -18,7 +18,8 @@ const previewClient = agility.getApi({
   isPreview: true,
 });
 
-export const getClient = (preview = false) => (preview ? previewClient : liveClient);
+export const getClient = (preview = false) =>
+  preview ? previewClient : liveClient;
 
 // This client is used by nested components to fetch additional data within `getStaticProps`
 export class APIClient {
@@ -154,7 +155,9 @@ export async function getAgilityPageProps({ params, preview }) {
 
     //loop through the zone's modules
     await asyncForEach(modulesForThisContentZone, async (moduleItem) => {
-      let ModuleComponentToRender = requireComponentDependencyByName(moduleItem.module);
+      let ModuleComponentToRender = requireComponentDependencyByName(
+        moduleItem.module,
+      );
 
       if (ModuleComponentToRender) {
         //resolve any additional data for the modules

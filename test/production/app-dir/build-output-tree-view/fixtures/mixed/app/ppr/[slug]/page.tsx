@@ -10,7 +10,11 @@ async function getCachedValue(cacheLife: CacheLife) {
   return Math.random()
 }
 
-export default async function Page({ params }: { params: Promise<{ slug: CacheLife }> }) {
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ slug: CacheLife }>
+}) {
   const { slug } = await params
 
   return <p>hello world {await getCachedValue(slug)}</p>

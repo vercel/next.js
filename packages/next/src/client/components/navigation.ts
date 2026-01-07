@@ -212,7 +212,9 @@ export function useParams<T extends Params = Params>(): T {
  * Read more: [Next.js Docs: `useSelectedLayoutSegments`](https://nextjs.org/docs/app/api-reference/functions/use-selected-layout-segments)
  */
 // Client components API
-export function useSelectedLayoutSegments(parallelRouteKey: string = 'children'): string[] {
+export function useSelectedLayoutSegments(
+  parallelRouteKey: string = 'children'
+): string[] {
   useDynamicRouteParams?.('useSelectedLayoutSegments()')
 
   const context = useContext(LayoutRouterContext)
@@ -223,7 +225,8 @@ export function useSelectedLayoutSegments(parallelRouteKey: string = 'children')
   if (process.env.NODE_ENV !== 'production' && 'use' in React) {
     const navigationPromises = use(NavigationPromisesContext)
     if (navigationPromises) {
-      const promise = navigationPromises.selectedLayoutSegmentsPromises?.get(parallelRouteKey)
+      const promise =
+        navigationPromises.selectedLayoutSegmentsPromises?.get(parallelRouteKey)
       if (promise) {
         // We should always have a promise here, but if we don't, it's not worth erroring over.
         // We just won't be able to instrument it, but can still provide the value.
@@ -254,14 +257,21 @@ export function useSelectedLayoutSegments(parallelRouteKey: string = 'children')
  * Read more: [Next.js Docs: `useSelectedLayoutSegment`](https://nextjs.org/docs/app/api-reference/functions/use-selected-layout-segment)
  */
 // Client components API
-export function useSelectedLayoutSegment(parallelRouteKey: string = 'children'): string | null {
+export function useSelectedLayoutSegment(
+  parallelRouteKey: string = 'children'
+): string | null {
   useDynamicRouteParams?.('useSelectedLayoutSegment()')
   const navigationPromises = useContext(NavigationPromisesContext)
   const selectedLayoutSegments = useSelectedLayoutSegments(parallelRouteKey)
 
   // Instrument with Suspense DevTools (dev-only)
-  if (process.env.NODE_ENV !== 'production' && navigationPromises && 'use' in React) {
-    const promise = navigationPromises.selectedLayoutSegmentPromises?.get(parallelRouteKey)
+  if (
+    process.env.NODE_ENV !== 'production' &&
+    navigationPromises &&
+    'use' in React
+  ) {
+    const promise =
+      navigationPromises.selectedLayoutSegmentPromises?.get(parallelRouteKey)
     if (promise) {
       // We should always have a promise here, but if we don't, it's not worth erroring over.
       // We just won't be able to instrument it, but can still provide the value.

@@ -1,6 +1,9 @@
 import { debugPrint, getFullUrl, waitFor } from 'next-test-utils'
 import os from 'os'
-import { Playwright, PlaywrightNavigationWaitUntil } from './browsers/playwright'
+import {
+  Playwright,
+  PlaywrightNavigationWaitUntil,
+} from './browsers/playwright'
 import { Page } from 'playwright'
 
 export type { Playwright }
@@ -142,7 +145,11 @@ export default async function webdriver(
   )
   ;(global as any).browserName = browserName
 
-  const fullUrl = getFullUrl(appPortOrUrl, url, isBrowserStack ? deviceIP : 'localhost')
+  const fullUrl = getFullUrl(
+    appPortOrUrl,
+    url,
+    isBrowserStack ? deviceIP : 'localhost'
+  )
 
   debugPrint(`Loading browser with ${fullUrl}`)
 
@@ -169,7 +176,8 @@ export default async function webdriver(
           if (
             !document.documentElement.innerHTML.includes('__NEXT_DATA__') &&
             // @ts-ignore next exists on window if it's a Next.js page.
-            typeof ((window as any).next && (window as any).next.version) === 'undefined'
+            typeof ((window as any).next && (window as any).next.version) ===
+              'undefined'
           ) {
             console.log('Not a next.js page, resolving hydrate check')
             callback()

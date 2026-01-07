@@ -63,10 +63,14 @@ export async function buildPagesStaticPaths({
   }
 
   if (
-    !(typeof staticPathsResult.fallback === 'boolean' || staticPathsResult.fallback === 'blocking')
+    !(
+      typeof staticPathsResult.fallback === 'boolean' ||
+      staticPathsResult.fallback === 'blocking'
+    )
   ) {
     throw new Error(
-      `The \`fallback\` key must be returned from getStaticPaths in ${page}.\n` + expectedReturnVal
+      `The \`fallback\` key must be returned from getStaticPaths in ${page}.\n` +
+        expectedReturnVal
     )
   }
 
@@ -106,7 +110,9 @@ export async function buildPagesStaticPaths({
       // delimiters
       const pathname = entry
         .split('/')
-        .map((segment) => escapePathDelimiters(decodeURIComponent(segment), true))
+        .map((segment) =>
+          escapePathDelimiters(decodeURIComponent(segment), true)
+        )
         .join('/')
 
       if (!prerenderedRoutesByPathname.has(pathname)) {
@@ -124,7 +130,9 @@ export async function buildPagesStaticPaths({
     // For the object-provided path, we must make sure it specifies all
     // required keys.
     else {
-      const invalidKeys = Object.keys(entry).filter((key) => key !== 'params' && key !== 'locale')
+      const invalidKeys = Object.keys(entry).filter(
+        (key) => key !== 'params' && key !== 'locale'
+      )
 
       if (invalidKeys.length) {
         throw new Error(
@@ -147,7 +155,9 @@ export async function buildPagesStaticPaths({
         if (
           optional &&
           params.hasOwnProperty(validParamKey) &&
-          (paramValue === null || paramValue === undefined || (paramValue as any) === false)
+          (paramValue === null ||
+            paramValue === undefined ||
+            (paramValue as any) === false)
         ) {
           paramValue = []
         }

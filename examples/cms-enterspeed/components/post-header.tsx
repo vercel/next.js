@@ -13,7 +13,13 @@ type Props = {
   categories: string[];
 };
 
-export default function PostHeader({ title, coverImage, date, author, categories }: Props) {
+export default function PostHeader({
+  title,
+  coverImage,
+  date,
+  author,
+  categories,
+}: Props) {
   return (
     <>
       <PostTitle>{title}</PostTitle>

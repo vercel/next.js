@@ -7,7 +7,10 @@ import type {
 } from 'webpack'
 
 // Shared between webpack 4 and 5:
-function injectRefreshFunctions(compilation: WebpackCompilation, Template: typeof WebpackTemplate) {
+function injectRefreshFunctions(
+  compilation: WebpackCompilation,
+  Template: typeof WebpackTemplate
+) {
   const hookVars: any = (compilation.mainTemplate.hooks as any).localVars
 
   hookVars.tap('ReactFreshWebpackPlugin', (source: string) =>
@@ -50,7 +53,9 @@ function webpack4(this: ReactFreshWebpackPlugin, compiler: WebpackCompiler) {
 
       const lines = source.split('\n')
       // @ts-ignore webpack 5 types compat
-      const evalIndex = lines.findIndex((l) => l.includes('modules[moduleId].call('))
+      const evalIndex = lines.findIndex((l) =>
+        l.includes('modules[moduleId].call(')
+      )
       // Unable to find the module execution, that's OK:
       if (evalIndex === -1) {
         return source
@@ -91,44 +96,45 @@ function webpack5(this: ReactFreshWebpackPlugin, compiler: WebpackCompiler) {
       const { runtimeTemplate } = this.compilation!
       return Template.asString([
         `if (${RuntimeGlobals.interceptModuleExecution}) {`,
-        `${RuntimeGlobals.interceptModuleExecution}.push(${runtimeTemplate.basicFunction(
-          'options',
-          [
-            `${
-              runtimeTemplate.supportsConst() ? 'const' : 'var'
-            } originalFactory = options.factory;`,
-            `options.factory = ${runtimeTemplate.basicFunction(
-              'moduleObject, moduleExports, webpackRequire',
-              [
-                // If the original factory is missing, e.g. due to race condition
-                // when compiling multiple entries concurrently, recover by doing
-                // a full page reload.
-                'if (!originalFactory) {',
-                Template.indent('document.location.reload();'),
-                Template.indent('return;'),
-                '}',
-                // Legacy CSS implementations will `eval` browser code in a Node.js
-                // context to extract CSS. For backwards compatibility, we need to check
-                // we're in a browser context before continuing.
-                `${
-                  runtimeTemplate.supportsConst() ? 'const' : 'var'
-                } hasRefresh = typeof self !== "undefined" && !!self.$RefreshInterceptModuleExecution$;`,
-                `${
-                  runtimeTemplate.supportsConst() ? 'const' : 'var'
-                } cleanup = hasRefresh ? self.$RefreshInterceptModuleExecution$(moduleObject.id) : ${
-                  runtimeTemplate.supportsArrowFunction() ? '() => {}' : 'function() {}'
-                };`,
-                'try {',
-                Template.indent(
-                  'originalFactory.call(this, moduleObject, moduleExports, webpackRequire);'
-                ),
-                '} finally {',
-                Template.indent(`cleanup();`),
-                '}',
-              ]
-            )}`,
-          ]
-        )})`,
+        `${
+          RuntimeGlobals.interceptModuleExecution
+        }.push(${runtimeTemplate.basicFunction('options', [
+          `${
+            runtimeTemplate.supportsConst() ? 'const' : 'var'
+          } originalFactory = options.factory;`,
+          `options.factory = ${runtimeTemplate.basicFunction(
+            'moduleObject, moduleExports, webpackRequire',
+            [
+              // If the original factory is missing, e.g. due to race condition
+              // when compiling multiple entries concurrently, recover by doing
+              // a full page reload.
+              'if (!originalFactory) {',
+              Template.indent('document.location.reload();'),
+              Template.indent('return;'),
+              '}',
+              // Legacy CSS implementations will `eval` browser code in a Node.js
+              // context to extract CSS. For backwards compatibility, we need to check
+              // we're in a browser context before continuing.
+              `${
+                runtimeTemplate.supportsConst() ? 'const' : 'var'
+              } hasRefresh = typeof self !== "undefined" && !!self.$RefreshInterceptModuleExecution$;`,
+              `${
+                runtimeTemplate.supportsConst() ? 'const' : 'var'
+              } cleanup = hasRefresh ? self.$RefreshInterceptModuleExecution$(moduleObject.id) : ${
+                runtimeTemplate.supportsArrowFunction()
+                  ? '() => {}'
+                  : 'function() {}'
+              };`,
+              'try {',
+              Template.indent(
+                'originalFactory.call(this, moduleObject, moduleExports, webpackRequire);'
+              ),
+              '} finally {',
+              Template.indent(`cleanup();`),
+              '}',
+            ]
+          )}`,
+        ])})`,
         '}',
       ])
     }

@@ -64,11 +64,18 @@ export class ModulesData {
     // Parse modules.data
     const modulesDataView = new DataView(modulesArrayBuffer)
     const modulesJsonLength = modulesDataView.getUint32(0, false)
-    const modulesJsonBytes = new Uint8Array(modulesArrayBuffer, 4, modulesJsonLength)
+    const modulesJsonBytes = new Uint8Array(
+      modulesArrayBuffer,
+      4,
+      modulesJsonLength
+    )
     const modulesJsonString = new TextDecoder('utf-8').decode(modulesJsonBytes)
     this.modulesHeader = JSON.parse(modulesJsonString) as ModulesDataHeader
     const modulesBinaryOffset = 4 + modulesJsonLength
-    this.modulesBinaryData = new DataView(modulesArrayBuffer, modulesBinaryOffset)
+    this.modulesBinaryData = new DataView(
+      modulesArrayBuffer,
+      modulesBinaryOffset
+    )
 
     // Build pathToModuleIndex map
     this.pathToModuleIndex = new Map()
@@ -96,7 +103,10 @@ export class ModulesData {
   }
 
   // Read edges data for a specific index only
-  private readEdgesDataAtIndex(reference: EdgesDataReference, index: ModuleIndex): ModuleIndex[] {
+  private readEdgesDataAtIndex(
+    reference: EdgesDataReference,
+    index: ModuleIndex
+  ): ModuleIndex[] {
     const { offset, length } = reference
 
     if (length === 0) {
@@ -113,8 +123,16 @@ export class ModulesData {
     // Read only the two offsets we need
     const offsetsStart = offset + 4
     const prevOffset =
-      index === 0 ? 0 : this.modulesBinaryData.getUint32(offsetsStart + (index - 1) * 4, false)
-    const currentOffset = this.modulesBinaryData.getUint32(offsetsStart + index * 4, false)
+      index === 0
+        ? 0
+        : this.modulesBinaryData.getUint32(
+            offsetsStart + (index - 1) * 4,
+            false
+          )
+    const currentOffset = this.modulesBinaryData.getUint32(
+      offsetsStart + index * 4,
+      false
+    )
 
     const edgeCount = currentOffset - prevOffset
     if (edgeCount === 0) {
@@ -125,7 +143,10 @@ export class ModulesData {
     const dataStart = offset + 4 + numOffsets * 4
     const edges: number[] = []
     for (let j = 0; j < edgeCount; j++) {
-      const edgeValue = this.modulesBinaryData.getUint32(dataStart + (prevOffset + j) * 4, false)
+      const edgeValue = this.modulesBinaryData.getUint32(
+        dataStart + (prevOffset + j) * 4,
+        false
+      )
       edges.push(edgeValue)
     }
 
@@ -133,19 +154,31 @@ export class ModulesData {
   }
 
   moduleDependents(index: ModuleIndex): ModuleIndex[] {
-    return this.readEdgesDataAtIndex(this.modulesHeader.module_dependents, index)
+    return this.readEdgesDataAtIndex(
+      this.modulesHeader.module_dependents,
+      index
+    )
   }
 
   asyncModuleDependents(index: ModuleIndex): ModuleIndex[] {
-    return this.readEdgesDataAtIndex(this.modulesHeader.async_module_dependents, index)
+    return this.readEdgesDataAtIndex(
+      this.modulesHeader.async_module_dependents,
+      index
+    )
   }
 
   moduleDependencies(index: ModuleIndex): ModuleIndex[] {
-    return this.readEdgesDataAtIndex(this.modulesHeader.module_dependencies, index)
+    return this.readEdgesDataAtIndex(
+      this.modulesHeader.module_dependencies,
+      index
+    )
   }
 
   asyncModuleDependencies(index: ModuleIndex): ModuleIndex[] {
-    return this.readEdgesDataAtIndex(this.modulesHeader.async_module_dependencies, index)
+    return this.readEdgesDataAtIndex(
+      this.modulesHeader.async_module_dependencies,
+      index
+    )
   }
 
   getRawModulesHeader(): ModulesDataHeader {
@@ -165,11 +198,18 @@ export class AnalyzeData {
     // Parse analyze.data
     const analyzeDataView = new DataView(analyzeArrayBuffer)
     const analyzeJsonLength = analyzeDataView.getUint32(0, false)
-    const analyzeJsonBytes = new Uint8Array(analyzeArrayBuffer, 4, analyzeJsonLength)
+    const analyzeJsonBytes = new Uint8Array(
+      analyzeArrayBuffer,
+      4,
+      analyzeJsonLength
+    )
     const analyzeJsonString = new TextDecoder('utf-8').decode(analyzeJsonBytes)
     this.analyzeHeader = JSON.parse(analyzeJsonString) as AnalyzeDataHeader
     const analyzeBinaryOffset = 4 + analyzeJsonLength
-    this.analyzeBinaryData = new DataView(analyzeArrayBuffer, analyzeBinaryOffset)
+    this.analyzeBinaryData = new DataView(
+      analyzeArrayBuffer,
+      analyzeBinaryOffset
+    )
 
     // Build pathToSourceIndex map
     this.pathToSourceIndex = new Map()
@@ -216,7 +256,10 @@ export class AnalyzeData {
   // Methods to read edges data from the binary section
 
   // Read edges data for a specific index only
-  private readEdgesDataAtIndex(reference: EdgesDataReference, index: SourceIndex): SourceIndex[] {
+  private readEdgesDataAtIndex(
+    reference: EdgesDataReference,
+    index: SourceIndex
+  ): SourceIndex[] {
     const { offset, length } = reference
 
     if (length === 0) {
@@ -233,8 +276,16 @@ export class AnalyzeData {
     // Read only the two offsets we need
     const offsetsStart = offset + 4
     const prevOffset =
-      index === 0 ? 0 : this.analyzeBinaryData.getUint32(offsetsStart + (index - 1) * 4, false)
-    const currentOffset = this.analyzeBinaryData.getUint32(offsetsStart + index * 4, false)
+      index === 0
+        ? 0
+        : this.analyzeBinaryData.getUint32(
+            offsetsStart + (index - 1) * 4,
+            false
+          )
+    const currentOffset = this.analyzeBinaryData.getUint32(
+      offsetsStart + index * 4,
+      false
+    )
 
     const edgeCount = currentOffset - prevOffset
     if (edgeCount === 0) {
@@ -245,7 +296,10 @@ export class AnalyzeData {
     const dataStart = offset + 4 + numOffsets * 4
     const edges: number[] = []
     for (let j = 0; j < edgeCount; j++) {
-      const edgeValue = this.analyzeBinaryData.getUint32(dataStart + (prevOffset + j) * 4, false)
+      const edgeValue = this.analyzeBinaryData.getUint32(
+        dataStart + (prevOffset + j) * 4,
+        false
+      )
       edges.push(edgeValue)
     }
 
@@ -253,11 +307,17 @@ export class AnalyzeData {
   }
 
   outputFileChunkParts(index: number): number[] {
-    return this.readEdgesDataAtIndex(this.analyzeHeader.output_file_chunk_parts, index)
+    return this.readEdgesDataAtIndex(
+      this.analyzeHeader.output_file_chunk_parts,
+      index
+    )
   }
 
   sourceChunkParts(index: SourceIndex): number[] {
-    return this.readEdgesDataAtIndex(this.analyzeHeader.source_chunk_parts, index)
+    return this.readEdgesDataAtIndex(
+      this.analyzeHeader.source_chunk_parts,
+      index
+    )
   }
 
   sourceChildren(index: SourceIndex): SourceIndex[] {
@@ -299,7 +359,8 @@ export class AnalyzeData {
     filterSource: (sourceIndex: SourceIndex) => boolean
   ): number {
     const selfVisible = filterSource(index)
-    const selfCount = selfVisible && this.sourceChunkParts(index).length > 0 ? 1 : 0
+    const selfCount =
+      selfVisible && this.sourceChunkParts(index).length > 0 ? 1 : 0
 
     const children = this.sourceChildren(index)
     if (children.length === 0) {
@@ -345,8 +406,10 @@ export class AnalyzeData {
     }
 
     for (const childIndex of this.sourceChildren(index)) {
-      const { size: childUncompressedSize, compressedSize: childCompressedSize } =
-        this.getRecursiveSizes(childIndex, filterSource)
+      const {
+        size: childUncompressedSize,
+        compressedSize: childCompressedSize,
+      } = this.getRecursiveSizes(childIndex, filterSource)
       size += childUncompressedSize
       compressedSize += childCompressedSize
     }
@@ -403,12 +466,16 @@ export class AnalyzeData {
 
   isPolyfillModule(index: SourceIndex): boolean {
     const fullSourcePath = this.getFullSourcePath(index)
-    return fullSourcePath.endsWith('node_modules/next/dist/build/polyfills/polyfill-module.js')
+    return fullSourcePath.endsWith(
+      'node_modules/next/dist/build/polyfills/polyfill-module.js'
+    )
   }
 
   isPolyfillNoModule(index: SourceIndex): boolean {
     const fullSourcePath = this.getFullSourcePath(index)
-    return fullSourcePath.endsWith('node_modules/next/dist/build/polyfills/polyfill-nomodule.js')
+    return fullSourcePath.endsWith(
+      'node_modules/next/dist/build/polyfills/polyfill-nomodule.js'
+    )
   }
 
   // Get the raw header for debugging

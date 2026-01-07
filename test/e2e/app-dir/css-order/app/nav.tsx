@@ -41,12 +41,20 @@ export default function Nav() {
           </Link>
         </li>
         <li>
-          <Link href={'/big-interleaved/a'} id="big-interleaved-a" prefetch={false}>
+          <Link
+            href={'/big-interleaved/a'}
+            id="big-interleaved-a"
+            prefetch={false}
+          >
             Big Interleaved A
           </Link>
         </li>
         <li>
-          <Link href={'/big-interleaved/b'} id="big-interleaved-b" prefetch={false}>
+          <Link
+            href={'/big-interleaved/b'}
+            id="big-interleaved-b"
+            prefetch={false}
+          >
             Big Interleaved B
           </Link>
         </li>
@@ -61,12 +69,20 @@ export default function Nav() {
           </Link>
         </li>
         <li>
-          <Link href={'/partial-reversed/a'} id="partial-reversed-a" prefetch={false}>
+          <Link
+            href={'/partial-reversed/a'}
+            id="partial-reversed-a"
+            prefetch={false}
+          >
             Partial Reversed A
           </Link>
         </li>
         <li>
-          <Link href={'/partial-reversed/b'} id="partial-reversed-b" prefetch={false}>
+          <Link
+            href={'/partial-reversed/b'}
+            id="partial-reversed-b"
+            prefetch={false}
+          >
             Partial Reversed B
           </Link>
         </li>
@@ -104,32 +120,56 @@ export default function Nav() {
           </Link>
         </li>
         <li>
-          <Link href={'/pages/interleaved/a'} id="pages-interleaved-a" prefetch={false}>
+          <Link
+            href={'/pages/interleaved/a'}
+            id="pages-interleaved-a"
+            prefetch={false}
+          >
             Interleaved A
           </Link>
         </li>
         <li>
-          <Link href={'/pages/interleaved/b'} id="pages-interleaved-b" prefetch={false}>
+          <Link
+            href={'/pages/interleaved/b'}
+            id="pages-interleaved-b"
+            prefetch={false}
+          >
             Interleaved B
           </Link>
         </li>{' '}
         <li>
-          <Link href={'/pages/reversed/a'} id="pages-reversed-a" prefetch={false}>
+          <Link
+            href={'/pages/reversed/a'}
+            id="pages-reversed-a"
+            prefetch={false}
+          >
             Reversed A
           </Link>
         </li>
         <li>
-          <Link href={'/pages/reversed/b'} id="pages-reversed-b" prefetch={false}>
+          <Link
+            href={'/pages/reversed/b'}
+            id="pages-reversed-b"
+            prefetch={false}
+          >
             Reversed B
           </Link>
         </li>
         <li>
-          <Link href={'/pages/partial-reversed/a'} id="pages-partial-reversed-a" prefetch={false}>
+          <Link
+            href={'/pages/partial-reversed/a'}
+            id="pages-partial-reversed-a"
+            prefetch={false}
+          >
             Partial Reversed A
           </Link>
         </li>
         <li>
-          <Link href={'/pages/partial-reversed/b'} id="pages-partial-reversed-b" prefetch={false}>
+          <Link
+            href={'/pages/partial-reversed/b'}
+            id="pages-partial-reversed-b"
+            prefetch={false}
+          >
             Partial Reversed B
           </Link>
         </li>

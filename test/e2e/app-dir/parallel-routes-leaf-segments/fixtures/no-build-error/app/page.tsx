@@ -10,7 +10,9 @@ export default function HomePage() {
             <Link href="/leaf-segment">Leaf Segment (No Default Required)</Link>
           </li>
           <li>
-            <Link href="/leaf-with-groups">Leaf with Route Groups (No Default Required)</Link>
+            <Link href="/leaf-with-groups">
+              Leaf with Route Groups (No Default Required)
+            </Link>
           </li>
         </ul>
       </nav>

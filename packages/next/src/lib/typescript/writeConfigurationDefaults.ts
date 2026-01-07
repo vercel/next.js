@@ -44,7 +44,8 @@ function getDesiredCompilerOptions(
   return {
     target: {
       suggested: 'ES2017',
-      reason: 'For top-level `await`. Note: Next.js only polyfills for the esmodules target.',
+      reason:
+        'For top-level `await`. Note: Next.js only polyfills for the esmodules target.',
     },
     // These are suggested values and will be set when not present in the
     // tsconfig.json
@@ -156,7 +157,10 @@ export function getRequiredConfiguration(
       }
       res[optionKey] = moduleMap[value.toLowerCase()] ?? value
     } else if (optionKey === 'moduleResolution' && typeof value === 'string') {
-      const moduleResolutionMap: Record<string, import('typescript').ModuleResolutionKind> = {
+      const moduleResolutionMap: Record<
+        string,
+        import('typescript').ModuleResolutionKind
+      > = {
         bundler: typescript.ModuleResolutionKind.Bundler,
         node10: typescript.ModuleResolutionKind.Node10,
         node12: (typescript.ModuleResolutionKind as any).Node12,
@@ -176,7 +180,8 @@ export function getRequiredConfiguration(
   return res
 }
 
-const localDevTestFilesExcludeAction = 'NEXT_PRIVATE_LOCAL_DEV_TEST_FILES_EXCLUDE'
+const localDevTestFilesExcludeAction =
+  'NEXT_PRIVATE_LOCAL_DEV_TEST_FILES_EXCLUDE'
 
 export async function writeConfigurationDefaults(
   typescriptVersion: string,
@@ -207,7 +212,10 @@ export async function writeConfigurationDefaults(
     isFirstTimeSetup = true
   }
 
-  const desiredCompilerOptions = getDesiredCompilerOptions(typescriptVersion, userTsConfig)
+  const desiredCompilerOptions = getDesiredCompilerOptions(
+    typescriptVersion,
+    userTsConfig
+  )
 
   const suggestedActions: string[] = []
   const requiredActions: string[] = []
@@ -251,7 +259,10 @@ export async function writeConfigurationDefaults(
         }
         userTsConfig.compilerOptions[optionKey] = check.value
         requiredActions.push(
-          cyan(optionKey) + ' was set to ' + bold(check.value) + ` (${check.reason})`
+          cyan(optionKey) +
+            ' was set to ' +
+            bold(check.value) +
+            ` (${check.reason})`
         )
       }
     } else {
@@ -260,11 +271,16 @@ export async function writeConfigurationDefaults(
   }
 
   const resolvedIsolatedDevBuild =
-    isolatedDevBuild === undefined ? defaultConfig.experimental.isolatedDevBuild : isolatedDevBuild
+    isolatedDevBuild === undefined
+      ? defaultConfig.experimental.isolatedDevBuild
+      : isolatedDevBuild
 
   // Get type definition glob patterns using shared utility to ensure consistency
   // with other TypeScript infrastructure (e.g., runTypeCheck.ts)
-  const nextTypes = getTypeDefinitionGlobPatterns(distDir, resolvedIsolatedDevBuild)
+  const nextTypes = getTypeDefinitionGlobPatterns(
+    distDir,
+    resolvedIsolatedDevBuild
+  )
 
   if (!('include' in userTsConfig)) {
     const defaultInclude =
@@ -294,7 +310,9 @@ export async function writeConfigurationDefaults(
 
       missingFromResolved.forEach((item) => {
         userTsConfig.include.push(item)
-        suggestedActions.push(cyan('include') + ' was updated to add ' + bold(`'${item}'`))
+        suggestedActions.push(
+          cyan('include') + ' was updated to add ' + bold(`'${item}'`)
+        )
       })
     }
   }
@@ -304,11 +322,14 @@ export async function writeConfigurationDefaults(
     // Check if the config or the resolved config has the plugin already.
     const plugins = [
       ...(Array.isArray(userTsConfig?.plugins) ? userTsConfig.plugins : []),
-      ...(userTsConfig.compilerOptions && Array.isArray(userTsConfig.compilerOptions.plugins)
+      ...(userTsConfig.compilerOptions &&
+      Array.isArray(userTsConfig.compilerOptions.plugins)
         ? userTsConfig.compilerOptions.plugins
         : []),
     ]
-    const hasNextPlugin = plugins.some(({ name }: { name: string }) => name === 'next')
+    const hasNextPlugin = plugins.some(
+      ({ name }: { name: string }) => name === 'next'
+    )
 
     // If the TS config extends on another config, we can't add the `plugin` field
     // because that will override the parent config's plugins.
@@ -318,7 +339,8 @@ export async function writeConfigurationDefaults(
       (plugins.length &&
         !hasNextPlugin &&
         'extends' in userTsConfig &&
-        (!userTsConfig.compilerOptions || !userTsConfig.compilerOptions.plugins))
+        (!userTsConfig.compilerOptions ||
+          !userTsConfig.compilerOptions.plugins))
     ) {
       Log.info(
         `\nYour ${bold(
@@ -332,7 +354,9 @@ export async function writeConfigurationDefaults(
         userTsConfig.compilerOptions.plugins = []
       }
       userTsConfig.compilerOptions.plugins.push({ name: 'next' })
-      suggestedActions.push(cyan('plugins') + ' was updated to add ' + bold(`{ name: 'next' }`))
+      suggestedActions.push(
+        cyan('plugins') + ' was updated to add ' + bold(`{ name: 'next' }`)
+      )
     }
 
     // If `strict` is set to `false` and `strictNullChecks` is set to `false`,
@@ -344,13 +368,17 @@ export async function writeConfigurationDefaults(
       !('strictNullChecks' in userTsConfig?.compilerOptions)
     ) {
       userTsConfig.compilerOptions.strictNullChecks = true
-      suggestedActions.push(cyan('strictNullChecks') + ' was set to ' + bold(`true`))
+      suggestedActions.push(
+        cyan('strictNullChecks') + ' was set to ' + bold(`true`)
+      )
     }
   }
 
   if (!('exclude' in userTsConfig)) {
     userTsConfig.exclude = ['node_modules']
-    suggestedActions.push(cyan('exclude') + ' was set to ' + bold(`['node_modules']`))
+    suggestedActions.push(
+      cyan('exclude') + ' was set to ' + bold(`['node_modules']`)
+    )
   }
 
   // During local development inside Next.js repo, exclude the test files coverage by the local tsconfig
@@ -376,12 +404,17 @@ export async function writeConfigurationDefaults(
     return
   }
 
-  writeFileSync(tsConfigPath, CommentJson.stringify(userTsConfig, null, 2) + os.EOL)
+  writeFileSync(
+    tsConfigPath,
+    CommentJson.stringify(userTsConfig, null, 2) + os.EOL
+  )
 
   Log.info('')
   if (isFirstTimeSetup) {
     Log.info(
-      `We detected TypeScript in your project and created a ${cyan('tsconfig.json')} file for you.`
+      `We detected TypeScript in your project and created a ${cyan(
+        'tsconfig.json'
+      )} file for you.`
     )
     return
   }
@@ -409,12 +442,16 @@ export async function writeConfigurationDefaults(
   }
 
   const requiredActionsToBeLogged = process.env.NEXT_PRIVATE_LOCAL_DEV
-    ? requiredActions.filter((action) => action !== localDevTestFilesExcludeAction)
+    ? requiredActions.filter(
+        (action) => action !== localDevTestFilesExcludeAction
+      )
     : requiredActions
 
   if (requiredActionsToBeLogged.length) {
     Log.info(
-      `The following ${white('mandatory changes')} were made to your ${cyan('tsconfig.json')}:\n`
+      `The following ${white('mandatory changes')} were made to your ${cyan(
+        'tsconfig.json'
+      )}:\n`
     )
 
     requiredActionsToBeLogged.forEach((action) => Log.info(`\t- ${action}`))

@@ -15,6 +15,8 @@ function makeUntrackedParams(underlyingParams: Params): Promise<Params> {
   return promise
 }
 
-export function createRenderParamsFromClient(clientParams: Params): Promise<Params> {
+export function createRenderParamsFromClient(
+  clientParams: Params
+): Promise<Params> {
   return makeUntrackedParams(clientParams)
 }

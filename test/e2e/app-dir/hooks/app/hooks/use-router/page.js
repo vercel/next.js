@@ -8,7 +8,10 @@ export default function Page() {
   return (
     <>
       <h1 id="router">hello from /hooks/use-router</h1>
-      <button id="button-push" onClick={() => router.push('/hooks/use-router/sub-page')}>
+      <button
+        id="button-push"
+        onClick={() => router.push('/hooks/use-router/sub-page')}
+      >
         Router Push
       </button>
     </>

@@ -11,7 +11,11 @@ export default function Home() {
       </form>
       <h1>POST /api-redirect-permanent (`permanentRedirect()`)</h1>
       <form action="/redirects/api-redirect-permanent" method="POST">
-        <input type="submit" value="Submit" id="submit-api-redirect-permanent" />
+        <input
+          type="submit"
+          value="Submit"
+          id="submit-api-redirect-permanent"
+        />
       </form>
       <h1>POST /api-reponse-redirect-307</h1>
       <form action="/redirects/api-redirect-307" method="POST">

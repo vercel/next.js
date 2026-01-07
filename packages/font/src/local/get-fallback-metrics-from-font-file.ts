@@ -40,7 +40,9 @@ function calcAverageWidth(font: Font): number | undefined {
 
     if (!hasAllChars) return undefined
 
-    const widths = font.glyphsForString(avgCharacters).map((glyph) => glyph.advanceWidth)
+    const widths = font
+      .glyphsForString(avgCharacters)
+      .map((glyph) => glyph.advanceWidth)
     const totalWidth = widths.reduce((sum, width) => sum + width, 0)
     return totalWidth / widths.length
   } catch {
@@ -68,14 +70,20 @@ function formatOverrideValue(val: number) {
  * https://developer.chrome.com/blog/font-fallbacks/
  * https://docs.google.com/document/d/e/2PACX-1vRsazeNirATC7lIj2aErSHpK26hZ6dA9GsQ069GEbq5fyzXEhXbvByoftSfhG82aJXmrQ_sJCPBqcx_/pub
  */
-export function getFallbackMetricsFromFontFile(font: Font, category = 'serif'): AdjustFontFallback {
-  const fallbackFont = category === 'serif' ? DEFAULT_SERIF_FONT : DEFAULT_SANS_SERIF_FONT
+export function getFallbackMetricsFromFontFile(
+  font: Font,
+  category = 'serif'
+): AdjustFontFallback {
+  const fallbackFont =
+    category === 'serif' ? DEFAULT_SERIF_FONT : DEFAULT_SANS_SERIF_FONT
 
   const azAvgWidth = calcAverageWidth(font)
   const { ascent, descent, lineGap, unitsPerEm } = font
 
   const fallbackFontAvgWidth = fallbackFont.azAvgWidth / fallbackFont.unitsPerEm
-  let sizeAdjust = azAvgWidth ? azAvgWidth / unitsPerEm / fallbackFontAvgWidth : 1
+  let sizeAdjust = azAvgWidth
+    ? azAvgWidth / unitsPerEm / fallbackFontAvgWidth
+    : 1
 
   return {
     ascentOverride: formatOverrideValue(ascent / (unitsPerEm * sizeAdjust)),

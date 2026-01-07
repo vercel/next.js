@@ -13,7 +13,10 @@ const loader = async function (content) {
   const result = await resolve(context, dependencyFile)
   this.addDependency(result)
 
-  this.callback(null, `export const utilFn = () => 'Generated at ${new Date().toISOString()}';`)
+  this.callback(
+    null,
+    `export const utilFn = () => 'Generated at ${new Date().toISOString()}';`
+  )
 }
 
 module.exports = loader

@@ -38,8 +38,8 @@ describe.skip('Browserslist', () => {
               }
               return false
             })
-        )
-      ) // Filter out false values
+        ) // Filter out false values
+      )
         .filter((item) => item)
     ).toBeEmpty()
   })

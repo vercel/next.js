@@ -84,7 +84,11 @@ export class RspackFlightClientEntryPlugin {
         const compiler = this.compiler!
 
         const entries = getEntries(compiler.outputPath)
-        const pageKey = getEntryKey(COMPILER_NAMES.client, PAGE_TYPES.APP, bundlePath)
+        const pageKey = getEntryKey(
+          COMPILER_NAMES.client,
+          PAGE_TYPES.APP,
+          bundlePath
+        )
 
         if (!entries[pageKey]) {
           entries[pageKey] = {
@@ -126,13 +130,22 @@ export class RspackFlightClientEntryPlugin {
       stateCb: (state: any) => {
         Object.assign(pluginState.serverActions, state.serverActions)
         Object.assign(pluginState.edgeServerActions, state.edgeServerActions)
-        Object.assign(pluginState.serverActionModules, state.serverActionModules)
-        Object.assign(pluginState.edgeServerActionModules, state.edgeServerActionModules)
+        Object.assign(
+          pluginState.serverActionModules,
+          state.serverActionModules
+        )
+        Object.assign(
+          pluginState.edgeServerActionModules,
+          state.edgeServerActionModules
+        )
         Object.assign(pluginState.ssrModules, state.ssrModules)
         Object.assign(pluginState.edgeSsrModules, state.edgeSsrModules)
         Object.assign(pluginState.rscModules, state.rscModules)
         Object.assign(pluginState.edgeRscModules, state.edgeRscModules)
-        Object.assign(pluginState.injectedClientEntries, state.injectedClientEntries)
+        Object.assign(
+          pluginState.injectedClientEntries,
+          state.injectedClientEntries
+        )
       },
     })
   }

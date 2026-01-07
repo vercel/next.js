@@ -3,7 +3,9 @@
  */
 const nextConfig = {
   cacheHandlers: {
-    custom: require.resolve('next/dist/server/lib/cache-handlers/default.external'),
+    custom: require.resolve(
+      'next/dist/server/lib/cache-handlers/default.external'
+    ),
   },
   experimental: {
     useCache: true,

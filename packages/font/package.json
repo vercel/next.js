@@ -1,18 +1,18 @@
 {
   "name": "@next/font",
-  "version": "16.1.1-canary.16",
   "private": true,
-  "license": "MIT",
+  "version": "16.1.1-canary.16",
   "repository": {
     "url": "vercel/next.js",
     "directory": "packages/font"
   },
+  "types": "dist/types.d.ts",
   "files": [
     "dist",
     "google",
     "local"
   ],
-  "types": "dist/types.d.ts",
+  "license": "MIT",
   "scripts": {
     "build": "node ../../scripts/rm.mjs dist && pnpm ncc-fontkit && tsc -d -p tsconfig.build.json",
     "prepublishOnly": "cd ../../ && turbo run build",

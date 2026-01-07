@@ -4,6 +4,7 @@ A Next.js application for visualizing bundle sizes and analyzing dependencies us
 
 This package is not published to npm. Instead it's built and vendored into the main `next` package during its build process.
 
+
 ## Features
 
 - 📊 **Interactive Treemap**: Visualize bundle sizes with an interactive treemap interface
@@ -15,6 +16,5 @@ This package is not published to npm. Instead it's built and vendored into the m
 ## Updating
 
 When landing non-trivial changes, consider updating the demo site:
-
-- Site: https://turbopack-bundle-analyzer-demo.vercel.sh/
-- Repo: https://github.com/vercel/turbopack-bundle-analyzer-demo
+* Site: https://turbopack-bundle-analyzer-demo.vercel.sh/
+* Repo: https://github.com/vercel/turbopack-bundle-analyzer-demo

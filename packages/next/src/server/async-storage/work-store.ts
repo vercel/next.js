@@ -29,7 +29,10 @@ export type WorkStoreContext = {
     fetchCache?: AppSegmentConfig['fetchCache']
     isPossibleServerAction?: boolean
     pendingWaitUntil?: Promise<any>
-    experimental: Pick<RenderOpts['experimental'], 'isRoutePPREnabled' | 'authInterrupts'>
+    experimental: Pick<
+      RenderOpts['experimental'],
+      'isRoutePPREnabled' | 'authInterrupts'
+    >
 
     /**
      * Fetch metrics attached in patch-fetch.ts
@@ -110,7 +113,8 @@ export function createWorkStore({
     // when we are performing a static generation and we either are in debug
     // mode, or tracking fetch metrics was specifically opted into.
     (isStaticGeneration &&
-      (!!process.env.NEXT_DEBUG_BUILD || process.env.NEXT_SSG_FETCH_METRICS === '1'))
+      (!!process.env.NEXT_DEBUG_BUILD ||
+        process.env.NEXT_SSG_FETCH_METRICS === '1'))
 
   const store: WorkStore = {
     isStaticGeneration,

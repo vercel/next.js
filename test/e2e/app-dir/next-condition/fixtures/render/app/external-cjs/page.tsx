@@ -10,12 +10,12 @@ import ImportsDefault from 'my-external-cjs-package/imports'
 import * as ImportsNamed from 'my-external-cjs-package/imports'
 import { named as namedImports } from 'my-external-cjs-package/imports'
 
-const pendingDynamicExports = import('my-external-cjs-package/exports').then((mod) =>
-  JSON.stringify(mod)
+const pendingDynamicExports = import('my-external-cjs-package/exports').then(
+  (mod) => JSON.stringify(mod)
 )
 
-const pendingDynamicImports = import('my-external-cjs-package/imports').then((mod) =>
-  JSON.stringify(mod)
+const pendingDynamicImports = import('my-external-cjs-package/imports').then(
+  (mod) => JSON.stringify(mod)
 )
 
 import Client from './client'

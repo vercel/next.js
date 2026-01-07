@@ -62,7 +62,9 @@ describe('app-dir action useActionState', () => {
     })
 
     // Simulate a progressively enhanced form request
-    await browser.eval(`document.getElementById('name-input').value = 'test-permalink'`)
+    await browser.eval(
+      `document.getElementById('name-input').value = 'test-permalink'`
+    )
     await browser.eval(`document.getElementById('form-state-form').submit()`)
 
     await check(() => {

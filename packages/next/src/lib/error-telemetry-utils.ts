@@ -8,7 +8,10 @@ const ERROR_CODE_DELIMITER = '@'
  * The error code is appended to the digest string with a semicolon separator, allowing it to be
  * parsed out later while preserving the original digest value.
  */
-export const createDigestWithErrorCode = (thrownValue: unknown, originalDigest: string): string => {
+export const createDigestWithErrorCode = (
+  thrownValue: unknown,
+  originalDigest: string
+): string => {
   if (
     typeof thrownValue === 'object' &&
     thrownValue !== null &&

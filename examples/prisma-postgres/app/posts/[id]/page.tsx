@@ -3,7 +3,11 @@ export const dynamic = "force-dynamic"; // This disables SSG and ISR
 import prisma from "@/lib/prisma";
 import { notFound, redirect } from "next/navigation";
 
-export default async function Post({ params }: { params: Promise<{ id: string }> }) {
+export default async function Post({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
   const postId = parseInt(id);
 
@@ -35,11 +39,16 @@ export default async function Post({ params }: { params: Promise<{ id: string }>
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-8">
       <article className="max-w-3xl w-full bg-white shadow-lg rounded-lg p-8">
         {/* Post Title */}
-        <h1 className="text-5xl font-extrabold text-blue-600 mb-4">{post.title}</h1>
+        <h1 className="text-5xl font-extrabold text-blue-600 mb-4">
+          {post.title}
+        </h1>
 
         {/* Author Information */}
         <p className="text-lg text-gray-600 mb-4">
-          by <span className="font-medium text-gray-800">{post.author?.name || "Anonymous"}</span>
+          by{" "}
+          <span className="font-medium text-gray-800">
+            {post.author?.name || "Anonymous"}
+          </span>
         </p>
 
         {/* Content Section */}
@@ -47,7 +56,9 @@ export default async function Post({ params }: { params: Promise<{ id: string }>
           {post.content ? (
             <p>{post.content}</p>
           ) : (
-            <p className="italic text-gray-500">No content available for this post.</p>
+            <p className="italic text-gray-500">
+              No content available for this post.
+            </p>
           )}
         </div>
       </article>

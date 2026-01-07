@@ -5,7 +5,8 @@ import { bold } from './picocolors'
 import { APP_DIR_ALIAS } from './constants'
 import type { PageExtensions } from '../build/page-extensions-type'
 
-const globOrig = require('next/dist/compiled/glob') as typeof import('next/dist/compiled/glob')
+const globOrig =
+  require('next/dist/compiled/glob') as typeof import('next/dist/compiled/glob')
 const glob = (cwd: string, pattern: string): Promise<string[]> => {
   return new Promise((resolve, reject) => {
     globOrig(pattern, { cwd }, (err, files) => {
@@ -68,7 +69,10 @@ export async function verifyRootLayout({
 }): Promise<[boolean, string | undefined]> {
   let rootLayoutPath: string | undefined
   try {
-    const layoutFiles = await glob(appDir, `**/layout.{${pageExtensions.join(',')}}`)
+    const layoutFiles = await glob(
+      appDir,
+      `**/layout.{${pageExtensions.join(',')}}`
+    )
     const isFileUnderAppDir = pagePath.startsWith(`${APP_DIR_ALIAS}/`)
     const normalizedPagePath = pagePath.replace(`${APP_DIR_ALIAS}/`, '')
     const pagePathSegments = normalizedPagePath.split('/')
@@ -83,7 +87,9 @@ export async function verifyRootLayout({
         // However, if the page is within a route group directly under app (e.g. app/(routegroup)/page.js)
         // prefer creating the root layout in that route group.
         const firstSegmentValue = pagePathSegments[0]
-        availableDir = firstSegmentValue.startsWith('(') ? firstSegmentValue : ''
+        availableDir = firstSegmentValue.startsWith('(')
+          ? firstSegmentValue
+          : ''
       } else {
         pagePathSegments.pop() // remove the page from segments
 
@@ -91,7 +97,11 @@ export async function verifyRootLayout({
         for (const segment of pagePathSegments) {
           currentSegments.push(segment)
           // Find the dir closest to app/ where a layout can be created without affecting other layouts.
-          if (!layoutFiles.some((file) => file.startsWith(currentSegments.join('/')))) {
+          if (
+            !layoutFiles.some((file) =>
+              file.startsWith(currentSegments.join('/'))
+            )
+          ) {
             availableDir = currentSegments.join('/')
             break
           }
@@ -109,7 +119,11 @@ export async function verifyRootLayout({
         () => false
       )
 
-      rootLayoutPath = path.join(appDir, availableDir, `layout.${hasTsConfig ? 'tsx' : 'js'}`)
+      rootLayoutPath = path.join(
+        appDir,
+        availableDir,
+        `layout.${hasTsConfig ? 'tsx' : 'js'}`
+      )
       await fs.writeFile(rootLayoutPath, getRootLayout(hasTsConfig))
 
       Log.warn(

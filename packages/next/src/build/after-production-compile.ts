@@ -42,9 +42,11 @@ export async function runAfterProductionCompile({
 
   try {
     const startTime = performance.now()
-    await buildSpan.traceChild('after-production-compile').traceAsyncFn(async () => {
-      await run(metadata)
-    })
+    await buildSpan
+      .traceChild('after-production-compile')
+      .traceAsyncFn(async () => {
+        await run(metadata)
+      })
     const duration = performance.now() - startTime
     const formattedDuration = `${Math.round(duration)}ms`
     Log.event(`Completed runAfterProductionCompile in ${formattedDuration}`)

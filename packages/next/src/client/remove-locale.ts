@@ -6,8 +6,12 @@ export function removeLocale(path: string, locale?: string) {
     const pathLower = pathname.toLowerCase()
     const localeLower = locale?.toLowerCase()
 
-    return locale && (pathLower.startsWith(`/${localeLower}/`) || pathLower === `/${localeLower}`)
-      ? `${pathname.length === locale.length + 1 ? `/` : ``}${path.slice(locale.length + 1)}`
+    return locale &&
+      (pathLower.startsWith(`/${localeLower}/`) ||
+        pathLower === `/${localeLower}`)
+      ? `${pathname.length === locale.length + 1 ? `/` : ``}${path.slice(
+          locale.length + 1
+        )}`
       : path
   }
   return path

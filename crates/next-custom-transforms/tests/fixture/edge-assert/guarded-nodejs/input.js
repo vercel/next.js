@@ -3,5 +3,7 @@ if (typeof clearImmediate === 'function') {
 }
 
 // We allow this.
-const scheduleTimeoutA = typeof setImmediate === 'function' ? setImmediate : setTimeout
-const scheduleTimeoutB = typeof setImmediate !== 'function' ? setTimeout : setImmediate
+const scheduleTimeoutA =
+  typeof setImmediate === 'function' ? setImmediate : setTimeout
+const scheduleTimeoutB =
+  typeof setImmediate !== 'function' ? setTimeout : setImmediate

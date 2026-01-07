@@ -1,4 +1,8 @@
-async function fetchAPI(query: string, { variables } = {} as any, preview: boolean) {
+async function fetchAPI(
+  query: string,
+  { variables } = {} as any,
+  preview: boolean,
+) {
   const url = preview
     ? `${process.env.NEXT_PUBLIC_WEBINY_PREVIEW_API_URL}`
     : `${process.env.NEXT_PUBLIC_WEBINY_API_UR}`;

@@ -9,7 +9,10 @@ export default function Page(props) {
   return (
     <>
       <h1 id={`message-${params.id}`}>Hello from {params.id}</h1>
-      <Link href={params.id === '1' ? '/back-forward/2' : '/back-forward/1'} id="to-other-page">
+      <Link
+        href={params.id === '1' ? '/back-forward/2' : '/back-forward/1'}
+        id="to-other-page"
+      >
         Go to {params.id === '1' ? '2' : '1'}
       </Link>
       <button onClick={() => router.back()} id="back-button">

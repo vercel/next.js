@@ -20,7 +20,10 @@ export default function Box(props) {
       onPointerOver={() => setHover(true)}
       onPointerOut={() => setHover(false)}
     >
-      <meshStandardMaterial attach="material" color={hovered ? "#2b6c76" : "#720b23"} />
+      <meshStandardMaterial
+        attach="material"
+        color={hovered ? "#2b6c76" : "#720b23"}
+      />
     </NativeBox>
   );
 }

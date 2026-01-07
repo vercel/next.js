@@ -2,7 +2,12 @@ import { nextTestSetup } from 'e2e-utils'
 import fs from 'fs-extra'
 import os from 'os'
 import path from 'path'
-import { findPort, initNextServerScript, killApp, fetchViaHTTP } from 'next-test-utils'
+import {
+  findPort,
+  initNextServerScript,
+  killApp,
+  fetchViaHTTP,
+} from 'next-test-utils'
 
 if (!(globalThis as any).isNextStart) {
   it('should skip for non-next start', () => {})
@@ -30,7 +35,10 @@ if (!(globalThis as any).isNextStart) {
 
     it('should handle trace files correctly for route groups (nodejs only)', async () => {
       expect(next.cliOutput).not.toContain('Failed to copy traced files')
-      const serverDirPath = path.join(next.testDir, '.next/standalone/.next/server')
+      const serverDirPath = path.join(
+        next.testDir,
+        '.next/standalone/.next/server'
+      )
       for (const page of [
         '(newroot)/dashboard/another',
         '(newroot)/dashboard/project/[projectId]',
@@ -38,9 +46,13 @@ if (!(globalThis as any).isNextStart) {
       ]) {
         const pagePath = path.join(serverDirPath, 'app', page)
 
-        expect(await fs.pathExists(path.join(pagePath, 'page.js.nft.json'))).toBe(true)
+        expect(
+          await fs.pathExists(path.join(pagePath, 'page.js.nft.json'))
+        ).toBe(true)
 
-        const files = (await fs.readJSON(path.join(pagePath, 'page.js.nft.json'))).files as string[]
+        const files = (
+          await fs.readJSON(path.join(pagePath, 'page.js.nft.json'))
+        ).files as string[]
 
         for (const file of files) {
           expect(await fs.pathExists(path.join(pagePath, file))).toBe(true)

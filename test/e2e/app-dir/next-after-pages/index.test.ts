@@ -22,12 +22,15 @@ _describe('after() - pages', () => {
 
   it('runs in middleware', async () => {
     const requestId = `${Date.now()}`
-    const res = await next.fetch(`/middleware/redirect-source?requestId=${requestId}`, {
-      redirect: 'follow',
-      headers: {
-        cookie: 'testCookie=testValue',
-      },
-    })
+    const res = await next.fetch(
+      `/middleware/redirect-source?requestId=${requestId}`,
+      {
+        redirect: 'follow',
+        headers: {
+          cookie: 'testCookie=testValue',
+        },
+      }
+    )
 
     expect(res.status).toBe(200)
     await retry(() => {

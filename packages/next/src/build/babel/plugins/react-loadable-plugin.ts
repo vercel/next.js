@@ -27,15 +27,25 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWAR
 // - Removed `Loadable.Map` support, `next/dynamic` uses overloaded arguments
 //   instead of a separate API
 
-import type { NodePath, types as BabelTypes } from 'next/dist/compiled/babel/core'
+import type {
+  NodePath,
+  types as BabelTypes,
+} from 'next/dist/compiled/babel/core'
 import type { PluginObj } from 'next/dist/compiled/babel/core'
 
 import { relative as relativePath } from 'path'
 
-export default function ({ types: t }: { types: typeof BabelTypes }): PluginObj {
+export default function ({
+  types: t,
+}: {
+  types: typeof BabelTypes
+}): PluginObj {
   return {
     visitor: {
-      ImportDeclaration(path: NodePath<BabelTypes.ImportDeclaration>, state: any) {
+      ImportDeclaration(
+        path: NodePath<BabelTypes.ImportDeclaration>,
+        state: any
+      ) {
         let source = path.node.source.value
         if (source !== 'next/dynamic') return
 
@@ -58,7 +68,9 @@ export default function ({ types: t }: { types: typeof BabelTypes }): PluginObj 
 
           let args = callExpression.get('arguments')
           if (args.length > 2) {
-            throw callExpression.buildCodeFrameError('next/dynamic only accepts 2 arguments')
+            throw callExpression.buildCodeFrameError(
+              'next/dynamic only accepts 2 arguments'
+            )
           }
 
           if (!args[0]) {
@@ -122,10 +134,13 @@ export default function ({ types: t }: { types: typeof BabelTypes }): PluginObj 
 
             if (nodePath) {
               const nonSSR =
-                nodePath.node.type === 'BooleanLiteral' && nodePath.node.value === false
+                nodePath.node.type === 'BooleanLiteral' &&
+                nodePath.node.value === false
               // If `ssr` is set to `false`, erase the loader for server side
               if (nonSSR && loader && state.file.opts.caller?.isServer) {
-                loader.replaceWith(t.arrowFunctionExpression([], t.nullLiteral(), true))
+                loader.replaceWith(
+                  t.arrowFunctionExpression([], t.nullLiteral(), true)
+                )
               }
             }
           }
@@ -141,7 +156,10 @@ export default function ({ types: t }: { types: typeof BabelTypes }): PluginObj 
                   '+',
                   t.stringLiteral(
                     (state.file.opts.caller?.srcDir
-                      ? relativePath(state.file.opts.caller.srcDir, state.file.opts.filename)
+                      ? relativePath(
+                          state.file.opts.caller.srcDir,
+                          state.file.opts.filename
+                        )
                       : state.file.opts.filename) + ' -> '
                   ),
                   node
@@ -156,8 +174,14 @@ export default function ({ types: t }: { types: typeof BabelTypes }): PluginObj 
             t.objectProperty(
               t.identifier('loadableGenerated'),
               t.objectExpression(
-                state.file.opts.caller?.isDev || state.file.opts.caller?.isServer
-                  ? [t.objectProperty(t.identifier('modules'), t.arrayExpression(dynamicKeys))]
+                state.file.opts.caller?.isDev ||
+                  state.file.opts.caller?.isServer
+                  ? [
+                      t.objectProperty(
+                        t.identifier('modules'),
+                        t.arrayExpression(dynamicKeys)
+                      ),
+                    ]
                   : [
                       t.objectProperty(
                         t.identifier('webpack'),

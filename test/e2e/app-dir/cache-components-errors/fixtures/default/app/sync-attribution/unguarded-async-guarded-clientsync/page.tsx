@@ -8,13 +8,14 @@ export default async function Page() {
     <main>
       <section>
         <p>
-          In this test we have two components. One reads `new Date()` synchronously in a client
-          component render. The other awaits cookies in a Server Component.
+          In this test we have two components. One reads `new Date()`
+          synchronously in a client component render. The other awaits cookies
+          in a Server Component.
         </p>
         <p>
-          In this version the server component is not wrapped in a Suspense boundary. We expect the
-          build to error with the reason referencing some dynamic data access. It should not mention
-          `new Date()`.
+          In this version the server component is not wrapped in a Suspense
+          boundary. We expect the build to error with the reason referencing
+          some dynamic data access. It should not mention `new Date()`.
         </p>
       </section>
       <section>

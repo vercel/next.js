@@ -1,7 +1,14 @@
 /* eslint-env jest */
 
 import fs from 'fs-extra'
-import { check, findPort, killApp, launchApp, nextBuild, nextStart } from 'next-test-utils'
+import {
+  check,
+  findPort,
+  killApp,
+  launchApp,
+  nextBuild,
+  nextStart,
+} from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
@@ -44,33 +51,39 @@ function runTests() {
 const nextConfig = join(appDir, 'next.config.js')
 
 describe('Dynamic Optional Routing Root Fallback', () => {
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
-    beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        await fs.remove(join(appDir, '.next'))
 
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-    runTests()
-  })
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
+      runTests()
+    }
+  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await fs.remove(join(appDir, '.next'))
 
-      const curConfig = await fs.readFile(nextConfig, 'utf8')
+        const curConfig = await fs.readFile(nextConfig, 'utf8')
 
-      if (curConfig.includes('target')) {
-        await fs.writeFile(nextConfig, `module.exports = {}`)
-      }
-      await nextBuild(appDir)
+        if (curConfig.includes('target')) {
+          await fs.writeFile(nextConfig, `module.exports = {}`)
+        }
+        await nextBuild(appDir)
 
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-    runTests()
-  })
+      runTests()
+    }
+  )
 })

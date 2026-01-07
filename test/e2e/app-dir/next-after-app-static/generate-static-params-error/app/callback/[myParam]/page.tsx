@@ -5,7 +5,9 @@ import { setTimeout } from 'timers/promises'
 export function generateStaticParams() {
   after(async () => {
     await setTimeout(500)
-    throw new Error(`My cool error thrown inside after on route "/callback/[myParam]"`)
+    throw new Error(
+      `My cool error thrown inside after on route "/callback/[myParam]"`
+    )
   })
   return [{ myParam: 'a' }, { myParam: 'b' }, { myParam: 'c' }]
 }

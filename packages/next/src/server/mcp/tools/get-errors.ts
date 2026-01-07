@@ -92,7 +92,10 @@ export function registerGetErrorsTool(
           }
         }
 
-        const output = await formatErrors(routesErrorState, NextInstanceErrorState)
+        const output = await formatErrors(
+          routesErrorState,
+          NextInstanceErrorState
+        )
 
         return {
           content: [
@@ -124,5 +127,9 @@ export function handleErrorStateResponse(
   errorState: OverlayState | null,
   url: string | undefined
 ) {
-  handleBrowserPageResponse<OverlayState | null>(requestId, errorState, url || '')
+  handleBrowserPageResponse<OverlayState | null>(
+    requestId,
+    errorState,
+    url || ''
+  )
 }

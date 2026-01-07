@@ -25,7 +25,10 @@ describe('router autoscrolling on navigation', () => {
     await assertNoConsoleErrors(browser)
   }
 
-  const scrollTo = async (browser: Playwright, options: { x: number; y: number }) => {
+  const scrollTo = async (
+    browser: Playwright,
+    options: { x: number; y: number }
+  ) => {
     await browser.eval(`window.scrollTo(${options.x}, ${options.y})`)
     await waitForScrollToComplete(browser, options)
   }
@@ -100,7 +103,9 @@ describe('router autoscrolling on navigation', () => {
       expect(await getTopScroll(browser)).toBeGreaterThan(0)
 
       await browser.elementByCss('[href="/new-metadata"]').click()
-      expect(await browser.eval('document.documentElement.scrollHeight')).toBeGreaterThan(0)
+      expect(
+        await browser.eval('document.documentElement.scrollHeight')
+      ).toBeGreaterThan(0)
       await waitForScrollToComplete(browser, { x: 0, y: 0 })
     })
   })
@@ -146,28 +151,31 @@ describe('router autoscrolling on navigation', () => {
     })
 
     // Test hot reloading only in development
-    ;(isNextDev ? it : it.skip)('should not scroll the page when we hot reload', async () => {
-      const browser = await webdriver(next.url, '/10/10000/100/1000/page1')
+    ;(isNextDev ? it : it.skip)(
+      'should not scroll the page when we hot reload',
+      async () => {
+        const browser = await webdriver(next.url, '/10/10000/100/1000/page1')
 
-      await scrollTo(browser, { x: 0, y: 12000 })
+        await scrollTo(browser, { x: 0, y: 12000 })
 
-      const pagePath =
-        'app/[layoutPaddingWidth]/[layoutPaddingHeight]/[pageWidth]/[pageHeight]/[param]/page.tsx'
+        const pagePath =
+          'app/[layoutPaddingWidth]/[layoutPaddingHeight]/[pageWidth]/[pageHeight]/[param]/page.tsx'
 
-      await browser.eval(`window.router.refresh()`)
-      let originalContent: string
-      await next.patchFile(pagePath, (content) => {
-        originalContent = content
-        return (
-          content +
-          `
+        await browser.eval(`window.router.refresh()`)
+        let originalContent: string
+        await next.patchFile(pagePath, (content) => {
+          originalContent = content
+          return (
+            content +
+            `
       // Add this meaningless comment to force refresh
       `
-        )
-      })
-      await waitForScrollToComplete(browser, { x: 0, y: 12000 })
-      await next.patchFile(pagePath, originalContent)
-    })
+          )
+        })
+        await waitForScrollToComplete(browser, { x: 0, y: 12000 })
+        await next.patchFile(pagePath, originalContent)
+      }
+    )
   })
 
   describe('bugs', () => {

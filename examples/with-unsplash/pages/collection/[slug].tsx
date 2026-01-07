@@ -6,7 +6,9 @@ import { useRouter } from "next/router";
 
 const Collection = () => {
   const router = useRouter();
-  const collection_id = router.query.id ? parseInt(router.query.id.toString()) : null;
+  const collection_id = router.query.id
+    ? parseInt(router.query.id.toString())
+    : null;
   return (
     <Layout>
       <Head>

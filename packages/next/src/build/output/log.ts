@@ -23,7 +23,9 @@ function prefixedLog(prefixType: keyof typeof prefixes, ...message: any[]) {
   }
 
   const consoleMethod: keyof typeof LOGGING_METHOD =
-    prefixType in LOGGING_METHOD ? LOGGING_METHOD[prefixType as keyof typeof LOGGING_METHOD] : 'log'
+    prefixType in LOGGING_METHOD
+      ? LOGGING_METHOD[prefixType as keyof typeof LOGGING_METHOD]
+      : 'log'
 
   const prefix = prefixes[prefixType]
   // If there's no message, don't print the prefix but a new line

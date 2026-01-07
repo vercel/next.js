@@ -14,7 +14,10 @@ import camelCase from './camelcase'
 import { normalizePath } from '../../../../../lib/normalize-path'
 
 const whitespace = '[\\x20\\t\\r\\n\\f]'
-const unescapeRegExp = new RegExp(`\\\\([\\da-f]{1,6}${whitespace}?|(${whitespace})|.)`, 'ig')
+const unescapeRegExp = new RegExp(
+  `\\\\([\\da-f]{1,6}${whitespace}?|(${whitespace})|.)`,
+  'ig'
+)
 const matchNativeWin32Path = /^[A-Z]:[/\\]|^\\\\/i
 
 function unescape(str: string) {
@@ -79,7 +82,9 @@ function requestify(url: string, rootContext: string) {
     return url
   }
 
-  return url.charAt(0) === '/' ? urlToRequest(url, rootContext) : urlToRequest(url)
+  return url.charAt(0) === '/'
+    ? urlToRequest(url, rootContext)
+    : urlToRequest(url)
 }
 
 function getFilter(filter: any, resourcePath: string) {
@@ -239,7 +244,10 @@ function getPreRequester({ loaders, loaderIndex }: any) {
       cache[number] = ''
     } else {
       const loadersRequest = loaders
-        .slice(loaderIndex, loaderIndex + 1 + (typeof number !== 'number' ? 0 : number))
+        .slice(
+          loaderIndex,
+          loaderIndex + 1 + (typeof number !== 'number' ? 0 : number)
+        )
         .map((x: any) => x.request)
         .join('!')
 
@@ -294,7 +302,9 @@ function normalizeSourceMapForRuntime(map: any, loaderContext: any) {
 
       const resourceDirname = path.dirname(loaderContext.resourcePath)
       const absoluteSource = path.resolve(resourceDirname, source)
-      const contextifyPath = normalizePath(path.relative(loaderContext.rootContext, absoluteSource))
+      const contextifyPath = normalizePath(
+        path.relative(loaderContext.rootContext, absoluteSource)
+      )
 
       return `webpack://${contextifyPath}`
     })
@@ -342,7 +352,9 @@ function getModuleCode(
     if (localName) {
       code = code.replace(new RegExp(replacementName, 'g'), () =>
         options.modules.namedExport
-          ? `" + ${importName}_NAMED___[${JSON.stringify(camelCase(localName))}] + "`
+          ? `" + ${importName}_NAMED___[${JSON.stringify(
+              camelCase(localName)
+            )}] + "`
           : `" + ${importName}.locals[${JSON.stringify(localName)}] + "`
       )
     } else {
@@ -351,10 +363,14 @@ function getModuleCode(
         ...(hash ? [`hash: ${JSON.stringify(hash)}`] : []),
         ...(needQuotes ? 'needQuotes: true' : []),
       ]
-      const preparedOptions = getUrlOptions.length > 0 ? `, { ${getUrlOptions.join(', ')} }` : ''
+      const preparedOptions =
+        getUrlOptions.length > 0 ? `, { ${getUrlOptions.join(', ')} }` : ''
 
       beforeCode += `var ${replacementName} = ___CSS_LOADER_GET_URL_IMPORT___(${importName}${preparedOptions});\n`
-      code = code.replace(new RegExp(replacementName, 'g'), () => `" + ${replacementName} + "`)
+      code = code.replace(
+        new RegExp(replacementName, 'g'),
+        () => `" + ${replacementName} + "`
+      )
     }
   }
 
@@ -362,7 +378,9 @@ function getModuleCode(
 }
 
 function dashesCamelCase(str: string) {
-  return str.replace(/-+(\w)/g, (_match: any, firstLetter: string) => firstLetter.toUpperCase())
+  return str.replace(/-+(\w)/g, (_match: any, firstLetter: string) =>
+    firstLetter.toUpperCase()
+  )
 }
 
 function getExportCode(
@@ -382,7 +400,9 @@ function getExportCode(
 
   const addExportToLocalsCode = (name: string, value: any) => {
     if (options.modules.namedExport) {
-      localsCode += `export const ${camelCase(name)} = ${JSON.stringify(value)};\n`
+      localsCode += `export const ${camelCase(name)} = ${JSON.stringify(
+        value
+      )};\n`
     } else {
       if (localsCode) {
         localsCode += `,\n`
@@ -437,7 +457,9 @@ function getExportCode(
 
       localsCode = localsCode.replace(new RegExp(replacementName, 'g'), () => {
         if (options.modules.namedExport) {
-          return `" + ${importName}_NAMED___[${JSON.stringify(camelCase(localName))}] + "`
+          return `" + ${importName}_NAMED___[${JSON.stringify(
+            camelCase(localName)
+          )}] + "`
         } else if (options.modules.exportOnlyLocals) {
           return `" + ${importName}[${JSON.stringify(localName)}] + "`
         }
@@ -455,7 +477,9 @@ function getExportCode(
   if (options.modules.exportOnlyLocals) {
     code += options.modules.namedExport
       ? localsCode
-      : `${options.esModule ? 'export default' : 'module.exports ='} {\n${localsCode}\n};\n`
+      : `${
+          options.esModule ? 'export default' : 'module.exports ='
+        } {\n${localsCode}\n};\n`
 
     return code
   }
@@ -466,7 +490,9 @@ function getExportCode(
       : `___CSS_LOADER_EXPORT___.locals = {\n${localsCode}\n};\n`
   }
 
-  code += `${options.esModule ? 'export default' : 'module.exports ='} ___CSS_LOADER_EXPORT___;\n`
+  code += `${
+    options.esModule ? 'export default' : 'module.exports ='
+  } ___CSS_LOADER_EXPORT___;\n`
 
   return code
 }

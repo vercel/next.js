@@ -14,7 +14,9 @@ describe('updating <Head /> while client routing', () => {
     async (bool) => {
       const browser = await next.browser('/head')
       const value = await browser.eval(
-        `document.querySelector('script[src="/test-async-${JSON.stringify(bool)}.js"]').async`
+        `document.querySelector('script[src="/test-async-${JSON.stringify(
+          bool
+        )}.js"]').async`
       )
 
       expect(value).toBe(bool)
@@ -99,40 +101,68 @@ describe('updating <Head /> while client routing', () => {
 
   it('should update head during client routing', async () => {
     const browser = await next.browser('/nav/head-1')
-    expect(await browser.elementByCss('meta[name="description"]').getAttribute('content')).toBe(
-      'Head One'
-    )
+    expect(
+      await browser
+        .elementByCss('meta[name="description"]')
+        .getAttribute('content')
+    ).toBe('Head One')
 
-    await browser.elementByCss('#to-head-2').click().waitForElementByCss('#head-2', 3000)
-    expect(await browser.elementByCss('meta[name="description"]').getAttribute('content')).toBe(
-      'Head Two'
-    )
+    await browser
+      .elementByCss('#to-head-2')
+      .click()
+      .waitForElementByCss('#head-2', 3000)
+    expect(
+      await browser
+        .elementByCss('meta[name="description"]')
+        .getAttribute('content')
+    ).toBe('Head Two')
 
-    await browser.elementByCss('#to-head-1').click().waitForElementByCss('#head-1', 3000)
-    expect(await browser.elementByCss('meta[name="description"]').getAttribute('content')).toBe(
-      'Head One'
-    )
+    await browser
+      .elementByCss('#to-head-1')
+      .click()
+      .waitForElementByCss('#head-1', 3000)
+    expect(
+      await browser
+        .elementByCss('meta[name="description"]')
+        .getAttribute('content')
+    ).toBe('Head One')
 
-    await browser.elementByCss('#to-head-3').click().waitForElementByCss('#head-3', 3000)
-    expect(await browser.elementByCss('meta[name="description"]').getAttribute('content')).toBe(
-      'Head Three'
-    )
+    await browser
+      .elementByCss('#to-head-3')
+      .click()
+      .waitForElementByCss('#head-3', 3000)
+    expect(
+      await browser
+        .elementByCss('meta[name="description"]')
+        .getAttribute('content')
+    ).toBe('Head Three')
     expect(await browser.eval('document.title')).toBe('')
 
-    await browser.elementByCss('#to-head-1').click().waitForElementByCss('#head-1', 3000)
-    expect(await browser.elementByCss('meta[name="description"]').getAttribute('content')).toBe(
-      'Head One'
-    )
+    await browser
+      .elementByCss('#to-head-1')
+      .click()
+      .waitForElementByCss('#head-1', 3000)
+    expect(
+      await browser
+        .elementByCss('meta[name="description"]')
+        .getAttribute('content')
+    ).toBe('Head One')
   })
 
   it('should update title during client routing', async () => {
     const browser = await next.browser('/nav/head-1')
     expect(await browser.eval('document.title')).toBe('this is head-1')
 
-    await browser.elementByCss('#to-head-2').click().waitForElementByCss('#head-2', 3000)
+    await browser
+      .elementByCss('#to-head-2')
+      .click()
+      .waitForElementByCss('#head-2', 3000)
     expect(await browser.eval('document.title')).toBe('this is head-2')
 
-    await browser.elementByCss('#to-head-1').click().waitForElementByCss('#head-1', 3000)
+    await browser
+      .elementByCss('#to-head-1')
+      .click()
+      .waitForElementByCss('#head-1', 3000)
     expect(await browser.eval('document.title')).toBe('this is head-1')
   })
 

@@ -11,7 +11,9 @@ export function isRecoverableError(error: Error): boolean {
   return recoverableErrors.has(error)
 }
 
-export const onRecoverableError: HydrationOptions['onRecoverableError'] = (error) => {
+export const onRecoverableError: HydrationOptions['onRecoverableError'] = (
+  error
+) => {
   // x-ref: https://github.com/facebook/react/pull/28736
   let cause = isError(error) && 'cause' in error ? error.cause : error
   // Skip certain custom errors which are not expected to be reported on client

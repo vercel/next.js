@@ -45,11 +45,15 @@ describe('cache-components', () => {
     expect(cookieWarnings).toHaveLength(0)
 
     // (await headers()).append('...', '...')
-    expect($('#append-result-x-sentinel').text()).toContain('Headers cannot be modified')
+    expect($('#append-result-x-sentinel').text()).toContain(
+      'Headers cannot be modified'
+    )
     expect($('#append-value-x-sentinel').text()).toContain('hello')
 
     // (await headers()).delete('...')
-    expect($('#delete-result-x-sentinel').text()).toContain('Headers cannot be modified')
+    expect($('#delete-result-x-sentinel').text()).toContain(
+      'Headers cannot be modified'
+    )
     expect($('#delete-value-x-sentinel').text()).toContain('hello')
 
     // (await headers()).get('...')
@@ -60,7 +64,9 @@ describe('cache-components', () => {
     expect($('#has-x-sentinel-foobar').text()).toContain('false')
 
     // (await headers()).set('...', '...')
-    expect($('#set-result-x-sentinel').text()).toContain('Headers cannot be modified')
+    expect($('#set-result-x-sentinel').text()).toContain(
+      'Headers cannot be modified'
+    )
     expect($('#set-value-x-sentinel').text()).toContain('hello')
 
     // (await headers()).getSetCookie()

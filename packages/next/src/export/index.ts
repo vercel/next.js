@@ -5,7 +5,11 @@ import type {
   ExportPagesResult,
   ExportPathEntry,
 } from './types'
-import { createStaticWorker, type PrerenderManifest, type StaticWorker } from '../build'
+import {
+  createStaticWorker,
+  type PrerenderManifest,
+  type StaticWorker,
+} from '../build'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 
 import { bold, yellow } from '../lib/picocolors'
@@ -138,7 +142,8 @@ async function exportAppImpl(
   const buildId = await fs.readFile(buildIdFile, 'utf8')
 
   const pagesManifest =
-    !options.pages && (require(join(distDir, SERVER_DIRECTORY, PAGES_MANIFEST)) as PagesManifest)
+    !options.pages &&
+    (require(join(distDir, SERVER_DIRECTORY, PAGES_MANIFEST)) as PagesManifest)
 
   let prerenderManifest: DeepReadonly<PrerenderManifest> | undefined
   try {
@@ -149,7 +154,10 @@ async function exportAppImpl(
   try {
     appRoutePathManifest = require(join(distDir, APP_PATH_ROUTES_MANIFEST))
   } catch (err) {
-    if (isError(err) && (err.code === 'ENOENT' || err.code === 'MODULE_NOT_FOUND')) {
+    if (
+      isError(err) &&
+      (err.code === 'ENOENT' || err.code === 'MODULE_NOT_FOUND')
+    ) {
       // the manifest doesn't exist which will happen when using
       // "pages" dir instead of "app" dir.
       appRoutePathManifest = undefined
@@ -242,11 +250,16 @@ async function exportAppImpl(
     }
     await span
       .traceChild('copy-static-directory')
-      .traceAsyncFn(() => recursiveCopy(join(dir, 'static'), join(outDir, 'static')))
+      .traceAsyncFn(() =>
+        recursiveCopy(join(dir, 'static'), join(outDir, 'static'))
+      )
   }
 
   // Copy .next/static directory
-  if (!options.buildExport && existsSync(join(distDir, CLIENT_STATIC_FILES_PATH))) {
+  if (
+    !options.buildExport &&
+    existsSync(join(distDir, CLIENT_STATIC_FILES_PATH))
+  ) {
     if (!options.silent) {
       Log.info('Copying "static build" directory')
     }
@@ -288,7 +301,12 @@ async function exportAppImpl(
           .catch(() => ({}))
       )
 
-    if (isNextImageImported && loader === 'default' && !unoptimized && !hasNextSupport) {
+    if (
+      isNextImageImported &&
+      loader === 'default' &&
+      !unoptimized &&
+      !hasNextSupport
+    ) {
       throw new ExportError(
         `Image Optimization using the default loader is not compatible with export.
   Possible solutions:
@@ -311,9 +329,8 @@ async function exportAppImpl(
       // We already prevent rewrites earlier in the process, however Next.js will insert rewrites
       // for interception routes so we need to check for that here.
       if (routesManifest?.rewrites?.beforeFiles?.length > 0) {
-        const hasInterceptionRouteRewrite = routesManifest.rewrites.beforeFiles.some(
-          isInterceptionRouteRewrite
-        )
+        const hasInterceptionRouteRewrite =
+          routesManifest.rewrites.beforeFiles.some(isInterceptionRouteRewrite)
 
         if (hasInterceptionRouteRewrite) {
           throw new ExportError(
@@ -329,7 +346,8 @@ async function exportAppImpl(
 
       if (
         actionIds.some(
-          (actionId) => extractInfoFromServerReferenceId(actionId).type === 'server-action'
+          (actionId) =>
+            extractInfoFromServerReferenceId(actionId).type === 'server-action'
         )
       ) {
         throw new ExportError(
@@ -364,7 +382,9 @@ async function exportAppImpl(
     serverActions: nextConfig.experimental.serverActions,
     serverComponents: enabledDirectories.app,
     cacheLifeProfiles: nextConfig.cacheLife,
-    nextFontManifest: require(join(distDir, 'server', `${NEXT_FONT_MANIFEST}.json`)),
+    nextFontManifest: require(
+      join(distDir, 'server', `${NEXT_FONT_MANIFEST}.json`)
+    ),
     images: nextConfig.images,
     deploymentId: nextConfig.deploymentId,
     htmlLimitedBots: nextConfig.htmlLimitedBots.source,
@@ -372,7 +392,8 @@ async function exportAppImpl(
       clientTraceMetadata: nextConfig.experimental.clientTraceMetadata,
       expireTime: nextConfig.expireTime,
       staleTimes: nextConfig.experimental.staleTimes,
-      clientParamParsingOrigins: nextConfig.experimental.clientParamParsingOrigins,
+      clientParamParsingOrigins:
+        nextConfig.experimental.clientParamParsingOrigins,
       dynamicOnHover: nextConfig.experimental.dynamicOnHover ?? false,
       inlineCss: nextConfig.experimental.inlineCss ?? false,
       authInterrupts: !!nextConfig.experimental.authInterrupts,
@@ -396,16 +417,18 @@ async function exportAppImpl(
     nextExport: true,
   }
 
-  const exportPathMap = await span.traceChild('run-export-path-map').traceAsyncFn(async () => {
-    const exportMap = await nextConfig.exportPathMap(defaultPathMap, {
-      dev: false,
-      dir,
-      outDir,
-      distDir,
-      buildId,
+  const exportPathMap = await span
+    .traceChild('run-export-path-map')
+    .traceAsyncFn(async () => {
+      const exportMap = await nextConfig.exportPathMap(defaultPathMap, {
+        dev: false,
+        dir,
+        outDir,
+        distDir,
+        buildId,
+      })
+      return exportMap
     })
-    return exportMap
-  })
 
   // During static export, remove export 404/500 of pages router
   // when only app router presents
@@ -510,13 +533,17 @@ async function exportAppImpl(
               `Pages in your application without server-side data dependencies will be automatically statically exported by \`next build\`, including pages powered by \`getStaticProps\`.`
             ) +
             `\n` +
-            yellow(`Learn more: https://nextjs.org/docs/messages/api-routes-static-export`)
+            yellow(
+              `Learn more: https://nextjs.org/docs/messages/api-routes-static-export`
+            )
         )
       }
     }
   }
 
-  const pagesDataDir = options.buildExport ? outDir : join(outDir, '_next/data', buildId)
+  const pagesDataDir = options.buildExport
+    ? outDir
+    : join(outDir, '_next/data', buildId)
 
   const publicDir = join(dir, CLIENT_PUBLIC_FILES_PATH)
   // Copy public directory
@@ -543,7 +570,8 @@ async function exportAppImpl(
     // each batch. We've set a default minimum of 25 pages per batch to ensure
     // that even setups with only a few static pages can leverage a shared
     // incremental cache, however this value can be configured.
-    const minPageCountPerBatch = nextConfig.experimental.staticGenerationMinPagesPerWorker ?? 25
+    const minPageCountPerBatch =
+      nextConfig.experimental.staticGenerationMinPagesPerWorker ?? 25
 
     // Calculate the number of workers needed to ensure each batch has at least
     // minPageCountPerBatch pages.
@@ -605,7 +633,8 @@ async function exportAppImpl(
     initialPhaseExportPaths = allExportPaths
   }
 
-  const totalExportPaths = initialPhaseExportPaths.length + finalPhaseExportPaths.length
+  const totalExportPaths =
+    initialPhaseExportPaths.length + finalPhaseExportPaths.length
   let worker: StaticWorker | null = null
   let results: ExportPagesResult = []
 
@@ -681,7 +710,9 @@ async function exportAppImpl(
     if (result.turborepoAccessTraceResult) {
       collector.turborepoAccessTraceResults?.set(
         path,
-        TurborepoAccessTraceResult.fromSerialized(result.turborepoAccessTraceResult)
+        TurborepoAccessTraceResult.fromSerialized(
+          result.turborepoAccessTraceResult
+        )
       )
     }
 
@@ -811,10 +842,17 @@ async function exportAppImpl(
 
         const htmlDest = join(
           outDir,
-          `${route}${subFolders && route !== '/index' ? `${sep}index` : ''}.html`
+          `${route}${
+            subFolders && route !== '/index' ? `${sep}index` : ''
+          }.html`
         )
         const jsonDest = isAppPath
-          ? join(outDir, `${route}${subFolders && route !== '/index' ? `${sep}index` : ''}.txt`)
+          ? join(
+              outDir,
+              `${route}${
+                subFolders && route !== '/index' ? `${sep}index` : ''
+              }.txt`
+            )
           : join(pagesDataDir, `${route}.json`)
 
         await fs.mkdir(dirname(htmlDest), { recursive: true })
@@ -842,11 +880,16 @@ async function exportAppImpl(
           const segmentPaths = await collectSegmentPaths(segmentsDir)
           await Promise.all(
             segmentPaths.map(async (segmentFileSrc) => {
-              const segmentPath = '/' + segmentFileSrc.slice(0, -RSC_SEGMENT_SUFFIX.length)
-              const segmentFilename = convertSegmentPathToStaticExportFilename(segmentPath)
+              const segmentPath =
+                '/' + segmentFileSrc.slice(0, -RSC_SEGMENT_SUFFIX.length)
+              const segmentFilename =
+                convertSegmentPathToStaticExportFilename(segmentPath)
               const segmentFileDest = join(segmentsDirDest, segmentFilename)
               await fs.mkdir(dirname(segmentFileDest), { recursive: true })
-              await fs.copyFile(join(segmentsDir, segmentFileSrc), segmentFileDest)
+              await fs.copyFile(
+                join(segmentsDir, segmentFileSrc),
+                segmentFileDest
+              )
             })
           )
         }
@@ -857,7 +900,9 @@ async function exportAppImpl(
   if (failedExportAttemptsByPage.size > 0) {
     const failedPages = Array.from(failedExportAttemptsByPage.keys())
     throw new ExportError(
-      `Export encountered errors on following paths:\n\t${failedPages.sort().join('\n\t')}`
+      `Export encountered errors on following paths:\n\t${failedPages
+        .sort()
+        .join('\n\t')}`
     )
   }
 
@@ -905,13 +950,19 @@ async function collectSegmentPathsImpl(
   await Promise.all(
     segmentFiles.map(async (segmentFile) => {
       if (segmentFile.isDirectory()) {
-        await collectSegmentPathsImpl(segmentsDirectory, join(directory, segmentFile.name), results)
+        await collectSegmentPathsImpl(
+          segmentsDirectory,
+          join(directory, segmentFile.name),
+          results
+        )
         return
       }
       if (!segmentFile.name.endsWith(RSC_SEGMENT_SUFFIX)) {
         return
       }
-      results.push(relative(segmentsDirectory, join(directory, segmentFile.name)))
+      results.push(
+        relative(segmentsDirectory, join(directory, segmentFile.name))
+      )
     })
   )
 }

@@ -14,26 +14,28 @@ describe('parse page static info', () => {
     await installBindings()
   })
   it('should parse nodejs runtime correctly', async () => {
-    const { runtime, getServerSideProps, getStaticProps } = await getPagesPageStaticInfo({
-      page: 'nodejs-ssr',
-      pageFilePath: join(fixtureDir, 'page-runtime/nodejs-ssr.js'),
-      nextConfig: createNextConfig(),
-      pageType: PAGE_TYPES.PAGES,
-      isDev: false,
-    })
+    const { runtime, getServerSideProps, getStaticProps } =
+      await getPagesPageStaticInfo({
+        page: 'nodejs-ssr',
+        pageFilePath: join(fixtureDir, 'page-runtime/nodejs-ssr.js'),
+        nextConfig: createNextConfig(),
+        pageType: PAGE_TYPES.PAGES,
+        isDev: false,
+      })
     expect(runtime).toBe('nodejs')
     expect(getServerSideProps).toBe(true)
     expect(getStaticProps).toBe(false)
   })
 
   it('should parse static runtime correctly', async () => {
-    const { runtime, getServerSideProps, getStaticProps } = await getPagesPageStaticInfo({
-      page: 'nodejs',
-      pageFilePath: join(fixtureDir, 'page-runtime/nodejs.js'),
-      nextConfig: createNextConfig(),
-      pageType: PAGE_TYPES.PAGES,
-      isDev: false,
-    })
+    const { runtime, getServerSideProps, getStaticProps } =
+      await getPagesPageStaticInfo({
+        page: 'nodejs',
+        pageFilePath: join(fixtureDir, 'page-runtime/nodejs.js'),
+        nextConfig: createNextConfig(),
+        pageType: PAGE_TYPES.PAGES,
+        isDev: false,
+      })
     expect(runtime).toBe('nodejs')
     expect(getServerSideProps).toBe(false)
     expect(getStaticProps).toBe(false)
@@ -62,13 +64,15 @@ describe('parse page static info', () => {
   })
 
   it('should parse ssr info with variable exported gSSP correctly', async () => {
-    const { getServerSideProps, getStaticProps } = await getPagesPageStaticInfo({
-      page: 'ssr-variable-gssp',
-      pageFilePath: join(fixtureDir, 'page-runtime/ssr-variable-gssp.js'),
-      nextConfig: createNextConfig(),
-      pageType: PAGE_TYPES.PAGES,
-      isDev: false,
-    })
+    const { getServerSideProps, getStaticProps } = await getPagesPageStaticInfo(
+      {
+        page: 'ssr-variable-gssp',
+        pageFilePath: join(fixtureDir, 'page-runtime/ssr-variable-gssp.js'),
+        nextConfig: createNextConfig(),
+        pageType: PAGE_TYPES.PAGES,
+        isDev: false,
+      }
+    )
     expect(getStaticProps).toBe(false)
     expect(getServerSideProps).toBe(true)
   })

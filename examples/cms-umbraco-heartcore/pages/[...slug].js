@@ -7,7 +7,10 @@ import Header from "components/header";
 import PostHeader from "components/post-header";
 import SectionSeparator from "components/section-separator";
 import Layout from "components/layout";
-import { getAllPostsWithSlug, getPostAndMorePosts } from "lib/umbraco-heartcore";
+import {
+  getAllPostsWithSlug,
+  getPostAndMorePosts,
+} from "lib/umbraco-heartcore";
 import PostTitle from "components/post-title";
 import Head from "next/head";
 import { CMS_NAME } from "lib/constants";
@@ -29,7 +32,9 @@ export default function Post({ post, morePosts, preview }) {
           <>
             <article>
               <Head>
-                <title>{`${post.title} | Next.js Blog Example with ${CMS_NAME}`}</title>
+                <title>
+                  {`${post.title} | Next.js Blog Example with ${CMS_NAME}`}
+                </title>
                 {<meta property="og:image" content={post.ogImage.url} />}
               </Head>
               <PostHeader

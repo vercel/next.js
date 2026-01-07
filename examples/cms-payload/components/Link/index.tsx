@@ -28,12 +28,16 @@ export const CMSLink: React.FC<CMSLinkType> = ({
   className,
 }) => {
   const href =
-    type === "reference" && typeof reference?.value === "object" && reference.value.slug
+    type === "reference" &&
+    typeof reference?.value === "object" &&
+    reference.value.slug
       ? `/${reference.value.slug}`
       : url;
 
   if (!appearance) {
-    const newTabProps = newTab ? { target: "_blank", rel: "noopener noreferrer" } : {};
+    const newTabProps = newTab
+      ? { target: "_blank", rel: "noopener noreferrer" }
+      : {};
 
     if (type === "custom") {
       return (

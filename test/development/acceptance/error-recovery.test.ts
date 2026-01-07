@@ -36,7 +36,9 @@ describe('pages/ error recovery', () => {
     )
 
     await session.evaluate(() => document.querySelector('button').click())
-    expect(await session.evaluate(() => document.querySelector('p').textContent)).toBe('1')
+    expect(
+      await session.evaluate(() => document.querySelector('p').textContent)
+    ).toBe('1')
 
     await session.patch('index.js', `export default () => <div/`)
 
@@ -113,7 +115,10 @@ describe('pages/ error recovery', () => {
       `
     )
 
-    await check(() => session.evaluate(() => document.querySelector('p').textContent), /Count: 1/)
+    await check(
+      () => session.evaluate(() => document.querySelector('p').textContent),
+      /Count: 1/
+    )
 
     await session.waitForNoRedbox()
   })
@@ -143,9 +148,13 @@ describe('pages/ error recovery', () => {
       `
     )
 
-    expect(await session.evaluate(() => document.querySelector('p').textContent)).toBe('0')
+    expect(
+      await session.evaluate(() => document.querySelector('p').textContent)
+    ).toBe('0')
     await browser.elementByCss('button').click()
-    expect(await session.evaluate(() => document.querySelector('p').textContent)).toBe('1')
+    expect(
+      await session.evaluate(() => document.querySelector('p').textContent)
+    ).toBe('1')
 
     await expect(browser).toDisplayRedbox(`
      {
@@ -180,9 +189,13 @@ describe('pages/ error recovery', () => {
 
     await session.waitForNoRedbox()
 
-    expect(await session.evaluate(() => document.querySelector('p').textContent)).toBe('Count: 1')
+    expect(
+      await session.evaluate(() => document.querySelector('p').textContent)
+    ).toBe('Count: 1')
     await browser.elementByCss('button').click()
-    expect(await session.evaluate(() => document.querySelector('p').textContent)).toBe('Count: 2')
+    expect(
+      await session.evaluate(() => document.querySelector('p').textContent)
+    ).toBe('Count: 2')
 
     await session.waitForNoRedbox()
   })
@@ -215,7 +228,9 @@ describe('pages/ error recovery', () => {
       `
     )
 
-    expect(await session.evaluate(() => document.querySelector('p').textContent)).toBe('Hello')
+    expect(
+      await session.evaluate(() => document.querySelector('p').textContent)
+    ).toBe('Hello')
 
     await session.patch(
       'child.js',
@@ -326,7 +341,9 @@ describe('pages/ error recovery', () => {
 
     expect(didNotReload).toBe(true)
     await session.waitForNoRedbox()
-    expect(await session.evaluate(() => document.querySelector('p').textContent)).toBe('Hello')
+    expect(
+      await session.evaluate(() => document.querySelector('p').textContent)
+    ).toBe('Hello')
   })
 
   // https://github.com/pmmmwh/react-refresh-webpack-plugin/pull/3#issuecomment-554137262
@@ -349,9 +366,9 @@ describe('pages/ error recovery', () => {
       `
     )
 
-    expect(await session.evaluate(() => document.querySelector('h1').textContent)).toBe(
-      'Default Export'
-    )
+    expect(
+      await session.evaluate(() => document.querySelector('h1').textContent)
+    ).toBe('Default Export')
 
     // Break it with a syntax error:
     await session.patch(

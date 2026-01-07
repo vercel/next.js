@@ -16,9 +16,10 @@ async function Private() {
   cacheLife({ stale: 420 })
   const cookie = (await cookies()).get('test-cookie')
 
-  const { headers } = await fetch('https://next-data-api-endpoint.vercel.app/api/echo-headers', {
-    headers: { 'x-test-cookie': cookie?.value ?? '' },
-  }).then((res) => res.json() as Promise<{ headers: Record<string, string> }>)
+  const { headers } = await fetch(
+    'https://next-data-api-endpoint.vercel.app/api/echo-headers',
+    { headers: { 'x-test-cookie': cookie?.value ?? '' } }
+  ).then((res) => res.json() as Promise<{ headers: Record<string, string> }>)
 
   const cookieHeader = headers['x-test-cookie']
 

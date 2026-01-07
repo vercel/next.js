@@ -1,9 +1,11 @@
 import { defineRule } from '../utils/define-rule'
 import * as path from 'path'
 
-const url = 'https://nextjs.org/docs/messages/no-before-interactive-script-outside-document'
+const url =
+  'https://nextjs.org/docs/messages/no-before-interactive-script-outside-document'
 
-const convertToCorrectSeparator = (str: string) => str.replace(/[\\/]/g, path.sep)
+const convertToCorrectSeparator = (str: string) =>
+  str.replace(/[\\/]/g, path.sep)
 
 export default defineRule({
   meta: {
@@ -20,7 +22,9 @@ export default defineRule({
     let scriptImportName = null
 
     return {
-      'ImportDeclaration[source.value="next/script"] > ImportDefaultSpecifier'(node: any) {
+      'ImportDeclaration[source.value="next/script"] > ImportDefaultSpecifier'(
+        node: any
+      ) {
         scriptImportName = node.local.name
       },
       JSXOpeningElement(node) {
@@ -45,7 +49,11 @@ export default defineRule({
           (child) => child.name && child.name.name === 'strategy'
         )
 
-        if (!strategy || !strategy.value || strategy.value.value !== 'beforeInteractive') {
+        if (
+          !strategy ||
+          !strategy.value ||
+          strategy.value.value !== 'beforeInteractive'
+        ) {
           return
         }
 

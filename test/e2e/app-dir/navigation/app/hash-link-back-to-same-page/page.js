@@ -27,7 +27,10 @@ export default function HashPage() {
                 </div>
                 <div key="to-other-page">
                   <div>
-                    <Link href="/hash-link-back-to-same-page/other" id="to-other-page">
+                    <Link
+                      href="/hash-link-back-to-same-page/other"
+                      id="to-other-page"
+                    >
                       To other page
                     </Link>
                   </div>

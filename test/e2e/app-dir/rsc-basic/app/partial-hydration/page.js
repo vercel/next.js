@@ -9,7 +9,9 @@ const Data = createDataFetcher('next_streaming_data', {
 export default function () {
   return (
     <>
-      {process.env.NEXT_RUNTIME === 'edge' ? `Runtime: Node.js` : 'Runtime: Edge/Browser'}
+      {process.env.NEXT_RUNTIME === 'edge'
+        ? `Runtime: Node.js`
+        : 'Runtime: Edge/Browser'}
       <br />
       <div className="suspense">
         <Suspense fallback="next_streaming_fallback">

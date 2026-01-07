@@ -55,8 +55,12 @@ describe('FileLogger', () => {
     expect(lines).toHaveLength(2)
 
     // Check format: [timestamp] source level message
-    expect(lines[0]).toMatch(/^\[\d{2}:\d{2}:\d{2}\.\d{3}\] Browser LOG {5}Test message$/)
-    expect(lines[1]).toMatch(/^\[\d{2}:\d{2}:\d{2}\.\d{3}\] Server {2}ERROR {3}Server error$/)
+    expect(lines[0]).toMatch(
+      /^\[\d{2}:\d{2}:\d{2}\.\d{3}\] Browser LOG {5}Test message$/
+    )
+    expect(lines[1]).toMatch(
+      /^\[\d{2}:\d{2}:\d{2}\.\d{3}\] Server {2}ERROR {3}Server error$/
+    )
   })
 
   it('should append multiple log entries', () => {

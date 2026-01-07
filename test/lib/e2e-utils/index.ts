@@ -63,7 +63,9 @@ if (testModeFromFile === 'e2e') {
   const validE2EModes = ['dev', 'start', 'deploy']
 
   if (!process.env.NEXT_TEST_JOB && !testMode) {
-    require('console').warn('Warn: no NEXT_TEST_MODE set, using default of start')
+    require('console').warn(
+      'Warn: no NEXT_TEST_MODE set, using default of start'
+    )
     testMode = 'start'
   }
   assert(
@@ -105,9 +107,13 @@ export const isNextStart = !isNextDev && !isNextDeploy
 export const isRspack = !!process.env.NEXT_RSPACK
 
 if (!testMode) {
-  throw new Error(`No 'NEXT_TEST_MODE' set in environment, this is required for e2e-utils`)
+  throw new Error(
+    `No 'NEXT_TEST_MODE' set in environment, this is required for e2e-utils`
+  )
 }
-require('console').warn(`Using test mode: ${testMode} in test folder ${testModeFromFile}`)
+require('console').warn(
+  `Using test mode: ${testMode} in test folder ${testModeFromFile}`
+)
 
 /**
  * FileRef is wrapper around a file path that is meant be copied
@@ -172,7 +178,9 @@ export async function createNext(
 
     setupTracing()
     return await trace('createNext').traceAsyncFn(async (rootSpan) => {
-      const useTurbo = !!process.env.NEXT_TEST_WASM ? false : (opts?.turbo ?? shouldUseTurbopack())
+      const useTurbo = !!process.env.NEXT_TEST_WASM
+        ? false
+        : (opts?.turbo ?? shouldUseTurbopack())
 
       if (testMode === 'dev') {
         // next dev
@@ -209,9 +217,11 @@ export async function createNext(
       await nextInstance.setup(rootSpan)
 
       if (!opts.skipStart) {
-        await rootSpan.traceChild('start next instance').traceAsyncFn(async () => {
-          await nextInstance!.start()
-        })
+        await rootSpan
+          .traceChild('start next instance')
+          .traceAsyncFn(async () => {
+            await nextInstance!.start()
+          })
       }
 
       return nextInstance!
@@ -301,7 +311,9 @@ export function nextTestSetup(
       return isNextStart
     },
     get isTurbopack() {
-      return Boolean(!process.env.NEXT_TEST_WASM && (options.turbo ?? shouldUseTurbopack()))
+      return Boolean(
+        !process.env.NEXT_TEST_WASM && (options.turbo ?? shouldUseTurbopack())
+      )
     },
     get isRspack() {
       return isRspack

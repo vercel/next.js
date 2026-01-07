@@ -1,5 +1,9 @@
 import { useRecoilValue, useSetRecoilState, useResetRecoilState } from "recoil";
-import { countState, incrementCount, decrementCount } from "../lib/recoil-atoms";
+import {
+  countState,
+  incrementCount,
+  decrementCount,
+} from "../lib/recoil-atoms";
 
 const useCounter = () => ({
   count: useRecoilValue(countState),

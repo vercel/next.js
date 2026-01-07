@@ -112,7 +112,10 @@ describe('unrecognized server actions', () => {
         const requestTracker = createRequestTracker(browser)
 
         const [_, response] = await requestTracker.captureResponse(
-          async () => await browser.elementByCss(`form#${formId} button[type="submit"]`).click(),
+          async () =>
+            await browser
+              .elementByCss(`form#${formId} button[type="submit"]`)
+              .click(),
           {
             request: {
               method: 'POST',
@@ -133,8 +136,12 @@ describe('unrecognized server actions', () => {
           )
 
           // We responded with a 404, but we shouldn't trigger a not-found (either a custom or a default one)
-          expect(await browser.elementByCss('body').text()).not.toContain('Not found')
-          expect(await browser.elementByCss('body').text()).not.toContain('my-not-found')
+          expect(await browser.elementByCss('body').text()).not.toContain(
+            'Not found'
+          )
+          expect(await browser.elementByCss('body').text()).not.toContain(
+            'my-not-found'
+          )
 
           if (!isNextDeploy) {
             await retry(async () =>
@@ -157,16 +164,22 @@ describe('unrecognized server actions', () => {
             // This is not ideal, and ignores all nested `error.js` files, only showing the topmost one.
             expect(response.status()).toBe(500)
             if (isNextDev) {
-              expect(response.headers()['content-type']).toStartWith('text/html')
+              expect(response.headers()['content-type']).toStartWith(
+                'text/html'
+              )
             } else {
               const responseText = await response.text()
               expect(responseText).toBe('Internal Server Error')
-              expect(response.headers()['content-type']).toStartWith('text/plain')
+              expect(response.headers()['content-type']).toStartWith(
+                'text/plain'
+              )
             }
 
             // In dev, the 500 page doesn't have any SSR'd html, so it won't show anything without JS.
             if (!isNextDev) {
-              expect(await browser.elementByCss('body').text()).toContain('Internal Server Error')
+              expect(await browser.elementByCss('body').text()).toContain(
+                'Internal Server Error'
+              )
             }
 
             if (!isNextDeploy) {
@@ -189,12 +202,15 @@ describe('unrecognized server actions', () => {
           description: 'js disabled',
           disableJavaScript: true,
         },
-      ])('server action invoked via form - $description', async ({ disableJavaScript }) => {
-        await testUnrecognizedActionSubmission({
-          formId: 'form-direct',
-          disableJavaScript,
-        })
-      })
+      ])(
+        'server action invoked via form - $description',
+        async ({ disableJavaScript }) => {
+          await testUnrecognizedActionSubmission({
+            formId: 'form-direct',
+            disableJavaScript,
+          })
+        }
+      )
 
       // these forms rely on client-side JS, so we can't test them with JS disabled
       it.each([

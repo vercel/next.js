@@ -1,4 +1,9 @@
-import { execSync, execFileSync, spawn, ExecSyncOptionsWithStringEncoding } from 'child_process'
+import {
+  execSync,
+  execFileSync,
+  spawn,
+  ExecSyncOptionsWithStringEncoding,
+} from 'child_process'
 import { existsSync } from 'fs'
 import globOrig from 'glob'
 import { join } from 'path'
@@ -83,7 +88,9 @@ export function execAsyncWithOutput(
           stderr: Buffer.concat(stderr),
         })
       }
-      const err = new ExecError(`Command failed with exit code ${code}: ${prettyCommand(command)}`)
+      const err = new ExecError(
+        `Command failed with exit code ${code}: ${prettyCommand(command)}`
+      )
       err.code = code
       err.stdout = Buffer.concat(stdout)
       err.stderr = Buffer.concat(stderr)
@@ -134,19 +141,26 @@ const FORCED_GLOBS = ['package.json', 'README*', 'LICENSE*', 'LICENCE*']
 export async function packageFiles(path: string): Promise<string[]> {
   const { files = DEFAULT_GLOBS, main, bin } = require(`${path}/package.json`)
 
-  const allFiles: string[] = files.concat(FORCED_GLOBS, main ?? [], Object.values(bin ?? {}))
+  const allFiles: string[] = files.concat(
+    FORCED_GLOBS,
+    main ?? [],
+    Object.values(bin ?? {})
+  )
   const isGlob = (f) => f.includes('*') || f.startsWith('!')
   const simpleFiles = allFiles
     .filter((f) => !isGlob(f) && existsSync(join(path, f)))
     .map((f) => f.replace(/^\.\//, ''))
   const globFiles = allFiles.filter(isGlob)
-  const globbedFiles = await glob(`+(${globFiles.filter((f) => !f.startsWith('!')).join('|')})`, {
-    cwd: path,
-    ignore: `+(${globFiles
-      .filter((f) => f.startsWith('!'))
-      .map((f) => f.slice(1))
-      .join('|')})`,
-  })
+  const globbedFiles = await glob(
+    `+(${globFiles.filter((f) => !f.startsWith('!')).join('|')})`,
+    {
+      cwd: path,
+      ignore: `+(${globFiles
+        .filter((f) => f.startsWith('!'))
+        .map((f) => f.slice(1))
+        .join('|')})`,
+    }
+  )
   const packageFiles = [...globbedFiles, ...simpleFiles].sort()
   const set = new Set()
   return packageFiles.filter((f) => {

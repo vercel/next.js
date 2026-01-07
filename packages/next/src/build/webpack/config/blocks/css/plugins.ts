@@ -5,14 +5,18 @@ type CssPluginCollection_Array = (string | [string, boolean | object])[]
 
 type CssPluginCollection_Object = { [key: string]: object | boolean }
 
-type CssPluginCollection = CssPluginCollection_Array | CssPluginCollection_Object
+type CssPluginCollection =
+  | CssPluginCollection_Array
+  | CssPluginCollection_Object
 
 type CssPluginShape = [string, object | boolean | string]
 
 const genericErrorText = 'Malformed PostCSS Configuration'
 
 function getError_NullConfig(pluginName: string) {
-  return `${red(bold('Error'))}: Your PostCSS configuration for '${pluginName}' cannot have ${bold(
+  return `${red(
+    bold('Error')
+  )}: Your PostCSS configuration for '${pluginName}' cannot have ${bold(
     'null'
   )} configuration.\nTo disable '${pluginName}', pass ${bold(
     'false'
@@ -115,11 +119,16 @@ export async function getPostCssPlugins(
   disablePostcssPresetEnv: boolean = false,
   useLightningcss: boolean = false
 ): Promise<import('postcss').AcceptedPlugin[]> {
-  let config = await findConfig<{ plugins: CssPluginCollection }>(dir, 'postcss')
+  let config = await findConfig<{ plugins: CssPluginCollection }>(
+    dir,
+    'postcss'
+  )
 
   if (config == null) {
     config = {
-      plugins: useLightningcss ? [] : getDefaultPlugins(supportedBrowsers, disablePostcssPresetEnv),
+      plugins: useLightningcss
+        ? []
+        : getDefaultPlugins(supportedBrowsers, disablePostcssPresetEnv),
     }
   }
 
@@ -144,7 +153,9 @@ export async function getPostCssPlugins(
   // Enforce the user provided plugins if the configuration file is present
   let plugins = config.plugins
   if (plugins == null || typeof plugins !== 'object') {
-    throw new Error(`Your custom PostCSS configuration must export a \`plugins\` key.`)
+    throw new Error(
+      `Your custom PostCSS configuration must export a \`plugins\` key.`
+    )
   }
 
   if (!Array.isArray(plugins)) {
@@ -186,7 +197,9 @@ export async function getPostCssPlugins(
       } else {
         if (typeof pluginName !== 'string') {
           console.error(
-            `${red(bold('Error'))}: A PostCSS Plugin must be provided as a ${bold(
+            `${red(
+              bold('Error')
+            )}: A PostCSS Plugin must be provided as a ${bold(
               'string'
             )}. Instead, we got: '${pluginName}'.\n` +
               'Read more: https://nextjs.org/docs/messages/postcss-shape'
@@ -212,14 +225,18 @@ export async function getPostCssPlugins(
       throw new Error(genericErrorText)
     } else {
       console.error(
-        `${red(bold('Error'))}: An unknown PostCSS plugin was provided (${plugin}).\n` +
+        `${red(
+          bold('Error')
+        )}: An unknown PostCSS plugin was provided (${plugin}).\n` +
           'Read more: https://nextjs.org/docs/messages/postcss-shape'
       )
       throw new Error(genericErrorText)
     }
   })
 
-  const resolved = await Promise.all(parsed.map((p) => loadPlugin(dir, p[0], p[1])))
+  const resolved = await Promise.all(
+    parsed.map((p) => loadPlugin(dir, p[0], p[1]))
+  )
   const filtered: import('postcss').AcceptedPlugin[] = resolved.filter(
     Boolean
   ) as import('postcss').AcceptedPlugin[]

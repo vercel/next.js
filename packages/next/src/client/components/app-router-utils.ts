@@ -24,7 +24,9 @@ export function createPrefetchURL(href: string): URL | null {
   } catch (_) {
     // TODO: Does this need to throw or can we just console.error instead? Does
     // anyone rely on this throwing? (Seems unlikely.)
-    throw new Error(`Cannot prefetch '${href}' because it cannot be converted to a URL.`)
+    throw new Error(
+      `Cannot prefetch '${href}' because it cannot be converted to a URL.`
+    )
   }
 
   // Don't prefetch during development (improves compilation performance)

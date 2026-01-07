@@ -129,7 +129,9 @@ class BenchmarkRunner {
 
       server.on('close', (code) => {
         if (!serverReady) {
-          reject(new Error(`Server exited with code ${code} before becoming ready`))
+          reject(
+            new Error(`Server exited with code ${code} before becoming ready`)
+          )
         }
       })
 
@@ -179,7 +181,10 @@ class BenchmarkRunner {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
     const filename = `benchmark-results-${this.name}-${timestamp}.json`
 
-    writeFileSync(filename, JSON.stringify(summarizeDurations(this.results), null, 2))
+    writeFileSync(
+      filename,
+      JSON.stringify(summarizeDurations(this.results), null, 2)
+    )
     console.log(`Results saved to ${filename}`)
   }
 }
@@ -199,8 +204,12 @@ const summarizeDurations = (data) => {
   }
   const results = []
   for (const [name, data] of byName) {
-    const loadDurations = data.map((item) => item.loadDuration).sort((a, b) => a - b)
-    const executeDurations = data.map((item) => item.executeDuration).sort((a, b) => a - b)
+    const loadDurations = data
+      .map((item) => item.loadDuration)
+      .sort((a, b) => a - b)
+    const executeDurations = data
+      .map((item) => item.executeDuration)
+      .sort((a, b) => a - b)
 
     const getSummary = (durations) => {
       const sum = durations.reduce((acc, val) => acc + val, 0)

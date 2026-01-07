@@ -5,7 +5,9 @@ async function fetchAPI(query, { variables, preview } = {}) {
       "Content-Type": "application/json",
       Authorization:
         "Bearer " +
-        (preview ? process.env.PREPRIO_PREVIEW_TOKEN : process.env.PREPRIO_PRODUCTION_TOKEN),
+        (preview
+          ? process.env.PREPRIO_PREVIEW_TOKEN
+          : process.env.PREPRIO_PRODUCTION_TOKEN),
     },
     body: JSON.stringify({
       query,
@@ -157,6 +159,8 @@ export async function getPostAndMorePosts(slug, preview) {
 
   return {
     post: data?.Article,
-    morePosts: (data?.MoreArticles?.items || []).filter((item) => item._slug !== slug).slice(0, 2),
+    morePosts: (data?.MoreArticles?.items || [])
+      .filter((item) => item._slug !== slug)
+      .slice(0, 2),
   };
 }

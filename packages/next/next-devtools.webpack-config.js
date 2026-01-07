@@ -120,8 +120,9 @@ module.exports = ({ dev, ...rest }) => {
                 // We've experienced `singletonStyleTag` that the later updated styles not being applied.
                 // Keep using `styleTag` to ensure when new styles injected the style can also be updated.
                 injectType: 'styleTag',
-                insert:
-                  require.resolve('./src/build/webpack/loaders/devtool/devtool-style-inject.js'),
+                insert: require.resolve(
+                  './src/build/webpack/loaders/devtool/devtool-style-inject.js'
+                ),
               },
             },
             { loader: 'css-loader', options: { sourceMap: false } },

@@ -4,7 +4,10 @@ import redis from "./redis";
 import getUser from "./getUser";
 import clearUrl from "./clearUrl";
 
-export default async function deleteComments(req: NextApiRequest, res: NextApiResponse) {
+export default async function deleteComments(
+  req: NextApiRequest,
+  res: NextApiResponse,
+) {
   const url = clearUrl(req.headers.referer);
   const { comment }: { url: string; comment: Comment } = req.body;
   const { authorization } = req.headers;

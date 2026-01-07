@@ -12,7 +12,9 @@ import handlerUserland from 'VAR_USERLAND'
 const page = 'VAR_DEFINITION_PAGE'
 
 if (typeof handlerUserland !== 'function') {
-  throw new Error(`The Edge Function "pages${page}" must export a \`default\` function`)
+  throw new Error(
+    `The Edge Function "pages${page}" must export a \`default\` function`
+  )
 }
 
 const handler: EdgeHandler = (opts) => {

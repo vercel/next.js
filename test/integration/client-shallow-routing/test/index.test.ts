@@ -2,7 +2,15 @@
 
 import { join } from 'path'
 import webdriver from 'next-webdriver'
-import { findPort, launchApp, killApp, nextBuild, nextStart, check, waitFor } from 'next-test-utils'
+import {
+  findPort,
+  launchApp,
+  killApp,
+  nextBuild,
+  nextStart,
+  check,
+  waitFor,
+} from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
 let app
@@ -80,23 +88,29 @@ const runTests = () => {
 }
 
 describe('Client Shallow Routing', () => {
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-    runTests()
-  })
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+      runTests()
+    }
+  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-    runTests()
-  })
+      runTests()
+    }
+  )
 })

@@ -46,16 +46,25 @@ export default function Home() {
           <Image src="/thirteen.svg" alt="13" width={40} height={31} priority />
         </div>
       </div>
-      <Image src="/sentry.svg" alt="Sentry Logo" width={360} height={74} priority />
+      <Image
+        src="/sentry.svg"
+        alt="Sentry Logo"
+        width={360}
+        height={74}
+        priority
+      />
       <div
         className={styles.justCenter}
         style={{ display: "flex", flexDirection: "column", rowGap: "1rem" }}
       >
-        <p className={inter.className}>See how Sentry records unhandled exceptions in your code.</p>
+        <p className={inter.className}>
+          See how Sentry records unhandled exceptions in your code.
+        </p>
         <div className={styles.description}>
           <p className={inter.className}>
-            <strong>Important:</strong> exceptions in development mode take a different path than in
-            production. These tests should be run on a production build (i.e.{" "}
+            <strong>Important:</strong> exceptions in development mode take a
+            different path than in production. These tests should be run on a
+            production build (i.e.{" "}
             <code className={styles.code}>next build</code>
             ).{" "}
             <Link
@@ -75,8 +84,8 @@ export default function Home() {
             API routes <span>-&gt;</span>
           </h2>
           <p className={inter.className}>
-            The following examples are Sentry tests. Note that 1 and 2 are not expected to work if
-            deployed to Vercel yet.
+            The following examples are Sentry tests. Note that 1 and 2 are not
+            expected to work if deployed to Vercel yet.
           </p>
           <p className={inter.className}>
             Top-of-module promise that rejects, but its result is not awaited.
@@ -117,15 +126,16 @@ export default function Home() {
             SSR <span>-&gt;</span>
           </h2>
           <p className={inter.className}>
-            There are currently two known bugs with respect to SSR transactions: they don't get
-            recorded on Vercel, and ones that are recorded and have an error are grouped in the
-            Sentry UI by the error page name rather than the requested page name.
+            There are currently two known bugs with respect to SSR transactions:
+            they don't get recorded on Vercel, and ones that are recorded and
+            have an error are grouped in the Sentry UI by the error page name
+            rather than the requested page name.
           </p>
 
           <p className={inter.className}>
             <code className={styles.code}>getServerSideProps </code>
-            &nbsp;throws an Error. This should cause _error.js to render and record and Error in
-            Sentry.{" "}
+            &nbsp;throws an Error. This should cause _error.js to render and
+            record and Error in Sentry.{" "}
             <code className={styles.code}>
               <Link className={styles.link} href="/ssr/test1">
                 SSR Test 1
@@ -134,8 +144,8 @@ export default function Home() {
           </p>
           <p className={inter.className}>
             <code className={styles.code}>getServerSideProps </code>
-            returns a Promise that rejects. This should cause _error.js to render and record an
-            Error in Sentry.{" "}
+            returns a Promise that rejects. This should cause _error.js to
+            render and record an Error in Sentry.{" "}
             <code className={styles.code}>
               <Link className={styles.link} href="/ssr/test2">
                 SSR Test 2
@@ -144,9 +154,10 @@ export default function Home() {
           </p>
           <p className={inter.className}>
             <code className={styles.code}>getServerSideProps </code>
-            calls a Promise that rejects, but does not handle the rejection or await its result
-            (returning synchronously). Sentry records an Error but <strong>will not</strong> when
-            deployed to Vercel because the serverless function will already have exited.{" "}
+            calls a Promise that rejects, but does not handle the rejection or
+            await its result (returning synchronously). Sentry records an Error
+            but <strong>will not</strong> when deployed to Vercel because the
+            serverless function will already have exited.{" "}
             <code className={styles.code}>
               <Link className={styles.link} href="/ssr/test3">
                 SSR Test 3
@@ -155,7 +166,8 @@ export default function Home() {
           </p>
           <p className={inter.className}>
             <code className={styles.code}>getServerSideProps </code>
-            manually captures an exception from a try/catch. This should record Error in Sentry.{" "}
+            manually captures an exception from a try/catch. This should record
+            Error in Sentry.{" "}
             <code className={styles.code}>
               <Link className={styles.link} href="/ssr/test4">
                 SSR Test 4
@@ -169,8 +181,8 @@ export default function Home() {
             Client exceptions <span>-&gt;</span>
           </h2>
           <p className={inter.className}>
-            There is a top-of-module Promise that rejects, but its result is not awaited. Sentry
-            records an Error.{" "}
+            There is a top-of-module Promise that rejects, but its result is not
+            awaited. Sentry records an Error.{" "}
             <code className={styles.code}>
               <Link className={styles.link} href="/client/test1">
                 Client Test 1
@@ -178,8 +190,8 @@ export default function Home() {
             </code>
           </p>
           <p className={inter.className}>
-            There is a top-of-module exception. _error.js should render and record
-            ReferenceError('process is not defined') in Sentry.{" "}
+            There is a top-of-module exception. _error.js should render and
+            record ReferenceError('process is not defined') in Sentry.{" "}
             <code className={styles.code}>
               <Link className={styles.link} href="/client/test2">
                 Client Test 2
@@ -187,9 +199,9 @@ export default function Home() {
             </code>
           </p>
           <p className={inter.className}>
-            There is an exception during React lifecycle that is caught by Next.js's React Error
-            Boundary. In this case, when the component mounts. This causes _error.js to render and
-            records Error in Sentry.{" "}
+            There is an exception during React lifecycle that is caught by
+            Next.js's React Error Boundary. In this case, when the component
+            mounts. This causes _error.js to render and records Error in Sentry.{" "}
             <code className={styles.code}>
               <Link className={styles.link} href="/client/test3">
                 Client Test 3
@@ -197,8 +209,8 @@ export default function Home() {
             </code>
           </p>
           <p className={inter.className}>
-            There is an unhandled Promise rejection during React lifecycle. In this case, when the
-            component mounts. Sentry records an Error.{" "}
+            There is an unhandled Promise rejection during React lifecycle. In
+            this case, when the component mounts. Sentry records an Error.{" "}
             <code className={styles.code}>
               <Link className={styles.link} href="/client/test4">
                 {" "}
@@ -207,8 +219,9 @@ export default function Home() {
             </code>
           </p>
           <p className={inter.className}>
-            An Error is thrown from an event handler. Sentry records an Error. (This page also
-            demonstrates how to manually instrument your code for performance monitoring.){" "}
+            An Error is thrown from an event handler. Sentry records an Error.
+            (This page also demonstrates how to manually instrument your code
+            for performance monitoring.){" "}
             <code className={styles.code}>
               <Link className={styles.link} href="/client/test5">
                 Client Test 5
@@ -221,8 +234,9 @@ export default function Home() {
             Next.js 13 Features <span>-&gt;</span>
           </h2>
           <p className={inter.className}>
-            Next.js 13 continues to bring many new features to developers, especially those
-            deploying on Vercel. We are trying to keep up, we promise!
+            Next.js 13 continues to bring many new features to developers,
+            especially those deploying on Vercel. We are trying to keep up, we
+            promise!
           </p>
         </div>
         <div className={styles.card}>
@@ -239,7 +253,8 @@ export default function Home() {
             Backend transactions are recorded for each API or page route.
           </p>
           <p className={inter.className}>
-            Sentry creates links between errors and transactions, and can be seen in the{" "}
+            Sentry creates links between errors and transactions, and can be
+            seen in the{" "}
             <strong>
               <Link
                 className={styles.link}
@@ -251,8 +266,8 @@ export default function Home() {
             .
           </p>
           <p className={inter.className}>
-            Manual performance instrumentation is demonstrated in the final example below (throwing
-            an error from an event handler).
+            Manual performance instrumentation is demonstrated in the final
+            example below (throwing an error from an event handler).
           </p>
           <p className={inter.className}>
             Add Edge Function example

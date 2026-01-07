@@ -18,13 +18,16 @@ describe('AbsoluteFilenameNormalizer', () => {
       pathname: '<root>/pages/basic/endpoint/index.ts',
       expected: '/basic/endpoint',
     },
-  ])("normalizes '$pathname' to '$expected'", ({ pathname, expected, name }) => {
-    const normalizer = new AbsoluteFilenameNormalizer(
-      `<root>/${name}`,
-      ['ts', 'tsx', 'js', 'jsx'],
-      name as PAGE_TYPES
-    )
+  ])(
+    "normalizes '$pathname' to '$expected'",
+    ({ pathname, expected, name }) => {
+      const normalizer = new AbsoluteFilenameNormalizer(
+        `<root>/${name}`,
+        ['ts', 'tsx', 'js', 'jsx'],
+        name as PAGE_TYPES
+      )
 
-    expect(normalizer.normalize(pathname)).toEqual(expected)
-  })
+      expect(normalizer.normalize(pathname)).toEqual(expected)
+    }
+  )
 })

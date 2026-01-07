@@ -20,10 +20,11 @@ export const getStaticPaths: GetStaticPaths<Params> = async () => {
   }
 }
 
-export const getStaticProps: GetStaticProps<Props, Params, PreviewData> = async ({
-  params,
-  previewData,
-}) => {
+export const getStaticProps: GetStaticProps<
+  Props,
+  Params,
+  PreviewData
+> = async ({ params, previewData }) => {
   return {
     props: {
       data: params!.slug,

@@ -27,16 +27,22 @@ describe('next experimental-analyze', () => {
     const nextDir = path.dirname(require.resolve('next/package'))
     const nextBin = path.join(nextDir, 'dist/bin/next')
 
-    const serveProcess = spawn('node', [nextBin, 'experimental-analyze', '--port', '0'], {
-      cwd: next.testDir,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    })
+    const serveProcess = spawn(
+      'node',
+      [nextBin, 'experimental-analyze', '--port', '0'],
+      {
+        cwd: next.testDir,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      }
+    )
 
     try {
       const url = await waitForServer(serveProcess)
       const response = await fetch(url)
       expect(response.status).toBe(200)
-      expect(await response.text()).toContain('<title>Next.js Bundle Analyzer</title>')
+      expect(await response.text()).toContain(
+        '<title>Next.js Bundle Analyzer</title>'
+      )
     } finally {
       serveProcess.kill()
     }
@@ -44,13 +50,19 @@ describe('next experimental-analyze', () => {
   ;['-o', '--output'].forEach((flag) => {
     describe(`with ${flag} flag`, () => {
       it('writes output to .next/diagnostics/analyze path', async () => {
-        const defaultOutputPath = path.join(next.testDir, '.next/diagnostics/analyze')
+        const defaultOutputPath = path.join(
+          next.testDir,
+          '.next/diagnostics/analyze'
+        )
 
-        const { code, stderr, stdout } = await runNextCommand(['experimental-analyze', flag], {
-          cwd: next.testDir,
-          stderr: true,
-          stdout: true,
-        })
+        const { code, stderr, stdout } = await runNextCommand(
+          ['experimental-analyze', flag],
+          {
+            cwd: next.testDir,
+            stderr: true,
+            stdout: true,
+          }
+        )
 
         expect(code).toBe(0)
         expect(stderr).not.toContain('Error')
@@ -110,7 +122,11 @@ function waitForServer(process: ChildProcess, timeoutMs: number = 30000) {
       process.stdout.off('data', onStdout)
       process.off('error', onError)
       process.off('exit', onExit)
-      reject(new Error(`Server process exited with code ${code} before URL was emitted`))
+      reject(
+        new Error(
+          `Server process exited with code ${code} before URL was emitted`
+        )
+      )
     }
 
     process.stdout.on('data', onStdout)

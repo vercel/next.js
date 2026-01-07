@@ -19,19 +19,27 @@ describe('rsc-redirect', () => {
   })
 
   it('should get 200 status code for rsc request', async () => {
-    const response = await fetchViaHTTP(next.url, `/origin?${NEXT_RSC_UNION_QUERY}`, undefined, {
-      redirect: 'manual',
-      headers: {
-        rsc: '1',
-      },
-    })
+    const response = await fetchViaHTTP(
+      next.url,
+      `/origin?${NEXT_RSC_UNION_QUERY}`,
+      undefined,
+      {
+        redirect: 'manual',
+        headers: {
+          rsc: '1',
+        },
+      }
+    )
     expect(response.status).toBe(200)
   })
 })
 
 // TODO: these tests aren't currently run at all during testing
 if (process.env.NODE_ENV === 'production') {
-  describe.each([{ cacheComponents: true }, { cacheComponents: false }] as const)(
+  describe.each([
+    { cacheComponents: true },
+    { cacheComponents: false },
+  ] as const)(
     'rsc-redirect /old-about -> /about (cacheComponents: $cacheComponents)',
     ({ cacheComponents }) => {
       beforeAll(() => {

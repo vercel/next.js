@@ -21,7 +21,9 @@ describe('Middleware custom matchers', () => {
       files: new FileRef(join(__dirname, '../app')),
       overrideFiles: process.env.TEST_NODE_MIDDLEWARE
         ? {
-            'middleware.js': new FileRef(join(__dirname, '../app/middleware-node.js')),
+            'middleware.js': new FileRef(
+              join(__dirname, '../app/middleware-node.js')
+            ),
           }
         : {},
     })
@@ -149,27 +151,37 @@ describe('Middleware custom matchers', () => {
 
     // FIXME: Test fails on Vercel deployment for now.
     // See https://linear.app/vercel/issue/EC-160/header-value-set-on-middleware-is-not-propagated-on-client-request-of
-    itif(!isModeDeploy)('should match has query on client routing', async () => {
-      const browser = await webdriver(next.url, '/routes')
-      await browser.eval('window.__TEST_NO_RELOAD = true')
-      await browser.elementById('has-match-2').click()
-      const fromMiddleware = await browser.elementById('from-middleware').text()
-      expect(fromMiddleware).toBe('true')
-      const noReload = await browser.eval('window.__TEST_NO_RELOAD')
-      expect(noReload).toBe(true)
-    })
+    itif(!isModeDeploy)(
+      'should match has query on client routing',
+      async () => {
+        const browser = await webdriver(next.url, '/routes')
+        await browser.eval('window.__TEST_NO_RELOAD = true')
+        await browser.elementById('has-match-2').click()
+        const fromMiddleware = await browser
+          .elementById('from-middleware')
+          .text()
+        expect(fromMiddleware).toBe('true')
+        const noReload = await browser.eval('window.__TEST_NO_RELOAD')
+        expect(noReload).toBe(true)
+      }
+    )
 
-    itif(!isModeDeploy)('should match has cookie on client routing', async () => {
-      const browser = await webdriver(next.url, '/routes')
-      await browser.addCookie({ name: 'loggedIn', value: 'true' })
-      await browser.refresh()
-      await browser.eval('window.__TEST_NO_RELOAD = true')
-      await browser.elementById('has-match-3').click()
-      const fromMiddleware = await browser.elementById('from-middleware').text()
-      expect(fromMiddleware).toBe('true')
-      const noReload = await browser.eval('window.__TEST_NO_RELOAD')
-      expect(noReload).toBe(true)
-    })
+    itif(!isModeDeploy)(
+      'should match has cookie on client routing',
+      async () => {
+        const browser = await webdriver(next.url, '/routes')
+        await browser.addCookie({ name: 'loggedIn', value: 'true' })
+        await browser.refresh()
+        await browser.eval('window.__TEST_NO_RELOAD = true')
+        await browser.elementById('has-match-3').click()
+        const fromMiddleware = await browser
+          .elementById('from-middleware')
+          .text()
+        expect(fromMiddleware).toBe('true')
+        const noReload = await browser.eval('window.__TEST_NO_RELOAD')
+        expect(noReload).toBe(true)
+      }
+    )
   }
   runTests()
 })

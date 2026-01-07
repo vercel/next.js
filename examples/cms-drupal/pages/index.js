@@ -43,12 +43,16 @@ export default function Index({ posts }) {
 }
 
 export async function getStaticProps(context) {
-  const posts = await getResourceCollectionFromContext("node--article", context, {
-    params: {
-      include: "field_image,uid,uid.user_picture",
-      sort: "-created",
+  const posts = await getResourceCollectionFromContext(
+    "node--article",
+    context,
+    {
+      params: {
+        include: "field_image,uid,uid.user_picture",
+        sort: "-created",
+      },
     },
-  });
+  );
 
   return {
     props: { posts },

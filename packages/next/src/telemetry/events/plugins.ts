@@ -9,7 +9,9 @@ type NextPluginsEvent = {
   }
 }
 
-export async function eventNextPlugins(dir: string): Promise<Array<NextPluginsEvent>> {
+export async function eventNextPlugins(
+  dir: string
+): Promise<Array<NextPluginsEvent>> {
   try {
     const packageJsonPath = await findUp('package.json', { cwd: dir })
     if (!packageJsonPath) {

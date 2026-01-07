@@ -42,7 +42,10 @@ export class Lockfile {
   private nativeLockfile: NativeLockfile | undefined
   private listener: NodeJS.ExitListener | undefined
 
-  private constructor(bindings: Binding, nativeLockfile: NativeLockfile | undefined) {
+  private constructor(
+    bindings: Binding,
+    nativeLockfile: NativeLockfile | undefined
+  ) {
     this.bindings = bindings
     this.nativeLockfile = nativeLockfile
   }
@@ -54,10 +57,15 @@ export class Lockfile {
    * - If we fail to acquire the lock, we return `undefined`.
    * - If we're on wasm, this always returns a dummy `Lockfile` object.
    */
-  static tryAcquire(path: string, unlockOnExit: boolean = true): Lockfile | undefined {
+  static tryAcquire(
+    path: string,
+    unlockOnExit: boolean = true
+  ): Lockfile | undefined {
     const bindings = getBindingsSync()
     if (bindings.isWasm) {
-      Log.info(`Skipping creating a lockfile at ${cyan(path)} because we're using WASM bindings`)
+      Log.info(
+        `Skipping creating a lockfile at ${cyan(path)} because we're using WASM bindings`
+      )
       return new Lockfile(bindings, undefined)
     } else {
       let nativeLockfile

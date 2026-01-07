@@ -37,7 +37,8 @@ function install() {
     globalThis.setImmediate = nodeTimers.setImmediate =
       // Workaround for missing __promisify__ which is not a real property
       patchedSetImmediate as unknown as typeof setImmediate
-    globalThis.clearImmediate = nodeTimers.clearImmediate = patchedClearImmediate
+    globalThis.clearImmediate = nodeTimers.clearImmediate =
+      patchedClearImmediate
 
     const nodeTimersPromises =
       require('node:timers/promises') as typeof import('node:timers/promises')
@@ -128,9 +129,12 @@ export function DANGEROUSLY_runPendingImmediatesAfterCurrentTask() {
       // Otherwise, bail out here.
       bail(
         execution,
-        new InvariantError('An unexpected error occurred while starting to capture immediates', {
-          cause: err,
-        })
+        new InvariantError(
+          'An unexpected error occurred while starting to capture immediates',
+          {
+            cause: err,
+          }
+        )
       )
     }
   }
@@ -145,7 +149,9 @@ export function DANGEROUSLY_runPendingImmediatesAfterCurrentTask() {
  */
 export function expectNoPendingImmediates() {
   if (process.env.NEXT_RUNTIME === 'edge') {
-    throw new InvariantError('expectNoPendingImmediates cannot be called in the edge runtime')
+    throw new InvariantError(
+      'expectNoPendingImmediates cannot be called in the edge runtime'
+    )
   } else {
     if (currentExecution !== null) {
       bail(
@@ -197,7 +203,10 @@ function scheduleWorkAfterNextTicksAndMicrotasks(execution: Execution) {
       // (nextTicks and microtasks) that that function is currently looping over.
 
       try {
-        if (execution.state === ExecutionState.Abandoned || currentExecution !== execution) {
+        if (
+          execution.state === ExecutionState.Abandoned ||
+          currentExecution !== execution
+        ) {
           debug?.(`scheduler :: the execution was abandoned`)
           return
         }
@@ -226,9 +235,10 @@ function scheduleWorkAfterNextTicksAndMicrotasks(execution: Execution) {
         queueMicrotask(() => {
           bail(
             execution,
-            new InvariantError('An unexpected error occurred while executing immediates', {
-              cause: err,
-            })
+            new InvariantError(
+              'An unexpected error occurred while executing immediates',
+              { cause: err }
+            )
           )
         })
       }
@@ -442,7 +452,9 @@ function scheduleQueuedImmediateAsNativeImmediate(queueItem: ActiveQueueItem) {
   clearQueueItem(queueItem)
 
   const nativeImmediate =
-    args !== null ? originalSetImmediate(callback, ...args) : originalSetImmediate(callback)
+    args !== null
+      ? originalSetImmediate(callback, ...args)
+      : originalSetImmediate(callback)
 
   if (!hasRef) {
     nativeImmediate.unref()
@@ -502,22 +514,32 @@ function patchedNextTick() {
     // We expect the above call to throw. If it didn't, something's broken.
     bail(
       currentExecution,
-      new InvariantError('Expected process.nextTick to reject invalid arguments')
+      new InvariantError(
+        'Expected process.nextTick to reject invalid arguments'
+      )
     )
   }
 
-  debug?.(`scheduler :: process.nextTick called (previous pending: ${pendingNextTicks})`)
+  debug?.(
+    `scheduler :: process.nextTick called (previous pending: ${pendingNextTicks})`
+  )
 
   const callback: (...args: any[]) => any = arguments[0]
-  const args: any[] | null = arguments.length > 1 ? Array.prototype.slice.call(arguments, 1) : null
+  const args: any[] | null =
+    arguments.length > 1 ? Array.prototype.slice.call(arguments, 1) : null
 
   pendingNextTicks += 1
   return originalNextTick(safelyRunNextTickCallback, callback, args)
 }
 
-function safelyRunNextTickCallback(callback: (...args: any[]) => any, args: any[] | null) {
+function safelyRunNextTickCallback(
+  callback: (...args: any[]) => any,
+  args: any[] | null
+) {
   pendingNextTicks -= 1
-  debug?.(`scheduler :: process.nextTick executing (still pending: ${pendingNextTicks})`)
+  debug?.(
+    `scheduler :: process.nextTick executing (still pending: ${pendingNextTicks})`
+  )
 
   // Synchronous errors in nextTick break out of `processTicksAndRejections` and cause us
   // to move on to the next timer without having executed the whole nextTick queue,
@@ -565,11 +587,15 @@ function patchedSetImmediate(): NodeJS.Immediate {
     )
 
     // We expect the above call to throw. If it didn't, something's broken.
-    bail(currentExecution, new InvariantError('Expected setImmediate to reject invalid arguments'))
+    bail(
+      currentExecution,
+      new InvariantError('Expected setImmediate to reject invalid arguments')
+    )
   }
 
   const callback: (...args: any[]) => any = arguments[0]
-  const args: any[] | null = arguments.length > 1 ? Array.prototype.slice.call(arguments, 1) : null
+  const args: any[] | null =
+    arguments.length > 1 ? Array.prototype.slice.call(arguments, 1) : null
 
   // Normally, Node would capture and propagate the async context to the immediate.
   // We'll be running it on our own queue, so we need to propagate it ourselves.
@@ -632,7 +658,9 @@ function patchedSetImmediatePromise<T = void>(
 
 patchedSetImmediate[promisify.custom] = patchedSetImmediatePromise
 
-const patchedClearImmediate = (immediateObject: NodeJS.Immediate | undefined) => {
+const patchedClearImmediate = (
+  immediateObject: NodeJS.Immediate | undefined
+) => {
   // NOTE: we defensively check for patched immediates even if we're not
   // currently capturing immediates, because the objects returned from
   // the patched setImmediate can be kept around for arbitrarily long.
@@ -744,14 +772,19 @@ const debug =
     ? undefined
     : (...args: any[]) => {
         if (process.env.NEXT_RUNTIME === 'edge') {
-          throw new InvariantError('Fast setImmediate is not available in the edge runtime.')
+          throw new InvariantError(
+            'Fast setImmediate is not available in the edge runtime.'
+          )
         } else {
           const { inspect } = require('node:util') as typeof import('node:util')
-          const { writeFileSync } = require('node:fs') as typeof import('node:fs')
+          const { writeFileSync } =
+            require('node:fs') as typeof import('node:fs')
 
           let logLine =
             args
-              .map((arg) => (typeof arg === 'string' ? arg : inspect(arg, { colors: true })))
+              .map((arg) =>
+                typeof arg === 'string' ? arg : inspect(arg, { colors: true })
+              )
               .join(' ') + '\n'
 
           logLine = '\x1B[2m' + logLine + '\x1B[22m' // styleText('dim', logLine)

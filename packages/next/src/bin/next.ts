@@ -2,7 +2,12 @@
 
 import '../server/require-hook'
 
-import { Argument, Command, InvalidArgumentError, Option } from 'next/dist/compiled/commander'
+import {
+  Argument,
+  Command,
+  InvalidArgumentError,
+  Option,
+} from 'next/dist/compiled/commander'
 
 import { warn } from '../build/output/log'
 import semver from 'next/dist/compiled/semver'
@@ -14,7 +19,10 @@ import {
   parseValidPositiveInteger,
   type DebugAddress,
 } from '../server/lib/utils'
-import { SUPPORTED_TEST_RUNNERS_LIST, type NextTestOptions } from '../cli/next-test.js'
+import {
+  SUPPORTED_TEST_RUNNERS_LIST,
+  type NextTestOptions,
+} from '../cli/next-test.js'
 import type { NextTelemetryOptions } from '../cli/next-telemetry.js'
 import type { NextStartOptions } from '../cli/next-start.js'
 import type { NextInfoOptions } from '../cli/next-info.js'
@@ -29,9 +37,11 @@ if (process.env.NEXT_RSPACK) {
 }
 
 if (
-  !semver.satisfies(process.versions.node, process.env.__NEXT_REQUIRED_NODE_VERSION_RANGE!, {
-    includePrerelease: true,
-  })
+  !semver.satisfies(
+    process.versions.node,
+    process.env.__NEXT_REQUIRED_NODE_VERSION_RANGE!,
+    { includePrerelease: true }
+  )
 ) {
   console.error(
     `You are using Node.js ${process.versions.node}. For Next.js, Node.js version "${process.env.__NEXT_REQUIRED_NODE_VERSION_RANGE}" is required.`
@@ -111,7 +121,9 @@ const program = new NextRootCommand()
 
 program
   .name('next')
-  .description('The Next.js CLI allows you to develop, build, start your application, and more.')
+  .description(
+    'The Next.js CLI allows you to develop, build, start your application, and more.'
+  )
   .configureHelp({
     formatHelp: (cmd, helper) => formatCliHelpOutput(cmd, helper),
     subcommandTerm: (cmd) => `${cmd.name()} ${cmd.usage()}`,
@@ -135,9 +147,15 @@ program
       'If no directory is provided, the current directory will be used.'
     )}`
   )
-  .option('--experimental-analyze', 'Analyze bundle output. Only compatible with Turbopack.')
+  .option(
+    '--experimental-analyze',
+    'Analyze bundle output. Only compatible with Turbopack.'
+  )
   .option('-d, --debug', 'Enables a more verbose build output.')
-  .option('--debug-prerender', 'Enables debug mode for prerendering. Not for production use!')
+  .option(
+    '--debug-prerender',
+    'Enables debug mode for prerendering. Not for production use!'
+  )
   .option('--no-mangling', 'Disables mangling.')
   .option('--profile', 'Enables production profiling for React.')
   .option('--experimental-app-only', 'Builds only App Router routes.')
@@ -145,7 +163,10 @@ program
   .option('--turbopack', 'Builds using Turbopack.')
   .option('--webpack', 'Builds using webpack.')
   .addOption(
-    new Option('--experimental-build-mode [mode]', 'Uses an experimental build mode.')
+    new Option(
+      '--experimental-build-mode [mode]',
+      'Uses an experimental build mode.'
+    )
       .choices(['compile', 'generate', 'generate-env'])
       .default('default')
   )
@@ -208,9 +229,15 @@ program
   )
   .option('--no-mangling', 'Disables mangling.')
   .option('--profile', 'Enables production profiling for React.')
-  .option('-o, --output', 'Only write analysis files to disk. Does not start the server.')
+  .option(
+    '-o, --output',
+    'Only write analysis files to disk. Does not start the server.'
+  )
   .addOption(
-    new Option('--port <port>', 'Specify a port number to serve the analyzer on.')
+    new Option(
+      '--port <port>',
+      'Specify a port number to serve the analyzer on.'
+    )
       .implies({ serve: true })
       .argParser(parseValidPositiveInteger)
       .default(4000)
@@ -249,7 +276,10 @@ program
   .option('--turbopack', 'Starts development mode using Turbopack.')
   .option('--webpack', 'Starts development mode using webpack.')
   .addOption(
-    new Option('-p, --port <port>', 'Specify a port number on which to start the application.')
+    new Option(
+      '-p, --port <port>',
+      'Specify a port number on which to start the application.'
+    )
       .argParser(parseValidPositiveInteger)
       .default(3000)
       .env('PORT')
@@ -258,14 +288,24 @@ program
     '-H, --hostname <hostname>',
     'Specify a hostname on which to start the application (default: 0.0.0.0).'
   )
-  .option('--disable-source-maps', "Don't start the Dev server with `--enable-source-maps`.", false)
+  .option(
+    '--disable-source-maps',
+    "Don't start the Dev server with `--enable-source-maps`.",
+    false
+  )
   .option(
     '--experimental-https',
     'Starts the server with HTTPS and generates a self-signed certificate.'
   )
   .option('--experimental-https-key, <path>', 'Path to a HTTPS key file.')
-  .option('--experimental-https-cert, <path>', 'Path to a HTTPS certificate file.')
-  .option('--experimental-https-ca, <path>', 'Path to a HTTPS certificate authority file.')
+  .option(
+    '--experimental-https-cert, <path>',
+    'Path to a HTTPS certificate file.'
+  )
+  .option(
+    '--experimental-https-ca, <path>',
+    'Path to a HTTPS certificate authority file.'
+  )
   .option(
     '--experimental-upload-trace, <traceUrl>',
     'Reports a subset of the debugging trace to a remote HTTP URL. Includes sensitive data.'
@@ -278,20 +318,24 @@ program
     '--experimental-cpu-prof',
     'Enable CPU profiling. Profiles are saved to .next/cpu-profiles/ on exit.'
   )
-  .action((directory: string, options: NextDevOptions, { _optionValueSources }) => {
-    if (options.experimentalNextConfigStripTypes) {
-      process.env.__NEXT_NODE_NATIVE_TS_LOADER_ENABLED = 'true'
+  .action(
+    (directory: string, options: NextDevOptions, { _optionValueSources }) => {
+      if (options.experimentalNextConfigStripTypes) {
+        process.env.__NEXT_NODE_NATIVE_TS_LOADER_ENABLED = 'true'
+      }
+      if (options.experimentalCpuProf) {
+        process.env.NEXT_CPU_PROF = '1'
+        process.env.__NEXT_PRIVATE_CPU_PROFILE = 'dev-main'
+        const { join } = require('path') as typeof import('path')
+        const dir = directory || process.cwd()
+        process.env.NEXT_CPU_PROF_DIR = join(dir, '.next', 'cpu-profiles')
+      }
+      const portSource = _optionValueSources.port
+      import('../cli/next-dev.js').then((mod) =>
+        mod.nextDev(options, portSource, directory)
+      )
     }
-    if (options.experimentalCpuProf) {
-      process.env.NEXT_CPU_PROF = '1'
-      process.env.__NEXT_PRIVATE_CPU_PROFILE = 'dev-main'
-      const { join } = require('path') as typeof import('path')
-      const dir = directory || process.cwd()
-      process.env.NEXT_CPU_PROF_DIR = join(dir, '.next', 'cpu-profiles')
-    }
-    const portSource = _optionValueSources.port
-    import('../cli/next-dev.js').then((mod) => mod.nextDev(options, portSource, directory))
-  })
+  )
   .usage('[directory] [options]')
 
 program
@@ -304,7 +348,10 @@ program
   .description(
     'Prints relevant details about the current system which can be used to report Next.js bugs.'
   )
-  .addHelpText('after', `\nLearn more: ${cyan('https://nextjs.org/docs/api-reference/cli#info')}`)
+  .addHelpText(
+    'after',
+    `\nLearn more: ${cyan('https://nextjs.org/docs/api-reference/cli#info')}`
+  )
   .option('--verbose', 'Collects additional information for debugging.')
   .action((options: NextInfoOptions) =>
     import('../cli/next-info.js').then((mod) => mod.nextInfo(options))
@@ -322,7 +369,10 @@ program
     )}`
   )
   .addOption(
-    new Option('-p, --port <port>', 'Specify a port number on which to start the application.')
+    new Option(
+      '-p, --port <port>',
+      'Specify a port number on which to start the application.'
+    )
       .argParser(parseValidPositiveInteger)
       .default(3000)
       .env('PORT')
@@ -356,21 +406,31 @@ program
       const dir = directory || process.cwd()
       process.env.NEXT_CPU_PROF_DIR = join(dir, '.next', 'cpu-profiles')
     }
-    return import('../cli/next-start.js').then((mod) => mod.nextStart(options, directory))
+    return import('../cli/next-start.js').then((mod) =>
+      mod.nextStart(options, directory)
+    )
   })
   .usage('[directory] [options]')
 
 program
   .command('telemetry')
   .description(
-    `Allows you to enable or disable Next.js' ${bold('completely anonymous')} telemetry collection.`
+    `Allows you to enable or disable Next.js' ${bold(
+      'completely anonymous'
+    )} telemetry collection.`
   )
   .addArgument(new Argument('[arg]').choices(['disable', 'enable', 'status']))
   .addHelpText('after', `\nLearn more: ${cyan('https://nextjs.org/telemetry')}`)
-  .addOption(new Option('--enable', `Enables Next.js' telemetry collection.`).conflicts('disable'))
+  .addOption(
+    new Option('--enable', `Enables Next.js' telemetry collection.`).conflicts(
+      'disable'
+    )
+  )
   .option('--disable', `Disables Next.js' telemetry collection.`)
   .action((arg: string, options: NextTelemetryOptions) =>
-    import('../cli/next-telemetry.js').then((mod) => mod.nextTelemetry(options, arg))
+    import('../cli/next-telemetry.js').then((mod) =>
+      mod.nextTelemetry(options, arg)
+    )
   )
 
 program
@@ -396,7 +456,9 @@ program
 const nextVersion = process.env.__NEXT_VERSION || 'unknown'
 program
   .command('upgrade')
-  .description('Upgrade Next.js apps to desired versions with a single command.')
+  .description(
+    'Upgrade Next.js apps to desired versions with a single command.'
+  )
   .argument(
     '[directory]',
     `A Next.js project directory to upgrade. ${italic(
@@ -438,28 +500,36 @@ program
   )
   .option(
     '--test-runner [test-runner]',
-    `Any supported test runner. Options: ${bold(SUPPORTED_TEST_RUNNERS_LIST.join(', '))}. ${italic(
+    `Any supported test runner. Options: ${bold(
+      SUPPORTED_TEST_RUNNERS_LIST.join(', ')
+    )}. ${italic(
       "If no test runner is provided, the Next.js config option `experimental.defaultTestRunner`, or 'playwright' will be used."
     )}`
   )
   .allowUnknownOption()
-  .action((directory: string, testRunnerArgs: string[], options: NextTestOptions) => {
-    return import('../cli/next-test.js').then((mod) => {
-      mod.nextTest(directory, testRunnerArgs, options)
-    })
-  })
+  .action(
+    (directory: string, testRunnerArgs: string[], options: NextTestOptions) => {
+      return import('../cli/next-test.js').then((mod) => {
+        mod.nextTest(directory, testRunnerArgs, options)
+      })
+    }
+  )
   .usage('[directory] [options]')
 
 const internal = program
   .command('internal')
-  .description('Internal debugging commands. Use with caution. Not covered by semver.')
+  .description(
+    'Internal debugging commands. Use with caution. Not covered by semver.'
+  )
 
 internal
   .command('trace')
   .alias('turbo-trace-server')
   .argument('file', 'Trace file to serve.')
   .addOption(
-    new Option('-p, --port <port>', 'Override the port.').argParser(parseValidPositiveInteger)
+    new Option('-p, --port <port>', 'Override the port.').argParser(
+      parseValidPositiveInteger
+    )
   )
   .action((file: string, options: { port: number | undefined }) => {
     return import('../cli/internal/turbo-trace-server.js').then((mod) =>

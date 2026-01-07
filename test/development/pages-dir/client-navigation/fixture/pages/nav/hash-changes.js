@@ -27,7 +27,11 @@ const HashChanges = ({ count }) => {
       <Link href="#name-item-400" id="scroll-to-name-item-400">
         Go to name item 400
       </Link>
-      <Link href="#name-item-400" scroll={false} id="scroll-to-name-item-400-no-scroll">
+      <Link
+        href="#name-item-400"
+        scroll={false}
+        id="scroll-to-name-item-400-no-scroll"
+      >
         Go to name item 400 (no scroll)
       </Link>
       <Link href="#中文" id="scroll-to-cjk-anchor">

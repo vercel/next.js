@@ -14,10 +14,14 @@ export default async function Page() {
           root params + dynamic content
           <ul>
             <li>
-              <DebugLinkAccordion href={`/with-root-param/${currentLang}/in-page/root-params`} />
+              <DebugLinkAccordion
+                href={`/with-root-param/${currentLang}/in-page/root-params`}
+              />
             </li>
             <li>
-              <DebugLinkAccordion href={`/with-root-param/${otherLang}/in-page/root-params`} />
+              <DebugLinkAccordion
+                href={`/with-root-param/${otherLang}/in-page/root-params`}
+              />
             </li>
           </ul>
         </li>

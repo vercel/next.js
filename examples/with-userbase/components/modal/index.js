@@ -50,7 +50,10 @@ function LoginModal({ toggle, modalType, setUser }) {
   return (
     <form className="bg-white shadow-md rounded p-8">
       <div className="mb-4">
-        <label className="block text-purple-700 text-sm font-bold mb-2" htmlFor="username">
+        <label
+          className="block text-purple-700 text-sm font-bold mb-2"
+          htmlFor="username"
+        >
           Username
         </label>
         <input
@@ -63,7 +66,10 @@ function LoginModal({ toggle, modalType, setUser }) {
         />
       </div>
       <div className="mb-4">
-        <label className="block text-purple-700 text-sm font-bold mb-2" htmlFor="password">
+        <label
+          className="block text-purple-700 text-sm font-bold mb-2"
+          htmlFor="password"
+        >
           Password
         </label>
         <input
@@ -76,15 +82,26 @@ function LoginModal({ toggle, modalType, setUser }) {
         />
       </div>
       <div className="flex items-center justify-between">
-        <span className="font-bold cursor-pointer" onClick={() => toggle(false)}>
+        <span
+          className="font-bold cursor-pointer"
+          onClick={() => toggle(false)}
+        >
           Cancel
         </span>
         {modalType === "logIn" ? (
-          <button disabled={loading} className="btn-yellow" onClick={handleLogIn}>
+          <button
+            disabled={loading}
+            className="btn-yellow"
+            onClick={handleLogIn}
+          >
             {loading ? "Logging In ..." : "Log In"}
           </button>
         ) : (
-          <button disabled={loading} className="btn-yellow" onClick={handleSignUp}>
+          <button
+            disabled={loading}
+            className="btn-yellow"
+            onClick={handleSignUp}
+          >
             {loading ? "Signing up ..." : "Sign Up"}
           </button>
         )}

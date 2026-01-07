@@ -5,7 +5,9 @@ import cookie from 'next/dist/compiled/cookie'
 function generateCookies(
   ...cookieOptions: (CookieSerializeOptions & { name: string; value: string })[]
 ) {
-  const cookies = cookieOptions.map((opts) => cookie.serialize(opts.name, opts.value, opts))
+  const cookies = cookieOptions.map((opts) =>
+    cookie.serialize(opts.name, opts.value, opts)
+  )
   return {
     joined: cookies.join(', '),
     expected: cookies,

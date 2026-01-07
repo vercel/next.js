@@ -24,7 +24,10 @@ describe('error-hydration', () => {
     const browser = await next.browser('/with-error')
 
     expect(
-      await browser.eval(() => (window as any).__ERROR_PAGE_GET_INITIAL_PROPS_INVOKED_CLIENT_SIDE__)
+      await browser.eval(
+        () =>
+          (window as any).__ERROR_PAGE_GET_INITIAL_PROPS_INVOKED_CLIENT_SIDE__
+      )
     ).toBe(undefined)
   })
 
@@ -58,7 +61,8 @@ describe('error-hydration', () => {
     retry(async () => {
       expect(
         await browser.eval(
-          () => (window as any).__ERROR_PAGE_GET_INITIAL_PROPS_INVOKED_CLIENT_SIDE__
+          () =>
+            (window as any).__ERROR_PAGE_GET_INITIAL_PROPS_INVOKED_CLIENT_SIDE__
         )
       ).toBe(true)
     })

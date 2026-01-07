@@ -427,7 +427,9 @@ function getPrerenderOutput(cliOutput: string): string {
     }
 
     if (foundPrerenderingLine && !line.includes('Generating static pages')) {
-      lines.push(line.replace(/at \w+ \(.next[^)]+\)/, 'at x (<next-dist-dir>)'))
+      lines.push(
+        line.replace(/at \w+ \(.next[^)]+\)/, 'at x (<next-dist-dir>)')
+      )
     }
   }
 

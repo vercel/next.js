@@ -53,26 +53,38 @@ describe('i18n-ignore-redirect-source-locale', () => {
   })
   afterAll(() => next.destroy())
 
-  test.each(locales)('get redirected to the new page, from: %s to: sv', async (locale) => {
-    const browser = await webdriver(next.url, `${locale}/to-sv`)
-    await check(() => browser.elementById('current-locale').text(), 'sv')
-  })
+  test.each(locales)(
+    'get redirected to the new page, from: %s to: sv',
+    async (locale) => {
+      const browser = await webdriver(next.url, `${locale}/to-sv`)
+      await check(() => browser.elementById('current-locale').text(), 'sv')
+    }
+  )
 
-  test.each(locales)('get redirected to the new page, from: %s to: en', async (locale) => {
-    const browser = await webdriver(next.url, `${locale}/to-en`)
-    await check(() => browser.elementById('current-locale').text(), 'en')
-  })
+  test.each(locales)(
+    'get redirected to the new page, from: %s to: en',
+    async (locale) => {
+      const browser = await webdriver(next.url, `${locale}/to-en`)
+      await check(() => browser.elementById('current-locale').text(), 'en')
+    }
+  )
 
-  test.each(locales)('get redirected to the new page, from: %s to: /', async (locale) => {
-    const browser = await webdriver(next.url, `${locale}/to-slash`)
-    await check(() => browser.elementById('current-locale').text(), 'en')
-  })
+  test.each(locales)(
+    'get redirected to the new page, from: %s to: /',
+    async (locale) => {
+      const browser = await webdriver(next.url, `${locale}/to-slash`)
+      await check(() => browser.elementById('current-locale').text(), 'en')
+    }
+  )
 
-  test.each(locales)('get redirected to the new page, from and to: %s', async (locale) => {
-    const browser = await webdriver(next.url, `${locale}/to-same`)
-    await check(
-      () => browser.elementById('current-locale').text(),
-      locale === '' ? 'en' : locale.slice(1)
-    )
-  })
+  test.each(locales)(
+    'get redirected to the new page, from and to: %s',
+    async (locale) => {
+      const browser = await webdriver(next.url, `${locale}/to-same`)
+      await check(
+        () => browser.elementById('current-locale').text(),
+        locale === '' ? 'en' : locale.slice(1)
+      )
+    }
+  )
 })

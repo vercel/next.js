@@ -74,7 +74,10 @@ describe('Client Navigation with <Link/>', () => {
   it('should navigate an absolute url', async () => {
     const browser = await next.browser(`/absolute-url?port=${next.appPort}`)
     await browser.waitForElementByCss('#absolute-link').click()
-    await check(() => browser.eval(() => window.location.origin), 'https://vercel.com')
+    await check(
+      () => browser.eval(() => window.location.origin),
+      'https://vercel.com'
+    )
   })
 
   it('should call mouse handlers with an absolute url', async () => {
@@ -83,7 +86,9 @@ describe('Client Navigation with <Link/>', () => {
     await browser.elementByCss('#absolute-link-mouse-events').moveTo()
 
     expect(
-      await browser.waitForElementByCss('#absolute-link-mouse-events').getAttribute('data-hover')
+      await browser
+        .waitForElementByCss('#absolute-link-mouse-events')
+        .getAttribute('data-hover')
     ).toBe('true')
   })
 
@@ -92,7 +97,10 @@ describe('Client Navigation with <Link/>', () => {
     // @ts-expect-error _didNotNavigate is set intentionally
     await browser.eval(() => (window._didNotNavigate = true))
     await browser.waitForElementByCss('#absolute-local-link').click()
-    const text = await browser.waitForElementByCss('.nav-about').elementByCss('p').text()
+    const text = await browser
+      .waitForElementByCss('.nav-about')
+      .elementByCss('p')
+      .text()
 
     expect(text).toBe('This is the about page.')
     // @ts-expect-error _didNotNavigate is set intentionally
@@ -104,7 +112,9 @@ describe('Client Navigation with <Link/>', () => {
     // @ts-expect-error _didNotNavigate is set intentionally
     await browser.eval(() => (window._didNotNavigate = true))
     await browser.waitForElementByCss('#absolute-local-dynamic-link').click()
-    expect(await browser.waitForElementByCss('#dynamic-page').text()).toBe('hello')
+    expect(await browser.waitForElementByCss('#dynamic-page').text()).toBe(
+      'hello'
+    )
     // @ts-expect-error _didNotNavigate is set intentionally
     expect(await browser.eval(() => window._didNotNavigate)).toBe(true)
   })

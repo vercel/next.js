@@ -15,7 +15,9 @@ import { heroQuery, settingsQuery } from "@/sanity/lib/queries";
 
 function Intro(props: { title: string | null | undefined; description: any }) {
   const title = props.title || demo.title;
-  const description = props.description?.length ? props.description : demo.description;
+  const description = props.description?.length
+    ? props.description
+    : demo.description;
   return (
     <section className="mt-16 mb-16 flex flex-col items-center lg:mb-12 lg:flex-row lg:justify-between">
       <h1 className="text-balance text-6xl font-bold leading-tight tracking-tighter lg:pr-8 lg:text-8xl">
@@ -59,7 +61,11 @@ function HeroPost({
           </div>
         </div>
         <div>
-          {excerpt && <p className="text-pretty mb-4 text-lg leading-relaxed">{excerpt}</p>}
+          {excerpt && (
+            <p className="text-pretty mb-4 text-lg leading-relaxed">
+              {excerpt}
+            </p>
+          )}
           {author && <Avatar name={author.name} picture={author.picture} />}
         </div>
       </div>

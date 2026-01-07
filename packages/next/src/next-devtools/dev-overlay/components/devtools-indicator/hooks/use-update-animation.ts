@@ -1,12 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
 
-export function useUpdateAnimation(issueCount: number, animationDurationMs = 0) {
+export function useUpdateAnimation(
+  issueCount: number,
+  animationDurationMs = 0
+) {
   const lastUpdatedTimeStamp = useRef<number | null>(null)
   const [animate, setAnimate] = useState(false)
 
   useEffect(() => {
     if (issueCount > 0) {
-      const deltaMs = lastUpdatedTimeStamp.current ? Date.now() - lastUpdatedTimeStamp.current : -1
+      const deltaMs = lastUpdatedTimeStamp.current
+        ? Date.now() - lastUpdatedTimeStamp.current
+        : -1
       lastUpdatedTimeStamp.current = Date.now()
 
       // We don't animate if `issueCount` changes too quickly

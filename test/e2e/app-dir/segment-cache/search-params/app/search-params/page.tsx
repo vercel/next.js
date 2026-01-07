@@ -8,7 +8,9 @@ export default function SearchParamsPage({
 }) {
   return (
     <>
-      <p>Demonstrates that we can prefetch a page that reads from search params</p>
+      <p>
+        Demonstrates that we can prefetch a page that reads from search params
+      </p>
       <ul>
         <li>
           <LinkAccordion href="/search-params/target-page?searchParam=a_PPR">
@@ -16,7 +18,10 @@ export default function SearchParamsPage({
           </LinkAccordion>
         </li>
         <li>
-          <LinkAccordion prefetch={true} href="/search-params/target-page?searchParam=b_full">
+          <LinkAccordion
+            prefetch={true}
+            href="/search-params/target-page?searchParam=b_full"
+          >
             searchParam=b_full, prefetch={true}
           </LinkAccordion>
         </li>
@@ -26,16 +31,20 @@ export default function SearchParamsPage({
           </LinkAccordion>
         </li>
         <li>
-          <LinkAccordion prefetch={true} href="/search-params/target-page?searchParam=d_full">
+          <LinkAccordion
+            prefetch={true}
+            href="/search-params/target-page?searchParam=d_full"
+          >
             searchParam=d_full, prefetch={true}
           </LinkAccordion>
         </li>
       </ul>
       <p>
-        Demonstrates that pages that render based on search params are cached correctly even during
-        a rewrite. Because each of the links below rewrite to the same URL, they only need to fetch
-        the page once (note: there will still be separate requests for the route trees, but not for
-        the page data itself).
+        Demonstrates that pages that render based on search params are cached
+        correctly even during a rewrite. Because each of the links below rewrite
+        to the same URL, they only need to fetch the page once (note: there will
+        still be separate requests for the route trees, but not for the page
+        data itself).
       </p>
       <ul>
         <li>
@@ -56,18 +65,21 @@ export default function SearchParamsPage({
         </li>
       </ul>
       <p>
-        The first link rewrites to the current page, but with an additional search param. The router
-        must be able to detect that something on the new page has changed. So, clicking the first
-        link should cause the current page to re-render, but with a greeting rendered below.
+        The first link rewrites to the current page, but with an additional
+        search param. The router must be able to detect that something on the
+        new page has changed. So, clicking the first link should cause the
+        current page to re-render, but with a greeting rendered below.
       </p>
       <p>
-        The second link rewrites to the current page, but without any search params. Clicking this
-        link after clicking the first one should cause the greeting to disappear.
+        The second link rewrites to the current page, but without any search
+        params. Clicking this link after clicking the first one should cause the
+        greeting to disappear.
       </p>
       <ul>
         <li>
           <LinkAccordion prefetch={true} href="/search-params-with-greeting">
-            Rewrite to current page with additional ?greeting=hello search param, prefetch=true
+            Rewrite to current page with additional ?greeting=hello search
+            param, prefetch=true
           </LinkAccordion>
         </li>
         <li>
@@ -83,7 +95,13 @@ export default function SearchParamsPage({
   )
 }
 
-async function Greeting({ searchParams }: { searchParams: Promise<{ greeting?: string }> }) {
+async function Greeting({
+  searchParams,
+}: {
+  searchParams: Promise<{ greeting?: string }>
+}) {
   const { greeting } = await searchParams
-  return <p id="greeting">{`Greeting (from search params): ${greeting ?? '(none)'}`}</p>
+  return (
+    <p id="greeting">{`Greeting (from search params): ${greeting ?? '(none)'}`}</p>
+  )
 }

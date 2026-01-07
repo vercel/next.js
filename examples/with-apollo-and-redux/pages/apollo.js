@@ -1,7 +1,10 @@
 import { initializeApollo } from "../lib/apollo";
 import Layout from "../components/Layout";
 import Submit from "../components/Submit";
-import PostList, { ALL_POSTS_QUERY, allPostsQueryVars } from "../components/PostList";
+import PostList, {
+  ALL_POSTS_QUERY,
+  allPostsQueryVars,
+} from "../components/PostList";
 
 const ApolloPage = () => (
   <Layout>

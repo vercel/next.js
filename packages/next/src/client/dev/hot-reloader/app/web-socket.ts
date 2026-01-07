@@ -7,7 +7,11 @@ import {
   type TurbopackMessageSentToBrowser,
 } from '../../../../server/dev/hot-reloader-types'
 import { reportInvalidHmrMessage } from '../shared'
-import { performFullReload, processMessage, type StaticIndicatorState } from './hot-reloader-app'
+import {
+  performFullReload,
+  processMessage,
+  type StaticIndicatorState,
+} from './hot-reloader-app'
 import { logQueue } from '../../../../next-devtools/userspace/app/forward-logs'
 import { InvariantError } from '../../../../shared/lib/invariant-error'
 import { WEB_SOCKET_MAX_RECONNECTIONS } from '../../../../lib/constants'
@@ -17,7 +21,10 @@ let reloading = false
 let serverSessionId: number | null = null
 let mostRecentCompilationHash: string | null = null
 
-export function createWebSocket(assetPrefix: string, staticIndicatorState: StaticIndicatorState) {
+export function createWebSocket(
+  assetPrefix: string,
+  staticIndicatorState: StaticIndicatorState
+) {
   if (!self.__next_r) {
     throw new InvariantError(
       `Expected a request ID to be defined for the document via self.__next_r.`
@@ -67,7 +74,10 @@ export function createWebSocket(assetPrefix: string, staticIndicatorState: Stati
 
         // Check for server restart in Turbopack mode
         if (message.type === HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_CONNECTED) {
-          if (serverSessionId !== null && serverSessionId !== message.data.sessionId) {
+          if (
+            serverSessionId !== null &&
+            serverSessionId !== message.data.sessionId
+          ) {
             // Either the server's session id has changed and it's a new server, or
             // it's been too long since we disconnected and we should reload the page.
             window.location.reload()
@@ -78,9 +88,15 @@ export function createWebSocket(assetPrefix: string, staticIndicatorState: Stati
         }
 
         // Track webpack compilation hash for server restart detection
-        if (message.type === HMR_MESSAGE_SENT_TO_BROWSER.SYNC && 'hash' in message) {
+        if (
+          message.type === HMR_MESSAGE_SENT_TO_BROWSER.SYNC &&
+          'hash' in message
+        ) {
           // If we had previously reconnected and the hash changed, the server may have restarted
-          if (mostRecentCompilationHash !== null && mostRecentCompilationHash !== message.hash) {
+          if (
+            mostRecentCompilationHash !== null &&
+            mostRecentCompilationHash !== message.hash
+          ) {
             window.location.reload()
             reloading = true
             return
@@ -88,7 +104,12 @@ export function createWebSocket(assetPrefix: string, staticIndicatorState: Stati
           mostRecentCompilationHash = message.hash
         }
 
-        processMessage(message, sendMessage, processTurbopackMessage, staticIndicatorState)
+        processMessage(
+          message,
+          sendMessage,
+          processTurbopackMessage,
+          staticIndicatorState
+        )
       } catch (err: unknown) {
         reportInvalidHmrMessage(event, err)
       }
@@ -215,10 +236,14 @@ function parseBinaryMessage(data: ArrayBuffer): HmrMessageSentToBrowser {
       const requestIdLength = view.getUint8(1)
       assertByteLength(data, 2 + requestIdLength)
 
-      const requestId = textDecoder.decode(new Uint8Array(data, 2, requestIdLength))
+      const requestId = textDecoder.decode(
+        new Uint8Array(data, 2, requestIdLength)
+      )
 
       const chunk =
-        data.byteLength > 2 + requestIdLength ? new Uint8Array(data, 2 + requestIdLength) : null
+        data.byteLength > 2 + requestIdLength
+          ? new Uint8Array(data, 2 + requestIdLength)
+          : null
 
       return {
         type: HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK,
@@ -227,7 +252,9 @@ function parseBinaryMessage(data: ArrayBuffer): HmrMessageSentToBrowser {
       }
     }
     default: {
-      throw new InvariantError(`Invalid binary HMR message of type ${messageType}`)
+      throw new InvariantError(
+        `Invalid binary HMR message of type ${messageType}`
+      )
     }
   }
 }

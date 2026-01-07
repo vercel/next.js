@@ -63,7 +63,8 @@ export function registerGetPageMetadataTool(
           }
         }
 
-        const sessionMetadata: Array<{ url: string; metadata: PageMetadata }> = []
+        const sessionMetadata: Array<{ url: string; metadata: PageMetadata }> =
+          []
         for (const response of responses) {
           if (response.data) {
             // TODO: Add other metadata for the current page render here. Currently, we only have segment trie data.
@@ -112,7 +113,11 @@ export function handlePageMetadataResponse(
   segmentTrieData: SegmentTrieData | null,
   url: string | undefined
 ) {
-  handleBrowserPageResponse<SegmentTrieData | null>(requestId, segmentTrieData, url || '')
+  handleBrowserPageResponse<SegmentTrieData | null>(
+    requestId,
+    segmentTrieData,
+    url || ''
+  )
 }
 
 function convertSegmentTrieToPageMetadata(data: SegmentTrieData): PageMetadata {
@@ -188,7 +193,9 @@ function formatPageMetadata(
         const type = segment.boundaryType || segment.type
         const isBoundary = type.startsWith('boundary:')
 
-        let displayPath = path.replace(/@boundary$/, '').replace(/^__next_builtin__/, '')
+        let displayPath = path
+          .replace(/@boundary$/, '')
+          .replace(/^__next_builtin__/, '')
 
         if (!isBuiltin && !displayPath.startsWith('app/')) {
           displayPath = `app/${displayPath}`
@@ -198,7 +205,8 @@ function formatPageMetadata(
         if (isBoundary) descriptors.push('boundary')
         if (isBuiltin) descriptors.push('builtin')
 
-        const descriptor = descriptors.length > 0 ? ` (${descriptors.join(', ')})` : ''
+        const descriptor =
+          descriptors.length > 0 ? ` (${descriptors.join(', ')})` : ''
         output += `- ${displayPath}${descriptor}\n`
       }
       output += '\n'

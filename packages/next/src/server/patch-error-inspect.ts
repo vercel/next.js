@@ -14,7 +14,9 @@ import { getOriginalCodeFrame } from '../next-devtools/server/shared'
 import { workUnitAsyncStorage } from './app-render/work-unit-async-storage.external'
 import { dim, italic } from '../lib/picocolors'
 
-type FindSourceMapPayload = (sourceURL: string) => ModernSourceMapPayload | undefined
+type FindSourceMapPayload = (
+  sourceURL: string
+) => ModernSourceMapPayload | undefined
 // Find a source map using the bundler's API.
 // This is only a fallback for when Node.js fails to due to bugs e.g. https://github.com/nodejs/node/issues/52102
 // TODO: Remove once all supported Node.js versions are fixed.
@@ -48,7 +50,11 @@ function frameToString(
   }
 
   let fileLocation: string | null
-  if (sourceURL !== null && sourceURL.startsWith('file://') && URL.canParse(sourceURL)) {
+  if (
+    sourceURL !== null &&
+    sourceURL.startsWith('file://') &&
+    URL.canParse(sourceURL)
+  ) {
     // If not relative to CWD, the path is ambiguous to IDEs and clicking will prompt to select the file first.
     // In a multi-app repo, this leads to potentially larger file names but will make clicking snappy.
     // There's no tradeoff for the cases where `dir` in `next dev [dir]` is omitted
@@ -72,7 +78,10 @@ function computeErrorName(error: Error): string {
   return error.name || 'Error'
 }
 
-function prepareUnsourcemappedStackTrace(error: Error, structuredStackTrace: any[]): string {
+function prepareUnsourcemappedStackTrace(
+  error: Error,
+  structuredStackTrace: any[]
+): string {
   const name = computeErrorName(error)
   const message = error.message || ''
   let stack = name + ': ' + message
@@ -100,7 +109,9 @@ interface SourceMappedFrame {
   code: string | null
 }
 
-function createUnsourcemappedFrame(frame: SourcemappableStackFrame): SourceMappedFrame {
+function createUnsourcemappedFrame(
+  frame: SourcemappableStackFrame
+): SourceMappedFrame {
   return {
     stack: {
       file: frame.file,
@@ -236,7 +247,8 @@ function getSourcemappedFrameIfPossible(
     sourceMapPayload
   )
   let ignored =
-    applicableSourceMap !== undefined && sourceMapIgnoreListsEverything(applicableSourceMap)
+    applicableSourceMap !== undefined &&
+    sourceMapIgnoreListsEverything(applicableSourceMap)
   if (sourcePosition.source === null) {
     return {
       stack: {
@@ -264,7 +276,9 @@ function getSourcemappedFrameIfPossible(
     ignored = true
   } else if (!ignored) {
     // TODO: O(n^2). Consider moving `ignoreList` into a Set
-    const sourceIndex = applicableSourceMap.sources.indexOf(sourcePosition.source)
+    const sourceIndex = applicableSourceMap.sources.indexOf(
+      sourcePosition.source
+    )
     ignored = applicableSourceMap.ignoreList?.includes(sourceIndex) ?? false
   }
 
@@ -301,7 +315,11 @@ function getSourcemappedFrameIfPossible(
               sourcePosition.source,
               /* returnNullOnMissing */ true
             ) ?? null
-          codeFrame = getOriginalCodeFrame(originalFrame, sourceContent, inspectOptions.colors)
+          codeFrame = getOriginalCodeFrame(
+            originalFrame,
+            sourceContent,
+            inspectOptions.colors
+          )
         }
         return codeFrame
       },
@@ -309,7 +327,10 @@ function getSourcemappedFrameIfPossible(
   )
 }
 
-function parseAndSourceMap(error: Error, inspectOptions: util.InspectOptions): string {
+function parseAndSourceMap(
+  error: Error,
+  inspectOptions: util.InspectOptions
+): string {
   const showIgnoreListed = process.env.__NEXT_SHOW_IGNORE_LISTED === 'true'
   // We overwrote Error.prepareStackTrace earlier so error.stack is not sourcemapped.
   let unparsedStack = String(error.stack)
@@ -425,7 +446,11 @@ function parseAndSourceMap(error: Error, inspectOptions: util.InspectOptions): s
   )
 }
 
-function sourceMapError(this: void, error: Error, inspectOptions: util.InspectOptions): Error {
+function sourceMapError(
+  this: void,
+  error: Error,
+  inspectOptions: util.InspectOptions
+): Error {
   // Create a new Error object with the source mapping applied and then use native
   // Node.js formatting on the result.
   const newError =
@@ -448,7 +473,9 @@ function sourceMapError(this: void, error: Error, inspectOptions: util.InspectOp
   return newError
 }
 
-export function patchErrorInspectNodeJS(errorConstructor: ErrorConstructor): void {
+export function patchErrorInspectNodeJS(
+  errorConstructor: ErrorConstructor
+): void {
   const inspectSymbol = Symbol.for('nodejs.util.inspect.custom')
 
   errorConstructor.prepareStackTrace = prepareUnsourcemappedStackTrace
@@ -486,7 +513,9 @@ export function patchErrorInspectNodeJS(errorConstructor: ErrorConstructor): voi
   }
 }
 
-export function patchErrorInspectEdgeLite(errorConstructor: ErrorConstructor): void {
+export function patchErrorInspectEdgeLite(
+  errorConstructor: ErrorConstructor
+): void {
   const inspectSymbol = Symbol.for('edge-runtime.inspect.custom')
 
   errorConstructor.prepareStackTrace = prepareUnsourcemappedStackTrace

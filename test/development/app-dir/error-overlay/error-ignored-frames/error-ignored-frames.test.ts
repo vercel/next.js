@@ -32,7 +32,9 @@ describe('error-ignored-frames', () => {
     await waitForRedbox(browser)
 
     const defaultStack = await getStackFramesContent(browser)
-    expect(defaultStack).toMatchInlineSnapshot(`"at Page (app/client/page.tsx (4:9))"`)
+    expect(defaultStack).toMatchInlineSnapshot(
+      `"at Page (app/client/page.tsx (4:9))"`
+    )
 
     await toggleCollapseCallStackFrames(browser)
 
@@ -76,7 +78,9 @@ describe('error-ignored-frames', () => {
     await waitForRedbox(browser)
 
     const defaultStack = await getStackFramesContent(browser)
-    expect(defaultStack).toMatchInlineSnapshot(`"at Page (pages/pages.tsx (2:9))"`)
+    expect(defaultStack).toMatchInlineSnapshot(
+      `"at Page (pages/pages.tsx (2:9))"`
+    )
 
     await toggleCollapseCallStackFrames(browser)
 

@@ -22,7 +22,12 @@ module.exports = /******/ (function (modules) {
     /******/ // Execute the module function
     /******/ var threw = true
     /******/ try {
-      /******/ modules[moduleId].call(module.exports, module, module.exports, __webpack_require__)
+      /******/ modules[moduleId].call(
+        module.exports,
+        module,
+        module.exports,
+        __webpack_require__
+      )
       /******/ threw = false
       /******/
     } finally {
@@ -77,7 +82,13 @@ module.exports = /******/ (function (modules) {
   /******/ __webpack_require__.t = function (value, mode) {
     /******/ if (mode & 1) value = __webpack_require__(value)
     /******/ if (mode & 8) return value
-    /******/ if (mode & 4 && typeof value === 'object' && value && value.__esModule) return value
+    /******/ if (
+      mode & 4 &&
+      typeof value === 'object' &&
+      value &&
+      value.__esModule
+    )
+      return value
     /******/ var ns = Object.create(null)
     /******/ __webpack_require__.r(ns)
     /******/ Object.defineProperty(ns, 'default', {
@@ -161,7 +172,10 @@ module.exports = /******/ (function (modules) {
          **/
 
         path.join(__dirname, 'query-engine-debian-openssl-1.1.x')
-        path.join(process.cwd(), './prisma/generated/client/query-engine-debian-openssl-1.1.x')
+        path.join(
+          process.cwd(),
+          './prisma/generated/client/query-engine-debian-openssl-1.1.x'
+        )
         /**
          * Annotation for `@vercel/nft`
          * The process.cwd() annotation is only needed for https://github.com/vercel/vercel/tree/master/packages/now-next

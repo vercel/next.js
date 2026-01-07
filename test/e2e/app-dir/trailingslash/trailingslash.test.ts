@@ -26,10 +26,14 @@ describe('app-dir trailingSlash handling', () => {
 
   it('should contain trailing slash to canonical url', async () => {
     const $ = await next.render$('/')
-    expect($(`link[rel="canonical"]`).attr('href')).toBe('http://trailingslash.com/')
+    expect($(`link[rel="canonical"]`).attr('href')).toBe(
+      'http://trailingslash.com/'
+    )
 
     const $a = await next.render$('/a')
-    expect($a(`link[rel="canonical"]`).attr('href')).toBe('http://trailingslash.com/a/')
+    expect($a(`link[rel="canonical"]`).attr('href')).toBe(
+      'http://trailingslash.com/a/'
+    )
   })
 
   it('should redirect route when requesting it directly by browser', async () => {
@@ -39,7 +43,10 @@ describe('app-dir trailingSlash handling', () => {
 
   it('should redirect route when clicking link', async () => {
     const browser = await next.browser('/')
-    await browser.elementByCss('#to-a-trailing-slash').click().waitForElementByCss('#a-page')
+    await browser
+      .elementByCss('#to-a-trailing-slash')
+      .click()
+      .waitForElementByCss('#a-page')
     expect(await browser.waitForElementByCss('#a-page').text()).toBe('A page')
   })
 

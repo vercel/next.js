@@ -18,10 +18,14 @@ describe('app dir - not-found - basic', () => {
 
     browser = await next.browser('/error-boundary/nested/nested-2')
     await browser.elementByCss('button').click()
-    expect(await browser.elementByCss('h1').text()).toBe('Not Found (error-boundary/nested)')
+    expect(await browser.elementByCss('h1').text()).toBe(
+      'Not Found (error-boundary/nested)'
+    )
 
     browser = await next.browser('/error-boundary/nested/trigger-not-found')
-    expect(await browser.elementByCss('h1').text()).toBe('Not Found (error-boundary/nested)')
+    expect(await browser.elementByCss('h1').text()).toBe(
+      'Not Found (error-boundary/nested)'
+    )
   })
 
   it('should return 404 status code for custom not-found page', async () => {
@@ -57,7 +61,9 @@ describe('app dir - not-found - basic', () => {
   const runTests = ({ isEdge }: { isEdge: boolean }) => {
     it('should use the not-found page for non-matching routes', async () => {
       const browser = await next.browser('/random-content')
-      expect(await browser.elementByCss('h1').text()).toContain('Root Not Found')
+      expect(await browser.elementByCss('h1').text()).toContain(
+        'Root Not Found'
+      )
       // should contain root layout content
       expect(await browser.elementByCss('#layout-nav').text()).toBe('Navbar')
     })
@@ -74,18 +80,30 @@ describe('app dir - not-found - basic', () => {
       )
 
       const browserDynamicId = await next.browser('/dynamic/123')
-      expect(await browserDynamicId.elementByCss('#page').text()).toBe('dynamic [id]')
+      expect(await browserDynamicId.elementByCss('#page').text()).toBe(
+        'dynamic [id]'
+      )
     })
 
     it('should escalate notFound to parent layout if no not-found boundary present in current layer', async () => {
-      const browserDynamic = await next.browser('/dynamic-layout-without-not-found')
-      expect(await browserDynamic.elementByCss('h1').text()).toBe('Dynamic with Layout')
+      const browserDynamic = await next.browser(
+        '/dynamic-layout-without-not-found'
+      )
+      expect(await browserDynamic.elementByCss('h1').text()).toBe(
+        'Dynamic with Layout'
+      )
 
       // no not-found boundary in /dynamic-layout-without-not-found, escalate to parent layout to render root not-found
-      const browserDynamicId = await next.browser('/dynamic-layout-without-not-found/404')
-      expect(await browserDynamicId.elementByCss('h1').text()).toBe('Root Not Found')
+      const browserDynamicId = await next.browser(
+        '/dynamic-layout-without-not-found/404'
+      )
+      expect(await browserDynamicId.elementByCss('h1').text()).toBe(
+        'Root Not Found'
+      )
 
-      const browserDynamic404 = await next.browser('/dynamic-layout-without-not-found/123')
+      const browserDynamic404 = await next.browser(
+        '/dynamic-layout-without-not-found/123'
+      )
       expect(await browserDynamic404.elementByCss('#page').text()).toBe(
         'dynamic-layout-without-not-found [id]'
       )
@@ -124,9 +142,9 @@ describe('app dir - not-found - basic', () => {
       it('should create the 404 mapping and copy the file to pages', async () => {
         const html = await next.readFile('.next/server/pages/404.html')
         expect(html).toContain('Root Not Found')
-        expect(await next.readFile('.next/server/pages-manifest.json')).toContain(
-          '"pages/404.html"'
-        )
+        expect(
+          await next.readFile('.next/server/pages-manifest.json')
+        ).toContain('"pages/404.html"')
       })
     }
   }
@@ -141,7 +159,10 @@ describe('app dir - not-found - basic', () => {
     beforeAll(async () => {
       await next.stop()
       originalLayout = await next.readFile('app/layout.js')
-      await next.patchFile('app/layout.js', `export const runtime = 'edge'\n${originalLayout}`)
+      await next.patchFile(
+        'app/layout.js',
+        `export const runtime = 'edge'\n${originalLayout}`
+      )
       await next.start()
     })
     afterAll(async () => {

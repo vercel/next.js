@@ -2,7 +2,14 @@
 
 import cheerio from 'cheerio'
 import fs from 'fs-extra'
-import { findPort, killApp, launchApp, nextBuild, nextStart, renderViaHTTP } from 'next-test-utils'
+import {
+  findPort,
+  killApp,
+  launchApp,
+  nextBuild,
+  nextStart,
+  renderViaHTTP,
+} from 'next-test-utils'
 import { join } from 'path'
 
 const appDir = join(__dirname, '..')
@@ -80,10 +87,16 @@ const runTests = (isDev: boolean) => {
 }
 
 describe('gip identifiers', () => {
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
-    runTests(true)
-  })
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
-    runTests(false)
-  })
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      runTests(true)
+    }
+  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      runTests(false)
+    }
+  )
 })

@@ -47,31 +47,40 @@ function runTests() {
 }
 
 // This test is not needed for Turbopack as it relies on an experimental webpack feature.
-;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)('next/dynamic lazy compilation', () => {
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
+  'next/dynamic lazy compilation',
+  () => {
+    ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+      'development mode',
+      () => {
+        beforeAll(async () => {
+          appPort = await findPort()
+          app = await launchApp(appDir, appPort)
+        })
+        afterAll(() => killApp(app))
 
-    runTests()
-  })
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await runNextCommand(['build', appDir])
+        runTests()
+      }
+    )
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+      'production mode',
+      () => {
+        beforeAll(async () => {
+          await runNextCommand(['build', appDir])
 
-      app = nextServer({
-        dir: appDir,
-        dev: false,
-        quiet: true,
-      })
+          app = nextServer({
+            dir: appDir,
+            dev: false,
+            quiet: true,
+          })
 
-      server = await startApp(app)
-      appPort = server.address().port
-    })
-    afterAll(() => stopApp(server))
+          server = await startApp(app)
+          appPort = server.address().port
+        })
+        afterAll(() => stopApp(server))
 
-    runTests()
-  })
-})
+        runTests()
+      }
+    )
+  }
+)

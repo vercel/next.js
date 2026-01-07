@@ -33,26 +33,34 @@ describe('i18n-data-route', () => {
         url: `/${locale}${page.url}`,
       }))
 
-      it.each(prefixed)('should render $page via $url', async ({ url, page }) => {
-        const $ = await next.render$(url)
-        expect($('[data-page]').data('page')).toBe(page)
-      })
-
-      it.each(prefixed)('should serve data for $page', async ({ url, page, params }) => {
-        url = `/_next/data/${next.buildId}${url}.json`
-        if (params) {
-          const query = new URLSearchParams(params)
-          // Ensure the query is sorted so it's deterministic.
-          query.sort()
-          url += `?${query.toString()}`
+      it.each(prefixed)(
+        'should render $page via $url',
+        async ({ url, page }) => {
+          const $ = await next.render$(url)
+          expect($('[data-page]').data('page')).toBe(page)
         }
+      )
 
-        const res = await next.fetch(url)
-        expect(res.status).toBe(200)
-        expect(res.headers.get('content-type')).toStartWith('application/json')
-        const data = await res.json()
-        checkDataRoute(data, page)
-      })
+      it.each(prefixed)(
+        'should serve data for $page',
+        async ({ url, page, params }) => {
+          url = `/_next/data/${next.buildId}${url}.json`
+          if (params) {
+            const query = new URLSearchParams(params)
+            // Ensure the query is sorted so it's deterministic.
+            query.sort()
+            url += `?${query.toString()}`
+          }
+
+          const res = await next.fetch(url)
+          expect(res.status).toBe(200)
+          expect(res.headers.get('content-type')).toStartWith(
+            'application/json'
+          )
+          const data = await res.json()
+          checkDataRoute(data, page)
+        }
+      )
     })
   })
 
@@ -62,19 +70,22 @@ describe('i18n-data-route', () => {
       expect($('[data-page]').data('page')).toBe(page)
     })
 
-    it.each(pages)('should serve data for $page', async ({ url, page, params }) => {
-      url = `/_next/data/${next.buildId}/${i18n.defaultLocale}${url}.json`
-      if (params) {
-        const query = new URLSearchParams(params)
-        // Ensure the query is sorted so it's deterministic.
-        query.sort()
-        url += `?${query.toString()}`
+    it.each(pages)(
+      'should serve data for $page',
+      async ({ url, page, params }) => {
+        url = `/_next/data/${next.buildId}/${i18n.defaultLocale}${url}.json`
+        if (params) {
+          const query = new URLSearchParams(params)
+          // Ensure the query is sorted so it's deterministic.
+          query.sort()
+          url += `?${query.toString()}`
+        }
+        const res = await next.fetch(url)
+        expect(res.status).toBe(200)
+        expect(res.headers.get('content-type')).toStartWith('application/json')
+        const data = await res.json()
+        checkDataRoute(data, page)
       }
-      const res = await next.fetch(url)
-      expect(res.status).toBe(200)
-      expect(res.headers.get('content-type')).toStartWith('application/json')
-      const data = await res.json()
-      checkDataRoute(data, page)
-    })
+    )
   })
 })

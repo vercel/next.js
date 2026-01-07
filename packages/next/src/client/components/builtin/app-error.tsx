@@ -15,7 +15,9 @@ function AppError() {
           <div style={errorStyles.card}>
             <ErrorIcon />
             <h1 style={errorStyles.title}>This page failed to load</h1>
-            <p style={errorStyles.message}>Something went wrong while loading this page.</p>
+            <p style={errorStyles.message}>
+              Something went wrong while loading this page.
+            </p>
             <p style={errorStyles.messageHint}>
               If this keeps happening, it may be a server issue.
             </p>

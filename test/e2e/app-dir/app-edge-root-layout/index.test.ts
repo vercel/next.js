@@ -22,7 +22,9 @@ describe('app-dir edge runtime root layout', () => {
 
   if (isNextStart) {
     it('should mark static contain metadata routes as edge functions', async () => {
-      const middlewareManifest = await next.readFile('.next/server/middleware-manifest.json')
+      const middlewareManifest = await next.readFile(
+        '.next/server/middleware-manifest.json'
+      )
       expect(middlewareManifest).not.toContain('/favicon')
     })
   }

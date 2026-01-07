@@ -20,11 +20,6 @@
     "rust-check-napi": "cargo check -p next-swc-napi",
     "test-cargo-unit": "cargo nextest run --workspace --exclude next-swc-napi --exclude turbo-tasks-macros --cargo-profile release-with-assertions --no-fail-fast"
   },
-  "devDependencies": {
-    "@napi-rs/cli": "2.18.4",
-    "cross-env": "6.0.3",
-    "wasm-pack": "0.13.1"
-  },
   "napi": {
     "name": "next-swc",
     "triples": {
@@ -39,5 +34,10 @@
         "wasm32-wasip1-threads"
       ]
     }
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "2.18.4",
+    "cross-env": "6.0.3",
+    "wasm-pack": "0.13.1"
   }
 }

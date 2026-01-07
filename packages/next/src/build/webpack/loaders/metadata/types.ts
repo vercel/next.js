@@ -33,6 +33,13 @@ export type MetadataImageModule = {
     }
 )
 
-export type PossibleImageFileNameConvention = 'icon' | 'apple' | 'favicon' | 'twitter' | 'openGraph'
+export type PossibleImageFileNameConvention =
+  | 'icon'
+  | 'apple'
+  | 'favicon'
+  | 'twitter'
+  | 'openGraph'
 
-export type PossibleStaticMetadataFileNameConvention = PossibleImageFileNameConvention | 'manifest'
+export type PossibleStaticMetadataFileNameConvention =
+  | PossibleImageFileNameConvention
+  | 'manifest'

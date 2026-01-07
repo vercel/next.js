@@ -57,7 +57,10 @@ export async function sendResponse(
         // only append the header if it is either not present in the outbound response
         // or if the header supports multiple values
         const isHeaderPresent = typeof res.getHeader(name) !== 'undefined'
-        if (headersWithMultipleValuesAllowed.includes(name.toLowerCase()) || !isHeaderPresent) {
+        if (
+          headersWithMultipleValuesAllowed.includes(name.toLowerCase()) ||
+          !isHeaderPresent
+        ) {
           res.appendHeader(name, value)
         }
       }

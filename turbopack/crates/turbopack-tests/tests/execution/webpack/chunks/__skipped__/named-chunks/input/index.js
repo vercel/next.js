@@ -108,10 +108,48 @@ it('should handle empty named chunks when there is an error callback', function 
 
 it('should be able to use named chunks in import()', function (done) {
   var sync = false
-  import('./empty?import1-in-chunk1' /* webpackChunkName: "import-named-chunk-1" */).then(
+  import(
+    './empty?import1-in-chunk1' /* webpackChunkName: "import-named-chunk-1" */
+  ).then(function (result) {
+    var i = 0
+    import(
+      './empty?import2-in-chunk1' /* webpackChunkName: "import-named-chunk-1" */
+    )
+      .then(function (result) {
+        expect(sync).toBeTruthy()
+        if (i++ > 0) done()
+      })
+      .catch(function (err) {
+        done(err)
+      })
+    import(
+      './empty?import3-in-chunk2' /* webpackChunkName: "import-named-chunk-2" */
+    )
+      .then(function (result) {
+        expect(sync).toBeFalsy()
+        if (i++ > 0) done()
+      })
+      .catch(function (err) {
+        done(err)
+      })
+    sync = true
+    Promise.resolve()
+      .then(function () {})
+      .then(function () {})
+      .then(function () {
+        sync = false
+      })
+  })
+})
+
+it('should be able to use named chunk in context import()', function (done) {
+  // cspell:ignore mpty
+  var mpty = 'mpty'
+  var sync = false
+  import('./e' + mpty + '2' /* webpackChunkName: "context-named-chunk" */).then(
     function (result) {
       var i = 0
-      import('./empty?import2-in-chunk1' /* webpackChunkName: "import-named-chunk-1" */)
+      import('./e' + mpty + '3' /* webpackChunkName: "context-named-chunk" */)
         .then(function (result) {
           expect(sync).toBeTruthy()
           if (i++ > 0) done()
@@ -119,7 +157,7 @@ it('should be able to use named chunks in import()', function (done) {
         .catch(function (err) {
           done(err)
         })
-      import('./empty?import3-in-chunk2' /* webpackChunkName: "import-named-chunk-2" */)
+      import('./e' + mpty + '4' /* webpackChunkName: "context-named-chunk-2" */)
         .then(function (result) {
           expect(sync).toBeFalsy()
           if (i++ > 0) done()
@@ -136,36 +174,4 @@ it('should be able to use named chunks in import()', function (done) {
         })
     }
   )
-})
-
-it('should be able to use named chunk in context import()', function (done) {
-  // cspell:ignore mpty
-  var mpty = 'mpty'
-  var sync = false
-  import('./e' + mpty + '2' /* webpackChunkName: "context-named-chunk" */).then(function (result) {
-    var i = 0
-    import('./e' + mpty + '3' /* webpackChunkName: "context-named-chunk" */)
-      .then(function (result) {
-        expect(sync).toBeTruthy()
-        if (i++ > 0) done()
-      })
-      .catch(function (err) {
-        done(err)
-      })
-    import('./e' + mpty + '4' /* webpackChunkName: "context-named-chunk-2" */)
-      .then(function (result) {
-        expect(sync).toBeFalsy()
-        if (i++ > 0) done()
-      })
-      .catch(function (err) {
-        done(err)
-      })
-    sync = true
-    Promise.resolve()
-      .then(function () {})
-      .then(function () {})
-      .then(function () {
-        sync = false
-      })
-  })
 })

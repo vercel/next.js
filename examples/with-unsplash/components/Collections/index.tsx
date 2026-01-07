@@ -23,7 +23,11 @@ const Collections = ({ id_collection }: CollectionProps) => {
         id_collection ? (
           <Link href="/" key={`collection_${slug}`} className={styles.chip}>
             {title}
-            <Link href="/" className={styles.chip_remove} aria-label="Return to home" />
+            <Link
+              href="/"
+              className={styles.chip_remove}
+              aria-label="Return to home"
+            />
           </Link>
         ) : (
           <Link

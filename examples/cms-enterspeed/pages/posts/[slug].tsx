@@ -48,7 +48,9 @@ export default function Post({ post, preview }: Props) {
                 categories={post.categories}
               />
               <PostBody content={post.content} />
-              <footer>{post.tags?.length > 0 && <Tags tags={post.tags} />}</footer>
+              <footer>
+                {post.tags?.length > 0 && <Tags tags={post.tags} />}
+              </footer>
             </article>
 
             <SectionSeparator />
@@ -75,7 +77,13 @@ type Params = {
   slug: string;
 };
 
-export async function getStaticProps({ params, preview }: { params: Params; preview: boolean }) {
+export async function getStaticProps({
+  params,
+  preview,
+}: {
+  params: Params;
+  preview: boolean;
+}) {
   // Adding starting slash to the URL again
   const data = await getByUrl(encodeURIComponent(`/${params.slug}`), preview);
 

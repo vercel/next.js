@@ -22,7 +22,9 @@ const cleanupWorkers = (worker: JestWorker) => {
   }
 }
 
-export function getNextBuildDebuggerPortOffset(_: { kind: 'export-page' }): number {
+export function getNextBuildDebuggerPortOffset(_: {
+  kind: 'export-page'
+}): number {
   // 0: export worker
   return 0
 }
@@ -93,11 +95,16 @@ export class Worker {
     if (debuggerPortOffset !== -1) {
       const nodeDebugType = getNodeDebugType(originalOptions)
       if (nodeDebugType) {
-        const debuggerAddress = getParsedDebugAddress(originalOptions[nodeDebugType])
+        const debuggerAddress = getParsedDebugAddress(
+          originalOptions[nodeDebugType]
+        )
         const address: DebugAddress = {
           host: debuggerAddress.host,
           // current process runs on `address.port`
-          port: debuggerAddress.port === 0 ? 0 : debuggerAddress.port + 1 + debuggerPortOffset,
+          port:
+            debuggerAddress.port === 0
+              ? 0
+              : debuggerAddress.port + 1 + debuggerPortOffset,
         }
         nodeOptions[nodeDebugType] = formatDebugAddress(address)
       }
@@ -145,7 +152,9 @@ export class Worker {
         },
         maxRetries: 0,
       }) as JestWorker
-      restartPromise = new Promise((resolve) => (resolveRestartPromise = resolve))
+      restartPromise = new Promise(
+        (resolve) => (resolveRestartPromise = resolve)
+      )
 
       /**
        * Jest Worker has two worker types, ChildProcessWorker (uses child_process) and NodeThreadWorker (uses worker_threads)
@@ -157,12 +166,15 @@ export class Worker {
        * But this property is not available in NodeThreadWorker, so we need to check if we are using ChildProcessWorker
        */
       if (!farmOptions.enableWorkerThreads) {
-        for (const worker of ((this._worker as any)._workerPool?._workers || []) as {
+        for (const worker of ((this._worker as any)._workerPool?._workers ||
+          []) as {
           _child?: ChildProcess
         }[]) {
           worker._child?.on('exit', (code, signal) => {
             if ((code || (signal && signal !== 'SIGINT')) && this._worker) {
-              logger.error(`Next.js build worker exited with code: ${code} and signal: ${signal}`)
+              logger.error(
+                `Next.js build worker exited with code: ${code} and signal: ${signal}`
+              )
 
               // if a child process doesn't exit gracefully, we want to bubble up the exit code to the parent process
               process.exit(code ?? 1)
@@ -172,7 +184,12 @@ export class Worker {
           // if a child process emits a particular message, we track that as activity
           // so the parent process can keep track of progress
           worker._child?.on('message', ([, data]: [number, unknown]) => {
-            if (data && typeof data === 'object' && 'type' in data && data.type === 'activity') {
+            if (
+              data &&
+              typeof data === 'object' &&
+              'type' in data &&
+              data.type === 'activity'
+            ) {
               onActivityImpl()
             }
           })

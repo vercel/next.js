@@ -6,7 +6,9 @@ async function Page({ params }: { params: Promise<{ catchAll: string[] }> }) {
   return (
     <div className="text-lg">
       Showcase Simple Page
-      <Link href={`/templates/${catchAll.join('/')}`}>templates {catchAll.join(' -> ')}</Link>
+      <Link href={`/templates/${catchAll.join('/')}`}>
+        templates {catchAll.join(' -> ')}
+      </Link>
     </div>
   )
 }

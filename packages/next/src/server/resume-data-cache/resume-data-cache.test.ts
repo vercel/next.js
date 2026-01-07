@@ -1,4 +1,7 @@
-import { stringifyResumeDataCache, createRenderResumeDataCache } from './resume-data-cache'
+import {
+  stringifyResumeDataCache,
+  createRenderResumeDataCache,
+} from './resume-data-cache'
 import { createPrerenderResumeDataCache } from './resume-data-cache'
 import { streamFromString } from '../stream-utils/node-web-streams-helper'
 import { inflateSync } from 'node:zlib'
@@ -60,18 +63,25 @@ function createMockedCacheWithEntryThatFails() {
 describe('stringifyResumeDataCache', () => {
   it('serializes an empty cache', async () => {
     const cache = createPrerenderResumeDataCache()
-    expect(await stringifyResumeDataCache(cache, isCacheComponentsEnabled)).toBe('null')
+    expect(
+      await stringifyResumeDataCache(cache, isCacheComponentsEnabled)
+    ).toBe('null')
   })
 
   it('only serializes cache entries that were not excluded from the prerender result', async () => {
     const cache = createMockedCache()
 
-    const compressed = await stringifyResumeDataCache(cache, isCacheComponentsEnabled)
+    const compressed = await stringifyResumeDataCache(
+      cache,
+      isCacheComponentsEnabled
+    )
 
     // We have to decompress the output because the compressed string is not
     // deterministic. If it fails here it's because the compressed string is
     // different.
-    const decompressed = inflateSync(Buffer.from(compressed, 'base64')).toString('utf-8')
+    const decompressed = inflateSync(
+      Buffer.from(compressed, 'base64')
+    ).toString('utf-8')
 
     if (isCacheComponentsEnabled) {
       expect(decompressed).toMatchInlineSnapshot(
@@ -87,12 +97,17 @@ describe('stringifyResumeDataCache', () => {
   it('serializes a cache with an entry that fails', async () => {
     const cache = createMockedCacheWithEntryThatFails()
 
-    const compressed = await stringifyResumeDataCache(cache, isCacheComponentsEnabled)
+    const compressed = await stringifyResumeDataCache(
+      cache,
+      isCacheComponentsEnabled
+    )
 
     // We have to decompress the output because the compressed string is not
     // deterministic. If it fails here it's because the compressed string is
     // different.
-    const decompressed = inflateSync(Buffer.from(compressed, 'base64')).toString('utf-8')
+    const decompressed = inflateSync(
+      Buffer.from(compressed, 'base64')
+    ).toString('utf-8')
 
     // We expect that the cache will still contain the successful entries
     // but the failed entry will be ignored and omitted from the output.
@@ -110,12 +125,17 @@ describe('stringifyResumeDataCache', () => {
 
 describe('parseResumeDataCache', () => {
   it('parses an empty cache', () => {
-    expect(createRenderResumeDataCache('null', undefined)).toEqual(createPrerenderResumeDataCache())
+    expect(createRenderResumeDataCache('null', undefined)).toEqual(
+      createPrerenderResumeDataCache()
+    )
   })
 
   it('parses a filled cache', async () => {
     const cache = createMockedCache()
-    const serialized = await stringifyResumeDataCache(cache, isCacheComponentsEnabled)
+    const serialized = await stringifyResumeDataCache(
+      cache,
+      isCacheComponentsEnabled
+    )
 
     const parsed = createRenderResumeDataCache(serialized, undefined)
 

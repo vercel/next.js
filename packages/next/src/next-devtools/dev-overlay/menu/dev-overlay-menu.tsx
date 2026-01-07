@@ -38,7 +38,8 @@ function MenuItem({
   href?: string
   onClick?: () => void
 }) {
-  const isInteractive = typeof onClick === 'function' || typeof href === 'string'
+  const isInteractive =
+    typeof onClick === 'function' || typeof href === 'string'
   const { closeMenu, selectedIndex, setSelectedIndex } = useContext(MenuContext)
   const selected = selectedIndex === index
 
@@ -101,33 +102,39 @@ export const DevtoolMenu = ({
   >
 }) => {
   const { state } = useDevOverlayContext()
-  const { setPanel, triggerRef, setSelectedIndex, selectedIndex } = usePanelRouterContext()
+  const { setPanel, triggerRef, setSelectedIndex, selectedIndex } =
+    usePanelRouterContext()
   const { mounted } = usePanelContext()
 
   const [vertical, horizontal] = state.devToolsPosition.split('-', 2)
 
   const menuRef = useRef<HTMLDivElement>(null)
 
-  useClickOutsideAndEscape(menuRef, triggerRef, closeOnClickOutside && mounted, (reason) => {
-    switch (reason) {
-      case 'escape': {
-        setPanel(null)
-        setSelectedIndex(-1)
-        return
-      }
-      case 'outside': {
-        if (!closeOnClickOutside) {
+  useClickOutsideAndEscape(
+    menuRef,
+    triggerRef,
+    closeOnClickOutside && mounted,
+    (reason) => {
+      switch (reason) {
+        case 'escape': {
+          setPanel(null)
+          setSelectedIndex(-1)
           return
         }
-        setPanel(null)
-        setSelectedIndex(-1)
-        return
-      }
-      default: {
-        return null!
+        case 'outside': {
+          if (!closeOnClickOutside) {
+            return
+          }
+          setPanel(null)
+          setSelectedIndex(-1)
+          return
+        }
+        default: {
+          return null!
+        }
       }
     }
-  })
+  )
   const fireInitialSelectMenuItem = useEffectEvent(() => {
     selectMenuItem({
       index: selectedIndex === -1 ? 'first' : selectedIndex,
@@ -143,7 +150,10 @@ export const DevtoolMenu = ({
 
   const indicatorOffset = getIndicatorOffset(state)
 
-  const [indicatorVertical, indicatorHorizontal] = state.devToolsPosition.split('-', 2)
+  const [indicatorVertical, indicatorHorizontal] = state.devToolsPosition.split(
+    '-',
+    2
+  )
 
   const verticalOffset =
     vertical === indicatorVertical && horizontal === indicatorHorizontal
@@ -168,11 +178,13 @@ export const DevtoolMenu = ({
 
     switch (e.key) {
       case 'ArrowDown':
-        const next = selectedIndex >= totalClickableItems - 1 ? 0 : selectedIndex + 1
+        const next =
+          selectedIndex >= totalClickableItems - 1 ? 0 : selectedIndex + 1
         selectMenuItem({ index: next, menuRef, setSelectedIndex })
         break
       case 'ArrowUp':
-        const prev = selectedIndex <= 0 ? totalClickableItems - 1 : selectedIndex - 1
+        const prev =
+          selectedIndex <= 0 ? totalClickableItems - 1 : selectedIndex - 1
         selectMenuItem({ index: prev, menuRef, setSelectedIndex })
         break
       case 'Home':
@@ -183,13 +195,15 @@ export const DevtoolMenu = ({
         break
       case 'n':
         if (e.ctrlKey) {
-          const nextCtrl = selectedIndex >= totalClickableItems - 1 ? 0 : selectedIndex + 1
+          const nextCtrl =
+            selectedIndex >= totalClickableItems - 1 ? 0 : selectedIndex + 1
           selectMenuItem({ index: nextCtrl, menuRef, setSelectedIndex })
         }
         break
       case 'p':
         if (e.ctrlKey) {
-          const prevCtrl = selectedIndex <= 0 ? totalClickableItems - 1 : selectedIndex - 1
+          const prevCtrl =
+            selectedIndex <= 0 ? totalClickableItems - 1 : selectedIndex - 1
           selectMenuItem({ index: prevCtrl, menuRef, setSelectedIndex })
         }
         break
@@ -225,7 +239,8 @@ export const DevtoolMenu = ({
         overflow: 'hidden',
         opacity: 1,
         minWidth: '248px',
-        transition: 'opacity var(--animate-out-duration-ms) var(--animate-out-timing-function)',
+        transition:
+          'opacity var(--animate-out-duration-ms) var(--animate-out-timing-function)',
         border: '1px solid var(--color-gray-alpha-400)',
         ...positionStyle,
       }}
@@ -244,7 +259,11 @@ export const DevtoolMenu = ({
               label={item.label}
               value={item.value}
               onClick={item.onClick}
-              index={item.onClick ? getAdjustedIndex(itemsAboveFooter, index) : undefined}
+              index={
+                item.onClick
+                  ? getAdjustedIndex(itemsAboveFooter, index)
+                  : undefined
+              }
               {...item.attributes}
             />
           ))}
@@ -272,7 +291,10 @@ export const DevtoolMenu = ({
   )
 }
 
-function getAdjustedIndex(items: Array<{ onClick?: () => void }>, targetIndex: number): number {
+function getAdjustedIndex(
+  items: Array<{ onClick?: () => void }>,
+  targetIndex: number
+): number {
   let adjustedIndex = 0
 
   for (let i = 0; i <= targetIndex && i < items.length; i++) {
@@ -287,13 +309,18 @@ function getAdjustedIndex(items: Array<{ onClick?: () => void }>, targetIndex: n
   return adjustedIndex
 }
 
-function getClickableItemsCount(items: Array<{ onClick?: () => void }>): number {
+function getClickableItemsCount(
+  items: Array<{ onClick?: () => void }>
+): number {
   return items.filter((item) => item.onClick).length
 }
 
 export function IssueCount({ children }: { children: number }) {
   return (
-    <span className="dev-tools-indicator-issue-count" data-has-issues={children > 0}>
+    <span
+      className="dev-tools-indicator-issue-count"
+      data-has-issues={children > 0}
+    >
       <span className="dev-tools-indicator-issue-count-indicator" />
       {children}
     </span>
@@ -302,7 +329,13 @@ export function IssueCount({ children }: { children: number }) {
 
 export function ChevronRight() {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+    >
       <path
         fill="#666"
         fillRule="evenodd"
@@ -344,7 +377,9 @@ function selectMenuItem({
     return
   }
 
-  const el = menuRef.current?.querySelector(`[data-index="${index}"]`) as HTMLElement
+  const el = menuRef.current?.querySelector(
+    `[data-index="${index}"]`
+  ) as HTMLElement
 
   if (el) {
     setSelectedIndex(index)

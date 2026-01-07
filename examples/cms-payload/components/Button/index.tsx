@@ -23,7 +23,9 @@ export const Button: React.FC<Props> = ({
   className: classNameFromProps,
 }) => {
   const backgroundColor = useBackgroundColor();
-  const newTabProps = newTab ? { target: "_blank", rel: "noopener noreferrer" } : {};
+  const newTabProps = newTab
+    ? { target: "_blank", rel: "noopener noreferrer" }
+    : {};
   const className = [
     classNameFromProps,
     classes[`appearance--${appearance}`],

@@ -21,9 +21,13 @@ describe('next-image-forward-ref', () => {
 
   it('allows framer-motion to animate opacity', async () => {
     const browser = await webdriver(next.url, '/framer-motion')
-    expect(Number(await browser.elementById('img').getComputedCss('opacity'))).toBeCloseTo(1)
+    expect(
+      Number(await browser.elementById('img').getComputedCss('opacity'))
+    ).toBeCloseTo(1)
     browser.elementById('img').click()
     await waitFor(1000)
-    expect(Number(await browser.elementById('img').getComputedCss('opacity'))).toBeCloseTo(0)
+    expect(
+      Number(await browser.elementById('img').getComputedCss('opacity'))
+    ).toBeCloseTo(0)
   })
 })

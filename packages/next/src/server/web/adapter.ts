@@ -2,10 +2,16 @@ import type { RequestData, FetchEventResult } from './types'
 import type { RequestInit } from './spec-extension/request'
 import { PageSignatureError } from './error'
 import { fromNodeOutgoingHttpHeaders, normalizeNextQueryParam } from './utils'
-import { NextFetchEvent, getWaitUntilPromiseFromEvent } from './spec-extension/fetch-event'
+import {
+  NextFetchEvent,
+  getWaitUntilPromiseFromEvent,
+} from './spec-extension/fetch-event'
 import { NextRequest } from './spec-extension/request'
 import { NextResponse } from './spec-extension/response'
-import { parseRelativeURL, getRelativeURL } from '../../shared/lib/router/utils/relativize-url'
+import {
+  parseRelativeURL,
+  getRelativeURL,
+} from '../../shared/lib/router/utils/relativize-url'
 import { NextURL } from './next-url'
 import { stripInternalSearchParams } from '../internal-utils'
 import { normalizeRscURL } from '../../shared/lib/router/utils/app-paths'
@@ -34,7 +40,11 @@ export class NextRequestHint extends NextRequest {
   sourcePage: string
   fetchMetrics: FetchEventResult['fetchMetrics'] | undefined
 
-  constructor(params: { init: RequestInit; input: Request | string; page: string }) {
+  constructor(params: {
+    init: RequestInit
+    input: Request | string
+    page: string
+  }) {
     super(params.input, params.init)
     this.sourcePage = params.page
   }
@@ -72,7 +82,10 @@ export type EdgeHandler = (opts: {
   request: AdapterOptions['request']
 }) => Promise<FetchEventResult>
 
-let propagator: <T>(request: NextRequestHint, fn: () => T) => T = (request, fn) => {
+let propagator: <T>(request: NextRequestHint, fn: () => T) => T = (
+  request,
+  fn
+) => {
   const tracer = getTracer()
   return tracer.withPropagatedContext(request.headers, fn, headersGetter)
 }
@@ -92,12 +105,15 @@ function ensureTestApisIntercepted() {
   }
 }
 
-export async function adapter(params: AdapterOptions): Promise<FetchEventResult> {
+export async function adapter(
+  params: AdapterOptions
+): Promise<FetchEventResult> {
   ensureTestApisIntercepted()
   await ensureInstrumentationRegistered()
 
   // TODO-APP: use explicit marker for this
-  const isEdgeRendering = typeof (globalThis as any).__BUILD_MANIFEST !== 'undefined'
+  const isEdgeRendering =
+    typeof (globalThis as any).__BUILD_MANIFEST !== 'undefined'
 
   params.request.url = normalizeRscURL(params.request.url)
 
@@ -215,7 +231,8 @@ export async function adapter(params: AdapterOptions): Promise<FetchEventResult>
 
   // if we're in an edge runtime sandbox, we should use the waitUntil
   // that we receive from the enclosing NextServer
-  const outerWaitUntil = params.request.waitUntil ?? getBuiltinRequestContext()?.waitUntil
+  const outerWaitUntil =
+    params.request.waitUntil ?? getBuiltinRequestContext()?.waitUntil
 
   const event = new NextFetchEvent({
     request,
@@ -259,7 +276,11 @@ export async function adapter(params: AdapterOptions): Promise<FetchEventResult>
             const page = '/' // Fake Work
             const fallbackRouteParams = null
 
-            const implicitTags = await getImplicitTags(page, request.nextUrl, fallbackRouteParams)
+            const implicitTags = await getImplicitTags(
+              page,
+              request.nextUrl,
+              fallbackRouteParams
+            )
 
             const requestStore = createRequestStoreForAPI(
               request,
@@ -272,24 +293,32 @@ export async function adapter(params: AdapterOptions): Promise<FetchEventResult>
             const workStore = createWorkStore({
               page,
               renderOpts: {
-                cacheLifeProfiles: params.request.nextConfig?.experimental?.cacheLife,
+                cacheLifeProfiles:
+                  params.request.nextConfig?.experimental?.cacheLife,
                 cacheComponents: false,
                 experimental: {
                   isRoutePPREnabled: false,
-                  authInterrupts: !!params.request.nextConfig?.experimental?.authInterrupts,
+                  authInterrupts:
+                    !!params.request.nextConfig?.experimental?.authInterrupts,
                 },
                 supportsDynamicResponse: true,
                 waitUntil,
                 onClose: closeController.onClose.bind(closeController),
                 onAfterTaskError: undefined,
               },
-              isPrefetchRequest: request.headers.get(NEXT_ROUTER_PREFETCH_HEADER) === '1',
+              isPrefetchRequest:
+                request.headers.get(NEXT_ROUTER_PREFETCH_HEADER) === '1',
               buildId: buildId ?? '',
               previouslyRevalidatedTags: [],
             })
 
             return await workAsyncStorage.run(workStore, () =>
-              workUnitAsyncStorage.run(requestStore, params.handler, request, event)
+              workUnitAsyncStorage.run(
+                requestStore,
+                params.handler,
+                request,
+                event
+              )
             )
           } finally {
             // middleware cannot stream, so we can consider the response closed
@@ -364,8 +393,8 @@ export async function adapter(params: AdapterOptions): Promise<FetchEventResult>
     // to check to see if it's an allowed origin to receive the rewritten
     // headers.
     const isAllowedOrigin = !isRelative
-      ? params.request.nextConfig?.experimental?.clientParamParsingOrigins?.some((origin) =>
-          new RegExp(origin).test(destination.origin)
+      ? params.request.nextConfig?.experimental?.clientParamParsingOrigins?.some(
+          (origin) => new RegExp(origin).test(destination.origin)
         )
       : false
 
@@ -447,7 +476,9 @@ export async function adapter(params: AdapterOptions): Promise<FetchEventResult>
   const finalResponse = response ? response : NextResponse.next()
 
   // Flight headers are not overridable / removable so they are applied at the end.
-  const middlewareOverrideHeaders = finalResponse.headers.get('x-middleware-override-headers')
+  const middlewareOverrideHeaders = finalResponse.headers.get(
+    'x-middleware-override-headers'
+  )
   const overwrittenHeaders: string[] = []
   if (middlewareOverrideHeaders) {
     for (const [key, value] of flightHeaders) {

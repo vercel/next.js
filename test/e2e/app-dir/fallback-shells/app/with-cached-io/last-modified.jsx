@@ -5,7 +5,8 @@ export async function LastModified({ params }) {
 
   return (
     <p id="last-modified">
-      Page /{slug} last modified: {new Date().toISOString()} ({getSentinelValue()})
+      Page /{slug} last modified: {new Date().toISOString()} (
+      {getSentinelValue()})
     </p>
   )
 }

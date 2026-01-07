@@ -48,7 +48,9 @@ class FetchEvent {
   }
 }
 
-export function getWaitUntilPromiseFromEvent(event: FetchEvent): Promise<void> | undefined {
+export function getWaitUntilPromiseFromEvent(
+  event: FetchEvent
+): Promise<void> | undefined {
   return event[waitUntilSymbol].kind === 'internal'
     ? Promise.all(event[waitUntilSymbol].promises).then(() => {})
     : undefined

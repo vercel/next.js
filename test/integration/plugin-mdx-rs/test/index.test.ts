@@ -1,7 +1,13 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import { renderViaHTTP, findPort, launchApp, killApp, File } from 'next-test-utils'
+import {
+  renderViaHTTP,
+  findPort,
+  launchApp,
+  killApp,
+  File,
+} from 'next-test-utils'
 
 let appPort
 let app
@@ -25,7 +31,9 @@ describe('MDX-rs Configuration', () => {
     })
 
     it('should render an MDX page with globally provided components (from `mdx-components.js`) correctly', async () => {
-      expect(await renderViaHTTP(appPort, '/provider')).toMatch(/Marker was rendered!/)
+      expect(await renderViaHTTP(appPort, '/provider')).toMatch(
+        /Marker was rendered!/
+      )
     })
   })
 
@@ -57,7 +65,9 @@ describe('MDX-rs Configuration', () => {
     })
 
     it('should render an MDX page correctly', async () => {
-      expect(await renderViaHTTP(appPort, '/gfm')).toMatch(/<table>\n<thead>\n<tr>\n<th>foo/)
+      expect(await renderViaHTTP(appPort, '/gfm')).toMatch(
+        /<table>\n<thead>\n<tr>\n<th>foo/
+      )
     })
   })
 })

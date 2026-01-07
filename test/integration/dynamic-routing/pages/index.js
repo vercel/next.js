@@ -26,7 +26,11 @@ const Page = () => {
         View post 1 (hash only href)
       </Link>
       <br />
-      <Link href="/post-1?hidden=value" as="/post-1" id="view-post-1-hidden-query">
+      <Link
+        href="/post-1?hidden=value"
+        as="/post-1"
+        id="view-post-1-hidden-query"
+      >
         View post 1 (href query)
       </Link>
       <br />
@@ -75,11 +79,19 @@ const Page = () => {
         View post 1 (interpolated additional query)
       </Link>
       <br />
-      <Link href="/[name]/comments" as="/post-1/comments" id="view-post-1-comments">
+      <Link
+        href="/[name]/comments"
+        as="/post-1/comments"
+        id="view-post-1-comments"
+      >
         View post 1 comments
       </Link>
       <br />
-      <Link href="/[name]/[comment]" as="/post-1/comment-1" id="view-post-1-comment-1">
+      <Link
+        href="/[name]/[comment]"
+        as="/post-1/comment-1"
+        id="view-post-1-comment-1"
+      >
         View comment 1 on post 1
       </Link>
       <br />
@@ -109,19 +121,35 @@ const Page = () => {
         View comment 123 on blog post 321
       </Link>
       <br />
-      <Link href="/[name]?fromHome=true" as="/post-1?fromHome=true" id="view-post-1-with-query">
+      <Link
+        href="/[name]?fromHome=true"
+        as="/post-1?fromHome=true"
+        id="view-post-1-with-query"
+      >
         View post 1 with query
       </Link>
       <br />
-      <Link href="/on-mount/[post]" as="/on-mount/test-w-hash#item-400" id="view-dynamic-with-hash">
+      <Link
+        href="/on-mount/[post]"
+        as="/on-mount/test-w-hash#item-400"
+        id="view-dynamic-with-hash"
+      >
         View test with hash
       </Link>
       <br />
-      <Link href="/p1/p2/all-ssr/[...rest]" as="/p1/p2/all-ssr/hello" id="catch-all-single">
+      <Link
+        href="/p1/p2/all-ssr/[...rest]"
+        as="/p1/p2/all-ssr/hello"
+        id="catch-all-single"
+      >
         Catch-all route (single)
       </Link>
       <br />
-      <Link href="/p1/p2/all-ssr/[...rest]" as="/p1/p2/all-ssr/hello1/hello2" id="catch-all-multi">
+      <Link
+        href="/p1/p2/all-ssr/[...rest]"
+        as="/p1/p2/all-ssr/hello1/hello2"
+        id="catch-all-multi"
+      >
         Catch-all route (multi)
       </Link>
       <br />
@@ -133,11 +161,19 @@ const Page = () => {
         Catch-all route (encoded)
       </Link>
       <br />
-      <Link href="/p1/p2/all-ssr/[...rest]" as="/p1/p2/all-ssr/:42" id="catch-all-colonnumber">
+      <Link
+        href="/p1/p2/all-ssr/[...rest]"
+        as="/p1/p2/all-ssr/:42"
+        id="catch-all-colonnumber"
+      >
         Catch-all route :42
       </Link>
       <br />
-      <Link href="/p1/p2/all-ssg/[...rest]" as="/p1/p2/all-ssg/hello" id="ssg-catch-all-single">
+      <Link
+        href="/p1/p2/all-ssg/[...rest]"
+        as="/p1/p2/all-ssg/hello"
+        id="ssg-catch-all-single"
+      >
         Catch-all route (single)
       </Link>
       <br />

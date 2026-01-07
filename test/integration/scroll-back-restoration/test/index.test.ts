@@ -2,7 +2,14 @@
 
 import { join } from 'path'
 import webdriver from 'next-webdriver'
-import { killApp, findPort, launchApp, nextStart, nextBuild, retry } from 'next-test-utils'
+import {
+  killApp,
+  findPort,
+  launchApp,
+  nextStart,
+  nextBuild,
+  retry,
+} from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
 let appPort
@@ -11,8 +18,12 @@ let app
 const runTests = () => {
   it('should restore the scroll position on navigating back', async () => {
     const browser = await webdriver(appPort, '/')
-    await browser.eval(() => document.querySelector('#to-another').scrollIntoView())
-    const scrollRestoration = await browser.eval(() => window.history.scrollRestoration)
+    await browser.eval(() =>
+      document.querySelector('#to-another').scrollIntoView()
+    )
+    const scrollRestoration = await browser.eval(
+      () => window.history.scrollRestoration
+    )
 
     expect(scrollRestoration).toBe('manual')
 
@@ -51,23 +62,29 @@ const runTests = () => {
 }
 
 describe('Scroll Back Restoration Support', () => {
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-    runTests()
-  })
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+      runTests()
+    }
+  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-    runTests()
-  })
+      runTests()
+    }
+  )
 })

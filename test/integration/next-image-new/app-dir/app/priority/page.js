@@ -67,7 +67,14 @@ const Page = () => {
       />
       <p id="stubtext">This is the priority page</p>
       <div style={{ height: '1000vh' }} />
-      <Image priority id="belowthefold" src="/test.tiff" width="400" height="400" alt="" />
+      <Image
+        priority
+        id="belowthefold"
+        src="/test.tiff"
+        width="400"
+        height="400"
+        alt=""
+      />
     </div>
   )
 }

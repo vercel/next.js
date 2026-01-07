@@ -8,7 +8,9 @@ const { bgCyan, bold, magenta, red, underline } = picocolors
 export default function createInterface(): Interface {
   const iface: Interface = {
     start: async (scenario, props) => {
-      console.log(bold(underline(`Running ${formatVariant(scenario, props)}...`)))
+      console.log(
+        bold(underline(`Running ${formatVariant(scenario, props)}...`))
+      )
     },
     measurement: async (scenario, props, name, value, unit, relativeTo) => {
       console.log(
@@ -26,7 +28,13 @@ export default function createInterface(): Interface {
     },
     error: async (scenario, props, error) => {
       console.log(
-        bold(red(`${formatVariant(scenario, props)}: ${(error && (error as any).stack) || error}`))
+        bold(
+          red(
+            `${formatVariant(scenario, props)}: ${
+              (error && (error as any).stack) || error
+            }`
+          )
+        )
       )
     },
   }

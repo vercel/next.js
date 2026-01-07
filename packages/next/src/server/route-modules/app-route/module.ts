@@ -13,7 +13,10 @@ import {
   type RouteModuleOptions,
 } from '../route-module'
 import { createRequestStoreForAPI } from '../../async-storage/request-store'
-import { createWorkStore, type WorkStoreContext } from '../../async-storage/work-store'
+import {
+  createWorkStore,
+  type WorkStoreContext,
+} from '../../async-storage/work-store'
 import { type HTTP_METHOD, HTTP_METHODS, isHTTPMethod } from '../../web/http'
 import { getImplicitTags, type ImplicitTags } from '../../lib/implicit-tags'
 import { patchFetch } from '../../lib/patch-fetch'
@@ -36,7 +39,10 @@ import {
 import * as serverHooks from '../../../client/components/hooks-server-context'
 import { DynamicServerError } from '../../../client/components/hooks-server-context'
 
-import { workAsyncStorage, type WorkStore } from '../../app-render/work-async-storage.external'
+import {
+  workAsyncStorage,
+  type WorkStore,
+} from '../../app-render/work-async-storage.external'
 import {
   workUnitAsyncStorage,
   type RequestStore,
@@ -68,7 +74,10 @@ import {
   getRedirectStatusCodeFromError,
   getURLFromRedirectError,
 } from '../../../client/components/redirect'
-import { isRedirectError, type RedirectError } from '../../../client/components/redirect-error'
+import {
+  isRedirectError,
+  type RedirectError,
+} from '../../../client/components/redirect-error'
 import {
   getAccessFallbackHTTPStatus,
   isHTTPAccessFallbackError,
@@ -153,17 +162,18 @@ export type AppRouteHandlers = {
  * routes. This contains all the user generated code.
  */
 export type AppRouteUserlandModule = AppRouteHandlers &
-  Pick<AppSegmentConfig, 'dynamic' | 'revalidate' | 'dynamicParams' | 'fetchCache'> &
+  Pick<
+    AppSegmentConfig,
+    'dynamic' | 'revalidate' | 'dynamicParams' | 'fetchCache'
+  > &
   Pick<AppSegment, 'generateStaticParams'>
 
 /**
  * AppRouteRouteModuleOptions is the options that are passed to the app route
  * module from the bundled code.
  */
-export interface AppRouteRouteModuleOptions extends RouteModuleOptions<
-  AppRouteRouteDefinition,
-  AppRouteUserlandModule
-> {
+export interface AppRouteRouteModuleOptions
+  extends RouteModuleOptions<AppRouteRouteDefinition, AppRouteUserlandModule> {
   readonly resolvedPagePath: string
   readonly nextConfigOutput: NextConfig['output']
 }
@@ -313,14 +323,22 @@ export class AppRouteRouteModule extends RouteModule<
 
     const handlerContext: AppRouteHandlerFnContext = {
       params: context.params
-        ? createServerParamsForRoute(parsedUrlQueryToParams(context.params), workStore)
+        ? createServerParamsForRoute(
+            parsedUrlQueryToParams(context.params),
+            workStore
+          )
         : undefined,
     }
 
     const resolvePendingRevalidations = () => {
-      context.renderOpts.pendingWaitUntil = executeRevalidates(workStore).finally(() => {
+      context.renderOpts.pendingWaitUntil = executeRevalidates(
+        workStore
+      ).finally(() => {
         if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
-          console.log('pending revalidates promise finished for:', requestStore.url)
+          console.log(
+            'pending revalidates promise finished for:',
+            requestStore.url
+          )
         }
       })
     }
@@ -375,29 +393,30 @@ export class AppRouteRouteModule extends RouteModule<
           // complexity of using a mutable and an immutable resume data cache.
           const prerenderResumeDataCache = createPrerenderResumeDataCache()
 
-          const prospectiveRoutePrerenderStore: PrerenderStore = (prerenderStore = {
-            type: 'prerender',
-            phase: 'action',
-            // This replicates prior behavior where rootParams is empty in routes
-            // TODO we need to make this have the proper rootParams for this route
-            rootParams: {},
-            fallbackRouteParams: null,
-            implicitTags,
-            renderSignal: prospectiveController.signal,
-            controller: prospectiveController,
-            cacheSignal,
-            // During prospective render we don't use a controller
-            // because we need to let all caches fill.
-            dynamicTracking,
-            allowEmptyStaticShell: false,
-            revalidate: defaultRevalidate,
-            expire: INFINITE_CACHE,
-            stale: INFINITE_CACHE,
-            tags: [...implicitTags.tags],
-            prerenderResumeDataCache,
-            renderResumeDataCache: null,
-            hmrRefreshHash: undefined,
-          })
+          const prospectiveRoutePrerenderStore: PrerenderStore =
+            (prerenderStore = {
+              type: 'prerender',
+              phase: 'action',
+              // This replicates prior behavior where rootParams is empty in routes
+              // TODO we need to make this have the proper rootParams for this route
+              rootParams: {},
+              fallbackRouteParams: null,
+              implicitTags,
+              renderSignal: prospectiveController.signal,
+              controller: prospectiveController,
+              cacheSignal,
+              // During prospective render we don't use a controller
+              // because we need to let all caches fill.
+              dynamicTracking,
+              allowEmptyStaticShell: false,
+              revalidate: defaultRevalidate,
+              expire: INFINITE_CACHE,
+              stale: INFINITE_CACHE,
+              tags: [...implicitTags.tags],
+              prerenderResumeDataCache,
+              renderResumeDataCache: null,
+              hmrRefreshHash: undefined,
+            })
 
           let prospectiveResult
           try {
@@ -412,7 +431,10 @@ export class AppRouteRouteModule extends RouteModule<
               // the route handler called an API which is always dynamic
               // there is no need to try again
               prospectiveRenderIsDynamic = true
-            } else if (process.env.NEXT_DEBUG_BUILD || process.env.__NEXT_VERBOSE_LOGGING) {
+            } else if (
+              process.env.NEXT_DEBUG_BUILD ||
+              process.env.__NEXT_VERBOSE_LOGGING
+            ) {
               printDebugThrownValueForProspectiveRender(
                 err,
                 workStore.route,
@@ -567,10 +589,20 @@ export class AppRouteRouteModule extends RouteModule<
             tags: [...implicitTags.tags],
           }
 
-          res = await workUnitAsyncStorage.run(prerenderStore, handler, request, handlerContext)
+          res = await workUnitAsyncStorage.run(
+            prerenderStore,
+            handler,
+            request,
+            handlerContext
+          )
         }
       } else {
-        res = await workUnitAsyncStorage.run(requestStore, handler, request, handlerContext)
+        res = await workUnitAsyncStorage.run(
+          requestStore,
+          handler,
+          request,
+          handlerContext
+        )
       }
     } catch (err) {
       if (isRedirectError(err)) {
@@ -642,7 +674,10 @@ export class AppRouteRouteModule extends RouteModule<
     return res
   }
 
-  public async handle(req: NextRequest, context: AppRouteRouteHandlerContext): Promise<Response> {
+  public async handle(
+    req: NextRequest,
+    context: AppRouteRouteHandlerContext
+  ): Promise<Response> {
     // Get the handler function for the given method.
     const handler = this.resolve(req.method)
 
@@ -682,85 +717,95 @@ export class AppRouteRouteModule extends RouteModule<
     // Run the handler with the request AsyncLocalStorage to inject the helper
     // support. We set this to `unknown` because the type is not known until
     // runtime when we do a instanceof check below.
-    const response: unknown = await this.actionAsyncStorage.run(actionStore, () =>
-      this.workUnitAsyncStorage.run(requestStore, () =>
-        this.workAsyncStorage.run(workStore, async () => {
-          // Check to see if we should bail out of static generation based on
-          // having non-static methods.
-          if (this.hasNonStaticMethods) {
-            if (workStore.isStaticGeneration) {
-              const err = new DynamicServerError(
-                'Route is configured with methods that cannot be statically generated.'
-              )
-              workStore.dynamicUsageDescription = err.message
-              workStore.dynamicUsageStack = err.stack
-              throw err
-            }
-          }
-
-          // We assume we can pass the original request through however we may end up
-          // proxying it in certain circumstances based on execution type and configuration
-          let request = req
-
-          // Update the static generation store based on the dynamic property.
-          switch (this.dynamic) {
-            case 'force-dynamic': {
-              // Routes of generated paths should be dynamic
-              workStore.forceDynamic = true
+    const response: unknown = await this.actionAsyncStorage.run(
+      actionStore,
+      () =>
+        this.workUnitAsyncStorage.run(requestStore, () =>
+          this.workAsyncStorage.run(workStore, async () => {
+            // Check to see if we should bail out of static generation based on
+            // having non-static methods.
+            if (this.hasNonStaticMethods) {
               if (workStore.isStaticGeneration) {
                 const err = new DynamicServerError(
-                  'Route is configured with dynamic = error which cannot be statically generated.'
+                  'Route is configured with methods that cannot be statically generated.'
                 )
                 workStore.dynamicUsageDescription = err.message
                 workStore.dynamicUsageStack = err.stack
                 throw err
               }
-              break
             }
-            case 'force-static':
-              // The dynamic property is set to force-static, so we should
-              // force the page to be static.
-              workStore.forceStatic = true
-              // We also Proxy the request to replace dynamic data on the request
-              // with empty stubs to allow for safely executing as static
-              request = new Proxy(req, forceStaticRequestHandlers)
-              break
-            case 'error':
-              // The dynamic property is set to error, so we should throw an
-              // error if the page is being statically generated.
-              workStore.dynamicShouldError = true
-              if (workStore.isStaticGeneration)
-                request = new Proxy(req, requireStaticRequestHandlers)
-              break
-            case undefined:
-            case 'auto':
-              // We proxy `NextRequest` to track dynamic access, and
-              // potentially bail out of static generation.
-              request = proxyNextRequest(req, workStore)
-              break
-            default:
-              this.dynamic satisfies never
-          }
 
-          const tracer = getTracer()
+            // We assume we can pass the original request through however we may end up
+            // proxying it in certain circumstances based on execution type and configuration
+            let request = req
 
-          // Update the root span attribute for the route.
-          const { pathname } = this.definition
-          tracer.setRootSpanAttribute('next.route', pathname)
+            // Update the static generation store based on the dynamic property.
+            switch (this.dynamic) {
+              case 'force-dynamic': {
+                // Routes of generated paths should be dynamic
+                workStore.forceDynamic = true
+                if (workStore.isStaticGeneration) {
+                  const err = new DynamicServerError(
+                    'Route is configured with dynamic = error which cannot be statically generated.'
+                  )
+                  workStore.dynamicUsageDescription = err.message
+                  workStore.dynamicUsageStack = err.stack
+                  throw err
+                }
+                break
+              }
+              case 'force-static':
+                // The dynamic property is set to force-static, so we should
+                // force the page to be static.
+                workStore.forceStatic = true
+                // We also Proxy the request to replace dynamic data on the request
+                // with empty stubs to allow for safely executing as static
+                request = new Proxy(req, forceStaticRequestHandlers)
+                break
+              case 'error':
+                // The dynamic property is set to error, so we should throw an
+                // error if the page is being statically generated.
+                workStore.dynamicShouldError = true
+                if (workStore.isStaticGeneration)
+                  request = new Proxy(req, requireStaticRequestHandlers)
+                break
+              case undefined:
+              case 'auto':
+                // We proxy `NextRequest` to track dynamic access, and
+                // potentially bail out of static generation.
+                request = proxyNextRequest(req, workStore)
+                break
+              default:
+                this.dynamic satisfies never
+            }
 
-          return tracer.trace(
-            AppRouteRouteHandlersSpan.runHandler,
-            {
-              spanName: `executing api route (app) ${pathname}`,
-              attributes: {
-                'next.route': pathname,
+            const tracer = getTracer()
+
+            // Update the root span attribute for the route.
+            const { pathname } = this.definition
+            tracer.setRootSpanAttribute('next.route', pathname)
+
+            return tracer.trace(
+              AppRouteRouteHandlersSpan.runHandler,
+              {
+                spanName: `executing api route (app) ${pathname}`,
+                attributes: {
+                  'next.route': pathname,
+                },
               },
-            },
-            async () =>
-              this.do(handler, actionStore, workStore, requestStore, implicitTags, request, context)
-          )
-        })
-      )
+              async () =>
+                this.do(
+                  handler,
+                  actionStore,
+                  workStore,
+                  requestStore,
+                  implicitTags,
+                  request,
+                  context
+                )
+            )
+          })
+        )
     )
 
     // If the handler did't return a valid response, then return the internal
@@ -841,21 +886,31 @@ type UrlSymbolTarget = {
  * inaccessible to the consumer since all operations are forwarded
  */
 const forceStaticRequestHandlers = {
-  get(target: NextRequest & RequestSymbolTarget, prop: string | symbol, receiver: any): unknown {
+  get(
+    target: NextRequest & RequestSymbolTarget,
+    prop: string | symbol,
+    receiver: any
+  ): unknown {
     switch (prop) {
       case 'headers':
         return (
-          target[headersSymbol] || (target[headersSymbol] = HeadersAdapter.seal(new Headers({})))
+          target[headersSymbol] ||
+          (target[headersSymbol] = HeadersAdapter.seal(new Headers({})))
         )
       case 'cookies':
         return (
           target[cookiesSymbol] ||
-          (target[cookiesSymbol] = RequestCookiesAdapter.seal(new RequestCookies(new Headers({}))))
+          (target[cookiesSymbol] = RequestCookiesAdapter.seal(
+            new RequestCookies(new Headers({}))
+          ))
         )
       case 'nextUrl':
         return (
           target[nextURLSymbol] ||
-          (target[nextURLSymbol] = new Proxy(target.nextUrl, forceStaticNextUrlHandlers))
+          (target[nextURLSymbol] = new Proxy(
+            target.nextUrl,
+            forceStaticNextUrlHandlers
+          ))
         )
       case 'url':
         // we don't need to separately cache this we can just read the nextUrl
@@ -890,18 +945,31 @@ const forceStaticRequestHandlers = {
 }
 
 const forceStaticNextUrlHandlers = {
-  get(target: NextURL & UrlSymbolTarget, prop: string | symbol, receiver: any): unknown {
+  get(
+    target: NextURL & UrlSymbolTarget,
+    prop: string | symbol,
+    receiver: any
+  ): unknown {
     switch (prop) {
       // URL properties
       case 'search':
         return ''
       case 'searchParams':
-        return target[searchParamsSymbol] || (target[searchParamsSymbol] = new URLSearchParams())
+        return (
+          target[searchParamsSymbol] ||
+          (target[searchParamsSymbol] = new URLSearchParams())
+        )
       case 'href':
-        return target[hrefSymbol] || (target[hrefSymbol] = cleanURL(target.href).href)
+        return (
+          target[hrefSymbol] ||
+          (target[hrefSymbol] = cleanURL(target.href).href)
+        )
       case 'toJSON':
       case 'toString':
-        return target[toStringSymbol] || (target[toStringSymbol] = () => receiver.href)
+        return (
+          target[toStringSymbol] ||
+          (target[toStringSymbol] = () => receiver.href)
+        )
 
       // NextUrl properties
       case 'url':
@@ -912,7 +980,8 @@ const forceStaticNextUrlHandlers = {
       case 'clone':
         return (
           target[urlCloneSymbol] ||
-          (target[urlCloneSymbol] = () => new Proxy(target.clone(), forceStaticNextUrlHandlers))
+          (target[urlCloneSymbol] = () =>
+            new Proxy(target.clone(), forceStaticNextUrlHandlers))
         )
       default:
         return ReflectAdapter.get(target, prop, receiver)
@@ -922,7 +991,11 @@ const forceStaticNextUrlHandlers = {
 
 function proxyNextRequest(request: NextRequest, workStore: WorkStore) {
   const nextUrlHandlers = {
-    get(target: NextURL & UrlSymbolTarget, prop: string | symbol, receiver: any): unknown {
+    get(
+      target: NextURL & UrlSymbolTarget,
+      prop: string | symbol,
+      receiver: any
+    ): unknown {
       switch (prop) {
         case 'search':
         case 'searchParams':
@@ -938,7 +1011,8 @@ function proxyNextRequest(request: NextRequest, workStore: WorkStore) {
         case 'clone':
           return (
             target[urlCloneSymbol] ||
-            (target[urlCloneSymbol] = () => new Proxy(target.clone(), nextUrlHandlers))
+            (target[urlCloneSymbol] = () =>
+              new Proxy(target.clone(), nextUrlHandlers))
           )
         default:
           return ReflectAdapter.get(target, prop, receiver)
@@ -947,7 +1021,10 @@ function proxyNextRequest(request: NextRequest, workStore: WorkStore) {
   }
 
   const nextRequestHandlers = {
-    get(target: NextRequest & RequestSymbolTarget, prop: string | symbol): unknown {
+    get(
+      target: NextRequest & RequestSymbolTarget,
+      prop: string | symbol
+    ): unknown {
       switch (prop) {
         case 'nextUrl':
           return (
@@ -1001,12 +1078,19 @@ function proxyNextRequest(request: NextRequest, workStore: WorkStore) {
 }
 
 const requireStaticRequestHandlers = {
-  get(target: NextRequest & RequestSymbolTarget, prop: string | symbol, receiver: any): unknown {
+  get(
+    target: NextRequest & RequestSymbolTarget,
+    prop: string | symbol,
+    receiver: any
+  ): unknown {
     switch (prop) {
       case 'nextUrl':
         return (
           target[nextURLSymbol] ||
-          (target[nextURLSymbol] = new Proxy(target.nextUrl, requireStaticNextUrlHandlers))
+          (target[nextURLSymbol] = new Proxy(
+            target.nextUrl,
+            requireStaticNextUrlHandlers
+          ))
         )
       case 'headers':
       case 'cookies':
@@ -1045,7 +1129,11 @@ const requireStaticRequestHandlers = {
 }
 
 const requireStaticNextUrlHandlers = {
-  get(target: NextURL & UrlSymbolTarget, prop: string | symbol, receiver: any): unknown {
+  get(
+    target: NextURL & UrlSymbolTarget,
+    prop: string | symbol,
+    receiver: any
+  ): unknown {
     switch (prop) {
       case 'search':
       case 'searchParams':
@@ -1060,7 +1148,8 @@ const requireStaticNextUrlHandlers = {
       case 'clone':
         return (
           target[urlCloneSymbol] ||
-          (target[urlCloneSymbol] = () => new Proxy(target.clone(), requireStaticNextUrlHandlers))
+          (target[urlCloneSymbol] = () =>
+            new Proxy(target.clone(), requireStaticNextUrlHandlers))
         )
       default:
         return ReflectAdapter.get(target, prop, receiver)
@@ -1109,13 +1198,19 @@ function trackDynamic(
           workUnitStore
         )
       case 'prerender-client':
-        throw new InvariantError('A client prerender store should not be used for a route handler.')
+        throw new InvariantError(
+          'A client prerender store should not be used for a route handler.'
+        )
       case 'prerender-runtime':
         throw new InvariantError(
           'A runtime prerender store should not be used for a route handler.'
         )
       case 'prerender-ppr':
-        return postponeWithTracking(store.route, expression, workUnitStore.dynamicTracking)
+        return postponeWithTracking(
+          store.route,
+          expression,
+          workUnitStore.dynamicTracking
+        )
       case 'prerender-legacy':
         workUnitStore.revalidate = 0
 

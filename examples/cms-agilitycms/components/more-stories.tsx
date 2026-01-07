@@ -24,7 +24,11 @@ export default function MoreStories({ title, posts }) {
 }
 
 // The data returned here will be send as `props` to the component
-MoreStories.getCustomInitialProps = async function ({ client, item, pageInSitemap }) {
+MoreStories.getCustomInitialProps = async function ({
+  client,
+  item,
+  pageInSitemap,
+}) {
   const postToExcludeContentID = pageInSitemap.contentID ?? -1;
   const posts = await client.getPostsForMoreStories({ postToExcludeContentID });
 

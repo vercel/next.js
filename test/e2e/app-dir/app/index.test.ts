@@ -2,12 +2,17 @@ import { nextTestSetup } from 'e2e-utils'
 import { check, retry, waitFor } from 'next-test-utils'
 import cheerio from 'cheerio'
 import stripAnsi from 'strip-ansi'
-import { NEXT_RSC_UNION_QUERY, RSC_HEADER } from 'next/dist/client/components/app-router-headers'
+import {
+  NEXT_RSC_UNION_QUERY,
+  RSC_HEADER,
+} from 'next/dist/client/components/app-router-headers'
 
 describe('app dir - basic', () => {
   const { next, isNextDev, isNextStart, isNextDeploy } = nextTestSetup({
     files: __dirname,
-    buildCommand: process.env.NEXT_EXPERIMENTAL_COMPILE ? 'pnpm compile-mode' : undefined,
+    buildCommand: process.env.NEXT_EXPERIMENTAL_COMPILE
+      ? 'pnpm compile-mode'
+      : undefined,
     packageJson: {
       scripts: {
         'compile-mode': process.env.NEXT_EXPERIMENTAL_COMPILE
@@ -47,7 +52,9 @@ describe('app dir - basic', () => {
 
   if (isNextStart) {
     it('should contain framework.json', async () => {
-      const frameworksJson = await next.readJSON('.next/diagnostics/framework.json')
+      const frameworksJson = await next.readJSON(
+        '.next/diagnostics/framework.json'
+      )
       expect(frameworksJson).toEqual({
         name: 'Next.js',
         version: require('next/package.json').version,
@@ -55,7 +62,9 @@ describe('app dir - basic', () => {
     })
 
     it('outputs correct build-diagnostics.json', async () => {
-      const buildDiagnosticsJson = await next.readJSON('.next/diagnostics/build-diagnostics.json')
+      const buildDiagnosticsJson = await next.readJSON(
+        '.next/diagnostics/build-diagnostics.json'
+      )
       expect(buildDiagnosticsJson).toMatchObject({
         buildStage: 'static-generation',
         buildOptions: {},
@@ -68,17 +77,24 @@ describe('app dir - basic', () => {
       const middlewareManifest = JSON.parse(
         await next.readFile('.next/server/middleware-manifest.json')
       )
-      expect(middlewareManifest.functions['/(rootonly)/dashboard/hello/page'].regions).toEqual([
+      expect(
+        middlewareManifest.functions['/(rootonly)/dashboard/hello/page'].regions
+      ).toEqual(['iad1', 'sfo1'])
+      expect(middlewareManifest.functions['/dashboard/page'].regions).toEqual([
         'iad1',
-        'sfo1',
       ])
-      expect(middlewareManifest.functions['/dashboard/page'].regions).toEqual(['iad1'])
-      expect(middlewareManifest.functions['/slow-page-no-loading/page'].regions).toEqual(['global'])
+      expect(
+        middlewareManifest.functions['/slow-page-no-loading/page'].regions
+      ).toEqual(['global'])
 
-      expect(middlewareManifest.functions['/test-page/page'].regions).toEqual(['home'])
+      expect(middlewareManifest.functions['/test-page/page'].regions).toEqual([
+        'home',
+      ])
 
       // Inherits from the root layout.
-      expect(middlewareManifest.functions['/slow-page-with-loading/page'].regions).toEqual(['sfo1'])
+      expect(
+        middlewareManifest.functions['/slow-page-with-loading/page'].regions
+      ).toEqual(['sfo1'])
     })
   }
 
@@ -114,7 +130,9 @@ describe('app dir - basic', () => {
   })
 
   it('should have correct searchParams and params (client)', async () => {
-    const browser = await next.browser('/dynamic-client/category-1/id-2?query1=value2')
+    const browser = await next.browser(
+      '/dynamic-client/category-1/id-2?query1=value2'
+    )
     const html = await browser.eval('document.documentElement.innerHTML')
     const $ = cheerio.load(html)
 
@@ -132,8 +150,12 @@ describe('app dir - basic', () => {
       const browser = await next.browser('/')
 
       await check(async () => {
-        const found = await browser.eval('!!window.next.router.components["/dashboard"]')
-        return found ? 'success' : await browser.eval('Object.keys(window.next.router.components)')
+        const found = await browser.eval(
+          '!!window.next.router.components["/dashboard"]'
+        )
+        return found
+          ? 'success'
+          : await browser.eval('Object.keys(window.next.router.components)')
       }, 'success')
 
       await browser.elementByCss('a').click()
@@ -153,13 +175,17 @@ describe('app dir - basic', () => {
 
     await browser.waitForElementByCss('#id-page-params')
 
-    expect(requests).not.toEqual(expect.arrayContaining([expect.stringContaining('[category]')]))
+    expect(requests).not.toEqual(
+      expect.arrayContaining([expect.stringContaining('[category]')])
+    )
 
     // Turbopack doesn't recreate the original folder structure for the output chunks
     if (!process.env.IS_TURBOPACK_TEST) {
       expect(requests).toEqual(
         // e.g. _next/static/chunks/app/dynamic-client/%5Bcategory%5D/%5Bid%5D/page-6e188d657a208f8e.js?dpl=...
-        expect.arrayContaining([expect.stringMatching(/.*%5Bcategory%5D\/%5Bid%5D.*\.js/)])
+        expect.arrayContaining([
+          expect.stringMatching(/.*%5Bcategory%5D\/%5Bid%5D.*\.js/),
+        ])
       )
     }
   })
@@ -171,36 +197,41 @@ describe('app dir - basic', () => {
     { pathname: '/redirect-3/some' },
     { pathname: '/redirect-4' },
     { pathname: '/redirect-4/?q=1&=' },
-  ])('should match redirects in pages correctly $path', async ({ pathname }) => {
-    let browser = await next.browser('/')
+  ])(
+    'should match redirects in pages correctly $path',
+    async ({ pathname }) => {
+      let browser = await next.browser('/')
 
-    await browser.eval(`next.router.push("${pathname}")`)
-    await check(async () => {
-      const href = await browser.eval('location.href')
-      return href.includes('example.vercel.sh') ? 'yes' : href
-    }, 'yes')
+      await browser.eval(`next.router.push("${pathname}")`)
+      await check(async () => {
+        const href = await browser.eval('location.href')
+        return href.includes('example.vercel.sh') ? 'yes' : href
+      }, 'yes')
 
-    if (pathname.includes('/blog')) {
-      browser = await next.browser('/blog/first')
-      await browser.eval('window.beforeNav = 1')
+      if (pathname.includes('/blog')) {
+        browser = await next.browser('/blog/first')
+        await browser.eval('window.beforeNav = 1')
 
-      // check 5 times to ensure a reload didn't occur
-      for (let i = 0; i < 5; i++) {
-        await waitFor(500)
-        expect(await browser.eval('document.documentElement.innerHTML')).toContain(
-          'hello from pages/blog/[slug]'
-        )
-        expect(await browser.eval('window.beforeNav')).toBe(1)
+        // check 5 times to ensure a reload didn't occur
+        for (let i = 0; i < 5; i++) {
+          await waitFor(500)
+          expect(
+            await browser.eval('document.documentElement.innerHTML')
+          ).toContain('hello from pages/blog/[slug]')
+          expect(await browser.eval('window.beforeNav')).toBe(1)
+        }
       }
     }
-  })
+  )
 
   it('should not apply client router filter on shallow', async () => {
     const browser = await next.browser('/')
     await browser.eval('window.beforeNav = 1')
 
     await check(async () => {
-      await browser.eval(`window.next.router.push('/', '/redirect-1', { shallow: true })`)
+      await browser.eval(
+        `window.next.router.push('/', '/redirect-1', { shallow: true })`
+      )
       return await browser.eval('window.location.pathname')
     }, '/redirect-1')
     expect(await browser.eval('window.beforeNav')).toBe(1)
@@ -209,7 +240,10 @@ describe('app dir - basic', () => {
   if (isNextDev) {
     it('should not have duplicate config warnings', async () => {
       await next.fetch('/')
-      expect(stripAnsi(next.cliOutput).match(/Experiments \(use with caution\):/g).length).toBe(1)
+      expect(
+        stripAnsi(next.cliOutput).match(/Experiments \(use with caution\):/g)
+          .length
+      ).toBe(1)
     })
   }
 
@@ -244,25 +278,32 @@ describe('app dir - basic', () => {
       const res = await next.fetch('/slow-page-no-loading')
       expect(res.status).toBe(200)
       expect(await res.text()).toContain('hello from slow page')
-      expect(next.cliOutput).not.toContain('A separate worker must be used for each render')
+      expect(next.cliOutput).not.toContain(
+        'A separate worker must be used for each render'
+      )
     })
   }
 
   if (isNextStart) {
     it('should generate build traces correctly', async () => {
       const trace = JSON.parse(
-        await next.readFile('.next/server/app/dashboard/deployments/[id]/page.js.nft.json')
+        await next.readFile(
+          '.next/server/app/dashboard/deployments/[id]/page.js.nft.json'
+        )
       ) as { files: string[] }
       expect(trace.files.some((file) => file.endsWith('data.json'))).toBe(true)
     })
   }
 
   it('should use text/x-component for flight', async () => {
-    const res = await next.fetch(`/dashboard/deployments/123?${NEXT_RSC_UNION_QUERY}`, {
-      headers: {
-        [RSC_HEADER]: '1',
-      },
-    })
+    const res = await next.fetch(
+      `/dashboard/deployments/123?${NEXT_RSC_UNION_QUERY}`,
+      {
+        headers: {
+          [RSC_HEADER]: '1',
+        },
+      }
+    )
     expect(res.headers.get('Content-Type')).toBe('text/x-component')
   })
 
@@ -338,7 +379,9 @@ describe('app dir - basic', () => {
       })
       const html = await next.render('/dashboard/index')
       expect(html).toContain('hello from app/dashboard/index')
-      expect(stderr.some((err) => err.includes('Invalid hook call'))).toBe(false)
+      expect(stderr.some((err) => err.includes('Invalid hook call'))).toBe(
+        false
+      )
     })
 
     it('should serve polyfills for browsers that do not support modules', async () => {
@@ -361,7 +404,9 @@ describe('app dir - basic', () => {
       )
     ).toBe('rgb(0, 0, 255)')
     expect(
-      await browser.eval(`window.getComputedStyle(document.querySelector('#css-text-lazy')).color`)
+      await browser.eval(
+        `window.getComputedStyle(document.querySelector('#css-text-lazy')).color`
+      )
     ).toBe('rgb(128, 0, 128)')
   })
 
@@ -420,7 +465,9 @@ describe('app dir - basic', () => {
     expect($('h2').text()).toBe('Custom dashboard')
 
     // Should render the page text
-    expect($('p').text()).toBe('hello from app/dashboard/(custom)/deployments/breakdown')
+    expect($('p').text()).toBe(
+      'hello from app/dashboard/(custom)/deployments/breakdown'
+    )
   })
 
   it('should include parent document when no direct parent layout', async () => {
@@ -449,7 +496,9 @@ describe('app dir - basic', () => {
   it('should serve dynamic parameter', async () => {
     const $ = await next.render$('/dashboard/deployments/123')
     // Should include the page text with the parameter
-    expect($('p').text()).toBe('hello from app/dashboard/deployments/[id]. ID is: 123')
+    expect($('p').text()).toBe(
+      'hello from app/dashboard/deployments/[id]. ID is: 123'
+    )
   })
 
   // TODO-APP: fix to ensure behavior matches on deploy
@@ -757,11 +806,15 @@ describe('app dir - basic', () => {
       try {
         // Click the link.
         await browser.elementById('app-link').click()
-        expect(await browser.waitForElementByCss('#pages-link').text()).toBe('To App Page')
+        expect(await browser.waitForElementByCss('#pages-link').text()).toBe(
+          'To App Page'
+        )
 
         // Click the other link.
         await browser.elementById('pages-link').click()
-        expect(await browser.waitForElementByCss('#app-link').text()).toBe('To Pages Page')
+        expect(await browser.waitForElementByCss('#app-link').text()).toBe(
+          'To Pages Page'
+        )
       } finally {
         await browser.close()
       }
@@ -776,9 +829,9 @@ describe('app dir - basic', () => {
         await check(async () => {
           await browser.elementById('pages-link').click()
 
-          expect(await browser.waitForElementByCss('#app-text', 5000).text()).toBe(
-            'hello from app/dynamic-pages-route-app-overlap/app-dir/page'
-          )
+          expect(
+            await browser.waitForElementByCss('#app-text', 5000).text()
+          ).toBe('hello from app/dynamic-pages-route-app-overlap/app-dir/page')
 
           // When refreshing the browser, the app page should be rendered
           await browser.refresh()
@@ -796,7 +849,9 @@ describe('app dir - basic', () => {
       const browser = await next.browser('/link-external/push')
       expect(await browser.eval('window.history.length')).toBe(2)
       await browser.elementByCss('#external-link').click()
-      expect(await browser.waitForElementByCss('h1').text()).toBe('Example Domain')
+      expect(await browser.waitForElementByCss('h1').text()).toBe(
+        'Example Domain'
+      )
       expect(await browser.eval('window.history.length')).toBe(3)
     })
 
@@ -804,7 +859,9 @@ describe('app dir - basic', () => {
       const browser = await next.browser('/link-external/replace')
       expect(await browser.eval('window.history.length')).toBe(2)
       await browser.elementByCss('#external-link').click()
-      expect(await browser.waitForElementByCss('h1').text()).toBe('Example Domain')
+      expect(await browser.waitForElementByCss('h1').text()).toBe(
+        'Example Domain'
+      )
       expect(await browser.eval('window.history.length')).toBe(2)
     })
   })
@@ -856,8 +913,12 @@ describe('app dir - basic', () => {
 
         expect($('#dynamic-layout-params').text()).toBe('{}')
         expect($('#category-layout-params').text()).toBe('{"category":"books"}')
-        expect($('#id-layout-params').text()).toBe('{"category":"books","id":"hello-world"}')
-        expect($('#id-page-params').text()).toBe('{"category":"books","id":"hello-world"}')
+        expect($('#id-layout-params').text()).toBe(
+          '{"category":"books","id":"hello-world"}'
+        )
+        expect($('#id-page-params').text()).toBe(
+          '{"category":"books","id":"hello-world"}'
+        )
       })
     })
 
@@ -906,7 +967,11 @@ describe('app dir - basic', () => {
       it('should handle catch-all segments link', async () => {
         const browser = await next.browser('/catch-all-link')
         expect(
-          await browser.elementByCss('#to-catch-all').click().waitForElementByCss('#text').text()
+          await browser
+            .elementByCss('#to-catch-all')
+            .click()
+            .waitForElementByCss('#text')
+            .text()
         ).toBe(`hello from /catch-all/this/is/a/test`)
       })
     })
@@ -914,7 +979,9 @@ describe('app dir - basic', () => {
     describe('should serve client component', () => {
       it('should serve server-side', async () => {
         const $ = await next.render$('/client-component-route')
-        expect($('p').text()).toBe('hello from app/client-component-route. count: 0')
+        expect($('p').text()).toBe(
+          'hello from app/client-component-route. count: 0'
+        )
       })
 
       // TODO-APP: investigate hydration not kicking in on some runs
@@ -941,10 +1008,14 @@ describe('app dir - basic', () => {
         const browser = await next.browser('/client-nested')
 
         // After hydration count should be 1
-        expect(await browser.elementByCss('h1').text()).toBe('Client Nested. Count: 1')
+        expect(await browser.elementByCss('h1').text()).toBe(
+          'Client Nested. Count: 1'
+        )
 
         // After hydration count should be 1
-        expect(await browser.elementByCss('p').text()).toBe('hello from app/client-nested')
+        expect(await browser.elementByCss('p').text()).toBe(
+          'hello from app/client-nested'
+        )
       })
     })
 
@@ -962,7 +1033,9 @@ describe('app dir - basic', () => {
         // TODO-APP: `await next.browser()` causes waiting for the full page to complete streaming. At that point "Loading..." is replaced by the actual content
         // expect(await browser.elementByCss('#loading').text()).toBe('Loading...')
 
-        expect(await browser.elementByCss('#slow-page-message').text()).toBe('hello from slow page')
+        expect(await browser.elementByCss('#slow-page-message').text()).toBe(
+          'hello from slow page'
+        )
       })
 
       it('should render loading.js in initial html for slow layout', async () => {
@@ -982,7 +1055,9 @@ describe('app dir - basic', () => {
           'hello from slow layout'
         )
 
-        expect(await browser.elementByCss('#page-message').text()).toBe('Hello World')
+        expect(await browser.elementByCss('#page-message').text()).toBe(
+          'Hello World'
+        )
       })
 
       it('should render loading.js in initial html for slow layout and page', async () => {
@@ -993,9 +1068,12 @@ describe('app dir - basic', () => {
       })
 
       it('should render loading.js in browser for slow layout and page', async () => {
-        const browser = await next.browser('/slow-layout-and-page-with-loading/slow', {
-          waitHydration: false,
-        })
+        const browser = await next.browser(
+          '/slow-layout-and-page-with-loading/slow',
+          {
+            waitHydration: false,
+          }
+        )
         // TODO-APP: `await next.browser()` causes waiting for the full page to complete streaming. At that point "Loading..." is replaced by the actual content
         // expect(await browser.elementByCss('#loading-layout').text()).toBe('Loading...')
         // expect(await browser.elementByCss('#loading-page').text()).toBe('Loading...')
@@ -1004,7 +1082,9 @@ describe('app dir - basic', () => {
           'hello from slow layout'
         )
 
-        expect(await browser.elementByCss('#slow-page-message').text()).toBe('hello from slow page')
+        expect(await browser.elementByCss('#slow-page-message').text()).toBe(
+          'hello from slow page'
+        )
       })
     })
 
@@ -1023,7 +1103,10 @@ describe('app dir - basic', () => {
             .waitForElementByCss(`#navigate-${method}`)
             .elementById(`navigate-${method}`)
             .click()
-          await check(async () => await browser.elementByCss('#success').text(), /Success/)
+          await check(
+            async () => await browser.elementByCss('#success').text(),
+            /Success/
+          )
         }
       )
     })
@@ -1035,7 +1118,9 @@ describe('app dir - basic', () => {
         const firstMessage = 'Hello from 1'
         const secondMessage = 'Hello from 2'
 
-        expect(await browser.elementByCss('#message-1').text()).toBe(firstMessage)
+        expect(await browser.elementByCss('#message-1').text()).toBe(
+          firstMessage
+        )
 
         try {
           const message2 = await browser
@@ -1084,9 +1169,14 @@ describe('app dir - basic', () => {
 
         try {
           const browser = await next.browser('/dashboard/index')
-          expect(await browser.elementByCss('p').text()).toContain('hello from app/dashboard/index')
+          expect(await browser.elementByCss('p').text()).toContain(
+            'hello from app/dashboard/index'
+          )
 
-          await next.patchFile(filePath, origContent.replace('hello from', 'swapped from'))
+          await next.patchFile(
+            filePath,
+            origContent.replace('hello from', 'swapped from')
+          )
 
           await check(() => browser.elementByCss('p').text(), /swapped from/)
         } finally {
@@ -1109,7 +1199,10 @@ describe('app dir - basic', () => {
             'hello from app/client-component-route'
           )
 
-          await next.patchFile(filePath, origContent.replace('hello from', 'swapped from'))
+          await next.patchFile(
+            filePath,
+            origContent.replace('hello from', 'swapped from')
+          )
 
           await check(() => browser.elementByCss('p').text(), /swapped from/)
 
@@ -1119,7 +1212,9 @@ describe('app dir - basic', () => {
           await next.patchFile(filePath, origContent)
 
           await check(() => browser.elementByCss('p').text(), /hello from/)
-          expect(await next.render('/client-component-route')).toContain('hello from')
+          expect(await next.render('/client-component-route')).toContain(
+            'hello from'
+          )
         } finally {
           await next.patchFile(filePath, origContent)
         }
@@ -1133,7 +1228,9 @@ describe('app dir - basic', () => {
         try {
           const browser = await next.browser('/dashboard/page')
 
-          expect(await browser.elementByCss('p').text()).toContain('hello dashboard/page!')
+          expect(await browser.elementByCss('p').text()).toContain(
+            'hello dashboard/page!'
+          )
 
           // Test HMR with server component
           await next.patchFile(
@@ -1143,16 +1240,25 @@ describe('app dir - basic', () => {
               'hello dashboard/page in server component!'
             )
           )
-          await check(() => browser.elementByCss('p').text(), /in server component/)
+          await check(
+            () => browser.elementByCss('p').text(),
+            /in server component/
+          )
 
           // Change to client component
           await next.patchFile(
             filePath,
             origContent
               .replace("// 'use client'", "'use client'")
-              .replace('hello dashboard/page!', 'hello dashboard/page in client component!')
+              .replace(
+                'hello dashboard/page!',
+                'hello dashboard/page in client component!'
+              )
           )
-          await check(() => browser.elementByCss('p').text(), /in client component/)
+          await check(
+            () => browser.elementByCss('p').text(),
+            /in client component/
+          )
 
           // Change back to server component
           await next.patchFile(
@@ -1162,16 +1268,25 @@ describe('app dir - basic', () => {
               'hello dashboard/page in server component2!'
             )
           )
-          await check(() => browser.elementByCss('p').text(), /in server component2/)
+          await check(
+            () => browser.elementByCss('p').text(),
+            /in server component2/
+          )
 
           // Change to client component again
           await next.patchFile(
             filePath,
             origContent
               .replace("// 'use client'", "'use client'")
-              .replace('hello dashboard/page!', 'hello dashboard/page in client component2!')
+              .replace(
+                'hello dashboard/page!',
+                'hello dashboard/page in client component2!'
+              )
           )
-          await check(() => browser.elementByCss('p').text(), /in client component2/)
+          await check(
+            () => browser.elementByCss('p').text(),
+            /in client component2/
+          )
         } finally {
           await next.patchFile(filePath, origContent)
         }
@@ -1182,7 +1297,9 @@ describe('app dir - basic', () => {
   describe('searchParams prop', () => {
     describe('client component', () => {
       it('should have the correct search params', async () => {
-        const $ = await next.render$('/search-params-prop?first=value&second=other%20value&third')
+        const $ = await next.render$(
+          '/search-params-prop?first=value&second=other%20value&third'
+        )
         const el = $('#params')
         expect(el.attr('data-param-first')).toBe('value')
         expect(el.attr('data-param-second')).toBe('other value')
@@ -1231,7 +1348,9 @@ describe('app dir - basic', () => {
       })
 
       it('should have the correct search params on middleware rewrite', async () => {
-        const $ = await next.render$('/search-params-prop-server-middleware-rewrite')
+        const $ = await next.render$(
+          '/search-params-prop-server-middleware-rewrite'
+        )
         const el = $('#params')
         expect(el.attr('data-param-first')).toBe('value')
         expect(el.attr('data-param-second')).toBe('other value')
@@ -1274,7 +1393,9 @@ describe('app dir - basic', () => {
         // eslint-disable-next-line jest/no-standalone-expect
         expect(await browser.elementByCss('h1').text()).toStartWith('Template')
 
-        const currentTime = await browser.elementByCss('#performance-now').text()
+        const currentTime = await browser
+          .elementByCss('#performance-now')
+          .text()
 
         await browser.elementByCss('#link').click()
         await browser.waitForElementByCss('#other-page')
@@ -1284,13 +1405,17 @@ describe('app dir - basic', () => {
 
         // template should rerender on navigation even when it's a server component
         // eslint-disable-next-line jest/no-standalone-expect
-        expect(await browser.elementByCss('#performance-now').text()).toBe(currentTime)
+        expect(await browser.elementByCss('#performance-now').text()).toBe(
+          currentTime
+        )
 
         await browser.elementByCss('#link').click()
         await browser.waitForElementByCss('#page')
 
         // eslint-disable-next-line jest/no-standalone-expect
-        expect(await browser.elementByCss('#performance-now').text()).toBe(currentTime)
+        expect(await browser.elementByCss('#performance-now').text()).toBe(
+          currentTime
+        )
       }
     )
   })
@@ -1340,15 +1465,29 @@ describe('app dir - basic', () => {
       it('middleware overriding headers', async () => {
         const browser = await next.browser('/searchparams-normalization-bug')
         await browser.eval(`window.didFullPageTransition = 'no'`)
-        expect(await browser.elementByCss('#header-empty').text()).toBe('Header value: empty')
+        expect(await browser.elementByCss('#header-empty').text()).toBe(
+          'Header value: empty'
+        )
         expect(
-          await browser.elementByCss('#button-a').click().waitForElementByCss('#header-a').text()
+          await browser
+            .elementByCss('#button-a')
+            .click()
+            .waitForElementByCss('#header-a')
+            .text()
         ).toBe('Header value: a')
         expect(
-          await browser.elementByCss('#button-b').click().waitForElementByCss('#header-b').text()
+          await browser
+            .elementByCss('#button-b')
+            .click()
+            .waitForElementByCss('#header-b')
+            .text()
         ).toBe('Header value: b')
         expect(
-          await browser.elementByCss('#button-c').click().waitForElementByCss('#header-c').text()
+          await browser
+            .elementByCss('#button-c')
+            .click()
+            .waitForElementByCss('#header-c')
+            .text()
         ).toBe('Header value: c')
         expect(await browser.eval(`window.didFullPageTransition`)).toBe('no')
       })
@@ -1419,7 +1558,9 @@ describe('app dir - basic', () => {
       }
     })
     it('should handle router.refresh without resetting state', async () => {
-      const browser = await next.browser('/navigation/refresh/navigate-then-refresh-bug')
+      const browser = await next.browser(
+        '/navigation/refresh/navigate-then-refresh-bug'
+      )
       await browser
         .elementByCss('#to-route')
         // Navigate to the page
@@ -1435,7 +1576,9 @@ describe('app dir - basic', () => {
       )
 
       expect(
-        await browser.eval(`window.getComputedStyle(document.querySelector('h1')).backgroundColor`)
+        await browser.eval(
+          `window.getComputedStyle(document.querySelector('h1')).backgroundColor`
+        )
       ).toBe('rgb(34, 139, 34)')
     })
     it('should handle as on next/link', async () => {
@@ -1485,9 +1628,9 @@ describe('app dir - basic', () => {
       await goToLinkingPage()
       await waitFor(1000)
 
-      expect(await browser.back().waitForElementByCss('#about-page', 2000).text()).toBe(
-        `About page`
-      )
+      expect(
+        await browser.back().waitForElementByCss('#about-page', 2000).text()
+      ).toBe(`About page`)
     })
   })
 
@@ -1536,7 +1679,9 @@ describe('app dir - basic', () => {
       const html = await next.render('/script')
       const $ = cheerio.load(html)
 
-      const scriptPreloads = $('link[rel="preload"][as="script"][href^="/test"]')
+      const scriptPreloads = $(
+        'link[rel="preload"][as="script"][href^="/test"]'
+      )
       const expectedHrefs = new Set(['/test1.js', '/test2.js', '/test3.js'])
       expect(scriptPreloads.length).toBe(3)
       scriptPreloads.each((i, el) => {
@@ -1545,7 +1690,9 @@ describe('app dir - basic', () => {
       })
 
       // test4.js has lazyOnload which doesn't need to be preloaded
-      const lazyPreloads = $('link[rel="preload"][as="script"][href="/test4.js"]')
+      const lazyPreloads = $(
+        'link[rel="preload"][as="script"][href="/test4.js"]'
+      )
       expect(lazyPreloads.length).toBe(0)
     })
 
@@ -1638,7 +1785,9 @@ describe('app dir - basic', () => {
   describe('data fetch with response over 16KB with chunked encoding', () => {
     it('should load page when fetching a large amount of data', async () => {
       const browser = await next.browser('/very-large-data-fetch')
-      expect(await (await browser.waitForElementByCss('#done')).text()).toBe('Hello world')
+      expect(await (await browser.waitForElementByCss('#done')).text()).toBe(
+        'Hello world'
+      )
       expect(await browser.elementByCss('p').text()).toBe('item count 128000')
     })
   })
@@ -1685,14 +1834,18 @@ describe('app dir - basic', () => {
 
       let browser = await next.browser('/')
 
-      expect(await browser.elementByCss('#my-env').text()).toBe(next.env.NEXT_PUBLIC_TEST_ID)
+      expect(await browser.elementByCss('#my-env').text()).toBe(
+        next.env.NEXT_PUBLIC_TEST_ID
+      )
       expect(await browser.elementByCss('#my-other-env').text()).toBe(
         `${next.env.NEXT_PUBLIC_TEST_ID}-suffix`
       )
 
       browser = await next.browser('/dashboard/deployments/123')
 
-      expect(await browser.elementByCss('#my-env').text()).toBe(next.env.NEXT_PUBLIC_TEST_ID)
+      expect(await browser.elementByCss('#my-env').text()).toBe(
+        next.env.NEXT_PUBLIC_TEST_ID
+      )
       expect(await browser.elementByCss('#my-other-env').text()).toBe(
         `${next.env.NEXT_PUBLIC_TEST_ID}-suffix`
       )

@@ -67,7 +67,8 @@ export const ResizeProvider = ({ value, children }: ResizeProviderProps) => {
   const minHeight = value.minHeight ?? 80
   const maxWidth = value.maxWidth
   const maxHeight = value.maxHeight
-  const [draggingDirection, setDraggingDirection] = useState<ResizeDirection | null>(null)
+  const [draggingDirection, setDraggingDirection] =
+    useState<ResizeDirection | null>(null)
 
   const storageKey = value.storageKey ?? STORE_KEY_SHARED_PANEL_SIZE
 
@@ -100,11 +101,23 @@ export const ResizeProvider = ({ value, children }: ResizeProviderProps) => {
     resizeRef.current.style.width = `${width}px`
     resizeRef.current.style.height = `${height}px`
     return true
-  }, [resizeRef, draggingDirection, storageKey, minWidth, minHeight, value.devToolsPanelSize])
+  }, [
+    resizeRef,
+    draggingDirection,
+    storageKey,
+    minWidth,
+    minHeight,
+    value.devToolsPanelSize,
+  ])
 
   const fireInitialConstrainDimensions = useEffectEvent(() => {
     const applied = applyConstrainedDimensions()
-    if (!applied && resizeRef.current && value.initialSize?.height && value.initialSize.width) {
+    if (
+      !applied &&
+      resizeRef.current &&
+      value.initialSize?.height &&
+      value.initialSize.width
+    ) {
       const { height, width } = constrainDimensions({
         height: value.initialSize.height,
         width: value.initialSize.width,
@@ -122,7 +135,8 @@ export const ResizeProvider = ({ value, children }: ResizeProviderProps) => {
 
   useLayoutEffect(() => {
     window.addEventListener('resize', applyConstrainedDimensions)
-    return () => window.removeEventListener('resize', applyConstrainedDimensions)
+    return () =>
+      window.removeEventListener('resize', applyConstrainedDimensions)
   }, [
     applyConstrainedDimensions,
     value.initialSize?.height,

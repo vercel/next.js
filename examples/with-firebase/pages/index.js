@@ -37,11 +37,14 @@ export default function Home() {
         <p className="description">Fill in your credentials to get started</p>
 
         <p className="description">
-          Cloud Firestore Security Rules write permissions are required for adding users
+          Cloud Firestore Security Rules write permissions are required for
+          adding users
         </p>
         <button onClick={createUser}>Create 'nextjs_user'</button>
 
-        <p className="description">Please press the link below after adding the user</p>
+        <p className="description">
+          Please press the link below after adding the user
+        </p>
         <Link href={`/profile/${profile.username}`}>Go to SSR Page</Link>
       </main>
 

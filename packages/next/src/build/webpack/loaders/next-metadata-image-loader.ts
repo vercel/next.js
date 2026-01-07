@@ -3,7 +3,10 @@
  */
 
 import type webpack from 'webpack'
-import type { MetadataImageModule, PossibleImageFileNameConvention } from './metadata/types'
+import type {
+  MetadataImageModule,
+  PossibleImageFileNameConvention,
+} from './metadata/types'
 import { existsSync, promises as fs } from 'fs'
 import path from 'path'
 import loaderUtils from 'next/dist/compiled/loader-utils3'
@@ -24,7 +27,10 @@ interface Options {
 
 // [NOTE] For turbopack, refer to app_page_loader_tree's write_metadata_item for
 // corresponding features.
-async function nextMetadataImageLoader(this: webpack.LoaderContext<Options>, content: Buffer) {
+async function nextMetadataImageLoader(
+  this: webpack.LoaderContext<Options>,
+  content: Buffer
+) {
   // Install bindings early so they are definitely available to the loader.
   // When run by webpack in next this is already done with correct configuration so this is a no-op.
   // In turbopack loaders are run in a subprocess so it may or may not be done.
@@ -44,7 +50,11 @@ async function nextMetadataImageLoader(this: webpack.LoaderContext<Options>, con
 
   const contentHash = loaderUtils.interpolateName(this, '[contenthash]', opts)
 
-  const interpolatedName = loaderUtils.interpolateName(this, '[name].[ext]', opts)
+  const interpolatedName = loaderUtils.interpolateName(
+    this,
+    '[name].[ext]',
+    opts
+  )
 
   const isDynamicResource = pageExtensions.includes(extension)
   const pageSegment = isDynamicResource ? fileNameBase : interpolatedName
@@ -59,7 +69,9 @@ async function nextMetadataImageLoader(this: webpack.LoaderContext<Options>, con
     // re-export and spread as `exportedImageData` to avoid non-exported error
     return `\
     import {
-      ${exportedFieldsExcludingDefault.map((field) => `${field} as _${field}`).join(',')}
+      ${exportedFieldsExcludingDefault
+        .map((field) => `${field} as _${field}`)
+        .join(',')}
     } from ${JSON.stringify(
       // This is an arbitrary resource query to ensure it's a new request, instead
       // of sharing the same module with next-metadata-route-loader.
@@ -71,7 +83,9 @@ async function nextMetadataImageLoader(this: webpack.LoaderContext<Options>, con
     import { fillMetadataSegment } from 'next/dist/lib/metadata/get-metadata-route'
 
     const imageModule = {
-      ${exportedFieldsExcludingDefault.map((field) => `${field}: _${field}`).join(',')}
+      ${exportedFieldsExcludingDefault
+        .map((field) => `${field}: _${field}`)
+        .join(',')}
     }
 
     function getImageMetadata(imageMetadata, idParam, resolvedParams) {
@@ -81,7 +95,9 @@ async function nextMetadataImageLoader(this: webpack.LoaderContext<Options>, con
       const data = {
         alt: imageMetadata.alt,
         type: imageMetadata.contentType || 'image/png',
-      url: imageUrl + (idParam ? ('/' + idParam) : '') + ${JSON.stringify(hashQuery)},
+      url: imageUrl + (idParam ? ('/' + idParam) : '') + ${JSON.stringify(
+        hashQuery
+      )},
       }
       const { size } = imageMetadata
       if (size) {
@@ -111,13 +127,13 @@ async function nextMetadataImageLoader(this: webpack.LoaderContext<Options>, con
   }
 
   let imageError
-  const imageSize: { width?: number; height?: number } = await getImageSize(content).catch(
-    (error) => {
-      const message = `Process image "${path.posix.join(segment || '/', interpolatedName)}" failed: ${error}`
-      imageError = new Error(message)
-      return {}
-    }
-  )
+  const imageSize: { width?: number; height?: number } = await getImageSize(
+    content
+  ).catch((error) => {
+    const message = `Process image "${path.posix.join(segment || '/', interpolatedName)}" failed: ${error}`
+    imageError = new Error(message)
+    return {}
+  })
 
   if (imageError) {
     throw imageError
@@ -134,13 +150,18 @@ async function nextMetadataImageLoader(this: webpack.LoaderContext<Options>, con
             // For SVGs, skip sizes and use "any" to let it scale automatically based on viewport,
             // For the images doesn't provide the size properly, use "any" as well.
             // If the size is presented, use the actual size for the image.
-            extension !== 'svg' && imageSize.width != null && imageSize.height != null
+            extension !== 'svg' &&
+            imageSize.width != null &&
+            imageSize.height != null
               ? `${imageSize.width}x${imageSize.height}`
               : 'any',
         }),
   }
   if (type === 'openGraph' || type === 'twitter') {
-    const altPath = path.join(path.dirname(resourcePath), fileNameBase + '.alt.txt')
+    const altPath = path.join(
+      path.dirname(resourcePath),
+      fileNameBase + '.alt.txt'
+    )
 
     if (existsSync(altPath)) {
       imageData.alt = await fs.readFile(altPath, 'utf8')

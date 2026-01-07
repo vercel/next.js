@@ -21,7 +21,8 @@ export function useFocusTrap(
         return
       }
 
-      const [firstFocusableNode, lastFocusableNode] = getFocusableNodes(rootNode)
+      const [firstFocusableNode, lastFocusableNode] =
+        getFocusableNodes(rootNode)
       const activeElement = getActiveElement(rootNode)
 
       if (e.shiftKey) {
@@ -63,7 +64,9 @@ export function useFocusTrap(
 
 export function getActiveElement(node: HTMLElement | null) {
   const root = node?.getRootNode()
-  return root instanceof ShadowRoot ? (root?.activeElement as HTMLElement) : null
+  return root instanceof ShadowRoot
+    ? (root?.activeElement as HTMLElement)
+    : null
 }
 
 function getFocusableNodes(node: HTMLElement): [HTMLElement, HTMLElement] | [] {
@@ -104,16 +107,24 @@ export function useClickOutsideAndEscape(
 
       if (
         !(rootRef.current?.getBoundingClientRect()
-          ? event.clientX >= rootRef.current.getBoundingClientRect()!.left - cushion &&
-            event.clientX <= rootRef.current.getBoundingClientRect()!.right + cushion &&
-            event.clientY >= rootRef.current.getBoundingClientRect()!.top - cushion &&
-            event.clientY <= rootRef.current.getBoundingClientRect()!.bottom + cushion
+          ? event.clientX >=
+              rootRef.current.getBoundingClientRect()!.left - cushion &&
+            event.clientX <=
+              rootRef.current.getBoundingClientRect()!.right + cushion &&
+            event.clientY >=
+              rootRef.current.getBoundingClientRect()!.top - cushion &&
+            event.clientY <=
+              rootRef.current.getBoundingClientRect()!.bottom + cushion
           : false) &&
         !(triggerRef.current?.getBoundingClientRect()
-          ? event.clientX >= triggerRef.current.getBoundingClientRect()!.left - cushion &&
-            event.clientX <= triggerRef.current.getBoundingClientRect()!.right + cushion &&
-            event.clientY >= triggerRef.current.getBoundingClientRect()!.top - cushion &&
-            event.clientY <= triggerRef.current.getBoundingClientRect()!.bottom + cushion
+          ? event.clientX >=
+              triggerRef.current.getBoundingClientRect()!.left - cushion &&
+            event.clientX <=
+              triggerRef.current.getBoundingClientRect()!.right + cushion &&
+            event.clientY >=
+              triggerRef.current.getBoundingClientRect()!.top - cushion &&
+            event.clientY <=
+              triggerRef.current.getBoundingClientRect()!.bottom + cushion
           : false)
       ) {
         close('outside')

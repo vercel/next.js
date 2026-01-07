@@ -12,7 +12,10 @@ import { getNextFontError } from './parseNextFontError'
 import { getNextAppLoaderError } from './parseNextAppLoaderError'
 import { getNextInvalidImportError } from './parseNextInvalidImportError'
 
-function getFileData(compilation: webpack.Compilation, m: any): [string, string | null] {
+function getFileData(
+  compilation: webpack.Compilation,
+  m: any
+): [string, string | null] {
   let resolved: string
   let ctx: string | null = compilation.compiler?.context ?? null
   if (ctx !== null && typeof m.resource === 'string') {
@@ -30,7 +33,10 @@ function getFileData(compilation: webpack.Compilation, m: any): [string, string 
   if (resolved) {
     let content: string | null = null
     try {
-      content = readFileSync(ctx ? path.resolve(ctx, resolved) : resolved, 'utf8')
+      content = readFileSync(
+        ctx ? path.resolve(ctx, resolved) : resolved,
+        'utf8'
+      )
     } catch {}
     return [resolved, content]
   }
@@ -46,7 +52,8 @@ export async function getModuleBuildError(
   if (
     !(
       typeof input === 'object' &&
-      (input?.name === 'ModuleBuildError' || input?.name === 'ModuleNotFoundError') &&
+      (input?.name === 'ModuleBuildError' ||
+        input?.name === 'ModuleNotFoundError') &&
       Boolean(input.module) &&
       isError(input.error)
     )
@@ -57,7 +64,12 @@ export async function getModuleBuildError(
   const err: Error = input.error
   const [sourceFilename, sourceContent] = getFileData(compilation, input.module)
 
-  const notFoundError = await getNotFoundError(compilation, input, sourceFilename, input.module)
+  const notFoundError = await getNotFoundError(
+    compilation,
+    input,
+    sourceFilename,
+    input.module
+  )
   if (notFoundError !== false) {
     return notFoundError
   }
@@ -92,7 +104,12 @@ export async function getModuleBuildError(
     return nextAppLoader
   }
 
-  const invalidImportError = getNextInvalidImportError(err, input.module, compilation, compiler)
+  const invalidImportError = getNextInvalidImportError(
+    err,
+    input.module,
+    compilation,
+    compiler
+  )
   if (invalidImportError !== false) {
     return invalidImportError
   }

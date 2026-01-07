@@ -14,7 +14,10 @@ import { createFromReadableStream } from 'react-server-dom-webpack/client'
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { prerender } from 'react-server-dom-webpack/static'
 
-import { streamFromBuffer, streamToBuffer } from '../stream-utils/node-web-streams-helper'
+import {
+  streamFromBuffer,
+  streamToBuffer,
+} from '../stream-utils/node-web-streams-helper'
 import { waitAtLeastOneReactRenderTask } from '../../lib/scheduler'
 import {
   type SegmentRequestKey,
@@ -24,7 +27,10 @@ import {
   HEAD_REQUEST_KEY,
 } from '../../shared/lib/segment-cache/segment-value-encoding'
 import { getDigestForWellKnownError } from './create-error-handler'
-import { Phase, printDebugThrownValueForProspectiveRender } from './prospective-render-utils'
+import {
+  Phase,
+  printDebugThrownValueForProspectiveRender,
+} from './prospective-render-utils'
 import { workAsyncStorage } from './work-async-storage.external'
 
 // Contains metadata about the route tree. The client must fetch this before
@@ -68,11 +74,13 @@ export type SegmentPrefetch = {
 
 const filterStackFrame =
   process.env.NODE_ENV !== 'production'
-    ? (require('../lib/source-maps') as typeof import('../lib/source-maps')).filterStackFrameDEV
+    ? (require('../lib/source-maps') as typeof import('../lib/source-maps'))
+        .filterStackFrameDEV
     : undefined
 const findSourceMapURL =
   process.env.NODE_ENV !== 'production'
-    ? (require('../lib/source-maps') as typeof import('../lib/source-maps')).findSourceMapURLDEV
+    ? (require('../lib/source-maps') as typeof import('../lib/source-maps'))
+        .findSourceMapURLDEV
     : undefined
 
 function onSegmentPrerenderError(error: unknown) {
@@ -235,7 +243,13 @@ async function PrefetchTreeData({
   // the client cache.
   segmentTasks.push(
     waitAtLeastOneReactRenderTask().then(() =>
-      renderSegmentPrefetch(buildId, head, null, HEAD_REQUEST_KEY, clientModules)
+      renderSegmentPrefetch(
+        buildId,
+        head,
+        null,
+        HEAD_REQUEST_KEY,
+        clientModules
+      )
     )
   )
 
@@ -271,7 +285,8 @@ function collectSegmentDataImpl(
   for (const parallelRouteKey in children) {
     const childRoute = children[parallelRouteKey]
     const childSegment = childRoute[0]
-    const childSeedData = seedDataChildren !== null ? seedDataChildren[parallelRouteKey] : null
+    const childSeedData =
+      seedDataChildren !== null ? seedDataChildren[parallelRouteKey] : null
 
     const childRequestKey = appendSegmentRequestKeyPart(
       requestKey,
@@ -301,7 +316,13 @@ function collectSegmentDataImpl(
       // Since we're already in the middle of a render, wait until after the
       // current task to escape the current rendering context.
       waitAtLeastOneReactRenderTask().then(() =>
-        renderSegmentPrefetch(buildId, seedData[0], seedData[2], requestKey, clientModules)
+        renderSegmentPrefetch(
+          buildId,
+          seedData[0],
+          seedData[2],
+          requestKey,
+          clientModules
+        )
       )
     )
   } else {
@@ -361,11 +382,15 @@ async function renderSegmentPrefetch(
   // caused by dynamic data. Abort the stream at the end of the current task.
   const abortController = new AbortController()
   waitAtLeastOneReactRenderTask().then(() => abortController.abort())
-  const { prelude: segmentStream } = await prerender(segmentPrefetch, clientModules, {
-    filterStackFrame,
-    signal: abortController.signal,
-    onError: onSegmentPrerenderError,
-  })
+  const { prelude: segmentStream } = await prerender(
+    segmentPrefetch,
+    clientModules,
+    {
+      filterStackFrame,
+      signal: abortController.signal,
+      onError: onSegmentPrerenderError,
+    }
+  )
   const segmentBuffer = await streamToBuffer(segmentStream)
   if (requestKey === ROOT_SEGMENT_REQUEST_KEY) {
     return ['/_index' as SegmentRequestKey, segmentBuffer]

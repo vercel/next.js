@@ -17,15 +17,25 @@ describe('app dir - unauthorized - basic', () => {
     )
 
     const browserDynamicId = await next.browser('/dynamic/123')
-    expect(await browserDynamicId.elementByCss('#page').text()).toBe('dynamic [id]')
+    expect(await browserDynamicId.elementByCss('#page').text()).toBe(
+      'dynamic [id]'
+    )
   })
 
   it('should escalate unauthorized to parent layout if no unauthorized boundary present in current layer', async () => {
-    const browserDynamic = await next.browser('/dynamic-layout-without-unauthorized')
-    expect(await browserDynamic.elementByCss('h1').text()).toBe('Dynamic with Layout')
+    const browserDynamic = await next.browser(
+      '/dynamic-layout-without-unauthorized'
+    )
+    expect(await browserDynamic.elementByCss('h1').text()).toBe(
+      'Dynamic with Layout'
+    )
 
     // no unauthorized boundary in /dynamic-layout-without-unauthorized, escalate to parent layout to render root unauthorized
-    const browserDynamicId = await next.browser('/dynamic-layout-without-unauthorized/401')
-    expect(await browserDynamicId.elementByCss('h1').text()).toBe('Root Unauthorized')
+    const browserDynamicId = await next.browser(
+      '/dynamic-layout-without-unauthorized/401'
+    )
+    expect(await browserDynamicId.elementByCss('h1').text()).toBe(
+      'Root Unauthorized'
+    )
   })
 })

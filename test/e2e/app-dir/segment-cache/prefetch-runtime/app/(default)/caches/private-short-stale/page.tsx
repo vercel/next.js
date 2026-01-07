@@ -12,8 +12,9 @@ export default async function Page() {
     <main>
       <DebugRenderKind />
       <p id="intro">
-        This page uses a short-lived private cache (staleTime &lt; RUNTIME_PREFETCH_DYNAMIC_STALE,
-        which is 30s), which should not be included in a runtime prefetch
+        This page uses a short-lived private cache (staleTime &lt;
+        RUNTIME_PREFETCH_DYNAMIC_STALE, which is 30s), which should not be
+        included in a runtime prefetch
       </p>
       <Suspense fallback={<div style={{ color: 'grey' }}>Loading...</div>}>
         <CachedButShortLived />

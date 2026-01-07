@@ -9,7 +9,9 @@ export default function Root({ children }: { children: ReactNode }) {
             <Link href="/">Home</Link>
           </li>
           <li>
-            <Link href="/slow-without-fallback">Slow Page without fallback</Link>
+            <Link href="/slow-without-fallback">
+              Slow Page without fallback
+            </Link>
           </li>
           <li>
             <Link href="/slow-with-fallback">Slow Page with fallback</Link>

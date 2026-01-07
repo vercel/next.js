@@ -145,26 +145,37 @@ export const dispatcher: Dispatcher = {
   onRefresh: createQueuable((dispatch: Dispatch) => {
     dispatch({ type: ACTION_REFRESH })
   }),
-  onVersionInfo: createQueuable((dispatch: Dispatch, versionInfo: VersionInfo) => {
-    dispatch({ type: ACTION_VERSION_INFO, versionInfo })
-  }),
-  onCacheIndicator: createQueuable((dispatch: Dispatch, status: CacheIndicatorState) => {
-    dispatch({ type: ACTION_CACHE_INDICATOR, cacheIndicator: status })
-  }),
+  onVersionInfo: createQueuable(
+    (dispatch: Dispatch, versionInfo: VersionInfo) => {
+      dispatch({ type: ACTION_VERSION_INFO, versionInfo })
+    }
+  ),
+  onCacheIndicator: createQueuable(
+    (dispatch: Dispatch, status: CacheIndicatorState) => {
+      dispatch({ type: ACTION_CACHE_INDICATOR, cacheIndicator: status })
+    }
+  ),
   onStaticIndicator: createQueuable(
-    (dispatch: Dispatch, status: 'pending' | 'static' | 'dynamic' | 'disabled') => {
+    (
+      dispatch: Dispatch,
+      status: 'pending' | 'static' | 'dynamic' | 'disabled'
+    ) => {
       dispatch({ type: ACTION_STATIC_INDICATOR, staticIndicator: status })
     }
   ),
   onDebugInfo: createQueuable((dispatch: Dispatch, debugInfo: DebugInfo) => {
     dispatch({ type: ACTION_DEBUG_INFO, debugInfo })
   }),
-  onDevIndicator: createQueuable((dispatch: Dispatch, devIndicator: DevIndicatorServerState) => {
-    dispatch({ type: ACTION_DEV_INDICATOR, devIndicator })
-  }),
-  onDevToolsConfig: createQueuable((dispatch: Dispatch, devToolsConfig: DevToolsConfig) => {
-    dispatch({ type: ACTION_DEVTOOLS_CONFIG, devToolsConfig })
-  }),
+  onDevIndicator: createQueuable(
+    (dispatch: Dispatch, devIndicator: DevIndicatorServerState) => {
+      dispatch({ type: ACTION_DEV_INDICATOR, devIndicator })
+    }
+  ),
+  onDevToolsConfig: createQueuable(
+    (dispatch: Dispatch, devToolsConfig: DevToolsConfig) => {
+      dispatch({ type: ACTION_DEVTOOLS_CONFIG, devToolsConfig })
+    }
+  ),
   onUnhandledError: createQueuable((dispatch: Dispatch, error: Error) => {
     dispatch({
       type: ACTION_UNHANDLED_ERROR,
@@ -198,15 +209,21 @@ export const dispatcher: Dispatcher = {
   renderingIndicatorShow: createQueuable((dispatch: Dispatch) => {
     dispatch({ type: ACTION_RENDERING_INDICATOR_SHOW })
   }),
-  segmentExplorerNodeAdd: createQueuable((_: Dispatch, nodeState: SegmentNodeState) => {
-    insertSegmentNode(nodeState)
-  }),
-  segmentExplorerNodeRemove: createQueuable((_: Dispatch, nodeState: SegmentNodeState) => {
-    removeSegmentNode(nodeState)
-  }),
-  segmentExplorerUpdateRouteState: createQueuable((dispatch: Dispatch, page: string) => {
-    dispatch({ type: ACTION_DEVTOOL_UPDATE_ROUTE_STATE, page })
-  }),
+  segmentExplorerNodeAdd: createQueuable(
+    (_: Dispatch, nodeState: SegmentNodeState) => {
+      insertSegmentNode(nodeState)
+    }
+  ),
+  segmentExplorerNodeRemove: createQueuable(
+    (_: Dispatch, nodeState: SegmentNodeState) => {
+      removeSegmentNode(nodeState)
+    }
+  ),
+  segmentExplorerUpdateRouteState: createQueuable(
+    (dispatch: Dispatch, page: string) => {
+      dispatch({ type: ACTION_DEVTOOL_UPDATE_ROUTE_STATE, page })
+    }
+  ),
 }
 
 function replayQueuedEvents(dispatch: NonNullable<typeof maybeDispatch>) {
@@ -319,7 +336,9 @@ export function renderAppDevOverlay(
   if (isPagesMounted) {
     // Switching between App and Pages Router is always a hard navigation
     // TODO: Support soft navigation between App and Pages Router
-    throw new Error('Next DevTools: Pages Dev Overlay is already mounted. This is a bug in Next.js')
+    throw new Error(
+      'Next DevTools: Pages Dev Overlay is already mounted. This is a bug in Next.js'
+    )
   }
 
   if (!isAppMounted) {
@@ -370,13 +389,17 @@ export function renderAppDevOverlay(
 
 export function renderPagesDevOverlay(
   getOwnerStack: (error: Error) => string | null | undefined,
-  getSquashedHydrationErrorDetails: (error: Error) => HydrationErrorState | null,
+  getSquashedHydrationErrorDetails: (
+    error: Error
+  ) => HydrationErrorState | null,
   isRecoverableError: (error: Error) => boolean
 ): void {
   if (isAppMounted) {
     // Switching between App and Pages Router is always a hard navigation
     // TODO: Support soft navigation between App and Pages Router
-    throw new Error('Next DevTools: App Dev Overlay is already mounted. This is a bug in Next.js')
+    throw new Error(
+      'Next DevTools: App Dev Overlay is already mounted. This is a bug in Next.js'
+    )
   }
 
   if (!isPagesMounted) {

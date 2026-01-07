@@ -68,7 +68,6 @@ Each route can have:
 ### Redirects
 
 When a route has:
-
 - A redirect status code (300-399)
 - Headers containing `Location` or `Refresh`
 

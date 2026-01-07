@@ -1,4 +1,8 @@
-import type { Mutable, ReadonlyReducerState, ReducerState } from '../router-reducer-types'
+import type {
+  Mutable,
+  ReadonlyReducerState,
+  ReducerState,
+} from '../router-reducer-types'
 import { handleNavigationResult } from './navigate-reducer'
 import { navigateToSeededRoute } from '../../segment-cache/navigation'
 import { revalidateEntireCache } from '../../segment-cache/cache'

@@ -114,9 +114,13 @@ describe('app-dir - logging', () => {
           await retry(() => {
             const logs = parseLogsFromCli(next.cliOutput.slice(outputIndex))
 
-            const logEntry = logs.find((log) => log.url.includes('api/random?no-cache'))
+            const logEntry = logs.find((log) =>
+              log.url.includes('api/random?no-cache')
+            )
 
-            expect(logs.some((log) => log.url.includes('..'))).toBe(!withFullUrlFetches)
+            expect(logs.some((log) => log.url.includes('..'))).toBe(
+              !withFullUrlFetches
+            )
 
             expect(logEntry?.cache).toBe('cache: no-cache')
           })
@@ -128,7 +132,9 @@ describe('app-dir - logging', () => {
           await retry(() => {
             const logs = parseLogsFromCli(next.cliOutput.slice(outputIndex))
 
-            const logEntry = logs.find((log) => log.url.includes('api/random?revalidate-0'))
+            const logEntry = logs.find((log) =>
+              log.url.includes('api/random?revalidate-0')
+            )
 
             expect(logEntry?.cache).toBe('revalidate: 0')
           })
@@ -142,9 +148,13 @@ describe('app-dir - logging', () => {
           await retry(() => {
             const logs = parseLogsFromCli(next.cliOutput.slice(outputIndex))
 
-            const logEntry = logs.find((log) => log.url.includes('api/random?auto-cache'))
+            const logEntry = logs.find((log) =>
+              log.url.includes('api/random?auto-cache')
+            )
 
-            expect(logEntry?.cache).toBe('cache-control: no-cache (hard refresh)')
+            expect(logEntry?.cache).toBe(
+              'cache-control: no-cache (hard refresh)'
+            )
           })
         })
 
@@ -203,7 +213,9 @@ describe('app-dir - logging', () => {
           const outputIndex = next.cliOutput.length
           await next.fetch('/')
           await retry(() => {
-            const logsAfterRequest = stripAnsi(next.cliOutput.slice(outputIndex))
+            const logsAfterRequest = stripAnsi(
+              next.cliOutput.slice(outputIndex)
+            )
             // Only show `GET /` once
             expect(logsAfterRequest.split('GET /').length).toBe(2)
           })
@@ -304,7 +316,9 @@ describe('app-dir - logging', () => {
                   headline = await browser.waitForElementByCss('h1').text()
                   expect(headline).toBe('Hello Test!')
 
-                  const logs = stripAnsi(next.cliOutput.slice(outputIndex)).replace(/\d+ms/g, '1ms')
+                  const logs = stripAnsi(
+                    next.cliOutput.slice(outputIndex)
+                  ).replace(/\d+ms/g, '1ms')
 
                   expect(logs).toInclude(' GET /fetch-no-store')
                   expect(logs).toInclude(
@@ -362,9 +376,10 @@ describe('app-dir - logging', () => {
   })
 
   describe('with fetches default logging', () => {
-    const curNextConfig = fs.readFileSync(path.join(__dirname, 'next.config.js'), {
-      encoding: 'utf-8',
-    })
+    const curNextConfig = fs.readFileSync(
+      path.join(__dirname, 'next.config.js'),
+      { encoding: 'utf-8' }
+    )
     beforeAll(async () => {
       await next.stop()
       await next.patchFile(
@@ -384,7 +399,10 @@ describe('app-dir - logging', () => {
     beforeAll(async () => {
       await next.stop()
       const layoutContent = await next.readFile('app/layout.js')
-      await next.patchFile('app/layout.js', layoutContent + `\nexport const runtime = 'edge'`)
+      await next.patchFile(
+        'app/layout.js',
+        layoutContent + `\nexport const runtime = 'edge'`
+      )
       await next.start()
     })
 
@@ -392,9 +410,10 @@ describe('app-dir - logging', () => {
   })
 
   describe('with default logging', () => {
-    const curNextConfig = fs.readFileSync(path.join(__dirname, 'next.config.js'), {
-      encoding: 'utf-8',
-    })
+    const curNextConfig = fs.readFileSync(
+      path.join(__dirname, 'next.config.js'),
+      { encoding: 'utf-8' }
+    )
     beforeAll(async () => {
       await next.stop()
       await next.deleteFile('next.config.js')

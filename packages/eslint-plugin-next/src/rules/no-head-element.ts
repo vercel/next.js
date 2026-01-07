@@ -20,7 +20,8 @@ export default defineRule({
         const paths = context.filename
 
         const isInAppDir = () =>
-          paths.includes(`app${path.sep}`) || paths.includes(`app${path.posix.sep}`)
+          paths.includes(`app${path.sep}`) ||
+          paths.includes(`app${path.posix.sep}`)
         // Only lint the <head> element in pages directory
         if (node.name.name !== 'head' || isInAppDir()) {
           return

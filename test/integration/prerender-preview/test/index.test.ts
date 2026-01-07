@@ -139,7 +139,12 @@ function runTests(startServer = nextStart) {
     expect(cookies[1]['Path']).toBe(path)
   })
   it('should not return fallback page on preview request', async () => {
-    const res = await fetchViaHTTP(appPort, '/', {}, { headers: { Cookie: previewCookieString } })
+    const res = await fetchViaHTTP(
+      appPort,
+      '/',
+      {},
+      { headers: { Cookie: previewCookieString } }
+    )
     const html = await res.text()
 
     const { nextData, pre, routerData } = getData(html)
@@ -262,109 +267,137 @@ function runTests(startServer = nextStart) {
 }
 
 describe('Prerender Preview Mode', () => {
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
-    let appPort, app
-    it('should start development application', async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-
-    let previewCookieString
-    it('should enable preview mode', async () => {
-      const res = await fetchViaHTTP(appPort, '/api/preview', {
-        lets: 'goooo',
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      let appPort, app
+      it('should start development application', async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
       })
-      expect(res.status).toBe(200)
 
-      const cookies = res.headers
-        .get('set-cookie')
-        .split(',')
-        .map((cookieRaw) => cookie.parse(cookieRaw))
+      let previewCookieString
+      it('should enable preview mode', async () => {
+        const res = await fetchViaHTTP(appPort, '/api/preview', {
+          lets: 'goooo',
+        })
+        expect(res.status).toBe(200)
 
-      expect(cookies.length).toBe(2)
-      previewCookieString =
-        cookie.serialize('__prerender_bypass', cookies[0].__prerender_bypass) +
-        '; ' +
-        cookie.serialize('__next_preview_data', cookies[1].__next_preview_data)
-    })
+        const cookies = res.headers
+          .get('set-cookie')
+          .split(',')
+          .map((cookieRaw) => cookie.parse(cookieRaw))
 
-    it('should return cookies to be expired after dev server reboot', async () => {
-      await killApp(app)
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
+        expect(cookies.length).toBe(2)
+        previewCookieString =
+          cookie.serialize(
+            '__prerender_bypass',
+            cookies[0].__prerender_bypass
+          ) +
+          '; ' +
+          cookie.serialize(
+            '__next_preview_data',
+            cookies[1].__next_preview_data
+          )
+      })
 
-      const res = await fetchViaHTTP(appPort, '/', {}, { headers: { Cookie: previewCookieString } })
-      expect(res.status).toBe(200)
+      it('should return cookies to be expired after dev server reboot', async () => {
+        await killApp(app)
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
 
-      const body = await res.text()
-      // "err":{"name":"TypeError","message":"Cannot read property 'previewModeId' of undefined"
-      expect(body).not.toContain('"err"')
-      expect(body).not.toContain('TypeError')
-      expect(body).not.toContain('previewModeId')
+        const res = await fetchViaHTTP(
+          appPort,
+          '/',
+          {},
+          { headers: { Cookie: previewCookieString } }
+        )
+        expect(res.status).toBe(200)
 
-      const cookies = res.headers
-        .get('set-cookie')
-        .replace(/(=(?!Lax)\w{3}),/g, '$1')
-        .split(',')
-        .map((cookieRaw) => cookie.parse(cookieRaw))
+        const body = await res.text()
+        // "err":{"name":"TypeError","message":"Cannot read property 'previewModeId' of undefined"
+        expect(body).not.toContain('"err"')
+        expect(body).not.toContain('TypeError')
+        expect(body).not.toContain('previewModeId')
 
-      expect(cookies.length).toBe(2)
-    })
+        const cookies = res.headers
+          .get('set-cookie')
+          .replace(/(=(?!Lax)\w{3}),/g, '$1')
+          .split(',')
+          .map((cookieRaw) => cookie.parse(cookieRaw))
 
-    /** @type {import('next-webdriver').Chain} */
-    let browser
-    it('should start the client-side browser', async () => {
-      browser = await webdriver(appPort, '/api/preview?' + qs.stringify({ client: 'mode' }))
-    })
+        expect(cookies.length).toBe(2)
+      })
 
-    it('should fetch preview data on SSR', async () => {
-      await browser.get(`http://localhost:${appPort}/`)
-      await browser.waitForElementByCss('#props-pre')
-      // expect(await browser.elementById('props-pre').text()).toBe('Has No Props')
-      // await new Promise(resolve => setTimeout(resolve, 2000))
-      expect(await browser.elementById('props-pre').text()).toBe('true and {"client":"mode"}')
-    })
+      /** @type {import('next-webdriver').Chain} */
+      let browser
+      it('should start the client-side browser', async () => {
+        browser = await webdriver(
+          appPort,
+          '/api/preview?' + qs.stringify({ client: 'mode' })
+        )
+      })
 
-    it('should fetch preview data on CST', async () => {
-      await browser.get(`http://localhost:${appPort}/to-index`)
-      await browser.waitForElementByCss('#to-index')
-      await browser.eval('window.itdidnotrefresh = "hello"')
-      await browser.elementById('to-index').click()
-      await browser.waitForElementByCss('#props-pre')
-      expect(await browser.eval('window.itdidnotrefresh')).toBe('hello')
-      expect(await browser.elementById('props-pre').text()).toBe('true and {"client":"mode"}')
-    })
+      it('should fetch preview data on SSR', async () => {
+        await browser.get(`http://localhost:${appPort}/`)
+        await browser.waitForElementByCss('#props-pre')
+        // expect(await browser.elementById('props-pre').text()).toBe('Has No Props')
+        // await new Promise(resolve => setTimeout(resolve, 2000))
+        expect(await browser.elementById('props-pre').text()).toBe(
+          'true and {"client":"mode"}'
+        )
+      })
 
-    it('should fetch prerendered data', async () => {
-      await browser.get(`http://localhost:${appPort}/api/reset`)
+      it('should fetch preview data on CST', async () => {
+        await browser.get(`http://localhost:${appPort}/to-index`)
+        await browser.waitForElementByCss('#to-index')
+        await browser.eval('window.itdidnotrefresh = "hello"')
+        await browser.elementById('to-index').click()
+        await browser.waitForElementByCss('#props-pre')
+        expect(await browser.eval('window.itdidnotrefresh')).toBe('hello')
+        expect(await browser.elementById('props-pre').text()).toBe(
+          'true and {"client":"mode"}'
+        )
+      })
 
-      await browser.get(`http://localhost:${appPort}/`)
-      await browser.waitForElementByCss('#props-pre')
-      expect(await browser.elementById('props-pre').text()).toBe('false and null')
-    })
+      it('should fetch prerendered data', async () => {
+        await browser.get(`http://localhost:${appPort}/api/reset`)
 
-    it('should fetch live static props with preview active', async () => {
-      await browser.get(`http://localhost:${appPort}/`)
+        await browser.get(`http://localhost:${appPort}/`)
+        await browser.waitForElementByCss('#props-pre')
+        expect(await browser.elementById('props-pre').text()).toBe(
+          'false and null'
+        )
+      })
 
-      await browser.waitForElementByCss('#ssg-random')
-      const initialRandom = await browser.elementById('ssg-random').text()
+      it('should fetch live static props with preview active', async () => {
+        await browser.get(`http://localhost:${appPort}/`)
 
-      // reload static props with router.replace
-      await browser.elementById('reload-props').click()
+        await browser.waitForElementByCss('#ssg-random')
+        const initialRandom = await browser.elementById('ssg-random').text()
 
-      // wait for route change to complete and set updated state
-      await browser.waitForElementByCss('#ssg-reloaded')
+        // reload static props with router.replace
+        await browser.elementById('reload-props').click()
 
-      // assert that the random number from static props has changed (thus, was re-evaluated)
-      expect(await browser.elementById('ssg-random').text()).not.toBe(initialRandom)
-    })
+        // wait for route change to complete and set updated state
+        await browser.waitForElementByCss('#ssg-reloaded')
 
-    afterAll(async () => {
-      await browser.close()
-      await killApp(app)
-    })
-  })
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
-    runTests()
-  })
+        // assert that the random number from static props has changed (thus, was re-evaluated)
+        expect(await browser.elementById('ssg-random').text()).not.toBe(
+          initialRandom
+        )
+      })
+
+      afterAll(async () => {
+        await browser.close()
+        await killApp(app)
+      })
+    }
+  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      runTests()
+    }
+  )
 })

@@ -9,7 +9,10 @@ export default function Page() {
         </Link>
       </div>
       <div>
-        <Link href="/catch-all-optional/this/is/a/test" id="to-catch-all-optional">
+        <Link
+          href="/catch-all-optional/this/is/a/test"
+          id="to-catch-all-optional"
+        >
           To optional catch-all
         </Link>
       </div>

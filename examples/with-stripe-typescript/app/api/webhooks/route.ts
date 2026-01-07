@@ -18,7 +18,10 @@ export async function POST(req: Request) {
     // On error, log and return the error message.
     if (!(err instanceof Error)) console.log(err);
     console.log(`❌ Error message: ${errorMessage}`);
-    return NextResponse.json({ message: `Webhook Error: ${errorMessage}` }, { status: 400 });
+    return NextResponse.json(
+      { message: `Webhook Error: ${errorMessage}` },
+      { status: 400 },
+    );
   }
 
   // Successfully constructed event.
@@ -52,7 +55,10 @@ export async function POST(req: Request) {
       }
     } catch (error) {
       console.log(error);
-      return NextResponse.json({ message: "Webhook handler failed" }, { status: 500 });
+      return NextResponse.json(
+        { message: "Webhook handler failed" },
+        { status: 500 },
+      );
     }
   }
   // Return a response to acknowledge receipt of the event.

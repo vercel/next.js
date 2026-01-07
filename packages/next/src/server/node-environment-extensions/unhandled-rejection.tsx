@@ -69,7 +69,8 @@ let warnWithTrace: typeof console.warn | undefined
 
 switch (UHR_FILTER_LOG_LEVEL) {
   case 'debug':
-    debug = (message: string) => console.log('[Next.js Unhandled Rejection Filter]: ' + message)
+    debug = (message: string) =>
+      console.log('[Next.js Unhandled Rejection Filter]: ' + message)
     debugWithTrace = (message: string) => {
       console.log(new DebugWithStack(message))
     }
@@ -153,7 +154,10 @@ let bypassPatch = false
 // bypass the patch during their execution. This is important for removeAllListeners in particular
 // because it calls removeListener internally and we want to ensure it actually clears the listeners
 // from the process queue and not our private queue.
-function patchWithoutReentrancy<T extends UnderlyingMethod>(original: T, patchedImpl: T): T {
+function patchWithoutReentrancy<T extends UnderlyingMethod>(
+  original: T,
+  patchedImpl: T
+): T {
   // Produce a function which has the correct name
   const patched = {
     [original.name]: function (...args: Parameters<T>) {
@@ -191,7 +195,9 @@ const MACGUFFIN_EVENT = 'Next.UnhandledRejectionFilter.MacguffinEvent'
  */
 function installUnhandledRejectionFilter(): void {
   if (filterInstalled) {
-    warnWithTrace?.('Unexpected subsequent filter installation. This is a bug in Next.js')
+    warnWithTrace?.(
+      'Unexpected subsequent filter installation. This is a bug in Next.js'
+    )
     return
   }
 
@@ -222,63 +228,75 @@ function installUnhandledRejectionFilter(): void {
   originalProcessRemoveAllListeners = process.removeAllListeners
   originalProcessListeners = process.listeners
 
-  process.addListener = patchWithoutReentrancy(originalProcessAddListener, function (
-    event: string | symbol,
-    listener: (...args: any[]) => void
-  ) {
-    if (event === 'unhandledRejection') {
-      debugWithTrace?.(`Appending 'unhandledRejection' listener with name \`${listener.name}\`.`)
-      // We add the listener to a dummy event in case it throws. We don't catch it intentionally
-      try {
-        originalProcessAddListener.call(process, MACGUFFIN_EVENT as any, listener)
-      } finally {
-        // We clean up the added event
-        originalProcessRemoveAllListeners.call(process, MACGUFFIN_EVENT)
+  process.addListener = patchWithoutReentrancy(
+    originalProcessAddListener,
+    function (event: string | symbol, listener: (...args: any[]) => void) {
+      if (event === 'unhandledRejection') {
+        debugWithTrace?.(
+          `Appending 'unhandledRejection' listener with name \`${listener.name}\`.`
+        )
+        // We add the listener to a dummy event in case it throws. We don't catch it intentionally
+        try {
+          originalProcessAddListener.call(
+            process,
+            MACGUFFIN_EVENT as any,
+            listener
+          )
+        } finally {
+          // We clean up the added event
+          originalProcessRemoveAllListeners.call(process, MACGUFFIN_EVENT)
+        }
+        // Add new handlers to our internal queue instead of the process
+        underlyingListeners.push(listener as NodeJS.UnhandledRejectionListener)
+        listenerMetadata.push({ listener, once: false })
+        return process
       }
-      // Add new handlers to our internal queue instead of the process
-      underlyingListeners.push(listener as NodeJS.UnhandledRejectionListener)
-      listenerMetadata.push({ listener, once: false })
-      return process
-    }
-    // For other events, use the original method
-    return originalProcessAddListener.call(process, event as any, listener)
-  } as typeof process.addListener)
+      // For other events, use the original method
+      return originalProcessAddListener.call(process, event as any, listener)
+    } as typeof process.addListener
+  )
 
   // Intercept process.removeListener (alias for process.off)
-  process.removeListener = patchWithoutReentrancy(originalProcessRemoveListener, function (
-    event: string | symbol,
-    listener: (...args: any[]) => void
-  ) {
-    if (event === 'unhandledRejection') {
-      // Check if they're trying to remove our filtering handler
-      if (listener === filteringUnhandledRejectionHandler) {
-        warnUninstalledOnce?.(
-          `Uninstalling filter because \`process.removeListener('unhandledRejection', listener)\` was called with the filter listener. Uninstalling this filter is not recommended and will cause you to observe 'unhandledRejection' events related to intentionally aborted prerenders.
+  process.removeListener = patchWithoutReentrancy(
+    originalProcessRemoveListener,
+    function (event: string | symbol, listener: (...args: any[]) => void) {
+      if (event === 'unhandledRejection') {
+        // Check if they're trying to remove our filtering handler
+        if (listener === filteringUnhandledRejectionHandler) {
+          warnUninstalledOnce?.(
+            `Uninstalling filter because \`process.removeListener('unhandledRejection', listener)\` was called with the filter listener. Uninstalling this filter is not recommended and will cause you to observe 'unhandledRejection' events related to intentionally aborted prerenders.
 
 You can silence warnings related to this behavior by running Next.js with \`NEXT_UNHANDLED_REJECTION_FILTER=silent\` environment variable.
 
 You can debug event listener operations by running Next.js with \`NEXT_UNHANDLED_REJECTION_FILTER=debug\` environment variable.`
+          )
+          uninstallUnhandledRejectionFilter()
+          return process
+        }
+
+        debugWithTrace?.(
+          `Removing 'unhandledRejection' listener with name \`${listener.name}\`.`
         )
-        uninstallUnhandledRejectionFilter()
+        // We remove the listener on a dummy event in case it throws. We don't catch it intentionally
+        originalProcessRemoveListener.call(
+          process,
+          MACGUFFIN_EVENT as any,
+          listener
+        )
+        const index = underlyingListeners.lastIndexOf(listener)
+        if (index > -1) {
+          debug?.(`listener found index ${index} and removed.`)
+          underlyingListeners.splice(index, 1)
+          listenerMetadata.splice(index, 1)
+        } else {
+          debug?.(`listener not found.`)
+        }
         return process
       }
-
-      debugWithTrace?.(`Removing 'unhandledRejection' listener with name \`${listener.name}\`.`)
-      // We remove the listener on a dummy event in case it throws. We don't catch it intentionally
-      originalProcessRemoveListener.call(process, MACGUFFIN_EVENT as any, listener)
-      const index = underlyingListeners.lastIndexOf(listener)
-      if (index > -1) {
-        debug?.(`listener found index ${index} and removed.`)
-        underlyingListeners.splice(index, 1)
-        listenerMetadata.splice(index, 1)
-      } else {
-        debug?.(`listener not found.`)
-      }
-      return process
-    }
-    // For other events, use the original method
-    return originalProcessRemoveListener.call(process, event, listener)
-  } as typeof process.removeListener)
+      // For other events, use the original method
+      return originalProcessRemoveListener.call(process, event, listener)
+    } as typeof process.removeListener
+  )
 
   // If the process.on is referentially process.addListener then share the patched version as well
   if (originalProcessOn === originalProcessAddListener) {
@@ -289,7 +307,9 @@ You can debug event listener operations by running Next.js with \`NEXT_UNHANDLED
       listener: (...args: any[]) => void
     ) {
       if (event === 'unhandledRejection') {
-        debugWithTrace?.(`Appending 'unhandledRejection' listener with name \`${listener.name}\`.`)
+        debugWithTrace?.(
+          `Appending 'unhandledRejection' listener with name \`${listener.name}\`.`
+        )
         // We add the listener to a dummy event in case it throws. We don't catch it intentionally
         try {
           originalProcessOn.call(process, MACGUFFIN_EVENT as any, listener)
@@ -329,7 +349,9 @@ You can debug event listener operations by running Next.js with \`NEXT_UNHANDLED
           return process
         }
 
-        debugWithTrace?.(`Removing 'unhandledRejection' listener with name \`${listener.name}\`.`)
+        debugWithTrace?.(
+          `Removing 'unhandledRejection' listener with name \`${listener.name}\`.`
+        )
         // We remove the listener on a dummy event in case it throws. We don't catch it intentionally
         originalProcessOff.call(process, MACGUFFIN_EVENT as any, listener)
         const index = underlyingListeners.lastIndexOf(listener)
@@ -348,30 +370,40 @@ You can debug event listener operations by running Next.js with \`NEXT_UNHANDLED
   }
 
   // Intercept process.prependListener for handlers that should go first
-  process.prependListener = patchWithoutReentrancy(originalProcessPrependListener, function (
-    event: string | symbol,
-    listener: (...args: any[]) => void
-  ) {
-    if (event === 'unhandledRejection') {
-      debugWithTrace?.(
-        `(Prepending) Inserting 'unhandledRejection' listener with name \`${listener.name}\` immediately following the Next.js 'unhandledRejection' filter listener.`
-      )
-      // We add the listener to a dummy event in case it throws. We don't catch it intentionally
-      try {
-        originalProcessPrependListener.call(process, MACGUFFIN_EVENT as any, listener)
-      } finally {
-        // We clean up the added event
-        originalProcessRemoveAllListeners.call(process, MACGUFFIN_EVENT)
-      }
+  process.prependListener = patchWithoutReentrancy(
+    originalProcessPrependListener,
+    function (event: string | symbol, listener: (...args: any[]) => void) {
+      if (event === 'unhandledRejection') {
+        debugWithTrace?.(
+          `(Prepending) Inserting 'unhandledRejection' listener with name \`${listener.name}\` immediately following the Next.js 'unhandledRejection' filter listener.`
+        )
+        // We add the listener to a dummy event in case it throws. We don't catch it intentionally
+        try {
+          originalProcessPrependListener.call(
+            process,
+            MACGUFFIN_EVENT as any,
+            listener
+          )
+        } finally {
+          // We clean up the added event
+          originalProcessRemoveAllListeners.call(process, MACGUFFIN_EVENT)
+        }
 
-      // Add new handlers to the beginning of our internal queue
-      underlyingListeners.unshift(listener as NodeJS.UnhandledRejectionListener)
-      listenerMetadata.unshift({ listener, once: false })
-      return process
-    }
-    // For other events, use the original method
-    return originalProcessPrependListener.call(process, event as any, listener)
-  } as typeof process.prependListener)
+        // Add new handlers to the beginning of our internal queue
+        underlyingListeners.unshift(
+          listener as NodeJS.UnhandledRejectionListener
+        )
+        listenerMetadata.unshift({ listener, once: false })
+        return process
+      }
+      // For other events, use the original method
+      return originalProcessPrependListener.call(
+        process,
+        event as any,
+        listener
+      )
+    } as typeof process.prependListener
+  )
 
   // Intercept process.once for one-time handlers
   process.once = patchWithoutReentrancy(originalProcessOnce, function (
@@ -410,14 +442,20 @@ You can debug event listener operations by running Next.js with \`NEXT_UNHANDLED
         )
         // We add the listener to a dummy event in case it throws. We don't catch it intentionally
         try {
-          originalProcessPrependOnceListener.call(process, MACGUFFIN_EVENT as any, listener)
+          originalProcessPrependOnceListener.call(
+            process,
+            MACGUFFIN_EVENT as any,
+            listener
+          )
         } finally {
           // We clean up the added event
           originalProcessRemoveAllListeners.call(process, MACGUFFIN_EVENT)
         }
 
         // Add to the beginning of our internal queue
-        underlyingListeners.unshift(listener as NodeJS.UnhandledRejectionListener)
+        underlyingListeners.unshift(
+          listener as NodeJS.UnhandledRejectionListener
+        )
         listenerMetadata.unshift({
           listener: listener as NodeJS.UnhandledRejectionListener,
           once: true,
@@ -425,59 +463,67 @@ You can debug event listener operations by running Next.js with \`NEXT_UNHANDLED
         return process
       }
       // For other events, use the original method
-      return originalProcessPrependOnceListener.call(process, event as any, listener)
+      return originalProcessPrependOnceListener.call(
+        process,
+        event as any,
+        listener
+      )
     } as typeof process.prependOnceListener
   )
 
   // Intercept process.removeAllListeners
-  process.removeAllListeners = patchWithoutReentrancy(originalProcessRemoveAllListeners, function (
-    event?: string | symbol
-  ) {
-    if (event === 'unhandledRejection') {
-      // TODO add warning for this case once we stop importing this in test scopes automatically. Currently
-      // we pull this file in whenever build/utils.tsx is imported which is not the right layering.
-      // The extensions should be loaded from entrypoints like build/index or next-server
-      //         warnRemoveAllOnce?.(
-      //           `\`process.removeAllListeners('unhandledRejection')\` was called. Next.js maintains the first 'unhandledRejection' listener to filter out unnecessary rejection warnings caused by aborting prerenders early. It is not recommended that you uninstall this behavior, but if you want to you must you can acquire the listener with \`process.listeners('unhandledRejection')[0]\` and remove it with \`process.removeListener('unhandledRejection', listener)\`.
+  process.removeAllListeners = patchWithoutReentrancy(
+    originalProcessRemoveAllListeners,
+    function (event?: string | symbol) {
+      if (event === 'unhandledRejection') {
+        // TODO add warning for this case once we stop importing this in test scopes automatically. Currently
+        // we pull this file in whenever build/utils.tsx is imported which is not the right layering.
+        // The extensions should be loaded from entrypoints like build/index or next-server
+        //         warnRemoveAllOnce?.(
+        //           `\`process.removeAllListeners('unhandledRejection')\` was called. Next.js maintains the first 'unhandledRejection' listener to filter out unnecessary rejection warnings caused by aborting prerenders early. It is not recommended that you uninstall this behavior, but if you want to you must you can acquire the listener with \`process.listeners('unhandledRejection')[0]\` and remove it with \`process.removeListener('unhandledRejection', listener)\`.
 
-      // You can silence warnings related to this behavior by running Next.js with \`NEXT_UNHANDLED_REJECTION_FILTER=silent\` environment variable.
+        // You can silence warnings related to this behavior by running Next.js with \`NEXT_UNHANDLED_REJECTION_FILTER=silent\` environment variable.
 
-      // You can debug event listener operations by running Next.js with \`NEXT_UNHANDLED_REJECTION_FILTER=debug\` environment variable.`
-      //         )
-      debugWithTrace?.(`Removing all 'unhandledRejection' listeners except for the Next.js filter.`)
+        // You can debug event listener operations by running Next.js with \`NEXT_UNHANDLED_REJECTION_FILTER=debug\` environment variable.`
+        //         )
+        debugWithTrace?.(
+          `Removing all 'unhandledRejection' listeners except for the Next.js filter.`
+        )
 
-      underlyingListeners.length = 0
-      listenerMetadata.length = 0
-      return process
-    }
+        underlyingListeners.length = 0
+        listenerMetadata.length = 0
+        return process
+      }
 
-    // For other specific events, use the original method
-    if (event !== undefined) {
-      return originalProcessRemoveAllListeners.call(process, event)
-    }
+      // For other specific events, use the original method
+      if (event !== undefined) {
+        return originalProcessRemoveAllListeners.call(process, event)
+      }
 
-    // If no event specified (removeAllListeners()), uninstall our patch completely
-    warnUninstalledOnce?.(
-      `Uninstalling filter because \`process.removeAllListeners()\` was called. Uninstalling this filter is not recommended and will cause you to observe 'unhandledRejection' events related to intentionally aborted prerenders.
+      // If no event specified (removeAllListeners()), uninstall our patch completely
+      warnUninstalledOnce?.(
+        `Uninstalling filter because \`process.removeAllListeners()\` was called. Uninstalling this filter is not recommended and will cause you to observe 'unhandledRejection' events related to intentionally aborted prerenders.
 
 You can silence warnings related to this behavior by running Next.js with \`NEXT_UNHANDLED_REJECTION_FILTER=silent\` environment variable.
 
 You can debug event listener operations by running Next.js with \`NEXT_UNHANDLED_REJECTION_FILTER=debug\` environment variable.`
-    )
-    uninstallUnhandledRejectionFilter()
-    return originalProcessRemoveAllListeners.call(process)
-  } as typeof process.removeAllListeners)
+      )
+      uninstallUnhandledRejectionFilter()
+      return originalProcessRemoveAllListeners.call(process)
+    } as typeof process.removeAllListeners
+  )
 
   // Intercept process.listeners to return our internal handlers for unhandled rejection
-  process.listeners = patchWithoutReentrancy(originalProcessListeners, function (
-    event: string | symbol
-  ) {
-    if (event === 'unhandledRejection') {
-      debugWithTrace?.(`Retrieving all 'unhandledRejection' listeners.`)
-      return [filteringUnhandledRejectionHandler, ...underlyingListeners]
-    }
-    return originalProcessListeners.call(process, event as any)
-  } as typeof process.listeners)
+  process.listeners = patchWithoutReentrancy(
+    originalProcessListeners,
+    function (event: string | symbol) {
+      if (event === 'unhandledRejection') {
+        debugWithTrace?.(`Retrieving all 'unhandledRejection' listeners.`)
+        return [filteringUnhandledRejectionHandler, ...underlyingListeners]
+      }
+      return originalProcessListeners.call(process, event as any)
+    } as typeof process.listeners
+  )
 
   filterInstalled = true
 }
@@ -489,7 +535,9 @@ You can debug event listener operations by running Next.js with \`NEXT_UNHANDLED
  */
 function uninstallUnhandledRejectionFilter(): void {
   if (!filterInstalled) {
-    warnWithTrace?.('Unexpected subsequent filter uninstallation. This is a bug in Next.js')
+    warnWithTrace?.(
+      'Unexpected subsequent filter uninstallation. This is a bug in Next.js'
+    )
     return
   }
 
@@ -507,7 +555,10 @@ function uninstallUnhandledRejectionFilter(): void {
   process.listeners = originalProcessListeners
 
   // Remove our filtering handler
-  process.removeListener('unhandledRejection', filteringUnhandledRejectionHandler)
+  process.removeListener(
+    'unhandledRejection',
+    filteringUnhandledRejectionHandler
+  )
 
   // Re-register all the handlers that were in our internal queue
   for (const meta of listenerMetadata) {
@@ -527,7 +578,10 @@ function uninstallUnhandledRejectionFilter(): void {
 /**
  * The filtering handler that decides whether to suppress or delegate unhandled rejections.
  */
-function filteringUnhandledRejectionHandler(reason: any, promise: Promise<any>): void {
+function filteringUnhandledRejectionHandler(
+  reason: any,
+  promise: Promise<any>
+): void {
   const capturedListenerMetadata = Array.from(listenerMetadata)
 
   const workUnitStore = workUnitAsyncStorage.getStore()

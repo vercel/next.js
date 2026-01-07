@@ -59,16 +59,18 @@ export default function createInterface(
       await writeFile(
         file,
         JSON.stringify(
-          [...metrics.values()].map(({ key, value, unit, count, relativeTo }) => {
-            return {
-              key,
-              value: value / count,
-              unit,
-              text: formatUnit(value / count, unit),
-              datapoints: count,
-              relativeTo,
+          [...metrics.values()].map(
+            ({ key, value, unit, count, relativeTo }) => {
+              return {
+                key,
+                value: value / count,
+                unit,
+                text: formatUnit(value / count, unit),
+                datapoints: count,
+                relativeTo,
+              }
             }
-          })
+          )
         )
       )
     },

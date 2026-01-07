@@ -91,7 +91,9 @@ describe('app dir - basepath', () => {
       await browser.elementByCss('button').click()
       await browser.waitForIdleNetwork()
       await retry(async () => {
-        expect(rscRequests).toEqual([expect.stringContaining(`${next.url}${path}`)])
+        expect(rscRequests).toEqual([
+          expect.stringContaining(`${next.url}${path}`),
+        ])
       })
     }
   )
@@ -113,7 +115,10 @@ describe('app dir - basepath', () => {
       browser.on('request', (req) => {
         const url = req.url()
 
-        if (url.includes(initialPagePath) || url.includes(destinationPagePath)) {
+        if (
+          url.includes(initialPagePath) ||
+          url.includes(destinationPagePath)
+        ) {
           requests.push(req)
         }
       })
@@ -121,13 +126,18 @@ describe('app dir - basepath', () => {
       browser.on('response', (res) => {
         const url = res.url()
 
-        if (url.includes(initialPagePath) || url.includes(destinationPagePath)) {
+        if (
+          url.includes(initialPagePath) ||
+          url.includes(destinationPagePath)
+        ) {
           responses.push(res)
         }
       })
 
       await browser.elementById(buttonId).click()
-      await retry(async () => expect(await browser.url()).toContain('/base/another'))
+      await retry(async () =>
+        expect(await browser.url()).toContain('/base/another')
+      )
 
       expect(await browser.waitForElementByCss('#page-2').text()).toBe(`Page 2`)
 
@@ -175,7 +185,9 @@ describe('app dir - basepath', () => {
     })
 
     await browser.elementById('redirect-absolute-external').click()
-    await retry(async () => expect(await browser.url()).toContain('/outsideBasePath'))
+    await retry(async () =>
+      expect(await browser.url()).toContain('/outsideBasePath')
+    )
 
     // We expect to see two requests, first a POST invoking the server
     // action. And second a GET request resolving the redirect.

@@ -26,7 +26,13 @@ export default function Hero({
           {image && (
             <div className="col-xxl-6 col-xl-6 col-lg-6">
               <div className="hero-image text-center text-lg-end">
-                <Image src={image} layout="responsive" height="400px" width="400px" alt="" />
+                <Image
+                  src={image}
+                  layout="responsive"
+                  height="400px"
+                  width="400px"
+                  alt=""
+                />
               </div>
             </div>
           )}

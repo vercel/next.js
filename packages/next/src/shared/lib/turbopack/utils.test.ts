@@ -1,4 +1,8 @@
-import type { Issue, PlainTraceItem, StyledString } from '../../../build/swc/types'
+import type {
+  Issue,
+  PlainTraceItem,
+  StyledString,
+} from '../../../build/swc/types'
 import { formatIssue } from './utils'
 
 function styledText(value: string): StyledString {
@@ -109,7 +113,10 @@ https://nextjs.org/docs/messages/module-not-found
   })
 
   it('handles missing layers in traces', () => {
-    const trace: PlainTraceItem[] = [traceItem('src/app/page.ts'), traceItem('src/lib/foo.ts')]
+    const trace: PlainTraceItem[] = [
+      traceItem('src/app/page.ts'),
+      traceItem('src/lib/foo.ts'),
+    ]
     const issue: Issue = {
       ...baseIssue,
       importTraces: [trace],

@@ -4,8 +4,8 @@ export default function SearchParamsSharedLoadingStatePage() {
   return (
     <div>
       <p>
-        This page tests whether a prefetched URL without search params can share its loading state
-        with a navigation to the same URL with search params.
+        This page tests whether a prefetched URL without search params can share
+        its loading state with a navigation to the same URL with search params.
       </p>
 
       <ul>

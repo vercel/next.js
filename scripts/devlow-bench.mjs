@@ -30,7 +30,8 @@ const GIT_BRANCH =
 const nextBuildWorkflow =
   (benchmarkName, benchDir, pages, enableTurbopackCache) =>
   async ({ turbopack, page }) => {
-    const pageConfig = typeof pages[page] === 'string' ? { url: pages[page] } : pages[page]
+    const pageConfig =
+      typeof pages[page] === 'string' ? { url: pages[page] } : pages[page]
     const cleanupTasks = []
     try {
       const env = {
@@ -53,7 +54,9 @@ const nextBuildWorkflow =
       const benchmarkDir = resolve(REPO_ROOT, 'bench', benchDir)
 
       // cleanup .next directory to remove filesystem cache
-      await retry(() => rm(join(benchmarkDir, '.next'), { recursive: true, force: true }))
+      await retry(() =>
+        rm(join(benchmarkDir, '.next'), { recursive: true, force: true })
+      )
 
       await measureTime('cleanup', {
         scenario: benchmarkName,
@@ -112,12 +115,19 @@ const nextBuildWorkflow =
       })
 
       // open page
-      const pageInstance = await session.hardNavigation('open page', url + pageConfig.url)
+      const pageInstance = await session.hardNavigation(
+        'open page',
+        url + pageConfig.url
+      )
       await shell.reportMemUsage('mem usage after open page')
 
       let status = 0
       try {
-        if (await pageInstance.evaluate('!next.appDir && __NEXT_DATA__.page === "/404"')) {
+        if (
+          await pageInstance.evaluate(
+            '!next.appDir && __NEXT_DATA__.page === "/404"'
+          )
+        ) {
           status = 2
         }
       } catch (e) {
@@ -126,7 +136,9 @@ const nextBuildWorkflow =
 
       try {
         if (
-          !(await pageInstance.evaluate('next.appDir || __NEXT_DATA__.page && !__NEXT_DATA__.err'))
+          !(await pageInstance.evaluate(
+            'next.appDir || __NEXT_DATA__.page && !__NEXT_DATA__.err'
+          ))
         ) {
           status = 1
         }
@@ -139,7 +151,11 @@ const nextBuildWorkflow =
       // reload page
       await session.reload('reload page')
 
-      await reportMeasurement('console output', shell.output.split(/\n/).length, 'lines')
+      await reportMeasurement(
+        'console output',
+        shell.output.split(/\n/).length,
+        'lines'
+      )
 
       // close browser
       await killShell()
@@ -180,9 +196,16 @@ const nextBuildWorkflow =
       await shell.reportMemUsage('mem usage after startup with cache')
 
       // open page
-      await session.hardNavigation('open page with cache', url2 + pageConfig.url)
+      await session.hardNavigation(
+        'open page with cache',
+        url2 + pageConfig.url
+      )
 
-      await reportMeasurement('console output with cache', shell.output.split(/\n/).length, 'lines')
+      await reportMeasurement(
+        'console output with cache',
+        shell.output.split(/\n/).length,
+        'lines'
+      )
       await shell.reportMemUsage('mem usage after open page with cache')
     } catch (e) {
       throw e
@@ -196,13 +219,16 @@ const nextBuildWorkflow =
 const nextDevWorkflow =
   (benchmarkName, benchDir, pages) =>
   async ({ turbopack, page }) => {
-    const pageConfig = typeof pages[page] === 'string' ? { url: pages[page] } : pages[page]
+    const pageConfig =
+      typeof pages[page] === 'string' ? { url: pages[page] } : pages[page]
     const cleanupTasks = []
     try {
       const benchmarkDir = resolve(REPO_ROOT, 'bench', benchDir)
 
       // cleanup .next directory to remove filesystem cache
-      await retry(() => rm(join(benchmarkDir, '.next'), { recursive: true, force: true }))
+      await retry(() =>
+        rm(join(benchmarkDir, '.next'), { recursive: true, force: true })
+      )
 
       await measureTime('cleanup', {
         scenario: benchmarkName,
@@ -268,12 +294,19 @@ const nextDevWorkflow =
       })
 
       // open page
-      const pageInstance = await session.hardNavigation('open page', url + pageConfig.url)
+      const pageInstance = await session.hardNavigation(
+        'open page',
+        url + pageConfig.url
+      )
       await shell.reportMemUsage('mem usage after open page')
 
       let status = 0
       try {
-        if (await pageInstance.evaluate('!next.appDir && __NEXT_DATA__.page === "/404"')) {
+        if (
+          await pageInstance.evaluate(
+            '!next.appDir && __NEXT_DATA__.page === "/404"'
+          )
+        ) {
           status = 2
         }
       } catch (e) {
@@ -282,7 +315,9 @@ const nextDevWorkflow =
 
       try {
         if (
-          !(await pageInstance.evaluate('next.appDir || __NEXT_DATA__.page && !__NEXT_DATA__.err'))
+          !(await pageInstance.evaluate(
+            'next.appDir || __NEXT_DATA__.page && !__NEXT_DATA__.err'
+          ))
         ) {
           status = 1
         }
@@ -295,14 +330,21 @@ const nextDevWorkflow =
       // reload page
       await session.reload('reload page')
 
-      await reportMeasurement('console output', shell.output.split(/\n/).length, 'lines')
+      await reportMeasurement(
+        'console output',
+        shell.output.split(/\n/).length,
+        'lines'
+      )
 
       // HMR
       if (pageConfig.hmr) {
         let hmrEvent = () => {}
-        pageInstance.exposeBinding('TURBOPACK_HMR_EVENT', (_source, latency) => {
-          hmrEvent(latency)
-        })
+        pageInstance.exposeBinding(
+          'TURBOPACK_HMR_EVENT',
+          (_source, latency) => {
+            hmrEvent(latency)
+          }
+        )
         const { file, before, after } = pageConfig.hmr
         const path = resolve(benchmarkDir, file)
         const content = await readFile(path, 'utf8')
@@ -333,7 +375,11 @@ const nextDevWorkflow =
               const success = code <= 1
               if (!success && !reportedName) reportedName = 'hmr'
               if (reportedName) {
-                await reportMeasurement(`${reportedName}/status`, code, 'status code')
+                await reportMeasurement(
+                  `${reportedName}/status`,
+                  code,
+                  'status code'
+                )
               }
               clearTimeout(timeout)
               resolve(success)
@@ -353,7 +399,11 @@ const nextDevWorkflow =
               once = false
               if (reportedName) {
                 if (typeof latency === 'number') {
-                  await reportMeasurement(`${reportedName}/reported latency`, latency, 'ms')
+                  await reportMeasurement(
+                    `${reportedName}/reported latency`,
+                    latency,
+                    'ms'
+                  )
                 }
                 await measureTime(reportedName, {
                   relativeTo: `${reportedName}/start`,
@@ -388,7 +438,10 @@ const nextDevWorkflow =
               idx
             )}\n--hmr-test-${hmrAttempt}: 0;\n${currentContent.slice(idx)}`
           } else if (file.endsWith('.mdx')) {
-            newContent = `${currentContent.slice(0, idx)}\n\nHMR\n\n${currentContent.slice(idx)}`
+            newContent = `${currentContent.slice(
+              0,
+              idx
+            )}\n\nHMR\n\n${currentContent.slice(idx)}`
           }
 
           if (reportedName) {
@@ -463,9 +516,16 @@ const nextDevWorkflow =
       await shell.reportMemUsage('mem usage after startup with cache')
 
       // open page
-      await session.hardNavigation('open page with cache', url2 + pageConfig.url)
+      await session.hardNavigation(
+        'open page with cache',
+        url2 + pageConfig.url
+      )
 
-      await reportMeasurement('console output with cache', shell.output.split(/\n/).length, 'lines')
+      await reportMeasurement(
+        'console output with cache',
+        shell.output.split(/\n/).length,
+        'lines'
+      )
       await shell.reportMemUsage('mem usage after open page with cache')
     } finally {
       // This must run in order
@@ -511,7 +571,12 @@ describe(
     mode: 'build',
     page: Object.keys(pages),
   },
-  nextBuildWorkflow('heavy-npm-deps-build-turbo-cache-enabled', 'heavy-npm-deps', pages, true)
+  nextBuildWorkflow(
+    'heavy-npm-deps-build-turbo-cache-enabled',
+    'heavy-npm-deps',
+    pages,
+    true
+  )
 )
 
 async function retry(fn) {

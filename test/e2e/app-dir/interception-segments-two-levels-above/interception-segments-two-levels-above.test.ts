@@ -11,7 +11,9 @@ describe('interception-segments-two-levels-above', () => {
 
     await browser.elementByCss('[href="/hoge"]').click()
     await retry(async () => {
-      expect(await browser.elementById('intercepted').text()).toMatch(/intercepted/)
+      expect(await browser.elementById('intercepted').text()).toMatch(
+        /intercepted/
+      )
     })
   })
 
@@ -22,7 +24,9 @@ describe('interception-segments-two-levels-above', () => {
     // Navigate with interception
     await browser.elementByCss('[href="/hoge"]').click()
     await retry(async () => {
-      expect(await browser.elementById('intercepted').text()).toMatch(/intercepted/)
+      expect(await browser.elementById('intercepted').text()).toMatch(
+        /intercepted/
+      )
     })
 
     // Go back
@@ -35,7 +39,9 @@ describe('interception-segments-two-levels-above', () => {
     // Go forward - should show the intercepted version again
     await browser.forward()
     await retry(async () => {
-      expect(await browser.elementById('intercepted').text()).toMatch(/intercepted/)
+      expect(await browser.elementById('intercepted').text()).toMatch(
+        /intercepted/
+      )
     })
   })
 
@@ -49,7 +55,9 @@ describe('interception-segments-two-levels-above', () => {
       })
 
       await retry(async () => {
-        expect(await browser.elementById('intercepted').text()).toMatch(/intercepted/)
+        expect(await browser.elementById('intercepted').text()).toMatch(
+          /intercepted/
+        )
       })
 
       await browser.back()

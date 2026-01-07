@@ -20,7 +20,10 @@ import { WEBPACK_LAYERS } from '../../../lib/constants'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
 import { CLIENT_STATIC_FILES_RUNTIME_MAIN_APP } from '../../../shared/lib/constants'
 import { getDeploymentIdQueryOrEmptyString } from '../../../shared/lib/deployment-id'
-import { formatBarrelOptimizedResource, getModuleReferencesInOrder } from '../utils'
+import {
+  formatBarrelOptimizedResource,
+  getModuleReferencesInOrder,
+} from '../utils'
 import type { ChunkGroup } from 'webpack'
 import { encodeURIPath } from '../../../shared/lib/encode-uri-path'
 import type { ModuleInfo } from './flight-client-entry-plugin'
@@ -112,7 +115,10 @@ export interface ClientReferenceManifest extends ClientReferenceManifestForRsc {
   }
 }
 
-function getAppPathRequiredChunks(chunkGroup: webpack.ChunkGroup, excludedFiles: Set<string>) {
+function getAppPathRequiredChunks(
+  chunkGroup: webpack.ChunkGroup,
+  excludedFiles: Set<string>
+) {
   const deploymentIdChunkQuery = getDeploymentIdQueryOrEmptyString()
 
   const chunks: Array<string> = []
@@ -136,7 +142,10 @@ function getAppPathRequiredChunks(chunkGroup: webpack.ChunkGroup, excludedFiles:
         // previously done for dynamic chunks by patching the webpack runtime but we want
         // these filenames to be managed by React's Flight runtime instead and so we need
         // to implement any special handling of the file name here.
-        return chunks.push(chunkId, encodeURIPath(file) + deploymentIdChunkQuery)
+        return chunks.push(
+          chunkId,
+          encodeURIPath(file) + deploymentIdChunkQuery
+        )
       })
     }
   })
@@ -165,7 +174,9 @@ function entryNameToGroupName(entryName: string) {
     .replace(/\/\[?\[\.\.\.[^\]]*]]?/g, '')
 
   // Interception routes
-  groupName = groupName.replace(/^.+\/\(\.\.\.\)/g, 'app/').replace(/\/\(\.\)/g, '/')
+  groupName = groupName
+    .replace(/^.+\/\(\.\.\.\)/g, 'app/')
+    .replace(/\/\(\.\)/g, '/')
 
   // Interception routes (recursive)
   while (/\/[^/]+\/\(\.\.\)/.test(groupName)) {
@@ -181,10 +192,16 @@ function mergeManifest(
 ) {
   Object.assign(manifest.clientModules, manifestToMerge.clientModules)
   Object.assign(manifest.ssrModuleMapping, manifestToMerge.ssrModuleMapping)
-  Object.assign(manifest.edgeSSRModuleMapping, manifestToMerge.edgeSSRModuleMapping)
+  Object.assign(
+    manifest.edgeSSRModuleMapping,
+    manifestToMerge.edgeSSRModuleMapping
+  )
   Object.assign(manifest.entryCSSFiles, manifestToMerge.entryCSSFiles)
   Object.assign(manifest.rscModuleMapping, manifestToMerge.rscModuleMapping)
-  Object.assign(manifest.edgeRscModuleMapping, manifestToMerge.edgeRscModuleMapping)
+  Object.assign(
+    manifest.edgeRscModuleMapping,
+    manifestToMerge.edgeRscModuleMapping
+  )
 }
 
 const PLUGIN_NAME = 'ClientReferenceManifestPlugin'
@@ -220,7 +237,8 @@ export class ClientReferenceManifestPlugin {
     const manifestsPerGroup = new Map<string, ClientReferenceManifest[]>()
     const manifestEntryFiles: string[] = []
 
-    const configuredCrossOriginLoading = compilation.outputOptions.crossOriginLoading
+    const configuredCrossOriginLoading =
+      compilation.outputOptions.crossOriginLoading
     const crossOriginMode =
       typeof configuredCrossOriginLoading === 'string'
         ? configuredCrossOriginLoading === 'use-credentials'
@@ -271,7 +289,10 @@ export class ClientReferenceManifestPlugin {
       }
 
       // Absolute path without the extension
-      const chunkEntryName = (this.appDirBase + entryName).replace(/[\\/]/g, path.sep)
+      const chunkEntryName = (this.appDirBase + entryName).replace(
+        /[\\/]/g,
+        path.sep
+      )
 
       manifest.entryCSSFiles[chunkEntryName] = entrypoint
         .getFiles()
@@ -317,9 +338,15 @@ export class ClientReferenceManifestPlugin {
         // Note that this isn't that reliable as webpack is still possible to assign
         // additional queries to make sure there's no conflict even using the `named`
         // module ID strategy.
-        let ssrNamedModuleId = relative(context, mod.resourceResolveData?.path || resource)
+        let ssrNamedModuleId = relative(
+          context,
+          mod.resourceResolveData?.path || resource
+        )
 
-        const rscNamedModuleId = relative(context, mod.resourceResolveData?.path || resource)
+        const rscNamedModuleId = relative(
+          context,
+          mod.resourceResolveData?.path || resource
+        )
 
         if (!ssrNamedModuleId.startsWith('.'))
           ssrNamedModuleId = `./${ssrNamedModuleId.replace(/\\/g, '/')}`
@@ -327,7 +354,10 @@ export class ClientReferenceManifestPlugin {
         // The client compiler will always use the CJS Next.js build, so here we
         // also add the mapping for the ESM build (Edge runtime) to consume.
         const esmResource = /[\\/]next[\\/]dist[\\/]/.test(resource)
-          ? resource.replace(/[\\/]next[\\/]dist[\\/]/, '/next/dist/esm/'.replace(/\//g, path.sep))
+          ? resource.replace(
+              /[\\/]next[\\/]dist[\\/]/,
+              '/next/dist/esm/'.replace(/\//g, path.sep)
+            )
           : null
 
         // An extra query param is added to the resource key when it's optimized
@@ -335,15 +365,18 @@ export class ClientReferenceManifestPlugin {
         // as multiple modules (depending on what you import from it).
         // See also: webpack/loaders/next-flight-loader/index.ts.
         if (mod.matchResource?.startsWith(BARREL_OPTIMIZATION_PREFIX)) {
-          ssrNamedModuleId = formatBarrelOptimizedResource(ssrNamedModuleId, mod.matchResource)
+          ssrNamedModuleId = formatBarrelOptimizedResource(
+            ssrNamedModuleId,
+            mod.matchResource
+          )
           resource = formatBarrelOptimizedResource(resource, mod.matchResource)
         }
 
         function addClientReference() {
           const isAsync = Boolean(
             compilation.moduleGraph.isAsync(mod) ||
-            pluginState.ssrModules[ssrNamedModuleId]?.async ||
-            pluginState.edgeSsrModules[ssrNamedModuleId]?.async
+              pluginState.ssrModules[ssrNamedModuleId]?.async ||
+              pluginState.edgeSsrModules[ssrNamedModuleId]?.async
           )
 
           const exportName = resource
@@ -355,7 +388,8 @@ export class ClientReferenceManifestPlugin {
           }
           if (esmResource) {
             const edgeExportName = esmResource
-            manifest.clientModules[edgeExportName] = manifest.clientModules[exportName]
+            manifest.clientModules[edgeExportName] =
+              manifest.clientModules[exportName]
           }
         }
 
@@ -452,17 +486,24 @@ export class ClientReferenceManifestPlugin {
           // Ensure recursion is stopped if we've already checked this chunk.
           if (checkedChunks.has(chunk)) return
           checkedChunks.add(chunk)
-          const entryMods = compilation.chunkGraph.getChunkEntryModulesIterable(chunk)
+          const entryMods =
+            compilation.chunkGraph.getChunkEntryModulesIterable(chunk)
           for (const mod of entryMods) {
             if (mod.layer !== WEBPACK_LAYERS.appPagesBrowser) continue
 
             const request = (mod as webpack.NormalModule).request
 
-            if (!request || !request.includes('next-flight-client-entry-loader.js?')) {
+            if (
+              !request ||
+              !request.includes('next-flight-client-entry-loader.js?')
+            ) {
               continue
             }
 
-            const connections = getModuleReferencesInOrder(mod, compilation.moduleGraph)
+            const connections = getModuleReferencesInOrder(
+              mod,
+              compilation.moduleGraph
+            )
 
             for (const connection of connections) {
               const dependency = connection.dependency
@@ -471,18 +512,20 @@ export class ClientReferenceManifestPlugin {
               const clientEntryMod = compilation.moduleGraph.getResolvedModule(
                 dependency
               ) as webpack.NormalModule
-              const modId = compilation.chunkGraph.getModuleId(clientEntryMod) as
-                | string
-                | number
-                | null
+              const modId = compilation.chunkGraph.getModuleId(
+                clientEntryMod
+              ) as string | number | null
 
               if (modId !== null) {
                 recordModule(modId, clientEntryMod)
               } else {
                 // If this is a concatenation, register each child to the parent ID.
-                if (connection.module?.constructor.name === 'ConcatenatedModule') {
+                if (
+                  connection.module?.constructor.name === 'ConcatenatedModule'
+                ) {
                   const concatenatedMod = connection.module
-                  const concatenatedModId = compilation.chunkGraph.getModuleId(concatenatedMod)
+                  const concatenatedModId =
+                    compilation.chunkGraph.getModuleId(concatenatedMod)
                   if (concatenatedModId) {
                     recordModule(concatenatedModId, clientEntryMod)
                   }

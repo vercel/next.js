@@ -1,5 +1,8 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
-import { createUseCacheTracker, type UseCacheTrackerKey } from './use-cache-tracker-utils'
+import {
+  createUseCacheTracker,
+  type UseCacheTrackerKey,
+} from './use-cache-tracker-utils'
 
 /**
  * List of target triples next-swc native binary supports.
@@ -147,7 +150,10 @@ function findUniqueOriginModulesInConnections(
 ): Set<unknown> {
   const originModules = new Set()
   for (const connection of connections) {
-    if (!originModules.has(connection.originModule) && connection.originModule !== originModule) {
+    if (
+      !originModules.has(connection.originModule) &&
+      connection.originModule !== originModule
+    ) {
       originModules.add(connection.originModule)
     }
   }
@@ -160,7 +166,10 @@ function findUniqueOriginModulesInConnections(
  * they are imported.
  */
 export class TelemetryPlugin implements webpack.WebpackPluginInstance {
-  private usageTracker: Map<Feature, FeatureUsage> = new Map<Feature, FeatureUsage>()
+  private usageTracker: Map<Feature, FeatureUsage> = new Map<
+    Feature,
+    FeatureUsage
+  >()
 
   // Build feature usage is on/off and is known before the build starts
   constructor(buildFeaturesMap: Map<Feature, boolean>) {
@@ -186,7 +195,10 @@ export class TelemetryPlugin implements webpack.WebpackPluginInstance {
     }
   }
 
-  public addUsage(featureName: Feature, invocationCount: FeatureUsage['invocationCount']): void {
+  public addUsage(
+    featureName: Feature,
+    invocationCount: FeatureUsage['invocationCount']
+  ): void {
     this.usageTracker.set(featureName, {
       featureName,
       invocationCount,
@@ -205,9 +217,15 @@ export class TelemetryPlugin implements webpack.WebpackPluginInstance {
               if (!feature) {
                 continue
               }
-              const connections = (compilation as any).moduleGraph.getIncomingConnections(module)
-              const originModules = findUniqueOriginModulesInConnections(connections, module)
-              this.usageTracker.get(feature)!.invocationCount = originModules.size
+              const connections = (
+                compilation as any
+              ).moduleGraph.getIncomingConnections(module)
+              const originModules = findUniqueOriginModulesInConnections(
+                connections,
+                module
+              )
+              this.usageTracker.get(feature)!.invocationCount =
+                originModules.size
             }
             modulesFinish()
           }
@@ -217,13 +235,19 @@ export class TelemetryPlugin implements webpack.WebpackPluginInstance {
     )
 
     if (compiler.options.mode === 'production' && !compiler.watchMode) {
-      compiler.hooks.thisCompilation.tap(TelemetryPlugin.name, (compilation) => {
-        const moduleHooks = compiler.webpack.NormalModule.getCompilationHooks(compilation)
-        moduleHooks.loader.tap(TelemetryPlugin.name, (loaderContext) => {
-          ;(loaderContext as TelemetryLoaderContext).eliminatedPackages = eliminatedPackages
-          ;(loaderContext as TelemetryLoaderContext).useCacheTracker = useCacheTracker
-        })
-      })
+      compiler.hooks.thisCompilation.tap(
+        TelemetryPlugin.name,
+        (compilation) => {
+          const moduleHooks =
+            compiler.webpack.NormalModule.getCompilationHooks(compilation)
+          moduleHooks.loader.tap(TelemetryPlugin.name, (loaderContext) => {
+            ;(loaderContext as TelemetryLoaderContext).eliminatedPackages =
+              eliminatedPackages
+            ;(loaderContext as TelemetryLoaderContext).useCacheTracker =
+              useCacheTracker
+          })
+        }
+      )
     }
   }
 
@@ -242,6 +266,8 @@ export class TelemetryPlugin implements webpack.WebpackPluginInstance {
 
 export type TelemetryPluginState = {
   usages: ReturnType<TelemetryPlugin['usages']>
-  packagesUsedInServerSideProps: ReturnType<TelemetryPlugin['packagesUsedInServerSideProps']>
+  packagesUsedInServerSideProps: ReturnType<
+    TelemetryPlugin['packagesUsedInServerSideProps']
+  >
   useCacheTracker: ReturnType<TelemetryPlugin['getUseCacheTracker']>
 }

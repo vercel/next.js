@@ -17,5 +17,9 @@ export default async function GridPage({
   }>
 }) {
   const { first } = await params
-  return <div data-slug={`${first}/~/overview/grid`}>Page /{first}/~/overview/grid</div>
+  return (
+    <div data-slug={`${first}/~/overview/grid`}>
+      Page /{first}/~/overview/grid
+    </div>
+  )
 }

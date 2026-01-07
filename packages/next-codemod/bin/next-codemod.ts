@@ -17,19 +17,32 @@ import { BadInput } from './shared'
 const packageJson = require('../package.json')
 const program = new Command(packageJson.name)
   .description('Codemods for updating Next.js apps.')
-  .version(packageJson.version, '-v, --version', 'Output the current version of @next/codemod.')
+  .version(
+    packageJson.version,
+    '-v, --version',
+    'Output the current version of @next/codemod.'
+  )
   .argument(
     '[codemod]',
     'Codemod slug to run. See "https://github.com/vercel/next.js/tree/canary/packages/next-codemod".'
   )
-  .argument('[source]', 'Path to source files or directory to transform including glob patterns.')
+  .argument(
+    '[source]',
+    'Path to source files or directory to transform including glob patterns.'
+  )
   .usage('[codemod] [source] [options]')
   .helpOption('-h, --help', 'Display this help message.')
   .option('-f, --force', 'Bypass Git safety checks and forcibly run codemods')
   .option('-d, --dry', 'Dry run (no changes are made to files)')
-  .option('-p, --print', 'Print transformed files to stdout, useful for development')
+  .option(
+    '-p, --print',
+    'Print transformed files to stdout, useful for development'
+  )
   .option('--verbose', 'Show more information about the transform process')
-  .option('-j, --jscodeshift', '(Advanced) Pass options directly to jscodeshift')
+  .option(
+    '-j, --jscodeshift',
+    '(Advanced) Pass options directly to jscodeshift'
+  )
   .action(runTransform)
   .allowUnknownOption()
   // This is needed for options for subcommands to be passed correctly.
@@ -42,7 +55,9 @@ const program = new Command(packageJson.name)
 
 program
   .command('upgrade')
-  .description('Upgrade Next.js apps to desired versions with a single command.')
+  .description(
+    'Upgrade Next.js apps to desired versions with a single command.'
+  )
   .argument(
     '[revision]',
     'Specify the upgrade type ("patch", "minor", "major"), an NPM dist tag (e.g. "latest", "canary", "rc"), or an exact version (e.g. "15.0.0"). Defaults to "minor".'

@@ -81,54 +81,55 @@ export function StatusIndicator({ status, onClick }: StatusIndicatorProps) {
             cursor: pointer;
             outline: none;
           }
-          
+
           [data-indicator-status]:focus-visible {
             outline: 2px solid var(--color-blue-800, #3b82f6);
             outline-offset: 3px;
           }
-          
+
           [data-status-dot] {
             width: 8px;
             height: 8px;
             border-radius: 50%;
             flex-shrink: 0;
           }
-          
+
           [data-status-text-animation] {
             display: inline-flex;
             align-items: center;
             position: relative;
             overflow: hidden;
             height: 100%;
-          
+
             > * {
               white-space: nowrap;
               line-height: 1;
             }
-          
+
             [data-status-text-enter] {
-              animation: slotMachineEnter 150ms cubic-bezier(0, 0, 0.2, 1) forwards;
+              animation: slotMachineEnter 150ms cubic-bezier(0, 0, 0.2, 1)
+                forwards;
             }
           }
-          
+
           [data-status-ellipsis] {
             display: inline-flex;
             margin-left: 2px;
           }
-          
+
           [data-status-ellipsis] span {
             animation: ellipsisFade 1.2s infinite;
             margin: 0 1px;
           }
-          
+
           [data-status-ellipsis] span:nth-child(2) {
             animation-delay: 0.2s;
           }
-          
+
           [data-status-ellipsis] span:nth-child(3) {
             animation-delay: 0.4s;
           }
-          
+
           @keyframes ellipsisFade {
             0%,
             60%,
@@ -139,7 +140,7 @@ export function StatusIndicator({ status, onClick }: StatusIndicatorProps) {
               opacity: 1;
             }
           }
-          
+
           @keyframes slotMachineEnter {
             0% {
               transform: translateY(0.8em);

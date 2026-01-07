@@ -1,6 +1,9 @@
 import { Metadata, ResolvingMetadata } from 'next'
 
-export async function generateMetadata(_: {}, parent: ResolvingMetadata): Promise<Metadata> {
+export async function generateMetadata(
+  _: {},
+  parent: ResolvingMetadata
+): Promise<Metadata> {
   'use cache'
 
   const { metadataBase } = await parent

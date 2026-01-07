@@ -18,7 +18,10 @@ import {
 import { BaseServerSpan } from '../../server/lib/trace/constants'
 import { getRevalidateReason } from '../../server/instrumentation/utils'
 import { sendResponse } from '../../server/send-response'
-import { fromNodeOutgoingHttpHeaders, toNodeOutgoingHttpHeaders } from '../../server/web/utils'
+import {
+  fromNodeOutgoingHttpHeaders,
+  toNodeOutgoingHttpHeaders,
+} from '../../server/web/utils'
 import { setCacheControlHeaders } from '../../server/lib/cache-control'
 import { INFINITE_CACHE, NEXT_CACHE_TAGS_HEADER } from '../../lib/constants'
 import { NoFallbackError } from '../../shared/lib/no-fallback-error.external'
@@ -66,7 +69,13 @@ function patchFetch() {
   })
 }
 
-export { routeModule, workAsyncStorage, workUnitAsyncStorage, serverHooks, patchFetch }
+export {
+  routeModule,
+  workAsyncStorage,
+  workUnitAsyncStorage,
+  serverHooks,
+  patchFetch,
+}
 
 export async function handler(
   req: IncomingMessage,
@@ -89,7 +98,8 @@ export async function handler(
     // we always normalize /index specifically
     srcPage = '/'
   }
-  const multiZoneDraftMode = process.env.__NEXT_MULTI_ZONE_DRAFT_MODE as any as boolean
+  const multiZoneDraftMode = process.env
+    .__NEXT_MULTI_ZONE_DRAFT_MODE as any as boolean
 
   const prepareResult = await routeModule.prepare(req, res, {
     srcPage,
@@ -121,7 +131,8 @@ export async function handler(
   const normalizedSrcPage = normalizeAppPath(srcPage)
 
   let isIsr = Boolean(
-    prerenderManifest.dynamicRoutes[normalizedSrcPage] || prerenderManifest.routes[resolvedPathname]
+    prerenderManifest.dynamicRoutes[normalizedSrcPage] ||
+      prerenderManifest.routes[resolvedPathname]
   )
 
   const render404 = async () => {
@@ -200,8 +211,19 @@ export async function handler(
         res.on('close', cb)
       },
       onAfterTaskError: undefined,
-      onInstrumentationRequestError: (error, _request, errorContext, silenceLog) =>
-        routeModule.onRequestError(req, error, errorContext, silenceLog, routerServerContext),
+      onInstrumentationRequestError: (
+        error,
+        _request,
+        errorContext,
+        silenceLog
+      ) =>
+        routeModule.onRequestError(
+          req,
+          error,
+          errorContext,
+          silenceLog,
+          routerServerContext
+        ),
     },
     sharedContext: {
       buildId,
@@ -210,7 +232,10 @@ export async function handler(
   const nodeNextReq = new NodeNextRequest(req)
   const nodeNextRes = new NodeNextResponse(res)
 
-  const nextReq = NextRequestAdapter.fromNodeNextRequest(nodeNextReq, signalFromNodeResponse(res))
+  const nextReq = NextRequestAdapter.fromNodeNextRequest(
+    nodeNextReq,
+    signalFromNodeResponse(res)
+  )
 
   try {
     const invokeRouteModule = async (span?: Span) => {
@@ -228,7 +253,10 @@ export async function handler(
           return
         }
 
-        if (rootSpanAttributes.get('next.span_type') !== BaseServerSpan.handleRequest) {
+        if (
+          rootSpanAttributes.get('next.span_type') !==
+          BaseServerSpan.handleRequest
+        ) {
           console.warn(
             `Unexpected root span type '${rootSpanAttributes.get(
               'next.span_type'
@@ -255,7 +283,9 @@ export async function handler(
     const isMinimalMode = Boolean(getRequestMeta(req, 'minimalMode'))
 
     const handleResponse = async (currentSpan?: Span) => {
-      const responseGenerator: ResponseGenerator = async ({ previousCacheEntry }) => {
+      const responseGenerator: ResponseGenerator = async ({
+        previousCacheEntry,
+      }) => {
         try {
           if (
             !isMinimalMode &&
@@ -401,7 +431,10 @@ export async function handler(
 
       // Draft mode should never be cached
       if (isDraftMode) {
-        res.setHeader('Cache-Control', 'private, no-cache, no-store, max-age=0, must-revalidate')
+        res.setHeader(
+          'Cache-Control',
+          'private, no-cache, no-store, max-age=0, must-revalidate'
+        )
       }
 
       const headers = fromNodeOutgoingHttpHeaders(cacheEntry.value.headers)
@@ -482,7 +515,11 @@ export async function handler(
     if (isIsr) throw err
 
     // Otherwise, send a 500 response.
-    await sendResponse(nodeNextReq, nodeNextRes, new Response(null, { status: 500 }))
+    await sendResponse(
+      nodeNextReq,
+      nodeNextRes,
+      new Response(null, { status: 500 })
+    )
     return null
   }
 }

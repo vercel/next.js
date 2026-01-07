@@ -58,13 +58,18 @@ const keys = Object.keys as <T>(o: T) => Extract<keyof T, string>[]
 
 const COMPILER_KEYS = keys(COMPILER_INDEXES)
 
-function treePathToEntrypoint(segmentPath: FlightSegmentPath, parentPath?: string): string {
+function treePathToEntrypoint(
+  segmentPath: FlightSegmentPath,
+  parentPath?: string
+): string {
   const [parallelRouteKey, segment] = segmentPath
 
   // TODO-APP: modify this path to cover parallelRouteKey convention
   const path =
     (parentPath ? parentPath + '/' : '') +
-    (parallelRouteKey !== 'children' && !segment.startsWith('@') ? `@${parallelRouteKey}/` : '') +
+    (parallelRouteKey !== 'children' && !segment.startsWith('@')
+      ? `@${parallelRouteKey}/`
+      : '') +
     (segment === '' ? 'page' : segment)
 
   // Last segment
@@ -150,11 +155,17 @@ function getEntrypointsFromTree(
     return [treePathToEntrypoint(currentPath.slice(1))]
   }
 
-  return Object.keys(parallelRoutes).reduce((paths: string[], key: string): string[] => {
-    const childTree = parallelRoutes[key]
-    const childPages = getEntrypointsFromTree(childTree, false, [...currentPath, key])
-    return [...paths, ...childPages]
-  }, [])
+  return Object.keys(parallelRoutes).reduce(
+    (paths: string[], key: string): string[] => {
+      const childTree = parallelRoutes[key]
+      const childPages = getEntrypointsFromTree(childTree, false, [
+        ...currentPath,
+        key,
+      ])
+      return [...paths, ...childPages]
+    },
+    []
+  )
 }
 
 export const ADDED = Symbol('added')
@@ -233,7 +244,9 @@ const entriesMap: Map<
 // remove /server from end of output for server compiler
 const normalizeOutputPath = (dir: string) => dir.replace(/[/\\]server$/, '')
 
-export const getEntries = (dir: string): NonNullable<ReturnType<(typeof entriesMap)['get']>> => {
+export const getEntries = (
+  dir: string
+): NonNullable<ReturnType<(typeof entriesMap)['get']>> => {
   dir = normalizeOutputPath(dir)
   const entries = entriesMap.get(dir) || {}
   entriesMap.set(dir, entries)
@@ -327,7 +340,10 @@ function disposeInactiveEntries(
 
     // For the root middleware and the instrumentation hook files,
     // we don't dispose them periodically as it's needed for every request.
-    if (isMiddlewareFilename(bundlePath) || isInstrumentationHookFilename(bundlePath)) {
+    if (
+      isMiddlewareFilename(bundlePath) ||
+      isInstrumentationHookFilename(bundlePath)
+    ) {
       return
     }
 
@@ -394,7 +410,12 @@ export async function findPagePathData(
 
   const isInstrumentation = isInstrumentationHookFile(normalizedPagePath)
   if (isMiddlewareFile(normalizedPagePath) || isInstrumentation) {
-    pagePath = await findPageFile(rootDir, normalizedPagePath, extensions, false)
+    pagePath = await findPageFile(
+      rootDir,
+      normalizedPagePath,
+      extensions,
+      false
+    )
 
     if (!pagePath) {
       throw new PageNotFoundError(normalizedPagePath)
@@ -427,7 +448,12 @@ export async function findPagePathData(
       // Load `global-not-found` when global-not-found is enabled.
       // Prefer to load it when both `global-not-found` and root `not-found` present.
       if (isGlobalNotFoundEnabled) {
-        const globalNotFoundPath = await findPageFile(appDir, 'global-not-found', extensions, true)
+        const globalNotFoundPath = await findPageFile(
+          appDir,
+          'global-not-found',
+          extensions,
+          true
+        )
         if (globalNotFoundPath) {
           return {
             filename: join(appDir, globalNotFoundPath),
@@ -437,7 +463,12 @@ export async function findPagePathData(
         }
       } else {
         // Then if global-not-found.js doesn't exist then load not-found.js
-        const notFoundPath = await findPageFile(appDir, 'not-found', extensions, true)
+        const notFoundPath = await findPageFile(
+          appDir,
+          'not-found',
+          extensions,
+          true
+        )
         if (notFoundPath) {
           return {
             filename: join(appDir, notFoundPath),
@@ -449,7 +480,9 @@ export async function findPagePathData(
 
       // If they're not presented, then fallback to global-not-found
       return {
-        filename: require.resolve('next/dist/client/components/builtin/global-not-found'),
+        filename: require.resolve(
+          'next/dist/client/components/builtin/global-not-found'
+        ),
         bundlePath: `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}`,
         page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
       }
@@ -472,7 +505,12 @@ export async function findPagePathData(
   }
 
   if (!pagePath && pagesDir) {
-    pagePath = await findPageFile(pagesDir, normalizedPagePath, extensions, false)
+    pagePath = await findPageFile(
+      pagesDir,
+      normalizedPagePath,
+      extensions,
+      false
+    )
   }
 
   if (pagePath !== null && pagesDir) {
@@ -520,7 +558,9 @@ export function onDemandEntryHandler({
   appDir?: string
 }) {
   const hasAppDir = !!appDir
-  let curInvalidator: Invalidator = getInvalidator(multiCompiler.outputPath) as any
+  let curInvalidator: Invalidator = getInvalidator(
+    multiCompiler.outputPath
+  ) as any
   const curEntries = getEntries(multiCompiler.outputPath) as any
 
   if (!curInvalidator) {
@@ -553,7 +593,9 @@ export function onDemandEntryHandler({
         isMiddlewareFilename(entrypoint.name) ||
         isInstrumentationHookFilename(entrypoint.name)
       ) {
-        pagePaths.push(getEntryKey(type, PAGE_TYPES.ROOT, `/${entrypoint.name}`))
+        pagePaths.push(
+          getEntryKey(type, PAGE_TYPES.ROOT, `/${entrypoint.name}`)
+        )
       }
     }
     return pagePaths
@@ -570,8 +612,14 @@ export function onDemandEntryHandler({
   multiCompiler.hooks.done.tap('NextJsOnDemandEntries', (multiStats) => {
     const [clientStats, serverStats, edgeServerStats] = multiStats.stats
     const entryNames = [
-      ...getPagePathsFromEntrypoints(COMPILER_NAMES.client, clientStats.compilation.entrypoints),
-      ...getPagePathsFromEntrypoints(COMPILER_NAMES.server, serverStats.compilation.entrypoints),
+      ...getPagePathsFromEntrypoints(
+        COMPILER_NAMES.client,
+        clientStats.compilation.entrypoints
+      ),
+      ...getPagePathsFromEntrypoints(
+        COMPILER_NAMES.server,
+        serverStats.compilation.entrypoints
+      ),
       ...(edgeServerStats
         ? getPagePathsFromEntrypoints(
             COMPILER_NAMES.edgeServer,
@@ -784,7 +832,8 @@ export function onDemandEntryHandler({
       })
 
       const added = new Map<CompilerNameValues, ReturnType<typeof addEntry>>()
-      const isServerComponent = isInsideAppDir && staticInfo.rsc !== RSC_MODULE_TYPES.client
+      const isServerComponent =
+        isInsideAppDir && staticInfo.rsc !== RSC_MODULE_TYPES.client
 
       let pageRuntime = staticInfo.runtime
 
@@ -801,16 +850,33 @@ export function onDemandEntryHandler({
         },
         onServer: () => {
           added.set(COMPILER_NAMES.server, addEntry(COMPILER_NAMES.server))
-          const edgeServerEntry = getEntryKey(COMPILER_NAMES.edgeServer, pageBundleType, route.page)
-          if (curEntries[edgeServerEntry] && !isInstrumentationHookFile(route.page)) {
+          const edgeServerEntry = getEntryKey(
+            COMPILER_NAMES.edgeServer,
+            pageBundleType,
+            route.page
+          )
+          if (
+            curEntries[edgeServerEntry] &&
+            !isInstrumentationHookFile(route.page)
+          ) {
             // Runtime switched from edge to server
             delete curEntries[edgeServerEntry]
           }
         },
         onEdgeServer: () => {
-          added.set(COMPILER_NAMES.edgeServer, addEntry(COMPILER_NAMES.edgeServer))
-          const serverEntry = getEntryKey(COMPILER_NAMES.server, pageBundleType, route.page)
-          if (curEntries[serverEntry] && !isInstrumentationHookFile(route.page)) {
+          added.set(
+            COMPILER_NAMES.edgeServer,
+            addEntry(COMPILER_NAMES.edgeServer)
+          )
+          const serverEntry = getEntryKey(
+            COMPILER_NAMES.server,
+            pageBundleType,
+            route.page
+          )
+          if (
+            curEntries[serverEntry] &&
+            !isInstrumentationHookFile(route.page)
+          ) {
             // Runtime switched from server to edge
             delete curEntries[serverEntry]
           }
@@ -826,7 +892,10 @@ export function onDemandEntryHandler({
       if (hasNewEntry) {
         const routePage = isApp ? route.page : normalizeAppPath(route.page)
         // If proxy file, remove the leading slash from "/proxy" to "proxy".
-        reportTrigger(isMiddlewareFile(routePage) ? routePage.slice(1) : routePage, url)
+        reportTrigger(
+          isMiddlewareFile(routePage) ? routePage.slice(1) : routePage,
+          url
+        )
       }
 
       if (entriesThatShouldBeInvalidated.length > 0) {
@@ -888,7 +957,13 @@ export function onDemandEntryHandler({
   })
 
   return {
-    async ensurePage({ page, appPaths = null, definition, isApp, url }: EnsurePageOptions) {
+    async ensurePage({
+      page,
+      appPaths = null,
+      definition,
+      isApp,
+      url,
+    }: EnsurePageOptions) {
       // If the route is actually an app page route, then we should have access
       // to the app route definition, and therefore, the appPaths from it.
       if (!appPaths && definition && isAppPageRouteDefinition(definition)) {
@@ -927,7 +1002,9 @@ export function onDemandEntryHandler({
             bufferedHmrServerError = null
           }
 
-          const parsedData = JSON.parse(typeof data !== 'string' ? data.toString() : data)
+          const parsedData = JSON.parse(
+            typeof data !== 'string' ? data.toString() : data
+          )
 
           if (parsedData.event === HMR_MESSAGE_SENT_TO_SERVER.PING) {
             if (parsedData.appDirRoute) {
@@ -935,9 +1012,19 @@ export function onDemandEntryHandler({
             } else {
               handlePing(parsedData.page)
             }
-          } else if (parsedData.event === HMR_MESSAGE_SENT_TO_SERVER.MCP_ERROR_STATE_RESPONSE) {
-            handleErrorStateResponse(parsedData.requestId, parsedData.errorState, parsedData.url)
-          } else if (parsedData.event === HMR_MESSAGE_SENT_TO_SERVER.MCP_PAGE_METADATA_RESPONSE) {
+          } else if (
+            parsedData.event ===
+            HMR_MESSAGE_SENT_TO_SERVER.MCP_ERROR_STATE_RESPONSE
+          ) {
+            handleErrorStateResponse(
+              parsedData.requestId,
+              parsedData.errorState,
+              parsedData.url
+            )
+          } else if (
+            parsedData.event ===
+            HMR_MESSAGE_SENT_TO_SERVER.MCP_PAGE_METADATA_RESPONSE
+          ) {
             handlePageMetadataResponse(
               parsedData.requestId,
               parsedData.segmentTrieData,

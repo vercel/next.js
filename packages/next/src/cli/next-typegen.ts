@@ -38,7 +38,10 @@ export type NextTypegenOptions = {
   dir?: string
 }
 
-const nextTypegen = async (_options: NextTypegenOptions, directory?: string) => {
+const nextTypegen = async (
+  _options: NextTypegenOptions,
+  directory?: string
+) => {
   const baseDir = getProjectDir(directory)
 
   // Check if the provided directory exists
@@ -98,9 +101,14 @@ const nextTypegen = async (_options: NextTypegenOptions, directory?: string) => 
       appDirOnly: !!appDir && !pagesDir,
     })
 
-  const validFileMatcher = createValidFileMatcher(nextConfig.pageExtensions, appDir)
+  const validFileMatcher = createValidFileMatcher(
+    nextConfig.pageExtensions,
+    appDir
+  )
 
-  const isSrcDir = path.relative(baseDir, pagesDir || appDir || '').startsWith('src')
+  const isSrcDir = path
+    .relative(baseDir, pagesDir || appDir || '')
+    .startsWith('src')
 
   // Build pages routes
   if (pagesDir) {
@@ -117,7 +125,10 @@ const nextTypegen = async (_options: NextTypegenOptions, directory?: string) => 
   // Build app routes
   if (appDir) {
     // Collect app pages, layouts, and default files in a single directory traversal
-    const { appPaths, layoutPaths, defaultPaths } = await collectAppFiles(appDir, validFileMatcher)
+    const { appPaths, layoutPaths, defaultPaths } = await collectAppFiles(
+      appDir,
+      validFileMatcher
+    )
 
     mappedAppPages = await createMapping(appPaths, PAGE_TYPES.APP)
     mappedAppLayouts = await createMapping(layoutPaths, PAGE_TYPES.APP)
@@ -130,7 +141,12 @@ const nextTypegen = async (_options: NextTypegenOptions, directory?: string) => 
     // Combine slots and deduplicate using Set
     slots = combineSlots(slotsFromPages, slotsFromDefaults)
 
-    const result = processAppRoutes(mappedAppPages, validFileMatcher, baseDir, isSrcDir)
+    const result = processAppRoutes(
+      mappedAppPages,
+      validFileMatcher,
+      baseDir,
+      isSrcDir
+    )
     appRoutes = result.appRoutes
     appRouteHandlers = result.appRouteHandlers
 
@@ -151,9 +167,17 @@ const nextTypegen = async (_options: NextTypegenOptions, directory?: string) => 
     validatorFilePath,
   })
 
-  await writeRouteTypesManifest(routeTypesManifest, routeTypesFilePath, nextConfig)
+  await writeRouteTypesManifest(
+    routeTypesManifest,
+    routeTypesFilePath,
+    nextConfig
+  )
 
-  await writeValidatorFile(routeTypesManifest, validatorFilePath, strictRouteTypes)
+  await writeValidatorFile(
+    routeTypesManifest,
+    validatorFilePath,
+    strictRouteTypes
+  )
 
   // Generate cache-life types if cacheLife config exists
   const cacheLifeFilePath = join(distDir, 'types', 'cache-life.d.ts')

@@ -238,18 +238,24 @@ function runTests({ dev }) {
         await browser.url()
       )
       expect(parsedHref.pathname).toBe(pathname)
-      expect(Object.fromEntries(parsedHref.searchParams.entries())).toEqual(query)
+      expect(Object.fromEntries(parsedHref.searchParams.entries())).toEqual(
+        query
+      )
       expect(parsedHref.hash || '').toBe(hash)
 
       await browser.eval('window.beforeNav = 1')
       await browser.elementByCss(`#${id}`).click()
       await check(() => browser.eval('window.location.pathname'), pathname)
 
-      expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual(navQuery)
+      expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual(
+        navQuery
+      )
       expect(await browser.eval('window.location.pathname')).toBe(pathname)
       expect(await browser.eval('window.location.hash')).toBe(hash)
       expect(
-        Object.fromEntries(new URLSearchParams(await browser.eval('window.location.search')))
+        Object.fromEntries(
+          new URLSearchParams(await browser.eval('window.location.search'))
+        )
       ).toEqual(query)
       expect(await browser.eval('window.beforeNav')).toBe(1)
     }
@@ -258,7 +264,9 @@ function runTests({ dev }) {
   it('should handle only hash on dynamic route', async () => {
     const browser = await webdriver(appPort, '/post-1')
     const parsedHref = new URL(
-      await browser.elementByCss('#dynamic-route-only-hash').getAttribute('href'),
+      await browser
+        .elementByCss('#dynamic-route-only-hash')
+        .getAttribute('href'),
       await browser.url()
     )
     expect(parsedHref.pathname).toBe('/post-1')
@@ -266,7 +274,9 @@ function runTests({ dev }) {
     expect(Object.fromEntries(parsedHref.searchParams.entries())).toEqual({})
 
     const parsedHref2 = new URL(
-      await browser.elementByCss('#dynamic-route-only-hash-obj').getAttribute('href'),
+      await browser
+        .elementByCss('#dynamic-route-only-hash-obj')
+        .getAttribute('href'),
       await browser.url()
     )
     expect(parsedHref2.pathname).toBe('/post-1')
@@ -286,7 +296,10 @@ function runTests({ dev }) {
     const browser = await webdriver(appPort, '/')
     await browser.eval('window.beforeNav = 1')
 
-    await browser.elementByCss('#view-post-1-hash-1').click().waitForElementByCss('#asdf')
+    await browser
+      .elementByCss('#view-post-1-hash-1')
+      .click()
+      .waitForElementByCss('#asdf')
 
     expect(await browser.eval('window.beforeNav')).toBe(1)
     expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
@@ -527,7 +540,9 @@ function runTests({ dev }) {
       browser = await webdriver(appPort, '/')
       await browser.eval('window.beforeNav = 1')
 
-      const href = await browser.elementByCss('#view-post-1-interpolated').getAttribute('href')
+      const href = await browser
+        .elementByCss('#view-post-1-interpolated')
+        .getAttribute('href')
 
       const parsedHref = new URL(href, await browser.url())
       expect(parsedHref.pathname).toBe('/post-1')
@@ -659,7 +674,9 @@ function runTests({ dev }) {
         .elementByCss('#view-post-1-comment-1-interpolated')
         .getAttribute('href')
 
-      expect(new URL(href, await browser.url()).pathname).toBe('/post-1/comment-1')
+      expect(new URL(href, await browser.url()).pathname).toBe(
+        '/post-1/comment-1'
+      )
 
       await browser.elementByCss('#view-post-1-comment-1-interpolated').click()
       await browser.waitForElementByCss('#asdf')
@@ -684,7 +701,9 @@ function runTests({ dev }) {
       browser = await webdriver(appPort, '/')
 
       await browser.elementByCss('#view-post-1-comment-1').click()
-      const text = await browser.elementByCss('[data-testid="gip-query"]').text()
+      const text = await browser
+        .elementByCss('[data-testid="gip-query"]')
+        .text()
 
       expect(text).toMatch(/gip.*post-1/i)
     } finally {
@@ -791,7 +810,10 @@ function runTests({ dev }) {
   })
 
   it('[ssg: catch all] should pass param in getStaticProps during SSR', async () => {
-    const data = await renderViaHTTP(appPort, `/_next/data/${buildId}/p1/p2/all-ssg/test1.json`)
+    const data = await renderViaHTTP(
+      appPort,
+      `/_next/data/${buildId}/p1/p2/all-ssg/test1.json`
+    )
     expect(JSON.parse(data).pageProps.params).toEqual({ rest: ['test1'] })
   })
 
@@ -886,7 +908,9 @@ function runTests({ dev }) {
         .elementByCss('#ssg-catch-all-single-interpolated')
         .getAttribute('href')
 
-      expect(new URL(href, await browser.url()).pathname).toBe('/p1/p2/all-ssg/hello')
+      expect(new URL(href, await browser.url()).pathname).toBe(
+        '/p1/p2/all-ssg/hello'
+      )
 
       await browser.elementByCss('#ssg-catch-all-single-interpolated').click()
       await browser.waitForElementByCss('#all-ssg-content')
@@ -944,7 +968,9 @@ function runTests({ dev }) {
         .elementByCss('#ssg-catch-all-multi-interpolated')
         .getAttribute('href')
 
-      expect(new URL(href, await browser.url()).pathname).toBe('/p1/p2/all-ssg/hello1/hello2')
+      expect(new URL(href, await browser.url()).pathname).toBe(
+        '/p1/p2/all-ssg/hello1/hello2'
+      )
 
       await browser.elementByCss('#ssg-catch-all-multi-interpolated').click()
       await browser.waitForElementByCss('#all-ssg-content')
@@ -991,7 +1017,10 @@ function runTests({ dev }) {
     expect(html).toMatch(/onmpost:.*pending/)
 
     const browser = await webdriver(appPort, '/on-mount/post-1')
-    await check(() => browser.eval(`document.body.innerHTML`), /onmpost:.*post-1/)
+    await check(
+      () => browser.eval(`document.body.innerHTML`),
+      /onmpost:.*post-1/
+    )
   })
 
   it('should not have placeholder query values for SSS', async () => {
@@ -1001,13 +1030,19 @@ function runTests({ dev }) {
 
   it('should update with a hash in the URL', async () => {
     const browser = await webdriver(appPort, '/on-mount/post-1#abc')
-    await check(() => browser.eval(`document.body.innerHTML`), /onmpost:.*post-1/)
+    await check(
+      () => browser.eval(`document.body.innerHTML`),
+      /onmpost:.*post-1/
+    )
   })
 
   it('should scroll to a hash on mount', async () => {
     const browser = await webdriver(appPort, '/on-mount/post-1#item-400')
 
-    await check(() => browser.eval(`document.body.innerHTML`), /onmpost:.*post-1/)
+    await check(
+      () => browser.eval(`document.body.innerHTML`),
+      /onmpost:.*post-1/
+    )
 
     const elementPosition = await browser.eval(
       `document.querySelector("#item-400").getBoundingClientRect().y`
@@ -1173,7 +1208,9 @@ function runTests({ dev }) {
     if (!process.env.__MIDDLEWARE_TEST) {
       it('should show error when interpolating fails for href', async () => {
         const browser = await webdriver(appPort, '/')
-        await browser.elementByCss('#view-post-1-interpolated-incorrectly').click()
+        await browser
+          .elementByCss('#view-post-1-interpolated-incorrectly')
+          .click()
         await waitForRedbox(browser)
         const header = await getRedboxHeader(browser)
         expect(header).toContain(
@@ -1204,7 +1241,9 @@ function runTests({ dev }) {
     })
   } else {
     it('should output a routes-manifest correctly', async () => {
-      const manifest = await fs.readJson(join(appDir, '.next/routes-manifest.json'))
+      const manifest = await fs.readJson(
+        join(appDir, '.next/routes-manifest.json')
+      )
 
       for (const route of manifest.dynamicRoutes) {
         route.regex = normalizeRegEx(route.regex)
@@ -1223,7 +1262,8 @@ function runTests({ dev }) {
       }
 
       // Parse the manifest string back into an object.
-      expect(normalizeManifest(manifest, [[buildId, 'BUILD_ID']])).toMatchInlineSnapshot(`
+      expect(normalizeManifest(manifest, [[buildId, 'BUILD_ID']]))
+        .toMatchInlineSnapshot(`
        {
          "appType": "pages",
          "basePath": "",
@@ -1476,7 +1516,9 @@ function runTests({ dev }) {
     })
 
     it('should output a pages-manifest correctly', async () => {
-      const manifest = await fs.readJson(join(appDir, '.next/server/pages-manifest.json'))
+      const manifest = await fs.readJson(
+        join(appDir, '.next/server/pages-manifest.json')
+      )
 
       if (process.env.IS_TURBOPACK_TEST) {
         expect(manifest).toMatchInlineSnapshot(`
@@ -1559,30 +1601,36 @@ describe('Dynamic Routing', () => {
     afterAll(() => fs.remove(middlewarePath))
   }
 
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
-    beforeAll(async () => {
-      await fs.remove(nextConfig)
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        await fs.remove(nextConfig)
 
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-      buildId = 'development'
-    })
-    afterAll(() => killApp(app))
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+        buildId = 'development'
+      })
+      afterAll(() => killApp(app))
 
-    runTests({ dev: true })
-  })
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await fs.remove(nextConfig)
+      runTests({ dev: true })
+    }
+  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await fs.remove(nextConfig)
 
-      await nextBuild(appDir)
-      buildId = await fs.readFile(buildIdPath, 'utf8')
+        await nextBuild(appDir)
+        buildId = await fs.readFile(buildIdPath, 'utf8')
 
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-    runTests({ dev: false })
-  })
+      runTests({ dev: false })
+    }
+  )
 })

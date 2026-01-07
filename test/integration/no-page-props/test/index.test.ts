@@ -2,7 +2,13 @@
 
 import { join } from 'path'
 import webdriver from 'next-webdriver'
-import { nextBuild, nextStart, findPort, killApp, launchApp } from 'next-test-utils'
+import {
+  nextBuild,
+  nextStart,
+  findPort,
+  killApp,
+  launchApp,
+} from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
 let app
@@ -23,7 +29,9 @@ const runTests = () => {
 
   it('should load getServerSideProps page correctly', async () => {
     const browser = await webdriver(appPort, '/gssp')
-    expect(await browser.elementByCss('#gssp').text()).toBe('getServerSideProps')
+    expect(await browser.elementByCss('#gssp').text()).toBe(
+      'getServerSideProps'
+    )
     expect(await browser.eval('window.uncaughtErrors')).toEqual([])
   })
 
@@ -52,7 +60,9 @@ const runTests = () => {
     await browser.elementByCss('#to-gssp').click()
     await browser.waitForElementByCss('#gssp')
 
-    expect(await browser.elementByCss('#gssp').text()).toBe('getServerSideProps')
+    expect(await browser.elementByCss('#gssp').text()).toBe(
+      'getServerSideProps'
+    )
     expect(await browser.eval('window.beforeNav')).toBe('hi')
 
     await browser.back()
@@ -70,23 +80,29 @@ const runTests = () => {
 }
 
 describe('Error no pageProps', () => {
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-    runTests()
-  })
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+      runTests()
+    }
+  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-    runTests()
-  })
+      runTests()
+    }
+  )
 })

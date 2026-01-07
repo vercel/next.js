@@ -85,7 +85,9 @@ async function collectResults(manifestFile) {
       }
     }
 
-    const testRun = `${process.env.GITHUB_SHA}\t${timestamp}\t${passCount}/${passCount + failCount}`
+    const testRun = `${process.env.GITHUB_SHA}\t${timestamp}\t${passCount}/${
+      passCount + failCount
+    }`
     return { testRun, passingTests, failingTests }
   } else {
     for (const [testFileName, result] of Object.entries(results)) {
@@ -124,15 +126,24 @@ async function collectResults(manifestFile) {
         failingTests += `\n`
       }
     }
-    const testRun = `${process.env.GITHUB_SHA}\t${timestamp}\t${passCount}/${passCount + failCount}`
+    const testRun = `${process.env.GITHUB_SHA}\t${timestamp}\t${passCount}/${
+      passCount + failCount
+    }`
 
     return { testRun, passingTests, failingTests }
   }
 }
 
-async function collectAndUpload(kv, { jsonPrefix, kvPrefix, deploymentDomain }) {
-  const developmentResult = await collectResults(`test/${jsonPrefix}dev-tests-manifest.json`)
-  const productionResult = await collectResults(`test/${jsonPrefix}build-tests-manifest.json`)
+async function collectAndUpload(
+  kv,
+  { jsonPrefix, kvPrefix, deploymentDomain }
+) {
+  const developmentResult = await collectResults(
+    `test/${jsonPrefix}dev-tests-manifest.json`
+  )
+  const productionResult = await collectResults(
+    `test/${jsonPrefix}build-tests-manifest.json`
+  )
   const developmentExamplesResult = await collectExamplesResult(
     `test/${jsonPrefix}dev-examples-manifest.json`
   )
@@ -152,11 +163,17 @@ async function collectAndUpload(kv, { jsonPrefix, kvPrefix, deploymentDomain }) 
   console.log('SUCCESSFULLY SAVED RUNS')
 
   await kv.set(`${kvPrefix}passing-tests`, developmentResult.passingTests)
-  await kv.set(`${kvPrefix}passing-tests-production`, productionResult.passingTests)
+  await kv.set(
+    `${kvPrefix}passing-tests-production`,
+    productionResult.passingTests
+  )
   console.log('SUCCESSFULLY SAVED PASSING')
 
   await kv.set(`${kvPrefix}failing-tests`, developmentResult.failingTests)
-  await kv.set(`${kvPrefix}failing-tests-production`, productionResult.failingTests)
+  await kv.set(
+    `${kvPrefix}failing-tests-production`,
+    productionResult.failingTests
+  )
   console.log('SUCCESSFULLY SAVED FAILING')
 
   await kv.set(`${kvPrefix}examples-data`, developmentExamplesResult.data)
@@ -169,13 +186,16 @@ async function collectAndUpload(kv, { jsonPrefix, kvPrefix, deploymentDomain }) 
     // https://upstash.com/docs/redis/features/consistency
     await new Promise((resolve) => setTimeout(resolve, 2000))
     try {
-      const response = await fetch(`https://${deploymentDomain}/api/revalidate`, {
-        method: 'POST',
-        headers: {
-          'X-Auth-Token': process.env.TURBOYET_TOKEN,
-          'Content-Type': 'application/json',
-        },
-      })
+      const response = await fetch(
+        `https://${deploymentDomain}/api/revalidate`,
+        {
+          method: 'POST',
+          headers: {
+            'X-Auth-Token': process.env.TURBOYET_TOKEN,
+            'Content-Type': 'application/json',
+          },
+        }
+      )
       const responseJson = await response.json()
       if (!responseJson.revalidated) {
         throw new Error(responseJson.error)

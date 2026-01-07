@@ -57,7 +57,10 @@ export const CallStackFrame: React.FC<{
           </button>
         ) : null}
       </div>
-      <span className="call-stack-frame-file-source" data-has-source={hasSource}>
+      <span
+        className="call-stack-frame-file-source"
+        data-has-source={hasSource}
+      >
         {fileSource}
       </span>
     </div>

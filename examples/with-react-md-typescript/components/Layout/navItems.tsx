@@ -1,5 +1,10 @@
 import React, { ReactNode } from "react";
-import { LayoutNavigationTree, LayoutNavigationItem, HomeSVGIcon, TvSVGIcon } from "react-md";
+import {
+  LayoutNavigationTree,
+  LayoutNavigationItem,
+  HomeSVGIcon,
+  TvSVGIcon,
+} from "react-md";
 
 /**
  * Note: The `parentId` **must** be defaulted to `null` for the navigation tree

@@ -10,32 +10,35 @@ let app: Awaited<ReturnType<typeof launchApp>>
 let output = ''
 
 describe('Image is intercepted by Middleware', () => {
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort, {
-        onStdout: (s) => {
-          output += s
-        },
-        onStderr: (s) => {
-          output += s
-        },
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort, {
+          onStdout: (s) => {
+            output += s
+          },
+          onStderr: (s) => {
+            output += s
+          },
+        })
       })
-    })
-    afterAll(async () => {
-      await killApp(app)
-    })
-
-    it('should find log from _next/image intercept', async () => {
-      const browser = await webdriver(appPort, '/')
-
-      await browser.waitForIdleNetwork()
-
-      await retry(async () => {
-        expect(output).toContain('GET /')
+      afterAll(async () => {
+        await killApp(app)
       })
 
-      expect(output).toContain(`x-_next-image: /small.jpg`)
-    })
-  })
+      it('should find log from _next/image intercept', async () => {
+        const browser = await webdriver(appPort, '/')
+
+        await browser.waitForIdleNetwork()
+
+        await retry(async () => {
+          expect(output).toContain('GET /')
+        })
+
+        expect(output).toContain(`x-_next-image: /small.jpg`)
+      })
+    }
+  )
 })

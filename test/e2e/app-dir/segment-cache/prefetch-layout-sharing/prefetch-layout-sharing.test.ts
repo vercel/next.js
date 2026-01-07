@@ -446,7 +446,9 @@ describe('layout sharing in non-static prefetches', () => {
 
     // Navigate to page one. It should have been completely prefetched by the runtime prefetch.
     await act(async () => {
-      await browser.elementByCss(`a[href="/runtime-prefetchable-layout/one"]`).click()
+      await browser
+        .elementByCss(`a[href="/runtime-prefetchable-layout/one"]`)
+        .click()
     }, 'no-requests')
 
     await browser.back()
@@ -471,7 +473,9 @@ describe('layout sharing in non-static prefetches', () => {
 
     // Navigate to page two. We have everything in the cache, so we shouldn't issue any new requests
     await act(async () => {
-      await browser.elementByCss(`a[href="/runtime-prefetchable-layout/two"]`).click()
+      await browser
+        .elementByCss(`a[href="/runtime-prefetchable-layout/two"]`)
+        .click()
     }, 'no-requests')
 
     // After navigating, we should see both the parts that we prefetched and dynamic content.
@@ -523,7 +527,9 @@ describe('layout sharing in non-static prefetches', () => {
 
     // Navigate to page one. It should have been completely prefetched by the runtime prefetch.
     await act(async () => {
-      await browser.elementByCss(`a[href="/runtime-prefetchable-layout/one"]`).click()
+      await browser
+        .elementByCss(`a[href="/runtime-prefetchable-layout/one"]`)
+        .click()
     }, 'no-requests')
 
     await browser.back()
@@ -546,7 +552,9 @@ describe('layout sharing in non-static prefetches', () => {
 
     // Navigate to page two. We need to request the page segment dynamically, but the shared layout should be cached.
     await act(async () => {
-      await browser.elementByCss(`a[href="/runtime-prefetchable-layout/two"]`).click()
+      await browser
+        .elementByCss(`a[href="/runtime-prefetchable-layout/two"]`)
+        .click()
     }, [
       // Should not fetch the shared layout, because we already got a complete result for it.
       {
@@ -599,7 +607,9 @@ describe('layout sharing in non-static prefetches', () => {
       // but we'll currently automatically include it in the runtime prefetch request
       // that we're doing because of the layout's config.
       await act(async () => {
-        await browser.elementByCss(`a[href="/segment-config/runtime-prefetchable"]`).click()
+        await browser
+          .elementByCss(`a[href="/segment-config/runtime-prefetchable"]`)
+          .click()
       }, 'no-requests')
     }
 
@@ -669,11 +679,15 @@ describe('layout sharing in non-static prefetches', () => {
       // The page segment is fully static, so we shouldn't need any extra requests to navigate to it.
       await act(async () => {
         await browser
-          .elementByCss(`a[href="/segment-config/runtime-prefetchable/fully-static"]`)
+          .elementByCss(
+            `a[href="/segment-config/runtime-prefetchable/fully-static"]`
+          )
           .click()
       }, 'no-requests')
 
-      expect(await (await browser.elementById('static-content-page')).isVisible()).toBeTrue()
+      expect(
+        await (await browser.elementById('static-content-page')).isVisible()
+      ).toBeTrue()
     })
 
     it('uses a runtime prefetch for sub-pages of runtime-prefetchable layouts if requested', async () => {
@@ -724,29 +738,43 @@ describe('layout sharing in non-static prefetches', () => {
         // We should be able to display what we've prefetched before the navigation request resolves.
         await act(async () => {
           await browser
-            .elementByCss(`a[href="/segment-config/runtime-prefetchable/configured-as-runtime"]`)
+            .elementByCss(
+              `a[href="/segment-config/runtime-prefetchable/configured-as-runtime"]`
+            )
             .click()
         }, 'block')
 
         // The sub-layout should show static content, but not runtime-prefetchable content.
         expect(
-          await (await browser.elementById('static-content-sub-layout')).isVisible()
+          await (
+            await browser.elementById('static-content-sub-layout')
+          ).isVisible()
         ).toBeTrue()
         expect(
-          await (await browser.elementById('runtime-prefetchable-fallback-sub-layout')).isVisible()
+          await (
+            await browser.elementById(
+              'runtime-prefetchable-fallback-sub-layout'
+            )
+          ).isVisible()
         ).toBeTrue()
 
         // The sub-page should show static/runtime-prefetchable content.
-        expect(await (await browser.elementById('static-content-page')).isVisible()).toBeTrue()
         expect(
-          await (await browser.elementById('runtime-prefetchable-content-page')).isVisible()
+          await (await browser.elementById('static-content-page')).isVisible()
+        ).toBeTrue()
+        expect(
+          await (
+            await browser.elementById('runtime-prefetchable-content-page')
+          ).isVisible()
         ).toBeTrue()
       })
 
       // After the navigation, we should see the content that wasn't prefetched.
       // (because the sub-layout was configured as static)
       expect(
-        await (await browser.elementById('runtime-prefetchable-content-sub-layout')).isVisible()
+        await (
+          await browser.elementById('runtime-prefetchable-content-sub-layout')
+        ).isVisible()
       ).toBeTrue()
     })
   })

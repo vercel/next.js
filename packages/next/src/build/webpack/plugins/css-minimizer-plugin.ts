@@ -64,8 +64,11 @@ export class CssMinimizerPlugin {
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_SIZE,
         },
         async (assets: any) => {
-          const compilationSpan = getCompilationSpan(compilation) || getCompilationSpan(compiler)
-          const cssMinimizerSpan = compilationSpan!.traceChild('css-minimizer-plugin')
+          const compilationSpan =
+            getCompilationSpan(compilation) || getCompilationSpan(compiler)
+          const cssMinimizerSpan = compilationSpan!.traceChild(
+            'css-minimizer-plugin'
+          )
 
           return cssMinimizerSpan.traceAsyncFn(async () => {
             const files = Object.keys(assets)
@@ -81,7 +84,10 @@ export class CssMinimizerPlugin {
                     const etag = cache.getLazyHashedEtag(assetSource)
                     const cachedResult = await cache.getPromise(file, etag)
 
-                    assetSpan.setAttribute('cache', cachedResult ? 'HIT' : 'MISS')
+                    assetSpan.setAttribute(
+                      'cache',
+                      cachedResult ? 'HIT' : 'MISS'
+                    )
                     if (cachedResult) {
                       compilation.updateAsset(file, cachedResult)
                       return

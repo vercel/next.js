@@ -43,7 +43,9 @@ describe('Error overlay for hydration errors in Pages router', () => {
             ? // React 18 has no link in the hydration message
               expect.stringContaining('Warning: Text content did not match.')
             : // TODO: Should probably link to https://nextjs.org/docs/messages/react-hydration-error instead.
-              expect.stringContaining('https://react.dev/link/hydration-mismatch'),
+              expect.stringContaining(
+                'https://react.dev/link/hydration-mismatch'
+              ),
           source: 'error',
         },
       ])
@@ -767,7 +769,9 @@ describe('Error overlay for hydration errors in Pages router', () => {
       .map((x) => x.message)
       .join('\n')
 
-    expect(errors).not.toInclude('Warning: Prop `%s` did not match. Server: %s Client: %s')
+    expect(errors).not.toInclude(
+      'Warning: Prop `%s` did not match. Server: %s Client: %s'
+    )
   })
 
   it('should only show one hydration error when bad nesting happened - p under p', async () => {

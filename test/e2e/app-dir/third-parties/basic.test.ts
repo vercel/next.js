@@ -22,7 +22,9 @@ describe('@next/third-parties basic usage', () => {
 
     const baseContainer = $('[data-ntpc="GoogleMapsEmbed"]')
 
-    const mapContainer = $('[src^="https://www.google.com/maps/embed/v1/place?key=XYZ"]')
+    const mapContainer = $(
+      '[src^="https://www.google.com/maps/embed/v1/place?key=XYZ"]'
+    )
     expect(baseContainer.length).toBe(1)
     expect(mapContainer.length).toBe(1)
   })
@@ -32,7 +34,9 @@ describe('@next/third-parties basic usage', () => {
 
     await browser.waitForElementByCss('script#_next-gtm')
     await browser.elementByCss('script#_next-gtm-init')
-    await browser.elementByCss('script[src^="https://www.googletagmanager.com/gtm.js?id=GTM-XYZ"]')
+    await browser.elementByCss(
+      'script[src^="https://www.googletagmanager.com/gtm.js?id=GTM-XYZ"]'
+    )
 
     const dataLayer = await browser.eval('window.dataLayer')
     expect(dataLayer.length).toBe(1)
@@ -48,7 +52,9 @@ describe('@next/third-parties basic usage', () => {
 
     await browser.waitForElementByCss('script#_next-ga')
     await browser.elementByCss('script#_next-ga-init')
-    await browser.elementByCss('script[src^="https://www.googletagmanager.com/gtag/js?id=GA-XYZ"]')
+    await browser.elementByCss(
+      'script[src^="https://www.googletagmanager.com/gtag/js?id=GA-XYZ"]'
+    )
 
     const dataLayer = await browser.eval('window.dataLayer')
     expect(dataLayer.length).toBe(4)

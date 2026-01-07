@@ -7,17 +7,20 @@
  * @returns {Promise} - A promise that resolves to the result of the query
  */
 async function fetchAPI(query, { variables } = { variables: null }) {
-  const res = await fetch(process.env.NEXT_PUBLIC_DOTCMS_HOST + "/api/v1/graphql", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.DOTCMS_TOKEN}`,
+  const res = await fetch(
+    process.env.NEXT_PUBLIC_DOTCMS_HOST + "/api/v1/graphql",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.DOTCMS_TOKEN}`,
+      },
+      body: JSON.stringify({
+        query,
+        variables,
+      }),
     },
-    body: JSON.stringify({
-      query,
-      variables,
-    }),
-  });
+  );
 
   const json = await res.json();
 
@@ -36,7 +39,9 @@ async function fetchAPI(query, { variables } = { variables: null }) {
  * @returns {string}
  */
 const showPreviewPosts = (preview) => {
-  return preview === true ? "+working:true +deleted:false" : "+live:true +deleted:false";
+  return preview === true
+    ? "+working:true +deleted:false"
+    : "+live:true +deleted:false";
 };
 
 /**
@@ -90,7 +95,9 @@ export async function getPostAndMorePosts(slug, preview) {
     {
       variables: {
         query: `+urlmap:/blog/post/${slug} ${showPreviewPosts(preview)}`,
-        morePostsQuery: `-urlmap:/blog/post/${slug} ${showPreviewPosts(preview)}`,
+        morePostsQuery: `-urlmap:/blog/post/${slug} ${showPreviewPosts(
+          preview,
+        )}`,
       },
     },
   );

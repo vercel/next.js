@@ -3,13 +3,19 @@ import loaderUtils from 'next/dist/compiled/loader-utils3'
 import { relative } from 'path'
 
 function formatModule(compiler: webpack.Compiler, module: any) {
-  const relativePath = relative(compiler.context, module.resource).replace(/\?.+$/, '')
+  const relativePath = relative(compiler.context, module.resource).replace(
+    /\?.+$/,
+    ''
+  )
   return loaderUtils.isUrlRequest(relativePath)
     ? loaderUtils.urlToRequest(relativePath)
     : relativePath
 }
 
-export function formatModuleTrace(compiler: webpack.Compiler, moduleTrace: any[]) {
+export function formatModuleTrace(
+  compiler: webpack.Compiler,
+  moduleTrace: any[]
+) {
   let importTrace: string[] = []
   let firstExternalModule: any
   for (let i = moduleTrace.length - 1; i >= 0; i--) {
@@ -32,8 +38,10 @@ export function formatModuleTrace(compiler: webpack.Compiler, moduleTrace: any[]
     if (firstExternalPackageName === 'styled-jsx') {
       invalidImportMessage += `\n\nThe error was caused by using 'styled-jsx' in '${importTrace[0]}'. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.`
     } else {
-      let formattedExternalFile = firstExternalModule.resource.split('node_modules')
-      formattedExternalFile = formattedExternalFile[formattedExternalFile.length - 1]
+      let formattedExternalFile =
+        firstExternalModule.resource.split('node_modules')
+      formattedExternalFile =
+        formattedExternalFile[formattedExternalFile.length - 1]
 
       invalidImportMessage += `\n\nThe error was caused by importing '${formattedExternalFile.slice(
         1

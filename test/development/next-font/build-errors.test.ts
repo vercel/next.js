@@ -2,7 +2,11 @@ import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
-import { waitForRedbox, waitForNoRedbox, getRedboxSource } from 'next-test-utils'
+import {
+  waitForRedbox,
+  waitForNoRedbox,
+  getRedboxSource,
+} from 'next-test-utils'
 
 // TODO: The error overlay is not closed when restoring the working code.
 describe.skip('next/font build-errors', () => {
@@ -66,7 +70,9 @@ export default function Page() {
     // Should display the file name correctly
     expect(sourceLines[0]).toEqual('app/page.js')
     // Should be module not found error
-    expect(sourceLines[1]).toEqual("Module not found: Can't resolve './boom.woff2'")
+    expect(sourceLines[1]).toEqual(
+      "Module not found: Can't resolve './boom.woff2'"
+    )
 
     await next.patchFile('app/page.js', content)
     await waitForNoRedbox(browser)

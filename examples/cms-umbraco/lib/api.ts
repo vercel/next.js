@@ -27,7 +27,11 @@ const fetchSingle = async (slug: string, startItem: string, preview: boolean) =>
     },
   });
 
-const fetchMultiple = async (query: string, startItem: string, preview: boolean) =>
+const fetchMultiple = async (
+  query: string,
+  startItem: string,
+  preview: boolean,
+) =>
   await performFetch(`${UMBRACO_API_URL}/?${query}`, {
     method: "GET",
     headers: {
@@ -70,7 +74,11 @@ const extractPost = (post: any): Post => {
 const fetchPost = async (slug: string, preview: boolean) =>
   await fetchSingle(`${slug}?expand=properties[author]`, "posts", preview);
 
-const fetchPosts = async (expandAuthor: boolean, numberOfPosts: number, preview: boolean) => {
+const fetchPosts = async (
+  expandAuthor: boolean,
+  numberOfPosts: number,
+  preview: boolean,
+) => {
   const expand = expandAuthor ? "properties[author]" : "";
   const take = numberOfPosts ?? 10;
   return await fetchMultiple(

@@ -18,7 +18,9 @@ describe('serialize-circular-error', () => {
      }
     `)
     const output = next.cliOutput
-    expect(output).toContain('Error: {"objA":{"other":{"a":"[Circular]"}},"objB":"[Circular]"}')
+    expect(output).toContain(
+      'Error: {"objA":{"other":{"a":"[Circular]"}},"objB":"[Circular]"}'
+    )
   })
 
   it('should serialize the object from client component in console correctly', async () => {
@@ -39,6 +41,8 @@ describe('serialize-circular-error', () => {
     expect(bodyText).toContain('This page crashed')
 
     const output = next.cliOutput
-    expect(output).toContain('Error: {"objC":{"other":{"a":"[Circular]"}},"objD":"[Circular]"}')
+    expect(output).toContain(
+      'Error: {"objC":{"other":{"a":"[Circular]"}},"objD":"[Circular]"}'
+    )
   })
 })

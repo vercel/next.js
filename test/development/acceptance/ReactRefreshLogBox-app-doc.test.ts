@@ -12,7 +12,10 @@ describe('ReactRefreshLogBox _app _document', () => {
   })
 
   test('empty _app shows logbox', async () => {
-    await using sandbox = await createSandbox(next, new Map([['pages/_app.js', ``]]))
+    await using sandbox = await createSandbox(
+      next,
+      new Map([['pages/_app.js', ``]])
+    )
     const { browser, session } = sandbox
     await expect(browser).toDisplayRedbox(`
      {
@@ -37,7 +40,10 @@ describe('ReactRefreshLogBox _app _document', () => {
   })
 
   test('empty _document shows logbox', async () => {
-    await using sandbox = await createSandbox(next, new Map([['pages/_document.js', ``]]))
+    await using sandbox = await createSandbox(
+      next,
+      new Map([['pages/_document.js', ``]])
+    )
     const { browser, session } = sandbox
 
     await expect(browser).toDisplayRedbox(`

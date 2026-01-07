@@ -11,7 +11,9 @@ function createReadableStream(): ReadableStream {
 }
 
 // Helper to create base params
-function createBaseParams(overrides: Partial<ResolveRoutesParams> = {}): ResolveRoutesParams {
+function createBaseParams(
+  overrides: Partial<ResolveRoutesParams> = {}
+): ResolveRoutesParams {
   return {
     url: new URL('https://example.com/'),
     buildId: 'BUILD_ID',
@@ -188,7 +190,9 @@ describe('resolveRoutes - invokeMiddleware', () => {
     const result = await resolveRoutes(params)
 
     expect(result.status).toBe(302)
-    expect(result.resolvedHeaders?.get('Location')).toBe('https://example.com/redirected')
+    expect(result.resolvedHeaders?.get('Location')).toBe(
+      'https://example.com/redirected'
+    )
   })
 
   it('should handle middleware rewrite (internal)', async () => {
@@ -234,7 +238,9 @@ describe('resolveRoutes - invokeMiddleware', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.resolvedHeaders?.get('x-custom-header')).toBe('middleware-value')
+    expect(result.resolvedHeaders?.get('x-custom-header')).toBe(
+      'middleware-value'
+    )
   })
 })
 
@@ -313,7 +319,9 @@ describe('resolveRoutes - beforeFiles', () => {
     const result = await resolveRoutes(params)
 
     expect(result.externalRewrite).toBeDefined()
-    expect(result.externalRewrite?.toString()).toBe('https://api.external.com/data')
+    expect(result.externalRewrite?.toString()).toBe(
+      'https://api.external.com/data'
+    )
   })
 
   it('should chain rewrites in beforeFiles', async () => {
@@ -527,7 +535,9 @@ describe('resolveRoutes - fallback', () => {
     const result = await resolveRoutes(params)
 
     expect(result.externalRewrite).toBeDefined()
-    expect(result.externalRewrite?.toString()).toBe('https://cdn.example.com/asset')
+    expect(result.externalRewrite?.toString()).toBe(
+      'https://cdn.example.com/asset'
+    )
   })
 
   it('should chain rewrites in fallback', async () => {

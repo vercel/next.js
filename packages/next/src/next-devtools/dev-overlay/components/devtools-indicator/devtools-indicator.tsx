@@ -3,7 +3,10 @@ import type { CSSProperties } from 'react'
 import type { DevToolsIndicatorPosition } from '../../shared'
 import { NextLogo } from './next-logo'
 import { Toast } from '../toast'
-import { MENU_CURVE, MENU_DURATION_MS } from '../errors/dev-tools-indicator/utils'
+import {
+  MENU_CURVE,
+  MENU_DURATION_MS,
+} from '../errors/dev-tools-indicator/utils'
 import {
   ACTION_DEVTOOLS_POSITION,
   STORE_KEY_SHARED_PANEL_LOCATION,
@@ -55,7 +58,8 @@ export function DevToolsIndicator() {
       >
         <NextLogo
           onTriggerClick={() => {
-            const newPanel = panel === 'panel-selector' ? null : 'panel-selector'
+            const newPanel =
+              panel === 'panel-selector' ? null : 'panel-selector'
             setPanel(newPanel)
             if (!newPanel) {
               setSelectedIndex(-1)
@@ -83,8 +87,8 @@ export const useUpdateAllPanelPositions = () => {
       key: STORE_KEY_SHARED_PANEL_LOCATION,
     })
 
-    const panelPositionKeys = Object.keys(state.devToolsPanelPosition).filter((key) =>
-      key.startsWith(STORAGE_KEY_PANEL_POSITION_PREFIX)
+    const panelPositionKeys = Object.keys(state.devToolsPanelPosition).filter(
+      (key) => key.startsWith(STORAGE_KEY_PANEL_POSITION_PREFIX)
     )
 
     const panelPositionPatch: Record<string, DevToolsIndicatorPosition> = {

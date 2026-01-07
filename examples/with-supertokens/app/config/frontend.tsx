@@ -7,9 +7,13 @@ import { SuperTokensConfig } from "supertokens-auth-react/lib/build/types";
 import { ThirdPartyPreBuiltUI } from "supertokens-auth-react/recipe/thirdparty/prebuiltui";
 import { EmailPasswordPreBuiltUI } from "supertokens-auth-react/recipe/emailpassword/prebuiltui";
 
-const routerInfo: { router?: ReturnType<typeof useRouter>; pathname?: string } = {};
+const routerInfo: { router?: ReturnType<typeof useRouter>; pathname?: string } =
+  {};
 
-export function setRouter(router: ReturnType<typeof useRouter>, pathname: string) {
+export function setRouter(
+  router: ReturnType<typeof useRouter>,
+  pathname: string,
+) {
   routerInfo.router = router;
   routerInfo.pathname = pathname;
 }

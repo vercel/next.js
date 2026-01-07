@@ -33,7 +33,8 @@ export default function createInterface({
   appKey = process.env.DATADOG_APP_KEY,
   host = process.env.DATADOG_HOST || os.hostname(),
 }: { apiKey?: string; appKey?: string; host?: string } = {}): Interface {
-  if (!apiKey) throw new Error('Datadog API key is required (set DATADOG_API_KEY)')
+  if (!apiKey)
+    throw new Error('Datadog API key is required (set DATADOG_API_KEY)')
   const commonTags = [
     `ci:${IS_CI}`,
     `os:${OS}`,
@@ -71,7 +72,10 @@ export default function createInterface({
         host,
         tags: Object.entries(props)
           .filter(([, value]) => value !== null)
-          .map(([key, value]) => `${toIdentifier(key)}:${toIdentifier(value!.toString())}`)
+          .map(
+            ([key, value]) =>
+              `${toIdentifier(key)}:${toIdentifier(value!.toString())}`
+          )
           .concat(commonTags),
         points: [[ts, [value]]],
       })

@@ -20,7 +20,9 @@ describe('x-forwarded-headers', () => {
     expect(headers['x-forwarded-proto']).toBe(url.protocol.replace(':', ''))
     expect(headers['middleware-x-forwarded-host']).toBe(url.host)
     expect(headers['middleware-x-forwarded-port']).toBe(url.port)
-    expect(headers['middleware-x-forwarded-proto']).toBe(url.protocol.replace(':', ''))
+    expect(headers['middleware-x-forwarded-proto']).toBe(
+      url.protocol.replace(':', '')
+    )
   })
 
   describe('host header exists', () => {
@@ -39,7 +41,9 @@ describe('x-forwarded-headers', () => {
       expect(headers['x-forwarded-proto']).toBe(url.protocol.replace(':', ''))
       expect(headers['middleware-x-forwarded-host']).toBe(reqHeaders.host)
       expect(headers['middleware-x-forwarded-port']).toBe(url.port)
-      expect(headers['middleware-x-forwarded-proto']).toBe(url.protocol.replace(':', ''))
+      expect(headers['middleware-x-forwarded-proto']).toBe(
+        url.protocol.replace(':', '')
+      )
     })
   })
 

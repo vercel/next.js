@@ -1,6 +1,7 @@
 import { preLogSerializationClone, logStringify } from './forward-logs-utils'
 
-const safeStringify = (data: unknown) => logStringify(preLogSerializationClone(data))
+const safeStringify = (data: unknown) =>
+  logStringify(preLogSerializationClone(data))
 
 describe('forward-logs serialization', () => {
   describe('safeClone', () => {
@@ -9,7 +10,9 @@ describe('forward-logs serialization', () => {
       expect(preLogSerializationClone('hello')).toBe('hello')
       expect(preLogSerializationClone(true)).toBe(true)
       expect(preLogSerializationClone(null)).toBe(null)
-      expect(preLogSerializationClone(undefined)).toBe('__next_tagged_undefined')
+      expect(preLogSerializationClone(undefined)).toBe(
+        '__next_tagged_undefined'
+      )
     })
 
     it('should handle circular references', () => {

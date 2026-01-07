@@ -9,12 +9,18 @@ export default function Nav() {
     <nav className={styles.nav}>
       <li className={styles.li}>
         <Link href="/">
-          <FormattedMessage defaultMessage="Home" description="Nav: Index name" />
+          <FormattedMessage
+            defaultMessage="Home"
+            description="Nav: Index name"
+          />
         </Link>
       </li>
       <li className={styles.li}>
         <Link href="/about">
-          <FormattedMessage defaultMessage="About" description="Nav: About item" />
+          <FormattedMessage
+            defaultMessage="About"
+            description="Nav: About item"
+          />
         </Link>
       </li>
 

@@ -102,7 +102,13 @@ describe('warnOptionHasBeenMovedOutOfExperimental', () => {
         foo: 'bar',
       },
     } as any
-    warnOptionHasBeenMovedOutOfExperimental(config, 'foo', 'deep.prop.baz', 'next.config.js', false)
+    warnOptionHasBeenMovedOutOfExperimental(
+      config,
+      'foo',
+      'deep.prop.baz',
+      'next.config.js',
+      false
+    )
 
     expect(config.experimental.foo).toBe('bar')
     expect(config.deep.prop.baz).toBe('bar')

@@ -1,4 +1,8 @@
-type ClientModeEnum = 'auto' | 'focus-existing' | 'navigate-existing' | 'navigate-new'
+type ClientModeEnum =
+  | 'auto'
+  | 'focus-existing'
+  | 'navigate-existing'
+  | 'navigate-new'
 
 type File = {
   name: string
@@ -19,7 +23,13 @@ export type Manifest = {
   dir?: 'ltr' | 'rtl' | 'auto' | undefined
   display?: 'fullscreen' | 'standalone' | 'minimal-ui' | 'browser' | undefined
   display_override?:
-    | ('fullscreen' | 'standalone' | 'minimal-ui' | 'browser' | 'window-controls-overlay')[]
+    | (
+        | 'fullscreen'
+        | 'standalone'
+        | 'minimal-ui'
+        | 'browser'
+        | 'window-controls-overlay'
+      )[]
     | undefined
   file_handlers?:
     | {
@@ -91,7 +101,10 @@ export type Manifest = {
     | {
         action: string
         method?: 'get' | 'post' | 'GET' | 'POST' | undefined
-        enctype?: 'application/x-www-form-urlencoded' | 'multipart/form-data' | undefined
+        enctype?:
+          | 'application/x-www-form-urlencoded'
+          | 'multipart/form-data'
+          | undefined
         params: {
           title?: string | undefined
           text?: string | undefined

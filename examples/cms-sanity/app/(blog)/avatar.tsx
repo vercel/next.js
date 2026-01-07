@@ -18,7 +18,13 @@ export default function Avatar({ name, picture }: Props) {
             className="h-full rounded-full object-cover"
             height={48}
             width={48}
-            src={urlForImage(picture)?.height(96).width(96).fit("crop").url() as string}
+            src={
+              urlForImage(picture)
+                ?.height(96)
+                .width(96)
+                .fit("crop")
+                .url() as string
+            }
           />
         </div>
       ) : (

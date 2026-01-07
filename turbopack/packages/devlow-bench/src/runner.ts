@@ -1,7 +1,10 @@
 import { withCurrent } from './describe.js'
 import { Interface, Scenario, intoFullInterface } from './index.js'
 
-export async function runScenarios(scenarios: Scenario[], iface: Interface): Promise<void> {
+export async function runScenarios(
+  scenarios: Scenario[],
+  iface: Interface
+): Promise<void> {
   const fullIface = intoFullInterface(iface)
   if (scenarios.some((scenario) => scenario.only)) {
     scenarios = scenarios.filter((scenario) => scenario.only)

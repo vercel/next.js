@@ -10,7 +10,10 @@ export default function HomePage() {
       <LinkAccordion href="/static-page" id="to-static-page">
         To Static Page
       </LinkAccordion>
-      <LinkAccordion href="/static-page-no-prefetch" id="to-static-page-no-prefetch">
+      <LinkAccordion
+        href="/static-page-no-prefetch"
+        id="to-static-page-no-prefetch"
+      >
         To Static Page No Prefetch
       </LinkAccordion>
       <LinkAccordion href="/dynamic-page" id="to-dynamic-page-no-params">

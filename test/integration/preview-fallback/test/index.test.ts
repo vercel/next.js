@@ -31,7 +31,9 @@ function runTests(isDev: boolean) {
     const res = await fetchViaHTTP(appPort, '/api/enable')
     previewCookie = ''
 
-    expect(res.headers.get('set-cookie')).toMatch(/(__prerender_bypass|__next_preview_data)/)
+    expect(res.headers.get('set-cookie')).toMatch(
+      /(__prerender_bypass|__next_preview_data)/
+    )
 
     res.headers
       .get('set-cookie')
@@ -263,24 +265,30 @@ function runTests(isDev: boolean) {
 }
 
 describe('Preview mode with fallback pages', () => {
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-    runTests(true)
-  })
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+      runTests(true)
+    }
+  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await fs.remove(join(appDir, '.next'))
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-    runTests(false)
-  })
+      runTests(false)
+    }
+  )
 })

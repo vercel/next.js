@@ -22,14 +22,16 @@ function styledJsxOptions(options: StyledJsxBabelOptions) {
     return options
   }
 
-  options.plugins = options.plugins.map((plugin: StyledJsxPlugin): StyledJsxPlugin => {
-    if (Array.isArray(plugin)) {
-      const [name, pluginOptions] = plugin
-      return [require.resolve(name), pluginOptions]
-    }
+  options.plugins = options.plugins.map(
+    (plugin: StyledJsxPlugin): StyledJsxPlugin => {
+      if (Array.isArray(plugin)) {
+        const [name, pluginOptions] = plugin
+        return [require.resolve(name), pluginOptions]
+      }
 
-    return require.resolve(plugin)
-  })
+      return require.resolve(plugin)
+    }
+  )
 
   return options
 }
@@ -105,7 +107,10 @@ function presetTypescriptSyntaxOnly(_api: unknown, options: any) {
     overrides: disableExtensionDetect
       ? [
           {
-            plugins: getPlugins(options.isTSX, options.disallowAmbiguousJSXLike),
+            plugins: getPlugins(
+              options.isTSX,
+              options.disallowAmbiguousJSXLike
+            ),
           },
         ]
       : // Only set 'test' if explicitly requested, since it requires that
@@ -133,7 +138,10 @@ function presetTypescriptSyntaxOnly(_api: unknown, options: any) {
   }
 }
 
-export default (api: any, options: NextBabelPresetOptions = {}): BabelPreset => {
+export default (
+  api: any,
+  options: NextBabelPresetOptions = {}
+): BabelPreset => {
   const isStandalone = api.caller(
     // NOTE: `transformMode` may be undefined if the user configured `babel-loader` themselves. In
     // this case, we should assume we're in 'default' mode.
@@ -180,14 +188,17 @@ export default (api: any, options: NextBabelPresetOptions = {}): BabelPreset => 
 
   // Look at external intent if used without a caller (e.g. Storybook):
   const isDevelopment =
-    isCallerDevelopment === true || (isCallerDevelopment == null && isLoadIntentDevelopment)
+    isCallerDevelopment === true ||
+    (isCallerDevelopment == null && isLoadIntentDevelopment)
 
   // Default to production mode if not `test` nor `development`:
   const isProduction = !(isTest || isDevelopment)
 
   const isBabelLoader = api.caller(
     (caller: any) =>
-      !!caller && (caller.name === 'babel-loader' || caller.name === 'next-babel-turbo-loader')
+      !!caller &&
+      (caller.name === 'babel-loader' ||
+        caller.name === 'next-babel-turbo-loader')
   )
 
   const useJsxRuntime =
@@ -208,7 +219,10 @@ export default (api: any, options: NextBabelPresetOptions = {}): BabelPreset => 
   if (
     (isServer || isTest) &&
     (!presetEnvConfig.targets ||
-      !(typeof presetEnvConfig.targets === 'object' && 'node' in presetEnvConfig.targets))
+      !(
+        typeof presetEnvConfig.targets === 'object' &&
+        'node' in presetEnvConfig.targets
+      ))
   ) {
     presetEnvConfig.targets = {
       // Targets the current process' version of Node. This requires apps be
@@ -218,7 +232,9 @@ export default (api: any, options: NextBabelPresetOptions = {}): BabelPreset => 
     }
   }
 
-  const runtimeModuleName = isBabelLoader ? 'next/dist/compiled/@babel/runtime' : null
+  const runtimeModuleName = isBabelLoader
+    ? 'next/dist/compiled/@babel/runtime'
+    : null
   return {
     sourceType: 'unambiguous',
     presets: [

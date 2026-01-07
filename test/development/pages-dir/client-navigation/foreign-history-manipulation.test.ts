@@ -15,7 +15,9 @@ describe('Client navigation with foreign history manipulation', () => {
   it('should ignore history state without options', async () => {
     const browser = await next.browser('/nav')
     // push history object without options
-    await browser.eval('window.history.pushState({ url: "/whatever" }, "", "/whatever")')
+    await browser.eval(
+      'window.history.pushState({ url: "/whatever" }, "", "/whatever")'
+    )
     await browser.elementByCss('#about-link').click()
     await browser.waitForElementByCss('.nav-about')
     await browser.back()
@@ -26,7 +28,9 @@ describe('Client navigation with foreign history manipulation', () => {
   it('should ignore history state with an invalid url', async () => {
     const browser = await next.browser('/nav')
     // push history object wit invalid url (not relative)
-    await browser.eval('window.history.pushState({ url: "http://google.com" }, "", "/whatever")')
+    await browser.eval(
+      'window.history.pushState({ url: "http://google.com" }, "", "/whatever")'
+    )
     await browser.elementByCss('#about-link').click()
     await browser.waitForElementByCss('.nav-about')
     await browser.back()

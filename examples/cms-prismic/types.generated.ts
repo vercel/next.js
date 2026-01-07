@@ -40,11 +40,12 @@ interface AuthorDocumentData {
  *
  * @typeParam Lang - Language API ID of the document.
  */
-export type AuthorDocument<Lang extends string = string> = prismicT.PrismicDocumentWithoutUID<
-  Simplify<AuthorDocumentData>,
-  "author",
-  Lang
->;
+export type AuthorDocument<Lang extends string = string> =
+  prismicT.PrismicDocumentWithoutUID<
+    Simplify<AuthorDocumentData>,
+    "author",
+    Lang
+  >;
 /** Content for Post documents */
 interface PostDocumentData {
   /**
@@ -128,11 +129,8 @@ type PostDocumentDataSlicesSlice = TextSlice | ImageSlice;
  *
  * @typeParam Lang - Language API ID of the document.
  */
-export type PostDocument<Lang extends string = string> = prismicT.PrismicDocumentWithUID<
-  Simplify<PostDocumentData>,
-  "post",
-  Lang
->;
+export type PostDocument<Lang extends string = string> =
+  prismicT.PrismicDocumentWithUID<Simplify<PostDocumentData>, "post", Lang>;
 export type AllDocumentTypes = AuthorDocument | PostDocument;
 /**
  * Primary content in Image → Primary

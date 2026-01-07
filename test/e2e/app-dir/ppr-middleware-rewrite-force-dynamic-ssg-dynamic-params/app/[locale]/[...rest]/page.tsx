@@ -1,6 +1,10 @@
 import { type Params, expectedParams } from '../../../expected'
 
-export default async function CatchAll({ params }: { params: Promise<Params> }) {
+export default async function CatchAll({
+  params,
+}: {
+  params: Promise<Params>
+}) {
   const received = await params
 
   return <p>{JSON.stringify(received)}</p>

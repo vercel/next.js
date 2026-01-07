@@ -8,9 +8,13 @@ export default async function Page() {
   return (
     <div>
       <dl>
-        <dt>[first] require('node:crypto').generateKeyPairSync(type, options)</dt>
+        <dt>
+          [first] require('node:crypto').generateKeyPairSync(type, options)
+        </dt>
         <dd id="first">{first.publicKey}</dd>
-        <dt>[second] require('node:crypto').generateKeyPairSync(type, options)</dt>
+        <dt>
+          [second] require('node:crypto').generateKeyPairSync(type, options)
+        </dt>
         <dd id="second">{second.publicKey}</dd>
       </dl>
       <span id="page">

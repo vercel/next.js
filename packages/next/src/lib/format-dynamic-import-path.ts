@@ -10,7 +10,9 @@ import { pathToFileURL } from 'url'
  * @param filePath Absolute or relative path
  */
 export const formatDynamicImportPath = (dir: string, filePath: string) => {
-  const absoluteFilePath = path.isAbsolute(filePath) ? filePath : path.join(dir, filePath)
+  const absoluteFilePath = path.isAbsolute(filePath)
+    ? filePath
+    : path.join(dir, filePath)
   const formattedFilePath = pathToFileURL(absoluteFilePath).toString()
 
   return formattedFilePath

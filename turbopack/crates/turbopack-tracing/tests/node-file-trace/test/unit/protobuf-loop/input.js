@@ -6,7 +6,11 @@ const path = require('path')
   // and wrappers. compiler/plugin is excluded in Protobuf.js and here.
   var wellKnownProtos = ['asset1', 'asset2']
   var sourceDir = path.join(__dirname, 'assets')
-  for (var _i = 0, wellKnownProtos_1 = wellKnownProtos; _i < wellKnownProtos_1.length; _i++) {
+  for (
+    var _i = 0, wellKnownProtos_1 = wellKnownProtos;
+    _i < wellKnownProtos_1.length;
+    _i++
+  ) {
     var proto = wellKnownProtos_1[_i]
     var file = path.join(sourceDir, proto + '.txt')
     var descriptor_1 = Protobuf.loadSync(file).toJSON()

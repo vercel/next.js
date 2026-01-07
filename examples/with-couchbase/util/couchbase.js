@@ -7,11 +7,15 @@ const COUCHBASE_BUCKET = process.env.COUCHBASE_BUCKET || "travel-sample";
 let IS_CLOUD_INSTANCE = process.env.IS_CLOUD_INSTANCE || "false";
 
 if (!COUCHBASE_USER) {
-  throw new Error("Please define the COUCHBASE_USER environment variable inside .env.local");
+  throw new Error(
+    "Please define the COUCHBASE_USER environment variable inside .env.local",
+  );
 }
 
 if (!COUCHBASE_PASSWORD) {
-  throw new Error("Please define the COUCHBASE_PASSWORD environment variable inside .env.local");
+  throw new Error(
+    "Please define the COUCHBASE_PASSWORD environment variable inside .env.local",
+  );
 }
 
 /**
@@ -33,7 +37,9 @@ async function createCouchbaseCluster() {
   cached.conn = await couchbase.connect(
     "couchbase://" +
       COUCHBASE_ENDPOINT +
-      (IS_CLOUD_INSTANCE === "true" ? "?ssl=no_verify&console_log_level=5" : ""),
+      (IS_CLOUD_INSTANCE === "true"
+        ? "?ssl=no_verify&console_log_level=5"
+        : ""),
     {
       username: COUCHBASE_USER,
       password: COUCHBASE_PASSWORD,

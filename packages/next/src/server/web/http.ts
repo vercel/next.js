@@ -2,7 +2,15 @@
  * List of valid HTTP methods that can be implemented by Next.js's Custom App
  * Routes.
  */
-export const HTTP_METHODS = ['GET', 'HEAD', 'OPTIONS', 'POST', 'PUT', 'DELETE', 'PATCH'] as const
+export const HTTP_METHODS = [
+  'GET',
+  'HEAD',
+  'OPTIONS',
+  'POST',
+  'PUT',
+  'DELETE',
+  'PATCH',
+] as const
 
 /**
  * A type representing the valid HTTP methods that can be implemented by

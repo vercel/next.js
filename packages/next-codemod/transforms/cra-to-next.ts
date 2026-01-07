@@ -22,7 +22,9 @@ const craTransformsPath = path.join('../lib/cra-to-next')
 const globalCssTransformPath = require.resolve(
   path.join(craTransformsPath, 'global-css-transform.js')
 )
-const indexTransformPath = require.resolve(path.join(craTransformsPath, 'index-to-component.js'))
+const indexTransformPath = require.resolve(
+  path.join(craTransformsPath, 'index-to-component.js')
+)
 
 class CraTransform {
   private appDir: string
@@ -55,7 +57,9 @@ class CraTransform {
     this.isVite = !this.isCra && hasDep('vite')
 
     if (!this.isCra && !this.isVite) {
-      fatalMessage(`Error: react-scripts was not detected, is this a CRA project?`)
+      fatalMessage(
+        `Error: react-scripts was not detected, is this a CRA project?`
+      )
     }
 
     this.shouldUseTypeScript =
@@ -64,9 +68,12 @@ class CraTransform {
         cwd: path.join(this.appDir, 'src'),
       }).length > 0
 
-    this.indexPage = globby.sync([`${this.isCra ? 'index' : 'main'}.{js,jsx,ts,tsx}`], {
-      cwd: path.join(this.appDir, 'src'),
-    })[0]
+    this.indexPage = globby.sync(
+      [`${this.isCra ? 'index' : 'main'}.{js,jsx,ts,tsx}`],
+      {
+        cwd: path.join(this.appDir, 'src'),
+      }
+    )[0]
 
     if (!this.indexPage) {
       fatalMessage('Error: unable to find `src/index`')
@@ -127,7 +134,9 @@ class CraTransform {
       // so we don't support this automatically
       fatalMessage(
         `Error: import {ReactComponent} from './logo.svg' is not supported, please use normal SVG imports to continue.\n` +
-          `React SVG imports found in:\n${[...globalCssContext.reactSvgImports].join('\n')}`
+          `React SVG imports found in:\n${[
+            ...globalCssContext.reactSvgImports,
+          ].join('\n')}`
       )
     }
     await this.updatePackageJson()
@@ -206,9 +215,12 @@ class CraTransform {
 
           // allow process.env access to work dynamically still
           if (value.match(/%([a-zA-Z0-9_]{0,})%/)) {
-            return `${reactName}={\`${value.replace(/%([a-zA-Z0-9_]{0,})%/g, (subStr) => {
-              return `\${process.env.${subStr.slice(1, -1)}}`
-            })}\`}`
+            return `${reactName}={\`${value.replace(
+              /%([a-zA-Z0-9_]{0,})%/g,
+              (subStr) => {
+                return `\${process.env.${subStr.slice(1, -1)}}`
+              }
+            )}\`}`
           }
           return `${reactName}="${value}"`
         })
@@ -286,7 +298,10 @@ class CraTransform {
 
                   return `import '${
                     file.startsWith('/')
-                      ? path.relative(path.join(this.appDir, this.pagesDir), file)
+                      ? path.relative(
+                          path.join(this.appDir, this.pagesDir),
+                          file
+                        )
                       : file
                   }'`
                 })
@@ -403,7 +418,9 @@ export default function Page(props) {
       }
     }
 
-    this.logInfo(`Installing ${neededDependencies.join(' ')} with ${this.installClient}`)
+    this.logInfo(
+      `Installing ${neededDependencies.join(' ')} with ${this.installClient}`
+    )
 
     if (!this.isDryRun) {
       await fs.promises.writeFile(
@@ -488,7 +505,8 @@ export default function Page(props) {
   private async createNextConfig() {
     if (!this.isDryRun) {
       const { proxy, homepage } = this.packageJsonData
-      const homepagePath = new URL(homepage || '/', 'http://example.com').pathname
+      const homepagePath = new URL(homepage || '/', 'http://example.com')
+        .pathname
 
       await fs.promises.writeFile(
         path.join(this.appDir, 'next.config.js'),
@@ -535,7 +553,9 @@ export default function Page(props) {
     }
 
     if (fs.existsSync(path.join(this.appDir, pagesDir))) {
-      fatalMessage(`Error: a "./pages" directory already exists, please rename to continue`)
+      fatalMessage(
+        `Error: a "./pages" directory already exists, please rename to continue`
+      )
     }
     return pagesDir
   }
@@ -544,7 +564,9 @@ export default function Page(props) {
     let packageJsonData
 
     try {
-      packageJsonData = JSON.parse(fs.readFileSync(this.packageJsonPath, 'utf8'))
+      packageJsonData = JSON.parse(
+        fs.readFileSync(this.packageJsonPath, 'utf8')
+      )
     } catch (err) {
       fatalMessage(
         `Error: failed to load package.json from ${this.packageJsonPath}, ensure provided directory is root of CRA project`

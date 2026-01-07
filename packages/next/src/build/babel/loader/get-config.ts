@@ -10,7 +10,11 @@ import type {
   NextBabelLoaderOptions,
   NextJsLoaderContext,
 } from './types'
-import { consumeIterator, type SourceMap, type BabelLoaderTransformOptions } from './util'
+import {
+  consumeIterator,
+  type SourceMap,
+  type BabelLoaderTransformOptions,
+} from './util'
 import * as Log from '../../output/log'
 import { isReactCompilerRequired } from '../../swc'
 import { installBindings } from '../../swc/install-bindings'
@@ -66,7 +70,11 @@ function shouldSkipBabel(
   configFilePath: string | undefined,
   hasReactCompiler: boolean
 ) {
-  return transformMode === 'standalone' && configFilePath == null && !hasReactCompiler
+  return (
+    transformMode === 'standalone' &&
+    configFilePath == null &&
+    !hasReactCompiler
+  )
 }
 
 const fileExtensionRegex = /\.([a-z]+)$/
@@ -86,7 +94,9 @@ async function getCacheCharacteristics(
       isStandalone = true
       break
     default:
-      throw new Error(`unsupported transformMode in loader options: ${inspect(loaderOptions)}`)
+      throw new Error(
+        `unsupported transformMode in loader options: ${inspect(loaderOptions)}`
+      )
   }
 
   const isPageFile = pagesDir != null && filename.startsWith(pagesDir)
@@ -148,14 +158,16 @@ function getPlugins(
   loaderOptions: NextBabelLoaderOptionDefaultPresets,
   cacheCharacteristics: CharacteristicsGermaneToCaching
 ) {
-  const { isServer, isPageFile, isNextDist, hasModuleExports } = cacheCharacteristics
+  const { isServer, isPageFile, isNextDist, hasModuleExports } =
+    cacheCharacteristics
 
   const { development, hasReactRefresh } = loaderOptions
 
   const applyCommonJsItem = hasModuleExports
-    ? createConfigItem(require('../plugins/commonjs') as typeof import('../plugins/commonjs'), {
-        type: 'plugin',
-      })
+    ? createConfigItem(
+        require('../plugins/commonjs') as typeof import('../plugins/commonjs'),
+        { type: 'plugin' }
+      )
     : null
   const reactRefreshItem = hasReactRefresh
     ? createConfigItem(
@@ -169,7 +181,9 @@ function getPlugins(
   const pageConfigItem =
     !isServer && isPageFile
       ? createConfigItem(
-          [require('../plugins/next-page-config') as typeof import('../plugins/next-page-config')],
+          [
+            require('../plugins/next-page-config') as typeof import('../plugins/next-page-config'),
+          ],
           {
             type: 'plugin',
           }
@@ -243,7 +257,9 @@ function getCustomBabelConfig(configFilePath: string) {
   } else if (isJsFile.exec(configFilePath)) {
     return require(configFilePath)
   }
-  throw new Error('The Next.js Babel loader does not support .mjs or .cjs config files.')
+  throw new Error(
+    'The Next.js Babel loader does not support .mjs or .cjs config files.'
+  )
 }
 
 let babelConfigWarned = false
@@ -253,7 +269,9 @@ let babelConfigWarned = false
  *
  * This raises soft warning messages only, not making any errors yet.
  */
-function checkCustomBabelConfigDeprecation(config: Record<string, any> | undefined) {
+function checkCustomBabelConfigDeprecation(
+  config: Record<string, any> | undefined
+) {
   if (!config || Object.keys(config).length === 0) {
     return
   }
@@ -270,7 +288,9 @@ function checkCustomBabelConfigDeprecation(config: Record<string, any> | undefin
   babelConfigWarned = true
 
   const isPresetReadyToDeprecate =
-    !presets || presets.length === 0 || (presets.length === 1 && presets[0] === 'next/babel')
+    !presets ||
+    presets.length === 0 ||
+    (presets.length === 1 && presets[0] === 'next/babel')
   const pluginReasons = []
   const unsupportedPlugins = []
 
@@ -384,7 +404,10 @@ async function getFreshConfig(
 
     // Set the default sourcemap behavior based on Webpack's mapping flag,
     // but allow users to override if they want.
-    sourceMaps: loaderOptions.sourceMaps === undefined ? ctx.sourceMap : loaderOptions.sourceMaps,
+    sourceMaps:
+      loaderOptions.sourceMaps === undefined
+        ? ctx.sourceMap
+        : loaderOptions.sourceMaps,
   }
 
   const baseCaller = {
@@ -412,7 +435,9 @@ async function getFreshConfig(
   }
 
   options.plugins = [
-    ...(transformMode === 'default' ? getPlugins(loaderOptions, cacheCharacteristics) : []),
+    ...(transformMode === 'default'
+      ? getPlugins(loaderOptions, cacheCharacteristics)
+      : []),
     ...reactCompilerPluginsIfEnabled,
     ...(customConfig?.plugins || []),
   ]
@@ -442,7 +467,8 @@ async function getFreshConfig(
 
   options.caller = {
     ...baseCaller,
-    hasJsxRuntime: transformMode === 'default' ? loaderOptions.hasJsxRuntime : undefined,
+    hasJsxRuntime:
+      transformMode === 'default' ? loaderOptions.hasJsxRuntime : undefined,
   }
 
   // Babel does strict checks on the config so undefined is not allowed
@@ -549,7 +575,11 @@ export default async function getConfig(
   // When run by webpack in next this is already done with correct configuration so this is a no-op.
   // In turbopack loaders are run in a subprocess so it may or may not be done.
   await installBindings()
-  const cacheCharacteristics = await getCacheCharacteristics(loaderOptions, source, filename)
+  const cacheCharacteristics = await getCacheCharacteristics(
+    loaderOptions,
+    source,
+    filename
+  )
 
   if (loaderOptions.configFile) {
     // Ensures webpack invalidates the cache for this loader when the config file changes
@@ -559,17 +589,34 @@ export default async function getConfig(
   const cacheKey = getCacheKey(cacheCharacteristics)
   const cachedConfig = configCache.get(cacheKey)
   if (cachedConfig !== undefined) {
-    return updateBabelConfigWithFileDetails(cachedConfig, loaderOptions, filename, inputSourceMap)
+    return updateBabelConfigWithFileDetails(
+      cachedConfig,
+      loaderOptions,
+      filename,
+      inputSourceMap
+    )
   }
 
   if (loaderOptions.configFile && !configFiles.has(loaderOptions.configFile)) {
     configFiles.add(loaderOptions.configFile)
-    Log.info(`Using external babel configuration from ${loaderOptions.configFile}`)
+    Log.info(
+      `Using external babel configuration from ${loaderOptions.configFile}`
+    )
   }
 
-  const freshConfig = await getFreshConfig(ctx, cacheCharacteristics, loaderOptions, target)
+  const freshConfig = await getFreshConfig(
+    ctx,
+    cacheCharacteristics,
+    loaderOptions,
+    target
+  )
 
   configCache.set(cacheKey, freshConfig)
 
-  return updateBabelConfigWithFileDetails(freshConfig, loaderOptions, filename, inputSourceMap)
+  return updateBabelConfigWithFileDetails(
+    freshConfig,
+    loaderOptions,
+    filename,
+    inputSourceMap
+  )
 }

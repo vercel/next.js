@@ -28,7 +28,9 @@ describe('mcp-server get_page_metadata tool', () => {
 
   describe('app router', () => {
     const { next } = nextTestSetup({
-      files: new FileRef(path.join(__dirname, 'fixtures', 'parallel-routes-template')),
+      files: new FileRef(
+        path.join(__dirname, 'fixtures', 'parallel-routes-template')
+      ),
     })
 
     it('should return metadata for basic page', async () => {
@@ -192,11 +194,13 @@ describe('mcp-server get_page_metadata tool', () => {
         await retry(async () => {
           const sessionId = 'test-same-url-' + Date.now()
           metadata = await callGetPageMetadata(next.url, sessionId)
-          const rootSessions = (metadata.match(/## Session: \/(?!\w)/g) || []).length
+          const rootSessions = (metadata.match(/## Session: \/(?!\w)/g) || [])
+            .length
           expect(rootSessions).toBeGreaterThanOrEqual(2)
         })
 
-        const rootSessions = (metadata.match(/## Session: \/(?!\w)/g) || []).length
+        const rootSessions = (metadata.match(/## Session: \/(?!\w)/g) || [])
+          .length
         expect(rootSessions).toBeGreaterThanOrEqual(2)
       } finally {
         await session1.close()
@@ -207,7 +211,9 @@ describe('mcp-server get_page_metadata tool', () => {
 
   describe('pages router', () => {
     const { next } = nextTestSetup({
-      files: new FileRef(path.join(__dirname, 'fixtures', 'pages-router-template')),
+      files: new FileRef(
+        path.join(__dirname, 'fixtures', 'pages-router-template')
+      ),
     })
 
     it('should return metadata showing pages router type', async () => {

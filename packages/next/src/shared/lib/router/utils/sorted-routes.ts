@@ -30,7 +30,9 @@ class UrlNode {
       .reduce((prev, curr) => [...prev, ...curr], [])
 
     if (this.slugName !== null) {
-      routes.push(...this.children.get('[]')!._smoosh(`${prefix}[${this.slugName}]/`))
+      routes.push(
+        ...this.children.get('[]')!._smoosh(`${prefix}[${this.slugName}]/`)
+      )
     }
 
     if (!this.placeholder) {
@@ -45,19 +47,29 @@ class UrlNode {
     }
 
     if (this.restSlugName !== null) {
-      routes.push(...this.children.get('[...]')!._smoosh(`${prefix}[...${this.restSlugName}]/`))
+      routes.push(
+        ...this.children
+          .get('[...]')!
+          ._smoosh(`${prefix}[...${this.restSlugName}]/`)
+      )
     }
 
     if (this.optionalRestSlugName !== null) {
       routes.push(
-        ...this.children.get('[[...]]')!._smoosh(`${prefix}[[...${this.optionalRestSlugName}]]/`)
+        ...this.children
+          .get('[[...]]')!
+          ._smoosh(`${prefix}[[...${this.optionalRestSlugName}]]/`)
       )
     }
 
     return routes
   }
 
-  private _insert(urlPaths: string[], slugNames: string[], isCatchAll: boolean): void {
+  private _insert(
+    urlPaths: string[],
+    slugNames: string[],
+    isCatchAll: boolean
+  ): void {
     if (urlPaths.length === 0) {
       this.placeholder = false
       return
@@ -101,7 +113,9 @@ class UrlNode {
       }
 
       if (segmentName.startsWith('.')) {
-        throw new Error(`Segment names may not start with erroneous periods ('${segmentName}').`)
+        throw new Error(
+          `Segment names may not start with erroneous periods ('${segmentName}').`
+        )
       }
 
       function handleSlug(previousSlug: string | null, nextSlug: string) {
@@ -164,7 +178,9 @@ class UrlNode {
         }
       } else {
         if (isOptional) {
-          throw new Error(`Optional route parameters are not yet supported ("${urlPaths[0]}").`)
+          throw new Error(
+            `Optional route parameters are not yet supported ("${urlPaths[0]}").`
+          )
         }
         handleSlug(this.slugName, segmentName)
         // slugName is kept as it can only be one particular slugName
@@ -179,14 +195,18 @@ class UrlNode {
       this.children.set(nextSegment, new UrlNode())
     }
 
-    this.children.get(nextSegment)!._insert(urlPaths.slice(1), slugNames, isCatchAll)
+    this.children
+      .get(nextSegment)!
+      ._insert(urlPaths.slice(1), slugNames, isCatchAll)
   }
 }
 
 /**
  * @deprecated Use `sortSortableRoutes` or `sortPages` instead.
  */
-export function getSortedRoutes(normalizedPages: ReadonlyArray<string>): string[] {
+export function getSortedRoutes(
+  normalizedPages: ReadonlyArray<string>
+): string[] {
   // First the UrlNode is created, and every UrlNode can have only 1 dynamic segment
   // Eg you can't have pages/[post]/abc.js and pages/[hello]/something-else.js
   // Only 1 dynamic segment per nesting level
@@ -209,7 +229,10 @@ export function getSortedRoutes(normalizedPages: ReadonlyArray<string>): string[
 /**
  * @deprecated Use `sortSortableRouteObjects` or `sortPageObjects` instead.
  */
-export function getSortedRouteObjects<T>(objects: T[], getter: (obj: T) => string): T[] {
+export function getSortedRouteObjects<T>(
+  objects: T[],
+  getter: (obj: T) => string
+): T[] {
   // We're assuming here that all the pathnames are unique, that way we can
   // sort the list and use the index as the key.
   const indexes: Record<string, number> = {}

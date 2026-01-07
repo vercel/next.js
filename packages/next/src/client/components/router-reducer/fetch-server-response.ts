@@ -35,7 +35,10 @@ import {
 } from '../../flight-data-helpers'
 import { getAppBuildId } from '../../app-build-id'
 import { setCacheBustingSearchParam } from './set-cache-busting-search-param'
-import { getRenderedSearch, urlToUrlWithoutFlightMarker } from '../../route-params'
+import {
+  getRenderedSearch,
+  urlToUrlWithoutFlightMarker,
+} from '../../route-params'
 import type { NormalizedSearch } from '../segment-cache/cache-key'
 import { getDeploymentId } from '../../../shared/lib/deployment-id'
 
@@ -44,9 +47,14 @@ const createFromReadableStream =
 const createFromFetch =
   createFromFetchBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromFetch']
 
-let createDebugChannel: typeof import('../../dev/debug-channel').createDebugChannel | undefined
+let createDebugChannel:
+  | typeof import('../../dev/debug-channel').createDebugChannel
+  | undefined
 
-if (process.env.NODE_ENV !== 'production' && process.env.__NEXT_REACT_DEBUG_CHANNEL) {
+if (
+  process.env.NODE_ENV !== 'production' &&
+  process.env.__NEXT_REACT_DEBUG_CHANNEL
+) {
   createDebugChannel = (
     require('../../dev/debug-channel') as typeof import('../../dev/debug-channel')
   ).createDebugChannel
@@ -71,7 +79,9 @@ type SpaFetchServerResponseResult = {
 
 type MpaFetchServerResponseResult = string
 
-export type FetchServerResponseResult = MpaFetchServerResponseResult | SpaFetchServerResponseResult
+export type FetchServerResponseResult =
+  | MpaFetchServerResponseResult
+  | SpaFetchServerResponseResult
 
 export type RequestHeaders = {
   [RSC_HEADER]?: '1'
@@ -158,7 +168,8 @@ export async function fetchServerResponse(
     // Typically, during a navigation, we decode the response using Flight's
     // `createFromFetch` API, which accepts a `fetch` promise.
     // TODO: Remove this check once the old PPR flag is removed
-    const isLegacyPPR = process.env.__NEXT_PPR && !process.env.__NEXT_CACHE_COMPONENTS
+    const isLegacyPPR =
+      process.env.__NEXT_PPR && !process.env.__NEXT_CACHE_COMPONENTS
     const shouldImmediatelyDecode = !isLegacyPPR
     const res = await createFetch<NavigationFlightResponse>(
       url,
@@ -173,9 +184,13 @@ export async function fetchServerResponse(
     const contentType = res.headers.get('content-type') || ''
     const interception = !!res.headers.get('vary')?.includes(NEXT_URL)
     const postponed = !!res.headers.get(NEXT_DID_POSTPONE_HEADER)
-    const staleTimeHeaderSeconds = res.headers.get(NEXT_ROUTER_STALE_TIME_HEADER)
+    const staleTimeHeaderSeconds = res.headers.get(
+      NEXT_ROUTER_STALE_TIME_HEADER
+    )
     const staleTime =
-      staleTimeHeaderSeconds !== null ? parseInt(staleTimeHeaderSeconds, 10) * 1000 : -1
+      staleTimeHeaderSeconds !== null
+        ? parseInt(staleTimeHeaderSeconds, 10) * 1000
+        : -1
     let isFlightResponse = contentType.startsWith(RSC_CONTENT_TYPE_HEADER)
 
     if (process.env.NODE_ENV === 'production') {
@@ -217,11 +232,14 @@ export async function fetchServerResponse(
       // TODO: This should only be reachable if legacy PPR is enabled (i.e. PPR
       // without Cache Components). Remove this branch once legacy PPR
       // is deleted.
-      const flightStream = postponed ? createUnclosingPrefetchStream(res.body) : res.body
-      flightResponsePromise = createFromNextReadableStream<NavigationFlightResponse>(
-        flightStream,
-        headers
-      )
+      const flightStream = postponed
+        ? createUnclosingPrefetchStream(res.body)
+        : res.body
+      flightResponsePromise =
+        createFromNextReadableStream<NavigationFlightResponse>(
+          flightStream,
+          headers
+        )
     }
 
     const flightResponse = await flightResponsePromise
@@ -303,7 +321,9 @@ export async function createFetch<T>(
     // Create a new request ID for the server action request. The server uses
     // this to tag debug information sent via WebSocket to the client, which
     // then routes those chunks to the debug channel associated with this ID.
-    headers[NEXT_REQUEST_ID_HEADER] = crypto.getRandomValues(new Uint32Array(1))[0].toString(16)
+    headers[NEXT_REQUEST_ID_HEADER] = crypto
+      .getRandomValues(new Uint32Array(1))[0]
+      .toString(16)
   }
 
   const fetchOptions: RequestInit = {

@@ -3,7 +3,10 @@ import { cookies } from 'next/headers'
 
 async function action() {
   'use server'
-  ;(await cookies()).set('custom-server-action-test-cookie', 'custom-server-action-test-cookie-val')
+  ;(await cookies()).set(
+    'custom-server-action-test-cookie',
+    'custom-server-action-test-cookie-val'
+  )
   redirect('/another')
 }
 

@@ -22,13 +22,20 @@ export default defineRule({
         }
         const { name, dir } = path.parse(document)
 
-        if (!(name.startsWith('_document') || (dir === '/_document' && name === 'index'))) {
+        if (
+          !(
+            name.startsWith('_document') ||
+            (dir === '/_document' && name === 'index')
+          )
+        ) {
           return
         }
 
         if (
           node.name.name === 'style' &&
-          node.attributes.find((attr) => attr.type === 'JSXAttribute' && attr.name.name === 'jsx')
+          node.attributes.find(
+            (attr) => attr.type === 'JSXAttribute' && attr.name.name === 'jsx'
+          )
         ) {
           context.report({
             node,

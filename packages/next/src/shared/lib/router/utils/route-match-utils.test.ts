@@ -63,7 +63,8 @@ describe('safeCompile', () => {
 
     it('should work with the actual failing case from interception routes', () => {
       // This is the exact pattern that was failing
-      const pattern = '/intercepting-routes-dynamic/photos/(.):nxtPauthor/:nxtPid'
+      const pattern =
+        '/intercepting-routes-dynamic/photos/(.):nxtPauthor/:nxtPid'
       const compile = safeCompile(pattern, { validate: false })
 
       const result = compile({
@@ -173,7 +174,9 @@ describe('stripNormalizedSeparators', () => {
     // it should be preserved as it's part of user content
     const input = `/folder/my${PARAM_SEPARATOR}file/data${PARAM_SEPARATOR}value`
     const result = stripNormalizedSeparators(input)
-    expect(result).toBe(`/folder/my${PARAM_SEPARATOR}file/data${PARAM_SEPARATOR}value`)
+    expect(result).toBe(
+      `/folder/my${PARAM_SEPARATOR}file/data${PARAM_SEPARATOR}value`
+    )
   })
 
   it('should only strip after closing paren, not before', () => {

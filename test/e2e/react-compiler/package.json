@@ -1,6 +1,6 @@
 {
-  "name": "test-e2e-react-compiler",
   "private": true,
+  "name": "test-e2e-react-compiler",
   "dependencies": {
     "reference-library": "link:./reference-library"
   }

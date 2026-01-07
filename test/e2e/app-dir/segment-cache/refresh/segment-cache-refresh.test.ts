@@ -37,7 +37,9 @@ describe('segment cache (refresh)', () => {
     // Reveal the link to the docs page to prefetch it.
     await act(
       async () => {
-        const toggleDocsLink = await browser.elementByCss('input[data-link-accordion="/docs"]')
+        const toggleDocsLink = await browser.elementByCss(
+          'input[data-link-accordion="/docs"]'
+        )
         await toggleDocsLink.click()
       },
       {
@@ -61,7 +63,9 @@ describe('segment cache (refresh)', () => {
       },
     ])
 
-    const navbarDynamicRenderCounter = await browser.elementById('navbar-dynamic-render-counter')
+    const navbarDynamicRenderCounter = await browser.elementById(
+      'navbar-dynamic-render-counter'
+    )
     // If this is still 0, then the nav bar was not successfully refreshed
     expect(await navbarDynamicRenderCounter.textContent()).toBe('1')
   })
@@ -92,7 +96,9 @@ describe('segment cache (refresh)', () => {
     // Reveal the link to the docs page to prefetch it.
     await act(
       async () => {
-        const toggleDocsLink = await browser.elementByCss('input[data-link-accordion="/docs"]')
+        const toggleDocsLink = await browser.elementByCss(
+          'input[data-link-accordion="/docs"]'
+        )
         await toggleDocsLink.click()
       },
       {
@@ -117,7 +123,9 @@ describe('segment cache (refresh)', () => {
       },
     ])
 
-    const navbarDynamicRenderCounter = await browser.elementById('navbar-dynamic-render-counter')
+    const navbarDynamicRenderCounter = await browser.elementById(
+      'navbar-dynamic-render-counter'
+    )
     // If this is still 0, then the nav bar was not successfully refreshed
     expect(await navbarDynamicRenderCounter.textContent()).toBe('1')
 

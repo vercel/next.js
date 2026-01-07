@@ -1,5 +1,9 @@
 import type { AlternateLinkDescriptor } from '../types/alternative-urls-types'
-import type { Metadata, ResolvedMetadataWithURLs, Viewport } from '../types/metadata-interface'
+import type {
+  Metadata,
+  ResolvedMetadataWithURLs,
+  Viewport,
+} from '../types/metadata-interface'
 import type { ResolvedVerification } from '../types/metadata-types'
 import type {
   FieldResolver,
@@ -7,7 +11,10 @@ import type {
   MetadataContext,
 } from '../types/resolvers'
 import { resolveAsArrayOrUndefined } from '../generate/utils'
-import { resolveAbsoluteUrlWithPathname, type MetadataBaseURL } from './resolve-url'
+import {
+  resolveAbsoluteUrlWithPathname,
+  type MetadataBaseURL,
+} from './resolve-url'
 
 function resolveAlternateUrl(
   url: string | URL,
@@ -19,18 +26,28 @@ function resolveAlternateUrl(
   // we treat it as a URL base and resolve with current pathname
   if (url instanceof URL) {
     const newUrl = new URL(pathname, url)
-    url.searchParams.forEach((value, key) => newUrl.searchParams.set(key, value))
+    url.searchParams.forEach((value, key) =>
+      newUrl.searchParams.set(key, value)
+    )
     url = newUrl
   }
-  return resolveAbsoluteUrlWithPathname(url, metadataBase, pathname, metadataContext)
+  return resolveAbsoluteUrlWithPathname(
+    url,
+    metadataBase,
+    pathname,
+    metadataContext
+  )
 }
 
-export const resolveThemeColor: FieldResolver<'themeColor', Viewport> = (themeColor) => {
+export const resolveThemeColor: FieldResolver<'themeColor', Viewport> = (
+  themeColor
+) => {
   if (!themeColor) return null
   const themeColorDescriptors: Viewport['themeColor'] = []
 
   resolveAsArrayOrUndefined(themeColor)?.forEach((descriptor) => {
-    if (typeof descriptor === 'string') themeColorDescriptors.push({ color: descriptor })
+    if (typeof descriptor === 'string')
+      themeColorDescriptors.push({ color: descriptor })
     else if (typeof descriptor === 'object')
       themeColorDescriptors.push({
         color: descriptor.color,
@@ -43,7 +60,10 @@ export const resolveThemeColor: FieldResolver<'themeColor', Viewport> = (themeCo
 
 async function resolveUrlValuesOfObject(
   obj:
-    | Record<string, string | URL | AlternateLinkDescriptor[] | null | undefined>
+    | Record<
+        string,
+        string | URL | AlternateLinkDescriptor[] | null | undefined
+      >
     | null
     | undefined,
   metadataBase: MetadataBaseURL,
@@ -58,14 +78,24 @@ async function resolveUrlValuesOfObject(
       const pathnameForUrl = await pathname
       result[key] = [
         {
-          url: resolveAlternateUrl(value, metadataBase, pathnameForUrl, metadataContext),
+          url: resolveAlternateUrl(
+            value,
+            metadataBase,
+            pathnameForUrl,
+            metadataContext
+          ),
         },
       ]
     } else if (value && value.length) {
       result[key] = []
       const pathnameForUrl = await pathname
       value.forEach((item, index) => {
-        const url = resolveAlternateUrl(item.url, metadataBase, pathnameForUrl, metadataContext)
+        const url = resolveAlternateUrl(
+          item.url,
+          metadataBase,
+          pathnameForUrl,
+          metadataContext
+        )
         result[key][index] = {
           url,
           title: item.title,
@@ -93,7 +123,12 @@ async function resolveCanonicalUrl(
 
   // Return string url because structureClone can't handle URL instance
   return {
-    url: resolveAlternateUrl(url, metadataBase, pathnameForUrl, metadataContext),
+    url: resolveAlternateUrl(
+      url,
+      metadataBase,
+      pathnameForUrl,
+      metadataContext
+    ),
   }
 }
 
@@ -103,15 +138,30 @@ export const resolveAlternates: AsyncFieldResolverExtraArgs<
 > = async (alternates, metadataBase, pathname, context) => {
   if (!alternates) return null
 
-  const canonical = await resolveCanonicalUrl(alternates.canonical, metadataBase, pathname, context)
+  const canonical = await resolveCanonicalUrl(
+    alternates.canonical,
+    metadataBase,
+    pathname,
+    context
+  )
   const languages = await resolveUrlValuesOfObject(
     alternates.languages,
     metadataBase,
     pathname,
     context
   )
-  const media = await resolveUrlValuesOfObject(alternates.media, metadataBase, pathname, context)
-  const types = await resolveUrlValuesOfObject(alternates.types, metadataBase, pathname, context)
+  const media = await resolveUrlValuesOfObject(
+    alternates.media,
+    metadataBase,
+    pathname,
+    context
+  )
+  const types = await resolveUrlValuesOfObject(
+    alternates.types,
+    metadataBase,
+    pathname,
+    context
+  )
 
   return {
     canonical,
@@ -134,7 +184,9 @@ const robotsKeys = [
   'max-image-preview',
   'max-snippet',
 ] as const
-const resolveRobotsValue: (robots: Metadata['robots']) => string | null = (robots) => {
+const resolveRobotsValue: (robots: Metadata['robots']) => string | null = (
+  robots
+) => {
   if (!robots) return null
   if (typeof robots === 'string') return robots
 
@@ -160,12 +212,15 @@ export const resolveRobots: FieldResolver<'robots'> = (robots) => {
   if (!robots) return null
   return {
     basic: resolveRobotsValue(robots),
-    googleBot: typeof robots !== 'string' ? resolveRobotsValue(robots.googleBot) : null,
+    googleBot:
+      typeof robots !== 'string' ? resolveRobotsValue(robots.googleBot) : null,
   }
 }
 
 const VerificationKeys = ['google', 'yahoo', 'yandex', 'me', 'other'] as const
-export const resolveVerification: FieldResolver<'verification'> = (verification) => {
+export const resolveVerification: FieldResolver<'verification'> = (
+  verification
+) => {
   if (!verification) return null
   const res: ResolvedVerification = {}
 
@@ -175,7 +230,9 @@ export const resolveVerification: FieldResolver<'verification'> = (verification)
       if (key === 'other') {
         res.other = {}
         for (const otherKey in verification.other) {
-          const otherValue = resolveAsArrayOrUndefined(verification.other[otherKey])
+          const otherValue = resolveAsArrayOrUndefined(
+            verification.other[otherKey]
+          )
           if (otherValue) res.other[otherKey] = otherValue
         }
       } else res[key] = resolveAsArrayOrUndefined(value) as (string | number)[]
@@ -223,7 +280,12 @@ export const resolveItunes: AsyncFieldResolverExtraArgs<
   return {
     appId: itunes.appId,
     appArgument: itunes.appArgument
-      ? resolveAlternateUrl(itunes.appArgument, metadataBase, await pathname, context)
+      ? resolveAlternateUrl(
+          itunes.appArgument,
+          metadataBase,
+          await pathname,
+          context
+        )
       : undefined,
   }
 }
@@ -242,10 +304,20 @@ export const resolvePagination: AsyncFieldResolverExtraArgs<
 > = async (pagination, metadataBase, pathname, context) => {
   return {
     previous: pagination?.previous
-      ? resolveAlternateUrl(pagination.previous, metadataBase, await pathname, context)
+      ? resolveAlternateUrl(
+          pagination.previous,
+          metadataBase,
+          await pathname,
+          context
+        )
       : null,
     next: pagination?.next
-      ? resolveAlternateUrl(pagination.next, metadataBase, await pathname, context)
+      ? resolveAlternateUrl(
+          pagination.next,
+          metadataBase,
+          await pathname,
+          context
+        )
       : null,
   }
 }

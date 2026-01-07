@@ -50,7 +50,9 @@ export class NodeNextRequest extends BaseNextRequest<Readable> {
    */
   public stream() {
     if (this.streaming) {
-      throw new Error('Invariant: NodeNextRequest.stream() can only be called once')
+      throw new Error(
+        'Invariant: NodeNextRequest.stream() can only be called once'
+      )
     }
     this.streaming = true
 
@@ -83,7 +85,9 @@ export class NodeNextResponse extends BaseNextResponse<Writable> {
     return this._res
   }
 
-  constructor(private _res: ServerResponse & { [SYMBOL_CLEARED_COOKIES]?: boolean }) {
+  constructor(
+    private _res: ServerResponse & { [SYMBOL_CLEARED_COOKIES]?: boolean }
+  ) {
     super(_res)
   }
 
@@ -122,7 +126,9 @@ export class NodeNextResponse extends BaseNextResponse<Writable> {
 
     if (values === undefined) return undefined
 
-    return (Array.isArray(values) ? values : [values]).map((value) => value.toString())
+    return (Array.isArray(values) ? values : [values]).map((value) =>
+      value.toString()
+    )
   }
 
   hasHeader(name: string): boolean {

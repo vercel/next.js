@@ -1,6 +1,8 @@
 export function GET() {
   return new Response(
-    typeof globalThis.crypto === 'object' ? 'crypto is available' : 'crypto is not available'
+    typeof globalThis.crypto === 'object'
+      ? 'crypto is available'
+      : 'crypto is not available'
   )
 }
 

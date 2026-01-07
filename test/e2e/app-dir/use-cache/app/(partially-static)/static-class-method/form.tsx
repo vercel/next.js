@@ -2,7 +2,11 @@
 
 import { useActionState } from 'react'
 
-export function Form({ getRandomValue }: { getRandomValue: () => Promise<number> }) {
+export function Form({
+  getRandomValue,
+}: {
+  getRandomValue: () => Promise<number>
+}) {
   const [result, formAction, isPending] = useActionState(getRandomValue, -1)
 
   return (

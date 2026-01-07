@@ -718,7 +718,10 @@ describe('getImageProps()', () => {
           'srcSet',
           '/_next/image?url=http%3A%2F%2Fexample.com%2Ftest.png&w=128&q=75 1x, /_next/image?url=http%3A%2F%2Fexample.com%2Ftest.png&w=256&q=75 2x',
         ],
-        ['src', '/_next/image?url=http%3A%2F%2Fexample.com%2Ftest.png&w=256&q=75'],
+        [
+          'src',
+          '/_next/image?url=http%3A%2F%2Fexample.com%2Ftest.png&w=256&q=75',
+        ],
       ])
     } finally {
       delete process.env.NEXT_DEPLOYMENT_ID

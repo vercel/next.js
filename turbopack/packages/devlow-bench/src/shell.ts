@@ -70,7 +70,9 @@ class CommandImpl {
   async ok() {
     const exitCode = await this.exitPromise
     if (exitCode !== 0) {
-      throw new Error(`Command exited with code ${exitCode}\n\nOutput:\n${this.output}`)
+      throw new Error(
+        `Command exited with code ${exitCode}\n\nOutput:\n${this.output}`
+      )
     }
   }
 
@@ -103,7 +105,9 @@ class CommandImpl {
         }).then(() => 'output'),
       ])
       if (waitResult !== 'output') {
-        throw new Error(`Command exited with code ${waitResult}\n\nOutput:\n${this.output}`)
+        throw new Error(
+          `Command exited with code ${waitResult}\n\nOutput:\n${this.output}`
+        )
       }
     }
   }
@@ -144,7 +148,9 @@ export function command(
     stdio: ['ignore', 'pipe', 'pipe'],
   })
   if (shellOutput) {
-    console.log(`[SHELL] ${command} ${args.join(' ')} ${JSON.stringify(options)}`)
+    console.log(
+      `[SHELL] ${command} ${args.join(' ')} ${JSON.stringify(options)}`
+    )
   }
   return new CommandImpl(process)
 }

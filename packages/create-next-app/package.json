@@ -1,19 +1,19 @@
 {
   "name": "create-next-app",
   "version": "16.1.1-canary.16",
-  "description": "Create Next.js-powered React apps with one command",
   "keywords": [
+    "react",
     "next",
-    "next.js",
-    "react"
+    "next.js"
   ],
-  "license": "MIT",
-  "author": "Next.js Team <support@vercel.com>",
+  "description": "Create Next.js-powered React apps with one command",
   "repository": {
     "type": "git",
     "url": "https://github.com/vercel/next.js",
     "directory": "packages/create-next-app"
   },
+  "author": "Next.js Team <support@vercel.com>",
+  "license": "MIT",
   "bin": {
     "create-next-app": "./dist/index.js"
   },

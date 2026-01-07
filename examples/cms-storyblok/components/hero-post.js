@@ -3,7 +3,14 @@ import Date from "./date";
 import CoverImage from "./cover-image";
 import Link from "next/link";
 
-export default function HeroPost({ title, coverImage, date, excerpt, author, slug }) {
+export default function HeroPost({
+  title,
+  coverImage,
+  date,
+  excerpt,
+  author,
+  slug,
+}) {
   return (
     <section>
       <div className="mb-8 md:mb-16">

@@ -11,17 +11,23 @@ import type { MatchOptions } from './route-matcher-manager'
 describe('DefaultRouteMatcherManager', () => {
   it('will throw an error when used before it has been reloaded', async () => {
     const manager = new DefaultRouteMatcherManager()
-    await expect(manager.match('/some/not/real/path', {})).resolves.toEqual(null)
+    await expect(manager.match('/some/not/real/path', {})).resolves.toEqual(
+      null
+    )
     manager.push({ matchers: jest.fn(async () => []) })
     await expect(manager.match('/some/not/real/path', {})).rejects.toThrow()
     await manager.reload()
-    await expect(manager.match('/some/not/real/path', {})).resolves.toEqual(null)
+    await expect(manager.match('/some/not/real/path', {})).resolves.toEqual(
+      null
+    )
   })
 
   it('will not error and not match when no matchers are provided', async () => {
     const manager = new DefaultRouteMatcherManager()
     await manager.reload()
-    await expect(manager.match('/some/not/real/path', {})).resolves.toEqual(null)
+    await expect(manager.match('/some/not/real/path', {})).resolves.toEqual(
+      null
+    )
   })
 
   it.each<{

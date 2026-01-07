@@ -9,7 +9,10 @@ type FullMetadataItem = FullMetadataItems[number]
 type MetadataItems = [FullMetadataItem[0], FullMetadataItem[1]][]
 
 function accumulateMetadata(metadataItems: MetadataItems) {
-  const fullMetadataItems: FullMetadataItems = metadataItems.map((item) => [item[0], item[1]])
+  const fullMetadataItems: FullMetadataItems = metadataItems.map((item) => [
+    item[0],
+    item[1],
+  ])
   const route = '/test'
   const pathname = Promise.resolve('/test')
   return originAccumulateMetadata(route, fullMetadataItems, pathname, {
@@ -46,7 +49,10 @@ describe('accumulateMetadata', () => {
       const generateMetadata = () => Promise.resolve({ description: 'child' })
       const metadataItems: MetadataItems = [
         [{ description: 'parent' }, null],
-        [Object.assign(generateMetadata, { $$original: generateMetadata }), null],
+        [
+          Object.assign(generateMetadata, { $$original: generateMetadata }),
+          null,
+        ],
       ]
 
       const metadata = await accumulateMetadata(metadataItems)
@@ -72,8 +78,14 @@ describe('accumulateMetadata', () => {
     it('should merge title with parent layout ', async () => {
       const metadataItems: MetadataItems = [
         [{ title: 'root' }, null],
-        [{ title: { absolute: 'layout', template: '1st parent layout %s' } }, null],
-        [{ title: { absolute: 'layout', template: '2nd parent layout %s' } }, null],
+        [
+          { title: { absolute: 'layout', template: '1st parent layout %s' } },
+          null,
+        ],
+        [
+          { title: { absolute: 'layout', template: '2nd parent layout %s' } },
+          null,
+        ],
         [null, null], // same level layout
         [{ title: 'page' }, null],
       ]
@@ -284,8 +296,12 @@ describe('accumulateMetadata', () => {
 
       items.forEach(async (item) => {
         const [configuredMetadata, result] = item
-        const metadata = await accumulateMetadata(configuredMetadata.map((m) => [m, null]))
-        expect(mapUrlsToStrings(metadata)).toMatchObject(mapUrlsToStrings(result))
+        const metadata = await accumulateMetadata(
+          configuredMetadata.map((m) => [m, null])
+        )
+        expect(mapUrlsToStrings(metadata)).toMatchObject(
+          mapUrlsToStrings(result)
+        )
       })
     })
 
@@ -706,7 +722,9 @@ describe('accumulateMetadata', () => {
                 ],
               },
               media: {
-                'only screen and (max-width: 600px)': [{ url: '/mobile', title: 'mobile' }],
+                'only screen and (max-width: 600px)': [
+                  { url: '/mobile', title: 'mobile' },
+                ],
               },
               types: {
                 'application/rss+xml': 'https://example.com/rss',
@@ -727,7 +745,9 @@ describe('accumulateMetadata', () => {
             ],
           },
           media: {
-            'only screen and (max-width: 600px)': [{ url: '/mobile', title: 'mobile' }],
+            'only screen and (max-width: 600px)': [
+              { url: '/mobile', title: 'mobile' },
+            ],
           },
           types: {
             'application/rss+xml': [{ url: 'https://example.com/rss' }],
@@ -776,7 +796,10 @@ describe('accumulateViewport', () => {
 
   describe('themeColor', () => {
     it('should support string theme color', async () => {
-      const metadataItems: Viewport[] = [{ themeColor: '#000' }, { themeColor: '#fff' }]
+      const metadataItems: Viewport[] = [
+        { themeColor: '#000' },
+        { themeColor: '#fff' },
+      ]
       const viewport = await accumulateViewport(metadataItems)
       expect(viewport).toMatchObject({
         themeColor: [{ color: '#fff' }],

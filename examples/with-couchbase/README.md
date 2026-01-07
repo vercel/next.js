@@ -89,4 +89,5 @@ To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [
 - When you import your project on Vercel, make sure to click on **Environment Variables** and set the keys to match your `.env.local` file.
 
 - For a cloud deployment on Vercel, the **Environment Variables** values will need to **correspond to a cloud instance of Couchbase** (localhost will **NOT** connect from a remote server such as Vercel). Find info on [getting started with Couchbase cloud](https://developer.couchbase.com/tutorial-cloud-getting-started/).
+
   - _Important:_ you will have to allowlist 0.0.0.0/0 as the IP address, since Vercel's serverless deployments use [dynamic IP addresses](https://vercel.com/docs/solutions/databases#allowing-&-blocking-ip-addresses)

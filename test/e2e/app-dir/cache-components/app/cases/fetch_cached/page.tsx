@@ -5,8 +5,8 @@ export default async function Page() {
   return (
     <>
       <p>
-        This page renders two components each performing one or more cached fetches. There is no
-        uncached IO in this example
+        This page renders two components each performing one or more cached
+        fetches. There is no uncached IO in this example
       </p>
       <p>Niether component is wrapped in a Suspense boundary.</p>
       <p>With PPR this page should be entirely static.</p>

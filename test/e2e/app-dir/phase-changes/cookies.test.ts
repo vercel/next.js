@@ -26,7 +26,8 @@ describe('setting cookies', () => {
     currentCliOutputIndex = next.cliOutput.length
   }
 
-  const EXPECTED_ERROR = /Cookies can only be modified in a Server Action or Route Handler\./
+  const EXPECTED_ERROR =
+    /Cookies can only be modified in a Server Action or Route Handler\./
 
   const EXPECTED_ERROR_IN_AFTER =
     /An error occurred in a function passed to `after\(\)`: .+?: Cookies can only be modified in a Server Action or Route Handler\./
@@ -43,7 +44,9 @@ describe('setting cookies', () => {
         expect(getCliOutput()).toMatch(EXPECTED_ERROR)
       }
       // no cookie should be set
-      expect(await session.eval('document.cookie')).not.toInclude('illegalCookie')
+      expect(await session.eval('document.cookie')).not.toInclude(
+        'illegalCookie'
+      )
 
       resetCliOutput()
       // trigger an action
@@ -61,7 +64,9 @@ describe('setting cookies', () => {
       }
 
       // no cookie should be set
-      expect(await session.eval('document.cookie')).not.toInclude('illegalCookie')
+      expect(await session.eval('document.cookie')).not.toInclude(
+        'illegalCookie'
+      )
     })
 
     // these tests inspect CLI logs to see what happened in after,
@@ -79,7 +84,9 @@ describe('setting cookies', () => {
         })
 
         // no cookie should be set
-        expect(await session.eval('document.cookie')).not.toInclude('illegalCookie')
+        expect(await session.eval('document.cookie')).not.toInclude(
+          'illegalCookie'
+        )
       })
 
       it('from a route handler to after via closure', async () => {

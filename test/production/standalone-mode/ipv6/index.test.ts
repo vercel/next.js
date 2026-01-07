@@ -1,7 +1,12 @@
 import { NextInstance, createNext } from 'e2e-utils'
 import fs from 'fs-extra'
 import glob from 'glob'
-import { findPort, initNextServerScript, killApp, renderViaHTTP } from 'next-test-utils'
+import {
+  findPort,
+  initNextServerScript,
+  killApp,
+  renderViaHTTP,
+} from 'next-test-utils'
 import { join } from 'path'
 
 describe('standalone mode: ipv6 hostname', () => {
@@ -16,7 +21,10 @@ describe('standalone mode: ipv6 hostname', () => {
     })
     await next.stop()
 
-    await fs.move(join(next.testDir, '.next/standalone'), join(next.testDir, 'standalone'))
+    await fs.move(
+      join(next.testDir, '.next/standalone'),
+      join(next.testDir, 'standalone')
+    )
 
     for (const file of await fs.readdir(next.testDir)) {
       if (file !== 'standalone') {

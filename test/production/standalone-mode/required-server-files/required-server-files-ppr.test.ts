@@ -27,7 +27,8 @@ describe.skip('required server files app router', () => {
   beforeAll(async () => {
     process.env.NOW_BUILDER = '1'
     process.env.NEXT_PRIVATE_TEST_HEADERS = '1'
-    process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS = './cache-entry-handlers.js'
+    process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS =
+      './cache-entry-handlers.js'
 
     // Setup the Next.js app and build it.
     next = await createNext({
@@ -43,10 +44,14 @@ describe.skip('required server files app router', () => {
         '.env': new FileRef(join(__dirname, '.env')),
         '.env.local': new FileRef(join(__dirname, '.env.local')),
         '.env.production': new FileRef(join(__dirname, '.env.production')),
-        'cache-entry-handlers.js': new FileRef(join(__dirname, 'cache-entry-handlers.js')),
+        'cache-entry-handlers.js': new FileRef(
+          join(__dirname, 'cache-entry-handlers.js')
+        ),
       },
       overrideFiles: {
-        'app/not-found.js': new FileRef(join(__dirname, 'ppr', 'app', 'not-found.js')),
+        'app/not-found.js': new FileRef(
+          join(__dirname, 'ppr', 'app', 'not-found.js')
+        ),
       },
       nextConfig: {
         cacheHandler: './cache-handler.js',
@@ -61,20 +66,32 @@ describe.skip('required server files app router', () => {
 
     // Read the postponed state and the HTML that was generated at build time
     // from the output of the build.
-    delayedPostpone = (await next.readJSON('.next/server/app/delayed.meta')).postponed
-    rewritePostpone = (await next.readJSON('.next/server/app/rewrite/first-cookie.meta')).postponed
-    secondCookiePostpone = (await next.readJSON('.next/server/app/rewrite/second-cookie.meta'))
+    delayedPostpone = (await next.readJSON('.next/server/app/delayed.meta'))
       .postponed
-    secondCookieHTML = await next.readFile('.next/server/app/rewrite/second-cookie.html')
+    rewritePostpone = (
+      await next.readJSON('.next/server/app/rewrite/first-cookie.meta')
+    ).postponed
+    secondCookiePostpone = (
+      await next.readJSON('.next/server/app/rewrite/second-cookie.meta')
+    ).postponed
+    secondCookieHTML = await next.readFile(
+      '.next/server/app/rewrite/second-cookie.html'
+    )
 
-    await fs.rename(join(next.testDir, '.next/standalone'), join(next.testDir, 'standalone'))
+    await fs.rename(
+      join(next.testDir, '.next/standalone'),
+      join(next.testDir, 'standalone')
+    )
 
     const serverFilePath = join(next.testDir, 'standalone/server.js')
 
     // We're going to use the minimal mode for the server.
     await fs.writeFile(
       serverFilePath,
-      (await fs.readFile(serverFilePath, 'utf8')).replace('port:', `minimalMode: true, port:`)
+      (await fs.readFile(serverFilePath, 'utf8')).replace(
+        'port:',
+        `minimalMode: true, port:`
+      )
     )
 
     // Find a port to use for the server.
@@ -116,11 +133,14 @@ describe.skip('required server files app router', () => {
   })
 
   it('should de-dupe client segment tree revalidate requests', async () => {
-    const { segmentPaths } = await next.readJSON('standalone/.next/server/app/isr/first.meta')
+    const { segmentPaths } = await next.readJSON(
+      'standalone/.next/server/app/isr/first.meta'
+    )
     const outputIdx = cliOutput.length
 
     for (const segmentPath of segmentPaths) {
-      const outputSegmentPath = join('/isr/[slug].segments', segmentPath) + '.segment.rsc'
+      const outputSegmentPath =
+        join('/isr/[slug].segments', segmentPath) + '.segment.rsc'
 
       require('console').error('requesting', outputSegmentPath)
 
@@ -141,7 +161,9 @@ describe.skip('required server files app router', () => {
       expect(res.headers.has('x-nextjs-cache-entry-handler')).toBe(false)
     }
 
-    expect(cliOutput.substring(outputIdx).match(/rendering \/isr\/\[slug\]/g).length).toBe(1)
+    expect(
+      cliOutput.substring(outputIdx).match(/rendering \/isr\/\[slug\]/g).length
+    ).toBe(1)
   })
 
   it('should properly stream resume with Next-Resume', async () => {
@@ -171,7 +193,9 @@ describe.skip('required server files app router', () => {
     const firstSuspense = chunks.find((item) => item.chunk.includes('time'))
     const secondSuspense = chunks.find((item) => item.chunk.includes('random'))
 
-    expect(secondSuspense.time - firstSuspense.time).toBeGreaterThanOrEqual(2 * 1000)
+    expect(secondSuspense.time - firstSuspense.time).toBeGreaterThanOrEqual(
+      2 * 1000
+    )
   })
 
   it('should properly handle prerender for bot request', async () => {
@@ -273,14 +297,19 @@ describe.skip('required server files app router', () => {
 
   describe('middleware rewrite', () => {
     it('should work with a dynamic path with Next-Resume', async () => {
-      const res = await fetchViaHTTP(appPort, '/rewrite-with-cookie', undefined, {
-        method: 'POST',
-        headers: {
-          'x-matched-path': '/rewrite/first-cookie',
-          'next-resume': '1',
-        },
-        body: rewritePostpone,
-      })
+      const res = await fetchViaHTTP(
+        appPort,
+        '/rewrite-with-cookie',
+        undefined,
+        {
+          method: 'POST',
+          headers: {
+            'x-matched-path': '/rewrite/first-cookie',
+            'next-resume': '1',
+          },
+          body: rewritePostpone,
+        }
+      )
 
       expect(res.status).toBe(200)
 
@@ -355,7 +384,12 @@ describe.skip('required server files app router', () => {
   })
 
   it('should not send cache tags in minimal mode for SSR', async () => {
-    for (const path of ['/ssr/first', '/ssr/second', '/api/ssr/first', '/api/ssr/second']) {
+    for (const path of [
+      '/ssr/first',
+      '/ssr/second',
+      '/api/ssr/first',
+      '/api/ssr/second',
+    ]) {
       const res = await fetchViaHTTP(appPort, path, undefined, {
         redirect: 'manual',
       })
@@ -372,7 +406,12 @@ describe.skip('required server files app router', () => {
   })
 
   it('should not send invalid soft tags to cache handler', async () => {
-    for (const path of ['/ssr/first', '/ssr/second', '/api/ssr/first', '/api/ssr/second']) {
+    for (const path of [
+      '/ssr/first',
+      '/ssr/second',
+      '/api/ssr/first',
+      '/api/ssr/second',
+    ]) {
       const res = await fetchViaHTTP(
         appPort,
         path,
@@ -423,14 +462,19 @@ describe.skip('required server files app router', () => {
 
     // Then let's do a Dynamic RSC request and verify that the random value is
     // not present in the response without passing the postponed state.
-    let res = await fetchViaHTTP(appPort, '/rewrite/second-cookie.rsc', undefined, {
-      headers: {
-        'x-matched-path': '/rewrite/[slug]',
-        'x-now-route-matches': createNowRouteMatches({
-          slug: 'second-cookie',
-        }).toString(),
-      },
-    })
+    let res = await fetchViaHTTP(
+      appPort,
+      '/rewrite/second-cookie.rsc',
+      undefined,
+      {
+        headers: {
+          'x-matched-path': '/rewrite/[slug]',
+          'x-now-route-matches': createNowRouteMatches({
+            slug: 'second-cookie',
+          }).toString(),
+        },
+      }
+    )
 
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toEqual('text/x-component')

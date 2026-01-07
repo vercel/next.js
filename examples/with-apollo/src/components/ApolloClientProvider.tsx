@@ -38,5 +38,9 @@ function makeClient() {
 
 // you need to create a component to wrap your app in
 export function ApolloClientProvider({ children }: React.PropsWithChildren) {
-  return <ApolloNextAppProvider makeClient={makeClient}>{children}</ApolloNextAppProvider>;
+  return (
+    <ApolloNextAppProvider makeClient={makeClient}>
+      {children}
+    </ApolloNextAppProvider>
+  );
 }

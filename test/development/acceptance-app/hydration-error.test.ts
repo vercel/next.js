@@ -2,7 +2,12 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import { outdent } from 'outdent'
-import { waitForNoRedbox, getRedboxErrorLink, getToastErrorCount, retry } from 'next-test-utils'
+import {
+  waitForNoRedbox,
+  getRedboxErrorLink,
+  getToastErrorCount,
+  retry,
+} from 'next-test-utils'
 
 describe('Error overlay for hydration errors in App router', () => {
   const { next, isTurbopack } = nextTestSetup({
@@ -19,7 +24,9 @@ describe('Error overlay for hydration errors in App router', () => {
       expect.arrayContaining([
         {
           // TODO: Should probably link to https://nextjs.org/docs/messages/react-hydration-error instead.
-          message: expect.stringContaining('https://react.dev/link/hydration-mismatch'),
+          message: expect.stringContaining(
+            'https://react.dev/link/hydration-mismatch'
+          ),
           source: 'error',
         },
       ])

@@ -92,7 +92,9 @@ describe('runtime prefetching', () => {
       await act(async () => {
         await act(
           async () => {
-            await browser.elementByCss(`a[href="/${prefix}/dynamic-params/123"]`).click()
+            await browser
+              .elementByCss(`a[href="/${prefix}/dynamic-params/123"]`)
+              .click()
           },
           {
             // Temporarily block the navigation request.
@@ -101,11 +103,17 @@ describe('runtime prefetching', () => {
             block: true,
           }
         )
-        expect(await browser.elementById('param-value').text()).toEqual('Param: 123')
+        expect(await browser.elementById('param-value').text()).toEqual(
+          'Param: 123'
+        )
       })
       // After navigating, we should see both the parts that we prefetched and dynamic content.
-      expect(await browser.elementById('param-value').text()).toEqual('Param: 123')
-      expect(await browser.elementById('dynamic-content').text()).toEqual('Dynamic content')
+      expect(await browser.elementById('param-value').text()).toEqual(
+        'Param: 123'
+      )
+      expect(await browser.elementById('dynamic-content').text()).toEqual(
+        'Dynamic content'
+      )
 
       await browser.back()
 
@@ -113,7 +121,9 @@ describe('runtime prefetching', () => {
       await act(async () => {
         await act(
           async () => {
-            await browser.elementByCss(`a[href="/${prefix}/dynamic-params/456"]`).click()
+            await browser
+              .elementByCss(`a[href="/${prefix}/dynamic-params/456"]`)
+              .click()
           },
           {
             // Temporarily block the navigation request.
@@ -122,11 +132,17 @@ describe('runtime prefetching', () => {
             block: true,
           }
         )
-        expect(await browser.elementById('param-value').text()).toEqual('Param: 456')
+        expect(await browser.elementById('param-value').text()).toEqual(
+          'Param: 456'
+        )
       })
       // After navigating, we should see both the parts that we prefetched and dynamic content.
-      expect(await browser.elementById('param-value').text()).toEqual('Param: 456')
-      expect(await browser.elementById('dynamic-content').text()).toEqual('Dynamic content')
+      expect(await browser.elementById('param-value').text()).toEqual(
+        'Param: 456'
+      )
+      expect(await browser.elementById('dynamic-content').text()).toEqual(
+        'Dynamic content'
+      )
     })
 
     it('includes root params, but not dynamic content', async () => {
@@ -182,7 +198,9 @@ describe('runtime prefetching', () => {
         await act(
           async () => {
             await browser
-              .elementByCss(`a[href="/with-root-param/en/${prefix}/root-params"]`)
+              .elementByCss(
+                `a[href="/with-root-param/en/${prefix}/root-params"]`
+              )
               .click()
           },
           {
@@ -192,11 +210,17 @@ describe('runtime prefetching', () => {
             block: true,
           }
         )
-        expect(await browser.elementById('root-param-value').text()).toEqual('Lang: en')
+        expect(await browser.elementById('root-param-value').text()).toEqual(
+          'Lang: en'
+        )
       })
       // After navigating, we should see both the parts that we prefetched and dynamic content.
-      expect(await browser.elementById('root-param-value').text()).toEqual('Lang: en')
-      expect(await browser.elementById('dynamic-content').text()).toEqual('Dynamic content')
+      expect(await browser.elementById('root-param-value').text()).toEqual(
+        'Lang: en'
+      )
+      expect(await browser.elementById('dynamic-content').text()).toEqual(
+        'Dynamic content'
+      )
 
       // TODO(runtime-ppr) - visiting root params that weren't in generateStaticParams errors when deployed
       if (!isNextDeploy) {
@@ -207,7 +231,9 @@ describe('runtime prefetching', () => {
           await act(
             async () => {
               await browser
-                .elementByCss(`a[href="/with-root-param/de/${prefix}/root-params"]`)
+                .elementByCss(
+                  `a[href="/with-root-param/de/${prefix}/root-params"]`
+                )
                 .click()
             },
             {
@@ -217,11 +243,17 @@ describe('runtime prefetching', () => {
               block: true,
             }
           )
-          expect(await browser.elementById('root-param-value').text()).toEqual('Lang: de')
+          expect(await browser.elementById('root-param-value').text()).toEqual(
+            'Lang: de'
+          )
         })
         // After navigating, we should see both the parts that we prefetched and dynamic content.
-        expect(await browser.elementById('root-param-value').text()).toEqual('Lang: de')
-        expect(await browser.elementById('dynamic-content').text()).toEqual('Dynamic content')
+        expect(await browser.elementById('root-param-value').text()).toEqual(
+          'Lang: de'
+        )
+        expect(await browser.elementById('dynamic-content').text()).toEqual(
+          'Dynamic content'
+        )
       }
     })
 
@@ -274,7 +306,11 @@ describe('runtime prefetching', () => {
       await act(async () => {
         await act(
           async () => {
-            await browser.elementByCss(`a[href="/${prefix}/search-params?searchParam=123"]`).click()
+            await browser
+              .elementByCss(
+                `a[href="/${prefix}/search-params?searchParam=123"]`
+              )
+              .click()
           },
           {
             // Temporarily block the navigation request.
@@ -283,26 +319,38 @@ describe('runtime prefetching', () => {
             block: true,
           }
         )
-        expect(await browser.elementById('search-param-value').text()).toEqual('Search param: 123')
+        expect(await browser.elementById('search-param-value').text()).toEqual(
+          'Search param: 123'
+        )
       })
       // After navigating, we should see both the parts that we prefetched and dynamic content.
-      expect(await browser.elementById('search-param-value').text()).toEqual('Search param: 123')
-      expect(await browser.elementById('dynamic-content').text()).toEqual('Dynamic content')
+      expect(await browser.elementById('search-param-value').text()).toEqual(
+        'Search param: 123'
+      )
+      expect(await browser.elementById('dynamic-content').text()).toEqual(
+        'Dynamic content'
+      )
 
       await browser.back()
 
       // Navigate to the other page
       await act(
         async () => {
-          await browser.elementByCss(`a[href="/${prefix}/search-params?searchParam=456"]`).click()
+          await browser
+            .elementByCss(`a[href="/${prefix}/search-params?searchParam=456"]`)
+            .click()
         },
         {
           // Now the dynamic content should be fetched
           includes: 'Dynamic content',
         }
       )
-      expect(await browser.elementById('search-param-value').text()).toEqual('Search param: 456')
-      expect(await browser.elementById('dynamic-content').text()).toEqual('Dynamic content')
+      expect(await browser.elementById('search-param-value').text()).toEqual(
+        'Search param: 456'
+      )
+      expect(await browser.elementById('dynamic-content').text()).toEqual(
+        'Dynamic content'
+      )
     })
 
     it('includes headers, but not dynamic content', async () => {
@@ -345,11 +393,17 @@ describe('runtime prefetching', () => {
             block: true,
           }
         )
-        expect(await browser.elementById('header-value').text()).toEqual('Header: present')
+        expect(await browser.elementById('header-value').text()).toEqual(
+          'Header: present'
+        )
       })
       // After navigating, we should see both the parts that we prefetched and dynamic content.
-      expect(await browser.elementById('header-value').text()).toEqual('Header: present')
-      expect(await browser.elementById('dynamic-content').text()).toEqual('Dynamic content')
+      expect(await browser.elementById('header-value').text()).toEqual(
+        'Header: present'
+      )
+      expect(await browser.elementById('dynamic-content').text()).toEqual(
+        'Dynamic content'
+      )
     })
 
     it('includes cookies, but not dynamic content', async () => {
@@ -397,11 +451,17 @@ describe('runtime prefetching', () => {
             block: true,
           }
         )
-        expect(await browser.elementById('cookie-value').text()).toEqual('Cookie: initialValue')
+        expect(await browser.elementById('cookie-value').text()).toEqual(
+          'Cookie: initialValue'
+        )
       })
       // After navigating, we should see both the parts that we prefetched and dynamic content.
-      expect(await browser.elementById('cookie-value').text()).toEqual('Cookie: initialValue')
-      expect(await browser.elementById('dynamic-content').text()).toEqual('Dynamic content')
+      expect(await browser.elementById('cookie-value').text()).toEqual(
+        'Cookie: initialValue'
+      )
+      expect(await browser.elementById('dynamic-content').text()).toEqual(
+        'Dynamic content'
+      )
 
       // Update the cookie via a server action.
       // This should cause the client cache to be dropped,
@@ -427,11 +487,17 @@ describe('runtime prefetching', () => {
             block: true,
           }
         )
-        expect(await browser.elementById('cookie-value').text()).toEqual('Cookie: updatedValue')
+        expect(await browser.elementById('cookie-value').text()).toEqual(
+          'Cookie: updatedValue'
+        )
       })
 
-      expect(await browser.elementById('cookie-value').text()).toEqual('Cookie: updatedValue')
-      expect(await browser.elementById('dynamic-content').text()).toEqual('Dynamic content')
+      expect(await browser.elementById('cookie-value').text()).toEqual(
+        'Cookie: updatedValue'
+      )
+      expect(await browser.elementById('dynamic-content').text()).toEqual(
+        'Dynamic content'
+      )
     })
 
     it('can completely prefetch a page that uses cookies and no uncached IO', async () => {
@@ -464,12 +530,16 @@ describe('runtime prefetching', () => {
       // Navigate to the page.
       await act(
         async () => {
-          await browser.elementByCss(`a[href="/${prefix}/cookies-only"]`).click()
+          await browser
+            .elementByCss(`a[href="/${prefix}/cookies-only"]`)
+            .click()
         },
         // The page doesn't use any other IO, so we prefetched it completely, and shouldn't issue any more requests.
         'no-requests'
       )
-      expect(await browser.elementById('cookie-value').text()).toEqual('Cookie: initialValue')
+      expect(await browser.elementById('cookie-value').text()).toEqual(
+        'Cookie: initialValue'
+      )
     })
   })
 
@@ -558,7 +628,9 @@ describe('runtime prefetching', () => {
       await act(async () => {
         await act(
           async () => {
-            await browser.elementByCss(`a[href="/in-private-cache/date-now"]`).click()
+            await browser
+              .elementByCss(`a[href="/in-private-cache/date-now"]`)
+              .click()
           },
           // Temporarily block the navigation request.
           // The prefetched parts of the tree should be visible before it finishes.
@@ -589,7 +661,9 @@ describe('runtime prefetching', () => {
       await act(async () => {
         await act(
           async () => {
-            await browser.elementByCss(`a[href="/in-private-cache/date-now"]`).click()
+            await browser
+              .elementByCss(`a[href="/in-private-cache/date-now"]`)
+              .click()
           },
           // Temporarily block the navigation request.
           // The prefetched parts of the tree should be visible before it finishes.
@@ -615,7 +689,9 @@ describe('runtime prefetching', () => {
 
     // Reveal the link to trigger a runtime prefetch for the page
     await act(async () => {
-      const linkToggle = await browser.elementByCss(`input[data-link-accordion="/fully-static"]`)
+      const linkToggle = await browser.elementByCss(
+        `input[data-link-accordion="/fully-static"]`
+      )
       await linkToggle.click()
     }, [
       {
@@ -631,7 +707,9 @@ describe('runtime prefetching', () => {
       // The page doesn't use any IO, so we prefetched it completely, and shouldn't issue any more requests.
       'no-requests'
     )
-    expect(await browser.elementByCss('p#intro').text()).toBe('Hello from a fully static page!')
+    expect(await browser.elementByCss('p#intro').text()).toBe(
+      'Hello from a fully static page!'
+    )
   })
 
   describe('cache stale time handling', () => {
@@ -639,7 +717,8 @@ describe('runtime prefetching', () => {
       {
         // If a cache has an expiration time under 5min (DYNAMIC_EXPIRE), we omit it from static prerenders.
         // However, it should still be included in a runtime prefetch if its stale time is >=30s. (RUNTIME_PREFETCH_DYNAMIC_STALE)
-        description: 'includes short-lived public caches with a long enough staleTime',
+        description:
+          'includes short-lived public caches with a long enough staleTime',
         staticContent: 'This page uses a short-lived public cache',
         path: '/caches/public-short-expire-long-stale',
       },
@@ -672,7 +751,9 @@ describe('runtime prefetching', () => {
 
       // Reveal the link to trigger a runtime prefetch
       await act(async () => {
-        const linkToggle = await browser.elementByCss(`input[data-link-accordion="${path}"]`)
+        const linkToggle = await browser.elementByCss(
+          `input[data-link-accordion="${path}"]`
+        )
         await linkToggle.click()
       }, [
         {
@@ -690,7 +771,9 @@ describe('runtime prefetching', () => {
         await browser.elementByCss(`a[href="${path}"]`).click()
       }, 'no-requests')
 
-      expect(await browser.elementByCss('main').text()).toInclude(DYNAMICALLY_PREFETCHABLE_CONTENT)
+      expect(await browser.elementByCss('main').text()).toInclude(
+        DYNAMICALLY_PREFETCHABLE_CONTENT
+      )
     })
 
     it('omits short-lived public caches with a short enough staleTime', async () => {
@@ -730,7 +813,9 @@ describe('runtime prefetching', () => {
       await act(async () => {
         await act(
           async () => {
-            await browser.elementByCss(`a[href="/caches/public-short-expire-short-stale"]`).click()
+            await browser
+              .elementByCss(`a[href="/caches/public-short-expire-short-stale"]`)
+              .click()
           },
           {
             // Temporarily block the navigation request.
@@ -739,11 +824,15 @@ describe('runtime prefetching', () => {
             block: true,
           }
         )
-        expect(await browser.elementById('intro').text()).toInclude(STATIC_CONTENT)
+        expect(await browser.elementById('intro').text()).toInclude(
+          STATIC_CONTENT
+        )
       })
 
       // After navigating, we should see both the parts that we prefetched and the short lived cache.
-      expect(await browser.elementById('intro').text()).toInclude(STATIC_CONTENT)
+      expect(await browser.elementById('intro').text()).toInclude(
+        STATIC_CONTENT
+      )
       expect(await browser.elementById('cached-value').text()).toMatch(/\d+/)
     })
 
@@ -784,7 +873,9 @@ describe('runtime prefetching', () => {
       await act(async () => {
         await act(
           async () => {
-            await browser.elementByCss(`a[href="/caches/private-short-stale"]`).click()
+            await browser
+              .elementByCss(`a[href="/caches/private-short-stale"]`)
+              .click()
           },
           {
             // Temporarily block the navigation request.
@@ -793,11 +884,15 @@ describe('runtime prefetching', () => {
             block: true,
           }
         )
-        expect(await browser.elementById('intro').text()).toInclude(STATIC_CONTENT)
+        expect(await browser.elementById('intro').text()).toInclude(
+          STATIC_CONTENT
+        )
       })
 
       // After navigating, we should see both the parts that we prefetched and dynamic content.
-      expect(await browser.elementById('intro').text()).toInclude(STATIC_CONTENT)
+      expect(await browser.elementById('intro').text()).toInclude(
+        STATIC_CONTENT
+      )
       const cachedValue1 = await browser.elementById('cached-value').text()
       expect(cachedValue1).toMatch(/\d+/)
 
@@ -816,7 +911,9 @@ describe('runtime prefetching', () => {
       await act(async () => {
         await act(
           async () => {
-            await browser.elementByCss(`a[href="/caches/private-short-stale"]`).click()
+            await browser
+              .elementByCss(`a[href="/caches/private-short-stale"]`)
+              .click()
           },
           {
             // Temporarily block the navigation request.
@@ -825,7 +922,9 @@ describe('runtime prefetching', () => {
             block: true,
           }
         )
-        expect(await browser.elementById('intro').text()).toInclude(STATIC_CONTENT)
+        expect(await browser.elementById('intro').text()).toInclude(
+          STATIC_CONTENT
+        )
       })
 
       // After navigating, we should see both the parts that we prefetched and dynamic content.
@@ -861,70 +960,82 @@ describe('runtime prefetching', () => {
         path: '/errors/sync-io-after-runtime-api/private-cache',
       },
       {
-        description: 'when sync IO is used after awaiting a quickly-expiring public cache',
+        description:
+          'when sync IO is used after awaiting a quickly-expiring public cache',
         path: '/errors/sync-io-after-runtime-api/quickly-expiring-public-cache',
       },
-    ])('aborts the prerender without logging an error $description', async ({ path }) => {
-      // In a runtime prefetch, we might encounter sync IO usages that weren't caught during build,
-      // because they were hidden behind e.g. a cookies() call.
-      // We currently have no way to catch these statically.
-      // In that case, we should abort the prerender, but still return partial content.
+    ])(
+      'aborts the prerender without logging an error $description',
+      async ({ path }) => {
+        // In a runtime prefetch, we might encounter sync IO usages that weren't caught during build,
+        // because they were hidden behind e.g. a cookies() call.
+        // We currently have no way to catch these statically.
+        // In that case, we should abort the prerender, but still return partial content.
 
-      // TODO: this doesn't work as well as it could, see comment before the navigation
+        // TODO: this doesn't work as well as it could, see comment before the navigation
 
-      let page: Playwright.Page
-      const browser = await next.browser('/errors', {
-        beforePageLoad(p: Playwright.Page) {
-          page = p
-        },
-      })
-      const act = createRouterAct(page)
-
-      const STATIC_CONTENT = 'This page performs sync IO after'
-
-      // Reveal the link to trigger a runtime prefetch
-      await act(async () => {
-        const linkToggle = await browser.elementByCss(`input[data-link-accordion="${path}"]`)
-        await linkToggle.click()
-      }, [
-        // Should include the shell
-        {
-          includes: STATIC_CONTENT,
-        },
-        // Should abort the render when sync IO is encountered,
-        // so this should never be included
-        {
-          includes: 'Timestamp',
-          block: 'reject',
-        },
-      ])
-
-      if (!isNextDeploy) {
-        expect(getCliOutput()).not.toMatch(`Date.now()`)
-      }
-
-      // Navigate to the page
-      await act(async () => {
-        await act(
-          async () => {
-            await browser.elementByCss(`a[href="${path}"]`).click()
+        let page: Playwright.Page
+        const browser = await next.browser('/errors', {
+          beforePageLoad(p: Playwright.Page) {
+            page = p
           },
-          {
-            // Temporarily block the navigation request.
-            includes: 'Timestamp',
-            block: true,
-          }
-        )
-        // We aborted the render because of sync IO, so we won't display the timestamp,
-        // but due to the way we sequence tasks, we should've at least finished rendering the static parts.
-        expect(await browser.elementsByCss('#timestamp')).toHaveLength(0)
-        expect(await browser.elementById('intro').text()).toInclude(STATIC_CONTENT)
-      })
+        })
+        const act = createRouterAct(page)
 
-      // After navigating, we should see the sync IO result that we omitted from the prefetch.
-      expect(await browser.elementById('intro').text()).toInclude(STATIC_CONTENT)
-      expect(await browser.elementById('timestamp').text()).toMatch(/Timestamp: \d+/)
-    })
+        const STATIC_CONTENT = 'This page performs sync IO after'
+
+        // Reveal the link to trigger a runtime prefetch
+        await act(async () => {
+          const linkToggle = await browser.elementByCss(
+            `input[data-link-accordion="${path}"]`
+          )
+          await linkToggle.click()
+        }, [
+          // Should include the shell
+          {
+            includes: STATIC_CONTENT,
+          },
+          // Should abort the render when sync IO is encountered,
+          // so this should never be included
+          {
+            includes: 'Timestamp',
+            block: 'reject',
+          },
+        ])
+
+        if (!isNextDeploy) {
+          expect(getCliOutput()).not.toMatch(`Date.now()`)
+        }
+
+        // Navigate to the page
+        await act(async () => {
+          await act(
+            async () => {
+              await browser.elementByCss(`a[href="${path}"]`).click()
+            },
+            {
+              // Temporarily block the navigation request.
+              includes: 'Timestamp',
+              block: true,
+            }
+          )
+          // We aborted the render because of sync IO, so we won't display the timestamp,
+          // but due to the way we sequence tasks, we should've at least finished rendering the static parts.
+          expect(await browser.elementsByCss('#timestamp')).toHaveLength(0)
+          expect(await browser.elementById('intro').text()).toInclude(
+            STATIC_CONTENT
+          )
+        })
+
+        // After navigating, we should see the sync IO result that we omitted from the prefetch.
+        expect(await browser.elementById('intro').text()).toInclude(
+          STATIC_CONTENT
+        )
+        expect(await browser.elementById('timestamp').text()).toMatch(
+          /Timestamp: \d+/
+        )
+      }
+    )
 
     it('should trigger error boundaries for errors that occurred in runtime-prefetched content', async () => {
       // A thrown error in the prerender should not stop us from sending a prefetch response.
@@ -960,11 +1071,15 @@ describe('runtime prefetching', () => {
       // Navigate to the page. We already have the paged cached.
       // Even though the render errored, we shouldn't fetch it again.
       await act(async () => {
-        await browser.elementByCss(`a[href="/errors/error-after-cookies"]`).click()
+        await browser
+          .elementByCss(`a[href="/errors/error-after-cookies"]`)
+          .click()
       }, 'no-requests')
 
       // After navigating, we should see the sync IO result that we omitted from the prefetch.
-      expect(await browser.elementById('intro').text()).toInclude(STATIC_CONTENT)
+      expect(await browser.elementById('intro').text()).toInclude(
+        STATIC_CONTENT
+      )
       expect(await browser.elementById('error-boundary').text()).toInclude(
         'Error boundary: An error occurred in the Server Components render'
       )

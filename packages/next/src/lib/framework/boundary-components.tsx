@@ -20,7 +20,11 @@ const NameSpace = {
   [OUTLET_BOUNDARY_NAME]: function ({ children }: { children: ReactNode }) {
     return children
   },
-  [ROOT_LAYOUT_BOUNDARY_NAME]: function ({ children }: { children: ReactNode }) {
+  [ROOT_LAYOUT_BOUNDARY_NAME]: function ({
+    children,
+  }: {
+    children: ReactNode
+  }) {
     return children
   },
 }
@@ -43,4 +47,6 @@ export const OutletBoundary =
 export const RootLayoutBoundary =
   // We use slice(0) to trick the bundler into not inlining/minifying the function
   // so it retains the name inferred from the namespace object
-  NameSpace[ROOT_LAYOUT_BOUNDARY_NAME.slice(0) as typeof ROOT_LAYOUT_BOUNDARY_NAME]
+  NameSpace[
+    ROOT_LAYOUT_BOUNDARY_NAME.slice(0) as typeof ROOT_LAYOUT_BOUNDARY_NAME
+  ]

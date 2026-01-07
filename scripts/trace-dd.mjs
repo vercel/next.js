@@ -7,14 +7,19 @@ import flat from 'flat'
 const cleanFilename = (filename) => {
   if (filename.includes('&absolutePagePath=')) {
     filename =
-      'page ' + decodeURIComponent(filename.replace(/.+&absolutePagePath=/, '').slice(0, -1))
+      'page ' +
+      decodeURIComponent(
+        filename.replace(/.+&absolutePagePath=/, '').slice(0, -1)
+      )
   }
   filename = filename.replace(/.+!(?!$)/, '')
   return filename
 }
 
 const getPackageName = (filename) => {
-  const match = /.+[\\/]node_modules[\\/]((?:@[^\\/]+[\\/])?[^\\/]+)/.exec(cleanFilename(filename))
+  const match = /.+[\\/]node_modules[\\/]((?:@[^\\/]+[\\/])?[^\\/]+)/.exec(
+    cleanFilename(filename)
+  )
   return match && match[1]
 }
 
@@ -64,7 +69,9 @@ const reportSpanRecursively = (tracer, trace, parentSpan) => {
 
   // Spans should be reported in chronological order
   trace.children?.sort((a, b) => a.startTime - b.startTime)
-  trace.children?.forEach((childTrace) => reportSpanRecursively(tracer, childTrace, span))
+  trace.children?.forEach((childTrace) =>
+    reportSpanRecursively(tracer, childTrace, span)
+  )
 
   span.finish(trace.startTime + trace.duration / 1000)
   return span

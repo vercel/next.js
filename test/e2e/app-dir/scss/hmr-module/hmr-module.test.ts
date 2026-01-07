@@ -27,24 +27,28 @@ describe.each([
 
         const desiredText = 'hello world'
         await browser.elementById('text-input').type(desiredText)
-        expect(await browser.elementById('text-input').getValue()).toBe(desiredText)
-
-        expect(await browser.elementByCss('#verify-red').getComputedCss('color')).toBe(
-          colorToRgb('red')
+        expect(await browser.elementById('text-input').getValue()).toBe(
+          desiredText
         )
+
+        expect(
+          await browser.elementByCss('#verify-red').getComputedCss('color')
+        ).toBe(colorToRgb('red'))
 
         await next.patchFile('pages/index.module.scss', (content) => {
           return content.replace('$var: red', '$var: purple')
         })
 
         await retry(async () => {
-          expect(await browser.elementByCss('#verify-red').getComputedCss('color')).toBe(
-            colorToRgb('purple')
-          )
+          expect(
+            await browser.elementByCss('#verify-red').getComputedCss('color')
+          ).toBe(colorToRgb('purple'))
         })
 
         // ensure text remained
-        expect(await browser.elementById('text-input').getValue()).toBe(desiredText)
+        expect(await browser.elementById('text-input').getValue()).toBe(
+          desiredText
+        )
       })
     })
   }

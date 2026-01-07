@@ -4,7 +4,14 @@ import DateComponent from "@components/date";
 import CoverImage from "@components/cover-image";
 import cn from "classnames";
 
-export default function HeroPost({ title, coverImage, date, excerpt, author, slug }) {
+export default function HeroPost({
+  title,
+  coverImage,
+  date,
+  excerpt,
+  author,
+  slug,
+}) {
   return (
     <section>
       <div className="mb-8 md:mb-16">
@@ -25,7 +32,11 @@ export default function HeroPost({ title, coverImage, date, excerpt, author, slu
       <div className="md:grid md:grid-cols-2 md:gap-16 lg:col-gap-8  mb-20 md:mb-28">
         <div>
           <h3 className="mb-4 text-4xl leading-tight lg:text-6xl">
-            <Link as={`/posts/${slug}`} href="/posts/[slug]" className="hover:underline">
+            <Link
+              as={`/posts/${slug}`}
+              href="/posts/[slug]"
+              className="hover:underline"
+            >
               {title}
             </Link>
           </h3>

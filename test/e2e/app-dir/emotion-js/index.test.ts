@@ -20,14 +20,20 @@ describe('app dir - emotion-js', () => {
     const el = browser.elementByCss('h1')
     expect(await el.text()).toBe('Blue')
     await check(
-      async () => await browser.eval(`window.getComputedStyle(document.querySelector('h1')).color`),
+      async () =>
+        await browser.eval(
+          `window.getComputedStyle(document.querySelector('h1')).color`
+        ),
       'rgb(0, 0, 255)'
     )
 
     const el2 = browser.elementByCss('p')
     expect(await el2.text()).toBe('Red')
     await check(
-      async () => await browser.eval(`window.getComputedStyle(document.querySelector('p')).color`),
+      async () =>
+        await browser.eval(
+          `window.getComputedStyle(document.querySelector('p')).color`
+        ),
       'rgb(255, 0, 0)'
     )
   })

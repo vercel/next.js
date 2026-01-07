@@ -120,7 +120,10 @@ function extractValue(node: Node, path?: string[]): any {
       case 'undefined':
         return undefined
       default:
-        throw new UnsupportedValueError(`Unknown identifier "${node.value}"`, path)
+        throw new UnsupportedValueError(
+          `Unknown identifier "${node.value}"`,
+          path
+        )
     }
   } else if (isArrayExpression(node)) {
     // e.g. [1, 2, 3]
@@ -178,7 +181,10 @@ function extractValue(node: Node, path?: string[]): any {
     // e.g. `abc`
     if (node.expressions.length !== 0) {
       // TODO: should we add support for `${'e'}d${'g'}'e'`?
-      throw new UnsupportedValueError('Unsupported template literal with expressions', path)
+      throw new UnsupportedValueError(
+        'Unsupported template literal with expressions',
+        path
+      )
     }
 
     // When TemplateLiteral has 0 expressions, the length of quasis is always 1.
@@ -196,7 +202,10 @@ function extractValue(node: Node, path?: string[]): any {
   } else if (isTsSatisfiesExpression(node)) {
     return extractValue(node.expression)
   } else {
-    throw new UnsupportedValueError(`Unsupported node type "${node.type}"`, path)
+    throw new UnsupportedValueError(
+      `Unsupported node type "${node.type}"`,
+      path
+    )
   }
 }
 
@@ -214,7 +223,10 @@ function extractValue(node: Node, path?: string[]): any {
  *
  * Throws NoSuchDeclarationError if the declaration is not found.
  */
-export function extractExportedConstValue(module: Module, exportedName: string): any {
+export function extractExportedConstValue(
+  module: Module,
+  exportedName: string
+): any {
   for (const moduleItem of module.body) {
     if (!isExportDeclaration(moduleItem)) {
       continue
@@ -230,7 +242,11 @@ export function extractExportedConstValue(module: Module, exportedName: string):
     }
 
     for (const decl of declaration.declarations) {
-      if (isIdentifier(decl.id) && decl.id.value === exportedName && decl.init) {
+      if (
+        isIdentifier(decl.id) &&
+        decl.id.value === exportedName &&
+        decl.init
+      ) {
         return extractValue(decl.init, [exportedName])
       }
     }

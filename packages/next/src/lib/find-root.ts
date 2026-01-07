@@ -4,7 +4,13 @@ import * as Log from '../build/output/log'
 
 export function findRootLockFile(cwd: string) {
   return findUp.sync(
-    ['pnpm-lock.yaml', 'package-lock.json', 'yarn.lock', 'bun.lock', 'bun.lockb'],
+    [
+      'pnpm-lock.yaml',
+      'package-lock.json',
+      'yarn.lock',
+      'bun.lock',
+      'bun.lockb',
+    ],
     {
       cwd,
     }

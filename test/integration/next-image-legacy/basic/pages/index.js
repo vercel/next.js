@@ -7,7 +7,13 @@ const Page = () => {
   return (
     <div>
       <p>Hello World</p>
-      <Image id="image-with-sizes" src="/test-sizes.jpg" width={2000} height={100} sizes="100vw" />
+      <Image
+        id="image-with-sizes"
+        src="/test-sizes.jpg"
+        width={2000}
+        height={100}
+        sizes="100vw"
+      />
       <Image
         id="basic-image"
         src="foo.jpg"
@@ -65,9 +71,27 @@ const Page = () => {
         height={400}
         quality={60}
       />
-      <Image id="preceding-slash-image" src="/fooslash.jpg" priority width={300} height={400} />
-      <Image id="icon-image-32" src="/icon.png" loading="eager" width={32} height={32} />
-      <Image id="icon-image-16" src="/icon.png" loading="eager" width={16} height={16} />
+      <Image
+        id="preceding-slash-image"
+        src="/fooslash.jpg"
+        priority
+        width={300}
+        height={400}
+      />
+      <Image
+        id="icon-image-32"
+        src="/icon.png"
+        loading="eager"
+        width={32}
+        height={32}
+      />
+      <Image
+        id="icon-image-16"
+        src="/icon.png"
+        loading="eager"
+        width={16}
+        height={16}
+      />
       <Image
         id="image-with-param-auto"
         src="foo.png?auto=compress"

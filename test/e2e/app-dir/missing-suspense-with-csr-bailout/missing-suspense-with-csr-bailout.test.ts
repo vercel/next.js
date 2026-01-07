@@ -21,7 +21,8 @@ describe('missing-suspense-with-csr-bailout', () => {
     await next.clean()
   })
 
-  const isCacheComponentsEnabled = process.env.__NEXT_CACHE_COMPONENTS === 'true'
+  const isCacheComponentsEnabled =
+    process.env.__NEXT_CACHE_COMPONENTS === 'true'
 
   describe('useSearchParams', () => {
     const message = isCacheComponentsEnabled

@@ -1,12 +1,21 @@
-import type { I18NConfig, I18NDomains, NextConfigComplete } from '../server/config-shared'
+import type {
+  I18NConfig,
+  I18NDomains,
+  NextConfigComplete,
+} from '../server/config-shared'
 import type { ProxyMatcher } from './analysis/get-page-static-info'
 import type { Rewrite } from '../lib/load-custom-routes'
 import path from 'node:path'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
 import { checkIsAppPPREnabled } from '../server/lib/experimental/ppr'
-import { getNextConfigEnv, getNextPublicEnvironmentVariables } from '../lib/static-env'
+import {
+  getNextConfigEnv,
+  getNextPublicEnvironmentVariables,
+} from '../lib/static-env'
 
-type BloomFilter = ReturnType<import('../shared/lib/bloom-filter').BloomFilter['export']>
+type BloomFilter = ReturnType<
+  import('../shared/lib/bloom-filter').BloomFilter['export']
+>
 
 export interface DefineEnvOptions {
   isTurbopack: boolean
@@ -53,7 +62,10 @@ interface SerializedDefineEnv {
  */
 function serializeDefineEnv(defineEnv: DefineEnv): SerializedDefineEnv {
   const defineEnvStringified: SerializedDefineEnv = Object.fromEntries(
-    Object.entries(defineEnv).map(([key, value]) => [key, JSON.stringify(value)])
+    Object.entries(defineEnv).map(([key, value]) => [
+      key,
+      JSON.stringify(value),
+    ])
   )
   return defineEnvStringified
 }
@@ -137,10 +149,18 @@ export function getDefineEnv({
         : 'Webpack',
     // TODO: enforce `NODE_ENV` on `process.env`, and add a test:
     'process.env.NODE_ENV':
-      dev || config.experimental.allowDevelopmentBuild ? 'development' : 'production',
-    'process.env.NEXT_RUNTIME': isEdgeServer ? 'edge' : isNodeServer ? 'nodejs' : '',
+      dev || config.experimental.allowDevelopmentBuild
+        ? 'development'
+        : 'production',
+    'process.env.NEXT_RUNTIME': isEdgeServer
+      ? 'edge'
+      : isNodeServer
+        ? 'nodejs'
+        : '',
     'process.env.NEXT_MINIMAL': '',
-    'process.env.__NEXT_APP_NAV_FAIL_HANDLING': Boolean(config.experimental.appNavFailHandling),
+    'process.env.__NEXT_APP_NAV_FAIL_HANDLING': Boolean(
+      config.experimental.appNavFailHandling
+    ),
     'process.env.__NEXT_PPR': isPPREnabled,
     'process.env.__NEXT_CACHE_COMPONENTS': isCacheComponentsEnabled,
     'process.env.__NEXT_USE_CACHE': isUseCacheEnabled,
@@ -173,7 +193,8 @@ export function getDefineEnv({
       : {
           'process.env.__NEXT_MIDDLEWARE_MATCHERS': middlewareMatchers ?? [],
         }),
-    'process.env.__NEXT_MANUAL_CLIENT_BASE_PATH': config.experimental.manualClientBasePath ?? false,
+    'process.env.__NEXT_MANUAL_CLIENT_BASE_PATH':
+      config.experimental.manualClientBasePath ?? false,
     'process.env.__NEXT_CLIENT_ROUTER_DYNAMIC_STALETIME': JSON.stringify(
       isNaN(Number(config.experimental.staleTimes?.dynamic))
         ? 0
@@ -186,14 +207,20 @@ export function getDefineEnv({
     ),
     'process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED':
       config.experimental.clientRouterFilter ?? true,
-    'process.env.__NEXT_CLIENT_ROUTER_S_FILTER': clientRouterFilters?.staticFilter ?? false,
-    'process.env.__NEXT_CLIENT_ROUTER_D_FILTER': clientRouterFilters?.dynamicFilter ?? false,
+    'process.env.__NEXT_CLIENT_ROUTER_S_FILTER':
+      clientRouterFilters?.staticFilter ?? false,
+    'process.env.__NEXT_CLIENT_ROUTER_D_FILTER':
+      clientRouterFilters?.dynamicFilter ?? false,
     'process.env.__NEXT_CLIENT_VALIDATE_RSC_REQUEST_HEADERS': Boolean(
       config.experimental.validateRSCRequestHeaders
     ),
-    'process.env.__NEXT_DYNAMIC_ON_HOVER': Boolean(config.experimental.dynamicOnHover),
-    'process.env.__NEXT_OPTIMISTIC_CLIENT_CACHE': config.experimental.optimisticClientCache ?? true,
-    'process.env.__NEXT_MIDDLEWARE_PREFETCH': config.experimental.proxyPrefetch ?? 'flexible',
+    'process.env.__NEXT_DYNAMIC_ON_HOVER': Boolean(
+      config.experimental.dynamicOnHover
+    ),
+    'process.env.__NEXT_OPTIMISTIC_CLIENT_CACHE':
+      config.experimental.optimisticClientCache ?? true,
+    'process.env.__NEXT_MIDDLEWARE_PREFETCH':
+      config.experimental.proxyPrefetch ?? 'flexible',
     'process.env.__NEXT_CROSS_ORIGIN': config.crossOrigin,
     'process.browser': isClient,
     'process.env.__NEXT_TEST_MODE': process.env.__NEXT_TEST_MODE ?? false,
@@ -213,7 +240,9 @@ export function getDefineEnv({
         }
       : {}),
     'process.env.__NEXT_BASE_PATH': config.basePath,
-    'process.env.__NEXT_CASE_SENSITIVE_ROUTES': Boolean(config.experimental.caseSensitiveRoutes),
+    'process.env.__NEXT_CASE_SENSITIVE_ROUTES': Boolean(
+      config.experimental.caseSensitiveRoutes
+    ),
     'process.env.__NEXT_REWRITES': rewrites as any,
     'process.env.__NEXT_TRAILING_SLASH': config.trailingSlash,
     'process.env.__NEXT_DEV_INDICATOR': config.devIndicators !== false,
@@ -226,9 +255,12 @@ export function getDefineEnv({
     'process.env.__NEXT_STRICT_MODE_APP':
       // When next.config.js does not have reactStrictMode it's enabled by default.
       config.reactStrictMode === null ? true : config.reactStrictMode,
-    'process.env.__NEXT_OPTIMIZE_CSS': (config.experimental.optimizeCss && !dev) ?? false,
-    'process.env.__NEXT_SCRIPT_WORKERS': (config.experimental.nextScriptWorkers && !dev) ?? false,
-    'process.env.__NEXT_SCROLL_RESTORATION': config.experimental.scrollRestoration ?? false,
+    'process.env.__NEXT_OPTIMIZE_CSS':
+      (config.experimental.optimizeCss && !dev) ?? false,
+    'process.env.__NEXT_SCRIPT_WORKERS':
+      (config.experimental.nextScriptWorkers && !dev) ?? false,
+    'process.env.__NEXT_SCROLL_RESTORATION':
+      config.experimental.scrollRestoration ?? false,
     ...getImageConfig(config, dev),
     'process.env.__NEXT_ROUTER_BASEPATH': config.basePath,
     'process.env.__NEXT_HAS_REWRITES': hasRewrites,
@@ -236,19 +268,26 @@ export function getDefineEnv({
     'process.env.__NEXT_I18N_SUPPORT': !!config.i18n,
     'process.env.__NEXT_I18N_DOMAINS': config.i18n?.domains ?? false,
     'process.env.__NEXT_I18N_CONFIG': config.i18n || '',
-    'process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE': config.skipProxyUrlNormalize,
+    'process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE':
+      config.skipProxyUrlNormalize,
     'process.env.__NEXT_EXTERNAL_MIDDLEWARE_REWRITE_RESOLVE':
       config.experimental.externalProxyRewritesResolve ?? false,
-    'process.env.__NEXT_MANUAL_TRAILING_SLASH': config.skipTrailingSlashRedirect,
+    'process.env.__NEXT_MANUAL_TRAILING_SLASH':
+      config.skipTrailingSlashRedirect,
     'process.env.__NEXT_HAS_WEB_VITALS_ATTRIBUTION':
       (config.experimental.webVitalsAttribution &&
         config.experimental.webVitalsAttribution.length > 0) ??
       false,
-    'process.env.__NEXT_WEB_VITALS_ATTRIBUTION': config.experimental.webVitalsAttribution ?? false,
-    'process.env.__NEXT_LINK_NO_TOUCH_START': config.experimental.linkNoTouchStart ?? false,
+    'process.env.__NEXT_WEB_VITALS_ATTRIBUTION':
+      config.experimental.webVitalsAttribution ?? false,
+    'process.env.__NEXT_LINK_NO_TOUCH_START':
+      config.experimental.linkNoTouchStart ?? false,
     'process.env.__NEXT_ASSET_PREFIX': config.assetPrefix,
-    'process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS': !!config.experimental.authInterrupts,
-    'process.env.__NEXT_TELEMETRY_DISABLED': Boolean(process.env.NEXT_TELEMETRY_DISABLED),
+    'process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS':
+      !!config.experimental.authInterrupts,
+    'process.env.__NEXT_TELEMETRY_DISABLED': Boolean(
+      process.env.NEXT_TELEMETRY_DISABLED
+    ),
     ...(isNodeServer || isEdgeServer
       ? {
           // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)
@@ -259,18 +298,24 @@ export function getDefineEnv({
       : undefined),
     ...(isNodeServer || isEdgeServer
       ? {
-          'process.env.__NEXT_EXPERIMENTAL_REACT': needsExperimentalReact(config),
+          'process.env.__NEXT_EXPERIMENTAL_REACT':
+            needsExperimentalReact(config),
         }
       : undefined),
 
-    'process.env.__NEXT_MULTI_ZONE_DRAFT_MODE': config.experimental.multiZoneDraftMode ?? false,
-    'process.env.__NEXT_TRUST_HOST_HEADER': config.experimental.trustHostHeader ?? false,
+    'process.env.__NEXT_MULTI_ZONE_DRAFT_MODE':
+      config.experimental.multiZoneDraftMode ?? false,
+    'process.env.__NEXT_TRUST_HOST_HEADER':
+      config.experimental.trustHostHeader ?? false,
     'process.env.__NEXT_ALLOWED_REVALIDATE_HEADERS':
       config.experimental.allowedRevalidateHeaderKeys ?? [],
     ...(isNodeServer || isEdgeServer
       ? {
           'process.env.__NEXT_RELATIVE_DIST_DIR': config.distDir,
-          'process.env.__NEXT_RELATIVE_PROJECT_DIR': path.relative(process.cwd(), projectPath),
+          'process.env.__NEXT_RELATIVE_PROJECT_DIR': path.relative(
+            process.cwd(),
+            projectPath
+          ),
         }
       : {}),
 
@@ -292,9 +337,12 @@ export function getDefineEnv({
     // In the worst case we'll show an option to clear the cache, but it'll be a
     // no-op that just restarts the development server.
     'process.env.__NEXT_BUNDLER_HAS_PERSISTENT_CACHE':
-      !isTurbopack || (config.experimental.turbopackFileSystemCacheForDev ?? false),
-    'process.env.__NEXT_REACT_DEBUG_CHANNEL': config.experimental.reactDebugChannel ?? false,
-    'process.env.__NEXT_TRANSITION_INDICATOR': config.experimental.transitionIndicator ?? false,
+      !isTurbopack ||
+      (config.experimental.turbopackFileSystemCacheForDev ?? false),
+    'process.env.__NEXT_REACT_DEBUG_CHANNEL':
+      config.experimental.reactDebugChannel ?? false,
+    'process.env.__NEXT_TRANSITION_INDICATOR':
+      config.experimental.transitionIndicator ?? false,
   }
 
   const userDefines = config.compiler?.define ?? {}
@@ -328,7 +376,8 @@ export function getDefineEnv({
     // client uses window. instead of leaving process.env
     // in case process isn't polyfilled on client already
     // since by this point it won't be added by webpack
-    const safeKey = (key: string) => (isClient ? `window.${key.split('.').pop()}` : key)
+    const safeKey = (key: string) =>
+      isClient ? `window.${key.split('.').pop()}` : key
 
     for (const key in nextPublicEnv) {
       serializedDefineEnv[key] = safeKey(key)

@@ -2,7 +2,11 @@ import { nextTestSetup } from 'e2e-utils'
 
 // Only Turbopack runs the transform on the layout once in edge and non-edge contexts
 // so we only test this on Turbopack
-import { waitForRedbox, getRedboxDescription, getRedboxSource } from 'next-test-utils'
+import {
+  waitForRedbox,
+  getRedboxDescription,
+  getRedboxSource,
+} from 'next-test-utils'
 ;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
   'cache-components-edge-deduplication',
   () => {
@@ -30,7 +34,9 @@ import { waitForRedbox, getRedboxDescription, getRedboxSource } from 'next-test-
           description: await getRedboxDescription(browser),
           source: await getRedboxSource(browser),
         }
-        expect(redbox.description).toMatchInlineSnapshot(`"Ecmascript file had an error"`)
+        expect(redbox.description).toMatchInlineSnapshot(
+          `"Ecmascript file had an error"`
+        )
         expect(redbox.source).toMatchInlineSnapshot(`
          "./app/edge-with-layout/edge/page.tsx (1:14)
          Ecmascript file had an error
@@ -59,7 +65,9 @@ import { waitForRedbox, getRedboxDescription, getRedboxSource } from 'next-test-
           '"runtime" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
         )
         // Count occurrences of the layout error at the specific location
-        const layoutErrorMatches = next.cliOutput.match(/\.\/app\/layout\.tsx:1:14/g)
+        const layoutErrorMatches = next.cliOutput.match(
+          /\.\/app\/layout\.tsx:1:14/g
+        )
 
         // Should appear exactly twice: once in the formatted error message, once in the stack trace
         expect(layoutErrorMatches?.length).toBe(2)

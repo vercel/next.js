@@ -10,8 +10,11 @@ async function getRandomValue() {
 async function getData() {
   'use cache'
 
-  return fetch('https://next-data-api-endpoint.vercel.app/api/random').then((res) =>
-    res.text().then(async (text) => [text, 'foo', await getRandomValue()] as const)
+  return fetch('https://next-data-api-endpoint.vercel.app/api/random').then(
+    (res) =>
+      res
+        .text()
+        .then(async (text) => [text, 'foo', await getRandomValue()] as const)
   )
 }
 

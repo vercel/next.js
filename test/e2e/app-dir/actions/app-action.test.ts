@@ -1,5 +1,11 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
-import { waitForRedbox, retry, waitFor, getRedboxSource, getDistDir } from 'next-test-utils'
+import {
+  waitForRedbox,
+  retry,
+  waitFor,
+  getRedboxSource,
+  getDistDir,
+} from 'next-test-utils'
 import type { Request, Response } from 'playwright'
 import fs from 'node:fs/promises'
 import { join } from 'node:path'
@@ -8,18 +14,19 @@ const GENERIC_RSC_ERROR =
   'Error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
 
 describe('app-dir action handling', () => {
-  const { next, isNextDev, isNextStart, isNextDeploy, isTurbopack } = nextTestSetup({
-    files: __dirname,
-    overrideFiles: process.env.TEST_NODE_MIDDLEWARE
-      ? {
-          'middleware.js': new FileRef(join(__dirname, 'middleware-node.js')),
-        }
-      : {},
-    dependencies: {
-      nanoid: '4.0.1',
-      'server-only': 'latest',
-    },
-  })
+  const { next, isNextDev, isNextStart, isNextDeploy, isTurbopack } =
+    nextTestSetup({
+      files: __dirname,
+      overrideFiles: process.env.TEST_NODE_MIDDLEWARE
+        ? {
+            'middleware.js': new FileRef(join(__dirname, 'middleware-node.js')),
+          }
+        : {},
+      dependencies: {
+        nanoid: '4.0.1',
+        'server-only': 'latest',
+      },
+    })
 
   if (isNextStart) {
     it('should output exportName and filename info in manifest', async () => {
@@ -69,7 +76,10 @@ describe('app-dir action handling', () => {
     let actionRequestStatus: number | undefined
 
     browser.on('response', async (res) => {
-      if (res.url().includes('rewrite-to-static-first') && res.request().method() === 'POST') {
+      if (
+        res.url().includes('rewrite-to-static-first') &&
+        res.request().method() === 'POST'
+      ) {
         actionRequestStatus = res.status()
       }
     })
@@ -177,7 +187,9 @@ describe('app-dir action handling', () => {
 
     await browser.elementById('submit-transition').click()
     const error = await browser.waitForElementByCss('#error-text')
-    expect(await error.text()).toBe('An unexpected response was received from the server.')
+    expect(await error.text()).toBe(
+      'An unexpected response was received from the server.'
+    )
   })
 
   it('should support headers and cookies', async () => {
@@ -224,7 +236,9 @@ describe('app-dir action handling', () => {
       await browser.elementByCss('#redirect-target')
 
       expect(await browser.elementByCss('#value').text()).toMatch(/\d+/)
-      expect(await browser.eval('document.cookie')).toMatch(/(?:^|(?:; ))testCookie=\d+/)
+      expect(await browser.eval('document.cookie')).toMatch(
+        /(?:^|(?:; ))testCookie=\d+/
+      )
     }
   )
 
@@ -233,7 +247,9 @@ describe('app-dir action handling', () => {
 
     await browser.elementByCss('#setCookieAndRedirect').click()
     await retry(async () => {
-      expect(await browser.elementByCss('#redirected').text()).toBe('redirected')
+      expect(await browser.elementByCss('#redirected').text()).toBe(
+        'redirected'
+      )
     })
 
     // Ensure we can navigate back
@@ -255,7 +271,9 @@ describe('app-dir action handling', () => {
 
     await browser.elementByCss('#setCookieAndRedirectReplace').click()
     await retry(async () => {
-      expect(await browser.elementByCss('#redirected').text()).toBe('redirected')
+      expect(await browser.elementByCss('#redirected').text()).toBe(
+        'redirected'
+      )
     })
 
     // Ensure we cannot navigate back
@@ -281,7 +299,9 @@ describe('app-dir action handling', () => {
     // we don't have access to runtime logs on deploy
     if (!isNextDeploy) {
       await retry(() => {
-        expect(logs.some((log) => log.includes('accept header: text/x-component'))).toBe(true)
+        expect(
+          logs.some((log) => log.includes('accept header: text/x-component'))
+        ).toBe(true)
       })
     }
 
@@ -314,7 +334,11 @@ describe('app-dir action handling', () => {
     // we don't have access to runtime logs on deploy
     if (!isNextDeploy) {
       await retry(() => {
-        expect(logs.some((log) => log.includes('Failed to find Server Action "null"'))).toBe(false)
+        expect(
+          logs.some((log) =>
+            log.includes('Failed to find Server Action "null"')
+          )
+        ).toBe(false)
       })
     }
   })
@@ -336,7 +360,9 @@ describe('app-dir action handling', () => {
     await browser.elementByCss('#submit').click()
 
     await retry(async () => {
-      expect(await browser.url()).toBe(`${next.url}/header?name=test&hidden-info=hi`)
+      expect(await browser.url()).toBe(
+        `${next.url}/header?name=test&hidden-info=hi`
+      )
     })
   })
 
@@ -385,9 +411,9 @@ describe('app-dir action handling', () => {
     })
 
     // Should have default noindex meta tag
-    expect(await browser.elementByCss('meta[name="robots"]').getAttribute('content')).toBe(
-      'noindex'
-    )
+    expect(
+      await browser.elementByCss('meta[name="robots"]').getAttribute('content')
+    ).toBe('noindex')
   })
 
   it('should support uploading files', async () => {
@@ -414,9 +440,11 @@ describe('app-dir action handling', () => {
     // we don't have access to runtime logs on deploy
     if (!isNextDeploy) {
       await retry(() => {
-        expect(logs.some((log) => log.includes('File name: hello你好テスト.txt size: 5'))).toBe(
-          true
-        )
+        expect(
+          logs.some((log) =>
+            log.includes('File name: hello你好テスト.txt size: 5')
+          )
+        ).toBe(true)
       })
     }
   })
@@ -429,7 +457,9 @@ describe('app-dir action handling', () => {
 
     await retry(async () => {
       if (isNextDev) {
-        expect(await browser.elementByCss('h1').text()).toBe('Error: Unauthorized request')
+        expect(await browser.elementByCss('h1').text()).toBe(
+          'Error: Unauthorized request'
+        )
       } else {
         expect(await browser.elementByCss('h1').text()).toBe(GENERIC_RSC_ERROR)
       }
@@ -440,7 +470,9 @@ describe('app-dir action handling', () => {
     await browser.elementByCss('#authed').click()
 
     await retry(async () => {
-      expect(await browser.elementByCss('h1').text()).toBe('Prefix: HELLO, WORLD')
+      expect(await browser.elementByCss('h1').text()).toBe(
+        'Prefix: HELLO, WORLD'
+      )
     })
   })
 
@@ -658,14 +690,18 @@ describe('app-dir action handling', () => {
       await waitFor(500)
     }
 
-    expect(await browser.elementByCss('h1').text()).toBe('Transition is: pending')
+    expect(await browser.elementByCss('h1').text()).toBe(
+      'Transition is: pending'
+    )
 
     // each action takes 1 second,
     // so we override the default retry interval to 1 second
     // and duration to 6 seconds to allow for all actions to complete
     await retry(
       async () => {
-        expect(await browser.elementByCss('h1').text()).toBe('Transition is: idle')
+        expect(await browser.elementByCss('h1').text()).toBe(
+          'Transition is: idle'
+        )
         expect(requestCount).toBe(6)
       },
       6000,
@@ -687,7 +723,9 @@ describe('app-dir action handling', () => {
     // verify that the error state is displayed
     await retry(async () => {
       expect(await browser.hasElementByCssSelector('#error')).toBe(true)
-      expect(await browser.elementByCss('#error').text()).toBe("Only 'justputit' is accepted.")
+      expect(await browser.elementByCss('#error').text()).toBe(
+        "Only 'justputit' is accepted."
+      )
     })
 
     // The server action won't return an error state, it will just call redirect to itself
@@ -703,7 +741,9 @@ describe('app-dir action handling', () => {
   it('should invalidate the client router cache if the redirect action triggers a revalidation', async () => {
     const browser = await next.browser('/redirect')
     const input = await browser.elementByCss('input[name="name"]')
-    const revalidateCheckbox = await browser.elementByCss('input[name="revalidate"]')
+    const revalidateCheckbox = await browser.elementByCss(
+      'input[name="revalidate"]'
+    )
     const submit = await browser.elementByCss('button')
     const initialRandom = await browser.elementById('random-number').text()
     expect(initialRandom).toMatch(/\d+/)
@@ -754,7 +794,9 @@ describe('app-dir action handling', () => {
     // verify that the error state is displayed
     await retry(async () => {
       expect(await browser.hasElementByCssSelector('#error')).toBe(true)
-      expect(await browser.elementByCss('#error').text()).toBe("Only 'justputit' is accepted.")
+      expect(await browser.elementByCss('#error').text()).toBe(
+        "Only 'justputit' is accepted."
+      )
     })
 
     // The server action won't return an error state, it will just call redirect to itself
@@ -795,7 +837,9 @@ describe('app-dir action handling', () => {
 
     // Verify that the catch log was printed
     const logs = await browser.log()
-    expect(logs.some((log) => log.message === 'error caught in user code')).toBe(true)
+    expect(
+      logs.some((log) => log.message === 'error caught in user code')
+    ).toBe(true)
   })
 
   it('should be possible to catch regular errors', async () => {
@@ -808,7 +852,9 @@ describe('app-dir action handling', () => {
 
     // Verify that the catch log was printed
     const logs = await browser.log()
-    expect(logs.some((log) => log.message === 'error caught in user code')).toBe(true)
+    expect(
+      logs.some((log) => log.message === 'error caught in user code')
+    ).toBe(true)
   })
 
   // we don't have access to runtime logs on deploy
@@ -836,18 +882,24 @@ describe('app-dir action handling', () => {
       const browser = await next.browser(`/delayed-action/${runtime}`)
 
       // confirm there's no data yet
-      expect(await browser.elementById('delayed-action-result').text()).toBe('<null>')
+      expect(await browser.elementById('delayed-action-result').text()).toBe(
+        '<null>'
+      )
 
       // Trigger the delayed action. This will sleep for a few seconds before dispatching the server action handler
       await browser.elementById('run-action').click()
 
       // navigate away from the page
-      await browser.elementByCss(`[href='/delayed-action/${runtime}/other']`).click()
+      await browser
+        .elementByCss(`[href='/delayed-action/${runtime}/other']`)
+        .click()
 
       await browser.waitForElementByCss('#other-page')
 
       await retry(async () => {
-        expect(await browser.elementById('delayed-action-result').text()).toMatch(
+        expect(
+          await browser.elementById('delayed-action-result').text()
+        ).toMatch(
           // matches a Math.random() string
           /0\.\d+/
         )
@@ -857,7 +909,9 @@ describe('app-dir action handling', () => {
       expect(await browser.hasElementByCssSelector('#other-page')).toBe(true)
 
       // make sure we didn't get any errors in the console
-      expect(next.cliOutput.slice(cliOutputIndex)).not.toContain('Failed to find Server Action')
+      expect(next.cliOutput.slice(cliOutputIndex)).not.toContain(
+        'Failed to find Server Action'
+      )
     }
   )
 
@@ -936,7 +990,10 @@ describe('app-dir action handling', () => {
           expect(cnt).toBe('0')
 
           // This can be caught by SWC directly
-          await next.patchFile(filePath, origContent + '\n\nexport const foo = 1')
+          await next.patchFile(
+            filePath,
+            origContent + '\n\nexport const foo = 1'
+          )
 
           await waitForRedbox(browser)
           expect(await getRedboxSource(browser)).toContain(
@@ -1049,7 +1106,9 @@ describe('app-dir action handling', () => {
       await browser.elementByCss('#authed').click()
 
       await retry(async () => {
-        expect(await browser.elementByCss('h1').text()).toBe('Prefix: HELLO, WORLD')
+        expect(await browser.elementByCss('h1').text()).toBe(
+          'Prefix: HELLO, WORLD'
+        )
       })
     })
 
@@ -1067,7 +1126,10 @@ describe('app-dir action handling', () => {
         browser.on('request', (req) => {
           const url = req.url()
 
-          if (url.includes(initialPagePath) || url.includes(destinationPagePath)) {
+          if (
+            url.includes(initialPagePath) ||
+            url.includes(destinationPagePath)
+          ) {
             requests.push(req)
           }
         })
@@ -1075,7 +1137,10 @@ describe('app-dir action handling', () => {
         browser.on('response', (res) => {
           const url = res.url()
 
-          if (url.includes(initialPagePath) || url.includes(destinationPagePath)) {
+          if (
+            url.includes(initialPagePath) ||
+            url.includes(destinationPagePath)
+          ) {
             responses.push(res)
           }
         })
@@ -1085,7 +1150,9 @@ describe('app-dir action handling', () => {
           expect(await browser.url()).toBe(`${next.url}${destinationPagePath}`)
         })
 
-        expect(await browser.waitForElementByCss('#redirected').text()).toBe('redirected')
+        expect(await browser.waitForElementByCss('#redirected').text()).toBe(
+          'redirected'
+        )
 
         // This verifies the redirect & server response happens in a single roundtrip,
         // if the redirect resource was static. In development, these responses are always
@@ -1126,7 +1193,9 @@ describe('app-dir action handling', () => {
       await browser.elementByCss('#get-headers').click()
 
       await retry(async () => {
-        const newTestCookie = await browser.eval(`document.cookie.match(/test-cookie=(\\d+)/)?.[1]`)
+        const newTestCookie = await browser.eval(
+          `document.cookie.match(/test-cookie=(\\d+)/)?.[1]`
+        )
         expect(newTestCookie).not.toBe(currentTestCookie)
       })
     })
@@ -1174,7 +1243,10 @@ describe('app-dir action handling', () => {
         browser.on('request', (req) => {
           const url = req.url()
 
-          if (url.includes(initialPagePath) || url.includes(destinationPagePath)) {
+          if (
+            url.includes(initialPagePath) ||
+            url.includes(destinationPagePath)
+          ) {
             requests.push(req)
           }
         })
@@ -1182,7 +1254,10 @@ describe('app-dir action handling', () => {
         browser.on('response', (res) => {
           const url = res.url()
 
-          if (url.includes(initialPagePath) || url.includes(destinationPagePath)) {
+          if (
+            url.includes(initialPagePath) ||
+            url.includes(destinationPagePath)
+          ) {
             responses.push(res)
           }
         })
@@ -1234,7 +1309,9 @@ describe('app-dir action handling', () => {
       await browser.elementByCss('#redirect-pages').click()
 
       await retry(async () => {
-        expect(await browser.elementByCss('body').text()).toContain('Hello from a pages route')
+        expect(await browser.elementByCss('body').text()).toContain(
+          'Hello from a pages route'
+        )
         expect(await browser.url()).toBe(`${next.url}/pages-dir`)
         expect(mpaTriggered).toBe(true)
       }, 5000)
@@ -1249,9 +1326,13 @@ describe('app-dir action handling', () => {
       await browser.elementByCss('#revalidate-path').click()
 
       await retry(async () => {
-        const newRandomNumber = await browser.elementByCss('#random-number').text()
+        const newRandomNumber = await browser
+          .elementByCss('#random-number')
+          .text()
         const newJustPutIt = await browser.elementByCss('#justputit').text()
-        const newThankYouNext = await browser.elementByCss('#thankyounext').text()
+        const newThankYouNext = await browser
+          .elementByCss('#thankyounext')
+          .text()
 
         expect(newRandomNumber).not.toBe(randomNumber)
         expect(newJustPutIt).not.toBe(justPutIt)
@@ -1268,9 +1349,13 @@ describe('app-dir action handling', () => {
       await browser.elementByCss('#revalidate-justputit').click()
 
       await retry(async () => {
-        const newRandomNumber = await browser.elementByCss('#random-number').text()
+        const newRandomNumber = await browser
+          .elementByCss('#random-number')
+          .text()
         const newJustPutIt = await browser.elementByCss('#justputit').text()
-        const newThankYouNext = await browser.elementByCss('#thankyounext').text()
+        const newThankYouNext = await browser
+          .elementByCss('#thankyounext')
+          .text()
 
         expect(newRandomNumber).not.toBe(randomNumber)
         expect(newJustPutIt).not.toBe(justPutIt)
@@ -1288,9 +1373,13 @@ describe('app-dir action handling', () => {
       await browser.elementByCss('#revalidate-path-redirect').click()
 
       await retry(async () => {
-        const newRandomNumber = await browser.elementByCss('#random-number').text()
+        const newRandomNumber = await browser
+          .elementByCss('#random-number')
+          .text()
         const newJustPutIt = await browser.elementByCss('#justputit').text()
-        const newThankYouNext = await browser.elementByCss('#thankyounext').text()
+        const newThankYouNext = await browser
+          .elementByCss('#thankyounext')
+          .text()
 
         expect(newRandomNumber).toBe(randomNumber)
         expect(newJustPutIt).not.toBe(justPutIt)
@@ -1310,7 +1399,10 @@ describe('app-dir action handling', () => {
 
       const newJustPutIt = await browser.elementByCss('#justputit').text()
 
-      await browser.elementByCss('#navigate-client').click().waitForElementByCss('#inc')
+      await browser
+        .elementByCss('#navigate-client')
+        .click()
+        .waitForElementByCss('#inc')
       await browser
         .elementByCss('#navigate-revalidate')
         .click()
@@ -1330,7 +1422,9 @@ describe('app-dir action handling', () => {
       await browser.elementByCss('#set-cookie').click()
 
       await retry(async () => {
-        const newRandomNumber = await browser.elementByCss('#random-cookie').text()
+        const newRandomNumber = await browser
+          .elementByCss('#random-cookie')
+          .text()
 
         expect(newRandomNumber).not.toBe(randomNumber)
       })
@@ -1372,16 +1466,21 @@ describe('app-dir action handling', () => {
 
       let randomCookie
       await retry(async () => {
-        randomCookie = JSON.parse(await browser.elementByCss('#random-cookie').text()).cookie.value
+        randomCookie = JSON.parse(
+          await browser.elementByCss('#random-cookie').text()
+        ).cookie.value
       })
 
       await browser.elementByCss('#another').click()
       await retry(async () => {
-        expect(await browser.elementByCss('#title').text()).toBe('another route')
+        expect(await browser.elementByCss('#title').text()).toBe(
+          'another route'
+        )
       })
 
-      const newRandomCookie = JSON.parse(await browser.elementByCss('#random-cookie').text()).cookie
-        .value
+      const newRandomCookie = JSON.parse(
+        await browser.elementByCss('#random-cookie').text()
+      ).cookie.value
 
       console.log(456, await browser.elementByCss('body').text())
 
@@ -1396,8 +1495,9 @@ describe('app-dir action handling', () => {
       // Should be different
       let revalidatedRandomCookie
       await retry(async () => {
-        revalidatedRandomCookie = JSON.parse(await browser.elementByCss('#random-cookie').text())
-          .cookie.value
+        revalidatedRandomCookie = JSON.parse(
+          await browser.elementByCss('#random-cookie').text()
+        ).cookie.value
         expect(revalidatedRandomCookie).not.toBe(randomCookie)
       })
 
@@ -1422,7 +1522,9 @@ describe('app-dir action handling', () => {
 
         await browser.elementByCss('#another').click()
         await retry(async () => {
-          expect(await browser.elementByCss('#title').text()).toBe('another route')
+          expect(await browser.elementByCss('#title').text()).toBe(
+            'another route'
+          )
         })
 
         await retry(async () => {
@@ -1455,7 +1557,9 @@ describe('app-dir action handling', () => {
 
         await browser.elementByCss('#another').click()
         await retry(async () => {
-          expect(await browser.elementByCss('#title').text()).toBe('another route')
+          expect(await browser.elementByCss('#title').text()).toBe(
+            'another route'
+          )
         })
 
         // The other page should be revalidated too
@@ -1471,7 +1575,9 @@ describe('app-dir action handling', () => {
     const browser = await next.browser('/interception-routes')
 
     await retry(async () => {
-      expect(await browser.elementById('children-data').text()).toContain('Open modal')
+      expect(await browser.elementById('children-data').text()).toContain(
+        'Open modal'
+      )
     })
 
     await browser.elementByCss("[href='/interception-routes/test']").click()
@@ -1480,12 +1586,16 @@ describe('app-dir action handling', () => {
       // verify the URL is correct
       expect(await browser.url()).toContain('interception-routes/test')
       // the intercepted text should appear
-      expect(await browser.elementById('modal-data').text()).toContain('in "modal"')
+      expect(await browser.elementById('modal-data').text()).toContain(
+        'in "modal"'
+      )
     })
 
     // Submit the action
     await browser.elementById('submit-intercept-action').click()
-    let responseElement = await browser.waitForElementByCss('#submit-intercept-action-response')
+    let responseElement = await browser.waitForElementByCss(
+      '#submit-intercept-action-response'
+    )
 
     expect(await responseElement.text()).toBe('Action Submitted (Intercepted)')
 
@@ -1496,13 +1606,17 @@ describe('app-dir action handling', () => {
 
     // The page text should show
     await retry(async () => {
-      expect(await browser.elementById('children-data').text()).toContain('in "page"')
+      expect(await browser.elementById('children-data').text()).toContain(
+        'in "page"'
+      )
     })
 
     // Submit the action
     await browser.elementById('submit-page-action').click()
 
-    responseElement = await browser.waitForElementByCss('#submit-page-action-response')
+    responseElement = await browser.waitForElementByCss(
+      '#submit-page-action-response'
+    )
 
     expect(await responseElement.text()).toBe('Action Submitted (Page)')
   })
@@ -1603,7 +1717,9 @@ describe('app-dir action handling', () => {
       await browser.elementById('redirect-with-search-params').click()
 
       await retry(async () => {
-        expect(await browser.url()).toMatch(/\/redirects\/action-redirect\/redirect-target\?baz=1/)
+        expect(await browser.url()).toMatch(
+          /\/redirects\/action-redirect\/redirect-target\?baz=1/
+        )
       })
 
       // verify that the search params was set correctly
@@ -1614,7 +1730,9 @@ describe('app-dir action handling', () => {
       const browser = await next.browser('/redirects/action-redirect')
 
       // set foo and bar to be both 1, and verify
-      await browser.eval(`document.cookie = 'bar=1; Path=/'; document.cookie = 'foo=1; Path=/';`)
+      await browser.eval(
+        `document.cookie = 'bar=1; Path=/'; document.cookie = 'foo=1; Path=/';`
+      )
       await browser.refresh()
       expect(await browser.elementByCss('h1').text()).toBe('foo=1; bar=1')
 
@@ -1622,7 +1740,9 @@ describe('app-dir action handling', () => {
       await browser.elementById('redirect-with-cookie-mutation').click()
 
       await retry(async () => {
-        expect(await browser.url()).toMatch(/\/redirects\/action-redirect\/redirect-target/)
+        expect(await browser.url()).toMatch(
+          /\/redirects\/action-redirect\/redirect-target/
+        )
       })
 
       // verify that the cookies were merged correctly
@@ -1634,13 +1754,17 @@ describe('app-dir action handling', () => {
 
       await browser.elementById('redirect-with-search-params').click()
       await retry(async () => {
-        expect(await browser.url()).toMatch(/\/redirects\/action-redirect\/redirect-target\?baz=1/)
+        expect(await browser.url()).toMatch(
+          /\/redirects\/action-redirect\/redirect-target\?baz=1/
+        )
       })
       // verify that the search params was set correctly
       expect(await browser.elementByCss('h2').text()).toBe('baz=1')
 
       // we should not have the next-action header in the redirected request
-      expect(next.cliOutput).not.toContain('Action header should not be present')
+      expect(next.cliOutput).not.toContain(
+        'Action header should not be present'
+      )
     })
 
     it.each(['307', '308'])(
@@ -1689,7 +1813,9 @@ describe('app-dir action handling', () => {
   describe('server actions render client components', () => {
     describe('server component imported action', () => {
       it('should support importing client components from actions', async () => {
-        const browser = await next.browser('/server/action-return-client-component')
+        const browser = await next.browser(
+          '/server/action-return-client-component'
+        )
         expect(
           await browser
             .elementByCss('#trigger-component-load')
@@ -1703,7 +1829,9 @@ describe('app-dir action handling', () => {
     // Server Component -> Client Component -> Server Action (imported from client component) -> Import Client Component is not not supported yet.
     describe.skip('client component imported action', () => {
       it('should support importing client components from actions', async () => {
-        const browser = await next.browser('/client/action-return-client-component')
+        const browser = await next.browser(
+          '/client/action-return-client-component'
+        )
         expect(
           await browser
             .elementByCss('#trigger-component-load')
@@ -1723,7 +1851,8 @@ describe('app-dir action handling', () => {
         .click()
         .waitForElementByCss('#fetched-data')
 
-      const getNumber = async () => JSON.parse(await browser.elementByCss('#fetched-data').text())
+      const getNumber = async () =>
+        JSON.parse(await browser.elementByCss('#fetched-data').text())
 
       const firstNumber = await getNumber()
 
@@ -1743,7 +1872,8 @@ describe('app-dir action handling', () => {
         .click()
         .waitForElementByCss('#fetched-data')
 
-      const getNumber = async () => JSON.parse(await browser.elementByCss('#fetched-data').text())
+      const getNumber = async () =>
+        JSON.parse(await browser.elementByCss('#fetched-data').text())
 
       const firstNumber = await getNumber()
 
@@ -1764,7 +1894,8 @@ describe('app-dir action handling', () => {
         .click()
         .waitForElementByCss('#fetched-data')
 
-      const getNumber = async () => JSON.parse(await browser.elementByCss('#fetched-data').text())
+      const getNumber = async () =>
+        JSON.parse(await browser.elementByCss('#fetched-data').text())
 
       const firstNumber = await getNumber()
 
@@ -1787,7 +1918,9 @@ describe('app-dir action handling', () => {
         await browser.elementByCss('button').click()
         const result = await browser.elementByCss('p').text()
 
-        expect(result).toEqual('Server responded with 100000 あ characters and 0 � characters.')
+        expect(result).toEqual(
+          'Server responded with 100000 あ characters and 0 � characters.'
+        )
       }
     )
   })
@@ -1798,7 +1931,9 @@ describe('app-dir action handling', () => {
       it('should not trigger a refresh for a server action that gets discarded due to a navigation (without revalidation)', async () => {
         let browser = await next.browser('/action-discarding')
         await browser.waitForIdleNetwork()
-        const initialRandomNumber = await browser.elementByCss('#cached-random').text()
+        const initialRandomNumber = await browser
+          .elementByCss('#cached-random')
+          .text()
 
         await browser.elementByCss('#slow-action').click()
 
@@ -1809,7 +1944,9 @@ describe('app-dir action handling', () => {
         await waitFor(2000)
 
         await retry(async () => {
-          const newRandomNumber = await browser.elementByCss('#cached-random').text()
+          const newRandomNumber = await browser
+            .elementByCss('#cached-random')
+            .text()
 
           expect(newRandomNumber).toBe(initialRandomNumber)
         })
@@ -1819,7 +1956,9 @@ describe('app-dir action handling', () => {
     it('should trigger a refresh for a server action that gets discarded due to a navigation (with revalidation)', async () => {
       let browser = await next.browser('/action-discarding')
       await browser.waitForIdleNetwork()
-      const initialRandomNumber = await browser.elementByCss('#cached-random').text()
+      const initialRandomNumber = await browser
+        .elementByCss('#cached-random')
+        .text()
 
       await browser.elementByCss('#slow-action-revalidate').click()
 
@@ -1830,7 +1969,9 @@ describe('app-dir action handling', () => {
       await waitFor(2000)
 
       await retry(async () => {
-        const newRandomNumber = await browser.elementByCss('#cached-random').text()
+        const newRandomNumber = await browser
+          .elementByCss('#cached-random')
+          .text()
 
         expect(newRandomNumber).not.toBe(initialRandomNumber)
       })

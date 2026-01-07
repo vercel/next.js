@@ -4,7 +4,11 @@ import { tns } from "tiny-slider";
 
 import Testimonial from "./testimonial";
 
-export default function Testimonials({ headline, testimonial: testimonials, scrollAnchorId }) {
+export default function Testimonials({
+  headline,
+  testimonial: testimonials,
+  scrollAnchorId,
+}) {
   useEffect(() => {
     tns({
       container: ".testimonial-active",

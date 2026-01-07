@@ -18,7 +18,10 @@ export default function Content() {
   return (
     <p ref={line1} className="line">
       A Simple example using{" "}
-      <a href="https://greensock.com/gsap/" style={{ fontWeight: "bold", textDecoration: "none" }}>
+      <a
+        href="https://greensock.com/gsap/"
+        style={{ fontWeight: "bold", textDecoration: "none" }}
+      >
         GSAP
       </a>{" "}
       &{" "}

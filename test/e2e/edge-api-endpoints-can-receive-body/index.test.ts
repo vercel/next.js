@@ -9,8 +9,12 @@ describe('Edge API endpoints can receive body', () => {
   beforeAll(async () => {
     next = await createNext({
       files: {
-        'pages/api/edge.js': new FileRef(path.resolve(__dirname, './app/pages/api/edge.js')),
-        'pages/api/index.js': new FileRef(path.resolve(__dirname, './app/pages/api/index.js')),
+        'pages/api/edge.js': new FileRef(
+          path.resolve(__dirname, './app/pages/api/edge.js')
+        ),
+        'pages/api/index.js': new FileRef(
+          path.resolve(__dirname, './app/pages/api/index.js')
+        ),
       },
       dependencies: {},
     })

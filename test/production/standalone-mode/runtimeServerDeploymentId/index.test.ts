@@ -1,6 +1,11 @@
 import { NextInstance, createNext } from 'e2e-utils'
 import fs from 'fs-extra'
-import { findPort, initNextServerScript, killApp, renderViaHTTP } from 'next-test-utils'
+import {
+  findPort,
+  initNextServerScript,
+  killApp,
+  renderViaHTTP,
+} from 'next-test-utils'
 import { join } from 'path'
 
 let MY_DEPLOYMENT_ID = 'test-deployment-id'
@@ -23,7 +28,10 @@ describe('standalone mode: runtimeServerDeploymentId', () => {
     // eslint-disable-next-line jest/no-standalone-expect
     expect(exitCode).toBe(0)
 
-    await fs.move(join(next.testDir, '.next/standalone'), join(next.testDir, 'standalone'))
+    await fs.move(
+      join(next.testDir, '.next/standalone'),
+      join(next.testDir, 'standalone')
+    )
 
     for (const file of await fs.readdir(next.testDir)) {
       if (file !== 'standalone') {

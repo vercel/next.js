@@ -4,9 +4,17 @@ declare const __turbopack_external_require__: {
 
 import type { Ipc } from '../ipc/evaluate'
 import { dirname, resolve as pathResolve, relative } from 'path'
-import { StackFrame, parse as parseStackTrace } from '../compiled/stacktrace-parser'
+import {
+  StackFrame,
+  parse as parseStackTrace,
+} from '../compiled/stacktrace-parser'
 import { structuredError, type StructuredError } from '../ipc'
-import { fromPath, getReadEnvVariables, toPath, type TransformIpc } from './transforms'
+import {
+  fromPath,
+  getReadEnvVariables,
+  toPath,
+  type TransformIpc,
+} from './transforms'
 import fs from 'fs'
 import path from 'path'
 
@@ -47,7 +55,9 @@ type LoaderConfig =
       options: { [k: string]: unknown }
     }
 
-const { runLoaders }: typeof import('loader-runner') = require('@vercel/turbopack/loader-runner')
+const {
+  runLoaders,
+}: typeof import('loader-runner') = require('@vercel/turbopack/loader-runner')
 
 const contextDir = process.cwd()
 
@@ -89,7 +99,8 @@ const cutOffByFlag = (stack: string, flag: string): string => {
  * @param stack stack trace
  * @returns stack trace without the loader execution flag included
  */
-const cutOffLoaderExecution = (stack: string): string => cutOffByFlag(stack, loaderFlag)
+const cutOffLoaderExecution = (stack: string): string =>
+  cutOffByFlag(stack, loaderFlag)
 
 class DummySpan {
   traceChild() {
@@ -172,7 +183,9 @@ const transform = (
           sourceMap,
           getOptions() {
             const entry = this.loaders[this.loaderIndex]
-            return entry.options && typeof entry.options === 'object' ? entry.options : {}
+            return entry.options && typeof entry.options === 'object'
+              ? entry.options
+              : {}
           },
           fs: {
             readFile(p: string, optionsOrCb: any, maybeCb: any) {
@@ -217,13 +230,20 @@ const transform = (
             }
             if (options.conditionNames) {
               if (!Array.isArray(options.conditionNames)) {
-                throw new Error('conditionNames resolve option must be an array')
+                throw new Error(
+                  'conditionNames resolve option must be an array'
+                )
               }
               rustOptions.conditionNames = options.conditionNames
             }
             if (options.descriptionFiles) {
-              if (!Array.isArray(options.descriptionFiles) || options.descriptionFiles.length > 0) {
-                throw new Error('descriptionFiles resolve option is not supported')
+              if (
+                !Array.isArray(options.descriptionFiles) ||
+                options.descriptionFiles.length > 0
+              ) {
+                throw new Error(
+                  'descriptionFiles resolve option is not supported'
+                )
               }
               rustOptions.noPackageJson = true
             }
@@ -240,7 +260,10 @@ const transform = (
               rustOptions.mainFields = options.mainFields
             }
             if (options.exportsFields) {
-              if (!Array.isArray(options.exportsFields) || options.exportsFields.length > 0) {
+              if (
+                !Array.isArray(options.exportsFields) ||
+                options.exportsFields.length > 0
+              ) {
                 throw new Error('exportsFields resolve option is not supported')
               }
               rustOptions.noExportsField = true
@@ -252,7 +275,10 @@ const transform = (
               rustOptions.mainFiles = options.mainFiles
             }
             if (options.modules) {
-              if (!Array.isArray(options.modules) || options.modules.length > 0) {
+              if (
+                !Array.isArray(options.modules) ||
+                options.modules.length > 0
+              ) {
                 throw new Error('modules resolve option is not supported')
               }
               rustOptions.noModules = true
@@ -265,7 +291,9 @@ const transform = (
             }
             if (options.preferRelative) {
               if (typeof options.preferRelative !== 'boolean') {
-                throw new Error('preferRelative resolve option must be a boolean')
+                throw new Error(
+                  'preferRelative resolve option must be a boolean'
+                )
               }
               rustOptions.preferRelative = options.preferRelative
             }
@@ -282,7 +310,10 @@ const transform = (
 
                 // On Windows, the path might be still absolute if it's on a different drive. Just
                 // let the resolver throw the error in that case.
-                if (!path.isAbsolute(request) && request.split(path.sep)[0] !== '..') {
+                if (
+                  !path.isAbsolute(request) &&
+                  request.split(path.sep)[0] !== '..'
+                ) {
                   request = './' + request
                 }
               }
@@ -299,7 +330,9 @@ const transform = (
                   if (result && typeof result.path === 'string') {
                     return fromPath(result.path)
                   } else {
-                    throw Error('Expected { path: string } from resolve request')
+                    throw Error(
+                      'Expected { path: string } from resolve request'
+                    )
                   }
                 })
               if (callback) {
@@ -327,7 +360,10 @@ const transform = (
                 case LogType.trace:
                 case LogType.debug:
                   trace = parseStackTrace(
-                    cutOffLoaderExecution(new Error('Trace').stack!).split('\n').slice(3).join('\n')
+                    cutOffLoaderExecution(new Error('Trace').stack!)
+                      .split('\n')
+                      .slice(3)
+                      .join('\n')
                   )
                   break
                 default:
@@ -372,7 +408,9 @@ const transform = (
               timeLog: (label: string) => {
                 const prev = timers && timers.get(label)
                 if (!prev) {
-                  throw new Error(`No such label '${label}' for WebpackLogger.timeLog()`)
+                  throw new Error(
+                    `No such label '${label}' for WebpackLogger.timeLog()`
+                  )
                 }
                 const time = process.hrtime(prev)
                 logFn(LogType.time, [label, ...time])
@@ -380,7 +418,9 @@ const transform = (
               timeEnd: (label: string) => {
                 const prev = timers && timers.get(label)
                 if (!prev) {
-                  throw new Error(`No such label '${label}' for WebpackLogger.timeEnd()`)
+                  throw new Error(
+                    `No such label '${label}' for WebpackLogger.timeEnd()`
+                  )
                 }
                 const time = process.hrtime(prev)
                 /** @type {Map<string | undefined, [number, number]>} */
@@ -390,7 +430,9 @@ const transform = (
               timeAggregate: (label: string) => {
                 const prev = timers && timers.get(label)
                 if (!prev) {
-                  throw new Error(`No such label '${label}' for WebpackLogger.timeAggregate()`)
+                  throw new Error(
+                    `No such label '${label}' for WebpackLogger.timeAggregate()`
+                  )
                 }
                 const time = process.hrtime(prev)
                 /** @type {Map<string | undefined, [number, number]>} */
@@ -444,13 +486,18 @@ const transform = (
           type: 'dependencies',
           envVariables: getReadEnvVariables(),
           filePaths: result.fileDependencies.map(toPath),
-          directories: result.contextDependencies.map((dep) => [toPath(dep), '**']),
+          directories: result.contextDependencies.map((dep) => [
+            toPath(dep),
+            '**',
+          ]),
         })
         if (err) return reject(err)
         if (!result.result) return reject(new Error('No result from loaders'))
         const [source, map] = result.result
         resolve({
-          source: Buffer.isBuffer(source) ? { binary: source.toString('base64') } : source,
+          source: Buffer.isBuffer(source)
+            ? { binary: source.toString('base64') }
+            : source,
           map:
             typeof map === 'string'
               ? map

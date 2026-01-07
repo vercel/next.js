@@ -1,7 +1,12 @@
 import type { ProxyFetchRequest, ProxyResponse } from './types'
 import { ABORT, CONTINUE, UNHANDLED } from './types'
 
-export type FetchHandlerResult = Response | 'abort' | 'continue' | null | undefined
+export type FetchHandlerResult =
+  | Response
+  | 'abort'
+  | 'continue'
+  | null
+  | undefined
 
 export type FetchHandler = (
   testData: string,
@@ -18,7 +23,9 @@ function buildRequest(req: ProxyFetchRequest): Request {
   })
 }
 
-async function buildResponse(response: FetchHandlerResult): Promise<ProxyResponse> {
+async function buildResponse(
+  response: FetchHandlerResult
+): Promise<ProxyResponse> {
   if (!response) {
     return UNHANDLED
   }
@@ -35,7 +42,9 @@ async function buildResponse(response: FetchHandlerResult): Promise<ProxyRespons
     response: {
       status,
       headers: Array.from(headers),
-      body: body ? Buffer.from(await response.arrayBuffer()).toString('base64') : null,
+      body: body
+        ? Buffer.from(await response.arrayBuffer()).toString('base64')
+        : null,
     },
   }
 }

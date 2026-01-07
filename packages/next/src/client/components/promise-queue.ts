@@ -59,7 +59,10 @@ export class PromiseQueue {
   }
 
   #processNext(forced = false) {
-    if ((this.#runningCount < this.#maxConcurrency || forced) && this.#queue.length > 0) {
+    if (
+      (this.#runningCount < this.#maxConcurrency || forced) &&
+      this.#queue.length > 0
+    ) {
       this.#queue.shift()?.task()
     }
   }

@@ -8,10 +8,13 @@ export async function Image({ src, alt = null, width = null, height = null }) {
     let imageBuffer = null
 
     if (src.startsWith('http')) {
-      imageBuffer = Buffer.from(await fetch(src).then((res) => res.arrayBuffer()))
+      imageBuffer = Buffer.from(
+        await fetch(src).then((res) => res.arrayBuffer())
+      )
     } else {
       imageBuffer = await readFile(
-        new URL(join(import.meta.url, '..', '..', '..', '..', 'public', src)).pathname
+        new URL(join(import.meta.url, '..', '..', '..', '..', 'public', src))
+          .pathname
       )
     }
 
@@ -26,7 +29,9 @@ export async function Image({ src, alt = null, width = null, height = null }) {
         <NextImage width={width} height={height} alt={alt} src={src} />
       )}
 
-      {alt && <span className="block font-mono text-xs mt-5 text-center">{alt}</span>}
+      {alt && (
+        <span className="block font-mono text-xs mt-5 text-center">{alt}</span>
+      )}
     </span>
   )
 }

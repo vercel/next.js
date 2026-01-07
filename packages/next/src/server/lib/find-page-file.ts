@@ -79,11 +79,16 @@ export function createValidFileMatcher(
   pageExtensions: PageExtensions,
   appDirPath: string | undefined
 ) {
-  const getExtensionRegexString = (extensions: string[]) => `(?:${extensions.join('|')})`
+  const getExtensionRegexString = (extensions: string[]) =>
+    `(?:${extensions.join('|')})`
 
-  const validExtensionFileRegex = new RegExp('\\.' + getExtensionRegexString(pageExtensions) + '$')
+  const validExtensionFileRegex = new RegExp(
+    '\\.' + getExtensionRegexString(pageExtensions) + '$'
+  )
   const leafOnlyPageFileRegex = new RegExp(
-    `(^(page|route)|[\\\\/](page|route))\\.${getExtensionRegexString(pageExtensions)}$`
+    `(^(page|route)|[\\\\/](page|route))\\.${getExtensionRegexString(
+      pageExtensions
+    )}$`
   )
 
   const leafOnlyRouteFileRegex = new RegExp(
@@ -115,7 +120,9 @@ export function createValidFileMatcher(
    * It needs to be a file which doesn't match the custom metadata routes e.g. `app/robots.txt/route.js`
    */
   function isMetadataFile(filePath: string) {
-    const appDirRelativePath = appDirPath ? filePath.replace(appDirPath, '') : filePath
+    const appDirRelativePath = appDirPath
+      ? filePath.replace(appDirPath, '')
+      : filePath
 
     return isMetadataRouteFile(appDirRelativePath, pageExtensions, true)
   }

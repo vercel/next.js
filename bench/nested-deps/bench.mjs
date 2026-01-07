@@ -2,7 +2,13 @@ import { execSync, spawn } from 'child_process'
 import { join } from 'path'
 import { fileURLToPath } from 'url'
 import fetch from 'node-fetch'
-import { existsSync, readFileSync, writeFileSync, unlinkSync, promises as fs } from 'fs'
+import {
+  existsSync,
+  readFileSync,
+  writeFileSync,
+  unlinkSync,
+  promises as fs,
+} from 'fs'
 import prettyMs from 'pretty-ms'
 import treeKill from 'tree-kill'
 
@@ -41,7 +47,9 @@ async function killApp(instance) {
 class File {
   constructor(path) {
     this.path = path
-    this.originalContent = existsSync(this.path) ? readFileSync(this.path, 'utf8') : null
+    this.originalContent = existsSync(this.path)
+      ? readFileSync(this.path, 'utf8')
+      : null
   }
 
   write(content) {
@@ -175,7 +183,8 @@ try {
       return new Promise((resolve) => {
         function waitForOnData(data) {
           const message = data.toString()
-          const compiledRegex = /Compiled (?:.+ )?in (\d*[.]?\d+)\s*(m?s)(?: \((\d+) modules\))?/gm
+          const compiledRegex =
+            /Compiled (?:.+ )?in (\d*[.]?\d+)\s*(m?s)(?: \((\d+) modules\))?/gm
           const matched = compiledRegex.exec(message)
           if (matched) {
             resolve({
@@ -189,7 +198,10 @@ try {
       })
     }
 
-    const [res, initial] = await Promise.all([fetch('http://localhost:3000/'), waitForCompiled()])
+    const [res, initial] = await Promise.all([
+      fetch('http://localhost:3000/'),
+      waitForCompiled(),
+    ])
     if (res.status !== 200) {
       throw new Error('Fetching / failed')
     }

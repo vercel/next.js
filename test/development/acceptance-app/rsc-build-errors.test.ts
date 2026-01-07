@@ -41,7 +41,10 @@ describe('Error overlay - RSC build errors', () => {
     const content = await next.readFile(pageFile)
 
     // Add `metadata` error
-    let uncomment = content.replace('// export const metadata', 'export const metadata')
+    let uncomment = content.replace(
+      '// export const metadata',
+      'export const metadata'
+    )
     await session.patch(pageFile, uncomment)
     await session.waitForRedbox()
     expect(await session.getRedboxSource()).toInclude(
@@ -107,11 +110,17 @@ describe('Error overlay - RSC build errors', () => {
     await next.patchFile(pageFile, content)
 
     await session.waitForRedbox()
-    expect(await session.getRedboxSource()).toInclude('"getStaticProps" is not supported in app/')
+    expect(await session.getRedboxSource()).toInclude(
+      '"getStaticProps" is not supported in app/'
+    )
   })
 
   it('should throw an error when "use client" is on the top level but after other expressions', async () => {
-    await using sandbox = await createSandbox(next, undefined, '/swc/use-client')
+    await using sandbox = await createSandbox(
+      next,
+      undefined,
+      '/swc/use-client'
+    )
     const { session } = sandbox
     const pageFile = 'app/swc/use-client/page.js'
     const content = await next.readFile(pageFile)
@@ -152,9 +161,13 @@ describe('Error overlay - RSC build errors', () => {
       '/server-with-errors/client-only-in-server'
     )
     const { session } = sandbox
-    const file = 'app/server-with-errors/client-only-in-server/client-only-lib.js'
+    const file =
+      'app/server-with-errors/client-only-in-server/client-only-lib.js'
     const content = await next.readFile(file)
-    const uncomment = content.replace("// import 'client-only'", "import 'client-only'")
+    const uncomment = content.replace(
+      "// import 'client-only'",
+      "import 'client-only'"
+    )
     await next.patchFile(file, uncomment)
 
     await session.waitForRedbox()
@@ -249,9 +262,13 @@ describe('Error overlay - RSC build errors', () => {
       '/client-with-errors/server-only-in-client'
     )
     const { session } = sandbox
-    const file = 'app/client-with-errors/server-only-in-client/server-only-lib.js'
+    const file =
+      'app/client-with-errors/server-only-in-client/server-only-lib.js'
     const content = await next.readFile(file)
-    const uncomment = content.replace("// import 'server-only'", "import 'server-only'")
+    const uncomment = content.replace(
+      "// import 'server-only'",
+      "import 'server-only'"
+    )
 
     await session.patch(file, uncomment)
 
@@ -293,7 +310,8 @@ describe('Error overlay - RSC build errors', () => {
   })
 
   describe('next/root-params', () => {
-    const isCacheComponentsEnabled = process.env.__NEXT_CACHE_COMPONENTS === 'true'
+    const isCacheComponentsEnabled =
+      process.env.__NEXT_CACHE_COMPONENTS === 'true'
     it("importing 'next/root-params' when experimental.rootParams is not enabled", async () => {
       await using sandbox = await createSandbox(
         next,
@@ -364,11 +382,18 @@ describe('Error overlay - RSC build errors', () => {
   })
 
   it('should error for invalid undefined module retuning from next dynamic', async () => {
-    await using sandbox = await createSandbox(next, undefined, '/client-with-errors/dynamic')
+    await using sandbox = await createSandbox(
+      next,
+      undefined,
+      '/client-with-errors/dynamic'
+    )
     const { session } = sandbox
     const file = 'app/client-with-errors/dynamic/page.js'
     const content = await next.readFile(file)
-    await session.patch(file, content.replace('() => <p>hello dynamic world</p>', 'undefined'))
+    await session.patch(
+      file,
+      content.replace('() => <p>hello dynamic world</p>', 'undefined')
+    )
 
     await session.waitForRedbox()
     expect(await session.getRedboxDescription()).toInclude(
@@ -377,7 +402,11 @@ describe('Error overlay - RSC build errors', () => {
   })
 
   it('should throw an error when error file is a server component', async () => {
-    await using sandbox = await createSandbox(next, undefined, '/server-with-errors/error-file')
+    await using sandbox = await createSandbox(
+      next,
+      undefined,
+      '/server-with-errors/error-file'
+    )
     const { session } = sandbox
     // Remove "use client"
     await session.patch(
@@ -386,9 +415,12 @@ describe('Error overlay - RSC build errors', () => {
     )
 
     await session.waitForRedbox()
-    await expect(session.getRedboxSource()).resolves.toMatch(/must be a Client \n| Component/)
+    await expect(session.getRedboxSource()).resolves.toMatch(
+      /must be a Client \n| Component/
+    )
     if (process.env.IS_TURBOPACK_TEST) {
-      expect(next.normalizeTestDirContent(await session.getRedboxSource())).toMatchInlineSnapshot(`
+      expect(next.normalizeTestDirContent(await session.getRedboxSource()))
+        .toMatchInlineSnapshot(`
        "./app/server-with-errors/error-file/error.js (1:1)
        Ecmascript file had an error
        > 1 | export default function Error() {}
@@ -398,7 +430,9 @@ describe('Error overlay - RSC build errors', () => {
        Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client"
       `)
     } else {
-      await expect(session.getRedboxSource()).resolves.toMatch(/Add the "use client"/)
+      await expect(session.getRedboxSource()).resolves.toMatch(
+        /Add the "use client"/
+      )
 
       // TODO: investigate flakey snapshot due to spacing below
       // expect(next.normalizeTestDirContent(await session.getRedboxSource()))
@@ -421,13 +455,19 @@ describe('Error overlay - RSC build errors', () => {
   })
 
   it('should throw an error when error file is a server component with empty error file', async () => {
-    await using sandbox = await createSandbox(next, undefined, '/server-with-errors/error-file')
+    await using sandbox = await createSandbox(
+      next,
+      undefined,
+      '/server-with-errors/error-file'
+    )
     const { session } = sandbox
     // Empty file
     await session.patch('app/server-with-errors/error-file/error.js', '')
 
     await session.waitForRedbox()
-    await expect(session.getRedboxSource()).resolves.toMatch(/Add the "use client"/)
+    await expect(session.getRedboxSource()).resolves.toMatch(
+      /Add the "use client"/
+    )
 
     // TODO: investigate flakey snapshot due to spacing below
     // expect(next.normalizeTestDirContent(await session.getRedboxSource()))
@@ -463,7 +503,11 @@ describe('Error overlay - RSC build errors', () => {
       }
     `
 
-    await using sandbox = await createSandbox(next, undefined, '/metadata/mutate')
+    await using sandbox = await createSandbox(
+      next,
+      undefined,
+      '/metadata/mutate'
+    )
     const { session } = sandbox
     await session.patch(pagePath, content)
 

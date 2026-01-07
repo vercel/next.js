@@ -36,7 +36,12 @@ addHookAliases(toResolveMap(defaultOverrides))
 
 // @ts-expect-error
 mod._resolveFilename = function (
-  originalResolveFilename: (request: string, parent: string, isMain: boolean, opts: any) => string,
+  originalResolveFilename: (
+    request: string,
+    parent: string,
+    isMain: boolean,
+    opts: any
+  ) => string,
   requestMap: Map<string, string>,
   request: string,
   parent: string,

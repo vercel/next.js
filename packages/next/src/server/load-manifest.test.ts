@@ -57,14 +57,20 @@ describe('loadManifest', () => {
       throw new Error('File not found')
     })
 
-    expect(() => loadManifest('path/to/manifest', false)).toThrow('File not found')
+    expect(() => loadManifest('path/to/manifest', false)).toThrow(
+      'File not found'
+    )
   })
 
   it('should freeze the manifest when caching', () => {
     const mockManifest = { key: 'value', nested: { key: 'value' } }
     ;(readFileSync as jest.Mock).mockReturnValue(JSON.stringify(mockManifest))
 
-    const result = loadManifest('path/to/manifest', true, cache) as typeof mockManifest
+    const result = loadManifest(
+      'path/to/manifest',
+      true,
+      cache
+    ) as typeof mockManifest
     expect(Object.isFrozen(result)).toBe(true)
     expect(Object.isFrozen(result.nested)).toBe(true)
 

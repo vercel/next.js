@@ -1,4 +1,7 @@
-const { devices, defineConfig } = require('next/experimental/testmode/playwright')
+const {
+  devices,
+  defineConfig,
+} = require('next/experimental/testmode/playwright')
 
 module.exports = defineConfig({
   projects: [

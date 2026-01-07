@@ -2,7 +2,10 @@ import { promises as fs } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import FileSystemCache from 'next/dist/server/lib/incremental-cache/file-system-cache'
 import { nodeFs } from 'next/dist/server/lib/node-fs-methods'
-import { CachedRouteKind, IncrementalCacheKind } from 'next/dist/server/response-cache'
+import {
+  CachedRouteKind,
+  IncrementalCacheKind,
+} from 'next/dist/server/response-cache'
 
 const cacheDir = fileURLToPath(new URL('./cache', import.meta.url))
 
@@ -16,7 +19,9 @@ describe('FileSystemCache', () => {
       revalidatedTags: [],
     })
 
-    const binary = await fs.readFile(fileURLToPath(new URL('./images/icon.png', import.meta.url)))
+    const binary = await fs.readFile(
+      fileURLToPath(new URL('./images/icon.png', import.meta.url))
+    )
 
     await fsCache.set(
       'icon.png',

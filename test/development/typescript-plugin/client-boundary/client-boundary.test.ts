@@ -4,7 +4,10 @@ import ts from 'typescript'
 import { relative, resolve } from 'node:path'
 import { getPluginLanguageService } from '../test-utils'
 
-type PartialDiagnostic = Pick<ts.Diagnostic, 'code' | 'messageText' | 'start' | 'length'>
+type PartialDiagnostic = Pick<
+  ts.Diagnostic,
+  'code' | 'messageText' | 'start' | 'length'
+>
 
 describe('typescript-plugin - client-boundary', () => {
   let languageService: PluginLanguageService

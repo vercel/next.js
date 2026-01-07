@@ -4,9 +4,14 @@ import { useSyncExternalStore } from 'react'
 
 const reactServerRequestsServerSnapshot: never[] = []
 const ServerRequestsStore = {
-  subscribe: typeof window === 'undefined' ? () => () => {} : window.reactServerRequests.subscribe,
+  subscribe:
+    typeof window === 'undefined'
+      ? () => () => {}
+      : window.reactServerRequests.subscribe,
   getSnapshot:
-    typeof window === 'undefined' ? () => [] : window.reactServerRequests.getStoreSnapshot,
+    typeof window === 'undefined'
+      ? () => []
+      : window.reactServerRequests.getStoreSnapshot,
   getServerSnapshot: () => reactServerRequestsServerSnapshot,
 }
 

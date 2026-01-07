@@ -16,7 +16,10 @@ import {
   type ResponseGenerator,
 } from '../../response-cache'
 
-import { setResponseCacheControlHeaders, type CacheControl } from '../../lib/cache-control'
+import {
+  setResponseCacheControlHeaders,
+  type CacheControl,
+} from '../../lib/cache-control'
 import { normalizeRepeatedSlashes } from '../../../shared/lib/utils'
 import { getRedirectStatus } from '../../../lib/redirect-status'
 import {
@@ -34,7 +37,11 @@ import { isBot } from '../../../shared/lib/router/utils/is-bot'
 import { addPathPrefix } from '../../../shared/lib/router/utils/add-path-prefix'
 import { removeTrailingSlash } from '../../../shared/lib/router/utils/remove-trailing-slash'
 import type { PagesRouteModule } from './module.compiled'
-import type { GetServerSideProps, GetStaticPaths, GetStaticProps } from '../../../types'
+import type {
+  GetServerSideProps,
+  GetStaticPaths,
+  GetStaticProps,
+} from '../../../types'
 import { getDeploymentId } from '../../../shared/lib/deployment-id'
 
 export const getHandler = ({
@@ -64,7 +71,11 @@ export const getHandler = ({
     }
   ): Promise<void> {
     if (routeModule.isDev) {
-      addRequestMeta(req, 'devRequestTimingInternalsEnd', process.hrtime.bigint())
+      addRequestMeta(
+        req,
+        'devRequestTimingInternalsEnd',
+        process.hrtime.bigint()
+      )
     }
     let srcPage = originalSrcPage
     // turbopack doesn't normalize `/index` in the page name
@@ -76,7 +87,8 @@ export const getHandler = ({
       // we always normalize /index specifically
       srcPage = '/'
     }
-    const multiZoneDraftMode = process.env.__NEXT_MULTI_ZONE_DRAFT_MODE as any as boolean
+    const multiZoneDraftMode = process.env
+      .__NEXT_MULTI_ZONE_DRAFT_MODE as any as boolean
 
     const prepareResult = await routeModule.prepare(req, res, {
       srcPage,
@@ -126,15 +138,19 @@ export const getHandler = ({
       encodedResolvedPathname,
     } = prepareResult
 
-    const isExperimentalCompile = serverFilesManifest?.config?.experimental?.isExperimentalCompile
+    const isExperimentalCompile =
+      serverFilesManifest?.config?.experimental?.isExperimentalCompile
 
     const hasServerProps = Boolean(getServerSideProps)
     const hasStaticProps = Boolean(getStaticProps)
     const hasStaticPaths = Boolean(getStaticPaths)
-    const hasGetInitialProps = Boolean((userland.default || userland).getInitialProps)
+    const hasGetInitialProps = Boolean(
+      (userland.default || userland).getInitialProps
+    )
     let cacheKey: null | string = null
     let isIsrFallback = false
-    let isNextDataRequest = prepareResult.isNextDataRequest && (hasStaticProps || hasServerProps)
+    let isNextDataRequest =
+      prepareResult.isNextDataRequest && (hasStaticProps || hasServerProps)
 
     const is404Page = srcPage === '/404'
     const is500Page = srcPage === '/500'
@@ -142,7 +158,9 @@ export const getHandler = ({
 
     if (!routeModule.isDev && !isDraftMode && hasStaticProps) {
       cacheKey = `${locale ? `/${locale}` : ''}${
-        (srcPage === '/' || resolvedPathname === '/') && locale ? '' : resolvedPathname
+        (srcPage === '/' || resolvedPathname === '/') && locale
+          ? ''
+          : resolvedPathname
       }`
 
       if (is404Page || is500Page || isErrorPage) {
@@ -155,7 +173,9 @@ export const getHandler = ({
 
     if (hasStaticPaths && !isDraftMode) {
       const decodedPathname = removeTrailingSlash(
-        locale ? addPathPrefix(resolvedPathname, `/${locale}`) : resolvedPathname
+        locale
+          ? addPathPrefix(resolvedPathname, `/${locale}`)
+          : resolvedPathname
       )
       const isPrerendered =
         Boolean(prerenderManifest.routes[decodedPathname]) ||
@@ -171,7 +191,11 @@ export const getHandler = ({
           throw new NoFallbackError()
         }
 
-        if (typeof prerenderInfo.fallback === 'string' && !isPrerendered && !isNextDataRequest) {
+        if (
+          typeof prerenderInfo.fallback === 'string' &&
+          !isPrerendered &&
+          !isNextDataRequest
+        ) {
           isIsrFallback = true
         }
       }
@@ -180,7 +204,10 @@ export const getHandler = ({
     // When serving a bot request, we want to serve a blocking render and not
     // the prerendered page. This ensures that the correct content is served
     // to the bot in the head.
-    if ((isIsrFallback && isBot(req.headers['user-agent'] || '')) || isMinimalMode) {
+    if (
+      (isIsrFallback && isBot(req.headers['user-agent'] || '')) ||
+      isMinimalMode
+    ) {
       isIsrFallback = false
     }
 
@@ -199,7 +226,9 @@ export const getHandler = ({
       })
 
       const handleResponse = async (span?: Span) => {
-        const responseGenerator: ResponseGenerator = async ({ previousCacheEntry }) => {
+        const responseGenerator: ResponseGenerator = async ({
+          previousCacheEntry,
+        }) => {
           const doRender = async () => {
             try {
               return await routeModule
@@ -225,7 +254,8 @@ export const getHandler = ({
                   },
                   sharedContext: {
                     buildId,
-                    customServer: Boolean(routerServerContext?.isCustomServer) || undefined,
+                    customServer:
+                      Boolean(routerServerContext?.isCustomServer) || undefined,
                     deploymentId: getDeploymentId(),
                   },
                   renderOpts: {
@@ -239,7 +269,9 @@ export const getHandler = ({
                     getStaticPaths,
                     getServerSideProps,
                     supportsDynamicResponse: !hasStaticProps,
-                    buildManifest: isFallbackError ? fallbackBuildManifest : buildManifest,
+                    buildManifest: isFallbackError
+                      ? fallbackBuildManifest
+                      : buildManifest,
                     nextFontManifest,
                     reactLoadableManifest,
 
@@ -248,20 +280,25 @@ export const getHandler = ({
                     images: nextConfig.images as any,
                     nextConfigOutput: nextConfig.output,
                     optimizeCss: Boolean(nextConfig.experimental.optimizeCss),
-                    nextScriptWorkers: Boolean(nextConfig.experimental.nextScriptWorkers),
+                    nextScriptWorkers: Boolean(
+                      nextConfig.experimental.nextScriptWorkers
+                    ),
                     domainLocales: nextConfig.i18n?.domains,
                     crossOrigin: nextConfig.crossOrigin,
 
                     multiZoneDraftMode,
                     basePath: nextConfig.basePath,
-                    disableOptimizedLoading: nextConfig.experimental.disableOptimizedLoading,
-                    largePageDataBytes: nextConfig.experimental.largePageDataBytes,
+                    disableOptimizedLoading:
+                      nextConfig.experimental.disableOptimizedLoading,
+                    largePageDataBytes:
+                      nextConfig.experimental.largePageDataBytes,
 
                     isExperimentalCompile,
 
                     experimental: {
                       clientTraceMetadata:
-                        nextConfig.experimental.clientTraceMetadata || ([] as any),
+                        nextConfig.experimental.clientTraceMetadata ||
+                        ([] as any),
                     },
 
                     locale,
@@ -269,7 +306,8 @@ export const getHandler = ({
                     defaultLocale,
                     setIsrStatus: routerServerContext?.setIsrStatus,
 
-                    isNextDataRequest: isNextDataRequest && (hasServerProps || hasStaticProps),
+                    isNextDataRequest:
+                      isNextDataRequest && (hasServerProps || hasStaticProps),
 
                     resolvedUrl,
                     // For getServerSideProps and getInitialProps we need to ensure we use the original URL
@@ -305,7 +343,8 @@ export const getHandler = ({
                 .then((renderResult): ResponseCacheEntry => {
                   const { metadata } = renderResult
 
-                  let cacheControl: CacheControl | undefined = metadata.cacheControl
+                  let cacheControl: CacheControl | undefined =
+                    metadata.cacheControl
 
                   if ('isNotFound' in metadata && metadata.isNotFound) {
                     return {
@@ -350,7 +389,10 @@ export const getHandler = ({
                     return
                   }
 
-                  if (rootSpanAttributes.get('next.span_type') !== BaseServerSpan.handleRequest) {
+                  if (
+                    rootSpanAttributes.get('next.span_type') !==
+                    BaseServerSpan.handleRequest
+                  ) {
                     console.warn(
                       `Unexpected root span type '${rootSpanAttributes.get(
                         'next.span_type'
@@ -405,28 +447,36 @@ export const getHandler = ({
           }
 
           if (isIsrFallback) {
-            const fallbackResponse = await routeModule.getResponseCache(req).get(
-              routeModule.isDev ? null : locale ? `/${locale}${srcPage}` : srcPage,
-              async ({ previousCacheEntry: previousFallbackCacheEntry = null }) => {
-                if (!routeModule.isDev) {
-                  return toResponseCacheEntry(previousFallbackCacheEntry)
+            const fallbackResponse = await routeModule
+              .getResponseCache(req)
+              .get(
+                routeModule.isDev
+                  ? null
+                  : locale
+                    ? `/${locale}${srcPage}`
+                    : srcPage,
+                async ({
+                  previousCacheEntry: previousFallbackCacheEntry = null,
+                }) => {
+                  if (!routeModule.isDev) {
+                    return toResponseCacheEntry(previousFallbackCacheEntry)
+                  }
+                  return doRender()
+                },
+                {
+                  routeKind: RouteKind.PAGES,
+                  isFallback: true,
+                  isRoutePPREnabled: false,
+                  isOnDemandRevalidate: false,
+                  incrementalCache: await routeModule.getIncrementalCache(
+                    req,
+                    nextConfig,
+                    prerenderManifest,
+                    isMinimalMode
+                  ),
+                  waitUntil: ctx.waitUntil,
                 }
-                return doRender()
-              },
-              {
-                routeKind: RouteKind.PAGES,
-                isFallback: true,
-                isRoutePPREnabled: false,
-                isOnDemandRevalidate: false,
-                incrementalCache: await routeModule.getIncrementalCache(
-                  req,
-                  nextConfig,
-                  prerenderManifest,
-                  isMinimalMode
-                ),
-                waitUntil: ctx.waitUntil,
-              }
-            )
+              )
             if (fallbackResponse) {
               // Remove the cache control from the response to prevent it from being
               // used in the surrounding cache.
@@ -449,17 +499,23 @@ export const getHandler = ({
             return null
           }
 
-          if (isIsrFallback && previousCacheEntry?.value?.kind === CachedRouteKind.PAGES) {
+          if (
+            isIsrFallback &&
+            previousCacheEntry?.value?.kind === CachedRouteKind.PAGES
+          ) {
             return {
               value: {
                 kind: CachedRouteKind.PAGES,
-                html: new RenderResult(Buffer.from(previousCacheEntry.value.html), {
-                  contentType: HTML_CONTENT_TYPE_HEADER,
-                  metadata: {
-                    statusCode: previousCacheEntry.value.status,
-                    headers: previousCacheEntry.value.headers,
-                  },
-                }),
+                html: new RenderResult(
+                  Buffer.from(previousCacheEntry.value.html),
+                  {
+                    contentType: HTML_CONTENT_TYPE_HEADER,
+                    metadata: {
+                      statusCode: previousCacheEntry.value.status,
+                      headers: previousCacheEntry.value.headers,
+                    },
+                  }
+                ),
                 pageData: {},
                 status: previousCacheEntry.value.status,
                 headers: previousCacheEntry.value.headers,
@@ -518,7 +574,10 @@ export const getHandler = ({
           const notFoundRevalidate = getRequestMeta(req, 'notFoundRevalidate')
 
           cacheControl = {
-            revalidate: typeof notFoundRevalidate === 'undefined' ? 0 : notFoundRevalidate,
+            revalidate:
+              typeof notFoundRevalidate === 'undefined'
+                ? 0
+                : notFoundRevalidate,
             expire: undefined,
           }
         } else if (is500Page) {
@@ -561,7 +620,11 @@ export const getHandler = ({
           // so that we can use this as source of truth for the
           // cache-control header instead of what the 404 page returns
           // for the revalidate value
-          addRequestMeta(req, 'notFoundRevalidate', result.cacheControl?.revalidate)
+          addRequestMeta(
+            req,
+            'notFoundRevalidate',
+            result.cacheControl?.revalidate
+          )
 
           res.statusCode = 404
 
@@ -587,12 +650,18 @@ export const getHandler = ({
               const statusCode = getRedirectStatus(redirect)
               const { basePath } = nextConfig
 
-              if (basePath && redirect.basePath !== false && redirect.destination.startsWith('/')) {
+              if (
+                basePath &&
+                redirect.basePath !== false &&
+                redirect.destination.startsWith('/')
+              ) {
                 redirect.destination = `${basePath}${redirect.destination}`
               }
 
               if (redirect.destination.startsWith('/')) {
-                redirect.destination = normalizeRepeatedSlashes(redirect.destination)
+                redirect.destination = normalizeRepeatedSlashes(
+                  redirect.destination
+                )
               }
 
               res.statusCode = statusCode
@@ -608,7 +677,9 @@ export const getHandler = ({
         }
 
         if (result.value.kind !== CachedRouteKind.PAGES) {
-          throw new Error(`Invariant: received non-pages cache entry in pages handler`)
+          throw new Error(
+            `Invariant: received non-pages cache entry in pages handler`
+          )
         }
 
         // In dev, we should not cache pages for any reason.
@@ -623,7 +694,10 @@ export const getHandler = ({
 
         // Draft mode should never be cached
         if (isDraftMode) {
-          res.setHeader('Cache-Control', 'private, no-cache, no-store, max-age=0, must-revalidate')
+          res.setHeader(
+            'Cache-Control',
+            'private, no-cache, no-store, max-age=0, must-revalidate'
+          )
         }
 
         // when invoking _error before pages/500 we don't actually
@@ -642,10 +716,13 @@ export const getHandler = ({
           // anymore
           result:
             isNextDataRequest && !isErrorPage && !is500Page
-              ? new RenderResult(Buffer.from(JSON.stringify(result.value.pageData)), {
-                  contentType: JSON_CONTENT_TYPE_HEADER,
-                  metadata: result.value.html.metadata,
-                })
+              ? new RenderResult(
+                  Buffer.from(JSON.stringify(result.value.pageData)),
+                  {
+                    contentType: JSON_CONTENT_TYPE_HEADER,
+                    metadata: result.value.html.metadata,
+                  }
+                )
               : result.value.html,
           generateEtags: nextConfig.generateEtags,
           poweredByHeader: nextConfig.poweredByHeader,

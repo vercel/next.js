@@ -9,7 +9,9 @@ function createReadableStream(): ReadableStream {
   })
 }
 
-function createBaseParams(overrides: Partial<ResolveRoutesParams> = {}): ResolveRoutesParams {
+function createBaseParams(
+  overrides: Partial<ResolveRoutesParams> = {}
+): ResolveRoutesParams {
   return {
     url: new URL('https://example.com/'),
     buildId: 'BUILD_ID',
@@ -200,7 +202,9 @@ describe('External Rewrites', () => {
     const result = await resolveRoutes(params)
 
     expect(result.externalRewrite).toBeDefined()
-    expect(result.externalRewrite?.toString()).toBe('https://cdn.example.com/assets')
+    expect(result.externalRewrite?.toString()).toBe(
+      'https://cdn.example.com/assets'
+    )
   })
 
   it('should handle external rewrite with captures', async () => {
@@ -224,7 +228,9 @@ describe('External Rewrites', () => {
     const result = await resolveRoutes(params)
 
     expect(result.externalRewrite).toBeDefined()
-    expect(result.externalRewrite?.toString()).toBe('https://backend.com/v1/users')
+    expect(result.externalRewrite?.toString()).toBe(
+      'https://backend.com/v1/users'
+    )
   })
 
   it('should detect external rewrite when origin changes', async () => {
@@ -272,7 +278,9 @@ describe('External Rewrites', () => {
         },
       })
     )
-    expect(beforeMiddlewareResult.externalRewrite?.toString()).toBe('https://ext.com/1')
+    expect(beforeMiddlewareResult.externalRewrite?.toString()).toBe(
+      'https://ext.com/1'
+    )
 
     // Test beforeFiles
     const beforeFilesResult = await resolveRoutes(
@@ -293,7 +301,9 @@ describe('External Rewrites', () => {
         },
       })
     )
-    expect(beforeFilesResult.externalRewrite?.toString()).toBe('https://ext.com/2')
+    expect(beforeFilesResult.externalRewrite?.toString()).toBe(
+      'https://ext.com/2'
+    )
 
     // Test afterFiles
     const afterFilesResult = await resolveRoutes(
@@ -314,7 +324,9 @@ describe('External Rewrites', () => {
         },
       })
     )
-    expect(afterFilesResult.externalRewrite?.toString()).toBe('https://ext.com/3')
+    expect(afterFilesResult.externalRewrite?.toString()).toBe(
+      'https://ext.com/3'
+    )
 
     // Test fallback
     const fallbackResult = await resolveRoutes(

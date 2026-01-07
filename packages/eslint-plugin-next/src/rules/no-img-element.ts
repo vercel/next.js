@@ -6,7 +6,8 @@ const url = 'https://nextjs.org/docs/messages/no-img-element'
 export default defineRule({
   meta: {
     docs: {
-      description: 'Prevent usage of `<img>` element due to slower LCP and higher bandwidth.',
+      description:
+        'Prevent usage of `<img>` element due to slower LCP and higher bandwidth.',
       category: 'HTML',
       recommended: true,
       url,
@@ -39,7 +40,11 @@ export default defineRule({
 
         // If is metadata route files, ignore
         // e.g. opengraph-image.js, twitter-image.js, icon.js
-        if (isAppDir && /\/opengraph-image|twitter-image|icon\.\w+$/.test(relativePath)) return
+        if (
+          isAppDir &&
+          /\/opengraph-image|twitter-image|icon\.\w+$/.test(relativePath)
+        )
+          return
 
         context.report({
           node,

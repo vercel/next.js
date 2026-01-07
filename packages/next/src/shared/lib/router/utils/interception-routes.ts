@@ -1,7 +1,12 @@
 import { normalizeAppPath } from './app-paths'
 
 // order matters here, the first match will be used
-export const INTERCEPTION_ROUTE_MARKERS = ['(..)(..)', '(.)', '(..)', '(...)'] as const
+export const INTERCEPTION_ROUTE_MARKERS = [
+  '(..)(..)',
+  '(.)',
+  '(..)',
+  '(...)',
+] as const
 
 export type InterceptionMarker = (typeof INTERCEPTION_ROUTE_MARKERS)[number]
 
@@ -10,8 +15,9 @@ export function isInterceptionRouteAppPath(path: string): boolean {
   return (
     path
       .split('/')
-      .find((segment) => INTERCEPTION_ROUTE_MARKERS.find((m) => segment.startsWith(m))) !==
-    undefined
+      .find((segment) =>
+        INTERCEPTION_ROUTE_MARKERS.find((m) => segment.startsWith(m))
+      ) !== undefined
   )
 }
 
@@ -30,7 +36,9 @@ type InterceptionRouteInformation = {
   interceptedRoute: string
 }
 
-export function extractInterceptionRouteInformation(path: string): InterceptionRouteInformation {
+export function extractInterceptionRouteInformation(
+  path: string
+): InterceptionRouteInformation {
   let interceptingRoute: string | undefined
   let marker: (typeof INTERCEPTION_ROUTE_MARKERS)[number] | undefined
   let interceptedRoute: string | undefined
@@ -87,7 +95,10 @@ export function extractInterceptionRouteInformation(path: string): InterceptionR
         )
       }
 
-      interceptedRoute = splitInterceptingRoute.slice(0, -2).concat(interceptedRoute).join('/')
+      interceptedRoute = splitInterceptingRoute
+        .slice(0, -2)
+        .concat(interceptedRoute)
+        .join('/')
       break
     default:
       throw new Error('Invariant: unexpected marker')

@@ -4,7 +4,9 @@ import { NextInstance } from 'e2e-utils'
 import { renderViaHTTP } from 'next-test-utils'
 import { join } from 'path'
 
-const mockedGoogleFontResponses = require.resolve('./google-font-mocked-responses.js')
+const mockedGoogleFontResponses = require.resolve(
+  './google-font-mocked-responses.js'
+)
 
 describe('next/font/google basepath', () => {
   let next: NextInstance
@@ -18,7 +20,9 @@ describe('next/font/google basepath', () => {
     next = await createNext({
       files: {
         pages: new FileRef(join(__dirname, 'basepath/pages')),
-        'next.config.js': new FileRef(join(__dirname, 'basepath/next.config.js')),
+        'next.config.js': new FileRef(
+          join(__dirname, 'basepath/next.config.js')
+        ),
       },
       env: {
         NEXT_FONT_GOOGLE_MOCKED_RESPONSES: mockedGoogleFontResponses,
@@ -40,7 +44,9 @@ describe('next/font/google basepath', () => {
       expect.objectContaining({
         as: 'font',
         crossorigin: 'anonymous',
-        href: expect.stringMatching(/\/dashboard\/_next\/static\/media\/.*.p.*.woff2/),
+        href: expect.stringMatching(
+          /\/dashboard\/_next\/static\/media\/.*.p.*.woff2/
+        ),
         rel: 'preload',
         type: 'font/woff2',
         'data-next-font': 'size-adjust',

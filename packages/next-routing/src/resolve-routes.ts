@@ -93,7 +93,11 @@ function processRoutes(
 
       if (match.destination) {
         // Check if route has redirect status and Location/Refresh header
-        if (isRedirectStatus(route.status) && route.headers && hasRedirectHeaders(route.headers)) {
+        if (
+          isRedirectStatus(route.status) &&
+          route.headers &&
+          hasRedirectHeaders(route.headers)
+        ) {
           const redirectUrl = isExternalDestination(match.destination)
             ? new URL(match.destination)
             : applyDestination(currentUrl, match.destination)
@@ -141,7 +145,10 @@ function processRoutes(
 /**
  * Checks if the current pathname matches any of the provided pathnames
  */
-function matchesPathname(pathname: string, pathnames: string[]): string | undefined {
+function matchesPathname(
+  pathname: string,
+  pathnames: string[]
+): string | undefined {
   for (const candidate of pathnames) {
     if (pathname === candidate) {
       return candidate
@@ -228,7 +235,11 @@ function checkDynamicRoutes(
     if (match.matched) {
       // Check has/missing conditions
       const hasResult = checkHasConditions(route.has, checkUrl, headers)
-      const missingMatched = checkMissingConditions(route.missing, checkUrl, headers)
+      const missingMatched = checkMissingConditions(
+        route.missing,
+        checkUrl,
+        headers
+      )
 
       if (hasResult.matched && missingMatched) {
         // Check if the current pathname is in the provided pathnames list
@@ -252,7 +263,9 @@ function checkDynamicRoutes(
   return { matched: false }
 }
 
-export async function resolveRoutes(params: ResolveRoutesParams): Promise<ResolveRoutesResult> {
+export async function resolveRoutes(
+  params: ResolveRoutesParams
+): Promise<ResolveRoutesResult> {
   const {
     url: initialUrl,
     basePath,
@@ -293,7 +306,8 @@ export async function resolveRoutes(params: ResolveRoutesParams): Promise<Resolv
     if (!pathname.startsWith('/_next/')) {
       const hostname = currentUrl.hostname
       const cookieHeader = currentHeaders.get('cookie') || undefined
-      const acceptLanguageHeader = currentHeaders.get('accept-language') || undefined
+      const acceptLanguageHeader =
+        currentHeaders.get('accept-language') || undefined
 
       // Detect locale from path first
       const pathLocaleResult = normalizeLocalePath(pathname, i18n.locales)
@@ -320,13 +334,19 @@ export async function resolveRoutes(params: ResolveRoutesParams): Promise<Resolv
 
         // Check if we need to redirect based on domain or locale mismatch
         if (targetLocale !== defaultLocale) {
-          const targetDomain = detectDomainLocale(i18n.domains, undefined, targetLocale)
+          const targetDomain = detectDomainLocale(
+            i18n.domains,
+            undefined,
+            targetLocale
+          )
 
           // Redirect to different domain if target locale has a different configured domain
           if (targetDomain && targetDomain.domain !== hostname) {
             const scheme = targetDomain.http ? 'http' : 'https'
             const localePrefix =
-              targetLocale === targetDomain.defaultLocale ? '' : `/${targetLocale}`
+              targetLocale === targetDomain.defaultLocale
+                ? ''
+                : `/${targetLocale}`
             const redirectUrl = new URL(
               `${scheme}://${targetDomain.domain}${basePath}${localePrefix}${pathname}${currentUrl.search}`
             )
@@ -342,7 +362,10 @@ export async function resolveRoutes(params: ResolveRoutesParams): Promise<Resolv
 
           // If no dedicated domain for target locale, or we're already on the right domain,
           // redirect to add locale prefix on same domain
-          if (!targetDomain || (targetDomain && targetDomain.domain === hostname)) {
+          if (
+            !targetDomain ||
+            (targetDomain && targetDomain.domain === hostname)
+          ) {
             const redirectUrl = new URL(currentUrl.toString())
             redirectUrl.pathname = `${basePath}/${targetLocale}${pathname}`
 
@@ -359,7 +382,8 @@ export async function resolveRoutes(params: ResolveRoutesParams): Promise<Resolv
 
       // Prefix the locale internally for route resolution (without redirecting)
       if (!localeInPath) {
-        const localeToPrefix = targetLocale || domainLocale?.defaultLocale || i18n.defaultLocale
+        const localeToPrefix =
+          targetLocale || domainLocale?.defaultLocale || i18n.defaultLocale
         currentUrl.pathname = `${basePath}/${localeToPrefix}${pathname}`
       }
     }
@@ -489,11 +513,22 @@ export async function resolveRoutes(params: ResolveRoutesParams): Promise<Resolv
 
       if (match.matched) {
         // Check has/missing conditions
-        const hasResult = checkHasConditions(route.has, currentUrl, currentHeaders)
-        const missingMatched = checkMissingConditions(route.missing, currentUrl, currentHeaders)
+        const hasResult = checkHasConditions(
+          route.has,
+          currentUrl,
+          currentHeaders
+        )
+        const missingMatched = checkMissingConditions(
+          route.missing,
+          currentUrl,
+          currentHeaders
+        )
 
         if (hasResult.matched && missingMatched) {
-          const finalHeaders = applyOnMatchHeaders(routes.onMatch, currentHeaders)
+          const finalHeaders = applyOnMatchHeaders(
+            routes.onMatch,
+            currentHeaders
+          )
           return {
             matchedPathname: matchedPath,
             routeMatches: match.params,
@@ -535,7 +570,11 @@ export async function resolveRoutes(params: ResolveRoutesParams): Promise<Resolv
 
       if (match.destination) {
         // Check if route has redirect status and Location/Refresh header
-        if (isRedirectStatus(route.status) && route.headers && hasRedirectHeaders(route.headers)) {
+        if (
+          isRedirectStatus(route.status) &&
+          route.headers &&
+          hasRedirectHeaders(route.headers)
+        ) {
           const redirectUrl = isExternalDestination(match.destination)
             ? new URL(match.destination)
             : applyDestination(currentUrl, match.destination)
@@ -595,12 +634,19 @@ export async function resolveRoutes(params: ResolveRoutesParams): Promise<Resolv
         // Denormalize before checking if this was originally a data URL
         let pathnameCheckUrl = currentUrl
         if (isDataUrl && shouldNormalizeNextData) {
-          pathnameCheckUrl = denormalizeNextDataUrl(currentUrl, basePath, buildId)
+          pathnameCheckUrl = denormalizeNextDataUrl(
+            currentUrl,
+            basePath,
+            buildId
+          )
         }
 
         matchedPath = matchesPathname(pathnameCheckUrl.pathname, pathnames)
         if (matchedPath) {
-          const finalHeaders = applyOnMatchHeaders(routes.onMatch, currentHeaders)
+          const finalHeaders = applyOnMatchHeaders(
+            routes.onMatch,
+            currentHeaders
+          )
           return {
             matchedPathname: matchedPath,
             resolvedHeaders: finalHeaders,
@@ -617,14 +663,25 @@ export async function resolveRoutes(params: ResolveRoutesParams): Promise<Resolv
 
     if (match.matched) {
       // Check has/missing conditions
-      const hasResult = checkHasConditions(route.has, currentUrl, currentHeaders)
-      const missingMatched = checkMissingConditions(route.missing, currentUrl, currentHeaders)
+      const hasResult = checkHasConditions(
+        route.has,
+        currentUrl,
+        currentHeaders
+      )
+      const missingMatched = checkMissingConditions(
+        route.missing,
+        currentUrl,
+        currentHeaders
+      )
 
       if (hasResult.matched && missingMatched) {
         // Check if the current pathname is in the provided pathnames list
         matchedPath = matchesPathname(currentUrl.pathname, pathnames)
         if (matchedPath) {
-          const finalHeaders = applyOnMatchHeaders(routes.onMatch, currentHeaders)
+          const finalHeaders = applyOnMatchHeaders(
+            routes.onMatch,
+            currentHeaders
+          )
           return {
             matchedPathname: matchedPath,
             routeMatches: match.params,
@@ -653,7 +710,11 @@ export async function resolveRoutes(params: ResolveRoutesParams): Promise<Resolv
 
       if (match.destination) {
         // Check if route has redirect status and Location/Refresh header
-        if (isRedirectStatus(route.status) && route.headers && hasRedirectHeaders(route.headers)) {
+        if (
+          isRedirectStatus(route.status) &&
+          route.headers &&
+          hasRedirectHeaders(route.headers)
+        ) {
           const redirectUrl = isExternalDestination(match.destination)
             ? new URL(match.destination)
             : applyDestination(currentUrl, match.destination)
@@ -713,12 +774,19 @@ export async function resolveRoutes(params: ResolveRoutesParams): Promise<Resolv
         // Denormalize before checking if this was originally a data URL
         let pathnameCheckUrl = currentUrl
         if (isDataUrl && shouldNormalizeNextData) {
-          pathnameCheckUrl = denormalizeNextDataUrl(currentUrl, basePath, buildId)
+          pathnameCheckUrl = denormalizeNextDataUrl(
+            currentUrl,
+            basePath,
+            buildId
+          )
         }
 
         matchedPath = matchesPathname(pathnameCheckUrl.pathname, pathnames)
         if (matchedPath) {
-          const finalHeaders = applyOnMatchHeaders(routes.onMatch, currentHeaders)
+          const finalHeaders = applyOnMatchHeaders(
+            routes.onMatch,
+            currentHeaders
+          )
           return {
             matchedPathname: matchedPath,
             resolvedHeaders: finalHeaders,

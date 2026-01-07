@@ -1,6 +1,12 @@
-import type { DynamicParamTypes, DynamicParamTypesShort } from '../../shared/lib/app-router-types'
+import type {
+  DynamicParamTypes,
+  DynamicParamTypesShort,
+} from '../../shared/lib/app-router-types'
 
-export const dynamicParamTypes: Record<DynamicParamTypes, DynamicParamTypesShort> = {
+export const dynamicParamTypes: Record<
+  DynamicParamTypes,
+  DynamicParamTypesShort
+> = {
   catchall: 'c',
   'catchall-intercepted-(..)(..)': 'ci(..)(..)',
   'catchall-intercepted-(.)': 'ci(.)',

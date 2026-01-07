@@ -60,7 +60,9 @@ export class TurbopackHmr {
     this.#deferredReportHmrStartId = setTimeout(
       () => this.#runDeferredReportHmrStart(),
       // debugging feature: don't defer/suppress noisy no-op HMR update messages
-      self.__NEXT_HMR_TURBOPACK_REPORT_NOISY_NOOP_EVENTS ? 0 : TURBOPACK_HMR_START_DELAY_MS
+      self.__NEXT_HMR_TURBOPACK_REPORT_NOISY_NOOP_EVENTS
+        ? 0
+        : TURBOPACK_HMR_START_DELAY_MS
     )
   }
 
@@ -101,7 +103,8 @@ export class TurbopackHmr {
     //
     // There's also a case where `onBuilt` gets called before `onBuilding`,
     // which can happen during initial page load. Ignore that too!
-    const hasUpdates = this.#lastUpdateMsSinceEpoch != null && this.#startMsSinceEpoch != null
+    const hasUpdates =
+      this.#lastUpdateMsSinceEpoch != null && this.#startMsSinceEpoch != null
     if (!hasUpdates && !this.#reportedHmrStart) {
       // suppress the update entirely
       this.#cancelDeferredReportHmrStart()

@@ -7,8 +7,12 @@ describe('ppr-use-server-inserted-html', () => {
 
   if (isNextStart) {
     it('should mark the route as ppr rendered', async () => {
-      const prerenderManifest = JSON.parse(await next.readFile('.next/prerender-manifest.json'))
-      expect(prerenderManifest.routes['/partial-resume'].renderingMode).toBe('PARTIALLY_STATIC')
+      const prerenderManifest = JSON.parse(
+        await next.readFile('.next/prerender-manifest.json')
+      )
+      expect(prerenderManifest.routes['/partial-resume'].renderingMode).toBe(
+        'PARTIALLY_STATIC'
+      )
     })
   }
 

@@ -1,7 +1,13 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import { fetchViaHTTP, renderViaHTTP, findPort, launchApp, killApp } from 'next-test-utils'
+import {
+  fetchViaHTTP,
+  renderViaHTTP,
+  findPort,
+  launchApp,
+  killApp,
+} from 'next-test-utils'
 
 const context: Record<string, any> = {}
 

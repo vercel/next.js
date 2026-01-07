@@ -4,5 +4,7 @@ import Page from "./page";
 
 test("App Router: Works with dynamic route segments", () => {
   render(<Page params={{ slug: "Test" }} />);
-  expect(screen.getByRole("heading", { level: 1, name: "Slug: Test" })).toBeDefined();
+  expect(
+    screen.getByRole("heading", { level: 1, name: "Slug: Test" }),
+  ).toBeDefined();
 });

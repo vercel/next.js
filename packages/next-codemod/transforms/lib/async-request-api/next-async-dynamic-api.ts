@@ -35,13 +35,21 @@ function findDynamicImportsAndComment(root: Collection<any>, j: API['j']) {
   })
 
   importPaths.forEach((path) => {
-    const inserted = insertCommentOnce(path.node, j, DYNAMIC_IMPORT_WARN_COMMENT)
+    const inserted = insertCommentOnce(
+      path.node,
+      j,
+      DYNAMIC_IMPORT_WARN_COMMENT
+    )
     modified ||= inserted
   })
   return modified
 }
 
-export function transformDynamicAPI(source: string, _api: API, filePath: string) {
+export function transformDynamicAPI(
+  source: string,
+  _api: API,
+  filePath: string
+) {
   const isEntryFile = NEXTJS_ENTRY_FILES.test(filePath)
   const j = createParserFromPath(filePath)
   const root = j(source)
@@ -51,12 +59,20 @@ export function transformDynamicAPI(source: string, _api: API, filePath: string)
   let needsReactUseImport = false
   const insertedTypes = new Set<string>()
 
-  function isImportedInModule(path: ASTPath<CallExpression>, functionName: string) {
-    const closestDef = j(path).closestScope().findVariableDeclarators(functionName)
+  function isImportedInModule(
+    path: ASTPath<CallExpression>,
+    functionName: string
+  ) {
+    const closestDef = j(path)
+      .closestScope()
+      .findVariableDeclarators(functionName)
     return closestDef.size() === 0
   }
 
-  function processAsyncApiCalls(asyncRequestApiName: string, originRequestApiName: string) {
+  function processAsyncApiCalls(
+    asyncRequestApiName: string,
+    originRequestApiName: string
+  ) {
     // Process each call to cookies() or headers()
     root
       .find(j.CallExpression, {
@@ -78,7 +94,10 @@ export function transformDynamicAPI(source: string, _api: API, filePath: string)
             parentFunctionNode = parentFunctionPath.node
           } else {
             const scopeNode = parentFunctionPath.node
-            if (scopeNode.type === 'ReturnStatement' && isFunctionType(scopeNode.argument.type)) {
+            if (
+              scopeNode.type === 'ReturnStatement' &&
+              isFunctionType(scopeNode.argument.type)
+            ) {
               parentFunctionNode = scopeNode.argument
             }
           }
@@ -107,8 +126,11 @@ export function transformDynamicAPI(source: string, _api: API, filePath: string)
         } else {
           // Determine if the function is an export
           const closetScopePath = closetScope.get()
-          const isEntryFileExport = isEntryFile && isMatchedFunctionExported(closetScopePath, j)
-          const closestFunctionNode = closetScope.size() ? closetScopePath.node : null
+          const isEntryFileExport =
+            isEntryFile && isMatchedFunctionExported(closetScopePath, j)
+          const closestFunctionNode = closetScope.size()
+            ? closetScopePath.node
+            : null
 
           // If it's exporting a function directly, exportFunctionNode is same as exportNode
           // e.g. export default function MyComponent() {}
@@ -117,7 +139,10 @@ export function transformDynamicAPI(source: string, _api: API, filePath: string)
           let exportFunctionNode
 
           if (isEntryFileExport) {
-            if (closestFunctionNode && isFunctionType(closestFunctionNode.type)) {
+            if (
+              closestFunctionNode &&
+              isFunctionType(closestFunctionNode.type)
+            ) {
               exportFunctionNode = closestFunctionNode
             }
           } else {
@@ -130,7 +155,10 @@ export function transformDynamicAPI(source: string, _api: API, filePath: string)
           if (isEntryFileExport) {
             // if default export function is not async, convert it to async, and await the api call
             if (!isCallAwaited && isFunctionType(exportFunctionNode.type)) {
-              const hasReactHooksUsage = containsReactHooksCallExpressions(closetScopePath, j)
+              const hasReactHooksUsage = containsReactHooksCallExpressions(
+                closetScopePath,
+                j
+              )
               // If the scoped function is async function
               if (exportFunctionNode.async === false && !hasReactHooksUsage) {
                 canConvertToAsync = true
@@ -141,7 +169,9 @@ export function transformDynamicAPI(source: string, _api: API, filePath: string)
                 const expr = j.awaitExpression(
                   j.callExpression(j.identifier(asyncRequestApiName), [])
                 )
-                j(path).replaceWith(wrapParentheseIfNeeded(hasChainAccess, j, expr))
+                j(path).replaceWith(
+                  wrapParentheseIfNeeded(hasChainAccess, j, expr)
+                )
 
                 turnFunctionReturnTypeToAsync(closetScopePath.node, j)
                 modified = true
@@ -163,7 +193,8 @@ export function transformDynamicAPI(source: string, _api: API, filePath: string)
             const parentFunction = findClosetParentFunctionScope(path, j)
 
             if (parentFunction) {
-              const parentFunctionName = parentFunction.get().node.id?.name || ''
+              const parentFunctionName =
+                parentFunction.get().node.id?.name || ''
               const isParentFunctionHook = isReactHookName(parentFunctionName)
               if (isParentFunctionHook && !isParentUseCallExpression(path, j)) {
                 j(path).replaceWith(
@@ -243,7 +274,10 @@ export function transformDynamicAPI(source: string, _api: API, filePath: string)
   if (isClientComponent) return null
 
   // Import declaration case, e.g. import { cookies } from 'next/headers'
-  const importedNextAsyncRequestApisMapping = findImportMappingFromNextHeaders(root, j)
+  const importedNextAsyncRequestApisMapping = findImportMappingFromNextHeaders(
+    root,
+    j
+  )
   for (const originName in importedNextAsyncRequestApisMapping) {
     const aliasName = importedNextAsyncRequestApisMapping[originName]
     processAsyncApiCalls(aliasName, originName)
@@ -317,7 +351,10 @@ function castTypesOrAddComment(
     // output:
     // (<expression> as ...)
     // void (<expression> as ...)
-    if (j.ExpressionStatement.check(parent) && parent.expression === path.node) {
+    if (
+      j.ExpressionStatement.check(parent) &&
+      parent.expression === path.node
+    ) {
       // append a semicolon to the start of the expression statement
       parent.expression = j.unaryExpression('void', parent.expression)
     }
@@ -343,7 +380,9 @@ function castTypesOrAddComment(
       if (!hasImportedType && !insertedTypes.has(targetType)) {
         importDeclaration
           .get()
-          .node.specifiers.push(j.importSpecifier(j.identifier(`type ${targetType}`)))
+          .node.specifiers.push(
+            j.importSpecifier(j.identifier(`type ${targetType}`))
+          )
         insertedTypes.add(targetType)
       }
     }
@@ -360,20 +399,22 @@ function findImportMappingFromNextHeaders(root: Collection<any>, j: API['j']) {
   const mappings = {}
 
   // Find the import declaration from 'next/headers'
-  root.find(j.ImportDeclaration, { source: { value: 'next/headers' } }).forEach((importPath) => {
-    const importDeclaration = importPath.node
+  root
+    .find(j.ImportDeclaration, { source: { value: 'next/headers' } })
+    .forEach((importPath) => {
+      const importDeclaration = importPath.node
 
-    // Iterate over the specifiers and build the mappings
-    importDeclaration.specifiers.forEach((specifier) => {
-      if (j.ImportSpecifier.check(specifier)) {
-        const importedName = specifier.imported.name // Original name (e.g., cookies)
-        const localName = specifier.local.name // Local name (e.g., myCookies or same as importedName)
+      // Iterate over the specifiers and build the mappings
+      importDeclaration.specifiers.forEach((specifier) => {
+        if (j.ImportSpecifier.check(specifier)) {
+          const importedName = specifier.imported.name // Original name (e.g., cookies)
+          const localName = specifier.local.name // Local name (e.g., myCookies or same as importedName)
 
-        // Add to the mappings
-        mappings[importedName] = localName
-      }
+          // Add to the mappings
+          mappings[importedName] = localName
+        }
+      })
     })
-  })
 
   return mappings
 }

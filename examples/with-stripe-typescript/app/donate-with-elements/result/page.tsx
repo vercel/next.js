@@ -11,9 +11,8 @@ export default async function ResultPage({
   if (!searchParams.payment_intent)
     throw new Error("Please provide a valid payment_intent (`pi_...`)");
 
-  const paymentIntent: Stripe.PaymentIntent = await stripe.paymentIntents.retrieve(
-    searchParams.payment_intent,
-  );
+  const paymentIntent: Stripe.PaymentIntent =
+    await stripe.paymentIntents.retrieve(searchParams.payment_intent);
 
   return (
     <>

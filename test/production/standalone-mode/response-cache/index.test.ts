@@ -29,7 +29,10 @@ describe('minimal-mode-response-cache', () => {
     })
     await next.stop()
 
-    await fs.move(join(next.testDir, '.next/standalone'), join(next.testDir, 'standalone'))
+    await fs.move(
+      join(next.testDir, '.next/standalone'),
+      join(next.testDir, 'standalone')
+    )
     for (const file of await fs.readdir(next.testDir)) {
       if (file !== 'standalone') {
         await fs.remove(join(next.testDir, file))
@@ -45,7 +48,10 @@ describe('minimal-mode-response-cache', () => {
     for (const file of files) {
       if (file.match(/(pages|app)[/\\]/) && !file.endsWith('.js')) {
         await fs.remove(join(next.testDir, 'standalone/.next/server', file))
-        console.log('removing', join(next.testDir, 'standalone/.next/server', file))
+        console.log(
+          'removing',
+          join(next.testDir, 'standalone/.next/server', file)
+        )
       }
     }
 
@@ -93,9 +99,14 @@ describe('minimal-mode-response-cache', () => {
       'x-vercel-id': '1',
       rsc: '1',
     }
-    const res1 = await fetchViaHTTP(appPort, '/app-blog/compare.rsc', undefined, {
-      headers,
-    })
+    const res1 = await fetchViaHTTP(
+      appPort,
+      '/app-blog/compare.rsc',
+      undefined,
+      {
+        headers,
+      }
+    )
     const content1 = await res1.text()
     expect(content1).not.toContain('<html')
     expect(content1).toContain('app-blog')

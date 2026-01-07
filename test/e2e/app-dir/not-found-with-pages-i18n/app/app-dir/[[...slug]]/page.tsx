@@ -6,7 +6,8 @@ export async function generateStaticParams() {
 
 async function validateSlug(slug: string[]) {
   try {
-    const isValidPath = slug.length === 1 && (slug[0] === 'about' || slug[0] === 'contact')
+    const isValidPath =
+      slug.length === 1 && (slug[0] === 'about' || slug[0] === 'contact')
 
     if (!isValidPath) {
       return false
@@ -18,7 +19,11 @@ async function validateSlug(slug: string[]) {
   }
 }
 
-export default async function CatchAll({ params }: { params: Promise<{ slug?: string[] }> }) {
+export default async function CatchAll({
+  params,
+}: {
+  params: Promise<{ slug?: string[] }>
+}) {
   const { slug } = await params
   const slugArray = Array.isArray(slug) ? slug : []
 

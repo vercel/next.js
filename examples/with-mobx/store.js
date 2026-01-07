@@ -1,4 +1,10 @@
-import { action, observable, computed, runInAction, makeObservable } from "mobx";
+import {
+  action,
+  observable,
+  computed,
+  runInAction,
+  makeObservable,
+} from "mobx";
 import { enableStaticRendering } from "mobx-react-lite";
 
 enableStaticRendering(typeof window === "undefined");
@@ -29,7 +35,9 @@ export class Store {
   get timeString() {
     const pad = (n) => (n < 10 ? `0${n}` : n);
     const format = (t) =>
-      `${pad(t.getUTCHours())}:${pad(t.getUTCMinutes())}:${pad(t.getUTCSeconds())}`;
+      `${pad(t.getUTCHours())}:${pad(t.getUTCMinutes())}:${pad(
+        t.getUTCSeconds(),
+      )}`;
     return format(new Date(this.lastUpdate));
   }
 

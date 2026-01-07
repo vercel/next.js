@@ -1,7 +1,12 @@
 import { MetadataRoute } from 'next'
 
 export async function generateSitemaps() {
-  return [{ id: 'child0' }, { id: 'child1' }, { id: 'child2' }, { id: 'child3' }]
+  return [
+    { id: 'child0' },
+    { id: 'child1' },
+    { id: 'child2' },
+    { id: 'child3' },
+  ]
 }
 
 export default async function sitemap({ id }): Promise<MetadataRoute.Sitemap> {

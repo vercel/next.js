@@ -26,9 +26,9 @@ describe.skip('SCSS Support loader handling', () => {
 
       it('should render the page', async () => {
         const browser = await next.browser('/')
-        expect(await browser.elementByCss('.red-text').getComputedCss('color')).toBe(
-          colorToRgb('red')
-        )
+        expect(
+          await browser.elementByCss('.red-text').getComputedCss('color')
+        ).toBe(colorToRgb('red'))
 
         const background = await browser
           .elementByCss('.red-text')

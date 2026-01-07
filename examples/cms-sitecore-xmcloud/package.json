@@ -1,27 +1,28 @@
 {
   "private": true,
-  "bugs": {
-    "url": "https://github.com/sitecore/jss/issues"
+  "config": {
+    "appName": "xmcloud-nextjs-starter",
+    "rootPlaceholders": [
+      "jss-main"
+    ],
+    "sitecoreConfigPath": "/App_Config/Include/zzz",
+    "graphQLEndpointPath": "/sitecore/api/graph/edge",
+    "language": "en",
+    "templates": [
+      "nextjs",
+      "nextjs-sxa"
+    ]
+  },
+  "engines": {
+    "node": ">=12",
+    "npm": ">=6"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/sitecore/jss.git"
   },
-  "scripts": {
-    "dev": "npm run next:dev",
-    "start": "npm run next:start",
-    "jss": "jss",
-    "lint": "eslint ./src/**/*.tsx ./src/**/*.ts ./scripts/**/*.ts",
-    "bootstrap": "ts-node --project tsconfig.scripts.json scripts/bootstrap.ts",
-    "build": "npm-run-all --serial bootstrap next:build",
-    "graphql:update": "ts-node --project tsconfig.scripts.json ./scripts/fetch-graphql-introspection-data.ts",
-    "next:build": "next build",
-    "next:dev": "cross-env NODE_OPTIONS='--inspect' next dev",
-    "next:start": "next start",
-    "scaffold": "ts-node --project tsconfig.scripts.json scripts/scaffold-component.ts",
-    "start:connected": "npm-run-all --serial bootstrap --parallel next:dev start:watch-components",
-    "start:production": "npm-run-all --serial bootstrap next:build next:start",
-    "start:watch-components": "ts-node --project tsconfig.scripts.json scripts/generate-component-factory.ts --watch"
+  "bugs": {
+    "url": "https://github.com/sitecore/jss/issues"
   },
   "dependencies": {
     "@sitecore-jss/sitecore-jss-nextjs": "~21.1.6",
@@ -69,21 +70,20 @@
     "typescript": "~4.9.4",
     "yaml-loader": "^0.8.0"
   },
-  "config": {
-    "appName": "xmcloud-nextjs-starter",
-    "graphQLEndpointPath": "/sitecore/api/graph/edge",
-    "language": "en",
-    "rootPlaceholders": [
-      "jss-main"
-    ],
-    "sitecoreConfigPath": "/App_Config/Include/zzz",
-    "templates": [
-      "nextjs",
-      "nextjs-sxa"
-    ]
-  },
-  "engines": {
-    "node": ">=12",
-    "npm": ">=6"
+  "scripts": {
+    "dev": "npm run next:dev",
+    "start": "npm run next:start",
+    "jss": "jss",
+    "lint": "eslint ./src/**/*.tsx ./src/**/*.ts ./scripts/**/*.ts",
+    "bootstrap": "ts-node --project tsconfig.scripts.json scripts/bootstrap.ts",
+    "build": "npm-run-all --serial bootstrap next:build",
+    "graphql:update": "ts-node --project tsconfig.scripts.json ./scripts/fetch-graphql-introspection-data.ts",
+    "next:build": "next build",
+    "next:dev": "cross-env NODE_OPTIONS='--inspect' next dev",
+    "next:start": "next start",
+    "scaffold": "ts-node --project tsconfig.scripts.json scripts/scaffold-component.ts",
+    "start:connected": "npm-run-all --serial bootstrap --parallel next:dev start:watch-components",
+    "start:production": "npm-run-all --serial bootstrap next:build next:start",
+    "start:watch-components": "ts-node --project tsconfig.scripts.json scripts/generate-component-factory.ts --watch"
   }
 }

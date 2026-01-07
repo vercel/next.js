@@ -35,7 +35,10 @@ export default function NewUser() {
           />
         </div>
         <div>
-          <label htmlFor="email" className="flex text-lg font-medium mb-2 items-center">
+          <label
+            htmlFor="email"
+            className="flex text-lg font-medium mb-2 items-center"
+          >
             Email
             <span className="ml-2 px-2 py-1 text-xs font-semibold text-white bg-gray-500 rounded-lg">
               Required

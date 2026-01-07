@@ -18,7 +18,9 @@ const nextDistPath = new RegExp(
 
 const nodeModulesPath = /[\\/]node_modules[\\/]/
 
-const regeneratorRuntimePath = require.resolve('next/dist/compiled/regenerator-runtime')
+const regeneratorRuntimePath = require.resolve(
+  'next/dist/compiled/regenerator-runtime'
+)
 
 function isTypeScriptFile(filename: string) {
   return filename.endsWith('.ts') || filename.endsWith('.tsx')
@@ -37,7 +39,9 @@ function shouldOutputCommonJs(filename: string) {
 export function getParserOptions({ filename, jsConfig, ...rest }: any) {
   const isTSFile = filename.endsWith('.ts')
   const hasTsSyntax = isTypeScriptFile(filename)
-  const enableDecorators = Boolean(jsConfig?.compilerOptions?.experimentalDecorators)
+  const enableDecorators = Boolean(
+    jsConfig?.compilerOptions?.experimentalDecorators
+  )
   return {
     ...rest,
     syntax: hasTsSyntax ? 'typescript' : 'ecmascript',
@@ -98,9 +102,15 @@ function getBaseSWCOptions({
   const isAppRouterPagesLayer = isWebpackAppPagesLayer(bundleLayer)
   const parserConfig = getParserOptions({ filename, jsConfig })
   const paths = jsConfig?.compilerOptions?.paths
-  const enableDecorators = Boolean(jsConfig?.compilerOptions?.experimentalDecorators)
-  const emitDecoratorMetadata = Boolean(jsConfig?.compilerOptions?.emitDecoratorMetadata)
-  const useDefineForClassFields = Boolean(jsConfig?.compilerOptions?.useDefineForClassFields)
+  const enableDecorators = Boolean(
+    jsConfig?.compilerOptions?.experimentalDecorators
+  )
+  const emitDecoratorMetadata = Boolean(
+    jsConfig?.compilerOptions?.emitDecoratorMetadata
+  )
+  const useDefineForClassFields = Boolean(
+    jsConfig?.compilerOptions?.useDefineForClassFields
+  )
   const plugins = (swcPlugins ?? [])
     .filter(Array.isArray)
     .map(([name, options]: any) => [require.resolve(name), options])
@@ -136,7 +146,9 @@ function getBaseSWCOptions({
         react: {
           importSource:
             jsConfig?.compilerOptions?.jsxImportSource ??
-            (compilerOptions?.emotion && !isReactServerLayer ? '@emotion/react' : 'react'),
+            (compilerOptions?.emotion && !isReactServerLayer
+              ? '@emotion/react'
+              : 'react'),
           runtime: 'automatic',
           pragmaFrag: 'React.Fragment',
           throwIfNamespace: true,
@@ -167,7 +179,9 @@ function getBaseSWCOptions({
     removeConsole: compilerOptions?.removeConsole,
     // disable "reactRemoveProperties" when "jest" is true
     // otherwise the setting from next.config.js will be used
-    reactRemoveProperties: jest ? false : compilerOptions?.reactRemoveProperties,
+    reactRemoveProperties: jest
+      ? false
+      : compilerOptions?.reactRemoveProperties,
     // Map the k-v map to an array of pairs.
     modularizeImports: modularizeImports
       ? Object.fromEntries(
@@ -178,7 +192,10 @@ function getBaseSWCOptions({
               transform:
                 typeof config.transform === 'string'
                   ? config.transform
-                  : Object.entries(config.transform).map(([key, value]) => [key, value]),
+                  : Object.entries(config.transform).map(([key, value]) => [
+                      key,
+                      value,
+                    ]),
             },
           ])
         )
@@ -191,7 +208,10 @@ function getBaseSWCOptions({
     // Disable css-in-js libs (without client-only integration) transform on server layer for server components
     ...(!isReactServerLayer && {
       emotion: getEmotionOptions(compilerOptions?.emotion, development),
-      styledComponents: getStyledComponentsOptions(compilerOptions?.styledComponents, development),
+      styledComponents: getStyledComponentsOptions(
+        compilerOptions?.styledComponents,
+        development
+      ),
     }),
     serverComponents:
       serverComponents && !jest
@@ -383,7 +403,9 @@ export function getLoaderSWCOptions({
   optimizeServerReact?: boolean
   modularizeImports: NextConfig['modularizeImports']
   isCacheComponents?: boolean
-  optimizePackageImports?: NonNullable<NextConfig['experimental']>['optimizePackageImports']
+  optimizePackageImports?: NonNullable<
+    NextConfig['experimental']
+  >['optimizePackageImports']
   swcPlugins: ExperimentalConfig['swcPlugins']
   compilerOptions: NextConfig['compiler']
   jsConfig: any
@@ -515,7 +537,10 @@ export function getLoaderSWCOptions({
     options.cjsRequireOptimizer = undefined
     // Disable optimizer for node_modules in app browser layer, to avoid unnecessary replacement.
     // e.g. typeof window could result differently in js worker or browser.
-    if (options.jsc.transform.optimizer.globals?.typeofs && !filename.includes(nextDirname)) {
+    if (
+      options.jsc.transform.optimizer.globals?.typeofs &&
+      !filename.includes(nextDirname)
+    ) {
       delete options.jsc.transform.optimizer.globals.typeofs.window
     }
   }

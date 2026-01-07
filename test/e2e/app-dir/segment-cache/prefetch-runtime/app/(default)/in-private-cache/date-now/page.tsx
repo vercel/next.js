@@ -12,8 +12,8 @@ export default async function Page() {
     <main>
       <DebugRenderKind />
       <p>
-        This page uses Date.now (in a private cache) and some uncached IO, so parts of it should be
-        runtime-prefetchable.
+        This page uses Date.now (in a private cache) and some uncached IO, so
+        parts of it should be runtime-prefetchable.
       </p>
       <Suspense fallback={<div style={{ color: 'grey' }}>Loading 1...</div>}>
         <RuntimePrefetchable />

@@ -2,7 +2,11 @@
 import { use } from 'react'
 import { useRouter } from 'next/navigation'
 
-export default function Page({ params }: { params: Promise<{ dynamic: string[] }> }) {
+export default function Page({
+  params,
+}: {
+  params: Promise<{ dynamic: string[] }>
+}) {
   const router = useRouter()
   return (
     <div>

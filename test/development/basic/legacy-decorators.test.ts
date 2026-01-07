@@ -11,8 +11,12 @@ describe('Legacy decorators SWC option', () => {
     beforeAll(async () => {
       next = await createNext({
         files: {
-          'tsconfig.json': new FileRef(join(__dirname, 'legacy-decorators/tsconfig-extended.json')),
-          'tsconfig-base.json': new FileRef(join(__dirname, 'legacy-decorators/jsconfig.json')),
+          'tsconfig.json': new FileRef(
+            join(__dirname, 'legacy-decorators/tsconfig-extended.json')
+          ),
+          'tsconfig-base.json': new FileRef(
+            join(__dirname, 'legacy-decorators/jsconfig.json')
+          ),
           pages: new FileRef(join(__dirname, 'legacy-decorators/pages')),
         },
         dependencies: {
@@ -30,7 +34,10 @@ describe('Legacy decorators SWC option', () => {
         const text = await browser.elementByCss('#count').text()
         expect(text).toBe('Current number: 0')
         await browser.elementByCss('#increase').click()
-        await check(() => browser.elementByCss('#count').text(), /Current number: 1/)
+        await check(
+          () => browser.elementByCss('#count').text(),
+          /Current number: 1/
+        )
       } finally {
         if (browser) {
           await browser.close()
@@ -44,7 +51,9 @@ describe('Legacy decorators SWC option', () => {
     beforeAll(async () => {
       next = await createNext({
         files: {
-          'jsconfig.json': new FileRef(join(__dirname, 'legacy-decorators/jsconfig.json')),
+          'jsconfig.json': new FileRef(
+            join(__dirname, 'legacy-decorators/jsconfig.json')
+          ),
           pages: new FileRef(join(__dirname, 'legacy-decorators/pages')),
         },
         dependencies: {
@@ -62,7 +71,10 @@ describe('Legacy decorators SWC option', () => {
         const text = await browser.elementByCss('#count').text()
         expect(text).toBe('Current number: 0')
         await browser.elementByCss('#increase').click()
-        await check(() => browser.elementByCss('#count').text(), /Current number: 1/)
+        await check(
+          () => browser.elementByCss('#count').text(),
+          /Current number: 1/
+        )
       } finally {
         if (browser) {
           await browser.close()

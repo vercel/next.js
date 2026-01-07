@@ -12,7 +12,9 @@ export default function Page() {
       {`Server subpath: ${v1}`}
       <br />
       <Client />
-      <p id="optout-react-version">{`opt-out-react-version: ${getReactVersion()}`}</p>
+      <p id="optout-react-version">
+        {`opt-out-react-version: ${getReactVersion()}`}
+      </p>
     </div>
   )
 }

@@ -11,8 +11,8 @@ async function DynamicCache({ id }: { id: string }) {
 export default function Page() {
   return (
     <p>
-      This page uses a short-lived "use cache", which is omitted from the prerender, but should
-      still be saved in the cache handler.
+      This page uses a short-lived "use cache", which is omitted from the
+      prerender, but should still be saved in the cache handler.
       <Suspense>
         <DynamicCache id="dynamic-cache" />
       </Suspense>

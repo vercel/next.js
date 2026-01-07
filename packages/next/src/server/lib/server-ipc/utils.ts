@@ -10,7 +10,11 @@ export const ipcForbiddenHeaders = [
   'expect',
 ]
 
-export const actionsForbiddenHeaders = [...ipcForbiddenHeaders, 'content-length', 'set-cookie']
+export const actionsForbiddenHeaders = [
+  ...ipcForbiddenHeaders,
+  'content-length',
+  'set-cookie',
+]
 
 export const filterReqHeaders = (
   headers: Record<string, undefined | string | number | string[]>,
@@ -23,7 +27,10 @@ export const filterReqHeaders = (
   }
 
   for (const [key, value] of Object.entries(headers)) {
-    if (forbiddenHeaders.includes(key) || !(Array.isArray(value) || typeof value === 'string')) {
+    if (
+      forbiddenHeaders.includes(key) ||
+      !(Array.isArray(value) || typeof value === 'string')
+    ) {
       delete headers[key]
     }
   }
@@ -43,7 +50,9 @@ const INTERNAL_HEADERS = [
   'x-matched-path',
 ]
 
-export const filterInternalHeaders = (headers: Record<string, undefined | string | string[]>) => {
+export const filterInternalHeaders = (
+  headers: Record<string, undefined | string | string[]>
+) => {
   for (const header in headers) {
     if (INTERNAL_HEADERS.includes(header)) {
       delete headers[header]

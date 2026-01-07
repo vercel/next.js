@@ -5,7 +5,10 @@ import path from 'path'
 
 const pluginName = 'ProfilingPlugin'
 export const spans = new WeakMap<webpack.Compilation | webpack.Compiler, Span>()
-const moduleSpansByCompilation = new WeakMap<webpack.Compilation, WeakMap<webpack.Module, Span>>()
+const moduleSpansByCompilation = new WeakMap<
+  webpack.Compilation,
+  WeakMap<webpack.Module, Span>
+>()
 const makeSpanByCompilation = new WeakMap<webpack.Compilation, Span>()
 const sealSpanByCompilation = new WeakMap<webpack.Compilation, Span>()
 export const webpackInvalidSpans = new WeakMap<any, Span>()
@@ -27,7 +30,13 @@ export class ProfilingPlugin {
   runWebpackSpan: Span
   rootDir: string
 
-  constructor({ runWebpackSpan, rootDir }: { runWebpackSpan: Span; rootDir: string }) {
+  constructor({
+    runWebpackSpan,
+    rootDir,
+  }: {
+    runWebpackSpan: Span
+    rootDir: string
+  }) {
     this.runWebpackSpan = runWebpackSpan
     this.rootDir = rootDir
   }
@@ -54,15 +63,18 @@ export class ProfilingPlugin {
     } = {}
   ) {
     let span: Span | undefined
-    startHook.tap({ name: pluginName, stage: -Infinity }, (...params: any[]) => {
-      const name = typeof spanName === 'function' ? spanName() : spanName
-      const attributes = attrs ? attrs(...params) : attrs
-      span = parentSpan
-        ? parentSpan(...params).traceChild(name, attributes)
-        : this.runWebpackSpan.traceChild(name, attributes)
+    startHook.tap(
+      { name: pluginName, stage: -Infinity },
+      (...params: any[]) => {
+        const name = typeof spanName === 'function' ? spanName() : spanName
+        const attributes = attrs ? attrs(...params) : attrs
+        span = parentSpan
+          ? parentSpan(...params).traceChild(name, attributes)
+          : this.runWebpackSpan.traceChild(name, attributes)
 
-      if (onStart) onStart(span, ...params)
-    })
+        if (onStart) onStart(span, ...params)
+      }
+    )
     stopHook.tap({ name: pluginName, stage: Infinity }, (...params: any[]) => {
       // `stopHook` may be triggered when `startHook` has not in cases
       // where `stopHook` is used as the terminating event for more
@@ -82,7 +94,8 @@ export class ProfilingPlugin {
       compiler.hooks.compilation,
       compiler.hooks.afterCompile,
       {
-        parentSpan: () => webpackInvalidSpans.get(compiler) || this.runWebpackSpan,
+        parentSpan: () =>
+          webpackInvalidSpans.get(compiler) || this.runWebpackSpan,
         attrs: () => ({ name: compiler.name }),
         onStart: (span, compilation) => {
           spans.set(compilation, span)
@@ -112,7 +125,8 @@ export class ProfilingPlugin {
 
   traceCompilationHooks(compiler: any) {
     this.traceHookPair('emit', compiler.hooks.emit, compiler.hooks.afterEmit, {
-      parentSpan: () => webpackInvalidSpans.get(compiler) || this.runWebpackSpan,
+      parentSpan: () =>
+        webpackInvalidSpans.get(compiler) || this.runWebpackSpan,
     })
 
     this.traceHookPair('make', compiler.hooks.make, compiler.hooks.finishMake, {
@@ -132,204 +146,241 @@ export class ProfilingPlugin {
       },
     })
 
-    compiler.hooks.compilation.tap({ name: pluginName, stage: -Infinity }, (compilation: any) => {
-      compilation.hooks.buildModule.tap(pluginName, (module: any) => {
-        const moduleType = (() => {
-          const r = module.userRequest
-          if (!r || r.endsWith('!')) {
-            return ''
+    compiler.hooks.compilation.tap(
+      { name: pluginName, stage: -Infinity },
+      (compilation: any) => {
+        compilation.hooks.buildModule.tap(pluginName, (module: any) => {
+          const moduleType = (() => {
+            const r = module.userRequest
+            if (!r || r.endsWith('!')) {
+              return ''
+            } else {
+              const resource = r.split('!').pop()
+              const match = /^[^?]+\.([^?]+)$/.exec(resource)
+              return match ? match[1] : ''
+            }
+          })()
+
+          const issuerModule = compilation?.moduleGraph?.getIssuer(module)
+
+          let span: Span
+
+          const moduleSpans = moduleSpansByCompilation.get(compilation)
+          const spanName = `build-module${moduleType ? `-${moduleType}` : ''}`
+          const issuerSpan: Span | undefined =
+            issuerModule && moduleSpans?.get(issuerModule)
+          if (issuerSpan) {
+            span = issuerSpan.traceChild(spanName)
           } else {
-            const resource = r.split('!').pop()
-            const match = /^[^?]+\.([^?]+)$/.exec(resource)
-            return match ? match[1] : ''
-          }
-        })()
-
-        const issuerModule = compilation?.moduleGraph?.getIssuer(module)
-
-        let span: Span
-
-        const moduleSpans = moduleSpansByCompilation.get(compilation)
-        const spanName = `build-module${moduleType ? `-${moduleType}` : ''}`
-        const issuerSpan: Span | undefined = issuerModule && moduleSpans?.get(issuerModule)
-        if (issuerSpan) {
-          span = issuerSpan.traceChild(spanName)
-        } else {
-          let parentSpan: Span | undefined
-          for (const incomingConnection of compilation.moduleGraph.getIncomingConnections(module)) {
-            const entrySpan = spans.get(incomingConnection.dependency)
-            if (entrySpan) {
-              parentSpan = entrySpan
-              break
+            let parentSpan: Span | undefined
+            for (const incomingConnection of compilation.moduleGraph.getIncomingConnections(
+              module
+            )) {
+              const entrySpan = spans.get(incomingConnection.dependency)
+              if (entrySpan) {
+                parentSpan = entrySpan
+                break
+              }
             }
-          }
 
+            if (!parentSpan) {
+              const compilationSpan = spans.get(compilation)
+              if (!compilationSpan) {
+                return
+              }
+
+              parentSpan = compilationSpan
+            }
+            span = parentSpan.traceChild(spanName)
+          }
+          span.setAttribute('name', module.userRequest)
+          span.setAttribute('layer', module.layer)
+          moduleSpans!.set(module, span)
+        })
+
+        const moduleHooks = NormalModule.getCompilationHooks(compilation)
+        moduleHooks.readResource.for(undefined).intercept({
+          register(tapInfo: any) {
+            const fn = tapInfo.fn
+            tapInfo.fn = (loaderContext: any, callback: any) => {
+              fn(loaderContext, (err: any, result: any) => {
+                callback(err, result)
+              })
+            }
+            return tapInfo
+          },
+        })
+
+        moduleHooks.loader.tap(
+          pluginName,
+          (loaderContext: any, module: any) => {
+            const moduleSpan = moduleSpansByCompilation
+              .get(compilation)
+              ?.get(module)
+            loaderContext.currentTraceSpan = moduleSpan
+          }
+        )
+
+        compilation.hooks.succeedModule.tap(pluginName, (module: any) => {
+          moduleSpansByCompilation?.get(compilation)?.get(module)?.stop()
+        })
+        compilation.hooks.failedModule.tap(pluginName, (module: any) => {
+          moduleSpansByCompilation?.get(compilation)?.get(module)?.stop()
+        })
+
+        this.traceHookPair(
+          'seal',
+          compilation.hooks.seal,
+          compilation.hooks.afterSeal,
+          {
+            parentSpan: () => spans.get(compilation)!,
+            onStart(span) {
+              sealSpanByCompilation.set(compilation, span)
+            },
+            onStop() {
+              sealSpanByCompilation.delete(compilation)
+            },
+          }
+        )
+
+        compilation.hooks.addEntry.tap(pluginName, (entry: any) => {
+          const parentSpan =
+            makeSpanByCompilation.get(compilation) || spans.get(compilation)
           if (!parentSpan) {
-            const compilationSpan = spans.get(compilation)
-            if (!compilationSpan) {
-              return
-            }
-
-            parentSpan = compilationSpan
+            return
           }
-          span = parentSpan.traceChild(spanName)
-        }
-        span.setAttribute('name', module.userRequest)
-        span.setAttribute('layer', module.layer)
-        moduleSpans!.set(module, span)
-      })
+          const addEntrySpan = parentSpan.traceChild('add-entry')
+          addEntrySpan.setAttribute('request', entry.request)
+          spans.set(entry, addEntrySpan)
+        })
 
-      const moduleHooks = NormalModule.getCompilationHooks(compilation)
-      moduleHooks.readResource.for(undefined).intercept({
-        register(tapInfo: any) {
-          const fn = tapInfo.fn
-          tapInfo.fn = (loaderContext: any, callback: any) => {
-            fn(loaderContext, (err: any, result: any) => {
-              callback(err, result)
-            })
+        compilation.hooks.succeedEntry.tap(pluginName, (entry: any) => {
+          spans.get(entry)?.stop()
+          spans.delete(entry)
+        })
+        compilation.hooks.failedEntry.tap(pluginName, (entry: any) => {
+          spans.get(entry)?.stop()
+          spans.delete(entry)
+        })
+
+        this.traceHookPair(
+          'chunk-graph',
+          compilation.hooks.beforeChunks,
+          compilation.hooks.afterChunks,
+          {
+            parentSpan: () =>
+              sealSpanByCompilation.get(compilation) || spans.get(compilation)!,
           }
-          return tapInfo
-        },
-      })
+        )
+        this.traceHookPair(
+          'optimize',
+          compilation.hooks.optimize,
+          compilation.hooks.reviveModules,
+          {
+            parentSpan: () =>
+              sealSpanByCompilation.get(compilation) || spans.get(compilation)!,
+          }
+        )
+        this.traceHookPair(
+          'optimize-modules',
+          compilation.hooks.optimizeModules,
+          compilation.hooks.afterOptimizeModules,
+          {
+            parentSpan: () =>
+              sealSpanByCompilation.get(compilation) || spans.get(compilation)!,
+          }
+        )
+        this.traceHookPair(
+          'optimize-chunks',
+          compilation.hooks.optimizeChunks,
+          compilation.hooks.afterOptimizeChunks,
+          {
+            parentSpan: () =>
+              sealSpanByCompilation.get(compilation) || spans.get(compilation)!,
+          }
+        )
+        this.traceHookPair(
+          'optimize-tree',
+          compilation.hooks.optimizeTree,
+          compilation.hooks.afterOptimizeTree,
+          {
+            parentSpan: () =>
+              sealSpanByCompilation.get(compilation) || spans.get(compilation)!,
+          }
+        )
+        this.traceHookPair(
+          'optimize-chunk-modules',
+          compilation.hooks.optimizeChunkModules,
+          compilation.hooks.afterOptimizeChunkModules,
+          {
+            parentSpan: () =>
+              sealSpanByCompilation.get(compilation) || spans.get(compilation)!,
+          }
+        )
+        this.traceHookPair(
+          'module-hash',
+          compilation.hooks.beforeModuleHash,
+          compilation.hooks.afterModuleHash,
+          {
+            parentSpan: () =>
+              sealSpanByCompilation.get(compilation) || spans.get(compilation)!,
+          }
+        )
+        this.traceHookPair(
+          'code-generation',
+          compilation.hooks.beforeCodeGeneration,
+          compilation.hooks.afterCodeGeneration,
+          {
+            parentSpan: () =>
+              sealSpanByCompilation.get(compilation) || spans.get(compilation)!,
+          }
+        )
+        this.traceHookPair(
+          'hash',
+          compilation.hooks.beforeHash,
+          compilation.hooks.afterHash,
+          {
+            parentSpan: () =>
+              sealSpanByCompilation.get(compilation) || spans.get(compilation)!,
+          }
+        )
+        this.traceHookPair(
+          'code-generation-jobs',
+          compilation.hooks.afterHash,
+          compilation.hooks.beforeModuleAssets,
+          {
+            parentSpan: () =>
+              sealSpanByCompilation.get(compilation) || spans.get(compilation)!,
+          }
+        )
 
-      moduleHooks.loader.tap(pluginName, (loaderContext: any, module: any) => {
-        const moduleSpan = moduleSpansByCompilation.get(compilation)?.get(module)
-        loaderContext.currentTraceSpan = moduleSpan
-      })
+        const logs = new Map()
+        const originalTime = compilation.logger.time
+        const originalTimeEnd = compilation.logger.timeEnd
 
-      compilation.hooks.succeedModule.tap(pluginName, (module: any) => {
-        moduleSpansByCompilation?.get(compilation)?.get(module)?.stop()
-      })
-      compilation.hooks.failedModule.tap(pluginName, (module: any) => {
-        moduleSpansByCompilation?.get(compilation)?.get(module)?.stop()
-      })
-
-      this.traceHookPair('seal', compilation.hooks.seal, compilation.hooks.afterSeal, {
-        parentSpan: () => spans.get(compilation)!,
-        onStart(span) {
-          sealSpanByCompilation.set(compilation, span)
-        },
-        onStop() {
-          sealSpanByCompilation.delete(compilation)
-        },
-      })
-
-      compilation.hooks.addEntry.tap(pluginName, (entry: any) => {
-        const parentSpan = makeSpanByCompilation.get(compilation) || spans.get(compilation)
-        if (!parentSpan) {
-          return
-        }
-        const addEntrySpan = parentSpan.traceChild('add-entry')
-        addEntrySpan.setAttribute('request', entry.request)
-        spans.set(entry, addEntrySpan)
-      })
-
-      compilation.hooks.succeedEntry.tap(pluginName, (entry: any) => {
-        spans.get(entry)?.stop()
-        spans.delete(entry)
-      })
-      compilation.hooks.failedEntry.tap(pluginName, (entry: any) => {
-        spans.get(entry)?.stop()
-        spans.delete(entry)
-      })
-
-      this.traceHookPair(
-        'chunk-graph',
-        compilation.hooks.beforeChunks,
-        compilation.hooks.afterChunks,
-        {
-          parentSpan: () => sealSpanByCompilation.get(compilation) || spans.get(compilation)!,
-        }
-      )
-      this.traceHookPair('optimize', compilation.hooks.optimize, compilation.hooks.reviveModules, {
-        parentSpan: () => sealSpanByCompilation.get(compilation) || spans.get(compilation)!,
-      })
-      this.traceHookPair(
-        'optimize-modules',
-        compilation.hooks.optimizeModules,
-        compilation.hooks.afterOptimizeModules,
-        {
-          parentSpan: () => sealSpanByCompilation.get(compilation) || spans.get(compilation)!,
-        }
-      )
-      this.traceHookPair(
-        'optimize-chunks',
-        compilation.hooks.optimizeChunks,
-        compilation.hooks.afterOptimizeChunks,
-        {
-          parentSpan: () => sealSpanByCompilation.get(compilation) || spans.get(compilation)!,
-        }
-      )
-      this.traceHookPair(
-        'optimize-tree',
-        compilation.hooks.optimizeTree,
-        compilation.hooks.afterOptimizeTree,
-        {
-          parentSpan: () => sealSpanByCompilation.get(compilation) || spans.get(compilation)!,
-        }
-      )
-      this.traceHookPair(
-        'optimize-chunk-modules',
-        compilation.hooks.optimizeChunkModules,
-        compilation.hooks.afterOptimizeChunkModules,
-        {
-          parentSpan: () => sealSpanByCompilation.get(compilation) || spans.get(compilation)!,
-        }
-      )
-      this.traceHookPair(
-        'module-hash',
-        compilation.hooks.beforeModuleHash,
-        compilation.hooks.afterModuleHash,
-        {
-          parentSpan: () => sealSpanByCompilation.get(compilation) || spans.get(compilation)!,
-        }
-      )
-      this.traceHookPair(
-        'code-generation',
-        compilation.hooks.beforeCodeGeneration,
-        compilation.hooks.afterCodeGeneration,
-        {
-          parentSpan: () => sealSpanByCompilation.get(compilation) || spans.get(compilation)!,
-        }
-      )
-      this.traceHookPair('hash', compilation.hooks.beforeHash, compilation.hooks.afterHash, {
-        parentSpan: () => sealSpanByCompilation.get(compilation) || spans.get(compilation)!,
-      })
-      this.traceHookPair(
-        'code-generation-jobs',
-        compilation.hooks.afterHash,
-        compilation.hooks.beforeModuleAssets,
-        {
-          parentSpan: () => sealSpanByCompilation.get(compilation) || spans.get(compilation)!,
-        }
-      )
-
-      const logs = new Map()
-      const originalTime = compilation.logger.time
-      const originalTimeEnd = compilation.logger.timeEnd
-
-      compilation.logger.time = (label: string) => {
-        if (!inTraceLabelsSeal(label)) {
+        compilation.logger.time = (label: string) => {
+          if (!inTraceLabelsSeal(label)) {
+            return originalTime.call(compilation.logger, label)
+          }
+          const span = sealSpanByCompilation.get(compilation)
+          if (span) {
+            logs.set(label, span.traceChild(label.replace(/ /g, '-')))
+          }
           return originalTime.call(compilation.logger, label)
         }
-        const span = sealSpanByCompilation.get(compilation)
-        if (span) {
-          logs.set(label, span.traceChild(label.replace(/ /g, '-')))
-        }
-        return originalTime.call(compilation.logger, label)
-      }
-      compilation.logger.timeEnd = (label: string) => {
-        if (!inTraceLabelsSeal(label)) {
+        compilation.logger.timeEnd = (label: string) => {
+          if (!inTraceLabelsSeal(label)) {
+            return originalTimeEnd.call(compilation.logger, label)
+          }
+
+          const span = logs.get(label)
+          if (span) {
+            span.stop()
+            logs.delete(label)
+          }
           return originalTimeEnd.call(compilation.logger, label)
         }
-
-        const span = logs.get(label)
-        if (span) {
-          span.stop()
-          logs.delete(label)
-        }
-        return originalTimeEnd.call(compilation.logger, label)
       }
-    })
+    )
   }
 }

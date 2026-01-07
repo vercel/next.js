@@ -7,7 +7,10 @@ const SERVER_ROUTE_NAME_REGEX = /^pages[/\\](.*)$/
 // matches static/pages/:page*.js
 const BROWSER_ROUTE_NAME_REGEX = /^static[/\\]pages[/\\](.*)$/
 
-export default function getRouteFromEntrypoint(entryFile: string, app?: boolean): string | null {
+export default function getRouteFromEntrypoint(
+  entryFile: string,
+  app?: boolean
+): string | null {
   let pagePath = matchBundle(SERVER_ROUTE_NAME_REGEX, entryFile)
 
   if (pagePath) {

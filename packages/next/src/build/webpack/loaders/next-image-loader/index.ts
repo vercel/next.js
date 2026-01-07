@@ -53,22 +53,28 @@ function nextImageLoader(this: any, content: Buffer) {
       tracing: imageLoaderSpan.traceChild.bind(imageLoaderSpan),
     })
 
-    const stringifiedData = imageLoaderSpan.traceChild('image-data-stringify').traceFn(() =>
-      JSON.stringify({
-        src: outputPath,
-        height: imageSize.height,
-        width: imageSize.width,
-        blurDataURL,
-        blurWidth,
-        blurHeight,
-      })
-    )
+    const stringifiedData = imageLoaderSpan
+      .traceChild('image-data-stringify')
+      .traceFn(() =>
+        JSON.stringify({
+          src: outputPath,
+          height: imageSize.height,
+          width: imageSize.width,
+          blurDataURL,
+          blurWidth,
+          blurHeight,
+        })
+      )
 
     if (compilerType === 'client') {
       this.emitFile(interpolatedName, content, null)
     } else {
       this.emitFile(
-        path.join('..', isDev || compilerType === 'edge-server' ? '' : '..', interpolatedName),
+        path.join(
+          '..',
+          isDev || compilerType === 'edge-server' ? '' : '..',
+          interpolatedName
+        ),
         content,
         null
       )

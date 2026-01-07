@@ -12,11 +12,17 @@ export default function Page() {
   }, [params])
   return (
     <div>
-      <button id="rerender-button" onClick={() => setCount((count) => count + 1)}>
+      <button
+        id="rerender-button"
+        onClick={() => setCount((count) => count + 1)}
+      >
         Re-Render {count}
       </button>
 
-      <button id="change-params-button" onClick={() => router.push('/search-params/bar')}>
+      <button
+        id="change-params-button"
+        onClick={() => router.push('/search-params/bar')}
+      >
         Change Params
       </button>
     </div>

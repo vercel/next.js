@@ -70,7 +70,11 @@ interface Window {
   /** @internal */
   __next_root_layout_missing_tags?: ('html' | 'body')[]
   /** @internal */
-  __NEXT_DEV_INDICATOR_POSITION?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+  __NEXT_DEV_INDICATOR_POSITION?:
+    | 'top-left'
+    | 'top-right'
+    | 'bottom-left'
+    | 'bottom-right'
 }
 
 interface NextFetchRequestConfig {

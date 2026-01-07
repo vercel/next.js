@@ -77,7 +77,9 @@ export function connectHMR(options: HMROptions) {
     const protocol = getSocketProtocol(options.assetPrefix || '')
     const assetPrefix = options.assetPrefix.replace(/^\/+/, '')
 
-    let url = `${protocol}://${hostname}:${port}${assetPrefix ? `/${assetPrefix}` : ''}`
+    let url = `${protocol}://${hostname}:${port}${
+      assetPrefix ? `/${assetPrefix}` : ''
+    }`
 
     if (assetPrefix.startsWith('http')) {
       url = `${protocol}://${assetPrefix.split('://')[1]}`

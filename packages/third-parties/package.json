@@ -1,21 +1,21 @@
 {
   "name": "@next/third-parties",
   "version": "16.1.1-canary.16",
-  "license": "MIT",
   "repository": {
     "url": "vercel/next.js",
     "directory": "packages/third-parties"
   },
-  "files": [
-    "dist",
-    "google.d.ts"
-  ],
   "exports": {
     "./google": {
       "types": "./dist/google/index.d.ts",
       "default": "./dist/google/index.js"
     }
   },
+  "files": [
+    "dist",
+    "google.d.ts"
+  ],
+  "license": "MIT",
   "scripts": {
     "build": "node ../../scripts/rm.mjs dist && tsc -d -p tsconfig.json",
     "prepublishOnly": "cd ../../ && turbo run build",

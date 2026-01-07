@@ -6,7 +6,11 @@ import {
   ACTION_HMR_REFRESH,
   ACTION_SERVER_ACTION,
 } from './router-reducer-types'
-import type { ReducerActions, ReducerState, ReadonlyReducerState } from './router-reducer-types'
+import type {
+  ReducerActions,
+  ReducerState,
+  ReadonlyReducerState,
+} from './router-reducer-types'
 import { navigateReducer } from './reducers/navigate-reducer'
 import { serverPatchReducer } from './reducers/server-patch-reducer'
 import { restoreReducer } from './reducers/restore-reducer'
@@ -17,7 +21,10 @@ import { serverActionReducer } from './reducers/server-action-reducer'
 /**
  * Reducer that handles the app-router state updates.
  */
-function clientReducer(state: ReadonlyReducerState, action: ReducerActions): ReducerState {
+function clientReducer(
+  state: ReadonlyReducerState,
+  action: ReducerActions
+): ReducerState {
   switch (action.type) {
     case ACTION_NAVIGATE: {
       return navigateReducer(state, action)
@@ -43,9 +50,13 @@ function clientReducer(state: ReadonlyReducerState, action: ReducerActions): Red
   }
 }
 
-function serverReducer(state: ReadonlyReducerState, _action: ReducerActions): ReducerState {
+function serverReducer(
+  state: ReadonlyReducerState,
+  _action: ReducerActions
+): ReducerState {
   return state
 }
 
 // we don't run the client reducer on the server, so we use a noop function for better tree shaking
-export const reducer = typeof window === 'undefined' ? serverReducer : clientReducer
+export const reducer =
+  typeof window === 'undefined' ? serverReducer : clientReducer

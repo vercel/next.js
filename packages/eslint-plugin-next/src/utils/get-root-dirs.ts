@@ -16,13 +16,16 @@ const processRootDir = (rootDir: string): string[] => {
 export const getRootDirs = (context: Rule.RuleContext) => {
   let rootDirs = [context.cwd]
 
-  const nextSettings: { rootDir?: string | string[] } = context.settings.next || {}
+  const nextSettings: { rootDir?: string | string[] } =
+    context.settings.next || {}
   let rootDir = nextSettings.rootDir
 
   if (typeof rootDir === 'string') {
     rootDirs = processRootDir(rootDir)
   } else if (Array.isArray(rootDir)) {
-    rootDirs = rootDir.map((dir) => (typeof dir === 'string' ? processRootDir(dir) : [])).flat()
+    rootDirs = rootDir
+      .map((dir) => (typeof dir === 'string' ? processRootDir(dir) : []))
+      .flat()
   }
 
   return rootDirs

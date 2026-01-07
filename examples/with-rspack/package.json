@@ -11,9 +11,9 @@
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "next-rspack": "canary",
     "@types/node": "^22.10.1",
     "@types/react": "^18.3.12",
-    "next-rspack": "canary",
     "typescript": "^5.7.2"
   }
 }

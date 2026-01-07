@@ -66,7 +66,8 @@ export const Default: Story = {
         <DevOverlayContext
           value={{
             dispatch,
-            getSquashedHydrationErrorDetails: getNoSquashedHydrationErrorDetails,
+            getSquashedHydrationErrorDetails:
+              getNoSquashedHydrationErrorDetails,
             shadowRoot,
             state,
           }}
@@ -96,7 +97,8 @@ export const WithPanel: Story = {
         <DevOverlayContext
           value={{
             dispatch,
-            getSquashedHydrationErrorDetails: getNoSquashedHydrationErrorDetails,
+            getSquashedHydrationErrorDetails:
+              getNoSquashedHydrationErrorDetails,
             shadowRoot,
             state,
           }}

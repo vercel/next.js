@@ -20,13 +20,18 @@ export type ModularizeImportLoaderOptions = {
  * This works even if there's no export field in the package.json of the package.
  */
 export default function transformSource(this: any) {
-  const { name, from, as, join }: ModularizeImportLoaderOptions = this.getOptions()
+  const { name, from, as, join }: ModularizeImportLoaderOptions =
+    this.getOptions()
   const { resourcePath } = this
-  const fullPath = join ? path.join(path.dirname(resourcePath), join) : resourcePath
+  const fullPath = join
+    ? path.join(path.dirname(resourcePath), join)
+    : resourcePath
 
   return `
 export {
-  ${from === 'default' ? 'default' : name} as ${as === 'default' ? 'default' : name}
+  ${from === 'default' ? 'default' : name} as ${
+    as === 'default' ? 'default' : name
+  }
 } from ${JSON.stringify(fullPath)}
 `
 }

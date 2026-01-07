@@ -70,7 +70,9 @@ function cssWithMappingToString(item: any, useSourceMap: any) {
   if (useSourceMap && typeof btoa === 'function') {
     var sourceMapping = toComment(cssMapping)
     var sourceURLs = cssMapping.sources.map(function (source: string) {
-      return '/*# sourceURL='.concat(cssMapping.sourceRoot || '').concat(source, ' */')
+      return '/*# sourceURL='
+        .concat(cssMapping.sourceRoot || '')
+        .concat(source, ' */')
     })
     return [content].concat(sourceURLs).concat([sourceMapping]).join('\n')
   }
@@ -80,6 +82,9 @@ function cssWithMappingToString(item: any, useSourceMap: any) {
 
 function toComment(sourceMap: any) {
   var base64 = btoa(unescape(encodeURIComponent(JSON.stringify(sourceMap))))
-  var data = 'sourceMappingURL=data:application/json;charset=utf-8;base64,'.concat(base64)
+  var data =
+    'sourceMappingURL=data:application/json;charset=utf-8;base64,'.concat(
+      base64
+    )
   return '/*# '.concat(data, ' */')
 }

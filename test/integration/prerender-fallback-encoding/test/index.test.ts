@@ -88,7 +88,10 @@ function runTests(isDev: boolean) {
           const testSlug = urlPaths[i]
           const path = prerenderedPaths[i]
 
-          const res = await fetchViaHTTP(appPort, `/_next/data/${buildId}/${mode}/${testSlug}.json`)
+          const res = await fetchViaHTTP(
+            appPort,
+            `/_next/data/${buildId}/${mode}/${testSlug}.json`
+          )
 
           if (mode === 'fallback-false') {
             expect(res.status).toBe(404)
@@ -104,17 +107,27 @@ function runTests(isDev: boolean) {
             if (!isDev) {
               // we don't block on writing incremental data to the
               // disk so use check
-              await check(() => fs.existsSync(join(pagesDir, mode, path + '.html')), true)
-              await check(() => fs.existsSync(join(pagesDir, mode, path + '.json')), true)
+              await check(
+                () => fs.existsSync(join(pagesDir, mode, path + '.html')),
+                true
+              )
+              await check(
+                () => fs.existsSync(join(pagesDir, mode, path + '.json')),
+                true
+              )
             }
 
             const browser = await webdriver(appPort, `/${mode}/${testSlug}`)
 
-            expect(JSON.parse(await browser.elementByCss('#props').text()).params).toEqual({
+            expect(
+              JSON.parse(await browser.elementByCss('#props').text()).params
+            ).toEqual({
               slug: decodeURIComponent(testSlug),
             })
 
-            const browserRouter = JSON.parse(await browser.elementByCss('#router').text())
+            const browserRouter = JSON.parse(
+              await browser.elementByCss('#router').text()
+            )
 
             expect(browserRouter.pathname).toBe(`/${mode}/[slug]`)
             expect(browserRouter.asPath).toBe(`/${mode}/${testSlug}`)
@@ -132,9 +145,14 @@ function runTests(isDev: boolean) {
       const testSlug = urlPaths[i]
 
       for (const mode of modePaths) {
-        const res = await fetchViaHTTP(appPort, `/${mode}/${testSlug}`, undefined, {
-          redirect: 'manual',
-        })
+        const res = await fetchViaHTTP(
+          appPort,
+          `/${mode}/${testSlug}`,
+          undefined,
+          {
+            redirect: 'manual',
+          }
+        )
 
         console.log('checking', { mode, testSlug })
 
@@ -185,11 +203,15 @@ function runTests(isDev: boolean) {
       for (const mode of modePaths) {
         const browser = await webdriver(appPort, `/${mode}/${testSlug}`)
 
-        expect(JSON.parse(await browser.elementByCss('#props').text()).params).toEqual({
+        expect(
+          JSON.parse(await browser.elementByCss('#props').text()).params
+        ).toEqual({
           slug: decodeURIComponent(testSlug),
         })
 
-        const browserRouter = JSON.parse(await browser.elementByCss('#router').text())
+        const browserRouter = JSON.parse(
+          await browser.elementByCss('#router').text()
+        )
 
         expect(browserRouter.pathname).toBe(`/${mode}/[slug]`)
         expect(browserRouter.asPath).toBe(`/${mode}/${testSlug}`)
@@ -205,11 +227,15 @@ function runTests(isDev: boolean) {
       const testSlug = urlPaths[0]
       const browser = await webdriver(appPort, `/${mode}/${testSlug}`)
 
-      expect(JSON.parse(await browser.elementByCss('#props').text()).params).toEqual({
+      expect(
+        JSON.parse(await browser.elementByCss('#props').text()).params
+      ).toEqual({
         slug: decodeURIComponent(testSlug),
       })
 
-      const browserRouter = JSON.parse(await browser.elementByCss('#router').text())
+      const browserRouter = JSON.parse(
+        await browser.elementByCss('#router').text()
+      )
 
       expect(browserRouter.pathname).toBe(`/${mode}/[slug]`)
       expect(browserRouter.asPath).toBe(`/${mode}/${testSlug}`)
@@ -230,8 +256,12 @@ function runTests(isDev: boolean) {
         })()`)
 
         await check(async () => {
-          const browserRouter = JSON.parse(await browser.elementByCss('#router').text())
-          return browserRouter.asPath === `/${mode}/${nextSlug}` ? 'success' : 'fail'
+          const browserRouter = JSON.parse(
+            await browser.elementByCss('#router').text()
+          )
+          return browserRouter.asPath === `/${mode}/${nextSlug}`
+            ? 'success'
+            : 'fail'
         }, 'success')
 
         expect(await browser.eval('window.beforeNav')).toBe(1)
@@ -244,11 +274,15 @@ function runTests(isDev: boolean) {
       const testSlug = urlPaths[0]
       const browser = await webdriver(appPort, `/${mode}/${testSlug}`)
 
-      expect(JSON.parse(await browser.elementByCss('#props').text()).params).toEqual({
+      expect(
+        JSON.parse(await browser.elementByCss('#props').text()).params
+      ).toEqual({
         slug: decodeURIComponent(testSlug),
       })
 
-      const browserRouter = JSON.parse(await browser.elementByCss('#router').text())
+      const browserRouter = JSON.parse(
+        await browser.elementByCss('#router').text()
+      )
 
       expect(browserRouter.pathname).toBe(`/${mode}/[slug]`)
       expect(browserRouter.asPath).toBe(`/${mode}/${testSlug}`)
@@ -266,8 +300,12 @@ function runTests(isDev: boolean) {
         })()`)
 
         await check(async () => {
-          const browserRouter = JSON.parse(await browser.elementByCss('#router').text())
-          return browserRouter.asPath === `/${mode}/${nextSlug}` ? 'success' : 'fail'
+          const browserRouter = JSON.parse(
+            await browser.elementByCss('#router').text()
+          )
+          return browserRouter.asPath === `/${mode}/${nextSlug}`
+            ? 'success'
+            : 'fail'
         }, 'success')
 
         expect(await browser.eval('window.beforeNav')).toBe(1)
@@ -277,28 +315,34 @@ function runTests(isDev: boolean) {
 }
 
 describe('Fallback path encoding', () => {
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
-    beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-      buildId = 'development'
-    })
-    afterAll(() => killApp(app))
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        await fs.remove(join(appDir, '.next'))
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+        buildId = 'development'
+      })
+      afterAll(() => killApp(app))
 
-    runTests(true)
-  })
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
-      appPort = await findPort()
-      await nextBuild(appDir)
+      runTests(true)
+    }
+  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await fs.remove(join(appDir, '.next'))
+        appPort = await findPort()
+        await nextBuild(appDir)
 
-      app = await nextStart(appDir, appPort)
-      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
-    })
-    afterAll(() => killApp(app))
+        app = await nextStart(appDir, appPort)
+        buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+      })
+      afterAll(() => killApp(app))
 
-    runTests(false)
-  })
+      runTests(false)
+    }
+  )
 })

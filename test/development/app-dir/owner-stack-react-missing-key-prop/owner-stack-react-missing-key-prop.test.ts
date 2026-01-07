@@ -1,5 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
-import { getRedboxSource, openRedbox, getStackFramesContent } from 'next-test-utils'
+import {
+  getRedboxSource,
+  openRedbox,
+  getStackFramesContent,
+} from 'next-test-utils'
 
 describe('app-dir - owner-stack-react-missing-key-prop', () => {
   const { isTurbopack, next } = nextTestSetup({

@@ -23,7 +23,9 @@ describe('app-dir - server source maps edge runtime', () => {
 
     if (isNextDev) {
       await retry(() => {
-        expect(next.cliOutput.slice(outputIndex)).toContain('Error: rsc-error-log')
+        expect(next.cliOutput.slice(outputIndex)).toContain(
+          'Error: rsc-error-log'
+        )
       })
       expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
         'Error: rsc-error-log' +

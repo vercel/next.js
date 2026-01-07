@@ -4,7 +4,10 @@ import type { BaseNextRequest } from './base-http'
 import type { CloneableBody } from './body-streams'
 import type { RouteMatch } from './route-matches/route-match'
 import type { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
-import type { ResponseCacheEntry, ServerComponentsHmrCache } from './response-cache'
+import type {
+  ResponseCacheEntry,
+  ServerComponentsHmrCache,
+} from './response-cache'
 import type { PagesDevOverlayBridgeType } from '../next-devtools/userspace/pages/pages-dev-overlay-setup'
 import type { OpaqueFallbackRouteParams } from './request/fallback-params'
 import type { IncrementalCache } from './lib/incremental-cache'
@@ -281,7 +284,10 @@ export interface RequestMeta {
  * @param key the key to get from the metadata (optional)
  * @returns the value for the key or the entire metadata object
  */
-export function getRequestMeta(req: NextIncomingMessage, key?: undefined): RequestMeta
+export function getRequestMeta(
+  req: NextIncomingMessage,
+  key?: undefined
+): RequestMeta
 export function getRequestMeta<K extends keyof RequestMeta>(
   req: NextIncomingMessage,
   key: K

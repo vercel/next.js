@@ -26,5 +26,9 @@ export class UnrecognizedActionError extends Error {
 export function unstable_isUnrecognizedActionError(
   error: unknown
 ): error is UnrecognizedActionError {
-  return !!(error && typeof error === 'object' && error instanceof UnrecognizedActionError)
+  return !!(
+    error &&
+    typeof error === 'object' &&
+    error instanceof UnrecognizedActionError
+  )
 }

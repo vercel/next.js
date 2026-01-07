@@ -44,7 +44,9 @@ describe('CPU Profiling - next start', () => {
 
     // Verify profile name is meaningful (start-main)
     for (const profile of cpuProfiles) {
-      expect(profile).toMatch(/^start-main-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.cpuprofile$/)
+      expect(profile).toMatch(
+        /^start-main-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.cpuprofile$/
+      )
     }
   })
 })

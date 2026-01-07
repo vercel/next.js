@@ -13,7 +13,9 @@ describe('app-dir refresh', () => {
   it('should refresh client cache when refresh() is called in a server action', async () => {
     const browser = await next.browser('/refresh')
 
-    const initialServerTimestamp = await browser.elementById('server-timestamp').text()
+    const initialServerTimestamp = await browser
+      .elementById('server-timestamp')
+      .text()
 
     expect(initialServerTimestamp).toBeTruthy()
 
@@ -22,9 +24,13 @@ describe('app-dir refresh', () => {
     await browser.elementById('refresh-button').click()
 
     await retry(async () => {
-      const newServerTimestamp = await browser.elementById('server-timestamp').text()
+      const newServerTimestamp = await browser
+        .elementById('server-timestamp')
+        .text()
       expect(newServerTimestamp).not.toBe(initialServerTimestamp)
-      expect(Number(newServerTimestamp)).toBeGreaterThan(Number(initialServerTimestamp))
+      expect(Number(newServerTimestamp)).toBeGreaterThan(
+        Number(initialServerTimestamp)
+      )
     })
   })
 
@@ -34,10 +40,14 @@ describe('app-dir refresh', () => {
     if (isNextDev) {
       await waitForRedbox(browser)
       const description = await getRedboxDescription(browser)
-      expect(description).toContain('refresh can only be called from within a Server Action')
+      expect(description).toContain(
+        'refresh can only be called from within a Server Action'
+      )
     } else {
       await retry(async () => {
-        expect(next.cliOutput).toContain('refresh can only be called from within a Server Action')
+        expect(next.cliOutput).toContain(
+          'refresh can only be called from within a Server Action'
+        )
       })
     }
   })
@@ -47,7 +57,9 @@ describe('app-dir refresh', () => {
     expect(res.status).toBe(500)
 
     await retry(async () => {
-      expect(next.cliOutput).toContain('refresh can only be called from within a Server Action')
+      expect(next.cliOutput).toContain(
+        'refresh can only be called from within a Server Action'
+      )
     })
   })
 
@@ -57,10 +69,14 @@ describe('app-dir refresh', () => {
     if (isNextDev) {
       await waitForRedbox(browser)
       const description = await getRedboxDescription(browser)
-      expect(description).toContain('refresh can only be called from within a Server Action')
+      expect(description).toContain(
+        'refresh can only be called from within a Server Action'
+      )
     } else {
       await retry(async () => {
-        expect(next.cliOutput).toContain('refresh can only be called from within a Server Action')
+        expect(next.cliOutput).toContain(
+          'refresh can only be called from within a Server Action'
+        )
       })
     }
   })

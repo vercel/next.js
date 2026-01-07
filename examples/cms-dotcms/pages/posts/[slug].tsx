@@ -19,7 +19,9 @@ export default function Post({ post, morePosts, preview }) {
     return <ErrorPage statusCode={404} />;
   }
 
-  const title = `${post?.title || "dotcms"} | Next.js Blog Example with ${CMS_NAME}`;
+  const title = `${
+    post?.title || "dotcms"
+  } | Next.js Blog Example with ${CMS_NAME}`;
 
   return (
     <Layout preview={preview}>
@@ -38,14 +40,20 @@ export default function Post({ post, morePosts, preview }) {
                 />
               </Head>
 
-              <PostHeader title={post.title} coverImage={post.image} author={post.author} />
+              <PostHeader
+                title={post.title}
+                coverImage={post.image}
+                author={post.author}
+              />
 
               <PostBody content={post} />
             </article>
 
             <SectionSeparator />
 
-            {morePosts && morePosts.length > 0 && <MoreStories posts={morePosts} />}
+            {morePosts && morePosts.length > 0 && (
+              <MoreStories posts={morePosts} />
+            )}
           </>
         )}
       </Container>

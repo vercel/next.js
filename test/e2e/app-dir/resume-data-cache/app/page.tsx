@@ -16,10 +16,10 @@ async function DynamicComponent() {
 
 export default async function Page() {
   const randomNumber = await getRandomNumber()
-  const anotherRandomNumber = await fetch('https://next-data-api-endpoint.vercel.app/api/random', {
-    cache: 'force-cache',
-    next: { tags: ['test'] },
-  }).then((res) => res.text())
+  const anotherRandomNumber = await fetch(
+    'https://next-data-api-endpoint.vercel.app/api/random',
+    { cache: 'force-cache', next: { tags: ['test'] } }
+  ).then((res) => res.text())
   return (
     <>
       <p id="random-number">{randomNumber}</p>

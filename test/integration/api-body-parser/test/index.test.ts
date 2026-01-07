@@ -1,7 +1,13 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import { killApp, findPort, launchApp, fetchViaHTTP, initNextServerScript } from 'next-test-utils'
+import {
+  killApp,
+  findPort,
+  launchApp,
+  fetchViaHTTP,
+  initNextServerScript,
+} from 'next-test-utils'
 import getPort from 'get-port'
 
 const appDir = join(__dirname, '../')

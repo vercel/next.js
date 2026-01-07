@@ -35,7 +35,8 @@ if (process.env.NEXT_RUNTIME === 'edge') {
   }
 }
 
-const { context, propagation, trace, SpanStatusCode, SpanKind, ROOT_CONTEXT } = api
+const { context, propagation, trace, SpanStatusCode, SpanKind, ROOT_CONTEXT } =
+  api
 
 export class BubbledError extends Error {
   constructor(
@@ -93,7 +94,10 @@ interface NextTracer {
     type: SpanTypes,
     fn: (span?: Span, done?: (error?: Error) => any) => Promise<T>
   ): Promise<T>
-  trace<T>(type: SpanTypes, fn: (span?: Span, done?: (error?: Error) => any) => T): T
+  trace<T>(
+    type: SpanTypes,
+    fn: (span?: Span, done?: (error?: Error) => any) => T
+  ): T
   trace<T>(
     type: SpanTypes,
     options: TracerSpanOptions,
@@ -120,7 +124,11 @@ interface NextTracer {
    * which case the span will finish at the end of the function execution.
    */
   wrap<T = (...args: Array<any>) => any>(type: SpanTypes, fn: T): T
-  wrap<T = (...args: Array<any>) => any>(type: SpanTypes, options: TracerSpanOptions, fn: T): T
+  wrap<T = (...args: Array<any>) => any>(
+    type: SpanTypes,
+    options: TracerSpanOptions,
+    fn: T
+  ): T
   wrap<T = (...args: Array<any>) => any>(
     type: SpanTypes,
     options: (...args: any[]) => TracerSpanOptions,
@@ -169,7 +177,10 @@ type OTELAttributeNames = `http.${string}` | `net.${string}`
 type AttributeNames = NextAttributeNames | OTELAttributeNames
 
 /** we use this map to propagate attributes from nested spans to the top span */
-const rootSpanAttributesStore = new Map<number, Map<AttributeNames, AttributeValue | undefined>>()
+const rootSpanAttributesStore = new Map<
+  number,
+  Map<AttributeNames, AttributeValue | undefined>
+>()
 const rootSpanIdKey = api.createContextKey('next.rootSpanId')
 let lastSpanId = 0
 const getSpanId = () => lastSpanId++
@@ -213,7 +224,11 @@ class NextTracerImpl implements NextTracer {
     return trace.getSpan(context?.active())
   }
 
-  public withPropagatedContext<T, C>(carrier: C, fn: () => T, getter?: TextMapGetter<C>): T {
+  public withPropagatedContext<T, C>(
+    carrier: C,
+    fn: () => T,
+    getter?: TextMapGetter<C>
+  ): T {
     const activeContext = context.active()
     if (trace.getSpanContext(activeContext)) {
       // Active span is already set, too late to propagate.
@@ -229,7 +244,10 @@ class NextTracerImpl implements NextTracer {
     type: SpanTypes,
     fn: (span?: Span, done?: (error?: Error) => any) => Promise<T>
   ): Promise<T>
-  public trace<T>(type: SpanTypes, fn: (span?: Span, done?: (error?: Error) => any) => T): T
+  public trace<T>(
+    type: SpanTypes,
+    fn: (span?: Span, done?: (error?: Error) => any) => T
+  ): T
   public trace<T>(
     type: SpanTypes,
     options: TracerSpanOptions,
@@ -264,14 +282,17 @@ class NextTracerImpl implements NextTracer {
     const spanName = options.spanName ?? type
 
     if (
-      (!NextVanillaSpanAllowlist.has(type) && process.env.NEXT_OTEL_VERBOSE !== '1') ||
+      (!NextVanillaSpanAllowlist.has(type) &&
+        process.env.NEXT_OTEL_VERBOSE !== '1') ||
       options.hideSpan
     ) {
       return fn()
     }
 
     // Trying to get active scoped span to assign parent. If option specifies parent span manually, will try to use it.
-    let spanContext = this.getSpanContext(options?.parentSpan ?? this.getActiveScopeSpan())
+    let spanContext = this.getSpanContext(
+      options?.parentSpan ?? this.getActiveScopeSpan()
+    )
 
     if (!spanContext) {
       spanContext = context?.active() ?? ROOT_CONTEXT
@@ -282,7 +303,8 @@ class NextTracerImpl implements NextTracer {
     // of telemetry when using a custom server
     const existingRootSpanId = spanContext.getValue(rootSpanIdKey)
     const isRootSpan =
-      typeof existingRootSpanId !== 'number' || !rootSpanAttributesStore.has(existingRootSpanId)
+      typeof existingRootSpanId !== 'number' ||
+      !rootSpanAttributesStore.has(existingRootSpanId)
 
     const spanId = getSpanId()
 
@@ -293,84 +315,94 @@ class NextTracerImpl implements NextTracer {
     }
 
     return context.with(spanContext.setValue(rootSpanIdKey, spanId), () =>
-      this.getTracerInstance().startActiveSpan(spanName, options, (span: Span) => {
-        let startTime: number | undefined
-        if (NEXT_OTEL_PERFORMANCE_PREFIX && type && LogSpanAllowList.has(type)) {
-          startTime =
-            'performance' in globalThis && 'measure' in performance
-              ? globalThis.performance.now()
-              : undefined
-        }
+      this.getTracerInstance().startActiveSpan(
+        spanName,
+        options,
+        (span: Span) => {
+          let startTime: number | undefined
+          if (
+            NEXT_OTEL_PERFORMANCE_PREFIX &&
+            type &&
+            LogSpanAllowList.has(type)
+          ) {
+            startTime =
+              'performance' in globalThis && 'measure' in performance
+                ? globalThis.performance.now()
+                : undefined
+          }
 
-        let cleanedUp = false
-        const onCleanup = () => {
-          if (cleanedUp) return
-          cleanedUp = true
-          rootSpanAttributesStore.delete(spanId)
-          if (startTime) {
-            performance.measure(
-              `${NEXT_OTEL_PERFORMANCE_PREFIX}:next-${(type.split('.').pop() || '').replace(
-                /[A-Z]/g,
-                (match: string) => '-' + match.toLowerCase()
-              )}`,
-              {
-                start: startTime,
-                end: performance.now(),
-              }
+          let cleanedUp = false
+          const onCleanup = () => {
+            if (cleanedUp) return
+            cleanedUp = true
+            rootSpanAttributesStore.delete(spanId)
+            if (startTime) {
+              performance.measure(
+                `${NEXT_OTEL_PERFORMANCE_PREFIX}:next-${(
+                  type.split('.').pop() || ''
+                ).replace(
+                  /[A-Z]/g,
+                  (match: string) => '-' + match.toLowerCase()
+                )}`,
+                {
+                  start: startTime,
+                  end: performance.now(),
+                }
+              )
+            }
+          }
+
+          if (isRootSpan) {
+            rootSpanAttributesStore.set(
+              spanId,
+              new Map(
+                Object.entries(options.attributes ?? {}) as [
+                  AttributeNames,
+                  AttributeValue | undefined,
+                ][]
+              )
             )
           }
-        }
+          if (fn.length > 1) {
+            try {
+              return fn(span, (err) => closeSpanWithError(span, err))
+            } catch (err: any) {
+              closeSpanWithError(span, err)
+              throw err
+            } finally {
+              onCleanup()
+            }
+          }
 
-        if (isRootSpan) {
-          rootSpanAttributesStore.set(
-            spanId,
-            new Map(
-              Object.entries(options.attributes ?? {}) as [
-                AttributeNames,
-                AttributeValue | undefined,
-              ][]
-            )
-          )
-        }
-        if (fn.length > 1) {
           try {
-            return fn(span, (err) => closeSpanWithError(span, err))
+            const result = fn(span)
+            if (isThenable(result)) {
+              // If there's error make sure it throws
+              return result
+                .then((res) => {
+                  span.end()
+                  // Need to pass down the promise result,
+                  // it could be react stream response with error { error, stream }
+                  return res
+                })
+                .catch((err) => {
+                  closeSpanWithError(span, err)
+                  throw err
+                })
+                .finally(onCleanup)
+            } else {
+              span.end()
+              onCleanup()
+            }
+
+            return result
           } catch (err: any) {
             closeSpanWithError(span, err)
+            onCleanup()
             throw err
-          } finally {
-            onCleanup()
           }
         }
-
-        try {
-          const result = fn(span)
-          if (isThenable(result)) {
-            // If there's error make sure it throws
-            return result
-              .then((res) => {
-                span.end()
-                // Need to pass down the promise result,
-                // it could be react stream response with error { error, stream }
-                return res
-              })
-              .catch((err) => {
-                closeSpanWithError(span, err)
-                throw err
-              })
-              .finally(onCleanup)
-          } else {
-            span.end()
-            onCleanup()
-          }
-
-          return result
-        } catch (err: any) {
-          closeSpanWithError(span, err)
-          onCleanup()
-          throw err
-        }
-      })
+      )
     )
   }
 
@@ -387,9 +419,13 @@ class NextTracerImpl implements NextTracer {
   ): T
   public wrap(...args: Array<any>) {
     const tracer = this
-    const [name, options, fn] = args.length === 3 ? args : [args[0], {}, args[1]]
+    const [name, options, fn] =
+      args.length === 3 ? args : [args[0], {}, args[1]]
 
-    if (!NextVanillaSpanAllowlist.has(name) && process.env.NEXT_OTEL_VERBOSE !== '1') {
+    if (
+      !NextVanillaSpanAllowlist.has(name) &&
+      process.env.NEXT_OTEL_VERBOSE !== '1'
+    ) {
       return fn
     }
 
@@ -423,12 +459,16 @@ class NextTracerImpl implements NextTracer {
   public startSpan(...args: Array<any>): Span {
     const [type, options]: [string, TracerSpanOptions | undefined] = args as any
 
-    const spanContext = this.getSpanContext(options?.parentSpan ?? this.getActiveScopeSpan())
+    const spanContext = this.getSpanContext(
+      options?.parentSpan ?? this.getActiveScopeSpan()
+    )
     return this.getTracerInstance().startSpan(type, options, spanContext)
   }
 
   private getSpanContext(parentSpan?: Span) {
-    const spanContext = parentSpan ? trace.setSpan(context.active(), parentSpan) : undefined
+    const spanContext = parentSpan
+      ? trace.setSpan(context.active(), parentSpan)
+      : undefined
 
     return spanContext
   }

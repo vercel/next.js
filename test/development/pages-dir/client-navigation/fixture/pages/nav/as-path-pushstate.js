@@ -6,7 +6,11 @@ export default withRouter(({ router: { asPath, query } }) => {
     <div id={asPath.replace('/', '').replace('/', '-')}>
       <div id="router-query">{JSON.stringify(query)}</div>
       <div>
-        <Link href="/nav/as-path-pushstate?something=hello" as="/something/hello" id="hello">
+        <Link
+          href="/nav/as-path-pushstate?something=hello"
+          as="/something/hello"
+          id="hello"
+        >
           hello
         </Link>
       </div>
@@ -16,7 +20,11 @@ export default withRouter(({ router: { asPath, query } }) => {
         </Link>
       </div>
       <div>
-        <Link href="/nav/as-path-pushstate" as="/nav/as-path-pushstate" id="hello2">
+        <Link
+          href="/nav/as-path-pushstate"
+          as="/nav/as-path-pushstate"
+          id="hello2"
+        >
           normal hello
         </Link>
       </div>

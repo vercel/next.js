@@ -35,14 +35,22 @@ describe('adapter-config export', () => {
     await next.build()
     expect(next.cliOutput).toContain('onBuildComplete called')
 
-    const { outputs, routing, config, ...ctx }: Parameters<NextAdapter['onBuildComplete']>[0] =
-      await next.readJSON('build-complete.json')
+    const {
+      outputs,
+      routing,
+      config,
+      ...ctx
+    }: Parameters<NextAdapter['onBuildComplete']>[0] = await next.readJSON(
+      'build-complete.json'
+    )
 
     for (const field of ['distDir', 'projectDir', 'repoRoot']) {
       expect(ctx[field]).toBeString()
 
       if (!fs.existsSync(ctx[field])) {
-        throw new Error(`Invalid dir value provided for ${field} value ${ctx[field]}`)
+        throw new Error(
+          `Invalid dir value provided for ${field} value ${ctx[field]}`
+        )
       }
     }
 

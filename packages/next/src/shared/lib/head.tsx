@@ -31,7 +31,10 @@ function onlyReactElement(
           fragmentList: Array<React.ReactElement<any>>,
           fragmentChild: React.ReactElement | number | string
         ): Array<React.ReactElement<any>> => {
-          if (typeof fragmentChild === 'string' || typeof fragmentChild === 'number') {
+          if (
+            typeof fragmentChild === 'string' ||
+            typeof fragmentChild === 'number'
+          ) {
             return fragmentList
           }
           return fragmentList.concat(fragmentChild)
@@ -113,7 +116,9 @@ function unique() {
  *
  * @param headChildrenElements List of children of <Head>
  */
-function reduceComponents(headChildrenElements: Array<React.ReactElement<any>>) {
+function reduceComponents(
+  headChildrenElements: Array<React.ReactElement<any>>
+) {
   return headChildrenElements
     .reduce(onlyReactElement, [])
     .reverse()
@@ -148,7 +153,10 @@ function reduceComponents(headChildrenElements: Array<React.ReactElement<any>>) 
 function Head({ children }: { children: React.ReactNode }) {
   const headManager = useContext(HeadManagerContext)
   return (
-    <Effect reduceComponentsToState={reduceComponents} headManager={headManager}>
+    <Effect
+      reduceComponentsToState={reduceComponents}
+      headManager={headManager}
+    >
       {children}
     </Effect>
   )

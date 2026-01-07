@@ -1,12 +1,17 @@
 import Toggler from "../../components/Toggler";
 import VisitorDataPresenter from "../../components/VisitorDataPresenter";
 import { useContext } from "react";
-import { FpjsContext, useVisitorData } from "@fingerprintjs/fingerprintjs-pro-react";
+import {
+  FpjsContext,
+  useVisitorData,
+} from "@fingerprintjs/fingerprintjs-pro-react";
 
 function VisitorDataComponent() {
   const { data, isLoading, error } = useVisitorData({ extendedResult: true });
 
-  return <VisitorDataPresenter data={data} isLoading={isLoading} error={error} />;
+  return (
+    <VisitorDataPresenter data={data} isLoading={isLoading} error={error} />
+  );
 }
 
 function HomePage() {
@@ -16,8 +21,9 @@ function HomePage() {
     <section className="body">
       <h3>Home page</h3>
       <div>
-        On this page we use the <code>useVisitorData</code> hook with default settings and
-        identification is performed as soon as the page loads. This is the most common use-case.
+        On this page we use the <code>useVisitorData</code> hook with default
+        settings and identification is performed as soon as the page loads. This
+        is the most common use-case.
       </div>
       <Toggler>
         <VisitorDataComponent />

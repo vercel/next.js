@@ -60,7 +60,10 @@ async function readJsonValue(filePath: string): Promise<PackageJson> {
   }
 }
 
-async function writeJsonValue(filePath: string, value: PackageJson): Promise<void> {
+async function writeJsonValue(
+  filePath: string,
+  value: PackageJson
+): Promise<void> {
   try {
     const content = JSON.stringify(value, null, 2) + os.EOL
     await fs.writeFile(filePath, content)
@@ -95,7 +98,9 @@ async function patchWorkspacePackageJsonMap(
 
   // Add @next/swc to dependencies
   packageJsonMap.dependencies = packageJsonMap.dependencies || {}
-  insertMapEntries(packageJsonMap.dependencies, [['@next/swc', `file:${paths.nextSwcTarball}`]])
+  insertMapEntries(packageJsonMap.dependencies, [
+    ['@next/swc', `file:${paths.nextSwcTarball}`],
+  ])
 
   // Update direct dependencies to match overrides
   updateMapEntriesIfExists(packageJsonMap.dependencies, overrides)
@@ -111,7 +116,10 @@ async function getNextPeerDeps(): Promise<NextPeerDeps> {
     // Navigate to the next package.json relative to the current module
     const currentFilePath = fileURLToPath(import.meta.url)
     const scriptDir = path.dirname(currentFilePath)
-    const packageJsonPath = path.resolve(scriptDir, '../../packages/next/package.json')
+    const packageJsonPath = path.resolve(
+      scriptDir,
+      '../../packages/next/package.json'
+    )
 
     const content = await fs.readFile(packageJsonPath, 'utf8')
     const nextPackageJson = JSON.parse(content) as PackageJson
@@ -129,13 +137,19 @@ async function getNextPeerDeps(): Promise<NextPeerDeps> {
   }
 }
 
-function insertMapEntries(map: Record<string, string>, entries: [string, string][]): void {
+function insertMapEntries(
+  map: Record<string, string>,
+  entries: [string, string][]
+): void {
   for (const [key, value] of entries) {
     map[key] = value
   }
 }
 
-function updateMapEntriesIfExists(map: Record<string, string>, entries: [string, string][]): void {
+function updateMapEntriesIfExists(
+  map: Record<string, string>,
+  entries: [string, string][]
+): void {
   for (const [key, value] of entries) {
     if (map[key] !== undefined) {
       map[key] = value

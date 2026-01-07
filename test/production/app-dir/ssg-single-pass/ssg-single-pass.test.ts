@@ -20,7 +20,9 @@ describe('ssg-single-pass', () => {
     expect(logOccurrences).toBe(1)
     logOccurrences = 0
     const browser = await next.browser('/')
-    const initialRandomNumber = await browser.elementById('random-number').text()
+    const initialRandomNumber = await browser
+      .elementById('random-number')
+      .text()
     expect(initialRandomNumber).toMatch(/\d+/)
     // grab the index of the last log message so we can start
     // parsing future logs from there
@@ -38,7 +40,10 @@ describe('ssg-single-pass', () => {
       expect(newRandomNumber).toMatch(/\d+/)
       expect(newRandomNumber).not.toBe(initialRandomNumber)
 
-      expect(next.cliOutput.slice(outputIndex)).toIncludeRepeated('home page rendered', 1)
+      expect(next.cliOutput.slice(outputIndex)).toIncludeRepeated(
+        'home page rendered',
+        1
+      )
     })
   })
 })

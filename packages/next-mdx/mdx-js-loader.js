@@ -26,12 +26,23 @@ async function importPlugin(plugin, projectRoot) {
 }
 
 async function getOptions(options, projectRoot) {
-  const { recmaPlugins = [], rehypePlugins = [], remarkPlugins = [], ...rest } = options
+  const {
+    recmaPlugins = [],
+    rehypePlugins = [],
+    remarkPlugins = [],
+    ...rest
+  } = options
 
   const [updatedRecma, updatedRehype, updatedRemark] = await Promise.all([
-    Promise.all(recmaPlugins.map((plugin) => importPlugin(plugin, projectRoot))),
-    Promise.all(rehypePlugins.map((plugin) => importPlugin(plugin, projectRoot))),
-    Promise.all(remarkPlugins.map((plugin) => importPlugin(plugin, projectRoot))),
+    Promise.all(
+      recmaPlugins.map((plugin) => importPlugin(plugin, projectRoot))
+    ),
+    Promise.all(
+      rehypePlugins.map((plugin) => importPlugin(plugin, projectRoot))
+    ),
+    Promise.all(
+      remarkPlugins.map((plugin) => importPlugin(plugin, projectRoot))
+    ),
   ])
 
   return {

@@ -5,7 +5,9 @@ import Home from "../pages/home";
 test("Pages Router", () => {
   render(<Home />);
   const main = within(screen.getByRole("main"));
-  expect(main.getByRole("heading", { level: 1, name: /welcome to next\.js!/i })).toBeDefined();
+  expect(
+    main.getByRole("heading", { level: 1, name: /welcome to next\.js!/i }),
+  ).toBeDefined();
 
   const footer = within(screen.getByRole("contentinfo"));
   const link = within(footer.getByRole("link"));

@@ -14,7 +14,11 @@ export default function Layout(props) {
         {props.children}
         <footer>
           <span>{t("common:powered")} </span>
-          <a href="https://vercel.com" target="_blank" rel="noopener noreferrer">
+          <a
+            href="https://vercel.com"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             ▲ Vercel
           </a>
           <span>&amp;</span>

@@ -20,7 +20,9 @@ export function useOnClickOutside(
 
       if (
         // Do nothing if clicking on an element that is excluded by the CSS selector(s)
-        cssSelectorsToExclude.some((cssSelector) => (e.target as Element).closest(cssSelector))
+        cssSelectorsToExclude.some((cssSelector) =>
+          (e.target as Element).closest(cssSelector)
+        )
       ) {
         return
       }

@@ -6,7 +6,13 @@ import { hideBin } from 'yargs/helpers'
 import { default as patchPackageJson } from './pack-utils/patch-package-json.js'
 import buildNative from './build-native.js'
 
-import { NEXT_DIR, exec, execAsyncWithOutput, glob, packageFiles } from './pack-util.js'
+import {
+  NEXT_DIR,
+  exec,
+  execAsyncWithOutput,
+  glob,
+  packageFiles,
+} from './pack-util.js'
 
 const TARBALLS = `${NEXT_DIR}/tarballs`
 const NEXT_PACKAGES = `${NEXT_DIR}/packages`
@@ -32,7 +38,8 @@ const cliOptions = yargs(hideBin(process.argv))
   .option('js-build', {
     type: 'boolean',
     default: true,
-    describe: 'Build JavaScript code (default). Use `--no-js-build` to skip building JavaScript',
+    describe:
+      'Build JavaScript code (default). Use `--no-js-build` to skip building JavaScript',
   })
   .option('project', {
     alias: 'p',
@@ -102,7 +109,9 @@ async function main(): Promise<void> {
         [`${NEXT_PACKAGES}/next-mdx`, NEXT_MDX_TARBALL],
         [`${NEXT_PACKAGES}/next-env`, NEXT_ENV_TARBALL],
         [`${NEXT_PACKAGES}/next-bundle-analyzer`, NEXT_BA_TARBALL],
-      ].map(([packagePath, tarballPath]) => packWithTar(packagePath, tarballPath)),
+      ].map(([packagePath, tarballPath]) =>
+        packWithTar(packagePath, tarballPath)
+      ),
     ])
   }
 
@@ -121,18 +130,28 @@ async function main(): Promise<void> {
     console.log('Add the following overrides to your workspace package.json:')
     console.log(`  "pnpm": {`)
     console.log(`    "overrides": {`)
-    console.log(`      "next": ${JSON.stringify(`file:${packageFiles.nextFile}`)},`)
-    console.log(`      "@next/mdx": ${JSON.stringify(`file:${packageFiles.nextMdxFile}`)},`)
-    console.log(`      "@next/env": ${JSON.stringify(`file:${packageFiles.nextEnvFile}`)},`)
+    console.log(
+      `      "next": ${JSON.stringify(`file:${packageFiles.nextFile}`)},`
+    )
+    console.log(
+      `      "@next/mdx": ${JSON.stringify(`file:${packageFiles.nextMdxFile}`)},`
+    )
+    console.log(
+      `      "@next/env": ${JSON.stringify(`file:${packageFiles.nextEnvFile}`)},`
+    )
     console.log(
       `      "@next/bundle-analyzer": ${JSON.stringify(`file:${packageFiles.nextBaFile}`)}`
     )
     console.log(`    }`)
     console.log(`  }`)
     console.log()
-    console.log('Add the following dependencies to your workspace package.json:')
+    console.log(
+      'Add the following dependencies to your workspace package.json:'
+    )
     console.log(`  "dependencies": {`)
-    console.log(`    "@next/swc": ${JSON.stringify(`file:${packageFiles.nextSwcFile}`)},`)
+    console.log(
+      `    "@next/swc": ${JSON.stringify(`file:${packageFiles.nextSwcFile}`)},`
+    )
     console.log(`    ...`)
     console.log(`  }`)
     console.log()
@@ -207,12 +226,10 @@ async function packNextSwcWithTar(compress: CompressOpt): Promise<void> {
       const format = compress === 'objcopy-zstd' ? 'zstd' : 'zlib'
       await Promise.all(
         (await nextSwcBinaries()).map((bin) =>
-          execAsyncWithOutput('Compressing debug symbols in next-swc native binary', [
-            'objcopy',
-            `--compress-debug-sections=${format}`,
-            '--',
-            bin,
-          ])
+          execAsyncWithOutput(
+            'Compressing debug symbols in next-swc native binary',
+            ['objcopy', `--compress-debug-sections=${format}`, '--', bin]
+          )
         )
       )
       await packWithTar(packagePath, NEXT_SWC_TARBALL)

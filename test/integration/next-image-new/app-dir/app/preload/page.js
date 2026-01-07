@@ -67,7 +67,14 @@ const Page = () => {
       />
       <p id="stubtext">This is the preload page</p>
       <div style={{ height: '1000vh' }} />
-      <Image preload id="belowthefold" src="/test.tiff" width="400" height="400" alt="" />
+      <Image
+        preload
+        id="belowthefold"
+        src="/test.tiff"
+        width="400"
+        height="400"
+        alt=""
+      />
     </div>
   )
 }

@@ -1,14 +1,11 @@
 {
   "name": "@next/mdx",
   "version": "16.1.1-canary.16",
+  "main": "index.js",
   "license": "MIT",
   "repository": {
     "url": "vercel/next.js",
     "directory": "packages/next-mdx"
-  },
-  "main": "index.js",
-  "dependencies": {
-    "source-map": "^0.7.0"
   },
   "peerDependencies": {
     "@mdx-js/loader": ">=0.15.0",
@@ -21,5 +18,8 @@
     "@mdx-js/react": {
       "optional": true
     }
+  },
+  "dependencies": {
+    "source-map": "^0.7.0"
   }
 }

@@ -67,7 +67,10 @@ function NodeJsIcon(props: any) {
           />
         </mask>
         <g mask="url(#nodejs_icon_mask_e)">
-          <path d="M1.22.002v13.992h11.894V.002H1.22z" fill="url(#nodejs_icon_linear_gradient_f)" />
+          <path
+            d="M1.22.002v13.992h11.894V.002H1.22z"
+            fill="url(#nodejs_icon_linear_gradient_f)"
+          />
         </g>
       </g>
       <defs>
@@ -180,7 +183,10 @@ function NodeJsDisabledIcon(props: any) {
           />
         </mask>
         <g mask="url(#nodejs_icon_mask_e)">
-          <path d="M1.222.001v13.992h11.893V0H1.222z" fill="url(#nodejs_icon_linear_gradient_f)" />
+          <path
+            d="M1.222.001v13.992h11.893V0H1.222z"
+            fill="url(#nodejs_icon_linear_gradient_f)"
+          />
         </g>
       </g>
       <defs>
@@ -232,38 +238,44 @@ export function NodejsInspectorButton({
 }: {
   defaultDevtoolsFrontendUrl: string | undefined
 }) {
-  const [devtoolsFrontendUrlState, attachDebuggerAction, isAttachingDebugger] = useActionState<
-    { status: 'fulfilled'; value: string | undefined } | { status: 'rejected'; reason: unknown }
-  >(
-    async () => {
-      try {
-        const response = await fetch('/__nextjs_attach-nodejs-inspector', {
-          method: 'POST',
-        })
-        if (!response.ok) {
-          throw new Error(`${response.status} ${response.statusText}: ${await response.text()}`)
+  const [devtoolsFrontendUrlState, attachDebuggerAction, isAttachingDebugger] =
+    useActionState<
+      | { status: 'fulfilled'; value: string | undefined }
+      | { status: 'rejected'; reason: unknown }
+    >(
+      async () => {
+        try {
+          const response = await fetch('/__nextjs_attach-nodejs-inspector', {
+            method: 'POST',
+          })
+          if (!response.ok) {
+            throw new Error(
+              `${response.status} ${response.statusText}: ${await response.text()}`
+            )
+          }
+          const devtoolsFrontendUrl = await response.json()
+          return {
+            status: 'fulfilled',
+            value: devtoolsFrontendUrl,
+          }
+        } catch (cause) {
+          return {
+            status: 'rejected',
+            reason: new Error(
+              'Failed to attach Node.js inspector: ' +
+                // TODO: Use `cause` property once Redbox supports displaying `cause`
+                String(cause)
+            ),
+          }
         }
-        const devtoolsFrontendUrl = await response.json()
-        return {
-          status: 'fulfilled',
-          value: devtoolsFrontendUrl,
-        }
-      } catch (cause) {
-        return {
-          status: 'rejected',
-          reason: new Error(
-            'Failed to attach Node.js inspector: ' +
-              // TODO: Use `cause` property once Redbox supports displaying `cause`
-              String(cause)
-          ),
-        }
-      }
-    },
-    { status: 'fulfilled', value: defaultDevtoolsFrontendUrl }
-  )
+      },
+      { status: 'fulfilled', value: defaultDevtoolsFrontendUrl }
+    )
 
   const devtoolsFrontendUrl =
-    devtoolsFrontendUrlState.status === 'fulfilled' ? devtoolsFrontendUrlState.value : undefined
+    devtoolsFrontendUrlState.status === 'fulfilled'
+      ? devtoolsFrontendUrlState.value
+      : undefined
 
   useEffect(() => {
     if (devtoolsFrontendUrlState.status === 'rejected') {
@@ -285,7 +297,11 @@ export function NodejsInspectorButton({
             : 'Attach Node.js inspector'
         }
       >
-        <NodeJsDisabledIcon className="error-overlay-toolbar-button-icon" width={14} height={14} />
+        <NodeJsDisabledIcon
+          className="error-overlay-toolbar-button-icon"
+          width={14}
+          height={14}
+        />
       </button>
     )
   }
@@ -296,7 +312,13 @@ export function NodejsInspectorButton({
       actionLabel={'Copy DevTools URL for Chrome'}
       successLabel="Copied"
       content={devtoolsFrontendUrl}
-      icon={<NodeJsIcon className="error-overlay-toolbar-button-icon" width={14} height={14} />}
+      icon={
+        <NodeJsIcon
+          className="error-overlay-toolbar-button-icon"
+          width={14}
+          height={14}
+        />
+      }
     />
   )
 }

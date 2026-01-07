@@ -1,6 +1,9 @@
 /* eslint-env jest */
 import { nextTestSetup } from 'e2e-utils'
-import { waitForRedbox, getRedboxDescription } from '../../../../lib/next-test-utils'
+import {
+  waitForRedbox,
+  getRedboxDescription,
+} from '../../../../lib/next-test-utils'
 
 describe('after() in generateStaticParams - thrown errors', () => {
   const { next, skipped, isNextDev } = nextTestSetup({
@@ -27,8 +30,12 @@ describe('after() in generateStaticParams - thrown errors', () => {
       expect(buildResult?.exitCode).toBe(1)
 
       const route = '/callback/[myParam]'
-      expect(next.cliOutput).toContain(`Failed to collect page data for ${route}`)
-      expect(next.cliOutput).toContain(`My cool error thrown inside after on route "${route}"`)
+      expect(next.cliOutput).toContain(
+        `Failed to collect page data for ${route}`
+      )
+      expect(next.cliOutput).toContain(
+        `My cool error thrown inside after on route "${route}"`
+      )
     })
   }
 })

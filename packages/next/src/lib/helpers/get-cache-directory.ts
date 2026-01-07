@@ -12,15 +12,20 @@ export function getCacheDirectory(fileDirectory: string, envPath?: string) {
   } else {
     let systemCacheDirectory
     if (process.platform === 'linux') {
-      systemCacheDirectory = process.env.XDG_CACHE_HOME || path.join(os.homedir(), '.cache')
+      systemCacheDirectory =
+        process.env.XDG_CACHE_HOME || path.join(os.homedir(), '.cache')
     } else if (process.platform === 'darwin') {
       systemCacheDirectory = path.join(os.homedir(), 'Library', 'Caches')
     } else if (process.platform === 'win32') {
-      systemCacheDirectory = process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local')
+      systemCacheDirectory =
+        process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local')
     } else {
       /// Attempt to use generic tmp location for un-handled platform
       if (!systemCacheDirectory) {
-        for (const dir of [path.join(os.homedir(), '.cache'), path.join(os.tmpdir())]) {
+        for (const dir of [
+          path.join(os.homedir(), '.cache'),
+          path.join(os.tmpdir()),
+        ]) {
           if (fs.existsSync(dir)) {
             systemCacheDirectory = dir
             break

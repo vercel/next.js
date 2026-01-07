@@ -13,7 +13,9 @@ module.exports = {
           new BundleAnalyzerPlugin({
             analyzerMode: 'static',
             openAnalyzer: true,
-            reportFilename: options.isServer ? '../analyze/server.html' : './analyze/client.html',
+            reportFilename: options.isServer
+              ? '../analyze/server.html'
+              : './analyze/client.html',
           })
         )
       config.plugins.push(

@@ -16,9 +16,8 @@ type ToReact<T> = {
 
 declare global {
   export namespace JSX {
-    interface IntrinsicElements extends ToReact<
-      IonicIntrinsicElements & IoniconsIntrinsicElements
-    > {
+    interface IntrinsicElements
+      extends ToReact<IonicIntrinsicElements & IoniconsIntrinsicElements> {
       key?: string;
     }
   }

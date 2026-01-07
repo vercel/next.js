@@ -69,9 +69,15 @@ import type { UnwrapPromise } from '../../lib/coalesced-function'
 import type { VersionInfo } from './parse-version-info'
 import { isAPIRoute } from '../../lib/is-api-route'
 import { getRouteLoaderEntry } from '../../build/webpack/loaders/next-route-loader'
-import { isInternalComponent, isNonRoutePagesPage } from '../../lib/is-internal-component'
+import {
+  isInternalComponent,
+  isNonRoutePagesPage,
+} from '../../lib/is-internal-component'
 import { RouteKind } from '../route-kind'
-import { HMR_MESSAGE_SENT_TO_BROWSER, type NextJsHotReloaderInterface } from './hot-reloader-types'
+import {
+  HMR_MESSAGE_SENT_TO_BROWSER,
+  type NextJsHotReloaderInterface,
+} from './hot-reloader-types'
 import type { HmrMessageSentToBrowser } from './hot-reloader-types'
 import type { WebpackError } from 'webpack'
 import { PAGE_TYPES } from '../../lib/page-types'
@@ -82,7 +88,10 @@ import { getDisableDevIndicatorMiddleware } from '../../next-devtools/server/dev
 import getWebpackBundler from '../../shared/lib/get-webpack-bundler'
 import { getRestartDevServerMiddleware } from '../../next-devtools/server/restart-dev-server-middleware'
 import { checkFileSystemCacheInvalidationAndCleanup } from '../../build/webpack/cache-invalidation'
-import { receiveBrowserLogsWebpack, handleClientFileLogs } from './browser-logs/receive-logs'
+import {
+  receiveBrowserLogsWebpack,
+  handleClientFileLogs,
+} from './browser-logs/receive-logs'
 import {
   devToolsConfigMiddleware,
   getDevToolsConfig,
@@ -96,7 +105,10 @@ import {
   setReactDebugChannelForHtmlRequest,
   type ReactDebugChannelForBrowser,
 } from './debug-channel'
-import { getVersionInfo, matchNextPageBundleRequest } from './hot-reloader-shared-utils'
+import {
+  getVersionInfo,
+  matchNextPageBundleRequest,
+} from './hot-reloader-shared-utils'
 import { getMcpMiddleware } from '../mcp/get-mcp-middleware'
 import { setStackFrameResolver } from '../mcp/tools/utils/format-errors'
 import { recordMcpTelemetry } from '../mcp/mcp-telemetry-tracker'
@@ -123,7 +135,10 @@ export async function renderScriptError(
   { verbose = true } = {}
 ): Promise<{ finished: true | undefined }> {
   // Asks CDNs and others to not to cache the errored page
-  res.setHeader('Cache-Control', 'no-cache, no-store, max-age=0, must-revalidate')
+  res.setHeader(
+    'Cache-Control',
+    'no-cache, no-store, max-age=0, must-revalidate'
+  )
 
   if ((error as any).code === 'ENOENT') {
     return { finished: undefined }
@@ -167,7 +182,10 @@ function addCorsSupport(req: IncomingMessage, res: ServerResponse) {
 }
 
 // Iteratively look up the issuer till it ends up at the root
-function findEntryModule(module: webpack.Module, compilation: webpack.Compilation): any {
+function findEntryModule(
+  module: webpack.Module,
+  compilation: webpack.Compilation
+): any {
   for (;;) {
     const issuer = compilation.moduleGraph.getIssuer(module)
     if (!issuer) return module
@@ -250,7 +268,9 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   public serverStats: webpack.Stats | null
   public edgeServerStats: webpack.Stats | null
   public multiCompiler?: webpack.MultiCompiler
-  public activeWebpackConfigs?: Array<UnwrapPromise<ReturnType<typeof getBaseWebpackConfig>>>
+  public activeWebpackConfigs?: Array<
+    UnwrapPromise<ReturnType<typeof getBaseWebpackConfig>>
+  >
 
   constructor(
     dir: string,
@@ -425,10 +445,15 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     req: IncomingMessage,
     _socket: Duplex,
     head: Buffer,
-    callback: (client: ws.WebSocket, context: { isLegacyClient: boolean }) => void
+    callback: (
+      client: ws.WebSocket,
+      context: { isLegacyClient: boolean }
+    ) => void
   ) {
     wsServer.handleUpgrade(req, req.socket, head, (client) => {
-      const htmlRequestId = req.url ? new URL(req.url, 'http://n').searchParams.get('id') : null
+      const htmlRequestId = req.url
+        ? new URL(req.url, 'http://n').searchParams.get('id')
+        : null
 
       if (!this.webpackHotMiddleware) {
         throw new InvariantError('Did not start HotReloaderWebpack.')
@@ -466,16 +491,21 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
             case 'span-end': {
               traceChild = {
                 name: payload.spanName,
-                startTime: BigInt(Math.floor(payload.startTime)) * MILLISECONDS_IN_NANOSECOND,
+                startTime:
+                  BigInt(Math.floor(payload.startTime)) *
+                  MILLISECONDS_IN_NANOSECOND,
                 attrs: payload.attributes,
-                endTime: BigInt(Math.floor(payload.endTime)) * MILLISECONDS_IN_NANOSECOND,
+                endTime:
+                  BigInt(Math.floor(payload.endTime)) *
+                  MILLISECONDS_IN_NANOSECOND,
               }
               break
             }
             case 'client-hmr-latency': {
               traceChild = {
                 name: payload.event,
-                startTime: BigInt(payload.startTime) * MILLISECONDS_IN_NANOSECOND,
+                startTime:
+                  BigInt(payload.startTime) * MILLISECONDS_IN_NANOSECOND,
                 endTime: BigInt(payload.endTime) * MILLISECONDS_IN_NANOSECOND,
                 attrs: {
                   updatedModules: payload.updatedModules.map((m: string) =>
@@ -533,7 +563,9 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
 
               let fileMessage = ''
               if (stackTrace) {
-                const file = /Aborted because (.+) is not accepted/.exec(stackTrace)?.[1]
+                const file = /Aborted because (.+) is not accepted/.exec(
+                  stackTrace
+                )?.[1]
                 if (file) {
                   // `file` is filepath in `pages/` but it can be a webpack url.
                   // If it's a webpack loader URL, it will include the app-pages layer
@@ -543,7 +575,9 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                     const modules = fileUrl.searchParams
                       .getAll('modules')
                       .map((filepath) => filepath.slice(cwd.length + 1))
-                      .filter((filepath) => !filepath.startsWith('node_modules'))
+                      .filter(
+                        (filepath) => !filepath.startsWith('node_modules')
+                      )
 
                     if (modules.length > 0) {
                       fileMessage = ` when ${modules.join(', ')} changed`
@@ -613,7 +647,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       })
 
       if (htmlRequestId) {
-        connectReactDebugChannelForHtmlRequest(htmlRequestId, this.sendToClient.bind(this, client))
+        connectReactDebugChannelForHtmlRequest(
+          htmlRequestId,
+          this.sendToClient.bind(this, client)
+        )
 
         sendSerializedErrorsToClientForHtmlRequest(
           htmlRequestId,
@@ -646,7 +683,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     return span
       .traceChild('clean')
       .traceAsyncFn(() =>
-        recursiveDeleteSyncWithAsyncRetries(join(this.dir, this.config.distDir), /^(cache|lock)/)
+        recursiveDeleteSyncWithAsyncRetries(
+          join(this.dir, this.config.distDir),
+          /^(cache|lock)/
+        )
       )
   }
 
@@ -663,7 +703,12 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
             .traceAsyncFn(() =>
               Promise.all([
                 findPageFile(this.pagesDir!, '/_app', pageExtensions, false),
-                findPageFile(this.pagesDir!, '/_document', pageExtensions, false),
+                findPageFile(
+                  this.pagesDir!,
+                  '/_document',
+                  pageExtensions,
+                  false
+                ),
               ])
             )
 
@@ -674,7 +719,9 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
             isDev: true,
             pageExtensions: this.config.pageExtensions,
             pagesType: PAGE_TYPES.PAGES,
-            pagePaths: pagePaths.filter((i: string | null): i is string => typeof i === 'string'),
+            pagePaths: pagePaths.filter(
+              (i: string | null): i is string => typeof i === 'string'
+            ),
             pagesDir: this.pagesDir,
             appDir: this.appDir,
             appDirOnly: Boolean(this.appDir && !this.pagesDir),
@@ -712,34 +759,36 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
         previewProps: this.previewProps,
       }
 
-      return webpackConfigSpan.traceChild('generate-webpack-config').traceAsyncFn(async () => {
-        const info = await loadProjectInfo({
-          dir: this.dir,
-          config: commonWebpackOptions.config,
-          dev: true,
+      return webpackConfigSpan
+        .traceChild('generate-webpack-config')
+        .traceAsyncFn(async () => {
+          const info = await loadProjectInfo({
+            dir: this.dir,
+            config: commonWebpackOptions.config,
+            dev: true,
+          })
+          return Promise.all([
+            // order is important here
+            getBaseWebpackConfig(this.dir, {
+              ...commonWebpackOptions,
+              compilerType: COMPILER_NAMES.client,
+              entrypoints: entrypoints.client,
+              ...info,
+            }),
+            getBaseWebpackConfig(this.dir, {
+              ...commonWebpackOptions,
+              compilerType: COMPILER_NAMES.server,
+              entrypoints: entrypoints.server,
+              ...info,
+            }),
+            getBaseWebpackConfig(this.dir, {
+              ...commonWebpackOptions,
+              compilerType: COMPILER_NAMES.edgeServer,
+              entrypoints: entrypoints.edgeServer,
+              ...info,
+            }),
+          ])
         })
-        return Promise.all([
-          // order is important here
-          getBaseWebpackConfig(this.dir, {
-            ...commonWebpackOptions,
-            compilerType: COMPILER_NAMES.client,
-            entrypoints: entrypoints.client,
-            ...info,
-          }),
-          getBaseWebpackConfig(this.dir, {
-            ...commonWebpackOptions,
-            compilerType: COMPILER_NAMES.server,
-            entrypoints: entrypoints.server,
-            ...info,
-          }),
-          getBaseWebpackConfig(this.dir, {
-            ...commonWebpackOptions,
-            compilerType: COMPILER_NAMES.edgeServer,
-            entrypoints: entrypoints.edgeServer,
-            ...info,
-          }),
-        ])
-      })
     })
   }
 
@@ -813,7 +862,9 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
 
   private async tracedGetVersionInfo(span: Span) {
     const versionInfoSpan = span.traceChild('get-version-info')
-    return versionInfoSpan.traceAsyncFn<VersionInfo>(async () => getVersionInfo())
+    return versionInfoSpan.traceAsyncFn<VersionInfo>(async () =>
+      getVersionInfo()
+    )
   }
 
   public async start(): Promise<void> {
@@ -828,9 +879,9 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
 
       let debugInfo
       try {
-        const debugInfoList = await fetch(`http://${inspectorURL.host}/json/list`).then((res) =>
-          res.json()
-        )
+        const debugInfoList = await fetch(
+          `http://${inspectorURL.host}/json/list`
+        ).then((res) => res.json())
         debugInfo = debugInfoList[0]
       } catch {}
       if (debugInfo) {
@@ -860,26 +911,33 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
         const entrypoints = await defaultEntry(...args)
         const isClientCompilation = config.name === COMPILER_NAMES.client
         const isNodeServerCompilation = config.name === COMPILER_NAMES.server
-        const isEdgeServerCompilation = config.name === COMPILER_NAMES.edgeServer
+        const isEdgeServerCompilation =
+          config.name === COMPILER_NAMES.edgeServer
 
         await Promise.all(
           Object.keys(entries).map(async (entryKey) => {
             const entryData = entries[entryKey]
             const { bundlePath, dispose } = entryData
 
-            const result = /^(client|server|edge-server)@(app|pages|root)@(.*)/g.exec(entryKey)
+            const result =
+              /^(client|server|edge-server)@(app|pages|root)@(.*)/g.exec(
+                entryKey
+              )
             const [, key /* pageType */, , page] = result! // this match should always happen
 
             if (key === COMPILER_NAMES.client && !isClientCompilation) return
-            if (key === COMPILER_NAMES.server && !isNodeServerCompilation) return
-            if (key === COMPILER_NAMES.edgeServer && !isEdgeServerCompilation) return
+            if (key === COMPILER_NAMES.server && !isNodeServerCompilation)
+              return
+            if (key === COMPILER_NAMES.edgeServer && !isEdgeServerCompilation)
+              return
 
             const isEntry = entryData.type === EntryTypes.ENTRY
             const isChildEntry = entryData.type === EntryTypes.CHILD_ENTRY
 
             // Check if the page was removed or disposed and remove it
             if (isEntry) {
-              const pageExists = !dispose && existsSync(entryData.absolutePagePath)
+              const pageExists =
+                !dispose && existsSync(entryData.absolutePagePath)
               if (!pageExists) {
                 delete entries[entryKey]
                 return
@@ -889,7 +947,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
             // For child entries, if it has an entry file and it's gone, remove it
             if (isChildEntry) {
               if (entryData.absoluteEntryFilePath) {
-                const pageExists = !dispose && existsSync(entryData.absoluteEntryFilePath)
+                const pageExists =
+                  !dispose && existsSync(entryData.absoluteEntryFilePath)
                 if (!pageExists) {
                   delete entries[entryKey]
                   return
@@ -916,9 +975,12 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                 })
               : undefined
 
-            const isServerComponent = isAppPath && staticInfo?.rsc !== RSC_MODULE_TYPES.client
+            const isServerComponent =
+              isAppPath && staticInfo?.rsc !== RSC_MODULE_TYPES.client
 
-            const pageType: PAGE_TYPES = entryData.bundlePath.startsWith('pages/')
+            const pageType: PAGE_TYPES = entryData.bundlePath.startsWith(
+              'pages/'
+            )
               ? PAGE_TYPES.PAGES
               : entryData.bundlePath.startsWith('app/')
                 ? PAGE_TYPES.APP
@@ -967,7 +1029,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                       appPaths: entryData.appPaths,
                       pagePath: posix.join(
                         APP_DIR_ALIAS,
-                        relative(this.appDir!, entryData.absolutePagePath).replace(/\\/g, '/')
+                        relative(
+                          this.appDir!,
+                          entryData.absolutePagePath
+                        ).replace(/\\/g, '/')
                       ),
                       appDir: this.appDir!,
                       pageExtensions: this.config.pageExtensions,
@@ -981,7 +1046,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                       middlewareConfig: Buffer.from(
                         JSON.stringify(staticInfo?.middleware || {})
                       ).toString('base64'),
-                      isGlobalNotFoundEnabled: this.config.experimental.globalNotFound
+                      isGlobalNotFoundEnabled: this.config.experimental
+                        .globalNotFound
                         ? true
                         : undefined,
                     }).import
@@ -1034,8 +1100,14 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                 // TODO-APP: verify if child entry should support.
                 if (!isNodeServerCompilation || !isEntry) return
                 entries[entryKey].status = BUILDING
-                let relativeRequest = relative(config.context!, entryData.absolutePagePath)
-                if (!isAbsolute(relativeRequest) && !relativeRequest.startsWith('../')) {
+                let relativeRequest = relative(
+                  config.context!,
+                  entryData.absolutePagePath
+                )
+                if (
+                  !isAbsolute(relativeRequest) &&
+                  !relativeRequest.startsWith('../')
+                ) {
                   relativeRequest = `./${relativeRequest}`
                 }
 
@@ -1075,7 +1147,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                     ? entryData.absolutePagePath
                     : posix.join(
                         APP_DIR_ALIAS,
-                        relative(this.appDir!, entryData.absolutePagePath).replace(/\\/g, '/')
+                        relative(
+                          this.appDir!,
+                          entryData.absolutePagePath
+                        ).replace(/\\/g, '/')
                       )
                   value = getAppEntry({
                     name: bundlePath,
@@ -1094,7 +1169,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                     middlewareConfig: Buffer.from(
                       JSON.stringify(staticInfo?.middleware || {})
                     ).toString('base64'),
-                    isGlobalNotFoundEnabled: this.config.experimental.globalNotFound
+                    isGlobalNotFoundEnabled: this.config.experimental
+                      .globalNotFound
                       ? true
                       : undefined,
                   })
@@ -1209,7 +1285,9 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     const prevEdgeServerPageHashes = new Map<string, string>()
     const prevCSSImportModuleHashes = new Map<string, string>()
 
-    const pageExtensionRegex = new RegExp(`\\.(?:${this.config.pageExtensions.join('|')})$`)
+    const pageExtensionRegex = new RegExp(
+      `\\.(?:${this.config.pageExtensions.join('|')})$`
+    )
 
     const trackPageChanges =
       (
@@ -1220,11 +1298,16 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       (stats: webpack.Compilation) => {
         try {
           stats.entrypoints.forEach((entry, key) => {
-            if (key.startsWith('pages/') || key.startsWith('app/') || isMiddlewareFilename(key)) {
+            if (
+              key.startsWith('pages/') ||
+              key.startsWith('app/') ||
+              isMiddlewareFilename(key)
+            ) {
               // TODO this doesn't handle on demand loaded chunks
               entry.chunks.forEach((chunk) => {
                 if (chunk.id === key) {
-                  const modsIterable: any = stats.chunkGraph.getChunkModulesIterable(chunk)
+                  const modsIterable: any =
+                    stats.chunkGraph.getChunkModulesIterable(chunk)
 
                   let hasCSSModuleChanges = false
                   let chunksHash = new StringXor()
@@ -1241,7 +1324,9 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                       // includes the source map in development which changes
                       // every time for both server and client so we calculate
                       // the hash without the source map for the page module
-                      const hash = (require('crypto') as typeof import('crypto'))
+                      const hash = (
+                        require('crypto') as typeof import('crypto')
+                      )
                         .createHash('sha1')
                         .update(mod.originalSource().buffer())
                         .digest()
@@ -1257,7 +1342,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                       chunksHash.add(hash)
                     } else {
                       // for non-pages we can use the module hash directly
-                      const hash = stats.chunkGraph.getModuleHash(mod, chunk.runtime)
+                      const hash = stats.chunkGraph.getModuleHash(
+                        mod,
+                        chunk.runtime
+                      )
 
                       if (
                         mod.layer === WEBPACK_LAYERS.reactServerComponents &&
@@ -1270,9 +1358,13 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
 
                       // Both CSS import changes from server and client
                       // components are tracked.
-                      if (key.startsWith('app/') && /\.(css|scss|sass)$/.test(mod.resource || '')) {
+                      if (
+                        key.startsWith('app/') &&
+                        /\.(css|scss|sass)$/.test(mod.resource || '')
+                      ) {
                         const resourceKey = mod.layer + ':' + mod.resource
-                        const prevHash = prevCSSImportModuleHashes.get(resourceKey)
+                        const prevHash =
+                          prevCSSImportModuleHashes.get(resourceKey)
                         if (prevHash && prevHash !== hash) {
                           hasCSSModuleChanges = true
                         }
@@ -1289,7 +1381,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                   pageHashMap.set(key, curHash)
 
                   if (serverComponentChangedItems) {
-                    const serverKey = WEBPACK_LAYERS.reactServerComponents + ':' + key
+                    const serverKey =
+                      WEBPACK_LAYERS.reactServerComponents + ':' + key
                     const prevServerHash = pageHashMap.get(serverKey)
                     const curServerHash = chunksHashServerLayer.toString()
                     if (prevServerHash && prevServerHash !== curServerHash) {
@@ -1316,7 +1409,11 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     )
     this.multiCompiler.compilers[1].hooks.emit.tap(
       'NextjsHotReloaderForServer',
-      trackPageChanges(prevServerPageHashes, changedServerPages, changedServerComponentPages)
+      trackPageChanges(
+        prevServerPageHashes,
+        changedServerPages,
+        changedServerComponentPages
+      )
     )
     this.multiCompiler.compilers[2].hooks.emit.tap(
       'NextjsHotReloaderForServer',
@@ -1328,79 +1425,97 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     )
 
     // This plugin watches for changes to _document.js and notifies the client side that it should reload the page
-    this.multiCompiler.compilers[1].hooks.failed.tap('NextjsHotReloaderForServer', (err: Error) => {
-      this.serverError = err
-      this.serverStats = null
-      this.serverChunkNames = undefined
-    })
-
-    this.multiCompiler.compilers[2].hooks.done.tap('NextjsHotReloaderForServer', (stats) => {
-      this.serverError = null
-      this.edgeServerStats = stats
-    })
-
-    this.multiCompiler.compilers[1].hooks.done.tap('NextjsHotReloaderForServer', (stats) => {
-      this.serverError = null
-      this.serverStats = stats
-
-      if (!this.pagesDir) {
-        return
+    this.multiCompiler.compilers[1].hooks.failed.tap(
+      'NextjsHotReloaderForServer',
+      (err: Error) => {
+        this.serverError = err
+        this.serverStats = null
+        this.serverChunkNames = undefined
       }
+    )
 
-      const { compilation } = stats
-
-      // We only watch `_document` for changes on the server compilation
-      // the rest of the files will be triggered by the client compilation
-      const documentChunk = compilation.namedChunks.get('pages/_document')
-      // If the document chunk can't be found we do nothing
-      if (!documentChunk) {
-        return
+    this.multiCompiler.compilers[2].hooks.done.tap(
+      'NextjsHotReloaderForServer',
+      (stats) => {
+        this.serverError = null
+        this.edgeServerStats = stats
       }
+    )
 
-      // Initial value
-      if (this.serverPrevDocumentHash === null) {
-        this.serverPrevDocumentHash = documentChunk.hash || null
-        return
-      }
+    this.multiCompiler.compilers[1].hooks.done.tap(
+      'NextjsHotReloaderForServer',
+      (stats) => {
+        this.serverError = null
+        this.serverStats = stats
 
-      // If _document.js didn't change we don't trigger a reload.
-      if (documentChunk.hash === this.serverPrevDocumentHash) {
-        return
-      }
-
-      // As document chunk will change if new app pages are joined,
-      // since react bundle is different it will effect the chunk hash.
-      // So we diff the chunk changes, if there's only new app page chunk joins,
-      // then we don't trigger a reload by checking pages/_document chunk change.
-      if (this.appDir) {
-        const chunkNames = new Set(compilation.namedChunks.keys())
-        const diffChunkNames = difference<string>(this.serverChunkNames || new Set(), chunkNames)
-
-        if (
-          diffChunkNames.length === 0 ||
-          diffChunkNames.every((chunkName) => chunkName.startsWith('app/'))
-        ) {
+        if (!this.pagesDir) {
           return
         }
-        this.serverChunkNames = chunkNames
+
+        const { compilation } = stats
+
+        // We only watch `_document` for changes on the server compilation
+        // the rest of the files will be triggered by the client compilation
+        const documentChunk = compilation.namedChunks.get('pages/_document')
+        // If the document chunk can't be found we do nothing
+        if (!documentChunk) {
+          return
+        }
+
+        // Initial value
+        if (this.serverPrevDocumentHash === null) {
+          this.serverPrevDocumentHash = documentChunk.hash || null
+          return
+        }
+
+        // If _document.js didn't change we don't trigger a reload.
+        if (documentChunk.hash === this.serverPrevDocumentHash) {
+          return
+        }
+
+        // As document chunk will change if new app pages are joined,
+        // since react bundle is different it will effect the chunk hash.
+        // So we diff the chunk changes, if there's only new app page chunk joins,
+        // then we don't trigger a reload by checking pages/_document chunk change.
+        if (this.appDir) {
+          const chunkNames = new Set(compilation.namedChunks.keys())
+          const diffChunkNames = difference<string>(
+            this.serverChunkNames || new Set(),
+            chunkNames
+          )
+
+          if (
+            diffChunkNames.length === 0 ||
+            diffChunkNames.every((chunkName) => chunkName.startsWith('app/'))
+          ) {
+            return
+          }
+          this.serverChunkNames = chunkNames
+        }
+
+        this.serverPrevDocumentHash = documentChunk.hash || null
+
+        // Notify reload to reload the page, as _document.js was changed (different hash)
+        this.send({
+          type: HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE,
+          data: '_document has changed',
+        })
       }
-
-      this.serverPrevDocumentHash = documentChunk.hash || null
-
-      // Notify reload to reload the page, as _document.js was changed (different hash)
-      this.send({
-        type: HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE,
-        data: '_document has changed',
-      })
-    })
+    )
 
     this.multiCompiler.hooks.done.tap('NextjsHotReloaderForServer', (stats) => {
       const reloadAfterInvalidation = this.reloadAfterInvalidation
       this.reloadAfterInvalidation = false
 
-      const serverOnlyChanges = difference<string>(changedServerPages, changedClientPages)
+      const serverOnlyChanges = difference<string>(
+        changedServerPages,
+        changedClientPages
+      )
 
-      const edgeServerOnlyChanges = difference<string>(changedEdgeServerPages, changedClientPages)
+      const edgeServerOnlyChanges = difference<string>(
+        changedEdgeServerPages,
+        changedClientPages
+      )
 
       const pageChanges = serverOnlyChanges
         .concat(edgeServerOnlyChanges)
@@ -1420,7 +1535,9 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       if (pageChanges.length > 0) {
         this.send({
           type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_ONLY_CHANGES,
-          pages: serverOnlyChanges.map((pg) => denormalizePagePath(pg.slice('pages'.length))),
+          pages: serverOnlyChanges.map((pg) =>
+            denormalizePagePath(pg.slice('pages'.length))
+          ),
         })
       }
 
@@ -1440,48 +1557,56 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       changedCSSImportPages.clear()
     })
 
-    this.multiCompiler.compilers[0].hooks.failed.tap('NextjsHotReloaderForClient', (err: Error) => {
-      this.clientError = err
-      this.clientStats = null
-    })
-    this.multiCompiler.compilers[0].hooks.done.tap('NextjsHotReloaderForClient', (stats) => {
-      this.clientError = null
-      this.clientStats = stats
-
-      const { compilation } = stats
-      const chunkNames = new Set(
-        [...compilation.namedChunks.keys()].filter((name) => !!getRouteFromEntrypoint(name))
-      )
-
-      if (this.prevChunkNames) {
-        // detect chunks which have to be replaced with a new template
-        // e.g, pages/index.js <-> pages/_error.js
-        const addedPages = diff(chunkNames, this.prevChunkNames!)
-        const removedPages = diff(this.prevChunkNames!, chunkNames)
-
-        if (addedPages.size > 0) {
-          for (const addedPage of addedPages) {
-            const page = getRouteFromEntrypoint(addedPage)
-            this.send({
-              type: HMR_MESSAGE_SENT_TO_BROWSER.ADDED_PAGE,
-              data: [page],
-            })
-          }
-        }
-
-        if (removedPages.size > 0) {
-          for (const removedPage of removedPages) {
-            const page = getRouteFromEntrypoint(removedPage)
-            this.send({
-              type: HMR_MESSAGE_SENT_TO_BROWSER.REMOVED_PAGE,
-              data: [page],
-            })
-          }
-        }
+    this.multiCompiler.compilers[0].hooks.failed.tap(
+      'NextjsHotReloaderForClient',
+      (err: Error) => {
+        this.clientError = err
+        this.clientStats = null
       }
+    )
+    this.multiCompiler.compilers[0].hooks.done.tap(
+      'NextjsHotReloaderForClient',
+      (stats) => {
+        this.clientError = null
+        this.clientStats = stats
 
-      this.prevChunkNames = chunkNames
-    })
+        const { compilation } = stats
+        const chunkNames = new Set(
+          [...compilation.namedChunks.keys()].filter(
+            (name) => !!getRouteFromEntrypoint(name)
+          )
+        )
+
+        if (this.prevChunkNames) {
+          // detect chunks which have to be replaced with a new template
+          // e.g, pages/index.js <-> pages/_error.js
+          const addedPages = diff(chunkNames, this.prevChunkNames!)
+          const removedPages = diff(this.prevChunkNames!, chunkNames)
+
+          if (addedPages.size > 0) {
+            for (const addedPage of addedPages) {
+              const page = getRouteFromEntrypoint(addedPage)
+              this.send({
+                type: HMR_MESSAGE_SENT_TO_BROWSER.ADDED_PAGE,
+                data: [page],
+              })
+            }
+          }
+
+          if (removedPages.size > 0) {
+            for (const removedPage of removedPages) {
+              const page = getRouteFromEntrypoint(removedPage)
+              this.send({
+                type: HMR_MESSAGE_SENT_TO_BROWSER.REMOVED_PAGE,
+                data: [page],
+              })
+            }
+          }
+        }
+
+        this.prevChunkNames = chunkNames
+      }
+    )
 
     this.webpackHotMiddleware = new WebpackHotMiddleware(
       this.multiCompiler.compilers,
@@ -1566,7 +1691,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
               pagesDir: this.pagesDir,
               appDir: this.appDir,
               sendHmrMessage: (message) => this.send(message),
-              getActiveConnectionCount: () => this.webpackHotMiddleware?.getClientCount() ?? 0,
+              getActiveConnectionCount: () =>
+                this.webpackHotMiddleware?.getClientCount() ?? 0,
               getDevServerUrl: () => process.env.__NEXT_PRIVATE_ORIGIN,
             }),
           ]
@@ -1638,7 +1764,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     this.webpackHotMiddleware!.publishToLegacyClients(message)
   }
 
-  public setCacheStatus(status: ServerCacheStatus, htmlRequestId: string): void {
+  public setCacheStatus(
+    status: ServerCacheStatus,
+    htmlRequestId: string
+  ): void {
     const client = this.webpackHotMiddleware?.getClient(htmlRequestId)
     if (client !== undefined) {
       this.sendToClient(client, {
@@ -1664,7 +1793,11 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       if (client) {
         // If the client is connected, we can connect the debug channel for
         // the HTML request immediately.
-        connectReactDebugChannel(htmlRequestId, debugChannel, this.sendToClient.bind(this, client))
+        connectReactDebugChannel(
+          htmlRequestId,
+          debugChannel,
+          this.sendToClient.bind(this, client)
+        )
       } else {
         // Otherwise, we'll do that when the client connects and just store
         // the debug channel.
@@ -1674,7 +1807,11 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       // The debug channel is for a subsequent request (e.g. client-side
       // navigation for server function call). If the client is not connected
       // anymore, we don't need to connect the debug channel.
-      connectReactDebugChannel(requestId, debugChannel, this.sendToClient.bind(this, client))
+      connectReactDebugChannel(
+        requestId,
+        debugChannel,
+        this.sendToClient.bind(this, client)
+      )
     }
   }
 
@@ -1686,7 +1823,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
 
     if (client) {
       // If the client is connected, we can send the errors immediately.
-      sendSerializedErrorsToClient(errorsRscStream, this.sendToClient.bind(this, client))
+      sendSerializedErrorsToClient(
+        errorsRscStream,
+        this.sendToClient.bind(this, client)
+      )
     } else {
       // Otherwise, store the errors stream so that we can send it when the
       // client connects.
@@ -1718,7 +1858,9 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
         if (page !== '/_error' && BLOCKED_PAGES.indexOf(page) !== -1) {
           return
         }
-        const error = clientOnly ? this.clientError : this.serverError || this.clientError
+        const error = clientOnly
+          ? this.clientError
+          : this.serverError || this.clientError
         if (error) {
           throw error
         }

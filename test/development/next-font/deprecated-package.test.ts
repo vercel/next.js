@@ -17,7 +17,10 @@ describe('Deprecated @next/font warning', () => {
   it('should warn if @next/font is in deps', async () => {
     await next.start()
     await check(() => next.cliOutput, /ready/i)
-    await check(() => next.cliOutput, new RegExp('please use the built-in `next/font` instead'))
+    await check(
+      () => next.cliOutput,
+      new RegExp('please use the built-in `next/font` instead')
+    )
 
     await next.stop()
     await next.clean()
@@ -31,7 +34,9 @@ describe('Deprecated @next/font warning', () => {
 
     await next.start()
     await check(() => next.cliOutput, /ready/i)
-    expect(next.cliOutput).not.toInclude('please use the built-in `next/font` instead')
+    expect(next.cliOutput).not.toInclude(
+      'please use the built-in `next/font` instead'
+    )
 
     await next.stop()
     await next.clean()

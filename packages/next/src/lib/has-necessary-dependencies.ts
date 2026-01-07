@@ -38,7 +38,9 @@ export function hasNecessaryDependencies(
 
   for (const p of requiredPackages) {
     try {
-      const pkgPath = realpathSync(resolveFrom(baseDir, `${p.pkg}/package.json`))
+      const pkgPath = realpathSync(
+        resolveFrom(baseDir, `${p.pkg}/package.json`)
+      )
       const pkgDir = dirname(pkgPath)
 
       resolutions.set(join(p.pkg, 'package.json'), pkgPath)

@@ -17,7 +17,9 @@ export default async function handler(req, res) {
       break
     case 'POST':
       try {
-        const pet = await Pet.create(req.body) /* create a new model in the database */
+        const pet = await Pet.create(
+          req.body
+        ) /* create a new model in the database */
         res.status(201).json({ success: true, data: pet })
       } catch (error) {
         res.status(400).json({ success: false })

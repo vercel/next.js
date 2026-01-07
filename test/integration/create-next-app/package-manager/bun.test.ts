@@ -18,7 +18,9 @@ describe('create-next-app with package manager bun', () => {
       throw new Error('This test needs to be run with `node run-tests.js`.')
     }
 
-    const pkgPaths = new Map<string, string>(JSON.parse(process.env.NEXT_TEST_PKG_PATHS))
+    const pkgPaths = new Map<string, string>(
+      JSON.parse(process.env.NEXT_TEST_PKG_PATHS)
+    )
 
     nextTgzFilename = pkgPaths.get('next')
 
@@ -116,10 +118,14 @@ describe('create-next-app with package manager bun', () => {
   it('should use bun when user-agent is bun with example', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'user-agent-bun-with-example'
-      const res = await run([projectName, '--example', FULL_EXAMPLE_PATH], nextTgzFilename, {
-        cwd,
-        env: { npm_config_user_agent: 'bun' },
-      })
+      const res = await run(
+        [projectName, '--example', FULL_EXAMPLE_PATH],
+        nextTgzFilename,
+        {
+          cwd,
+          env: { npm_config_user_agent: 'bun' },
+        }
+      )
 
       expect(res.exitCode).toBe(0)
       projectFilesShouldExist({

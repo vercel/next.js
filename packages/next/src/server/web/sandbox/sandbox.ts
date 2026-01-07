@@ -1,7 +1,11 @@
 import type { NodejsRequestData, FetchEventResult } from '../types'
 import type { EdgeFunctionDefinition } from '../../../build/webpack/plugins/middleware-plugin'
 import type { EdgeRuntime } from 'next/dist/compiled/edge-runtime'
-import { getModuleContext, requestStore, edgeSandboxNextRequestContext } from './context'
+import {
+  getModuleContext,
+  requestStore,
+  edgeSandboxNextRequestContext,
+} from './context'
 import { requestToBodyStream } from '../../body-streams'
 import type { ServerComponentsHmrCache } from '../../response-cache'
 import {
@@ -16,7 +20,11 @@ import type { EdgeHandler } from '../adapter'
 
 export const ErrorSource = Symbol('SandboxError')
 
-const FORBIDDEN_HEADERS = ['content-length', 'content-encoding', 'transfer-encoding']
+const FORBIDDEN_HEADERS = [
+  'content-length',
+  'content-encoding',
+  'transfer-encoding',
+]
 
 interface RunnerFnParams {
   name: string
@@ -79,11 +87,13 @@ export async function getRuntimeContext(
 
   // expose router server context for access to dev handlers like
   // logErrorWithOriginalStack
-  ;(runtime.context.globalThis as any as typeof routerServerGlobal)[RouterServerContextSymbol] =
-    routerServerGlobal[RouterServerContextSymbol]
+  ;(runtime.context.globalThis as any as typeof routerServerGlobal)[
+    RouterServerContextSymbol
+  ] = routerServerGlobal[RouterServerContextSymbol]
 
   if (params.serverComponentsHmrCache) {
-    runtime.context.globalThis.__serverComponentsHmrCache = params.serverComponentsHmrCache
+    runtime.context.globalThis.__serverComponentsHmrCache =
+      params.serverComponentsHmrCache
   }
 
   for (const paramPath of params.paths) {
@@ -95,8 +105,9 @@ export async function getRuntimeContext(
 export const run = withTaggedErrors(async function runWithTaggedErrors(params) {
   const runtime = await getRuntimeContext(params)
 
-  const edgeFunction: EdgeHandler = (await runtime.context._ENTRIES[`middleware_${params.name}`])
-    .default
+  const edgeFunction: EdgeHandler = (
+    await runtime.context._ENTRIES[`middleware_${params.name}`]
+  ).default
 
   const cloned = !['HEAD', 'GET'].includes(params.request.method)
     ? params.request.body?.cloneBodyStream()
@@ -127,7 +138,9 @@ export const run = withTaggedErrors(async function runWithTaggedErrors(params) {
         result = await edgeFunction({
           request: {
             ...params.request,
-            body: cloned && requestToBodyStream(runtime.context, KUint8Array, cloned),
+            body:
+              cloned &&
+              requestToBodyStream(runtime.context, KUint8Array, cloned),
           },
         })
         for (const headerName of FORBIDDEN_HEADERS) {

@@ -42,7 +42,10 @@ export async function searchPosts(query, preview, limit = 20, offset = 0) {
 }
 
 export function getAllPostsForHome(preview) {
-  return searchPosts({ "data.slug": { $exists: true }, "data.author": { $exists: true } }, preview);
+  return searchPosts(
+    { "data.slug": { $exists: true }, "data.author": { $exists: true } },
+    preview,
+  );
 }
 
 export async function getPost(mongoQuery, preview) {

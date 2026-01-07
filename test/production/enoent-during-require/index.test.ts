@@ -45,7 +45,9 @@ describe('ENOENT during require', () => {
       await renderViaHTTP(next.url, '/')
       console.error(next.cliOutput)
 
-      return next.cliOutput.includes('non-existent-folder') ? 'success' : next.cliOutput
+      return next.cliOutput.includes('non-existent-folder')
+        ? 'success'
+        : next.cliOutput
     }, 'success')
 
     expect(next.cliOutput).not.toContain('Cannot destructure property')

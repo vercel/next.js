@@ -29,7 +29,10 @@ type TurbopackMappingContext = {
 export type MappingContext = WebpackMappingContext | TurbopackMappingContext
 
 // TODO: handle server vs browser error source mapping correctly
-export async function mapFramesUsingBundler(frames: StackFrame[], ctx: MappingContext) {
+export async function mapFramesUsingBundler(
+  frames: StackFrame[],
+  ctx: MappingContext
+) {
   switch (ctx.bundler) {
     case 'webpack': {
       const {
@@ -54,7 +57,8 @@ export async function mapFramesUsingBundler(frames: StackFrame[], ctx: MappingCo
       return res
     }
     case 'turbopack': {
-      const { project, projectPath, isServer, isEdgeServer, isAppDirectory } = ctx
+      const { project, projectPath, isServer, isEdgeServer, isAppDirectory } =
+        ctx
       const res = await getOriginalStackFramesTurbopack({
         project,
         projectPath,
@@ -83,9 +87,12 @@ function preprocessStackTrace(stackTrace: string, distDir?: string): string {
         const [, prefix, location] = match
 
         if (location.startsWith('_next/static/') && distDir) {
-          const normalizedDistDir = distDir.replace(/\\/g, '/').replace(/\/$/, '')
+          const normalizedDistDir = distDir
+            .replace(/\\/g, '/')
+            .replace(/\/$/, '')
 
-          const absolutePath = normalizedDistDir + '/' + location.slice('_next/'.length)
+          const absolutePath =
+            normalizedDistDir + '/' + location.slice('_next/'.length)
           const fileUrl = `file://${path.resolve(absolutePath)}`
 
           return `${prefix} (${fileUrl})`
@@ -97,7 +104,9 @@ function preprocessStackTrace(stackTrace: string, distDir?: string): string {
     .join('\n')
 }
 
-const cache = new LRUCache<Awaited<ReturnType<typeof getSourceMappedStackFramesInternal>>>(25)
+const cache = new LRUCache<
+  Awaited<ReturnType<typeof getSourceMappedStackFramesInternal>>
+>(25)
 async function getSourceMappedStackFramesInternal(
   stackTrace: string,
   ctx: MappingContext,
@@ -154,7 +163,9 @@ async function getSourceMappedStackFramesInternal(
         }
       })
 
-    const allIgnored = processedFrames.every((frame) => frame.kind === 'ignored')
+    const allIgnored = processedFrames.every(
+      (frame) => frame.kind === 'ignored'
+    )
 
     // we want to handle **all** ignored vs all/some rejected differently
     // if all are ignored we should show no frames
@@ -165,7 +176,9 @@ async function getSourceMappedStackFramesInternal(
       }
     }
 
-    const filteredFrames = processedFrames.filter((frame) => frame.kind !== 'ignored')
+    const filteredFrames = processedFrames.filter(
+      (frame) => frame.kind !== 'ignored'
+    )
 
     if (filteredFrames.length === 0) {
       return {
@@ -174,8 +187,12 @@ async function getSourceMappedStackFramesInternal(
       }
     }
 
-    const stackOutput = filteredFrames.map((frame) => frame.frameText).join('\n')
-    const firstFrameCode = filteredFrames.find((frame) => frame.codeFrame)?.codeFrame
+    const stackOutput = filteredFrames
+      .map((frame) => frame.frameText)
+      .join('\n')
+    const firstFrameCode = filteredFrames.find(
+      (frame) => frame.codeFrame
+    )?.codeFrame
 
     if (firstFrameCode) {
       return {
@@ -213,7 +230,12 @@ export async function getSourceMappedStackFrames(
     return cacheItem
   }
 
-  const result = await getSourceMappedStackFramesInternal(stackTrace, ctx, distDir, ignore)
+  const result = await getSourceMappedStackFramesInternal(
+    stackTrace,
+    ctx,
+    distDir,
+    ignore
+  )
   cache.set(cacheKey, result)
   return result
 }

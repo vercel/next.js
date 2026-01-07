@@ -52,7 +52,8 @@ function Item({
       <button
         className={clsx(
           "ring-1 ring-gray-200 rounded-full w-8 min-w-[2rem] h-8 mr-4 focus:outline-none focus:ring focus:ring-blue-300",
-          (isReleased || hasVoted) && "bg-green-100 cursor-not-allowed ring-green-300",
+          (isReleased || hasVoted) &&
+            "bg-green-100 cursor-not-allowed ring-green-300",
           pending && "bg-gray-100 cursor-not-allowed",
         )}
         disabled={isReleased || hasVoted || pending}
@@ -61,7 +62,9 @@ function Item({
         {isReleased ? "✅" : "👍"}
       </button>
       <h3 className="text font-semibold w-full text-left">{feature.title}</h3>
-      <div className="bg-gray-200 text-gray-700 text-sm rounded-xl px-2 ml-2">{feature.score}</div>
+      <div className="bg-gray-200 text-gray-700 text-sm rounded-xl px-2 ml-2">
+        {feature.score}
+      </div>
     </form>
   );
 }
@@ -85,7 +88,9 @@ export default function FeatureForm({ features }: { features: Feature[] }) {
       } else {
         return {
           features: [
-            ...state.features.filter((f) => f.id !== newState.updatedFeature!.id),
+            ...state.features.filter(
+              (f) => f.id !== newState.updatedFeature!.id,
+            ),
             newState.updatedFeature,
           ] as Feature[],
           pending: newState.pending,

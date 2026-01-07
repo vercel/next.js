@@ -1,5 +1,8 @@
 import { GetServerSidePropsContext, GetStaticPropsContext } from "next";
-import { DictionaryService, LayoutService } from "@sitecore-jss/sitecore-jss-nextjs";
+import {
+  DictionaryService,
+  LayoutService,
+} from "@sitecore-jss/sitecore-jss-nextjs";
 import { dictionaryServiceFactory } from "lib/dictionary-service-factory";
 import { layoutServiceFactory } from "lib/layout-service-factory";
 import { SitecorePageProps } from "lib/page-props";
@@ -17,7 +20,10 @@ class NormalModePlugin implements Plugin {
     this.layoutServices = new Map<string, LayoutService>();
   }
 
-  async exec(props: SitecorePageProps, context: GetServerSidePropsContext | GetStaticPropsContext) {
+  async exec(
+    props: SitecorePageProps,
+    context: GetServerSidePropsContext | GetStaticPropsContext,
+  ) {
     if (context.preview) return props;
 
     // Get normalized Sitecore item path
@@ -31,8 +37,12 @@ class NormalModePlugin implements Plugin {
     props.layoutData = await layoutService.fetchLayoutData(
       path,
       props.locale,
-      isServerSidePropsContext(context) ? (context as GetServerSidePropsContext).req : undefined,
-      isServerSidePropsContext(context) ? (context as GetServerSidePropsContext).res : undefined,
+      isServerSidePropsContext(context)
+        ? (context as GetServerSidePropsContext).req
+        : undefined,
+      isServerSidePropsContext(context)
+        ? (context as GetServerSidePropsContext).res
+        : undefined,
     );
 
     if (!props.layoutData.sitecore.route) {
@@ -45,7 +55,9 @@ class NormalModePlugin implements Plugin {
 
     // Fetch dictionary data
     const dictionaryService = this.getDictionaryService(props.site.name);
-    props.dictionary = await dictionaryService.fetchDictionaryData(props.locale);
+    props.dictionary = await dictionaryService.fetchDictionaryData(
+      props.locale,
+    );
 
     return props;
   }

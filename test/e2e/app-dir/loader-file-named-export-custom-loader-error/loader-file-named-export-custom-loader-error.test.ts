@@ -38,7 +38,9 @@ describe('Error test if the loader file export a named function', () => {
 
     ;(isNextStart ? describe : describe.skip)('build and start only', () => {
       it('should show the build error', async () => {
-        await expect(next.start()).rejects.toThrow('next build failed with code/signal 1')
+        await expect(next.start()).rejects.toThrow(
+          'next build failed with code/signal 1'
+        )
         expect(next.cliOutput).toContain(errorMessage)
       })
     })

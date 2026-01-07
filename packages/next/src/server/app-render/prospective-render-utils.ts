@@ -38,7 +38,8 @@ export function printDebugThrownValueForProspectiveRender(
           
 Original Error: ${message}`
         )
-        error.stack = 'Error: ' + error.message + originalErrorStack.slice(stackStart)
+        error.stack =
+          'Error: ' + error.message + originalErrorStack.slice(stackStart)
         console.error(error)
         return
       }

@@ -1,15 +1,20 @@
 const cacheExports = {
-  unstable_cache: require('next/dist/server/web/spec-extension/unstable-cache').unstable_cache,
+  unstable_cache: require('next/dist/server/web/spec-extension/unstable-cache')
+    .unstable_cache,
 
-  updateTag: require('next/dist/server/web/spec-extension/revalidate').updateTag,
+  updateTag: require('next/dist/server/web/spec-extension/revalidate')
+    .updateTag,
 
-  revalidateTag: require('next/dist/server/web/spec-extension/revalidate').revalidateTag,
-  revalidatePath: require('next/dist/server/web/spec-extension/revalidate').revalidatePath,
+  revalidateTag: require('next/dist/server/web/spec-extension/revalidate')
+    .revalidateTag,
+  revalidatePath: require('next/dist/server/web/spec-extension/revalidate')
+    .revalidatePath,
 
   refresh: require('next/dist/server/web/spec-extension/revalidate').refresh,
 
-  unstable_noStore: require('next/dist/server/web/spec-extension/unstable-no-store')
-    .unstable_noStore,
+  unstable_noStore:
+    require('next/dist/server/web/spec-extension/unstable-no-store')
+      .unstable_noStore,
   cacheLife: require('next/dist/server/use-cache/cache-life').cacheLife,
   cacheTag: require('next/dist/server/use-cache/cache-tag').cacheTag,
 }

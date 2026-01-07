@@ -1,7 +1,9 @@
 // shared named exports
 import { a, b, c, d, e } from '../../components/shared-exports'
 // client default, named exports
-import DefaultArrow, { Named as ClientNamed } from '../../components/client-exports'
+import DefaultArrow, {
+  Named as ClientNamed,
+} from '../../components/client-exports'
 
 import { Cjs as CjsShared } from '../../components/cjs-server'
 import { Cjs as CjsClient } from '../../components/cjs-client'

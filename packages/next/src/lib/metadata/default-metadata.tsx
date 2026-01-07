@@ -1,4 +1,7 @@
-import type { ResolvedMetadata, ResolvedViewport } from './types/metadata-interface'
+import type {
+  ResolvedMetadata,
+  ResolvedViewport,
+} from './types/metadata-interface'
 
 export function createDefaultViewport(): ResolvedViewport {
   return {

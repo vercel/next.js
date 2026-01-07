@@ -2,12 +2,12 @@
   "name": "next-app",
   "version": "0.1.0",
   "private": true,
+  "dependencies": {
+    "internal-pkg": "link:./internal-pkg"
+  },
   "exports": {
     ".": {
       "default": "./index.js"
     }
-  },
-  "dependencies": {
-    "internal-pkg": "link:./internal-pkg"
   }
 }

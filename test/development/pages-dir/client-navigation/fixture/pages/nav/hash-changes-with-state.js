@@ -29,7 +29,8 @@ export default class SelfReload extends Component {
       {
         shallow: true,
         historyCount: window.history.state?.options?.historyCount,
-        shallowHistoryCount: (window.history.state?.options?.shallowHistoryCount || 0) + 1,
+        shallowHistoryCount:
+          (window.history.state?.options?.shallowHistoryCount || 0) + 1,
       }
     )
   }
@@ -43,14 +44,19 @@ export default class SelfReload extends Component {
         </a>
         <div id="history-count">
           HISTORY COUNT:{' '}
-          {typeof window !== 'undefined' && window.history.state?.options?.historyCount}
+          {typeof window !== 'undefined' &&
+            window.history.state?.options?.historyCount}
         </div>
-        <a id="increment-shallow-history-count" onClick={this.handleAShallowClick}>
+        <a
+          id="increment-shallow-history-count"
+          onClick={this.handleAShallowClick}
+        >
           Increment shallow history count
         </a>
         <div id="shallow-history-count">
           SHALLOW HISTORY COUNT:{' '}
-          {typeof window !== 'undefined' && window.history.state?.options?.shallowHistoryCount}
+          {typeof window !== 'undefined' &&
+            window.history.state?.options?.shallowHistoryCount}
         </div>
       </div>
     )

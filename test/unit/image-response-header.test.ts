@@ -6,7 +6,11 @@ describe('new ImageResponse()', () => {
   const exactHeader = 'public, max-age=3600, s-maxage=3600'
   it('should merge object literal headers correctly', () => {
     const res = new ImageResponse(
-      React.createElement('div', { style: { width: 10, height: 10 } }, 'ImageResponse'),
+      React.createElement(
+        'div',
+        { style: { width: 10, height: 10 } },
+        'ImageResponse'
+      ),
       {
         width: 10,
         height: 10,
@@ -20,7 +24,11 @@ describe('new ImageResponse()', () => {
   })
   it('should merge Headers instance correctly', () => {
     const res = new ImageResponse(
-      React.createElement('div', { style: { width: 10, height: 10 } }, 'ImageResponse'),
+      React.createElement(
+        'div',
+        { style: { width: 10, height: 10 } },
+        'ImageResponse'
+      ),
       {
         width: 10,
         height: 10,
@@ -34,7 +42,11 @@ describe('new ImageResponse()', () => {
   })
   it('should have default Cache-Control header', () => {
     const res = new ImageResponse(
-      React.createElement('div', { style: { width: 10, height: 10 } }, 'ImageResponse'),
+      React.createElement(
+        'div',
+        { style: { width: 10, height: 10 } },
+        'ImageResponse'
+      ),
       {
         width: 10,
         height: 10,

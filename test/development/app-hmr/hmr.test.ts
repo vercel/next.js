@@ -76,7 +76,9 @@ describe(`app-dir-hmr`, () => {
           expect(await browser.elementByCss('p').text()).toBe('ipad')
         }, 5000 /* ms */)
 
-        expect(await browser.eval('window.__TEST_NO_RELOAD === true')).toBe(true)
+        expect(await browser.eval('window.__TEST_NO_RELOAD === true')).toBe(
+          true
+        )
       })
 
       // ensure it's restored back to "mac" before the next test

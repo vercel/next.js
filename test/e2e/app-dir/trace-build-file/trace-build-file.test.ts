@@ -191,8 +191,12 @@ describe('trace-build-file', () => {
           for (const event of events) {
             if (event.parentId) {
               // Should have a valid parent
-              expect(traceStructure.eventsById.has(event.parentId.toString())).toBe(true)
-              const parent = traceStructure.eventsById.get(event.parentId.toString())
+              expect(
+                traceStructure.eventsById.has(event.parentId.toString())
+              ).toBe(true)
+              const parent = traceStructure.eventsById.get(
+                event.parentId.toString()
+              )
 
               // Parent should either be next-build or another valid event
               expect(parent).toBeDefined()

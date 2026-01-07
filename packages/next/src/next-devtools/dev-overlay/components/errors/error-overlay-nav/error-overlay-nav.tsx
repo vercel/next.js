@@ -35,7 +35,10 @@ export function ErrorOverlayNav({
       </Notch>
       {versionInfo && (
         <Notch side="right">
-          <VersionStalenessInfo versionInfo={versionInfo} bundlerName={bundlerName} />
+          <VersionStalenessInfo
+            versionInfo={versionInfo}
+            bundlerName={bundlerName}
+          />
         </Notch>
       )}
     </div>

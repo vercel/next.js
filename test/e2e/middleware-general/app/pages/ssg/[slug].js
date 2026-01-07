@@ -4,7 +4,9 @@ import { useState } from 'react'
 
 export default function Page(props) {
   const router = useRouter()
-  const [asPath, setAsPath] = useState(router.isReady ? router.asPath : router.href)
+  const [asPath, setAsPath] = useState(
+    router.isReady ? router.asPath : router.href
+  )
 
   if (!props.params) {
     console.error('props', props)

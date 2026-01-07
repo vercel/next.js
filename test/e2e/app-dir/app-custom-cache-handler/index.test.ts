@@ -2,7 +2,10 @@ import { type NextInstance, nextTestSetup, FileRef } from 'e2e-utils'
 import { check } from 'next-test-utils'
 import fs from 'fs'
 
-const originalNextConfig = fs.readFileSync(__dirname + '/next.config.js', 'utf8')
+const originalNextConfig = fs.readFileSync(
+  __dirname + '/next.config.js',
+  'utf8'
+)
 
 function runTests(
   exportType: string,
@@ -61,7 +64,10 @@ describe('app-dir - custom-cache-handler - esm', () => {
     files: {
       app: new FileRef(__dirname + '/app'),
       'cache-handler-esm.js': new FileRef(__dirname + '/cache-handler-esm.js'),
-      'next.config.js': originalNextConfig.replace('module.exports = ', 'export default '),
+      'next.config.js': originalNextConfig.replace(
+        'module.exports = ',
+        'export default '
+      ),
     },
     skipDeployment: true,
     packageJson: {

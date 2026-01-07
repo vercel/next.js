@@ -12,7 +12,9 @@ export async function resetProject({
   console.log(`Resetting project ${teamId}/${projectName}`)
   // TODO: error/bail if existing deployments are pending
   const deleteRes = await fetch(
-    `https://vercel.com/api/v8/projects/${encodeURIComponent(projectName)}?teamId=${teamId}`,
+    `https://vercel.com/api/v8/projects/${encodeURIComponent(
+      projectName
+    )}?teamId=${teamId}`,
     {
       method: 'DELETE',
       headers: {
@@ -23,25 +25,32 @@ export async function resetProject({
 
   if (!deleteRes.ok && deleteRes.status !== 404) {
     throw new Error(
-      `Failed to delete project got status ${deleteRes.status}, ${await deleteRes.text()}`
+      `Failed to delete project got status ${
+        deleteRes.status
+      }, ${await deleteRes.text()}`
     )
   }
 
-  const createRes = await fetch(`https://vercel.com/api/v8/projects?teamId=${teamId}`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      Authorization: `Bearer ${TEST_TOKEN}`,
-    },
-    body: JSON.stringify({
-      framework: 'nextjs',
-      name: projectName,
-    }),
-  })
+  const createRes = await fetch(
+    `https://vercel.com/api/v8/projects?teamId=${teamId}`,
+    {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        Authorization: `Bearer ${TEST_TOKEN}`,
+      },
+      body: JSON.stringify({
+        framework: 'nextjs',
+        name: projectName,
+      }),
+    }
+  )
 
   if (!createRes.ok) {
     throw new Error(
-      `Failed to create project. Got status: ${createRes.status}, ${await createRes.text()}`
+      `Failed to create project. Got status: ${
+        createRes.status
+      }, ${await createRes.text()}`
     )
   }
 
@@ -55,7 +64,9 @@ export async function resetProject({
     console.log('Disabling deployment protection...')
 
     const patchRes = await fetch(
-      `https://vercel.com/api/v8/projects/${encodeURIComponent(projectId)}?teamId=${teamId}`,
+      `https://vercel.com/api/v8/projects/${encodeURIComponent(
+        projectId
+      )}?teamId=${teamId}`,
       {
         method: 'PATCH',
         headers: {
@@ -77,5 +88,7 @@ export async function resetProject({
     }
   }
 
-  console.log(`Successfully created fresh Vercel project ${teamId}/${projectName}`)
+  console.log(
+    `Successfully created fresh Vercel project ${teamId}/${projectName}`
+  )
 }

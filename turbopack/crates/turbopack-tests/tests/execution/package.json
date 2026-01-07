@@ -1,6 +1,6 @@
 {
-  "name": "execution-test",
   "private": true,
+  "name": "execution-test",
   "dependencies": {
     "expect": "29.5.0",
     "jest-circus": "29.5.0",

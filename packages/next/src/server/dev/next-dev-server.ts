@@ -44,7 +44,10 @@ import { traceGlobals } from '../../trace/shared'
 import { findPageFile } from '../lib/find-page-file'
 import { getFormattedNodeOptionsWithoutInspect } from '../lib/utils'
 import { withCoalescedInvoke } from '../../lib/coalesced-function'
-import { loadDefaultErrorComponents, type ErrorModule } from '../load-default-error-components'
+import {
+  loadDefaultErrorComponents,
+  type ErrorModule,
+} from '../load-default-error-components'
 import { DecodeError, MiddlewareNotFoundError } from '../../shared/lib/utils'
 import * as Log from '../../build/output/log'
 import isError, { getProperError } from '../../lib/is-error'
@@ -126,9 +129,13 @@ export default class DevServer extends Server {
   private actualInstrumentationHookFile?: string
   private middleware?: MiddlewareRoutingItem
   private readonly bundlerService: DevBundlerService
-  private staticPathsCache: LRUCache<UnwrapPromise<ReturnType<DevServer['getStaticPaths']>>>
+  private staticPathsCache: LRUCache<
+    UnwrapPromise<ReturnType<DevServer['getStaticPaths']>>
+  >
   private startServerSpan: Span
-  private readonly serverComponentsHmrCache: ServerComponentsHmrCache | undefined
+  private readonly serverComponentsHmrCache:
+    | ServerComponentsHmrCache
+    | undefined
 
   protected staticPathsWorker?: { [key: string]: any } & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
@@ -171,7 +178,8 @@ export default class DevServer extends Server {
     super({ ...options, dev: true })
     this.nextConfig = options.conf
     this.bundlerService = options.bundlerService
-    this.startServerSpan = options.startServerSpan ?? trace('start-next-dev-server')
+    this.startServerSpan =
+      options.startServerSpan ?? trace('start-next-dev-server')
     this.renderOpts.dev = true
     this.renderOpts.ErrorDebug = ReactDevOverlay
     this.staticPathsCache = new LRUCache(
@@ -193,9 +201,12 @@ export default class DevServer extends Server {
         this.nextConfig.cacheMaxMemorySize,
         defaultConfig.cacheMaxMemorySize
       )
-      this.serverComponentsHmrCache = new LRUCache(hmrCacheSize, function length(value) {
-        return JSON.stringify(value).length
-      })
+      this.serverComponentsHmrCache = new LRUCache(
+        hmrCacheSize,
+        function length(value) {
+          return JSON.stringify(value).length
+        }
+      )
     }
   }
 
@@ -217,7 +228,11 @@ export default class DevServer extends Server {
       },
     }
 
-    const matchers = new DevRouteMatcherManager(super.getRouteMatchers(), ensurer, this.dir)
+    const matchers = new DevRouteMatcherManager(
+      super.getRouteMatchers(),
+      ensurer,
+      this.dir
+    )
     const extensions = this.nextConfig.pageExtensions
     const extensionsExpression = new RegExp(`\\.(?:${extensions.join('|')})$`)
 
@@ -231,10 +246,20 @@ export default class DevServer extends Server {
       )
 
       matchers.push(
-        new DevPagesRouteMatcherProvider(pagesDir, extensions, fileReader, this.localeNormalizer)
+        new DevPagesRouteMatcherProvider(
+          pagesDir,
+          extensions,
+          fileReader,
+          this.localeNormalizer
+        )
       )
       matchers.push(
-        new DevPagesAPIRouteMatcherProvider(pagesDir, extensions, fileReader, this.localeNormalizer)
+        new DevPagesAPIRouteMatcherProvider(
+          pagesDir,
+          extensions,
+          fileReader,
+          this.localeNormalizer
+        )
       )
     }
 
@@ -252,9 +277,21 @@ export default class DevServer extends Server {
 
       // TODO: Improve passing of "is running with Turbopack"
       const isTurbopack = !!process.env.TURBOPACK
-      matchers.push(new DevAppPageRouteMatcherProvider(appDir, extensions, fileReader, isTurbopack))
       matchers.push(
-        new DevAppRouteRouteMatcherProvider(appDir, extensions, fileReader, isTurbopack)
+        new DevAppPageRouteMatcherProvider(
+          appDir,
+          extensions,
+          fileReader,
+          isTurbopack
+        )
+      )
+      matchers.push(
+        new DevAppRouteRouteMatcherProvider(
+          appDir,
+          extensions,
+          fileReader,
+          isTurbopack
+        )
       )
     }
 
@@ -273,7 +310,8 @@ export default class DevServer extends Server {
     // Creating a new instance would overwrite the existing one, causing any telemetry
     // events recorded to the original instance to be lost during cleanup/flush.
     const existingTelemetry = traceGlobals.get('telemetry')
-    const telemetry = existingTelemetry || new Telemetry({ distDir: this.distDir })
+    const telemetry =
+      existingTelemetry || new Telemetry({ distDir: this.distDir })
 
     await super.prepareImpl()
     await this.matchers.reload()
@@ -318,9 +356,12 @@ export default class DevServer extends Server {
     }
 
     if (isMiddlewareFile(normalizedPath)) {
-      return findPageFile(this.dir, normalizedPath, this.nextConfig.pageExtensions, false).then(
-        Boolean
-      )
+      return findPageFile(
+        this.dir,
+        normalizedPath,
+        this.nextConfig.pageExtensions,
+        false
+      ).then(Boolean)
     }
 
     let appFile: string | null = null
@@ -458,7 +499,8 @@ export default class DevServer extends Server {
           const requestStart = process.hrtime.bigint()
           addRequestMeta(req, 'devRequestTimingStart', requestStart)
         }
-        const isMiddlewareRequest = getRequestMeta(req, 'middlewareInvoke') ?? false
+        const isMiddlewareRequest =
+          getRequestMeta(req, 'middlewareInvoke') ?? false
 
         if (!isMiddlewareRequest) {
           response.originalResponse.once('close', () => {
@@ -579,13 +621,21 @@ export default class DevServer extends Server {
   }
 
   protected getPagesManifest(): PagesManifest | undefined {
-    return NodeManifestLoader.require(pathJoin(this.serverDistDir, PAGES_MANIFEST)) ?? undefined
+    return (
+      NodeManifestLoader.require(
+        pathJoin(this.serverDistDir, PAGES_MANIFEST)
+      ) ?? undefined
+    )
   }
 
   protected getAppPathsManifest(): PagesManifest | undefined {
     if (!this.enabledDirectories.app) return undefined
 
-    return NodeManifestLoader.require(pathJoin(this.serverDistDir, APP_PATHS_MANIFEST)) ?? undefined
+    return (
+      NodeManifestLoader.require(
+        pathJoin(this.serverDistDir, APP_PATHS_MANIFEST)
+      ) ?? undefined
+    )
   }
 
   protected getinterceptionRoutePatterns(): RegExp[] {
@@ -609,7 +659,9 @@ export default class DevServer extends Server {
     // We need to populate the match
     // field as it isn't serializable
     if (this.middleware?.match === null) {
-      this.middleware.match = getMiddlewareRouteMatcher(this.middleware.matchers || [])
+      this.middleware.match = getMiddlewareRouteMatcher(
+        this.middleware.matchers || []
+      )
     }
     return this.middleware
   }
@@ -644,7 +696,10 @@ export default class DevServer extends Server {
         .catch(() => false))
     ) {
       try {
-        instrumentationModule = await getInstrumentationModule(this.dir, this.nextConfig.distDir)
+        instrumentationModule = await getInstrumentationModule(
+          this.dir,
+          this.nextConfig.distDir
+        )
       } catch (err: any) {
         err.message = `An error occurred while loading instrumentation hook: ${err.message}`
         throw err
@@ -752,7 +807,10 @@ export default class DevServer extends Server {
     }
     const result = this.staticPathsCache.get(pathname)
 
-    const nextInvoke = withCoalescedInvoke(__getStaticPaths)(`staticPaths-${pathname}`, [])
+    const nextInvoke = withCoalescedInvoke(__getStaticPaths)(
+      `staticPaths-${pathname}`,
+      []
+    )
       .then(async (res) => {
         const { prerenderedRoutes, fallbackMode: fallback } = res.value
 
@@ -764,7 +822,9 @@ export default class DevServer extends Server {
               )
             }
 
-            if (!prerenderedRoutes.some((item) => item.pathname === urlPathname)) {
+            if (
+              !prerenderedRoutes.some((item) => item.pathname === urlPathname)
+            ) {
               throw new Error(
                 `Page "${page}" is missing param "${pathname}" in "generateStaticParams()", which is required with "output: export" config.`
               )
@@ -823,7 +883,8 @@ export default class DevServer extends Server {
             pathJoin(this.distDir, PRERENDER_MANIFEST),
             'utf8'
           )
-          const existingManifest: PrerenderManifest = JSON.parse(rawExistingManifest)
+          const existingManifest: PrerenderManifest =
+            JSON.parse(rawExistingManifest)
           for (const staticPath of value.staticPaths || []) {
             existingManifest.routes[staticPath] = {} as any
           }
@@ -850,7 +911,10 @@ export default class DevServer extends Server {
           const updatedManifest = JSON.stringify(existingManifest)
 
           if (updatedManifest !== rawExistingManifest) {
-            await fs.promises.writeFile(pathJoin(this.distDir, PRERENDER_MANIFEST), updatedManifest)
+            await fs.promises.writeFile(
+              pathJoin(this.distDir, PRERENDER_MANIFEST),
+              updatedManifest
+            )
           }
         }
         this.staticPathsCache.set(pathname, value)

@@ -7,7 +7,13 @@ export type PackageManager = 'npm' | 'pnpm' | 'yarn' | 'bun'
 export function getPkgManager(baseDir: string): PackageManager {
   try {
     const lockFile = findUp.sync(
-      ['package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'bun.lock', 'bun.lockb'],
+      [
+        'package-lock.json',
+        'yarn.lock',
+        'pnpm-lock.yaml',
+        'bun.lock',
+        'bun.lockb',
+      ],
       { cwd: baseDir }
     )
     if (lockFile) {
@@ -32,7 +38,10 @@ export function getPkgManager(baseDir: string): PackageManager {
   }
 }
 
-export function uninstallPackage(packageToUninstall: string, pkgManager?: PackageManager) {
+export function uninstallPackage(
+  packageToUninstall: string,
+  pkgManager?: PackageManager
+) {
   pkgManager ??= getPkgManager(process.cwd())
   if (!pkgManager) throw new Error('Failed to find package manager')
 
@@ -47,9 +56,10 @@ export function uninstallPackage(packageToUninstall: string, pkgManager?: Packag
       shell: true,
     })
   } catch (error) {
-    throw new Error(`Failed to uninstall "${packageToUninstall}". Please uninstall it manually.`, {
-      cause: error,
-    })
+    throw new Error(
+      `Failed to uninstall "${packageToUninstall}". Please uninstall it manually.`,
+      { cause: error }
+    )
   }
 }
 
@@ -77,7 +87,11 @@ export function installPackages(
 ) {
   if (packageToInstall.length === 0) return
 
-  const { packageManager = getPkgManager(process.cwd()), silent = false, dev = false } = options
+  const {
+    packageManager = getPkgManager(process.cwd()),
+    silent = false,
+    dev = false,
+  } = options
 
   if (!packageManager) throw new Error('Failed to find package manager')
 
@@ -95,13 +109,17 @@ export function installPackages(
       shell: true,
     })
   } catch (error) {
-    throw new Error(`Failed to install "${packageToInstall}". Please install it manually.`, {
-      cause: error,
-    })
+    throw new Error(
+      `Failed to install "${packageToInstall}". Please install it manually.`,
+      { cause: error }
+    )
   }
 }
 
-export function runInstallation(packageManager: PackageManager, options: { cwd: string }) {
+export function runInstallation(
+  packageManager: PackageManager,
+  options: { cwd: string }
+) {
   try {
     execa.sync(packageManager, ['install'], {
       cwd: options.cwd,

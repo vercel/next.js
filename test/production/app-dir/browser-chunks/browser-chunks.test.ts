@@ -43,7 +43,9 @@ describe('browser-chunks', () => {
         `${message}\nIf any of these modules are allowed to be included in production chunks, check the import and render conditions.`
       )
 
-      throw new Error('Did not expect any dev overlay modules in browser chunks.\n' + message)
+      throw new Error(
+        'Did not expect any dev overlay modules in browser chunks.\n' + message
+      )
     }
   })
 
@@ -55,7 +57,9 @@ describe('browser-chunks', () => {
     if (heavyDependencies.length > 0) {
       const message = `Found the following heavy dependencies:\n  ${heavyDependencies.join('\n  ')}`
 
-      throw new Error('Did not expect any heavy dependencies in browser chunks.\n' + message)
+      throw new Error(
+        'Did not expect any heavy dependencies in browser chunks.\n' + message
+      )
     }
   })
 })

@@ -3,7 +3,11 @@ import type { ParsedUrlQuery } from 'querystring'
 import { getRouteMatcher } from './route-matcher'
 import { getRouteRegex } from './route-regex'
 
-export function interpolateAs(route: string, asPathname: string, query: ParsedUrlQuery) {
+export function interpolateAs(
+  route: string,
+  asPathname: string,
+  query: ParsedUrlQuery
+) {
   let interpolatedRoute = ''
 
   const dynamicRegex = getRouteRegex(route)

@@ -5,7 +5,8 @@ export const fetchCache = 'force-no-store'
 export default function Page() {
   return (
     <div>
-      This page uses `export const runtime`, `export const dynamic`, and `export const fetchCache`.
+      This page uses `export const runtime`, `export const dynamic`, and `export
+      const fetchCache`.
     </div>
   )
 }

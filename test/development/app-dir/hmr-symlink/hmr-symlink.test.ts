@@ -12,7 +12,9 @@ describe('HMR symlinks', () => {
   it('tracks updates to symlinked target', async () => {
     const browser = await next.browser('/symlink-link')
 
-    expect(await browser.elementByCss('h1').text()).toBe('This is the symlink target')
+    expect(await browser.elementByCss('h1').text()).toBe(
+      'This is the symlink target'
+    )
 
     await next.patchFile(
       'app/symlink-target/page.tsx',
@@ -20,7 +22,9 @@ describe('HMR symlinks', () => {
       async () => {
         await retry(async () => {
           await waitForNoRedbox(browser)
-          expect(await browser.elementByCss('h1').text()).toBe('This is the updated symlink target')
+          expect(await browser.elementByCss('h1').text()).toBe(
+            'This is the updated symlink target'
+          )
         })
       }
     )
@@ -33,16 +37,26 @@ describe('HMR symlinks', () => {
     async () => {
       const browser = await next.browser('/symlink-link')
 
-      expect(await browser.elementByCss('h1').text()).toBe('This is the symlink target')
+      expect(await browser.elementByCss('h1').text()).toBe(
+        'This is the symlink target'
+      )
 
       try {
-        await next.symlink('app/symlink-target2/page.tsx', 'app/symlink-link/page.tsx')
+        await next.symlink(
+          'app/symlink-target2/page.tsx',
+          'app/symlink-link/page.tsx'
+        )
         await retry(async () => {
           await waitForNoRedbox(browser)
-          expect(await browser.elementByCss('h1').text()).toBe('This is the second symlink target')
+          expect(await browser.elementByCss('h1').text()).toBe(
+            'This is the second symlink target'
+          )
         })
       } finally {
-        await next.symlink('app/symlink-target/page.tsx', 'app/symlink-link/page.tsx')
+        await next.symlink(
+          'app/symlink-target/page.tsx',
+          'app/symlink-link/page.tsx'
+        )
       }
     }
   )
@@ -53,16 +67,26 @@ describe('HMR symlinks', () => {
     async () => {
       const browser = await next.browser('/symlink-chain')
 
-      expect(await browser.elementByCss('h1').text()).toBe('This is the symlink target')
+      expect(await browser.elementByCss('h1').text()).toBe(
+        'This is the symlink target'
+      )
 
       try {
-        await next.symlink('app/symlink-target2/page.tsx', 'app/symlink-link/page.tsx')
+        await next.symlink(
+          'app/symlink-target2/page.tsx',
+          'app/symlink-link/page.tsx'
+        )
         await retry(async () => {
           await waitForNoRedbox(browser)
-          expect(await browser.elementByCss('h1').text()).toBe('This is the second symlink target')
+          expect(await browser.elementByCss('h1').text()).toBe(
+            'This is the second symlink target'
+          )
         })
       } finally {
-        await next.symlink('app/symlink-target/page.tsx', 'app/symlink-link/page.tsx')
+        await next.symlink(
+          'app/symlink-target/page.tsx',
+          'app/symlink-link/page.tsx'
+        )
       }
     }
   )

@@ -85,10 +85,15 @@ export async function getAllPosts(isDraftMode: boolean): Promise<any[]> {
   return extractPostEntries(entries);
 }
 
-export async function getPostAndMorePosts(slug: string, preview: boolean): Promise<any> {
+export async function getPostAndMorePosts(
+  slug: string,
+  preview: boolean,
+): Promise<any> {
   const entry = await fetchGraphQL(
     `query {
-      postCollection(where: { slug: "${slug}" }, preview: ${preview ? "true" : "false"}, limit: 1) {
+      postCollection(where: { slug: "${slug}" }, preview: ${
+        preview ? "true" : "false"
+      }, limit: 1) {
         items {
           ${POST_GRAPHQL_FIELDS}
         }

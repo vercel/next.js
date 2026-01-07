@@ -11,7 +11,10 @@ export default function Home() {
     <main dir={isRTL ? "rtl" : "ltr"}>
       <Trans
         i18nKey="home:title"
-        components={[<h1 className="title" />, <a href="https://nextjs.org">Next.js!</a>]}
+        components={[
+          <h1 className="title" />,
+          <a href="https://nextjs.org">Next.js!</a>,
+        ]}
       />
 
       <p className="description">

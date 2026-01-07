@@ -201,7 +201,10 @@ export type HmrMessageSentToBrowser =
   | RequestPageMetadataMessage
   | CacheIndicatorMessage
 
-export type BinaryHmrMessageSentToBrowser = Extract<HmrMessageSentToBrowser, { type: number }>
+export type BinaryHmrMessageSentToBrowser = Extract<
+  HmrMessageSentToBrowser,
+  { type: number }
+>
 
 export type TurbopackMessageSentToBrowser =
   | {
@@ -218,7 +221,11 @@ export interface NextJsHotReloaderInterface {
   activeWebpackConfigs?: Array<Awaited<ReturnType<typeof getBaseWebpackConfig>>>
   serverStats: webpack.Stats | null
   edgeServerStats: webpack.Stats | null
-  run(req: IncomingMessage, res: ServerResponse, parsedUrl: UrlObject): Promise<{ finished?: true }>
+  run(
+    req: IncomingMessage,
+    res: ServerResponse,
+    parsedUrl: UrlObject
+  ): Promise<{ finished?: true }>
 
   setHmrServerError(error: Error | null): void
   clearHmrServerError(): void
@@ -235,13 +242,19 @@ export interface NextJsHotReloaderInterface {
     htmlRequestId: string,
     requestId: string
   ): void
-  sendErrorsToBrowser(errorsRscStream: ReadableStream<Uint8Array>, htmlRequestId: string): void
+  sendErrorsToBrowser(
+    errorsRscStream: ReadableStream<Uint8Array>,
+    htmlRequestId: string
+  ): void
   getCompilationErrors(page: string): Promise<any[]>
   onHMR(
     req: IncomingMessage,
     _socket: Duplex,
     head: Buffer,
-    onUpgrade: (client: { send(data: string): void }, context: { isLegacyClient: boolean }) => void
+    onUpgrade: (
+      client: { send(data: string): void },
+      context: { isLegacyClient: boolean }
+    ) => void
   ): void
   invalidate({
     reloadAfterInvalidation,

@@ -7,6 +7,8 @@ describe('useSelectedLayoutSegment(s) in Pages Router', () => {
     const browser = await next.browser('/')
 
     await browser.waitForElementByCss('#hello-world')
-    expect(await browser.elementByCss('#hello-world').text()).toBe('Hello World')
+    expect(await browser.elementByCss('#hello-world').text()).toBe(
+      'Hello World'
+    )
   })
 })

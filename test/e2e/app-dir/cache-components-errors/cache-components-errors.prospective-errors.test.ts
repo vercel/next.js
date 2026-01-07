@@ -80,7 +80,9 @@ describe(`Cache Components Prospective Render Errors - Debug Build`, () => {
     })
   } else {
     it('should log an error when the prospective render errors with an Error in a Page', async () => {
-      expect(next.cliOutput).toContain('Error: Route /error errored during the prospective render.')
+      expect(next.cliOutput).toContain(
+        'Error: Route /error errored during the prospective render.'
+      )
       expect(next.cliOutput).toContain('Original Error: BOOM (Error)')
       if (!isTurbopack) {
         // In turbopack we don't yet support disabling minification so this assertion won't work
@@ -89,17 +91,23 @@ describe(`Cache Components Prospective Render Errors - Debug Build`, () => {
     })
 
     it('should log an error when the prospective render errors with a string in a Page', async () => {
-      expect(next.cliOutput).toContain('Route /string errored during the prospective render.')
+      expect(next.cliOutput).toContain(
+        'Route /string errored during the prospective render.'
+      )
       expect(next.cliOutput).toContain('Original Message: BOOM (string)')
     })
 
     it('should log an error when the prospective render errors with null in a Page', async () => {
-      expect(next.cliOutput).toContain('Route /null errored during the prospective render.')
+      expect(next.cliOutput).toContain(
+        'Route /null errored during the prospective render.'
+      )
       expect(next.cliOutput).toContain('\nnull\n')
     })
 
     it('should log an error when the prospective render errors with an object in a Page', async () => {
-      expect(next.cliOutput).toContain('Route /object errored during the prospective render.')
+      expect(next.cliOutput).toContain(
+        'Route /object errored during the prospective render.'
+      )
       expect(next.cliOutput).toContain("{ boom: '(Object)' }")
     })
 
@@ -220,17 +228,23 @@ describe(`Cache Components Prospective Render Errors - Standard Build`, () => {
     })
 
     it('should not log an error when the prospective render errors with a string in a Page', async () => {
-      expect(next.cliOutput).not.toContain('Route /string errored during the prospective render.')
+      expect(next.cliOutput).not.toContain(
+        'Route /string errored during the prospective render.'
+      )
       expect(next.cliOutput).not.toContain('Original Message: BOOM (string)')
     })
 
     it('should not log an error when the prospective render errors with null in a Page', async () => {
-      expect(next.cliOutput).not.toContain('Route /null errored during the prospective render.')
+      expect(next.cliOutput).not.toContain(
+        'Route /null errored during the prospective render.'
+      )
       expect(next.cliOutput).not.toContain('\nnull\n')
     })
 
     it('should not log an error when the prospective render errors with an object in a Page', async () => {
-      expect(next.cliOutput).not.toContain('Route /object errored during the prospective render.')
+      expect(next.cliOutput).not.toContain(
+        'Route /object errored during the prospective render.'
+      )
       expect(next.cliOutput).not.toContain("{ boom: '(Object)' }")
     })
 
@@ -246,7 +260,9 @@ describe(`Cache Components Prospective Render Errors - Standard Build`, () => {
       expect(next.cliOutput).not.toContain(
         'Route /routes/string errored during the prospective render.'
       )
-      expect(next.cliOutput).not.toContain('Original Message: BOOM (string route)')
+      expect(next.cliOutput).not.toContain(
+        'Original Message: BOOM (string route)'
+      )
     })
 
     it('should not log an error when the prospective render errors with undefined in a route', async () => {

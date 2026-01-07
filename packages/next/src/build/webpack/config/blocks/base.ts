@@ -16,7 +16,10 @@ function shouldIgnorePath(modulePath: string): boolean {
   )
 }
 
-export const base = curry(function base(ctx: ConfigurationContext, config: webpack.Configuration) {
+export const base = curry(function base(
+  ctx: ConfigurationContext,
+  config: webpack.Configuration
+) {
   config.mode = ctx.isDevelopment ? 'development' : 'production'
   config.name = ctx.isServer
     ? ctx.isEdgeRuntime

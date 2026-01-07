@@ -1,5 +1,9 @@
 import '../../server/web/globals'
-import { adapter, type EdgeHandler, type NextRequestHint } from '../../server/web/adapter'
+import {
+  adapter,
+  type EdgeHandler,
+  type NextRequestHint,
+} from '../../server/web/adapter'
 import { IncrementalCache } from '../../server/lib/incremental-cache'
 import { initializeCacheHandlers } from '../../server/use-cache/handlers'
 
@@ -13,7 +17,9 @@ declare const incrementalCacheHandler: any
 // OPTIONAL_IMPORT:* as userland500Page
 // OPTIONAL_IMPORT:incrementalCacheHandler
 
-import RouteModule, { type PagesRouteHandlerContext } from '../../server/route-modules/pages/module'
+import RouteModule, {
+  type PagesRouteHandlerContext,
+} from '../../server/route-modules/pages/module'
 import { WebNextRequest, WebNextResponse } from '../../server/base-http/web'
 
 import type { NextFetchEvent } from '../../server/web/spec-extension/fetch-event'
@@ -78,7 +84,10 @@ const error500Mod = userland500Page
 
 export const ComponentMod = pageMod
 
-async function requestHandler(req: NextRequestHint, _event: NextFetchEvent): Promise<Response> {
+async function requestHandler(
+  req: NextRequestHint,
+  _event: NextFetchEvent
+): Promise<Response> {
   let srcPage = 'VAR_DEFINITION_PATHNAME'
 
   const relativeUrl = `${req.nextUrl.pathname}${req.nextUrl.search}`
@@ -163,7 +172,9 @@ async function requestHandler(req: NextRequestHint, _event: NextFetchEvent): Pro
   }
   let finalStatus = 200
 
-  const renderResultToResponse = (result: RenderResult<RenderResultMetadata>): Response => {
+  const renderResultToResponse = (
+    result: RenderResult<RenderResultMetadata>
+  ): Response => {
     // Handle null responses
     if (result.isNull) {
       finalStatus = 500
@@ -198,7 +209,10 @@ async function requestHandler(req: NextRequestHint, _event: NextFetchEvent): Pro
     // Handle static response
     if (!result.isDynamic) {
       const body = result.toUnchunkedString()
-      headers.set('Content-Length', String(new TextEncoder().encode(body).length))
+      headers.set(
+        'Content-Length',
+        String(new TextEncoder().encode(body).length)
+      )
       return new Response(body, {
         status: finalStatus,
         headers,
@@ -254,7 +268,10 @@ async function requestHandler(req: NextRequestHint, _event: NextFetchEvent): Pro
             return
           }
 
-          if (rootSpanAttributes.get('next.span_type') !== BaseServerSpan.handleRequest) {
+          if (
+            rootSpanAttributes.get('next.span_type') !==
+            BaseServerSpan.handleRequest
+          ) {
             console.warn(
               `Unexpected root span type '${rootSpanAttributes.get(
                 'next.span_type'

@@ -7,7 +7,11 @@ type Data = {
   error?: string;
 };
 
-async function handleGet(req: NextApiRequest, res: NextApiResponse<Data>, itemId: number) {
+async function handleGet(
+  req: NextApiRequest,
+  res: NextApiResponse<Data>,
+  itemId: number,
+) {
   try {
     const itemsCollection = tigrisDb.getCollection<TodoItem>(TodoItem);
     const item = await itemsCollection.findOne({ filter: { id: itemId } });
@@ -34,10 +38,15 @@ async function handlePut(req: NextApiRequest, res: NextApiResponse<Data>) {
   }
 }
 
-async function handleDelete(req: NextApiRequest, res: NextApiResponse<Data>, itemId: number) {
+async function handleDelete(
+  req: NextApiRequest,
+  res: NextApiResponse<Data>,
+  itemId: number,
+) {
   try {
     const itemsCollection = tigrisDb.getCollection<TodoItem>(TodoItem);
-    const status = (await itemsCollection.deleteOne({ filter: { id: itemId } })).status;
+    const status = (await itemsCollection.deleteOne({ filter: { id: itemId } }))
+      .status;
     if (status === "deleted") {
       res.status(200).json({});
     } else {
@@ -52,7 +61,10 @@ async function handleDelete(req: NextApiRequest, res: NextApiResponse<Data>, ite
 // GET /api/item/[id] -- gets item from collection where id = [id]
 // PUT /api/item/[id] {ToDoItem} -- updates the item in collection where id = [id]
 // DELETE /api/item/[id] -- deletes the item in collection where id = [id]
-export default async function handler(req: NextApiRequest, res: NextApiResponse<Data>) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse<Data>,
+) {
   const { id } = req.query;
   switch (req.method) {
     case "GET":

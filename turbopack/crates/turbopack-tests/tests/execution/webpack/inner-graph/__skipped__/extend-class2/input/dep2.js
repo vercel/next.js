@@ -25,7 +25,9 @@ export const exportsInfoForE = __webpack_exports_info__.getE.used
 export const exportsInfoForF = __webpack_exports_info__.getF.used
 export const exportsInfoForFoo = __webpack_exports_info__.Foo.used
 export const exportsInfoForPure = __webpack_exports_info__.Pure.used
-export const exportsInfoForDateFormatter = __webpack_exports_info__.DateFormatter.used
+export const exportsInfoForDateFormatter =
+  __webpack_exports_info__.DateFormatter.used
 export const exportsInfoForConditionalExpression =
   __webpack_exports_info__.ConditionalExpression.used
-export const exportsInfoForLogicalExpression = __webpack_exports_info__.LogicalExpression.used
+export const exportsInfoForLogicalExpression =
+  __webpack_exports_info__.LogicalExpression.used

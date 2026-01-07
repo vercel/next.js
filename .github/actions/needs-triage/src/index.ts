@@ -15,7 +15,8 @@ const labelsRequireUserInput = [
 ]
 
 function assertNotNullable<T>(value: T): asserts value is NonNullable<T> {
-  if (value === undefined || value === null) throw new Error('Unexpected nullable value')
+  if (value === undefined || value === null)
+    throw new Error('Unexpected nullable value')
 }
 
 async function run() {

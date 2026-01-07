@@ -31,9 +31,21 @@ export const getOrCreateMcpServer = (options: McpServerOptions) => {
     version: '0.2.0',
   })
 
-  registerGetProjectMetadataTool(mcpServer, options.projectPath, options.getDevServerUrl)
-  registerGetErrorsTool(mcpServer, options.sendHmrMessage, options.getActiveConnectionCount)
-  registerGetPageMetadataTool(mcpServer, options.sendHmrMessage, options.getActiveConnectionCount)
+  registerGetProjectMetadataTool(
+    mcpServer,
+    options.projectPath,
+    options.getDevServerUrl
+  )
+  registerGetErrorsTool(
+    mcpServer,
+    options.sendHmrMessage,
+    options.getActiveConnectionCount
+  )
+  registerGetPageMetadataTool(
+    mcpServer,
+    options.sendHmrMessage,
+    options.getActiveConnectionCount
+  )
   registerGetLogsTool(mcpServer, options.distDir)
   registerGetActionByIdTool(mcpServer, options.distDir)
   registerGetRoutesTool(mcpServer, {

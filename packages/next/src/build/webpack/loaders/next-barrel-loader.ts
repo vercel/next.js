@@ -120,7 +120,11 @@ async function getBarrelMapping(
 
   // This is a SWC transform specifically for `optimizeBarrelExports`. We don't
   // care about other things but the export map only.
-  async function transpileSource(filename: string, source: string, isWildcard: boolean) {
+  async function transpileSource(
+    filename: string,
+    source: string,
+    isWildcard: boolean
+  ) {
     const isTypeScript = filename.endsWith('.ts') || filename.endsWith('.tsx')
     return new Promise<string>((res) =>
       transform(source, {
@@ -147,7 +151,11 @@ async function getBarrelMapping(
 
   // Avoid circular `export *` dependencies
   const visited = new Set<string>()
-  async function getMatches(file: string, isWildcard: boolean, isClientEntry: boolean) {
+  async function getMatches(
+    file: string,
+    isWildcard: boolean,
+    isClientEntry: boolean
+  ) {
     if (visited.has(file)) {
       return null
     }
@@ -175,14 +183,20 @@ async function getBarrelMapping(
     const matchedDirectives = output.match(
       /^([^]*)export (const|var) __next_private_directive_list__ = '([^']+)'/
     )
-    const directiveList = matchedDirectives ? JSON.parse(matchedDirectives[3]) : []
+    const directiveList = matchedDirectives
+      ? JSON.parse(matchedDirectives[3])
+      : []
     // "use client" in barrel files has to be transferred to the target file.
     isClientEntry = directiveList.includes('use client')
 
-    let exportList = JSON.parse(matches[3].slice(1, -1)) as [string, string, string][]
-    const wildcardExports = [...output.matchAll(/export \* from "([^"]+)"/g)].map(
-      (match) => match[1]
-    )
+    let exportList = JSON.parse(matches[3].slice(1, -1)) as [
+      string,
+      string,
+      string,
+    ][]
+    const wildcardExports = [
+      ...output.matchAll(/export \* from "([^"]+)"/g),
+    ].map((match) => match[1])
 
     // In the wildcard case, if the value is exported from another file, we
     // redirect to that file (decl[0]). Otherwise, export from the current
@@ -203,7 +217,11 @@ async function getBarrelMapping(
             req.replace('__barrel_optimize__?names=__PLACEHOLDER__!=!', '')
           )
 
-          const targetMatches = await getMatches(targetPath, true, isClientEntry)
+          const targetMatches = await getMatches(
+            targetPath,
+            true,
+            isClientEntry
+          )
 
           if (targetMatches) {
             // Merge the export list
@@ -247,7 +265,12 @@ const NextBarrelLoader = async function (
     mainFields: ['module', 'main'],
   })
 
-  const mapping = await getBarrelMapping(this.resourcePath, swcCacheDir, resolve, this.fs)
+  const mapping = await getBarrelMapping(
+    this.resourcePath,
+    swcCacheDir,
+    resolve,
+    this.fs
+  )
 
   // `resolve` adds all sub-paths to the dependency graph. However, we already
   // cached the mapping and we assume them to not change. So, we can safely
@@ -281,11 +304,15 @@ const NextBarrelLoader = async function (
       if (decl[1] === '*') {
         output += `\nexport * as ${name} from ${JSON.stringify(decl[0])}`
       } else if (decl[1] === 'default') {
-        output += `\nexport { default as ${name} } from ${JSON.stringify(decl[0])}`
+        output += `\nexport { default as ${name} } from ${JSON.stringify(
+          decl[0]
+        )}`
       } else if (decl[1] === name) {
         output += `\nexport { ${name} } from ${JSON.stringify(decl[0])}`
       } else {
-        output += `\nexport { ${decl[1]} as ${name} } from ${JSON.stringify(decl[0])}`
+        output += `\nexport { ${decl[1]} as ${name} } from ${JSON.stringify(
+          decl[0]
+        )}`
       }
     } else {
       missedNames.push(name)

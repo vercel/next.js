@@ -1,7 +1,8 @@
 import { bold, cyan, red, yellow } from '../../../../lib/picocolors'
 import { SimpleWebpackError } from './simpleWebpackError'
 
-const regexScssError = /SassError: (.+)\n\s+on line (\d+) [\s\S]*?>> (.+)\n\s*(-+)\^$/m
+const regexScssError =
+  /SassError: (.+)\n\s+on line (\d+) [\s\S]*?>> (.+)\n\s*(-+)\^$/m
 
 export function getScssError(
   fileName: string,
@@ -32,7 +33,9 @@ export function getScssError(
     }
 
     return new SimpleWebpackError(
-      `${cyan(fileName)}:${yellow(lineNumber.toString())}:${yellow(column.toString())}`,
+      `${cyan(fileName)}:${yellow(lineNumber.toString())}:${yellow(
+        column.toString()
+      )}`,
       red(bold('Syntax error')).concat(`: ${reason}\n\n${frame ?? backupFrame}`)
     )
   }

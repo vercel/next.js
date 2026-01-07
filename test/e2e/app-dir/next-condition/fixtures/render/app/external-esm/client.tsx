@@ -12,12 +12,12 @@ import ImportsDefault from 'my-external-esm-package/imports'
 import * as ImportsNamed from 'my-external-esm-package/imports'
 import { named as namedImports } from 'my-external-esm-package/imports'
 
-const pendingDynamicExports = import('my-external-esm-package/exports').then((mod) =>
-  JSON.stringify(mod)
+const pendingDynamicExports = import('my-external-esm-package/exports').then(
+  (mod) => JSON.stringify(mod)
 )
 
-const pendingDynamicImports = import('my-external-esm-package/imports').then((mod) =>
-  JSON.stringify(mod)
+const pendingDynamicImports = import('my-external-esm-package/imports').then(
+  (mod) => JSON.stringify(mod)
 )
 
 export default function Client() {

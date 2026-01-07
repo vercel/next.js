@@ -31,7 +31,9 @@ function deepMerge(target: any, source: any) {
   return result
 }
 
-async function webpackBuildWithWorker(compilerNamesArg: typeof ORDERED_COMPILER_NAMES | null) {
+async function webpackBuildWithWorker(
+  compilerNamesArg: typeof ORDERED_COMPILER_NAMES | null
+) {
   const compilerNames = compilerNamesArg || ORDERED_COMPILER_NAMES
   const { nextBuildSpan, ...prunedBuildContext } = NextBuildContext
 
@@ -98,17 +100,21 @@ async function webpackBuildWithWorker(compilerNamesArg: typeof ORDERED_COMPILER_
       const { entryNameMap } = curResult.buildTraceContext.entriesTrace!
 
       if (entryNameMap) {
-        combinedResult.buildTraceContext.entriesTrace = curResult.buildTraceContext.entriesTrace
-        combinedResult.buildTraceContext.entriesTrace!.entryNameMap = entryNameMap
+        combinedResult.buildTraceContext.entriesTrace =
+          curResult.buildTraceContext.entriesTrace
+        combinedResult.buildTraceContext.entriesTrace!.entryNameMap =
+          entryNameMap
       }
 
       if (curResult.buildTraceContext?.chunksTrace) {
         const { entryNameFilesMap } = curResult.buildTraceContext.chunksTrace!
 
         if (entryNameFilesMap) {
-          combinedResult.buildTraceContext.chunksTrace = curResult.buildTraceContext.chunksTrace!
+          combinedResult.buildTraceContext.chunksTrace =
+            curResult.buildTraceContext.chunksTrace!
 
-          combinedResult.buildTraceContext.chunksTrace!.entryNameFilesMap = entryNameFilesMap
+          combinedResult.buildTraceContext.chunksTrace!.entryNameFilesMap =
+            entryNameFilesMap
         }
       }
     }
@@ -136,7 +142,8 @@ export async function webpackBuild(
       return await webpackBuildWithWorker(compilerNames)
     } else {
       debug('building all compilers in same process')
-      const webpackBuildImpl = (require('./impl') as typeof import('./impl')).webpackBuildImpl
+      const webpackBuildImpl = (require('./impl') as typeof import('./impl'))
+        .webpackBuildImpl
       const curResult = await webpackBuildImpl(null)
 
       // Mirror what happens in webpackBuildWithWorker

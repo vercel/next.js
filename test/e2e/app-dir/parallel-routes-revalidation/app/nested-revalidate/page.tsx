@@ -6,10 +6,16 @@ export default function Home() {
       <p>Nested parallel routes demo.</p>
       <p id="page-now">Date.now {Date.now()}</p>
       <div className="flex flex-col gap-2">
-        <Link href="/nested-revalidate/drawer" className="bg-sky-600 text-white p-2 rounded">
+        <Link
+          href="/nested-revalidate/drawer"
+          className="bg-sky-600 text-white p-2 rounded"
+        >
           Open Drawer
         </Link>
-        <Link href="/nested-revalidate/modal" className="bg-sky-600 text-white p-2 rounded">
+        <Link
+          href="/nested-revalidate/modal"
+          className="bg-sky-600 text-white p-2 rounded"
+        >
           Open Modal
         </Link>
       </div>

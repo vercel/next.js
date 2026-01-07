@@ -20,7 +20,8 @@
   opacity: 0;
   outline: 0;
   min-width: 248px;
-  transition: opacity var(--animate-out-duration-ms) var(--animate-out-timing-function);
+  transition: opacity var(--animate-out-duration-ms)
+    var(--animate-out-timing-function);
 
   &[data-rendered='true'] {
     opacity: 1;

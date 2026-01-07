@@ -76,7 +76,9 @@ function validateCacheLife(profile: CacheLife) {
 
 export function cacheLife(profile: CacheLifeProfiles | CacheLife): void {
   if (!process.env.__NEXT_USE_CACHE) {
-    throw new Error('`cacheLife()` is only available with the `cacheComponents` config.')
+    throw new Error(
+      '`cacheLife()` is only available with the `cacheComponents` config.'
+    )
   }
 
   const workUnitStore = workUnitAsyncStorage.getStore()
@@ -90,7 +92,9 @@ export function cacheLife(profile: CacheLifeProfiles | CacheLife): void {
     case 'request':
     case 'unstable-cache':
     case undefined:
-      throw new Error('`cacheLife()` can only be called inside a "use cache" function.')
+      throw new Error(
+        '`cacheLife()` can only be called inside a "use cache" function.'
+      )
     case 'cache':
     case 'private-cache':
       break
@@ -101,7 +105,9 @@ export function cacheLife(profile: CacheLifeProfiles | CacheLife): void {
   if (typeof profile === 'string') {
     const workStore = workAsyncStorage.getStore()
     if (!workStore) {
-      throw new Error('`cacheLife()` can only be called during App Router rendering at the moment.')
+      throw new Error(
+        '`cacheLife()` can only be called during App Router rendering at the moment.'
+      )
     }
     if (!workStore.cacheLifeProfiles) {
       throw new InvariantError('`cacheLifeProfiles` should always be provided.')
@@ -126,8 +132,14 @@ export function cacheLife(profile: CacheLifeProfiles | CacheLife): void {
       )
     }
     profile = configuredProfile
-  } else if (typeof profile !== 'object' || profile === null || Array.isArray(profile)) {
-    throw new Error('Invalid `cacheLife()` option. Either pass a profile name or object.')
+  } else if (
+    typeof profile !== 'object' ||
+    profile === null ||
+    Array.isArray(profile)
+  ) {
+    throw new Error(
+      'Invalid `cacheLife()` option. Either pass a profile name or object.'
+    )
   } else {
     validateCacheLife(profile)
   }
@@ -152,7 +164,10 @@ export function cacheLife(profile: CacheLifeProfiles | CacheLife): void {
   }
   if (profile.stale !== undefined) {
     // Track the explicit stale time.
-    if (workUnitStore.explicitStale === undefined || workUnitStore.explicitStale > profile.stale) {
+    if (
+      workUnitStore.explicitStale === undefined ||
+      workUnitStore.explicitStale > profile.stale
+    ) {
       workUnitStore.explicitStale = profile.stale
     }
   }

@@ -20,7 +20,9 @@ describe('production - app dir - build output', () => {
 
   it('should always log version first then the rest jobs', async () => {
     const indexOfVersion = output.indexOf('▲ Next.js')
-    const indexOfStartCompiling = output.indexOf('Creating an optimized production build')
+    const indexOfStartCompiling = output.indexOf(
+      'Creating an optimized production build'
+    )
     const indexOfLinting = output.indexOf('Running TypeScript')
     expect(indexOfVersion).toBeLessThan(indexOfLinting)
     expect(indexOfStartCompiling).toBeLessThan(indexOfLinting)

@@ -10,7 +10,9 @@ export default function ManiMenu({ mainMenuLinks }) {
   function highlightLinks() {
     const sections = document.querySelectorAll(".page-scroll");
     const scrollPos =
-      window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop;
+      window.pageYOffset ||
+      document.documentElement.scrollTop ||
+      document.body.scrollTop;
 
     sections.forEach((currLink) => {
       const val = currLink.getAttribute("href").slice(1);

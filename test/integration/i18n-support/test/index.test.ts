@@ -31,183 +31,199 @@ describe('i18n Support', () => {
       res.end(JSON.stringify({ url: req.url, external: true }))
     })
     await new Promise<void>((resolve, reject) => {
-      ctx.externalApp.listen(ctx.externalPort, (err) => (err ? reject(err) : resolve()))
+      ctx.externalApp.listen(ctx.externalPort, (err) =>
+        err ? reject(err) : resolve()
+      )
     })
   })
   afterAll(() => ctx.externalApp.close())
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
-    const curCtx: Record<string, any> = {
-      ...ctx,
-      isDev: true,
-    }
-    beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
-      nextConfig.replace(/__EXTERNAL_PORT__/g, ctx.externalPort)
-      curCtx.appPort = await findPort()
-      curCtx.app = await launchApp(appDir, curCtx.appPort)
-      curCtx.buildId = 'development'
-    })
-    afterAll(async () => {
-      await killApp(curCtx.app)
-      nextConfig.restore()
-    })
-
-    runTests(curCtx)
-  })
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
-      nextConfig.replace(/__EXTERNAL_PORT__/g, ctx.externalPort)
-      await nextBuild(appDir)
-      ctx.appPort = await findPort()
-      ctx.app = await nextStart(appDir, ctx.appPort)
-      ctx.buildPagesDir = join(appDir, '.next/server/pages')
-      ctx.buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
-    })
-    afterAll(async () => {
-      await killApp(ctx.app)
-      nextConfig.restore()
-    })
-
-    runTests(ctx)
-
-    it('should have pre-rendered /500 correctly', async () => {
-      for (const locale of locales) {
-        const content = await fs.readFile(
-          join(appDir, '.next/server/pages/', locale, '500.html'),
-          'utf8'
-        )
-        expect(content).toContain('500')
-        expect(content).toMatch(/Internal Server Error/i)
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      const curCtx: Record<string, any> = {
+        ...ctx,
+        isDev: true,
       }
-    })
-  })
-
-  describe('with localeDetection disabled', () => {
-    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
       beforeAll(async () => {
         await fs.remove(join(appDir, '.next'))
-        nextConfig.replace('// localeDetection', 'localeDetection')
+        nextConfig.replace(/__EXTERNAL_PORT__/g, ctx.externalPort)
+        curCtx.appPort = await findPort()
+        curCtx.app = await launchApp(appDir, curCtx.appPort)
+        curCtx.buildId = 'development'
+      })
+      afterAll(async () => {
+        await killApp(curCtx.app)
+        nextConfig.restore()
+      })
 
+      runTests(curCtx)
+    }
+  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await fs.remove(join(appDir, '.next'))
+        nextConfig.replace(/__EXTERNAL_PORT__/g, ctx.externalPort)
         await nextBuild(appDir)
         ctx.appPort = await findPort()
         ctx.app = await nextStart(appDir, ctx.appPort)
+        ctx.buildPagesDir = join(appDir, '.next/server/pages')
+        ctx.buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
       })
       afterAll(async () => {
-        nextConfig.restore()
         await killApp(ctx.app)
+        nextConfig.restore()
       })
 
-      it('should have localeDetection in routes-manifest', async () => {
-        const routesManifest = await fs.readJSON(join(appDir, '.next/routes-manifest.json'))
+      runTests(ctx)
 
-        expect(routesManifest.i18n).toEqual({
-          localeDetection: false,
-          locales: [
-            'en-US',
-            'nl-NL',
-            'nl-BE',
-            'nl',
-            'fr-BE',
-            'fr',
-            'en',
-            'go',
-            'go-BE',
-            'do',
-            'do-BE',
-          ],
-          defaultLocale: 'en-US',
-          domains: [
-            {
-              http: true,
-              domain: 'example.do',
-              defaultLocale: 'do',
-              locales: ['do-BE'],
-            },
-            {
-              domain: 'example.com',
-              defaultLocale: 'go',
-              locales: ['go-BE'],
-            },
-          ],
+      it('should have pre-rendered /500 correctly', async () => {
+        for (const locale of locales) {
+          const content = await fs.readFile(
+            join(appDir, '.next/server/pages/', locale, '500.html'),
+            'utf8'
+          )
+          expect(content).toContain('500')
+          expect(content).toMatch(/Internal Server Error/i)
+        }
+      })
+    }
+  )
+
+  describe('with localeDetection disabled', () => {
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+      'production mode',
+      () => {
+        beforeAll(async () => {
+          await fs.remove(join(appDir, '.next'))
+          nextConfig.replace('// localeDetection', 'localeDetection')
+
+          await nextBuild(appDir)
+          ctx.appPort = await findPort()
+          ctx.app = await nextStart(appDir, ctx.appPort)
         })
-      })
+        afterAll(async () => {
+          nextConfig.restore()
+          await killApp(ctx.app)
+        })
 
-      it('should not detect locale from accept-language', async () => {
-        const res = await fetchViaHTTP(
-          ctx.appPort,
-          '/',
-          {},
-          {
-            redirect: 'manual',
-            headers: {
-              'accept-language': 'fr',
-            },
-          }
-        )
+        it('should have localeDetection in routes-manifest', async () => {
+          const routesManifest = await fs.readJSON(
+            join(appDir, '.next/routes-manifest.json')
+          )
 
-        expect(res.status).toBe(200)
-        const $ = cheerio.load(await res.text())
-        expect($('html').attr('lang')).toBe('en-US')
-        expect($('#router-locale').text()).toBe('en-US')
-        expect(JSON.parse($('#router-locales').text())).toEqual(locales)
-        expect($('#router-pathname').text()).toBe('/')
-        expect($('#router-as-path').text()).toBe('/')
-      })
+          expect(routesManifest.i18n).toEqual({
+            localeDetection: false,
+            locales: [
+              'en-US',
+              'nl-NL',
+              'nl-BE',
+              'nl',
+              'fr-BE',
+              'fr',
+              'en',
+              'go',
+              'go-BE',
+              'do',
+              'do-BE',
+            ],
+            defaultLocale: 'en-US',
+            domains: [
+              {
+                http: true,
+                domain: 'example.do',
+                defaultLocale: 'do',
+                locales: ['do-BE'],
+              },
+              {
+                domain: 'example.com',
+                defaultLocale: 'go',
+                locales: ['go-BE'],
+              },
+            ],
+          })
+        })
 
-      it('should ignore the invalid accept-language header', async () => {
-        nextConfig.replace('localeDetection: false', 'localeDetection: true')
-        const res = await fetchViaHTTP(
-          ctx.appPort,
-          '/',
-          {},
-          {
-            headers: {
-              'accept-language': 'ldfir;',
-            },
-          }
-        )
-
-        expect(res.status).toBe(200)
-        const $ = cheerio.load(await res.text())
-        expect($('html').attr('lang')).toBe('en-US')
-        expect($('#router-locale').text()).toBe('en-US')
-        expect(JSON.parse($('#router-locales').text())).toEqual(locales)
-        expect($('#router-pathname').text()).toBe('/')
-        expect($('#router-as-path').text()).toBe('/')
-      })
-
-      it('should set locale from detected path', async () => {
-        for (const locale of nonDomainLocales) {
+        it('should not detect locale from accept-language', async () => {
           const res = await fetchViaHTTP(
             ctx.appPort,
-            `/${locale}`,
+            '/',
             {},
             {
               redirect: 'manual',
               headers: {
-                'accept-language': 'en-US,en;q=0.9',
+                'accept-language': 'fr',
               },
             }
           )
 
           expect(res.status).toBe(200)
           const $ = cheerio.load(await res.text())
-          expect($('html').attr('lang')).toBe(locale)
-          expect($('#router-locale').text()).toBe(locale)
+          expect($('html').attr('lang')).toBe('en-US')
+          expect($('#router-locale').text()).toBe('en-US')
           expect(JSON.parse($('#router-locales').text())).toEqual(locales)
           expect($('#router-pathname').text()).toBe('/')
           expect($('#router-as-path').text()).toBe('/')
-        }
-      })
-    })
+        })
+
+        it('should ignore the invalid accept-language header', async () => {
+          nextConfig.replace('localeDetection: false', 'localeDetection: true')
+          const res = await fetchViaHTTP(
+            ctx.appPort,
+            '/',
+            {},
+            {
+              headers: {
+                'accept-language': 'ldfir;',
+              },
+            }
+          )
+
+          expect(res.status).toBe(200)
+          const $ = cheerio.load(await res.text())
+          expect($('html').attr('lang')).toBe('en-US')
+          expect($('#router-locale').text()).toBe('en-US')
+          expect(JSON.parse($('#router-locales').text())).toEqual(locales)
+          expect($('#router-pathname').text()).toBe('/')
+          expect($('#router-as-path').text()).toBe('/')
+        })
+
+        it('should set locale from detected path', async () => {
+          for (const locale of nonDomainLocales) {
+            const res = await fetchViaHTTP(
+              ctx.appPort,
+              `/${locale}`,
+              {},
+              {
+                redirect: 'manual',
+                headers: {
+                  'accept-language': 'en-US,en;q=0.9',
+                },
+              }
+            )
+
+            expect(res.status).toBe(200)
+            const $ = cheerio.load(await res.text())
+            expect($('html').attr('lang')).toBe(locale)
+            expect($('#router-locale').text()).toBe(locale)
+            expect(JSON.parse($('#router-locales').text())).toEqual(locales)
+            expect($('#router-pathname').text()).toBe('/')
+            expect($('#router-as-path').text()).toBe('/')
+          }
+        })
+      }
+    )
   })
 
   describe('with trailingSlash: true', () => {
     const runSlashTests = (curCtx) => {
       if (!curCtx.isDev) {
         it('should preload all locales data correctly', async () => {
-          const browser = await webdriver(curCtx.appPort, `${curCtx.basePath}/mixed`)
+          const browser = await webdriver(
+            curCtx.appPort,
+            `${curCtx.basePath}/mixed`
+          )
 
           await browser.eval(`(function() {
             document.querySelector('#to-gsp-en-us').scrollIntoView()
@@ -216,7 +232,9 @@ describe('i18n Support', () => {
           })()`)
 
           await check(async () => {
-            const hrefs = await browser.eval(`Object.keys(window.next.router.sdc)`)
+            const hrefs = await browser.eval(
+              `Object.keys(window.next.router.sdc)`
+            )
             hrefs.sort()
 
             const baseURL = await browser.url()
@@ -233,9 +251,14 @@ describe('i18n Support', () => {
         })
 
         it('should have correct locale domain hrefs', async () => {
-          const res = await fetchViaHTTP(curCtx.appPort, '/do-BE/frank/', undefined, {
-            redirect: 'manual',
-          })
+          const res = await fetchViaHTTP(
+            curCtx.appPort,
+            '/do-BE/frank/',
+            undefined,
+            {
+              redirect: 'manual',
+            }
+          )
           expect(res.status).toBe(200)
 
           const html = await res.text()
@@ -266,7 +289,9 @@ describe('i18n Support', () => {
 
             const parsed = new URL(res.headers.get('location'), res.url)
             expect(parsed.pathname).toBe(`/${locale}/`)
-            expect(Object.fromEntries(parsed.searchParams.entries())).toEqual({})
+            expect(Object.fromEntries(parsed.searchParams.entries())).toEqual(
+              {}
+            )
           }
         }
       })
@@ -306,7 +331,11 @@ describe('i18n Support', () => {
       it('should return 404 error for repeating locales', async () => {
         const defaultLocale = 'en-US'
         for (const locale of nonDomainLocales) {
-          for (const asPath of ['/gsp/fallback/always/', '/post/comment/', '/gssp/first/']) {
+          for (const asPath of [
+            '/gsp/fallback/always/',
+            '/post/comment/',
+            '/gssp/first/',
+          ]) {
             const res = await fetchViaHTTP(
               curCtx.appPort,
               `/${locale}/${defaultLocale}${asPath}`,
@@ -338,33 +367,57 @@ describe('i18n Support', () => {
           await browser.elementByCss('#to-gsp').click()
           await browser.waitForElementByCss('#gsp')
 
-          expect(await browser.elementByCss('#router-pathname').text()).toBe('/gsp')
-          expect(await browser.elementByCss('#router-as-path').text()).toBe('/gsp/')
-          expect(await browser.elementByCss('#router-locale').text()).toBe(locale)
+          expect(await browser.elementByCss('#router-pathname').text()).toBe(
+            '/gsp'
+          )
+          expect(await browser.elementByCss('#router-as-path').text()).toBe(
+            '/gsp/'
+          )
+          expect(await browser.elementByCss('#router-locale').text()).toBe(
+            locale
+          )
           expect(await browser.eval('window.beforeNav')).toBe(1)
-          expect(await browser.eval('window.location.pathname')).toBe(`${localePath}gsp/`)
+          expect(await browser.eval('window.location.pathname')).toBe(
+            `${localePath}gsp/`
+          )
 
           await browser.back().waitForElementByCss('#index')
 
-          expect(await browser.elementByCss('#router-pathname').text()).toBe('/')
+          expect(await browser.elementByCss('#router-pathname').text()).toBe(
+            '/'
+          )
           expect(await browser.elementByCss('#router-as-path').text()).toBe('/')
-          expect(await browser.elementByCss('#router-locale').text()).toBe(locale)
+          expect(await browser.elementByCss('#router-locale').text()).toBe(
+            locale
+          )
           expect(await browser.eval('window.beforeNav')).toBe(1)
-          expect(await browser.eval('window.location.pathname')).toBe(`${localePath}`)
+          expect(await browser.eval('window.location.pathname')).toBe(
+            `${localePath}`
+          )
 
           await browser.elementByCss('#to-gssp-slug').click()
           await browser.waitForElementByCss('#gssp')
 
-          expect(await browser.elementByCss('#router-pathname').text()).toBe('/gssp/[slug]')
-          expect(await browser.elementByCss('#router-as-path').text()).toBe('/gssp/first/')
-          expect(await browser.elementByCss('#router-locale').text()).toBe(locale)
+          expect(await browser.elementByCss('#router-pathname').text()).toBe(
+            '/gssp/[slug]'
+          )
+          expect(await browser.elementByCss('#router-as-path').text()).toBe(
+            '/gssp/first/'
+          )
+          expect(await browser.elementByCss('#router-locale').text()).toBe(
+            locale
+          )
           expect(await browser.eval('window.beforeNav')).toBe(1)
-          expect(await browser.eval('window.location.pathname')).toBe(`${localePath}gssp/first/`)
+          expect(await browser.eval('window.location.pathname')).toBe(
+            `${localePath}gssp/first/`
+          )
 
           await browser.back().waitForElementByCss('#index')
           await browser.elementByCss('#to-api-post').click()
 
-          await browser.waitForCondition('window.location.pathname === "/api/post/asdf/"')
+          await browser.waitForCondition(
+            'window.location.pathname === "/api/post/asdf/"'
+          )
           const body = await browser.elementByCss('body').text()
           const json = JSON.parse(body)
           expect(json.post).toBe(true)
@@ -372,44 +425,50 @@ describe('i18n Support', () => {
       })
     }
 
-    ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
-      const curCtx: Record<string, any> = {
-        ...ctx,
-        isDev: true,
+    ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+      'development mode',
+      () => {
+        const curCtx: Record<string, any> = {
+          ...ctx,
+          isDev: true,
+        }
+        beforeAll(async () => {
+          await fs.remove(join(appDir, '.next'))
+          nextConfig.replace('// trailingSlash', 'trailingSlash')
+
+          curCtx.appPort = await findPort()
+          curCtx.app = await launchApp(appDir, curCtx.appPort)
+        })
+        afterAll(async () => {
+          nextConfig.restore()
+          await killApp(curCtx.app)
+        })
+
+        runSlashTests(curCtx)
       }
-      beforeAll(async () => {
-        await fs.remove(join(appDir, '.next'))
-        nextConfig.replace('// trailingSlash', 'trailingSlash')
+    )
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+      'production mode',
+      () => {
+        const curCtx = {
+          ...ctx,
+        }
+        beforeAll(async () => {
+          await fs.remove(join(appDir, '.next'))
+          nextConfig.replace('// trailingSlash', 'trailingSlash')
 
-        curCtx.appPort = await findPort()
-        curCtx.app = await launchApp(appDir, curCtx.appPort)
-      })
-      afterAll(async () => {
-        nextConfig.restore()
-        await killApp(curCtx.app)
-      })
+          await nextBuild(appDir)
+          curCtx.appPort = await findPort()
+          curCtx.app = await nextStart(appDir, curCtx.appPort)
+        })
+        afterAll(async () => {
+          nextConfig.restore()
+          await killApp(curCtx.app)
+        })
 
-      runSlashTests(curCtx)
-    })
-    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
-      const curCtx = {
-        ...ctx,
+        runSlashTests(curCtx)
       }
-      beforeAll(async () => {
-        await fs.remove(join(appDir, '.next'))
-        nextConfig.replace('// trailingSlash', 'trailingSlash')
-
-        await nextBuild(appDir)
-        curCtx.appPort = await findPort()
-        curCtx.app = await nextStart(appDir, curCtx.appPort)
-      })
-      afterAll(async () => {
-        nextConfig.restore()
-        await killApp(curCtx.app)
-      })
-
-      runSlashTests(curCtx)
-    })
+    )
   })
 
   describe('with trailingSlash: false', () => {
@@ -430,52 +489,62 @@ describe('i18n Support', () => {
 
             const parsed = new URL(res.headers.get('location'), res.url)
             expect(parsed.pathname).toBe(`/${locale}`)
-            expect(Object.fromEntries(parsed.searchParams.entries())).toEqual({})
+            expect(Object.fromEntries(parsed.searchParams.entries())).toEqual(
+              {}
+            )
           }
         }
       })
     }
 
-    ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
-      const curCtx: Record<string, any> = {
-        ...ctx,
-        isDev: true,
+    ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+      'development mode',
+      () => {
+        const curCtx: Record<string, any> = {
+          ...ctx,
+          isDev: true,
+        }
+        beforeAll(async () => {
+          await fs.remove(join(appDir, '.next'))
+          nextConfig.replace('// trailingSlash: true', 'trailingSlash: false')
+
+          curCtx.appPort = await findPort()
+          curCtx.app = await launchApp(appDir, curCtx.appPort)
+        })
+        afterAll(async () => {
+          nextConfig.restore()
+          await killApp(curCtx.app)
+        })
+
+        runSlashTests(curCtx)
       }
-      beforeAll(async () => {
-        await fs.remove(join(appDir, '.next'))
-        nextConfig.replace('// trailingSlash: true', 'trailingSlash: false')
+    )
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+      'production mode',
+      () => {
+        const curCtx = { ...ctx }
+        beforeAll(async () => {
+          await fs.remove(join(appDir, '.next'))
+          nextConfig.replace('// trailingSlash: true', 'trailingSlash: false')
 
-        curCtx.appPort = await findPort()
-        curCtx.app = await launchApp(appDir, curCtx.appPort)
-      })
-      afterAll(async () => {
-        nextConfig.restore()
-        await killApp(curCtx.app)
-      })
+          await nextBuild(appDir)
+          curCtx.appPort = await findPort()
+          curCtx.app = await nextStart(appDir, curCtx.appPort)
+        })
+        afterAll(async () => {
+          nextConfig.restore()
+          await killApp(curCtx.app)
+        })
 
-      runSlashTests(curCtx)
-    })
-    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
-      const curCtx = { ...ctx }
-      beforeAll(async () => {
-        await fs.remove(join(appDir, '.next'))
-        nextConfig.replace('// trailingSlash: true', 'trailingSlash: false')
-
-        await nextBuild(appDir)
-        curCtx.appPort = await findPort()
-        curCtx.app = await nextStart(appDir, curCtx.appPort)
-      })
-      afterAll(async () => {
-        nextConfig.restore()
-        await killApp(curCtx.app)
-      })
-
-      runSlashTests(curCtx)
-    })
+        runSlashTests(curCtx)
+      }
+    )
   })
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
-    it('should show proper error for duplicate defaultLocales', async () => {
-      nextConfig.write(`
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      it('should show proper error for duplicate defaultLocales', async () => {
+        nextConfig.write(`
       module.exports = {
         i18n: {
           locales: ['en', 'fr', 'nl'],
@@ -498,18 +567,18 @@ describe('i18n Support', () => {
       }
     `)
 
-      const { code, stderr } = await nextBuild(appDir, undefined, {
-        stderr: true,
+        const { code, stderr } = await nextBuild(appDir, undefined, {
+          stderr: true,
+        })
+        nextConfig.restore()
+        expect(code).toBe(1)
+        expect(stderr).toContain(
+          'Both fr.example.com and french.example.com configured the defaultLocale fr but only one can'
+        )
       })
-      nextConfig.restore()
-      expect(code).toBe(1)
-      expect(stderr).toContain(
-        'Both fr.example.com and french.example.com configured the defaultLocale fr but only one can'
-      )
-    })
 
-    it('should show proper error for duplicate locales', async () => {
-      nextConfig.write(`
+      it('should show proper error for duplicate locales', async () => {
+        nextConfig.write(`
       module.exports = {
         i18n: {
           locales: ['en', 'fr', 'nl', 'eN', 'fr'],
@@ -518,17 +587,19 @@ describe('i18n Support', () => {
       }
     `)
 
-      const { code, stderr } = await nextBuild(appDir, undefined, {
-        stderr: true,
+        const { code, stderr } = await nextBuild(appDir, undefined, {
+          stderr: true,
+        })
+        nextConfig.restore()
+        expect(code).toBe(1)
+        expect(stderr).toContain(
+          'Specified i18n.locales contains the following duplicate locales:'
+        )
+        expect(stderr).toContain(`eN, fr`)
       })
-      nextConfig.restore()
-      expect(code).toBe(1)
-      expect(stderr).toContain('Specified i18n.locales contains the following duplicate locales:')
-      expect(stderr).toContain(`eN, fr`)
-    })
 
-    it('should show proper error for invalid locale domain', async () => {
-      nextConfig.write(`
+      it('should show proper error for invalid locale domain', async () => {
+        nextConfig.write(`
       module.exports = {
         i18n: {
           locales: ['en', 'fr', 'nl', 'eN', 'fr'],
@@ -543,14 +614,15 @@ describe('i18n Support', () => {
       }
     `)
 
-      const { code, stderr } = await nextBuild(appDir, undefined, {
-        stderr: true,
+        const { code, stderr } = await nextBuild(appDir, undefined, {
+          stderr: true,
+        })
+        nextConfig.restore()
+        expect(code).toBe(1)
+        expect(stderr).toContain(
+          `i18n domain: "hello:3000" is invalid it should be a valid domain without protocol (https://) or port (:3000) e.g. example.vercel.sh`
+        )
       })
-      nextConfig.restore()
-      expect(code).toBe(1)
-      expect(stderr).toContain(
-        `i18n domain: "hello:3000" is invalid it should be a valid domain without protocol (https://) or port (:3000) e.g. example.vercel.sh`
-      )
-    })
-  })
+    }
+  )
 })

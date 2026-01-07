@@ -1,7 +1,14 @@
-import type { FlightRouterState, Segment } from '../../../shared/lib/app-router-types'
+import type {
+  FlightRouterState,
+  Segment,
+} from '../../../shared/lib/app-router-types'
 import { INTERCEPTION_ROUTE_MARKERS } from '../../../shared/lib/router/utils/interception-routes'
 import type { Params } from '../../../server/request/params'
-import { isGroupSegment, DEFAULT_SEGMENT_KEY, PAGE_SEGMENT_KEY } from '../../../shared/lib/segment'
+import {
+  isGroupSegment,
+  DEFAULT_SEGMENT_KEY,
+  PAGE_SEGMENT_KEY,
+} from '../../../shared/lib/segment'
 import { matchSegment } from '../match-segments'
 
 const removeLeadingSlash = (segment: string): string => {
@@ -72,7 +79,10 @@ export function extractPathFromFlightRouterState(
   return normalizeSegments(segments)
 }
 
-function computeChangedPathImpl(treeA: FlightRouterState, treeB: FlightRouterState): string | null {
+function computeChangedPathImpl(
+  treeA: FlightRouterState,
+  treeB: FlightRouterState
+): string | null {
   const [segmentA, parallelRoutesA] = treeA
   const [segmentB, parallelRoutesB] = treeB
 
@@ -81,7 +91,8 @@ function computeChangedPathImpl(treeA: FlightRouterState, treeB: FlightRouterSta
 
   if (
     INTERCEPTION_ROUTE_MARKERS.some(
-      (m) => normalizedSegmentA.startsWith(m) || normalizedSegmentB.startsWith(m)
+      (m) =>
+        normalizedSegmentA.startsWith(m) || normalizedSegmentB.startsWith(m)
     )
   ) {
     return ''
@@ -124,7 +135,10 @@ export function computeChangedPath(
 /**
  * Recursively extracts dynamic parameters from FlightRouterState.
  */
-export function getSelectedParams(currentTree: FlightRouterState, params: Params = {}): Params {
+export function getSelectedParams(
+  currentTree: FlightRouterState,
+  params: Params = {}
+): Params {
   const parallelRoutes = currentTree[1]
 
   for (const parallelRoute of Object.values(parallelRoutes)) {
@@ -134,7 +148,8 @@ export function getSelectedParams(currentTree: FlightRouterState, params: Params
     if (!segmentValue || segmentValue.startsWith(PAGE_SEGMENT_KEY)) continue
 
     // Ensure catchAll and optional catchall are turned into an array
-    const isCatchAll = isDynamicParameter && (segment[2] === 'c' || segment[2] === 'oc')
+    const isCatchAll =
+      isDynamicParameter && (segment[2] === 'c' || segment[2] === 'oc')
 
     if (isCatchAll) {
       params[segment[0]] = segment[1].split('/')

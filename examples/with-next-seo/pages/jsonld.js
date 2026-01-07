@@ -22,8 +22,8 @@ export default function JsonLd() {
       />
       <h1>JSON-LD Added to Page</h1>
       <p>
-        Take a look at the head to see what has been added, you are looking for a script tag of type
-        "application/ld+json".
+        Take a look at the head to see what has been added, you are looking for
+        a script tag of type "application/ld+json".
       </p>
     </div>
   );

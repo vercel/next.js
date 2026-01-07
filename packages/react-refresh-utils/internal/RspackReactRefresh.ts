@@ -19,7 +19,9 @@ function getModuleExports(moduleId: string) {
     // `moduleId` is available but the module in cache is unavailable,
     // which indicates the module is somehow corrupted (e.g. broken Webpack `module` globals).
     // We will warn the user (as this is likely a mistake) and assume they cannot be refreshed.
-    console.warn('[React Refresh] Failed to get exports for module: ' + moduleId + '.')
+    console.warn(
+      '[React Refresh] Failed to get exports for module: ' + moduleId + '.'
+    )
     return {}
   }
 
@@ -44,7 +46,8 @@ function executeRuntime(moduleExports, moduleId, webpackHot) {
         // Save the previous exports signature on update so we can compare the boundary
         // signatures. We avoid saving exports themselves since it causes memory leaks (https://github.com/vercel/next.js/pull/53797)
         function hotDisposeCallback(data) {
-          data.prevSignature = RefreshHelpers.getRefreshBoundarySignature(moduleExports)
+          data.prevSignature =
+            RefreshHelpers.getRefreshBoundarySignature(moduleExports)
         }
       )
       webpackHot.accept()
@@ -87,4 +90,7 @@ export function refresh(moduleId, webpackHot) {
   }
 }
 
-export { register, createSignatureFunctionForTransform } from 'react-refresh/runtime'
+export {
+  register,
+  createSignatureFunctionForTransform,
+} from 'react-refresh/runtime'

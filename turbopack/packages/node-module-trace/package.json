@@ -3,8 +3,8 @@
   "version": "0.0.5-alpha.0",
   "description": "Node.js module trace",
   "license": "MIT",
+  "alias": "node-file-trace",
   "publishConfig": {
     "access": "public"
-  },
-  "alias": "node-file-trace"
+  }
 }

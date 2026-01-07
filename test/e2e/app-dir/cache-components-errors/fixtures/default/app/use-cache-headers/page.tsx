@@ -3,7 +3,10 @@ import { headers } from 'next/headers'
 export default async function Page() {
   return (
     <>
-      <p>This page accesses `headers()` in `'use cache'`, which triggers an error.</p>
+      <p>
+        This page accesses `headers()` in `'use cache'`, which triggers an
+        error.
+      </p>
       <HeadersReadingComponent />
     </>
   )

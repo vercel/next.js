@@ -24,8 +24,12 @@ describe('config validation - fatal errors', () => {
     expect(cliOutput).toContain(
       'Fatal next config errors found in next.config.js that must be fixed'
     )
-    expect(cliOutput).toContain("Unrecognized key(s) in object: 'invalidOption'")
+    expect(cliOutput).toContain(
+      "Unrecognized key(s) in object: 'invalidOption'"
+    )
     expect(cliOutput).toContain('at "images"')
-    expect(cliOutput).toContain('These configuration options are required or have been migrated')
+    expect(cliOutput).toContain(
+      'These configuration options are required or have been migrated'
+    )
   })
 })

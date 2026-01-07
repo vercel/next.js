@@ -7,13 +7,13 @@ export default () => (
       <Link href="/ssg/dynamic/[slug]?slug=one" as="/ssg/fixture/mismatch">
         Dynamic Route (one level) — Prerendered
       </Link>
-      : this is a Dynamic Page with a single dynamic segment that <strong>was returned</strong> from{' '}
-      <code>getStaticPaths</code>.<br />
+      : this is a Dynamic Page with a single dynamic segment that{' '}
+      <strong>was returned</strong> from <code>getStaticPaths</code>.<br />
       <Link href="/ssg/dynamic/[slug]?slug=two" as="/ssg/fixture/mismatch">
         Dynamic Route (one level) — Not Prerendered
       </Link>
-      : this is a Dynamic Page with a single dynamic segment that <strong>was not returned</strong>{' '}
-      from <code>getStaticPaths</code>.
+      : this is a Dynamic Page with a single dynamic segment that{' '}
+      <strong>was not returned</strong> from <code>getStaticPaths</code>.
     </p>
     <p>
       <Link
@@ -25,8 +25,8 @@ export default () => (
       >
         Multi Dynamic Route (two levels) — Prerendered
       </Link>
-      : this is a Dynamic Page with two dynamic segments that <strong>were returned</strong> from{' '}
-      <code>getStaticPaths</code>.<br />
+      : this is a Dynamic Page with two dynamic segments that{' '}
+      <strong>were returned</strong> from <code>getStaticPaths</code>.<br />
       <Link
         href={{
           pathname: '/ssg/dynamic-nested/[slug1]/[slug2]',
@@ -36,8 +36,8 @@ export default () => (
       >
         Multi Dynamic Route (two levels) — Not Prerendered
       </Link>
-      : this is a Dynamic Page with two dynamic segments that <strong>were not returned</strong>{' '}
-      from <code>getStaticPaths</code>.
+      : this is a Dynamic Page with two dynamic segments that{' '}
+      <strong>were not returned</strong> from <code>getStaticPaths</code>.
     </p>
     <p>
       <Link
@@ -49,8 +49,8 @@ export default () => (
       >
         Catch-All Route (one level) — Prerendered
       </Link>
-      : this is a Catch-All Page with one segment that <strong>was returned</strong> from{' '}
-      <code>getStaticPaths</code>.<br />
+      : this is a Catch-All Page with one segment that{' '}
+      <strong>was returned</strong> from <code>getStaticPaths</code>.<br />
       <Link
         href={{
           pathname: '/ssg/catch-all/[...slug]',
@@ -60,8 +60,8 @@ export default () => (
       >
         Catch-All Route (one level) — Not Prerendered
       </Link>
-      : this is a Catch-All Page with one segment that <strong>was not returned</strong> from{' '}
-      <code>getStaticPaths</code>.<br />
+      : this is a Catch-All Page with one segment that{' '}
+      <strong>was not returned</strong> from <code>getStaticPaths</code>.<br />
       <Link
         href={{
           pathname: '/ssg/catch-all/[...slug]',
@@ -71,8 +71,8 @@ export default () => (
       >
         Catch-All Route (two levels) — Prerendered
       </Link>
-      : this is a Catch-All Page with two segments that <strong>were returned</strong> from{' '}
-      <code>getStaticPaths</code>.<br />
+      : this is a Catch-All Page with two segments that{' '}
+      <strong>were returned</strong> from <code>getStaticPaths</code>.<br />
       <Link
         href={{
           pathname: '/ssg/catch-all/[...slug]',
@@ -82,8 +82,8 @@ export default () => (
       >
         Catch-All Route (two levels) — Not Prerendered
       </Link>
-      : this is a Catch-All Page with two segments that <strong>were not returned</strong> from{' '}
-      <code>getStaticPaths</code>.
+      : this is a Catch-All Page with two segments that{' '}
+      <strong>were not returned</strong> from <code>getStaticPaths</code>.
     </p>
   </main>
 )

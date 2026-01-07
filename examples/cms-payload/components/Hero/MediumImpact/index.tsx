@@ -29,7 +29,9 @@ export const MediumImpactHero: React.FC<Page["hero"]> = (props) => {
           )}
         </Cell>
         <Cell cols={7} colsM={4}>
-          {typeof media === "object" && <Media className={classes.media} resource={media} />}
+          {typeof media === "object" && (
+            <Media className={classes.media} resource={media} />
+          )}
         </Cell>
       </Grid>
     </Gutter>

@@ -51,7 +51,9 @@ describe('@next/eslint-plugin-next index', () => {
     const { recommended = false } = rule.meta.docs
 
     it(`${ruleName}: recommend should be \`${recommended}\``, () => {
-      expect(`@next/next/${ruleName}` in index.configs.recommended.rules).toBe(recommended)
+      expect(`@next/next/${ruleName}` in index.configs.recommended.rules).toBe(
+        recommended
+      )
     })
   })
 })

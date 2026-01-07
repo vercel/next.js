@@ -88,7 +88,9 @@ describe('chunk-load-failure', () => {
       if (process.env.BROWSER_NAME === 'firefox') {
         expect(browserLogs).toContainEqual(
           expect.objectContaining({
-            message: expect.stringContaining('Loading failed for the <script> with source'),
+            message: expect.stringContaining(
+              'Loading failed for the <script> with source'
+            ),
           })
         )
       } else {

@@ -7,8 +7,14 @@ export function middleware() {
   const response = NextResponse.next()
 
   response.headers.set('x-react-condition', react.condition)
-  response.headers.set('x-server-favoring-browser-condition', serverFavoringBrowser.condition)
-  response.headers.set('x-server-favoring-edge-condition', serverFavoringEdge.condition)
+  response.headers.set(
+    'x-server-favoring-browser-condition',
+    serverFavoringBrowser.condition
+  )
+  response.headers.set(
+    'x-server-favoring-edge-condition',
+    serverFavoringEdge.condition
+  )
 
   return response
 }

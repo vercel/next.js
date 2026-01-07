@@ -29,7 +29,10 @@ export default async function Page() {
 
   const cachedData = await getCachedData()
 
-  console.log('[TEST] Page render completed with cache data from:', cachedData.generatedAt)
+  console.log(
+    '[TEST] Page render completed with cache data from:',
+    cachedData.generatedAt
+  )
 
   return (
     <div>

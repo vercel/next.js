@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld("electron", {
   sayHello: () => ipcRenderer.send("message", "hi from next"),
   receiveHello: (handler: (event: IpcRendererEvent, ...args: any[]) => void) =>
     ipcRenderer.on("message", handler),
-  stopReceivingHello: (handler: (event: IpcRendererEvent, ...args: any[]) => void) =>
-    ipcRenderer.removeListener("message", handler),
+  stopReceivingHello: (
+    handler: (event: IpcRendererEvent, ...args: any[]) => void,
+  ) => ipcRenderer.removeListener("message", handler),
 });

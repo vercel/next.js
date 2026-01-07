@@ -10,7 +10,10 @@ export default function Page() {
         </Link>
       </div>
       <div>
-        <Link id="metadata-layout-unauthorized" href="/metadata-layout-unauthorized">
+        <Link
+          id="metadata-layout-unauthorized"
+          href="/metadata-layout-unauthorized"
+        >
           navigate to layout with metadata API calling unauthorized()
         </Link>
       </div>

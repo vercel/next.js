@@ -28,7 +28,10 @@ const Page = () => {
       >
         <Image id="fill-image-3" src="/wide.png" fill />
       </div>
-      <div id="image-container-4" style={{ position: 'relative', width: '30vw', height: '30vw' }}>
+      <div
+        id="image-container-4"
+        style={{ position: 'relative', width: '30vw', height: '30vw' }}
+      >
         <Image id="fill-image-4" src="/test.png" sizes="100vw" fill />
       </div>
     </div>

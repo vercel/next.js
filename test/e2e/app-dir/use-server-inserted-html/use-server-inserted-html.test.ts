@@ -50,9 +50,8 @@ describe('use-server-inserted-html', () => {
       const results = []
 
       await resolveStreamResponse(response, (chunk: string) => {
-        const isSuspenseyDataResolved = /<style[^<>]*>(\s)*.+{padding:2px;(\s)*color:orange;}/.test(
-          chunk
-        )
+        const isSuspenseyDataResolved =
+          /<style[^<>]*>(\s)*.+{padding:2px;(\s)*color:orange;}/.test(chunk)
         if (isSuspenseyDataResolved) results.push('data')
 
         // check if rsc refresh script for suspense show up, the test content could change with react version

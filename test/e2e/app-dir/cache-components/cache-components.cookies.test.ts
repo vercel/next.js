@@ -79,7 +79,9 @@ describe('cache-components', () => {
     expect($('#delete-value-x-sentinel').text()).toContain('hello')
 
     // cookies().clear()
-    expect($('#clear-result').text()).toContain('Cookies can only be modified in a Server Action')
+    expect($('#clear-result').text()).toContain(
+      'Cookies can only be modified in a Server Action'
+    )
     expect($('#clear-value-x-sentinel').text()).toContain('hello')
 
     // cookies().toString()

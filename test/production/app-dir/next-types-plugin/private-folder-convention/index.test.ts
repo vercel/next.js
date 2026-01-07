@@ -32,15 +32,21 @@ import { nextTestSetup } from 'e2e-utils'
     })
     it('should not have type for root layout in private folder', async () => {
       expect(await next.hasFile('app/_private/layout.tsx')).toBe(true)
-      expect(await next.hasFile('.next/types/app/_private/layout.ts')).toBe(false)
+      expect(await next.hasFile('.next/types/app/_private/layout.ts')).toBe(
+        false
+      )
     })
     it('should not have type for nested page in private folder', async () => {
       expect(await next.hasFile('app/nested/_private/page.tsx')).toBe(true)
-      expect(await next.hasFile('.next/types/app/nested/_private/page.ts')).toBe(false)
+      expect(
+        await next.hasFile('.next/types/app/nested/_private/page.ts')
+      ).toBe(false)
     })
     it('should not have type for nested layout in private folder', async () => {
       expect(await next.hasFile('app/nested/_private/layout.tsx')).toBe(true)
-      expect(await next.hasFile('.next/types/app/nested/_private/layout.ts')).toBe(false)
+      expect(
+        await next.hasFile('.next/types/app/nested/_private/layout.ts')
+      ).toBe(false)
     })
   }
 )

@@ -14,7 +14,9 @@ async function fetchPkgInfo(pkg: string) {
   const res = await fetch(`${registry}${pkg}`)
 
   if (!res.ok) {
-    throw new Error(`Failed to fetch registry info for ${pkg}, got status ${res.status}`)
+    throw new Error(
+      `Failed to fetch registry info for ${pkg}, got status ${res.status}`
+    )
   }
   const data = await res.json()
   const versionData = data.versions[nextPkgJson.version]
@@ -46,13 +48,17 @@ export async function patchIncorrectLockfile(dir: string) {
   }
   const content = await promises.readFile(lockfilePath, 'utf8')
   // maintain current line ending
-  const endingNewline = content.endsWith('\r\n') ? '\r\n' : content.endsWith('\n') ? '\n' : ''
+  const endingNewline = content.endsWith('\r\n')
+    ? '\r\n'
+    : content.endsWith('\n')
+      ? '\n'
+      : ''
 
   const lockfileParsed = JSON.parse(content)
   const lockfileVersion = parseInt(lockfileParsed?.lockfileVersion, 10)
-  const expectedSwcPkgs = Object.keys(nextPkgJson['optionalDependencies'] || {}).filter((pkg) =>
-    pkg.startsWith('@next/swc-')
-  )
+  const expectedSwcPkgs = Object.keys(
+    nextPkgJson['optionalDependencies'] || {}
+  ).filter((pkg) => pkg.startsWith('@next/swc-'))
 
   const patchDependency = (
     pkg: string,
@@ -66,7 +72,10 @@ export async function patchIncorrectLockfile(dir: string) {
     }
   }
 
-  const patchPackage = (pkg: string, pkgData: UnwrapPromise<ReturnType<typeof fetchPkgInfo>>) => {
+  const patchPackage = (
+    pkg: string,
+    pkgData: UnwrapPromise<ReturnType<typeof fetchPkgInfo>>
+  ) => {
     lockfileParsed.packages[pkg] = {
       version: nextPkgJson.version,
       resolved: pkgData.tarball,
@@ -88,7 +97,8 @@ export async function patchIncorrectLockfile(dir: string) {
     // v1 only uses dependencies
     // v2 uses dependencies and packages
     // v3 only uses packages
-    const shouldPatchDependencies = lockfileVersion === 1 || lockfileVersion === 2
+    const shouldPatchDependencies =
+      lockfileVersion === 1 || lockfileVersion === 2
     const shouldPatchPackages = lockfileVersion === 2 || lockfileVersion === 3
 
     if (
@@ -135,7 +145,9 @@ export async function patchIncorrectLockfile(dir: string) {
       // no point in updating in CI as the user can't save the patch
       return
     }
-    const pkgsData = await Promise.all(missingSwcPkgs.map((pkg) => fetchPkgInfo(pkg)))
+    const pkgsData = await Promise.all(
+      missingSwcPkgs.map((pkg) => fetchPkgInfo(pkg))
+    )
 
     for (let i = 0; i < pkgsData.length; i++) {
       const pkg = missingSwcPkgs[i]
@@ -149,7 +161,10 @@ export async function patchIncorrectLockfile(dir: string) {
       }
     }
 
-    await promises.writeFile(lockfilePath, JSON.stringify(lockfileParsed, null, 2) + endingNewline)
+    await promises.writeFile(
+      lockfilePath,
+      JSON.stringify(lockfileParsed, null, 2) + endingNewline
+    )
     Log.warn(
       'Lockfile was successfully patched, please run "npm install" to ensure @next/swc dependencies are downloaded'
     )

@@ -38,8 +38,12 @@ describe('dynamic-requests warnings', () => {
       return line.includes('Route "/request/draftMode')
     })
     expect({ browserConsoleWarnings, terminalCookieErrors }).toEqual({
-      browserConsoleWarnings: [expect.stringContaining('`draftMode().isEnabled`.')],
-      terminalCookieErrors: [expect.stringContaining('`draftMode().isEnabled`.')],
+      browserConsoleWarnings: [
+        expect.stringContaining('`draftMode().isEnabled`.'),
+      ],
+      terminalCookieErrors: [
+        expect.stringContaining('`draftMode().isEnabled`.'),
+      ],
     })
   })
 
@@ -124,7 +128,9 @@ describe('dynamic-requests warnings', () => {
       expect(browserConsoleWarnings).toEqual(
         expect.not.arrayContaining([
           expect.stringContaining('param property was accessed directly with'),
-          expect.stringContaining('searchParam property was accessed directly with'),
+          expect.stringContaining(
+            'searchParam property was accessed directly with'
+          ),
         ])
       )
 

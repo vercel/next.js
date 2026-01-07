@@ -1,6 +1,12 @@
 /* eslint-env jest */
 import { join } from 'path'
-import { waitForNoRedbox, killApp, findPort, launchApp, waitFor } from 'next-test-utils'
+import {
+  waitForNoRedbox,
+  killApp,
+  findPort,
+  launchApp,
+  waitFor,
+} from 'next-test-utils'
 import webdriver from 'next-webdriver'
 
 const appDir = join(__dirname, '../')

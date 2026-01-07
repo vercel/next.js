@@ -51,8 +51,10 @@ export default function Page() {
         {JSON.stringify(
           {
             privateField: instance.getPrivateField(),
-            privateFieldWithInitializer: instance.getPrivateFieldWithInitializer(),
-            privateStaticFieldWithInitializer: instance.getPrivateStaticFieldWithInitializer(),
+            privateFieldWithInitializer:
+              instance.getPrivateFieldWithInitializer(),
+            privateStaticFieldWithInitializer:
+              instance.getPrivateStaticFieldWithInitializer(),
             privateStaticMethod: instance.getPrivateStaticMethod(),
             privateMethodInThis: instance.isPrivateMethodAvailable(),
             exportAs: abc,

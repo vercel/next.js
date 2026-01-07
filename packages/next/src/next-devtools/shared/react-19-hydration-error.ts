@@ -1,5 +1,7 @@
-export const REACT_HYDRATION_ERROR_LINK = 'https://react.dev/link/hydration-mismatch'
-export const NEXTJS_HYDRATION_ERROR_LINK = 'https://nextjs.org/docs/messages/react-hydration-error'
+export const REACT_HYDRATION_ERROR_LINK =
+  'https://react.dev/link/hydration-mismatch'
+export const NEXTJS_HYDRATION_ERROR_LINK =
+  'https://nextjs.org/docs/messages/react-hydration-error'
 
 /**
  * Only React 19+ contains component stack diff in the error message
@@ -43,10 +45,15 @@ export function getHydrationErrorStackInfo(error: Error): {
     }
   }
 
-  const [message, maybeComponentStackDiff] = errorMessage.split(`${REACT_HYDRATION_ERROR_LINK}`)
+  const [message, maybeComponentStackDiff] = errorMessage.split(
+    `${REACT_HYDRATION_ERROR_LINK}`
+  )
   const trimmedMessage = message.trim()
   // React built-in hydration diff starts with a newline
-  if (maybeComponentStackDiff !== undefined && maybeComponentStackDiff.length > 1) {
+  if (
+    maybeComponentStackDiff !== undefined &&
+    maybeComponentStackDiff.length > 1
+  ) {
     const diffs: string[] = []
     maybeComponentStackDiff.split('\n').forEach((line) => {
       if (line.trim() === '') return

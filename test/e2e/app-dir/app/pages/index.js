@@ -3,7 +3,9 @@ import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import styles from '../styles/shared.module.css'
 
-const Button = dynamic(() => import('../components/button/button').then((mod) => mod.Button))
+const Button = dynamic(() =>
+  import('../components/button/button').then((mod) => mod.Button)
+)
 
 export default function Page() {
   return (

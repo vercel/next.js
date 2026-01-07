@@ -2,7 +2,12 @@ import { redirect, notFound } from 'next/navigation'
 
 async function action(formData) {
   'use server'
-  redirect('/header?name=' + formData.get('name') + '&hidden-info=' + formData.get('hidden-info'))
+  redirect(
+    '/header?name=' +
+      formData.get('name') +
+      '&hidden-info=' +
+      formData.get('hidden-info')
+  )
 }
 
 async function nowhere() {
@@ -69,7 +74,11 @@ export default function Form() {
       </form>
       <hr />
       <form>
-        <button type="submit" id="add3" formAction={add3.bind(null, 1).bind(null, 2).bind(null, 3)}>
+        <button
+          type="submit"
+          id="add3"
+          formAction={add3.bind(null, 1).bind(null, 2).bind(null, 3)}
+        >
           add3
         </button>
       </form>

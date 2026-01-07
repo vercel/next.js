@@ -4,7 +4,10 @@ import ts from 'typescript'
 import { join, relative } from 'node:path'
 import { getPluginLanguageService, getTsFiles } from '../test-utils'
 
-type PartialDiagnostic = Pick<ts.Diagnostic, 'code' | 'messageText' | 'start' | 'length'>
+type PartialDiagnostic = Pick<
+  ts.Diagnostic,
+  'code' | 'messageText' | 'start' | 'length'
+>
 
 const fixturesDir = join(__dirname, 'app/warn-no-type')
 

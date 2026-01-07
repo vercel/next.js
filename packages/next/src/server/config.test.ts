@@ -91,7 +91,9 @@ describe('loadConfig', () => {
             },
           },
         })
-      ).rejects.toThrow(/`experimental\.ppr` has been merged into `cacheComponents`/)
+      ).rejects.toThrow(
+        /`experimental\.ppr` has been merged into `cacheComponents`/
+      )
     })
   })
   describe('with a canary version', () => {
@@ -112,7 +114,9 @@ describe('loadConfig', () => {
             },
           },
         })
-      ).rejects.toThrow(/`experimental\.ppr` has been merged into `cacheComponents`/)
+      ).rejects.toThrow(
+        /`experimental\.ppr` has been merged into `cacheComponents`/
+      )
     })
   })
 

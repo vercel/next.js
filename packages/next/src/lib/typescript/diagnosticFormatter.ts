@@ -1,19 +1,27 @@
 import { bold, cyan, red, yellow } from '../picocolors'
 import path from 'path'
 
-function getFormattedLinkDiagnosticMessageText(diagnostic: import('typescript').Diagnostic) {
+function getFormattedLinkDiagnosticMessageText(
+  diagnostic: import('typescript').Diagnostic
+) {
   const message = diagnostic.messageText
   if (typeof message === 'string' && diagnostic.code === 2322) {
     const match =
-      message.match(/Type '"(.+)"' is not assignable to type 'RouteImpl<.+> \| UrlObject'\./) ||
-      message.match(/Type '"(.+)"' is not assignable to type 'UrlObject \| RouteImpl<.+>'\./)
+      message.match(
+        /Type '"(.+)"' is not assignable to type 'RouteImpl<.+> \| UrlObject'\./
+      ) ||
+      message.match(
+        /Type '"(.+)"' is not assignable to type 'UrlObject \| RouteImpl<.+>'\./
+      )
 
     if (match) {
       const [, href] = match
       return `"${bold(
         href
       )}" is not an existing route. If it is intentional, please type it explicitly with \`as Route\`.`
-    } else if (message === "Type 'string' is not assignable to type 'UrlObject'.") {
+    } else if (
+      message === "Type 'string' is not assignable to type 'UrlObject'."
+    ) {
       const relatedMessage = diagnostic.relatedInformation?.[0]?.messageText
       if (
         typeof relatedMessage === 'string' &&
@@ -46,7 +54,10 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
   relativeSourceFilepath: string,
   diagnostic: import('typescript').Diagnostic
 ) {
-  const message = typeof diagnostic.messageText === 'string' ? diagnostic : diagnostic.messageText
+  const message =
+    typeof diagnostic.messageText === 'string'
+      ? diagnostic
+      : diagnostic.messageText
   const messageText = message.messageText
 
   if (typeof messageText === 'string') {
@@ -75,7 +86,8 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
             for (const item of next) {
               switch (item.code) {
                 case 2200:
-                  const mismatchedField = item.messageText.match(/The types of '(.+)'/)
+                  const mismatchedField =
+                    item.messageText.match(/The types of '(.+)'/)
                   if (mismatchedField) {
                     main += '\n' + ' '.repeat(indent * 2)
                     main += `"${bold(mismatchedField[1])}" has the wrong type:`
@@ -88,11 +100,17 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
                   if (types) {
                     main += '\n' + ' '.repeat(indent * 2)
 
-                    if (types[2] === 'PageComponent' || types[2] === 'LayoutComponent') {
+                    if (
+                      types[2] === 'PageComponent' ||
+                      types[2] === 'LayoutComponent'
+                    ) {
                       main += `The exported ${type} component isn't correctly typed.`
                     } else {
                       main += `Expected "${bold(
-                        types[2].replace('"__invalid_negative_number__"', 'number (>= 0)')
+                        types[2].replace(
+                          '"__invalid_negative_number__"',
+                          'number (>= 0)'
+                        )
                       )}", got "${bold(types[1])}".`
                     }
                   }
@@ -112,7 +130,9 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
                   )
                   if (invalidField) {
                     main += '\n' + ' '.repeat(indent * 2)
-                    main += `"${bold(invalidField[1])}" is not a valid ${type} export field.`
+                    main += `"${bold(
+                      invalidField[1]
+                    )}" is not a valid ${type} export field.`
                   }
                   return
                 case 2739:
@@ -120,7 +140,10 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
                     /Type '(.+)' is missing the following properties from type '(.+)'/
                   )
                   if (invalidProp) {
-                    if (invalidProp[1] === 'LayoutProps' || invalidProp[1] === 'PageProps') {
+                    if (
+                      invalidProp[1] === 'LayoutProps' ||
+                      invalidProp[1] === 'PageProps'
+                    ) {
                       main += '\n' + ' '.repeat(indent * 2)
                       main += `Prop "${invalidProp[2]}" is incompatible with the ${type}.`
                     }
@@ -169,7 +192,9 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
           /Type 'OmitWithTag<(.+), .+, "(.+)">' does not satisfy the constraint/
         )
         if (invalidExportFnArg) {
-          const main = `${type} "${bold(relativeSourceFilepath)}" has an invalid "${bold(
+          const main = `${type} "${bold(
+            relativeSourceFilepath
+          )}" has an invalid "${bold(
             invalidExportFnArg[2]
           )}" export:\n  Type "${bold(invalidExportFnArg[1])}" is not valid.`
           return main
@@ -191,7 +216,9 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
                 )
                 if (types) {
                   result += '\n' + ' '.repeat(indent * 2)
-                  result += `Expected "${bold(types[2])}", got "${bold(types[1])}".`
+                  result += `Expected "${bold(types[2])}", got "${bold(
+                    types[1]
+                  )}".`
                 }
                 break
               default:
@@ -211,7 +238,9 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
             relativeSourceFilepath
           )}" has an invalid ${invalidParamFn[1]} export:\n  Type "${bold(
             invalidParamFn[3]
-          )}" is not a valid type for the function's ${invalidParamFn[2]} argument.`
+          )}" is not a valid type for the function's ${
+            invalidParamFn[2]
+          } argument.`
 
           if ('next' in message) main += processNextItems(1, message.next)
           return main
@@ -221,7 +250,9 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
           /Type '{ __tag__: "(.+)"; __return_type__: (.+); }' does not satisfy/
         )
         if (invalidExportFnReturn) {
-          let main = `${type} "${bold(relativeSourceFilepath)}" has an invalid export:\n  "${bold(
+          let main = `${type} "${bold(
+            relativeSourceFilepath
+          )}" has an invalid export:\n  "${bold(
             invalidExportFnReturn[2]
           )}" is not a valid ${invalidExportFnReturn[1]} return type:`
 
@@ -235,7 +266,9 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
           /'typeof import\("(.+)"\)'.+Impossible<"(.+)">/
         )
         if (filepathAndInvalidExport) {
-          const main = `${type} "${bold(relativeSourceFilepath)}" exports an invalid "${bold(
+          const main = `${type} "${bold(
+            relativeSourceFilepath
+          )}" exports an invalid "${bold(
             filepathAndInvalidExport[2]
           )}" field. ${type} should only export a default React component and configuration options. Learn more: https://nextjs.org/docs/messages/invalid-segment-export`
           return main
@@ -257,8 +290,12 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
   }
 }
 
-function getAppEntrySourceFilePath(baseDir: string, diagnostic: import('typescript').Diagnostic) {
-  const sourceFilepath = diagnostic.file?.text.trim().match(/^\/\/ File: (.+)\n/)?.[1] || ''
+function getAppEntrySourceFilePath(
+  baseDir: string,
+  diagnostic: import('typescript').Diagnostic
+) {
+  const sourceFilepath =
+    diagnostic.file?.text.trim().match(/^\/\/ File: (.+)\n/)?.[1] || ''
 
   return path.relative(baseDir, sourceFilepath)
 }
@@ -272,11 +309,14 @@ export function getFormattedDiagnostic(
 ): string {
   // If the error comes from .next/types/, we handle it specially.
   const isLayoutOrPageError =
-    isAppDirEnabled && diagnostic.file?.fileName.startsWith(path.join(baseDir, distDir, 'types'))
+    isAppDirEnabled &&
+    diagnostic.file?.fileName.startsWith(path.join(baseDir, distDir, 'types'))
 
   let message = ''
 
-  const appPath = isLayoutOrPageError ? getAppEntrySourceFilePath(baseDir, diagnostic) : null
+  const appPath = isLayoutOrPageError
+    ? getAppEntrySourceFilePath(baseDir, diagnostic)
+    : null
   const linkReason = getFormattedLinkDiagnosticMessageText(diagnostic)
   const appReason =
     !linkReason && isLayoutOrPageError && appPath
@@ -284,7 +324,9 @@ export function getFormattedDiagnostic(
       : null
 
   const reason =
-    linkReason || appReason || ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n')
+    linkReason ||
+    appReason ||
+    ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n')
   const category = diagnostic.category
   switch (category) {
     // Warning

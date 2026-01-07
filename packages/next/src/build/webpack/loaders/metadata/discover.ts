@@ -1,4 +1,7 @@
-import type { CollectingMetadata, PossibleStaticMetadataFileNameConvention } from './types'
+import type {
+  CollectingMetadata,
+  PossibleStaticMetadataFileNameConvention,
+} from './types'
 import path from 'path'
 import { stringify } from 'querystring'
 import { STATIC_METADATA_IMAGES } from '../../../../lib/metadata/is-metadata-route'
@@ -27,7 +30,9 @@ async function enumMetadataFiles(
 
   // Collect <filename>.<ext>, <filename>[].<ext>
   const possibleFileNames = [filename].concat(
-    numericSuffix ? NUMERIC_SUFFIX_ARRAY.map((_, index) => filename + index) : []
+    numericSuffix
+      ? NUMERIC_SUFFIX_ARRAY.map((_, index) => filename + index)
+      : []
   )
   for (const name of possibleFileNames) {
     const resolved = await metadataResolver(dir, name, extensions)
@@ -64,7 +69,9 @@ export async function createStaticMetadataFromRoute(
     manifest: undefined,
   }
 
-  async function collectIconModuleIfExists(type: PossibleStaticMetadataFileNameConvention) {
+  async function collectIconModuleIfExists(
+    type: PossibleStaticMetadataFileNameConvention
+  ) {
     if (type === 'manifest') {
       const staticManifestExtension = ['webmanifest', 'json']
       const manifestFile = await enumMetadataFiles(
@@ -79,7 +86,9 @@ export async function createStaticMetadataFromRoute(
         const extension = staticManifestExtension.includes(ext.slice(1))
           ? ext.slice(1)
           : 'webmanifest'
-        staticImagesMetadata.manifest = JSON.stringify(`${basePath}/${name}.${extension}`)
+        staticImagesMetadata.manifest = JSON.stringify(
+          `${basePath}/${name}.${extension}`
+        )
       }
       return
     }
@@ -88,7 +97,10 @@ export async function createStaticMetadataFromRoute(
     const resolvedMetadataFiles = await enumMetadataFiles(
       resolvedDir,
       STATIC_METADATA_IMAGES[type].filename,
-      [...STATIC_METADATA_IMAGES[type].extensions, ...(isFavicon ? [] : pageExtensions)],
+      [
+        ...STATIC_METADATA_IMAGES[type].extensions,
+        ...(isFavicon ? [] : pageExtensions),
+      ],
       { metadataResolver, numericSuffix: !isFavicon }
     )
     resolvedMetadataFiles

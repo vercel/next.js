@@ -22,7 +22,11 @@ function Page() {
   const [query, setQuery] = React.useState('')
   return (
     <Form action={dispatch} id="search-form">
-      <input name="query" value={query} onChange={(e) => setQuery(e.target.value)} />
+      <input
+        name="query"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+      />
 
       <button type="submit">Submit (client action)</button>
     </Form>

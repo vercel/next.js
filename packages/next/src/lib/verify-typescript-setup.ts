@@ -78,7 +78,10 @@ export async function verifyTypeScriptSetup({
     }
 
     // Ensure TypeScript and necessary `@types/*` are installed:
-    let deps: NecessaryDependencies = hasNecessaryDependencies(dir, requiredPackages)
+    let deps: NecessaryDependencies = hasNecessaryDependencies(
+      dir,
+      requiredPackages
+    )
 
     if (deps.missing?.length > 0) {
       if (isCI) {
@@ -116,7 +119,9 @@ export async function verifyTypeScriptSetup({
     }
 
     // Load TypeScript after we're sure it exists:
-    const tsPackageJsonPath = deps.resolved.get(join('typescript', 'package.json'))!
+    const tsPackageJsonPath = deps.resolved.get(
+      join('typescript', 'package.json')
+    )!
     const typescriptPackageJson = require(tsPackageJsonPath)
 
     const typescriptVersion = typescriptPackageJson.version
@@ -156,7 +161,9 @@ export async function verifyTypeScriptSetup({
         require('./typescript/runTypeCheck') as typeof import('./typescript/runTypeCheck')
 
       const tsPath = deps.resolved.get('typescript')!
-      const typescript = (await Promise.resolve(require(tsPath))) as typeof import('typescript')
+      const typescript = (await Promise.resolve(
+        require(tsPath)
+      )) as typeof import('typescript')
 
       // Verify the project passes type-checking before we go to webpack phase:
       result = await runTypeCheck(

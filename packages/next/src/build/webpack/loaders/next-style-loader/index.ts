@@ -16,7 +16,8 @@ loaderApi.pitch = function loader(this: any, request: any): any {
           ? JSON.stringify(options.insert)
           : options.insert.toString()
     const injectType = options.injectType || 'styleTag'
-    const esModule = typeof options.esModule !== 'undefined' ? options.esModule : false
+    const esModule =
+      typeof options.esModule !== 'undefined' ? options.esModule : false
 
     delete options.esModule
 
@@ -137,12 +138,18 @@ if (module.hot) {
           esModule
             ? `import api from ${stringifyRequest(
                 this,
-                `!${path.join(__dirname, 'runtime/injectStylesIntoStyleTag.js')}`
+                `!${path.join(
+                  __dirname,
+                  'runtime/injectStylesIntoStyleTag.js'
+                )}`
               )};
             import content from ${stringifyRequest(this, `!!${request}`)};`
             : `var api = require(${stringifyRequest(
                 this,
-                `!${path.join(__dirname, 'runtime/injectStylesIntoStyleTag.js')}`
+                `!${path.join(
+                  __dirname,
+                  'runtime/injectStylesIntoStyleTag.js'
+                )}`
               )});
             var content = require(${stringifyRequest(this, `!!${request}`)});
 
@@ -243,12 +250,18 @@ if (module.hot) {
           esModule
             ? `import api from ${stringifyRequest(
                 this,
-                `!${path.join(__dirname, 'runtime/injectStylesIntoStyleTag.js')}`
+                `!${path.join(
+                  __dirname,
+                  'runtime/injectStylesIntoStyleTag.js'
+                )}`
               )};
             import content from ${stringifyRequest(this, `!!${request}`)};`
             : `var api = require(${stringifyRequest(
                 this,
-                `!${path.join(__dirname, 'runtime/injectStylesIntoStyleTag.js')}`
+                `!${path.join(
+                  __dirname,
+                  'runtime/injectStylesIntoStyleTag.js'
+                )}`
               )});
             var content = require(${stringifyRequest(this, `!!${request}`)});
 

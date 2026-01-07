@@ -5,7 +5,10 @@ import type { MissingDependency } from '../has-necessary-dependencies'
 import { FatalError } from '../fatal-error'
 import { getPkgManager } from '../helpers/get-pkg-manager'
 
-export function missingDepsError(dir: string, missingPackages: MissingDependency[]): never {
+export function missingDepsError(
+  dir: string,
+  missingPackages: MissingDependency[]
+): never {
   const packagesHuman = getOxfordCommaList(missingPackages.map((p) => p.pkg))
   const packagesCli = missingPackages.map((p) => p.pkg).join(' ')
   const packageManager = getPkgManager(dir)

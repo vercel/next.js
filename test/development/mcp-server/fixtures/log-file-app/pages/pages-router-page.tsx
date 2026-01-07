@@ -16,8 +16,12 @@ export default function Page({ message }: Props) {
 
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
   console.log('Pages Router SSR: This is a log message from getServerSideProps')
-  console.error('Pages Router SSR: This is an error message from getServerSideProps')
-  console.warn('Pages Router SSR: This is a warning message from getServerSideProps')
+  console.error(
+    'Pages Router SSR: This is an error message from getServerSideProps'
+  )
+  console.warn(
+    'Pages Router SSR: This is a warning message from getServerSideProps'
+  )
 
   return {
     props: {

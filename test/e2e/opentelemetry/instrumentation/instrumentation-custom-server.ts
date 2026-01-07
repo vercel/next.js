@@ -2,7 +2,11 @@ import { Resource } from '@opentelemetry/resources'
 import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions'
 import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node'
 import { SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base'
-import { ExportResult, ExportResultCode, hrTimeToMicroseconds } from '@opentelemetry/core'
+import {
+  ExportResult,
+  ExportResultCode,
+  hrTimeToMicroseconds,
+} from '@opentelemetry/core'
 import type { ReadableSpan, SpanExporter } from '@opentelemetry/sdk-trace-base'
 
 interface SerializedSpan {

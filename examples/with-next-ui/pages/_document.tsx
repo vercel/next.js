@@ -12,7 +12,9 @@ import { CssBaseline } from "@nextui-org/react";
 import { Children } from "react";
 
 export default class MyDocument extends Document {
-  static async getInitialProps(ctx: DocumentContext): Promise<DocumentInitialProps> {
+  static async getInitialProps(
+    ctx: DocumentContext,
+  ): Promise<DocumentInitialProps> {
     const initialProps = await Document.getInitialProps(ctx);
 
     return {

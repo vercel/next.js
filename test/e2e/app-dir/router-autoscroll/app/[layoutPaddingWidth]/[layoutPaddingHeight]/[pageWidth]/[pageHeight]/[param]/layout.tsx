@@ -12,7 +12,8 @@ export default async function Layout({
     pageHeight: string
   }>
 }) {
-  const { layoutPaddingHeight, layoutPaddingWidth, pageWidth, pageHeight } = await params
+  const { layoutPaddingHeight, layoutPaddingWidth, pageWidth, pageHeight } =
+    await params
   return (
     <div
       style={{

@@ -25,11 +25,21 @@ const IS_TURBOPACK = process.env.IS_TURBOPACK_TEST === '1'
 
   it('should externalize Bun builtins in server bundles', async () => {
     // Check the server bundle
-    const serverBundle = await fs.readFile(join(appDir, '.next/server/pages/index.js'), 'utf8')
+    const serverBundle = await fs.readFile(
+      join(appDir, '.next/server/pages/index.js'),
+      'utf8'
+    )
 
     // Bun modules should be treated as external
     // When modules are external, webpack preserves the require() calls
-    const bunModules = ['bun:ffi', 'bun:jsc', 'bun:sqlite', 'bun:test', 'bun:wrap', 'bun']
+    const bunModules = [
+      'bun:ffi',
+      'bun:jsc',
+      'bun:sqlite',
+      'bun:test',
+      'bun:wrap',
+      'bun',
+    ]
 
     bunModules.forEach((mod) => {
       // Check that the module name appears in require() calls
@@ -40,7 +50,10 @@ const IS_TURBOPACK = process.env.IS_TURBOPACK_TEST === '1'
   })
 
   it('should not bundle Bun module implementations', async () => {
-    const serverBundle = await fs.readFile(join(appDir, '.next/server/pages/index.js'), 'utf8')
+    const serverBundle = await fs.readFile(
+      join(appDir, '.next/server/pages/index.js'),
+      'utf8'
+    )
 
     // These patterns would indicate the modules were bundled, which we don't want
     expect(serverBundle).not.toContain('__webpack_require__.resolve("bun")')

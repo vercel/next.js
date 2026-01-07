@@ -2,7 +2,16 @@ const { SourceMapGenerator } = require('source-map')
 const path = require('path')
 const { createHash } = require('crypto')
 
-const markdownExtensions = ['md', 'markdown', 'mdown', 'mkdn', 'mkd', 'mdwn', 'mkdown', 'ron']
+const markdownExtensions = [
+  'md',
+  'markdown',
+  'mdown',
+  'mkdn',
+  'mkd',
+  'mdwn',
+  'mkdown',
+  'ron',
+]
 const mdx = ['.mdx']
 const md = markdownExtensions.map((/** @type {string} */ d) => '.' + d)
 
@@ -64,7 +73,10 @@ function loader(value, bindings, callback) {
   let process = map.get(hash)
 
   if (!process) {
-    process = createFormatAwareProcessors(bindings, coereceMdxTransformOptions(config)).compile
+    process = createFormatAwareProcessors(
+      bindings,
+      coereceMdxTransformOptions(config)
+    ).compile
     map.set(hash, process)
   }
 
@@ -120,7 +132,8 @@ function createFormatAwareProcessors(bindings, compileOptions = {}) {
     const format =
       compileOptions.format === 'md' || compileOptions.format === 'mdx'
         ? compileOptions.format
-        : path.extname(p) && (compileOptions.mdExtensions || md).includes(path.extname(p))
+        : path.extname(p) &&
+            (compileOptions.mdExtensions || md).includes(path.extname(p))
           ? 'md'
           : 'mdx'
 

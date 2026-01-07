@@ -77,13 +77,17 @@ export type RenderResultResponse =
   | Buffer
   | null
 
-export type RenderResultOptions<Metadata extends RenderResultMetadata = RenderResultMetadata> = {
+export type RenderResultOptions<
+  Metadata extends RenderResultMetadata = RenderResultMetadata,
+> = {
   contentType: ContentTypeOption | null
   waitUntil?: Promise<unknown>
   metadata: Metadata
 }
 
-export default class RenderResult<Metadata extends RenderResultMetadata = RenderResultMetadata> {
+export default class RenderResult<
+  Metadata extends RenderResultMetadata = RenderResultMetadata,
+> {
   /**
    * The detected content type for the response. This is used to set the
    * `Content-Type` header.
@@ -108,10 +112,10 @@ export default class RenderResult<Metadata extends RenderResultMetadata = Render
    * A render result that represents an empty response. This is used to
    * represent a response that was not found or was already sent.
    */
-  public static readonly EMPTY = new RenderResult<StaticRenderResultMetadata>(null, {
-    metadata: {},
-    contentType: null,
-  })
+  public static readonly EMPTY = new RenderResult<StaticRenderResultMetadata>(
+    null,
+    { metadata: {}, contentType: null }
+  )
 
   /**
    * Creates a new RenderResult instance from a static response.
@@ -120,7 +124,10 @@ export default class RenderResult<Metadata extends RenderResultMetadata = Render
    * @param contentType the content type of the response
    * @returns a new RenderResult instance
    */
-  public static fromStatic(value: string | Buffer, contentType: ContentTypeOption) {
+  public static fromStatic(
+    value: string | Buffer,
+    contentType: ContentTypeOption
+  ) {
     return new RenderResult<StaticRenderResultMetadata>(value, {
       metadata: {},
       contentType,
@@ -177,7 +184,9 @@ export default class RenderResult<Metadata extends RenderResultMetadata = Render
 
     if (typeof this.response !== 'string') {
       if (!stream) {
-        throw new InvariantError('dynamic responses cannot be unchunked. This is a bug in Next.js')
+        throw new InvariantError(
+          'dynamic responses cannot be unchunked. This is a bug in Next.js'
+        )
       }
 
       return streamToString(this.readable)

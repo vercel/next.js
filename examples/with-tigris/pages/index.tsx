@@ -183,7 +183,9 @@ const Home: NextPage = () => {
         {/* Search Header */}
         <div className={styles.searchHeader}>
           <input
-            className={`${styles.searchInput} ${wiggleError ? styles.invalid : ""}`}
+            className={`${styles.searchInput} ${
+              wiggleError ? styles.invalid : ""
+            }`}
             value={textInput}
             onChange={(e) => {
               setWiggleError(false);
@@ -198,7 +200,9 @@ const Home: NextPage = () => {
         {/* Results section */}
         <div className={styles.results}>
           {/* Loader, Errors and Back to List mode */}
-          {isError && <p className={styles.errorText}>Something went wrong.. </p>}
+          {isError && (
+            <p className={styles.errorText}>Something went wrong.. </p>
+          )}
           {isLoading && <LoaderWave />}
           {viewMode === "search" && (
             <button
@@ -236,7 +240,12 @@ const Home: NextPage = () => {
         </div>
 
         <a href="https://tigrisdata.com/">
-          <Image src="/tigris_logo.svg" alt="Tigris Logo" width={100} height={100} />
+          <Image
+            src="/tigris_logo.svg"
+            alt="Tigris Logo"
+            width={100}
+            height={100}
+          />
         </a>
       </div>
     </div>

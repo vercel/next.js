@@ -1,5 +1,8 @@
 import path from 'path'
-import { getRouteRegex, type Group } from '../../../shared/lib/router/utils/route-regex'
+import {
+  getRouteRegex,
+  type Group,
+} from '../../../shared/lib/router/utils/route-regex'
 import type { NextConfigComplete } from '../../config-shared'
 
 import fs from 'fs'
@@ -110,7 +113,9 @@ export function convertCustomRouteSource(source: string): string[] {
   }
 
   // Ensure leading slash
-  return possibleNormalizedRoutes.map((route) => (route.startsWith('/') ? route : '/' + route))
+  return possibleNormalizedRoutes.map((route) =>
+    route.startsWith('/') ? route : '/' + route
+  )
 }
 
 /**
@@ -168,7 +173,9 @@ export async function createRouteTypesManifest({
   const getRelativePath = (filePath: string) => {
     if (validatorFilePath) {
       // For validator generation, calculate path relative to validator directory
-      return normalizePathSep(path.relative(path.dirname(validatorFilePath), filePath))
+      return normalizePathSep(
+        path.relative(path.dirname(validatorFilePath), filePath)
+      )
     }
     // For other uses, calculate path relative to project directory
     return normalizePathSep(path.relative(dir, filePath))
@@ -181,29 +188,50 @@ export async function createRouteTypesManifest({
     appRouteHandlerRoutes: {},
     redirectRoutes: {},
     rewriteRoutes: {},
-    appRouteHandlers: new Set(appRouteHandlers.map(({ filePath }) => getRelativePath(filePath))),
-    pageApiRoutes: new Set(pageApiRoutes.map(({ filePath }) => getRelativePath(filePath))),
-    appPagePaths: new Set(appRoutes.map(({ filePath }) => getRelativePath(filePath))),
-    pagesRouterPagePaths: new Set(pageRoutes.map(({ filePath }) => getRelativePath(filePath))),
-    layoutPaths: new Set(layoutRoutes.map(({ filePath }) => getRelativePath(filePath))),
+    appRouteHandlers: new Set(
+      appRouteHandlers.map(({ filePath }) => getRelativePath(filePath))
+    ),
+    pageApiRoutes: new Set(
+      pageApiRoutes.map(({ filePath }) => getRelativePath(filePath))
+    ),
+    appPagePaths: new Set(
+      appRoutes.map(({ filePath }) => getRelativePath(filePath))
+    ),
+    pagesRouterPagePaths: new Set(
+      pageRoutes.map(({ filePath }) => getRelativePath(filePath))
+    ),
+    layoutPaths: new Set(
+      layoutRoutes.map(({ filePath }) => getRelativePath(filePath))
+    ),
     filePathToRoute: new Map([
       ...appRoutes.map(
         ({ route, filePath }) =>
-          [getRelativePath(filePath), resolveInterceptingRoute(route)] as [string, string]
+          [getRelativePath(filePath), resolveInterceptingRoute(route)] as [
+            string,
+            string,
+          ]
       ),
       ...layoutRoutes.map(
         ({ route, filePath }) =>
-          [getRelativePath(filePath), resolveInterceptingRoute(route)] as [string, string]
+          [getRelativePath(filePath), resolveInterceptingRoute(route)] as [
+            string,
+            string,
+          ]
       ),
       ...appRouteHandlers.map(
         ({ route, filePath }) =>
-          [getRelativePath(filePath), resolveInterceptingRoute(route)] as [string, string]
+          [getRelativePath(filePath), resolveInterceptingRoute(route)] as [
+            string,
+            string,
+          ]
       ),
       ...pageRoutes.map(
-        ({ route, filePath }) => [getRelativePath(filePath), route] as [string, string]
+        ({ route, filePath }) =>
+          [getRelativePath(filePath), route] as [string, string]
       ),
       ...pageApiRoutes.map(
-        ({ route, filePath }) => [getRelativePath(filePath), route] as [string, string]
+        ({ route, filePath }) =>
+          [getRelativePath(filePath), route] as [string, string]
       ),
     ]),
   }
@@ -218,7 +246,11 @@ export async function createRouteTypesManifest({
 
   // Process layout routes (exclude internal app error/not-found layouts)
   for (const { route, filePath } of layoutRoutes) {
-    if (route === UNDERSCORE_GLOBAL_ERROR_ROUTE || route === UNDERSCORE_NOT_FOUND_ROUTE) continue
+    if (
+      route === UNDERSCORE_GLOBAL_ERROR_ROUTE ||
+      route === UNDERSCORE_NOT_FOUND_ROUTE
+    )
+      continue
     // Use the resolved route (for interception routes, this gives us the canonical route)
     const resolvedRoute = resolveInterceptingRoute(route)
     if (!manifest.layoutRoutes[resolvedRoute]) {
@@ -239,7 +271,11 @@ export async function createRouteTypesManifest({
 
   // Process app routes (exclude internal app routes)
   for (const { route, filePath } of appRoutes) {
-    if (route === UNDERSCORE_GLOBAL_ERROR_ROUTE || route === UNDERSCORE_NOT_FOUND_ROUTE) continue
+    if (
+      route === UNDERSCORE_GLOBAL_ERROR_ROUTE ||
+      route === UNDERSCORE_NOT_FOUND_ROUTE
+    )
+      continue
     // Don't include metadata routes or pages
     if (
       !filePath.endsWith('page.ts') &&
@@ -295,7 +331,11 @@ export async function createRouteTypesManifest({
 
     const allSources = Array.isArray(rw)
       ? rw
-      : [...(rw?.beforeFiles || []), ...(rw?.afterFiles || []), ...(rw?.fallback || [])]
+      : [
+          ...(rw?.beforeFiles || []),
+          ...(rw?.afterFiles || []),
+          ...(rw?.fallback || []),
+        ]
 
     for (const item of allSources) {
       const possibleRoutes = convertCustomRouteSource(item.source)
@@ -350,6 +390,8 @@ export async function writeValidatorFile(
 
   await fs.promises.writeFile(
     filePath,
-    strict ? generateValidatorFileStrict(manifest) : generateValidatorFile(manifest)
+    strict
+      ? generateValidatorFileStrict(manifest)
+      : generateValidatorFile(manifest)
   )
 }

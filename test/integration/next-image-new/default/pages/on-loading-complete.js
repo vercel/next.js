@@ -111,7 +111,9 @@ function ImageWithMessage({ id, idToCount, setIdToCount, ...props }) {
             idToCount[id] = count
             setIdToCount(idToCount)
             const name = nodeName.toLocaleLowerCase()
-            setMsg(`loaded ${count} ${name}${id} with dimensions ${naturalWidth}x${naturalHeight}`)
+            setMsg(
+              `loaded ${count} ${name}${id} with dimensions ${naturalWidth}x${naturalHeight}`
+            )
           }}
           {...props}
         />

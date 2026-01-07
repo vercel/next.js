@@ -84,7 +84,8 @@ let DEV_BACKEND: DevRuntimeBackend
           // First load the new CSS, then remove the old ones. This prevents visible
           // flickering that would happen in-between removing the previous CSS and
           // loading the new one.
-          for (const previousLink of Array.from(previousLinks)) previousLink.remove()
+          for (const previousLink of Array.from(previousLinks))
+            previousLink.remove()
 
           // CSS chunks do not register themselves, and as such must be marked as
           // loaded instantly.
@@ -93,7 +94,10 @@ let DEV_BACKEND: DevRuntimeBackend
 
         // Make sure to insert the new CSS right after the previous one, so that
         // its precedence is higher.
-        previousLinks[0].parentElement!.insertBefore(link, previousLinks[0].nextSibling)
+        previousLinks[0].parentElement!.insertBefore(
+          link,
+          previousLinks[0].nextSibling
+        )
       })
     },
 
@@ -106,7 +110,9 @@ let DEV_BACKEND: DevRuntimeBackend
 })()
 
 function _eval({ code, url, map }: EcmascriptModuleEntry): ModuleFactory {
-  code += `\n\n//# sourceURL=${encodeURI(location.origin + CHUNK_BASE_PATH + url + CHUNK_SUFFIX)}`
+  code += `\n\n//# sourceURL=${encodeURI(
+    location.origin + CHUNK_BASE_PATH + url + CHUNK_SUFFIX
+  )}`
   if (map) {
     code += `\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,${btoa(
       // btoa doesn't handle nonlatin characters, so escape them as \x sequences

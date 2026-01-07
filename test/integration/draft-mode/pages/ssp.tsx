@@ -6,7 +6,10 @@ type Props = {
   draftMode: string
 }
 
-export const getServerSideProps: GetServerSideProps<Props> = async ({ res, draftMode }) => {
+export const getServerSideProps: GetServerSideProps<Props> = async ({
+  res,
+  draftMode,
+}) => {
   // test override header
   res.setHeader('Cache-Control', 'public, max-age=3600')
   return {

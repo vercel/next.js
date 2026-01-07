@@ -17,7 +17,9 @@ describe('app dir - next/dynamic', () => {
     expect($.html()).not.toContain('navigator')
 
     const browser = await next.browser('/legacy/no-ssr')
-    expect(await browser.waitForElementByCss('#pure-client').text()).toContain('navigator')
+    expect(await browser.waitForElementByCss('#pure-client').text()).toContain(
+      'navigator'
+    )
   })
 
   it('should handle next/dynamic in SSR correctly', async () => {
@@ -38,9 +40,9 @@ describe('app dir - next/dynamic', () => {
     const browser = await next.browser('/dynamic')
     await browser.waitForElementByCss('#css-text-dynamic-no-ssr-client')
 
-    expect(await browser.elementByCss('#css-text-dynamic-no-ssr-client').text()).toBe(
-      'next-dynamic dynamic no ssr on client:suffix'
-    )
+    expect(
+      await browser.elementByCss('#css-text-dynamic-no-ssr-client').text()
+    ).toBe('next-dynamic dynamic no ssr on client:suffix')
   })
 
   it('should generate correct client manifest for dynamic chunks', async () => {
@@ -91,12 +93,14 @@ describe('app dir - next/dynamic', () => {
     it('should not render client component imported through ssr: false in client components in edge runtime', async () => {
       // noSSR should not show up in html
       const $ = await next.render$('/dynamic-mixed-ssr-false/client-edge')
-      expect($('#server-false-client-module')).not.toContain('ssr-false-client-module-text')
-      // noSSR should not show up in browser
-      const browser = await next.browser('/dynamic-mixed-ssr-false/client-edge')
-      expect(await browser.elementByCss('#ssr-false-client-module').text()).toBe(
+      expect($('#server-false-client-module')).not.toContain(
         'ssr-false-client-module-text'
       )
+      // noSSR should not show up in browser
+      const browser = await next.browser('/dynamic-mixed-ssr-false/client-edge')
+      expect(
+        await browser.elementByCss('#ssr-false-client-module').text()
+      ).toBe('ssr-false-client-module-text')
 
       // in the server bundle should not contain client component imported through ssr: false
       if (isNextStart) {
@@ -106,7 +110,9 @@ describe('app dir - next/dynamic', () => {
 
         const uniquePageFiles = [
           ...new Set<string>(
-            middlewareManifest.functions['/dynamic-mixed-ssr-false/client-edge/page'].files
+            middlewareManifest.functions[
+              '/dynamic-mixed-ssr-false/client-edge/page'
+            ].files
           ),
         ]
 
@@ -120,12 +126,14 @@ describe('app dir - next/dynamic', () => {
     it('should not render client component imported through ssr: false in client components', async () => {
       // noSSR should not show up in html
       const $ = await next.render$('/dynamic-mixed-ssr-false/client')
-      expect($('#client-false-client-module')).not.toContain('ssr-false-client-module-text')
-      // noSSR should not show up in browser
-      const browser = await next.browser('/dynamic-mixed-ssr-false/client')
-      expect(await browser.elementByCss('#ssr-false-client-module').text()).toBe(
+      expect($('#client-false-client-module')).not.toContain(
         'ssr-false-client-module-text'
       )
+      // noSSR should not show up in browser
+      const browser = await next.browser('/dynamic-mixed-ssr-false/client')
+      expect(
+        await browser.elementByCss('#ssr-false-client-module').text()
+      ).toBe('ssr-false-client-module-text')
 
       // in the server bundle should not contain both server and client component imported through ssr: false
       if (isNextStart) {
@@ -143,7 +151,9 @@ describe('app dir - next/dynamic', () => {
 
     it('should support dynamic import with TLA in client components', async () => {
       const $ = await next.render$('/dynamic/async-client')
-      expect($('#client-button').text()).toBe('this is an async client button with SSR')
+      expect($('#client-button').text()).toBe(
+        'this is an async client button with SSR'
+      )
       expect($('#client-button-no-ssr').text()).toBe('')
 
       const browser = await next.browser('/dynamic/async-client')

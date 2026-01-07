@@ -4,7 +4,11 @@
   exports.id = 829
   exports.ids = [829]
   exports.modules = {
-    /***/ 354: /***/ (__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+    /***/ 354: /***/ (
+      __unused_webpack_module,
+      __webpack_exports__,
+      __webpack_require__
+    ) => {
       // ESM COMPAT FLAG
       __webpack_require__.r(__webpack_exports__)
 
@@ -40,7 +44,8 @@
   // load runtime
   var __webpack_require__ = require('./webpack-api-runtime.js')
   __webpack_require__.C(exports)
-  var __webpack_exec__ = (moduleId) => __webpack_require__((__webpack_require__.s = moduleId))
+  var __webpack_exec__ = (moduleId) =>
+    __webpack_require__((__webpack_require__.s = moduleId))
   var __webpack_exports__ = __webpack_exec__(354)
   module.exports = __webpack_exports__
 })()

@@ -38,7 +38,9 @@ export type Ipc<TIncoming, TOutgoing> = {
   sendReady(): Promise<void>
 }
 
-function createIpc<TIncoming, TOutgoing>(port: number): Ipc<TIncoming, TOutgoing> {
+function createIpc<TIncoming, TOutgoing>(
+  port: number
+): Ipc<TIncoming, TOutgoing> {
   const socket = createConnection({
     port,
     host: '127.0.0.1',

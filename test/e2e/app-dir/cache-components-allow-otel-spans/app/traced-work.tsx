@@ -122,7 +122,9 @@ export function InnerTraceActiveSpan() {
   )
 }
 
-export const CachedTracedComponentActiveSpan = withActiveSpan(async function (span: Span) {
+export const CachedTracedComponentActiveSpan = withActiveSpan(async function (
+  span: Span
+) {
   async function Inner() {
     const result = await cachedAsyncWork()
     return <Result>{result}</Result>
@@ -146,7 +148,9 @@ export const CachedTracedComponentActiveSpan = withActiveSpan(async function (sp
   )
 })
 
-export const TracedComponentActiveSpan = withActiveSpan(async function (span: Span) {
+export const TracedComponentActiveSpan = withActiveSpan(async function (
+  span: Span
+) {
   async function Inner() {
     const result = await asyncWork()
     return <Result>{result}</Result>

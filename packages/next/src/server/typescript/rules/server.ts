@@ -11,7 +11,10 @@ const serverLayer = {
   filterCompletionsAtPosition(entries: tsModule.CompletionEntry[]) {
     return entries.filter((e: tsModule.CompletionEntry) => {
       // Remove disallowed React APIs.
-      if (DISALLOWED_SERVER_REACT_APIS.includes(e.name) && e.source === 'react') {
+      if (
+        DISALLOWED_SERVER_REACT_APIS.includes(e.name) &&
+        e.source === 'react'
+      ) {
         return false
       }
       return true
@@ -19,9 +22,13 @@ const serverLayer = {
   },
 
   // Filter out quick info for some React APIs.
-  hasDisallowedReactAPIDefinition(definitions: readonly tsModule.DefinitionInfo[]) {
+  hasDisallowedReactAPIDefinition(
+    definitions: readonly tsModule.DefinitionInfo[]
+  ) {
     return definitions?.some(
-      (d) => DISALLOWED_SERVER_REACT_APIS.includes(d.name) && d.containerName === 'React'
+      (d) =>
+        DISALLOWED_SERVER_REACT_APIS.includes(d.name) &&
+        d.containerName === 'React'
     )
   },
 

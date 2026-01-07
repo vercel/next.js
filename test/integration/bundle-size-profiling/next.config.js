@@ -7,7 +7,9 @@ module.exports = {
         new BundleAnalyzerPlugin({
           generateStatsFile: true,
           analyzerMode: 'static',
-          reportFilename: options.isServer ? '../analyze/server.html' : './analyze/client.html',
+          reportFilename: options.isServer
+            ? '../analyze/server.html'
+            : './analyze/client.html',
         })
       )
     }

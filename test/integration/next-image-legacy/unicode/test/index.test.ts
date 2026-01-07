@@ -1,6 +1,12 @@
 /* eslint-env jest */
 
-import { findPort, killApp, launchApp, nextBuild, nextStart } from 'next-test-utils'
+import {
+  findPort,
+  killApp,
+  launchApp,
+  nextBuild,
+  nextStart,
+} from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import fetch from 'node-fetch'
 import { join } from 'path'
@@ -24,7 +30,9 @@ function runTests() {
 
   it('should load internal unicode image', async () => {
     const src = await browser.elementById('internal').getAttribute('src')
-    expect(src).toMatch('/_next/image?url=%2F%C3%A4%C3%B6%C3%BC%C5%A1%C4%8D%C5%99%C3%AD.png')
+    expect(src).toMatch(
+      '/_next/image?url=%2F%C3%A4%C3%B6%C3%BC%C5%A1%C4%8D%C5%99%C3%AD.png'
+    )
     const fullSrc = new URL(src, `http://localhost:${appPort}`)
     const res = await fetch(fullSrc)
     expect(res.status).toBe(200)
@@ -60,33 +68,39 @@ function runTests() {
 }
 
 describe('Image Component Unicode Image URL', () => {
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-      browser = await webdriver(appPort, '/')
-    })
-    afterAll(async () => {
-      await killApp(app)
-      if (browser) {
-        browser.close()
-      }
-    })
-    runTests()
-  })
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-      browser = await webdriver(appPort, '/')
-    })
-    afterAll(async () => {
-      await killApp(app)
-      if (browser) {
-        browser.close()
-      }
-    })
-    runTests()
-  })
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+        browser = await webdriver(appPort, '/')
+      })
+      afterAll(async () => {
+        await killApp(app)
+        if (browser) {
+          browser.close()
+        }
+      })
+      runTests()
+    }
+  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+        browser = await webdriver(appPort, '/')
+      })
+      afterAll(async () => {
+        await killApp(app)
+        if (browser) {
+          browser.close()
+        }
+      })
+      runTests()
+    }
+  )
 })

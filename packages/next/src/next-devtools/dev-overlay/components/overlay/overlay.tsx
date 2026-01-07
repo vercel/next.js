@@ -6,7 +6,11 @@ export type OverlayProps = React.HTMLAttributes<HTMLDivElement> & {
   ref?: React.Ref<HTMLDivElement>
 }
 
-const Overlay: React.FC<OverlayProps> = function Overlay({ className, children, ...props }) {
+const Overlay: React.FC<OverlayProps> = function Overlay({
+  className,
+  children,
+  ...props
+}) {
   React.useEffect(() => {
     lock()
     return () => {

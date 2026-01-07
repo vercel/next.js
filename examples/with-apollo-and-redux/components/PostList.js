@@ -22,13 +22,16 @@ export const allPostsQueryVars = {
 };
 
 export default function PostList() {
-  const { loading, error, data, fetchMore, networkStatus } = useQuery(ALL_POSTS_QUERY, {
-    variables: allPostsQueryVars,
-    // Setting this value to true will make the component rerender when
-    // the "networkStatus" changes, so we are able to know if it is fetching
-    // more data
-    notifyOnNetworkStatusChange: true,
-  });
+  const { loading, error, data, fetchMore, networkStatus } = useQuery(
+    ALL_POSTS_QUERY,
+    {
+      variables: allPostsQueryVars,
+      // Setting this value to true will make the component rerender when
+      // the "networkStatus" changes, so we are able to know if it is fetching
+      // more data
+      notifyOnNetworkStatusChange: true,
+    },
+  );
 
   const loadingMorePosts = networkStatus === NetworkStatus.fetchMore;
 

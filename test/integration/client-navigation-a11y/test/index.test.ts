@@ -1,6 +1,11 @@
 /* eslint-env jest */
 
-import { findPort, killApp, launchApp, renderViaHTTP } from '../../../lib/next-test-utils'
+import {
+  findPort,
+  killApp,
+  launchApp,
+  renderViaHTTP,
+} from '../../../lib/next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
@@ -18,7 +23,8 @@ const getAnnouncedTitle = async (browser) =>
 
 const getDocumentTitle = async (browser) => await browser.eval('document.title')
 
-const getMainHeadingTitle = async (browser) => await browser.elementByCss('h1').text()
+const getMainHeadingTitle = async (browser) =>
+  await browser.elementByCss('h1').text()
 
 describe('Client Navigation accessibility', () => {
   beforeAll(async () => {
@@ -29,7 +35,9 @@ describe('Client Navigation accessibility', () => {
       '/page-with-h1-and-title, /page-with-h1, /page-with-title, /page-without-h1-or-title',
     ]
 
-    await Promise.all(prerender.map((route) => renderViaHTTP(context.appPort, route)))
+    await Promise.all(
+      prerender.map((route) => renderViaHTTP(context.appPort, route))
+    )
   })
 
   afterAll(() => killApp(context.server))
@@ -43,7 +51,9 @@ describe('Client Navigation accessibility', () => {
 
     it('has aria-live="assertive" and role="alert"', async () => {
       const browser = await webdriver(context.appPort, '/')
-      const routeAnnouncer = await browser.waitForElementByCss('#__next-route-announcer__')
+      const routeAnnouncer = await browser.waitForElementByCss(
+        '#__next-route-announcer__'
+      )
       const ariaLiveValue = await routeAnnouncer.getAttribute('aria-live')
       const roleValue = await routeAnnouncer.getAttribute('role')
 

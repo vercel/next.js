@@ -49,7 +49,8 @@ if (process.env.NEXT_RUNTIME === 'edge') {
     )
   }
 
-  const randomFillSyncExpression = "`require('node:crypto').randomFillSync(...)`"
+  const randomFillSyncExpression =
+    "`require('node:crypto').randomFillSync(...)`"
   try {
     const _randomFillSync = nodeCrypto.randomFillSync
     // @ts-expect-error -- TODO: tell TS the overloads are preserved
@@ -80,7 +81,8 @@ if (process.env.NEXT_RUNTIME === 'edge') {
     )
   }
 
-  const generatePrimeSyncExpression = "`require('node:crypto').generatePrimeSync(...)`"
+  const generatePrimeSyncExpression =
+    "`require('node:crypto').generatePrimeSync(...)`"
   try {
     const _generatePrimeSync = nodeCrypto.generatePrimeSync
     // @ts-expect-error -- TODO: tell TS the overloads are preserved
@@ -94,7 +96,8 @@ if (process.env.NEXT_RUNTIME === 'edge') {
     )
   }
 
-  const generateKeyPairSyncExpression = "`require('node:crypto').generateKeyPairSync(...)`"
+  const generateKeyPairSyncExpression =
+    "`require('node:crypto').generateKeyPairSync(...)`"
   try {
     const _generateKeyPairSync = nodeCrypto.generateKeyPairSync
     // @ts-expect-error -- TODO: tell TS the overloads are preserved
@@ -108,7 +111,8 @@ if (process.env.NEXT_RUNTIME === 'edge') {
     )
   }
 
-  const generateKeySyncExpression = "`require('node:crypto').generateKeySync(...)`"
+  const generateKeySyncExpression =
+    "`require('node:crypto').generateKeySync(...)`"
   try {
     const _generateKeySync = nodeCrypto.generateKeySync
     nodeCrypto.generateKeySync = function generateKeySync() {

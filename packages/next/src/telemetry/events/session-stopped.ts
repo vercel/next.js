@@ -12,7 +12,10 @@ export type EventCliSessionStopped = {
 }
 
 export function eventCliSessionStopped(
-  event: Omit<EventCliSessionStopped, 'nextVersion' | 'nodeVersion' | 'isRspack'>
+  event: Omit<
+    EventCliSessionStopped,
+    'nextVersion' | 'nodeVersion' | 'isRspack'
+  >
 ): { eventName: string; payload: EventCliSessionStopped }[] {
   // This should be an invariant, if it fails our build tooling is broken.
   if (typeof process.env.__NEXT_VERSION !== 'string') {

@@ -7,7 +7,9 @@ export function getTerminalLoggingConfig():
       showSourceLocation?: boolean
     } {
   try {
-    return JSON.parse(process.env.__NEXT_BROWSER_DEBUG_INFO_IN_TERMINAL || 'false')
+    return JSON.parse(
+      process.env.__NEXT_BROWSER_DEBUG_INFO_IN_TERMINAL || 'false'
+    )
   } catch {
     return false
   }

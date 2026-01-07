@@ -1,5 +1,14 @@
 import { hrtimeBigIntDurationToString } from '../../build/duration-to-string'
-import { blue, bold, gray, green, red, white, yellow, dim } from '../../lib/picocolors'
+import {
+  blue,
+  bold,
+  gray,
+  green,
+  red,
+  white,
+  yellow,
+  dim,
+} from '../../lib/picocolors'
 import { stripNextRscUnionQuery } from '../../lib/url'
 import type { FetchMetric } from '../base-http'
 import type { NodeNextRequest, NodeNextResponse } from '../base-http/node'
@@ -93,7 +102,8 @@ function logIncomingRequests(
 
   let middlewareTime: bigint | undefined
   if (devRequestTimingMiddlewareStart && devRequestTimingMiddlewareEnd) {
-    middlewareTime = devRequestTimingMiddlewareEnd - devRequestTimingMiddlewareStart
+    middlewareTime =
+      devRequestTimingMiddlewareEnd - devRequestTimingMiddlewareStart
     times.push(['proxy.ts', middlewareTime])
   }
 
@@ -121,8 +131,20 @@ function logIncomingRequests(
   )
 }
 
-function logFetchMetric(fetchMetric: FetchMetric, loggingConfig: LoggingConfig | undefined): void {
-  let { cacheReason, cacheStatus, cacheWarning, end, method, start, status, url } = fetchMetric
+function logFetchMetric(
+  fetchMetric: FetchMetric,
+  loggingConfig: LoggingConfig | undefined
+): void {
+  let {
+    cacheReason,
+    cacheStatus,
+    cacheWarning,
+    end,
+    method,
+    start,
+    status,
+    url,
+  } = fetchMetric
 
   if (cacheStatus === 'hmr' && !loggingConfig?.fetches?.hmrRefreshes) {
     // Cache hits during HMR refreshes are intentionally not logged, unless
@@ -174,7 +196,13 @@ function truncate(text: string, maxLength: number): string {
 function truncateUrl(url: string): string {
   const { protocol, host, pathname, search } = new URL(url)
 
-  return protocol + '//' + truncate(host, 16) + truncate(pathname, 24) + truncate(search, 16)
+  return (
+    protocol +
+    '//' +
+    truncate(host, 16) +
+    truncate(pathname, 24) +
+    truncate(search, 16)
+  )
 }
 
 function formatCacheStatus(cacheStatus: FetchMetric['cacheStatus']): string {

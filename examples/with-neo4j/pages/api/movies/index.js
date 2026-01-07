@@ -9,8 +9,9 @@ export default async function handler(req, res) {
   switch (method) {
     case "GET":
       try {
-        const moviesTxResultPromise = session.readTransaction(async (transaction) => {
-          const cypher = `
+        const moviesTxResultPromise = session.readTransaction(
+          async (transaction) => {
+            const cypher = `
               MATCH (movie:Movie)
               RETURN movie {.*,
                 actors: [ (movie)<-[:ACTED_IN]-(actor) | actor.name ],
@@ -19,10 +20,11 @@ export default async function handler(req, res) {
               ORDER BY movie.title ASC
             `;
 
-          const moviesTxResponse = await transaction.run(cypher);
-          const movies = moviesTxResponse.records.map((r) => r.get("movie"));
-          return movies;
-        });
+            const moviesTxResponse = await transaction.run(cypher);
+            const movies = moviesTxResponse.records.map((r) => r.get("movie"));
+            return movies;
+          },
+        );
         const movies = await moviesTxResultPromise;
         res.status(200).json({ success: true, movies });
       } catch (error) {

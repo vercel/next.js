@@ -30,9 +30,9 @@ describe('app-dir - errors', () => {
         // await waitForRedbox(browser)
         // expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
       } else {
-        expect(await browser.waitForElementByCss('#error-boundary-message').text()).toBe(
-          'An error occurred: this is a test'
-        )
+        expect(
+          await browser.waitForElementByCss('#error-boundary-message').text()
+        ).toBe('An error occurred: this is a test')
       }
 
       // Handled by custom error boundary.
@@ -49,7 +49,9 @@ describe('app-dir - errors', () => {
         },
       })
 
-      expect(await browser.waitForElementByCss('#error-boundary-message').text()).toBe(
+      expect(
+        await browser.waitForElementByCss('#error-boundary-message').text()
+      ).toBe(
         isNextDev
           ? 'this is a test'
           : 'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
@@ -72,12 +74,16 @@ describe('app-dir - errors', () => {
     it('should preserve custom digests', async () => {
       const browser = await next.browser('/server-component/custom-digest')
 
-      expect(await browser.waitForElementByCss('#error-boundary-message').text()).toBe(
+      expect(
+        await browser.waitForElementByCss('#error-boundary-message').text()
+      ).toBe(
         isNextDev
           ? 'this is a test'
           : 'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
       )
-      expect(await browser.waitForElementByCss('#error-boundary-digest').text()).toBe('custom')
+      expect(
+        await browser.waitForElementByCss('#error-boundary-digest').text()
+      ).toBe('custom')
       expect(stripAnsi(next.cliOutput)).toEqual(
         expect.stringMatching(
           isNextDev
@@ -90,7 +96,9 @@ describe('app-dir - errors', () => {
     it('should trigger error component when undefined is thrown during server components rendering', async () => {
       const browser = await next.browser('/server-component/throw-undefined')
 
-      expect(await browser.waitForElementByCss('#error-boundary-message').text()).toBe(
+      expect(
+        await browser.waitForElementByCss('#error-boundary-message').text()
+      ).toBe(
         isNextDev
           ? 'undefined'
           : 'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
@@ -111,7 +119,9 @@ describe('app-dir - errors', () => {
     it('should trigger error component when null is thrown during server components rendering', async () => {
       const browser = await next.browser('/server-component/throw-null')
 
-      expect(await browser.waitForElementByCss('#error-boundary-message').text()).toBe(
+      expect(
+        await browser.waitForElementByCss('#error-boundary-message').text()
+      ).toBe(
         isNextDev
           ? 'null'
           : 'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
@@ -132,7 +142,9 @@ describe('app-dir - errors', () => {
     it('should trigger error component when a string is thrown during server components rendering', async () => {
       const browser = await next.browser('/server-component/throw-string')
 
-      expect(await browser.waitForElementByCss('#error-boundary-message').text()).toBe(
+      expect(
+        await browser.waitForElementByCss('#error-boundary-message').text()
+      ).toBe(
         isNextDev
           ? 'this is a test'
           : 'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
@@ -176,9 +188,9 @@ describe('app-dir - errors', () => {
          }
         `)
       } else {
-        expect(await browser.waitForElementByCss('body').elementByCss('h1').text()).toBe(
-          'This page crashed'
-        )
+        expect(
+          await browser.waitForElementByCss('body').elementByCss('h1').text()
+        ).toBe('This page crashed')
       }
 
       expect(pageErrors).toEqual([
@@ -213,9 +225,9 @@ describe('app-dir - errors', () => {
           }
         `)
       } else {
-        expect(await browser.waitForElementByCss('body').elementByCss('h1').text()).toBe(
-          'This page failed to load'
-        )
+        expect(
+          await browser.waitForElementByCss('body').elementByCss('h1').text()
+        ).toBe('This page failed to load')
         // Check digest is displayed in error reference
         const bodyText = await browser.waitForElementByCss('body').text()
         expect(bodyText).toMatch(/Error reference:\s*\w+/)
@@ -244,13 +256,18 @@ describe('app-dir - errors', () => {
             .click()
             .waitForElementByCss('#error-boundary-message')
 
-          expect(await browser.elementByCss('#error-boundary-message').text()).toBe(
-            'An error occurred: this is a test'
-          )
+          expect(
+            await browser.elementByCss('#error-boundary-message').text()
+          ).toBe('An error occurred: this is a test')
 
-          await browser.elementByCss('#reset').click().waitForElementByCss('#error-trigger-button')
+          await browser
+            .elementByCss('#reset')
+            .click()
+            .waitForElementByCss('#error-trigger-button')
 
-          expect(await browser.elementByCss('#error-trigger-button').text()).toBe('Trigger Error!')
+          expect(
+            await browser.elementByCss('#error-trigger-button').text()
+          ).toBe('Trigger Error!')
         }
       })
 
@@ -263,19 +280,25 @@ describe('app-dir - errors', () => {
             })
           },
         })
-        expect(pageErrors).toEqual([expect.objectContaining({ message: 'Error during SSR' })])
+        expect(pageErrors).toEqual([
+          expect.objectContaining({ message: 'Error during SSR' }),
+        ])
       })
 
       it('should log the original RSC error trace in production', async () => {
         const logIndex = next.cliOutput.length
         const browser = await next.browser('/server-component')
-        const digest = await browser.waitForElementByCss('#error-boundary-digest').text()
+        const digest = await browser
+          .waitForElementByCss('#error-boundary-digest')
+          .text()
         const output = stripAnsi(next.cliOutput.slice(logIndex))
 
         // Log the original rsc error trace
         expect(output).toContain('Error: this is a test')
         // Does not include the react renderer error for server actions
-        expect(output).not.toContain('Error: An error occurred in the Server Components render')
+        expect(output).not.toContain(
+          'Error: An error occurred in the Server Components render'
+        )
 
         expect(output).toContain(`digest: '${digest}'`)
       })
@@ -296,7 +319,9 @@ describe('app-dir - errors', () => {
         // Log the original rsc error trace
         expect(output).toContain('Error: server action test error')
         // Does not include the react renderer error for server actions
-        expect(output).not.toContain('Error: An error occurred in the Server Components render')
+        expect(output).not.toContain(
+          'Error: An error occurred in the Server Components render'
+        )
         expect(output).toContain(`digest: '${digest}'`)
       })
     }

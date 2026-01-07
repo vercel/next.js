@@ -45,19 +45,33 @@ describe('next/font/google with proxy', () => {
     async () => {
       await renderViaHTTP(next.url, '/')
 
-      const proxiedRequests = await fetchViaHTTP(SERVER_PORT, '/requests').then((r) => r.json())
+      const proxiedRequests = await fetchViaHTTP(SERVER_PORT, '/requests').then(
+        (r) => r.json()
+      )
       // eslint-disable-next-line jest/no-standalone-expect
-      expect(proxiedRequests).toContain('/css2?family=Oswald:wght@200..700&display=swap')
+      expect(proxiedRequests).toContain(
+        '/css2?family=Oswald:wght@200..700&display=swap'
+      )
       // eslint-disable-next-line jest/no-standalone-expect
-      expect(proxiedRequests).toContain('/s/oswald/v49/TK3iWkUHHAIjg752FD8Gl-1PK62t.woff2')
+      expect(proxiedRequests).toContain(
+        '/s/oswald/v49/TK3iWkUHHAIjg752FD8Gl-1PK62t.woff2'
+      )
       // eslint-disable-next-line jest/no-standalone-expect
-      expect(proxiedRequests).toContain('/s/oswald/v49/TK3iWkUHHAIjg752HT8Gl-1PK62t.woff2')
+      expect(proxiedRequests).toContain(
+        '/s/oswald/v49/TK3iWkUHHAIjg752HT8Gl-1PK62t.woff2'
+      )
       // eslint-disable-next-line jest/no-standalone-expect
-      expect(proxiedRequests).toContain('/s/oswald/v49/TK3iWkUHHAIjg752Fj8Gl-1PK62t.woff2')
+      expect(proxiedRequests).toContain(
+        '/s/oswald/v49/TK3iWkUHHAIjg752Fj8Gl-1PK62t.woff2'
+      )
       // eslint-disable-next-line jest/no-standalone-expect
-      expect(proxiedRequests).toContain('/s/oswald/v49/TK3iWkUHHAIjg752GT8Gl-1PKw.woff2')
+      expect(proxiedRequests).toContain(
+        '/s/oswald/v49/TK3iWkUHHAIjg752GT8Gl-1PKw.woff2'
+      )
       // eslint-disable-next-line jest/no-standalone-expect
-      expect(proxiedRequests).toContain('/s/oswald/v49/TK3iWkUHHAIjg752Fz8Gl-1PK62t.woff2')
+      expect(proxiedRequests).toContain(
+        '/s/oswald/v49/TK3iWkUHHAIjg752Fz8Gl-1PK62t.woff2'
+      )
     }
   )
 })

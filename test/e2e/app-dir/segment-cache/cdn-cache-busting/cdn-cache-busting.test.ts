@@ -35,7 +35,8 @@ describe('segment cache (CDN cache busting)', () => {
   })
 
   it(
-    "perform fully prefetched navigation with a CDN that doesn't respect " + 'the Vary header',
+    "perform fully prefetched navigation with a CDN that doesn't respect " +
+      'the Vary header',
     async () => {
       let act
       const browser = await webdriver(port, '/', {
@@ -51,7 +52,9 @@ describe('segment cache (CDN cache busting)', () => {
       // entry for every segment, poisoning the cache.
       await act(
         async () => {
-          const linkToggle = await browser.elementByCss('[data-link-accordion="/target-page"]')
+          const linkToggle = await browser.elementByCss(
+            '[data-link-accordion="/target-page"]'
+          )
           await linkToggle.click()
         },
         {
@@ -78,20 +81,22 @@ describe('segment cache (CDN cache busting)', () => {
       'without a corresponding cache-busting search param',
     async () => {
       const browser = await webdriver(port, '/')
-      const { status, responseUrl, redirected } = await browser.eval(async () => {
-        const res = await fetch('/target-page', {
-          headers: {
-            rsc: '1',
-            'next-router-prefetch': '1',
-            'next-router-segment-prefetch': '/_tree',
-          },
-        })
-        return {
-          status: res.status,
-          responseUrl: res.url,
-          redirected: res.redirected,
+      const { status, responseUrl, redirected } = await browser.eval(
+        async () => {
+          const res = await fetch('/target-page', {
+            headers: {
+              rsc: '1',
+              'next-router-prefetch': '1',
+              'next-router-segment-prefetch': '/_tree',
+            },
+          })
+          return {
+            status: res.status,
+            responseUrl: res.url,
+            redirected: res.redirected,
+          }
         }
-      })
+      )
       expect(status).toBe(200)
       expect(responseUrl).toContain('_rsc=')
       expect(redirected).toBe(true)
@@ -99,7 +104,8 @@ describe('segment cache (CDN cache busting)', () => {
   )
 
   it(
-    'perform fully prefetched navigation when a third-party proxy ' + 'performs a redirect',
+    'perform fully prefetched navigation when a third-party proxy ' +
+      'performs a redirect',
     async () => {
       let act
       const browser = await webdriver(port, '/', {
@@ -122,7 +128,9 @@ describe('segment cache (CDN cache busting)', () => {
 
       // Navigate to the prefetched target page.
       await act(async () => {
-        const link = await browser.elementByCss('a[href="/redirect-to-target-page"]')
+        const link = await browser.elementByCss(
+          'a[href="/redirect-to-target-page"]'
+        )
         await link.click()
 
         // The page was prefetched, so we're able to render the target

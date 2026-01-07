@@ -6,7 +6,12 @@ export default function Footer() {
       <div className={styles.details}>
         <p>
           Built with{" "}
-          <a className={styles.link} target="_blank" href="https://nextjs.org" rel="noreferrer">
+          <a
+            className={styles.link}
+            target="_blank"
+            href="https://nextjs.org"
+            rel="noreferrer"
+          >
             Next.js
           </a>{" "}
           and{" "}

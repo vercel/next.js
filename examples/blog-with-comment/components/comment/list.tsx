@@ -15,7 +15,8 @@ export default function CommentList({ comments, onDelete }: CommentListProps) {
       {comments &&
         comments.map((comment) => {
           const isAuthor = user && user.sub === comment.user.sub;
-          const isAdmin = user && user.email === process.env.NEXT_PUBLIC_AUTH0_ADMIN_EMAIL;
+          const isAdmin =
+            user && user.email === process.env.NEXT_PUBLIC_AUTH0_ADMIN_EMAIL;
 
           return (
             <div key={comment.created_at} className="flex space-x-4">
@@ -32,7 +33,9 @@ export default function CommentList({ comments, onDelete }: CommentListProps) {
               <div className="flex-grow">
                 <div className="flex space-x-2">
                   <b>{comment.user.name}</b>
-                  <time className="text-gray-400">{distanceToNow(comment.created_at)}</time>
+                  <time className="text-gray-400">
+                    {distanceToNow(comment.created_at)}
+                  </time>
                   {(isAdmin || isAuthor) && (
                     <button
                       className="text-gray-400 hover:text-red-500"

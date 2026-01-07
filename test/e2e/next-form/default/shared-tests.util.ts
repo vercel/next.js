@@ -20,7 +20,8 @@ export function runSharedTests(type: 'app' | 'pages') {
     const pathPrefix = isAppDir ? '' : '/pages-dir'
 
     it(
-      'should soft-navigate on submit' + (isAppDir ? ' and show the prefetched loading state' : ''),
+      'should soft-navigate on submit' +
+        (isAppDir ? ' and show the prefetched loading state' : ''),
       async () => {
         const session = await next.browser(pathPrefix + '/forms/basic')
         const navigationTracker = await trackMpaNavs(session)
@@ -36,7 +37,9 @@ export function runSharedTests(type: 'app' | 'pages') {
           await session.waitForElementByCss('#loading')
         }
 
-        const result = await session.waitForElementByCss('#search-results').text()
+        const result = await session
+          .waitForElementByCss('#search-results')
+          .text()
         expect(result).toMatch(/query: "my search"/)
 
         expect(await navigationTracker.didMpaNavigate()).toBe(false)
@@ -44,7 +47,9 @@ export function runSharedTests(type: 'app' | 'pages') {
     )
 
     it('should soft-navigate to the formAction url of the submitter', async () => {
-      const session = await next.browser(pathPrefix + '/forms/button-formaction')
+      const session = await next.browser(
+        pathPrefix + '/forms/button-formaction'
+      )
       const navigationTracker = await trackMpaNavs(session)
 
       const searchInput = await session.elementByCss('input[name="query"]')
@@ -64,65 +69,27 @@ export function runSharedTests(type: 'app' | 'pages') {
     })
 
     // `<form action={someFunction}>` is only supported in React 19.x
-    ;(isReact18 ? describe.skip : describe)('functions passed to action', () => {
-      it.each([
-        {
-          name: 'client action',
-          path: '/forms/with-function/action-client',
-        },
-        ...(isAppDir
-          ? [
-              {
-                name: 'server action',
-                path: '/forms/with-function/action-server',
-              },
-              {
-                name: 'server action (closure)',
-                path: '/forms/with-function/action-server-closure',
-              },
-            ]
-          : []),
-      ])('runs $name', async ({ path }) => {
-        const session = await next.browser(pathPrefix + path)
-        const navigationTracker = await trackMpaNavs(session) // actions should not MPA-navigate either.
-
-        const searchInput = await session.elementByCss('input[name="query"]')
-        await searchInput.fill('will not be a search')
-
-        const submitButton = await session.elementByCss('[type="submit"]')
-        await submitButton.click()
-
-        const result = await session.waitForElementByCss('#redirected-results').text()
-        expect(result).toMatch(/query: "will not be a search"/)
-
-        expect(await navigationTracker.didMpaNavigate()).toBe(false)
-      })
-    })
-
-    // `<button formAction={someFunction}>` is only supported in React 19.x
-    ;(isReact18 ? describe.skip : describe)('functions passed to formAction', () => {
-      it.each([
-        {
-          // TODO(lubieowoce): figure out why the client navigation is failing in pages dir
-          // (see "pages-dir/forms/with-function/button-formaction-client/index.tsx" for more)
-          name: 'client action',
-          path: '/forms/with-function/button-formaction-client',
-        },
-        ...(isAppDir
-          ? [
-              {
-                name: 'server action',
-                path: '/forms/with-function/button-formaction-server',
-              },
-              {
-                name: 'server action (closure)',
-                path: '/forms/with-function/button-formaction-server-closure',
-              },
-            ]
-          : []),
-      ])(
-        "runs $name from submitter and doesn't warn about unsupported attributes",
-        async ({ path }) => {
+    ;(isReact18 ? describe.skip : describe)(
+      'functions passed to action',
+      () => {
+        it.each([
+          {
+            name: 'client action',
+            path: '/forms/with-function/action-client',
+          },
+          ...(isAppDir
+            ? [
+                {
+                  name: 'server action',
+                  path: '/forms/with-function/action-server',
+                },
+                {
+                  name: 'server action (closure)',
+                  path: '/forms/with-function/action-server-closure',
+                },
+              ]
+            : []),
+        ])('runs $name', async ({ path }) => {
           const session = await next.browser(pathPrefix + path)
           const navigationTracker = await trackMpaNavs(session) // actions should not MPA-navigate either.
 
@@ -132,21 +99,73 @@ export function runSharedTests(type: 'app' | 'pages') {
           const submitButton = await session.elementByCss('[type="submit"]')
           await submitButton.click()
 
-          const result = await session.waitForElementByCss('#redirected-results').text()
+          const result = await session
+            .waitForElementByCss('#redirected-results')
+            .text()
           expect(result).toMatch(/query: "will not be a search"/)
 
           expect(await navigationTracker.didMpaNavigate()).toBe(false)
+        })
+      }
+    )
 
-          if (isNextDev) {
-            const logs = (await session.log()).map((item) => item.message)
+    // `<button formAction={someFunction}>` is only supported in React 19.x
+    ;(isReact18 ? describe.skip : describe)(
+      'functions passed to formAction',
+      () => {
+        it.each([
+          {
+            // TODO(lubieowoce): figure out why the client navigation is failing in pages dir
+            // (see "pages-dir/forms/with-function/button-formaction-client/index.tsx" for more)
+            name: 'client action',
+            path: '/forms/with-function/button-formaction-client',
+          },
+          ...(isAppDir
+            ? [
+                {
+                  name: 'server action',
+                  path: '/forms/with-function/button-formaction-server',
+                },
+                {
+                  name: 'server action (closure)',
+                  path: '/forms/with-function/button-formaction-server-closure',
+                },
+              ]
+            : []),
+        ])(
+          "runs $name from submitter and doesn't warn about unsupported attributes",
+          async ({ path }) => {
+            const session = await next.browser(pathPrefix + path)
+            const navigationTracker = await trackMpaNavs(session) // actions should not MPA-navigate either.
 
-            expect(logs).not.toContainEqual(
-              expect.stringMatching(/<Form>'s `.+?` was set to an unsupported value/)
+            const searchInput = await session.elementByCss(
+              'input[name="query"]'
             )
+            await searchInput.fill('will not be a search')
+
+            const submitButton = await session.elementByCss('[type="submit"]')
+            await submitButton.click()
+
+            const result = await session
+              .waitForElementByCss('#redirected-results')
+              .text()
+            expect(result).toMatch(/query: "will not be a search"/)
+
+            expect(await navigationTracker.didMpaNavigate()).toBe(false)
+
+            if (isNextDev) {
+              const logs = (await session.log()).map((item) => item.message)
+
+              expect(logs).not.toContainEqual(
+                expect.stringMatching(
+                  /<Form>'s `.+?` was set to an unsupported value/
+                )
+              )
+            }
           }
-        }
-      )
-    })
+        )
+      }
+    )
 
     describe('unsupported attributes on submitter', () => {
       it.each([
@@ -157,7 +176,8 @@ export function runSharedTests(type: 'app' | 'pages') {
         'should warn if submitter sets "$name" to an unsupported value and fall back to default submit behavior',
         async ({ name: attributeName, baseName: attributeBaseName }) => {
           const session = await next.browser(
-            pathPrefix + `/forms/button-formaction-unsupported?attribute=${attributeName}`
+            pathPrefix +
+              `/forms/button-formaction-unsupported?attribute=${attributeName}`
           )
 
           const submitButton = await session.elementByCss('[type="submit"]')
@@ -187,7 +207,9 @@ export function runSharedTests(type: 'app' | 'pages') {
           expect(logs).not.toContainEqual(
             expect.objectContaining({
               source: 'log',
-              message: expect.stringContaining('incorrect: default submit behavior was prevented'),
+              message: expect.stringContaining(
+                'incorrect: default submit behavior was prevented'
+              ),
             })
           )
         }
@@ -211,7 +233,9 @@ export function runSharedTests(type: 'app' | 'pages') {
     })
 
     it('does not navigate if preventDefault is called in onSubmit', async () => {
-      const session = await next.browser(pathPrefix + `/forms/with-onsubmit-preventdefault`)
+      const session = await next.browser(
+        pathPrefix + `/forms/with-onsubmit-preventdefault`
+      )
 
       const submitButton = await session.elementByCss('[type="submit"]')
       await submitButton.click()
@@ -219,7 +243,9 @@ export function runSharedTests(type: 'app' | 'pages') {
       // see fixture code for explanation why we expect this
 
       await session.waitForElementByCss('#redirected-results')
-      expect(new URL(await session.url()).pathname).toEqual(pathPrefix + '/redirected-from-action')
+      expect(new URL(await session.url()).pathname).toEqual(
+        pathPrefix + '/redirected-from-action'
+      )
     })
 
     it('url-encodes file inputs, but warns about them', async () => {

@@ -7,7 +7,11 @@ import { RefObject, Suspense, use, useEffect, useRef } from 'react'
 // We leverage `use` to wait for the promise.
 const maybeMonaco = typeof window === 'undefined' ? null : import('./monaco')
 
-function LazyMonaco({ editorRef }: { editorRef: RefObject<HTMLDivElement | null> }) {
+function LazyMonaco({
+  editorRef,
+}: {
+  editorRef: RefObject<HTMLDivElement | null>
+}) {
   const { monaco } = maybeMonaco === null ? {} : use(maybeMonaco)
 
   useEffect(() => {

@@ -1,5 +1,10 @@
 import { Server } from 'http'
-import { findPort, nextBuild, startStaticServer, stopApp } from 'next-test-utils'
+import {
+  findPort,
+  nextBuild,
+  startStaticServer,
+  stopApp,
+} from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
@@ -34,13 +39,19 @@ describe('bfcache-routing', () => {
       const bfOptions = { waitUntil: 'commit' as const }
 
       await browser.elementByCss('a[href="https://example.vercel.sh"]').click()
-      await browser.waitForCondition('window.location.origin === "https://example.vercel.sh"')
+      await browser.waitForCondition(
+        'window.location.origin === "https://example.vercel.sh"'
+      )
 
       await browser.back(bfOptions)
 
-      await browser.waitForCondition('window.location.origin.includes("localhost")')
+      await browser.waitForCondition(
+        'window.location.origin.includes("localhost")'
+      )
 
-      let html = await browser.eval<string>('document.documentElement.innerHTML')
+      let html = await browser.eval<string>(
+        'document.documentElement.innerHTML'
+      )
 
       expect(html).toContain('BFCache Test')
 
@@ -53,7 +64,9 @@ describe('bfcache-routing', () => {
       await browser.forward(bfOptions)
       await browser.back(bfOptions)
 
-      await browser.waitForCondition('window.location.origin.includes("localhost")')
+      await browser.waitForCondition(
+        'window.location.origin.includes("localhost")'
+      )
 
       // we should be back on the test page with no errors
       html = await browser.eval<string>('document.documentElement.innerHTML')
@@ -62,8 +75,12 @@ describe('bfcache-routing', () => {
       // After restoring from bfcache, a subsequent mpa navigation to the same URL should work
       // We trigger the click via `eval` because when restoring from bfcache, our internal
       // 'waitForElementByCss' method doesn't think the element is attached to the DOM.
-      await browser.eval(`document.querySelector('a[href="https://example.vercel.sh"]').click()`)
-      await browser.waitForCondition('window.location.origin === "https://example.vercel.sh"')
+      await browser.eval(
+        `document.querySelector('a[href="https://example.vercel.sh"]').click()`
+      )
+      await browser.waitForCondition(
+        'window.location.origin === "https://example.vercel.sh"'
+      )
     }
   )
 })

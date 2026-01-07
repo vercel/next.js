@@ -18,7 +18,9 @@ describe.skip('app-dir - metadata-streaming-config-customized', () => {
   })
 
   it('should have the customized streaming metadata config output in routes-manifest.json', async () => {
-    const prerenderManifest = JSON.parse(await next.readFile('.next/prerender-manifest.json'))
+    const prerenderManifest = JSON.parse(
+      await next.readFile('.next/prerender-manifest.json')
+    )
     const { routes } = prerenderManifest
 
     const bypassConfigs = Object.keys(routes)

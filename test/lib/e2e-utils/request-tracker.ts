@@ -1,4 +1,7 @@
-import { Request as PlaywrightRequest, Response as PlaywrightResponse } from 'playwright'
+import {
+  Request as PlaywrightRequest,
+  Response as PlaywrightResponse,
+} from 'playwright'
 import { inspect } from 'node:util'
 import { Playwright } from '../browsers/playwright'
 
@@ -74,12 +77,16 @@ export function createRequestTracker(browser: Playwright) {
       // to allow capturing multiple requests and returning them as an array.
       if (capturedRequest) {
         const criteriaDescription =
-          typeof requestMatcher === 'function' ? 'the specified criteria' : inspect(requestMatcher)
+          typeof requestMatcher === 'function'
+            ? 'the specified criteria'
+            : inspect(requestMatcher)
         return responseCtrl.reject(
           new Error(
             [
               `Captured multiple requests that match ${criteriaDescription} during a \`captureResponse\` call:`,
-              ...[capturedRequest, request].map((req) => `  - ${req.method} ${req.url}`),
+              ...[capturedRequest, request].map(
+                (req) => `  - ${req.method} ${req.url}`
+              ),
               'This is currently not supported.',
             ].join('\n')
           )
@@ -116,7 +123,10 @@ export function createRequestTracker(browser: Playwright) {
     // If this doesn't happen before the specified timeout, we'll error below.
     const actionPromise = Promise.resolve().then(action)
 
-    const resultPromise = Promise.all([actionPromise, responseCtrl.promise] as const)
+    const resultPromise = Promise.all([
+      actionPromise,
+      responseCtrl.promise,
+    ] as const)
 
     actionPromise.then(
       () => {

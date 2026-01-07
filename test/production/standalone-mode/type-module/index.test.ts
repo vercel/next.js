@@ -1,7 +1,12 @@
 import { nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
 import fs from 'fs-extra'
-import { fetchViaHTTP, findPort, initNextServerScript, killApp } from 'next-test-utils'
+import {
+  fetchViaHTTP,
+  findPort,
+  initNextServerScript,
+  killApp,
+} from 'next-test-utils'
 
 describe('type-module', () => {
   const { next } = nextTestSetup({

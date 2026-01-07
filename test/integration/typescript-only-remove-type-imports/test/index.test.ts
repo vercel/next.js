@@ -1,7 +1,14 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import { nextBuild, nextStart, findPort, killApp, launchApp, renderViaHTTP } from 'next-test-utils'
+import {
+  nextBuild,
+  nextStart,
+  findPort,
+  killApp,
+  launchApp,
+  renderViaHTTP,
+} from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
 let app
@@ -24,25 +31,31 @@ const runTests = () => {
 ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'TypeScript onlyRemoveTypeImports',
   () => {
-    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)('production mode', () => {
-      beforeAll(async () => {
-        const { code } = await nextBuild(appDir)
-        if (code !== 0) throw new Error(`build failed with code ${code}`)
-        appPort = await findPort()
-        app = await nextStart(appDir, appPort)
-      })
-      afterAll(() => killApp(app))
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+      'production mode',
+      () => {
+        beforeAll(async () => {
+          const { code } = await nextBuild(appDir)
+          if (code !== 0) throw new Error(`build failed with code ${code}`)
+          appPort = await findPort()
+          app = await nextStart(appDir, appPort)
+        })
+        afterAll(() => killApp(app))
 
-      runTests()
-    })
-    ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)('development mode', () => {
-      beforeAll(async () => {
-        appPort = await findPort()
-        app = await launchApp(appDir, appPort)
-      })
-      afterAll(() => killApp(app))
+        runTests()
+      }
+    )
+    ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+      'development mode',
+      () => {
+        beforeAll(async () => {
+          appPort = await findPort()
+          app = await launchApp(appDir, appPort)
+        })
+        afterAll(() => killApp(app))
 
-      runTests()
-    })
+        runTests()
+      }
+    )
   }
 )

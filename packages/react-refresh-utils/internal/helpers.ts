@@ -59,7 +59,10 @@ function isSafeExport(key: string): boolean {
   )
 }
 
-function registerExportsForReactRefresh(moduleExports: unknown, moduleID: string) {
+function registerExportsForReactRefresh(
+  moduleExports: unknown,
+  moduleID: string
+) {
   RefreshRuntime.register(moduleExports, moduleID + ' %exports%')
   if (moduleExports == null || typeof moduleExports !== 'object') {
     // Exit if we can't iterate over exports.
@@ -166,7 +169,8 @@ function scheduleUpdate() {
       RefreshRuntime.performReactRefresh()
     } catch (err) {
       console.warn(
-        'Warning: Failed to re-render. We will retry on the next Fast Refresh event.\n' + err
+        'Warning: Failed to re-render. We will retry on the next Fast Refresh event.\n' +
+          err
       )
     }
   }

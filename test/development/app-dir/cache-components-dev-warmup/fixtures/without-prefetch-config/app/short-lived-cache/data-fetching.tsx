@@ -1,6 +1,12 @@
 import { cacheLife } from 'next/cache'
 
-export async function ShortLivedCache({ label, cacheKey }: { label: string; cacheKey: string }) {
+export async function ShortLivedCache({
+  label,
+  cacheKey,
+}: {
+  label: string
+  cacheKey: string
+}) {
   const data = await getShortLivedCachedData(cacheKey)
   console.log(`after short-lived cache read - ${label}`)
   return (

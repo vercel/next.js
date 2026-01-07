@@ -31,7 +31,10 @@ export function getDisableDevIndicatorMiddleware() {
 
       return middlewareResponse.noContent(res)
     } catch (err) {
-      Log.error('Failed to disable the dev indicator:', err instanceof Error ? err.message : err)
+      Log.error(
+        'Failed to disable the dev indicator:',
+        err instanceof Error ? err.message : err
+      )
       return middlewareResponse.internalServerError(res)
     }
   }

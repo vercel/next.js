@@ -8,7 +8,11 @@
 
 /* eslint-disable @next/internal/typechecked-require */
 
-type ReportableResult = ConsoleCallReport | ErrorReport | OutputReport | SerializableDataReport
+type ReportableResult =
+  | ConsoleCallReport
+  | ErrorReport
+  | OutputReport
+  | SerializableDataReport
 
 type ConsoleCallReport = {
   type: 'console-call'

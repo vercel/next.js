@@ -17,7 +17,10 @@ import { formatHostname } from '../format-hostname'
 import { toNodeOutgoingHttpHeaders } from '../../web/utils'
 import { isAbortError } from '../../pipe-readable'
 import { getHostname } from '../../../shared/lib/get-hostname'
-import { getRedirectStatus, allowedStatusCodes } from '../../../lib/redirect-status'
+import {
+  getRedirectStatus,
+  allowedStatusCodes,
+} from '../../../lib/redirect-status'
 import { normalizeRepeatedSlashes } from '../../../shared/lib/utils'
 import { getRelativeURL } from '../../../shared/lib/router/utils/relativize-url'
 import { addPathPrefix } from '../../../shared/lib/router/utils/add-path-prefix'
@@ -45,7 +48,9 @@ import {
 const debug = setupDebug('next:router-server:resolve-routes')
 
 export function getResolveRoutes(
-  fsChecker: UnwrapPromise<ReturnType<typeof import('./filesystem').setupFsCheck>>,
+  fsChecker: UnwrapPromise<
+    ReturnType<typeof import('./filesystem').setupFsCheck>
+  >,
   config: NextConfigRuntime,
   opts: Parameters<typeof initialize>[0],
   renderServer: RenderServer,
@@ -147,7 +152,8 @@ export function getResolveRoutes(
     }
     // TODO: inherit this from higher up
     const protocol =
-      (req?.socket as TLSSocket)?.encrypted || req.headers['x-forwarded-proto']?.includes('https')
+      (req?.socket as TLSSocket)?.encrypted ||
+      req.headers['x-forwarded-proto']?.includes('https')
         ? 'https'
         : 'http'
 
@@ -155,7 +161,9 @@ export function getResolveRoutes(
     const initUrl = (config.experimental as any).trustHostHeader
       ? `https://${req.headers.host || 'localhost'}${req.url}`
       : opts.port
-        ? `${protocol}://${formatHostname(opts.hostname || 'localhost')}:${opts.port}${req.url}`
+        ? `${protocol}://${formatHostname(opts.hostname || 'localhost')}:${
+            opts.port
+          }${req.url}`
         : req.url || ''
 
     addRequestMeta(req, 'initURL', initUrl)
@@ -163,12 +171,18 @@ export function getResolveRoutes(
     addRequestMeta(req, 'initProtocol', protocol)
 
     if (!isUpgradeReq) {
-      const bodySizeLimit = config.experimental.proxyClientMaxBodySize as number | undefined
+      const bodySizeLimit = config.experimental.proxyClientMaxBodySize as
+        | number
+        | undefined
       addRequestMeta(req, 'clonableBody', getCloneableBody(req, bodySizeLimit))
     }
 
     const maybeAddTrailingSlash = (pathname: string) => {
-      if (config.trailingSlash && !config.skipProxyUrlNormalize && !pathname.endsWith('/')) {
+      if (
+        config.trailingSlash &&
+        !config.skipProxyUrlNormalize &&
+        !pathname.endsWith('/')
+      ) {
         return `${pathname}/`
       }
       return pathname
@@ -176,26 +190,44 @@ export function getResolveRoutes(
 
     let domainLocale: ReturnType<typeof detectDomainLocale> | undefined
     let defaultLocale: string | undefined
-    let initialLocaleResult: ReturnType<typeof normalizeLocalePath> | undefined = undefined
+    let initialLocaleResult:
+      | ReturnType<typeof normalizeLocalePath>
+      | undefined = undefined
 
     if (config.i18n) {
       const hadTrailingSlash = parsedUrl.pathname?.endsWith('/')
-      const hadBasePath = pathHasPrefix(parsedUrl.pathname || '', config.basePath)
+      const hadBasePath = pathHasPrefix(
+        parsedUrl.pathname || '',
+        config.basePath
+      )
       let normalizedPath = parsedUrl.pathname || '/'
 
       if (config.basePath && pathHasPrefix(normalizedPath, config.basePath)) {
         normalizedPath = removePathPrefix(normalizedPath, config.basePath)
-      } else if (config.assetPrefix && pathHasPrefix(normalizedPath, config.assetPrefix)) {
+      } else if (
+        config.assetPrefix &&
+        pathHasPrefix(normalizedPath, config.assetPrefix)
+      ) {
         normalizedPath = removePathPrefix(normalizedPath, config.assetPrefix)
       }
 
-      initialLocaleResult = normalizeLocalePath(normalizedPath, config.i18n.locales)
+      initialLocaleResult = normalizeLocalePath(
+        normalizedPath,
+        config.i18n.locales
+      )
 
-      domainLocale = detectDomainLocale(config.i18n.domains, getHostname(parsedUrl, req.headers))
+      domainLocale = detectDomainLocale(
+        config.i18n.domains,
+        getHostname(parsedUrl, req.headers)
+      )
       defaultLocale = domainLocale?.defaultLocale || config.i18n.defaultLocale
 
       addRequestMeta(req, 'defaultLocale', defaultLocale)
-      addRequestMeta(req, 'locale', initialLocaleResult.detectedLocale || defaultLocale)
+      addRequestMeta(
+        req,
+        'locale',
+        initialLocaleResult.detectedLocale || defaultLocale
+      )
 
       // ensure locale is present for resolving routes
       if (
@@ -205,7 +237,10 @@ export function getResolveRoutes(
         parsedUrl.pathname = addPathPrefix(
           initialLocaleResult.pathname === '/'
             ? `/${defaultLocale}`
-            : addPathPrefix(initialLocaleResult.pathname || '', `/${defaultLocale}`),
+            : addPathPrefix(
+                initialLocaleResult.pathname || '',
+                `/${defaultLocale}`
+              ),
           hadBasePath ? config.basePath : ''
         )
 
@@ -273,7 +308,10 @@ export function getResolveRoutes(
           )
 
           // i18n locales aren't matched for app dir
-          if (pageOutput?.type === 'appFile' && initialLocaleResult?.detectedLocale) {
+          if (
+            pageOutput?.type === 'appFile' &&
+            initialLocaleResult?.detectedLocale
+          ) {
             continue
           }
 
@@ -309,17 +347,25 @@ export function getResolveRoutes(
         }
         const hadBasePath = curPathname !== parsedUrl.pathname
 
-        const localeResult = normalizeLocalePath(curPathname, config.i18n.locales)
+        const localeResult = normalizeLocalePath(
+          curPathname,
+          config.i18n.locales
+        )
         const isDefaultLocale = localeResult.detectedLocale === defaultLocale
 
         if (isDefaultLocale) {
           curPathname =
             localeResult.pathname === '/' && hadBasePath
               ? config.basePath
-              : addPathPrefix(localeResult.pathname, hadBasePath ? config.basePath : '')
+              : addPathPrefix(
+                  localeResult.pathname,
+                  hadBasePath ? config.basePath : ''
+                )
         } else if (hadBasePath) {
           curPathname =
-            curPathname === '/' ? config.basePath : addPathPrefix(curPathname, config.basePath)
+            curPathname === '/'
+              ? config.basePath
+              : addPathPrefix(curPathname, config.basePath)
         }
 
         if ((isDefaultLocale || hadBasePath) && hadTrailingSlash) {
@@ -329,7 +375,12 @@ export function getResolveRoutes(
       let params = route.match(curPathname)
 
       if ((route.has || route.missing) && params) {
-        const hasParams = matchHas(req, parsedUrl.query, route.has, route.missing)
+        const hasParams = matchHas(
+          req,
+          parsedUrl.query,
+          route.has,
+          route.missing
+        )
         if (hasParams) {
           Object.assign(params, hasParams)
         } else {
@@ -338,7 +389,10 @@ export function getResolveRoutes(
       }
 
       if (params) {
-        if (fsChecker.exportPathMapRoutes && route.name === 'before_files_end') {
+        if (
+          fsChecker.exportPathMapRoutes &&
+          route.name === 'before_files_end'
+        ) {
           for (const exportPathMapRoute of fsChecker.exportPathMapRoutes) {
             const result = await handleRoute(exportPathMapRoute)
 
@@ -366,7 +420,10 @@ export function getResolveRoutes(
             }
 
             if (config.i18n) {
-              const curLocaleResult = normalizeLocalePath(normalized, config.i18n.locales)
+              const curLocaleResult = normalizeLocalePath(
+                normalized,
+                config.i18n.locales
+              )
 
               if (curLocaleResult.detectedLocale) {
                 addRequestMeta(req, 'locale', curLocaleResult.detectedLocale)
@@ -401,7 +458,11 @@ export function getResolveRoutes(
 
           if (
             output &&
-            !(config.i18n && initialLocaleResult?.detectedLocale && pathHasPrefix(pathname, '/api'))
+            !(
+              config.i18n &&
+              initialLocaleResult?.detectedLocale &&
+              pathHasPrefix(pathname, '/api')
+            )
           ) {
             if (
               config.useFileSystemPublicRoutes ||
@@ -447,7 +508,8 @@ export function getResolveRoutes(
               await ensureMiddleware(req.url)
             }
 
-            const serverResult = await renderServer?.initialize(renderServerOpts)
+            const serverResult =
+              await renderServer?.initialize(renderServerOpts)
 
             if (!serverResult) {
               throw new Error(`Failed to initialize render server "middleware"`)
@@ -458,7 +520,11 @@ export function getResolveRoutes(
             addRequestMeta(req, 'invokeQuery', {})
             addRequestMeta(req, 'middlewareInvoke', true)
             if (opts.dev) {
-              addRequestMeta(req, 'devRequestTimingMiddlewareStart', process.hrtime.bigint())
+              addRequestMeta(
+                req,
+                'devRequestTimingMiddlewareStart',
+                process.hrtime.bigint()
+              )
             }
             debug('invoking middleware', req.url, req.headers)
 
@@ -486,7 +552,11 @@ export function getResolveRoutes(
                 }
               } finally {
                 if (opts.dev) {
-                  addRequestMeta(req, 'devRequestTimingMiddlewareEnd', process.hrtime.bigint())
+                  addRequestMeta(
+                    req,
+                    'devRequestTimingMiddlewareEnd',
+                    process.hrtime.bigint()
+                  )
                 }
               }
             } catch (e) {
@@ -511,10 +581,9 @@ export function getResolveRoutes(
               }
             }
 
-            const middlewareHeaders = toNodeOutgoingHttpHeaders(middlewareRes.headers) as Record<
-              string,
-              string | string[] | undefined
-            >
+            const middlewareHeaders = toNodeOutgoingHttpHeaders(
+              middlewareRes.headers
+            ) as Record<string, string | string[] | undefined>
 
             debug('middleware res', middlewareRes.status, middlewareHeaders)
 
@@ -620,7 +689,9 @@ export function getResolveRoutes(
 
               // Only process Location header as a redirect if it has a proper redirect status
               // This prevents a Location header with non-redirect status from being treated as a redirect
-              const isRedirectStatus = allowedStatusCodes.has(middlewareRes.status)
+              const isRedirectStatus = allowedStatusCodes.has(
+                middlewareRes.status
+              )
 
               if (isRedirectStatus) {
                 // Process as redirect: update parsedUrl and convert to relative URL
@@ -661,7 +732,10 @@ export function getResolveRoutes(
         }
 
         // handle redirect
-        if (('statusCode' in route || 'permanent' in route) && route.destination) {
+        if (
+          ('statusCode' in route || 'permanent' in route) &&
+          route.destination
+        ) {
           const { parsedDestination } = prepareDestination({
             appendParamsToQuery: false,
             destination: route.destination,
@@ -674,7 +748,9 @@ export function getResolveRoutes(
 
           parsedDestination.search = stringifyQuery(req as any, query)
 
-          parsedDestination.pathname = normalizeRepeatedSlashes(parsedDestination.pathname)
+          parsedDestination.pathname = normalizeRepeatedSlashes(
+            parsedDestination.pathname
+          )
 
           return {
             finished: true,
@@ -728,11 +804,17 @@ export function getResolveRoutes(
             : false
 
           // Set the rewrite headers only if this is a RSC request.
-          if (req.headers[RSC_HEADER] === '1' && (!parsedDestination.origin || isAllowedOrigin)) {
+          if (
+            req.headers[RSC_HEADER] === '1' &&
+            (!parsedDestination.origin || isAllowedOrigin)
+          ) {
             // We set the rewritten path and query headers on the response now
             // that we know that the it's not an external rewrite.
             if (parsedUrl.pathname !== parsedDestination.pathname) {
-              res.setHeader(NEXT_REWRITTEN_PATH_HEADER, parsedDestination.pathname)
+              res.setHeader(
+                NEXT_REWRITTEN_PATH_HEADER,
+                parsedDestination.pathname
+              )
             }
             if (parsedUrl.search !== parsedDestination.search) {
               res.setHeader(

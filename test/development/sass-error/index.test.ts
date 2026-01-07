@@ -15,15 +15,17 @@ describe('app dir - css', () => {
   }
 
   describe('sass support', () => {
-    ;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)('error handling', () => {
-      it('should use original source points for sass errors', async () => {
-        const browser = await next.browser('/sass-error')
+    ;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
+      'error handling',
+      () => {
+        it('should use original source points for sass errors', async () => {
+          const browser = await next.browser('/sass-error')
 
-        await waitForRedbox(browser)
-        const source = await getRedboxSource(browser)
+          await waitForRedbox(browser)
+          const source = await getRedboxSource(browser)
 
-        // css-loader does not report an error for this case
-        expect(source).toMatchInlineSnapshot(`
+          // css-loader does not report an error for this case
+          expect(source).toMatchInlineSnapshot(`
            "./app/global.scss.css (45:1)
            Parsing CSS source code failed
              43 | }
@@ -42,7 +44,8 @@ describe('app dir - css', () => {
                ./app/layout.js [Client Component Browser]
                ./app/layout.js [Server Component]"
           `)
-      })
-    })
+        })
+      }
+    )
   })
 })

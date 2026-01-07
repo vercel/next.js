@@ -143,7 +143,9 @@ describe('app dir - prefetching (custom staleTime)', () => {
 
     // Navigate to a sub-page - this will trigger a data fetch
     await act(async () => {
-      await browser.elementByCss("[href='/prefetch-auto-route-groups/sub/foo']").click()
+      await browser
+        .elementByCss("[href='/prefetch-auto-route-groups/sub/foo']")
+        .click()
     })
 
     // Navigate back to the route group page - should use cached data with no additional fetch
@@ -156,7 +158,9 @@ describe('app dir - prefetching (custom staleTime)', () => {
 
     // Navigate to a new sub-page - this will trigger another data fetch
     await act(async () => {
-      await browser.elementByCss("[href='/prefetch-auto-route-groups/sub/bar']").click()
+      await browser
+        .elementByCss("[href='/prefetch-auto-route-groups/sub/bar']")
+        .click()
     })
 
     // Finally, go back to the route group page - should use cached data with no additional fetch
@@ -209,7 +213,9 @@ describe('app dir - prefetching (custom staleTime)', () => {
     // Reveal the link to static-page-no-prefetch and wait for prefetch
     const link = await act(
       async () => {
-        const reveal = await browser.elementByCss('#accordion-to-static-page-no-prefetch')
+        const reveal = await browser.elementByCss(
+          '#accordion-to-static-page-no-prefetch'
+        )
         await reveal.click()
         return browser.elementByCss('#to-static-page-no-prefetch')
       },

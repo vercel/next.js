@@ -2,7 +2,10 @@ import type { RemotePattern } from './image-config'
 import { makeRe } from 'next/dist/compiled/picomatch'
 
 // Modifying this function should also modify writeImagesManifest()
-export function matchRemotePattern(pattern: RemotePattern | URL, url: URL): boolean {
+export function matchRemotePattern(
+  pattern: RemotePattern | URL,
+  url: URL
+): boolean {
   if (pattern.protocol !== undefined) {
     if (pattern.protocol.replace(/:$/, '') !== url.protocol.replace(/:$/, '')) {
       return false
@@ -15,7 +18,9 @@ export function matchRemotePattern(pattern: RemotePattern | URL, url: URL): bool
   }
 
   if (pattern.hostname === undefined) {
-    throw new Error(`Pattern should define hostname but found\n${JSON.stringify(pattern)}`)
+    throw new Error(
+      `Pattern should define hostname but found\n${JSON.stringify(pattern)}`
+    )
   } else {
     if (!makeRe(pattern.hostname).test(url.hostname)) {
       return false

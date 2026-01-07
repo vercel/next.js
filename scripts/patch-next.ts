@@ -104,7 +104,9 @@ async function copy(src: string, dst: string): Promise<void> {
   }
 
   if (realDst && realDst === src) {
-    WARN(`[x] Source and destination paths are the same: ${src}. Skipping copy.`)
+    WARN(
+      `[x] Source and destination paths are the same: ${src}. Skipping copy.`
+    )
     return
   }
 
@@ -154,10 +156,15 @@ async function main(): Promise<void> {
     { name: '@next/bundle-analyzer', path: 'next-bundle-analyzer' },
   ]
 
-  INFO(`[x] Patching packages: ${packagesToPatch.map((pkg) => pkg.name).join(', ')}`)
+  INFO(
+    `[x] Patching packages: ${packagesToPatch.map((pkg) => pkg.name).join(', ')}`
+  )
   for (const pkg of packagesToPatch) {
     await execFn(`Patching ${pkg.name}`, () =>
-      copy(path.join(NEXT_PACKAGES, pkg.path), path.join(PROJECT_DIR, 'node_modules', pkg.name))
+      copy(
+        path.join(NEXT_PACKAGES, pkg.path),
+        path.join(PROJECT_DIR, 'node_modules', pkg.name)
+      )
     )
   }
 

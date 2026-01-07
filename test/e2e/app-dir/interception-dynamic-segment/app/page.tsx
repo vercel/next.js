@@ -9,13 +9,18 @@ export default function Page() {
         <div>
           <h3>Test Case 1a: Simple page (no parallel routes)</h3>
           <LinkAccordion href="/simple-page" />
-          <p>Interception route with just a page.tsx, no parallel routes at all.</p>
+          <p>
+            Interception route with just a page.tsx, no parallel routes at all.
+          </p>
         </div>
 
         <div>
           <h3>Test Case 1b: Has page.tsx</h3>
           <LinkAccordion href="/has-page" />
-          <p>Interception route has page.tsx at root level. No children slot exists.</p>
+          <p>
+            Interception route has page.tsx at root level. No children slot
+            exists.
+          </p>
         </div>
 
         <div>
@@ -27,7 +32,9 @@ export default function Page() {
         <div>
           <h3>Test Case 3: Has both @sidebar AND page.tsx</h3>
           <LinkAccordion href="/has-both" />
-          <p>Has @sidebar parallel route BUT page.tsx fills the children slot.</p>
+          <p>
+            Has @sidebar parallel route BUT page.tsx fills the children slot.
+          </p>
         </div>
       </section>
 
@@ -44,8 +51,14 @@ export default function Page() {
         <div>
           <h3>Test Case 4b: Has explicit layout.tsx but NO parallel routes</h3>
           <LinkAccordion href="/explicit-layout/deeper" />
-          <p>Has explicit layout.tsx with children slot, but NO parallel routes like @sidebar.</p>
-          <p>? Should it 404 or 200? This determines if we need to check for explicit layouts!</p>
+          <p>
+            Has explicit layout.tsx with children slot, but NO parallel routes
+            like @sidebar.
+          </p>
+          <p>
+            ? Should it 404 or 200? This determines if we need to check for
+            explicit layouts!
+          </p>
         </div>
       </section>
       <section>

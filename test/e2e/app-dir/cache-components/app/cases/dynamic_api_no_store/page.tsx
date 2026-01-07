@@ -11,13 +11,16 @@ export default async function Page() {
   return (
     <>
       <p>
-        This page calls `unstable_noStore()` in a child component with a parent Suspense boundary.
+        This page calls `unstable_noStore()` in a child component with a parent
+        Suspense boundary.
       </p>
       <p>
-        With PPR this page can be partially static because the dynamic API usage is inside a
-        suspense boundary.
+        With PPR this page can be partially static because the dynamic API usage
+        is inside a suspense boundary.
       </p>
-      <p>Without PPR this page is fully dynamic because a dynamic API was used.</p>
+      <p>
+        Without PPR this page is fully dynamic because a dynamic API was used.
+      </p>
       <Suspense fallback="loading...">
         <ComponentThatCallsNoStore />
       </Suspense>

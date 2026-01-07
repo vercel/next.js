@@ -10,10 +10,16 @@ export async function generateStaticParams() {
   ]
 }
 
-export default function HighardLayout({ children }: { children: React.ReactNode }) {
+export default function HighardLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
   return (
     <>
-      <Suspense fallback={<div id="highcard-fallback">loading highcard children</div>}>
+      <Suspense
+        fallback={<div id="highcard-fallback">loading highcard children</div>}
+      >
         {children}
       </Suspense>
       <span id="highcard">{getSentinelValue()}</span>

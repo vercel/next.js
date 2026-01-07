@@ -2,7 +2,11 @@ import { Command } from 'commander'
 import console from 'console'
 
 import PQueue from 'p-queue'
-import { generateProjects, cleanupProjectFolders, TEST_PROJECT_NAME } from './project-utils.js'
+import {
+  generateProjects,
+  cleanupProjectFolders,
+  TEST_PROJECT_NAME,
+} from './project-utils.js'
 import { printBenchmarkResults } from './chart.js'
 import { genRetryableRequest } from './gen-request.js'
 import { bold, red } from '../../packages/next/dist/lib/picocolors.js'

@@ -55,7 +55,11 @@ export class UnrecognizedActionBoundary extends React.Component<{
   }
   render() {
     if (this.state.error) {
-      return <div id="error-boundary">Error boundary: {this.state.error.message}</div>
+      return (
+        <div id="error-boundary">
+          Error boundary: {this.state.error.message}
+        </div>
+      )
     }
     return this.props.children
   }

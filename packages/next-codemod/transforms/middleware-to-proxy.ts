@@ -39,7 +39,8 @@ export default function transformer(file: FileInfo) {
   }
 
   const isNextConfig =
-    isNextConfigFile(file) || (process.env.NODE_ENV === 'test' && /next-config-/.test(file.path))
+    isNextConfigFile(file) ||
+    (process.env.NODE_ENV === 'test' && /next-config-/.test(file.path))
   const isMiddlewareFile =
     /(^|[/\\])middleware\.|[/\\]src[/\\]middleware\./.test(file.path) ||
     (process.env.NODE_ENV === 'test' && !isNextConfig)
@@ -87,19 +88,27 @@ export default function transformer(file: FileInfo) {
   return source
 }
 
-function checkForNextServerTypeImports(root: Collection<any>, j: API['j']): boolean {
+function checkForNextServerTypeImports(
+  root: Collection<any>,
+  j: API['j']
+): boolean {
   return (
     root
       .find(j.ImportDeclaration, {
         source: { value: 'next/server' },
       })
       .find(j.ImportSpecifier)
-      .filter((path: ASTPath<any>) => MIDDLEWARE_TYPE_IMPORT_MAP[path.node.imported.name]).length >
-    0
+      .filter(
+        (path: ASTPath<any>) =>
+          MIDDLEWARE_TYPE_IMPORT_MAP[path.node.imported.name]
+      ).length > 0
   )
 }
 
-function transformMiddlewareTypeImports(root: Collection<any>, j: API['j']): boolean {
+function transformMiddlewareTypeImports(
+  root: Collection<any>,
+  j: API['j']
+): boolean {
   let hasChanges = false
 
   // Transform type imports from 'next/server'
@@ -153,7 +162,10 @@ function transformMiddlewareTypeImports(root: Collection<any>, j: API['j']): boo
   return hasChanges
 }
 
-function transformNextConfig(root: Collection<any>, j: API['j']): { hasConfigChanges: boolean } {
+function transformNextConfig(
+  root: Collection<any>,
+  j: API['j']
+): { hasConfigChanges: boolean } {
   let hasConfigChanges = false
 
   // Collect config-related object expressions instead of processing all
@@ -182,7 +194,10 @@ function transformNextConfig(root: Collection<any>, j: API['j']): { hasConfigCha
     const newProp = CONFIG_PROPERTY_MAP[oldProp]
 
     // Handle experimental.* properties
-    if (oldProp.startsWith('middleware') && oldProp !== 'skipMiddlewareUrlNormalize') {
+    if (
+      oldProp.startsWith('middleware') &&
+      oldProp !== 'skipMiddlewareUrlNormalize'
+    ) {
       root
         .find(j.AssignmentExpression, {
           left: {
@@ -280,14 +295,20 @@ function processConfigObject(configObj: ObjectExpression): {
   return { hasChanges }
 }
 
-function processFunctionConfig(path: ASTPath<any>, j: API['j']): { hasChanges: boolean } {
+function processFunctionConfig(
+  path: ASTPath<any>,
+  j: API['j']
+): { hasChanges: boolean } {
   let hasChanges = false
 
   // Look for return statements with object expressions
   j(path)
     .find(j.ReturnStatement)
     .forEach((returnPath: ASTPath<any>) => {
-      if (returnPath.node.argument && returnPath.node.argument.type === 'ObjectExpression') {
+      if (
+        returnPath.node.argument &&
+        returnPath.node.argument.type === 'ObjectExpression'
+      ) {
         const result = processConfigObject(returnPath.node.argument)
         hasChanges = hasChanges || result.hasChanges
       }
@@ -296,7 +317,10 @@ function processFunctionConfig(path: ASTPath<any>, j: API['j']): { hasChanges: b
   return { hasChanges }
 }
 
-function processArrowFunctionConfig(path: ASTPath<any>, j: API['j']): { hasChanges: boolean } {
+function processArrowFunctionConfig(
+  path: ASTPath<any>,
+  j: API['j']
+): { hasChanges: boolean } {
   let hasChanges = false
 
   const body = path.node.body
@@ -312,7 +336,10 @@ function processArrowFunctionConfig(path: ASTPath<any>, j: API['j']): { hasChang
     j(path)
       .find(j.ReturnStatement)
       .forEach((returnPath: ASTPath<any>) => {
-        if (returnPath.node.argument && returnPath.node.argument.type === 'ObjectExpression') {
+        if (
+          returnPath.node.argument &&
+          returnPath.node.argument.type === 'ObjectExpression'
+        ) {
           const result = processConfigObject(returnPath.node.argument)
           hasChanges = hasChanges || result.hasChanges
         }
@@ -322,7 +349,10 @@ function processArrowFunctionConfig(path: ASTPath<any>, j: API['j']): { hasChang
   return { hasChanges }
 }
 
-function transformMiddlewareFunction(root: Collection<any>, j: API['j']): { hasChanges: boolean } {
+function transformMiddlewareFunction(
+  root: Collection<any>,
+  j: API['j']
+): { hasChanges: boolean } {
   const proxyIdentifier = generateUniqueIdentifier(root, j, 'proxy')
   const needsAlias = proxyIdentifier !== 'proxy'
 
@@ -335,7 +365,10 @@ function transformMiddlewareFunction(root: Collection<any>, j: API['j']): { hasC
     const declaration = nodePath.node.declaration
 
     // Handle: export function middleware() {} or export async function middleware() {}
-    if (j.FunctionDeclaration.check(declaration) && declaration.id?.name === 'middleware') {
+    if (
+      j.FunctionDeclaration.check(declaration) &&
+      declaration.id?.name === 'middleware'
+    ) {
       declaration.id.name = proxyIdentifier
       exportedAsProxy = true // Exported function declarations become proxy
       hasChanges = true
@@ -350,7 +383,10 @@ function transformMiddlewareFunction(root: Collection<any>, j: API['j']): { hasC
           specifier.local.name === 'middleware'
         ) {
           // Check if this is exporting middleware as 'middleware' (which should become 'proxy')
-          if (j.Identifier.check(specifier.exported) && specifier.exported.name === 'middleware') {
+          if (
+            j.Identifier.check(specifier.exported) &&
+            specifier.exported.name === 'middleware'
+          ) {
             if (needsAlias) {
               // Create export alias: export { _proxy1 as proxy }
               const newSpecifier = j.exportSpecifier.from({
@@ -383,7 +419,10 @@ function transformMiddlewareFunction(root: Collection<any>, j: API['j']): { hasC
     const declaration = nodePath.node.declaration
 
     // Handle: export default function middleware() {} or export default async function middleware() {}
-    if (j.FunctionDeclaration.check(declaration) && declaration.id?.name === 'middleware') {
+    if (
+      j.FunctionDeclaration.check(declaration) &&
+      declaration.id?.name === 'middleware'
+    ) {
       declaration.id.name = proxyIdentifier
       hasChanges = true
     }
@@ -426,8 +465,10 @@ function transformMiddlewareFunction(root: Collection<any>, j: API['j']): { hasC
 
         // Don't rename if it's a function/variable declaration we already handled
         if (
-          (j.FunctionDeclaration.check(parent.node) && parent.node.id === astPath.node) ||
-          (j.VariableDeclarator.check(parent.node) && parent.node.id === astPath.node)
+          (j.FunctionDeclaration.check(parent.node) &&
+            parent.node.id === astPath.node) ||
+          (j.VariableDeclarator.check(parent.node) &&
+            parent.node.id === astPath.node)
         ) {
           return false
         }
@@ -467,7 +508,9 @@ function transformMiddlewareFunction(root: Collection<any>, j: API['j']): { hasC
         exported: j.identifier('proxy'),
       })
 
-      const exportDeclaration = j.exportNamedDeclaration(null, [exportSpecifier])
+      const exportDeclaration = j.exportNamedDeclaration(null, [
+        exportSpecifier,
+      ])
 
       // Add the export at the end of the file
       const program = root.find(j.Program)
@@ -504,12 +547,21 @@ function handleMiddlewareFileRename(file: FileInfo, source: string): string {
 }
 
 function isStaticProperty(
-  prop: Property | ObjectProperty | SpreadElement | SpreadProperty | ObjectMethod
+  prop:
+    | Property
+    | ObjectProperty
+    | SpreadElement
+    | SpreadProperty
+    | ObjectMethod
 ): prop is Property | ObjectProperty {
   return prop.type === 'Property' || prop.type === 'ObjectProperty'
 }
 
-function generateUniqueIdentifier(root: Collection<any>, j: API['j'], baseName: string): string {
+function generateUniqueIdentifier(
+  root: Collection<any>,
+  j: API['j'],
+  baseName: string
+): string {
   // First check if baseName itself is available
   if (!hasIdentifierInScope(root, j, baseName)) {
     return baseName
@@ -526,7 +578,11 @@ function generateUniqueIdentifier(root: Collection<any>, j: API['j'], baseName: 
   }
 }
 
-function hasIdentifierInScope(root: Collection<any>, j: API['j'], name: string): boolean {
+function hasIdentifierInScope(
+  root: Collection<any>,
+  j: API['j'],
+  name: string
+): boolean {
   // Check for variable declarations
   const hasVariableDeclaration =
     root
@@ -540,8 +596,10 @@ function hasIdentifierInScope(root: Collection<any>, j: API['j'], name: string):
   const hasFunctionDeclaration =
     root
       .find(j.FunctionDeclaration)
-      .filter((astPath: ASTPath<any>) => astPath.value.id && astPath.value.id.name === name)
-      .length > 0
+      .filter(
+        (astPath: ASTPath<any>) =>
+          astPath.value.id && astPath.value.id.name === name
+      ).length > 0
 
   // Check for import specifiers
   const hasImportSpecifier =
@@ -549,13 +607,17 @@ function hasIdentifierInScope(root: Collection<any>, j: API['j'], name: string):
       .find(j.ImportSpecifier)
       .filter(
         (astPath: ASTPath<any>) =>
-          j.Identifier.check(astPath.value.local) && astPath.value.local.name === name
+          j.Identifier.check(astPath.value.local) &&
+          astPath.value.local.name === name
       ).length > 0
 
   return hasVariableDeclaration || hasFunctionDeclaration || hasImportSpecifier
 }
 
-function findNextConfigObjects(root: Collection<any>, j: API['j']): ASTPath<any>[] {
+function findNextConfigObjects(
+  root: Collection<any>,
+  j: API['j']
+): ASTPath<any>[] {
   const configObjects: ASTPath<any>[] = []
 
   // Find identifiers that are exported as default or assigned to module.exports
@@ -570,7 +632,12 @@ function findNextConfigObjects(root: Collection<any>, j: API['j']): ASTPath<any>
       configObjects.push(path.get('declaration'))
     } else if (j.CallExpression.check(path.node.declaration)) {
       // Handle wrapped exports: export default wrapper(config)
-      extractObjectsFromCallExpression(path.node.declaration, configObjects, exportedNames, j)
+      extractObjectsFromCallExpression(
+        path.node.declaration,
+        configObjects,
+        exportedNames,
+        j
+      )
     }
   })
 
@@ -591,23 +658,33 @@ function findNextConfigObjects(root: Collection<any>, j: API['j']): ASTPath<any>
         configObjects.push(path.get('right'))
       } else if (j.CallExpression.check(path.node.right)) {
         // Handle wrapped assignments: module.exports = wrapper(config)
-        extractObjectsFromCallExpression(path.node.right, configObjects, exportedNames, j)
+        extractObjectsFromCallExpression(
+          path.node.right,
+          configObjects,
+          exportedNames,
+          j
+        )
       }
     })
 
   // Find variable declarations for exported names
   exportedNames.forEach((name) => {
-    root.find(j.VariableDeclarator, { id: { name } }).forEach((path: ASTPath<any>) => {
-      if (j.ObjectExpression.check(path.node.init)) {
-        configObjects.push(path.get('init'))
-      }
-    })
+    root
+      .find(j.VariableDeclarator, { id: { name } })
+      .forEach((path: ASTPath<any>) => {
+        if (j.ObjectExpression.check(path.node.init)) {
+          configObjects.push(path.get('init'))
+        }
+      })
   })
 
   return configObjects
 }
 
-function findNextConfigFunctions(root: Collection<any>, j: API['j']): ASTPath<any>[] {
+function findNextConfigFunctions(
+  root: Collection<any>,
+  j: API['j']
+): ASTPath<any>[] {
   const configFunctions: ASTPath<any>[] = []
   const exportedNames = new Set<string>()
 
@@ -641,15 +718,20 @@ function findNextConfigFunctions(root: Collection<any>, j: API['j']): ASTPath<an
 
   // Find function declarations for exported names
   exportedNames.forEach((name) => {
-    root.find(j.FunctionDeclaration, { id: { name } }).forEach((path: ASTPath<any>) => {
-      configFunctions.push(path)
-    })
+    root
+      .find(j.FunctionDeclaration, { id: { name } })
+      .forEach((path: ASTPath<any>) => {
+        configFunctions.push(path)
+      })
   })
 
   return configFunctions
 }
 
-function findNextConfigArrowFunctions(root: Collection<any>, j: API['j']): ASTPath<any>[] {
+function findNextConfigArrowFunctions(
+  root: Collection<any>,
+  j: API['j']
+): ASTPath<any>[] {
   const configArrowFunctions: ASTPath<any>[] = []
   const exportedNames = new Set<string>()
 
@@ -683,11 +765,13 @@ function findNextConfigArrowFunctions(root: Collection<any>, j: API['j']): ASTPa
 
   // Find variable declarations with arrow functions for exported names
   exportedNames.forEach((name) => {
-    root.find(j.VariableDeclarator, { id: { name } }).forEach((path: ASTPath<any>) => {
-      if (j.ArrowFunctionExpression.check(path.node.init)) {
-        configArrowFunctions.push(path.get('init'))
-      }
-    })
+    root
+      .find(j.VariableDeclarator, { id: { name } })
+      .forEach((path: ASTPath<any>) => {
+        if (j.ArrowFunctionExpression.check(path.node.init)) {
+          configArrowFunctions.push(path.get('init'))
+        }
+      })
   })
 
   return configArrowFunctions
@@ -737,14 +821,16 @@ function removeRuntimeConfig(root: Collection<any>, j: API['j']): boolean {
   }
 
   // Remove const runtime = 'string' declarations
-  const runtimeVariableDeclarations = root.find(j.VariableDeclaration).filter((path) =>
-    path.node.declarations.some((decl) => {
-      if (j.VariableDeclarator.check(decl) && j.Identifier.check(decl.id)) {
-        return decl.id.name === 'runtime'
-      }
-      return false
-    })
-  )
+  const runtimeVariableDeclarations = root
+    .find(j.VariableDeclaration)
+    .filter((path) =>
+      path.node.declarations.some((decl) => {
+        if (j.VariableDeclarator.check(decl) && j.Identifier.check(decl.id)) {
+          return decl.id.name === 'runtime'
+        }
+        return false
+      })
+    )
 
   if (runtimeVariableDeclarations.size() > 0) {
     runtimeVariableDeclarations.forEach((path) => {
@@ -826,7 +912,11 @@ function removeRuntimeConfig(root: Collection<any>, j: API['j']): boolean {
 
           // Filter out runtime property
           objExpr.properties = objExpr.properties.filter((prop) => {
-            if (isStaticProperty(prop) && prop.key && prop.key.type === 'Identifier') {
+            if (
+              isStaticProperty(prop) &&
+              prop.key &&
+              prop.key.type === 'Identifier'
+            ) {
               return prop.key.name !== 'runtime'
             }
             return true

@@ -19,7 +19,9 @@ export function useOpenInEditor({
 
     self
       .fetch(
-        `${process.env.__NEXT_ROUTER_BASEPATH || ''}/__nextjs_launch-editor?${params.toString()}`
+        `${
+          process.env.__NEXT_ROUTER_BASEPATH || ''
+        }/__nextjs_launch-editor?${params.toString()}`
       )
       .then(
         () => {},

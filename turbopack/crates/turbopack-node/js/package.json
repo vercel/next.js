@@ -1,12 +1,9 @@
 {
   "name": "@vercel/turbopack-node",
   "version": "0.0.0",
-  "private": true,
   "description": "turbopack node runtime",
   "license": "UNLICENSED",
-  "exports": {
-    "./*": "./src/*.ts"
-  },
+  "private": true,
   "scripts": {
     "check": "tsc --noEmit"
   },
@@ -16,5 +13,8 @@
   "devDependencies": {
     "@types/loader-runner": "^2.2.4",
     "@types/node": "^18.11.11"
+  },
+  "exports": {
+    "./*": "./src/*.ts"
   }
 }

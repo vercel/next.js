@@ -9,11 +9,15 @@ describe('app dir - navigation', () => {
   describe('query string', () => {
     it('should set query correctly', async () => {
       const browser = await next.browser('/')
-      expect(await browser.elementById('query').text()).toMatchInlineSnapshot(`"<empty-query>"`)
+      expect(await browser.elementById('query').text()).toMatchInlineSnapshot(
+        `"<empty-query>"`
+      )
 
       await browser.elementById('set-query').click()
 
-      await retry(() => expect(browser.elementById('query').text()).resolves.toEqual('a=b&c=d'))
+      await retry(() =>
+        expect(browser.elementById('query').text()).resolves.toEqual('a=b&c=d')
+      )
 
       const url = new URL(await browser.url())
       expect(url.searchParams.toString()).toMatchInlineSnapshot(`"a=b&c=d"`)
@@ -22,7 +26,9 @@ describe('app dir - navigation', () => {
     it('should set query with semicolon correctly', async () => {
       const browser = await next.browser('/redirect/semicolon')
 
-      await retry(() => expect(browser.elementById('query').text()).resolves.toEqual('a=b%3Bc'))
+      await retry(() =>
+        expect(browser.elementById('query').text()).resolves.toEqual('a=b%3Bc')
+      )
 
       const url = new URL(await browser.url())
       expect(url.searchParams.toString()).toBe('a=b%3Bc')
@@ -91,51 +97,54 @@ describe('app dir - navigation', () => {
           // params when initially loaded are null.
           waitForNEffects: 2,
         },
-      ])('should be stable in $router', async ({ pathname, waitForNEffects }) => {
-        const browser = await next.browser(pathname)
+      ])(
+        'should be stable in $router',
+        async ({ pathname, waitForNEffects }) => {
+          const browser = await next.browser(pathname)
 
-        // Expect to see the params changed message at least twice.
-        let lastLogIndex = await retry(async () => {
-          const logs: Array<{ message: string }> = await browser.log()
+          // Expect to see the params changed message at least twice.
+          let lastLogIndex = await retry(async () => {
+            const logs: Array<{ message: string }> = await browser.log()
 
-          expect(logs.filter(({ message }) => message === 'params changed')).toHaveLength(
-            waitForNEffects
-          )
+            expect(
+              logs.filter(({ message }) => message === 'params changed')
+            ).toHaveLength(waitForNEffects)
 
-          return logs.length
-        })
-
-        await browser.elementById('rerender-button').click()
-        await browser.elementById('rerender-button').click()
-        await browser.elementById('rerender-button').click()
-
-        await retry(async () => {
-          const rerender = await browser.elementById('rerender-button').text()
-
-          expect(rerender).toBe('Re-Render 3')
-        })
-
-        let logs: Array<{ message: string }> = await browser.log()
-        expect(logs.slice(lastLogIndex)).not.toContainEqual(
-          expect.objectContaining({
-            message: 'params changed',
+            return logs.length
           })
-        )
 
-        lastLogIndex = logs.length
+          await browser.elementById('rerender-button').click()
+          await browser.elementById('rerender-button').click()
+          await browser.elementById('rerender-button').click()
 
-        await browser.elementById('change-params-button').click()
+          await retry(async () => {
+            const rerender = await browser.elementById('rerender-button').text()
 
-        await retry(async () => {
-          logs = await browser.log()
+            expect(rerender).toBe('Re-Render 3')
+          })
 
-          expect(logs.slice(lastLogIndex)).toContainEqual(
+          let logs: Array<{ message: string }> = await browser.log()
+          expect(logs.slice(lastLogIndex)).not.toContainEqual(
             expect.objectContaining({
               message: 'params changed',
             })
           )
-        })
-      })
+
+          lastLogIndex = logs.length
+
+          await browser.elementById('change-params-button').click()
+
+          await retry(async () => {
+            logs = await browser.log()
+
+            expect(logs.slice(lastLogIndex)).toContainEqual(
+              expect.objectContaining({
+                message: 'params changed',
+              })
+            )
+          })
+        }
+      )
     })
   })
 
@@ -153,11 +162,16 @@ describe('app dir - navigation', () => {
         },
       })
 
-      const checkLink = async (val: number | string, expectedScroll: number) => {
+      const checkLink = async (
+        val: number | string,
+        expectedScroll: number
+      ) => {
         await browser.elementByCss(`#link-to-${val.toString()}`).click()
 
         await retry(() =>
-          expect(browser.eval('window.pageYOffset')).resolves.toEqual(expectedScroll)
+          expect(browser.eval('window.pageYOffset')).resolves.toEqual(
+            expectedScroll
+          )
         )
       }
 
@@ -195,7 +209,9 @@ describe('app dir - navigation', () => {
       const browser = await next.browser('/hash-changes')
       const curScroll = await browser.eval('document.documentElement.scrollTop')
       await browser.elementByCss('#scroll-to-name-item-400-no-scroll').click()
-      expect(curScroll).toBe(await browser.eval('document.documentElement.scrollTop'))
+      expect(curScroll).toBe(
+        await browser.eval('document.documentElement.scrollTop')
+      )
     })
   })
 
@@ -203,10 +219,15 @@ describe('app dir - navigation', () => {
     it('should scroll to the specified hash', async () => {
       const browser = await next.browser('/hash-with-scroll-offset')
 
-      const checkLink = async (val: number | string, expectedScroll: number) => {
+      const checkLink = async (
+        val: number | string,
+        expectedScroll: number
+      ) => {
         await browser.elementByCss(`#link-to-${val.toString()}`).click()
         await retry(() =>
-          expect(browser.eval('window.pageYOffset')).resolves.toEqual(expectedScroll)
+          expect(browser.eval('window.pageYOffset')).resolves.toEqual(
+            expectedScroll
+          )
         )
       }
 
@@ -224,10 +245,15 @@ describe('app dir - navigation', () => {
     it('should scroll to the specified hash', async () => {
       const browser = await next.browser('/hash-link-back-to-same-page')
 
-      const checkLink = async (val: number | string, expectedScroll: number) => {
+      const checkLink = async (
+        val: number | string,
+        expectedScroll: number
+      ) => {
         await browser.elementByCss(`#link-to-${val.toString()}`).click()
         await retry(() =>
-          expect(browser.eval('window.pageYOffset')).resolves.toEqual(expectedScroll)
+          expect(browser.eval('window.pageYOffset')).resolves.toEqual(
+            expectedScroll
+          )
         )
       }
 
@@ -246,7 +272,9 @@ describe('app dir - navigation', () => {
         // Wait for hash-link-back-to-same-page to load
         .waitForElementByCss('#to-other-page')
 
-      await retry(() => expect(browser.eval('window.pageYOffset')).resolves.toEqual(0))
+      await retry(() =>
+        expect(browser.eval('window.pageYOffset')).resolves.toEqual(0)
+      )
     })
   })
 
@@ -257,14 +285,18 @@ describe('app dir - navigation', () => {
       const browser = await next.browser(pathname)
       await browser.elementByCss('#link-to-h1-hash-only').click()
 
-      await retry(() => expect(browser.url()).resolves.toEqual(next.url + pathname + '#h1'))
+      await retry(() =>
+        expect(browser.url()).resolves.toEqual(next.url + pathname + '#h1')
+      )
     })
 
     it('should work with a hash-only `router.push(...)`', async () => {
       const browser = await next.browser(pathname)
       await browser.elementByCss('#button-to-h3-hash-only').click()
 
-      await retry(() => expect(browser.url()).resolves.toEqual(next.url + pathname + '#h3'))
+      await retry(() =>
+        expect(browser.url()).resolves.toEqual(next.url + pathname + '#h3')
+      )
     })
 
     it('should work with a query-only href', async () => {
@@ -272,7 +304,9 @@ describe('app dir - navigation', () => {
       await browser.elementByCss('#link-to-dummy-query').click()
 
       await retry(() =>
-        expect(browser.url()).resolves.toEqual(next.url + pathname + '?foo=1&bar=2')
+        expect(browser.url()).resolves.toEqual(
+          next.url + pathname + '?foo=1&bar=2'
+        )
       )
     })
 
@@ -280,28 +314,42 @@ describe('app dir - navigation', () => {
       const browser = await next.browser(pathname)
       await browser.elementByCss('#link-to-h2-with-hash-and-query').click()
 
-      await retry(() => expect(browser.url()).resolves.toEqual(next.url + pathname + '?here=ok#h2'))
+      await retry(() =>
+        expect(browser.url()).resolves.toEqual(
+          next.url + pathname + '?here=ok#h2'
+        )
+      )
 
       // Only update hash
       await browser.elementByCss('#link-to-h1-hash-only').click()
-      await retry(() => expect(browser.url()).resolves.toEqual(next.url + pathname + '?here=ok#h1'))
+      await retry(() =>
+        expect(browser.url()).resolves.toEqual(
+          next.url + pathname + '?here=ok#h1'
+        )
+      )
 
       // Replace all with new query
       await browser.elementByCss('#link-to-dummy-query').click()
       await retry(() =>
-        expect(browser.url()).resolves.toEqual(next.url + pathname + '?foo=1&bar=2')
+        expect(browser.url()).resolves.toEqual(
+          next.url + pathname + '?foo=1&bar=2'
+        )
       )
 
       // Add hash to existing query
       await browser.elementByCss('#link-to-h1-hash-only').click()
       await retry(() =>
-        expect(browser.url()).resolves.toEqual(next.url + pathname + '?foo=1&bar=2#h1')
+        expect(browser.url()).resolves.toEqual(
+          next.url + pathname + '?foo=1&bar=2#h1'
+        )
       )
 
       // Update hash again via `router.push(...)`
       await browser.elementByCss('#button-to-h3-hash-only').click()
       await retry(() =>
-        expect(browser.url()).resolves.toEqual(next.url + pathname + '?foo=1&bar=2#h3')
+        expect(browser.url()).resolves.toEqual(
+          next.url + pathname + '?foo=1&bar=2#h3'
+        )
       )
     })
   })
@@ -310,33 +358,52 @@ describe('app dir - navigation', () => {
     it('should trigger not-found in a server component', async () => {
       const browser = await next.browser('/not-found/servercomponent')
 
-      expect(await browser.waitForElementByCss('#not-found-component').text()).toBe('Not Found!')
-      expect(await browser.waitForElementByCss('meta[name="robots"]').getAttribute('content')).toBe(
-        'noindex'
-      )
+      expect(
+        await browser.waitForElementByCss('#not-found-component').text()
+      ).toBe('Not Found!')
+      expect(
+        await browser
+          .waitForElementByCss('meta[name="robots"]')
+          .getAttribute('content')
+      ).toBe('noindex')
     })
 
     it('should trigger not-found in a client component', async () => {
       const browser = await next.browser('/not-found/clientcomponent')
-      expect(await browser.waitForElementByCss('#not-found-component').text()).toBe('Not Found!')
-      expect(await browser.waitForElementByCss('meta[name="robots"]').getAttribute('content')).toBe(
-        'noindex'
-      )
+      expect(
+        await browser.waitForElementByCss('#not-found-component').text()
+      ).toBe('Not Found!')
+      expect(
+        await browser
+          .waitForElementByCss('meta[name="robots"]')
+          .getAttribute('content')
+      ).toBe('noindex')
     })
     it('should trigger not-found client-side', async () => {
       const browser = await next.browser('/not-found/client-side')
-      await browser.elementByCss('button').click().waitForElementByCss('#not-found-component')
-      expect(await browser.elementByCss('#not-found-component').text()).toBe('Not Found!')
-      expect(await browser.waitForElementByCss('meta[name="robots"]').getAttribute('content')).toBe(
-        'noindex'
+      await browser
+        .elementByCss('button')
+        .click()
+        .waitForElementByCss('#not-found-component')
+      expect(await browser.elementByCss('#not-found-component').text()).toBe(
+        'Not Found!'
       )
+      expect(
+        await browser
+          .waitForElementByCss('meta[name="robots"]')
+          .getAttribute('content')
+      ).toBe('noindex')
     })
     it('should trigger not-found while streaming', async () => {
       const browser = await next.browser('/not-found/suspense')
-      expect(await browser.waitForElementByCss('#not-found-component').text()).toBe('Not Found!')
-      expect(await browser.waitForElementByCss('meta[name="robots"]').getAttribute('content')).toBe(
-        'noindex'
-      )
+      expect(
+        await browser.waitForElementByCss('#not-found-component').text()
+      ).toBe('Not Found!')
+      expect(
+        await browser
+          .waitForElementByCss('meta[name="robots"]')
+          .getAttribute('content')
+      ).toBe('noindex')
     })
   })
 
@@ -360,33 +427,50 @@ describe('app dir - navigation', () => {
       it('should redirect in a server component', async () => {
         const browser = await next.browser('/redirect/servercomponent')
         await browser.waitForElementByCss('#result-page')
-        expect(await browser.elementByCss('#result-page').text()).toBe('Result Page')
+        expect(await browser.elementByCss('#result-page').text()).toBe(
+          'Result Page'
+        )
       })
 
       it('should redirect in a client component', async () => {
         const browser = await next.browser('/redirect/clientcomponent')
         await browser.waitForElementByCss('#result-page')
-        expect(await browser.elementByCss('#result-page').text()).toBe('Result Page')
+        expect(await browser.elementByCss('#result-page').text()).toBe(
+          'Result Page'
+        )
       })
 
       it('should redirect client-side', async () => {
         const browser = await next.browser('/redirect/client-side')
-        await browser.elementByCss('button').click().waitForElementByCss('#result-page')
-        expect(await browser.elementByCss('#result-page').text()).toBe('Result Page')
+        await browser
+          .elementByCss('button')
+          .click()
+          .waitForElementByCss('#result-page')
+        expect(await browser.elementByCss('#result-page').text()).toBe(
+          'Result Page'
+        )
       })
 
       it('should redirect to external url', async () => {
         const browser = await next.browser('/redirect/external')
-        expect(await browser.waitForElementByCss('h1').text()).toBe('Example Domain')
+        expect(await browser.waitForElementByCss('h1').text()).toBe(
+          'Example Domain'
+        )
       })
 
       it('should redirect to external url, initiating only once', async () => {
         const storageKey = Math.random()
-        const browser = await next.browser(`/redirect/external-log/${storageKey}`)
-        expect(await browser.waitForElementByCss('h1').text()).toBe('Example Domain')
+        const browser = await next.browser(
+          `/redirect/external-log/${storageKey}`
+        )
+        expect(await browser.waitForElementByCss('h1').text()).toBe(
+          'Example Domain'
+        )
 
         // Now check the logs...
-        await browser.get(`${next.url}/redirect/external-log/${storageKey}?read=1`)
+        await browser.get(
+          `${next.url}/redirect/external-log/${storageKey}?read=1`
+        )
         const stored = JSON.parse(await browser.elementByCss('pre').text())
 
         if (stored['navigation-supported'] === 'false') {
@@ -417,7 +501,9 @@ describe('app dir - navigation', () => {
             },
           })
 
-          const initialTimestamp = await browser.waitForElementByCss('#timestamp').text()
+          const initialTimestamp = await browser
+            .waitForElementByCss('#timestamp')
+            .text()
 
           let attempts = 0
           const maxAttempts = 5
@@ -425,7 +511,9 @@ describe('app dir - navigation', () => {
           try {
             // this ensures the timestamp remains "stable" (ie, we didn't trigger another redirect)
             await retry(async () => {
-              const currentTimestamp = await browser.elementByCss('#timestamp').text()
+              const currentTimestamp = await browser
+                .elementByCss('#timestamp')
+                .text()
 
               attempts++
 
@@ -450,7 +538,9 @@ describe('app dir - navigation', () => {
 
           // Ensure the redirect target page was only requested once.
           expect(
-            requestedPathnames.filter((pathname) => pathname === '/redirect/result')
+            requestedPathnames.filter(
+              (pathname) => pathname === '/redirect/result'
+            )
           ).toHaveLength(1)
         }
       )
@@ -465,7 +555,10 @@ describe('app dir - navigation', () => {
 
       it('should redirect from next.config.js with link navigation', async () => {
         const browser = await next.browser('/redirect/next-config-redirect')
-        await browser.elementByCss('#redirect-a').click().waitForElementByCss('h1')
+        await browser
+          .elementByCss('#redirect-a')
+          .click()
+          .waitForElementByCss('h1')
         expect(await browser.elementByCss('h1').text()).toBe('redirect-dest')
         expect(await browser.url()).toBe(next.url + '/redirect-dest')
       })
@@ -480,7 +573,10 @@ describe('app dir - navigation', () => {
 
       it('should redirect from middleware with link navigation', async () => {
         const browser = await next.browser('/redirect/next-middleware-redirect')
-        await browser.elementByCss('#redirect-middleware').click().waitForElementByCss('h1')
+        await browser
+          .elementByCss('#redirect-middleware')
+          .click()
+          .waitForElementByCss('h1')
         expect(await browser.elementByCss('h1').text()).toBe('redirect-dest')
         expect(await browser.url()).toBe(next.url + '/redirect-dest')
       })
@@ -514,7 +610,9 @@ describe('app dir - navigation', () => {
       const storageKey = Math.random()
       const browser = await next.browser(`/external-push/${storageKey}`)
       await browser.elementByCss('#go').click()
-      await browser.waitForCondition('window.location.origin === "https://example.vercel.sh"')
+      await browser.waitForCondition(
+        'window.location.origin === "https://example.vercel.sh"'
+      )
 
       // Now check the logs...
       await browser.get(`${next.url}/external-push/${storageKey}`)
@@ -547,18 +645,30 @@ describe('app dir - navigation', () => {
     it('should not contain _rsc query while navigating from app to pages', async () => {
       // Initiate with app
       const browser = await next.browser('/assertion/page')
-      await browser.elementByCss('#link-to-pages').click().waitForElementByCss('#link-to-app')
+      await browser
+        .elementByCss('#link-to-pages')
+        .click()
+        .waitForElementByCss('#link-to-app')
       expect(await browser.url()).toBe(next.url + '/some')
-      await browser.elementByCss('#link-to-app').click().waitForElementByCss('#link-to-pages')
+      await browser
+        .elementByCss('#link-to-app')
+        .click()
+        .waitForElementByCss('#link-to-pages')
       expect(await browser.url()).toBe(next.url + '/assertion/page')
     })
 
     it('should not contain _rsc query while navigating from pages to app', async () => {
       // Initiate with pages
       const browser = await next.browser('/some')
-      await browser.elementByCss('#link-to-app').click().waitForElementByCss('#link-to-pages')
+      await browser
+        .elementByCss('#link-to-app')
+        .click()
+        .waitForElementByCss('#link-to-pages')
       expect(await browser.url()).toBe(next.url + '/assertion/page')
-      await browser.elementByCss('#link-to-pages').click().waitForElementByCss('#link-to-app')
+      await browser
+        .elementByCss('#link-to-pages')
+        .click()
+        .waitForElementByCss('#link-to-app')
       expect(await browser.url()).toBe(next.url + '/some')
     })
 
@@ -568,7 +678,9 @@ describe('app dir - navigation', () => {
         .elementByCss('#link-to-pages-router')
         .click()
         .waitForElementByCss('#link-to-app')
-      await retry(() => expect(browser.url()).resolves.toEqual(next.url + '/some#non-existent'))
+      await retry(() =>
+        expect(browser.url()).resolves.toEqual(next.url + '/some#non-existent')
+      )
     })
 
     if (!isNextDev) {
@@ -611,7 +723,9 @@ describe('app dir - navigation', () => {
       for (const [category, subCategories] of pages) {
         expect(
           await browser
-            .elementByCss(`a[href="/nested-navigation/${category.toLowerCase()}"]`)
+            .elementByCss(
+              `a[href="/nested-navigation/${category.toLowerCase()}"]`
+            )
             .click()
             .waitForElementByCss(`#all-${category.toLowerCase()}`)
             .text()
@@ -639,7 +753,9 @@ describe('app dir - navigation', () => {
         .click()
         .waitForElementByCss('#dynamic-gsp-content')
 
-      expect(await browser.elementByCss('#dynamic-gsp-content').text()).toBe('slug:1')
+      expect(await browser.elementByCss('#dynamic-gsp-content').text()).toBe(
+        'slug:1'
+      )
     })
   })
 
@@ -648,7 +764,8 @@ describe('app dir - navigation', () => {
       const noIndexTag = '<meta name="robots" content="noindex"/>'
       const defaultViewportTag =
         '<meta name="viewport" content="width=device-width, initial-scale=1"/>'
-      const devErrorMetadataTag = '<meta name="next-error" content="not-found"/>'
+      const devErrorMetadataTag =
+        '<meta name="next-error" content="not-found"/>'
       const html = await next.render('/not-found/suspense')
 
       expect(html).toContain(noIndexTag)
@@ -685,7 +802,9 @@ describe('app dir - navigation', () => {
 
     it('should not log 404 errors in ipc server', async () => {
       await next.fetch('/this-path-does-not-exist')
-      expect(next.cliOutput).not.toInclude('PageNotFoundError: Cannot find module for page')
+      expect(next.cliOutput).not.toInclude(
+        'PageNotFoundError: Cannot find module for page'
+      )
     })
   })
 
@@ -706,7 +825,9 @@ describe('app dir - navigation', () => {
       for (const [category, subCategories] of pages) {
         expect(
           await browser
-            .elementByCss(`a[href="/nested-navigation/${category.toLowerCase()}"]`)
+            .elementByCss(
+              `a[href="/nested-navigation/${category.toLowerCase()}"]`
+            )
             .click()
             .waitForElementByCss(`#all-${category.toLowerCase()}`)
             .text()
@@ -766,7 +887,9 @@ describe('app dir - navigation', () => {
 
       // Hopefully this click happened before the prefetch was completed.
       // TODO: Programmatically trigger prefetch e.g. by mounting the link later.
-      await browser.elementByCss("[href='/metadata-await-promise/nested']").click()
+      await browser
+        .elementByCss("[href='/metadata-await-promise/nested']")
+        .click()
 
       await waitFor(resolveMetadataDuration + 500)
 
@@ -782,11 +905,15 @@ describe('app dir - navigation', () => {
         await waitFor(resolveMetadataDuration + 500)
       }
 
-      await browser.elementByCss("[href='/metadata-await-promise/nested']").click()
+      await browser
+        .elementByCss("[href='/metadata-await-promise/nested']")
+        .click()
 
       if (!isNextDev) {
         expect(
-          await browser.waitForElementByCss('title', resolveMetadataDuration + 500).text()
+          await browser
+            .waitForElementByCss('title', resolveMetadataDuration + 500)
+            .text()
         ).toBe('Async Title')
       }
 
@@ -799,21 +926,31 @@ describe('app dir - navigation', () => {
       const browser = await next.browser('/dynamic-param-casing-change')
 
       // note the casing here capitalizes `ParamA`
-      await browser.elementByCss("[href='/dynamic-param-casing-change/ParamA']").click()
+      await browser
+        .elementByCss("[href='/dynamic-param-casing-change/ParamA']")
+        .click()
 
       // note the `paramA` casing has now changed
-      await browser.elementByCss("[href='/dynamic-param-casing-change/paramA/noParam']").click()
+      await browser
+        .elementByCss("[href='/dynamic-param-casing-change/paramA/noParam']")
+        .click()
 
       await retry(async () => {
-        expect(await browser.elementByCss('body').text()).toContain('noParam page')
+        expect(await browser.elementByCss('body').text()).toContain(
+          'noParam page'
+        )
       })
 
       await browser.back()
 
-      await browser.elementByCss("[href='/dynamic-param-casing-change/paramA/paramB']").click()
+      await browser
+        .elementByCss("[href='/dynamic-param-casing-change/paramA/paramB']")
+        .click()
 
       await retry(async () => {
-        expect(await browser.elementByCss('body').text()).toContain('[paramB] page')
+        expect(await browser.elementByCss('body').text()).toContain(
+          '[paramB] page'
+        )
       })
     })
   })
@@ -828,7 +965,9 @@ describe('app dir - navigation', () => {
       await browser.elementById('submit-button').click()
 
       await retry(async () => {
-        expect(await browser.elementByCss('body').text()).toContain('Form Submitted.')
+        expect(await browser.elementByCss('body').text()).toContain(
+          'Form Submitted.'
+        )
       })
 
       await browser.back()
@@ -843,7 +982,9 @@ describe('app dir - navigation', () => {
     it('should change browser location when router.refresh() gets a redirect response', async () => {
       const browser = await next.browser('/redirect-on-refresh/auth')
       await retry(async () =>
-        expect(await browser.url()).toBe(next.url + '/redirect-on-refresh/dashboard')
+        expect(await browser.url()).toBe(
+          next.url + '/redirect-on-refresh/dashboard'
+        )
       )
     })
   })
@@ -876,18 +1017,28 @@ describe('app dir - navigation', () => {
       const browser = await next.browser('/use-router/same-page')
 
       expect(await browser.elementByCss('#count-from-server').text()).toBe('0')
-      expect(await browser.elementByCss('#count-from-client-state').text()).toBe('0')
-      expect(await browser.elementByCss('#router-change-count').text()).toBe('0')
+      expect(
+        await browser.elementByCss('#count-from-client-state').text()
+      ).toBe('0')
+      expect(await browser.elementByCss('#router-change-count').text()).toBe(
+        '0'
+      )
 
       for (let i = 1; i <= 3; i++) {
         await browser.elementByCss('#trigger-push').click()
         await retry(async () => {
-          expect(await browser.elementByCss('#count-from-server').text()).toBe(`${i}`)
+          expect(await browser.elementByCss('#count-from-server').text()).toBe(
+            `${i}`
+          )
           // the client state is independent from the count we keep in the queryparam.
           // we expect it to stay mounted and thus keep its own count.
           // if it was getting unmounted, then its count of router changes would always stay at 0.
-          expect(await browser.elementByCss('#count-from-client-state').text()).toBe(`${i}`)
-          expect(await browser.elementByCss('#router-change-count').text()).toBe('0')
+          expect(
+            await browser.elementByCss('#count-from-client-state').text()
+          ).toBe(`${i}`)
+          expect(
+            await browser.elementByCss('#router-change-count').text()
+          ).toBe('0')
         })
       }
     })
@@ -896,17 +1047,27 @@ describe('app dir - navigation', () => {
       const browser = await next.browser('/use-router/shared-layout/one')
 
       expect(await browser.elementByCss('h1').text()).toBe('One')
-      expect(await browser.elementByCss('#count-from-client-state').text()).toBe('0')
-      expect(await browser.elementByCss('#router-change-count').text()).toBe('0')
+      expect(
+        await browser.elementByCss('#count-from-client-state').text()
+      ).toBe('0')
+      expect(await browser.elementByCss('#router-change-count').text()).toBe(
+        '0'
+      )
 
       for (let i = 1; i <= 3; i++) {
         await browser.elementByCss('#trigger-push').click()
         await retry(async () => {
-          expect(await browser.elementByCss('h1').text()).toBe(i % 2 === 0 ? 'One' : 'Two')
+          expect(await browser.elementByCss('h1').text()).toBe(
+            i % 2 === 0 ? 'One' : 'Two'
+          )
           // we expect the client part to stay mounted and thus keep its own count.
           // if it was getting unmounted, then its count of router changes would always be 0.
-          expect(await browser.elementByCss('#count-from-client-state').text()).toBe(`${i}`)
-          expect(await browser.elementByCss('#router-change-count').text()).toBe('0')
+          expect(
+            await browser.elementByCss('#count-from-client-state').text()
+          ).toBe(`${i}`)
+          expect(
+            await browser.elementByCss('#router-change-count').text()
+          ).toBe('0')
         })
       }
     })

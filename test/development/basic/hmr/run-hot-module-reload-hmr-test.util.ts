@@ -2,7 +2,10 @@ import { join } from 'path'
 import { getBrowserBodyText, retry, waitFor } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
-export function runHotModuleReloadHmrTest(nextConfig: { basePath: string; assetPrefix: string }) {
+export function runHotModuleReloadHmrTest(nextConfig: {
+  basePath: string
+  assetPrefix: string
+}) {
   const { next } = nextTestSetup({
     files: __dirname,
     nextConfig,
@@ -26,9 +29,13 @@ export function runHotModuleReloadHmrTest(nextConfig: { basePath: string; assetP
         await next.renameFile(contactPagePath, newContactPagePath)
 
         await retry(async () => {
-          expect(await getBrowserBodyText(browser)).toMatch(/This page could not be found/)
+          expect(await getBrowserBodyText(browser)).toMatch(
+            /This page could not be found/
+          )
         })
-        expect(next.cliOutput.slice(cliOutputLength)).toMatch(/GET .*\/hmr\/contact 404/)
+        expect(next.cliOutput.slice(cliOutputLength)).toMatch(
+          /GET .*\/hmr\/contact 404/
+        )
         cliOutputLength = next.cliOutput.length
 
         // Rename the file back to the original filename
@@ -36,11 +43,17 @@ export function runHotModuleReloadHmrTest(nextConfig: { basePath: string; assetP
 
         // wait until the page comes back
         await retry(async () => {
-          expect(await getBrowserBodyText(browser)).toMatch(/This is the contact page/)
+          expect(await getBrowserBodyText(browser)).toMatch(
+            /This is the contact page/
+          )
         })
-        expect(next.cliOutput.slice(cliOutputLength)).toMatch(/GET .*\/hmr\/contact 200/)
+        expect(next.cliOutput.slice(cliOutputLength)).toMatch(
+          /GET .*\/hmr\/contact 200/
+        )
       } finally {
-        await next.renameFile(newContactPagePath, contactPagePath).catch(() => {})
+        await next
+          .renameFile(newContactPagePath, contactPagePath)
+          .catch(() => {})
       }
     })
   })
@@ -54,7 +67,10 @@ export function runHotModuleReloadHmrTest(nextConfig: { basePath: string; assetP
       const aboutPagePath = join('pages', 'hmr', 'about.js')
 
       const originalContent = await next.readFile(aboutPagePath)
-      const editedContent = originalContent.replace('This is the about page', 'COOL page')
+      const editedContent = originalContent.replace(
+        'This is the about page',
+        'COOL page'
+      )
 
       // change the content
       try {
@@ -68,7 +84,9 @@ export function runHotModuleReloadHmrTest(nextConfig: { basePath: string; assetP
       }
 
       await retry(async () => {
-        expect(await getBrowserBodyText(browser)).toMatch(/This is the about page/)
+        expect(await getBrowserBodyText(browser)).toMatch(
+          /This is the about page/
+        )
       })
     })
 
@@ -86,7 +104,10 @@ export function runHotModuleReloadHmrTest(nextConfig: { basePath: string; assetP
       const aboutPagePath = join('pages', 'hmr', 'about.js')
 
       const originalContent = await next.readFile(aboutPagePath)
-      const editedContent = originalContent.replace('This is the about page', 'COOL page')
+      const editedContent = originalContent.replace(
+        'This is the about page',
+        'COOL page'
+      )
 
       try {
         // Change the about.js page
@@ -135,7 +156,9 @@ export function runHotModuleReloadHmrTest(nextConfig: { basePath: string; assetP
     // Added because of a regression in react-hot-loader, see issues: #4246 #4273
     // Also: https://github.com/vercel/styled-jsx/issues/425
     it('should update styles in a stateful component correctly', async () => {
-      const browser = await next.browser(basePath + '/hmr/style-stateful-component')
+      const browser = await next.browser(
+        basePath + '/hmr/style-stateful-component'
+      )
       const pagePath = join('pages', 'hmr', 'style-stateful-component.js')
       const originalContent = await next.readFile(pagePath)
       try {
@@ -161,8 +184,12 @@ export function runHotModuleReloadHmrTest(nextConfig: { basePath: string; assetP
     // Added because of a regression in react-hot-loader, see issues: #4246 #4273
     // Also: https://github.com/vercel/styled-jsx/issues/425
     it('should update styles in a dynamic component correctly', async () => {
-      const browser = await next.browser(basePath + '/hmr/style-dynamic-component')
-      const secondBrowser = await next.browser(basePath + '/hmr/style-dynamic-component')
+      const browser = await next.browser(
+        basePath + '/hmr/style-dynamic-component'
+      )
+      const secondBrowser = await next.browser(
+        basePath + '/hmr/style-dynamic-component'
+      )
       const pagePath = join('components', 'hmr', 'dynamic.js')
       const originalContent = await next.readFile(pagePath)
       try {
@@ -172,11 +199,16 @@ export function runHotModuleReloadHmrTest(nextConfig: { basePath: string; assetP
 
         expect(initialFontSize).toBe('100px')
 
-        const initialHtml = await next.render(basePath + '/hmr/style-dynamic-component')
+        const initialHtml = await next.render(
+          basePath + '/hmr/style-dynamic-component'
+        )
         expect(initialHtml.includes('100px')).toBeTruthy()
 
-        const $initialHtml = await next.render$(basePath + '/hmr/style-dynamic-component')
-        const initialServerClassName = $initialHtml('#dynamic-component').attr('class')
+        const $initialHtml = await next.render$(
+          basePath + '/hmr/style-dynamic-component'
+        )
+        const initialServerClassName =
+          $initialHtml('#dynamic-component').attr('class')
 
         expect(initialClientClassName === initialServerClassName).toBeTruthy()
 
@@ -192,16 +224,23 @@ export function runHotModuleReloadHmrTest(nextConfig: { basePath: string; assetP
         const editedDiv = await secondBrowser.elementByCss('#dynamic-component')
         const editedClientClassName = await editedDiv.getAttribute('class')
         const editedFontSize = await editedDiv.getComputedCss('font-size')
-        const browserHtml = await secondBrowser.eval('document.documentElement.innerHTML')
+        const browserHtml = await secondBrowser.eval(
+          'document.documentElement.innerHTML'
+        )
 
         expect(editedFontSize).toBe('200px')
         expect(browserHtml.includes('font-size:200px')).toBe(true)
         expect(browserHtml.includes('font-size:100px')).toBe(false)
 
-        const editedHtml = await next.render(basePath + '/hmr/style-dynamic-component')
+        const editedHtml = await next.render(
+          basePath + '/hmr/style-dynamic-component'
+        )
         expect(editedHtml.includes('200px')).toBeTruthy()
-        const $editedHtml = await next.render$(basePath + '/hmr/style-dynamic-component')
-        const editedServerClassName = $editedHtml('#dynamic-component').attr('class')
+        const $editedHtml = await next.render$(
+          basePath + '/hmr/style-dynamic-component'
+        )
+        const editedServerClassName =
+          $editedHtml('#dynamic-component').attr('class')
 
         expect(editedClientClassName === editedServerClassName).toBe(true)
       } finally {

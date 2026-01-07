@@ -4,8 +4,14 @@ type ErrorOverlayDialogHeaderProps = {
   children?: React.ReactNode
 }
 
-export function ErrorOverlayDialogHeader({ children }: ErrorOverlayDialogHeaderProps) {
-  return <DialogHeader className="nextjs-container-errors-header">{children}</DialogHeader>
+export function ErrorOverlayDialogHeader({
+  children,
+}: ErrorOverlayDialogHeaderProps) {
+  return (
+    <DialogHeader className="nextjs-container-errors-header">
+      {children}
+    </DialogHeader>
+  )
 }
 
 export const DIALOG_HEADER_STYLES = `

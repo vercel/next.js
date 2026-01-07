@@ -110,19 +110,26 @@ interface TraceMetadata {
 
 ;(async function upload() {
   const nextVersion = JSON.parse(
-    await fsPromise.readFile(path.resolve(__dirname, '../../package.json'), 'utf8')
+    await fsPromise.readFile(
+      path.resolve(__dirname, '../../package.json'),
+      'utf8'
+    )
   ).version
 
   const projectPkgJsonPath = await findUp('package.json')
   assert(projectPkgJsonPath)
 
-  const projectPkgJson = JSON.parse(await fsPromise.readFile(projectPkgJsonPath, 'utf-8'))
+  const projectPkgJson = JSON.parse(
+    await fsPromise.readFile(projectPkgJsonPath, 'utf-8')
+  )
   const pkgName = projectPkgJson.name
 
   const commit = child_process
-    .spawnSync(os.platform() === 'win32' ? 'git.exe' : 'git', ['rev-parse', 'HEAD'], {
-      shell: true,
-    })
+    .spawnSync(
+      os.platform() === 'win32' ? 'git.exe' : 'git',
+      ['rev-parse', 'HEAD'],
+      { shell: true }
+    )
     .stdout.toString()
     .trimEnd()
 
@@ -144,7 +151,9 @@ interface TraceMetadata {
         // Always include root spans
         event.parentId === undefined ||
         shouldUploadFullTrace ||
-        (mode === 'dev' ? DEV_ALLOWED_EVENTS.has(event.name) : BUILD_ALLOWED_EVENTS.has(event.name))
+        (mode === 'dev'
+          ? DEV_ALLOWED_EVENTS.has(event.name)
+          : BUILD_ALLOWED_EVENTS.has(event.name))
       ) {
         sessionTrace.push(event)
       }

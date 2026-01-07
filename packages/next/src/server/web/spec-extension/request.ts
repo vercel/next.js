@@ -20,7 +20,8 @@ export class NextRequest extends Request {
   }
 
   constructor(input: URL | RequestInfo, init: RequestInit = {}) {
-    const url = typeof input !== 'string' && 'url' in input ? input.url : String(input)
+    const url =
+      typeof input !== 'string' && 'url' in input ? input.url : String(input)
 
     validateURL(url)
 
@@ -44,7 +45,9 @@ export class NextRequest extends Request {
     this[INTERNALS] = {
       cookies: new RequestCookies(this.headers),
       nextUrl,
-      url: process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE ? url : nextUrl.toString(),
+      url: process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE
+        ? url
+        : nextUrl.toString(),
     }
   }
 

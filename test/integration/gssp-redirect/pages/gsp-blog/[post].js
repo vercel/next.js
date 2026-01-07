@@ -38,7 +38,10 @@ export const getStaticProps = ({ params }) => {
     let statusCode = undefined
 
     if (params.post.includes('statusCode-')) {
-      permanent = parseInt(params.post.split('statusCode-').pop().split('-').shift(), 10)
+      permanent = parseInt(
+        params.post.split('statusCode-').pop().split('-').shift(),
+        10
+      )
     }
 
     if (params.post.includes('permanent')) {

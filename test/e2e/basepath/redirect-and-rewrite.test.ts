@@ -88,7 +88,10 @@ describe('basePath', () => {
 
   it('should not rewrite with basePath when set to false', async () => {
     // won't 404 as it matches the dynamic [slug] route
-    const html = await renderViaHTTP(next.url, `${basePath}/rewrite-no-basePath`)
+    const html = await renderViaHTTP(
+      next.url,
+      `${basePath}/rewrite-no-basePath`
+    )
     expect(html).toContain('slug')
   })
 
@@ -98,9 +101,14 @@ describe('basePath', () => {
   })
 
   it('should redirect with basePath by default', async () => {
-    const res = await fetchViaHTTP(next.url, `${basePath}/redirect-1`, undefined, {
-      redirect: 'manual',
-    })
+    const res = await fetchViaHTTP(
+      next.url,
+      `${basePath}/redirect-1`,
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
     const { pathname } = new URL(res.headers.get('location') || '')
     expect(pathname).toBe(`${basePath}/somewhere-else`)
     expect(res.status).toBe(307)
@@ -119,14 +127,22 @@ describe('basePath', () => {
 
   it('should not redirect with basePath when set to false', async () => {
     // won't 404 as it matches the dynamic [slug] route
-    const html = await renderViaHTTP(next.url, `${basePath}/rewrite-no-basePath`)
+    const html = await renderViaHTTP(
+      next.url,
+      `${basePath}/rewrite-no-basePath`
+    )
     expect(html).toContain('slug')
   })
 
   it('should redirect without basePath when set to false', async () => {
-    const res = await fetchViaHTTP(next.url, '/redirect-no-basepath', undefined, {
-      redirect: 'manual',
-    })
+    const res = await fetchViaHTTP(
+      next.url,
+      '/redirect-no-basepath',
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
     const { pathname } = new URL(res.headers.get('location') || '')
     expect(pathname).toBe('/another-destination')
     expect(res.status).toBe(307)

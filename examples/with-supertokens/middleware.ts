@@ -6,7 +6,9 @@ import { ensureSuperTokensInit } from "./app/config/backend";
 
 ensureSuperTokensInit();
 
-export async function middleware(request: NextRequest & { session?: SessionContainer }) {
+export async function middleware(
+  request: NextRequest & { session?: SessionContainer },
+) {
   if (request.headers.has("x-user-id")) {
     console.warn(
       "The FE tried to pass x-user-id, which is only supposed to be a backend internal header. Ignoring.",

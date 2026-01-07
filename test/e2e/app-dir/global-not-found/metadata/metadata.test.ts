@@ -9,7 +9,9 @@ describe('global-not-found - metadata', () => {
     // assert SSR metadata
     const $ = await next.render$('/does-not-exist')
     expect($('title').text()).toBe('global-not-found')
-    expect($('meta[name="description"]').attr('content')).toBe('global-not-found description')
+    expect($('meta[name="description"]').attr('content')).toBe(
+      'global-not-found description'
+    )
     // pick up static icon svg
     expect($('link[rel="icon"]').attr('type')).toBe('image/svg+xml')
 
@@ -18,7 +20,9 @@ describe('global-not-found - metadata', () => {
     const title = await browser.elementByCss('title')
     const description = await browser.elementByCss('meta[name="description"]')
     expect(await title.text()).toBe('global-not-found')
-    expect(await description.getAttribute('content')).toBe('global-not-found description')
+    expect(await description.getAttribute('content')).toBe(
+      'global-not-found description'
+    )
     // pick up static icon svg
     const icon = await browser.elementByCss('link[rel="icon"]', {
       state: 'attached',

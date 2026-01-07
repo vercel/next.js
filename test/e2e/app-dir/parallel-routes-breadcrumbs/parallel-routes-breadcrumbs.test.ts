@@ -50,7 +50,9 @@ describe('parallel-routes-breadcrumbs', () => {
     const slot = await browser.waitForElementByCss('#slot')
 
     expect(await browser.elementByCss('h1').text()).toBe('Parallel Route!')
-    expect(await browser.elementByCss('h2').text()).toBe('/foo/[lang]/bar Page!')
+    expect(await browser.elementByCss('h2').text()).toBe(
+      '/foo/[lang]/bar Page!'
+    )
 
     // verify slot is rendering the params
     expect(await slot.text()).toContain('Artist: foo')
@@ -63,7 +65,9 @@ describe('parallel-routes-breadcrumbs', () => {
     const slot = await browser.waitForElementByCss('#slot')
 
     expect(await browser.elementByCss('h1').text()).toBe('Parallel Route!')
-    expect(await browser.elementByCss('h2').text()).toBe('/fizz/[...buzz] Page!')
+    expect(await browser.elementByCss('h2').text()).toBe(
+      '/fizz/[...buzz] Page!'
+    )
 
     // verify slot is rendering the params
     expect(await slot.text()).toContain('Artist: fizz')
@@ -76,7 +80,9 @@ describe('parallel-routes-breadcrumbs', () => {
     const slot = await browser.waitForElementByCss('#slot')
 
     expect(await browser.elementByCss('h1').text()).toBe('Parallel Route!')
-    expect(await browser.elementByCss('h2').text()).toBe('/buzz/[[...fizz]] Page!')
+    expect(await browser.elementByCss('h2').text()).toBe(
+      '/buzz/[[...fizz]] Page!'
+    )
 
     // verify slot is rendering the params
     expect(await slot.text()).toContain('Artist: buzz')

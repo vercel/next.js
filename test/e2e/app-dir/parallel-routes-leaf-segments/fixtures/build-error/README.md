@@ -5,7 +5,6 @@ This fixture contains scenarios that **SHOULD throw `MissingDefaultParallelRoute
 ## Why These Should Error
 
 All scenarios in this fixture have:
-
 1. ✅ Parallel routes (slots starting with `@`)
 2. ❌ **NO** `default.tsx` files for those parallel routes
 3. ✅ **Child routes** that make these **non-leaf segments**
@@ -33,7 +32,6 @@ app/with-children/
 ```
 
 **Expected Error:**
-
 ```
 MissingDefaultParallelRouteError:
   Missing required default.js file for parallel route at /with-children/@header
@@ -41,7 +39,6 @@ MissingDefaultParallelRouteError:
 ```
 
 **Why it errors:**
-
 - When navigating from `/with-children` to `/with-children/child`, the routing system needs to know what to render for the `@header` and `@sidebar` slots
 - Since `/with-children/child` doesn't define these parallel routes, Next.js looks for `default.tsx` files
 - No `default.tsx` files exist → ERROR!
@@ -69,7 +66,6 @@ app/with-groups-and-children/(dashboard)/(overview)/
 **Route Groups:** `(dashboard)` and `(overview)` don't affect the URL
 
 **Expected Error:**
-
 ```
 MissingDefaultParallelRouteError:
   Missing required default.js file for parallel route at /with-groups-and-children/(dashboard)/(overview)/@analytics
@@ -77,7 +73,6 @@ MissingDefaultParallelRouteError:
 ```
 
 **Why it errors:**
-
 - Even with route groups, the segment has a child route (`/nested`)
 - The `hasChildRoutesForSegment()` helper correctly:
   1. Filters out route groups `(dashboard)` and `(overview)`
@@ -92,7 +87,6 @@ MissingDefaultParallelRouteError:
 To make these scenarios build successfully, add `default.tsx` files:
 
 ### For Scenario 1:
-
 ```tsx
 // app/with-children/@header/default.tsx
 export default function HeaderDefault() {
@@ -106,7 +100,6 @@ export default function SidebarDefault() {
 ```
 
 ### For Scenario 2:
-
 ```tsx
 // app/with-groups-and-children/(dashboard)/(overview)/@analytics/default.tsx
 export default function AnalyticsDefault() {
@@ -124,11 +117,9 @@ export default function MetricsDefault() {
 ## Contrast with `no-build-error` Fixture
 
 The `no-build-error` fixture has similar parallel routes but:
-
 - ❌ **NO child routes** (leaf segments)
 - ✅ `default.tsx` files are **NOT required**
 
 This fixture (build-error) has:
-
 - ✅ **Child routes exist** (non-leaf segments)
 - ❌ `default.tsx` files **ARE required** but missing → **ERROR!**
