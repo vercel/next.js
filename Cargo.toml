@@ -288,7 +288,7 @@ debug = true
 next-api = { path = "crates/next-api" }
 next-build = { path = "crates/next-build" }
 next-core = { path = "crates/next-core" }
-next-custom-transforms = { path = "crates/next-custom-transforms" }
+next-custom-transforms = { path = "crates/next-custom-transforms", default-features = false }
 next-taskless = { path = "crates/next-taskless" }
 
 # Turbopack
@@ -339,7 +339,7 @@ turbopack-trace-utils = { path = "turbopack/crates/turbopack-trace-utils" }
 turbopack-wasm = { path = "turbopack/crates/turbopack-wasm" }
 
 # SWC crates
-swc_core = { version = "49.0.0", features = [
+swc_core = { version = "50.2.3", features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
   "parallel_rayon",
@@ -350,13 +350,13 @@ testing = "19.0.0"
 # Keep consistent with preset_env_base through swc_core
 browserslist-rs = "0.19.0"
 mdxjs = "1.0.3"
-modularize_imports = "0.104.0"
-styled_components = "0.132.0"
-styled_jsx = "0.107.0"
-swc_emotion = "0.108.0"
-swc_relay = "0.78.0"
-react_remove_properties = "0.58.0"
-remove_console = "0.59.0"
+modularize_imports = "0.105.0"
+styled_components = "0.133.0"
+styled_jsx = "0.108.0"
+swc_emotion = "0.109.0"
+swc_relay = "0.79.0"
+react_remove_properties = "0.59.0"
+remove_console = "0.60.0"
 preset_env_base = "6.0.0"
 
 
@@ -484,4 +484,4 @@ webbrowser = "1.0.6"
 [patch.crates-io]
 bincode = { git = "https://github.com/bgw/bincode.git", branch = "bgw/patches" }
 virtue = { git = "https://github.com/bgw/virtue.git", branch = "bgw/fix-generic-default-parsing" }
-mdxjs = { git = "https://github.com/mischnic/mdxjs-rs.git", branch = "swc-core-32" }
+mdxjs = { git = "https://github.com/vercel-labs/mdxjs-rs-turbopack.git", branch = "turbopack" }

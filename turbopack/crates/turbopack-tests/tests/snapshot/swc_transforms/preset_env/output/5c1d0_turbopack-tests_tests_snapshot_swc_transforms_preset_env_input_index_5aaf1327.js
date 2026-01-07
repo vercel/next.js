@@ -72,9 +72,17 @@ function _ts_generator(thisArg, body) {
         },
         trys: [],
         ops: []
-    }, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
-    return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() {
-        return this;
+    }, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype), d = Object.defineProperty;
+    return d(g, "next", {
+        value: verb(0)
+    }), d(g, "throw", {
+        value: verb(1)
+    }), d(g, "return", {
+        value: verb(2)
+    }), typeof Symbol === "function" && d(g, Symbol.iterator, {
+        value: function() {
+            return this;
+        }
     }), g;
     function verb(n) {
         return function(v) {
@@ -799,9 +807,17 @@ function _ts_generator(thisArg, body) {
         },
         trys: [],
         ops: []
-    }, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
-    return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() {
-        return this;
+    }, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype), d = Object.defineProperty;
+    return d(g, "next", {
+        value: verb(0)
+    }), d(g, "throw", {
+        value: verb(1)
+    }), d(g, "return", {
+        value: verb(2)
+    }), typeof Symbol === "function" && d(g, Symbol.iterator, {
+        value: function() {
+            return this;
+        }
     }), g;
     function verb(n) {
         return function(v) {
@@ -1153,8 +1169,8 @@ function loadChunkPath(sourceType, sourceData, chunkPath) {
  * Returns an absolute url to an asset.
  */ function resolvePathFromModule(moduleId) {
     var exported = this.r(moduleId);
-    var _exported_default;
-    return (_exported_default = exported === null || exported === void 0 ? void 0 : exported.default) !== null && _exported_default !== void 0 ? _exported_default : exported;
+    var _ref;
+    return (_ref = exported === null || exported === void 0 ? void 0 : exported.default) !== null && _ref !== void 0 ? _ref : exported;
 }
 browserContextPrototype.R = resolvePathFromModule;
 /**
@@ -1332,9 +1348,17 @@ function _ts_generator(thisArg, body) {
         },
         trys: [],
         ops: []
-    }, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
-    return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() {
-        return this;
+    }, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype), d = Object.defineProperty;
+    return d(g, "next", {
+        value: verb(0)
+    }), d(g, "throw", {
+        value: verb(1)
+    }), d(g, "return", {
+        value: verb(2)
+    }), typeof Symbol === "function" && d(g, Symbol.iterator, {
+        value: function() {
+            return this;
+        }
     }), g;
     function verb(n) {
         return function(v) {
