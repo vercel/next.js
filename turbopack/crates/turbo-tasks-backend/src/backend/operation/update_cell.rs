@@ -15,7 +15,7 @@ use crate::{
             AggregationUpdateQueue, ExecuteContext, Operation, TaskGuard,
             invalidate::make_task_dirty_internal,
         },
-        storage::{get_many, remove},
+        storage::{iter_many, remove},
     },
     data::{CachedDataItem, CachedDataItemKey, CellRef},
 };
@@ -96,12 +96,17 @@ impl UpdateCellOperation {
             // When not recomputing, we need to notify dependent tasks if the content actually
             // changes.
 
-            let dependent_tasks: SmallVec<[TaskId; 4]> = get_many!(
+            let dependent_tasks: SmallVec<[TaskId; 4]> = iter_many!(
                 task,
                 CellDependent { cell: dependent_cell, task }
                 if dependent_cell == cell
                 => task
-            );
+            )
+            .filter(|&dependent_task_id| {
+                // once tasks are never invalidated
+                !ctx.is_once_task(dependent_task_id)
+            })
+            .collect();
 
             if !dependent_tasks.is_empty() {
                 // Slow path: We need to invalidate tasks depending on this cell.
@@ -124,6 +129,12 @@ impl UpdateCellOperation {
 
                 drop(task);
                 drop(old_content);
+
+                ctx.prepare_tasks(
+                    dependent_tasks
+                        .iter()
+                        .map(|&id| (id, TaskDataCategory::All)),
+                );
 
                 UpdateCellOperation::InvalidateWhenCellDependency {
                     is_serializable_cell_content,
@@ -197,10 +208,6 @@ impl Operation for UpdateCellOperation {
                     ref mut queue,
                 } => {
                     if let Some(dependent_task_id) = dependent_tasks.pop() {
-                        if ctx.is_once_task(dependent_task_id) {
-                            // once tasks are never invalidated
-                            continue;
-                        }
                         let mut make_stale = true;
                         let dependent = ctx.task(dependent_task_id, TaskDataCategory::All);
                         if dependent.has_key(&CachedDataItemKey::OutdatedCellDependency {

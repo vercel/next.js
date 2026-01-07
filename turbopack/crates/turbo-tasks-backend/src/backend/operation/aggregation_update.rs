@@ -1501,12 +1501,8 @@ impl AggregationUpdateQueue {
         ctx: &mut impl ExecuteContext,
         update: AggregatedDataUpdate,
     ) {
-        for upper_id in upper_ids {
-            let mut upper = ctx.task(
-                upper_id,
-                // For performance reasons this should stay `Meta` and not `All`
-                TaskDataCategory::Meta,
-            );
+        // For performance reasons this should stay `Meta` and not `All`
+        ctx.for_each_task_meta(upper_ids.iter().copied(), |mut upper, ctx| {
             let diff = update.apply(&mut upper, ctx.should_track_activeness(), self);
             if !diff.is_empty() {
                 let upper_ids = get_uppers(&upper);
@@ -1520,7 +1516,7 @@ impl AggregationUpdateQueue {
                     );
                 }
             }
-        }
+        });
     }
 
     fn inner_of_uppers_lost_follower(
@@ -1565,13 +1561,9 @@ impl AggregationUpdateQueue {
                 drop(follower);
 
                 if !data.is_empty() {
-                    for upper_id in removed_uppers.iter() {
-                        // remove data from upper
-                        let mut upper = ctx.task(
-                            *upper_id,
-                            // For performance reasons this should stay `Meta` and not `All`
-                            TaskDataCategory::Meta,
-                        );
+                    // remove data from upper
+                    // For performance reasons this should stay `Meta` and not `All`
+                    ctx.for_each_task_meta(removed_uppers.iter().copied(), |mut upper, ctx| {
                         let diff = data.apply(&mut upper, ctx.should_track_activeness(), self);
                         if !diff.is_empty() {
                             let upper_ids = get_uppers(&upper);
@@ -1583,7 +1575,7 @@ impl AggregationUpdateQueue {
                                 .into(),
                             )
                         }
-                    }
+                    });
                 }
                 if !followers.is_empty() {
                     self.push(
@@ -1956,13 +1948,9 @@ impl AggregationUpdateQueue {
 
                 let has_data = !data.is_empty();
                 if has_data || !is_active {
-                    for upper_id in upper_ids.iter() {
-                        // add data to upper
-                        let mut upper = ctx.task(
-                            *upper_id,
-                            // For performance reasons this should stay `Meta` and not `All`
-                            TaskDataCategory::Meta,
-                        );
+                    // add data to upper
+                    // For performance reasons this should stay `Meta` and not `All`
+                    ctx.for_each_task_meta(upper_ids.iter().copied(), |mut upper, ctx| {
                         if has_data {
                             let diff = data.apply(&mut upper, ctx.should_track_activeness(), self);
                             if !diff.is_empty() {
@@ -1983,7 +1971,7 @@ impl AggregationUpdateQueue {
                                 is_active = true;
                             }
                         }
-                    }
+                    });
                 }
                 if !children.is_empty() {
                     self.push(
