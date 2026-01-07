@@ -25,8 +25,9 @@ use next_core::{
     segment_config::ParseSegmentMode,
     util::{NextRuntime, OptionEnvMap},
 };
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
-use tracing::Instrument;
+use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, Completions, FxIndexMap, IntoTraitRef, NonLocalValue, OperationValue, OperationVc,
@@ -329,34 +330,125 @@ fn output_fs_operation(project: ResolvedVc<Project>) -> Vc<DiskFileSystem> {
     project.project_fs()
 }
 
+enum EnvDiffType {
+    Added,
+    Removed,
+    Modified,
+}
+
+fn env_diff(
+    old: &[(RcStr, Option<RcStr>)],
+    new: &[(RcStr, Option<RcStr>)],
+) -> Vec<(RcStr, EnvDiffType)> {
+    let mut diffs = Vec::new();
+    let mut old_map: FxHashMap<_, _> = old.iter().cloned().collect();
+
+    for (key, new_value) in new.iter() {
+        match old_map.remove(key) {
+            Some(old_value) => {
+                if &old_value != new_value {
+                    diffs.push((key.clone(), EnvDiffType::Modified));
+                }
+            }
+            None => {
+                diffs.push((key.clone(), EnvDiffType::Added));
+            }
+        }
+    }
+
+    for (key, _) in old.iter() {
+        if old_map.contains_key(key) {
+            diffs.push((key.clone(), EnvDiffType::Removed));
+        }
+    }
+
+    diffs
+}
+
+fn env_diff_report(old: &[(RcStr, Option<RcStr>)], new: &[(RcStr, Option<RcStr>)]) -> String {
+    use std::fmt::Write;
+
+    let diff = env_diff(old, new);
+
+    let mut report = String::new();
+    for (key, diff_type) in diff {
+        let symbol = match diff_type {
+            EnvDiffType::Added => "+",
+            EnvDiffType::Removed => "-",
+            EnvDiffType::Modified => "*",
+        };
+        if !report.is_empty() {
+            report.push_str(", ");
+        }
+        write!(report, "{}{}", symbol, key).unwrap();
+    }
+    report
+}
+
+fn define_env_diff_report(old: &DefineEnv, new: &DefineEnv) -> String {
+    use std::fmt::Write;
+
+    let mut report = String::new();
+    for (name, old, new) in [
+        ("client", &old.client, &new.client),
+        ("edge", &old.edge, &new.edge),
+        ("nodejs", &old.nodejs, &new.nodejs),
+    ] {
+        let diff = env_diff_report(old, new);
+        if !diff.is_empty() {
+            if !report.is_empty() {
+                report.push_str(", ");
+            }
+            write!(report, "{name}: {{ {diff} }}").unwrap();
+        }
+    }
+    report
+}
+
 impl ProjectContainer {
-    #[tracing::instrument(level = "info", name = "initialize project", skip_all)]
     pub async fn initialize(self: ResolvedVc<Self>, options: ProjectOptions) -> Result<()> {
-        let watch = options.watch;
+        let span = tracing::info_span!(
+            "initialize project",
+            project_name = %self.await?.name,
+            env_diff = Empty
+        );
+        let span_clone = span.clone();
+        async move {
+            let watch = options.watch;
 
-        self.await?.options_state.set(Some(options));
+            let this = self.await?;
+            if let Some(old_options) = &*this.options_state.get_untracked() {
+                span.record(
+                    "env_diff",
+                    define_env_diff_report(&old_options.define_env, &options.define_env).as_str(),
+                );
+            }
+            this.options_state.set(Some(options));
 
-        let project = self.project().to_resolved().await?;
-        let project_fs = project_fs_operation(project)
-            .read_strongly_consistent()
-            .await?;
-        if watch.enable {
-            project_fs
-                .start_watching_with_invalidation_reason(watch.poll_interval)
+            let project = self.project().to_resolved().await?;
+            let project_fs = project_fs_operation(project)
+                .read_strongly_consistent()
                 .await?;
-        } else {
-            project_fs.invalidate_with_reason(|path| invalidation::Initialize {
-                // this path is just used for display purposes
+            if watch.enable {
+                project_fs
+                    .start_watching_with_invalidation_reason(watch.poll_interval)
+                    .await?;
+            } else {
+                project_fs.invalidate_with_reason(|path| invalidation::Initialize {
+                    // this path is just used for display purposes
+                    path: RcStr::from(path.to_string_lossy()),
+                });
+            }
+            let output_fs = output_fs_operation(project)
+                .read_strongly_consistent()
+                .await?;
+            output_fs.invalidate_with_reason(|path| invalidation::Initialize {
                 path: RcStr::from(path.to_string_lossy()),
             });
+            Ok(())
         }
-        let output_fs = output_fs_operation(project)
-            .read_strongly_consistent()
-            .await?;
-        output_fs.invalidate_with_reason(|path| invalidation::Initialize {
-            path: RcStr::from(path.to_string_lossy()),
-        });
-        Ok(())
+        .instrument(span_clone)
+        .await
     }
 
     #[tracing::instrument(level = "info", name = "update project options", skip_all)]
