@@ -15,6 +15,11 @@ describe('deploymentId function support', () => {
   it('should work with deploymentId as a string', async () => {
     next = await createNext({
       files: {
+        'app/layout.jsx': `
+          export default function Layout({ children }) {
+            return children
+          }
+        `,
         'app/page.jsx': `
           export default function Page() { 
             return <p>hello world</p>
@@ -36,6 +41,11 @@ describe('deploymentId function support', () => {
   it('should work with deploymentId as a function returning string', async () => {
     next = await createNext({
       files: {
+        'app/layout.jsx': `
+          export default function Layout({ children }) {
+            return children
+          }
+        `,
         'app/page.jsx': `
           export default function Page() { 
             return <p>hello world</p>
@@ -59,6 +69,11 @@ describe('deploymentId function support', () => {
   it('should work with deploymentId function using environment variable', async () => {
     next = await createNext({
       files: {
+        'app/layout.jsx': `
+          export default function Layout({ children }) {
+            return children
+          }
+        `,
         'app/page.jsx': `
           export default function Page() { 
             return <p>hello world</p>
@@ -85,6 +100,11 @@ describe('deploymentId function support', () => {
   it('should work with useSkewCookie and deploymentId function', async () => {
     next = await createNext({
       files: {
+        'app/layout.jsx': `
+          export default function Layout({ children }) {
+            return children
+          }
+        `,
         'app/page.jsx': `
           export default function Page() { 
             return <p>hello world</p>
@@ -114,6 +134,11 @@ describe('deploymentId function support', () => {
     try {
       await createNext({
         files: {
+          'app/layout.jsx': `
+            export default function Layout({ children }) {
+              return children
+            }
+          `,
           'app/page.jsx': `
             export default function Page() { 
               return <p>hello world</p>
