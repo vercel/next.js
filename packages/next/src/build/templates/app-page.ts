@@ -4,9 +4,13 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import {
   AppPageRouteModule,
   type AppPageRouteHandlerContext,
-} from '../../server/route-modules/app-page/module.compiled' with { 'turbopack-transition': 'next-ssr' }
+} from '../../server/route-modules/app-page/module.compiled' with {
+  'turbopack-transition': 'next-ssr',
+}
 
-import { RouteKind } from '../../server/route-kind' with { 'turbopack-transition': 'next-server-utility' }
+import { RouteKind } from '../../server/route-kind' with {
+  'turbopack-transition': 'next-server-utility',
+}
 
 import { getRevalidateReason } from '../../server/instrumentation/utils'
 import { getTracer, SpanKind, type Span } from '../../server/lib/trace/tracer'
@@ -70,7 +74,9 @@ declare const tree: LoaderTree
 // module.
 // INJECT:tree
 
-import GlobalError from 'VAR_MODULE_GLOBAL_ERROR' with { 'turbopack-transition': 'next-server-utility' }
+import GlobalError from 'VAR_MODULE_GLOBAL_ERROR' with {
+  'turbopack-transition': 'next-server-utility',
+}
 
 export { GlobalError }
 
@@ -86,13 +92,17 @@ export const __next_app__ = {
   loadChunk: __next_app_load_chunk__,
 }
 
-import * as entryBase from '../../server/app-render/entry-base' with { 'turbopack-transition': 'next-server-utility' }
+import * as entryBase from '../../server/app-render/entry-base' with {
+  'turbopack-transition': 'next-server-utility',
+}
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { scheduleOnNextTick } from '../../lib/scheduler'
 import { isInterceptionRouteAppPath } from '../../shared/lib/router/utils/interception-routes'
 
-export * from '../../server/app-render/entry-base' with { 'turbopack-transition': 'next-server-utility' }
+export * from '../../server/app-render/entry-base' with {
+  'turbopack-transition': 'next-server-utility',
+}
 
 // Create and export the route module that will be consumed.
 export const routeModule = new AppPageRouteModule({
@@ -317,9 +327,9 @@ export async function handler(
     (prerenderInfo ||
       isPrerendered ||
       prerenderManifest.routes[normalizedSrcPage]) &&
-      // If this is a html bot request and PPR is enabled, then we don't want
-      // to serve a static response.
-      !(isHtmlBot && isRoutePPREnabled)
+    // If this is a html bot request and PPR is enabled, then we don't want
+    // to serve a static response.
+    !(isHtmlBot && isRoutePPREnabled)
   )
 
   // When a page supports cacheComponents, we can support RDC for Navigations

@@ -3,7 +3,7 @@
   "oxc.fmt.configPath": ".prettierrc.json",
   "oxc.requireConfig": true,
   // Formatting using oxfmt by default for all languages
-   "editor.defaultFormatter": "oxc.oxc-vscode",
+  "editor.defaultFormatter": "oxc.oxc-vscode",
   // Formatting using oxfmt for JavaScript, overrides VSCode default.
   "[javascript]": {
     "editor.defaultFormatter": "oxc.oxc-vscode"

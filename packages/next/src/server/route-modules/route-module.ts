@@ -160,9 +160,8 @@ export abstract class RouteModule<
         getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
       )
 
-      const { instrumentationOnRequestError } = await import(
-        '../lib/router-utils/instrumentation-globals.external.js'
-      )
+      const { instrumentationOnRequestError } =
+        await import('../lib/router-utils/instrumentation-globals.external.js')
 
       return instrumentationOnRequestError(
         absoluteProjectDir,
@@ -614,9 +613,8 @@ export abstract class RouteModule<
       if (absoluteDistDir) {
         this.distDir = relative(absoluteProjectDir, absoluteDistDir)
       }
-      const { ensureInstrumentationRegistered } = await import(
-        '../lib/router-utils/instrumentation-globals.external.js'
-      )
+      const { ensureInstrumentationRegistered } =
+        await import('../lib/router-utils/instrumentation-globals.external.js')
       // ensure instrumentation is registered and pass
       // onRequestError below
       ensureInstrumentationRegistered(absoluteProjectDir, this.distDir)

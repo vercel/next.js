@@ -264,9 +264,8 @@ type BaseRenderOpts = RenderOpts & {
  */
 export interface BaseRequestHandler<
   ServerRequest extends BaseNextRequest | IncomingMessage = BaseNextRequest,
-  ServerResponse extends
-    | BaseNextResponse
-    | HTTPServerResponse = BaseNextResponse,
+  ServerResponse extends BaseNextResponse | HTTPServerResponse =
+    BaseNextResponse,
 > {
   (
     req: ServerRequest,

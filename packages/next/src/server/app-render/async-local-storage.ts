@@ -4,9 +4,9 @@ const sharedAsyncLocalStorageNotAvailableError = new Error(
   'Invariant: AsyncLocalStorage accessed in runtime where it is not available'
 )
 
-class FakeAsyncLocalStorage<Store extends {}>
-  implements AsyncLocalStorage<Store>
-{
+class FakeAsyncLocalStorage<
+  Store extends {},
+> implements AsyncLocalStorage<Store> {
   disable(): void {
     throw sharedAsyncLocalStorageNotAvailableError
   }

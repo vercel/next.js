@@ -10,7 +10,9 @@ describe('hmr-iframe', () => {
     let browser = await next.browser('/page1')
 
     expect(
-      await (await (await browser.elementByCss('iframe')).contentFrame())
+      await (
+        await (await browser.elementByCss('iframe')).contentFrame()
+      )
         .locator('p')
         .innerText()
     ).toEqual('content')
@@ -23,7 +25,9 @@ describe('hmr-iframe', () => {
 
     await waitForNoRedbox(browser)
     expect(
-      await (await (await browser.elementByCss('iframe')).contentFrame())
+      await (
+        await (await browser.elementByCss('iframe')).contentFrame()
+      )
         .locator('p')
         .innerText()
     ).toEqual('content-new')

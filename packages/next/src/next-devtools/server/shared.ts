@@ -52,8 +52,9 @@ export function ignoreListAnonymousStackFramesIfSandwiched(
         : ''
     },
     (response) => {
-      ;(response as PromiseFulfilledResult<OriginalStackFrameResponse>)
-        .value.originalStackFrame!.ignored = true
+      ;(
+        response as PromiseFulfilledResult<OriginalStackFrameResponse>
+      ).value.originalStackFrame!.ignored = true
     }
   )
 }

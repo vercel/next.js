@@ -172,8 +172,10 @@ export type AppRouteUserlandModule = AppRouteHandlers &
  * AppRouteRouteModuleOptions is the options that are passed to the app route
  * module from the bundled code.
  */
-export interface AppRouteRouteModuleOptions
-  extends RouteModuleOptions<AppRouteRouteDefinition, AppRouteUserlandModule> {
+export interface AppRouteRouteModuleOptions extends RouteModuleOptions<
+  AppRouteRouteDefinition,
+  AppRouteUserlandModule
+> {
   readonly resolvedPagePath: string
   readonly nextConfigOutput: NextConfig['output']
 }

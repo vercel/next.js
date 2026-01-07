@@ -3,9 +3,8 @@ import { NextInstance } from 'e2e-utils'
 import { findAllTelemetryEvents } from 'next-test-utils'
 import { join } from 'path'
 
-const mockedGoogleFontResponses = require.resolve(
-  './google-font-mocked-responses.js'
-)
+const mockedGoogleFontResponses =
+  require.resolve('./google-font-mocked-responses.js')
 
 // Turbopack intentionally does not support these events
 ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(

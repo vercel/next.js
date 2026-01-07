@@ -18,7 +18,6 @@ This plugin transforms Next.js source code by:
 ## Build Process Details
 
 - **Two-Pass Build:**
-
   1. **First Pass:**
      - Extracts new errors and temporarily stores them in `packages/next/.errors/*.json`.
      - In CI, a build with new errors will fail.
@@ -31,7 +30,6 @@ This plugin transforms Next.js source code by:
 ## Modifying the Plugin
 
 - **WASM Rebuild Required:**
-
   - After modifying the plugin, rebuild the WASM file via `pnpm build-error-code-plugin` and commit it to the repository.
   - **Reason:** Pre-built artifacts simplify the build process (`pnpm build` runs without requiring `cargo`).
 

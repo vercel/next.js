@@ -545,9 +545,8 @@ export default async function getBaseWebpackConfig(
           emitDecoratorMetadata: Boolean(
             jsConfig?.compilerOptions?.emitDecoratorMetadata
           ),
-          regeneratorRuntimePath: require.resolve(
-            'next/dist/compiled/regenerator-runtime'
-          ),
+          regeneratorRuntimePath:
+            require.resolve('next/dist/compiled/regenerator-runtime'),
 
           ...extraOptions,
         },
@@ -936,9 +935,9 @@ export default async function getBaseWebpackConfig(
   const telemetryPlugin =
     !dev &&
     isClient &&
-    new ((
+    new (
       require('./webpack/plugins/telemetry-plugin/telemetry-plugin') as typeof import('./webpack/plugins/telemetry-plugin/telemetry-plugin')
-    ).TelemetryPlugin)(
+    ).TelemetryPlugin(
       new Map(
         [
           ['swcLoader', useSWCLoader],
@@ -1838,69 +1837,44 @@ export default async function getBaseWebpackConfig(
                             setImmediate: false,
                           }
                         : {
-                            assert: require.resolve(
-                              'next/dist/compiled/assert'
-                            ),
-                            buffer: require.resolve(
-                              'next/dist/compiled/buffer'
-                            ),
-                            constants: require.resolve(
-                              'next/dist/compiled/constants-browserify'
-                            ),
-                            crypto: require.resolve(
-                              'next/dist/compiled/crypto-browserify'
-                            ),
-                            domain: require.resolve(
-                              'next/dist/compiled/domain-browser'
-                            ),
-                            http: require.resolve(
-                              'next/dist/compiled/stream-http'
-                            ),
-                            https: require.resolve(
-                              'next/dist/compiled/https-browserify'
-                            ),
-                            os: require.resolve(
-                              'next/dist/compiled/os-browserify'
-                            ),
-                            path: require.resolve(
-                              'next/dist/compiled/path-browserify'
-                            ),
-                            punycode: require.resolve(
-                              'next/dist/compiled/punycode'
-                            ),
+                            assert:
+                              require.resolve('next/dist/compiled/assert'),
+                            buffer:
+                              require.resolve('next/dist/compiled/buffer'),
+                            constants:
+                              require.resolve('next/dist/compiled/constants-browserify'),
+                            crypto:
+                              require.resolve('next/dist/compiled/crypto-browserify'),
+                            domain:
+                              require.resolve('next/dist/compiled/domain-browser'),
+                            http: require.resolve('next/dist/compiled/stream-http'),
+                            https:
+                              require.resolve('next/dist/compiled/https-browserify'),
+                            os: require.resolve('next/dist/compiled/os-browserify'),
+                            path: require.resolve('next/dist/compiled/path-browserify'),
+                            punycode:
+                              require.resolve('next/dist/compiled/punycode'),
                             process: require.resolve('./polyfills/process'),
                             // Handled in separate alias
-                            querystring: require.resolve(
-                              'next/dist/compiled/querystring-es3'
-                            ),
-                            stream: require.resolve(
-                              'next/dist/compiled/stream-browserify'
-                            ),
-                            string_decoder: require.resolve(
-                              'next/dist/compiled/string_decoder'
-                            ),
+                            querystring:
+                              require.resolve('next/dist/compiled/querystring-es3'),
+                            stream:
+                              require.resolve('next/dist/compiled/stream-browserify'),
+                            string_decoder:
+                              require.resolve('next/dist/compiled/string_decoder'),
                             sys: require.resolve('next/dist/compiled/util'),
-                            timers: require.resolve(
-                              'next/dist/compiled/timers-browserify'
-                            ),
-                            tty: require.resolve(
-                              'next/dist/compiled/tty-browserify'
-                            ),
+                            timers:
+                              require.resolve('next/dist/compiled/timers-browserify'),
+                            tty: require.resolve('next/dist/compiled/tty-browserify'),
                             // Handled in separate alias
                             // url: require.resolve('url'),
                             util: require.resolve('next/dist/compiled/util'),
-                            vm: require.resolve(
-                              'next/dist/compiled/vm-browserify'
-                            ),
-                            zlib: require.resolve(
-                              'next/dist/compiled/browserify-zlib'
-                            ),
-                            events: require.resolve(
-                              'next/dist/compiled/events'
-                            ),
-                            setImmediate: require.resolve(
-                              'next/dist/compiled/setimmediate'
-                            ),
+                            vm: require.resolve('next/dist/compiled/vm-browserify'),
+                            zlib: require.resolve('next/dist/compiled/browserify-zlib'),
+                            events:
+                              require.resolve('next/dist/compiled/events'),
+                            setImmediate:
+                              require.resolve('next/dist/compiled/setimmediate'),
                           },
                   },
                 },
@@ -2041,21 +2015,21 @@ export default async function getBaseWebpackConfig(
         }),
       isNodeServer &&
         !dev &&
-        new (
-          (
-            require('./webpack/plugins/next-trace-entrypoints-plugin') as typeof import('./webpack/plugins/next-trace-entrypoints-plugin')
-          )
-            .TraceEntryPointsPlugin as typeof import('./webpack/plugins/next-trace-entrypoints-plugin').TraceEntryPointsPlugin
-        )({
-          rootDir: dir,
-          appDir: appDir,
-          pagesDir: pagesDir,
-          esmExternals: config.experimental.esmExternals,
-          outputFileTracingRoot: config.outputFileTracingRoot,
-          appDirEnabled: hasAppDir,
-          traceIgnores: [],
-          compilerType,
-        }),
+        new ((
+          require('./webpack/plugins/next-trace-entrypoints-plugin') as typeof import('./webpack/plugins/next-trace-entrypoints-plugin')
+        )
+          .TraceEntryPointsPlugin as typeof import('./webpack/plugins/next-trace-entrypoints-plugin').TraceEntryPointsPlugin)(
+          {
+            rootDir: dir,
+            appDir: appDir,
+            pagesDir: pagesDir,
+            esmExternals: config.experimental.esmExternals,
+            outputFileTracingRoot: config.outputFileTracingRoot,
+            appDirEnabled: hasAppDir,
+            traceIgnores: [],
+            compilerType,
+          }
+        ),
       // Moment.js is an extremely popular library that bundles large locale files
       // by default due to how Webpack interprets its code. This is a practical
       // solution that requires the user to opt into importing specific locales.
@@ -2184,13 +2158,13 @@ export default async function getBaseWebpackConfig(
       telemetryPlugin,
       !dev &&
         isNodeServer &&
-        new ((
+        new (
           require('./webpack/plugins/telemetry-plugin/telemetry-plugin') as typeof import('./webpack/plugins/telemetry-plugin/telemetry-plugin')
-        ).TelemetryPlugin)(new Map()),
+        ).TelemetryPlugin(new Map()),
       shouldEnableSlowModuleDetection &&
-        new ((
+        new (
           require('./webpack/plugins/slow-module-detection-plugin') as typeof import('./webpack/plugins/slow-module-detection-plugin')
-        ).default)({
+        ).default({
           compilerType,
           ...config.experimental.slowModuleDetection!,
         }),

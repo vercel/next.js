@@ -103,22 +103,22 @@ export function NextLogo({
             --color-hover-alpha-error: hsla(0, 0%, 100%, 0.2);
             --color-hover-alpha-error-2: hsla(0, 0%, 100%, 0.25);
             --mark-size: calc(var(--size) - var(--size-2) * 2);
-
+          
             --focus-color: var(--color-blue-800);
             --focus-ring: 2px solid var(--focus-color);
-
+          
             &:has([data-next-badge][data-error='true']) {
               --focus-color: #fff;
             }
           }
-
+          
           [data-disabled-icon] {
             display: flex;
             align-items: center;
             justify-content: center;
             padding-right: 4px;
           }
-
+          
           [data-next-badge] {
             width: var(--size);
             height: var(--size);
@@ -142,66 +142,66 @@ export function NextLogo({
               width var(--duration-long) var(--timing),
               box-shadow var(--duration-long) var(--timing),
               background var(--duration-short) ease;
-
+          
             &:active[data-error='false'] {
               scale: 0.95;
             }
-
+          
             &[data-animate='true']:not(:hover) {
               scale: 1.02;
             }
-
+          
             &[data-error='false']:has([data-next-mark]:focus-visible) {
               outline: var(--focus-ring);
               outline-offset: 3px;
             }
-
+          
             &[data-error='true'] {
               background: #ca2a30;
               --color-inner-border: #e5484d;
-
+          
               [data-next-mark] {
                 background: var(--color-hover-alpha-error);
                 outline-offset: 0px;
-
+          
                 &:focus-visible {
                   outline: var(--focus-ring);
                   outline-offset: -1px;
                 }
-
+          
                 &:hover {
                   background: var(--color-hover-alpha-error-2);
                 }
               }
             }
-
+          
             &[data-cache-bypassing='true']:not([data-error='true']) {
               background: rgba(217, 119, 6, 0.95);
               --color-inner-border: rgba(245, 158, 11, 0.9);
-
+          
               [data-issues-open] {
                 color: white;
               }
             }
-
+          
             &[data-error-expanded='false'][data-error='true'] ~ [data-dot] {
               scale: 1;
             }
-
+          
             > div {
               display: flex;
             }
           }
-
+          
           [data-issues-collapse]:focus-visible {
             outline: var(--focus-ring);
           }
-
+          
           [data-issues]:has([data-issues-open]:focus-visible) {
             outline: var(--focus-ring);
             outline-offset: -1px;
           }
-
+          
           [data-dot] {
             content: '';
             width: var(--size-8);
@@ -217,7 +217,7 @@ export function NextLogo({
             transition: scale 200ms var(--timing);
             transition-delay: var(--duration-short);
           }
-
+          
           [data-issues] {
             --padding-left: 8px;
             display: flex;
@@ -229,20 +229,20 @@ export function NextLogo({
             margin-right: 2px;
             border-radius: var(--rounded-full);
             transition: background var(--duration-short) ease;
-
+          
             &:has([data-issues-open]:hover) {
               background: var(--color-hover-alpha-error);
             }
-
+          
             &:has([data-issues-collapse]) {
               padding-right: calc(var(--padding-left) / 2);
             }
-
+          
             [data-cross] {
               translate: 0px -1px;
             }
           }
-
+          
           [data-issues-open] {
             font-size: var(--size-13);
             color: white;
@@ -256,29 +256,29 @@ export function NextLogo({
             font-weight: 500;
             z-index: 2;
             white-space: nowrap;
-
+          
             &:focus-visible {
               outline: 0;
             }
           }
-
+          
           [data-issues-collapse] {
             width: var(--size-24);
             height: var(--size-24);
             border-radius: var(--rounded-full);
             transition: background var(--duration-short) ease;
-
+          
             &:hover {
               background: var(--color-hover-alpha-error);
             }
           }
-
+          
           [data-cross] {
             color: #fff;
             width: var(--size-12);
             height: var(--size-12);
           }
-
+          
           [data-next-mark] {
             width: var(--mark-size);
             height: var(--mark-size);
@@ -287,58 +287,58 @@ export function NextLogo({
             align-items: center;
             border-radius: var(--rounded-full);
             transition: background var(--duration-long) var(--timing);
-
+          
             &:focus-visible {
               outline: 0;
             }
-
+          
             &:hover {
               background: var(--color-hover-alpha-subtle);
             }
-
+          
             svg {
               flex-shrink: 0;
               width: var(--size-40);
               height: var(--size-40);
             }
           }
-
+          
           [data-issues-count-animation] {
             display: grid;
             place-items: center center;
             font-variant-numeric: tabular-nums;
-
+          
             &[data-animate='false'] {
               [data-issues-count-exit],
               [data-issues-count-enter] {
                 animation-duration: 0ms;
               }
             }
-
+          
             > * {
               grid-area: 1 / 1;
             }
-
+          
             [data-issues-count-exit] {
               animation: fadeOut 300ms var(--timing) forwards;
             }
-
+          
             [data-issues-count-enter] {
               animation: fadeIn 300ms var(--timing) forwards;
             }
           }
-
+          
           [data-issues-count-plural] {
             display: inline-block;
             &[data-animate='true'] {
               animation: fadeIn 300ms var(--timing) forwards;
             }
           }
-
+          
           .paused {
             stroke-dashoffset: 0;
           }
-
+          
           @keyframes fadeIn {
             0% {
               opacity: 0;
@@ -351,7 +351,7 @@ export function NextLogo({
               transform: translateY(0);
             }
           }
-
+          
           @keyframes fadeOut {
             0% {
               opacity: 1;
@@ -364,7 +364,7 @@ export function NextLogo({
               filter: blur(2px);
             }
           }
-
+          
           @media (prefers-reduced-motion) {
             [data-issues-count-exit],
             [data-issues-count-enter],

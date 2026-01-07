@@ -7,26 +7,24 @@ export default async function og({ params }) {
   const big = size === 'big'
   const background = big ? 'orange' : '#000'
   return new ImageResponse(
-    (
+    <div
+      style={{
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: 128,
+      }}
+    >
       <div
         style={{
-          width: '100%',
-          height: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: 128,
+          width: 200,
+          height: 200,
+          background,
         }}
-      >
-        <div
-          style={{
-            width: 200,
-            height: 200,
-            background,
-          }}
-        />
-      </div>
-    ),
+      />
+    </div>,
     {
       width: big === true ? 1200 : 600,
       height: big === true ? 630 : 315,

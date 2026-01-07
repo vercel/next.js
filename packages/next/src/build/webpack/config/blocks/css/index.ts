@@ -196,12 +196,10 @@ export const css = curry(async function css(
 
   const fns: ConfigurationFn[] = []
 
-  const googleLoader = require.resolve(
-    'next/dist/compiled/@next/font/google/loader'
-  )
-  const localLoader = require.resolve(
-    'next/dist/compiled/@next/font/local/loader'
-  )
+  const googleLoader =
+    require.resolve('next/dist/compiled/@next/font/google/loader')
+  const localLoader =
+    require.resolve('next/dist/compiled/@next/font/local/loader')
   const nextFontLoaders: Array<[string | RegExp, string, any?]> = [
     [require.resolve('next/font/google/target.css'), googleLoader],
     [require.resolve('next/font/local/target.css'), localLoader],
@@ -262,9 +260,8 @@ export const css = curry(async function css(
               issuerLayer: APP_LAYER_RULE,
               use: [
                 {
-                  loader: require.resolve(
-                    '../../../loaders/next-flight-css-loader'
-                  ),
+                  loader:
+                    require.resolve('../../../loaders/next-flight-css-loader'),
                   options: {
                     cssModules: true,
                   },
@@ -302,9 +299,8 @@ export const css = curry(async function css(
               issuerLayer: APP_LAYER_RULE,
               use: [
                 {
-                  loader: require.resolve(
-                    '../../../loaders/next-flight-css-loader'
-                  ),
+                  loader:
+                    require.resolve('../../../loaders/next-flight-css-loader'),
                   options: {
                     cssModules: true,
                   },
@@ -356,9 +352,8 @@ export const css = curry(async function css(
                 test: [regexCssGlobal, regexSassGlobal],
                 issuerLayer: APP_LAYER_RULE,
                 use: {
-                  loader: require.resolve(
-                    '../../../loaders/next-flight-css-loader'
-                  ),
+                  loader:
+                    require.resolve('../../../loaders/next-flight-css-loader'),
                   options: {
                     cssModules: false,
                   },
@@ -414,9 +409,8 @@ export const css = curry(async function css(
                   issuerLayer: APP_LAYER_RULE,
                   use: [
                     {
-                      loader: require.resolve(
-                        '../../../loaders/next-flight-css-loader'
-                      ),
+                      loader:
+                        require.resolve('../../../loaders/next-flight-css-loader'),
                       options: {
                         cssModules: false,
                       },
@@ -433,9 +427,8 @@ export const css = curry(async function css(
                   issuerLayer: APP_LAYER_RULE,
                   use: [
                     {
-                      loader: require.resolve(
-                        '../../../loaders/next-flight-css-loader'
-                      ),
+                      loader:
+                        require.resolve('../../../loaders/next-flight-css-loader'),
                       options: {
                         cssModules: false,
                       },

@@ -375,8 +375,8 @@ export class ClientReferenceManifestPlugin {
         function addClientReference() {
           const isAsync = Boolean(
             compilation.moduleGraph.isAsync(mod) ||
-              pluginState.ssrModules[ssrNamedModuleId]?.async ||
-              pluginState.edgeSsrModules[ssrNamedModuleId]?.async
+            pluginState.ssrModules[ssrNamedModuleId]?.async ||
+            pluginState.edgeSsrModules[ssrNamedModuleId]?.async
           )
 
           const exportName = resource

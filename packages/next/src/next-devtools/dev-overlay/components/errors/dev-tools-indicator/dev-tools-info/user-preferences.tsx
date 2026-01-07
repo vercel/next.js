@@ -260,17 +260,17 @@ export const DEV_TOOLS_INFO_USER_PREFERENCES_STYLES = css`
   .preferences-container {
     width: 100%;
   }
-
+  
   @media (min-width: 576px) {
     .preferences-container {
       width: 480px;
     }
   }
-
+  
   .preference-section:first-child {
     padding-top: 0;
   }
-
+  
   .preference-section {
     padding: 12px 0;
     border-bottom: 1px solid var(--color-gray-400);
@@ -279,29 +279,29 @@ export const DEV_TOOLS_INFO_USER_PREFERENCES_STYLES = css`
     align-items: center;
     gap: 24px;
   }
-
+  
   .preference-section:last-child {
     border-bottom: none;
   }
-
+  
   .preference-header {
     margin-bottom: 0;
     flex: 1;
   }
-
+  
   .preference-header label {
     font-size: var(--size-14);
     font-weight: 500;
     color: var(--color-gray-1000);
     margin: 0;
   }
-
+  
   .preference-description {
     color: var(--color-gray-900);
     font-size: var(--size-14);
     margin: 0;
   }
-
+  
   .select-button,
   .action-button {
     display: flex;
@@ -315,39 +315,39 @@ export const DEV_TOOLS_INFO_USER_PREFERENCES_STYLES = css`
     color: var(--color-gray-1000);
     padding: 6px 8px;
     transition: border-color 150ms var(--timing-swift);
-
+  
     &:hover {
       border-color: var(--color-gray-500);
     }
-
+  
     svg {
       width: 14px;
       height: 14px;
       overflow: visible;
     }
   }
-
+  
   .select-button {
     &:focus-within {
       outline: var(--focus-ring);
       outline-offset: -1px;
     }
-
+  
     select {
       all: unset;
     }
-
+  
     option {
       color: var(--color-gray-1000);
       background: var(--color-background-100);
     }
   }
-
+  
   .preference-section button:disabled {
     opacity: 0.6;
     cursor: not-allowed;
   }
-
+  
   :global(.icon) {
     width: 18px;
     height: 18px;

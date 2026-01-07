@@ -31,8 +31,7 @@ interface HTTPAccessFallbackBoundaryProps {
   missingSlots?: Set<string>
 }
 
-interface HTTPAccessFallbackErrorBoundaryProps
-  extends HTTPAccessFallbackBoundaryProps {
+interface HTTPAccessFallbackErrorBoundaryProps extends HTTPAccessFallbackBoundaryProps {
   pathname: string | null
   missingSlots?: Set<string>
 }

@@ -8,7 +8,9 @@ import type { DynamicTrackingState } from './dynamic-rendering'
 import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
 
 // Share the instance module in the next-shared layer
-import { workUnitAsyncStorageInstance } from './work-unit-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
+import { workUnitAsyncStorageInstance } from './work-unit-async-storage-instance' with {
+  'turbopack-transition': 'next-shared',
+}
 import type { ServerComponentsHmrCache } from '../response-cache'
 import type {
   RenderResumeDataCache,
@@ -108,19 +110,16 @@ export type StaticPrerenderStoreModern = Exclude<
 >
 
 export interface PrerenderStoreModernClient
-  extends PrerenderStoreModernCommon,
-    StaticPrerenderStoreCommon {
+  extends PrerenderStoreModernCommon, StaticPrerenderStoreCommon {
   readonly type: 'prerender-client'
 }
 
 export interface PrerenderStoreModernServer
-  extends PrerenderStoreModernCommon,
-    StaticPrerenderStoreCommon {
+  extends PrerenderStoreModernCommon, StaticPrerenderStoreCommon {
   readonly type: 'prerender'
 }
 
-export interface PrerenderStoreModernRuntime
-  extends PrerenderStoreModernCommon {
+export interface PrerenderStoreModernRuntime extends PrerenderStoreModernCommon {
   readonly type: 'prerender-runtime'
 
   /**
@@ -149,8 +148,7 @@ export interface RevalidateStore {
 }
 
 interface PrerenderStoreModernCommon
-  extends CommonWorkUnitStore,
-    RevalidateStore {
+  extends CommonWorkUnitStore, RevalidateStore {
   /**
    * The render signal is aborted after React's `prerender` function is aborted
    * (using a separate signal), which happens in two cases:
@@ -226,8 +224,7 @@ interface StaticPrerenderStoreCommon {
 }
 
 export interface PrerenderStorePPR
-  extends CommonWorkUnitStore,
-    RevalidateStore {
+  extends CommonWorkUnitStore, RevalidateStore {
   readonly type: 'prerender-ppr'
   readonly rootParams: Params
   readonly dynamicTracking: null | DynamicTrackingState
@@ -245,8 +242,7 @@ export interface PrerenderStorePPR
 }
 
 export interface PrerenderStoreLegacy
-  extends CommonWorkUnitStore,
-    RevalidateStore {
+  extends CommonWorkUnitStore, RevalidateStore {
   readonly type: 'prerender-legacy'
   readonly rootParams: Params
 }
@@ -262,8 +258,10 @@ export type StaticPrerenderStore = Exclude<
   PrerenderStoreModernRuntime
 >
 
-export interface CommonCacheStore
-  extends Omit<CommonWorkUnitStore, 'implicitTags'> {
+export interface CommonCacheStore extends Omit<
+  CommonWorkUnitStore,
+  'implicitTags'
+> {
   /**
    * A cache work unit store might not always have an outer work unit store,
    * from which implicit tags could be inherited.

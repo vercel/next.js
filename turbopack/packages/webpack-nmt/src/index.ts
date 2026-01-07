@@ -98,9 +98,8 @@ export class NodeModuleTracePlugin implements WebpackPluginInstance {
     let turboTracingPackagePath = ''
     let turboTracingBinPath = ''
     try {
-      turboTracingPackagePath = require.resolve(
-        '@vercel/experimental-nft/package.json'
-      )
+      turboTracingPackagePath =
+        require.resolve('@vercel/experimental-nft/package.json')
     } catch (e) {
       console.warn(
         `Could not resolve the @vercel/experimental-nft directory, turbo tracing may fail.`

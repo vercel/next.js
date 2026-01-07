@@ -518,7 +518,7 @@ export function createPatchedFetcher(
 
         let autoNoCache = Boolean(
           (hasUnCacheableHeader || isUnCacheableMethod) &&
-            revalidateStore?.revalidate === 0
+          revalidateStore?.revalidate === 0
         )
 
         let isImplicitBuildTimeCache = false

@@ -42,12 +42,12 @@ export class DraftModeProvider {
 
     this._isEnabled = Boolean(
       !isOnDemandRevalidate &&
-        cookieValue &&
-        previewProps &&
-        (cookieValue === previewProps.previewModeId ||
-          // In dev mode, the cookie can be actual hash value preview id but the preview props can still be `development-id`.
-          (process.env.NODE_ENV !== 'production' &&
-            previewProps.previewModeId === 'development-id'))
+      cookieValue &&
+      previewProps &&
+      (cookieValue === previewProps.previewModeId ||
+        // In dev mode, the cookie can be actual hash value preview id but the preview props can still be `development-id`.
+        (process.env.NODE_ENV !== 'production' &&
+          previewProps.previewModeId === 'development-id'))
     )
 
     this._previewModeId = previewProps?.previewModeId

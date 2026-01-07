@@ -83,9 +83,8 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
     const cacheHandlers = JSON.parse(cacheHandlersStringified || '{}')
 
     if (!cacheHandlers.default) {
-      cacheHandlers.default = require.resolve(
-        '../../../../server/lib/cache-handlers/default.external'
-      )
+      cacheHandlers.default =
+        require.resolve('../../../../server/lib/cache-handlers/default.external')
     }
 
     const middlewareConfig: ProxyConfig = JSON.parse(

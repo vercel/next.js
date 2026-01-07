@@ -5,9 +5,8 @@ import { renderViaHTTP } from 'next-test-utils'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 
-const mockedGoogleFontResponses = require.resolve(
-  './google-font-mocked-responses.js'
-)
+const mockedGoogleFontResponses =
+  require.resolve('./google-font-mocked-responses.js')
 
 function getClassNameRegex(className: string): RegExp {
   return new RegExp(`${className}`)
