@@ -2371,7 +2371,8 @@ export const renderToHTMLOrFlight: AppPageRender = (
 
     postponedState = parsePostponedState(
       renderOpts.postponed,
-      interpolatedParams
+      interpolatedParams,
+      renderOpts.experimental.maxPostponedStateSizeBytes
     )
   } else {
     interpolatedParams = interpolateParallelRouteParams(

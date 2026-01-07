@@ -56,6 +56,7 @@ import type { CacheControl } from '../../server/lib/cache-control'
 import { ENCODED_TAGS } from '../../server/stream-utils/encoded-tags'
 import { sendRenderResult } from '../../server/send-payload'
 import { NoFallbackError } from '../../shared/lib/no-fallback-error.external'
+import { parseMaxPostponedStateSize } from '../../shared/lib/size-limit'
 
 // These are injected by the loader afterwards.
 
@@ -591,6 +592,9 @@ export async function handler(
               nextConfig.experimental.clientTraceMetadata || ([] as any),
             clientParamParsingOrigins:
               nextConfig.experimental.clientParamParsingOrigins,
+            maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
+              nextConfig.experimental.maxPostponedStateSize
+            ),
           },
 
           waitUntil: ctx.waitUntil,

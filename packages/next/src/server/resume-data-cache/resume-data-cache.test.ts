@@ -125,7 +125,7 @@ describe('stringifyResumeDataCache', () => {
 
 describe('parseResumeDataCache', () => {
   it('parses an empty cache', () => {
-    expect(createRenderResumeDataCache('null')).toEqual(
+    expect(createRenderResumeDataCache('null', undefined)).toEqual(
       createPrerenderResumeDataCache()
     )
   })
@@ -137,7 +137,7 @@ describe('parseResumeDataCache', () => {
       isCacheComponentsEnabled
     )
 
-    const parsed = createRenderResumeDataCache(serialized)
+    const parsed = createRenderResumeDataCache(serialized, undefined)
 
     expect(parsed.cache.size).toBe(isCacheComponentsEnabled ? 1 : 3)
     expect(parsed.fetch.size).toBe(0)
