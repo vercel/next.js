@@ -112,9 +112,9 @@ pub use crate::{
     manager::{
         CurrentCellRef, ReadConsistency, ReadTracking, TaskPersistence, TurboTasks, TurboTasksApi,
         TurboTasksBackendApi, TurboTasksCallApi, Unused, UpdateInfo, dynamic_call, emit,
-        mark_finished, mark_root, mark_session_dependent, mark_stateful, prevent_gc, run, run_once,
-        run_once_with_reason, trait_call, turbo_tasks, turbo_tasks_scope, turbo_tasks_weak,
-        with_turbo_tasks,
+        get_serialization_invalidator, mark_finished, mark_root, mark_session_dependent,
+        prevent_gc, run, run_once, run_once_with_reason, trait_call, turbo_tasks,
+        turbo_tasks_scope, turbo_tasks_weak, with_turbo_tasks,
     },
     output::OutputContent,
     raw_vc::{CellId, RawVc, ReadRawVcFuture, ResolveTypeError},
