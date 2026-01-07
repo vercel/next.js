@@ -1,3 +1,5 @@
+// Import cpu-profile first to start profiling early if enabled
+import { saveCpuProfile } from '../../server/lib/cpu-profile'
 import path from 'path'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import { isFileSystemCacheEnabledForBuild } from '../../shared/lib/turbopack/utils'
@@ -261,6 +263,8 @@ export async function workerMain(workerData: {
   } finally {
     // Always flush telemetry before worker exits (waits for async operations like setTimeout in debug mode)
     await telemetry.flush()
+    // Save CPU profile before worker exits
+    await saveCpuProfile()
   }
 }
 

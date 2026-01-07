@@ -831,6 +831,15 @@ export function createStaticWorker(
     isolatedMemory: true,
     enableWorkerThreads: config.experimental.workerThreads,
     exposedMethods: staticWorkerExposedMethods,
+    forkOptions: process.env.NEXT_CPU_PROF
+      ? {
+          env: {
+            NEXT_CPU_PROF: '1',
+            NEXT_CPU_PROF_DIR: process.env.NEXT_CPU_PROF_DIR,
+            __NEXT_PRIVATE_CPU_PROFILE: 'build-static-worker',
+          },
+        }
+      : undefined,
   }) as StaticWorker
 }
 
@@ -1735,6 +1744,15 @@ export default async function build(
                     isolatedMemory: false,
                     numWorkers: 1,
                     exposedMethods: ['collectBuildTraces'],
+                    forkOptions: process.env.NEXT_CPU_PROF
+                      ? {
+                          env: {
+                            NEXT_CPU_PROF: '1',
+                            NEXT_CPU_PROF_DIR: process.env.NEXT_CPU_PROF_DIR,
+                            __NEXT_PRIVATE_CPU_PROFILE: 'build-trace-worker',
+                          },
+                        }
+                      : undefined,
                   }
                 ) as Worker & typeof import('./collect-build-traces')
 
