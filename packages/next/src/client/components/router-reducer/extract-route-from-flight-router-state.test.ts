@@ -1,7 +1,7 @@
 import type { FlightRouterState } from '../../../shared/lib/app-router-types'
-import { extractRouteFromFlightRouterState } from './extract-route-from-flight-router-state'
+import { extractRoutesFromFlightRouterState } from './extract-route-from-flight-router-state'
 
-describe('extractRouteFromFlightRouterState', () => {
+describe('extractRoutesFromFlightRouterState', () => {
   describe('Static Routes', () => {
     describe('Basic Static Segments', () => {
       it('should return "/" for root page', () => {
@@ -15,7 +15,7 @@ describe('extractRouteFromFlightRouterState', () => {
           true,
         ]
 
-        expect(extractRouteFromFlightRouterState('/', tree)).toBe('/')
+        expect(extractRoutesFromFlightRouterState('/', tree)).toEqual(['/'])
       })
 
       it('should extract simple static route', () => {
@@ -34,10 +34,12 @@ describe('extractRouteFromFlightRouterState', () => {
           true,
         ]
 
-        expect(extractRouteFromFlightRouterState('/about', tree)).toBe('/about')
+        expect(extractRoutesFromFlightRouterState('/about', tree)).toEqual([
+          '/about',
+        ])
       })
 
-      it('should return null for non-matching pathname', () => {
+      it('should return empty array for non-matching pathname', () => {
         const tree: FlightRouterState = [
           '',
           {
@@ -53,10 +55,10 @@ describe('extractRouteFromFlightRouterState', () => {
           true,
         ]
 
-        expect(extractRouteFromFlightRouterState('/contact', tree)).toBe(null)
+        expect(extractRoutesFromFlightRouterState('/contact', tree)).toEqual([])
       })
 
-      it('should return null when searching for root page that does not exist', () => {
+      it('should return empty array when searching for root page that does not exist', () => {
         const tree: FlightRouterState = [
           '',
           {
@@ -72,8 +74,8 @@ describe('extractRouteFromFlightRouterState', () => {
           true,
         ]
 
-        // Tree has /about but no root page - should return null, not '/'
-        expect(extractRouteFromFlightRouterState('/', tree)).toBe(null)
+        // Tree has /about but no root page - should return empty array
+        expect(extractRoutesFromFlightRouterState('/', tree)).toEqual([])
       })
     })
 
@@ -99,9 +101,9 @@ describe('extractRouteFromFlightRouterState', () => {
           true,
         ]
 
-        expect(extractRouteFromFlightRouterState('/about', tree)).toBe(
-          '/(marketing)/about'
-        )
+        expect(extractRoutesFromFlightRouterState('/about', tree)).toEqual([
+          '/(marketing)/about',
+        ])
       })
 
       it('should handle multiple nested route groups', () => {
@@ -130,9 +132,9 @@ describe('extractRouteFromFlightRouterState', () => {
           true,
         ]
 
-        expect(extractRouteFromFlightRouterState('/settings', tree)).toBe(
-          '/(app)/(dashboard)/settings'
-        )
+        expect(extractRoutesFromFlightRouterState('/settings', tree)).toEqual([
+          '/(app)/(dashboard)/settings',
+        ])
       })
 
       it('should handle consecutive route groups', () => {
@@ -166,9 +168,9 @@ describe('extractRouteFromFlightRouterState', () => {
           true,
         ]
 
-        expect(extractRouteFromFlightRouterState('/login', tree)).toBe(
-          '/(root)/(auth)/(forms)/login'
-        )
+        expect(extractRoutesFromFlightRouterState('/login', tree)).toEqual([
+          '/(root)/(auth)/(forms)/login',
+        ])
       })
     })
   })
@@ -196,9 +198,9 @@ describe('extractRouteFromFlightRouterState', () => {
           true,
         ]
 
-        expect(extractRouteFromFlightRouterState('/blog/my-post', tree)).toBe(
-          '/blog/[slug]'
-        )
+        expect(
+          extractRoutesFromFlightRouterState('/blog/my-post', tree)
+        ).toEqual(['/blog/[slug]'])
       })
 
       it('should handle multiple nested dynamic parameters', () => {
@@ -228,8 +230,8 @@ describe('extractRouteFromFlightRouterState', () => {
         ]
 
         expect(
-          extractRouteFromFlightRouterState('/shop/electronics/laptop', tree)
-        ).toBe('/shop/[category]/[product]')
+          extractRoutesFromFlightRouterState('/shop/electronics/laptop', tree)
+        ).toEqual(['/shop/[category]/[product]'])
       })
 
       it('should handle dynamic parameters with route groups', () => {
@@ -259,8 +261,8 @@ describe('extractRouteFromFlightRouterState', () => {
         ]
 
         expect(
-          extractRouteFromFlightRouterState('/electronics/laptop', tree)
-        ).toBe('/(shop)/[category]/[product]')
+          extractRoutesFromFlightRouterState('/electronics/laptop', tree)
+        ).toEqual(['/(shop)/[category]/[product]'])
       })
     })
 
@@ -287,8 +289,8 @@ describe('extractRouteFromFlightRouterState', () => {
         ]
 
         expect(
-          extractRouteFromFlightRouterState('/docs/api/reference', tree)
-        ).toBe('/docs/[...slug]')
+          extractRoutesFromFlightRouterState('/docs/api/reference', tree)
+        ).toEqual(['/docs/[...slug]'])
       })
 
       it('should handle catch-all at root level', () => {
@@ -307,8 +309,8 @@ describe('extractRouteFromFlightRouterState', () => {
           true,
         ]
 
-        expect(extractRouteFromFlightRouterState('/blog/posts', tree)).toBe(
-          '/[...path]'
+        expect(extractRoutesFromFlightRouterState('/blog/posts', tree)).toEqual(
+          ['/[...path]']
         )
       })
     })
@@ -336,8 +338,8 @@ describe('extractRouteFromFlightRouterState', () => {
         ]
 
         expect(
-          extractRouteFromFlightRouterState('/docs/api/reference', tree)
-        ).toBe('/docs/[[...slug]]')
+          extractRoutesFromFlightRouterState('/docs/api/reference', tree)
+        ).toEqual(['/docs/[[...slug]]'])
       })
 
       it('should handle optional catch-all at root level', () => {
@@ -356,8 +358,8 @@ describe('extractRouteFromFlightRouterState', () => {
           true,
         ]
 
-        expect(extractRouteFromFlightRouterState('/about/team', tree)).toBe(
-          '/[[...slug]]'
+        expect(extractRoutesFromFlightRouterState('/about/team', tree)).toEqual(
+          ['/[[...slug]]']
         )
       })
     })
@@ -396,8 +398,8 @@ describe('extractRouteFromFlightRouterState', () => {
         ]
 
         expect(
-          extractRouteFromFlightRouterState('/posts/post/my-post', tree)
-        ).toBe('/posts/@modal/(.)post/[slug]')
+          extractRoutesFromFlightRouterState('/posts/post/my-post', tree)
+        ).toEqual(['/posts/@modal/(.)post/[slug]'])
       })
 
       it('should handle combined interception marker + dynamic parameter folder', () => {
@@ -432,9 +434,9 @@ describe('extractRouteFromFlightRouterState', () => {
         ]
 
         // (.)[id] is a SINGLE folder combining interception with dynamic param
-        expect(extractRouteFromFlightRouterState('/gallery/123', tree)).toBe(
-          '/gallery/@modal/(group)/(.)[id]'
-        )
+        expect(
+          extractRoutesFromFlightRouterState('/gallery/123', tree)
+        ).toEqual(['/gallery/@modal/(group)/(.)[id]'])
       })
 
       it('should handle parent interception marker combined with dynamic parameter', () => {
@@ -470,9 +472,9 @@ describe('extractRouteFromFlightRouterState', () => {
         ]
 
         // (..)[productId] intercepts parent's dynamic segment
-        expect(extractRouteFromFlightRouterState('/store/999', tree)).toBe(
-          '/store/catalog/@modal/(..)[productId]'
-        )
+        expect(extractRoutesFromFlightRouterState('/store/999', tree)).toEqual([
+          '/store/catalog/@modal/(..)[productId]',
+        ])
       })
 
       it('should handle root interception marker combined with dynamic parameter', () => {
@@ -508,9 +510,9 @@ describe('extractRouteFromFlightRouterState', () => {
         ]
 
         // (...)[userId] intercepts root's dynamic segment
-        expect(extractRouteFromFlightRouterState('/555', tree)).toBe(
-          '/admin/panel/@overlay/(...)[userId]'
-        )
+        expect(extractRoutesFromFlightRouterState('/555', tree)).toEqual([
+          '/admin/panel/@overlay/(...)[userId]',
+        ])
       })
     })
 
@@ -552,11 +554,11 @@ describe('extractRouteFromFlightRouterState', () => {
         ]
 
         expect(
-          extractRouteFromFlightRouterState(
+          extractRoutesFromFlightRouterState(
             '/wiki/docs/getting-started/intro',
             tree
           )
-        ).toBe('/wiki/@modal/(.)docs/[...path]')
+        ).toEqual(['/wiki/@modal/(.)docs/[...path]'])
       })
 
       it('should handle combined interception marker + catch-all parameter folder', () => {
@@ -587,8 +589,8 @@ describe('extractRouteFromFlightRouterState', () => {
 
         // (.)[...path] is a SINGLE folder combining interception with catch-all
         expect(
-          extractRouteFromFlightRouterState('/docs/guides/intro', tree)
-        ).toBe('/docs/@preview/(.)[...path]')
+          extractRoutesFromFlightRouterState('/docs/guides/intro', tree)
+        ).toEqual(['/docs/@preview/(.)[...path]'])
       })
 
       it('should handle two-level parent interception with catch-all', () => {
@@ -634,8 +636,8 @@ describe('extractRouteFromFlightRouterState', () => {
 
         // (..)(..)[...path] intercepts two levels up with catch-all
         expect(
-          extractRouteFromFlightRouterState('/app/api/reference/config', tree)
-        ).toBe('/app/dashboard/settings/@docs/(..)(..)[...path]')
+          extractRoutesFromFlightRouterState('/app/api/reference/config', tree)
+        ).toEqual(['/app/dashboard/settings/@docs/(..)(..)[...path]'])
       })
 
       it('should handle root-level interception with catch-all', () => {
@@ -677,8 +679,8 @@ describe('extractRouteFromFlightRouterState', () => {
 
         // (...)[...segments] intercepts from root with catch-all
         expect(
-          extractRouteFromFlightRouterState('/docs/faq/account', tree)
-        ).toBe('/admin/panel/users/@help/(...)[...segments]')
+          extractRoutesFromFlightRouterState('/docs/faq/account', tree)
+        ).toEqual(['/admin/panel/users/@help/(...)[...segments]'])
       })
     })
   })
@@ -707,9 +709,9 @@ describe('extractRouteFromFlightRouterState', () => {
           true,
         ]
 
-        expect(extractRouteFromFlightRouterState('/login', tree)).toBe(
-          '/@modal/login'
-        )
+        expect(extractRoutesFromFlightRouterState('/login', tree)).toEqual([
+          '/@modal/login',
+        ])
       })
 
       it('should match non-children parallel route when children does not match', () => {
@@ -735,9 +737,9 @@ describe('extractRouteFromFlightRouterState', () => {
         ]
 
         // /app/nav doesn't exist in children, but exists in sidebar
-        expect(extractRouteFromFlightRouterState('/app/nav', tree)).toBe(
-          '/app/@sidebar/nav'
-        )
+        expect(extractRoutesFromFlightRouterState('/app/nav', tree)).toEqual([
+          '/app/@sidebar/nav',
+        ])
       })
 
       it('should handle parallel route with independent page at slot level', () => {
@@ -768,9 +770,9 @@ describe('extractRouteFromFlightRouterState', () => {
         ]
 
         // Modal has its own page at /gallery/modal (no dynamic segment)
-        expect(extractRouteFromFlightRouterState('/gallery/modal', tree)).toBe(
-          '/gallery/@modal'
-        )
+        expect(
+          extractRoutesFromFlightRouterState('/gallery/modal', tree)
+        ).toEqual(['/gallery/@modal'])
       })
 
       it('should filter synthetic (slot) segments after parallel routes', () => {
@@ -795,9 +797,12 @@ describe('extractRouteFromFlightRouterState', () => {
           true,
         ]
 
-        // Should match the children route, not the modal slot
-        // The (slot) segment is synthetic and should be filtered out
-        expect(extractRouteFromFlightRouterState('/see', tree)).toBe('/see')
+        // Both children and modal match - both should be returned
+        // The (slot) segment is synthetic and should be filtered out from modal route
+        expect(extractRoutesFromFlightRouterState('/see', tree)).toEqual([
+          '/see',
+          '/see/@modal',
+        ])
       })
     })
 
@@ -824,10 +829,11 @@ describe('extractRouteFromFlightRouterState', () => {
           true,
         ]
 
-        // When both children and sidebar match, children wins
-        expect(extractRouteFromFlightRouterState('/dashboard', tree)).toBe(
-          '/dashboard'
-        )
+        // Both children and sidebar match - both should be returned
+        expect(extractRoutesFromFlightRouterState('/dashboard', tree)).toEqual([
+          '/dashboard',
+          '/dashboard/@sidebar/(nav)',
+        ])
       })
 
       it('should handle multiple named slots with first match winning', () => {
@@ -858,12 +864,15 @@ describe('extractRouteFromFlightRouterState', () => {
           true,
         ]
 
-        // Both analytics and sidebar have 'chart', but analytics is checked first
-        const result = extractRouteFromFlightRouterState(
+        // Both analytics and sidebar have 'chart' - both should be returned
+        const result = extractRoutesFromFlightRouterState(
           '/dashboard/chart',
           tree
         )
-        expect(result).toBe('/dashboard/@analytics/chart')
+        expect(result).toEqual([
+          '/dashboard/@analytics/chart',
+          '/dashboard/@sidebar/chart',
+        ])
       })
     })
 
@@ -906,8 +915,8 @@ describe('extractRouteFromFlightRouterState', () => {
         ]
 
         expect(
-          extractRouteFromFlightRouterState('/app/dashboard/stats/line', tree)
-        ).toBe('/app/dashboard/@panel/stats/@chart/line')
+          extractRoutesFromFlightRouterState('/app/dashboard/stats/line', tree)
+        ).toEqual(['/app/dashboard/@panel/stats/@chart/line'])
       })
 
       it('should handle parallel routes with different depths', () => {
@@ -952,8 +961,8 @@ describe('extractRouteFromFlightRouterState', () => {
         ]
 
         // shortcut route is much shorter than children route
-        expect(extractRouteFromFlightRouterState('/app/direct', tree)).toBe(
-          '/app/@shortcut/direct'
+        expect(extractRoutesFromFlightRouterState('/app/direct', tree)).toEqual(
+          ['/app/@shortcut/direct']
         )
       })
     })
@@ -991,10 +1000,11 @@ describe('extractRouteFromFlightRouterState', () => {
           true,
         ]
 
-        // When both children and modal have [id], children should win (priority)
-        expect(extractRouteFromFlightRouterState('/test/123', tree)).toBe(
-          '/test/[id]'
-        )
+        // Both children and modal have [id] - both should be returned
+        expect(extractRoutesFromFlightRouterState('/test/123', tree)).toEqual([
+          '/test/[id]',
+          '/test/@modal/[id]',
+        ])
       })
 
       it('should match parallel route when children has different dynamic segment', () => {
@@ -1030,9 +1040,9 @@ describe('extractRouteFromFlightRouterState', () => {
         ]
 
         // /test/123 matches modal's [itemId], not children's [productId]
-        expect(extractRouteFromFlightRouterState('/test/123', tree)).toBe(
-          '/test/@modal/[itemId]'
-        )
+        expect(extractRoutesFromFlightRouterState('/test/123', tree)).toEqual([
+          '/test/@modal/[itemId]',
+        ])
       })
 
       it('should handle dynamic parameters with parallel routes', () => {
@@ -1072,11 +1082,11 @@ describe('extractRouteFromFlightRouterState', () => {
         ]
 
         expect(
-          extractRouteFromFlightRouterState(
+          extractRoutesFromFlightRouterState(
             '/see/14CE0C38-483F-42F0-B2DF-4B1E23C20EFE',
             tree
           )
-        ).toBe('/see/@modal/(group)/[guid]')
+        ).toEqual(['/see/@modal/(group)/[guid]'])
       })
 
       it('should handle catch-all before parallel route', () => {
@@ -1101,9 +1111,9 @@ describe('extractRouteFromFlightRouterState', () => {
           true,
         ]
 
-        expect(extractRouteFromFlightRouterState('/blog/posts/nav', tree)).toBe(
-          '/[...path]/@sidebar/nav'
-        )
+        expect(
+          extractRoutesFromFlightRouterState('/blog/posts/nav', tree)
+        ).toEqual(['/[...path]/@sidebar/nav'])
       })
 
       it('should handle optional catch-all before parallel route', () => {
@@ -1128,9 +1138,9 @@ describe('extractRouteFromFlightRouterState', () => {
           true,
         ]
 
-        expect(extractRouteFromFlightRouterState('/docs/sidebar', tree)).toBe(
-          '/[[...path]]/@toc/sidebar'
-        )
+        expect(
+          extractRoutesFromFlightRouterState('/docs/sidebar', tree)
+        ).toEqual(['/[[...path]]/@toc/sidebar'])
       })
     })
 
@@ -1175,9 +1185,9 @@ describe('extractRouteFromFlightRouterState', () => {
 
         // The first (slot) is synthetic (right after @modal) - skip it
         // The second (slot) is user-defined (after (group)) - keep it
-        expect(extractRouteFromFlightRouterState('/product/123', tree)).toBe(
-          '/product/@modal/(group)/(slot)/[id]'
-        )
+        expect(
+          extractRoutesFromFlightRouterState('/product/123', tree)
+        ).toEqual(['/product/@modal/(group)/(slot)/[id]'])
       })
 
       it('should handle route group before parallel route', () => {
@@ -1208,8 +1218,8 @@ describe('extractRouteFromFlightRouterState', () => {
         ]
 
         expect(
-          extractRouteFromFlightRouterState('/dashboard/stats', tree)
-        ).toBe('/(app)/dashboard/@panel/stats')
+          extractRoutesFromFlightRouterState('/dashboard/stats', tree)
+        ).toEqual(['/(app)/dashboard/@panel/stats'])
       })
     })
 
@@ -1237,9 +1247,9 @@ describe('extractRouteFromFlightRouterState', () => {
         ]
 
         // /app/settings doesn't exist in any parallel route
-        expect(extractRouteFromFlightRouterState('/app/settings', tree)).toBe(
-          null
-        )
+        expect(
+          extractRoutesFromFlightRouterState('/app/settings', tree)
+        ).toEqual([])
       })
     })
   })
@@ -1278,9 +1288,9 @@ describe('extractRouteFromFlightRouterState', () => {
           true,
         ]
 
-        expect(extractRouteFromFlightRouterState('/feed/photo/123', tree)).toBe(
-          '/feed/@modal/(.)photo/[id]'
-        )
+        expect(
+          extractRoutesFromFlightRouterState('/feed/photo/123', tree)
+        ).toEqual(['/feed/@modal/(.)photo/[id]'])
       })
 
       it('should handle interception with catch-all parameters', () => {
@@ -1320,11 +1330,11 @@ describe('extractRouteFromFlightRouterState', () => {
         ]
 
         expect(
-          extractRouteFromFlightRouterState(
+          extractRoutesFromFlightRouterState(
             '/blog/docs/api/reference/config',
             tree
           )
-        ).toBe('/blog/@modal/(.)docs/[...slug]')
+        ).toEqual(['/blog/@modal/(.)docs/[...slug]'])
       })
 
       it('should handle interception with route groups', () => {
@@ -1359,9 +1369,9 @@ describe('extractRouteFromFlightRouterState', () => {
           true,
         ]
 
-        expect(extractRouteFromFlightRouterState('/gallery/999', tree)).toBe(
-          '/gallery/@modal/(.)(modal-group)/[id]'
-        )
+        expect(
+          extractRoutesFromFlightRouterState('/gallery/999', tree)
+        ).toEqual(['/gallery/@modal/(.)(modal-group)/[id]'])
       })
     })
 
@@ -1398,9 +1408,9 @@ describe('extractRouteFromFlightRouterState', () => {
         ]
 
         // (.)[id] is a single segment combining interception with dynamic param
-        expect(extractRouteFromFlightRouterState('/gallery/123', tree)).toBe(
-          '/gallery/@modal/(group)/(.)[id]'
-        )
+        expect(
+          extractRoutesFromFlightRouterState('/gallery/123', tree)
+        ).toEqual(['/gallery/@modal/(group)/(.)[id]'])
       })
 
       it('should handle interception marker combined with catch-all parameter', () => {
@@ -1432,8 +1442,8 @@ describe('extractRouteFromFlightRouterState', () => {
 
         // (.)[...path] is interception marker combined with catch-all
         expect(
-          extractRouteFromFlightRouterState('/docs/guides/intro', tree)
-        ).toBe('/docs/@preview/(.)[...path]')
+          extractRoutesFromFlightRouterState('/docs/guides/intro', tree)
+        ).toEqual(['/docs/@preview/(.)[...path]'])
       })
     })
 
@@ -1475,9 +1485,9 @@ describe('extractRouteFromFlightRouterState', () => {
           true,
         ]
 
-        expect(extractRouteFromFlightRouterState('/app/photo/456', tree)).toBe(
-          '/app/feed/@modal/(..)photo/[id]'
-        )
+        expect(
+          extractRoutesFromFlightRouterState('/app/photo/456', tree)
+        ).toEqual(['/app/feed/@modal/(..)photo/[id]'])
       })
 
       it('should handle interception with optional catch-all', () => {
@@ -1517,8 +1527,8 @@ describe('extractRouteFromFlightRouterState', () => {
         ]
 
         expect(
-          extractRouteFromFlightRouterState('/preview/api/components', tree)
-        ).toBe('/docs/@modal/(..)preview/[[...slug]]')
+          extractRoutesFromFlightRouterState('/preview/api/components', tree)
+        ).toEqual(['/docs/@modal/(..)preview/[[...slug]]'])
       })
     })
 
@@ -1556,9 +1566,9 @@ describe('extractRouteFromFlightRouterState', () => {
         ]
 
         // (..)[productId] intercepts parent's dynamic segment
-        expect(extractRouteFromFlightRouterState('/store/999', tree)).toBe(
-          '/store/catalog/@modal/(..)[productId]'
-        )
+        expect(extractRoutesFromFlightRouterState('/store/999', tree)).toEqual([
+          '/store/catalog/@modal/(..)[productId]',
+        ])
       })
     })
 
@@ -1600,9 +1610,9 @@ describe('extractRouteFromFlightRouterState', () => {
           true,
         ]
 
-        expect(extractRouteFromFlightRouterState('/photo/789', tree)).toBe(
-          '/dashboard/settings/@modal/(...)photo/[id]'
-        )
+        expect(extractRoutesFromFlightRouterState('/photo/789', tree)).toEqual([
+          '/dashboard/settings/@modal/(...)photo/[id]',
+        ])
       })
     })
 
@@ -1640,9 +1650,9 @@ describe('extractRouteFromFlightRouterState', () => {
         ]
 
         // (...)[userId] intercepts root's dynamic segment
-        expect(extractRouteFromFlightRouterState('/555', tree)).toBe(
-          '/admin/panel/@overlay/(...)[userId]'
-        )
+        expect(extractRoutesFromFlightRouterState('/555', tree)).toEqual([
+          '/admin/panel/@overlay/(...)[userId]',
+        ])
       })
     })
 
@@ -1693,9 +1703,9 @@ describe('extractRouteFromFlightRouterState', () => {
           true,
         ]
 
-        expect(extractRouteFromFlightRouterState('/app/photo/abc', tree)).toBe(
-          '/app/dashboard/deep/@modal/(..)(..)photo/[id]'
-        )
+        expect(
+          extractRoutesFromFlightRouterState('/app/photo/abc', tree)
+        ).toEqual(['/app/dashboard/deep/@modal/(..)(..)photo/[id]'])
       })
 
       it('should handle three-level interception marker (..)(..)(..)', () => {
@@ -1753,9 +1763,9 @@ describe('extractRouteFromFlightRouterState', () => {
           true,
         ]
 
-        expect(extractRouteFromFlightRouterState('/photo/999', tree)).toBe(
-          '/app/level1/level2/level3/@modal/(..)(..)(..)photo/[id]'
-        )
+        expect(extractRoutesFromFlightRouterState('/photo/999', tree)).toEqual([
+          '/app/level1/level2/level3/@modal/(..)(..)(..)photo/[id]',
+        ])
       })
     })
 
@@ -1792,8 +1802,8 @@ describe('extractRouteFromFlightRouterState', () => {
         // currently supported in the type system - only separate interception
         // folders with optional catch-all segments are possible.
         expect(
-          extractRouteFromFlightRouterState('/wiki/advanced/routing', tree)
-        ).toBe('/wiki/@sidebar/[[...segments]]')
+          extractRoutesFromFlightRouterState('/wiki/advanced/routing', tree)
+        ).toEqual(['/wiki/@sidebar/[[...segments]]'])
       })
     })
   })
@@ -1837,8 +1847,11 @@ describe('extractRouteFromFlightRouterState', () => {
         ]
 
         expect(
-          extractRouteFromFlightRouterState('/electronics/laptop/reviews', tree)
-        ).toBe('/(shop)/[category]/[product]/@reviews/list')
+          extractRoutesFromFlightRouterState(
+            '/electronics/laptop/reviews',
+            tree
+          )
+        ).toEqual(['/(shop)/[category]/[product]/@reviews/list'])
       })
     })
 
@@ -1885,9 +1898,9 @@ describe('extractRouteFromFlightRouterState', () => {
           true,
         ]
 
-        expect(extractRouteFromFlightRouterState('/en/photos/456', tree)).toBe(
-          '/[locale]/photos/@modal/(.)photo/[photoId]'
-        )
+        expect(
+          extractRoutesFromFlightRouterState('/en/photos/456', tree)
+        ).toEqual(['/[locale]/photos/@modal/(.)photo/[photoId]'])
       })
 
       it('should handle multiple dynamic params before parallel + interception', () => {
@@ -1937,8 +1950,8 @@ describe('extractRouteFromFlightRouterState', () => {
         ]
 
         expect(
-          extractRouteFromFlightRouterState('/en/us/blog/post/123', tree)
-        ).toBe('/[locale]/[region]/blog/@modal/(.)post/[id]')
+          extractRoutesFromFlightRouterState('/en/us/blog/post/123', tree)
+        ).toEqual(['/[locale]/[region]/blog/@modal/(.)post/[id]'])
       })
     })
 
@@ -1990,10 +2003,10 @@ describe('extractRouteFromFlightRouterState', () => {
         ]
 
         expect(
-          extractRouteFromFlightRouterState('/products/abc123', tree)
-        ).toBe(
-          '/(marketing)/products/@modal/(.)(modal-layout)/(modal-content)/[productId]'
-        )
+          extractRoutesFromFlightRouterState('/products/abc123', tree)
+        ).toEqual([
+          '/(marketing)/products/@modal/(.)(modal-layout)/(modal-content)/[productId]',
+        ])
       })
     })
   })
@@ -2021,9 +2034,9 @@ describe('extractRouteFromFlightRouterState', () => {
           true,
         ]
 
-        expect(extractRouteFromFlightRouterState('/products/123', tree)).toBe(
-          '/products/[id]'
-        )
+        expect(
+          extractRoutesFromFlightRouterState('/products/123', tree)
+        ).toEqual(['/products/[id]'])
       })
 
       it('should match page with undefined URL', () => {
@@ -2047,9 +2060,9 @@ describe('extractRouteFromFlightRouterState', () => {
           true,
         ]
 
-        expect(extractRouteFromFlightRouterState('/blog/my-post', tree)).toBe(
-          '/blog/[slug]'
-        )
+        expect(
+          extractRoutesFromFlightRouterState('/blog/my-post', tree)
+        ).toEqual(['/blog/[slug]'])
       })
     })
 
@@ -2070,7 +2083,9 @@ describe('extractRouteFromFlightRouterState', () => {
           true,
         ]
 
-        expect(extractRouteFromFlightRouterState('/page', tree)).toBe('/page')
+        expect(extractRoutesFromFlightRouterState('/page', tree)).toEqual([
+          '/page',
+        ])
       })
     })
   })

@@ -6,51 +6,47 @@ import { convertDynamicParamType } from '../../../shared/lib/convert-dynamic-par
 import { PAGE_SEGMENT_KEY } from '../../../shared/lib/segment'
 
 /**
- * Extracts the route structure from a FlightRouterState tree by finding
- * the page that matches the given pathname. The route includes:
+ * Extracts all route structures from a FlightRouterState tree by finding
+ * all pages that match the given pathname. Each route includes:
  * - Route groups: (groupName)
  * - Parallel routes: @slotName
  * - Dynamic parameters: [paramName]
  *
  * This differs from extractPathFromFlightRouterState in that it:
- * 1. Searches for a specific pathname match first
+ * 1. Searches for all pathname matches across parallel routes
  * 2. Preserves route groups and parallel route markers
  * 3. Returns the file-system structure rather than the URL structure
  *
  * @param targetPathname - The pathname to find in the tree (e.g., "/blog/post-1")
  * @param flightRouterState - The FlightRouterState tree to search
- * @returns The canonical route (e.g., "/blog/[slug]") or null if not found
+ * @returns Array of canonical routes (e.g., ["/blog/[slug]", "/blog/@modal/[slug]"])
  */
-export function extractRouteFromFlightRouterState(
+export function extractRoutesFromFlightRouterState(
   targetPathname: string,
   flightRouterState: FlightRouterState
-): string | null {
-  return extract(targetPathname, flightRouterState, [])
+): string[] {
+  const results: string[] = []
+  extract(targetPathname, flightRouterState, [], results)
+  return results
 }
 
 function extract(
   targetPathname: string,
   flightRouterState: FlightRouterState,
-  segments: string[]
-): string | null {
+  segments: string[],
+  results: string[]
+): void {
   const [segment, parallelRoutes, url] = flightRouterState
 
   // Skip root segment (empty string) but check all parallel routes
   if (segment === '') {
     if (parallelRoutes) {
-      // Try children first (the default parallel route)
+      // Check children (the default parallel route)
       if (parallelRoutes.children) {
-        const result = extract(
-          targetPathname,
-          parallelRoutes.children,
-          segments
-        )
-        if (result !== null) {
-          return result
-        }
+        extract(targetPathname, parallelRoutes.children, segments, results)
       }
 
-      // If children didn't match, try other parallel routes
+      // Also check other parallel routes
       for (const parallelRouteKey in parallelRoutes) {
         if (parallelRouteKey === 'children') continue
         const parallelRouteValue = parallelRoutes[parallelRouteKey]
@@ -58,34 +54,26 @@ function extract(
         // For root-level named parallel routes, add the @slot marker
         const segmentsWithSlot = [`@${parallelRouteKey}`]
 
-        const result = extract(
-          targetPathname,
-          parallelRouteValue,
-          segmentsWithSlot
-        )
-
-        if (result !== null) {
-          return result
-        }
+        extract(targetPathname, parallelRouteValue, segmentsWithSlot, results)
       }
     }
-    // If nothing matched in any parallel route, return null
-    return null
+    return
   }
 
   // Check if we've reached a page marker
   if (typeof segment === 'string' && segment.startsWith(PAGE_SEGMENT_KEY)) {
     // During client-side navigation, the url field may be null/undefined
     // If the url matches OR is null (meaning this is the active page for the current path),
-    // we should return the canonical route we've built
+    // we should add the canonical route we've built to results
     const urlMatches = url === targetPathname
     const isNullUrl = url === null || url === undefined
 
     if (urlMatches || isNullUrl) {
-      return segments.length > 0 ? '/' + segments.join('/') : '/'
+      const route = segments.length > 0 ? '/' + segments.join('/') : '/'
+      results.push(route)
     }
-    // This page doesn't match - return null to continue searching
-    return null
+    // This page doesn't match or was added - return to continue searching other branches
+    return
   }
 
   // Get the segment value for the canonical route
@@ -103,25 +91,16 @@ function extract(
     ? segments
     : [...segments, segmentValue]
 
-  // Search parallel routes in priority order
+  // Search all parallel routes
   if (parallelRoutes) {
-    // Try children first (the default parallel route)
-    // If children matches, return immediately - don't check other parallel routes
+    // Check children (the default parallel route)
     if (parallelRoutes.children) {
-      const result = extract(
-        targetPathname,
-        parallelRoutes.children,
-        currentSegments
-      )
-      if (result !== null) {
-        return result
-      }
+      extract(targetPathname, parallelRoutes.children, currentSegments, results)
     }
 
-    // Only check other parallel routes (named slots) if children didn't match
-    // This happens during intercepted routes where the modal is active
+    // Also check other parallel routes (named slots)
     for (const parallelRouteKey in parallelRoutes) {
-      // Skip children since we already tried it
+      // Skip children since we already checked it
       if (parallelRouteKey === 'children') continue
       const parallelRouteValue = parallelRoutes[parallelRouteKey]
 
@@ -129,19 +108,9 @@ function extract(
       // Example: /see/@modal/(slot) where "see" is parent, @modal is the slot marker
       const segmentsWithSlot = [...currentSegments, `@${parallelRouteKey}`]
 
-      const result = extract(
-        targetPathname,
-        parallelRouteValue,
-        segmentsWithSlot
-      )
-
-      if (result !== null) {
-        return result
-      }
+      extract(targetPathname, parallelRouteValue, segmentsWithSlot, results)
     }
   }
-
-  return null
 }
 
 /**

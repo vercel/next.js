@@ -25,7 +25,7 @@ import {
   computeSelectedLayoutSegment,
   getSelectedLayoutSegmentPath,
 } from '../../shared/lib/segment'
-import { extractRouteFromFlightRouterState } from './router-reducer/extract-route-from-flight-router-state'
+import { extractRoutesFromFlightRouterState } from './router-reducer/extract-route-from-flight-router-state'
 
 const useDynamicRouteParams =
   typeof window === 'undefined'
@@ -129,13 +129,12 @@ export function usePathname(): string {
 
 /**
  * A [Client Component](https://nextjs.org/docs/app/building-your-application/rendering/client-components) hook
- * that returns a getter function to read the canonical route structure including route groups,
+ * that returns a getter function to read all canonical route structures including route groups,
  * parallel routes, and dynamic parameters.
  *
- * Unlike `usePathname()` which returns the actual URL path, the route returned by this hook's getter
- * represents the file-system structure of the route, preserving route groups `(group)`, parallel routes
- * `@slot`, and dynamic parameters `[param]`. When an intercepted route is active, the route will be
- * the path of the intercepted route.
+ * Unlike `usePathname()` which returns the actual URL path, the routes returned by this hook's getter
+ * represent the file-system structure of all matching routes, preserving route groups `(group)`, parallel routes
+ * `@slot`, and dynamic parameters `[param]`. When parallel routes are active, all matching routes are returned.
  *
  * **Important:** The getter function can only be called during the effect phase (inside `useEffect`,
  * `useLayoutEffect`, or event handlers). Calling it during render will throw an error in development.
@@ -144,29 +143,29 @@ export function usePathname(): string {
  * @example
  * ```ts
  * "use client"
- * import { unstable_useRoute } from 'next/navigation'
+ * import { unstable_useRoutes } from 'next/navigation'
  * import { useEffect, useState } from 'react'
  *
  * export default function Page() {
- *   const getRoute = unstable_useRoute()
- *   const [route, setRoute] = useState<string | undefined>(undefined)
+ *   const getRoutes = unstable_useRoutes()
+ *   const [routes, setRoutes] = useState<string[] | undefined>(undefined)
  *
  *   useEffect(() => {
  *     // Call the getter inside useEffect
- *     setRoute(getRoute())
- *     // On /blog/my-post, returns "/blog/[slug]"
- *     // On /dashboard with @modal slot active, returns "/dashboard/@modal/..."
- *     // With route group (marketing), returns "/(marketing)/about"
- *   }, [getRoute])
+ *     setRoutes(getRoutes())
+ *     // On /blog/my-post, returns ["/blog/[slug]"]
+ *     // On /dashboard with @modal slot active, returns ["/dashboard", "/dashboard/@modal/..."]
+ *     // With route group (marketing), returns ["/(marketing)/about"]
+ *   }, [getRoutes])
  *
- *   return <div>Route: {route}</div>
+ *   return <div>Routes: {routes?.join(', ')}</div>
  * }
  * ```
  */
 // Client components API
 /* eslint-disable react-hooks/rules-of-hooks -- unstable_ prefix for experimental API */
-export function unstable_useRoute(): () => string {
-  useDynamicRouteParams?.('unstable_useRoute()')
+export function unstable_useRoutes(): () => string[] {
+  useDynamicRouteParams?.('unstable_useRoutes()')
 
   const hasMounted = useRef(false)
   const pathname = useContext(PathnameContext)
@@ -180,22 +179,22 @@ export function unstable_useRoute(): () => string {
     }
   }, [])
 
-  const getRoute = useCallback(() => {
+  const getRoutes = useCallback(() => {
     if (!hasMounted.current && process.env.NODE_ENV !== 'production') {
       throw new Error(
-        'unstable_useRoute: Cannot access route during render. ' +
-          'Call getRoute() inside useEffect, useLayoutEffect, or event handlers.'
+        'unstable_useRoutes: Cannot access routes during render. ' +
+          'Call getRoutes() inside useEffect, useLayoutEffect, or event handlers.'
       )
     }
 
     if (!tree || !pathname) {
-      return '/'
+      return []
     }
 
-    return extractRouteFromFlightRouterState(pathname, tree) ?? '/'
+    return extractRoutesFromFlightRouterState(pathname, tree)
   }, [pathname, tree])
 
-  return getRoute
+  return getRoutes
 }
 /* eslint-enable react-hooks/rules-of-hooks */
 
