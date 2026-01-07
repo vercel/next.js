@@ -71,6 +71,8 @@ fn maybe_decode_data_url(url: &str) -> Option<Rope> {
 /// Extracts the sourceMappingURL from raw file content.
 /// This searches for a comment at the end of the file (only followed by whitespace).
 pub fn extract_source_mapping_url_from_content(file_content: &str) -> Option<&str> {
+    // TODO this should use https://tc39.es/ecma426/#sec-JavaScriptExtractSourceMapURL instead
+
     // Find a matching comment at the end of the file (only followed by whitespace)
     static SOURCE_MAP_FILE_REFERENCE: LazyLock<Regex> =
         LazyLock::new(|| Regex::new(r"\n//[@#]\s*sourceMappingURL=(\S*)[\n\s]*$").unwrap());
