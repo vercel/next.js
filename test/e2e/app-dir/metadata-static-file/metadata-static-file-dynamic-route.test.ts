@@ -1,4 +1,4 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, isNextStart } from 'e2e-utils'
 import { getCommonMetadataHeadTags } from './utils'
 
 describe('metadata-files-static-output-dynamic-route', () => {
@@ -25,19 +25,21 @@ describe('metadata-files-static-output-dynamic-route', () => {
     return
   }
 
-  it('should have correct link tags for dynamic page', async () => {
+  it('should have correct link tags for dynamic page with static placeholder', async () => {
     const browser = await next.browser('/dynamic/123')
 
+    // Static metadata files under dynamic routes use "-" as placeholder
+    // since the file content is the same regardless of params
     expect(await getCommonMetadataHeadTags(browser)).toMatchInlineSnapshot(`
      {
        "links": [
          {
-           "href": "/dynamic/123/apple-icon.png",
+           "href": "/dynamic/-/apple-icon.png",
            "rel": "apple-touch-icon",
            "type": "image/png",
          },
          {
-           "href": "/dynamic/123/icon.png",
+           "href": "/dynamic/-/icon.png",
            "rel": "icon",
            "type": "image/png",
          },
@@ -87,7 +89,8 @@ describe('metadata-files-static-output-dynamic-route', () => {
     `)
   })
 
-  it('should serve static files when requested to its route for dynamic page', async () => {
+  it('should serve static files when requested with placeholder for dynamic page', async () => {
+    // Static metadata files use "-" as placeholder for dynamic segments
     const [
       appleIconRes,
       iconRes,
@@ -95,11 +98,11 @@ describe('metadata-files-static-output-dynamic-route', () => {
       twitterImageRes,
       sitemapRes,
     ] = await Promise.all([
-      next.fetch('/dynamic/123/apple-icon.png'),
-      next.fetch('/dynamic/123/icon.png'),
-      next.fetch('/dynamic/123/opengraph-image.png'),
-      next.fetch('/dynamic/123/twitter-image.png'),
-      next.fetch('/dynamic/123/sitemap.xml'),
+      next.fetch('/dynamic/-/apple-icon.png'),
+      next.fetch('/dynamic/-/icon.png'),
+      next.fetch('/dynamic/-/opengraph-image.png'),
+      next.fetch('/dynamic/-/twitter-image.png'),
+      next.fetch('/dynamic/-/sitemap.xml'),
     ])
 
     // Compare response content with actual files
@@ -144,4 +147,18 @@ describe('metadata-files-static-output-dynamic-route', () => {
       sitemap: actualSitemap,
     })
   })
+
+  if (isNextStart) {
+    it('should display static metadata files with "-" placeholder in build output', () => {
+      // Build output should show normalized paths with "-" for dynamic segments
+      expect(next.cliOutput).toContain('/dynamic/-/apple-icon.png')
+      expect(next.cliOutput).toContain('/dynamic/-/icon.png')
+      expect(next.cliOutput).toContain('/dynamic/-/opengraph-image.png')
+      expect(next.cliOutput).toContain('/dynamic/-/twitter-image.png')
+
+      // Should NOT show the dynamic segment pattern in output for static files
+      expect(next.cliOutput).not.toMatch(/\/dynamic\/\[id\]\/icon\.png/)
+      expect(next.cliOutput).not.toMatch(/\/dynamic\/\[id\]\/apple-icon\.png/)
+    })
+  }
 })
