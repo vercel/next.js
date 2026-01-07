@@ -36,11 +36,11 @@ export type NextBuildOptions = {
 }
 
 const nextBuild = async (options: NextBuildOptions, directory?: string) => {
-  process.on('SIGTERM', async () => {
+  process.on('SIGTERM', () => {
     saveCpuProfile()
     process.exit(143)
   })
-  process.on('SIGINT', async () => {
+  process.on('SIGINT', () => {
     saveCpuProfile()
     process.exit(130)
   })
