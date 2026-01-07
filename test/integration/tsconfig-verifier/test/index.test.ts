@@ -3,6 +3,10 @@
 import { createFile, existsSync, readFile, writeFile, remove } from 'fs-extra'
 import { nextBuild } from 'next-test-utils'
 import path from 'path'
+
+const strictRouteTypes =
+  process.env.__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES === 'true'
+
 ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
   'tsconfig.json verifier',
   () => {
@@ -24,47 +28,89 @@ import path from 'path'
       expect(existsSync(tsConfig)).toBe(false)
       const { code } = await nextBuild(appDir)
       expect(code).toBe(0)
-      expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
-       "{
-         "compilerOptions": {
-           "target": "ES2017",
-           "lib": [
-             "dom",
-             "dom.iterable",
-             "esnext"
+      if (strictRouteTypes) {
+        expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
+         "{
+           "compilerOptions": {
+             "target": "ES2017",
+             "lib": [
+               "dom",
+               "dom.iterable",
+               "esnext"
+             ],
+             "allowJs": true,
+             "skipLibCheck": true,
+             "strict": false,
+             "noEmit": true,
+             "incremental": true,
+             "module": "esnext",
+             "esModuleInterop": true,
+             "moduleResolution": "node",
+             "resolveJsonModule": true,
+             "isolatedModules": true,
+             "jsx": "react-jsx",
+             "plugins": [
+               {
+                 "name": "next"
+               }
+             ],
+             "strictNullChecks": true
+           },
+           "include": [
+             "next-env.d.ts",
+             "**/*.mts",
+             "**/*.ts",
+             "**/*.tsx"
            ],
-           "allowJs": true,
-           "skipLibCheck": true,
-           "strict": false,
-           "noEmit": true,
-           "incremental": true,
-           "module": "esnext",
-           "esModuleInterop": true,
-           "moduleResolution": "node",
-           "resolveJsonModule": true,
-           "isolatedModules": true,
-           "jsx": "react-jsx",
-           "plugins": [
-             {
-               "name": "next"
-             }
+           "exclude": [
+             "node_modules"
+           ]
+         }
+         "
+        `)
+      } else {
+        expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
+         "{
+           "compilerOptions": {
+             "target": "ES2017",
+             "lib": [
+               "dom",
+               "dom.iterable",
+               "esnext"
+             ],
+             "allowJs": true,
+             "skipLibCheck": true,
+             "strict": false,
+             "noEmit": true,
+             "incremental": true,
+             "module": "esnext",
+             "esModuleInterop": true,
+             "moduleResolution": "node",
+             "resolveJsonModule": true,
+             "isolatedModules": true,
+             "jsx": "react-jsx",
+             "plugins": [
+               {
+                 "name": "next"
+               }
+             ],
+             "strictNullChecks": true
+           },
+           "include": [
+             "next-env.d.ts",
+             ".next/types/**/*.ts",
+             ".next/dev/types/**/*.ts",
+             "**/*.mts",
+             "**/*.ts",
+             "**/*.tsx"
            ],
-           "strictNullChecks": true
-         },
-         "include": [
-           "next-env.d.ts",
-           ".next/types/**/*.ts",
-           ".next/dev/types/**/*.ts",
-           "**/*.mts",
-           "**/*.ts",
-           "**/*.tsx"
-         ],
-         "exclude": [
-           "node_modules"
-         ]
-       }
-       "
-      `)
+           "exclude": [
+             "node_modules"
+           ]
+         }
+         "
+        `)
+      }
     })
 
     it('Works with an empty tsconfig.json (docs)', async () => {
@@ -81,47 +127,89 @@ import path from 'path'
       expect(stderr + stdout).not.toContain('moduleResolution')
       expect(code).toBe(0)
 
-      expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
-       "{
-         "compilerOptions": {
-           "target": "ES2017",
-           "lib": [
-             "dom",
-             "dom.iterable",
-             "esnext"
+      if (strictRouteTypes) {
+        expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
+         "{
+           "compilerOptions": {
+             "target": "ES2017",
+             "lib": [
+               "dom",
+               "dom.iterable",
+               "esnext"
+             ],
+             "allowJs": true,
+             "skipLibCheck": true,
+             "strict": false,
+             "noEmit": true,
+             "incremental": true,
+             "module": "esnext",
+             "esModuleInterop": true,
+             "moduleResolution": "node",
+             "resolveJsonModule": true,
+             "isolatedModules": true,
+             "jsx": "react-jsx",
+             "plugins": [
+               {
+                 "name": "next"
+               }
+             ],
+             "strictNullChecks": true
+           },
+           "include": [
+             "next-env.d.ts",
+             "**/*.mts",
+             "**/*.ts",
+             "**/*.tsx"
            ],
-           "allowJs": true,
-           "skipLibCheck": true,
-           "strict": false,
-           "noEmit": true,
-           "incremental": true,
-           "module": "esnext",
-           "esModuleInterop": true,
-           "moduleResolution": "node",
-           "resolveJsonModule": true,
-           "isolatedModules": true,
-           "jsx": "react-jsx",
-           "plugins": [
-             {
-               "name": "next"
-             }
+           "exclude": [
+             "node_modules"
+           ]
+         }
+         "
+        `)
+      } else {
+        expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
+         "{
+           "compilerOptions": {
+             "target": "ES2017",
+             "lib": [
+               "dom",
+               "dom.iterable",
+               "esnext"
+             ],
+             "allowJs": true,
+             "skipLibCheck": true,
+             "strict": false,
+             "noEmit": true,
+             "incremental": true,
+             "module": "esnext",
+             "esModuleInterop": true,
+             "moduleResolution": "node",
+             "resolveJsonModule": true,
+             "isolatedModules": true,
+             "jsx": "react-jsx",
+             "plugins": [
+               {
+                 "name": "next"
+               }
+             ],
+             "strictNullChecks": true
+           },
+           "include": [
+             "next-env.d.ts",
+             ".next/types/**/*.ts",
+             ".next/dev/types/**/*.ts",
+             "**/*.mts",
+             "**/*.ts",
+             "**/*.tsx"
            ],
-           "strictNullChecks": true
-         },
-         "include": [
-           "next-env.d.ts",
-           ".next/types/**/*.ts",
-           ".next/dev/types/**/*.ts",
-           "**/*.mts",
-           "**/*.ts",
-           "**/*.tsx"
-         ],
-         "exclude": [
-           "node_modules"
-         ]
-       }
-       "
-      `)
+           "exclude": [
+             "node_modules"
+           ]
+         }
+         "
+        `)
+      }
     })
 
     it('Updates an existing tsconfig.json without losing comments', async () => {
@@ -150,55 +238,105 @@ import path from 'path'
 
       // Weird comma placement until this issue is resolved:
       // https://github.com/kaelzhang/node-comment-json/issues/21
-      expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
-       "// top-level comment
-       {
-         // in-object comment 1
-         "compilerOptions": {
-           // in-object comment
-           "esModuleInterop": true, // this should be true
-           "module": "esnext" // should not be umd
-           // end-object comment
+      if (strictRouteTypes) {
+        expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
+         "// top-level comment
+         {
+           // in-object comment 1
+           "compilerOptions": {
+             // in-object comment
+             "esModuleInterop": true, // this should be true
+             "module": "esnext" // should not be umd
+             // end-object comment
+             ,
+             "target": "ES2017",
+             "lib": [
+               "dom",
+               "dom.iterable",
+               "esnext"
+             ],
+             "allowJs": true,
+             "skipLibCheck": true,
+             "strict": false,
+             "noEmit": true,
+             "incremental": true,
+             "moduleResolution": "node",
+             "resolveJsonModule": true,
+             "isolatedModules": true,
+             "jsx": "react-jsx",
+             "plugins": [
+               {
+                 "name": "next"
+               }
+             ],
+             "strictNullChecks": true
+           }
+           // in-object comment 2
            ,
-           "target": "ES2017",
-           "lib": [
-             "dom",
-             "dom.iterable",
-             "esnext"
+           "include": [
+             "next-env.d.ts",
+             "**/*.mts",
+             "**/*.ts",
+             "**/*.tsx"
            ],
-           "allowJs": true,
-           "skipLibCheck": true,
-           "strict": false,
-           "noEmit": true,
-           "incremental": true,
-           "moduleResolution": "node",
-           "resolveJsonModule": true,
-           "isolatedModules": true,
-           "jsx": "react-jsx",
-           "plugins": [
-             {
-               "name": "next"
-             }
-           ],
-           "strictNullChecks": true
+           "exclude": [
+             "node_modules"
+           ]
          }
-         // in-object comment 2
-         ,
-         "include": [
-           "next-env.d.ts",
-           ".next/types/**/*.ts",
-           ".next/dev/types/**/*.ts",
-           "**/*.mts",
-           "**/*.ts",
-           "**/*.tsx"
-         ],
-         "exclude": [
-           "node_modules"
-         ]
-       }
-       // end comment
-       "
-      `)
+         // end comment
+         "
+        `)
+      } else {
+        expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
+         "// top-level comment
+         {
+           // in-object comment 1
+           "compilerOptions": {
+             // in-object comment
+             "esModuleInterop": true, // this should be true
+             "module": "esnext" // should not be umd
+             // end-object comment
+             ,
+             "target": "ES2017",
+             "lib": [
+               "dom",
+               "dom.iterable",
+               "esnext"
+             ],
+             "allowJs": true,
+             "skipLibCheck": true,
+             "strict": false,
+             "noEmit": true,
+             "incremental": true,
+             "moduleResolution": "node",
+             "resolveJsonModule": true,
+             "isolatedModules": true,
+             "jsx": "react-jsx",
+             "plugins": [
+               {
+                 "name": "next"
+               }
+             ],
+             "strictNullChecks": true
+           }
+           // in-object comment 2
+           ,
+           "include": [
+             "next-env.d.ts",
+             ".next/types/**/*.ts",
+             ".next/dev/types/**/*.ts",
+             "**/*.mts",
+             "**/*.ts",
+             "**/*.tsx"
+           ],
+           "exclude": [
+             "node_modules"
+           ]
+         }
+         // end comment
+         "
+        `)
+      }
     })
 
     it('allows you to set commonjs module mode', async () => {
@@ -212,47 +350,89 @@ import path from 'path'
       const { code } = await nextBuild(appDir)
       expect(code).toBe(0)
 
-      expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
-       "{
-         "compilerOptions": {
-           "esModuleInterop": true,
-           "module": "commonjs",
-           "target": "ES2017",
-           "lib": [
-             "dom",
-             "dom.iterable",
-             "esnext"
+      if (strictRouteTypes) {
+        expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
+         "{
+           "compilerOptions": {
+             "esModuleInterop": true,
+             "module": "commonjs",
+             "target": "ES2017",
+             "lib": [
+               "dom",
+               "dom.iterable",
+               "esnext"
+             ],
+             "allowJs": true,
+             "skipLibCheck": true,
+             "strict": false,
+             "noEmit": true,
+             "incremental": true,
+             "moduleResolution": "node",
+             "resolveJsonModule": true,
+             "isolatedModules": true,
+             "jsx": "react-jsx",
+             "plugins": [
+               {
+                 "name": "next"
+               }
+             ],
+             "strictNullChecks": true
+           },
+           "include": [
+             "next-env.d.ts",
+             "**/*.mts",
+             "**/*.ts",
+             "**/*.tsx"
            ],
-           "allowJs": true,
-           "skipLibCheck": true,
-           "strict": false,
-           "noEmit": true,
-           "incremental": true,
-           "moduleResolution": "node",
-           "resolveJsonModule": true,
-           "isolatedModules": true,
-           "jsx": "react-jsx",
-           "plugins": [
-             {
-               "name": "next"
-             }
+           "exclude": [
+             "node_modules"
+           ]
+         }
+         "
+        `)
+      } else {
+        expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
+         "{
+           "compilerOptions": {
+             "esModuleInterop": true,
+             "module": "commonjs",
+             "target": "ES2017",
+             "lib": [
+               "dom",
+               "dom.iterable",
+               "esnext"
+             ],
+             "allowJs": true,
+             "skipLibCheck": true,
+             "strict": false,
+             "noEmit": true,
+             "incremental": true,
+             "moduleResolution": "node",
+             "resolveJsonModule": true,
+             "isolatedModules": true,
+             "jsx": "react-jsx",
+             "plugins": [
+               {
+                 "name": "next"
+               }
+             ],
+             "strictNullChecks": true
+           },
+           "include": [
+             "next-env.d.ts",
+             ".next/types/**/*.ts",
+             ".next/dev/types/**/*.ts",
+             "**/*.mts",
+             "**/*.ts",
+             "**/*.tsx"
            ],
-           "strictNullChecks": true
-         },
-         "include": [
-           "next-env.d.ts",
-           ".next/types/**/*.ts",
-           ".next/dev/types/**/*.ts",
-           "**/*.mts",
-           "**/*.ts",
-           "**/*.tsx"
-         ],
-         "exclude": [
-           "node_modules"
-         ]
-       }
-       "
-      `)
+           "exclude": [
+             "node_modules"
+           ]
+         }
+         "
+        `)
+      }
     })
 
     it('allows you to set es2020 module mode', async () => {
@@ -266,47 +446,89 @@ import path from 'path'
       const { code } = await nextBuild(appDir)
       expect(code).toBe(0)
 
-      expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
-       "{
-         "compilerOptions": {
-           "esModuleInterop": true,
-           "module": "es2020",
-           "target": "ES2017",
-           "lib": [
-             "dom",
-             "dom.iterable",
-             "esnext"
+      if (strictRouteTypes) {
+        expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
+         "{
+           "compilerOptions": {
+             "esModuleInterop": true,
+             "module": "es2020",
+             "target": "ES2017",
+             "lib": [
+               "dom",
+               "dom.iterable",
+               "esnext"
+             ],
+             "allowJs": true,
+             "skipLibCheck": true,
+             "strict": false,
+             "noEmit": true,
+             "incremental": true,
+             "moduleResolution": "node",
+             "resolveJsonModule": true,
+             "isolatedModules": true,
+             "jsx": "react-jsx",
+             "plugins": [
+               {
+                 "name": "next"
+               }
+             ],
+             "strictNullChecks": true
+           },
+           "include": [
+             "next-env.d.ts",
+             "**/*.mts",
+             "**/*.ts",
+             "**/*.tsx"
            ],
-           "allowJs": true,
-           "skipLibCheck": true,
-           "strict": false,
-           "noEmit": true,
-           "incremental": true,
-           "moduleResolution": "node",
-           "resolveJsonModule": true,
-           "isolatedModules": true,
-           "jsx": "react-jsx",
-           "plugins": [
-             {
-               "name": "next"
-             }
+           "exclude": [
+             "node_modules"
+           ]
+         }
+         "
+        `)
+      } else {
+        expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
+         "{
+           "compilerOptions": {
+             "esModuleInterop": true,
+             "module": "es2020",
+             "target": "ES2017",
+             "lib": [
+               "dom",
+               "dom.iterable",
+               "esnext"
+             ],
+             "allowJs": true,
+             "skipLibCheck": true,
+             "strict": false,
+             "noEmit": true,
+             "incremental": true,
+             "moduleResolution": "node",
+             "resolveJsonModule": true,
+             "isolatedModules": true,
+             "jsx": "react-jsx",
+             "plugins": [
+               {
+                 "name": "next"
+               }
+             ],
+             "strictNullChecks": true
+           },
+           "include": [
+             "next-env.d.ts",
+             ".next/types/**/*.ts",
+             ".next/dev/types/**/*.ts",
+             "**/*.mts",
+             "**/*.ts",
+             "**/*.tsx"
            ],
-           "strictNullChecks": true
-         },
-         "include": [
-           "next-env.d.ts",
-           ".next/types/**/*.ts",
-           ".next/dev/types/**/*.ts",
-           "**/*.mts",
-           "**/*.ts",
-           "**/*.tsx"
-         ],
-         "exclude": [
-           "node_modules"
-         ]
-       }
-       "
-      `)
+           "exclude": [
+             "node_modules"
+           ]
+         }
+         "
+        `)
+      }
     })
 
     it('allows you to set node16 moduleResolution mode', async () => {
@@ -324,47 +546,89 @@ import path from 'path'
       expect(stderr + stdout).not.toContain('moduleResolution')
       expect(code).toBe(0)
 
-      expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
-       "{
-         "compilerOptions": {
-           "esModuleInterop": true,
-           "moduleResolution": "node16",
-           "module": "node16",
-           "target": "ES2017",
-           "lib": [
-             "dom",
-             "dom.iterable",
-             "esnext"
+      if (strictRouteTypes) {
+        expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
+         "{
+           "compilerOptions": {
+             "esModuleInterop": true,
+             "moduleResolution": "node16",
+             "module": "node16",
+             "target": "ES2017",
+             "lib": [
+               "dom",
+               "dom.iterable",
+               "esnext"
+             ],
+             "allowJs": true,
+             "skipLibCheck": true,
+             "strict": false,
+             "noEmit": true,
+             "incremental": true,
+             "resolveJsonModule": true,
+             "isolatedModules": true,
+             "jsx": "react-jsx",
+             "plugins": [
+               {
+                 "name": "next"
+               }
+             ],
+             "strictNullChecks": true
+           },
+           "include": [
+             "next-env.d.ts",
+             "**/*.mts",
+             "**/*.ts",
+             "**/*.tsx"
            ],
-           "allowJs": true,
-           "skipLibCheck": true,
-           "strict": false,
-           "noEmit": true,
-           "incremental": true,
-           "resolveJsonModule": true,
-           "isolatedModules": true,
-           "jsx": "react-jsx",
-           "plugins": [
-             {
-               "name": "next"
-             }
+           "exclude": [
+             "node_modules"
+           ]
+         }
+         "
+        `)
+      } else {
+        expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
+         "{
+           "compilerOptions": {
+             "esModuleInterop": true,
+             "moduleResolution": "node16",
+             "module": "node16",
+             "target": "ES2017",
+             "lib": [
+               "dom",
+               "dom.iterable",
+               "esnext"
+             ],
+             "allowJs": true,
+             "skipLibCheck": true,
+             "strict": false,
+             "noEmit": true,
+             "incremental": true,
+             "resolveJsonModule": true,
+             "isolatedModules": true,
+             "jsx": "react-jsx",
+             "plugins": [
+               {
+                 "name": "next"
+               }
+             ],
+             "strictNullChecks": true
+           },
+           "include": [
+             "next-env.d.ts",
+             ".next/types/**/*.ts",
+             ".next/dev/types/**/*.ts",
+             "**/*.mts",
+             "**/*.ts",
+             "**/*.tsx"
            ],
-           "strictNullChecks": true
-         },
-         "include": [
-           "next-env.d.ts",
-           ".next/types/**/*.ts",
-           ".next/dev/types/**/*.ts",
-           "**/*.mts",
-           "**/*.ts",
-           "**/*.tsx"
-         ],
-         "exclude": [
-           "node_modules"
-         ]
-       }
-       "
-      `)
+           "exclude": [
+             "node_modules"
+           ]
+         }
+         "
+        `)
+      }
     })
 
     it('allows you to set bundler moduleResolution mode', async () => {
@@ -382,47 +646,89 @@ import path from 'path'
       expect(stderr + stdout).not.toContain('moduleResolution')
       expect(code).toBe(0)
 
-      expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
-       "{
-         "compilerOptions": {
-           "esModuleInterop": true,
-           "moduleResolution": "bundler",
-           "target": "ES2017",
-           "lib": [
-             "dom",
-             "dom.iterable",
-             "esnext"
+      if (strictRouteTypes) {
+        expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
+         "{
+           "compilerOptions": {
+             "esModuleInterop": true,
+             "moduleResolution": "bundler",
+             "target": "ES2017",
+             "lib": [
+               "dom",
+               "dom.iterable",
+               "esnext"
+             ],
+             "allowJs": true,
+             "skipLibCheck": true,
+             "strict": false,
+             "noEmit": true,
+             "incremental": true,
+             "module": "esnext",
+             "resolveJsonModule": true,
+             "isolatedModules": true,
+             "jsx": "react-jsx",
+             "plugins": [
+               {
+                 "name": "next"
+               }
+             ],
+             "strictNullChecks": true
+           },
+           "include": [
+             "next-env.d.ts",
+             "**/*.mts",
+             "**/*.ts",
+             "**/*.tsx"
            ],
-           "allowJs": true,
-           "skipLibCheck": true,
-           "strict": false,
-           "noEmit": true,
-           "incremental": true,
-           "module": "esnext",
-           "resolveJsonModule": true,
-           "isolatedModules": true,
-           "jsx": "react-jsx",
-           "plugins": [
-             {
-               "name": "next"
-             }
+           "exclude": [
+             "node_modules"
+           ]
+         }
+         "
+        `)
+      } else {
+        expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
+         "{
+           "compilerOptions": {
+             "esModuleInterop": true,
+             "moduleResolution": "bundler",
+             "target": "ES2017",
+             "lib": [
+               "dom",
+               "dom.iterable",
+               "esnext"
+             ],
+             "allowJs": true,
+             "skipLibCheck": true,
+             "strict": false,
+             "noEmit": true,
+             "incremental": true,
+             "module": "esnext",
+             "resolveJsonModule": true,
+             "isolatedModules": true,
+             "jsx": "react-jsx",
+             "plugins": [
+               {
+                 "name": "next"
+               }
+             ],
+             "strictNullChecks": true
+           },
+           "include": [
+             "next-env.d.ts",
+             ".next/types/**/*.ts",
+             ".next/dev/types/**/*.ts",
+             "**/*.mts",
+             "**/*.ts",
+             "**/*.tsx"
            ],
-           "strictNullChecks": true
-         },
-         "include": [
-           "next-env.d.ts",
-           ".next/types/**/*.ts",
-           ".next/dev/types/**/*.ts",
-           "**/*.mts",
-           "**/*.ts",
-           "**/*.tsx"
-         ],
-         "exclude": [
-           "node_modules"
-         ]
-       }
-       "
-      `)
+           "exclude": [
+             "node_modules"
+           ]
+         }
+         "
+        `)
+      }
     })
 
     it('allows you to set target mode', async () => {
@@ -437,47 +743,89 @@ import path from 'path'
       expect(stderr + stdout).not.toContain('target')
       expect(code).toBe(0)
 
-      expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
-       "{
-         "compilerOptions": {
-           "target": "es2022",
-           "lib": [
-             "dom",
-             "dom.iterable",
-             "esnext"
+      if (strictRouteTypes) {
+        expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
+         "{
+           "compilerOptions": {
+             "target": "es2022",
+             "lib": [
+               "dom",
+               "dom.iterable",
+               "esnext"
+             ],
+             "allowJs": true,
+             "skipLibCheck": true,
+             "strict": false,
+             "noEmit": true,
+             "incremental": true,
+             "module": "esnext",
+             "esModuleInterop": true,
+             "moduleResolution": "node",
+             "resolveJsonModule": true,
+             "isolatedModules": true,
+             "jsx": "react-jsx",
+             "plugins": [
+               {
+                 "name": "next"
+               }
+             ],
+             "strictNullChecks": true
+           },
+           "include": [
+             "next-env.d.ts",
+             "**/*.mts",
+             "**/*.ts",
+             "**/*.tsx"
            ],
-           "allowJs": true,
-           "skipLibCheck": true,
-           "strict": false,
-           "noEmit": true,
-           "incremental": true,
-           "module": "esnext",
-           "esModuleInterop": true,
-           "moduleResolution": "node",
-           "resolveJsonModule": true,
-           "isolatedModules": true,
-           "jsx": "react-jsx",
-           "plugins": [
-             {
-               "name": "next"
-             }
+           "exclude": [
+             "node_modules"
+           ]
+         }
+         "
+        `)
+      } else {
+        expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
+         "{
+           "compilerOptions": {
+             "target": "es2022",
+             "lib": [
+               "dom",
+               "dom.iterable",
+               "esnext"
+             ],
+             "allowJs": true,
+             "skipLibCheck": true,
+             "strict": false,
+             "noEmit": true,
+             "incremental": true,
+             "module": "esnext",
+             "esModuleInterop": true,
+             "moduleResolution": "node",
+             "resolveJsonModule": true,
+             "isolatedModules": true,
+             "jsx": "react-jsx",
+             "plugins": [
+               {
+                 "name": "next"
+               }
+             ],
+             "strictNullChecks": true
+           },
+           "include": [
+             "next-env.d.ts",
+             ".next/types/**/*.ts",
+             ".next/dev/types/**/*.ts",
+             "**/*.mts",
+             "**/*.ts",
+             "**/*.tsx"
            ],
-           "strictNullChecks": true
-         },
-         "include": [
-           "next-env.d.ts",
-           ".next/types/**/*.ts",
-           ".next/dev/types/**/*.ts",
-           "**/*.mts",
-           "**/*.ts",
-           "**/*.tsx"
-         ],
-         "exclude": [
-           "node_modules"
-         ]
-       }
-       "
-      `)
+           "exclude": [
+             "node_modules"
+           ]
+         }
+         "
+        `)
+      }
     })
 
     it('allows you to set node16 module mode', async () => {
@@ -495,47 +843,89 @@ import path from 'path'
       expect(stderr + stdout).not.toContain('moduleResolution')
       expect(code).toBe(0)
 
-      expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
-       "{
-         "compilerOptions": {
-           "esModuleInterop": true,
-           "module": "node16",
-           "moduleResolution": "node16",
-           "target": "ES2017",
-           "lib": [
-             "dom",
-             "dom.iterable",
-             "esnext"
+      if (strictRouteTypes) {
+        expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
+         "{
+           "compilerOptions": {
+             "esModuleInterop": true,
+             "module": "node16",
+             "moduleResolution": "node16",
+             "target": "ES2017",
+             "lib": [
+               "dom",
+               "dom.iterable",
+               "esnext"
+             ],
+             "allowJs": true,
+             "skipLibCheck": true,
+             "strict": false,
+             "noEmit": true,
+             "incremental": true,
+             "resolveJsonModule": true,
+             "isolatedModules": true,
+             "jsx": "react-jsx",
+             "plugins": [
+               {
+                 "name": "next"
+               }
+             ],
+             "strictNullChecks": true
+           },
+           "include": [
+             "next-env.d.ts",
+             "**/*.mts",
+             "**/*.ts",
+             "**/*.tsx"
            ],
-           "allowJs": true,
-           "skipLibCheck": true,
-           "strict": false,
-           "noEmit": true,
-           "incremental": true,
-           "resolveJsonModule": true,
-           "isolatedModules": true,
-           "jsx": "react-jsx",
-           "plugins": [
-             {
-               "name": "next"
-             }
+           "exclude": [
+             "node_modules"
+           ]
+         }
+         "
+        `)
+      } else {
+        expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
+         "{
+           "compilerOptions": {
+             "esModuleInterop": true,
+             "module": "node16",
+             "moduleResolution": "node16",
+             "target": "ES2017",
+             "lib": [
+               "dom",
+               "dom.iterable",
+               "esnext"
+             ],
+             "allowJs": true,
+             "skipLibCheck": true,
+             "strict": false,
+             "noEmit": true,
+             "incremental": true,
+             "resolveJsonModule": true,
+             "isolatedModules": true,
+             "jsx": "react-jsx",
+             "plugins": [
+               {
+                 "name": "next"
+               }
+             ],
+             "strictNullChecks": true
+           },
+           "include": [
+             "next-env.d.ts",
+             ".next/types/**/*.ts",
+             ".next/dev/types/**/*.ts",
+             "**/*.mts",
+             "**/*.ts",
+             "**/*.tsx"
            ],
-           "strictNullChecks": true
-         },
-         "include": [
-           "next-env.d.ts",
-           ".next/types/**/*.ts",
-           ".next/dev/types/**/*.ts",
-           "**/*.mts",
-           "**/*.ts",
-           "**/*.tsx"
-         ],
-         "exclude": [
-           "node_modules"
-         ]
-       }
-       "
-      `)
+           "exclude": [
+             "node_modules"
+           ]
+         }
+         "
+        `)
+      }
     })
 
     it('allows you to set verbatimModuleSyntax true without adding isolatedModules', async () => {
@@ -553,47 +943,89 @@ import path from 'path'
       expect(stderr + stdout).not.toContain('isolatedModules')
       expect(code).toBe(0)
 
-      expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
-       "{
-         "compilerOptions": {
-           "verbatimModuleSyntax": true,
-           "target": "ES2017",
-           "lib": [
-             "dom",
-             "dom.iterable",
-             "esnext"
+      if (strictRouteTypes) {
+        expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
+         "{
+           "compilerOptions": {
+             "verbatimModuleSyntax": true,
+             "target": "ES2017",
+             "lib": [
+               "dom",
+               "dom.iterable",
+               "esnext"
+             ],
+             "allowJs": true,
+             "skipLibCheck": true,
+             "strict": false,
+             "noEmit": true,
+             "incremental": true,
+             "module": "esnext",
+             "esModuleInterop": true,
+             "moduleResolution": "node",
+             "resolveJsonModule": true,
+             "jsx": "react-jsx",
+             "plugins": [
+               {
+                 "name": "next"
+               }
+             ],
+             "strictNullChecks": true
+           },
+           "include": [
+             "next-env.d.ts",
+             "**/*.mts",
+             "**/*.ts",
+             "**/*.tsx"
            ],
-           "allowJs": true,
-           "skipLibCheck": true,
-           "strict": false,
-           "noEmit": true,
-           "incremental": true,
-           "module": "esnext",
-           "esModuleInterop": true,
-           "moduleResolution": "node",
-           "resolveJsonModule": true,
-           "jsx": "react-jsx",
-           "plugins": [
-             {
-               "name": "next"
-             }
+           "exclude": [
+             "node_modules"
+           ]
+         }
+         "
+        `)
+      } else {
+        expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
+         "{
+           "compilerOptions": {
+             "verbatimModuleSyntax": true,
+             "target": "ES2017",
+             "lib": [
+               "dom",
+               "dom.iterable",
+               "esnext"
+             ],
+             "allowJs": true,
+             "skipLibCheck": true,
+             "strict": false,
+             "noEmit": true,
+             "incremental": true,
+             "module": "esnext",
+             "esModuleInterop": true,
+             "moduleResolution": "node",
+             "resolveJsonModule": true,
+             "jsx": "react-jsx",
+             "plugins": [
+               {
+                 "name": "next"
+               }
+             ],
+             "strictNullChecks": true
+           },
+           "include": [
+             "next-env.d.ts",
+             ".next/types/**/*.ts",
+             ".next/dev/types/**/*.ts",
+             "**/*.mts",
+             "**/*.ts",
+             "**/*.tsx"
            ],
-           "strictNullChecks": true
-         },
-         "include": [
-           "next-env.d.ts",
-           ".next/types/**/*.ts",
-           ".next/dev/types/**/*.ts",
-           "**/*.mts",
-           "**/*.ts",
-           "**/*.tsx"
-         ],
-         "exclude": [
-           "node_modules"
-         ]
-       }
-       "
-      `)
+           "exclude": [
+             "node_modules"
+           ]
+         }
+         "
+        `)
+      }
     })
 
     it('allows you to set verbatimModuleSyntax true via extends without adding isolatedModules', async () => {
@@ -797,41 +1229,11 @@ import path from 'path'
       expect(stderr + stdout).not.toContain('resolveJsonModule')
       expect(code).toBe(0)
 
-      expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
-              "{
-                "compilerOptions": {
-                  "module": "preserve",
-                  "lib": [
-                    "dom",
-                    "dom.iterable",
-                    "esnext"
-                  ],
-                  "allowJs": true,
-                  "skipLibCheck": true,
-                  "strict": false,
-                  "noEmit": true,
-                  "incremental": true,
-                  "isolatedModules": true,
-                  "jsx": "react-jsx",
-                  "plugins": [
-                    {
-                      "name": "next"
-                    }
-                  ],
-                  "strictNullChecks": true
-                },
-                "include": [
-                  "next-env.d.ts",
-                  ".next/types/**/*.ts",
-                  "**/*.ts",
-                  "**/*.tsx"
-                ],
-                "exclude": [
-                  "node_modules"
-                ]
-              }
-              "
-          `)
+      if (strictRouteTypes) {
+        expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot()
+      } else {
+        expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot()
+      }
     })
   }
 )
