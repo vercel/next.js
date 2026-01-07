@@ -620,48 +620,9 @@ fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> proc_macro2:
         quote! {}
     };
 
-    let lazy_helpers = if has_lazy {
-        quote! {
-            /// Find a lazy field by predicate (immutable)
-            pub fn find_lazy<T>(&self, extract: impl Fn(&LazyField) -> Option<&T>) -> Option<&T> {
-                self.lazy.iter().find_map(extract)
-            }
-
-            /// Find a lazy field by predicate (mutable)
-            pub fn find_lazy_mut<T>(&mut self, extract: impl Fn(&mut LazyField) -> Option<&mut T>) -> Option<&mut T> {
-                self.lazy.iter_mut().find_map(extract)
-            }
-
-            /// Get or create a lazy field, returning a mutable reference.
-            ///
-            /// Uses a single `extract` closure that serves as both the matcher (by returning Some/None)
-            /// and the value extractor. The closure is first used immutably to find the field,
-            /// then mutably to extract the value.
-            pub fn get_or_create_lazy<T>(
-                &mut self,
-                extract: impl for<'a> Fn(&'a mut LazyField) -> Option<&'a mut T>,
-                create: impl FnOnce() -> LazyField,
-            ) -> &mut T {
-                // Find the index of matching field
-                let idx = self.lazy.iter_mut().position(|f| extract(f).is_some());
-                if let Some(idx) = idx {
-                    extract(&mut self.lazy[idx]).unwrap()
-                } else {
-                    self.lazy.push(create());
-                    extract(self.lazy.last_mut().unwrap()).unwrap()
-                }
-            }
-
-            /// Remove a lazy field at index if it's empty
-            pub fn remove_if_empty(&mut self, idx: usize) {
-                if self.lazy[idx].is_empty() {
-                    self.lazy.swap_remove(idx);
-                }
-            }
-        }
-    } else {
-        quote! {}
-    };
+    // Note: Helper methods like find_lazy, find_lazy_mut, get_or_create_lazy, and
+    // remove_if_empty are defined in storage_schema.rs rather than generated here.
+    // This provides better IDE support (autocomplete, go-to-definition, etc.).
 
     // Note: We don't derive bincode::Encode/Decode here since serialization
     // will be handled manually via encode_data/encode_meta/decode_data/decode_meta methods
@@ -679,8 +640,6 @@ fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> proc_macro2:
             pub fn new() -> Self {
                 Self::default()
             }
-
-            #lazy_helpers
         }
     }
 }
@@ -852,11 +811,8 @@ fn generate_task_storage_accessors_trait(
             /// - `All`: Used for transient data - no check is performed
             ///
             /// Implementors should check that the provided category matches how the task was accessed.
-            /// The default implementation does nothing (for non-TaskGuard uses).
             #[inline]
-            fn check_access(&self, _category: crate::backend::TaskDataCategory) {
-                // Default: no checking. TaskGuardImpl overrides this with actual checks.
-            }
+            fn check_access(&self, category: crate::backend::TaskDataCategory);
 
             /// Shrink all collection fields to fit their current contents.
             ///

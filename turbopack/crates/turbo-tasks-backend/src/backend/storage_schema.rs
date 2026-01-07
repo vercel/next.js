@@ -299,6 +299,71 @@ impl TaskFlags {
 }
 
 // =============================================================================
+// TypedStorage helper methods
+// =============================================================================
+
+impl TypedStorage {
+    /// Find a lazy field by predicate (immutable).
+    ///
+    /// The `extract` closure should return `Some(&T)` for the matching variant,
+    /// or `None` for non-matching variants.
+    pub fn find_lazy<T>(&self, extract: impl Fn(&LazyField) -> Option<&T>) -> Option<&T> {
+        self.lazy.iter().find_map(extract)
+    }
+
+    /// Find a lazy field by predicate (mutable).
+    ///
+    /// The `extract` closure should return `Some(&mut T)` for the matching variant,
+    /// or `None` for non-matching variants.
+    pub fn find_lazy_mut<T>(
+        &mut self,
+        extract: impl Fn(&mut LazyField) -> Option<&mut T>,
+    ) -> Option<&mut T> {
+        self.lazy.iter_mut().find_map(extract)
+    }
+
+    /// Get or create a lazy field, returning a mutable reference.
+    ///
+    /// Uses a single `extract` closure that serves as both the matcher (by returning Some/None)
+    /// and the value extractor. The closure is first used to find the field position,
+    /// then to extract the mutable reference.
+    ///
+    /// # Example
+    /// ```ignore
+    /// let deps = storage.get_or_create_lazy(
+    ///     |f| match f {
+    ///         LazyField::OutputDependencies(v) => Some(v),
+    ///         _ => None,
+    ///     },
+    ///     || LazyField::OutputDependencies(Default::default()),
+    /// );
+    /// ```
+    pub fn get_or_create_lazy<T>(
+        &mut self,
+        extract: impl for<'a> Fn(&'a mut LazyField) -> Option<&'a mut T>,
+        create: impl FnOnce() -> LazyField,
+    ) -> &mut T {
+        // Find the index of matching field
+        let idx = self.lazy.iter_mut().position(|f| extract(f).is_some());
+        if let Some(idx) = idx {
+            extract(&mut self.lazy[idx]).unwrap()
+        } else {
+            self.lazy.push(create());
+            extract(self.lazy.last_mut().unwrap()).unwrap()
+        }
+    }
+
+    /// Remove a lazy field at index if it's empty.
+    ///
+    /// Uses `swap_remove` for O(1) removal (order is not preserved).
+    pub fn remove_if_empty(&mut self, idx: usize) {
+        if self.lazy[idx].is_empty() {
+            self.lazy.swap_remove(idx);
+        }
+    }
+}
+
+// =============================================================================
 // CounterMap Extension Trait
 // =============================================================================
 
