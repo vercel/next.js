@@ -8,7 +8,7 @@ The foundational pattern for Partial Prerendering:
 
 ```tsx
 import { Suspense } from 'react'
-import { cacheLife, cacheTag } from 'next/cache'
+import { cacheLife } from 'next/cache'
 
 // Static - no special handling needed
 function Header() {
@@ -18,7 +18,6 @@ function Header() {
 // Cached - included in static shell
 async function FeaturedPosts() {
   'use cache'
-  cacheTag('posts', 'featured')
   cacheLife('hours')
 
   const posts = await db.posts.findMany({
@@ -146,18 +145,22 @@ export async function createPost(formData: FormData) {
 
 // components/create-post-form.tsx
 'use client'
+import { useTransition } from 'react'
 import { createPost } from '@/actions/posts'
-import { useActionState } from 'react'
 
 export function CreatePostForm() {
-  const [state, action, pending] = useActionState(createPost)
+  const [isPending, startTransition] = useTransition()
 
   return (
-    <form action={action}>
+    <form
+      action={(formData) => {
+        startTransition(() => createPost(formData))
+      }}
+    >
       <input name="title" required />
       <textarea name="content" required />
-      <button disabled={pending}>
-        {pending ? 'Creating...' : 'Create Post'}
+      <button disabled={isPending}>
+        {isPending ? 'Creating...' : 'Create Post'}
       </button>
     </form>
   )
@@ -470,6 +473,8 @@ export default async function ProductPage({
         <InventoryStatus productId={id} />
       </Suspense>
 
+      {/* Suspense is optional for long-lived caches (expire >= 300s) like 'minutes'.
+          It improves UX during runtime cache expiration but isn't required. */}
       <Suspense fallback={<ReviewsSkeleton />}>
         <ProductReviews productId={id} />
       </Suspense>
