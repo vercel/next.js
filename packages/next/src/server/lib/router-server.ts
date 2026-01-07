@@ -368,7 +368,7 @@ export async function initialize(opts: {
           req.url = removePathPrefix(origUrl, config.assetPrefix)
         }
 
-        const parsedUrl = url.parse(req.url || '/')
+        const parsedUrl = parseUrlUtil(req.url || '/')
 
         const hotReloaderResult = await development.bundler.hotReloader.run(
           req,
@@ -497,7 +497,12 @@ export async function initialize(opts: {
           matchedOutput.type === 'nextStaticFolder'
         ) {
           if (opts.dev && !isNextFont(parsedUrl.pathname)) {
-            res.setHeader('Cache-Control', 'no-store, must-revalidate')
+            res.setHeader(
+              'Cache-Control',
+              config.experimental.devCacheControlNoCache
+                ? 'no-cache, must-revalidate'
+                : 'no-store, must-revalidate'
+            )
           } else {
             res.setHeader(
               'Cache-Control',
@@ -508,14 +513,9 @@ export async function initialize(opts: {
         if (!(req.method === 'GET' || req.method === 'HEAD')) {
           res.setHeader('Allow', ['GET', 'HEAD'])
           res.statusCode = 405
-          return await invokeRender(
-            url.parse('/405', true),
-            '/405',
-            handleIndex,
-            {
-              invokeStatus: 405,
-            }
-          )
+          return await invokeRender(parseUrlUtil('/405'), '/405', handleIndex, {
+            invokeStatus: 405,
+          })
         }
 
         try {
@@ -574,7 +574,7 @@ export async function initialize(opts: {
             const invokeStatus = err.statusCode
             res.statusCode = err.statusCode
             return await invokeRender(
-              url.parse(invokePath, true),
+              parseUrlUtil(invokePath),
               invokePath,
               handleIndex,
               {
@@ -684,7 +684,7 @@ export async function initialize(opts: {
           console.error(err)
         }
         res.statusCode = Number(invokeStatus)
-        return await invokeRender(url.parse(invokePath, true), invokePath, 0, {
+        return await invokeRender(parseUrlUtil(invokePath), invokePath, 0, {
           invokeStatus: res.statusCode,
         })
       } catch (err2) {

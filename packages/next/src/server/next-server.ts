@@ -22,7 +22,6 @@ import type { Params } from './request/params'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { RouteMatch } from './route-matches/route-match'
 import type { IncomingMessage, ServerResponse } from 'http'
-import type { UrlWithParsedQuery } from 'url'
 import type { ParsedUrlQuery } from 'querystring'
 import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
 import type { CacheControl } from './lib/cache-control'
@@ -606,6 +605,7 @@ export default class NextNodeServer extends BaseServer<
       generateEtags: boolean
       poweredByHeader: boolean
       cacheControl: CacheControl | undefined
+      cdnCacheControlHeader?: string
     }
   ): Promise<void> {
     return sendRenderResult({
@@ -615,6 +615,7 @@ export default class NextNodeServer extends BaseServer<
       generateEtags: options.generateEtags,
       poweredByHeader: options.poweredByHeader,
       cacheControl: options.cacheControl,
+      cdnCacheControlHeader: options.cdnCacheControlHeader,
     })
   }
 
@@ -784,6 +785,7 @@ export default class NextNodeServer extends BaseServer<
         ? await fetchExternalImage(
             href,
             this.nextConfig.images.dangerouslyAllowLocalIP,
+            this.nextConfig.images.maximumResponseBody,
             this.nextConfig.images.maximumRedirects
           )
         : await fetchInternalImage(
@@ -1636,7 +1638,7 @@ export default class NextNodeServer extends BaseServer<
     request: NodeNextRequest
     response: NodeNextResponse
     parsedUrl: ParsedUrl
-    parsed: UrlWithParsedQuery
+    parsed: NextUrlWithParsedQuery
     onWarning?: (warning: Error) => void
   }) {
     if (process.env.NEXT_MINIMAL) {

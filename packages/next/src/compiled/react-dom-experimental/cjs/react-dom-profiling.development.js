@@ -21865,16 +21865,6 @@
       checkAttributeStringCoercion(actionProp, "action");
       return sanitizeURL("" + actionProp);
     }
-    function createFormDataWithSubmitter(form, submitter) {
-      var temp = submitter.ownerDocument.createElement("input");
-      temp.name = submitter.name;
-      temp.value = submitter.value;
-      form.id && temp.setAttribute("form", form.id);
-      submitter.parentNode.insertBefore(temp, submitter);
-      form = new FormData(form);
-      temp.parentNode.removeChild(temp);
-      return form;
-    }
     function extractEvents$2(
       dispatchQueue,
       domEventName,
@@ -21912,12 +21902,7 @@
               listener: function () {
                 if (nativeEvent.defaultPrevented) {
                   if (0 !== currentEventTransitionLane) {
-                    var formData = submitter
-                        ? createFormDataWithSubmitter(
-                            nativeEventTarget,
-                            submitter
-                          )
-                        : new FormData(nativeEventTarget),
+                    var formData = new FormData(nativeEventTarget, submitter),
                       pendingState = {
                         pending: !0,
                         data: formData,
@@ -21935,12 +21920,7 @@
                 } else
                   "function" === typeof action &&
                     (event.preventDefault(),
-                    (formData = submitter
-                      ? createFormDataWithSubmitter(
-                          nativeEventTarget,
-                          submitter
-                        )
-                      : new FormData(nativeEventTarget)),
+                    (formData = new FormData(nativeEventTarget, submitter)),
                     (pendingState = {
                       pending: !0,
                       data: formData,
@@ -22794,16 +22774,41 @@
         normalizeMarkupForTextOrAttribute(serverValue) !== clientValue &&
           (serverDifferences[propName] = serverValue));
     }
+    function hasViewTransition(htmlElement) {
+      return !!(
+        htmlElement.getAttribute("vt-share") ||
+        htmlElement.getAttribute("vt-exit") ||
+        htmlElement.getAttribute("vt-enter") ||
+        htmlElement.getAttribute("vt-update")
+      );
+    }
+    function isExpectedViewTransitionName(htmlElement) {
+      if (!hasViewTransition(htmlElement)) return !1;
+      var expectedVtName = htmlElement.getAttribute("vt-name");
+      htmlElement = htmlElement.style["view-transition-name"];
+      return expectedVtName
+        ? expectedVtName === htmlElement
+        : htmlElement.startsWith("_T_");
+    }
     function warnForExtraAttributes(
       domElement,
       attributeNames,
       serverDifferences
     ) {
       attributeNames.forEach(function (attributeName) {
-        serverDifferences[getPropNameFromAttributeName(attributeName)] =
-          "style" === attributeName
-            ? getStylesObjectFromElement(domElement)
-            : domElement.getAttribute(attributeName);
+        "style" === attributeName
+          ? "" !== domElement.getAttribute(attributeName) &&
+            ((attributeName = domElement.style),
+            (((1 === attributeName.length &&
+              "view-transition-name" === attributeName[0]) ||
+              (2 === attributeName.length &&
+                "view-transition-class" === attributeName[0] &&
+                "view-transition-name" === attributeName[1])) &&
+              isExpectedViewTransitionName(domElement)) ||
+              (serverDifferences.style =
+                getStylesObjectFromElement(domElement)))
+          : (serverDifferences[getPropNameFromAttributeName(attributeName)] =
+              domElement.getAttribute(attributeName));
       });
     }
     function warnForInvalidEventListener(registrationName, listener) {
@@ -24131,12 +24136,16 @@
       }
     }
     function getStylesObjectFromElement(domElement) {
-      var serverValueInObjectForm = {};
-      domElement = domElement.style;
-      for (var i = 0; i < domElement.length; i++) {
-        var styleName = domElement[i];
-        serverValueInObjectForm[styleName] =
-          domElement.getPropertyValue(styleName);
+      for (
+        var serverValueInObjectForm = {}, style = domElement.style, i = 0;
+        i < style.length;
+        i++
+      ) {
+        var styleName = style[i];
+        ("view-transition-name" === styleName &&
+          isExpectedViewTransitionName(domElement)) ||
+          (serverValueInObjectForm[styleName] =
+            style.getPropertyValue(styleName));
       }
       return serverValueInObjectForm;
     }
@@ -24186,7 +24195,10 @@
         value$jscomp$0 = domElement.getAttribute("style");
         value$jscomp$0 !== clientValue &&
           ((clientValue = normalizeMarkupForTextOrAttribute(clientValue)),
-          normalizeMarkupForTextOrAttribute(value$jscomp$0) !== clientValue &&
+          (value$jscomp$0 = normalizeMarkupForTextOrAttribute(value$jscomp$0)),
+          value$jscomp$0 === clientValue ||
+            (";" === value$jscomp$0[value$jscomp$0.length - 1] &&
+              hasViewTransition(domElement)) ||
             (serverDifferences.style = getStylesObjectFromElement(domElement)));
       }
     }
@@ -32493,11 +32505,11 @@
     };
     (function () {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-experimental-b45bb335-20251211" !== isomorphicReactPackageVersion)
+      if ("19.3.0-experimental-65eec428-20251218" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-experimental-b45bb335-20251211\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-experimental-65eec428-20251218\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     })();
     ("function" === typeof Map &&
@@ -32534,10 +32546,10 @@
       !(function () {
         var internals = {
           bundleType: 1,
-          version: "19.3.0-experimental-b45bb335-20251211",
+          version: "19.3.0-experimental-65eec428-20251218",
           rendererPackageName: "react-dom",
           currentDispatcherRef: ReactSharedInternals,
-          reconcilerVersion: "19.3.0-experimental-b45bb335-20251211"
+          reconcilerVersion: "19.3.0-experimental-65eec428-20251218"
         };
         internals.overrideHookState = overrideHookState;
         internals.overrideHookStateDeletePath = overrideHookStateDeletePath;
@@ -33015,7 +33027,7 @@
     exports.useFormStatus = function () {
       return resolveDispatcher().useHostTransitionStatus();
     };
-    exports.version = "19.3.0-experimental-b45bb335-20251211";
+    exports.version = "19.3.0-experimental-65eec428-20251218";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

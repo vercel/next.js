@@ -7,7 +7,7 @@ function Content({
   searchParams,
 }: {
   params: Promise<{ product: string }>
-  searchParams: Promise<{ foo: string }>
+  searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
   const { product } = use(params)
   const searchParamsDict = use(searchParams)
@@ -30,7 +30,7 @@ export default function ProductPage({
   searchParams,
 }: {
   params: Promise<{ product: string }>
-  searchParams: Promise<{ foo: string }>
+  searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
   return (
     <Suspense fallback="Loading...">
