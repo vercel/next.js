@@ -199,4 +199,84 @@ describe('deploymentId function support', () => {
     // Ensure an error was actually thrown
     expect(errorThrown).toBe(true)
   })
+
+  it('should throw error when deploymentId exceeds 32 characters', async () => {
+    let errorThrown = false
+    try {
+      await createNext({
+        files: {
+          'app/layout.jsx': `
+            export default function Layout({ children }) {
+              return children
+            }
+          `,
+          'app/page.jsx': `
+            export default function Page() { 
+              return <p>hello world</p>
+            } 
+          `,
+          'next.config.js': `
+            module.exports = {
+              deploymentId: 'this-is-a-very-long-deployment-id-that-exceeds-32-characters'
+            }
+          `,
+        },
+        dependencies: {},
+      })
+    } catch (err: any) {
+      errorThrown = true
+      // The error is thrown in the child process, so we just verify that createNext fails
+      // The actual error message about exceeding 32 characters is visible in the console output
+      // but wrapped differently in different modes
+      expect(err).toBeDefined()
+      expect(
+        err.message.includes('exited unexpectedly') ||
+          err.message.includes('build failed') ||
+          err.message.includes('Failed to deploy')
+      ).toBe(true)
+    }
+    // Ensure an error was actually thrown
+    expect(errorThrown).toBe(true)
+  })
+
+  it('should throw error when deploymentId function returns string exceeding 32 characters', async () => {
+    let errorThrown = false
+    try {
+      await createNext({
+        files: {
+          'app/layout.jsx': `
+            export default function Layout({ children }) {
+              return children
+            }
+          `,
+          'app/page.jsx': `
+            export default function Page() { 
+              return <p>hello world</p>
+            } 
+          `,
+          'next.config.js': `
+            module.exports = {
+              deploymentId: () => {
+                return 'this-is-a-very-long-deployment-id-that-exceeds-32-characters'
+              }
+            }
+          `,
+        },
+        dependencies: {},
+      })
+    } catch (err: any) {
+      errorThrown = true
+      // The error is thrown in the child process, so we just verify that createNext fails
+      // The actual error message about exceeding 32 characters is visible in the console output
+      // but wrapped differently in different modes
+      expect(err).toBeDefined()
+      expect(
+        err.message.includes('exited unexpectedly') ||
+          err.message.includes('build failed') ||
+          err.message.includes('Failed to deploy')
+      ).toBe(true)
+    }
+    // Ensure an error was actually thrown
+    expect(errorThrown).toBe(true)
+  })
 })
