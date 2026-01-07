@@ -10,6 +10,10 @@ const withCustomPagesDir = path.join(__dirname, 'with-custom-pages-dir')
 const withNestedPagesDir = path.join(__dirname, 'with-nested-pages-dir')
 const withoutPagesDir = path.join(__dirname, 'without-pages-dir')
 const withAppDir = path.join(__dirname, 'with-app-dir')
+const withCustomPageExtensions = path.join(
+  __dirname,
+  'with-custom-page-extensions'
+)
 
 const linters = {
   withoutPages: new Linter({
@@ -26,6 +30,10 @@ const linters = {
   }),
   withCustomPages: new Linter({
     cwd: withCustomPagesDir,
+    configType: 'eslintrc',
+  }),
+  withCustomPageExtensions: new Linter({
+    cwd: withCustomPageExtensions,
     configType: 'eslintrc',
   }),
 }
@@ -69,6 +77,14 @@ const linterConfigWithNestedContentRootDirDirectory = {
   settings: {
     next: {
       rootDir: path.join(withNestedPagesDir, 'demos/with-nextjs'),
+    },
+  },
+}
+const linterConfigWithCustomPageExtensions = {
+  ...linterConfig,
+  settings: {
+    next: {
+      pageExtensions: ['page.tsx', 'page.ts'],
     },
   },
 }
@@ -493,6 +509,44 @@ describe('no-html-link-for-pages', function () {
     assert.equal(
       report.message,
       'Do not use an `<a>` element to navigate to `/photo/1/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
+  it('detects pages with custom pageExtensions', function () {
+    const [report] = linters.withCustomPageExtensions.verify(
+      invalidStaticCode,
+      linterConfigWithCustomPageExtensions,
+      { filename: 'foo.js' }
+    )
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
+  it('detects about page with custom pageExtensions', function () {
+    const invalidAboutCode = `
+import Link from 'next/link';
+
+export class Blah extends Head {
+  render() {
+    return (
+      <div>
+        <a href='/about'>About</a>
+        <h1>Hello title</h1>
+      </div>
+    );
+  }
+}
+`
+    const [report] = linters.withCustomPageExtensions.verify(
+      invalidAboutCode,
+      linterConfigWithCustomPageExtensions,
+      { filename: 'foo.js' }
+    )
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/about/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
     )
   })
 })
