@@ -446,6 +446,20 @@ export async function startServer(
           process.on('SIGTERM', cleanup)
         }
 
+        const startTime = parseInt(
+          process.env.NEXT_PRIVATE_START_TIME || '0',
+          10
+        )
+        const endTime = Date.now()
+        const startServerProcessDuration = endTime - startTime
+
+        const formatDurationText =
+          startServerProcessDuration > 2000
+            ? `${Math.round(startServerProcessDuration / 100) / 10}s`
+            : `${Math.round(startServerProcessDuration)}ms`
+
+        Log.event(`Ready in ${formatDurationText}`)
+
         const initResult = await getRequestHandlers({
           dir,
           port,
@@ -464,21 +478,7 @@ export async function startServer(
         nextServer = initResult.server
         closeUpgraded = initResult.closeUpgraded
 
-        const startServerProcessDuration =
-          performance.mark('next-start-end') &&
-          performance.measure(
-            'next-start-duration',
-            'next-start',
-            'next-start-end'
-          ).duration
-
         handlersReady()
-        const formatDurationText =
-          startServerProcessDuration > 2000
-            ? `${Math.round(startServerProcessDuration / 100) / 10}s`
-            : `${Math.round(startServerProcessDuration)}ms`
-
-        Log.event(`Ready in ${formatDurationText}`)
 
         if (process.env.TURBOPACK && isDev) {
           await validateTurboNextConfig({
