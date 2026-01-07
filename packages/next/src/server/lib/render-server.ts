@@ -8,6 +8,7 @@ import type { ServerResponse } from 'http'
 import type { OnCacheEntryHandler } from '../request-meta'
 import { interopDefault } from '../../lib/interop-default'
 import { formatDynamicImportPath } from '../../lib/format-dynamic-import-path'
+import type { ConfiguredExperimentalFeature } from '../config'
 
 export type ServerInitResult = {
   requestHandler: RequestHandler
@@ -17,6 +18,10 @@ export type ServerInitResult = {
   closeUpgraded: () => void
   // The distDir from config, used by the parent process for telemetry/trace
   distDir: string
+  // Experimental features from config, used for logging after server is ready
+  experimentalFeatures: ConfiguredExperimentalFeature[]
+  // Whether cache components is enabled
+  cacheComponents: boolean
 }
 
 let initializations: Record<string, Promise<ServerInitResult> | undefined> = {}
@@ -94,6 +99,8 @@ async function initializeImpl(opts: {
   quiet?: boolean
   onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
   distDir: string
+  experimentalFeatures: ConfiguredExperimentalFeature[]
+  cacheComponents: boolean
 }): Promise<ServerInitResult> {
   const type = process.env.__NEXT_PRIVATE_RENDER_WORKER
   if (type) {
@@ -170,6 +177,8 @@ async function initializeImpl(opts: {
       opts.bundlerService?.close()
     },
     distDir: opts.distDir,
+    experimentalFeatures: opts.experimentalFeatures,
+    cacheComponents: opts.cacheComponents,
   }
 }
 

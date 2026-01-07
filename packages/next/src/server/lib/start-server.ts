@@ -29,13 +29,12 @@ import {
   CONFIG_FILES,
   PHASE_DEVELOPMENT_SERVER,
 } from '../../shared/lib/constants'
-import { getStartServerInfo, logStartInfo } from './app-info-log'
+import { getEnvInfo, logExperimentalInfo, logStartInfo } from './app-info-log'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import { type Span, trace, flushAllTraces } from '../../trace'
 import { isIPv6 } from './is-ipv6'
 import { AsyncCallbackSet } from './async-callback-set'
 import type { NextServer } from '../next'
-import type { ConfiguredExperimentalFeature } from '../config'
 
 const debug = setupDebug('next:start-server')
 let startServerSpan: Span | undefined
@@ -358,28 +357,31 @@ export async function startServer(
         process.env.__NEXT_EXPERIMENTAL_HTTPS = '1'
       }
 
-      // Only load env and config in dev to for logging purposes
-      let envInfo: string[] | undefined
-      let experimentalFeatures: ConfiguredExperimentalFeature[] | undefined
-      let cacheComponents: boolean | undefined
+      // Get env info first (fast, doesn't require config)
+      const envInfo = isDev ? getEnvInfo(dir) : undefined
+
+      // Log basic startup info immediately (before loading config)
+      logStartInfo({
+        networkUrl,
+        appUrl,
+        envInfo,
+        logBundler: isDev,
+      })
+
+      // Calculate and log "Ready in X" before loading config
+      // so it reflects actual framework startup time
+      const startTime = parseInt(process.env.NEXT_PRIVATE_START_TIME || '0', 10)
+      const endTime = Date.now()
+      const startServerProcessDuration = endTime - startTime
+
+      const formatDurationText =
+        startServerProcessDuration > 2000
+          ? `${Math.round(startServerProcessDuration / 100) / 10}s`
+          : `${Math.round(startServerProcessDuration)}ms`
+
+      Log.event(`Ready in ${formatDurationText}`)
+
       try {
-        if (isDev) {
-          const startServerInfo = await getStartServerInfo({ dir, dev: isDev })
-          envInfo = startServerInfo.envInfo
-          cacheComponents = startServerInfo.cacheComponents
-          experimentalFeatures = startServerInfo.experimentalFeatures
-        }
-        logStartInfo({
-          networkUrl,
-          appUrl,
-          envInfo,
-          experimentalFeatures,
-          cacheComponents,
-          logBundler: isDev,
-        })
-
-        Log.event(`Starting...`)
-
         let cleanupStarted = false
         let closeUpgraded: (() => void) | null = null
         const cleanup = () => {
@@ -446,20 +448,7 @@ export async function startServer(
           process.on('SIGTERM', cleanup)
         }
 
-        const startTime = parseInt(
-          process.env.NEXT_PRIVATE_START_TIME || '0',
-          10
-        )
-        const endTime = Date.now()
-        const startServerProcessDuration = endTime - startTime
-
-        const formatDurationText =
-          startServerProcessDuration > 2000
-            ? `${Math.round(startServerProcessDuration / 100) / 10}s`
-            : `${Math.round(startServerProcessDuration)}ms`
-
-        Log.event(`Ready in ${formatDurationText}`)
-
+        // Now load config via getRequestHandlers (single loadConfig call)
         const initResult = await getRequestHandlers({
           dir,
           port,
@@ -477,6 +466,14 @@ export async function startServer(
         upgradeHandler = initResult.upgradeHandler
         nextServer = initResult.server
         closeUpgraded = initResult.closeUpgraded
+
+        // Log experimental features after config is loaded
+        if (isDev) {
+          logExperimentalInfo({
+            experimentalFeatures: initResult.experimentalFeatures,
+            cacheComponents: initResult.cacheComponents,
+          })
+        }
 
         handlersReady()
 
