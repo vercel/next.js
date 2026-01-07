@@ -826,7 +826,6 @@ async function startWatcher(
           await hotReloader.turbopackProject.update({
             defineEnv: createDefineEnv({
               isTurbopack: true,
-              clientRouterFilters,
               config: nextConfig,
               dev: true,
               distDir,
@@ -921,7 +920,6 @@ async function startWatcher(
                 ) {
                   const newDefine = getDefineEnv({
                     isTurbopack: false,
-                    clientRouterFilters,
                     config: nextConfig,
                     dev: true,
                     distDir,

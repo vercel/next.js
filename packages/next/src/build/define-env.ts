@@ -19,10 +19,6 @@ type BloomFilter = ReturnType<
 
 export interface DefineEnvOptions {
   isTurbopack: boolean
-  clientRouterFilters?: {
-    staticFilter: BloomFilter
-    dynamicFilter: BloomFilter
-  }
   config: NextConfigComplete
   dev: boolean
   distDir: string
@@ -98,7 +94,6 @@ function getImageConfig(
 
 export function getDefineEnv({
   isTurbopack,
-  clientRouterFilters,
   config,
   dev,
   distDir,
@@ -207,10 +202,6 @@ export function getDefineEnv({
     ),
     'process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED':
       config.experimental.clientRouterFilter ?? true,
-    'process.env.__NEXT_CLIENT_ROUTER_S_FILTER':
-      clientRouterFilters?.staticFilter ?? false,
-    'process.env.__NEXT_CLIENT_ROUTER_D_FILTER':
-      clientRouterFilters?.dynamicFilter ?? false,
     'process.env.__NEXT_CLIENT_VALIDATE_RSC_REQUEST_HEADERS': Boolean(
       config.experimental.validateRSCRequestHeaders
     ),

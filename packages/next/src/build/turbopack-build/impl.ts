@@ -65,7 +65,6 @@ export async function turbopackBuild(): Promise<{
       env: process.env as Record<string, string>,
       defineEnv: createDefineEnv({
         isTurbopack: true,
-        clientRouterFilters: NextBuildContext.clientRouterFilters!,
         config,
         dev,
         distDir,

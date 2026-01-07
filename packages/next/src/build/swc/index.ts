@@ -428,7 +428,6 @@ type RustifiedOptionEnv = { name: string; value: string | undefined }[]
 
 export function createDefineEnv({
   isTurbopack,
-  clientRouterFilters,
   config,
   dev,
   distDir,
@@ -451,7 +450,6 @@ export function createDefineEnv({
     defineEnv[variant] = rustifyOptionEnv(
       getDefineEnv({
         isTurbopack,
-        clientRouterFilters,
         config,
         dev,
         distDir,

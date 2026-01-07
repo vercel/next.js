@@ -236,12 +236,6 @@ export async function createHotReloaderTurbopack(
     distDir,
   })
 
-  // TODO: Implement
-  let clientRouterFilters: any
-  if (nextConfig.experimental.clientRouterFilter) {
-    // TODO this need to be set correctly for filesystem cache to work
-  }
-
   const supportedBrowsers = getSupportedBrowsers(projectPath, dev)
   const currentNodeJsVersion = process.versions.node
 
@@ -263,7 +257,6 @@ export async function createHotReloaderTurbopack(
       env: process.env as Record<string, string>,
       defineEnv: createDefineEnv({
         isTurbopack: true,
-        clientRouterFilters,
         config: nextConfig,
         dev,
         distDir,
