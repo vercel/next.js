@@ -244,7 +244,7 @@
     "nprogress": "0.2.0",
     "octokit": "3.1.0",
     "outdent": "0.8.0",
-    "oxfmt": "0.8.0",
+    "oxfmt": "0.23.0",
     "pixrem": "5.0.0",
     "playwright": "1.48.0",
     "playwright-chromium": "1.48.0",
