@@ -144,7 +144,16 @@ describe('deploymentId function support', () => {
 
     const res = await next.fetch('/')
     const setCookieHeader = res.headers.get('set-cookie')
-    expect(setCookieHeader).toContain('__vdpl=skew-cookie-deployment-id')
+
+    // In deploy mode (NEXT_DEPLOYMENT_ID set by Vercel), expect the Vercel deployment ID (starts with dpl_)
+    // In prebuild mode (NEXT_DEPLOYMENT_ID not set), expect the user-configured ID
+    if (setCookieHeader?.includes('__vdpl=dpl_')) {
+      // Deploy mode: expect Vercel's deployment ID (format: dpl_...)
+      expect(setCookieHeader).toMatch(/__vdpl=dpl_[^;]+/)
+    } else {
+      // Prebuild mode: expect user-configured deployment ID
+      expect(setCookieHeader).toContain('__vdpl=skew-cookie-deployment-id')
+    }
   })
 
   it('should throw error when deploymentId function returns non-string', async () => {

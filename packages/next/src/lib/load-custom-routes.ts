@@ -728,6 +728,8 @@ export default async function loadCustomRoutes(
 
   if (config.experimental?.useSkewCookie && config.deploymentId) {
     // Evaluate deploymentId function if needed before string interpolation
+    // When NEXT_DEPLOYMENT_ID is set (Vercel deployment), config.deploymentId will be that value
+    // When NEXT_DEPLOYMENT_ID is not set (prebuild), config.deploymentId will be the user-configured value
     const deploymentId = generateDeploymentId(config.deploymentId) || ''
     headers.unshift({
       source: '/:path*',
