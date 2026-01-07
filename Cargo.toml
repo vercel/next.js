@@ -339,7 +339,7 @@ turbopack-trace-utils = { path = "turbopack/crates/turbopack-trace-utils" }
 turbopack-wasm = { path = "turbopack/crates/turbopack-wasm" }
 
 # SWC crates
-swc_core = { version = "50.2.3", features = [
+swc_core = { version = "54.0.0", features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
   "parallel_rayon",
@@ -350,13 +350,13 @@ testing = "19.0.0"
 # Keep consistent with preset_env_base through swc_core
 browserslist-rs = "0.19.0"
 mdxjs = "1.0.3"
-modularize_imports = "0.105.0"
-styled_components = "0.133.0"
-styled_jsx = "0.108.0"
-swc_emotion = "0.109.0"
-swc_relay = "0.79.0"
-react_remove_properties = "0.59.0"
-remove_console = "0.60.0"
+modularize_imports = "0.108.0"
+styled_components = "0.136.0"
+styled_jsx = "0.111.0"
+swc_emotion = "0.112.0"
+swc_relay = "0.82.0"
+react_remove_properties = "0.62.0"
+remove_console = "0.63.0"
 preset_env_base = "6.0.0"
 
 
