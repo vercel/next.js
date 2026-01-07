@@ -12,8 +12,8 @@ test-timings.json
 pnpm-lock.yaml
 
 # flow code
-examples/with-flow/components/Page.js
-examples/with-custom-babel-config/pages/index.js
+with-flow/components/Page.js
+with-custom-babel-config/pages/index.js
 
 
 **/convex/_generated/**

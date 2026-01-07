@@ -1,3 +1,7 @@
+# Handled by Prettier
+*.mdx
+*.toml
+
 # Build artifacts
 .next/
 .turbo/
