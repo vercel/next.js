@@ -538,19 +538,6 @@ fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> proc_macro2::Toke
         })
         .collect();
 
-    // Generate discriminant method arms
-    let discriminant_arms: Vec<_> = all_lazy_fields
-        .iter()
-        .enumerate()
-        .map(|(i, field)| {
-            let variant_name = &field.variant_name;
-            let idx = i as u8;
-            quote! {
-                LazyField::#variant_name(_) => #idx
-            }
-        })
-        .collect();
-
     quote! {
         /// All lazily-allocated fields stored in a single Vec.
         /// Fields are stored directly (unboxed) to avoid allocation overhead.
@@ -584,13 +571,6 @@ fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> proc_macro2::Toke
             /// Returns true if this field belongs to the data category
             pub fn is_data(&self) -> bool {
                 !self.is_meta()
-            }
-
-            /// Get discriminant value for serialization
-            pub fn discriminant(&self) -> u8 {
-                match self {
-                    #(#discriminant_arms),*
-                }
             }
         }
     }
@@ -652,14 +632,18 @@ fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> proc_macro2:
                 self.lazy.iter_mut().find_map(extract)
             }
 
-            /// Get or create a lazy field, returning a mutable reference
+            /// Get or create a lazy field, returning a mutable reference.
+            ///
+            /// Uses a single `extract` closure that serves as both the matcher (by returning Some/None)
+            /// and the value extractor. The closure is first used immutably to find the field,
+            /// then mutably to extract the value.
             pub fn get_or_create_lazy<T>(
                 &mut self,
-                check: impl Fn(&LazyField) -> bool,
-                extract: impl Fn(&mut LazyField) -> Option<&mut T>,
+                extract: impl for<'a> Fn(&'a mut LazyField) -> Option<&'a mut T>,
                 create: impl FnOnce() -> LazyField,
             ) -> &mut T {
-                let idx = self.lazy.iter().position(|f| check(f));
+                // Find the index of matching field
+                let idx = self.lazy.iter_mut().position(|f| extract(f).is_some());
                 if let Some(idx) = idx {
                     extract(&mut self.lazy[idx]).unwrap()
                 } else {
@@ -791,7 +775,6 @@ fn generate_lazy_field_accessors(field: &FieldInfo) -> proc_macro2::TokenStream 
 
                 pub fn #mut_name(&mut self) -> &mut #field_type {
                     self.get_or_create_lazy(
-                        |f| matches!(f, LazyField::#variant_name(_)),
                         |f| match f {
                             LazyField::#variant_name(v) => Some(v),
                             _ => None,
@@ -1139,7 +1122,6 @@ fn generate_lazy_trait_accessor_methods(field: &FieldInfo) -> proc_macro2::Token
                     self.check_access(#check_access_category);
                     let typed = self.typed_mut(#specific_category_variant);
                     typed.get_or_create_lazy(
-                        |f| matches!(f, LazyField::#variant_name(_)),
                         |f| match f {
                             LazyField::#variant_name(v) => Some(v),
                             _ => None,
@@ -1595,7 +1577,7 @@ fn generate_encode_lazy_field_arm(field: &FieldInfo, discriminant: u8) -> proc_m
 }
 
 /// Generate code to decode lazy fields from bincode.
-/// Reads until sentinel byte (0xFF) is encountered.
+/// Reads until sentinel byte (0x00) is encountered.
 fn generate_decode_lazy_fields(fields: &[&FieldInfo]) -> proc_macro2::TokenStream {
     if fields.is_empty() {
         return quote! {};
@@ -1711,28 +1693,6 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> proc_mac
         })
         .collect();
 
-    // Generate debug assertion checks for restore_meta_from lazy fields
-    let restore_meta_lazy_debug_checks: Vec<_> = persistent_lazy_meta
-        .iter()
-        .map(|field| {
-            let variant_name = &field.variant_name;
-            quote! {
-                LazyField::#variant_name(_)
-            }
-        })
-        .collect();
-
-    // Generate filter pattern for meta lazy fields
-    let restore_meta_lazy_filter: Vec<_> = persistent_lazy_meta
-        .iter()
-        .map(|field| {
-            let variant_name = &field.variant_name;
-            quote! {
-                LazyField::#variant_name(_)
-            }
-        })
-        .collect();
-
     // Generate restore_data_from inline field assignments
     let restore_data_inline: Vec<_> = persistent_inline_data
         .iter()
@@ -1740,28 +1700,6 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> proc_mac
             let field_name = &field.field_name;
             quote! {
                 self.#field_name = source.#field_name;
-            }
-        })
-        .collect();
-
-    // Generate debug assertion checks for restore_data_from lazy fields
-    let restore_data_lazy_debug_checks: Vec<_> = persistent_lazy_data
-        .iter()
-        .map(|field| {
-            let variant_name = &field.variant_name;
-            quote! {
-                LazyField::#variant_name(_)
-            }
-        })
-        .collect();
-
-    // Generate filter pattern for data lazy fields
-    let restore_data_lazy_filter: Vec<_> = persistent_lazy_data
-        .iter()
-        .map(|field| {
-            let variant_name = &field.variant_name;
-            quote! {
-                LazyField::#variant_name(_)
             }
         })
         .collect();
@@ -1782,30 +1720,6 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> proc_mac
             let field_name = &field.field_name;
             quote! {
                 self.#field_name = source.#field_name;
-            }
-        })
-        .collect();
-
-    // Generate debug assertion checks for restore_all_from lazy fields
-    let restore_all_lazy_debug_checks: Vec<_> = persistent_lazy_meta
-        .iter()
-        .chain(persistent_lazy_data.iter())
-        .map(|field| {
-            let variant_name = &field.variant_name;
-            quote! {
-                LazyField::#variant_name(_)
-            }
-        })
-        .collect();
-
-    // Generate filter pattern for all persistent lazy fields
-    let restore_all_lazy_filter: Vec<_> = persistent_lazy_meta
-        .iter()
-        .chain(persistent_lazy_data.iter())
-        .map(|field| {
-            let variant_name = &field.variant_name;
-            quote! {
-                LazyField::#variant_name(_)
             }
         })
         .collect();
@@ -1954,10 +1868,10 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> proc_mac
             /// Debug assertions verify that the target doesn't already have the lazy fields
             /// being restored.
             fn restore_meta_from(&mut self, source: TypedStorage) {
-                // Debug assertion: verify target doesn't already have meta lazy fields
+                // Debug assertion: verify target doesn't already have persistent meta lazy fields
                 debug_assert!(
-                    !self.lazy.iter().any(|f| matches!(f, #(#restore_meta_lazy_debug_checks)|*)),
-                    "restore_meta_from called on storage that already has meta lazy fields"
+                    !self.lazy.iter().any(|f| f.is_persistent() && f.is_meta()),
+                    "restore_meta_from called on storage that already has persistent meta lazy fields"
                 );
 
                 // Inline meta fields - direct assignment
@@ -1965,9 +1879,9 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> proc_mac
 
                 #restore_flags
 
-                // Extend lazy vec with meta fields from source (filtered)
+                // Extend lazy vec with persistent meta fields from source
                 self.lazy.extend(
-                    source.lazy.into_iter().filter(|f| matches!(f, #(#restore_meta_lazy_filter)|*))
+                    source.lazy.into_iter().filter(|f| f.is_persistent() && f.is_meta())
                 );
             }
 
@@ -1976,18 +1890,18 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> proc_mac
             /// Debug assertions verify that the target doesn't already have the lazy fields
             /// being restored.
             fn restore_data_from(&mut self, source: TypedStorage) {
-                // Debug assertion: verify target doesn't already have data lazy fields
+                // Debug assertion: verify target doesn't already have persistent data lazy fields
                 debug_assert!(
-                    !self.lazy.iter().any(|f| matches!(f, #(#restore_data_lazy_debug_checks)|*)),
-                    "restore_data_from called on storage that already has data lazy fields"
+                    !self.lazy.iter().any(|f| f.is_persistent() && f.is_data()),
+                    "restore_data_from called on storage that already has persistent data lazy fields"
                 );
 
                 // Inline data fields - direct assignment
                 #(#restore_data_inline)*
 
-                // Extend lazy vec with data fields from source (filtered)
+                // Extend lazy vec with persistent data fields from source
                 self.lazy.extend(
-                    source.lazy.into_iter().filter(|f| matches!(f, #(#restore_data_lazy_filter)|*))
+                    source.lazy.into_iter().filter(|f| f.is_persistent() && f.is_data())
                 );
             }
 
@@ -1998,7 +1912,7 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> proc_mac
             fn restore_all_from(&mut self, source: TypedStorage) {
                 // Debug assertion: verify target doesn't already have any persistent lazy fields
                 debug_assert!(
-                    !self.lazy.iter().any(|f| matches!(f, #(#restore_all_lazy_debug_checks)|*)),
+                    !self.lazy.iter().any(|f| f.is_persistent()),
                     "restore_all_from called on storage that already has persistent lazy fields"
                 );
 
@@ -2010,9 +1924,9 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> proc_mac
 
                 #restore_flags
 
-                // Extend lazy vec with all persistent fields from source (filtered)
+                // Extend lazy vec with all persistent fields from source
                 self.lazy.extend(
-                    source.lazy.into_iter().filter(|f| matches!(f, #(#restore_all_lazy_filter)|*))
+                    source.lazy.into_iter().filter(|f| f.is_persistent())
                 );
             }
         }
