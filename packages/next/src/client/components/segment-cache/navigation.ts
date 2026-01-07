@@ -6,123 +6,31 @@ import type {
 import type { CacheNode } from '../../../shared/lib/app-router-types'
 import type { HeadData } from '../../../shared/lib/app-router-types'
 import type { NormalizedFlightData } from '../../flight-data-helpers'
-import { fetchServerResponse } from '../router-reducer/fetch-server-response'
 import {
   startPPRNavigation,
   spawnDynamicRequests,
-  FreshnessPolicy,
+  type FreshnessPolicy,
   type NavigationRequestAccumulation,
 } from '../router-reducer/ppr-navigations'
 import { createHrefFromUrl } from '../router-reducer/create-href-from-url'
 import {
-  EntryStatus,
-  readRouteCacheEntry,
-  requestOptimisticRouteCacheEntry,
   convertRootFlightRouterStateToRouteTree,
   type RouteTree,
-  type FulfilledRouteCacheEntry,
 } from './cache'
-import { createCacheKey, type NormalizedSearch } from './cache-key'
+import type { NormalizedSearch } from './cache-key'
 import type { PageVaryPath } from './vary-path'
 import type { AppRouterState } from '../router-reducer/router-reducer-types'
+import type { RouterTask } from '../router-reducer/reducers/router-task'
 import { computeChangedPath } from '../router-reducer/compute-changed-path'
 import { isJavaScriptURLString } from '../../lib/javascript-url'
 
-/**
- * Navigate to a new URL, using the Segment Cache to construct a response.
- *
- * To allow for synchronous navigations whenever possible, this is not an async
- * function. It returns a promise only if there's no matching prefetch in
- * the cache. Otherwise it returns an immediate result and uses Suspense/RSC to
- * stream in any missing data.
- */
-export function navigate(
-  state: AppRouterState,
-  url: URL,
-  currentUrl: URL,
-  currentRenderedSearch: string,
-  currentCacheNode: CacheNode | null,
-  currentFlightRouterState: FlightRouterState,
-  nextUrl: string | null,
-  freshnessPolicy: FreshnessPolicy,
-  shouldScroll: boolean,
-  navigateType: 'push' | 'replace'
-): AppRouterState | Promise<AppRouterState> {
-  const now = Date.now()
-  const href = url.href
-
-  const cacheKey = createCacheKey(href, nextUrl)
-  const route = readRouteCacheEntry(now, cacheKey)
-  if (route !== null && route.status === EntryStatus.Fulfilled) {
-    // We have a matching prefetch.
-    return navigateUsingPrefetchedRouteTree(
-      now,
-      state,
-      url,
-      currentUrl,
-      currentRenderedSearch,
-      nextUrl,
-      currentCacheNode,
-      currentFlightRouterState,
-      freshnessPolicy,
-      shouldScroll,
-      navigateType,
-      route
-    )
-  }
-
-  // There was no matching route tree in the cache. Let's see if we can
-  // construct an "optimistic" route tree.
-  //
-  // Do not construct an optimistic route tree if there was a cache hit, but
-  // the entry has a rejected status, since it may have been rejected due to a
-  // rewrite or redirect based on the search params.
-  //
-  // TODO: There are multiple reasons a prefetch might be rejected; we should
-  // track them explicitly and choose what to do here based on that.
-  if (route === null || route.status !== EntryStatus.Rejected) {
-    const optimisticRoute = requestOptimisticRouteCacheEntry(now, url, nextUrl)
-    if (optimisticRoute !== null) {
-      // We have an optimistic route tree. Proceed with the normal flow.
-      return navigateUsingPrefetchedRouteTree(
-        now,
-        state,
-        url,
-        currentUrl,
-        currentRenderedSearch,
-        nextUrl,
-        currentCacheNode,
-        currentFlightRouterState,
-        freshnessPolicy,
-        shouldScroll,
-        navigateType,
-        optimisticRoute
-      )
-    }
-  }
-
-  // There's no matching prefetch for this route in the cache.
-  return navigateToUnknownRoute(
-    now,
-    state,
-    url,
-    currentUrl,
-    currentRenderedSearch,
-    nextUrl,
-    currentCacheNode,
-    currentFlightRouterState,
-    freshnessPolicy,
-    shouldScroll,
-    navigateType
-  ).catch(() => {
-    // If the navigation fails, return the current state
-    return state
-  })
-}
+// TODO: Inline this module into router-task.ts. The NavigationSeed stuff at the
+// bottom can perhaps move into its own module, or to flight-data-helpers.ts.
 
 export function navigateToKnownRoute(
   now: number,
-  state: AppRouterState,
+  baseState: AppRouterState,
+  routerTask: RouterTask,
   url: URL,
   canonicalUrl: string,
   navigationSeed: NavigationSeed,
@@ -133,7 +41,7 @@ export function navigateToKnownRoute(
   freshnessPolicy: FreshnessPolicy,
   nextUrl: string | null,
   shouldScroll: boolean,
-  navigateType: 'push' | 'replace',
+  navigateType: NavigationType,
   debugInfo: Array<unknown> | null
 ): AppRouterState {
   // A version of navigate() that accepts the target route tree as an argument
@@ -161,7 +69,7 @@ export function navigateToKnownRoute(
   // data. If the page segment is fully static and prefetched, the request is
   // skipped. (This is also how refresh() works.)
   const isSamePageNavigation = url.href === currentUrl.href
-  const task = startPPRNavigation(
+  const cacheNodeTask = startPPRNavigation(
     now,
     currentUrl,
     currentRenderedSearch,
@@ -175,14 +83,21 @@ export function navigateToKnownRoute(
     isSamePageNavigation,
     accumulation
   )
-  if (task !== null) {
-    spawnDynamicRequests(task, url, nextUrl, freshnessPolicy, accumulation)
-    return completeSoftNavigation(
-      state,
+  if (cacheNodeTask !== null) {
+    spawnDynamicRequests(
+      cacheNodeTask,
+      routerTask,
       url,
       nextUrl,
-      task.route,
-      task.node,
+      freshnessPolicy,
+      accumulation
+    )
+    return completeSoftNavigation(
+      baseState,
+      url,
+      nextUrl,
+      cacheNodeTask.route,
+      cacheNodeTask.node,
       navigationSeed.renderedSearch,
       canonicalUrl,
       navigateType,
@@ -192,149 +107,13 @@ export function navigateToKnownRoute(
     )
   }
   // Could not perform a SPA navigation. Revert to a full-page (MPA) navigation.
-  return completeHardNavigation(state, url, navigateType)
-}
-
-function navigateUsingPrefetchedRouteTree(
-  now: number,
-  state: AppRouterState,
-  url: URL,
-  currentUrl: URL,
-  currentRenderedSearch: string,
-  nextUrl: string | null,
-  currentCacheNode: CacheNode | null,
-  currentFlightRouterState: FlightRouterState,
-  freshnessPolicy: FreshnessPolicy,
-  shouldScroll: boolean,
-  navigateType: 'push' | 'replace',
-  route: FulfilledRouteCacheEntry
-): AppRouterState {
-  const routeTree = route.tree
-  const canonicalUrl = route.canonicalUrl + url.hash
-  const renderedSearch = route.renderedSearch
-  const prefetchSeed: NavigationSeed = {
-    renderedSearch,
-    routeTree,
-    metadataVaryPath: route.metadata.varyPath as any,
-    data: null,
-    head: null,
-  }
-  return navigateToKnownRoute(
-    now,
-    state,
-    url,
-    canonicalUrl,
-    prefetchSeed,
-    currentUrl,
-    currentRenderedSearch,
-    currentCacheNode,
-    currentFlightRouterState,
-    freshnessPolicy,
-    nextUrl,
-    shouldScroll,
-    navigateType,
-    null
-  )
-}
-
-// Used to request all the dynamic data for a route, rather than just a subset,
-// e.g. during a refresh or a revalidation. Typically this gets constructed
-// during the normal flow when diffing the route tree, but for an unprefetched
-// navigation, where we don't know the structure of the target route, we use
-// this instead.
-const DynamicRequestTreeForEntireRoute: FlightRouterState = [
-  '',
-  {},
-  null,
-  'refetch',
-]
-
-async function navigateToUnknownRoute(
-  now: number,
-  state: AppRouterState,
-  url: URL,
-  currentUrl: URL,
-  currentRenderedSearch: string,
-  nextUrl: string | null,
-  currentCacheNode: CacheNode | null,
-  currentFlightRouterState: FlightRouterState,
-  freshnessPolicy: FreshnessPolicy,
-  shouldScroll: boolean,
-  navigateType: 'push' | 'replace'
-): Promise<AppRouterState> {
-  // Runs when a navigation happens but there's no cached prefetch we can use.
-  // Don't bother to wait for a prefetch response; go straight to a full
-  // navigation that contains both static and dynamic data in a single stream.
-  // (This is unlike the old navigation implementation, which instead blocks
-  // the dynamic request until a prefetch request is received.)
-  //
-  // To avoid duplication of logic, we're going to pretend that the tree
-  // returned by the dynamic request is, in fact, a prefetch tree. Then we can
-  // use the same server response to write the actual data into the CacheNode
-  // tree. So it's the same flow as the "happy path" (prefetch, then
-  // navigation), except we use a single server response for both stages.
-
-  let dynamicRequestTree: FlightRouterState
-  switch (freshnessPolicy) {
-    case FreshnessPolicy.Default:
-    case FreshnessPolicy.HistoryTraversal:
-      dynamicRequestTree = currentFlightRouterState
-      break
-    case FreshnessPolicy.Hydration: // <- shouldn't happen during client nav
-    case FreshnessPolicy.RefreshAll:
-    case FreshnessPolicy.HMRRefresh:
-      dynamicRequestTree = DynamicRequestTreeForEntireRoute
-      break
-    default:
-      freshnessPolicy satisfies never
-      dynamicRequestTree = currentFlightRouterState
-      break
-  }
-
-  const promiseForDynamicServerResponse = fetchServerResponse(url, {
-    flightRouterState: dynamicRequestTree,
-    nextUrl,
-  })
-  const result = await promiseForDynamicServerResponse
-  if (typeof result === 'string') {
-    // This is an MPA navigation.
-    const redirectUrl = new URL(result, location.origin)
-    return completeHardNavigation(state, redirectUrl, navigateType)
-  }
-
-  const { flightData, canonicalUrl, renderedSearch, debugInfo } = result
-
-  // Since the response format of dynamic requests and prefetches is slightly
-  // different, we'll need to massage the data a bit. Create FlightRouterState
-  // tree that simulates what we'd receive as the result of a prefetch.
-  const navigationSeed = convertServerPatchToFullTree(
-    currentFlightRouterState,
-    flightData,
-    renderedSearch
-  )
-
-  return navigateToKnownRoute(
-    now,
-    state,
-    url,
-    createHrefFromUrl(canonicalUrl),
-    navigationSeed,
-    currentUrl,
-    currentRenderedSearch,
-    currentCacheNode,
-    currentFlightRouterState,
-    freshnessPolicy,
-    nextUrl,
-    shouldScroll,
-    navigateType,
-    debugInfo
-  )
+  return completeHardNavigation(baseState, url, navigateType)
 }
 
 export function completeHardNavigation(
   state: AppRouterState,
   url: URL,
-  navigateType: 'push' | 'replace'
+  navigateType: NavigationType
 ): AppRouterState {
   if (isJavaScriptURLString(url.href)) {
     console.error(
@@ -374,11 +153,35 @@ export function completeSoftNavigation(
   cache: CacheNode,
   renderedSearch: string,
   canonicalUrl: string,
-  navigateType: 'push' | 'replace',
+  navigateType: NavigationType,
   shouldScroll: boolean,
   scrollableSegments: Array<FlightSegmentPath> | null,
   collectedDebugInfo: Array<unknown> | null
 ) {
+  if (navigateType === 'traverse') {
+    return {
+      // Set canonical url
+      canonicalUrl: createHrefFromUrl(url),
+      renderedSearch,
+      pushRef: {
+        pendingPush: false,
+        mpaNavigation: false,
+        // Ensures that the custom history state that was set is preserved when applying this update.
+        preserveCustomHistoryState: true,
+      },
+      focusAndScrollRef: oldState.focusAndScrollRef,
+      cache,
+      // Restore provided tree
+      tree,
+      nextUrl: referringNextUrl,
+      // TODO: We need to restore previousNextUrl, too, which represents the
+      // Next-Url that was used to fetch the data. Anywhere we fetch using the
+      // canonical URL, there should be a corresponding Next-Url.
+      previousNextUrl: null,
+      debugInfo: null,
+    }
+  }
+
   // The "Next-Url" is a special representation of the URL that Next.js
   // uses to implement interception routes.
   // TODO: Get rid of this extra traversal by computing this during the
@@ -454,37 +257,6 @@ export function completeSoftNavigation(
     debugInfo: collectedDebugInfo,
   }
   return newState
-}
-
-export function completeTraverseNavigation(
-  state: AppRouterState,
-  url: URL,
-  renderedSearch: string,
-  cache: CacheNode,
-  tree: FlightRouterState,
-  nextUrl: string | null
-) {
-  return {
-    // Set canonical url
-    canonicalUrl: createHrefFromUrl(url),
-    renderedSearch,
-    pushRef: {
-      pendingPush: false,
-      mpaNavigation: false,
-      // Ensures that the custom history state that was set is preserved when applying this update.
-      preserveCustomHistoryState: true,
-    },
-    focusAndScrollRef: state.focusAndScrollRef,
-    cache,
-    // Restore provided tree
-    tree,
-    nextUrl,
-    // TODO: We need to restore previousNextUrl, too, which represents the
-    // Next-Url that was used to fetch the data. Anywhere we fetch using the
-    // canonical URL, there should be a corresponding Next-Url.
-    previousNextUrl: null,
-    debugInfo: null,
-  }
 }
 
 // TODO: The rest of this file is related to converting the server response into

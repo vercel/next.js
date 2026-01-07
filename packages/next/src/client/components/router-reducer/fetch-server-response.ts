@@ -61,6 +61,7 @@ export interface FetchServerResponseOptions {
   readonly flightRouterState: FlightRouterState
   readonly nextUrl: string | null
   readonly isHmrRefresh?: boolean
+  readonly signal?: AbortSignal
 }
 
 type SpaFetchServerResponseResult = {
@@ -123,7 +124,7 @@ export async function fetchServerResponse(
   url: URL,
   options: FetchServerResponseOptions
 ): Promise<FetchServerResponseResult> {
-  const { flightRouterState, nextUrl } = options
+  const { flightRouterState, nextUrl, signal } = options
 
   const headers: RequestHeaders = {
     // Enable flight response
@@ -172,7 +173,8 @@ export async function fetchServerResponse(
       url,
       headers,
       'auto',
-      shouldImmediatelyDecode
+      shouldImmediatelyDecode,
+      signal
     )
 
     const responseUrl = urlToUrlWithoutFlightMarker(new URL(res.url))

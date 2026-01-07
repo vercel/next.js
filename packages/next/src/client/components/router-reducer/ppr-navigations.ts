@@ -14,7 +14,10 @@ import {
 import { matchSegment } from '../match-segments'
 import { createHrefFromUrl } from './create-href-from-url'
 import { fetchServerResponse } from './fetch-server-response'
-import { dispatchAppRouterAction } from '../use-action-queue'
+import {
+  dispatchAppRouterAction,
+  type RouterTask,
+} from './reducers/router-task'
 import {
   ACTION_SERVER_PATCH,
   type ServerPatchAction,
@@ -43,12 +46,16 @@ import {
   writeToBFCache,
 } from '../segment-cache/bfcache'
 
+// TODO: Rename this file, perhaps to cache-node.ts.
+
 // This is yet another tree type that is used to track pending promises that
 // need to be fulfilled once the dynamic data is received. The terminal nodes of
 // this tree represent the new Cache Node trees that were created during this
 // request. We can't use the Cache Node tree or Route State tree directly
 // because those include reused nodes, too. This tree is discarded as soon as
 // the navigation response is received.
+// TODO: We can now unify this with the CacheNode type. That will also resolve
+// the naming confusion between this and the RouterTask type.
 export type NavigationTask = {
   status: NavigationTaskStatus
   // The router state that corresponds to the tree that this Task represents.
@@ -68,11 +75,11 @@ export type NavigationTask = {
 }
 
 export const enum FreshnessPolicy {
-  Default,
-  Hydration,
-  HistoryTraversal,
-  RefreshAll,
-  HMRRefresh,
+  Hydration = 0,
+  Restore = 1,
+  Default = 2,
+  RefreshAll = 3,
+  HMRRefresh = 4,
 }
 
 const enum NavigationTaskStatus {
@@ -312,9 +319,9 @@ function updateCacheNodeOnNavigation(
 
   let shouldRefreshDynamicData: boolean = false
   switch (freshness) {
-    case FreshnessPolicy.Default:
-    case FreshnessPolicy.HistoryTraversal:
     case FreshnessPolicy.Hydration: // <- shouldn't happen during client nav
+    case FreshnessPolicy.Restore:
+    case FreshnessPolicy.Default:
       // We should never drop dynamic data in shared layouts, except during
       // a refresh.
       shouldRefreshDynamicData = false
@@ -445,7 +452,7 @@ function updateCacheNodeOnNavigation(
       if (
         // Skip this branch during a history traversal. We restore the tree that
         // was stashed in the history entry as-is.
-        freshness !== FreshnessPolicy.HistoryTraversal &&
+        freshness !== FreshnessPolicy.Restore &&
         newSegmentChild === DEFAULT_SEGMENT_KEY &&
         oldSegmentChild !== DEFAULT_SEGMENT_KEY
       ) {
@@ -924,7 +931,7 @@ function createCacheNodeForSegment(
         needsDynamicRequest: false,
       }
     }
-    case FreshnessPolicy.HistoryTraversal:
+    case FreshnessPolicy.Restore:
       const bfcacheEntry = readFromBFCache(tree.varyPath)
       if (bfcacheEntry !== null) {
         // Only show prefetched data if the dynamic data is still pending. This
@@ -1148,6 +1155,7 @@ function createCacheNode(
 // Represents whether the previuos navigation resulted in a route tree mismatch.
 // A mismatch results in a refresh of the page. If there are two successive
 // mismatches, we will fall back to an MPA navigation, to prevent a retry loop.
+// TODO: Move this loop detection to the main scheduler in router-task.ts
 let previousNavigationDidMismatch = false
 
 // Writes a dynamic server response into the tree created by
@@ -1166,13 +1174,14 @@ let previousNavigationDidMismatch = false
 // This does _not_ create a new tree; it modifies the existing one in place.
 // Which means it must follow the Suspense rules of cache safety.
 export function spawnDynamicRequests(
-  task: NavigationTask,
+  cacheNodeTask: NavigationTask,
+  routerTask: RouterTask,
   primaryUrl: URL,
   nextUrl: string | null,
   freshnessPolicy: FreshnessPolicy,
   accumulation: NavigationRequestAccumulation
 ): void {
-  const dynamicRequestTree = task.dynamicRequestTree
+  const dynamicRequestTree = cacheNodeTask.dynamicRequestTree
   if (dynamicRequestTree === null) {
     // This navigation was fully cached. There are no dynamic requests to spawn.
     previousNavigationDidMismatch = false
@@ -1189,7 +1198,7 @@ export function spawnDynamicRequests(
   // `finishNavigationTask`, can await the promises in any order without
   // accidentally introducing a network waterfall.
   const primaryRequestPromise = fetchMissingDynamicData(
-    task,
+    cacheNodeTask,
     dynamicRequestTree,
     primaryUrl,
     nextUrl,
@@ -1235,7 +1244,7 @@ export function spawnDynamicRequests(
       if (scopedDynamicRequestTree !== null) {
         refreshRequestPromises.push(
           fetchMissingDynamicData(
-            task,
+            cacheNodeTask,
             scopedDynamicRequestTree,
             new URL(refreshUrl, location.origin),
             // TODO: Just noticed that this should actually the Next-Url at the
@@ -1254,8 +1263,8 @@ export function spawnDynamicRequests(
   // Further async operations are moved into this separate function to
   // discourage sequential network requests.
   const voidPromise = finishNavigationTask(
-    task,
-    nextUrl,
+    cacheNodeTask,
+    routerTask,
     primaryRequestPromise,
     refreshRequestPromises
   )
@@ -1265,8 +1274,8 @@ export function spawnDynamicRequests(
 }
 
 async function finishNavigationTask(
-  task: NavigationTask,
-  nextUrl: string | null,
+  cacheNodeTask: NavigationTask,
+  routerTask: RouterTask,
   primaryRequestPromise: ReturnType<typeof fetchMissingDynamicData>,
   refreshRequestPromises: Array<
     ReturnType<typeof fetchMissingDynamicData>
@@ -1285,7 +1294,7 @@ async function finishNavigationTask(
   // first phase; it doesn't matter in that case because we're going to refresh
   // the whole tree regardless.
   if (exitStatus === NavigationTaskExitStatus.Done) {
-    exitStatus = abortRemainingPendingTasks(task, null, null)
+    exitStatus = abortRemainingPendingTasks(cacheNodeTask, null, null)
   }
 
   switch (exitStatus) {
@@ -1304,9 +1313,8 @@ async function finishNavigationTask(
       dispatchRetryDueToTreeMismatch(
         isHardRetry,
         primaryRequestResult.url,
-        nextUrl,
         primaryRequestResult.seed,
-        task.route
+        routerTask
       )
       return
     }
@@ -1324,9 +1332,8 @@ async function finishNavigationTask(
       dispatchRetryDueToTreeMismatch(
         isHardRetry,
         primaryRequestResult.url,
-        nextUrl,
         primaryRequestResult.seed,
-        task.route
+        routerTask
       )
       return
     }
@@ -1388,9 +1395,8 @@ function waitForRequestsToFinish(
 function dispatchRetryDueToTreeMismatch(
   isHardRetry: boolean,
   retryUrl: URL,
-  retryNextUrl: string | null,
   seed: NavigationSeed | null,
-  baseTree: FlightRouterState
+  baseTask: RouterTask
 ) {
   // If this is the second time in a row that a navigation resulted in a
   // mismatch, fall back to a hard (MPA) refresh.
@@ -1398,9 +1404,8 @@ function dispatchRetryDueToTreeMismatch(
   previousNavigationDidMismatch = true
   const retryAction: ServerPatchAction = {
     type: ACTION_SERVER_PATCH,
-    previousTree: baseTree,
+    baseTask,
     url: retryUrl,
-    nextUrl: retryNextUrl,
     seed,
     mpa: isHardRetry,
   }

@@ -1,6 +1,7 @@
 import type {
   ActionFlightResponse,
   ActionResult,
+  FlightRouterState,
 } from '../../../../shared/lib/app-router-types'
 import { callServer } from '../../../app-call-server'
 import { findSourceMapURL } from '../../../app-find-source-map-url'
@@ -24,14 +25,9 @@ import {
   encodeReply,
 } from 'react-server-dom-webpack/client'
 
-import type {
-  ReadonlyReducerState,
-  ReducerState,
-  ServerActionAction,
-} from '../router-reducer-types'
+import type { ReadonlyReducerState } from '../router-reducer-types'
 import { assignLocation } from '../../../assign-location'
 import { createHrefFromUrl } from '../create-href-from-url'
-import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
 import {
   normalizeFlightData,
   prepareFlightRouterStateForRequest,
@@ -48,10 +44,8 @@ import {
 import { revalidateEntireCache } from '../../segment-cache/cache'
 import { getDeploymentId } from '../../../../shared/lib/deployment-id'
 import {
-  completeHardNavigation,
   convertServerPatchToFullTree,
-  navigateToKnownRoute,
-  navigate,
+  type NavigationSeed,
 } from '../../segment-cache/navigation'
 import type { NormalizedSearch } from '../../segment-cache/cache-key'
 import {
@@ -63,6 +57,11 @@ import {
 import { isExternalURL } from '../../app-router-utils'
 import { FreshnessPolicy } from '../ppr-navigations'
 import { invalidateBfCache } from '../../segment-cache/bfcache'
+import {
+  getCurrentAppRouterState,
+  type ServerActionRouterTask,
+} from './router-task'
+import { markServerActionTaskAsReady } from './server-action-scheduler'
 
 const createFromFetch =
   createFromFetchBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromFetch']
@@ -83,7 +82,7 @@ if (
 // TODO: Refactor to be a discriminated union. Or just get rid of it;
 // fetchServerAction only has one caller, no reason this intermediate type has
 // to exist.
-type FetchServerActionResult = {
+export type FetchServerActionResult = {
   redirectLocation: URL | undefined
   redirectType: RedirectType | undefined
   revalidationKind: ActionRevalidationKind
@@ -93,10 +92,12 @@ type FetchServerActionResult = {
   isPrerender: boolean
 }
 
-async function fetchServerAction(
-  state: ReadonlyReducerState,
+export async function fetchServerAction(
+  urlOfPageToInvokeActionOn: URL,
   nextUrl: ReadonlyReducerState['nextUrl'],
-  { actionId, actionArgs }: ServerActionAction
+  baseTree: FlightRouterState,
+  actionId: string,
+  actionArgs: any[]
 ): Promise<FetchServerActionResult> {
   const temporaryReferences = createTemporaryReferenceSet()
   const info = extractInfoFromServerReferenceId(actionId)
@@ -112,9 +113,8 @@ async function fetchServerAction(
   const headers: Record<string, string> = {
     Accept: RSC_CONTENT_TYPE_HEADER,
     [ACTION_HEADER]: actionId,
-    [NEXT_ROUTER_STATE_TREE_HEADER]: prepareFlightRouterStateForRequest(
-      state.tree
-    ),
+    [NEXT_ROUTER_STATE_TREE_HEADER]:
+      prepareFlightRouterStateForRequest(baseTree),
   }
 
   const deploymentId = getDeploymentId()
@@ -139,7 +139,11 @@ async function fetchServerAction(
       .toString(16)
   }
 
-  const res = await fetch(state.canonicalUrl, { method: 'POST', headers, body })
+  const res = await fetch(urlOfPageToInvokeActionOn, {
+    method: 'POST',
+    headers,
+    body,
+  })
 
   // Handle server actions that the server didn't recognize.
   const unrecognizedActionHeader = res.headers.get(NEXT_ACTION_NOT_FOUND_HEADER)
@@ -180,10 +184,7 @@ async function fetchServerAction(
   } catch {}
 
   const redirectLocation = location
-    ? assignLocation(
-        location,
-        new URL(state.canonicalUrl, window.location.href)
-      )
+    ? assignLocation(location, urlOfPageToInvokeActionOn)
     : undefined
 
   const contentType = res.headers.get('content-type')
@@ -245,206 +246,116 @@ async function fetchServerAction(
   }
 }
 
-/*
- * This reducer is responsible for calling the server action and processing any side-effects from the server action.
- * It does not mutate the state by itself but rather delegates to other reducers to do the actual mutation.
- */
-export function serverActionReducer(
-  state: ReadonlyReducerState,
-  action: ServerActionAction
-): ReducerState {
-  const { resolve, reject } = action
+export function handleServerActionResult(
+  task: ServerActionRouterTask,
+  url: URL,
+  baseTree: FlightRouterState,
+  result: FetchServerActionResult
+): void {
+  const call = task.data
+  const revalidationKind = result.revalidationKind
+  const redirectLocation = result.redirectLocation
+  const redirectType = result.redirectType
+  const actionResult = result.actionResult
+  const flightData = result.actionFlightData
+  const flightDataRenderedSearch = result.actionFlightDataRenderedSearch
 
-  // only pass along the `nextUrl` param (used for interception routes) if the current route was intercepted.
-  // If the route has been intercepted, the action should be as well.
-  // Otherwise the server action might be intercepted with the wrong action id
-  // (ie, one that corresponds with the intercepted route)
-  const nextUrl =
-    // We always send the last next-url, not the current when
-    // performing a dynamic request. This is because we update
-    // the next-url after a navigation, but we want the same
-    // interception route to be matched that used the last
-    // next-url.
-    (state.previousNextUrl || state.nextUrl) &&
-    hasInterceptionRouteInCurrentTree(state.tree)
-      ? state.previousNextUrl || state.nextUrl
-      : null
+  let freshness: FreshnessPolicy
+  if (revalidationKind !== ActionDidNotRevalidate) {
+    // There was either a revalidation or a refresh, or maybe both.
 
-  return fetchServerAction(state, nextUrl, action).then(
-    async ({
-      revalidationKind,
-      actionResult,
-      actionFlightData: flightData,
-      actionFlightDataRenderedSearch: flightDataRenderedSearch,
-      redirectLocation,
-      redirectType,
-    }) => {
-      if (revalidationKind !== ActionDidNotRevalidate) {
-        // There was either a revalidation or a refresh, or maybe both.
+    // Evict the BFCache, which may contain dynamic data.
+    invalidateBfCache()
 
-        // Evict the BFCache, which may contain dynamic data.
-        invalidateBfCache()
-
-        // Store whether this action triggered any revalidation
-        // The action queue will use this information to potentially
-        // trigger a refresh action if the action was discarded
-        // (ie, due to a navigation, before the action completed)
-        action.didRevalidate = true
-
-        // If there was a revalidation, evict the entire prefetch cache.
-        // TODO: Evict only segments with matching tags and/or paths.
-        if (revalidationKind === ActionDidRevalidateStaticAndDynamic) {
-          revalidateEntireCache(nextUrl, state.tree)
-        }
+    // If there was a revalidation, evict the entire prefetch cache.
+    // TODO: Evict only segments with matching tags and/or paths.
+    if (revalidationKind === ActionDidRevalidateStaticAndDynamic) {
+      const currentState = getCurrentAppRouterState()
+      if (currentState !== null) {
+        revalidateEntireCache(currentState.nextUrl, currentState.tree)
       }
+    }
 
-      const navigateType = redirectType || 'push'
+    freshness = FreshnessPolicy.RefreshAll
+  } else {
+    freshness =
+      redirectLocation !== undefined || flightData !== undefined
+        ? FreshnessPolicy.RefreshAll
+        : // If there was no revalidation, no refresh, no redirect, and the
+          // server did not send back any new data, then the action effectively
+          // becomes a no-op.
+          FreshnessPolicy.Restore
+  }
 
-      if (redirectLocation !== undefined) {
-        // If the action triggered a redirect, the action promise will be rejected with
-        // a redirect so that it's handled by RedirectBoundary as we won't have a valid
-        // action result to resolve the promise with. This will effectively reset the state of
-        // the component that called the action as the error boundary will remount the tree.
-        // The status code doesn't matter here as the action handler will have already sent
-        // a response with the correct status code.
+  const navigateType = redirectType || 'push'
 
-        if (isExternalURL(redirectLocation)) {
-          // External redirect. Triggers an MPA navigation.
-          const redirectHref = redirectLocation.href
-          const redirectError = createRedirectErrorForAction(
-            redirectHref,
-            navigateType
-          )
-          reject(redirectError)
-          return completeHardNavigation(state, redirectLocation, navigateType)
-        } else {
-          // Internal redirect. Triggers an SPA navigation.
-          const redirectWithBasepath = createHrefFromUrl(
-            redirectLocation,
-            false
-          )
-          const redirectHref = hasBasePath(redirectWithBasepath)
-            ? removeBasePath(redirectWithBasepath)
-            : redirectWithBasepath
-          const redirectError = createRedirectErrorForAction(
-            redirectHref,
-            navigateType
-          )
-          reject(redirectError)
-        }
-      } else {
-        // If there's no redirect, resolve the action with the result.
-        resolve(actionResult)
-      }
+  let seed: NavigationSeed | null = null
+  if (
+    flightData !== undefined &&
+    typeof flightData !== 'string' &&
+    flightDataRenderedSearch !== undefined
+  ) {
+    // The server sent back new route data as part of the response. We
+    // will use this to render the new page. If this happens to be only a
+    // subset of the data needed to render the new page, we'll initiate a
+    // new fetch, like we would for a normal navigation.
+    seed = convertServerPatchToFullTree(
+      baseTree,
+      flightData,
+      flightDataRenderedSearch
+    )
+  }
 
-      // Check if we can bail out without updating any state.
-      if (
-        // Did the action trigger a redirect?
-        redirectLocation === undefined &&
-        // Did the action revalidate any data?
-        revalidationKind === ActionDidNotRevalidate &&
-        // Did the server render new data?
-        flightData === undefined
-      ) {
-        // The action did not trigger any revalidations or redirects. No
-        // navigation is required.
-        return state
-      }
+  if (redirectLocation !== undefined) {
+    // If the action triggered a redirect, the action promise will be rejected with
+    // a redirect so that it's handled by RedirectBoundary as we won't have a valid
+    // action result to resolve the promise with. This will effectively reset the state of
+    // the component that called the action as the error boundary will remount the tree.
+    // The status code doesn't matter here as the action handler will have already sent
+    // a response with the correct status code.
 
-      if (flightData === undefined && redirectLocation !== undefined) {
-        // The server redirected, but did not send any Flight data. This implies
-        // an external redirect.
-        // TODO: We should refactor the action response type to be more explicit
-        // about the various response types.
-        return completeHardNavigation(state, redirectLocation, navigateType)
-      }
-
-      if (typeof flightData === 'string') {
-        // If the flight data is just a string, something earlier in the
-        // response handling triggered an external redirect.
-        return completeHardNavigation(
-          state,
-          new URL(flightData, location.origin),
-          navigateType
-        )
-      }
-
-      // The action triggered a navigation — either a redirect, a revalidation,
-      // or both.
-
-      // If there was no redirect, then the target URL is the same as the
-      // current URL.
-      const currentUrl = new URL(state.canonicalUrl, location.origin)
-      const currentRenderedSearch = state.renderedSearch
-      const redirectUrl =
-        redirectLocation !== undefined ? redirectLocation : currentUrl
-      const currentFlightRouterState = state.tree
-      const shouldScroll = true
-
-      // If the action triggered a revalidation of the cache, we should also
-      // refresh all the dynamic data.
-      const freshnessPolicy =
-        revalidationKind === ActionDidNotRevalidate
-          ? FreshnessPolicy.Default
-          : FreshnessPolicy.RefreshAll
-
-      // The server may have sent back new data. If so, we will perform a
-      // "seeded" navigation that uses the data from the response.
-      // TODO: Currently the server always renders from the root in
-      // response to a Server Action. In the case of a normal redirect
-      // with no revalidation, it should skip over the shared layouts.
-      if (flightData !== undefined && flightDataRenderedSearch !== undefined) {
-        // The server sent back new route data as part of the response. We
-        // will use this to render the new page. If this happens to be only a
-        // subset of the data needed to render the new page, we'll initiate a
-        // new fetch, like we would for a normal navigation.
-        const redirectCanonicalUrl = createHrefFromUrl(redirectUrl)
-        const redirectSeed = convertServerPatchToFullTree(
-          currentFlightRouterState,
-          flightData,
-          flightDataRenderedSearch
-        )
-        const now = Date.now()
-        return navigateToKnownRoute(
-          now,
-          state,
-          redirectUrl,
-          redirectCanonicalUrl,
-          redirectSeed,
-          currentUrl,
-          currentRenderedSearch,
-          state.cache,
-          currentFlightRouterState,
-          freshnessPolicy,
-          nextUrl,
-          shouldScroll,
-          navigateType,
-          null
-        )
-      }
-
-      // The server did not send back new data. We'll perform a regular, non-
-      // seeded navigation — effectively the same as <Link> or router.push().
-      return navigate(
-        state,
-        redirectUrl,
-        currentUrl,
-        currentRenderedSearch,
-        state.cache,
-        currentFlightRouterState,
-        nextUrl,
-        freshnessPolicy,
-        shouldScroll,
+    if (isExternalURL(redirectLocation)) {
+      // External redirect. Triggers an MPA navigation.
+      const redirectHref = redirectLocation.href
+      const redirectError = createRedirectErrorForAction(
+        redirectHref,
         navigateType
       )
-    },
-    (e: any) => {
-      // When the server action is rejected we don't update the state and instead call the reject handler of the promise.
-      reject(e)
-
-      return state
+      markServerActionTaskAsReady(
+        task,
+        redirectLocation,
+        null,
+        navigateType,
+        freshness
+      )
+      call.reject(redirectError)
+      return
     }
-  )
+
+    // Internal redirect. Triggers an SPA navigation.
+    const redirectWithBasepath = createHrefFromUrl(redirectLocation, false)
+    const redirectHref = hasBasePath(redirectWithBasepath)
+      ? removeBasePath(redirectWithBasepath)
+      : redirectWithBasepath
+    const redirectError = createRedirectErrorForAction(
+      redirectHref,
+      navigateType
+    )
+    markServerActionTaskAsReady(
+      task,
+      redirectLocation,
+      seed,
+      navigateType,
+      freshness
+    )
+    call.reject(redirectError)
+    return
+  }
+
+  // There was no redirect, so treat this as a refresh. The refreshed data will
+  // only be applied if there isn't a subsequent navigation.
+  markServerActionTaskAsReady(task, url, seed, navigateType, freshness)
+  call.fulfill(actionResult)
 }
 
 function createRedirectErrorForAction(

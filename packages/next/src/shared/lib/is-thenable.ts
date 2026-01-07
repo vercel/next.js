@@ -5,8 +5,8 @@
  * @returns true if the value is thenable
  */
 export function isThenable<T = unknown>(
-  promise: Promise<T> | T
-): promise is Promise<T> {
+  promise: PromiseLike<T> | T
+): promise is PromiseLike<T> {
   return (
     promise !== null &&
     typeof promise === 'object' &&

@@ -15,10 +15,7 @@ import {
 } from './react-client-callbacks/error-boundary-callbacks'
 import { callServer } from './app-call-server'
 import { findSourceMapURL } from './app-find-source-map-url'
-import {
-  type AppRouterActionQueue,
-  createMutableActionQueue,
-} from './components/app-router-instance'
+import { initializeAppRouterQueue } from './components/app-router-instance'
 import AppRouter from './components/app-router'
 import type { InitialRSCPayload } from '../shared/lib/app-router-types'
 import { createInitialRouterState } from './components/router-reducer/create-initial-router-state'
@@ -26,6 +23,7 @@ import { MissingSlotContext } from '../shared/lib/app-router-context.shared-runt
 import { setAppBuildId } from './app-build-id'
 import type { StaticIndicatorState } from './dev/hot-reloader/app/hot-reloader-app'
 import { createInitialRSCPayloadFromFallbackPrerender } from './flight-data-helpers'
+import type { AppRouterState } from './components/router-reducer/router-reducer-types'
 
 /// <reference types="react-dom/experimental" />
 
@@ -221,18 +219,18 @@ if (clientResumeFetch) {
 
 function ServerRoot({
   initialRSCPayload,
-  actionQueue,
+  initialState,
   webSocket,
   staticIndicatorState,
 }: {
   initialRSCPayload: InitialRSCPayload
-  actionQueue: AppRouterActionQueue
+  initialState: AppRouterState
   webSocket: WebSocket | undefined
   staticIndicatorState: StaticIndicatorState | undefined
 }): React.ReactNode {
   const router = (
     <AppRouter
-      actionQueue={actionQueue}
+      initialState={initialState}
       globalErrorState={initialRSCPayload.G}
       webSocket={webSocket}
       staticIndicatorState={staticIndicatorState}
@@ -312,16 +310,14 @@ export async function hydrate(
   setAppBuildId(initialRSCPayload.b)
 
   const initialTimestamp = Date.now()
-  const actionQueue: AppRouterActionQueue = createMutableActionQueue(
-    createInitialRouterState({
-      navigatedAt: initialTimestamp,
-      initialFlightData: initialRSCPayload.f,
-      initialCanonicalUrlParts: initialRSCPayload.c,
-      initialRenderedSearch: initialRSCPayload.q,
-      location: window.location,
-    }),
-    instrumentationHooks
-  )
+  const initialState = createInitialRouterState({
+    navigatedAt: initialTimestamp,
+    initialFlightData: initialRSCPayload.f,
+    initialCanonicalUrlParts: initialRSCPayload.c,
+    initialRenderedSearch: initialRSCPayload.q,
+    location: window.location,
+  })
+  initializeAppRouterQueue(initialState, instrumentationHooks)
 
   const reactEl = (
     <StrictModeIfEnabled>
@@ -329,7 +325,7 @@ export async function hydrate(
         <Root>
           <ServerRoot
             initialRSCPayload={initialRSCPayload}
-            actionQueue={actionQueue}
+            initialState={initialState}
             webSocket={webSocket}
             staticIndicatorState={staticIndicatorState}
           />

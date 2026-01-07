@@ -406,6 +406,12 @@ async function createRedirectRenderResult(
           undefined,
         [NEXT_ROUTER_STATE_TREE_HEADER]:
           forwardedHeaders.get(NEXT_ROUTER_STATE_TREE_HEADER) ?? undefined,
+        // TODO: During a redirect, this Next-URL header should correspond
+        // to the route that the action was invoked on. This is not necessarily
+        // the same as the header sent by the client, because that represents
+        // the referrer of the client's current page.
+        //
+        // So, we should derive the Next-URL from the loader tree.
         [NEXT_URL]: forwardedHeaders.get(NEXT_URL) ?? undefined,
       })
 
