@@ -1,0 +1,11 @@
+/**
+ * @type {import('next').NextConfig}
+ */
+const nextConfig = {
+  cacheHandler: process.cwd() + '/cache-handler.js',
+  images: {
+    imageSizes: [100, 200, 400],
+  },
+}
+
+module.exports = nextConfig
