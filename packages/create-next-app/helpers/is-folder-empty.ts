@@ -19,6 +19,7 @@ export function isFolderEmpty(root: string, name: string): boolean {
     '.npmignore',
     '.travis.yml',
     '.vscode',
+    '.zed',
     'LICENSE',
     'Thumbs.db',
     'docs',
