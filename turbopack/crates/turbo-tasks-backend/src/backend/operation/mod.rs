@@ -235,9 +235,8 @@ where
 
                         task = self.backend.storage.access_mut(task_id);
                         if !task.flags().is_restored(category) {
-                            // Merge the restored data into the task's storage
-                            task.typed_mut()
-                                .merge_from_restored(restored_storage, category);
+                            // Restore the persisted data into the task's storage
+                            task.typed_mut().restore_from(restored_storage, category);
                             task.flags_mut().set_restored(category);
                         }
                     }
@@ -309,15 +308,11 @@ where
                 task1 = t1;
                 task2 = t2;
                 if !task1.flags().is_restored(category) {
-                    task1
-                        .typed_mut()
-                        .merge_from_restored(restored1.unwrap(), category);
+                    task1.typed_mut().restore_from(restored1.unwrap(), category);
                     task1.flags_mut().set_restored(category);
                 }
                 if !task2.flags().is_restored(category) {
-                    task2
-                        .typed_mut()
-                        .merge_from_restored(restored2.unwrap(), category);
+                    task2.typed_mut().restore_from(restored2.unwrap(), category);
                     task2.flags_mut().set_restored(category);
                 }
             }
@@ -1497,19 +1492,21 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         }
     }
 
-    // ============ Execution fields (lazy_vec) ============
+    // ============ Execution fields (lazy) ============
     // Note: activeness and in_progress are transient fields, so no `check_category` call
     // is needed - transient fields are never persisted and can be accessed regardless
     // of how the task was accessed.
+    //
+    // These fields use lazy storage where the Vec<LazyField> presence provides optionality.
+    // The LazyField variants hold the value directly (T), not Option<T>.
 
     fn get_activeness_mut(&mut self) -> Option<&mut ActivenessState> {
-        // Access the typed storage directly - activeness is a lazy_vec field
+        // Access the typed storage directly - activeness is a lazy field
         let typed = self.typed_mut(SpecificTaskDataCategory::Meta);
-        // For lazy_vec direct fields, the type is Option<T> stored in Vec<LazyField>
-        // The accessor get_activeness() returns Option<&Option<ActivenessState>>
-        // We need to find and return a mutable ref to the inner value
+        // For lazy direct fields, the Vec<LazyField> provides optionality
+        // LazyField::Activeness contains ActivenessState directly
         typed.find_lazy_mut(|f| match f {
-            crate::backend::storage_schema::LazyField::Activeness(opt) => opt.as_mut(),
+            crate::backend::storage_schema::LazyField::Activeness(v) => Some(v),
             _ => None,
         })
     }
@@ -1518,32 +1515,28 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
     where
         F: FnOnce() -> ActivenessState,
     {
-        // Access the typed storage directly - activeness is a lazy_vec field
+        // Access the typed storage directly - activeness is a lazy field
         let typed = self.typed_mut(SpecificTaskDataCategory::Meta);
-        // Check if we already have the field with a value
-        let has_value = typed
-            .get_activeness()
-            .and_then(|opt| opt.as_ref())
-            .is_some();
+        // Check if we already have the field
+        let has_value = typed.get_activeness().is_some();
         if !has_value {
-            typed.set_activeness(Some(f()));
+            typed.set_activeness(f());
         }
         // Now get it mutably
         typed
             .find_lazy_mut(|field| match field {
-                crate::backend::storage_schema::LazyField::Activeness(opt) => opt.as_mut(),
+                crate::backend::storage_schema::LazyField::Activeness(v) => Some(v),
                 _ => None,
             })
             .expect("activeness should exist after set")
     }
 
     fn get_in_progress_mut(&mut self) -> Option<&mut InProgressState> {
-        // Access the typed storage directly - in_progress is a lazy_vec field
+        // Access the typed storage directly - in_progress is a lazy field
         let typed = self.typed_mut(SpecificTaskDataCategory::Meta);
-        // InProgress variant holds Option<InProgressState>
-        // We need to find the variant and then get mutable access to the inner value
+        // LazyField::InProgress contains InProgressState directly
         typed.find_lazy_mut(|f| match f {
-            crate::backend::storage_schema::LazyField::InProgress(opt) => opt.as_mut(),
+            crate::backend::storage_schema::LazyField::InProgress(v) => Some(v),
             _ => None,
         })
     }
@@ -1551,15 +1544,11 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
     fn add_in_progress(&mut self, value: InProgressState) -> bool {
         // Check if already present - in_progress is a lazy field
         let typed = self.typed_mut(SpecificTaskDataCategory::Meta);
-        // Check if the in_progress lazy field exists and has a value
-        let already_present = typed
-            .get_in_progress()
-            .and_then(|opt| opt.as_ref())
-            .is_some();
-        if already_present {
+        // Check if the in_progress lazy field exists (has_in_progress checks Vec presence)
+        if typed.get_in_progress().is_some() {
             false
         } else {
-            typed.set_in_progress(Some(value));
+            typed.set_in_progress(value);
             true
         }
     }

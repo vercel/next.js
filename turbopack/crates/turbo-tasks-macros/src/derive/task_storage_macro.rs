@@ -70,9 +70,16 @@ pub fn derive_task_storage(input: TokenStream) -> TokenStream {
     }
 }
 
+/// Parsed field information with cached derived values.
+///
+/// This struct holds all information about a field extracted from its attributes,
+/// along with pre-computed values like the PascalCase variant name.
 #[derive(Debug, Clone)]
-struct StorageFieldAttributes {
+struct FieldInfo {
+    /// The field's identifier (snake_case)
     field_name: Ident,
+    /// The PascalCase variant name for use in LazyField enum
+    variant_name: Ident,
     field_type: Type,
     storage_type: StorageType,
     category: Category,
@@ -92,6 +99,23 @@ struct StorageFieldAttributes {
     filter_transient_values: bool,
 }
 
+impl FieldInfo {
+    /// Generate the `TaskDataCategory` enum variant for `check_access` calls.
+    ///
+    /// Returns the appropriate category based on whether the field is transient
+    /// and its data category (meta vs data).
+    fn check_access_category(&self) -> proc_macro2::TokenStream {
+        if self.transient {
+            // Transient fields use TaskDataCategory::All
+            quote! { crate::backend::TaskDataCategory::All }
+        } else if self.category == Category::Meta {
+            quote! { crate::backend::TaskDataCategory::Meta }
+        } else {
+            quote! { crate::backend::TaskDataCategory::Data }
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum StorageType {
     Direct,
@@ -107,9 +131,12 @@ enum Category {
     Meta,
 }
 
-fn parse_field_storage_attributes(field: &syn::Field) -> StorageFieldAttributes {
+fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
     let field_name = field.ident.as_ref().unwrap().clone();
     let field_type = field.ty.clone();
+
+    // Pre-compute the PascalCase variant name once
+    let variant_name = syn::Ident::new(&to_pascal_case(&field_name.to_string()), field_name.span());
 
     // Default values
     let mut storage_type = StorageType::Direct;
@@ -209,8 +236,9 @@ fn parse_field_storage_attributes(field: &syn::Field) -> StorageFieldAttributes 
         }
     }
 
-    StorageFieldAttributes {
+    FieldInfo {
         field_name,
+        variant_name,
         field_type,
         storage_type,
         category,
@@ -225,20 +253,49 @@ fn parse_field_storage_attributes(field: &syn::Field) -> StorageFieldAttributes 
 #[derive(Debug)]
 struct GroupedFields {
     /// Inline fields stored directly on TypedStorage (data category)
-    inline_data_fields: Vec<StorageFieldAttributes>,
+    inline_data_fields: Vec<FieldInfo>,
     /// Inline fields stored directly on TypedStorage (meta category)
-    inline_meta_fields: Vec<StorageFieldAttributes>,
+    inline_meta_fields: Vec<FieldInfo>,
     /// Lazy fields stored in Vec<LazyField> (data category)
-    lazy_data_fields: Vec<StorageFieldAttributes>,
+    lazy_data_fields: Vec<FieldInfo>,
     /// Lazy fields stored in Vec<LazyField> (meta category)
-    lazy_meta_fields: Vec<StorageFieldAttributes>,
+    lazy_meta_fields: Vec<FieldInfo>,
     /// Flag fields stored in TaskFlags bitfield (persisted flags)
-    persisted_flag_fields: Vec<StorageFieldAttributes>,
+    persisted_flag_fields: Vec<FieldInfo>,
     /// Flag fields stored in TaskFlags bitfield (transient flags)
-    transient_flag_fields: Vec<StorageFieldAttributes>,
+    transient_flag_fields: Vec<FieldInfo>,
 }
 
-fn group_fields(fields: &[StorageFieldAttributes]) -> GroupedFields {
+impl GroupedFields {
+    /// Returns an iterator over all lazy fields (both data and meta categories).
+    fn all_lazy_fields(&self) -> impl Iterator<Item = &FieldInfo> {
+        self.lazy_data_fields
+            .iter()
+            .chain(self.lazy_meta_fields.iter())
+    }
+
+    /// Returns an iterator over persistent (non-transient) lazy meta fields.
+    fn persistent_lazy_meta(&self) -> impl Iterator<Item = &FieldInfo> {
+        self.lazy_meta_fields.iter().filter(|f| !f.transient)
+    }
+
+    /// Returns an iterator over persistent (non-transient) lazy data fields.
+    fn persistent_lazy_data(&self) -> impl Iterator<Item = &FieldInfo> {
+        self.lazy_data_fields.iter().filter(|f| !f.transient)
+    }
+
+    /// Returns an iterator over persistent (non-transient) inline meta fields.
+    fn persistent_inline_meta(&self) -> impl Iterator<Item = &FieldInfo> {
+        self.inline_meta_fields.iter().filter(|f| !f.transient)
+    }
+
+    /// Returns an iterator over persistent (non-transient) inline data fields.
+    fn persistent_inline_data(&self) -> impl Iterator<Item = &FieldInfo> {
+        self.inline_data_fields.iter().filter(|f| !f.transient)
+    }
+}
+
+fn group_fields(fields: &[FieldInfo]) -> GroupedFields {
     let mut inline_data_fields = Vec::new();
     let mut inline_meta_fields = Vec::new();
     let mut lazy_data_fields = Vec::new();
@@ -298,8 +355,8 @@ fn generate_task_storage_impl(_ident: &Ident, grouped_fields: &GroupedFields) ->
     // Generate encode/decode methods for serialization
     let encode_decode_methods = generate_encode_decode_methods(grouped_fields);
 
-    // Generate snapshot clone and merge methods
-    let snapshot_merge_methods = generate_snapshot_merge_methods(grouped_fields);
+    // Generate snapshot clone and restore methods
+    let snapshot_restore_methods = generate_snapshot_restore_methods(grouped_fields);
 
     // Generate shrink_to_fit method
     let shrink_to_fit_method = generate_shrink_to_fit_method(grouped_fields);
@@ -320,8 +377,8 @@ fn generate_task_storage_impl(_ident: &Ident, grouped_fields: &GroupedFields) ->
         // Generated encode/decode methods
         #encode_decode_methods
 
-        // Generated snapshot clone and merge methods
-        #snapshot_merge_methods
+        // Generated snapshot clone and restore methods
+        #snapshot_restore_methods
 
         // Generated shrink_to_fit method
         #shrink_to_fit_method
@@ -414,11 +471,7 @@ fn generate_task_flags_bitfield(grouped_fields: &GroupedFields) -> proc_macro2::
 
 /// Generate the LazyField enum containing all lazy fields
 fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> proc_macro2::TokenStream {
-    let all_lazy_fields: Vec<_> = grouped_fields
-        .lazy_data_fields
-        .iter()
-        .chain(grouped_fields.lazy_meta_fields.iter())
-        .collect();
+    let all_lazy_fields: Vec<_> = grouped_fields.all_lazy_fields().collect();
 
     // If no lazy_vec fields, don't generate the enum
     if all_lazy_fields.is_empty() {
@@ -429,10 +482,7 @@ fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> proc_macro2::Toke
     let variants: Vec<_> = all_lazy_fields
         .iter()
         .map(|field| {
-            let variant_name = syn::Ident::new(
-                &to_pascal_case(&field.field_name.to_string()),
-                field.field_name.span(),
-            );
+            let variant_name = &field.variant_name;
             let field_type = &field.field_type;
             quote! {
                 #variant_name(#field_type)
@@ -444,14 +494,12 @@ fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> proc_macro2::Toke
     let is_empty_arms: Vec<_> = all_lazy_fields
         .iter()
         .map(|field| {
-            let variant_name = syn::Ident::new(
-                &to_pascal_case(&field.field_name.to_string()),
-                field.field_name.span(),
-            );
-            // For collection types, check if empty; for Option-like types, presence means non-empty
+            let variant_name = &field.variant_name;
+            // For collection types, check if empty; for direct types, presence means non-empty
             match field.storage_type {
                 StorageType::Direct => {
-                    // For Option<T> types, presence of the variant means it's non-empty
+                    // For direct types, presence of the variant means it's non-empty
+                    // (the Vec<LazyField> provides optionality, not Option<T>)
                     quote! {
                         LazyField::#variant_name(_) => false
                     }
@@ -470,10 +518,7 @@ fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> proc_macro2::Toke
     let is_persistent_arms: Vec<_> = all_lazy_fields
         .iter()
         .map(|field| {
-            let variant_name = syn::Ident::new(
-                &to_pascal_case(&field.field_name.to_string()),
-                field.field_name.span(),
-            );
+            let variant_name = &field.variant_name;
             let is_persistent = !field.transient;
             quote! {
                 LazyField::#variant_name(_) => #is_persistent
@@ -485,10 +530,7 @@ fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> proc_macro2::Toke
     let is_meta_arms: Vec<_> = all_lazy_fields
         .iter()
         .map(|field| {
-            let variant_name = syn::Ident::new(
-                &to_pascal_case(&field.field_name.to_string()),
-                field.field_name.span(),
-            );
+            let variant_name = &field.variant_name;
             let is_meta = field.category == Category::Meta;
             quote! {
                 LazyField::#variant_name(_) => #is_meta
@@ -501,10 +543,7 @@ fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> proc_macro2::Toke
         .iter()
         .enumerate()
         .map(|(i, field)| {
-            let variant_name = syn::Ident::new(
-                &to_pascal_case(&field.field_name.to_string()),
-                field.field_name.span(),
-            );
+            let variant_name = &field.variant_name;
             let idx = i as u8;
             quote! {
                 LazyField::#variant_name(_) => #idx
@@ -559,8 +598,7 @@ fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> proc_macro2::Toke
 
 /// Generate the unified TypedStorage struct with all fields directly on it.
 fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> proc_macro2::TokenStream {
-    let has_lazy =
-        !grouped_fields.lazy_data_fields.is_empty() || !grouped_fields.lazy_meta_fields.is_empty();
+    let has_lazy = grouped_fields.all_lazy_fields().next().is_some();
     let has_flags = !grouped_fields.persisted_flag_fields.is_empty()
         || !grouped_fields.transient_flag_fields.is_empty();
 
@@ -666,16 +704,14 @@ fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> proc_macro2:
 fn generate_accessor_methods(grouped_fields: &GroupedFields) -> proc_macro2::TokenStream {
     let mut methods = proc_macro2::TokenStream::new();
 
-    // Generate methods for inline fields (both data and meta)
-    for field in grouped_fields
-        .inline_data_fields
-        .iter()
-        .chain(grouped_fields.inline_meta_fields.iter())
-    {
-        methods.extend(generate_inline_field_accessors(field));
-    }
+    // Note: Inline field accessors are not generated on TypedStorage itself.
+    // All field access should go through the TaskStorageAccessors trait for correctness
+    // (check_access validation and modification tracking).
+    //
+    // The only exception is lazy field accessors which are used by some helper methods
+    // that need to operate on TypedStorage directly after calling typed_mut().
 
-    // Generate methods for lazy_vec fields
+    // Generate methods for lazy_vec fields only
     for field in grouped_fields
         .lazy_data_fields
         .iter()
@@ -691,60 +727,11 @@ fn generate_accessor_methods(grouped_fields: &GroupedFields) -> proc_macro2::Tok
     }
 }
 
-/// Generate accessor methods for an inline field (stored directly on TypedStorage)
-fn generate_inline_field_accessors(field: &StorageFieldAttributes) -> proc_macro2::TokenStream {
-    let field_name = &field.field_name;
-    let field_type = &field.field_type;
-
-    match field.storage_type {
-        StorageType::Direct => {
-            // Simple get/set for direct types (already Option<T>)
-            let get_name = syn::Ident::new(
-                &format!("get_{}", field_name),
-                proc_macro2::Span::call_site(),
-            );
-            let set_name = syn::Ident::new(
-                &format!("set_{}", field_name),
-                proc_macro2::Span::call_site(),
-            );
-
-            quote! {
-                pub fn #get_name(&self) -> &#field_type {
-                    &self.#field_name
-                }
-
-                pub fn #set_name(&mut self, value: #field_type) {
-                    self.#field_name = value;
-                }
-            }
-        }
-        StorageType::AutoSet
-        | StorageType::AutoMap
-        | StorageType::CounterMap
-        | StorageType::IndexedVec => {
-            // Provide direct mutable access for collection types
-            let mut_name = syn::Ident::new(
-                &format!("{}_mut", field_name),
-                proc_macro2::Span::call_site(),
-            );
-
-            quote! {
-                pub fn #mut_name(&mut self) -> &mut #field_type {
-                    &mut self.#field_name
-                }
-            }
-        }
-    }
-}
-
 /// Generate accessor methods for a lazy field (stored in Vec<LazyField>)
-fn generate_lazy_field_accessors(field: &StorageFieldAttributes) -> proc_macro2::TokenStream {
+fn generate_lazy_field_accessors(field: &FieldInfo) -> proc_macro2::TokenStream {
     let field_name = &field.field_name;
     let field_type = &field.field_type;
-    let variant_name = syn::Ident::new(
-        &to_pascal_case(&field.field_name.to_string()),
-        field.field_name.span(),
-    );
+    let variant_name = &field.variant_name;
 
     match field.storage_type {
         StorageType::Direct => {
@@ -909,7 +896,7 @@ fn generate_task_storage_accessors_trait(
 
 /// Generates trait accessor methods for an inline field (stored directly on TypedStorage)
 fn generate_inline_trait_accessor_methods(
-    field: &StorageFieldAttributes,
+    field: &FieldInfo,
     category: &str,
 ) -> proc_macro2::TokenStream {
     let field_name = &field.field_name;
@@ -922,15 +909,7 @@ fn generate_inline_trait_accessor_methods(
         quote! { crate::backend::storage::SpecificTaskDataCategory::Meta }
     };
 
-    // Determine the TaskDataCategory for check_access
-    // Transient fields use All (no check), persisted fields use Data or Meta
-    let check_access_category = if field.transient {
-        quote! { crate::backend::TaskDataCategory::All }
-    } else if category == "data" {
-        quote! { crate::backend::TaskDataCategory::Data }
-    } else {
-        quote! { crate::backend::TaskDataCategory::Meta }
-    };
+    let check_access_category = field.check_access_category();
 
     match field.storage_type {
         StorageType::Direct => {
@@ -1017,7 +996,7 @@ fn generate_inline_trait_accessor_methods(
     }
 }
 
-/// Extract the inner type from Option<T>
+/// Extract the inner type from Option<T>, or return the type as-is if not Option
 fn extract_option_inner_type(ty: &Type) -> proc_macro2::TokenStream {
     // Try to parse as Option<T> and extract T
     if let Type::Path(type_path) = ty
@@ -1029,7 +1008,7 @@ fn extract_option_inner_type(ty: &Type) -> proc_macro2::TokenStream {
         return quote! { #inner };
     }
 
-    // Fallback: just use the whole type (shouldn't happen for properly annotated fields)
+    // Not Option<T>, return the type as-is
     quote! { #ty }
 }
 
@@ -1047,15 +1026,10 @@ fn to_pascal_case(s: &str) -> String {
 }
 
 /// Generate trait accessor methods for a lazy field (stored in Vec<LazyField>)
-fn generate_lazy_trait_accessor_methods(
-    field: &StorageFieldAttributes,
-) -> proc_macro2::TokenStream {
+fn generate_lazy_trait_accessor_methods(field: &FieldInfo) -> proc_macro2::TokenStream {
     let field_name = &field.field_name;
     let field_type = &field.field_type;
-    let variant_name = syn::Ident::new(
-        &to_pascal_case(&field.field_name.to_string()),
-        field.field_name.span(),
-    );
+    let variant_name = &field.variant_name;
 
     // Determine the category for typed_mut (SpecificTaskDataCategory)
     let specific_category_variant = if field.category == Category::Meta {
@@ -1064,19 +1038,12 @@ fn generate_lazy_trait_accessor_methods(
         quote! { crate::backend::storage::SpecificTaskDataCategory::Data }
     };
 
-    // Determine the TaskDataCategory for check_access
-    // Transient fields use All (no check), persisted fields use Data or Meta
-    let check_access_category = if field.transient {
-        quote! { crate::backend::TaskDataCategory::All }
-    } else if field.category == Category::Meta {
-        quote! { crate::backend::TaskDataCategory::Meta }
-    } else {
-        quote! { crate::backend::TaskDataCategory::Data }
-    };
+    let check_access_category = field.check_access_category();
 
     match field.storage_type {
         StorageType::Direct => {
-            // For Option<T> types with lazy_vec, generate Option-like trait accessors
+            // For lazy direct fields, optionality comes from Vec<LazyField> presence.
+            // The field type should NOT be Option<T> - use bare T instead.
             let get_ref_name = syn::Ident::new(
                 &format!("get_{}_ref", field_name),
                 proc_macro2::Span::call_site(),
@@ -1094,57 +1061,55 @@ fn generate_lazy_trait_accessor_methods(
                 proc_macro2::Span::call_site(),
             );
 
-            let inner_type = extract_option_inner_type(field_type);
-
             quote! {
-                /// Get a reference to the field value (if present)
-                fn #get_ref_name(&self) -> Option<&#inner_type> {
+                /// Get a reference to the field value (if present in lazy storage)
+                fn #get_ref_name(&self) -> Option<&#field_type> {
                     self.check_access(#check_access_category);
                     self.typed().find_lazy(|f| match f {
-                        LazyField::#variant_name(v) => v.as_ref(),
+                        LazyField::#variant_name(v) => Some(v),
                         _ => None,
                     })
                 }
 
-                /// Check if this field has a value
+                /// Check if this field has a value (present in lazy storage)
                 fn #has_name(&self) -> bool {
                     self.check_access(#check_access_category);
-                    self.typed().lazy.iter().any(|f| matches!(f, LazyField::#variant_name(Some(_))))
+                    self.typed().lazy.iter().any(|f| matches!(f, LazyField::#variant_name(_)))
                 }
 
                 /// Set the field value, returning the old value if present
-                fn #set_name(&mut self, value: #inner_type) -> Option<#inner_type> {
+                fn #set_name(&mut self, value: #field_type) -> Option<#field_type> {
                     self.check_access(#check_access_category);
                     let typed = self.typed_mut(#specific_category_variant);
                     // Find and remove existing
                     let old = typed.lazy.iter().position(|f| matches!(f, LazyField::#variant_name(_)))
-                        .and_then(|idx| {
+                        .map(|idx| {
                             match typed.lazy.swap_remove(idx) {
                                 LazyField::#variant_name(v) => v,
-                                _ => None,
+                                _ => unreachable!(),
                             }
                         });
-                    typed.lazy.push(LazyField::#variant_name(Some(value)));
+                    typed.lazy.push(LazyField::#variant_name(value));
                     old
                 }
 
-                /// Take the field value, leaving None
+                /// Take the field value, removing it from lazy storage
                 ///
                 /// Only tracks modification if there was a value to take.
-                fn #take_name(&mut self) -> Option<#inner_type> {
+                fn #take_name(&mut self) -> Option<#field_type> {
                     self.check_access(#check_access_category);
                     // Check if there's a value to take before calling typed_mut
                     let has_value = self.typed().lazy.iter()
-                        .any(|f| matches!(f, LazyField::#variant_name(Some(_))));
+                        .any(|f| matches!(f, LazyField::#variant_name(_)));
                     if !has_value {
                         return None;
                     }
                     let typed = self.typed_mut(#specific_category_variant);
                     typed.lazy.iter().position(|f| matches!(f, LazyField::#variant_name(_)))
-                        .and_then(|idx| {
+                        .map(|idx| {
                             match typed.lazy.swap_remove(idx) {
                                 LazyField::#variant_name(v) => v,
-                                _ => None,
+                                _ => unreachable!(),
                             }
                         })
                 }
@@ -1188,9 +1153,7 @@ fn generate_lazy_trait_accessor_methods(
 }
 
 /// Generates trait accessor methods for a flag field (stored in TaskFlags bitfield)
-fn generate_flag_trait_accessor_methods(
-    field: &StorageFieldAttributes,
-) -> proc_macro2::TokenStream {
+fn generate_flag_trait_accessor_methods(field: &FieldInfo) -> proc_macro2::TokenStream {
     let field_name = &field.field_name;
     let set_name = syn::Ident::new(
         &format!("set_{}", field_name),
@@ -1201,13 +1164,7 @@ fn generate_flag_trait_accessor_methods(
     let specific_category_variant =
         quote! { crate::backend::storage::SpecificTaskDataCategory::Meta };
 
-    // Determine the TaskDataCategory for check_access
-    // Transient flags use All (no check), persisted flags use Meta
-    let check_access_category = if field.transient {
-        quote! { crate::backend::TaskDataCategory::All }
-    } else {
-        quote! { crate::backend::TaskDataCategory::Meta }
-    };
+    let check_access_category = field.check_access_category();
 
     quote! {
         /// Get the flag value
@@ -1239,29 +1196,11 @@ fn generate_flag_trait_accessor_methods(
 ///
 /// Only persistent (non-transient) fields are encoded/decoded.
 fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> proc_macro2::TokenStream {
-    // Collect persistent inline fields by category
-    let persistent_inline_meta: Vec<_> = grouped_fields
-        .inline_meta_fields
-        .iter()
-        .filter(|f| !f.transient)
-        .collect();
-    let persistent_inline_data: Vec<_> = grouped_fields
-        .inline_data_fields
-        .iter()
-        .filter(|f| !f.transient)
-        .collect();
-
-    // Collect persistent lazy fields by category
-    let persistent_lazy_meta: Vec<_> = grouped_fields
-        .lazy_meta_fields
-        .iter()
-        .filter(|f| !f.transient)
-        .collect();
-    let persistent_lazy_data: Vec<_> = grouped_fields
-        .lazy_data_fields
-        .iter()
-        .filter(|f| !f.transient)
-        .collect();
+    // Collect persistent fields by category using helpers
+    let persistent_inline_meta: Vec<_> = grouped_fields.persistent_inline_meta().collect();
+    let persistent_inline_data: Vec<_> = grouped_fields.persistent_inline_data().collect();
+    let persistent_lazy_meta: Vec<_> = grouped_fields.persistent_lazy_meta().collect();
+    let persistent_lazy_data: Vec<_> = grouped_fields.persistent_lazy_data().collect();
 
     let has_flags = !grouped_fields.persisted_flag_fields.is_empty();
 
@@ -1402,17 +1341,16 @@ fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> proc_macro2
 /// Must be a value that cannot be a valid discriminant (discriminants start at 0).
 const LAZY_FIELD_SENTINEL: u8 = 0x00;
 
-/// Generate code to encode an inline field to bincode.
+/// Generate code to encode a value with transient filtering based on field configuration.
 ///
-/// For fields with `filter_transient`, checks if the value is transient and skips encoding if so.
-/// For direct fields, this means encoding None if the value is transient.
-/// For collection fields, this filters out entries with transient keys/values.
-///
-/// For fields with `filter_transient_values`, the map keys are preserved but values
-/// (which are expected to be sets) have their transient elements filtered out.
-fn generate_encode_inline_field(field: &StorageFieldAttributes) -> proc_macro2::TokenStream {
-    let field_name = &field.field_name;
-
+/// This is a shared helper used by both inline field encoding and lazy field encoding.
+/// The `value_ref` parameter is an expression that evaluates to a *reference* to the value
+/// (e.g., `&self.field_name` for inline fields, or `data` for lazy fields where `data`
+/// is already a reference from the match arm).
+fn generate_encode_value(
+    field: &FieldInfo,
+    value_ref: proc_macro2::TokenStream,
+) -> proc_macro2::TokenStream {
     // Handle filter_transient_values for AutoMap with set values
     if field.filter_transient_values {
         return match field.storage_type {
@@ -1421,11 +1359,11 @@ fn generate_encode_inline_field(field: &StorageFieldAttributes) -> proc_macro2::
                 quote! {
                     {
                         // Count entries where filtered set is non-empty
-                        let count = self.#field_name.iter()
+                        let count = (#value_ref).iter()
                             .filter(|(_, v)| v.iter().any(|item| !item.is_transient()))
                             .count();
                         bincode::Encode::encode(&count, encoder)?;
-                        for (key, value) in &self.#field_name {
+                        for (key, value) in #value_ref {
                             let filtered: Vec<_> = value.iter()
                                 .filter(|item| !item.is_transient())
                                 .collect();
@@ -1443,7 +1381,7 @@ fn generate_encode_inline_field(field: &StorageFieldAttributes) -> proc_macro2::
             _ => {
                 // filter_transient_values only makes sense for AutoMap
                 quote! {
-                    bincode::Encode::encode(&self.#field_name, encoder)?;
+                    bincode::Encode::encode(#value_ref, encoder)?;
                 }
             }
         };
@@ -1452,7 +1390,7 @@ fn generate_encode_inline_field(field: &StorageFieldAttributes) -> proc_macro2::
     if !field.filter_transient {
         // No filtering needed, just encode normally
         return quote! {
-            bincode::Encode::encode(&self.#field_name, encoder)?;
+            bincode::Encode::encode(#value_ref, encoder)?;
         };
     }
 
@@ -1462,7 +1400,7 @@ fn generate_encode_inline_field(field: &StorageFieldAttributes) -> proc_macro2::
             // For Option<T>, check if the value is transient and encode None if so
             quote! {
                 {
-                    let filtered_value = self.#field_name.as_ref().filter(|v| !v.is_transient());
+                    let filtered_value = (#value_ref).as_ref().filter(|v| !v.is_transient());
                     bincode::Encode::encode(&filtered_value, encoder)?;
                 }
             }
@@ -1471,9 +1409,9 @@ fn generate_encode_inline_field(field: &StorageFieldAttributes) -> proc_macro2::
             // For AutoSet<K>, filter out transient keys
             quote! {
                 {
-                    let count = self.#field_name.iter().filter(|k| !k.is_transient()).count();
+                    let count = (#value_ref).iter().filter(|k| !k.is_transient()).count();
                     bincode::Encode::encode(&count, encoder)?;
-                    for key in self.#field_name.iter().filter(|k| !k.is_transient()) {
+                    for key in (#value_ref).iter().filter(|k| !k.is_transient()) {
                         bincode::Encode::encode(key, encoder)?;
                     }
                 }
@@ -1484,11 +1422,11 @@ fn generate_encode_inline_field(field: &StorageFieldAttributes) -> proc_macro2::
             // (values are just counts, not references)
             quote! {
                 {
-                    let count = self.#field_name.iter()
+                    let count = (#value_ref).iter()
                         .filter(|(k, _)| !k.is_transient())
                         .count();
                     bincode::Encode::encode(&count, encoder)?;
-                    for (key, value) in self.#field_name.iter()
+                    for (key, value) in (#value_ref).iter()
                         .filter(|(k, _)| !k.is_transient())
                     {
                         bincode::Encode::encode(key, encoder)?;
@@ -1501,11 +1439,11 @@ fn generate_encode_inline_field(field: &StorageFieldAttributes) -> proc_macro2::
             // For maps, filter out entries with transient keys or values
             quote! {
                 {
-                    let count = self.#field_name.iter()
+                    let count = (#value_ref).iter()
                         .filter(|(k, v)| !k.is_transient() && !v.is_transient())
                         .count();
                     bincode::Encode::encode(&count, encoder)?;
-                    for (key, value) in self.#field_name.iter()
+                    for (key, value) in (#value_ref).iter()
                         .filter(|(k, v)| !k.is_transient() && !v.is_transient())
                     {
                         bincode::Encode::encode(key, encoder)?;
@@ -1518,7 +1456,7 @@ fn generate_encode_inline_field(field: &StorageFieldAttributes) -> proc_macro2::
             // For IndexedVec, filter out transient entries
             quote! {
                 {
-                    let filtered: Vec<_> = self.#field_name.iter()
+                    let filtered: Vec<_> = (#value_ref).iter()
                         .filter(|v| !v.is_transient())
                         .cloned()
                         .collect();
@@ -1529,9 +1467,76 @@ fn generate_encode_inline_field(field: &StorageFieldAttributes) -> proc_macro2::
     }
 }
 
+/// Check if encoding with transient filtering might produce an empty result.
+///
+/// For non-filtered fields, encoding always produces output.
+/// For filtered fields, the result might be empty (skip discriminant).
+fn field_needs_empty_check(field: &FieldInfo) -> bool {
+    field.filter_transient || field.filter_transient_values
+}
+
+/// Generate an expression that checks if a value is non-empty after transient filtering.
+///
+/// Returns code that evaluates to `true` if there's data to encode.
+fn generate_non_empty_check(
+    field: &FieldInfo,
+    value_expr: proc_macro2::TokenStream,
+) -> proc_macro2::TokenStream {
+    if field.filter_transient_values {
+        return match field.storage_type {
+            StorageType::AutoMap => {
+                quote! {
+                    (#value_expr).iter().any(|(_, v)| v.iter().any(|item| !item.is_transient()))
+                }
+            }
+            _ => quote! { true },
+        };
+    }
+
+    if !field.filter_transient {
+        return quote! { true };
+    }
+
+    match field.storage_type {
+        StorageType::Direct => {
+            quote! {
+                (#value_expr).as_ref().map_or(false, |v| !v.is_transient())
+            }
+        }
+        StorageType::AutoSet => {
+            quote! {
+                (#value_expr).iter().any(|k| !k.is_transient())
+            }
+        }
+        StorageType::CounterMap => {
+            quote! {
+                (#value_expr).iter().any(|(k, _)| !k.is_transient())
+            }
+        }
+        StorageType::AutoMap => {
+            quote! {
+                (#value_expr).iter().any(|(k, v)| !k.is_transient() && !v.is_transient())
+            }
+        }
+        StorageType::IndexedVec => {
+            quote! {
+                (#value_expr).iter().any(|v| !v.is_transient())
+            }
+        }
+    }
+}
+
+/// Generate code to encode an inline field to bincode.
+///
+/// Delegates to `generate_encode_value` with `&self.field_name` as the value reference.
+fn generate_encode_inline_field(field: &FieldInfo) -> proc_macro2::TokenStream {
+    let field_name = &field.field_name;
+    generate_encode_value(field, quote! { &self.#field_name })
+}
+
 /// Generate code to encode lazy fields to bincode.
 /// Uses sentinel-terminated format: [discriminant, data]... [sentinel]
-fn generate_encode_lazy_fields(fields: &[&StorageFieldAttributes]) -> proc_macro2::TokenStream {
+fn generate_encode_lazy_fields(fields: &[&FieldInfo]) -> proc_macro2::TokenStream {
     if fields.is_empty() {
         return quote! {};
     }
@@ -1541,12 +1546,8 @@ fn generate_encode_lazy_fields(fields: &[&StorageFieldAttributes]) -> proc_macro
         .iter()
         .enumerate()
         .map(|(idx, field)| {
-            let variant_name = syn::Ident::new(
-                &to_pascal_case(&field.field_name.to_string()),
-                field.field_name.span(),
-            );
             let discriminant = idx as u8 + 1;
-            generate_encode_lazy_field_arm(field, &variant_name, discriminant)
+            generate_encode_lazy_field_arm(field, discriminant)
         })
         .collect();
 
@@ -1565,148 +1566,29 @@ fn generate_encode_lazy_fields(fields: &[&StorageFieldAttributes]) -> proc_macro
 
 /// Generate a match arm for encoding a lazy field.
 ///
-/// For fields with `filter_transient`, generates code to filter out transient entries.
-/// For fields with `filter_transient_values`, filters transient entries from nested set values.
-fn generate_encode_lazy_field_arm(
-    field: &StorageFieldAttributes,
-    variant_name: &syn::Ident,
-    discriminant: u8,
-) -> proc_macro2::TokenStream {
-    // Handle filter_transient_values for AutoMap with set values
-    if field.filter_transient_values {
-        return match field.storage_type {
-            StorageType::AutoMap => {
-                // For maps with set values, filter transient entries from the inner sets
-                quote! {
-                    LazyField::#variant_name(data) => {
-                        // Count entries where filtered set is non-empty
-                        let filtered_count = data.iter()
-                            .filter(|(_, v)| v.iter().any(|item| !item.is_transient()))
-                            .count();
-                        if filtered_count > 0 {
-                            bincode::Encode::encode(&#discriminant, encoder)?;
-                            bincode::Encode::encode(&filtered_count, encoder)?;
-                            for (key, value) in data {
-                                let filtered: Vec<_> = value.iter()
-                                    .filter(|item| !item.is_transient())
-                                    .collect();
-                                if !filtered.is_empty() {
-                                    bincode::Encode::encode(key, encoder)?;
-                                    bincode::Encode::encode(&filtered.len(), encoder)?;
-                                    for item in filtered {
-                                        bincode::Encode::encode(item, encoder)?;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            _ => {
-                // filter_transient_values only makes sense for AutoMap
-                quote! {
-                    LazyField::#variant_name(data) => {
-                        bincode::Encode::encode(&#discriminant, encoder)?;
-                        bincode::Encode::encode(data, encoder)?;
-                    }
-                }
-            }
-        };
-    }
+/// Uses `generate_encode_value` for the encoding logic, wrapped with a conditional
+/// discriminant write for fields that might filter to empty.
+fn generate_encode_lazy_field_arm(field: &FieldInfo, discriminant: u8) -> proc_macro2::TokenStream {
+    let variant_name = &field.variant_name;
+    let encode_body = generate_encode_value(field, quote! { data });
 
-    if !field.filter_transient {
-        // No filtering needed, just encode normally
-        return quote! {
+    if field_needs_empty_check(field) {
+        // For fields with transient filtering, check if non-empty before writing discriminant
+        let non_empty_check = generate_non_empty_check(field, quote! { data });
+        quote! {
+            LazyField::#variant_name(data) => {
+                if #non_empty_check {
+                    bincode::Encode::encode(&#discriminant, encoder)?;
+                    #encode_body
+                }
+            }
+        }
+    } else {
+        // No filtering, always encode
+        quote! {
             LazyField::#variant_name(data) => {
                 bincode::Encode::encode(&#discriminant, encoder)?;
-                bincode::Encode::encode(data, encoder)?;
-            }
-        };
-    }
-
-    // Generate filtering code based on storage type
-    match field.storage_type {
-        StorageType::Direct => {
-            // For Option<T>, check if the value is transient and skip if so
-            quote! {
-                LazyField::#variant_name(data) => {
-                    let filtered_value = data.as_ref().filter(|v| !v.is_transient());
-                    if filtered_value.is_some() {
-                        bincode::Encode::encode(&#discriminant, encoder)?;
-                        bincode::Encode::encode(&filtered_value, encoder)?;
-                    }
-                }
-            }
-        }
-        StorageType::AutoSet => {
-            // For AutoSet<K>, filter out transient keys
-            quote! {
-                LazyField::#variant_name(data) => {
-                    let filtered_count = data.iter().filter(|k| !k.is_transient()).count();
-                    if filtered_count > 0 {
-                        bincode::Encode::encode(&#discriminant, encoder)?;
-                        bincode::Encode::encode(&filtered_count, encoder)?;
-                        for key in data.iter().filter(|k| !k.is_transient()) {
-                            bincode::Encode::encode(key, encoder)?;
-                        }
-                    }
-                }
-            }
-        }
-        StorageType::CounterMap => {
-            // For counter maps, filter out entries with transient keys
-            // (values are just counts, not references)
-            quote! {
-                LazyField::#variant_name(data) => {
-                    let filtered_count = data.iter()
-                        .filter(|(k, _)| !k.is_transient())
-                        .count();
-                    if filtered_count > 0 {
-                        bincode::Encode::encode(&#discriminant, encoder)?;
-                        bincode::Encode::encode(&filtered_count, encoder)?;
-                        for (key, value) in data.iter()
-                            .filter(|(k, _)| !k.is_transient())
-                        {
-                            bincode::Encode::encode(key, encoder)?;
-                            bincode::Encode::encode(value, encoder)?;
-                        }
-                    }
-                }
-            }
-        }
-        StorageType::AutoMap => {
-            // For maps, filter out entries with transient keys or values
-            quote! {
-                LazyField::#variant_name(data) => {
-                    let filtered_count = data.iter()
-                        .filter(|(k, v)| !k.is_transient() && !v.is_transient())
-                        .count();
-                    if filtered_count > 0 {
-                        bincode::Encode::encode(&#discriminant, encoder)?;
-                        bincode::Encode::encode(&filtered_count, encoder)?;
-                        for (key, value) in data.iter()
-                            .filter(|(k, v)| !k.is_transient() && !v.is_transient())
-                        {
-                            bincode::Encode::encode(key, encoder)?;
-                            bincode::Encode::encode(value, encoder)?;
-                        }
-                    }
-                }
-            }
-        }
-        StorageType::IndexedVec => {
-            // For IndexedVec, filter out transient entries
-            quote! {
-                LazyField::#variant_name(data) => {
-                    let filtered: Vec<_> = data.iter()
-                        .filter(|v| !v.is_transient())
-                        .cloned()
-                        .collect();
-                    if !filtered.is_empty() {
-                        bincode::Encode::encode(&#discriminant, encoder)?;
-                        bincode::Encode::encode(&filtered, encoder)?;
-                    }
-                }
+                #encode_body
             }
         }
     }
@@ -1714,7 +1596,7 @@ fn generate_encode_lazy_field_arm(
 
 /// Generate code to decode lazy fields from bincode.
 /// Reads until sentinel byte (0xFF) is encountered.
-fn generate_decode_lazy_fields(fields: &[&StorageFieldAttributes]) -> proc_macro2::TokenStream {
+fn generate_decode_lazy_fields(fields: &[&FieldInfo]) -> proc_macro2::TokenStream {
     if fields.is_empty() {
         return quote! {};
     }
@@ -1724,10 +1606,7 @@ fn generate_decode_lazy_fields(fields: &[&StorageFieldAttributes]) -> proc_macro
         .iter()
         .enumerate()
         .map(|(idx, field)| {
-            let variant_name = syn::Ident::new(
-                &to_pascal_case(&field.field_name.to_string()),
-                field.field_name.span(),
-            );
+            let variant_name = &field.variant_name;
             let discriminant = idx as u8 + 1;
             quote! {
                 #discriminant => LazyField::#variant_name(bincode::Decode::decode(decoder)?)
@@ -1755,41 +1634,23 @@ fn generate_decode_lazy_fields(fields: &[&StorageFieldAttributes]) -> proc_macro
     }
 }
 
-/// Generate snapshot clone and merge methods for TypedStorage.
+/// Generate snapshot clone and restore methods for TypedStorage.
 ///
 /// Generates:
 /// - `clone_meta_snapshot(&self) -> TypedStorage` - Clone only persistent meta fields
 /// - `clone_data_snapshot(&self) -> TypedStorage` - Clone only persistent data fields
-/// - `merge_from_restored(&mut self, source, category)` - Merge restored data by category
-/// - `merge_meta_from(&mut self, source)` - Merge meta fields from source
-/// - `merge_data_from(&mut self, source)` - Merge data fields from source
-/// - `merge_all_from(&mut self, source)` - Merge all fields from source
-fn generate_snapshot_merge_methods(grouped_fields: &GroupedFields) -> proc_macro2::TokenStream {
+/// - `restore_from(&mut self, source, category)` - Restore data by category from decoded storage
+/// - `restore_meta_from(&mut self, source)` - Restore meta fields from source
+/// - `restore_data_from(&mut self, source)` - Restore data fields from source
+/// - `restore_all_from(&mut self, source)` - Restore all fields from source
+fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> proc_macro2::TokenStream {
     let has_flags = !grouped_fields.persisted_flag_fields.is_empty();
 
-    // Collect persistent inline fields by category
-    let persistent_inline_meta: Vec<_> = grouped_fields
-        .inline_meta_fields
-        .iter()
-        .filter(|f| !f.transient)
-        .collect();
-    let persistent_inline_data: Vec<_> = grouped_fields
-        .inline_data_fields
-        .iter()
-        .filter(|f| !f.transient)
-        .collect();
-
-    // Collect persistent lazy fields by category
-    let persistent_lazy_meta: Vec<_> = grouped_fields
-        .lazy_meta_fields
-        .iter()
-        .filter(|f| !f.transient)
-        .collect();
-    let persistent_lazy_data: Vec<_> = grouped_fields
-        .lazy_data_fields
-        .iter()
-        .filter(|f| !f.transient)
-        .collect();
+    // Collect persistent fields by category using helpers
+    let persistent_inline_meta: Vec<_> = grouped_fields.persistent_inline_meta().collect();
+    let persistent_inline_data: Vec<_> = grouped_fields.persistent_inline_data().collect();
+    let persistent_lazy_meta: Vec<_> = grouped_fields.persistent_lazy_meta().collect();
+    let persistent_lazy_data: Vec<_> = grouped_fields.persistent_lazy_data().collect();
 
     // Generate clone_meta_snapshot inline field assignments
     let clone_meta_inline: Vec<_> = persistent_inline_meta
@@ -1806,10 +1667,7 @@ fn generate_snapshot_merge_methods(grouped_fields: &GroupedFields) -> proc_macro
     let clone_meta_lazy_arms: Vec<_> = persistent_lazy_meta
         .iter()
         .map(|field| {
-            let variant_name = syn::Ident::new(
-                &to_pascal_case(&field.field_name.to_string()),
-                field.field_name.span(),
-            );
+            let variant_name = &field.variant_name;
             quote! {
                 LazyField::#variant_name(data) => {
                     snapshot.lazy.push(LazyField::#variant_name(data.clone()));
@@ -1833,10 +1691,7 @@ fn generate_snapshot_merge_methods(grouped_fields: &GroupedFields) -> proc_macro
     let clone_data_lazy_arms: Vec<_> = persistent_lazy_data
         .iter()
         .map(|field| {
-            let variant_name = syn::Ident::new(
-                &to_pascal_case(&field.field_name.to_string()),
-                field.field_name.span(),
-            );
+            let variant_name = &field.variant_name;
             quote! {
                 LazyField::#variant_name(data) => {
                     snapshot.lazy.push(LazyField::#variant_name(data.clone()));
@@ -1845,8 +1700,8 @@ fn generate_snapshot_merge_methods(grouped_fields: &GroupedFields) -> proc_macro
         })
         .collect();
 
-    // Generate merge_meta_from inline field assignments
-    let merge_meta_inline: Vec<_> = persistent_inline_meta
+    // Generate restore_meta_from inline field assignments
+    let restore_meta_inline: Vec<_> = persistent_inline_meta
         .iter()
         .map(|field| {
             let field_name = &field.field_name;
@@ -1856,24 +1711,30 @@ fn generate_snapshot_merge_methods(grouped_fields: &GroupedFields) -> proc_macro
         })
         .collect();
 
-    // Generate merge_meta_from lazy field match arms
-    let merge_meta_lazy_arms: Vec<_> = persistent_lazy_meta
+    // Generate debug assertion checks for restore_meta_from lazy fields
+    let restore_meta_lazy_debug_checks: Vec<_> = persistent_lazy_meta
         .iter()
         .map(|field| {
-            let variant_name = syn::Ident::new(
-                &to_pascal_case(&field.field_name.to_string()),
-                field.field_name.span(),
-            );
+            let variant_name = &field.variant_name;
             quote! {
-                LazyField::#variant_name(_) => {
-                    self.lazy.push(field);
-                }
+                LazyField::#variant_name(_)
             }
         })
         .collect();
 
-    // Generate merge_data_from inline field assignments
-    let merge_data_inline: Vec<_> = persistent_inline_data
+    // Generate filter pattern for meta lazy fields
+    let restore_meta_lazy_filter: Vec<_> = persistent_lazy_meta
+        .iter()
+        .map(|field| {
+            let variant_name = &field.variant_name;
+            quote! {
+                LazyField::#variant_name(_)
+            }
+        })
+        .collect();
+
+    // Generate restore_data_from inline field assignments
+    let restore_data_inline: Vec<_> = persistent_inline_data
         .iter()
         .map(|field| {
             let field_name = &field.field_name;
@@ -1883,24 +1744,30 @@ fn generate_snapshot_merge_methods(grouped_fields: &GroupedFields) -> proc_macro
         })
         .collect();
 
-    // Generate merge_data_from lazy field match arms
-    let merge_data_lazy_arms: Vec<_> = persistent_lazy_data
+    // Generate debug assertion checks for restore_data_from lazy fields
+    let restore_data_lazy_debug_checks: Vec<_> = persistent_lazy_data
         .iter()
         .map(|field| {
-            let variant_name = syn::Ident::new(
-                &to_pascal_case(&field.field_name.to_string()),
-                field.field_name.span(),
-            );
+            let variant_name = &field.variant_name;
             quote! {
-                LazyField::#variant_name(_) => {
-                    self.lazy.push(field);
-                }
+                LazyField::#variant_name(_)
             }
         })
         .collect();
 
-    // Generate merge_all_from inline field assignments (both meta and data)
-    let merge_all_inline_meta: Vec<_> = persistent_inline_meta
+    // Generate filter pattern for data lazy fields
+    let restore_data_lazy_filter: Vec<_> = persistent_lazy_data
+        .iter()
+        .map(|field| {
+            let variant_name = &field.variant_name;
+            quote! {
+                LazyField::#variant_name(_)
+            }
+        })
+        .collect();
+
+    // Generate restore_all_from inline field assignments (both meta and data)
+    let restore_all_inline_meta: Vec<_> = persistent_inline_meta
         .iter()
         .map(|field| {
             let field_name = &field.field_name;
@@ -1909,7 +1776,7 @@ fn generate_snapshot_merge_methods(grouped_fields: &GroupedFields) -> proc_macro
             }
         })
         .collect();
-    let merge_all_inline_data: Vec<_> = persistent_inline_data
+    let restore_all_inline_data: Vec<_> = persistent_inline_data
         .iter()
         .map(|field| {
             let field_name = &field.field_name;
@@ -1919,19 +1786,26 @@ fn generate_snapshot_merge_methods(grouped_fields: &GroupedFields) -> proc_macro
         })
         .collect();
 
-    // Generate merge_all_from lazy field match arms (both meta and data, combined)
-    let merge_all_lazy_arms: Vec<_> = persistent_lazy_meta
+    // Generate debug assertion checks for restore_all_from lazy fields
+    let restore_all_lazy_debug_checks: Vec<_> = persistent_lazy_meta
         .iter()
         .chain(persistent_lazy_data.iter())
         .map(|field| {
-            let variant_name = syn::Ident::new(
-                &to_pascal_case(&field.field_name.to_string()),
-                field.field_name.span(),
-            );
+            let variant_name = &field.variant_name;
             quote! {
-                LazyField::#variant_name(_) => {
-                    self.lazy.push(field);
-                }
+                LazyField::#variant_name(_)
+            }
+        })
+        .collect();
+
+    // Generate filter pattern for all persistent lazy fields
+    let restore_all_lazy_filter: Vec<_> = persistent_lazy_meta
+        .iter()
+        .chain(persistent_lazy_data.iter())
+        .map(|field| {
+            let variant_name = &field.variant_name;
+            quote! {
+                LazyField::#variant_name(_)
             }
         })
         .collect();
@@ -1946,9 +1820,9 @@ fn generate_snapshot_merge_methods(grouped_fields: &GroupedFields) -> proc_macro
         quote! {}
     };
 
-    let merge_flags = if has_flags {
+    let restore_flags = if has_flags {
         quote! {
-            // Merge persisted flags (preserve transient flags)
+            // Restore persisted flags (preserve transient flags)
             let persisted_bits = source.flags.persisted_bits();
             self.flags.set_persisted_bits(persisted_bits);
         }
@@ -1961,10 +1835,7 @@ fn generate_snapshot_merge_methods(grouped_fields: &GroupedFields) -> proc_macro
         .iter()
         .chain(persistent_lazy_data.iter())
         .map(|field| {
-            let variant_name = syn::Ident::new(
-                &to_pascal_case(&field.field_name.to_string()),
-                field.field_name.span(),
-            );
+            let variant_name = &field.variant_name;
             quote! {
                 LazyField::#variant_name(data) => {
                     snapshot.lazy.push(LazyField::#variant_name(data.clone()));
@@ -2049,81 +1920,100 @@ fn generate_snapshot_merge_methods(grouped_fields: &GroupedFields) -> proc_macro
                 snapshot
             }
 
-            /// Merge restored data from another TypedStorage.
+            /// Restore persisted data from a decoded TypedStorage.
             ///
-            /// This is used during restore operations to merge decoded persisted data
+            /// This is used during restore operations to copy decoded persisted data
             /// into the task's existing storage. It preserves transient state (flags,
-            /// transient fields) while merging in the persisted data.
+            /// transient fields) while restoring the persisted data.
             ///
-            /// Note: This assumes the target is unrestored and has empty persistent fields
-            /// for the specified category. The merge simply moves data from source to self.
+            /// # Invariant
             ///
-            /// The `category` parameter specifies which category of data to merge:
-            /// - `Meta`: Merge meta fields (aggregation_number, output, upper, dirty, etc.)
-            /// - `Data`: Merge data fields (output_dependent, dependencies, cell_data, etc.)
-            /// - `All`: Merge both meta and data fields
-            pub fn merge_from_restored(
+            /// This method assumes the target does NOT already have the persistent fields
+            /// being restored. This is guaranteed by the restore protocol which only calls
+            /// this once per category when the task is first accessed. Debug assertions
+            /// verify this invariant.
+            ///
+            /// The `category` parameter specifies which category of data to restore:
+            /// - `Meta`: Restore meta fields (aggregation_number, output, upper, dirty, etc.)
+            /// - `Data`: Restore data fields (output_dependent, dependencies, cell_data, etc.)
+            /// - `All`: Restore both meta and data fields
+            pub fn restore_from(
                 &mut self,
                 source: TypedStorage,
                 category: crate::backend::TaskDataCategory,
             ) {
                 match category {
-                    crate::backend::TaskDataCategory::Meta => self.merge_meta_from(source),
-                    crate::backend::TaskDataCategory::Data => self.merge_data_from(source),
-                    crate::backend::TaskDataCategory::All => self.merge_all_from(source),
+                    crate::backend::TaskDataCategory::Meta => self.restore_meta_from(source),
+                    crate::backend::TaskDataCategory::Data => self.restore_data_from(source),
+                    crate::backend::TaskDataCategory::All => self.restore_all_from(source),
                 }
             }
 
-            /// Merge meta category fields from source.
-            fn merge_meta_from(&mut self, source: TypedStorage) {
-                // Inline meta fields - direct move (target should be empty for unrestored category)
-                #(#merge_meta_inline)*
+            /// Restore meta category fields from source.
+            ///
+            /// Debug assertions verify that the target doesn't already have the lazy fields
+            /// being restored.
+            fn restore_meta_from(&mut self, source: TypedStorage) {
+                // Debug assertion: verify target doesn't already have meta lazy fields
+                debug_assert!(
+                    !self.lazy.iter().any(|f| matches!(f, #(#restore_meta_lazy_debug_checks)|*)),
+                    "restore_meta_from called on storage that already has meta lazy fields"
+                );
 
-                #merge_flags
+                // Inline meta fields - direct assignment
+                #(#restore_meta_inline)*
 
-                // Move lazy meta fields from source
-                for field in source.lazy {
-                    match &field {
-                        #(#merge_meta_lazy_arms)*
-                        // Skip transient fields and data fields
-                        _ => {}
-                    }
-                }
+                #restore_flags
+
+                // Extend lazy vec with meta fields from source (filtered)
+                self.lazy.extend(
+                    source.lazy.into_iter().filter(|f| matches!(f, #(#restore_meta_lazy_filter)|*))
+                );
             }
 
-            /// Merge data category fields from source.
-            fn merge_data_from(&mut self, source: TypedStorage) {
-                // Inline data fields - direct move (target should be empty for unrestored category)
-                #(#merge_data_inline)*
+            /// Restore data category fields from source.
+            ///
+            /// Debug assertions verify that the target doesn't already have the lazy fields
+            /// being restored.
+            fn restore_data_from(&mut self, source: TypedStorage) {
+                // Debug assertion: verify target doesn't already have data lazy fields
+                debug_assert!(
+                    !self.lazy.iter().any(|f| matches!(f, #(#restore_data_lazy_debug_checks)|*)),
+                    "restore_data_from called on storage that already has data lazy fields"
+                );
 
-                // Move lazy data fields from source
-                for field in source.lazy {
-                    match &field {
-                        #(#merge_data_lazy_arms)*
-                        // Skip transient fields and meta fields
-                        _ => {}
-                    }
-                }
+                // Inline data fields - direct assignment
+                #(#restore_data_inline)*
+
+                // Extend lazy vec with data fields from source (filtered)
+                self.lazy.extend(
+                    source.lazy.into_iter().filter(|f| matches!(f, #(#restore_data_lazy_filter)|*))
+                );
             }
 
-            /// Merge all fields from source (both meta and data).
-            fn merge_all_from(&mut self, source: TypedStorage) {
-                // Inline meta fields - direct move
-                #(#merge_all_inline_meta)*
+            /// Restore all fields from source (both meta and data).
+            ///
+            /// Debug assertions verify that the target doesn't already have the lazy fields
+            /// being restored.
+            fn restore_all_from(&mut self, source: TypedStorage) {
+                // Debug assertion: verify target doesn't already have any persistent lazy fields
+                debug_assert!(
+                    !self.lazy.iter().any(|f| matches!(f, #(#restore_all_lazy_debug_checks)|*)),
+                    "restore_all_from called on storage that already has persistent lazy fields"
+                );
 
-                // Inline data fields - direct move
-                #(#merge_all_inline_data)*
+                // Inline meta fields - direct assignment
+                #(#restore_all_inline_meta)*
 
-                #merge_flags
+                // Inline data fields - direct assignment
+                #(#restore_all_inline_data)*
 
-                // Move all lazy fields (both meta and data, but skip transient)
-                for field in source.lazy {
-                    match &field {
-                        #(#merge_all_lazy_arms)*
-                        // Skip transient fields
-                        _ => {}
-                    }
-                }
+                #restore_flags
+
+                // Extend lazy vec with all persistent fields from source (filtered)
+                self.lazy.extend(
+                    source.lazy.into_iter().filter(|f| matches!(f, #(#restore_all_lazy_filter)|*))
+                );
             }
         }
     }
@@ -2163,10 +2053,7 @@ fn generate_shrink_to_fit_method(grouped_fields: &GroupedFields) -> proc_macro2:
         .chain(grouped_fields.lazy_data_fields.iter())
         .filter(|f| supports_shrink_to_fit(&f.storage_type))
         .map(|field| {
-            let variant_name = syn::Ident::new(
-                &to_pascal_case(&field.field_name.to_string()),
-                field.field_name.span(),
-            );
+            let variant_name = &field.variant_name;
             quote! {
                 LazyField::#variant_name(data) => {
                     data.shrink_to_fit();
@@ -2202,6 +2089,9 @@ fn generate_shrink_to_fit_method(grouped_fields: &GroupedFields) -> proc_macro2:
                 #(#inline_shrink_calls)*
 
                 #lazy_shrink_block
+
+                // Shrink the lazy vec itself
+                self.lazy.shrink_to_fit();
             }
         }
     }

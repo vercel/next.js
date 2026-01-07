@@ -1,6 +1,5 @@
 mod operation;
 mod storage;
-mod storage_bridge;
 pub(crate) mod storage_schema;
 
 use std::{
@@ -2815,15 +2814,15 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         {
             let mut task = self.storage.access_mut(task_id);
             let typed = task.typed_mut();
-            typed.set_aggregation_number(Some(AggregationNumber {
+            typed.aggregation_number = Some(AggregationNumber {
                 base: u32::MAX,
                 distance: 0,
                 effective: u32::MAX,
-            }));
+            });
             if self.should_track_activeness() {
-                typed.set_activeness(Some(ActivenessState::new_root(root_type, task_id)));
+                typed.set_activeness(ActivenessState::new_root(root_type, task_id));
             }
-            typed.set_in_progress(Some(InProgressState::new_scheduled(
+            typed.set_in_progress(InProgressState::new_scheduled(
                 TaskExecutionReason::Initial,
                 move || {
                     move || match root_type {
@@ -2831,7 +2830,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         RootType::OnceTask => "Once Task".to_string(),
                     }
                 },
-            )));
+            ));
         }
         #[cfg(feature = "verify_aggregation_graph")]
         self.root_tasks.lock().insert(task_id);

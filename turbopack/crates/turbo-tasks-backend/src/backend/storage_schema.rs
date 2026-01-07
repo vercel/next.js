@@ -52,7 +52,10 @@ pub type AutoMap<K, V> = rustc_hash::FxHashMap<K, V>;
 /// Note: This struct is only used as a schema definition for the macro.
 /// The macro generates `TypedStorage`, `LazyField`, and `TaskFlags` from this.
 #[derive(TaskStorage)]
-#[allow(dead_code)]
+#[allow(
+    dead_code,
+    reason = "this isn't dead it is scaffolding for the derive macro"
+)]
 pub struct TaskStorageSchema {
     // =========================================================================
     // INLINE FIELDS (hot path, always allocated inline)
@@ -236,12 +239,16 @@ pub struct TaskStorageSchema {
     // TRANSIENT EXECUTION STATE (transient, lazy)
     // =========================================================================
     /// Activeness state for root/once tasks (transient).
+    /// Note: Uses the `lazy` storage attribute which provides natural optionality -
+    /// presence in Vec<LazyField> = Some, absence = None. No Option wrapper needed.
     #[task_storage(storage = "direct", category = "meta", lazy, transient)]
-    pub activeness: Option<ActivenessState>,
+    pub activeness: ActivenessState,
 
     /// In-progress execution state (transient).
+    /// Note: Uses the `lazy` storage attribute which provides natural optionality -
+    /// presence in Vec<LazyField> = Some, absence = None. No Option wrapper needed.
     #[task_storage(storage = "direct", category = "meta", lazy, transient)]
-    pub in_progress: Option<InProgressState>,
+    pub in_progress: InProgressState,
 
     /// In-progress cell state for cells being computed (transient).
     #[task_storage(storage = "auto_map", category = "meta", lazy, transient)]

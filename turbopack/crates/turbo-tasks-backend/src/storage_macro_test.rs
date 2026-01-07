@@ -25,39 +25,41 @@ mod tests {
     }
 
     #[test]
-    fn test_generated_accessors() {
+    fn test_field_access() {
         let mut storage = TypedStorage::new();
 
-        // Test inline direct field accessors (meta category)
-        assert_eq!(storage.get_output(), &None);
-        storage.set_output(Some(OutputValue::Output(unsafe {
-            TaskId::new_unchecked(1)
-        })));
-        assert!(storage.get_output().is_some());
+        // Test inline direct fields via direct field access (meta category)
+        // Inline fields are accessed directly since TypedStorage doesn't generate
+        // accessor methods for them - use the TaskStorageAccessors trait or direct access.
+        assert_eq!(storage.output, None);
+        storage.output = Some(OutputValue::Output(unsafe { TaskId::new_unchecked(1) }));
+        assert!(storage.output.is_some());
 
-        // Test inline direct field accessors (meta category)
-        assert_eq!(storage.get_aggregation_number(), &None);
-        storage.set_aggregation_number(Some(AggregationNumber {
+        // Test inline direct field (meta category)
+        assert_eq!(storage.aggregation_number, None);
+        storage.aggregation_number = Some(AggregationNumber {
             base: 10,
             distance: 5,
             effective: 15,
-        }));
-        assert!(storage.get_aggregation_number().is_some());
+        });
+        assert!(storage.aggregation_number.is_some());
 
-        assert_eq!(storage.get_dirty(), &None);
-        storage.set_dirty(Some(Dirtyness::Dirty));
-        assert_eq!(storage.get_dirty(), &Some(Dirtyness::Dirty));
+        assert_eq!(storage.dirty, None);
+        storage.dirty = Some(Dirtyness::Dirty);
+        assert_eq!(storage.dirty, Some(Dirtyness::Dirty));
 
-        // Test lazy field accessors (auto_set)
+        // Test lazy field accessors (auto_set) - these ARE generated on TypedStorage
         let deps = storage.output_dependencies_mut();
         deps.insert(unsafe { TaskId::new_unchecked(10) });
         deps.insert(unsafe { TaskId::new_unchecked(20) });
         assert_eq!(deps.len(), 2);
 
-        // Test inline field accessors (counter_map)
-        let upper = storage.upper_mut();
-        upper.insert(unsafe { TaskId::new_unchecked(5) }, 3);
-        assert_eq!(upper.get(&unsafe { TaskId::new_unchecked(5) }), Some(&3));
+        // Test inline field via direct access (counter_map)
+        storage.upper.insert(unsafe { TaskId::new_unchecked(5) }, 3);
+        assert_eq!(
+            storage.upper.get(&unsafe { TaskId::new_unchecked(5) }),
+            Some(&3)
+        );
 
         // Verify it compiles and drops correctly
         drop(storage);
@@ -69,14 +71,12 @@ mod tests {
 
         // Empty storage should not allocate the lazy fields
         // We can verify the structure compiles and basic operations work
-        assert_eq!(empty_storage.get_output(), &None);
-        assert_eq!(empty_storage.get_aggregation_number(), &None);
+        assert_eq!(empty_storage.output, None);
+        assert_eq!(empty_storage.aggregation_number, None);
 
         // Create a storage with some data
         let mut storage_with_data = TypedStorage::new();
-        storage_with_data.set_output(Some(OutputValue::Output(unsafe {
-            TaskId::new_unchecked(1)
-        })));
+        storage_with_data.output = Some(OutputValue::Output(unsafe { TaskId::new_unchecked(1) }));
 
         // Add some dependencies (should allocate lazily)
         let deps = storage_with_data.output_dependencies_mut();
@@ -89,43 +89,39 @@ mod tests {
     fn test_inline_fields() {
         let mut storage = TypedStorage::new();
 
-        // Test inline data field (output)
-        storage.set_output(Some(OutputValue::Output(unsafe {
-            TaskId::new_unchecked(123)
-        })));
-        assert!(storage.get_output().is_some());
+        // Test inline data field (output) via direct field access
+        storage.output = Some(OutputValue::Output(unsafe { TaskId::new_unchecked(123) }));
+        assert!(storage.output.is_some());
 
-        // Test inline counter_map field (upper)
+        // Test inline counter_map field (upper) via direct field access
         storage = TypedStorage::new();
         storage
-            .upper_mut()
+            .upper
             .insert(unsafe { TaskId::new_unchecked(1) }, 10);
         assert_eq!(
-            storage
-                .upper_mut()
-                .get(&unsafe { TaskId::new_unchecked(1) }),
+            storage.upper.get(&unsafe { TaskId::new_unchecked(1) }),
             Some(&10)
         );
 
-        // Test inline auto_set field (output_dependent)
+        // Test inline auto_set field (output_dependent) via direct field access
         storage = TypedStorage::new();
         storage
-            .output_dependent_mut()
+            .output_dependent
             .insert(unsafe { TaskId::new_unchecked(5) });
         assert!(
             storage
-                .output_dependent_mut()
+                .output_dependent
                 .contains(&unsafe { TaskId::new_unchecked(5) })
         );
 
-        // Test inline meta field (aggregation_number)
+        // Test inline meta field (aggregation_number) via direct field access
         storage = TypedStorage::new();
-        storage.set_aggregation_number(Some(AggregationNumber {
+        storage.aggregation_number = Some(AggregationNumber {
             base: 1,
             distance: 2,
             effective: 3,
-        }));
-        assert!(storage.get_aggregation_number().is_some());
+        });
+        assert!(storage.aggregation_number.is_some());
     }
 
     #[test]
@@ -273,25 +269,23 @@ mod tests {
     fn test_encode_decode_meta_roundtrip() {
         let mut original = TypedStorage::new();
 
-        // Set inline meta fields
-        original.set_aggregation_number(Some(AggregationNumber {
+        // Set inline meta fields via direct field access
+        original.aggregation_number = Some(AggregationNumber {
             base: 10,
             distance: 5,
             effective: 15,
-        }));
-        original.set_output(Some(OutputValue::Output(unsafe {
-            TaskId::new_unchecked(42)
-        })));
+        });
+        original.output = Some(OutputValue::Output(unsafe { TaskId::new_unchecked(42) }));
         original
-            .upper_mut()
+            .upper
             .insert(unsafe { TaskId::new_unchecked(100) }, 7);
         original
-            .upper_mut()
+            .upper
             .insert(unsafe { TaskId::new_unchecked(200) }, 3);
-        original.set_dirty(Some(Dirtyness::Dirty));
-        original.set_aggregated_dirty_container_count(Some(5));
+        original.dirty = Some(Dirtyness::Dirty);
+        original.aggregated_dirty_container_count = Some(5);
         original
-            .aggregated_dirty_containers_mut()
+            .aggregated_dirty_containers
             .insert(unsafe { TaskId::new_unchecked(50) }, 2);
 
         // Set flags (persisted)
@@ -328,17 +322,14 @@ mod tests {
             decoded.decode_meta(&mut decoder).expect("decode failed");
         }
 
-        // Verify inline meta fields
-        assert_eq!(
-            decoded.get_aggregation_number(),
-            original.get_aggregation_number()
-        );
-        assert_eq!(decoded.get_output(), original.get_output());
+        // Verify inline meta fields via direct field access
+        assert_eq!(decoded.aggregation_number, original.aggregation_number);
+        assert_eq!(decoded.output, original.output);
         assert_eq!(decoded.upper, original.upper);
-        assert_eq!(decoded.get_dirty(), original.get_dirty());
+        assert_eq!(decoded.dirty, original.dirty);
         assert_eq!(
-            decoded.get_aggregated_dirty_container_count(),
-            original.get_aggregated_dirty_container_count()
+            decoded.aggregated_dirty_container_count,
+            original.aggregated_dirty_container_count
         );
         assert_eq!(
             decoded.aggregated_dirty_containers,
@@ -384,12 +375,12 @@ mod tests {
 
         let mut original = TypedStorage::new();
 
-        // Set inline data field
+        // Set inline data field via direct field access
         original
-            .output_dependent_mut()
+            .output_dependent
             .insert(unsafe { TaskId::new_unchecked(10) });
         original
-            .output_dependent_mut()
+            .output_dependent
             .insert(unsafe { TaskId::new_unchecked(20) });
 
         // Set lazy data fields (persisted)
@@ -500,9 +491,9 @@ mod tests {
                 .expect("decode data failed");
         }
 
-        // Verify empty
-        assert!(decoded.get_aggregation_number().is_none());
-        assert!(decoded.get_output().is_none());
+        // Verify empty via direct field access
+        assert!(decoded.aggregation_number.is_none());
+        assert!(decoded.output.is_none());
         assert!(decoded.upper.is_empty());
         assert!(!decoded.flags.stateful());
         assert!(decoded.output_dependent.is_empty());
