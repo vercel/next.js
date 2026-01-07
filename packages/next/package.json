@@ -127,7 +127,7 @@
     }
   },
   "optionalDependencies": {
-    "sharp": "^0.34.4"
+    "sharp": "^0.34.5"
   },
   "devDependencies": {
     "@babel/code-frame": "7.26.2",
