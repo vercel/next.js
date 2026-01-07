@@ -138,12 +138,14 @@ enum ServerActionsErrorKind {
     },
 }
 
+#[allow(clippy::too_many_arguments)]
 #[tracing::instrument(level = tracing::Level::TRACE, skip_all)]
 pub fn server_actions<C: Comments>(
     file_name: &FileName,
     file_query: Option<RcStr>,
     config: Config,
     comments: C,
+    unresolved_mark: Mark,
     cm: Arc<SourceMap>,
     use_cache_telemetry_tracker: Rc<RefCell<FxHashMap<String, usize>>>,
     mode: ServerActionsMode,
@@ -184,6 +186,7 @@ pub fn server_actions<C: Comments>(
         server_reference_exports: Default::default(),
 
         private_ctxt: SyntaxContext::empty().apply_mark(Mark::new()),
+        unresolved_ctxt: SyntaxContext::empty().apply_mark(unresolved_mark),
 
         arrow_or_fn_expr_ident: None,
         export_name_by_local_id: Default::default(),
@@ -258,6 +261,7 @@ struct ServerActions<C: Comments> {
     server_reference_exports: Vec<ServerReferenceExport>,
 
     private_ctxt: SyntaxContext,
+    unresolved_ctxt: SyntaxContext,
 
     arrow_or_fn_expr_ident: Option<Ident>,
     export_name_by_local_id: FxIndexMap<Id, ModuleExportName>,
@@ -848,6 +852,7 @@ impl<C: Comments> ServerActions<C> {
             inner_fn_body,
             arrow.span,
             &mut self.hoisted_extra_items,
+            self.unresolved_ctxt,
         );
 
         if let Some(Ident { sym, .. }) = &self.arrow_or_fn_expr_ident {
@@ -855,6 +860,7 @@ impl<C: Comments> ServerActions<C> {
                 .push(ModuleItem::Stmt(assign_name_to_ident(
                     &cache_ident,
                     sym.as_str(),
+                    self.unresolved_ctxt,
                 )));
         }
 
@@ -940,6 +946,7 @@ impl<C: Comments> ServerActions<C> {
             function_body,
             function_span,
             &mut self.hoisted_extra_items,
+            self.unresolved_ctxt,
         );
 
         if let Some(Ident { ref sym, .. }) = fn_name {
@@ -947,12 +954,14 @@ impl<C: Comments> ServerActions<C> {
                 .push(ModuleItem::Stmt(assign_name_to_ident(
                     &cache_ident,
                     sym.as_str(),
+                    self.unresolved_ctxt,
                 )));
         } else if self.is_default_export() {
             self.hoisted_extra_items
                 .push(ModuleItem::Stmt(assign_name_to_ident(
                     &cache_ident,
                     "default",
+                    self.unresolved_ctxt,
                 )));
         }
 
@@ -1049,6 +1058,7 @@ impl<C: Comments> ServerActions<C> {
                     .push(ModuleItem::Stmt(assign_name_to_ident(
                         &action_ident,
                         "default",
+                        self.unresolved_ctxt,
                     )));
 
                 self.rewrite_default_fn_expr_to_proxy_expr =
@@ -2421,6 +2431,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                         Expr::Ident(ident.clone()),
                                         ident.span,
                                         None,
+                                        self.unresolved_ctxt,
                                     )),
                                 })),
                             }),
@@ -2438,7 +2449,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         // Only assign a name if the original ident is not a generated one.
                         if !ident.sym.starts_with("$$RSC_SERVER_") {
                             // Object.defineProperty($$RSC_SERVER_CACHE_exportName, "name", {...});
-                            stmts.push(assign_name_to_ident(&wrapper_ident, &ident.sym));
+                            stmts.push(assign_name_to_ident(
+                                &wrapper_ident,
+                                &ident.sym,
+                                self.unresolved_ctxt,
+                            ));
                         }
 
                         stmts
@@ -2957,6 +2972,7 @@ fn may_need_cache_runtime_wrapper(expr: &Expr) -> bool {
 
 /// Creates a cache wrapper expression:
 /// $$reactCache__(function name() { return $$cache__(...) })
+#[allow(clippy::too_many_arguments)]
 fn create_cache_wrapper(
     cache_kind: &str,
     reference_id: Atom,
@@ -2965,6 +2981,7 @@ fn create_cache_wrapper(
     target_expr: Expr,
     original_span: Span,
     params: Option<&[Param]>,
+    unresolved_ctxt: SyntaxContext,
 ) -> Expr {
     let cache_call = CallExpr {
         span: original_span,
@@ -2993,7 +3010,8 @@ fn create_cache_wrapper(
                     } else {
                         // Slice to declared params length to ignore unused arguments.
                         Box::new(quote!(
-                            "Array.prototype.slice.call(arguments, 0, $end)" as Expr,
+                            "$array.prototype.slice.call(arguments, 0, $end)" as Expr,
+                            array = quote_ident!(unresolved_ctxt, "Array"),
                             end: Expr = params.len().into(),
                         ))
                         .as_arg()
@@ -3002,7 +3020,11 @@ fn create_cache_wrapper(
                 // The params are statically unknown, or rest params are used.
                 _ => {
                     // Pass all arguments as an array.
-                    Box::new(quote!("Array.prototype.slice.call(arguments)" as Expr,)).as_arg()
+                    Box::new(quote!(
+                        "$array.prototype.slice.call(arguments)" as Expr,
+                        array = quote_ident!(unresolved_ctxt, "Array"),
+                    ))
+                    .as_arg()
                 }
             },
         ],
@@ -3043,6 +3065,7 @@ fn create_and_hoist_cache_function(
     body: Option<BlockStmt>,
     original_span: Span,
     hoisted_extra_items: &mut Vec<ModuleItem>,
+    unresolved_ctxt: SyntaxContext,
 ) -> Ident {
     let cache_ident = private_ident!(Span::dummy_with_cmt(), cache_name.clone());
     let inner_fn_name: Atom = format!("{}_INNER", cache_name).into();
@@ -3056,6 +3079,7 @@ fn create_and_hoist_cache_function(
         Expr::Ident(inner_fn_ident.clone()),
         original_span,
         Some(&params),
+        unresolved_ctxt,
     ));
 
     let inner_fn_expr = FnExpr {
@@ -3087,7 +3111,11 @@ fn create_and_hoist_cache_function(
     // For anonymous functions, set the name property to an empty string to
     // avoid leaking the internal variable name in stack traces.
     if fn_ident.is_none() {
-        hoisted_extra_items.push(ModuleItem::Stmt(assign_name_to_ident(&inner_fn_ident, "")));
+        hoisted_extra_items.push(ModuleItem::Stmt(assign_name_to_ident(
+            &inner_fn_ident,
+            "",
+            unresolved_ctxt,
+        )));
     }
 
     hoisted_extra_items.push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
@@ -3117,7 +3145,7 @@ fn create_and_hoist_cache_function(
     cache_ident
 }
 
-fn assign_name_to_ident(ident: &Ident, name: &str) -> Stmt {
+fn assign_name_to_ident(ident: &Ident, name: &str, unresolved_ctxt: SyntaxContext) -> Stmt {
     // Assign a name with `Object.defineProperty($$ACTION_0, 'name', {value: 'default'})`
     quote!(
         // WORKAROUND for https://github.com/microsoft/TypeScript/issues/61165
@@ -3127,8 +3155,9 @@ fn assign_name_to_ident(ident: &Ident, name: &str) -> Stmt {
         //
         // but due to the above typescript bug, `Object.defineProperty` calls are typechecked incorrectly
         // in js files, and it can cause false positives when typechecking our fixture files.
-        "Object[\"defineProperty\"]($action, \"name\", { value: $name });"
+        "$object[\"defineProperty\"]($action, \"name\", { value: $name });"
             as Stmt,
+        object = quote_ident!(unresolved_ctxt, "Object"),
         action: Ident = ident.clone(),
         name: Expr = name.into(),
     )

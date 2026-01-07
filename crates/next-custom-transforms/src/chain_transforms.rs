@@ -322,6 +322,7 @@ where
                     None,
                     config.clone(),
                     comments.clone(),
+                    unresolved_mark,
                     cm.clone(),
                     use_cache_telemetry_tracker,
                     ServerActionsMode::Webpack,
