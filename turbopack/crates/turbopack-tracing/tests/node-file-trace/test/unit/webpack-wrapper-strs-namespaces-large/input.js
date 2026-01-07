@@ -3853,7 +3853,9 @@ module.exports = /******/ (function (modules) {
         return obj
       }
 
-      class MyDocument extends next_document__WEBPACK_IMPORTED_MODULE_1___default.a {
+      class MyDocument
+        extends next_document__WEBPACK_IMPORTED_MODULE_1___default.a
+      {
         static async getInitialProps(ctx) {
           const sheet = new styled_components__WEBPACK_IMPORTED_MODULE_2__[
             'ServerStyleSheet'
