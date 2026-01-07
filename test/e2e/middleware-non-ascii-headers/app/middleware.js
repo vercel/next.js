@@ -2,12 +2,12 @@ import { NextResponse } from 'next/server'
 
 /**
  * Middleware that forwards request headers including non-ASCII values.
- * This simulates how Cloudflare or other CDNs might add headers with
- * non-ASCII characters (e.g., cf-ipcity: Montréal).
+ * This simulates how CDNs might add headers with non-ASCII characters
+ * (e.g., x-city: Montréal).
  *
  * The issue (#85631) is that when middleware forwards headers containing
  * non-ASCII characters, they get passed through x-middleware-request-* headers
- * which must be ASCII-safe. This causes errors on Vercel's runtime.
+ * which must be ASCII-safe.
  *
  * @param {import('next/server').NextRequest} request
  */

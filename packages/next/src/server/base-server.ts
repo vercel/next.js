@@ -146,7 +146,7 @@ import { SegmentPrefixRSCPathnameNormalizer } from './normalizers/request/segmen
 import { shouldServeStreamingMetadata } from './lib/streaming-metadata'
 import { decodeQueryPathParameter } from './lib/decode-query-path-parameter'
 import { NoFallbackError } from '../shared/lib/no-fallback-error.external'
-import { fixMojibake } from './lib/fix-mojibake'
+import { decodeMojibake } from './lib/mojibake'
 import { computeCacheBustingSearchParam } from '../shared/lib/router/utils/cache-busting-search-param'
 import { setCacheBustingSearchParamWithHash } from '../client/components/router-reducer/set-cache-busting-search-param'
 import type { CacheControl } from './lib/cache-control'
@@ -1057,7 +1057,7 @@ export default abstract class Server<
           // x-matched-path is the source of truth, it tells what page
           // should be rendered because we don't process rewrites in minimalMode
           let { pathname: matchedPath } = new URL(
-            fixMojibake(req.headers[MATCHED_PATH_HEADER] as string),
+            decodeMojibake(req.headers[MATCHED_PATH_HEADER] as string),
             'http://localhost'
           )
 

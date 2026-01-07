@@ -70,13 +70,13 @@ describe('encodeHeaderValue', () => {
     )
   })
 
-  it('should preserve spaces', () => {
-    expect(encodeHeaderValue('hello world')).toBe('hello world')
-    expect(encodeHeaderValue('Montréal city')).toBe('Montr%C3%A9al city')
+  it('should encode spaces when value contains non-ASCII', () => {
+    expect(encodeHeaderValue('hello world')).toBe('hello world') // ASCII only, no encoding
+    expect(encodeHeaderValue('Montréal city')).toBe('Montr%C3%A9al%20city')
   })
 
   it('should handle mixed ASCII and non-ASCII', () => {
-    expect(encodeHeaderValue('City: Montréal')).toBe('City: Montr%C3%A9al')
+    expect(encodeHeaderValue('City: Montréal')).toBe('City%3A%20Montr%C3%A9al')
   })
 })
 
@@ -98,11 +98,11 @@ describe('decodeHeaderValue', () => {
 
   it('should handle spaces correctly', () => {
     expect(decodeHeaderValue('hello world')).toBe('hello world')
-    expect(decodeHeaderValue('Montr%C3%A9al city')).toBe('Montréal city')
+    expect(decodeHeaderValue('Montr%C3%A9al%20city')).toBe('Montréal city')
   })
 
   it('should handle mixed encoded and unencoded values', () => {
-    expect(decodeHeaderValue('City: Montr%C3%A9al')).toBe('City: Montréal')
+    expect(decodeHeaderValue('City%3A%20Montr%C3%A9al')).toBe('City: Montréal')
   })
 
   it('should return original value if decoding fails', () => {

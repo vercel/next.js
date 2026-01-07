@@ -4,20 +4,14 @@ import { fetchViaHTTP } from 'next-test-utils'
 import { createNext, FileRef } from 'e2e-utils'
 
 /**
- * Test for issue #85631: Middleware crashes when processing headers with non-ASCII characters.
  *
- * When middleware forwards headers containing non-ASCII values (e.g., Cloudflare's
- * cf-ipcity: "Montréal"), the request fails because x-middleware-request-* headers
+ * When middleware forwards headers containing non-ASCII values
+ * (e.g. x-city: "Montréal"), the request fails because x-middleware-request-* headers
  * must be ASCII-safe per HTTP spec.
  *
- * IMPORTANT: In real-world scenarios (Cloudflare, browsers), UTF-8 header values are
+ * IMPORTANT: In real-world scenarios, UTF-8 header values are
  * transmitted as bytes and interpreted by Node.js as Latin-1, causing "Mojibake".
- * For example, "Montréal" (UTF-8: 4D 6F 6E 74 72 C3 A9 61 6C) arrives as "MontrÃ©al"
- * when those UTF-8 bytes are interpreted as Latin-1 characters.
- *
- * node-fetch (used in tests) handles headers differently - it converts non-ASCII to
- * replacement characters. So these tests send the Mojibake directly to simulate
- * what the server actually receives in production.
+ * For example, "Montréal" (UTF-8: 4D 6F 6E 74 72 C3 A9 61 6C) arrives as "MontrÃ©al" when those UTF-8 bytes are interpreted as Latin-1 characters.
  */
 
 /**
@@ -48,7 +42,7 @@ describe('Middleware Non-ASCII Headers', () => {
   })
 
   it('should handle headers with French accented characters (Montréal)', async () => {
-    // Simulate what the server receives when Cloudflare sends "Montréal" as UTF-8
+    // Simulate what the server receives when sends "Montréal" as UTF-8
     // The UTF-8 bytes get interpreted as Latin-1, producing "MontrÃ©al"
     const res = await fetchViaHTTP(
       next.url,
@@ -63,7 +57,6 @@ describe('Middleware Non-ASCII Headers', () => {
 
     expect(res.status).toBe(200)
     const headers = await res.json()
-    // The middleware should recover the original UTF-8 string
     expect(headers['x-city']).toBe('Montréal')
   })
 
