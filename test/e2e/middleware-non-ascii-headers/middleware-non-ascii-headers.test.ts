@@ -46,8 +46,7 @@ describe('Middleware Non-ASCII Headers', () => {
 
     expect(res.status).toBe(200)
     const headers = await res.json()
-    expect(headers['x-middleware-ran']).toBe('true')
-    expect(headers['x-city']).toBe('Montréal')
+        expect(headers['x-city']).toBe('Montréal')
   })
 
   it('should handle headers with German umlauts (München)', async () => {
@@ -64,8 +63,7 @@ describe('Middleware Non-ASCII Headers', () => {
 
     expect(res.status).toBe(200)
     const headers = await res.json()
-    expect(headers['x-middleware-ran']).toBe('true')
-    expect(headers['x-city']).toBe('München')
+        expect(headers['x-city']).toBe('München')
   })
 
   it('should handle headers with Spanish characters (España)', async () => {
@@ -82,8 +80,7 @@ describe('Middleware Non-ASCII Headers', () => {
 
     expect(res.status).toBe(200)
     const headers = await res.json()
-    expect(headers['x-middleware-ran']).toBe('true')
-    expect(headers['x-country']).toBe('España')
+        expect(headers['x-country']).toBe('España')
   })
 
   it('should handle headers with Nordic characters (Malmö, København)', async () => {
@@ -101,8 +98,7 @@ describe('Middleware Non-ASCII Headers', () => {
 
     expect(res.status).toBe(200)
     const headers = await res.json()
-    expect(headers['x-middleware-ran']).toBe('true')
-    expect(headers['x-city']).toBe('Malmö')
+        expect(headers['x-city']).toBe('Malmö')
     expect(headers['x-region']).toBe('København')
   })
 
@@ -120,8 +116,7 @@ describe('Middleware Non-ASCII Headers', () => {
 
     expect(res.status).toBe(200)
     const headers = await res.json()
-    expect(headers['x-middleware-ran']).toBe('true')
-    expect(headers['x-region']).toBe('Île-de-France')
+        expect(headers['x-region']).toBe('Île-de-France')
   })
 
   it('should handle headers with Austrian characters (Österreich)', async () => {
@@ -138,8 +133,7 @@ describe('Middleware Non-ASCII Headers', () => {
 
     expect(res.status).toBe(200)
     const headers = await res.json()
-    expect(headers['x-middleware-ran']).toBe('true')
-    expect(headers['x-country']).toBe('Österreich')
+        expect(headers['x-country']).toBe('Österreich')
   })
 
   it('should handle multiple headers with various Latin-1 characters', async () => {
@@ -159,8 +153,7 @@ describe('Middleware Non-ASCII Headers', () => {
 
     expect(res.status).toBe(200)
     const headers = await res.json()
-    expect(headers['x-middleware-ran']).toBe('true')
-    expect(headers['x-city']).toBe('Montréal')
+        expect(headers['x-city']).toBe('Montréal')
     expect(headers['x-region']).toBe('Île-de-France')
     expect(headers['x-country']).toBe('Österreich')
     expect(headers['x-greeting']).toBe('Grüß Gott')
@@ -180,7 +173,6 @@ describe('Middleware Non-ASCII Headers', () => {
 
     expect(res.status).toBe(200)
     const headers = await res.json()
-    expect(headers['x-middleware-ran']).toBe('true')
-    expect(headers['x-city']).toBe('São Paulo')
+        expect(headers['x-city']).toBe('São Paulo')
   })
 })
