@@ -736,7 +736,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 // doesn't have the dependency edge yet, the invalidation would be lost.
 
                 if !reader_task.remove_outdated_output_dependency(task_id) {
-                    let _ = reader_task.add_output_dependency(task_id);
+                    let _ = reader_task.add_output_dependencies_item(task_id);
                 }
             }
 
@@ -803,7 +803,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     cell,
                 };
                 if !reader_task.remove_outdated_cell_dependency(target) {
-                    let _ = reader_task.add_cell_dependency(target);
+                    let _ = reader_task.add_cell_dependencies_item(target);
                 }
             }
         }
@@ -1666,9 +1666,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     task.iter_cell_dependencies().collect::<SmallVec<[_; 8]>>();
                 let outdated_cell_dependencies_to_remove = task
                     .iter_outdated_cell_dependencies()
-                    .filter(|&target| !task.has_cell_dependency(target))
+                    .filter(|&target| !task.has_cell_dependencies_item(&target))
                     .collect::<SmallVec<[_; 8]>>();
-                task.add_outdated_cell_dependencies(outdated_cell_dependencies_to_add.into_iter());
+                task.add_outdated_cell_dependencies_items(
+                    outdated_cell_dependencies_to_add.into_iter(),
+                );
                 for target in outdated_cell_dependencies_to_remove {
                     task.remove_outdated_cell_dependency(target);
                 }
@@ -1678,9 +1680,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     .collect::<SmallVec<[_; 8]>>();
                 let outdated_output_dependencies_to_remove = task
                     .iter_outdated_output_dependencies()
-                    .filter(|&target| !task.has_output_dependency(target))
+                    .filter(|&target| !task.has_output_dependencies_item(&target))
                     .collect::<SmallVec<[_; 8]>>();
-                task.add_outdated_output_dependencies(
+                task.add_outdated_output_dependencies_items(
                     outdated_output_dependencies_to_add.into_iter(),
                 );
                 for target in outdated_output_dependencies_to_remove {
@@ -2155,7 +2157,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 // But importantly we still need to make the task dirty as it should no longer
                 // be considered as "recomputation".
                 make_stale = false;
-            } else if !dependent.has_output_dependency(task_id) {
+            } else if !dependent.has_output_dependencies_item(&task_id) {
                 // output dependency has been removed, so the task doesn't depend on the
                 // output anymore and doesn't need to be invalidated
                 #[cfg(feature = "trace_task_output_dependencies")]
@@ -2816,11 +2818,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         {
             let mut task = self.storage.access_mut(task_id);
             let typed = task.typed_mut();
-            typed.aggregation_number = Some(AggregationNumber {
-                base: u32::MAX,
-                distance: 0,
-                effective: u32::MAX,
-            });
+            typed.set_aggregation_number(AggregationNumber::new(u32::MAX, 0, u32::MAX));
             if self.should_track_activeness() {
                 typed.set_activeness(ActivenessState::new_root(root_type, task_id));
             }

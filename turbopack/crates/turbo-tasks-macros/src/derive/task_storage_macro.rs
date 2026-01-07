@@ -26,8 +26,8 @@ use syn::{
 ///   - `data` - Frequently changed, bulk I/O
 ///   - `meta` - Rarely changed, small I/O
 ///
-/// - `#[task_storage(lazy)]` - Field is lazily allocated in a Vec<LazyField> for memory efficiency.
-///   Fields without `lazy` are stored inline.
+/// - `#[task_storage(inline)]` - Field is stored inline on TypedStorage (default is lazy). Only use
+///   for hot-path fields that are frequently accessed.
 ///
 /// - `#[task_storage(transient)]` - Field is not serialized
 ///
@@ -82,7 +82,8 @@ struct FieldInfo {
     field_type: Type,
     storage_type: StorageType,
     category: Category,
-    /// If true, field is lazily allocated in Vec<LazyField> instead of inline on TypedStorage
+    /// If true, field is lazily allocated in Vec<LazyField> (the default).
+    /// If false (marked with `inline`), field is stored directly on TypedStorage.
     lazy: bool,
     /// If true, field is not serialized (skipped in bincode)
     transient: bool,
@@ -139,7 +140,7 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
     // Default values
     let mut storage_type = StorageType::Direct;
     let mut category = Category::Data;
-    let mut lazy = false;
+    let mut inline = false; // Default is lazy (not inline)
     let mut transient = false;
     let mut flag = false;
     let mut filter_transient = false;
@@ -215,8 +216,8 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
                 }
                 Meta::Path(path) => {
                     if let Some(ident) = path.get_ident() {
-                        if *ident == "lazy" {
-                            lazy = true;
+                        if *ident == "inline" {
+                            inline = true;
                         } else if *ident == "transient" {
                             transient = true;
                         } else if *ident == "flag" {
@@ -239,7 +240,7 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
         field_type,
         storage_type,
         category,
-        lazy,
+        lazy: !inline, // Default is lazy; inline = true means lazy = false
         transient,
         flag,
         filter_transient,
@@ -676,7 +677,7 @@ fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> proc_macro2:
     // Collect all field definitions from both categories
     let mut field_defs = Vec::new();
 
-    // Add inline fields directly on TypedStorage
+    // Add inline fields directly on TypedStorage (private - use accessor methods)
     // Note: No bincode attributes since we don't derive Encode/Decode (manual serialization)
     for field in grouped_fields
         .inline_data_fields
@@ -686,26 +687,26 @@ fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> proc_macro2:
         let field_name = &field.field_name;
         let field_type = &field.field_type;
         field_defs.push(quote! {
-            pub #field_name: #field_type
+            #field_name: #field_type
         });
     }
 
-    // Add flags bitfield if needed
+    // Add flags bitfield if needed (pub(crate) - used by TaskFlags methods)
     let flags_field = if has_flags {
         quote! {
             /// Combined bitfield for boolean flags (persisted + transient)
-            pub flags: TaskFlags,
+            pub(crate) flags: TaskFlags,
         }
     } else {
         quote! {}
     };
 
-    // Add lazy vec field if needed
+    // Add lazy vec field if needed (pub(crate) - used by helper methods)
     // Note: Serialization is handled manually via encode_data/encode_meta methods
     let lazy_field = if has_lazy {
         quote! {
             /// Lazily-allocated fields stored in a single Vec for memory efficiency
-            pub lazy: Vec<LazyField>,
+            pub(crate) lazy: Vec<LazyField>,
         }
     } else {
         quote! {}
@@ -738,14 +739,17 @@ fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> proc_macro2:
 fn generate_accessor_methods(grouped_fields: &GroupedFields) -> proc_macro2::TokenStream {
     let mut methods = proc_macro2::TokenStream::new();
 
-    // Note: Inline field accessors are not generated on TypedStorage itself.
-    // All field access should go through the TaskStorageAccessors trait for correctness
-    // (check_access validation and modification tracking).
-    //
-    // The only exception is lazy field accessors which are used by some helper methods
-    // that need to operate on TypedStorage directly after calling typed_mut().
+    // Generate accessor methods for inline fields on TypedStorage
+    // This encapsulates the storage strategy - callers use methods, not field access
+    for field in grouped_fields
+        .inline_data_fields
+        .iter()
+        .chain(grouped_fields.inline_meta_fields.iter())
+    {
+        methods.extend(generate_inline_field_accessors(field));
+    }
 
-    // Generate methods for lazy_vec fields only
+    // Generate accessor methods for lazy fields on TypedStorage
     for field in grouped_fields
         .lazy_data_fields
         .iter()
@@ -757,6 +761,66 @@ fn generate_accessor_methods(grouped_fields: &GroupedFields) -> proc_macro2::Tok
     quote! {
         impl TypedStorage {
             #methods
+        }
+    }
+}
+
+/// Generate accessor methods for an inline field (stored directly on TypedStorage)
+fn generate_inline_field_accessors(field: &FieldInfo) -> proc_macro2::TokenStream {
+    let field_name = &field.field_name;
+    let field_type = &field.field_type;
+
+    match field.storage_type {
+        StorageType::Direct => {
+            // For Option<T> types, generate get/set/take methods
+            let get_name = syn::Ident::new(
+                &format!("get_{}", field_name),
+                proc_macro2::Span::call_site(),
+            );
+            let set_name = syn::Ident::new(
+                &format!("set_{}", field_name),
+                proc_macro2::Span::call_site(),
+            );
+            let take_name = syn::Ident::new(
+                &format!("take_{}", field_name),
+                proc_macro2::Span::call_site(),
+            );
+
+            // Extract inner type from Option<T>
+            let inner_type = extract_option_inner_type(field_type);
+
+            quote! {
+                pub fn #get_name(&self) -> Option<&#inner_type> {
+                    self.#field_name.as_ref()
+                }
+
+                pub fn #set_name(&mut self, value: #inner_type) -> Option<#inner_type> {
+                    self.#field_name.replace(value)
+                }
+
+                pub fn #take_name(&mut self) -> Option<#inner_type> {
+                    self.#field_name.take()
+                }
+            }
+        }
+        StorageType::AutoSet | StorageType::AutoMap | StorageType::CounterMap => {
+            // For collection types, generate get (ref) and get_mut methods
+            let ref_name =
+                syn::Ident::new(&format!("{}", field_name), proc_macro2::Span::call_site());
+            let mut_name = syn::Ident::new(
+                &format!("{}_mut", field_name),
+                proc_macro2::Span::call_site(),
+            );
+
+            quote! {
+                pub fn #ref_name(&self) -> &#field_type {
+                    &self.#field_name
+                }
+
+                pub fn #mut_name(&mut self) -> &mut #field_type {
+                    &mut self.#field_name
+                }
+            }
         }
     }
 }
@@ -996,8 +1060,43 @@ fn generate_inline_trait_accessor_methods(
                 }
             }
         }
-        StorageType::AutoSet | StorageType::AutoMap | StorageType::CounterMap => {
-            // For collection types, generate immutable and mutable accessors
+        StorageType::AutoSet => {
+            // For AutoSet types, generate immutable and mutable accessors plus collection ops
+            let ref_name =
+                syn::Ident::new(&format!("{}", field_name), proc_macro2::Span::call_site());
+            let mut_name = syn::Ident::new(
+                &format!("{}_mut", field_name),
+                proc_macro2::Span::call_site(),
+            );
+
+            let base_accessors = quote! {
+                /// Get a reference to the collection
+                fn #ref_name(&self) -> &#field_type {
+                    self.check_access(#check_access_category);
+                    &self.typed().#field_name
+                }
+
+                /// Get a mutable reference to the collection
+                fn #mut_name(&mut self) -> &mut #field_type {
+                    self.check_access(#check_access_category);
+                    &mut self.typed_mut(#specific_category_variant).#field_name
+                }
+            };
+
+            // Generate add/remove/has operations for AutoSet
+            let set_ops = generate_inline_autoset_ops(
+                field,
+                &specific_category_variant,
+                &check_access_category,
+            );
+
+            quote! {
+                #base_accessors
+                #set_ops
+            }
+        }
+        StorageType::AutoMap | StorageType::CounterMap => {
+            // For other collection types, generate immutable and mutable accessors
             let ref_name =
                 syn::Ident::new(&format!("{}", field_name), proc_macro2::Span::call_site());
             let mut_name = syn::Ident::new(
@@ -1022,6 +1121,87 @@ fn generate_inline_trait_accessor_methods(
     }
 }
 
+/// Generate add/remove/has operations for an inline AutoSet field.
+///
+/// Generates methods with `_item` suffix to distinguish single-item operations
+/// from potential bulk operations: `add_X_item`, `remove_X_item`, `has_X_item`
+fn generate_inline_autoset_ops(
+    field: &FieldInfo,
+    specific_category_variant: &proc_macro2::TokenStream,
+    check_access_category: &proc_macro2::TokenStream,
+) -> proc_macro2::TokenStream {
+    let field_name = &field.field_name;
+    let field_type = &field.field_type;
+
+    let Some(element_type) = extract_set_element_type(field_type) else {
+        return quote! {};
+    };
+
+    let add_name = syn::Ident::new(
+        &format!("add_{}_item", field_name),
+        proc_macro2::Span::call_site(),
+    );
+    let add_items_name = syn::Ident::new(
+        &format!("add_{}_items", field_name),
+        proc_macro2::Span::call_site(),
+    );
+    let remove_name = syn::Ident::new(
+        &format!("remove_{}_item", field_name),
+        proc_macro2::Span::call_site(),
+    );
+    let has_name = syn::Ident::new(
+        &format!("has_{}_item", field_name),
+        proc_macro2::Span::call_site(),
+    );
+
+    quote! {
+        /// Check if the set contains an item
+        fn #has_name(&self, item: &#element_type) -> bool {
+            self.check_access(#check_access_category);
+            self.typed().#field_name.contains(item)
+        }
+
+        /// Add an item to the set.
+        /// Returns true if the item was newly added, false if it already existed.
+        #[must_use]
+        fn #add_name(&mut self, item: #element_type) -> bool {
+            self.check_access(#check_access_category);
+            // Only track modification if we're actually adding something new
+            if self.typed().#field_name.contains(&item) {
+                return false;
+            }
+            self.typed_mut(#specific_category_variant).#field_name.insert(item)
+        }
+
+        /// Add multiple items to the set from an iterator.
+        /// Only tracks modification if at least one item is actually added.
+        fn #add_items_name(&mut self, items: impl Iterator<Item = #element_type>) {
+            self.check_access(#check_access_category);
+            // Collect items that aren't already present
+            let new_items: Vec<_> = items
+                .filter(|item| !self.typed().#field_name.contains(item))
+                .collect();
+            if !new_items.is_empty() {
+                let set = &mut self.typed_mut(#specific_category_variant).#field_name;
+                for item in new_items {
+                    set.insert(item);
+                }
+            }
+        }
+
+        /// Remove an item from the set.
+        /// Returns true if the item was present and removed, false if it wasn't present.
+        fn #remove_name(&mut self, item: &#element_type) -> bool {
+            self.check_access(#check_access_category);
+            // Only track modification if we're actually removing something
+            if !self.typed().#field_name.contains(item) {
+                return false;
+            }
+            self.typed_mut(#specific_category_variant).#field_name.remove(item)
+        }
+    }
+}
+
 /// Extract the inner type from Option<T>, or return the type as-is if not Option
 fn extract_option_inner_type(ty: &Type) -> proc_macro2::TokenStream {
     // Try to parse as Option<T> and extract T
@@ -1036,6 +1216,19 @@ fn extract_option_inner_type(ty: &Type) -> proc_macro2::TokenStream {
 
     // Not Option<T>, return the type as-is
     quote! { #ty }
+}
+
+/// Extract the element type K from AutoSet<K> (which is FxHashSet<K>)
+fn extract_set_element_type(ty: &Type) -> Option<proc_macro2::TokenStream> {
+    if let Type::Path(type_path) = ty
+        && let Some(segment) = type_path.path.segments.last()
+        && (segment.ident == "AutoSet" || segment.ident == "FxHashSet")
+        && let syn::PathArguments::AngleBracketed(args) = &segment.arguments
+        && let Some(syn::GenericArgument::Type(inner)) = args.args.first()
+    {
+        return Some(quote! { #inner });
+    }
+    None
 }
 
 fn capitalize(s: &str) -> String {
@@ -1141,8 +1334,54 @@ fn generate_lazy_trait_accessor_methods(field: &FieldInfo) -> proc_macro2::Token
                 }
             }
         }
-        _ => {
-            // For collection types, generate get (Option<&T>) and get_mut (&mut T)
+        StorageType::AutoSet => {
+            // For lazy AutoSet types, generate get (Option<&T>), get_mut (&mut T), plus collection
+            // ops
+            let ref_name =
+                syn::Ident::new(&format!("{}", field_name), proc_macro2::Span::call_site());
+            let mut_name = syn::Ident::new(
+                &format!("{}_mut", field_name),
+                proc_macro2::Span::call_site(),
+            );
+
+            let base_accessors = quote! {
+                /// Get a reference to the collection (may be None if not allocated)
+                fn #ref_name(&self) -> Option<&#field_type> {
+                    self.check_access(#check_access_category);
+                    self.typed().find_lazy(|f| match f {
+                        LazyField::#variant_name(v) => Some(v),
+                        _ => None,
+                    })
+                }
+
+                /// Get a mutable reference to the collection (allocates if needed)
+                fn #mut_name(&mut self) -> &mut #field_type {
+                    self.check_access(#check_access_category);
+                    let typed = self.typed_mut(#specific_category_variant);
+                    typed.get_or_create_lazy(
+                        |f| match f {
+                            LazyField::#variant_name(v) => Some(v),
+                            _ => None,
+                        },
+                        || LazyField::#variant_name(Default::default()),
+                    )
+                }
+            };
+
+            // Generate add/remove/has operations for lazy AutoSet
+            let set_ops = generate_lazy_autoset_ops(
+                field,
+                &specific_category_variant,
+                &check_access_category,
+            );
+
+            quote! {
+                #base_accessors
+                #set_ops
+            }
+        }
+        StorageType::AutoMap | StorageType::CounterMap => {
+            // For other collection types, generate get (Option<&T>) and get_mut (&mut T)
             let ref_name =
                 syn::Ident::new(&format!("{}", field_name), proc_macro2::Span::call_site());
             let mut_name = syn::Ident::new(
@@ -1173,6 +1412,124 @@ fn generate_lazy_trait_accessor_methods(field: &FieldInfo) -> proc_macro2::Token
                     )
                 }
             }
+        }
+    }
+}
+
+/// Generate add/remove/has operations for a lazy AutoSet field.
+///
+/// Generates methods with `_item` suffix to distinguish single-item operations
+/// from potential bulk operations: `add_X_item`, `remove_X_item`, `has_X_item`
+fn generate_lazy_autoset_ops(
+    field: &FieldInfo,
+    specific_category_variant: &proc_macro2::TokenStream,
+    check_access_category: &proc_macro2::TokenStream,
+) -> proc_macro2::TokenStream {
+    let field_name = &field.field_name;
+    let field_type = &field.field_type;
+    let variant_name = &field.variant_name;
+
+    let Some(element_type) = extract_set_element_type(field_type) else {
+        return quote! {};
+    };
+
+    let add_name = syn::Ident::new(
+        &format!("add_{}_item", field_name),
+        proc_macro2::Span::call_site(),
+    );
+    let add_items_name = syn::Ident::new(
+        &format!("add_{}_items", field_name),
+        proc_macro2::Span::call_site(),
+    );
+    let remove_name = syn::Ident::new(
+        &format!("remove_{}_item", field_name),
+        proc_macro2::Span::call_site(),
+    );
+    let has_name = syn::Ident::new(
+        &format!("has_{}_item", field_name),
+        proc_macro2::Span::call_site(),
+    );
+
+    quote! {
+        /// Check if the set contains an item
+        fn #has_name(&self, item: &#element_type) -> bool {
+            self.check_access(#check_access_category);
+            self.typed().find_lazy(|f| match f {
+                LazyField::#variant_name(v) => Some(v),
+                _ => None,
+            }).is_some_and(|set| set.contains(item))
+        }
+
+        /// Add an item to the set.
+        /// Returns true if the item was newly added, false if it already existed.
+        #[must_use]
+        fn #add_name(&mut self, item: #element_type) -> bool {
+            self.check_access(#check_access_category);
+            // Only track modification if we're actually adding something new
+            let already_exists = self.typed().find_lazy(|f| match f {
+                LazyField::#variant_name(v) => Some(v),
+                _ => None,
+            }).is_some_and(|set| set.contains(&item));
+            if already_exists {
+                return false;
+            }
+            let typed = self.typed_mut(#specific_category_variant);
+            typed.get_or_create_lazy(
+                |f| match f {
+                    LazyField::#variant_name(v) => Some(v),
+                    _ => None,
+                },
+                || LazyField::#variant_name(Default::default()),
+            ).insert(item)
+        }
+
+        /// Add multiple items to the set from an iterator.
+        /// Only tracks modification if at least one item is actually added.
+        fn #add_items_name(&mut self, items: impl Iterator<Item = #element_type>) {
+            self.check_access(#check_access_category);
+            // Collect items that aren't already present
+            let existing_set = self.typed().find_lazy(|f| match f {
+                LazyField::#variant_name(v) => Some(v),
+                _ => None,
+            });
+            let new_items: Vec<_> = items
+                .filter(|item| !existing_set.is_some_and(|set| set.contains(item)))
+                .collect();
+            if !new_items.is_empty() {
+                let typed = self.typed_mut(#specific_category_variant);
+                let set = typed.get_or_create_lazy(
+                    |f| match f {
+                        LazyField::#variant_name(v) => Some(v),
+                        _ => None,
+                    },
+                    || LazyField::#variant_name(Default::default()),
+                );
+                for item in new_items {
+                    set.insert(item);
+                }
+            }
+        }
+
+        /// Remove an item from the set.
+        /// Returns true if the item was present and removed, false if it wasn't present.
+        fn #remove_name(&mut self, item: &#element_type) -> bool {
+            self.check_access(#check_access_category);
+            // Only track modification if we're actually removing something
+            let exists = self.typed().find_lazy(|f| match f {
+                LazyField::#variant_name(v) => Some(v),
+                _ => None,
+            }).is_some_and(|set| set.contains(item));
+            if !exists {
+                return false;
+            }
+            let typed = self.typed_mut(#specific_category_variant);
+            typed.get_or_create_lazy(
+                |f| match f {
+                    LazyField::#variant_name(v) => Some(v),
+                    _ => None,
+                },
+                || LazyField::#variant_name(Default::default()),
+            ).remove(item)
         }
     }
 }

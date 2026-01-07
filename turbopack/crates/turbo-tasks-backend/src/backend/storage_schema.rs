@@ -46,8 +46,8 @@ pub type AutoMap<K, V> = rustc_hash::FxHashMap<K, V>;
 /// This struct defines all storage fields for a task. The TaskStorage macro
 /// generates the TypedStorage struct, LazyField enum, and all accessor methods.
 ///
-/// Fields without `lazy` are stored inline on TypedStorage.
-/// Fields with `lazy` are stored in a Vec<LazyField> for memory efficiency.
+/// Fields are stored lazily in Vec<LazyField> by default for memory efficiency.
+/// Fields with `inline` are stored directly on TypedStorage (for hot-path access).
 ///
 /// Note: This struct is only used as a schema definition for the macro.
 /// The macro generates `TypedStorage`, `LazyField`, and `TaskFlags` from this.
@@ -61,47 +61,50 @@ pub struct TaskStorageSchema {
     // INLINE FIELDS (hot path, always allocated inline)
     // =========================================================================
     /// The task's aggregation number for the aggregation tree.
-    #[task_storage(storage = "direct", category = "meta")]
+    #[task_storage(storage = "direct", category = "meta", inline)]
     pub aggregation_number: Option<AggregationNumber>,
 
     /// Tasks that depend on this task's output.
-    #[task_storage(storage = "auto_set", category = "data", filter_transient)]
+    #[task_storage(storage = "auto_set", category = "data", inline, filter_transient)]
     pub output_dependent: AutoSet<TaskId>,
 
     /// The task's output value.
     /// Filtered during serialization to skip transient outputs (referencing transient tasks).
-    #[task_storage(storage = "direct", category = "meta", filter_transient)]
+    #[task_storage(storage = "direct", category = "meta", inline, filter_transient)]
     pub output: Option<OutputValue>,
 
     /// Upper nodes in the aggregation tree (reference counted).
-    #[task_storage(storage = "counter_map", category = "meta", filter_transient)]
+    #[task_storage(storage = "counter_map", category = "meta", inline, filter_transient)]
     pub upper: CounterMap<TaskId, u32>,
 
     // =========================================================================
-    // COLLECTIBLES (meta, lazy)
+    // COLLECTIBLES (meta)
     // =========================================================================
     /// Collectibles emitted by this task (reference counted).
-    #[task_storage(storage = "counter_map", category = "meta", lazy, filter_transient)]
+    #[task_storage(storage = "counter_map", category = "meta", filter_transient)]
     pub collectibles: CounterMap<CollectibleRef, i32>,
 
     /// Aggregated collectibles from the subgraph.
-    #[task_storage(storage = "counter_map", category = "meta", lazy, filter_transient)]
+    #[task_storage(storage = "counter_map", category = "meta", filter_transient)]
     pub aggregated_collectibles: CounterMap<CollectibleRef, i32>,
 
     /// Outdated collectibles to be cleaned up (transient).
-    #[task_storage(storage = "counter_map", category = "meta", lazy, transient)]
+    #[task_storage(storage = "counter_map", category = "meta", transient)]
     pub outdated_collectibles: CounterMap<CollectibleRef, i32>,
 
     // =========================================================================
-    // STATE FIELDS (meta) - stored inline
+    // STATE FIELDS (meta)
+    // Note: Lazy direct fields use bare types - Vec presence provides optionality
     // =========================================================================
     /// Whether the task is dirty (needs re-execution).
+    /// Absent = clean, present = dirty with the specified Dirtyness state.
     #[task_storage(storage = "direct", category = "meta")]
-    pub dirty: Option<Dirtyness>,
+    pub dirty: Dirtyness,
 
     /// Count of dirty containers in the aggregated subgraph.
+    /// Absent = 0, present = actual count.
     #[task_storage(storage = "direct", category = "meta")]
-    pub aggregated_dirty_container_count: Option<i32>,
+    pub aggregated_dirty_container_count: i32,
 
     /// Individual dirty containers in the aggregated subgraph.
     #[task_storage(storage = "counter_map", category = "meta", filter_transient)]
@@ -112,8 +115,9 @@ pub struct TaskStorageSchema {
     pub current_session_clean: bool,
 
     /// Count of clean containers in current session (transient).
+    /// Absent = 0, present = actual count.
     #[task_storage(storage = "direct", category = "meta", transient)]
-    pub aggregated_current_session_clean_container_count: Option<i32>,
+    pub aggregated_current_session_clean_container_count: i32,
 
     /// Individual clean containers in current session (transient).
     #[task_storage(storage = "counter_map", category = "meta", transient)]
@@ -168,90 +172,90 @@ pub struct TaskStorageSchema {
     pub prefetched: bool,
 
     // =========================================================================
-    // CHILDREN & AGGREGATION (meta, lazy)
+    // CHILDREN & AGGREGATION (meta)
     // =========================================================================
     /// Child tasks of this task.
-    #[task_storage(storage = "auto_set", category = "meta", lazy, filter_transient)]
+    #[task_storage(storage = "auto_set", category = "meta", filter_transient)]
     pub children: AutoSet<TaskId>,
 
     /// Follower nodes in the aggregation tree (reference counted).
-    #[task_storage(storage = "counter_map", category = "meta", lazy, filter_transient)]
+    #[task_storage(storage = "counter_map", category = "meta", filter_transient)]
     pub followers: CounterMap<TaskId, u32>,
 
     // =========================================================================
-    // DEPENDENCIES (data, lazy)
+    // DEPENDENCIES (data)
     // =========================================================================
     /// Tasks whose output this task depends on.
-    #[task_storage(storage = "auto_set", category = "data", lazy, filter_transient)]
+    #[task_storage(storage = "auto_set", category = "data", filter_transient)]
     pub output_dependencies: AutoSet<TaskId>,
 
     /// Cells this task depends on.
-    #[task_storage(storage = "auto_set", category = "data", lazy, filter_transient)]
+    #[task_storage(storage = "auto_set", category = "data", filter_transient)]
     pub cell_dependencies: AutoSet<CellRef>,
 
     /// Collectibles this task depends on.
-    #[task_storage(storage = "auto_set", category = "data", lazy, filter_transient)]
+    #[task_storage(storage = "auto_set", category = "data", filter_transient)]
     pub collectibles_dependencies: AutoSet<CollectiblesRef>,
 
     /// Outdated output dependencies to be cleaned up (transient).
-    #[task_storage(storage = "auto_set", category = "data", lazy, transient)]
+    #[task_storage(storage = "auto_set", category = "data", transient)]
     pub outdated_output_dependencies: AutoSet<TaskId>,
 
     /// Outdated cell dependencies to be cleaned up (transient).
-    #[task_storage(storage = "auto_set", category = "data", lazy, transient)]
+    #[task_storage(storage = "auto_set", category = "data", transient)]
     pub outdated_cell_dependencies: AutoSet<CellRef>,
 
     /// Outdated collectibles dependencies to be cleaned up (transient).
-    #[task_storage(storage = "auto_set", category = "data", lazy, transient)]
+    #[task_storage(storage = "auto_set", category = "data", transient)]
     pub outdated_collectibles_dependencies: AutoSet<CollectiblesRef>,
 
     // =========================================================================
-    // DEPENDENTS (lazy) - Tasks that depend on this task's cells
+    // DEPENDENTS - Tasks that depend on this task's cells
     // =========================================================================
     /// Tasks that depend on specific cells of this task.
     /// Maps CellId -> Set<TaskId>
     /// The set values need filtering for transient TaskIds.
-    #[task_storage(storage = "auto_map", category = "data", lazy, filter_transient_values)]
+    #[task_storage(storage = "auto_map", category = "data", filter_transient_values)]
     pub cell_dependents: AutoMap<CellId, FxHashSet<TaskId>>,
 
     /// Tasks that depend on collectibles of a specific type from this task.
     /// Maps TraitTypeId -> Set<TaskId>
     /// The set values need filtering for transient TaskIds.
-    #[task_storage(storage = "auto_map", category = "meta", lazy, filter_transient_values)]
+    #[task_storage(storage = "auto_map", category = "meta", filter_transient_values)]
     pub collectibles_dependents: AutoMap<TraitTypeId, FxHashSet<TaskId>>,
 
     // =========================================================================
-    // CELL DATA (data, lazy)
+    // CELL DATA (data)
     // =========================================================================
     /// Persistent cell data (serializable).
-    #[task_storage(storage = "auto_map", category = "data", lazy)]
+    #[task_storage(storage = "auto_map", category = "data")]
     pub cell_data: AutoMap<CellId, TypedSharedReference>,
 
     /// Transient cell data (not serializable).
-    #[task_storage(storage = "auto_map", category = "data", lazy, transient)]
+    #[task_storage(storage = "auto_map", category = "data", transient)]
     pub transient_cell_data: AutoMap<CellId, SharedReference>,
 
     /// Maximum cell index per cell type.
-    #[task_storage(storage = "auto_map", category = "data", lazy)]
+    #[task_storage(storage = "auto_map", category = "data")]
     pub cell_type_max_index: AutoMap<ValueTypeId, u32>,
 
     // =========================================================================
-    // TRANSIENT EXECUTION STATE (transient, lazy)
+    // TRANSIENT EXECUTION STATE (transient)
     // =========================================================================
     /// Activeness state for root/once tasks (transient).
-    /// Note: Uses the `lazy` storage attribute which provides natural optionality -
+    /// Note: Lazy storage provides natural optionality -
     /// presence in Vec<LazyField> = Some, absence = None. No Option wrapper needed.
-    #[task_storage(storage = "direct", category = "meta", lazy, transient)]
+    #[task_storage(storage = "direct", category = "meta", transient)]
     pub activeness: ActivenessState,
 
     /// In-progress execution state (transient).
-    /// Note: Uses the `lazy` storage attribute which provides natural optionality -
+    /// Note: Lazy storage provides natural optionality -
     /// presence in Vec<LazyField> = Some, absence = None. No Option wrapper needed.
-    #[task_storage(storage = "direct", category = "meta", lazy, transient)]
+    #[task_storage(storage = "direct", category = "meta", transient)]
     pub in_progress: InProgressState,
 
     /// In-progress cell state for cells being computed (transient).
-    #[task_storage(storage = "auto_map", category = "meta", lazy, transient)]
+    #[task_storage(storage = "auto_map", category = "meta", transient)]
     pub in_progress_cells: AutoMap<CellId, InProgressCellState>,
 }
 
@@ -553,8 +557,8 @@ mod tests {
         // Size check - unified storage is approximately the sum of what was data + meta
         // Note: The exact size may vary due to alignment/padding in unified struct
         assert!(
-            size_of::<TypedStorage>() <= 256,
-            "TypedStorage should not be too large"
+            size_of::<TypedStorage>() <= 128,
+            "TypedStorage should not exceed 128 bytes"
         );
     }
 

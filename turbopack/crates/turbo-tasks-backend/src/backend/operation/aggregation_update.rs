@@ -84,7 +84,7 @@ fn iter_uppers<'a>(task: &'a (impl TaskGuard + 'a)) -> impl Iterator<Item = Task
 /// Returns the aggregation number of the task.
 pub fn get_aggregation_number(task: &impl TaskGuard) -> u32 {
     task.get_aggregation_number_ref()
-        .map(|a| a.effective)
+        .map(|a| a.effective())
         .unwrap_or_default()
 }
 
@@ -2413,7 +2413,7 @@ impl AggregationUpdateQueue {
             .get_aggregation_number_ref()
             .copied()
             .unwrap_or_default();
-        let old = current.effective;
+        let old = current.effective();
         // The base aggregation number can only increase
         let mut base_aggregation_number = max(current.base, base_aggregation_number);
         let distance = base_effective_distance.map_or(current.distance, |d| d.get());
@@ -2432,11 +2432,11 @@ impl AggregationUpdateQueue {
         };
         if old >= aggregation_number {
             if base_aggregation_number != current.base && distance != current.distance {
-                task.set_aggregation_number(AggregationNumber {
-                    base: base_aggregation_number,
+                task.set_aggregation_number(AggregationNumber::new(
+                    base_aggregation_number,
                     distance,
-                    effective: old,
-                });
+                    old,
+                ));
             }
         } else {
             #[cfg(feature = "trace_aggregation_update")]
@@ -2447,11 +2447,11 @@ impl AggregationUpdateQueue {
                 aggregation_number
             )
             .entered();
-            task.set_aggregation_number(AggregationNumber {
-                base: base_aggregation_number,
+            task.set_aggregation_number(AggregationNumber::new(
+                base_aggregation_number,
                 distance,
-                effective: aggregation_number,
-            });
+                aggregation_number,
+            ));
 
             if !is_aggregating_node(old) && is_aggregating_node(aggregation_number) {
                 // When converted from leaf to aggregating node, all children become
@@ -2504,10 +2504,10 @@ impl AggregationUpdateQueue {
             .get_aggregation_number_ref()
             .copied()
             .unwrap_or_default();
-        if is_root_node(aggregation_number.effective) {
+        if is_root_node(aggregation_number.effective()) {
             return;
         }
-        let follower_count = if is_aggregating_node(aggregation_number.effective) {
+        let follower_count = if is_aggregating_node(aggregation_number.effective()) {
             let follower_count = task.count_followers();
             if follower_count == 0 {
                 return;
@@ -2525,14 +2525,14 @@ impl AggregationUpdateQueue {
             || upper_count.saturating_sub(1) * follower_count
                 <= max(
                     MAX_UPPERS_FOLLOWER_PRODUCT,
-                    aggregation_number.effective as usize,
+                    aggregation_number.effective() as usize,
                 )
         {
             // Doesn't need optimization
             return;
         }
         let uppers = get_uppers(&task);
-        let follower = get_followers_with_aggregation_number(&task, aggregation_number.effective);
+        let follower = get_followers_with_aggregation_number(&task, aggregation_number.effective());
         drop(task);
 
         let mut root_uppers = 0;
@@ -2597,12 +2597,12 @@ impl AggregationUpdateQueue {
             }
         }
 
-        if aggregation_number.effective < new_aggregation_number {
+        if aggregation_number.effective() < new_aggregation_number {
             #[cfg(feature = "trace_aggregation_update")]
             let _span = trace_span!(
                 "optimize",
                 upper_count,
-                old_aggregation_number = aggregation_number.effective,
+                old_aggregation_number = aggregation_number.effective(),
                 new_aggregation_number,
                 upper_count,
                 new_upper_count,

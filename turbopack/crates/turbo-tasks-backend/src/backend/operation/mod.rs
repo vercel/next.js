@@ -402,73 +402,23 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     fn id(&self) -> TaskId;
 
     // ============ Typed Child APIs ============
-
-    /// Check if a task is a child of this task
-    fn has_child(&self, task: TaskId) -> bool {
-        self.children().is_some_and(|m| m.contains(&task))
-    }
-
-    /// Remove a child from this task
-    /// Returns true if the child was present and removed
-    fn remove_child(&mut self, task: TaskId) -> bool {
-        self.children_mut().remove(&task)
-    }
-
-    /// Add children in bulk. All children must be new (not already present).
-    ///
-    /// # Panics
-    ///
-    /// Panics if any child is already present.
-    fn add_children(&mut self, children: impl Iterator<Item = TaskId>) {
-        let set = self.children_mut();
-        for task in children {
-            let is_new = set.insert(task);
-            assert!(is_new, "Child {task} already present");
-        }
-    }
+    // Single-item and bulk operations use generated methods from TaskStorageAccessors:
+    // - has_children_item(&task) -> bool
+    // - add_children_item(task) -> bool
+    // - add_children_items(iter) - bulk add
+    // - remove_children_item(&task) -> bool
 
     // ============ Typed OutputDependency APIs ============
-    // Uses typed storage directly - output_dependencies is a migrated auto_set
-
-    /// Check if this task has an output dependency on another task
-    fn has_output_dependency(&self, target: TaskId) -> bool {
-        self.output_dependencies()
-            .is_some_and(|deps| deps.contains(&target))
-    }
-
-    /// Remove an output dependency from this task
-    /// Returns true if the dependency was present and removed
-    fn remove_output_dependency(&mut self, target: TaskId) -> bool {
-        self.output_dependencies_mut().remove(&target)
-    }
-
-    /// Add an output dependency to this task
-    /// Returns true if the dependency was newly added, false if it already existed
-    fn add_output_dependency(&mut self, target: TaskId) -> bool {
-        self.output_dependencies_mut().insert(target)
-    }
+    // Single-item operations use generated methods from TaskStorageAccessors:
+    // - has_output_dependencies_item(&target) -> bool
+    // - add_output_dependencies_item(target) -> bool
+    // - remove_output_dependencies_item(&target) -> bool
 
     // ============ Typed CellDependency APIs ============
-    // Uses typed storage directly - cell_dependencies is a migrated auto_set
-
-    /// Check if this task has a cell dependency on another task's cell
-    fn has_cell_dependency(&self, target: CellRef) -> bool {
-        self.cell_dependencies()
-            .is_some_and(|deps| deps.contains(&target))
-    }
-
-    /// Remove a cell dependency from this task
-    /// Returns true if the dependency was present and removed
-    fn remove_cell_dependency(&mut self, target: CellRef) -> bool {
-        self.cell_dependencies_mut().remove(&target)
-    }
-
-    /// Add a cell dependency to this task
-    /// Returns true if the dependency was newly added, false if it already existed
-    #[must_use]
-    fn add_cell_dependency(&mut self, target: CellRef) -> bool {
-        self.cell_dependencies_mut().insert(target)
-    }
+    // Single-item operations use generated methods from TaskStorageAccessors:
+    // - has_cell_dependencies_item(&target) -> bool
+    // - add_cell_dependencies_item(target) -> bool
+    // - remove_cell_dependencies_item(&target) -> bool
 
     // ============ Typed OutputDependent APIs ============
 
@@ -709,14 +659,15 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
 
     /// Get the dirty container count for a specific task from the aggregated dirty containers map.
     fn get_aggregated_dirty_container(&self, task: TaskId) -> Option<&i32> {
-        self.aggregated_dirty_containers().get(&task)
+        self.aggregated_dirty_containers()
+            .and_then(|map| map.get(&task))
     }
 
     /// Get the clean container count for a specific task from the aggregated current session clean
     /// containers map.
     fn get_aggregated_current_session_clean_container(&self, task: TaskId) -> Option<&i32> {
         self.aggregated_current_session_clean_containers()
-            .get(&task)
+            .and_then(|map| map.get(&task))
     }
 
     /// Update the aggregated dirty container count (the scalar total count field) by the given
@@ -846,14 +797,19 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     fn dirty_containers_with_count(&self) -> impl Iterator<Item = (TaskId, i32)> + '_ {
         let dirty_map = self.aggregated_dirty_containers();
         let clean_map = self.aggregated_current_session_clean_containers();
-        dirty_map.iter().filter_map(move |(&task_id, &count)| {
-            if count > 0 {
-                let clean_count = clean_map.get(&task_id).copied().unwrap_or_default();
-                if count > clean_count {
-                    return Some((task_id, count));
+        dirty_map.into_iter().flat_map(move |map| {
+            map.iter().filter_map(move |(&task_id, &count)| {
+                if count > 0 {
+                    let clean_count = clean_map
+                        .and_then(|m| m.get(&task_id))
+                        .copied()
+                        .unwrap_or_default();
+                    if count > clean_count {
+                        return Some((task_id, count));
+                    }
                 }
-            }
-            None
+                None
+            })
         })
     }
 
@@ -979,31 +935,9 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
             .remove(&target)
     }
 
-    /// Add multiple outdated cell dependencies at once
-    fn add_outdated_cell_dependencies(
-        &mut self,
-        dependencies: impl Iterator<Item = CellRef>,
-    ) -> bool {
-        let set = self.outdated_cell_dependencies_mut();
-        let mut all_new = true;
-        for dep in dependencies {
-            all_new &= set.insert(dep);
-        }
-        all_new
-    }
-
-    /// Add multiple outdated output dependencies at once
-    fn add_outdated_output_dependencies(
-        &mut self,
-        dependencies: impl Iterator<Item = TaskId>,
-    ) -> bool {
-        let set = self.outdated_output_dependencies_mut();
-        let mut all_new = true;
-        for dep in dependencies {
-            all_new &= set.insert(dep);
-        }
-        all_new
-    }
+    // Bulk operations for outdated dependencies use generated methods from TaskStorageAccessors:
+    // - add_outdated_cell_dependencies_items(iter)
+    // - add_outdated_output_dependencies_items(iter)
 
     // ============ Collectible APIs ============
 
@@ -1194,8 +1128,8 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     /// Iterate over all aggregated dirty containers with their counts
     fn iter_aggregated_dirty_containers(&self) -> impl Iterator<Item = (TaskId, i32)> + '_ {
         self.aggregated_dirty_containers()
-            .iter()
-            .map(|(&k, &v)| (k, v))
+            .into_iter()
+            .flat_map(|map| map.iter().map(|(&k, &v)| (k, v)))
     }
 
     /// Iterate over all cell data entries

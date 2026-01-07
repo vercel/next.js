@@ -260,9 +260,63 @@ impl InProgressCellState {
     }
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Encode, Decode)]
+use std::num::NonZeroU32;
+
+/// Aggregation number for a task in the aggregation tree.
+///
+/// Note: `effective` uses `NonZeroU32` to enable niche optimization in `Option<AggregationNumber>`,
+/// reducing the size from 16 bytes to 12 bytes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Encode, Decode)]
 pub struct AggregationNumber {
     pub base: u32,
     pub distance: u32,
-    pub effective: u32,
+    /// The effective aggregation number (base + distance, with adjustments).
+    /// Uses NonZeroU32 for niche optimization - Option<AggregationNumber> is 12 bytes.
+    /// A value of 1 is used as the default, which is semantically equivalent to 0
+    /// since both are below LEAF_NUMBER (16) and thus not aggregating nodes.
+    pub effective: NonZeroU32,
+}
+
+impl Default for AggregationNumber {
+    fn default() -> Self {
+        Self {
+            base: 0,
+            distance: 0,
+            // Use 1 as default - semantically equivalent to 0 for aggregation purposes
+            // (both are < LEAF_NUMBER, so neither is an aggregating node)
+            effective: NonZeroU32::MIN,
+        }
+    }
+}
+
+impl AggregationNumber {
+    /// Create a new AggregationNumber with the given values.
+    ///
+    /// # Panics
+    /// Panics if `effective` is 0 (use `new_clamped` for a non-panicking version).
+    #[inline]
+    pub fn new(base: u32, distance: u32, effective: u32) -> Self {
+        Self {
+            base,
+            distance,
+            effective: NonZeroU32::new(effective)
+                .expect("effective aggregation number cannot be 0"),
+        }
+    }
+
+    /// Create a new AggregationNumber, clamping effective to at least 1.
+    #[inline]
+    pub fn new_clamped(base: u32, distance: u32, effective: u32) -> Self {
+        Self {
+            base,
+            distance,
+            effective: NonZeroU32::new(effective).unwrap_or(NonZeroU32::MIN),
+        }
+    }
+
+    /// Get the effective aggregation number as a u32.
+    #[inline]
+    pub fn effective(&self) -> u32 {
+        self.effective.get()
+    }
 }

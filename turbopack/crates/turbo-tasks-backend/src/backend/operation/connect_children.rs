@@ -24,7 +24,7 @@ pub fn connect_children(
 
     let parent_aggregation = get_aggregation_number(&parent_task);
 
-    parent_task.add_children(new_children.iter().copied());
+    parent_task.add_children_items(new_children.iter().copied());
 
     let new_follower_ids: SmallVec<_> = new_children.into_iter().collect();
 

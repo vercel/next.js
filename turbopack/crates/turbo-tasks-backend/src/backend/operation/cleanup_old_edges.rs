@@ -92,7 +92,7 @@ impl Operation for CleanupOldEdgesOperation {
                                 });
                                 let mut task = ctx.task(task_id, TaskDataCategory::All);
                                 for &child_id in children.iter() {
-                                    task.remove_child(child_id);
+                                    task.remove_children_item(&child_id);
                                 }
                                 if is_aggregating_node(get_aggregation_number(&task)) {
                                     queue.push(AggregationUpdateJob::InnerOfUpperLostFollowers {
@@ -170,7 +170,7 @@ impl Operation for CleanupOldEdgesOperation {
                                 }
                                 {
                                     let mut task = ctx.task(task_id, TaskDataCategory::Data);
-                                    task.remove_cell_dependency(CellRef {
+                                    task.remove_cell_dependencies_item(&CellRef {
                                         task: cell_task_id,
                                         cell,
                                     });
@@ -190,7 +190,7 @@ impl Operation for CleanupOldEdgesOperation {
                                 }
                                 {
                                     let mut task = ctx.task(task_id, TaskDataCategory::Data);
-                                    task.remove_output_dependency(output_task_id);
+                                    task.remove_output_dependencies_item(&output_task_id);
                                 }
                             }
                             OutdatedEdge::CollectiblesDependency(CollectiblesRef {
