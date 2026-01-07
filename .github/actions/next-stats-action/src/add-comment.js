@@ -162,6 +162,38 @@ const METRIC_GROUPS = {
   },
 }
 
+// Per-metric significance thresholds
+// A change is insignificant if:
+//   - (absoluteDiff < absoluteMin AND percentDiff < percentMin), OR
+//   - percentDiff < percentOnly
+//
+// Time metrics have HIGH VARIANCE (CPU, I/O, cache) - need generous thresholds
+// Size metrics are DETERMINISTIC - can be tighter
+const METRIC_THRESHOLDS = {
+  // Dev boot times (~300-400ms): high variance from CI
+  // <100ms AND <15%, OR <3%
+  ms: { absoluteMin: 100, percentMin: 15, percentOnly: 3 },
+
+  // Build times (~13s): high variance, longer duration
+  // <500ms AND <5%, OR <2%
+  buildDurationTurbo: { absoluteMin: 500, percentMin: 5, percentOnly: 2 },
+  buildDurationCachedTurbo: { absoluteMin: 500, percentMin: 5, percentOnly: 2 },
+  buildDurationWebpack: { absoluteMin: 500, percentMin: 5, percentOnly: 2 },
+  buildDurationCachedWebpack: {
+    absoluteMin: 500,
+    percentMin: 5,
+    percentOnly: 2,
+  },
+
+  // node_modules (~450MB): deterministic, huge baseline
+  // <10KB AND <1%, OR <0.01%
+  nodeModulesSize: { absoluteMin: 10240, percentMin: 1, percentOnly: 0.01 },
+
+  // Bundle sizes (KB-MB): deterministic
+  // <2KB AND <1%, OR <0.1%
+  bytes: { absoluteMin: 2048, percentMin: 1, percentOnly: 0.1 },
+}
+
 // ============================================================================
 // Historical Data (Vercel KV)
 // ============================================================================
@@ -229,7 +261,7 @@ function getMetricLabel(key) {
   return METRIC_LABELS[key] || shortenLabel(key)
 }
 
-function formatChange(mainVal, diffVal, type = 'bytes') {
+function formatChange(mainVal, diffVal, type = 'bytes', metricKey = null) {
   if (typeof mainVal !== 'number' || typeof diffVal !== 'number') {
     return { text: '-', significant: false, improved: false, regression: false }
   }
@@ -237,19 +269,22 @@ function formatChange(mainVal, diffVal, type = 'bytes') {
   const diff = diffVal - mainVal
   const percentChange = mainVal > 0 ? (diff / mainVal) * 100 : 0
 
-  // Thresholds: filter CI noise while catching real regressions
-  // For time:
-  //   - (<50ms AND <10%) = insignificant for short ops (dev boot ~300ms)
-  //   - OR <2% = insignificant for long ops (builds ~13s where 70ms is noise)
-  // For size: <1KB AND <1% = not worth mentioning
-  // If mainVal is 0 and diff is non-zero, always consider it significant
+  // Get threshold config: prefer metric-specific, then type-based, then default to bytes
+  const threshold =
+    METRIC_THRESHOLDS[metricKey] ||
+    METRIC_THRESHOLDS[type] ||
+    METRIC_THRESHOLDS.bytes
+
+  // A change is insignificant if:
+  //   - (absoluteDiff < absoluteMin AND percentDiff < percentMin), OR
+  //   - percentDiff < percentOnly (definitely noise regardless of absolute)
+  // Exception: if mainVal is 0 and diff is non-zero, always significant
   const isInsignificant =
     mainVal === 0 && diff !== 0
       ? false
-      : type === 'ms'
-        ? (Math.abs(diff) < 50 && Math.abs(percentChange) < 10) ||
-          Math.abs(percentChange) < 2
-        : Math.abs(diff) < 1024 && Math.abs(percentChange) < 1
+      : (Math.abs(diff) < threshold.absoluteMin &&
+          Math.abs(percentChange) < threshold.percentMin) ||
+        Math.abs(percentChange) < threshold.percentOnly
 
   if (isInsignificant) {
     return { text: '✓', significant: false, improved: false, regression: false }
@@ -378,7 +413,7 @@ function generateChangeSummary(mainStats, diffStats, history) {
     const mainVal = mainGeneral[key]
     const diffVal = diffGeneral[key]
     const type = getMetricType(key)
-    const change = formatChange(mainVal, diffVal, type)
+    const change = formatChange(mainVal, diffVal, type, key)
 
     if (change.significant) {
       const histValues = getHistoricalValues(history, key)
@@ -483,7 +518,7 @@ function generateMetricsTable(
     const metricType = metricDef.type || 'ms'
     const mainStr = prettify(mainVal, metricType)
     const diffStr = prettify(diffVal, metricType)
-    const change = formatChange(mainVal, diffVal, metricType)
+    const change = formatChange(mainVal, diffVal, metricType, metricDef.key)
     const histValues = getHistoricalValues(history, metricDef.key)
     const sparkline = generateTrendBar(histValues)
 
