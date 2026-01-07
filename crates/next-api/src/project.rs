@@ -166,8 +166,8 @@ pub struct ProjectOptions {
     /// E.g. `/home/user/projects/my-repo`.
     pub root_path: RcStr,
 
-    /// A path which contains the app/pages directories, relative to [`Project::root_path`], always
-    /// Unix path. E.g. `apps/my-app`
+    /// A path which contains the app/pages directories, relative to [`Project::project_path`],
+    /// always Unix path. E.g. `apps/my-app`
     pub project_path: RcStr,
 
     /// The contents of next.config.js, serialized to JSON.
@@ -817,10 +817,10 @@ impl Project {
             }
         };
 
-        Ok(DiskFileSystem::new_with_denied_path(
+        Ok(DiskFileSystem::new_with_denied_paths(
             rcstr!(PROJECT_FILESYSTEM_NAME),
             self.root_path.clone(),
-            denied_path,
+            vec![denied_path],
         ))
     }
 
