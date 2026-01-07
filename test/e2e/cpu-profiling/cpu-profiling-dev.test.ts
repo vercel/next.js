@@ -1,6 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { pathExists, readdir } from 'fs-extra'
 import { join } from 'path'
+import { retry } from 'next-test-utils'
 
 describe('CPU Profiling - next dev', () => {
   const { next, isNextDev } = nextTestSetup({
@@ -24,15 +25,16 @@ describe('CPU Profiling - next dev', () => {
     // Stop the server with SIGTERM to trigger profile save (SIGKILL doesn't allow cleanup)
     await next.stop('SIGTERM')
 
-    // Wait for profile to be written
-    await new Promise((resolve) => setTimeout(resolve, 2000))
+    // Retry until profile files are written
+    const cpuProfiles = await retry(async () => {
+      const profileDirExists = await pathExists(profileDir)
+      expect(profileDirExists).toBe(true)
 
-    const profileDirExists = await pathExists(profileDir)
-    expect(profileDirExists).toBe(true)
-
-    const files = await readdir(profileDir)
-    const cpuProfiles = files.filter((f: string) => f.endsWith('.cpuprofile'))
-    expect(cpuProfiles.length).toBeGreaterThanOrEqual(1)
+      const files = await readdir(profileDir)
+      const profiles = files.filter((f: string) => f.endsWith('.cpuprofile'))
+      expect(profiles.length).toBeGreaterThanOrEqual(1)
+      return profiles
+    })
 
     // Verify profile names are meaningful
     for (const profile of cpuProfiles) {
