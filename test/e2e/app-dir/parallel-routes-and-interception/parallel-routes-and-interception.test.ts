@@ -1,6 +1,6 @@
 import { nextTestSetup, FileRef } from 'e2e-utils'
 import { NextConfig } from 'next'
-import { check, retry } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import path from 'path'
 
 const nextConfig: NextConfig = {
@@ -36,51 +36,91 @@ describe.each([true, false])(
         const browser = await next.browser('/parallel-tab-bar')
 
         const hasHome = async () => {
-          await check(
-            () => browser.waitForElementByCss('#home').text(),
-            'Tab bar page (@children)'
+          await retry(
+            async () => {
+              expect(await browser.waitForElementByCss('#home').text()).toBe(
+                'Tab bar page (@children)'
+              )
+            },
+            30000,
+            1000
           )
         }
         const hasViewsHome = async () => {
-          await check(
-            () => browser.waitForElementByCss('#views-home').text(),
-            'Views home'
+          await retry(
+            async () => {
+              expect(
+                await browser.waitForElementByCss('#views-home').text()
+              ).toBe('Views home')
+            },
+            30000,
+            1000
           )
         }
         const hasViewDuration = async () => {
-          await check(
-            () => browser.waitForElementByCss('#view-duration').text(),
-            'View duration'
+          await retry(
+            async () => {
+              expect(
+                await browser.waitForElementByCss('#view-duration').text()
+              ).toBe('View duration')
+            },
+            30000,
+            1000
           )
         }
         const hasImpressions = async () => {
-          await check(
-            () => browser.waitForElementByCss('#impressions').text(),
-            'Impressions'
+          await retry(
+            async () => {
+              expect(
+                await browser.waitForElementByCss('#impressions').text()
+              ).toBe('Impressions')
+            },
+            30000,
+            1000
           )
         }
         const hasAudienceHome = async () => {
-          await check(
-            () => browser.waitForElementByCss('#audience-home').text(),
-            'Audience home'
+          await retry(
+            async () => {
+              expect(
+                await browser.waitForElementByCss('#audience-home').text()
+              ).toBe('Audience home')
+            },
+            30000,
+            1000
           )
         }
         const hasDemographics = async () => {
-          await check(
-            () => browser.waitForElementByCss('#demographics').text(),
-            'Demographics'
+          await retry(
+            async () => {
+              expect(
+                await browser.waitForElementByCss('#demographics').text()
+              ).toBe('Demographics')
+            },
+            30000,
+            1000
           )
         }
         const hasSubscribers = async () => {
-          await check(
-            () => browser.waitForElementByCss('#subscribers').text(),
-            'Subscribers'
+          await retry(
+            async () => {
+              expect(
+                await browser.waitForElementByCss('#subscribers').text()
+              ).toBe('Subscribers')
+            },
+            30000,
+            1000
           )
         }
         const checkUrlPath = async (path: string) => {
-          await check(
-            () => browser.url(),
-            `${next.url}/parallel-tab-bar${path}${trailingSlash ? '/' : ''}`
+          await retry(
+            async () => {
+              expect(await browser.url()).toBe(
+                `${next.url}/parallel-tab-bar${path}${trailingSlash ? '/' : ''}`
+              )
+            },
+            30000,
+            1000
           )
         }
 
@@ -213,14 +253,24 @@ describe.each([true, false])(
       it('should throw a 404 when no matching parallel route is found', async () => {
         const browser = await next.browser('/parallel-tab-bar')
         // we make sure the page is available through navigating
-        await check(
-          () => browser.waitForElementByCss('#home').text(),
-          'Tab bar page (@children)'
+        await retry(
+          async () => {
+            expect(await browser.waitForElementByCss('#home').text()).toBe(
+              'Tab bar page (@children)'
+            )
+          },
+          30000,
+          1000
         )
         await browser.elementByCss('#view-duration-link').click()
-        await check(
-          () => browser.waitForElementByCss('#view-duration').text(),
-          'View duration'
+        await retry(
+          async () => {
+            expect(
+              await browser.waitForElementByCss('#view-duration').text()
+            ).toBe('View duration')
+          },
+          30000,
+          1000
         )
 
         // fetch /parallel-tab-bar/view-duration
@@ -233,14 +283,24 @@ describe.each([true, false])(
 
       it('should render nested parallel routes', async () => {
         const browser = await next.browser('/parallel-side-bar/nested/deeper')
-        await check(
-          () => browser.waitForElementByCss('#nested-deeper-main').text(),
-          'Nested deeper page'
+        await retry(
+          async () => {
+            expect(
+              await browser.waitForElementByCss('#nested-deeper-main').text()
+            ).toBe('Nested deeper page')
+          },
+          30000,
+          1000
         )
 
-        await check(
-          () => browser.waitForElementByCss('#nested-deeper-sidebar').text(),
-          'Nested deeper sidebar here'
+        await retry(
+          async () => {
+            expect(
+              await browser.waitForElementByCss('#nested-deeper-sidebar').text()
+            ).toBe('Nested deeper sidebar here')
+          },
+          30000,
+          1000
         )
 
         await browser
@@ -249,14 +309,24 @@ describe.each([true, false])(
           )
           .click()
 
-        await check(
-          () => browser.waitForElementByCss('#nested-main').text(),
-          'Nested page'
+        await retry(
+          async () => {
+            expect(
+              await browser.waitForElementByCss('#nested-main').text()
+            ).toBe('Nested page')
+          },
+          30000,
+          1000
         )
 
-        await check(
-          () => browser.waitForElementByCss('#nested-sidebar').text(),
-          'Nested sidebar here'
+        await retry(
+          async () => {
+            expect(
+              await browser.waitForElementByCss('#nested-sidebar').text()
+            ).toBe('Nested sidebar here')
+          },
+          30000,
+          1000
         )
 
         await browser
@@ -265,22 +335,37 @@ describe.each([true, false])(
           )
           .click()
 
-        await check(
-          () => browser.waitForElementByCss('#main').text(),
-          'homepage'
+        await retry(
+          async () => {
+            expect(await browser.waitForElementByCss('#main').text()).toBe(
+              'homepage'
+            )
+          },
+          30000,
+          1000
         )
 
-        await check(
-          () => browser.waitForElementByCss('#sidebar-main').text(),
-          'root sidebar here'
+        await retry(
+          async () => {
+            expect(
+              await browser.waitForElementByCss('#sidebar-main').text()
+            ).toBe('root sidebar here')
+          },
+          30000,
+          1000
         )
       })
 
       it('should support layout files in parallel routes', async () => {
         const browser = await next.browser('/parallel-layout')
-        await check(
-          () => browser.waitForElementByCss('#parallel-layout').text(),
-          'parallel layout'
+        await retry(
+          async () => {
+            expect(
+              await browser.waitForElementByCss('#parallel-layout').text()
+            ).toBe('parallel layout')
+          },
+          30000,
+          1000
         )
 
         // navigate to /parallel-layout/subroute
@@ -289,13 +374,23 @@ describe.each([true, false])(
             `[href="/parallel-layout/subroute${trailingSlash ? '/' : ''}"]`
           )
           .click()
-        await check(
-          () => browser.waitForElementByCss('#parallel-layout').text(),
-          'parallel layout'
+        await retry(
+          async () => {
+            expect(
+              await browser.waitForElementByCss('#parallel-layout').text()
+            ).toBe('parallel layout')
+          },
+          30000,
+          1000
         )
-        await check(
-          () => browser.waitForElementByCss('#parallel-subroute').text(),
-          'parallel subroute layout'
+        await retry(
+          async () => {
+            expect(
+              await browser.waitForElementByCss('#parallel-subroute').text()
+            ).toBe('parallel subroute layout')
+          },
+          30000,
+          1000
         )
       })
 
@@ -312,7 +407,13 @@ describe.each([true, false])(
           .click()
         await browser.waitForElementByCss('#modal')
         // check that we didn't scroll back to the top
-        await check(() => browser.eval('window.scrollY'), position)
+        await retry(
+          async () => {
+            await expect(browser.eval('window.scrollY')).resolves.toBe(position)
+          },
+          30000,
+          1000
+        )
       })
 
       it('should apply the catch-all route to the parallel route if no matching route is found', async () => {
@@ -323,13 +424,23 @@ describe.each([true, false])(
             `[href="/parallel-catchall/bar${trailingSlash ? '/' : ''}"]`
           )
           .click()
-        await check(
-          () => browser.waitForElementByCss('#main').text(),
-          'bar slot'
+        await retry(
+          async () => {
+            expect(await browser.waitForElementByCss('#main').text()).toBe(
+              'bar slot'
+            )
+          },
+          30000,
+          1000
         )
-        await check(
-          () => browser.waitForElementByCss('#slot-content').text(),
-          'slot catchall'
+        await retry(
+          async () => {
+            expect(
+              await browser.waitForElementByCss('#slot-content').text()
+            ).toBe('slot catchall')
+          },
+          30000,
+          1000
         )
 
         await browser
@@ -337,10 +448,23 @@ describe.each([true, false])(
             `[href="/parallel-catchall/foo${trailingSlash ? '/' : ''}"]`
           )
           .click()
-        await check(() => browser.waitForElementByCss('#main').text(), 'foo')
-        await check(
-          () => browser.waitForElementByCss('#slot-content').text(),
-          'foo slot'
+        await retry(
+          async () => {
+            expect(await browser.waitForElementByCss('#main').text()).toBe(
+              'foo'
+            )
+          },
+          30000,
+          1000
+        )
+        await retry(
+          async () => {
+            expect(
+              await browser.waitForElementByCss('#slot-content').text()
+            ).toBe('foo slot')
+          },
+          30000,
+          1000
         )
 
         await browser
@@ -348,17 +472,32 @@ describe.each([true, false])(
             `[href="/parallel-catchall/baz${trailingSlash ? '/' : ''}"]`
           )
           .click()
-        await check(
-          () => browser.waitForElementByCss('#main').text(),
-          /main catchall/
+        await retry(
+          async () => {
+            expect(await browser.waitForElementByCss('#main').text()).toMatch(
+              /main catchall/
+            )
+          },
+          30000,
+          1000
         )
-        await check(
-          () => browser.waitForElementByCss('#main').text(),
-          /catchall page client component/
+        await retry(
+          async () => {
+            expect(await browser.waitForElementByCss('#main').text()).toMatch(
+              /catchall page client component/
+            )
+          },
+          30000,
+          1000
         )
-        await check(
-          () => browser.waitForElementByCss('#slot-content').text(),
-          'baz slot'
+        await retry(
+          async () => {
+            expect(
+              await browser.waitForElementByCss('#slot-content').text()
+            ).toBe('baz slot')
+          },
+          30000,
+          1000
         )
       })
 
@@ -370,10 +509,23 @@ describe.each([true, false])(
             `[href="/parallel-nested-catchall/foo${trailingSlash ? '/' : ''}"]`
           )
           .click()
-        await check(() => browser.waitForElementByCss('#main').text(), 'foo')
-        await check(
-          () => browser.waitForElementByCss('#slot-content').text(),
-          'foo slot'
+        await retry(
+          async () => {
+            expect(await browser.waitForElementByCss('#main').text()).toBe(
+              'foo'
+            )
+          },
+          30000,
+          1000
+        )
+        await retry(
+          async () => {
+            expect(
+              await browser.waitForElementByCss('#slot-content').text()
+            ).toBe('foo slot')
+          },
+          30000,
+          1000
         )
 
         await browser
@@ -381,10 +533,23 @@ describe.each([true, false])(
             `[href="/parallel-nested-catchall/bar${trailingSlash ? '/' : ''}"]`
           )
           .click()
-        await check(() => browser.waitForElementByCss('#main').text(), 'bar')
-        await check(
-          () => browser.waitForElementByCss('#slot-content').text(),
-          'slot catchall'
+        await retry(
+          async () => {
+            expect(await browser.waitForElementByCss('#main').text()).toBe(
+              'bar'
+            )
+          },
+          30000,
+          1000
+        )
+        await retry(
+          async () => {
+            expect(
+              await browser.waitForElementByCss('#slot-content').text()
+            ).toBe('slot catchall')
+          },
+          30000,
+          1000
         )
 
         await browser
@@ -392,10 +557,23 @@ describe.each([true, false])(
             `[href="/parallel-nested-catchall/foo/123${trailingSlash ? '/' : ''}"]`
           )
           .click()
-        await check(() => browser.waitForElementByCss('#main').text(), 'foo id')
-        await check(
-          () => browser.waitForElementByCss('#slot-content').text(),
-          'foo id catchAll'
+        await retry(
+          async () => {
+            expect(await browser.waitForElementByCss('#main').text()).toBe(
+              'foo id'
+            )
+          },
+          30000,
+          1000
+        )
+        await retry(
+          async () => {
+            expect(
+              await browser.waitForElementByCss('#slot-content').text()
+            ).toBe('foo id catchAll')
+          },
+          30000,
+          1000
         )
       })
 
@@ -403,36 +581,55 @@ describe.each([true, false])(
         const browser = await next.browser('/parallel-prefetch-false')
 
         // check if the default view loads
-        await check(
-          () => browser.waitForElementByCss('#default-parallel').text(),
-          'default view for parallel'
+        await retry(
+          async () => {
+            expect(
+              await browser.waitForElementByCss('#default-parallel').text()
+            ).toBe('default view for parallel')
+          },
+          30000,
+          1000
         )
 
         // check that navigating to /foo re-renders the layout to display @parallel/foo
-        await check(
-          () =>
-            browser
-              .elementByCss(
-                `[href="/parallel-prefetch-false/foo${trailingSlash ? '/' : ''}"]`
-              )
-              .click()
-              .waitForElementByCss('#parallel-foo')
-              .text(),
-          'parallel for foo'
+        await retry(
+          async () => {
+            await expect(
+              browser
+                .elementByCss(
+                  `[href="/parallel-prefetch-false/foo${trailingSlash ? '/' : ''}"]`
+                )
+                .click()
+                .waitForElementByCss('#parallel-foo')
+                .text()
+            ).resolves.toBe('parallel for foo')
+          },
+          30000,
+          1000
         )
       })
 
       it('should display all parallel route params with useParams', async () => {
         const browser = await next.browser('/parallel-dynamic/foo/bar')
 
-        await check(
-          () => browser.waitForElementByCss('#foo').text(),
-          `{"slug":"foo","id":"bar"}`
+        await retry(
+          async () => {
+            expect(await browser.waitForElementByCss('#foo').text()).toBe(
+              `{"slug":"foo","id":"bar"}`
+            )
+          },
+          30000,
+          1000
         )
 
-        await check(
-          () => browser.waitForElementByCss('#bar').text(),
-          `{"slug":"foo","id":"bar"}`
+        await retry(
+          async () => {
+            expect(await browser.waitForElementByCss('#bar').text()).toBe(
+              `{"slug":"foo","id":"bar"}`
+            )
+          },
+          30000,
+          1000
         )
       })
 
@@ -500,11 +697,17 @@ describe.each([true, false])(
             setTimeout(resolve, 3000)
           })
 
-          await check(async () => {
-            // an invalid response triggers a fast refresh, so if the timestamp doesn't update, this behaved correctly
-            const newTimestamp = await browser.elementByCss('#timestamp').text()
-            return newTimestamp !== timestamp ? 'failure' : 'success'
-          }, 'success')
+          await retry(
+            async () => {
+              // an invalid response triggers a fast refresh, so if the timestamp doesn't update, this behaved correctly
+              const newTimestamp = await browser
+                .elementByCss('#timestamp')
+                .text()
+              return newTimestamp !== timestamp ? 'failure' : 'success'
+            },
+            30000,
+            1000
+          )
         })
 
         it('should support nested parallel routes', async () => {
@@ -515,11 +718,17 @@ describe.each([true, false])(
             setTimeout(resolve, 3000)
           })
 
-          await check(async () => {
-            // an invalid response triggers a fast refresh, so if the timestamp doesn't update, this behaved correctly
-            const newTimestamp = await browser.elementByCss('#timestamp').text()
-            return newTimestamp !== timestamp ? 'failure' : 'success'
-          }, 'success')
+          await retry(
+            async () => {
+              // an invalid response triggers a fast refresh, so if the timestamp doesn't update, this behaved correctly
+              const newTimestamp = await browser
+                .elementByCss('#timestamp')
+                .text()
+              return newTimestamp !== timestamp ? 'failure' : 'success'
+            },
+            30000,
+            1000
+          )
         })
       }
     })
@@ -531,39 +740,60 @@ describe.each([true, false])(
         )
 
         // Check if navigation to modal route works
-        await check(
-          () =>
-            browser
-              .elementByCss(
-                `[href="/intercepting-routes-dynamic/photos/next/123${trailingSlash ? '/' : ''}"]`
-              )
-              .click()
-              .waitForElementByCss('#user-intercept-page')
-              .text(),
-          'Intercepted Page'
+        await retry(
+          async () => {
+            await expect(
+              browser
+                .elementByCss(
+                  `[href="/intercepting-routes-dynamic/photos/next/123${trailingSlash ? '/' : ''}"]`
+                )
+                .click()
+                .waitForElementByCss('#user-intercept-page')
+                .text()
+            ).resolves.toBe('Intercepted Page')
+          },
+          30000,
+          1000
         )
 
         // Check if url matches even though it was intercepted.
-        await check(
-          () => browser.url(),
-          next.url +
-            '/intercepting-routes-dynamic/photos/next/123' +
-            (trailingSlash ? '/' : '')
+        await retry(
+          async () => {
+            expect(await browser.url()).toBe(
+              next.url +
+                '/intercepting-routes-dynamic/photos/next/123' +
+                (trailingSlash ? '/' : '')
+            )
+          },
+          30000,
+          1000
         )
 
         // Trigger a refresh, this should load the normal page, not the modal.
-        await check(
-          () =>
-            browser.refresh().waitForElementByCss('#user-regular-page').text(),
-          'Regular Page'
+        await retry(
+          async () => {
+            expect(
+              await browser
+                .refresh()
+                .waitForElementByCss('#user-regular-page')
+                .text()
+            ).toBe('Regular Page')
+          },
+          30000,
+          1000
         )
 
         // Check if the url matches still.
-        await check(
-          () => browser.url(),
-          next.url +
-            '/intercepting-routes-dynamic/photos/next/123' +
-            (trailingSlash ? '/' : '')
+        await retry(
+          async () => {
+            expect(await browser.url()).toBe(
+              next.url +
+                '/intercepting-routes-dynamic/photos/next/123' +
+                (trailingSlash ? '/' : '')
+            )
+          },
+          30000,
+          1000
         )
       })
     })
@@ -622,42 +852,60 @@ describe.each([true, false])(
         )
 
         // Check if navigation to modal route works
-        await check(
-          () =>
-            browser
-              .elementByCss(
-                `[href="/intercepting-routes-dynamic-catchall/photos/optional-catchall/123${trailingSlash ? '/' : ''}"]`
-              )
-              .click()
-              .waitForElementByCss('#optional-catchall-intercept-page')
-              .text(),
-          'Intercepted Page'
+        await retry(
+          async () => {
+            await expect(
+              browser
+                .elementByCss(
+                  `[href="/intercepting-routes-dynamic-catchall/photos/optional-catchall/123${trailingSlash ? '/' : ''}"]`
+                )
+                .click()
+                .waitForElementByCss('#optional-catchall-intercept-page')
+                .text()
+            ).resolves.toBe('Intercepted Page')
+          },
+          30000,
+          1000
         )
 
         // Check if url matches even though it was intercepted.
-        await check(
-          () => browser.url(),
-          next.url +
-            '/intercepting-routes-dynamic-catchall/photos/optional-catchall/123' +
-            (trailingSlash ? '/' : '')
+        await retry(
+          async () => {
+            expect(await browser.url()).toBe(
+              next.url +
+                '/intercepting-routes-dynamic-catchall/photos/optional-catchall/123' +
+                (trailingSlash ? '/' : '')
+            )
+          },
+          30000,
+          1000
         )
 
         // Trigger a refresh, this should load the normal page, not the modal.
-        await check(
-          () =>
-            browser
-              .refresh()
-              .waitForElementByCss('#optional-catchall-regular-page')
-              .text(),
-          'Regular Page'
+        await retry(
+          async () => {
+            await expect(
+              browser
+                .refresh()
+                .waitForElementByCss('#optional-catchall-regular-page')
+                .text()
+            ).resolves.toBe('Regular Page')
+          },
+          30000,
+          1000
         )
 
         // Check if the url matches still.
-        await check(
-          () => browser.url(),
-          next.url +
-            '/intercepting-routes-dynamic-catchall/photos/optional-catchall/123' +
-            (trailingSlash ? '/' : '')
+        await retry(
+          async () => {
+            expect(await browser.url()).toBe(
+              next.url +
+                '/intercepting-routes-dynamic-catchall/photos/optional-catchall/123' +
+                (trailingSlash ? '/' : '')
+            )
+          },
+          30000,
+          1000
         )
       })
     })
@@ -669,42 +917,60 @@ describe.each([true, false])(
         )
 
         // Check if navigation to modal route works
-        await check(
-          () =>
-            browser
-              .elementByCss(
-                `[href="/intercepting-routes-dynamic-catchall/photos/catchall/123${trailingSlash ? '/' : ''}"]`
-              )
-              .click()
-              .waitForElementByCss('#catchall-intercept-page')
-              .text(),
-          'Intercepted Page'
+        await retry(
+          async () => {
+            await expect(
+              browser
+                .elementByCss(
+                  `[href="/intercepting-routes-dynamic-catchall/photos/catchall/123${trailingSlash ? '/' : ''}"]`
+                )
+                .click()
+                .waitForElementByCss('#catchall-intercept-page')
+                .text()
+            ).resolves.toBe('Intercepted Page')
+          },
+          30000,
+          1000
         )
 
         // Check if url matches even though it was intercepted.
-        await check(
-          () => browser.url(),
-          next.url +
-            '/intercepting-routes-dynamic-catchall/photos/catchall/123' +
-            (trailingSlash ? '/' : '')
+        await retry(
+          async () => {
+            expect(await browser.url()).toBe(
+              next.url +
+                '/intercepting-routes-dynamic-catchall/photos/catchall/123' +
+                (trailingSlash ? '/' : '')
+            )
+          },
+          30000,
+          1000
         )
 
         // Trigger a refresh, this should load the normal page, not the modal.
-        await check(
-          () =>
-            browser
-              .refresh()
-              .waitForElementByCss('#catchall-regular-page')
-              .text(),
-          'Regular Page'
+        await retry(
+          async () => {
+            await expect(
+              browser
+                .refresh()
+                .waitForElementByCss('#catchall-regular-page')
+                .text()
+            ).resolves.toBe('Regular Page')
+          },
+          30000,
+          1000
         )
 
         // Check if the url matches still.
-        await check(
-          () => browser.url(),
-          next.url +
-            '/intercepting-routes-dynamic-catchall/photos/catchall/123' +
-            (trailingSlash ? '/' : '')
+        await retry(
+          async () => {
+            expect(await browser.url()).toBe(
+              next.url +
+                '/intercepting-routes-dynamic-catchall/photos/catchall/123' +
+                (trailingSlash ? '/' : '')
+            )
+          },
+          30000,
+          1000
         )
       })
     })
@@ -716,16 +982,20 @@ describe.each([true, false])(
         )
 
         // Check if navigation to modal route works.
-        await check(
-          () =>
-            browser
-              .elementByCss(
-                `[href="/intercepting-routes/feed/photos/1${trailingSlash ? '/' : ''}"]`
-              )
-              .click()
-              .waitForElementByCss('#photo-intercepted-1')
-              .text(),
-          'Photo INTERCEPTED 1'
+        await retry(
+          async () => {
+            await expect(
+              browser
+                .elementByCss(
+                  `[href="/intercepting-routes/feed/photos/1${trailingSlash ? '/' : ''}"]`
+                )
+                .click()
+                .waitForElementByCss('#photo-intercepted-1')
+                .text()
+            ).resolves.toBe('Photo INTERCEPTED 1')
+          },
+          30000,
+          1000
         )
 
         // Check if intercepted route was rendered while existing page content was removed.
@@ -733,55 +1003,94 @@ describe.each([true, false])(
         // await check(() => browser.elementByCss('#feed-page').text()).not.toBe('Feed')
 
         // Check if url matches even though it was intercepted.
-        await check(
-          () => browser.url(),
-          next.url +
-            '/intercepting-routes/feed/photos/1' +
-            (trailingSlash ? '/' : '')
+        await retry(
+          async () => {
+            expect(await browser.url()).toBe(
+              next.url +
+                '/intercepting-routes/feed/photos/1' +
+                (trailingSlash ? '/' : '')
+            )
+          },
+          30000,
+          1000
         )
 
         // Trigger a refresh, this should load the normal page, not the modal.
-        await check(
-          () => browser.refresh().waitForElementByCss('#photo-page-1').text(),
-          'Photo PAGE 1'
+        await retry(
+          async () => {
+            expect(
+              await browser
+                .refresh()
+                .waitForElementByCss('#photo-page-1')
+                .text()
+            ).toBe('Photo PAGE 1')
+          },
+          30000,
+          1000
         )
 
         // Check if the url matches still.
-        await check(
-          () => browser.url(),
-          next.url +
-            '/intercepting-routes/feed/photos/1' +
-            (trailingSlash ? '/' : '')
+        await retry(
+          async () => {
+            expect(await browser.url()).toBe(
+              next.url +
+                '/intercepting-routes/feed/photos/1' +
+                (trailingSlash ? '/' : '')
+            )
+          },
+          30000,
+          1000
         )
       })
 
       it('should render an intercepted route from a slot', async () => {
         const browser = await next.browser('/')
 
-        await check(
-          () => browser.waitForElementByCss('#default-slot').text(),
-          'default from @slot'
+        await retry(
+          async () => {
+            expect(
+              await browser.waitForElementByCss('#default-slot').text()
+            ).toBe('default from @slot')
+          },
+          30000,
+          1000
         )
 
-        await check(
-          () =>
-            browser
-              .elementByCss(`[href="/nested${trailingSlash ? '/' : ''}"]`)
-              .click()
-              .waitForElementByCss('#interception-slot')
-              .text(),
-          'interception from @slot/nested'
+        await retry(
+          async () => {
+            await expect(
+              browser
+                .elementByCss(`[href="/nested${trailingSlash ? '/' : ''}"]`)
+                .click()
+                .waitForElementByCss('#interception-slot')
+                .text()
+            ).resolves.toBe('interception from @slot/nested')
+          },
+          30000,
+          1000
         )
 
         // Check if the client component is rendered
-        await check(
-          () => browser.waitForElementByCss('#interception-slot-client').text(),
-          'client component'
+        await retry(
+          async () => {
+            expect(
+              await browser
+                .waitForElementByCss('#interception-slot-client')
+                .text()
+            ).toBe('client component')
+          },
+          30000,
+          1000
         )
 
-        await check(
-          () => browser.refresh().waitForElementByCss('#nested').text(),
-          'hello world from /nested'
+        await retry(
+          async () => {
+            expect(
+              await browser.refresh().waitForElementByCss('#nested').text()
+            ).toBe('hello world from /nested')
+          },
+          30000,
+          1000
         )
       })
 
@@ -790,24 +1099,38 @@ describe.each([true, false])(
           `/nested-link${trailingSlash ? '/' : ''}`
         )
 
-        await check(
-          () => browser.waitForElementByCss('#default-slot').text(),
-          'default from @slot'
+        await retry(
+          async () => {
+            expect(
+              await browser.waitForElementByCss('#default-slot').text()
+            ).toBe('default from @slot')
+          },
+          30000,
+          1000
         )
 
-        await check(
-          () =>
-            browser
-              .elementByCss(`[href="/nested${trailingSlash ? '/' : ''}"]`)
-              .click()
-              .waitForElementByCss('#interception-slot')
-              .text(),
-          'interception from @slot/nested'
+        await retry(
+          async () => {
+            await expect(
+              browser
+                .elementByCss(`[href="/nested${trailingSlash ? '/' : ''}"]`)
+                .click()
+                .waitForElementByCss('#interception-slot')
+                .text()
+            ).resolves.toBe('interception from @slot/nested')
+          },
+          30000,
+          1000
         )
 
-        await check(
-          () => browser.refresh().waitForElementByCss('#nested').text(),
-          'hello world from /nested'
+        await retry(
+          async () => {
+            expect(
+              await browser.refresh().waitForElementByCss('#nested').text()
+            ).toBe('hello world from /nested')
+          },
+          30000,
+          1000
         )
       })
 
@@ -817,16 +1140,20 @@ describe.each([true, false])(
         )
 
         // Check if navigation to modal route works.
-        await check(
-          () =>
-            browser
-              .elementByCss(
-                `[href="/intercepting-routes/feed/photos/1${trailingSlash ? '/' : ''}"]`
-              )
-              .click()
-              .waitForElementByCss('#photo-intercepted-1')
-              .text(),
-          'Photo INTERCEPTED 1'
+        await retry(
+          async () => {
+            await expect(
+              browser
+                .elementByCss(
+                  `[href="/intercepting-routes/feed/photos/1${trailingSlash ? '/' : ''}"]`
+                )
+                .click()
+                .waitForElementByCss('#photo-intercepted-1')
+                .text()
+            ).resolves.toBe('Photo INTERCEPTED 1')
+          },
+          30000,
+          1000
         )
 
         // Check if intercepted route was rendered while existing page content was removed.
@@ -834,25 +1161,43 @@ describe.each([true, false])(
         // await check(() => browser.elementByCss('#feed-page').text()).not.toBe('Feed')
 
         // Check if url matches even though it was intercepted.
-        await check(
-          () => browser.url(),
-          next.url +
-            '/intercepting-routes/feed/photos/1' +
-            (trailingSlash ? '/' : '')
+        await retry(
+          async () => {
+            expect(await browser.url()).toBe(
+              next.url +
+                '/intercepting-routes/feed/photos/1' +
+                (trailingSlash ? '/' : '')
+            )
+          },
+          30000,
+          1000
         )
 
         // Trigger a refresh, this should load the normal page, not the modal.
-        await check(
-          () => browser.refresh().waitForElementByCss('#photo-page-1').text(),
-          'Photo PAGE 1'
+        await retry(
+          async () => {
+            expect(
+              await browser
+                .refresh()
+                .waitForElementByCss('#photo-page-1')
+                .text()
+            ).toBe('Photo PAGE 1')
+          },
+          30000,
+          1000
         )
 
         // Check if the url matches still.
-        await check(
-          () => browser.url(),
-          next.url +
-            '/intercepting-routes/feed/photos/1' +
-            (trailingSlash ? '/' : '')
+        await retry(
+          async () => {
+            expect(await browser.url()).toBe(
+              next.url +
+                '/intercepting-routes/feed/photos/1' +
+                (trailingSlash ? '/' : '')
+            )
+          },
+          30000,
+          1000
         )
       })
 
@@ -862,26 +1207,43 @@ describe.each([true, false])(
         )
 
         // check if the default view loads
-        await check(
-          () => browser.waitForElementByCss('#default-parallel').text(),
-          'default view for parallel'
+        await retry(
+          async () => {
+            expect(
+              await browser.waitForElementByCss('#default-parallel').text()
+            ).toBe('default view for parallel')
+          },
+          30000,
+          1000
         )
 
         // check that navigating to /foo re-renders the layout to display @parallel/foo
-        await check(
-          () =>
-            browser
-              .elementByCss(
-                `[href="/parallel-non-intercepting/foo${trailingSlash ? '/' : ''}"]`
-              )
-              .click()
-              .waitForElementByCss('#parallel-foo')
-              .text(),
-          'parallel for foo'
+        await retry(
+          async () => {
+            await expect(
+              browser
+                .elementByCss(
+                  `[href="/parallel-non-intercepting/foo${trailingSlash ? '/' : ''}"]`
+                )
+                .click()
+                .waitForElementByCss('#parallel-foo')
+                .text()
+            ).resolves.toBe('parallel for foo')
+          },
+          30000,
+          1000
         )
 
         // check that navigating to /foo also re-renders the base children
-        await check(() => browser.elementByCss('#children-foo').text(), 'foo')
+        await retry(
+          async () => {
+            expect(await browser.elementByCss('#children-foo').text()).toBe(
+              'foo'
+            )
+          },
+          30000,
+          1000
+        )
       })
 
       it('should render modal when paired with parallel routes', async () => {
@@ -889,70 +1251,105 @@ describe.each([true, false])(
           `/intercepting-parallel-modal/vercel${trailingSlash ? '/' : ''}`
         )
         // Check if navigation to modal route works.
-        await check(
-          () =>
-            browser
-              .elementByCss(
-                `[href="/intercepting-parallel-modal/photo/1${trailingSlash ? '/' : ''}"]`
-              )
-              .click()
-              .waitForElementByCss('#photo-modal-1')
-              .text(),
-          'Photo MODAL 1'
+        await retry(
+          async () => {
+            await expect(
+              browser
+                .elementByCss(
+                  `[href="/intercepting-parallel-modal/photo/1${trailingSlash ? '/' : ''}"]`
+                )
+                .click()
+                .waitForElementByCss('#photo-modal-1')
+                .text()
+            ).resolves.toBe('Photo MODAL 1')
+          },
+          30000,
+          1000
         )
 
-        await check(
-          () =>
-            browser
-              .elementByCss(
-                `[href="/intercepting-parallel-modal/photo/2${trailingSlash ? '/' : ''}"]`
-              )
-              .click()
-              .waitForElementByCss('#photo-modal-2')
-              .text(),
-          'Photo MODAL 2'
+        await retry(
+          async () => {
+            await expect(
+              browser
+                .elementByCss(
+                  `[href="/intercepting-parallel-modal/photo/2${trailingSlash ? '/' : ''}"]`
+                )
+                .click()
+                .waitForElementByCss('#photo-modal-2')
+                .text()
+            ).resolves.toBe('Photo MODAL 2')
+          },
+          30000,
+          1000
         )
 
         // Check if modal was rendered while existing page content is preserved.
-        await check(
-          () => browser.elementByCss('#user-page').text(),
-          'Feed for vercel'
+        await retry(
+          async () => {
+            expect(await browser.elementByCss('#user-page').text()).toBe(
+              'Feed for vercel'
+            )
+          },
+          30000,
+          1000
         )
 
         // Check if url matches even though it was intercepted.
-        await check(
-          () => browser.url(),
-          next.url +
-            '/intercepting-parallel-modal/photo/2' +
-            (trailingSlash ? '/' : '')
+        await retry(
+          async () => {
+            expect(await browser.url()).toBe(
+              next.url +
+                '/intercepting-parallel-modal/photo/2' +
+                (trailingSlash ? '/' : '')
+            )
+          },
+          30000,
+          1000
         )
 
         // Trigger a refresh, this should load the normal page, not the modal.
-        await check(
-          () => browser.refresh().waitForElementByCss('#photo-page-2').text(),
-          'Photo PAGE 2'
+        await retry(
+          async () => {
+            expect(
+              await browser
+                .refresh()
+                .waitForElementByCss('#photo-page-2')
+                .text()
+            ).toBe('Photo PAGE 2')
+          },
+          30000,
+          1000
         )
 
         // Check if the url matches still.
-        await check(
-          () => browser.url(),
-          next.url +
-            '/intercepting-parallel-modal/photo/2' +
-            (trailingSlash ? '/' : '')
+        await retry(
+          async () => {
+            expect(await browser.url()).toBe(
+              next.url +
+                '/intercepting-parallel-modal/photo/2' +
+                (trailingSlash ? '/' : '')
+            )
+          },
+          30000,
+          1000
         )
       })
 
       it('should support intercepting with beforeFiles rewrites', async () => {
         const browser = await next.browser(`/foo${trailingSlash ? '/' : ''}`)
 
-        await check(
-          () =>
-            browser
-              .elementByCss(`[href="/photos${trailingSlash ? '/' : ''}"]`)
-              .click()
-              .waitForElementByCss('#intercepted')
-              .text(),
-          'intercepted'
+        await retry(
+          async () => {
+            await expect(
+              browser
+                .elementByCss(`[href="/photos${trailingSlash ? '/' : ''}"]`)
+                .click()
+                .waitForElementByCss('#intercepted')
+                .text()
+            ).resolves.toBe('intercepted')
+          },
+          30000,
+          1000
         )
       })
 
@@ -961,45 +1358,65 @@ describe.each([true, false])(
           `/intercepting-siblings${trailingSlash ? '/' : ''}`
         )
 
-        await check(
-          () =>
-            browser
-              .elementByCss(
-                `[href="/intercepting-siblings/1${trailingSlash ? '/' : ''}"]`
-              )
-              .click()
-              .waitForElementByCss('#intercepted-sibling')
-              .text(),
-          '1'
+        await retry(
+          async () => {
+            await expect(
+              browser
+                .elementByCss(
+                  `[href="/intercepting-siblings/1${trailingSlash ? '/' : ''}"]`
+                )
+                .click()
+                .waitForElementByCss('#intercepted-sibling')
+                .text()
+            ).resolves.toBe('1')
+          },
+          30000,
+          1000
         )
-        await check(
-          () =>
-            browser
-              .elementByCss(
-                `[href="/intercepting-siblings/2${trailingSlash ? '/' : ''}"]`
-              )
-              .click()
-              .waitForElementByCss('#intercepted-sibling')
-              .text(),
-          '2'
+        await retry(
+          async () => {
+            await expect(
+              browser
+                .elementByCss(
+                  `[href="/intercepting-siblings/2${trailingSlash ? '/' : ''}"]`
+                )
+                .click()
+                .waitForElementByCss('#intercepted-sibling')
+                .text()
+            ).resolves.toBe('2')
+          },
+          30000,
+          1000
         )
-        await check(
-          () =>
-            browser
-              .elementByCss(
-                `[href="/intercepting-siblings/3${trailingSlash ? '/' : ''}"]`
-              )
-              .click()
-              .waitForElementByCss('#intercepted-sibling')
-              .text(),
-          '3'
+        await retry(
+          async () => {
+            await expect(
+              browser
+                .elementByCss(
+                  `[href="/intercepting-siblings/3${trailingSlash ? '/' : ''}"]`
+                )
+                .click()
+                .waitForElementByCss('#intercepted-sibling')
+                .text()
+            ).resolves.toBe('3')
+          },
+          30000,
+          1000
         )
 
         await next.browser(
           `/intercepting-siblings/1${trailingSlash ? '/' : ''}`
         )
 
-        await check(() => browser.waitForElementByCss('#main-slot').text(), '1')
+        await retry(
+          async () => {
+            expect(await browser.waitForElementByCss('#main-slot').text()).toBe(
+              '1'
+            )
+          },
+          30000,
+          1000
+        )
       })
 
       it('should intercept on routes that contain hyphenated/special dynamic params', async () => {

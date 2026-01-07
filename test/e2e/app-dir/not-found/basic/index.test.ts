@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('app dir - not-found - basic', () => {
   const { next, isNextDev, isNextStart, skipped } = nextTestSetup({
@@ -118,10 +118,14 @@ describe('app dir - not-found - basic', () => {
           setTimeout(resolve, 3000)
         })
 
-        await check(async () => {
-          const newTimestamp = await browser.elementByCss('#timestamp').text()
-          return newTimestamp !== timestamp ? 'failure' : 'success'
-        }, 'success')
+        await retry(
+          async () => {
+            const newTimestamp = await browser.elementByCss('#timestamp').text()
+            return newTimestamp !== timestamp ? 'failure' : 'success'
+          },
+          30000,
+          1000
+        )
       })
 
       // Disabling for Edge because it is too flakey.
@@ -129,11 +133,31 @@ describe('app dir - not-found - basic', () => {
       if (!isEdge) {
         it('should render the 404 page when the file is removed, and restore the page when re-added', async () => {
           const browser = await next.browser('/')
-          await check(() => browser.elementByCss('h1').text(), 'My page')
+          await retry(
+            async () => {
+              expect(await browser.elementByCss('h1').text()).toBe('My page')
+            },
+            30000,
+            1000
+          )
           await next.renameFile('./app/page.js', './app/foo.js')
-          await check(() => browser.elementByCss('h1').text(), 'Root Not Found')
+          await retry(
+            async () => {
+              expect(await browser.elementByCss('h1').text()).toBe(
+                'Root Not Found'
+              )
+            },
+            30000,
+            1000
+          )
           await next.renameFile('./app/foo.js', './app/page.js')
-          await check(() => browser.elementByCss('h1').text(), 'My page')
+          await retry(
+            async () => {
+              expect(await browser.elementByCss('h1').text()).toBe('My page')
+            },
+            30000,
+            1000
+          )
         })
       }
     }

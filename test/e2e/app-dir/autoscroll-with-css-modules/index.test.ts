@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('router autoscrolling on navigation with css modules', () => {
   const { next } = nextTestSetup({
@@ -18,13 +18,16 @@ describe('router autoscrolling on navigation with css modules', () => {
     browser,
     options: { x: number; y: number }
   ) =>
-    check(async () => {
-      const top = await getTopScroll(browser)
-      const left = await getLeftScroll(browser)
-      return top === options.y && left === options.x
-        ? 'success'
-        : JSON.stringify({ top, left })
-    }, 'success')
+    retry(
+      async () => {
+        const top = await getTopScroll(browser)
+        const left = await getLeftScroll(browser)
+        expect(top).toBe(options.y)
+        expect(left).toBe(options.x)
+      },
+      30000,
+      1000
+    )
 
   const scrollTo = async (
     browser: Playwright,

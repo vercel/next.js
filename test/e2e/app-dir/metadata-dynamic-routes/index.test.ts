@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import imageSize from 'image-size'
-import { check, getDistDir } from 'next-test-utils'
+import { getDistDir, retry } from 'next-test-utils'
 
 const CACHE_HEADERS = {
   NONE: 'no-cache, no-store',
@@ -227,10 +227,14 @@ describe('app dir - metadata dynamic routes', () => {
       )
 
       if (isNextDev) {
-        await check(async () => {
-          next.hasFile(`${getDistDir()}/server/app-paths-manifest.json`)
-          return 'success'
-        }, /success/)
+        await retry(
+          async () => {
+            next.hasFile(`${getDistDir()}/server/app-paths-manifest.json`)
+            expect('success').toMatch(/success/)
+          },
+          30000,
+          1000
+        )
 
         const appPathsManifest = JSON.parse(
           await next.readFile(`${getDistDir()}/server/app-paths-manifest.json`)

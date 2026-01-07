@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check, waitFor, retry } from 'next-test-utils'
+import { waitFor, retry } from 'next-test-utils'
 import { Readable } from 'stream'
 
 import {
@@ -67,15 +67,18 @@ describe('app-custom-routes', () => {
         now: expect.any(Number),
       })
       if (isNextStart) {
-        await check(async () => {
-          expect(
-            await next.readFile(`.next/server/app/${path}.body`)
-          ).toBeTruthy()
-          expect(
-            await next.readFile(`.next/server/app/${path}.meta`)
-          ).toBeTruthy()
-          return 'success'
-        }, 'success')
+        await retry(
+          async () => {
+            expect(
+              await next.readFile(`.next/server/app/${path}.body`)
+            ).toBeTruthy()
+            expect(
+              await next.readFile(`.next/server/app/${path}.meta`)
+            ).toBeTruthy()
+          },
+          30000,
+          1000
+        )
       }
     })
 
@@ -90,21 +93,29 @@ describe('app-custom-routes', () => {
         now: expect.any(Number),
       })
 
-      await check(async () => {
-        expect(data).not.toEqual(JSON.parse(await next.render(basePath + path)))
-        return 'success'
-      }, 'success')
+      await retry(
+        async () => {
+          expect(data).not.toEqual(
+            JSON.parse(await next.render(basePath + path))
+          )
+        },
+        30000,
+        1000
+      )
 
       if (isNextStart) {
-        await check(async () => {
-          expect(
-            await next.readFile(`.next/server/app/${path}.body`)
-          ).toBeTruthy()
-          expect(
-            await next.readFile(`.next/server/app/${path}.meta`)
-          ).toBeTruthy()
-          return 'success'
-        }, 'success')
+        await retry(
+          async () => {
+            expect(
+              await next.readFile(`.next/server/app/${path}.body`)
+            ).toBeTruthy()
+            expect(
+              await next.readFile(`.next/server/app/${path}.meta`)
+            ).toBeTruthy()
+          },
+          30000,
+          1000
+        )
       }
     })
   })
@@ -562,10 +573,14 @@ describe('app-custom-routes', () => {
       expect(await res.text()).toBeEmpty()
 
       if (!isNextDeploy) {
-        await check(() => {
-          expect(next.cliOutput).toContain(error)
-          return 'yes'
-        }, 'yes')
+        await retry(
+          () => {
+            expect(next.cliOutput).toContain(error)
+            expect('yes').toBe('yes')
+          },
+          30000,
+          1000
+        )
       }
     })
   })
@@ -665,20 +680,21 @@ describe('app-custom-routes', () => {
         await next.deleteFile('app/default/route.ts')
       })
       it('should print an error when exporting a default handler in dev', async () => {
-        await check(async () => {
-          const res = await next.fetch(basePath + '/default')
-
-          // Ensure we get a 405 (Method Not Allowed) response when there is no
-          // exported handler for the GET method.
-          expect(res.status).toEqual(405)
-          expect(next.cliOutput).toMatch(
-            /Detected default export in '.+\/route\.ts'\. Export a named export for each HTTP method instead\./
-          )
-          expect(next.cliOutput).toMatch(
-            /No HTTP methods exported in '.+\/route\.ts'\. Export a named export for each HTTP method\./
-          )
-          return 'yes'
-        }, 'yes')
+        await retry(
+          async () => {
+            const res = await next.fetch(basePath + '/default')
+            expect(res.status).toEqual(405)
+            expect(next.cliOutput).toMatch(
+              /Detected default export in '.+\/route\.ts'\. Export a named export for each HTTP method instead\./
+            )
+            expect(next.cliOutput).toMatch(
+              /No HTTP methods exported in '.+\/route\.ts'\. Export a named export for each HTTP method\./
+            )
+            expect('yes').toBe('yes')
+          },
+          30000,
+          1000
+        )
       })
     })
   }

@@ -1,5 +1,5 @@
 import webdriver from 'next-webdriver'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
 describe('basePath query/hash handling', () => {
@@ -34,10 +34,16 @@ describe('basePath query/hash handling', () => {
         `${basePath}${search || ''}${hash || ''}`
       )
 
-      await check(
-        () =>
-          browser.eval('window.next.router.isReady ? "ready" : "not ready"'),
-        'ready'
+      await retry(
+        async () => {
+          expect(
+            await browser.eval(
+              'window.next.router.isReady ? "ready" : "not ready"'
+            )
+          ).toBe('ready')
+        },
+        30000,
+        1000
       )
       expect(await browser.eval('window.location.pathname')).toBe(basePath)
       expect(await browser.eval('window.location.search')).toBe(search || '')

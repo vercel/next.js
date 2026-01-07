@@ -1,6 +1,6 @@
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
-import { check, fetchViaHTTP } from 'next-test-utils'
+import { fetchViaHTTP, retry } from 'next-test-utils'
 import { join } from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
@@ -190,19 +190,33 @@ describe('skip-trailing-slash-redirect', () => {
       const browser = await webdriver(next.url, '/docs', {
         waitHydration: false,
       })
-      await check(
-        () => browser.eval('next.router.isReady ? "yes": "no"'),
-        'yes'
+      await retry(
+        async () => {
+          expect(await browser.eval('next.router.isReady ? "yes": "no"')).toBe(
+            'yes'
+          )
+        },
+        30000,
+        1000
       )
-      await check(() => browser.elementByCss('#mounted').text(), 'yes')
+      await retry(
+        async () => {
+          expect(await browser.elementByCss('#mounted').text()).toBe('yes')
+        },
+        30000,
+        1000
+      )
       await browser.eval('window.beforeNav = 1')
 
       await browser.elementByCss(`#${pathname.replace(/\//g, '')}`).click()
-      await check(async () => {
-        const query = JSON.parse(await browser.elementByCss('#query').text())
-        expect(query).toEqual({ slug: 'first' })
-        return 'success'
-      }, 'success')
+      await retry(
+        async () => {
+          const query = JSON.parse(await browser.elementByCss('#query').text())
+          expect(query).toEqual({ slug: 'first' })
+        },
+        30000,
+        1000
+      )
 
       expect(await browser.eval('window.beforeNav')).toBe(1)
     }
@@ -223,7 +237,13 @@ describe('skip-trailing-slash-redirect', () => {
     expect(await res.text()).toContain('Example Domain')
 
     if (!(global as any).isNextDeploy) {
-      await check(() => next.cliOutput, /missing-id rewrite/)
+      await retry(
+        () => {
+          expect(next.cliOutput).toMatch(/missing-id rewrite/)
+        },
+        30000,
+        1000
+      )
       expect(next.cliOutput).toContain('/_next/data/missing-id/hello.json')
     }
   })
@@ -353,12 +373,28 @@ describe('skip-trailing-slash-redirect', () => {
 
   it('should not apply trailing slash on load on client', async () => {
     let browser = await webdriver(next.url, '/another')
-    await check(() => browser.eval('next.router.isReady ? "yes": "no"'), 'yes')
+    await retry(
+      async () => {
+        expect(await browser.eval('next.router.isReady ? "yes": "no"')).toBe(
+          'yes'
+        )
+      },
+      30000,
+      1000
+    )
 
     expect(await browser.eval('location.pathname')).toBe('/another')
 
     browser = await webdriver(next.url, '/another/')
-    await check(() => browser.eval('next.router.isReady ? "yes": "no"'), 'yes')
+    await retry(
+      async () => {
+        expect(await browser.eval('next.router.isReady ? "yes": "no"')).toBe(
+          'yes'
+        )
+      },
+      30000,
+      1000
+    )
 
     expect(await browser.eval('location.pathname')).toBe('/another/')
   })

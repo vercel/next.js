@@ -1,5 +1,5 @@
 import { isNextDev, nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import { NEXT_RSC_UNION_QUERY } from 'next/dist/client/components/app-router-headers'
 
 import { SavedSpan } from './constants'
@@ -1434,82 +1434,85 @@ async function expectTrace(
       .filter(Boolean)
   )
 
-  await check(async () => {
-    const traces = collector.getSpans()
+  await retry(
+    async () => {
+      const traces = collector.getSpans()
 
-    const tree: HierSavedSpan[] = []
-    const spansForTree: HierSavedSpan[] = traces.map((span) => ({
-      ...span,
-      spans: [],
-    }))
-    for (const span of spansForTree) {
-      // for edge runtime with `next start` the nodejs runtime spans
-      // will not be updated as the sandbox can't update spans across
-      // node -> edge boundary, these spans also are not present when
-      // deployed as next-server is not invoking edge functions there
-      if (span.runtime === 'nodejs' && edgeOnly) {
-        continue
+      const tree: HierSavedSpan[] = []
+      const spansForTree: HierSavedSpan[] = traces.map((span) => ({
+        ...span,
+        spans: [],
+      }))
+      for (const span of spansForTree) {
+        // for edge runtime with `next start` the nodejs runtime spans
+        // will not be updated as the sandbox can't update spans across
+        // node -> edge boundary, these spans also are not present when
+        // deployed as next-server is not invoking edge functions there
+        if (span.runtime === 'nodejs' && edgeOnly) {
+          continue
+        }
+
+        const parent =
+          !span.parentId || span.parentId === EXTERNAL.spanId
+            ? null
+            : spansForTree.find((s) => s.id === span.parentId)
+        if (parent) {
+          parent.spans.push(span)
+        } else {
+          tree.push(span)
+        }
+      }
+      for (const span of spansForTree) {
+        delete span.duration
+        delete span.timestamp
+
+        span.traceId =
+          span.traceId === EXTERNAL.traceId ? span.traceId : '[trace-id]'
+        span.parentId = span.parentId || undefined
+
+        span.spans.sort((a, b) => {
+          const nameDiff = a.name.localeCompare(b.name)
+          if (nameDiff !== 0) {
+            return nameDiff
+          }
+          const segmentDiff =
+            (a.attributes?.['next.segment'] ?? '').localeCompare(
+              b.attributes?.['next.segment'] ?? ''
+            ) ?? 0
+          if (segmentDiff !== 0) {
+            return segmentDiff
+          }
+          return (
+            (a.attributes?.['next.route'] ?? '').localeCompare(
+              b.attributes?.['next.route'] ?? ''
+            ) ?? 0
+          )
+        })
       }
 
-      const parent =
-        !span.parentId || span.parentId === EXTERNAL.spanId
-          ? null
-          : spansForTree.find((s) => s.id === span.parentId)
-      if (parent) {
-        parent.spans.push(span)
-      } else {
-        tree.push(span)
-      }
-    }
-    for (const span of spansForTree) {
-      delete span.duration
-      delete span.timestamp
+      // Filter root spans to only those matching expected http.target values
+      // This prevents flakiness from extra spans in prod mode (RSC prefetch, etc.)
+      const filteredTree =
+        expectedTargets.size > 0
+          ? tree.filter((span) => {
+              const target = span.attributes?.['http.target'] as
+                | string
+                | undefined
+              return target && expectedTargets.has(target)
+            })
+          : tree
 
-      span.traceId =
-        span.traceId === EXTERNAL.traceId ? span.traceId : '[trace-id]'
-      span.parentId = span.parentId || undefined
-
-      span.spans.sort((a, b) => {
-        const nameDiff = a.name.localeCompare(b.name)
-        if (nameDiff !== 0) {
-          return nameDiff
+      filteredTree.sort((a, b) => {
+        const runtimeDiff = (a.runtime ?? '').localeCompare(b.runtime ?? '')
+        if (runtimeDiff !== 0) {
+          return runtimeDiff
         }
-        const segmentDiff =
-          (a.attributes?.['next.segment'] ?? '').localeCompare(
-            b.attributes?.['next.segment'] ?? ''
-          ) ?? 0
-        if (segmentDiff !== 0) {
-          return segmentDiff
-        }
-        return (
-          (a.attributes?.['next.route'] ?? '').localeCompare(
-            b.attributes?.['next.route'] ?? ''
-          ) ?? 0
-        )
+        return a.name.localeCompare(b.name)
       })
-    }
 
-    // Filter root spans to only those matching expected http.target values
-    // This prevents flakiness from extra spans in prod mode (RSC prefetch, etc.)
-    const filteredTree =
-      expectedTargets.size > 0
-        ? tree.filter((span) => {
-            const target = span.attributes?.['http.target'] as
-              | string
-              | undefined
-            return target && expectedTargets.has(target)
-          })
-        : tree
-
-    filteredTree.sort((a, b) => {
-      const runtimeDiff = (a.runtime ?? '').localeCompare(b.runtime ?? '')
-      if (runtimeDiff !== 0) {
-        return runtimeDiff
-      }
-      return a.name.localeCompare(b.name)
-    })
-
-    expect(filteredTree).toMatchObject(match)
-    return 'success'
-  }, 'success')
+      expect(filteredTree).toMatchObject(match)
+    },
+    30000,
+    1000
+  )
 }

@@ -3,7 +3,7 @@
 import { join } from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
-import { check, fetchViaHTTP } from 'next-test-utils'
+import { fetchViaHTTP, retry } from 'next-test-utils'
 import { NextInstance } from 'e2e-utils'
 import { createNext, FileRef } from 'e2e-utils'
 
@@ -70,12 +70,16 @@ describe('Middleware Redirect', () => {
 
       const browser = await webdriver(next.url, '/')
       await browser.elementByCss('#old-home-external').click()
-      await check(async () => {
-        expect(await browser.elementByCss('h1').text()).toEqual(
-          'Example Domain'
-        )
-        return 'yes'
-      }, 'yes')
+      await retry(
+        async () => {
+          expect(await browser.elementByCss('h1').text()).toEqual(
+            'Example Domain'
+          )
+          expect('yes').toBe('yes')
+        },
+        30000,
+        1000
+      )
     })
   }
 
@@ -150,7 +154,13 @@ describe('Middleware Redirect', () => {
       const browser = await webdriver(next.url, `${locale}`)
       await browser.elementByCss('#link-to-api-with-locale').click()
       await browser.waitForCondition('window.location.pathname === "/api/ok"')
-      await check(() => browser.elementByCss('body').text(), 'ok')
+      await retry(
+        async () => {
+          expect(await browser.elementByCss('body').text()).toBe('ok')
+        },
+        30000,
+        1000
+      )
       const logs = await browser.log()
       const errors = logs
         .filter((x) => x.source === 'error')

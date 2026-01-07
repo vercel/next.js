@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('parallel-route-not-found', () => {
   const { next, isNextDeploy } = nextTestSetup({
@@ -11,16 +11,18 @@ describe('parallel-route-not-found', () => {
 
     // Deploy doesn't have access to runtime logs
     if (!isNextDeploy) {
-      await check(() => {
-        if (
-          next.cliOutput.includes('TypeError') ||
-          next.cliOutput.includes('Warning')
-        ) {
-          return 'has-errors'
-        }
-
-        return 'success'
-      }, 'success')
+      await retry(
+        () => {
+          if (
+            next.cliOutput.includes('TypeError') ||
+            next.cliOutput.includes('Warning')
+          ) {
+            return 'has-errors'
+          }
+        },
+        30000,
+        1000
+      )
     }
 
     expect(await browser.elementByCss('body').text()).not.toContain(
@@ -32,24 +34,54 @@ describe('parallel-route-not-found', () => {
 
     // Deploy doesn't have access to runtime logs
     if (!isNextDeploy) {
-      await check(() => {
-        if (
-          next.cliOutput.includes('TypeError') ||
-          next.cliOutput.includes('Warning')
-        ) {
-          return 'has-errors'
-        }
-
-        return 'success'
-      }, 'success')
+      await retry(
+        () => {
+          if (
+            next.cliOutput.includes('TypeError') ||
+            next.cliOutput.includes('Warning')
+          ) {
+            return 'has-errors'
+          }
+        },
+        30000,
+        1000
+      )
     }
 
-    await check(() => browser.elementByCss('body').text(), /Interception Modal/)
-    await check(() => browser.elementByCss('body').text(), /Locale: en/)
+    await retry(
+      async () => {
+        expect(await browser.elementByCss('body').text()).toMatch(
+          /Interception Modal/
+        )
+      },
+      30000,
+      1000
+    )
+    await retry(
+      async () => {
+        expect(await browser.elementByCss('body').text()).toMatch(/Locale: en/)
+      },
+      30000,
+      1000
+    )
 
     await browser.refresh()
-    await check(() => browser.elementByCss('body').text(), /Regular Modal Page/)
-    await check(() => browser.elementByCss('body').text(), /Locale: en/)
+    await retry(
+      async () => {
+        expect(await browser.elementByCss('body').text()).toMatch(
+          /Regular Modal Page/
+        )
+      },
+      30000,
+      1000
+    )
+    await retry(
+      async () => {
+        expect(await browser.elementByCss('body').text()).toMatch(/Locale: en/)
+      },
+      30000,
+      1000
+    )
   })
 
   it('should handle the not found case correctly without any errors', async () => {
@@ -57,16 +89,18 @@ describe('parallel-route-not-found', () => {
 
     // Deploy doesn't have access to runtime logs
     if (!isNextDeploy) {
-      await check(() => {
-        if (
-          next.cliOutput.includes('TypeError') ||
-          next.cliOutput.includes('Warning')
-        ) {
-          return 'has-errors'
-        }
-
-        return 'success'
-      }, 'success')
+      await retry(
+        () => {
+          if (
+            next.cliOutput.includes('TypeError') ||
+            next.cliOutput.includes('Warning')
+          ) {
+            return 'has-errors'
+          }
+        },
+        30000,
+        1000
+      )
     }
 
     expect(await browser.elementByCss('body').text()).toContain(

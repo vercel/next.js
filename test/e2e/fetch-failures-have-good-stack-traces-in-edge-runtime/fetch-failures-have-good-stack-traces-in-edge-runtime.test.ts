@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import webdriver from 'next-webdriver'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
 describe('fetch failures have good stack traces in edge runtime', () => {
@@ -68,9 +68,14 @@ describe('fetch failures have good stack traces in edge runtime', () => {
   it.skip('when returning `fetch` using an unknown domain, stack traces are preserved', async () => {
     await webdriver(next.url, '/api/unknown-domain-no-await')
 
-    await check(
-      () => stripAnsi(next.cliOutput),
-      /at.+\/pages\/api\/unknown-domain-no-await.ts:4/
+    await retry(
+      () => {
+        expect(stripAnsi(next.cliOutput)).toMatch(
+          /at.+\/pages\/api\/unknown-domain-no-await.ts:4/
+        )
+      },
+      30000,
+      1000
     )
   })
 })
