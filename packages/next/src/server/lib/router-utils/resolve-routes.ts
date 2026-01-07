@@ -14,10 +14,7 @@ import { getCloneableBody } from '../../body-streams'
 import { filterReqHeaders, ipcForbiddenHeaders } from '../server-ipc/utils'
 import { stringifyQuery } from '../../server-route-utils'
 import { formatHostname } from '../format-hostname'
-import {
-  toNodeOutgoingHttpHeaders,
-  decodeNodeHeaderValue,
-} from '../../web/utils'
+import { toNodeOutgoingHttpHeaders, decodeHeaderValue } from '../../web/utils'
 import { isAbortError } from '../../pipe-readable'
 import { getHostname } from '../../../shared/lib/get-hostname'
 import {
@@ -619,8 +616,8 @@ export function getResolveRoutes(
                   encodedValue == null
                     ? undefined
                     : typeof encodedValue === 'string'
-                      ? decodeNodeHeaderValue(encodedValue)
-                      : encodedValue.map(decodeNodeHeaderValue)
+                      ? decodeHeaderValue(encodedValue)
+                      : encodedValue.map(decodeHeaderValue)
                 const oldValue = req.headers[key]
 
                 if (oldValue !== newValue) {

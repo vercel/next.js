@@ -36,7 +36,7 @@ export function encodeMojibake(input: string): string {
  */
 export function decodeMojibake(input: string): string {
   // Check if value contains non-ASCII characters that could be Mojibake
-   
+
   if (!/[\x80-\xFF]/.test(input)) {
     return input
   }

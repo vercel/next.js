@@ -111,7 +111,7 @@ import {
 import { BaseServerSpan } from './lib/trace/constants'
 import { I18NProvider } from './lib/i18n-provider'
 import { sendResponse } from './send-response'
-import { normalizeNextQueryParam, decodeNodeHeaderValue } from './web/utils'
+import { normalizeNextQueryParam, decodeHeaderValue } from './web/utils'
 import {
   HTML_CONTENT_TYPE_HEADER,
   JSON_CONTENT_TYPE_HEADER,
@@ -953,9 +953,9 @@ export default abstract class Server<
             const trimmedName = headerName.trim()
             const headerValue = req.headers[trimmedName]
             if (typeof headerValue === 'string') {
-              req.headers[trimmedName] = decodeNodeHeaderValue(headerValue)
+              req.headers[trimmedName] = decodeHeaderValue(headerValue)
             } else if (Array.isArray(headerValue)) {
-              req.headers[trimmedName] = headerValue.map(decodeNodeHeaderValue)
+              req.headers[trimmedName] = headerValue.map(decodeHeaderValue)
             }
           }
           // Clean up the marker header

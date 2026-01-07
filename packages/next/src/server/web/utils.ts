@@ -43,21 +43,6 @@ export function fromNodeOutgoingHttpHeaders(
   return headers
 }
 
-/**
- * Decodes a header value that may have been percent-encoded by fromNodeOutgoingHttpHeaders.
- */
-export function decodeNodeHeaderValue(value: string): string {
-  // Check if value contains percent-encoded sequences
-  if (/%[0-9A-Fa-f]{2}/.test(value)) {
-    try {
-      return decodeURIComponent(value)
-    } catch {
-      return value
-    }
-  }
-  return value
-}
-
 /*
   Set-Cookie header field-values are sometimes comma joined in one string. This splits them without choking on commas
   that are within a single set-cookie field-value, such as in the Expires portion.
@@ -204,6 +189,24 @@ export function encodeHeaderValue(value: string): string {
   // eslint-disable-next-line no-control-regex
   if (/[^\u0000-\u007F]/.test(value)) {
     return encodeURIComponent(value)
+  }
+  return value
+}
+
+/**
+ * Decodes a header value that may have been percent-encoded.
+ *
+ * @param value - The header value to decode
+ * @returns The decoded header value
+ */
+export function decodeHeaderValue(value: string): string {
+  // Check if value contains percent-encoded sequences
+  if (/%[0-9A-Fa-f]{2}/.test(value)) {
+    try {
+      return decodeURIComponent(value)
+    } catch {
+      return value
+    }
   }
   return value
 }

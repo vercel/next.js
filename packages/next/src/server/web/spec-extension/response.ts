@@ -5,7 +5,7 @@ import {
   toNodeOutgoingHttpHeaders,
   validateURL,
   encodeHeaderValue,
-  decodeNodeHeaderValue,
+  decodeHeaderValue,
 } from '../utils'
 import { ReflectAdapter } from './adapters/reflect'
 
@@ -28,7 +28,7 @@ function handleMiddlewareField(
     for (const [key, value] of init.request.headers) {
       // First decode any values that were percent-encoded by fromNodeOutgoingHttpHeaders
       // to preserve non-ASCII characters, then re-encode for the middleware header
-      const decodedValue = decodeNodeHeaderValue(value)
+      const decodedValue = decodeHeaderValue(value)
       const encodedValue = encodeHeaderValue(decodedValue)
       headers.set('x-middleware-request-' + key, encodedValue)
       keys.push(key)
