@@ -164,6 +164,7 @@ export function createPrerenderResumeDataCache(): PrerenderResumeDataCache {
  * @param renderResumeDataCache - A RenderResumeDataCache instance to be used directly
  * @param prerenderResumeDataCache - A PrerenderResumeDataCache instance to convert to immutable
  * @param persistedCache - A serialized cache string to parse
+ * @param maxPostponedStateSizeBytes - The max compressed size limit in bytes (used to calculate 5x decompression limit)
  * @returns An immutable RenderResumeDataCache instance
  */
 export function createRenderResumeDataCache(
@@ -173,13 +174,15 @@ export function createRenderResumeDataCache(
   prerenderResumeDataCache: PrerenderResumeDataCache
 ): RenderResumeDataCache
 export function createRenderResumeDataCache(
-  persistedCache: string
+  persistedCache: string,
+  maxPostponedStateSizeBytes: number | undefined
 ): RenderResumeDataCache
 export function createRenderResumeDataCache(
   resumeDataCacheOrPersistedCache:
     | RenderResumeDataCache
     | PrerenderResumeDataCache
-    | string
+    | string,
+  maxPostponedStateSizeBytes?: number | undefined
 ): RenderResumeDataCache {
   if (process.env.NEXT_RUNTIME === 'edge') {
     throw new InvariantError(
@@ -207,9 +210,12 @@ export function createRenderResumeDataCache(
     const { inflateSync } = require('node:zlib') as typeof import('node:zlib')
 
     // Limit decompressed size to prevent zipbomb attacks. This is 5x the
-    // default maxPostponedStateSize (10MB), allowing reasonable compression
+    // configured maxPostponedStateSize, allowing reasonable compression
     // ratios while preventing extreme decompression bombs.
-    const maxDecompressedSize = 50 * 1024 * 1024 // 50MB
+    // Default is 500MB (5x the default 100MB compressed limit).
+    const maxDecompressedSize = maxPostponedStateSizeBytes
+      ? maxPostponedStateSizeBytes * 5
+      : 500 * 1024 * 1024
 
     let json: ResumeStoreSerialized
     try {

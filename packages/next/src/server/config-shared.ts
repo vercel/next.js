@@ -662,7 +662,7 @@ export interface ExperimentalConfig {
    * Allows adjusting the maximum size of the postponed state body for PPR
    * resume requests. This includes the Resume Data Cache (RDC) which may grow
    * large for some applications.
-   * @default '10 MB'
+   * @default '100 MB'
    */
   maxPostponedStateSize?: SizeLimit
 
@@ -1798,4 +1798,31 @@ export function getNextConfigRuntime(
   }
 
   return runtimeConfig
+}
+
+/**
+ * The default maximum size for postponed state in PPR resume requests.
+ */
+export const DEFAULT_MAX_POSTPONED_STATE_SIZE: SizeLimit = '100 MB'
+
+/**
+ * Parses a SizeLimit value into bytes. Returns undefined if parsing fails.
+ */
+function parseSizeLimit(size: SizeLimit): number | undefined {
+  const bytes = (
+    require('next/dist/compiled/bytes') as typeof import('next/dist/compiled/bytes')
+  ).parse(size)
+  if (bytes === null || isNaN(bytes) || bytes < 1) {
+    return undefined
+  }
+  return bytes
+}
+
+/**
+ * Parses the maxPostponedStateSize config value, using the default if not provided.
+ */
+export function parseMaxPostponedStateSize(
+  size: SizeLimit | undefined
+): number | undefined {
+  return parseSizeLimit(size ?? DEFAULT_MAX_POSTPONED_STATE_SIZE)
 }

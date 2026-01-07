@@ -6,6 +6,10 @@ import type {
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { Params } from './request/params'
 import type { NextConfig, NextConfigRuntime } from './config-shared'
+import {
+  DEFAULT_MAX_POSTPONED_STATE_SIZE,
+  parseMaxPostponedStateSize,
+} from './config-shared'
 import type {
   NextParsedUrlQuery,
   NextUrlWithParsedQuery,
@@ -563,6 +567,9 @@ export default abstract class Server<
         authInterrupts: !!this.nextConfig.experimental.authInterrupts,
         cdnCacheControlHeader:
           this.nextConfig.experimental.cdnCacheControlHeader,
+        maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
+          this.nextConfig.experimental.maxPostponedStateSize
+        ),
       },
       onInstrumentationRequestError:
         this.instrumentationOnRequestError.bind(this),
@@ -1054,17 +1061,14 @@ export default abstract class Server<
             req.headers[NEXT_RESUME_HEADER] === '1' &&
             req.method === 'POST'
           ) {
-            // Get the configured max postponed state size (default 10 MB).
+            // Get the configured max postponed state size.
             const maxPostponedStateSize =
-              this.nextConfig.experimental.maxPostponedStateSize ?? '10 MB'
-            const maxPostponedStateSizeBytes = (
-              require('next/dist/compiled/bytes') as typeof import('next/dist/compiled/bytes')
-            ).parse(maxPostponedStateSize)
-            if (
-              maxPostponedStateSizeBytes === null ||
-              isNaN(maxPostponedStateSizeBytes) ||
-              maxPostponedStateSizeBytes < 1
-            ) {
+              this.nextConfig.experimental.maxPostponedStateSize ??
+              DEFAULT_MAX_POSTPONED_STATE_SIZE
+            const maxPostponedStateSizeBytes = parseMaxPostponedStateSize(
+              this.nextConfig.experimental.maxPostponedStateSize
+            )
+            if (maxPostponedStateSizeBytes === undefined) {
               throw new Error(
                 'maxPostponedStateSize must be a valid number (bytes) or filesize format string (e.g., "5mb")'
               )
