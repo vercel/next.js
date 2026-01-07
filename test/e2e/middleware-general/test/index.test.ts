@@ -236,9 +236,6 @@ describe('Middleware Runtime', () => {
         expect(envs).toContainAllKeys([
           'NEXT_SERVER_ACTIONS_ENCRYPTION_KEY',
           '__NEXT_BUILD_ID',
-          '__NEXT_PREVIEW_MODE_ENCRYPTION_KEY',
-          '__NEXT_PREVIEW_MODE_ID',
-          '__NEXT_PREVIEW_MODE_SIGNING_KEY',
         ])
       })
 

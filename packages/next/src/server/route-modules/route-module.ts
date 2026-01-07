@@ -192,8 +192,8 @@ export abstract class RouteModule<
   } {
     let result
     if (process.env.NEXT_RUNTIME === 'edge') {
-      const { getEdgePreviewProps } =
-        require('../web/get-edge-preview-props') as typeof import('../web/get-edge-preview-props')
+      const { getPreviewProps } =
+        require('../web/get-preview-props') as typeof import('../web/get-preview-props')
 
       const maybeJSONParse = (str?: string) =>
         str ? JSON.parse(str) : undefined
@@ -209,7 +209,7 @@ export abstract class RouteModule<
           dynamicRoutes: {},
           notFoundRoutes: [],
           version: 4,
-          preview: getEdgePreviewProps(),
+          preview: getPreviewProps(),
         } as const,
         routesManifest: {
           version: 4,

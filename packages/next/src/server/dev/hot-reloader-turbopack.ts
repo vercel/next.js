@@ -273,6 +273,7 @@ export async function createHotReloaderTurbopack(
         // TODO: Implement
         middlewareMatchers: undefined,
         rewrites: opts.fsChecker.rewrites,
+        previewProps: opts.fsChecker.prerenderManifest.preview,
       }),
       buildId,
       encryptionKey,

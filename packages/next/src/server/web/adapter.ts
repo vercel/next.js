@@ -32,7 +32,7 @@ import { getTracer } from '../lib/trace/tracer'
 import type { TextMapGetter } from 'next/dist/compiled/@opentelemetry/api'
 import { MiddlewareSpan } from '../lib/trace/constants'
 import { CloseController } from './web-on-close'
-import { getEdgePreviewProps } from './get-edge-preview-props'
+import { getPreviewProps } from './get-preview-props'
 import { getBuiltinRequestContext } from '../after/builtin-request-context'
 import { getImplicitTags } from '../lib/implicit-tags'
 
@@ -223,7 +223,7 @@ export async function adapter(
           routes: {},
           dynamicRoutes: {},
           notFoundRoutes: [],
-          preview: getEdgePreviewProps(),
+          preview: getPreviewProps(),
         }
       },
     })
@@ -272,7 +272,7 @@ export async function adapter(
             const onUpdateCookies = (cookies: Array<string>) => {
               cookiesFromResponse = cookies
             }
-            const previewProps = getEdgePreviewProps()
+            const previewProps = getPreviewProps()
             const page = '/' // Fake Work
             const fallbackRouteParams = null
 

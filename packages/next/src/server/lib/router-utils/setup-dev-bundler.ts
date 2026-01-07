@@ -825,6 +825,7 @@ async function startWatcher(
               middlewareMatchers: undefined,
               projectPath: opts.dir,
               rewrites: opts.fsChecker.rewrites,
+              previewProps: opts.fsChecker.prerenderManifest.preview,
             }),
             rootPath,
             projectPath: normalizePath(path.relative(rootPath, dir)),
@@ -922,6 +923,7 @@ async function startWatcher(
                     middlewareMatchers: undefined,
                     projectPath: opts.dir,
                     rewrites: opts.fsChecker.rewrites,
+                    previewProps: opts.fsChecker.prerenderManifest.preview,
                   })
 
                   Object.keys(plugin.definitions).forEach((key) => {

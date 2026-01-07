@@ -12,6 +12,7 @@ import {
   getNextConfigEnv,
   getNextPublicEnvironmentVariables,
 } from '../lib/static-env'
+import type { __ApiPreviewProps } from '../server/api-utils'
 
 type BloomFilter = ReturnType<
   import('../shared/lib/bloom-filter').BloomFilter['export']
@@ -39,6 +40,7 @@ export interface DefineEnvOptions {
     afterFiles: Rewrite[]
     fallback: Rewrite[]
   }
+  previewProps: __ApiPreviewProps
 }
 
 interface DefineEnv {
@@ -111,6 +113,7 @@ export function getDefineEnv({
   middlewareMatchers,
   omitNonDeterministic,
   rewrites,
+  previewProps,
 }: DefineEnvOptions): SerializedDefineEnv {
   const nextPublicEnv = getNextPublicEnvironmentVariables()
   const nextConfigEnv = getNextConfigEnv(config)
@@ -343,6 +346,12 @@ export function getDefineEnv({
       config.experimental.reactDebugChannel ?? false,
     'process.env.__NEXT_TRANSITION_INDICATOR':
       config.experimental.transitionIndicator ?? false,
+
+    'process.env.__NEXT_PREVIEW_MODE_ID': previewProps.previewModeId,
+    'process.env.__NEXT_PREVIEW_MODE_SIGNING_KEY':
+      previewProps.previewModeSigningKey,
+    'process.env.__NEXT_PREVIEW_MODE_ENCRYPTION_KEY':
+      previewProps.previewModeEncryptionKey,
   }
 
   const userDefines = config.compiler?.define ?? {}
