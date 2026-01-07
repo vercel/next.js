@@ -44,24 +44,27 @@ impl ImmutableComments {
 
     /// Creates a new ImmutableComments from SwcComments, extracting and removing
     /// any sourceMappingURL comment. Returns the comments and the extracted URL if found.
+    /// If multiple sourceMappingURL comments exist, the one with the highest position
+    /// (last in the file) is selected per the ECMAScript spec.
     pub fn new_with_source_mapping_url(comments: SwcComments) -> (Self, Option<String>) {
-        let mut source_mapping_url = None;
+        let mut source_mapping_url_by_pos: Vec<(BytePos, String)> = Vec::new();
 
         let leading: FxHashMap<BytePos, Vec<Comment>> = comments
             .leading
             .iter_mut()
             .filter_map(|mut r| {
+                let pos = *r.key();
                 let mut c = take(r.value_mut());
                 // Extract and remove sourceMappingURL comments
                 c.retain(|comment| {
                     if let Some(url) = extract_source_mapping_url(comment) {
-                        source_mapping_url = Some(url.to_string());
+                        source_mapping_url_by_pos.push((pos, url.to_string()));
                         false
                     } else {
                         true
                     }
                 });
-                (!c.is_empty()).then_some((*r.key(), c))
+                (!c.is_empty()).then_some((pos, c))
             })
             .collect();
 
@@ -69,19 +72,26 @@ impl ImmutableComments {
             .trailing
             .iter_mut()
             .filter_map(|mut r| {
+                let pos = *r.key();
                 let mut c = take(r.value_mut());
                 // Extract and remove sourceMappingURL comments
                 c.retain(|comment| {
                     if let Some(url) = extract_source_mapping_url(comment) {
-                        source_mapping_url = Some(url.to_string());
+                        source_mapping_url_by_pos.push((pos, url.to_string()));
                         false
                     } else {
                         true
                     }
                 });
-                (!c.is_empty()).then_some((*r.key(), c))
+                (!c.is_empty()).then_some((pos, c))
             })
             .collect();
+
+        // Select the sourceMappingURL with the highest position (last one in the file)
+        let source_mapping_url = source_mapping_url_by_pos
+            .into_iter()
+            .max_by_key(|&(pos, _)| pos)
+            .map(|(_, url)| url);
 
         (Self { leading, trailing }, source_mapping_url)
     }
