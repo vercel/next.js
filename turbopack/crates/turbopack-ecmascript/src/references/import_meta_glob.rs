@@ -1,18 +1,27 @@
-use std::sync::Arc;
+use std::{borrow::Cow, sync::Arc};
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
+use once_cell::sync::Lazy;
 use swc_core::{
     common::DUMMY_SP,
     ecma::{
-        ast::{Expr, ExprStmt, ModuleItem, ObjectLit, Stmt},
+        ast::{
+            Expr, ExprStmt, KeyValueProp, Lit, ModuleItem, ObjectLit, Prop, PropName, PropOrSpread,
+            Stmt,
+        },
         codegen::{Emitter, text_writer::JsWriter},
     },
     quote_expr,
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
+    FxIndexMap, NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat,
+    trace::TraceRawVcs,
+};
+use turbo_tasks_fs::{
+    FileSystemPath,
+    glob::{Glob, GlobOptions},
 };
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -26,9 +35,11 @@ use turbopack_core::{
     module_graph::ModuleGraph,
     output::OutputAssetsReference,
     reference::{ModuleReference, ModuleReferences},
-    resolve::{ModuleResolveResult, origin::ResolveOrigin},
+    reference_type::EcmaScriptModulesReferenceSubType,
+    resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request},
     source::Source,
 };
+use turbopack_resolve::ecmascript::esm_resolve;
 
 use crate::{
     EcmascriptChunkPlaceable,
@@ -37,10 +48,82 @@ use crate::{
     },
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
-    references::AstPath,
+    references::{
+        AstPath,
+        dir_list::{DirListFilter, FlatDirList},
+        pattern_mapping::{PatternMapping, ResolveType},
+    },
     runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_REQUIRE},
     utils::module_id_to_lit,
 };
+
+#[turbo_tasks::value]
+#[derive(Debug)]
+pub struct ImportMetaGlobMapEntry {
+    pub origin_relative: RcStr,
+    pub request: ResolvedVc<Request>,
+    pub result: ResolvedVc<ModuleResolveResult>,
+}
+
+/// The resolved glob map for an `import.meta.glob(..)` call.
+#[turbo_tasks::value(transparent)]
+pub struct ImportMetaGlobMap(
+    #[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, ImportMetaGlobMapEntry>,
+);
+
+#[turbo_tasks::value_impl]
+impl ImportMetaGlobMap {
+    #[turbo_tasks::function]
+    pub(crate) async fn generate(
+        origin: Vc<Box<dyn ResolveOrigin>>,
+        dir: FileSystemPath,
+        pattern: RcStr,
+        issue_source: Option<IssueSource>,
+        is_optional: bool,
+    ) -> Result<Vc<Self>> {
+        let origin_path = origin.origin_path().await?.parent();
+
+        // TODO: we can look at the pattern for a static directory prefix, and use that to establish
+        // a more refined search path
+        let glob = Glob::new(pattern, GlobOptions::default());
+        let list =
+            &*FlatDirList::read(dir, /* recursive */ true, DirListFilter::Glob(glob)).await?;
+
+        let mut map = FxIndexMap::default();
+
+        for (context_relative, path) in list {
+            let Some(origin_relative) = origin_path.get_relative_path_to(path) else {
+                bail!("invariant error: this was already checked in `list_dir`");
+            };
+
+            // Ignoring "eager" eval for now, so only dynamic imports are supported
+            let request = Request::parse(origin_relative.clone().into())
+                .to_resolved()
+                .await?;
+            let result = esm_resolve(
+                origin,
+                *request,
+                EcmaScriptModulesReferenceSubType::Import,
+                is_optional,
+                issue_source,
+            )
+            .await?
+            .to_resolved()
+            .await?;
+
+            map.insert(
+                context_relative.clone(),
+                ImportMetaGlobMapEntry {
+                    origin_relative,
+                    request,
+                    result,
+                },
+            );
+        }
+
+        Ok(Vc::cell(map))
+    }
+}
 
 /// Reference to `import.meta.glob()`, which will be replaced with a require to a
 /// synthetic module that exports an object mapping paths to import functions.
@@ -66,9 +149,20 @@ impl ImportMetaGlobAssetReference {
         issue_source: Option<IssueSource>,
         in_try: bool,
     ) -> Result<Self> {
+        let map = ImportMetaGlobMap::generate(
+            *origin,
+            origin.origin_path().await?.parent(),
+            pattern.clone(),
+            issue_source,
+            in_try,
+        )
+        .to_resolved()
+        .await?;
+
         let inner = ImportMetaGlobAsset {
             source,
             origin,
+            map,
             pattern: pattern.clone(),
             eager,
             import: import.clone(),
@@ -190,6 +284,7 @@ impl ChunkableModuleReference for ResolvedModuleReference {}
 pub struct ImportMetaGlobAsset {
     source: ResolvedVc<Box<dyn Source>>,
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    map: ResolvedVc<ImportMetaGlobMap>,
 
     pattern: RcStr,
     eager: bool,
@@ -223,7 +318,15 @@ impl Module for ImportMetaGlobAsset {
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
-        Ok(Vc::cell(Vec::new()))
+        let map = &*self.map.await?;
+
+        Ok(Vc::cell(
+            map.iter()
+                .map(|(_, entry)| {
+                    ResolvedVc::upcast(ResolvedVc::<ResolvedModuleReference>::cell(entry.result))
+                })
+                .collect(),
+        ))
     }
 
     #[turbo_tasks::function]
@@ -255,6 +358,7 @@ impl ChunkableModule for ImportMetaGlobAsset {
                 chunking_context,
                 inner: self,
                 origin: this.origin,
+                map: this.map,
                 eager: this.eager,
                 import: this.import.clone(),
             }
@@ -277,6 +381,7 @@ pub struct ImportMetaGlobChunkItem {
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     inner: ResolvedVc<ImportMetaGlobAsset>,
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    map: ResolvedVc<ImportMetaGlobMap>,
     eager: bool,
     import: Option<RcStr>,
 }
@@ -288,13 +393,40 @@ impl OutputAssetsReference for ImportMetaGlobChunkItem {}
 impl EcmascriptChunkItem for ImportMetaGlobChunkItem {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
+        let map = &*self.map.await?;
         let minify = self.chunking_context.minify_type().await?;
 
         // Generate: { './file.js': () => import('./file.js'), ... }
-        let import_map = ObjectLit {
+        let mut import_map = ObjectLit {
             span: DUMMY_SP,
             props: vec![],
         };
+
+        for (key, entry) in map {
+            let pm = PatternMapping::resolve_request(
+                *entry.request,
+                *self.origin,
+                *self.chunking_context,
+                *entry.result,
+                ResolveType::ChunkItem,
+            )
+            .await?;
+
+            let PatternMapping::Single(pm) = &*pm else {
+                continue;
+            };
+
+            let key_expr = Expr::Lit(Lit::Str(entry.origin_relative.as_str().into()));
+
+            let prop = KeyValueProp {
+                key: PropName::Str(key.as_str().into()),
+                value: Box::new(pm.create_import(Cow::Borrowed(&key_expr), false)),
+            };
+
+            import_map
+                .props
+                .push(PropOrSpread::Prop(Box::new(Prop::KeyValue(prop))));
+        }
 
         let expr = quote_expr!(
             "$turbopack_export_value($obj);",
