@@ -174,45 +174,50 @@ describe('config', () => {
 
   describe('outputFileTracingRoot and turbopack.root consistency', () => {
     it('Should set both outputFileTracingRoot and turbopack.root to the same value when only outputFileTracingRoot is provided', async () => {
+      const validDir = join(__dirname, '_resolvedata', 'aa')
       const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>', {
         customConfig: {
-          outputFileTracingRoot: '/custom/root',
+          outputFileTracingRoot: validDir,
         },
       })
-      expect(config.outputFileTracingRoot).toBe('/custom/root')
-      expect(config.turbopack.root).toBe('/custom/root')
+      expect(config.outputFileTracingRoot).toBe(validDir)
+      expect(config.turbopack.root).toBe(validDir)
     })
 
     it('Should set both outputFileTracingRoot and turbopack.root to the same value when only turbopack.root is provided', async () => {
+      const validDir = join(__dirname, '_resolvedata', 'bb')
       const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>', {
         customConfig: {
-          turbopack: { root: '/custom/root' },
+          turbopack: { root: validDir },
         },
       })
-      expect(config.outputFileTracingRoot).toBe('/custom/root')
-      expect(config.turbopack.root).toBe('/custom/root')
+      expect(config.outputFileTracingRoot).toBe(validDir)
+      expect(config.turbopack.root).toBe(validDir)
     })
 
     it('Should use outputFileTracingRoot value when both are provided with different values', async () => {
+      const tracingDir = join(__dirname, '_resolvedata', 'aa')
+      const turboDir = join(__dirname, '_resolvedata', 'bb')
       const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>', {
         customConfig: {
-          outputFileTracingRoot: '/tracing/root',
-          turbopack: { root: '/turbo/root' },
+          outputFileTracingRoot: tracingDir,
+          turbopack: { root: turboDir },
         },
       })
-      expect(config.outputFileTracingRoot).toBe('/tracing/root')
-      expect(config.turbopack.root).toBe('/tracing/root')
+      expect(config.outputFileTracingRoot).toBe(tracingDir)
+      expect(config.turbopack.root).toBe(tracingDir)
     })
 
     it('Should keep the same value when both are provided with matching values', async () => {
+      const sameDir = join(__dirname, '_resolvedata', 'cc')
       const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>', {
         customConfig: {
-          outputFileTracingRoot: '/same/root',
-          turbopack: { root: '/same/root' },
+          outputFileTracingRoot: sameDir,
+          turbopack: { root: sameDir },
         },
       })
-      expect(config.outputFileTracingRoot).toBe('/same/root')
-      expect(config.turbopack.root).toBe('/same/root')
+      expect(config.outputFileTracingRoot).toBe(sameDir)
+      expect(config.turbopack.root).toBe(sameDir)
     })
 
     it('Should set both to findRootDir result when neither is provided', async () => {
@@ -221,6 +226,30 @@ describe('config', () => {
       })
       expect(config.outputFileTracingRoot).toBeDefined()
       expect(config.turbopack.root).toBe(config.outputFileTracingRoot)
+    })
+
+    it('Should throw when outputFileTracingRoot does not exist', async () => {
+      await expect(async () => {
+        await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>', {
+          customConfig: {
+            outputFileTracingRoot: '/invalid/path',
+          },
+        })
+      }).rejects.toThrow(
+        /outputFileTracingRoot path provided does not exist, received \/invalid\/path/
+      )
+    })
+
+    it('Should throw when turbopack.root does not exist', async () => {
+      await expect(async () => {
+        await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>', {
+          customConfig: {
+            turbopack: { root: '/invalid/path' },
+          },
+        })
+      }).rejects.toThrow(
+        /turbopack\.root path provided does not exist, received \/invalid\/path/
+      )
     })
   })
 })

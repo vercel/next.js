@@ -1,4 +1,4 @@
-import { existsSync } from 'fs'
+import { existsSync, statSync } from 'fs'
 import { basename, extname, join, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
 import findUp from 'next/dist/compiled/find-up'
@@ -895,23 +895,49 @@ function assignDefaultsAndValidate(
     silent
   )
 
-  if (
-    result?.outputFileTracingRoot &&
-    !isAbsolute(result.outputFileTracingRoot)
-  ) {
-    result.outputFileTracingRoot = resolve(result.outputFileTracingRoot)
-    if (!silent) {
-      Log.warn(
-        `outputFileTracingRoot should be absolute, using: ${result.outputFileTracingRoot}`
+  if (result?.outputFileTracingRoot) {
+    if (!isAbsolute(result.outputFileTracingRoot)) {
+      result.outputFileTracingRoot = resolve(result.outputFileTracingRoot)
+      if (!silent) {
+        Log.warn(
+          `outputFileTracingRoot should be absolute, using: ${result.outputFileTracingRoot}`
+        )
+      }
+    }
+
+    const tracingRoot = result.outputFileTracingRoot
+    if (!existsSync(tracingRoot)) {
+      throw new Error(
+        `outputFileTracingRoot path provided does not exist, received ${tracingRoot}`
+      )
+    }
+    if (!statSync(tracingRoot).isDirectory()) {
+      throw new Error(
+        `Specified outputFileTracingRoot is not a directory, received ${tracingRoot}`
       )
     }
   }
 
-  if (result?.turbopack?.root && !isAbsolute(result.turbopack.root)) {
-    result.turbopack.root = resolve(result.turbopack.root)
-    if (!silent) {
-      Log.warn(
-        `turbopack.root should be absolute, using: ${result.turbopack.root}`
+  if (result?.turbopack?.root) {
+    if (!isAbsolute(result.turbopack.root)) {
+      result.turbopack.root = resolve(result.turbopack.root)
+      if (!silent) {
+        Log.warn(
+          `turbopack.root should be absolute, using: ${result.turbopack.root}`
+        )
+      }
+    }
+
+    const turbopackRoot = result.turbopack.root
+    if (!existsSync(turbopackRoot)) {
+      throw new Error(
+        `turbopack.root path provided does not exist, received ${turbopackRoot}`
+      )
+    }
+
+    if (!statSync(turbopackRoot).isDirectory()) {
+      throw new Error(
+        `Specified turbopack.root is not a directory, received ${turbopackRoot}`
       )
     }
   }
