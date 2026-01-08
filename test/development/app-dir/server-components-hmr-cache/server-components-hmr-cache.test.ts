@@ -57,7 +57,7 @@ describe('server-components-hmr-cache', () => {
 
       it('should use cached fetch calls for fast refresh requests', async () => {
         const browser = await next.browser(`/${runtime}`)
-        const valueBeforePatch = getLoggedAfterValue()
+        const valueBeforePatch = await retry(() => getLoggedAfterValue())
         cliOutputLength = next.cliOutput.length
 
         await next.patchFile(
@@ -70,7 +70,7 @@ describe('server-components-hmr-cache', () => {
               // TODO: remove custom duration in case we increase the default.
             }, 5000)
 
-            const valueAfterPatch = getLoggedAfterValue()
+            const valueAfterPatch = await retry(() => getLoggedAfterValue())
             expect(valueBeforePatch).toEqual(valueAfterPatch)
           }
         )
