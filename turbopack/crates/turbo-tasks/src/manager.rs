@@ -1593,6 +1593,10 @@ pub fn turbo_tasks() -> Arc<dyn TurboTasksApi> {
     TURBO_TASKS.with(|arc| arc.clone())
 }
 
+pub fn turbo_tasks_weak() -> Weak<dyn TurboTasksApi> {
+    TURBO_TASKS.with(Arc::downgrade)
+}
+
 pub fn try_turbo_tasks() -> Option<Arc<dyn TurboTasksApi>> {
     TURBO_TASKS.try_with(|arc| arc.clone()).ok()
 }

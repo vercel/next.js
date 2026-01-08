@@ -41,7 +41,7 @@ use std::{
     io::{self, BufRead, BufReader, ErrorKind, Read},
     mem::take,
     path::{MAIN_SEPARATOR, Path, PathBuf},
-    sync::{Arc, LazyLock},
+    sync::{Arc, LazyLock, Weak},
     time::Duration,
 };
 
@@ -55,13 +55,16 @@ use jsonc_parser::{ParseOptions, parse_to_serde_value};
 use mime::Mime;
 use rustc_hash::FxHashSet;
 use serde_json::Value;
-use tokio::sync::{RwLock, RwLockReadGuard};
+use tokio::{
+    runtime::Handle,
+    sync::{RwLock, RwLockReadGuard},
+};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     ApplyEffectsContext, Completion, InvalidationReason, Invalidator, NonLocalValue, ReadRef,
-    ResolvedVc, TaskInput, ValueToString, Vc, debug::ValueDebugFormat, effect,
-    mark_session_dependent, mark_stateful, parallel, trace::TraceRawVcs,
+    ResolvedVc, TaskInput, TurboTasksApi, ValueToString, Vc, debug::ValueDebugFormat, effect,
+    mark_session_dependent, mark_stateful, parallel, trace::TraceRawVcs, turbo_tasks_weak,
 };
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher, hash_xxh3_hash64};
 use turbo_unix_path::{
@@ -288,6 +291,15 @@ struct DiskFileSystemInner {
     /// Root paths that we do not allow access to from this filesystem.
     /// Useful for things like output directories to prevent accidental ouroboros situations.
     denied_paths: Vec<RcStr>,
+    /// Used by invalidators when called from a non-turbo-tasks thread, specifically in the fs
+    /// watcher.
+    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[bincode(skip, default = "turbo_tasks_weak")]
+    turbo_tasks: Weak<dyn TurboTasksApi>,
+    /// Used by invalidators when called from a non-tokio thread, specifically in the fs watcher.
+    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[bincode(skip, default = "Handle::current")]
+    tokio_handle: Handle,
 }
 
 impl DiskFileSystemInner {
@@ -371,6 +383,11 @@ impl DiskFileSystemInner {
 
     fn invalidate(&self) {
         let _span = tracing::info_span!("invalidate filesystem", name = &*self.root).entered();
+        let Some(turbo_tasks) = self.turbo_tasks.upgrade() else {
+            return;
+        };
+        let _guard = self.tokio_handle.enter();
+
         let invalidator_map = take(&mut *self.invalidator_map.lock().unwrap());
         let dir_invalidator_map = take(&mut *self.dir_invalidator_map.lock().unwrap());
         let invalidators = invalidator_map
@@ -378,7 +395,9 @@ impl DiskFileSystemInner {
             .chain(dir_invalidator_map)
             .flat_map(|(_, invalidators)| invalidators.into_keys())
             .collect::<Vec<_>>();
-        parallel::for_each_owned(invalidators, |invalidator| invalidator.invalidate());
+        parallel::for_each_owned(invalidators, |invalidator| {
+            invalidator.invalidate(&*turbo_tasks)
+        });
     }
 
     /// Invalidates every tracked file in the filesystem.
@@ -389,6 +408,11 @@ impl DiskFileSystemInner {
         reason: impl Fn(&Path) -> R + Sync,
     ) {
         let _span = tracing::info_span!("invalidate filesystem", name = &*self.root).entered();
+        let Some(turbo_tasks) = self.turbo_tasks.upgrade() else {
+            return;
+        };
+        let _guard = self.tokio_handle.enter();
+
         let invalidator_map = take(&mut *self.invalidator_map.lock().unwrap());
         let dir_invalidator_map = take(&mut *self.dir_invalidator_map.lock().unwrap());
         let invalidators = invalidator_map
@@ -402,7 +426,7 @@ impl DiskFileSystemInner {
             })
             .collect::<Vec<_>>();
         parallel::for_each_owned(invalidators, |(reason, invalidator)| {
-            invalidator.invalidate_with_reason(reason)
+            invalidator.invalidate_with_reason(&*turbo_tasks, reason)
         });
     }
 
@@ -412,18 +436,24 @@ impl DiskFileSystemInner {
         invalidators: Vec<(Invalidator, Option<WriteContent>)>,
     ) {
         if !invalidators.is_empty() {
+            let Some(turbo_tasks) = self.turbo_tasks.upgrade() else {
+                return;
+            };
+            let _guard = self.tokio_handle.enter();
+
             if let Some(path) = format_absolute_fs_path(full_path, &self.name, self.root_path()) {
                 if invalidators.len() == 1 {
                     let (invalidator, _) = invalidators.into_iter().next().unwrap();
-                    invalidator.invalidate_with_reason(Write { path });
+                    invalidator.invalidate_with_reason(&*turbo_tasks, Write { path });
                 } else {
                     invalidators.into_iter().for_each(|(invalidator, _)| {
-                        invalidator.invalidate_with_reason(Write { path: path.clone() });
+                        invalidator
+                            .invalidate_with_reason(&*turbo_tasks, Write { path: path.clone() });
                     });
                 }
             } else {
                 invalidators.into_iter().for_each(|(invalidator, _)| {
-                    invalidator.invalidate();
+                    invalidator.invalidate(&*turbo_tasks);
                 });
             }
         }
@@ -648,6 +678,8 @@ impl DiskFileSystem {
                 write_semaphore: create_write_semaphore(),
                 watcher: DiskWatcher::new(),
                 denied_paths,
+                turbo_tasks: turbo_tasks_weak(),
+                tokio_handle: Handle::current(),
             }),
         };
 
