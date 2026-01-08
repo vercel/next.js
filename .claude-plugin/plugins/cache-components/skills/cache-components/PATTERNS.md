@@ -60,49 +60,7 @@ export default async function HomePage() {
 
 ---
 
-## Pattern 2: Parameter Extraction for Runtime Data
-
-When you need user-specific data in a cached component:
-
-```tsx
-// ❌ WRONG: Reading cookies inside cache
-async function UserDashboard() {
-  'use cache'
-  const session = await cookies() // Error! Can't access runtime API
-  return <Dashboard userId={session.userId} />
-}
-
-// ✅ CORRECT: Extract runtime data, pass as argument
-export default function DashboardPage() {
-  return (
-    <Suspense fallback={<DashboardSkeleton />}>
-      <DashboardLoader />
-    </Suspense>
-  )
-}
-
-// Loader extracts runtime data
-async function DashboardLoader() {
-  const session = (await cookies()).get('session')?.value
-  if (!session) return <SignInPrompt />
-
-  return <CachedDashboard sessionId={session} />
-}
-
-// Cached component receives data as argument (becomes cache key)
-async function CachedDashboard({ sessionId }: { sessionId: string }) {
-  'use cache'
-  cacheTag(`dashboard-${sessionId}`)
-  cacheLife('minutes')
-
-  const dashboard = await fetchDashboard(sessionId)
-  return <Dashboard data={dashboard} />
-}
-```
-
----
-
-## Pattern 3: Read-Your-Own-Writes with Server Actions
+## Pattern 2: Read-Your-Own-Writes with Server Actions
 
 Ensure users see their changes immediately:
 
@@ -169,7 +127,7 @@ export function CreatePostForm() {
 
 ---
 
-## Pattern 4: Granular Cache Invalidation
+## Pattern 3: Granular Cache Invalidation
 
 Tag caches at multiple levels for precise invalidation:
 
@@ -231,7 +189,7 @@ export async function clearAllPosts() {
 
 ---
 
-## Pattern 5: Cached Data Fetching Functions
+## Pattern 4: Cached Data Fetching Functions
 
 Create reusable cached data fetchers:
 
@@ -278,7 +236,7 @@ async function Sidebar() {
 
 ---
 
-## Pattern 6: Stale-While-Revalidate for Background Updates
+## Pattern 5: Stale-While-Revalidate for Background Updates
 
 Use `revalidateTag` for non-critical updates:
 
@@ -308,7 +266,7 @@ export async function likePost(postId: string) {
 
 ---
 
-## Pattern 7: Conditional Caching Based on Content
+## Pattern 6: Conditional Caching Based on Content
 
 Cache based on content characteristics:
 
@@ -336,7 +294,7 @@ async function ContentBlock({ id }: { id: string }) {
 
 ---
 
-## Pattern 8: Nested Cached Components
+## Pattern 7: Nested Cached Components
 
 Compose cached components for fine-grained caching:
 
@@ -395,7 +353,7 @@ export default async function BlogLayout({
 
 ---
 
-## Pattern 9: E-commerce Product Page
+## Pattern 8: E-commerce Product Page
 
 Complete example for e-commerce:
 
@@ -490,7 +448,7 @@ export default async function ProductPage({
 
 ---
 
-## Pattern 10: Multi-tenant SaaS Application
+## Pattern 9: Multi-tenant SaaS Application
 
 Handle tenant-specific caching:
 
@@ -549,7 +507,7 @@ export async function updateTenantSettings(data: FormData) {
 
 ---
 
-## Pattern 11: Subshell Composition with generateStaticParams
+## Pattern 10: Subshell Composition with generateStaticParams
 
 Leverage parameter permutations to create reusable subshells:
 
@@ -644,7 +602,7 @@ export default async function CategoryLayout({
 
 ---
 
-## Pattern 12: Hierarchical Params for Deep Routes
+## Pattern 11: Hierarchical Params for Deep Routes
 
 For deeply nested routes, structure layouts to maximize subshell reuse:
 

@@ -58,45 +58,34 @@ Error: A component used 'use cache' but didn't complete within 50 seconds.
 
 The cached function is accessing request-specific data (cookies, headers, searchParams) or making requests that depend on runtime context.
 
-### Solutions
+### Solution
 
-**1. Extract runtime data outside the cache:**
+User-specific content that depends on runtime data (cookies, headers, searchParams) should **not be cached**. Instead, stream it dynamically:
 
 ```tsx
-// ❌ WRONG: Accessing cookies inside cache
+// ❌ WRONG: Trying to cache user-specific content
 async function UserContent() {
   'use cache'
   const session = await cookies() // Causes timeout!
   return await fetchContent(session.userId)
 }
 
-// ✅ CORRECT: Pass runtime data as argument
-async function UserContent({ userId }: { userId: string }) {
-  'use cache'
-  cacheTag(`user-${userId}`)
-  return await fetchContent(userId)
+// ✅ CORRECT: Don't cache user-specific content, stream it instead
+async function UserContent() {
+  const session = await cookies()
+  return await fetchContent(session.get('userId')?.value)
 }
 
-// Wrapper extracts runtime data
-async function UserContentLoader() {
-  const session = (await cookies()).get('session')?.value
-  return <UserContent userId={session} />
-}
-```
-
-**2. Wrap in Suspense if truly dynamic:**
-
-```tsx
 export default function Page() {
   return (
     <Suspense fallback={<Loading />}>
-      <DynamicContent /> {/* No 'use cache' for dynamic content */}
+      <UserContent /> {/* No 'use cache' - streams dynamically */}
     </Suspense>
   )
 }
 ```
 
-> **See also**: Pattern 2 (Parameter Extraction for Runtime Data) in PATTERNS.md shows this approach in detail.
+**Key insight**: Cache Components are for content that can be shared across users (e.g., product details, blog posts). User-specific content should stream at request time.
 
 ---
 
@@ -287,7 +276,7 @@ Cache contexts cannot depend on request-specific data because the cached result 
 
 ### Solution
 
-Extract runtime data before the cache boundary:
+User-specific content should **not be cached**. Remove `'use cache'` and stream the content dynamically:
 
 ```tsx
 // ❌ ERROR: Cookies inside cache
@@ -297,20 +286,22 @@ async function UserDashboard() {
   return await fetchDashboard(session.get('userId'))
 }
 
-// ✅ CORRECT: Extract outside, pass as argument
-async function DashboardLoader() {
-  const session = (await cookies()).get('session')?.value
-  return <CachedDashboard sessionId={session} />
+// ✅ CORRECT: Don't cache user-specific content
+async function UserDashboard() {
+  const session = await cookies()
+  return await fetchDashboard(session.get('userId')?.value)
 }
 
-async function CachedDashboard({ sessionId }: { sessionId: string }) {
-  'use cache'
-  cacheTag(`dashboard-${sessionId}`)
-  return await fetchDashboard(sessionId)
+export default function Page() {
+  return (
+    <Suspense fallback={<DashboardSkeleton />}>
+      <UserDashboard /> {/* Streams at request time */}
+    </Suspense>
+  )
 }
 ```
 
-> **See also**: Pattern 2 (Parameter Extraction for Runtime Data) in PATTERNS.md.
+**Key insight**: Cache Components are for content that can be shared across users. User-specific dashboards should stream dynamically.
 
 ---
 

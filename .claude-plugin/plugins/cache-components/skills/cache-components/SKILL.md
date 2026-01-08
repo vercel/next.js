@@ -328,35 +328,6 @@ async function UserData({ userId }: { userId: string }) {
 }
 ```
 
-## Handling Runtime Data
-
-Runtime APIs (`cookies()`, `headers()`, `searchParams`) cannot be called directly inside `'use cache'`. Extract and pass as arguments:
-
-```tsx
-// Page creates dynamic boundary
-export default function Page() {
-  return (
-    <Suspense fallback={<Loading />}>
-      <ProfileWrapper />
-    </Suspense>
-  )
-}
-
-// Wrapper extracts runtime data
-async function ProfileWrapper() {
-  const session = (await cookies()).get('session')?.value
-  return <CachedProfile sessionId={session} />
-}
-
-// Cached component receives runtime data as argument
-async function CachedProfile({ sessionId }: { sessionId: string }) {
-  'use cache'
-  cacheTag(`session-${sessionId}`)
-
-  return await fetchProfile(sessionId)
-}
-```
-
 ## Build-Time Feedback
 
 Cache Components provides early feedback during development. These build errors **guide you toward optimal patterns**:
