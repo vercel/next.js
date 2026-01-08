@@ -609,13 +609,20 @@ export class ImageOptimizerCache {
     // If a custom cache handler is provided, use it
     if (this.cacheHandler) {
       try {
-        // Add revalidate to the value for the cache handler
+        // Apply minimumCacheTTL at write time, similar to the implementation in the fallback filesystem cache
+        const effectiveRevalidate = Math.max(
+          revalidate,
+          this.nextConfig.images.minimumCacheTTL
+        )
         const valueWithRevalidate = {
           ...value,
-          revalidate,
+          revalidate: effectiveRevalidate,
         }
         await this.cacheHandler.set(cacheKey, valueWithRevalidate, {
-          cacheControl,
+          cacheControl: {
+            revalidate: effectiveRevalidate,
+            expire: cacheControl?.expire,
+          },
         })
       } catch (err) {
         Log.error(`Failed to write image to custom cache ${cacheKey}`, err)

@@ -136,6 +136,7 @@ export type ImageConfigComplete = {
   /**
    * When true, the `cacheHandler` configured in next.config.js will also be used
    * for caching optimized images. When false, images use the default filesystem cache.
+   * @see [Image Optimization Caching](https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheHandler#image-optimization-caching)
    */
   customCacheHandler: boolean
 }
