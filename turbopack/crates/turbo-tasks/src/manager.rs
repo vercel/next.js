@@ -377,9 +377,6 @@ struct CurrentTaskState {
     task_id: Option<TaskId>,
     execution_id: ExecutionId,
 
-    /// True if the current task has state in cells
-    stateful: bool,
-
     /// True if the current task uses an external invalidator
     has_invalidator: bool,
 
@@ -402,7 +399,6 @@ impl CurrentTaskState {
         Self {
             task_id: Some(task_id),
             execution_id,
-            stateful: false,
             has_invalidator: false,
             cell_counters: Some(AutoMap::default()),
             local_tasks: Vec::new(),
@@ -414,7 +410,6 @@ impl CurrentTaskState {
         Self {
             task_id: None,
             execution_id,
-            stateful: false,
             has_invalidator: false,
             cell_counters: None,
             local_tasks: Vec::new(),
@@ -732,17 +727,14 @@ impl<B: Backend + 'static> TurboTasks<B> {
                             Err(err) => Err(TurboTasksExecutionError::Panic(Arc::new(err))),
                         };
 
-                        let FinishedTaskState {
-                            stateful,
-                            has_invalidator,
-                        } = this.finish_current_task_state();
+                        let FinishedTaskState { has_invalidator } =
+                            this.finish_current_task_state();
                         let cell_counters = CURRENT_TASK_STATE
                             .with(|ts| ts.write().unwrap().cell_counters.take().unwrap());
                         this.backend.task_execution_completed(
                             task_id,
                             result,
                             &cell_counters,
-                            stateful,
                             has_invalidator,
                             &*this,
                         )
@@ -1129,19 +1121,14 @@ impl<B: Backend + 'static> TurboTasks<B> {
     }
 
     fn finish_current_task_state(&self) -> FinishedTaskState {
-        let (stateful, has_invalidator) = CURRENT_TASK_STATE.with(|cell| {
+        let has_invalidator = CURRENT_TASK_STATE.with(|cell| {
             let CurrentTaskState {
-                stateful,
-                has_invalidator,
-                ..
+                has_invalidator, ..
             } = &mut *cell.write().unwrap();
-            (*stateful, *has_invalidator)
+            *has_invalidator
         });
 
-        FinishedTaskState {
-            stateful,
-            has_invalidator,
-        }
+        FinishedTaskState { has_invalidator }
     }
 
     pub fn backend(&self) -> &B {
@@ -1150,9 +1137,6 @@ impl<B: Backend + 'static> TurboTasks<B> {
 }
 
 struct FinishedTaskState {
-    /// True if the task has state in cells
-    stateful: bool,
-
     /// True if the task uses an external invalidator
     has_invalidator: bool,
 }
@@ -1669,20 +1653,15 @@ pub fn mark_finished() {
     });
 }
 
-/// Marks the current task as stateful. This prevents the tasks from being
-/// dropped without persisting the state.
-///
 /// Returns a [`SerializationInvalidator`] that can be used to invalidate the
 /// serialization of the current task cells
-pub fn mark_stateful() -> SerializationInvalidator {
+pub fn get_serialization_invalidator() -> SerializationInvalidator {
     CURRENT_TASK_STATE.with(|cell| {
-        let CurrentTaskState {
-            stateful, task_id, ..
-        } = &mut *cell.write().unwrap();
-        *stateful = true;
+        let CurrentTaskState { task_id, .. } = &mut *cell.write().unwrap();
         let Some(task_id) = *task_id else {
             panic!(
-                "mark_stateful() can only be used in the context of a turbo_tasks task execution"
+                "get_serialization_invalidator() can only be used in the context of a turbo_tasks \
+                 task execution"
             );
         };
         SerializationInvalidator::new(task_id)
@@ -1699,8 +1678,7 @@ pub fn mark_invalidator() {
 }
 
 pub fn prevent_gc() {
-    // There is a hack in UpdateCellOperation that need to be updated when this is changed.
-    mark_stateful();
+    // TODO implement garbage collection
 }
 
 pub fn emit<T: VcValueTrait + ?Sized>(collectible: ResolvedVc<T>) {
