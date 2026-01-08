@@ -4,7 +4,7 @@ import ErrorPage from "next/error";
 import Comment from "../../components/comment";
 import Container from "../../components/container";
 import distanceToNow from "../../lib/dateRelative";
-import { getAllPosts, getPostBySlug } from "../../lib/getPost";
+import { getAllPosts, getPostBySlugNonNull } from "../../lib/getPost";
 import markdownToHtml from "../../lib/markdownToHtml";
 import Head from "next/head";
 
@@ -58,7 +58,7 @@ type Params = {
 };
 
 export async function getStaticProps({ params }: Params) {
-  const post = getPostBySlug(params.slug, [
+  const post = getPostBySlugNonNull(params.slug, [
     "slug",
     "title",
     "excerpt",
