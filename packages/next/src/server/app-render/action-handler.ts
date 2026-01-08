@@ -58,6 +58,7 @@ import {
   getServerModuleMap,
 } from './manifests-singleton'
 import { isNodeNextRequest, isWebNextRequest } from '../base-http/helpers'
+import { normalizeFilePath } from './segment-explorer-path'
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
 import { synchronizeMutableCookies } from '../async-storage/request-store'
 import type { TemporaryReferenceSet } from 'react-server-dom-webpack/server'
@@ -1106,30 +1107,7 @@ export async function handleAction({
               functionName = actionInfo.exportedName || '<inline action>'
             }
             const projectDir = ctx.renderOpts.dir || process.cwd()
-            const cwd = process.env.NEXT_RUNTIME === 'edge' ? '' : process.cwd()
-            // Get relative project path from cwd (e.g., "test/e2e/app-dir/actions")
-            const relativeProjectRoot = projectDir
-              .replace(cwd, '')
-              .replace(/^[\\/]/, '')
-            let filename = (actionInfo.filename || 'unknown')
-              // remove turbopack [project] prefix
-              .replace(/^\[project\][\\/]?/, '')
-              // remove the project root from the path (absolute)
-              .replace(projectDir, '')
-              // remove cwd prefix (absolute)
-              .replace(cwd, '')
-              // normalize path separators and remove leading slash
-              .replace(/\\/g, '/')
-              .replace(/^\//, '')
-            // remove relative project path prefix (e.g., "test/e2e/app-dir/actions/")
-            if (
-              relativeProjectRoot &&
-              filename.startsWith(relativeProjectRoot)
-            ) {
-              filename = filename
-                .slice(relativeProjectRoot.length)
-                .replace(/^\//, '')
-            }
+            const filename = normalizeFilePath(projectDir, actionInfo.filename)
 
             // Build location string with line:col if available
             let location = filename
