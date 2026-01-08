@@ -26,7 +26,8 @@ describe('build-output-prerender', () => {
             `)
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "▲ Next.js x.y.z (webpack, Cache Components)
+             "▲ Next.js x.y.z (webpack)
+             - Cache Components enabled
              - Experiments (use with caution):
                ✓ reactDebugChannel (enabled by \`__NEXT_EXPERIMENTAL_DEBUG_CHANNEL\`)"
             `)
@@ -124,7 +125,8 @@ describe('build-output-prerender', () => {
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode. Note: This may affect performance and should not be used for production.
-             ▲ Next.js x.y.z (webpack, Cache Components)
+             ▲ Next.js x.y.z (webpack)
+             - Cache Components enabled
              - Experiments (use with caution):
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ✓ reactDebugChannel (enabled by \`__NEXT_EXPERIMENTAL_DEBUG_CHANNEL\`)
@@ -270,7 +272,8 @@ describe('build-output-prerender', () => {
             `)
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "▲ Next.js x.y.z (webpack, Cache Components)
+             "▲ Next.js x.y.z (webpack)
+             - Cache Components enabled
              - Experiments (use with caution):
                ✓ reactDebugChannel (enabled by \`__NEXT_EXPERIMENTAL_DEBUG_CHANNEL\`)"
             `)
@@ -335,7 +338,8 @@ describe('build-output-prerender', () => {
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode. Note: This may affect performance and should not be used for production.
-             ▲ Next.js x.y.z (webpack, Cache Components)
+             ▲ Next.js x.y.z (webpack)
+             - Cache Components enabled
              - Experiments (use with caution):
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ✓ reactDebugChannel (enabled by \`__NEXT_EXPERIMENTAL_DEBUG_CHANNEL\`)
