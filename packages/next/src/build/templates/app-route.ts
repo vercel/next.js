@@ -6,7 +6,12 @@ import {
 import { RouteKind } from '../../server/route-kind'
 import { patchFetch as _patchFetch } from '../../server/lib/patch-fetch'
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { addRequestMeta, getRequestMeta } from '../../server/request-meta'
+import {
+  addRequestMeta,
+  getRequestMeta,
+  setRequestMeta,
+  type RequestMeta,
+} from '../../server/request-meta'
 import { getTracer, type Span, SpanKind } from '../../server/lib/trace/tracer'
 import { setManifestsSingleton } from '../../server/app-render/manifests-singleton'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
@@ -81,9 +86,13 @@ export async function handler(
   req: IncomingMessage,
   res: ServerResponse,
   ctx: {
-    waitUntil: (prom: Promise<void>) => void
+    waitUntil?: (prom: Promise<void>) => void
+    requestMeta?: RequestMeta
   }
 ) {
+  if (ctx.requestMeta) {
+    setRequestMeta(req, ctx.requestMeta)
+  }
   if (routeModule.isDev) {
     addRequestMeta(req, 'devRequestTimingInternalsEnd', process.hrtime.bigint())
   }

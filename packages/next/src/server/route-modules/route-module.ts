@@ -141,6 +141,11 @@ export abstract class RouteModule<
     this.relativeProjectDir = relativeProjectDir
   }
 
+  public normalizeUrl(
+    _req: IncomingMessage | BaseNextRequest,
+    _parsedUrl: UrlWithParsedQuery
+  ) {}
+
   public async instrumentationOnRequestError(
     req: IncomingMessage | BaseNextRequest,
     ...args: Parameters<InstrumentationOnRequestError>
@@ -641,6 +646,7 @@ export abstract class RouteModule<
       isNextDataRequest = true
       parsedUrl.pathname = normalizeDataPath(parsedUrl.pathname || '/')
     }
+    this.normalizeUrl(req, parsedUrl)
     let originalPathname = parsedUrl.pathname || '/'
     const originalQuery = { ...parsedUrl.query }
     const pageIsDynamic = isDynamicRoute(srcPage)
@@ -684,9 +690,15 @@ export abstract class RouteModule<
       getHostname(parsedUrl, req.headers),
       detectedLocale
     )
-    addRequestMeta(req, 'isLocaleDomain', Boolean(domainLocale))
 
-    const defaultLocale = domainLocale?.defaultLocale || i18n?.defaultLocale
+    if (Boolean(domainLocale)) {
+      addRequestMeta(req, 'isLocaleDomain', Boolean(domainLocale))
+    }
+
+    const defaultLocale =
+      getRequestMeta(req, 'defaultLocale') ||
+      domainLocale?.defaultLocale ||
+      i18n?.defaultLocale
 
     // Ensure parsedUrl.pathname includes locale before processing
     // rewrites or they won't match correctly.

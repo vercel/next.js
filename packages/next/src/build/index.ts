@@ -4138,6 +4138,7 @@ export default async function build(
               dir,
               distDir,
               config,
+              appType,
               buildId,
               configOutDir: path.join(dir, configOutDir),
               staticPages,

@@ -5,6 +5,7 @@ import type { NextResponse } from './spec-extension/response'
 import type { CloneableBody } from '../body-streams'
 import type { OutgoingHttpHeaders } from 'http'
 import type { FetchMetrics } from '../base-http'
+import type { RequestMeta } from '../request-meta'
 
 /**
  * @deprecated Use `ProxyConfig` instead. Middleware has been renamed to Proxy.
@@ -32,6 +33,7 @@ export interface RequestData {
   url: string
   body?: ReadableStream<Uint8Array>
   signal: AbortSignal
+  requestMeta?: RequestMeta
   /** passed in when running in edge runtime sandbox */
   waitUntil?: (promise: Promise<any>) => void
 }

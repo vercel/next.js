@@ -13,7 +13,11 @@ import * as userland from 'VAR_USERLAND'
 import { getTracer, SpanKind } from '../../server/lib/trace/tracer'
 import { BaseServerSpan } from '../../server/lib/trace/constants'
 import type { InstrumentationOnRequestError } from '../../server/instrumentation/types'
-import { addRequestMeta } from '../../server/request-meta'
+import {
+  addRequestMeta,
+  setRequestMeta,
+  type RequestMeta,
+} from '../../server/request-meta'
 
 // Re-export the handler (should be the default export).
 export default hoist(userland, 'default')
@@ -41,8 +45,12 @@ export async function handler(
   res: ServerResponse,
   ctx: {
     waitUntil?: (prom: Promise<void>) => void
+    requestMeta?: RequestMeta
   }
-): Promise<void> {
+) {
+  if (ctx.requestMeta) {
+    setRequestMeta(req, ctx.requestMeta)
+  }
   if (routeModule.isDev) {
     addRequestMeta(req, 'devRequestTimingInternalsEnd', process.hrtime.bigint())
   }

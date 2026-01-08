@@ -38,6 +38,7 @@ import {
   JSON_CONTENT_TYPE_HEADER,
   NEXT_RESUME_HEADER,
 } from '../../lib/constants'
+
 import { normalizeLocalePath } from '../../shared/lib/i18n/normalize-locale-path'
 import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
 import { getRedirectStatus, modifyRouteRegex } from '../../lib/redirect-status'
@@ -47,6 +48,7 @@ import { sortSortableRoutes } from '../../shared/lib/router/utils/sortable-route
 import { nodeFileTrace } from 'next/dist/compiled/@vercel/nft'
 import { defaultOverrides } from '../../server/require-hook'
 import { makeIgnoreFn } from '../collect-build-traces'
+import { generateRoutesManifest } from '../generate-routes-manifest'
 
 interface SharedRouteFields {
   /**
@@ -356,6 +358,7 @@ export interface NextAdapter {
        * and there are pages router items to resolve.
        */
       shouldNormalizeNextData: boolean
+      rsc: RoutesManifest['rsc']
     }
     outputs: AdapterOutputs
     /**
@@ -410,6 +413,7 @@ function normalizePathnames(
 export async function handleBuildComplete({
   dir,
   config,
+  appType,
   buildId,
   configOutDir,
   distDir,
@@ -431,6 +435,7 @@ export async function handleBuildComplete({
   functionsConfigManifest,
 }: {
   dir: string
+  appType: 'app' | 'pages' | 'hybrid'
   distDir: string
   buildId: string
   configOutDir: string
@@ -888,6 +893,16 @@ export async function handleBuildComplete({
               pathname: dataPathname,
               id: dataPathname,
             })
+
+            if (appPageKeys && appPageKeys.length > 0) {
+              const rscPage = `${page === '/' ? '/index' : page}.rsc`
+              outputs.staticFiles.push({
+                id: rscPage,
+                pathname: rscPage,
+                type: AdapterOutputType.STATIC_FILE,
+                filePath: rscFallbackPath,
+              })
+            }
           }
 
           for (const locale of config.i18n?.locales || []) {
@@ -911,19 +926,18 @@ export async function handleBuildComplete({
                 pathname: dataPathname,
                 id: dataPathname,
               })
+              if (appPageKeys && appPageKeys.length > 0) {
+                outputs.staticFiles.push({
+                  id: `${localePage}.rsc`,
+                  pathname: `${localePage}.rsc`,
+                  type: AdapterOutputType.STATIC_FILE,
+                  filePath: rscFallbackPath,
+                })
+              }
             }
           }
         } else {
           outputs.pagesApi.push(output)
-        }
-
-        if (appPageKeys && appPageKeys.length > 0) {
-          outputs.staticFiles.push({
-            id: `${output.id}.rsc`,
-            pathname: `${output.pathname}.rsc`,
-            type: AdapterOutputType.STATIC_FILE,
-            filePath: rscFallbackPath,
-          })
         }
       }
 
@@ -1025,6 +1039,11 @@ export async function handleBuildComplete({
             outputs.appPages.push(output)
           } else {
             outputs.appRoutes.push(output)
+            outputs.appRoutes.push({
+              ...output,
+              pathname: normalizePagePath(output.pathname) + '.rsc',
+              id: normalizePagePath(output.pathname) + '.rsc',
+            })
           }
         }
       }
@@ -1284,6 +1303,16 @@ export async function handleBuildComplete({
         }
         outputs.prerenders.push(initialOutput)
 
+        if (!isAppPage && appPageKeys && appPageKeys.length > 0) {
+          const rscPage = `${route === '/' ? '/index' : route}.rsc`
+          outputs.staticFiles.push({
+            id: rscPage,
+            pathname: rscPage,
+            type: AdapterOutputType.STATIC_FILE,
+            filePath: rscFallbackPath,
+          })
+        }
+
         if (dataRoute) {
           let dataFilePath: string | undefined = path.join(
             pagesDistDir,
@@ -1412,6 +1441,21 @@ export async function handleBuildComplete({
         if (!config.i18n || isAppPage) {
           outputs.prerenders.push(initialOutput)
 
+          if (
+            !isAppPage &&
+            fallback !== false &&
+            appPageKeys &&
+            appPageKeys.length > 0
+          ) {
+            const rscPage = `${srcRoute === '/' ? '/index' : srcRoute}.rsc`
+            outputs.staticFiles.push({
+              id: rscPage,
+              pathname: rscPage,
+              type: AdapterOutputType.STATIC_FILE,
+              filePath: rscFallbackPath,
+            })
+          }
+
           if (isAppPage) {
             await handleAppMeta(dynamicRoute, initialOutput, meta)
           }
@@ -1467,6 +1511,21 @@ export async function handleBuildComplete({
               groupId: prerenderGroupId,
             }
             outputs.prerenders.push(currentOutput)
+
+            if (
+              !isAppPage &&
+              fallback !== false &&
+              appPageKeys &&
+              appPageKeys.length > 0
+            ) {
+              const rscPage = `${path.posix.join(`/${locale}`, initialOutput.pathname)}.rsc`
+              outputs.staticFiles.push({
+                id: rscPage,
+                pathname: rscPage,
+                type: AdapterOutputType.STATIC_FILE,
+                filePath: rscFallbackPath,
+              })
+            }
 
             if (dataRoute) {
               const dataPathname = path.posix.join(
@@ -1592,10 +1651,13 @@ export async function handleBuildComplete({
             // enabled.
             shouldSkipSuffixes
               ? '(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$'
-              : '(?<rscSuffix>\\.rsc|\\.prefetch\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$'
+              : '(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$'
           ),
           destination: destination?.replace(/($|\?)/, '$rscSuffix$1'),
-          has: isFallbackFalse ? fallbackFalseHasCondition : undefined,
+          has:
+            isFallbackFalse && !pageKeys.includes(route.page)
+              ? fallbackFalseHasCondition
+              : undefined,
           missing: undefined,
         })
       }
@@ -1765,7 +1827,7 @@ export async function handleBuildComplete({
             {
               // This ensures we only match known emitted-by-Next.js files and not
               // user-emitted files which may be missing a hash in their filename.
-              sourceRegex: `^/${escapeStringRegexp(buildId)}/_next/static/(?:[^/]+/pages|pages|chunks|runtime|css|image|media|${escapeStringRegexp(buildId)})/.+`,
+              sourceRegex: `${path.posix.join(config.basePath || '/', '_next/static', `/(?:[^/]+/pages|pages|chunks|runtime|css|image|media|${escapeStringRegexp(buildId)})/.+`)}`,
               // Next.js assets contain a hash or entropy in their filenames, so they
               // are guaranteed to be unique and cacheable indefinitely.
               headers: {
@@ -1775,6 +1837,19 @@ export async function handleBuildComplete({
           ],
           fallback: rewrites.fallback,
           shouldNormalizeNextData: !!needsMiddlewareResolveRoutes,
+          rsc: generateRoutesManifest({
+            appType,
+            pageKeys: {
+              pages: pageKeys as string[],
+              app: appPageKeys as string[],
+            },
+            config,
+            redirects: [],
+            headers: [],
+            rewrites,
+            restrictedRedirectPaths: [],
+            isAppPPREnabled: config.cacheComponents,
+          }).routesManifest.rsc,
         },
         outputs,
 
