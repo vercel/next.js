@@ -727,6 +727,7 @@ export async function initialize(opts: {
     startServerSpan: opts.startServerSpan,
     quiet: opts.quiet,
     onDevServerCleanup: opts.onDevServerCleanup,
+    distDir: config.distDir,
   }
   renderServerOpts.serverFields.routerServerHandler = requestHandlerImpl
 
@@ -898,5 +899,6 @@ export async function initialize(opts: {
     closeUpgraded() {
       development?.bundler?.hotReloader?.close()
     },
+    distDir: config.distDir,
   }
 }
