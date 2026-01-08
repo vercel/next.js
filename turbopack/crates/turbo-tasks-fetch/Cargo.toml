@@ -22,6 +22,10 @@ turbo-tasks = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbopack-core = { workspace = true }
 
+# Use prebuilt NASM objects on Windows to avoid requiring NASM installation
+[target.'cfg(windows)'.dependencies]
+aws-lc-rs = { version = "1", default-features = false, features = ["prebuilt-nasm"] }
+
 [dev-dependencies]
 mockito = { version = "1.7.0", default-features = false }
 tokio = { workspace = true, features = ["full"] }
