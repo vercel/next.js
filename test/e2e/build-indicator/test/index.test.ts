@@ -49,9 +49,11 @@ describe('Build Activity Indicator', () => {
         expect(result.exitCode).toBe(1)
       }
 
-      expect(next.cliOutput).toContain(
-        `Invalid "devIndicator.position" provided, expected one of top-left, top-right, bottom-left, bottom-right, received ttop-leff`
-      )
+      await retry(async () => {
+        expect(next.cliOutput).toContain(
+          `Invalid "devIndicator.position" provided, expected one of top-left, top-right, bottom-left, bottom-right, received ttop-leff`
+        )
+      })
     })
   })
 

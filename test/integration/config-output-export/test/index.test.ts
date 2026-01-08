@@ -8,6 +8,7 @@ import {
   getRedboxHeader,
   killApp,
   launchApp,
+  retry,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
@@ -17,7 +18,7 @@ import type { Response } from 'node-fetch'
 const appDir = join(__dirname, '../')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 let app
-const runDev = async (config: any) => {
+const runDev = async (config: any, shouldWaitForReady = true) => {
   await nextConfig.write(`module.exports = ${JSON.stringify(config)}`)
   const port = await findPort()
   const obj = { port, stdout: '', stderr: '' }
@@ -31,6 +32,9 @@ const runDev = async (config: any) => {
       obj.stderr += msg || ''
     },
   })
+  if (shouldWaitForReady) {
+    await fetch(`http://localhost:${port}`)
+  }
   return obj
 }
 
@@ -53,16 +57,22 @@ describe('config-output-export', () => {
   })
 
   it('should error with "i18n" config', async () => {
-    const { stderr } = await runDev({
-      output: 'export',
-      i18n: {
-        locales: ['en'],
-        defaultLocale: 'en',
+    const data = await runDev(
+      {
+        output: 'export',
+        i18n: {
+          locales: ['en'],
+          defaultLocale: 'en',
+        },
       },
-    })
-    expect(stderr).toContain(
-      'Specified "i18n" cannot be used with "output: export".'
+      false
     )
+
+    await retry(() => {
+      expect(data.stderr).toContain(
+        'Specified "i18n" cannot be used with "output: export".'
+      )
+    })
   })
 
   describe('when hasNextSupport = false', () => {

@@ -2,7 +2,7 @@
 
 import fs from 'fs-extra'
 import { join } from 'path'
-import { launchApp, findPort, nextBuild } from 'next-test-utils'
+import { launchApp, findPort, nextBuild, retry } from 'next-test-utils'
 
 let appDir = join(__dirname, '..')
 const nextConfigPath = join(appDir, 'next.config.js')
@@ -33,11 +33,13 @@ const runTests = () => {
       ],
       'headers'
     )
-    const stderr = await getStderr()
+    await retry(async () => {
+      const stderr = await getStderr()
 
-    expect(stderr).toContain(
-      '`headers` field cannot be empty for route {"source":"/:path*"'
-    )
+      expect(stderr).toContain(
+        '`headers` field cannot be empty for route {"source":"/:path*"'
+      )
+    })
   })
 
   it('should error when source and destination length is exceeded', async () => {
@@ -137,61 +139,64 @@ const runTests = () => {
       ],
       'redirects'
     )
-    const stderr = await getStderr()
 
-    expect(stderr).toContain(
-      `\`destination\` is missing for route {"source":"/hello","permanent":false}`
-    )
+    await retry(async () => {
+      const stderr = await getStderr()
 
-    expect(stderr).toContain(
-      `\`source\` is not a string for route {"source":123,"destination":"/another","permanent":false}`
-    )
+      expect(stderr).toContain(
+        `\`destination\` is missing for route {"source":"/hello","permanent":false}`
+      )
 
-    expect(stderr).toContain(
-      `\`statusCode\` is not undefined or valid statusCode for route {"source":"/hello","destination":"/another","statusCode":"301"}`
-    )
+      expect(stderr).toContain(
+        `\`source\` is not a string for route {"source":123,"destination":"/another","permanent":false}`
+      )
 
-    expect(stderr).toContain(
-      `\`statusCode\` is not undefined or valid statusCode for route {"source":"/hello","destination":"/another","statusCode":404}`
-    )
+      expect(stderr).toContain(
+        `\`statusCode\` is not undefined or valid statusCode for route {"source":"/hello","destination":"/another","statusCode":"301"}`
+      )
 
-    expect(stderr).toContain(
-      `\`permanent\` is not set to \`true\` or \`false\` for route {"source":"/hello","destination":"/another","permanent":"yes"}`
-    )
+      expect(stderr).toContain(
+        `\`statusCode\` is not undefined or valid statusCode for route {"source":"/hello","destination":"/another","statusCode":404}`
+      )
 
-    expect(stderr).toContain(
-      `\`destination\` has unnamed params :0 for route {"source":"/hello/world/(.*)","destination":"/:0","permanent":true}`
-    )
+      expect(stderr).toContain(
+        `\`permanent\` is not set to \`true\` or \`false\` for route {"source":"/hello","destination":"/another","permanent":"yes"}`
+      )
 
-    expect(stderr).toContain(
-      `The route null is not a valid object with \`source\` and \`destination\``
-    )
+      expect(stderr).toContain(
+        `\`destination\` has unnamed params :0 for route {"source":"/hello/world/(.*)","destination":"/:0","permanent":true}`
+      )
 
-    expect(stderr).toContain(
-      `The route "string" is not a valid object with \`source\` and \`destination\``
-    )
+      expect(stderr).toContain(
+        `The route null is not a valid object with \`source\` and \`destination\``
+      )
 
-    expect(stderr).toContain('Invalid `has` item:')
-    expect(stderr).toContain(
-      `invalid type "cookiee" for {"type":"cookiee","key":"loggedIn"}`
-    )
-    expect(stderr).toContain(
-      `invalid \`has\` item found for route {"source":"/hello","destination":"/another","has":[{"type":"cookiee","key":"loggedIn"}],"permanent":false}`
-    )
+      expect(stderr).toContain(
+        `The route "string" is not a valid object with \`source\` and \`destination\``
+      )
 
-    expect(stderr).toContain('Invalid `has` items:')
-    expect(stderr).toContain(
-      `invalid type "headerr", invalid key "undefined" for {"type":"headerr"}`
-    )
-    expect(stderr).toContain(
-      `invalid type "queryr" for {"type":"queryr","key":"hello"}`
-    )
-    expect(stderr).toContain(
-      `invalid \`has\` items found for route {"source":"/hello","destination":"/another","permanent":false,"has":[{"type":"headerr"},{"type":"queryr","key":"hello"}]}`
-    )
-    expect(stderr).toContain(`Valid \`has\` object shape is {`)
+      expect(stderr).toContain('Invalid `has` item:')
+      expect(stderr).toContain(
+        `invalid type "cookiee" for {"type":"cookiee","key":"loggedIn"}`
+      )
+      expect(stderr).toContain(
+        `invalid \`has\` item found for route {"source":"/hello","destination":"/another","has":[{"type":"cookiee","key":"loggedIn"}],"permanent":false}`
+      )
 
-    expect(stderr).toContain('Invalid redirects found')
+      expect(stderr).toContain('Invalid `has` items:')
+      expect(stderr).toContain(
+        `invalid type "headerr", invalid key "undefined" for {"type":"headerr"}`
+      )
+      expect(stderr).toContain(
+        `invalid type "queryr" for {"type":"queryr","key":"hello"}`
+      )
+      expect(stderr).toContain(
+        `invalid \`has\` items found for route {"source":"/hello","destination":"/another","permanent":false,"has":[{"type":"headerr"},{"type":"queryr","key":"hello"}]}`
+      )
+      expect(stderr).toContain(`Valid \`has\` object shape is {`)
+
+      expect(stderr).toContain('Invalid redirects found')
+    })
   })
 
   it('should error during next build for invalid rewrites', async () => {

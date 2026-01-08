@@ -65,6 +65,7 @@ describe('TypeScript Image Component', () => {
           onStdout: handleOutput,
           onStderr: handleOutput,
         })
+        await fetch(`http://localhost:${appPort}`)
       })
       afterAll(() => killApp(app))
 
@@ -96,7 +97,9 @@ describe('TypeScript Image Component', () => {
         nextConfig,
         content.replace('// disableStaticImages', 'disableStaticImages')
       )
-      const app = await launchApp(appDir, await findPort())
+      const port = await findPort()
+      const app = await launchApp(appDir, port)
+      await fetch(`http://localhost:${port}`)
       await killApp(app)
       await fs.writeFile(nextConfig, content)
       const envTypes = await fs.readFile(join(appDir, 'next-env.d.ts'), 'utf8')

@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import { launchApp, findPort, nextBuild } from 'next-test-utils'
+import { launchApp, findPort, nextBuild, retry } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
 const expectedErr =
@@ -33,7 +33,9 @@ const expectedErr =
         },
       })
 
-      expect(output).toMatch(expectedErr)
+      await retry(async () => {
+        expect(output).toMatch(expectedErr)
+      })
     })
   }
 )

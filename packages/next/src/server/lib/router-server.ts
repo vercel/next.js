@@ -9,7 +9,7 @@ import '../require-hook'
 
 import url from 'url'
 import path from 'path'
-import loadConfig from '../config'
+import loadConfig, { type ConfiguredExperimentalFeature } from '../config'
 import { serveStatic } from '../serve-static'
 import setupDebug from 'next/dist/compiled/debug'
 import * as Log from '../../build/output/log'
@@ -98,10 +98,18 @@ export async function initialize(opts: {
     process.env.NODE_ENV = opts.dev ? 'development' : 'production'
   }
 
+  let experimentalFeatures: ConfiguredExperimentalFeature[] = []
   const config = await loadConfig(
     opts.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
     opts.dir,
-    { silent: false }
+    {
+      silent: false,
+      reportExperimentalFeatures(features) {
+        experimentalFeatures = features.toSorted(({ key: a }, { key: b }) =>
+          a.localeCompare(b)
+        )
+      },
+    }
   )
 
   let compress: ReturnType<typeof setupCompression> | undefined
@@ -728,6 +736,8 @@ export async function initialize(opts: {
     quiet: opts.quiet,
     onDevServerCleanup: opts.onDevServerCleanup,
     distDir: config.distDir,
+    experimentalFeatures,
+    cacheComponents: config.cacheComponents,
   }
   renderServerOpts.serverFields.routerServerHandler = requestHandlerImpl
 
@@ -900,5 +910,7 @@ export async function initialize(opts: {
       development?.bundler?.hotReloader?.close()
     },
     distDir: config.distDir,
+    experimentalFeatures,
+    cacheComponents: config.cacheComponents,
   }
 }

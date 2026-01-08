@@ -27,6 +27,8 @@ async function collectStdoutFromDev(appDir) {
       stdout += msg
     },
   })
+
+  await fetch(`http://localhost:${port}`)
   return stdout
 }
 
@@ -114,7 +116,7 @@ describe('Config Experimental Warning', () => {
     configFile.write(`
       module.exports = (phase) => ({
         experimental: {
-          workerThreads: false
+          workerThreads: false,
           // We enable this by default in CI
           strictRouteTypes: false,
         }
@@ -253,7 +255,7 @@ describe('Config Experimental Warning', () => {
           },
         })
 
-        await retry(() => {
+        await retry(async () => {
           const cliOutput = stripAnsi(stdout)
           const cliOutputErr = stripAnsi(stderr)
           expect(cliOutput).not.toContain(experimentalHeader)
