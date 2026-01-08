@@ -413,14 +413,18 @@ impl SingleModuleGraph {
         graph_idx: u32,
         binding_usage: &'l Option<ReadRef<BindingUsageInfo>>,
     ) -> Result<()> {
-        // see https://en.wikipedia.org/wiki/Tarjan%27s_strongly_connected_components_algorithm
-        // but iteratively instead of recursively
+        // See https://en.wikipedia.org/wiki/Tarjan%27s_strongly_connected_components_algorithm, but
+        // implemented iteratively instead of recursively.
+        //
+        // Compared to the standard Tarjan's, this also treated self-references (via
+        // `has_self_loop`) as SCCs.
 
         #[derive(Clone)]
         struct NodeState {
             index: u32,
             lowlink: u32,
             on_stack: bool,
+            has_self_loop: bool,
         }
         enum VisitStep {
             UnvisitedNode(NodeIndex),
@@ -445,6 +449,7 @@ impl SingleModuleGraph {
                             index,
                             lowlink: index,
                             on_stack: true,
+                            has_self_loop: false,
                         });
                         index += 1;
                         stack.push(node);
@@ -468,6 +473,9 @@ impl SingleModuleGraph {
                                     let index = node_state.index;
                                     let parent_state = node_states[node.index()].as_mut().unwrap();
                                     parent_state.lowlink = parent_state.lowlink.min(index);
+                                    if succ == node {
+                                        parent_state.has_self_loop = true;
+                                    }
                                 }
                             } else {
                                 visit_stack.push(VisitStep::EdgeAfterVisit {
@@ -487,6 +495,7 @@ impl SingleModuleGraph {
                     }
                     VisitStep::AfterVisit(node) => {
                         let node_state = node_states[node.index()].as_ref().unwrap();
+                        let node_has_self_loop = node_state.has_self_loop;
                         if node_state.lowlink == node_state.index {
                             loop {
                                 let poppped = stack.pop().unwrap();
@@ -501,7 +510,7 @@ impl SingleModuleGraph {
                                     break;
                                 }
                             }
-                            if scc.len() > 1 {
+                            if scc.len() > 1 || node_has_self_loop {
                                 visit_cycle(&scc)?;
                             }
                             scc.clear();
@@ -1341,6 +1350,7 @@ impl ModuleGraphRef {
 
     /// Traverse all cycles in the graph (where the edge filter returns true for the whole cycle)
     /// and call the visitor with the nodes in the cycle.
+    /// Notably, module self-references are also treated as cycles.
     pub fn traverse_cycles(
         &self,
         edge_filter: impl Fn(&RefData) -> bool,
@@ -1989,6 +1999,58 @@ pub mod tests {
                         (Some(rcstr!("c.js")), rcstr!("e.js")),
                     ],
                     visits
+                );
+
+                Ok(())
+            },
+        )
+        .await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_traverse_cycles() {
+        run_graph_test(
+            vec![rcstr!("a.js")],
+            {
+                let mut deps = FxHashMap::default();
+                // The cycles are: (i, j, k), and (s) which a self-import
+                //          a
+                //      /   |    \
+                //     /i   s-\   x
+                //     |j   \-/
+                //     \k
+                deps.insert(
+                    rcstr!("a.js"),
+                    vec![rcstr!("i.js"), rcstr!("s.js"), rcstr!("x.js")],
+                );
+                deps.insert(rcstr!("i.js"), vec![rcstr!("j.js")]);
+                deps.insert(rcstr!("j.js"), vec![rcstr!("k.js")]);
+                deps.insert(rcstr!("k.js"), vec![rcstr!("i.js")]);
+                deps.insert(rcstr!("s.js"), vec![rcstr!("s.js")]);
+                deps
+            },
+            |graph, _, module_to_name| {
+                let mut cycles = vec![];
+
+                graph.traverse_cycles(
+                    |_| true,
+                    |cycle| {
+                        cycles.push(
+                            cycle
+                                .iter()
+                                .map(|n| module_to_name.get(*n).unwrap().clone())
+                                .collect::<Vec<_>>(),
+                        );
+                        Ok(())
+                    },
+                )?;
+
+                assert_eq!(
+                    cycles,
+                    vec![
+                        vec![rcstr!("k.js"), rcstr!("j.js"), rcstr!("i.js")],
+                        vec![rcstr!("s.js")]
+                    ],
                 );
 
                 Ok(())
