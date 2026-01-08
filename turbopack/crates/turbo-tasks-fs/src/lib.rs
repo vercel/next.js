@@ -64,7 +64,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     ApplyEffectsContext, Completion, InvalidationReason, Invalidator, NonLocalValue, ReadRef,
     ResolvedVc, TaskInput, TurboTasksApi, ValueToString, Vc, debug::ValueDebugFormat, effect,
-    mark_session_dependent, mark_stateful, parallel, trace::TraceRawVcs, turbo_tasks_weak,
+    mark_session_dependent, parallel, trace::TraceRawVcs, turbo_tasks_weak,
 };
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher, hash_xxh3_hash64};
 use turbo_unix_path::{
@@ -664,8 +664,6 @@ impl DiskFileSystem {
 impl DiskFileSystem {
     #[turbo_tasks::function]
     fn new_internal(name: RcStr, root: RcStr, denied_paths: Vec<RcStr>) -> Vc<Self> {
-        mark_stateful();
-
         let instance = DiskFileSystem {
             inner: Arc::new(DiskFileSystemInner {
                 name,

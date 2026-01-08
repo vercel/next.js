@@ -323,9 +323,6 @@ pub enum CachedDataItem {
     },
 
     // Flags
-    Stateful {
-        value: (),
-    },
     HasInvalidator {
         value: (),
     },
@@ -424,7 +421,6 @@ impl CachedDataItem {
             }
             CachedDataItem::AggregatedDirtyContainerCount { .. } => true,
             CachedDataItem::AggregatedCurrentSessionCleanContainerCount { .. } => false,
-            CachedDataItem::Stateful { .. } => true,
             CachedDataItem::HasInvalidator { .. } => true,
             CachedDataItem::Immutable { .. } => true,
             CachedDataItem::Activeness { .. } => false,
@@ -495,7 +491,6 @@ impl CachedDataItem {
             | Self::AggregatedDirtyContainer { .. }
             | Self::AggregatedCollectible { .. }
             | Self::AggregatedDirtyContainerCount { .. }
-            | Self::Stateful { .. }
             | Self::HasInvalidator { .. }
             | Self::Immutable { .. }
             | Self::CollectiblesDependent { .. } => TaskDataCategory::Meta,
@@ -556,7 +551,6 @@ impl CachedDataItemKey {
             }
             CachedDataItemKey::AggregatedDirtyContainerCount { .. } => true,
             CachedDataItemKey::AggregatedCurrentSessionCleanContainerCount { .. } => false,
-            CachedDataItemKey::Stateful { .. } => true,
             CachedDataItemKey::HasInvalidator { .. } => true,
             CachedDataItemKey::Immutable { .. } => true,
             CachedDataItemKey::Activeness { .. } => false,
@@ -595,7 +589,6 @@ impl CachedDataItemType {
             | Self::AggregatedDirtyContainer { .. }
             | Self::AggregatedCollectible { .. }
             | Self::AggregatedDirtyContainerCount { .. }
-            | Self::Stateful { .. }
             | Self::HasInvalidator { .. }
             | Self::Immutable { .. }
             | Self::CollectiblesDependent { .. } => TaskDataCategory::Meta,
@@ -634,7 +627,6 @@ impl CachedDataItemType {
             | Self::AggregatedDirtyContainer
             | Self::AggregatedCollectible
             | Self::AggregatedDirtyContainerCount
-            | Self::Stateful
             | Self::HasInvalidator
             | Self::Immutable => true,
 

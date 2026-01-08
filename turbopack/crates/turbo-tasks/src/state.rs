@@ -12,7 +12,8 @@ use tracing::trace_span;
 
 use crate::{
     Invalidator, OperationValue, SerializationInvalidator, get_invalidator,
-    manager::with_turbo_tasks, mark_session_dependent, mark_stateful, trace::TraceRawVcs,
+    get_serialization_invalidator, manager::with_turbo_tasks, mark_session_dependent,
+    trace::TraceRawVcs,
 };
 
 #[derive(Encode, Decode)]
@@ -221,7 +222,7 @@ impl<T> State<T> {
         T: OperationValue,
     {
         Self {
-            serialization_invalidator: mark_stateful(),
+            serialization_invalidator: get_serialization_invalidator(),
             inner: Mutex::new(StateInner::new(value)),
         }
     }
@@ -332,7 +333,6 @@ impl<T> Eq for TransientState<T> {}
 
 impl<T> TransientState<T> {
     pub fn new() -> Self {
-        mark_stateful();
         Self {
             inner: Mutex::new(StateInner::new(None)),
         }
