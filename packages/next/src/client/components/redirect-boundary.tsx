@@ -10,31 +10,6 @@ interface RedirectBoundaryProps {
   children: React.ReactNode
 }
 
-function HandleRedirect({
-  redirect,
-  reset,
-  redirectType,
-}: {
-  redirect: string
-  redirectType: RedirectType
-  reset: () => void
-}) {
-  const router = useRouter()
-
-  useEffect(() => {
-    React.startTransition(() => {
-      if (redirectType === RedirectType.push) {
-        router.push(redirect, {})
-      } else {
-        router.replace(redirect, {})
-      }
-      reset()
-    })
-  }, [redirect, redirectType, reset, router])
-
-  return null
-}
-
 export class RedirectErrorBoundary extends React.Component<
   RedirectBoundaryProps,
   { redirect: string | null; redirectType: RedirectType | null }
@@ -42,6 +17,23 @@ export class RedirectErrorBoundary extends React.Component<
   constructor(props: RedirectBoundaryProps) {
     super(props)
     this.state = { redirect: null, redirectType: null }
+  }
+
+  componentDidCatch(error: Error): void {
+    if (isRedirectError(error)) {
+      const { redirect, redirectType } = this.state
+      if (redirect !== null && redirectType !== null) {
+        const { router } = this.props
+        React.startTransition(() => {
+          if (redirectType === RedirectType.push) {
+            router.push(redirect, {})
+          } else {
+            router.replace(redirect, {})
+          }
+          this.setState({ redirect: null })
+        })
+      }
+    }
   }
 
   static getDerivedStateFromError(error: any) {
@@ -65,13 +57,7 @@ export class RedirectErrorBoundary extends React.Component<
   render(): React.ReactNode {
     const { redirect, redirectType } = this.state
     if (redirect !== null && redirectType !== null) {
-      return (
-        <HandleRedirect
-          redirect={redirect}
-          redirectType={redirectType}
-          reset={() => this.setState({ redirect: null })}
-        />
-      )
+      return null
     }
 
     return this.props.children
