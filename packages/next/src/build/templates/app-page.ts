@@ -57,7 +57,10 @@ import type { CacheControl } from '../../server/lib/cache-control'
 import { ENCODED_TAGS } from '../../server/stream-utils/encoded-tags'
 import { sendRenderResult } from '../../server/send-payload'
 import { NoFallbackError } from '../../shared/lib/no-fallback-error.external'
-import { parseMaxPostponedStateSize } from '../../shared/lib/size-limit'
+import {
+  DEFAULT_MAX_POSTPONED_STATE_SIZE,
+  parseMaxPostponedStateSize,
+} from '../../shared/lib/size-limit'
 
 // These are injected by the loader afterwards.
 
@@ -232,11 +235,43 @@ export async function handler(
     typeof resumeStateLengthHeader === 'string'
   ) {
     const stateLength = parseInt(resumeStateLengthHeader, 10)
+    const maxPostponedStateSize =
+      nextConfig.experimental.maxPostponedStateSize ??
+      DEFAULT_MAX_POSTPONED_STATE_SIZE
+    const maxPostponedStateSizeBytes = parseMaxPostponedStateSize(
+      nextConfig.experimental.maxPostponedStateSize
+    )
+
     if (!isNaN(stateLength) && stateLength > 0) {
-      // Read the entire body
+      if (
+        maxPostponedStateSizeBytes === undefined ||
+        stateLength > maxPostponedStateSizeBytes
+      ) {
+        res.statusCode = 413
+        res.end(
+          `Postponed state exceeded ${maxPostponedStateSize} limit. ` +
+            `To configure the limit, see: https://nextjs.org/docs/app/api-reference/config/next-config-js/max-postponed-state-size`
+        )
+        ctx.waitUntil?.(Promise.resolve())
+        return null
+      }
+
+      // Read the entire body, tracking size
       const bodyChunks: Array<Buffer> = []
+      let size = 0
       for await (const chunk of req) {
-        bodyChunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
+        const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+        size += buffer.byteLength
+        if (size > maxPostponedStateSizeBytes) {
+          res.statusCode = 413
+          res.end(
+            `Postponed state exceeded ${maxPostponedStateSize} limit. ` +
+              `To configure the limit, see: https://nextjs.org/docs/app/api-reference/config/next-config-js/max-postponed-state-size`
+          )
+          ctx.waitUntil?.(Promise.resolve())
+          return null
+        }
+        bodyChunks.push(buffer)
       }
       const fullBody = Buffer.concat(bodyChunks)
 
