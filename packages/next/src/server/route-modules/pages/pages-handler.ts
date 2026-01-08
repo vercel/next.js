@@ -17,7 +17,7 @@ import {
 } from '../../response-cache'
 
 import {
-  getCacheControlHeader,
+  setResponseCacheControlHeaders,
   type CacheControl,
 } from '../../lib/cache-control'
 import { normalizeRepeatedSlashes } from '../../../shared/lib/utils'
@@ -102,9 +102,7 @@ export const getHandler = ({
       return
     }
 
-    const isMinimalMode = Boolean(
-      process.env.MINIMAL_MODE || getRequestMeta(req, 'minimalMode')
-    )
+    const isMinimalMode = Boolean(getRequestMeta(req, 'minimalMode'))
 
     const render404 = async () => {
       // TODO: should route-module itself handle rendering the 404
@@ -609,7 +607,11 @@ export const getHandler = ({
         // If cache control is already set on the response we don't
         // override it to allow users to customize it via next.config
         if (cacheControl && !res.getHeader('Cache-Control')) {
-          res.setHeader('Cache-Control', getCacheControlHeader(cacheControl))
+          setResponseCacheControlHeaders(
+            res,
+            cacheControl,
+            nextConfig.experimental.cdnCacheControlHeader
+          )
         }
 
         // notFound: true case
@@ -682,7 +684,12 @@ export const getHandler = ({
 
         // In dev, we should not cache pages for any reason.
         if (routeModule.isDev) {
-          res.setHeader('Cache-Control', 'no-store, must-revalidate')
+          res.setHeader(
+            'Cache-Control',
+            nextConfig.experimental.devCacheControlNoCache
+              ? 'no-cache, must-revalidate'
+              : 'no-store, must-revalidate'
+          )
         }
 
         // Draft mode should never be cached
@@ -720,6 +727,7 @@ export const getHandler = ({
           generateEtags: nextConfig.generateEtags,
           poweredByHeader: nextConfig.poweredByHeader,
           cacheControl: routeModule.isDev ? undefined : cacheControl,
+          cdnCacheControlHeader: nextConfig.experimental.cdnCacheControlHeader,
         })
       }
 

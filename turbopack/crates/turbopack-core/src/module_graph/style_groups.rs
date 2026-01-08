@@ -4,7 +4,6 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use indexmap::map::Entry;
 use rustc_hash::{FxHashMap, FxHashSet};
-use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString,
@@ -24,18 +23,7 @@ use crate::{
 };
 
 #[derive(
-    TaskInput,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    Hash,
-    Serialize,
-    Deserialize,
-    NonLocalValue,
-    TraceRawVcs,
-    Encode,
-    Decode,
+    TaskInput, Debug, Clone, PartialEq, Eq, Hash, NonLocalValue, TraceRawVcs, Encode, Decode,
 )]
 pub struct StyleGroupsConfig {
     pub max_chunk_size: usize,

@@ -56,6 +56,7 @@ import type { CacheControl } from '../../server/lib/cache-control'
 import { ENCODED_TAGS } from '../../server/stream-utils/encoded-tags'
 import { sendRenderResult } from '../../server/send-payload'
 import { NoFallbackError } from '../../shared/lib/no-fallback-error.external'
+import { parseMaxPostponedStateSize } from '../../shared/lib/size-limit'
 
 // These are injected by the loader afterwards.
 
@@ -121,9 +122,7 @@ export async function handler(
   if (routeModule.isDev) {
     addRequestMeta(req, 'devRequestTimingInternalsEnd', process.hrtime.bigint())
   }
-  const isMinimalMode = Boolean(
-    process.env.MINIMAL_MODE || getRequestMeta(req, 'minimalMode')
-  )
+  const isMinimalMode = Boolean(getRequestMeta(req, 'minimalMode'))
 
   let srcPage = 'VAR_DEFINITION_PAGE'
 
@@ -170,6 +169,7 @@ export async function handler(
     nextConfig,
     parsedUrl,
     interceptionRoutePatterns,
+    deploymentId,
   } = prepareResult
 
   const normalizedSrcPage = normalizeAppPath(srcPage)
@@ -559,7 +559,7 @@ export async function handler(
           trailingSlash: nextConfig.trailingSlash,
           images: nextConfig.images,
           previewProps: prerenderManifest.preview,
-          deploymentId: nextConfig.deploymentId,
+          deploymentId: deploymentId,
           enableTainting: nextConfig.experimental.taint,
           htmlLimitedBots: nextConfig.htmlLimitedBots,
           reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
@@ -592,6 +592,9 @@ export async function handler(
               nextConfig.experimental.clientTraceMetadata || ([] as any),
             clientParamParsingOrigins:
               nextConfig.experimental.clientParamParsingOrigins,
+            maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
+              nextConfig.experimental.maxPostponedStateSize
+            ),
           },
 
           waitUntil: ctx.waitUntil,
@@ -996,7 +999,12 @@ export async function handler(
 
       // In dev, we should not cache pages for any reason.
       if (routeModule.isDev) {
-        res.setHeader('Cache-Control', 'no-store, must-revalidate')
+        res.setHeader(
+          'Cache-Control',
+          nextConfig.experimental.devCacheControlNoCache
+            ? 'no-cache, must-revalidate'
+            : 'no-store, must-revalidate'
+        )
       }
 
       if (!cacheEntry) {
@@ -1135,6 +1143,8 @@ export async function handler(
               RSC_CONTENT_TYPE_HEADER
             ),
             cacheControl: cacheEntry.cacheControl,
+            cdnCacheControlHeader:
+              nextConfig.experimental.cdnCacheControlHeader,
           })
         }
 
@@ -1152,6 +1162,7 @@ export async function handler(
           poweredByHeader: nextConfig.poweredByHeader,
           result: RenderResult.EMPTY,
           cacheControl: cacheEntry.cacheControl,
+          cdnCacheControlHeader: nextConfig.experimental.cdnCacheControlHeader,
         })
       }
 
@@ -1241,6 +1252,8 @@ export async function handler(
                 poweredByHeader: nextConfig.poweredByHeader,
                 result: RenderResult.EMPTY,
                 cacheControl: cacheEntry.cacheControl,
+                cdnCacheControlHeader:
+                  nextConfig.experimental.cdnCacheControlHeader,
               })
             } else {
               // Otherwise this case is not expected.
@@ -1257,6 +1270,8 @@ export async function handler(
             poweredByHeader: nextConfig.poweredByHeader,
             result: cachedData.html,
             cacheControl: cacheEntry.cacheControl,
+            cdnCacheControlHeader:
+              nextConfig.experimental.cdnCacheControlHeader,
           })
         }
 
@@ -1272,6 +1287,7 @@ export async function handler(
             RSC_CONTENT_TYPE_HEADER
           ),
           cacheControl: cacheEntry.cacheControl,
+          cdnCacheControlHeader: nextConfig.experimental.cdnCacheControlHeader,
         })
       }
 
@@ -1304,6 +1320,7 @@ export async function handler(
           poweredByHeader: nextConfig.poweredByHeader,
           result: body,
           cacheControl: cacheEntry.cacheControl,
+          cdnCacheControlHeader: nextConfig.experimental.cdnCacheControlHeader,
         })
       }
 
@@ -1330,6 +1347,7 @@ export async function handler(
           poweredByHeader: nextConfig.poweredByHeader,
           result: body,
           cacheControl: { revalidate: 0, expire: undefined },
+          cdnCacheControlHeader: nextConfig.experimental.cdnCacheControlHeader,
         })
       }
 
@@ -1389,6 +1407,7 @@ export async function handler(
         // the response being sent to the client it's dynamic parts are streamed
         // to the client on the same request.
         cacheControl: { revalidate: 0, expire: undefined },
+        cdnCacheControlHeader: nextConfig.experimental.cdnCacheControlHeader,
       })
     }
 

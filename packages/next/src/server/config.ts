@@ -370,7 +370,7 @@ function assignDefaultsAndValidate(
   }
 
   // ensure correct default is set for api-resolver revalidate handling
-  if (!result.experimental?.trustHostHeader && ciEnvironment.hasNextSupport) {
+  if (!result.experimental.trustHostHeader && ciEnvironment.hasNextSupport) {
     result.experimental.trustHostHeader = true
   }
 
@@ -753,10 +753,18 @@ function assignDefaultsAndValidate(
   if (
     typeof result.experimental?.serverActions?.bodySizeLimit !== 'undefined'
   ) {
-    const value = parseInt(
-      result.experimental.serverActions?.bodySizeLimit.toString()
-    )
-    if (isNaN(value) || value < 1) {
+    const bytes =
+      require('next/dist/compiled/bytes') as typeof import('next/dist/compiled/bytes')
+    const bodySizeLimit = result.experimental.serverActions.bodySizeLimit
+    let value: number | null
+
+    if (typeof bodySizeLimit === 'number') {
+      value = bodySizeLimit
+    } else {
+      value = bytes.parse(bodySizeLimit)
+    }
+
+    if (value === null || isNaN(value) || value < 1) {
       throw new Error(
         'Server Actions Size Limit must be a valid number or filesize format larger than 1MB: https://nextjs.org/docs/app/api-reference/next-config-js/serverActions#bodysizelimit'
       )
@@ -914,6 +922,23 @@ function assignDefaultsAndValidate(
         `turbopack.root should be absolute, using: ${result.turbopack.root}`
       )
     }
+  }
+
+  if (
+    result.experimental.runtimeServerDeploymentId == null &&
+    phase === PHASE_PRODUCTION_BUILD &&
+    ciEnvironment.hasNextSupport &&
+    process.env.NEXT_DEPLOYMENT_ID
+  ) {
+    if (
+      result.deploymentId != null &&
+      result.deploymentId !== process.env.NEXT_DEPLOYMENT_ID
+    ) {
+      throw new Error(
+        `The NEXT_DEPLOYMENT_ID environment variable value "${process.env.NEXT_DEPLOYMENT_ID}" does not match the provided deploymentId "${result.deploymentId}" in the config.`
+      )
+    }
+    result.experimental.runtimeServerDeploymentId = true
   }
 
   // only leverage deploymentId
@@ -1867,6 +1892,25 @@ function enforceExperimentalFeatures(
         'reactDebugChannel',
         true,
         'enabled by `__NEXT_EXPERIMENTAL_DEBUG_CHANNEL`'
+      )
+    }
+  }
+
+  // TODO: Remove this once strictRouteTypes is the default.
+  if (
+    process.env.__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES === 'true' &&
+    // We do respect an explicit value in the user config.
+    (config.experimental.strictRouteTypes === undefined ||
+      (isDefaultConfig && !config.experimental.strictRouteTypes))
+  ) {
+    config.experimental.strictRouteTypes = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'strictRouteTypes',
+        true,
+        'enabled by `__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES`'
       )
     }
   }

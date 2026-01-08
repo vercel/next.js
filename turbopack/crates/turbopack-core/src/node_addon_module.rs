@@ -10,7 +10,7 @@ use crate::{
     asset::{Asset, AssetContent},
     file_source::FileSource,
     ident::AssetIdent,
-    module::Module,
+    module::{Module, ModuleSideEffects},
     raw_module::RawModule,
     reference::{ModuleReferences, TracedModuleReference},
     resolve::pattern::{Pattern, PatternMatch, read_matches},
@@ -99,6 +99,12 @@ impl Module for NodeAddonModule {
 
         // Most addon modules don't have references to other modules.
         Ok(ModuleReferences::empty())
+    }
+
+    #[turbo_tasks::function]
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        // We assume that a node addon could have arbitrary side effects when loading.
+        ModuleSideEffects::SideEffectful.cell()
     }
 }
 

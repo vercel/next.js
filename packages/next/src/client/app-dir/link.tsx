@@ -239,7 +239,6 @@ function isModifiedEvent(event: React.MouseEvent): boolean {
 function linkClicked(
   e: React.MouseEvent,
   href: string,
-  as: string,
   linkInstanceRef: React.RefObject<LinkInstance | null>,
   replace?: boolean,
   scroll?: boolean,
@@ -291,7 +290,7 @@ function linkClicked(
 
     React.startTransition(() => {
       dispatchNavigateAction(
-        as || href,
+        href,
         replace ? 'replace' : 'push',
         scroll ?? true,
         linkInstanceRef.current
@@ -483,6 +482,9 @@ export default function LinkComponent(
     })
   }
 
+  const resolvedHref = asProp || hrefProp
+  const formattedHref = formatStringOrUrl(resolvedHref)
+
   if (process.env.NODE_ENV !== 'production') {
     if (props.locale) {
       warnOnce(
@@ -491,13 +493,13 @@ export default function LinkComponent(
     }
     if (!asProp) {
       let href: string | undefined
-      if (typeof hrefProp === 'string') {
-        href = hrefProp
+      if (typeof resolvedHref === 'string') {
+        href = resolvedHref
       } else if (
-        typeof hrefProp === 'object' &&
-        typeof hrefProp.pathname === 'string'
+        typeof resolvedHref === 'object' &&
+        typeof resolvedHref.pathname === 'string'
       ) {
-        href = hrefProp.pathname
+        href = resolvedHref.pathname
       }
 
       if (href) {
@@ -514,14 +516,6 @@ export default function LinkComponent(
     }
   }
 
-  const { href, as } = React.useMemo(() => {
-    const resolvedHref = formatStringOrUrl(hrefProp)
-    return {
-      href: resolvedHref,
-      as: asProp ? formatStringOrUrl(asProp) : resolvedHref,
-    }
-  }, [hrefProp, asProp])
-
   // This will return the first child, if multiple are provided it will throw an error
   let child: any
   if (legacyBehavior) {
@@ -534,12 +528,12 @@ export default function LinkComponent(
     if (process.env.NODE_ENV === 'development') {
       if (onClick) {
         console.warn(
-          `"onClick" was passed to <Link> with \`href\` of \`${hrefProp}\` but "legacyBehavior" was set. The legacy behavior requires onClick be set on the child of next/link`
+          `"onClick" was passed to <Link> with \`href\` of \`${formattedHref}\` but "legacyBehavior" was set. The legacy behavior requires onClick be set on the child of next/link`
         )
       }
       if (onMouseEnterProp) {
         console.warn(
-          `"onMouseEnter" was passed to <Link> with \`href\` of \`${hrefProp}\` but "legacyBehavior" was set. The legacy behavior requires onMouseEnter be set on the child of next/link`
+          `"onMouseEnter" was passed to <Link> with \`href\` of \`${formattedHref}\` but "legacyBehavior" was set. The legacy behavior requires onMouseEnter be set on the child of next/link`
         )
       }
       try {
@@ -547,11 +541,11 @@ export default function LinkComponent(
       } catch (err) {
         if (!children) {
           throw new Error(
-            `No children were passed to <Link> with \`href\` of \`${hrefProp}\` but one child is required https://nextjs.org/docs/messages/link-no-children`
+            `No children were passed to <Link> with \`href\` of \`${formattedHref}\` but one child is required https://nextjs.org/docs/messages/link-no-children`
           )
         }
         throw new Error(
-          `Multiple children were passed to <Link> with \`href\` of \`${hrefProp}\` but only one child is supported https://nextjs.org/docs/messages/link-multiple-children` +
+          `Multiple children were passed to <Link> with \`href\` of \`${formattedHref}\` but only one child is supported https://nextjs.org/docs/messages/link-multiple-children` +
             (typeof window !== 'undefined'
               ? " \nOpen your browser's console to view the Component stack trace."
               : '')
@@ -583,7 +577,7 @@ export default function LinkComponent(
       if (router !== null) {
         linkInstanceRef.current = mountLinkInstance(
           element,
-          href,
+          formattedHref,
           router,
           fetchStrategy,
           prefetchEnabled,
@@ -599,7 +593,13 @@ export default function LinkComponent(
         unmountPrefetchableInstance(element)
       }
     },
-    [prefetchEnabled, href, router, fetchStrategy, setOptimisticLinkStatus]
+    [
+      prefetchEnabled,
+      formattedHref,
+      router,
+      fetchStrategy,
+      setOptimisticLinkStatus,
+    ]
   )
 
   const mergedRef = useMergedRef(observeLinkVisibilityOnMount, childRef)
@@ -639,7 +639,14 @@ export default function LinkComponent(
       if (e.defaultPrevented) {
         return
       }
-      linkClicked(e, href, as, linkInstanceRef, replace, scroll, onNavigate)
+      linkClicked(
+        e,
+        formattedHref,
+        linkInstanceRef,
+        replace,
+        scroll,
+        onNavigate
+      )
     },
     onMouseEnter(e) {
       if (!legacyBehavior && typeof onMouseEnterProp === 'function') {
@@ -698,14 +705,14 @@ export default function LinkComponent(
   }
 
   // If the url is absolute, we can bypass the logic to prepend the basePath.
-  if (isAbsoluteUrl(as)) {
-    childProps.href = as
+  if (isAbsoluteUrl(formattedHref)) {
+    childProps.href = formattedHref
   } else if (
     !legacyBehavior ||
     passHref ||
     (child.type === 'a' && !('href' in child.props))
   ) {
-    childProps.href = addBasePath(as)
+    childProps.href = addBasePath(formattedHref)
   }
 
   let link: React.ReactNode

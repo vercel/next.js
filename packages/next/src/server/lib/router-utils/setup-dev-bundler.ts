@@ -10,7 +10,6 @@ import type { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
 import { createDefineEnv } from '../../../build/swc'
 import { installBindings } from '../../../build/swc/install-bindings'
 import fs from 'fs'
-import url from 'url'
 import path from 'path'
 import qs from 'querystring'
 import Watchpack from 'next/dist/compiled/watchpack'
@@ -66,7 +65,10 @@ import {
   isMetadataRouteFile,
   isStaticMetadataFile,
 } from '../../../lib/metadata/is-metadata-route'
-import { normalizeMetadataPageToRoute } from '../../../lib/metadata/get-metadata-route'
+import {
+  fillMetadataSegment,
+  normalizeMetadataPageToRoute,
+} from '../../../lib/metadata/get-metadata-route'
 import { JsConfigPathsPlugin } from '../../../build/webpack/plugins/jsconfig-paths-plugin'
 import { store as consoleStore } from '../../../build/output/store'
 import {
@@ -81,6 +83,7 @@ import {
   MIDDLEWARE_FILENAME,
   PROXY_FILENAME,
 } from '../../../lib/constants'
+import { parseUrl } from '../../../lib/url'
 import {
   createRouteTypesManifest,
   writeRouteTypesManifest,
@@ -143,13 +146,16 @@ async function verifyTypeScript(opts: SetupOpts) {
   const verifyResult = await verifyTypeScriptSetup({
     dir: opts.dir,
     distDir: opts.nextConfig.distDir,
-    intentDirs: [opts.pagesDir, opts.appDir].filter(Boolean) as string[],
+    strictRouteTypes: Boolean(opts.nextConfig.experimental.strictRouteTypes),
     typeCheckPreflight: false,
     tsconfigPath: opts.nextConfig.typescript.tsconfigPath,
+    typedRoutes: Boolean(opts.nextConfig.typedRoutes),
     disableStaticImages: opts.nextConfig.images.disableStaticImages,
     hasAppDir: !!opts.appDir,
     hasPagesDir: !!opts.pagesDir,
     isolatedDevBuild: opts.nextConfig.experimental.isolatedDevBuild,
+    appDir: opts.appDir,
+    pagesDir: opts.pagesDir,
   })
 
   if (verifyResult.version) {
@@ -214,10 +220,14 @@ async function startWatcher(
         )
       })()
     : await (async () => {
-        const HotReloaderWebpack = (
-          require('../../dev/hot-reloader-webpack') as typeof import('../../dev/hot-reloader-webpack')
-        ).default
-        return new HotReloaderWebpack(opts.dir, {
+        const HotReloader = process.env.NEXT_RSPACK
+          ? (
+              require('../../dev/hot-reloader-rspack') as typeof import('../../dev/hot-reloader-rspack')
+            ).default
+          : (
+              require('../../dev/hot-reloader-webpack') as typeof import('../../dev/hot-reloader-webpack')
+            ).default
+        return new HotReloader(opts.dir, {
           isSrcDir: opts.isSrcDir,
           appDir,
           pagesDir,
@@ -673,7 +683,16 @@ async function startWatcher(
           if (useFileSystemPublicRoutes) {
             // Static metadata files will be served from filesystem.
             if (appDir && isStaticMetadataFile(fileName.replace(appDir, ''))) {
-              staticMetadataFiles.set(pageName, fileName)
+              // Use "-" placeholder for dynamic segments since static files have consistent content
+              const segment = path.posix.dirname(pageName)
+              const lastSegment = path.posix.basename(pageName)
+              const normalizedPath = fillMetadataSegment(
+                segment,
+                {},
+                lastSegment,
+                true
+              )
+              staticMetadataFiles.set(normalizedPath, fileName)
             } else {
               appFiles.add(pageName)
             }
@@ -1174,7 +1193,11 @@ async function startWatcher(
             routeTypesFilePath,
             opts.nextConfig
           )
-          await writeValidatorFile(routeTypesManifest, validatorFilePath)
+          await writeValidatorFile(
+            routeTypesManifest,
+            validatorFilePath,
+            Boolean(nextConfig.experimental.strictRouteTypes)
+          )
 
           // Generate cache-life types if cacheLife config exists
           const cacheLifeFilePath = path.join(distTypesDir, 'cache-life.d.ts')
@@ -1208,9 +1231,10 @@ async function startWatcher(
   opts.fsChecker.devVirtualFsItems.add(devTurbopackMiddlewareManifestPath)
 
   async function requestHandler(req: IncomingMessage, res: ServerResponse) {
-    const parsedUrl = url.parse(req.url || '/')
+    const parsedUrl = parseUrl(req.url || '/')
+    const pathname = parsedUrl !== undefined ? parsedUrl.pathname : null
 
-    if (parsedUrl.pathname?.includes(clientPagesManifestPath)) {
+    if (pathname !== null && pathname.includes(clientPagesManifestPath)) {
       res.statusCode = 200
       res.setHeader('Content-Type', JSON_CONTENT_TYPE_HEADER)
       res.end(
@@ -1224,8 +1248,9 @@ async function startWatcher(
     }
 
     if (
-      parsedUrl.pathname?.includes(devMiddlewareManifestPath) ||
-      parsedUrl.pathname?.includes(devTurbopackMiddlewareManifestPath)
+      pathname !== null &&
+      (pathname.includes(devMiddlewareManifestPath) ||
+        pathname.includes(devTurbopackMiddlewareManifestPath))
     ) {
       res.statusCode = 200
       res.setHeader('Content-Type', JSON_CONTENT_TYPE_HEADER)

@@ -2,14 +2,18 @@
 
 import { darken, lighten, readableColor } from 'polished'
 import type React from 'react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { AnalyzeData } from '@/lib/analyze-data'
 import {
   computeTreemapLayoutFromAnalyze,
   type LayoutNode,
   type LayoutNodeInfo,
+  SizeMode,
 } from '@/lib/treemap-layout'
 import { SpecialModule } from '@/lib/types'
+import { formatBytes } from '@/lib/utils'
+
+const UI_FONT = 'system-ui, sans-serif'
 
 interface TreemapVisualizerProps {
   analyzeData: AnalyzeData
@@ -26,6 +30,7 @@ interface TreemapVisualizerProps {
   filterSource?: (sourceIndex: number) => boolean
   isModulePolyfillChunk?: (sourceIndex: number) => boolean
   isNoModulePolyfillChunk?: (sourceIndex: number) => boolean
+  sizeMode?: SizeMode
 }
 
 function getFileColor(node: {
@@ -67,6 +72,77 @@ function isPolyfill(specialModuleType: SpecialModule | null): boolean {
     specialModuleType === SpecialModule.POLYFILL_MODULE ||
     specialModuleType === SpecialModule.POLYFILL_NOMODULE
   )
+}
+
+function calculateTitleFontSizes(titleBarHeight: number): {
+  titleFontSize: number
+  sizeFontSize: number
+} {
+  const titleFontSize = Math.min(10, titleBarHeight * 0.5)
+  const sizeFontSize = Math.min(9, titleFontSize - 2)
+  return { titleFontSize, sizeFontSize }
+}
+
+const textWidthCache = new Map<string, number>()
+const TEXT_WIDTH_CACHE_SIZE = 30_000 // Shouldn't be more than a few megabytes of memory
+function measureTextCached(
+  ctx: CanvasRenderingContext2D,
+  text: string
+): number {
+  const cacheKey = `${ctx.font}|${text}`
+
+  let width = textWidthCache.get(cacheKey)
+  if (width !== undefined) {
+    // Move to end -- update the insertion order for LRU
+    textWidthCache.delete(cacheKey)
+    textWidthCache.set(cacheKey, width)
+    return width
+  }
+
+  width = ctx.measureText(text).width
+
+  // LRU-style cache eviction
+  if (textWidthCache.size >= TEXT_WIDTH_CACHE_SIZE) {
+    const firstKey = textWidthCache.keys().next().value
+    if (firstKey !== undefined) {
+      textWidthCache.delete(firstKey)
+    }
+  }
+
+  textWidthCache.set(cacheKey, width)
+  return width
+}
+
+function truncateTextWithEllipsisIfNeeded(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number
+): string {
+  const ellipsisWidth = measureTextCached(ctx, '...')
+
+  if (measureTextCached(ctx, text) <= maxWidth) {
+    return text
+  }
+
+  let left = 0
+  let right = text.length
+  let bestLength = 0
+
+  while (left <= right) {
+    const mid = Math.floor((left + right) / 2)
+    const truncated = text.slice(0, mid)
+    // Don't use the cached version since we don't want repeated failures filling it up
+    const width = ctx.measureText(truncated).width
+
+    if (width + ellipsisWidth <= maxWidth) {
+      bestLength = mid
+      left = mid + 1
+    } else {
+      right = mid - 1
+    }
+  }
+
+  return bestLength > 0 ? `${text.slice(0, bestLength)}...` : '...'
 }
 
 function findNodeAtPosition(
@@ -231,9 +307,9 @@ function drawTreemap(
         ctx.lineTo(rect.x + rect.width, rect.y + titleBarHeight)
         ctx.stroke()
 
-        const titleFontSize = Math.max(10, titleBarHeight * 0.5)
+        const { titleFontSize } = calculateTitleFontSizes(titleBarHeight)
         ctx.fillStyle = colors.text
-        ctx.font = `600 ${titleFontSize}px sans-serif`
+        ctx.font = `600 ${titleFontSize}px ${UI_FONT}`
         ctx.textAlign = 'left'
         ctx.textBaseline = 'middle'
         ctx.fillText(
@@ -337,29 +413,42 @@ function drawTreemap(
     if (rect.width > 60 && rect.height > 30) {
       const textColor = readableColor(color)
       ctx.fillStyle = textColor
-      ctx.font = '12px sans-serif'
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
 
       const maxWidth = rect.width - 8
-      let displayName = name
-      const metrics = ctx.measureText(displayName)
 
-      if (metrics.width > maxWidth) {
-        while (
-          displayName.length > 0 &&
-          ctx.measureText(`${displayName}...`).width > maxWidth
-        ) {
-          displayName = displayName.slice(0, -1)
-        }
-        displayName += '...'
+      const sizeText = formatBytes(node.size)
+      const fontSize = 12
+      const sizeFontSize = 10
+      const lineHeight = fontSize + 2
+
+      ctx.font = `${fontSize}px ${UI_FONT}`
+      const displayName = truncateTextWithEllipsisIfNeeded(ctx, name, maxWidth)
+      const hasSpaceForSize = rect.height > 50
+      if (hasSpaceForSize) {
+        ctx.fillText(
+          displayName,
+          rect.x + rect.width / 2,
+          rect.y + rect.height / 2 - lineHeight / 2
+        )
+
+        ctx.globalAlpha = opacity * 0.75
+        ctx.font = `${sizeFontSize}px ${UI_FONT}`
+        ctx.fillText(
+          sizeText,
+          rect.x + rect.width / 2,
+          rect.y + rect.height / 2 + lineHeight / 2
+        )
+        ctx.globalAlpha = opacity
+      } else {
+        // Only name fits, draw it centered
+        ctx.fillText(
+          displayName,
+          rect.x + rect.width / 2,
+          rect.y + rect.height / 2
+        )
       }
-
-      ctx.fillText(
-        displayName,
-        rect.x + rect.width / 2,
-        rect.y + rect.height / 2
-      )
     }
 
     ctx.globalAlpha = 1.0
@@ -396,17 +485,40 @@ function drawTreemap(
       ctx.lineTo(rect.x + rect.width, rect.y + titleBarHeight)
       ctx.stroke()
 
-      const titleFontSize = Math.max(10, titleBarHeight * 0.5)
-      ctx.fillStyle = colors.text
-      ctx.font = `600 ${titleFontSize}px sans-serif`
-      ctx.textAlign = 'left'
+      const { titleFontSize, sizeFontSize } =
+        calculateTitleFontSizes(titleBarHeight)
+      const sizeText = formatBytes(node.size)
+      const centerY = rect.y + titleBarHeight / 2
+      const gap = 6
+
       ctx.textBaseline = 'middle'
-      ctx.fillText(
+
+      // Measure size text first to reserve space
+      ctx.font = `${sizeFontSize}px ${UI_FONT}`
+      const sizeWidth = measureTextCached(ctx, sizeText)
+
+      const nameX = rect.x + 8
+      const availableNameWidth = Math.max(0, rect.width - 16 - sizeWidth - gap)
+      ctx.font = `600 ${titleFontSize}px ${UI_FONT}`
+      const displayName = truncateTextWithEllipsisIfNeeded(
+        ctx,
         name,
-        rect.x + 8,
-        rect.y + titleBarHeight / 2,
-        rect.width - 16
+        availableNameWidth
       )
+
+      ctx.fillStyle = colors.text
+      ctx.textAlign = 'left'
+      ctx.fillText(displayName, nameX, centerY, availableNameWidth)
+
+      const nameWidth = measureTextCached(ctx, displayName)
+      const sizeX = nameX + nameWidth + gap
+
+      // Only draw size text if it fits within bounds
+      if (sizeX + sizeWidth <= rect.x + rect.width - 8) {
+        ctx.font = `${sizeFontSize}px ${UI_FONT}`
+        ctx.fillStyle = colors.textMuted
+        ctx.fillText(sizeText, sizeX, centerY)
+      }
     }
 
     ctx.globalAlpha = 1.0
@@ -443,17 +555,39 @@ function drawTreemap(
       ctx.lineTo(rect.x + rect.width, rect.y + titleBarHeight)
       ctx.stroke()
 
-      const titleFontSize = Math.max(10, titleBarHeight * 0.5)
-      ctx.fillStyle = colors.text
-      ctx.font = `600 ${titleFontSize}px sans-serif`
-      ctx.textAlign = 'left'
+      const { titleFontSize, sizeFontSize } =
+        calculateTitleFontSizes(titleBarHeight)
+      const sizeText = formatBytes(node.size)
+      const centerY = rect.y + titleBarHeight / 2
+      const gap = 6
+
       ctx.textBaseline = 'middle'
-      ctx.fillText(
+
+      ctx.font = `${sizeFontSize}px ${UI_FONT}`
+      const sizeWidth = measureTextCached(ctx, sizeText)
+
+      const nameX = rect.x + 8
+      const availableNameWidth = Math.max(0, rect.width - 16 - sizeWidth - gap)
+      ctx.font = `600 ${titleFontSize}px ${UI_FONT}`
+      const displayName = truncateTextWithEllipsisIfNeeded(
+        ctx,
         name,
-        rect.x + 8,
-        rect.y + titleBarHeight / 2,
-        rect.width - 16
+        availableNameWidth
       )
+
+      ctx.fillStyle = colors.text
+      ctx.textAlign = 'left'
+      ctx.fillText(displayName, nameX, centerY, availableNameWidth)
+
+      const nameWidth = measureTextCached(ctx, displayName)
+      const sizeX = nameX + nameWidth + gap
+
+      // Only draw size text if it fits within bounds
+      if (sizeX + sizeWidth <= rect.x + rect.width - 8) {
+        ctx.font = `${sizeFontSize}px ${UI_FONT}`
+        ctx.fillStyle = colors.textMuted
+        ctx.fillText(sizeText, sizeX, centerY)
+      }
     }
 
     ctx.globalAlpha = 1.0
@@ -574,19 +708,23 @@ export function TreemapVisualizer({
   onHoveredNodeChangeDelayed,
   searchQuery = '',
   filterSource,
+  sizeMode = SizeMode.Compressed,
 }: TreemapVisualizerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [hoveredNode, setHoveredNode] = useState<LayoutNode | null>(null)
   const [shouldDimOthers, setShouldDimOthers] = useState(false)
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const [cssDimensions, setCssDimensions] = useState({
-    width: 1200,
-    height: 800,
-  })
-  const [canvasDimensions, setCanvasDimensions] = useState({
-    width: 1200,
-    height: 800,
+  const [dimensions, setDimensions] = useState<{
+    cssWidth: number
+    cssHeight: number
+    canvasWidth: number
+    canvasHeight: number
+  }>({
+    cssWidth: 1200,
+    cssHeight: 800,
+    canvasWidth: 1200,
+    canvasHeight: 800,
   })
   const [, _setTheme] = useState<'light' | 'dark'>('light')
 
@@ -647,15 +785,22 @@ export function TreemapVisualizer({
     if (!container) return
 
     const updateSize = () => {
-      const rect = container.getBoundingClientRect()
       const dpr = window.devicePixelRatio || 1
-      setCssDimensions({
-        width: Math.floor(rect.width),
-        height: Math.floor(rect.height),
-      })
-      setCanvasDimensions({
-        width: Math.floor(rect.width * dpr),
-        height: Math.floor(rect.height * dpr),
+      setDimensions((dimensions) => {
+        const rect = container.getBoundingClientRect()
+        if (
+          dimensions.cssWidth === Math.floor(rect.width) &&
+          dimensions.cssHeight === Math.floor(rect.height)
+        ) {
+          return dimensions
+        }
+
+        return {
+          cssWidth: Math.floor(rect.width),
+          cssHeight: Math.floor(rect.height),
+          canvasWidth: Math.floor(rect.width * dpr),
+          canvasHeight: Math.floor(rect.height * dpr),
+        }
       })
     }
 
@@ -675,10 +820,11 @@ export function TreemapVisualizer({
       {
         x: 0,
         y: 12 * focusedAncestorChain.length,
-        width: cssDimensions.width,
-        height: cssDimensions.height,
+        width: dimensions.cssWidth,
+        height: dimensions.cssHeight,
       },
-      filterSource
+      filterSource,
+      sizeMode
     )
 
     // If we're not at the root, wrap with ancestor title bars
@@ -687,8 +833,8 @@ export function TreemapVisualizer({
         focusedLayout,
         focusedAncestorChain,
         analyzeData,
-        cssDimensions.width,
-        cssDimensions.height,
+        dimensions.cssWidth,
+        dimensions.cssHeight,
         12
       )
     }
@@ -698,12 +844,13 @@ export function TreemapVisualizer({
     analyzeData,
     focusedSourceIndex,
     focusedAncestorChain,
-    cssDimensions.width,
-    cssDimensions.height,
+    dimensions.cssWidth,
+    dimensions.cssHeight,
     filterSource,
+    sizeMode,
   ])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
 
@@ -714,7 +861,7 @@ export function TreemapVisualizer({
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.scale(dpr, dpr)
 
-    ctx.clearRect(0, 0, cssDimensions.width, cssDimensions.height)
+    ctx.clearRect(0, 0, dimensions.cssWidth, dimensions.cssHeight)
 
     drawTreemap(
       ctx,
@@ -731,8 +878,8 @@ export function TreemapVisualizer({
     layout,
     hoveredAncestorChain,
     selectedAncestorChain,
-    cssDimensions.width,
-    cssDimensions.height,
+    dimensions.cssWidth,
+    dimensions.cssHeight,
     isMouseInTreemap,
     focusedAncestorChain,
     searchQuery,
@@ -797,6 +944,7 @@ export function TreemapVisualizer({
     if (node) {
       const nodeInfo = {
         name: node.name,
+        size: node.size,
         server: node.server,
         client: node.client,
       }
@@ -864,8 +1012,8 @@ export function TreemapVisualizer({
     >
       <canvas
         ref={canvasRef}
-        width={canvasDimensions.width}
-        height={canvasDimensions.height}
+        width={dimensions.canvasWidth}
+        height={dimensions.canvasHeight}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
         onClick={handleClick}
@@ -886,16 +1034,16 @@ function getThemeColors() {
   return {
     text: dark ? '#ffffff' : '#000000',
     textMuted: dark ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 0, 0, 0.6)',
-    border: dark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(128, 128, 128, 0.2)',
-    dirBg: dark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(128, 128, 128, 0.1)',
-    dirBorder: dark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(128, 128, 128, 0.3)',
-    dirTitleBg: dark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(128, 128, 128, 0.1)',
+    border: dark ? 'rgba(255, 255, 255, 0.4)' : 'rgba(180, 180, 180, 0.5)',
+    dirBg: dark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(230, 230, 230, 0.1)',
+    dirBorder: dark ? 'rgba(255, 255, 255, 0.5)' : 'rgba(180, 180, 180, 0.6)',
+    dirTitleBg: dark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(230, 230, 230, 0.1)',
     dirTitleBorder: dark
-      ? 'rgba(255, 255, 255, 0.15)'
-      : 'rgba(128, 128, 128, 0.2)',
+      ? 'rgba(255, 255, 255, 0.4)'
+      : 'rgba(180, 180, 180, 0.5)',
     collapsedBg: dark
       ? 'rgba(128, 128, 128, 0.15)'
-      : 'rgba(128, 128, 128, 0.2)',
+      : 'rgba(230, 230, 230, 0.2)',
     collapsedText: dark
       ? 'rgba(255, 255, 255, 0.5)'
       : 'rgba(128, 128, 128, 0.6)',

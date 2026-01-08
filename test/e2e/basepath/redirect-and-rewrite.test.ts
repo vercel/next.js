@@ -1,4 +1,3 @@
-import url from 'url'
 import { nextTestSetup } from 'e2e-utils'
 import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
 
@@ -110,7 +109,7 @@ describe('basePath', () => {
         redirect: 'manual',
       }
     )
-    const { pathname } = url.parse(res.headers.get('location') || '')
+    const { pathname } = new URL(res.headers.get('location') || '')
     expect(pathname).toBe(`${basePath}/somewhere-else`)
     expect(res.status).toBe(307)
     const text = await res.text()
@@ -144,7 +143,7 @@ describe('basePath', () => {
         redirect: 'manual',
       }
     )
-    const { pathname } = url.parse(res.headers.get('location') || '')
+    const { pathname } = new URL(res.headers.get('location') || '')
     expect(pathname).toBe('/another-destination')
     expect(res.status).toBe(307)
     const text = await res.text()

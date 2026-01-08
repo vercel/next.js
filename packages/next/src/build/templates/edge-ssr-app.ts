@@ -26,6 +26,7 @@ import { interopDefault } from '../../lib/interop-default'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { checkIsOnDemandRevalidate } from '../../server/api-utils'
 import { CloseController } from '../../server/web/web-on-close'
+import { parseMaxPostponedStateSize } from '../../shared/lib/size-limit'
 
 declare const incrementalCacheHandler: any
 // OPTIONAL_IMPORT:incrementalCacheHandler
@@ -81,6 +82,7 @@ async function requestHandler(
     resolvedPathname,
     interceptionRoutePatterns,
     routerServerContext,
+    deploymentId,
   } = prepareResult
 
   // Initialize the cache handlers interface.
@@ -137,7 +139,7 @@ async function requestHandler(
       trailingSlash: nextConfig.trailingSlash,
       images: nextConfig.images,
       previewProps: prerenderManifest.preview,
-      deploymentId: nextConfig.deploymentId,
+      deploymentId,
       enableTainting: nextConfig.experimental.taint,
       htmlLimitedBots: nextConfig.htmlLimitedBots,
       reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
@@ -158,6 +160,9 @@ async function requestHandler(
           nextConfig.experimental.clientTraceMetadata || ([] as any),
         clientParamParsingOrigins:
           nextConfig.experimental.clientParamParsingOrigins,
+        maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
+          nextConfig.experimental.maxPostponedStateSize
+        ),
       },
 
       incrementalCache: await pageRouteModule.getIncrementalCache(

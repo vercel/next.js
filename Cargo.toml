@@ -288,19 +288,18 @@ debug = true
 next-api = { path = "crates/next-api" }
 next-build = { path = "crates/next-build" }
 next-core = { path = "crates/next-core" }
-next-custom-transforms = { path = "crates/next-custom-transforms" }
+next-custom-transforms = { path = "crates/next-custom-transforms", default-features = false }
 next-taskless = { path = "crates/next-taskless" }
 
 # Turbopack
 auto-hash-map = { path = "turbopack/crates/turbo-tasks-auto-hash-map" }
 turbo-bincode = { path = "turbopack/crates/turbo-bincode" }
-turbo-prehash = { path = "turbopack/crates/turbo-prehash" }
-turbo-rcstr = { path = "turbopack/crates/turbo-rcstr" }
 turbo-dyn-eq-hash = { path = "turbopack/crates/turbo-dyn-eq-hash" }
 turbo-esregex = { path = "turbopack/crates/turbo-esregex" }
+turbo-frozenmap = { path = "turbopack/crates/turbo-frozenmap" }
 turbo-persistence = { path = "turbopack/crates/turbo-persistence" }
-turbo-unix-path = { path = "turbopack/crates/turbo-unix-path" }
-turbo-tasks-malloc = { path = "turbopack/crates/turbo-tasks-malloc", default-features = false }
+turbo-prehash = { path = "turbopack/crates/turbo-prehash" }
+turbo-rcstr = { path = "turbopack/crates/turbo-rcstr" }
 turbo-tasks = { path = "turbopack/crates/turbo-tasks" }
 turbo-tasks-backend = { path = "turbopack/crates/turbo-tasks-backend" }
 turbo-tasks-bytes = { path = "turbopack/crates/turbo-tasks-bytes" }
@@ -309,7 +308,9 @@ turbo-tasks-fetch = { path = "turbopack/crates/turbo-tasks-fetch" }
 turbo-tasks-fs = { path = "turbopack/crates/turbo-tasks-fs" }
 turbo-tasks-hash = { path = "turbopack/crates/turbo-tasks-hash" }
 turbo-tasks-macros = { path = "turbopack/crates/turbo-tasks-macros" }
+turbo-tasks-malloc = { path = "turbopack/crates/turbo-tasks-malloc", default-features = false }
 turbo-tasks-testing = { path = "turbopack/crates/turbo-tasks-testing" }
+turbo-unix-path = { path = "turbopack/crates/turbo-unix-path" }
 turbopack = { path = "turbopack/crates/turbopack" }
 turbopack-bench = { path = "turbopack/crates/turbopack-bench" }
 turbopack-nodejs = { path = "turbopack/crates/turbopack-nodejs" }
@@ -338,7 +339,7 @@ turbopack-trace-utils = { path = "turbopack/crates/turbopack-trace-utils" }
 turbopack-wasm = { path = "turbopack/crates/turbopack-wasm" }
 
 # SWC crates
-swc_core = { version = "49.0.0", features = [
+swc_core = { version = "54.0.0", features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
   "parallel_rayon",
@@ -349,13 +350,13 @@ testing = "19.0.0"
 # Keep consistent with preset_env_base through swc_core
 browserslist-rs = "0.19.0"
 mdxjs = "1.0.3"
-modularize_imports = "0.104.0"
-styled_components = "0.132.0"
-styled_jsx = "0.107.0"
-swc_emotion = "0.108.0"
-swc_relay = "0.78.0"
-react_remove_properties = "0.58.0"
-remove_console = "0.59.0"
+modularize_imports = "0.108.0"
+styled_components = "0.136.0"
+styled_jsx = "0.111.0"
+swc_emotion = "0.112.0"
+swc_relay = "0.82.0"
+react_remove_properties = "0.62.0"
+remove_console = "0.63.0"
 preset_env_base = "6.0.0"
 
 
@@ -422,6 +423,7 @@ napi = { version = "2", default-features = false, features = [
   "napi5",
   "compat-mode",
 ] }
+nohash-hasher = "0.2.0"
 notify = "8.1.0"
 once_cell = "1.17.1"
 owo-colors = "4.2.2"
@@ -446,7 +448,6 @@ rstest = "0.16.0"
 rustc-hash = "2.1.1"
 semver = "1.0.16"
 serde = { version = "1.0.217", features = ["derive"] }
-serde_bytes = "0.11.15"
 serde_json = "1.0.138"
 serde_path_to_error = "0.1.16"
 serde_qs = "0.13.0"
@@ -483,4 +484,7 @@ webbrowser = "1.0.6"
 [patch.crates-io]
 bincode = { git = "https://github.com/bgw/bincode.git", branch = "bgw/patches" }
 virtue = { git = "https://github.com/bgw/virtue.git", branch = "bgw/fix-generic-default-parsing" }
-mdxjs = { git = "https://github.com/mischnic/mdxjs-rs.git", branch = "swc-core-32" }
+# We have to very frequently bump the swc major version of mdxjs-rs
+mdxjs = { git = "https://github.com/vercel-labs/mdxjs-rs-turbopack.git", branch = "turbopack" }
+# Doesn't compile on recent nightly versions because of https://github.com/Michael-F-Bryan/include_dir/pull/117
+include_dir = { git = "https://github.com/vercel-labs/include_dir", branch = "turbopack" }

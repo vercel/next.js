@@ -7,7 +7,7 @@ const { foo: fooCached } = {
 let $$RSC_SERVER_CACHE_fooCached = fooCached;
 if (typeof fooCached === "function") {
     $$RSC_SERVER_CACHE_fooCached = $$reactCache__(function() {
-        return $$cache__("default", "ffaa88e24cee8047d167e47f4f374dbddc187e2899", 0, fooCached, arguments);
+        return $$cache__("default", "ffaa88e24cee8047d167e47f4f374dbddc187e2899", 0, fooCached, Array.prototype.slice.call(arguments));
     });
     registerServerReference($$RSC_SERVER_CACHE_fooCached, "ffaa88e24cee8047d167e47f4f374dbddc187e2899", null);
     Object["defineProperty"]($$RSC_SERVER_CACHE_fooCached, "name", {

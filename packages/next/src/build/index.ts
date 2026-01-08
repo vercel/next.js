@@ -831,6 +831,15 @@ export function createStaticWorker(
     isolatedMemory: true,
     enableWorkerThreads: config.experimental.workerThreads,
     exposedMethods: staticWorkerExposedMethods,
+    forkOptions: process.env.NEXT_CPU_PROF
+      ? {
+          env: {
+            NEXT_CPU_PROF: '1',
+            NEXT_CPU_PROF_DIR: process.env.NEXT_CPU_PROF_DIR,
+            __NEXT_PRIVATE_CPU_PROFILE: 'build-static-worker',
+          },
+        }
+      : undefined,
   }) as StaticWorker
 }
 
@@ -989,7 +998,7 @@ export default async function build(
       // when using compile mode static env isn't inlined so we
       // need to populate in normal runtime env
       if (isCompileMode || isGenerateMode) {
-        populateStaticEnv(config)
+        populateStaticEnv(config, config.deploymentId)
       }
 
       const customRoutes: CustomRoutes = await nextBuildSpan
@@ -1132,6 +1141,10 @@ export default async function build(
         nextBuildSpan,
         config,
         cacheDir,
+        debugBuildPaths:
+          debugBuildAppPaths !== undefined || debugBuildPagePaths !== undefined
+            ? { app: debugBuildAppPaths, pages: debugBuildPagePaths }
+            : undefined,
       }
 
       if (appDir && 'exportPathMap' in config) {
@@ -1479,7 +1492,11 @@ export default async function build(
             routeTypesFilePath,
             config
           )
-          await writeValidatorFile(routeTypesManifest, validatorFilePath)
+          await writeValidatorFile(
+            routeTypesManifest,
+            validatorFilePath,
+            Boolean(config.experimental.strictRouteTypes)
+          )
         })
 
       // Turbopack already handles conflicting app and page routes.
@@ -1727,6 +1744,15 @@ export default async function build(
                     isolatedMemory: false,
                     numWorkers: 1,
                     exposedMethods: ['collectBuildTraces'],
+                    forkOptions: process.env.NEXT_CPU_PROF
+                      ? {
+                          env: {
+                            NEXT_CPU_PROF: '1',
+                            NEXT_CPU_PROF_DIR: process.env.NEXT_CPU_PROF_DIR,
+                            __NEXT_PRIVATE_CPU_PROFILE: 'build-trace-worker',
+                          },
+                        }
+                      : undefined,
                   }
                 ) as Worker & typeof import('./collect-build-traces')
 
