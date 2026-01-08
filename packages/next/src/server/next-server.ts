@@ -991,9 +991,12 @@ export default class NextNodeServer extends BaseServer<
       const { ImageOptimizerCache } =
         require('./image-optimizer') as typeof import('./image-optimizer')
 
-      // Load custom cache handler if configured (same one used by IncrementalCache)
+      // Load custom cache handler if configured and opt-in via images.customCacheHandler
       // Cache the handler instance to preserve state across requests
-      if (!this.imageCacheHandler) {
+      if (
+        !this.imageCacheHandler &&
+        this.nextConfig.images.customCacheHandler
+      ) {
         const { cacheHandler } = this.nextConfig
         if (cacheHandler) {
           const CacheHandler = interopDefault(
