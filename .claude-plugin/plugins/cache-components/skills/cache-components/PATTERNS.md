@@ -473,8 +473,13 @@ export default async function ProductPage({
         <InventoryStatus productId={id} />
       </Suspense>
 
-      {/* Suspense is optional for long-lived caches (expire >= 300s) like 'minutes'.
-          It improves UX during runtime cache expiration but isn't required. */}
+      {/* Suspense around cached components:
+          - At BUILD TIME (PPR): Cached content is pre-rendered into the static shell,
+            so the fallback is never shown for initial page loads.
+          - At RUNTIME (cache miss/expiration): When the cache expires or on cold start,
+            Suspense shows the fallback while fresh data loads.
+          - For long-lived caches ('minutes', 'hours', 'days'), Suspense is optional
+            but improves UX during the rare cache miss. */}
       <Suspense fallback={<ReviewsSkeleton />}>
         <ProductReviews productId={id} />
       </Suspense>
@@ -715,6 +720,76 @@ export async function generateStaticParams() {
 
 ---
 
+## When to Use Suspense with Cached Components
+
+Understanding when Suspense is required vs. optional for cached components:
+
+### Dynamic Components (no cache) → Suspense Required
+
+```tsx
+// Dynamic content MUST have Suspense for streaming
+async function PersonalizedFeed() {
+  const session = await getSession() // Dynamic - reads cookies
+  const feed = await fetchFeed(session.userId)
+  return <Feed posts={feed} />
+}
+
+export default function Page() {
+  return (
+    <Suspense fallback={<FeedSkeleton />}>
+      <PersonalizedFeed />
+    </Suspense>
+  )
+}
+```
+
+### Cached Components → Suspense Optional (but recommended)
+
+```tsx
+// Cached content: Suspense is optional but improves UX
+async function ProductReviews({ productId }: { productId: string }) {
+  'use cache'
+  cacheLife('minutes')
+  const reviews = await fetchReviews(productId)
+  return <ReviewsList reviews={reviews} />
+}
+
+// ✅ With Suspense - handles cache miss gracefully
+<Suspense fallback={<ReviewsSkeleton />}>
+  <ProductReviews productId={id} />
+</Suspense>
+
+// ✅ Without Suspense - also valid for long-lived caches
+<ProductReviews productId={id} />
+```
+
+### Why Cached Components Don't Always Need Suspense
+
+| Scenario | What Happens | Suspense Needed? |
+|----------|--------------|------------------|
+| **Build time (PPR enabled)** | Content pre-rendered into static shell | No - fallback never shown |
+| **Runtime - cache hit** | Cached result returned immediately | No - no suspension |
+| **Runtime - cache miss** | Async function executes, component suspends | Yes - for better UX |
+
+### Recommendations by Cache Lifetime
+
+| Cache Lifetime | Suspense Recommendation | Reasoning |
+|----------------|------------------------|-----------|
+| `'seconds'` | **Recommended** | Frequent cache misses |
+| `'minutes'` | Optional | ~5 min expiry, occasional misses |
+| `'hours'` / `'days'` | Optional | Rare cache misses |
+| `'max'` | Not needed | Essentially static |
+
+### The Trade-off
+
+**Without Suspense**: On cache miss, the page waits for data before rendering anything downstream. For long-lived caches, this is rare and brief.
+
+**With Suspense**: On cache miss, users see the skeleton immediately while data loads. Better perceived performance, slightly more code.
+
+**Rule of thumb**: When in doubt, add Suspense. It never hurts and handles edge cases gracefully.
+
+---
+
 ## Anti-Patterns to Avoid
 
 ### ❌ Caching user-specific data without parameters
@@ -759,26 +834,39 @@ async function StockPrice({ symbol }: { symbol: string }) {
 }
 ```
 
-### ❌ Forgetting Suspense boundaries
+### ❌ Forgetting Suspense for dynamic content
 
 ```tsx
-// BAD: No fallback for dynamic content
+// BAD: No fallback for DYNAMIC content - breaks streaming
 export default async function Page() {
   return (
     <>
       <CachedHeader />
-      <DynamicContent /> {/* No Suspense - breaks streaming */}
+      <DynamicContent /> {/* Dynamic - NEEDS Suspense */}
     </>
   )
 }
 
-// GOOD: Proper Suspense boundary
+// GOOD: Proper Suspense boundary for dynamic content
 export default async function Page() {
   return (
     <>
       <CachedHeader />
       <Suspense fallback={<ContentSkeleton />}>
         <DynamicContent />
+      </Suspense>
+    </>
+  )
+}
+
+// ALSO GOOD: Cached content without Suspense (optional for long-lived caches)
+export default async function Page() {
+  return (
+    <>
+      <CachedHeader />       {/* 'use cache' - no Suspense needed */}
+      <CachedSidebar />      {/* 'use cache' - no Suspense needed */}
+      <Suspense fallback={<ContentSkeleton />}>
+        <DynamicContent />   {/* Dynamic - Suspense required */}
       </Suspense>
     </>
   )
