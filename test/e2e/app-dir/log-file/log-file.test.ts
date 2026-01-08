@@ -82,7 +82,8 @@ describe('log-file', () => {
       await retry(async () => {
         const newLogContent = getNewLogContent()
         expect(newLogContent).toMatchInlineSnapshot(`
-         "[xx:xx:xx.xxx] Server  LOG     RSC: This is a log message from server component
+         "[xx:xx:xx.xxx] Server  LOG     
+         [xx:xx:xx.xxx] Server  LOG     RSC: This is a log message from server component
          [xx:xx:xx.xxx] Server  ERROR   RSC: This is an error message from server component
          [xx:xx:xx.xxx] Server  WARN    RSC: This is a warning message from server component
          "
