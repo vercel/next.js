@@ -148,6 +148,8 @@ describe('server-components-hmr-cache', () => {
 
     describe('with experimental.serverComponentsHmrCache disabled', () => {
       beforeAll(async () => {
+        // Wait for server to be ready
+        await next.fetch('/404')
         await next.patchFile('next.config.js', (content) =>
           content.replace(
             '// serverComponentsHmrCache: false,',
