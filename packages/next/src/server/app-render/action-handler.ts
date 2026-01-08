@@ -23,6 +23,7 @@ import {
 import {
   getRedirectTypeFromError,
   getURLFromRedirectError,
+  getRedirectStatusCodeFromError,
 } from '../../client/components/redirect'
 import {
   isRedirectError,
@@ -1081,6 +1082,11 @@ export async function handleAction({
           ]
 
         // Log server action call in development
+        let logInfo: {
+          functionName: string
+          argsStr: string
+          location: string
+        } | null = null
         if (process.env.NODE_ENV === 'development') {
           const serverActionsManifest = getServerActionsManifest()
           const runtime = process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
@@ -1099,7 +1105,31 @@ export async function handleAction({
             } else {
               functionName = actionInfo.exportedName || '<inline action>'
             }
-            const filename = actionInfo.filename || 'unknown'
+            const projectDir = ctx.renderOpts.dir || process.cwd()
+            const cwd = process.env.NEXT_RUNTIME === 'edge' ? '' : process.cwd()
+            // Get relative project path from cwd (e.g., "test/e2e/app-dir/actions")
+            const relativeProjectRoot = projectDir
+              .replace(cwd, '')
+              .replace(/^[\\/]/, '')
+            let filename = (actionInfo.filename || 'unknown')
+              // remove turbopack [project] prefix
+              .replace(/^\[project\][\\/]?/, '')
+              // remove the project root from the path (absolute)
+              .replace(projectDir, '')
+              // remove cwd prefix (absolute)
+              .replace(cwd, '')
+              // normalize path separators and remove leading slash
+              .replace(/\\/g, '/')
+              .replace(/^\//, '')
+            // remove relative project path prefix (e.g., "test/e2e/app-dir/actions/")
+            if (
+              relativeProjectRoot &&
+              filename.startsWith(relativeProjectRoot)
+            ) {
+              filename = filename
+                .slice(relativeProjectRoot.length)
+                .replace(/^\//, '')
+            }
 
             // Build location string with line:col if available
             let location = filename
@@ -1253,12 +1283,12 @@ export async function handleAction({
             const argsStr = boundActionArguments
               .map((a) => formatArg(a))
               .join(', ')
-            console.log(
-              ` \x1b[36m○\x1b[0m ${functionName}(${argsStr}) \x1b[2m${location}\x1b[0m`
-            )
+            logInfo = { functionName, argsStr, location }
           }
         }
 
+        const startTime = performance.now()
+        let actionStatus = 200
         const { actionResult, skipPageRendering } =
           await executeActionAndPrepareForRender(
             actionHandler,
@@ -1266,9 +1296,33 @@ export async function handleAction({
             workStore,
             requestStore,
             actionWasForwarded
-          ).finally(() => {
-            addRevalidationHeader(res, { workStore, requestStore })
-          })
+          )
+            .catch((err) => {
+              if (isRedirectError(err)) {
+                actionStatus = getRedirectStatusCodeFromError(err)
+              } else if (isHTTPAccessFallbackError(err)) {
+                actionStatus = getAccessFallbackHTTPStatus(err)
+              } else {
+                actionStatus = 500
+              }
+              throw err
+            })
+            .finally(() => {
+              addRevalidationHeader(res, { workStore, requestStore })
+              if (logInfo) {
+                const duration = Math.round(performance.now() - startTime)
+                // Green for 2xx, cyan for 3xx, red for 4xx/5xx
+                let statusColor = '\x1b[32m' // green
+                if (actionStatus >= 300 && actionStatus < 400) {
+                  statusColor = '\x1b[36m' // cyan
+                } else if (actionStatus >= 400) {
+                  statusColor = '\x1b[31m' // red
+                }
+                console.log(
+                  ` ƒ ${logInfo.functionName}(${logInfo.argsStr}) ${statusColor}${actionStatus}\x1b[0m in ${duration}ms \x1b[2m${logInfo.location}\x1b[0m`
+                )
+              }
+            })
 
         // For form actions, we need to continue rendering the page.
         if (isFetchAction) {
