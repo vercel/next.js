@@ -1,6 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
-const { version: nextVersion } = require('next/package.json')
 
 const cacheComponentsEnabled = process.env.__NEXT_CACHE_COMPONENTS === 'true'
 
@@ -10,44 +9,30 @@ describe('dev-output', () => {
   })
 
   it('shows Cache Components indicator when enabled', async () => {
+    await next.fetch('/')
     await retry(async () => {
-      const preamble = getPreambleOutput(next.cliOutput)
+      const output = next.cliOutput
 
       if (cacheComponentsEnabled) {
         if (isTurbopack) {
-          expect(preamble).toContain('Next.js')
-          expect(preamble).toContain('Turbopack')
-          expect(preamble).toContain('Cache Components')
+          expect(output).toContain('Next.js')
+          expect(output).toContain('Turbopack')
+          expect(output).toContain('Cache Components')
         } else {
-          expect(preamble).toContain('Next.js')
-          expect(preamble).toContain('webpack')
-          expect(preamble).toContain('Cache Components')
+          expect(output).toContain('Next.js')
+          expect(output).toContain('webpack')
+          expect(output).toContain('Cache Components')
         }
       } else {
         // When cache components env is not set, should not show the indicator
-        expect(preamble).toContain('Next.js')
+        expect(output).toContain('Next.js')
         if (isTurbopack) {
-          expect(preamble).toContain('Turbopack')
+          expect(output).toContain('Turbopack')
         } else {
-          expect(preamble).toContain('webpack')
+          expect(output).toContain('webpack')
         }
-        expect(preamble).not.toContain('Cache Components')
+        expect(output).not.toContain('Cache Components')
       }
     })
   })
 })
-
-function getPreambleOutput(cliOutput: string): string {
-  const lines: string[] = []
-
-  for (const line of cliOutput.split('\n')) {
-    // Capture lines up to and including the "Local:" line
-    lines.push(line.replace(nextVersion, 'x.y.z'))
-
-    if (line.includes('Local:')) {
-      break
-    }
-  }
-
-  return lines.join('\n').trim()
-}
