@@ -3208,18 +3208,16 @@ checksum = "e7c5cedc30da3a610cac6b4ba17597bdf7152cf974e8aab3afb3d54455e371c8"
 
 [[package]]
 name = "include_dir"
-version = "0.7.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "18762faeff7122e89e0857b02f7ce6fcc0d101d5e9ad2ad7846cc01d61b7f19e"
+version = "0.7.4"
+source = "git+https://github.com/vercel-labs/include_dir?branch=turbopack#0f23fcc20e37577a75a02d39ec55abfaf015faa3"
 dependencies = [
  "include_dir_macros",
 ]
 
 [[package]]
 name = "include_dir_macros"
-version = "0.7.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b139284b5cf57ecfa712bcc66950bb635b31aff41c188e8a4cfc758eca374a3f"
+version = "0.7.4"
+source = "git+https://github.com/vercel-labs/include_dir?branch=turbopack#0f23fcc20e37577a75a02d39ec55abfaf015faa3"
 dependencies = [
  "proc-macro2",
  "quote",
