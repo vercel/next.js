@@ -23,6 +23,7 @@ pub fn derive_trace_raw_vcs(input: TokenStream) -> TokenStream {
 
     let trace_items = match_expansion(&derive_input, &trace_named, &trace_unnamed, &trace_unit);
     quote! {
+        #[automatically_derived]
         impl #impl_generics turbo_tasks::trace::TraceRawVcs for #ident #ty_generics #where_clause {
             fn trace_raw_vcs(&self, __context__: &mut turbo_tasks::trace::TraceRawVcsContext) {
                 #trace_items

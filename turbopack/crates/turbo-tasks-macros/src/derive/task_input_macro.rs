@@ -150,6 +150,7 @@ pub fn derive_task_input(input: TokenStream) -> TokenStream {
         .collect();
 
     quote! {
+        #[automatically_derived]
         #[turbo_tasks::macro_helpers::async_trait]
         impl #generics turbo_tasks::TaskInput for #ident #generics
         where

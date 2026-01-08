@@ -427,6 +427,7 @@ pub fn value_type_and_register(
 
         turbo_tasks::macro_helpers::inventory_submit!{turbo_tasks::macro_helpers::CollectableValueType(&#value_type_ident)}
 
+        #[automatically_derived]
         unsafe impl #impl_generics turbo_tasks::VcValueType for #ty #where_clause {
             type Read = #read;
             type CellMode = #cell_mode;

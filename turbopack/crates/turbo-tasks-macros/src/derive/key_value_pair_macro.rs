@@ -163,6 +163,7 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
         .collect::<Vec<_>>();
 
     quote! {
+        #[automatically_derived]
         impl turbo_tasks::KeyValuePair for #ident {
             type Type = #type_name;
             type Key = #key_name;
@@ -282,6 +283,7 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
             )*
         }
 
+        #[automatically_derived]
         impl #key_name {
             pub fn ty(&self) -> #type_name {
                 match self {
@@ -292,6 +294,7 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
             }
         }
 
+        #[automatically_derived]
         impl #value_name {
             pub fn as_ref(&self) -> #value_ref_name<'_> {
                 match self {
@@ -321,6 +324,7 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
             )*
         }
 
+        #[automatically_derived]
         impl #storage_name {
             pub fn new(ty: #type_name) -> Self {
                 match ty {
@@ -501,6 +505,7 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
             )*
         }
 
+        #[automatically_derived]
         impl<'l> Iterator for #iter_name<'l> {
             type Item = (#key_name, #value_ref_name<'l>);
 

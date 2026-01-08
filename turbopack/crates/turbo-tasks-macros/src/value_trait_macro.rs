@@ -267,8 +267,11 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
 
     let value_debug_impl = if debug {
         quote! {
+            #[automatically_derived]
             unsafe impl turbo_tasks::Dynamic<Box<dyn turbo_tasks::debug::ValueDebug>> for Box<dyn #trait_ident> {}
+            #[automatically_derived]
             unsafe impl turbo_tasks::Upcast<Box<dyn turbo_tasks::debug::ValueDebug>> for Box<dyn #trait_ident> {}
+            #[automatically_derived]
             unsafe impl turbo_tasks::UpcastStrict<Box<dyn turbo_tasks::debug::ValueDebug>> for Box<dyn #trait_ident> {}
         }
     } else {
@@ -313,6 +316,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             turbo_tasks::macro_helpers::CollectableTrait(&#trait_type_ident)
         }
 
+        #[automatically_derived]
         impl turbo_tasks::VcValueTrait for Box<dyn #trait_ident> {
             type ValueTrait = dyn #trait_ident;
 
@@ -333,9 +337,12 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             }
         }
 
+        #[automatically_derived]
         unsafe impl turbo_tasks::Dynamic<Box<dyn #trait_ident>> for Box<dyn #trait_ident> {}
+        #[automatically_derived]
         unsafe impl turbo_tasks::Upcast<Box<dyn #trait_ident>> for Box<dyn #trait_ident> {}
 
+        #[automatically_derived]
         impl<T> #trait_ident for T
         where
             T: turbo_tasks::Dynamic<Box<dyn #trait_ident>> + #(#supertraits +)* #(#extended_supertraits +)*,
@@ -344,8 +351,11 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         }
 
         #(
+            #[automatically_derived]
             unsafe impl turbo_tasks::Dynamic<Box<dyn #supertraits>> for Box<dyn #trait_ident> {}
+            #[automatically_derived]
             unsafe impl turbo_tasks::Upcast<Box<dyn #supertraits>> for Box<dyn #trait_ident> {}
+            #[automatically_derived]
             unsafe impl turbo_tasks::UpcastStrict<Box<dyn #supertraits>> for Box<dyn #trait_ident> {
             }
         )*

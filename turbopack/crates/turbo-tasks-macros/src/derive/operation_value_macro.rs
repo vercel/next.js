@@ -17,6 +17,7 @@ pub fn derive_operation_value(input: TokenStream) -> TokenStream {
 
     let (impl_generics, ty_generics, where_clause) = derive_input.generics.split_for_impl();
     quote! {
+        #[automatically_derived]
         unsafe impl #impl_generics turbo_tasks::OperationValue
             for #ident #ty_generics #where_clause {}
         #assertions
