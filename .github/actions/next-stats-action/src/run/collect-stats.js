@@ -92,9 +92,11 @@ async function benchmarkDevBoot(appDevCommand, curDir, port, cleanBuild) {
   })
 
   let readyInTime = null
+  let stdoutBuffer = ''
   // Capture output for debugging
   devChild.stdout.on('data', (data) => {
-    if (data.includes('Ready in')) {
+    stdoutBuffer += data.toString()
+    if (readyInTime === null && stdoutBuffer.includes('Ready in')) {
       readyInTime = Date.now() - startTime
     }
     process.stdout.write(data)
