@@ -172,6 +172,7 @@ const nextDev = async (
   portSource: PortSource,
   directory?: string
 ) => {
+  // Note: This variable is only Turbopack or webpack. Rspack can be configured via next.config.js but next.config.js is not loaded in the main process, only in the child process.
   bundler = parseBundlerArgs(options)
 
   dir = getProjectDir(process.env.NEXT_PRIVATE_DEV_DIR || directory)
