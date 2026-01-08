@@ -184,6 +184,11 @@ async function benchmarkDevBootWithIterations(
       `  ${label} Boot: median=${listenStats.median}ms, range=${listenStats.min}-${listenStats.max}ms, CV=${listenStats.cv}%`
     )
   }
+  if (readyInStats) {
+    logger(
+      `  ${label} Ready in: median=${readyInStats.median}ms, range=${readyInStats.min}-${readyInStats.max}ms, CV=${readyInStats.cv}%`
+    )
+  }
   if (readyStats) {
     logger(
       `  ${label} Ready: median=${readyStats.median}ms, range=${readyStats.min}-${readyStats.max}ms, CV=${readyStats.cv}%`
