@@ -63,7 +63,7 @@ let dir: string
 let child: undefined | ChildProcess
 // distDir is received from the child process via IPC, used for telemetry and trace.
 let distDir: string | undefined
-let bundler: Bundler
+let isTurbopack: boolean
 let traceUploadUrl: string
 let sessionStopHandled = false
 const sessionStarted = Date.now()
@@ -128,7 +128,7 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
     telemetry.record(
       eventCliSessionStopped({
         cliCommand: 'dev',
-        turboFlag: bundler === Bundler.Turbopack,
+        turboFlag: isTurbopack,
         durationMilliseconds: Date.now() - sessionStarted,
         pagesDir,
         appDir,
@@ -172,8 +172,9 @@ const nextDev = async (
   portSource: PortSource,
   directory?: string
 ) => {
-  // Note: This variable is only Turbopack or webpack. Rspack can be configured via next.config.js but next.config.js is not loaded in the main process, only in the child process.
-  bundler = parseBundlerArgs(options)
+  // Note: parseBundlerArgs can only decide on Turbopack or webpack.
+  // Rspack can be configured via next.config.js but next.config.js is not loaded in the main process, only in the child process.
+  isTurbopack = parseBundlerArgs(options) === Bundler.Turbopack
 
   dir = getProjectDir(process.env.NEXT_PRIVATE_DEV_DIR || directory)
 
@@ -303,9 +304,7 @@ const nextDev = async (
         stdio: 'inherit',
         env: {
           ...defaultEnv,
-          ...(bundler === Bundler.Turbopack
-            ? { TURBOPACK: process.env.TURBOPACK }
-            : undefined),
+          ...(isTurbopack ? { TURBOPACK: process.env.TURBOPACK } : undefined),
           NEXT_PRIVATE_WORKER: '1',
           NEXT_PRIVATE_TRACE_ID: traceId,
           NODE_EXTRA_CA_CERTS: startServerOptions.selfSignedCertificate
@@ -363,7 +362,7 @@ const nextDev = async (
               mode: 'dev',
               projectDir: dir,
               distDir,
-              isTurboSession: bundler === Bundler.Turbopack,
+              isTurboSession: isTurbopack,
               sync: true,
             })
           }
