@@ -147,7 +147,7 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
       mode: 'dev',
       projectDir: dir,
       distDir,
-      isTurboSession: bundler === Bundler.Turbopack,
+      isTurboSession: isTurbopack,
     })
   }
 
