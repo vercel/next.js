@@ -948,7 +948,7 @@ export default async function build(
                 reactProductionProfiling,
                 debugPrerender,
                 reportExperimentalFeatures(features) {
-                  experimentalFeatures = features.sort(
+                  experimentalFeatures = features.toSorted(
                     ({ key: a }, { key: b }) => a.localeCompare(b)
                   )
                 },
