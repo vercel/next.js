@@ -21,6 +21,7 @@ describe('typed-routes-validator', () => {
     } else {
       await next.build()
     }
+    await next.fetch('/')
     const dts = await next.readFile(`${getDistDir()}/types/validator.ts`)
     // sanity check that dev generation is working
     expect(dts).toContain('const handler = {} as typeof import(')
