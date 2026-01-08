@@ -1,10 +1,12 @@
 use std::mem::take;
 
 use bincode::{Decode, Encode};
+use once_cell::unsync::Lazy;
+use rustc_hash::FxHashSet;
 use smallvec::SmallVec;
 #[cfg(not(feature = "verify_determinism"))]
 use turbo_tasks::backend::VerificationMode;
-use turbo_tasks::{CellId, TaskId, TypedSharedReference, backend::CellContent};
+use turbo_tasks::{CellId, FxIndexMap, TaskId, TypedSharedReference, backend::CellContent};
 
 #[cfg(feature = "trace_task_dirty")]
 use crate::backend::operation::invalidate::TaskDirtyCause;
@@ -26,7 +28,8 @@ pub enum UpdateCellOperation {
     InvalidateWhenCellDependency {
         is_serializable_cell_content: bool,
         cell_ref: CellRef,
-        dependent_tasks: SmallVec<[TaskId; 4]>,
+        #[bincode(with = "turbo_bincode::indexmap")]
+        dependent_tasks: FxIndexMap<TaskId, SmallVec<[Option<u64>; 2]>>,
         content: Option<TypedSharedReference>,
         queue: AggregationUpdateQueue,
     },
@@ -49,6 +52,7 @@ impl UpdateCellOperation {
         cell: CellId,
         content: CellContent,
         is_serializable_cell_content: bool,
+        updated_key_hashes: Option<SmallVec<[u64; 2]>>,
         #[cfg(feature = "verify_determinism")] verification_mode: VerificationMode,
         #[cfg(not(feature = "verify_determinism"))] _verification_mode: VerificationMode,
         mut ctx: impl ExecuteContext,
@@ -96,17 +100,29 @@ impl UpdateCellOperation {
             // When not recomputing, we need to notify dependent tasks if the content actually
             // changes.
 
-            let dependent_tasks: SmallVec<[TaskId; 4]> = iter_many!(
+            let updated_key_hashes_set = updated_key_hashes.map(|updated_key_hashes| {
+                Lazy::new(|| updated_key_hashes.into_iter().collect::<FxHashSet<u64>>())
+            });
+
+            let tasks_with_keys = iter_many!(
                 task,
-                CellDependent { cell: dependent_cell, task }
-                if dependent_cell == cell
-                => task
+                CellDependent { cell: dependent_cell, key, task }
+                if dependent_cell == cell && key.is_none_or(|key_hash| {
+                    updated_key_hashes_set.as_ref().is_none_or(|set| {
+                        set.contains(&key_hash)
+                    })
+                })
+                => (task, key)
             )
-            .filter(|&dependent_task_id| {
+            .filter(|&(dependent_task_id, _)| {
                 // once tasks are never invalidated
                 !ctx.is_once_task(dependent_task_id)
-            })
-            .collect();
+            });
+            let mut dependent_tasks: FxIndexMap<TaskId, SmallVec<[Option<u64>; 2]>> =
+                FxIndexMap::default();
+            for (task, key) in tasks_with_keys {
+                dependent_tasks.entry(task).or_default().push(key);
+            }
 
             if !dependent_tasks.is_empty() {
                 // Slow path: We need to invalidate tasks depending on this cell.
@@ -132,7 +148,7 @@ impl UpdateCellOperation {
 
                 ctx.prepare_tasks(
                     dependent_tasks
-                        .iter()
+                        .keys()
                         .map(|&id| (id, TaskDataCategory::All)),
                 );
 
@@ -207,24 +223,31 @@ impl Operation for UpdateCellOperation {
                     ref mut content,
                     ref mut queue,
                 } => {
-                    if let Some(dependent_task_id) = dependent_tasks.pop() {
-                        let mut make_stale = true;
+                    if let Some((dependent_task_id, keys)) = dependent_tasks.pop() {
+                        let mut make_stale = false;
                         let dependent = ctx.task(dependent_task_id, TaskDataCategory::All);
-                        if dependent.has_key(&CachedDataItemKey::OutdatedCellDependency {
-                            target: cell_ref,
-                        }) {
-                            // cell dependency is outdated, so it hasn't read the cell yet
-                            // and doesn't need to be invalidated.
-                            // But importantly we still need to make the task dirty as it should no
-                            // longer be considered as "recomputation".
-                            make_stale = false;
-                        } else if !dependent
-                            .has_key(&CachedDataItemKey::CellDependency { target: cell_ref })
-                        {
-                            // cell dependency has been removed, so the task doesn't depend on the
-                            // cell anymore and doesn't need to be
-                            // invalidated
-                            continue;
+                        for key in keys {
+                            if dependent.has_key(&CachedDataItemKey::OutdatedCellDependency {
+                                target: cell_ref,
+                                key,
+                            }) {
+                                // cell dependency is outdated, so it hasn't read the cell yet
+                                // and doesn't need to be invalidated.
+                                // We do not need to make the task stale in this case.
+                                // But importantly we still need to make the task dirty as it should
+                                // no longer be considered as
+                                // "recomputation".
+                            } else if !dependent.has_key(&CachedDataItemKey::CellDependency {
+                                target: cell_ref,
+                                key,
+                            }) {
+                                // cell dependency has been removed, so the task doesn't depend on
+                                // the cell anymore and doesn't need
+                                // to be invalidated
+                                continue;
+                            } else {
+                                make_stale = true;
+                            }
                         }
                         make_task_dirty_internal(
                             dependent,

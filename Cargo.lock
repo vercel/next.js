@@ -9620,6 +9620,7 @@ dependencies = [
  "anyhow",
  "futures",
  "rustc-hash 2.1.1",
+ "smallvec",
  "tokio",
  "turbo-tasks",
 ]
