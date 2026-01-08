@@ -45,7 +45,7 @@ import { djb2Hash } from '../shared/lib/hash'
 import type { NextAdapter } from '../build/adapter/build-complete'
 import { HardDeprecatedConfigError } from '../shared/lib/errors/hard-deprecated-config-error'
 import { NextInstanceErrorState } from './mcp/tools/next-instance-error-state'
-import { evaluateDeploymentId } from '../build/generate-deployment-id'
+import { generateDeploymentId } from '../build/generate-deployment-id'
 
 export { normalizeConfig } from './config-shared'
 export type { DomainLocale, NextConfig } from './config-shared'
@@ -927,11 +927,34 @@ function assignDefaultsAndValidate(
 
   // Evaluate deploymentId early if it's a function, so it's available as a string
   // This needs to happen before validation checks
-  if (
-    result.deploymentId != null &&
-    typeof result.deploymentId === 'function'
-  ) {
-    result.deploymentId = evaluateDeploymentId(result.deploymentId)
+  // Call the function once and cache the result to ensure consistency
+  // Capture original NEXT_DEPLOYMENT_ID before we potentially overwrite it
+  const originalNextDeploymentId = process.env.NEXT_DEPLOYMENT_ID
+  const userConfiguredDeploymentId = generateDeploymentId(result.deploymentId)
+
+  // User-configured deploymentId takes precedence over NEXT_DEPLOYMENT_ID
+  if (userConfiguredDeploymentId !== undefined) {
+    // If NEXT_DEPLOYMENT_ID was already set and doesn't match user config, throw error
+    if (
+      originalNextDeploymentId != null &&
+      userConfiguredDeploymentId !== originalNextDeploymentId
+    ) {
+      throw new Error(
+        `The NEXT_DEPLOYMENT_ID environment variable value "${originalNextDeploymentId}" does not match the provided deploymentId "${userConfiguredDeploymentId}" in the config.`
+      )
+    }
+    // Use user-configured deploymentId
+    result.deploymentId = userConfiguredDeploymentId
+    // Only overwrite NEXT_DEPLOYMENT_ID if it wasn't already set (to avoid overwriting if function was called before)
+    if (process.env.NEXT_DEPLOYMENT_ID == null) {
+      process.env.NEXT_DEPLOYMENT_ID = userConfiguredDeploymentId
+    }
+  } else if (process.env.NEXT_DEPLOYMENT_ID != null) {
+    // No user config, use NEXT_DEPLOYMENT_ID if set
+    result.deploymentId = process.env.NEXT_DEPLOYMENT_ID
+  } else {
+    // Neither is set, use empty string
+    result.deploymentId = ''
   }
 
   // Validate after evaluation (applies to both string and function cases)
@@ -955,19 +978,6 @@ function assignDefaultsAndValidate(
     process.env.NEXT_DEPLOYMENT_ID
   ) {
     result.experimental.runtimeServerDeploymentId = true
-  }
-
-  // NEXT_DEPLOYMENT_ID takes precedence when set (e.g., by Vercel platform)
-  // Only set it from user config if not already set (prebuild scenario)
-  if (process.env.NEXT_DEPLOYMENT_ID != null) {
-    result.deploymentId = process.env.NEXT_DEPLOYMENT_ID
-  } else if (result.deploymentId) {
-    // Only set NEXT_DEPLOYMENT_ID from user config if it's not already set (undefined)
-    // This ensures we never overwrite a Vercel-generated deployment ID
-    // Note: == null checks for both null and undefined, but env vars are typically undefined when not set
-    if (process.env.NEXT_DEPLOYMENT_ID == null) {
-      process.env.NEXT_DEPLOYMENT_ID = result.deploymentId
-    }
   }
 
   const tracingRoot = result?.outputFileTracingRoot

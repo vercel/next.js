@@ -962,16 +962,50 @@ export default async function build(
       // Install the native bindings early so we can have synchronous access later.
       await installBindings(config.experimental?.useWasmBinary)
 
-      // Generate deploymentId - can be a string or  function
-      const deploymentId = generateDeploymentId(config.deploymentId) || ''
-      // NEXT_DEPLOYMENT_ID takes precedence when set (e.g., by Vercel platform)
-      // Only set it from user config if not already set (prebuild scenario)
-      if (process.env.NEXT_DEPLOYMENT_ID == null) {
-        process.env.NEXT_DEPLOYMENT_ID = deploymentId
-        config.deploymentId = deploymentId
+      // Generate deploymentId - can be a string or function
+      // Call the function once and cache the result to ensure consistency throughout the build process
+      // If config.deploymentId is already a string (evaluated in config.ts), use it directly
+      // Otherwise, evaluate it (but only if NEXT_DEPLOYMENT_ID is not already set to avoid re-evaluating)
+      // Capture original NEXT_DEPLOYMENT_ID before we potentially overwrite it
+      const originalNextDeploymentId = process.env.NEXT_DEPLOYMENT_ID
+      let userConfiguredDeploymentId: string | undefined
+      if (typeof config.deploymentId === 'string') {
+        // Already evaluated, use the cached value
+        userConfiguredDeploymentId = config.deploymentId
+      } else if (
+        config.deploymentId != null &&
+        process.env.NEXT_DEPLOYMENT_ID == null
+      ) {
+        // Only evaluate if NEXT_DEPLOYMENT_ID is not already set (to avoid calling function multiple times)
+        userConfiguredDeploymentId = generateDeploymentId(config.deploymentId)
       } else {
-        // Use the existing NEXT_DEPLOYMENT_ID if it's already set
+        // NEXT_DEPLOYMENT_ID is already set, don't re-evaluate the function
+        userConfiguredDeploymentId = undefined
+      }
+
+      // User-configured deploymentId takes precedence over NEXT_DEPLOYMENT_ID
+      if (userConfiguredDeploymentId !== undefined) {
+        // If NEXT_DEPLOYMENT_ID was already set and doesn't match user config, throw error
+        if (
+          originalNextDeploymentId != null &&
+          userConfiguredDeploymentId !== originalNextDeploymentId
+        ) {
+          throw new Error(
+            `The NEXT_DEPLOYMENT_ID environment variable value "${originalNextDeploymentId}" does not match the provided deploymentId "${userConfiguredDeploymentId}" in the config.`
+          )
+        }
+        // Use user-configured deploymentId
+        config.deploymentId = userConfiguredDeploymentId
+        // Only overwrite NEXT_DEPLOYMENT_ID if it wasn't already set (to avoid overwriting if function was called before)
+        if (process.env.NEXT_DEPLOYMENT_ID == null) {
+          process.env.NEXT_DEPLOYMENT_ID = userConfiguredDeploymentId
+        }
+      } else if (process.env.NEXT_DEPLOYMENT_ID != null) {
+        // No user config, use NEXT_DEPLOYMENT_ID if set
         config.deploymentId = process.env.NEXT_DEPLOYMENT_ID
+      } else {
+        // Neither is set, use empty string
+        config.deploymentId = ''
       }
       NextBuildContext.config = config
 
@@ -1017,7 +1051,7 @@ export default async function build(
       // when using compile mode static env isn't inlined so we
       // need to populate in normal runtime env
       if (isCompileMode || isGenerateMode) {
-        populateStaticEnv(config, deploymentId)
+        populateStaticEnv(config, config.deploymentId || '')
       }
 
       const customRoutes: CustomRoutes = await nextBuildSpan
@@ -4169,6 +4203,10 @@ export default async function build(
               distDir,
               config,
               buildId,
+              deploymentId:
+                typeof config.deploymentId === 'string'
+                  ? config.deploymentId
+                  : process.env.NEXT_DEPLOYMENT_ID || '',
               configOutDir: path.join(dir, configOutDir),
               staticPages,
               serverPropsPages,

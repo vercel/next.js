@@ -66,7 +66,7 @@ import { getBotType, isBot } from '../shared/lib/router/utils/is-bot'
 import RenderResult from './render-result'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
-import { evaluateDeploymentId } from '../build/generate-deployment-id'
+import { generateDeploymentId } from '../build/generate-deployment-id'
 import * as Log from '../build/output/log'
 import { getServerUtils } from './server-utils'
 import isError, { getProperError } from '../lib/is-error'
@@ -465,16 +465,53 @@ export default abstract class Server<
       }
       deploymentId = process.env.NEXT_DEPLOYMENT_ID
     } else {
-      let id = this.nextConfig.experimental.useSkewCookie
-        ? ''
-        : this.nextConfig.deploymentId || ''
+      // Generate deploymentId - can be a string or function
+      // Call the function once and cache the result to ensure consistency
+      // If NEXT_DEPLOYMENT_ID is already set, don't re-evaluate the function (avoid calling it multiple times)
+      let userConfiguredDeploymentId: string | undefined
+      if (this.nextConfig.experimental.useSkewCookie) {
+        userConfiguredDeploymentId = undefined
+      } else if (typeof this.nextConfig.deploymentId === 'string') {
+        // Already evaluated, use the cached value
+        userConfiguredDeploymentId = this.nextConfig.deploymentId
+      } else if (
+        this.nextConfig.deploymentId != null &&
+        process.env.NEXT_DEPLOYMENT_ID == null
+      ) {
+        // Only evaluate if NEXT_DEPLOYMENT_ID is not already set (to avoid calling function multiple times)
+        userConfiguredDeploymentId = generateDeploymentId(
+          this.nextConfig.deploymentId
+        )
+      } else {
+        // NEXT_DEPLOYMENT_ID is already set, don't re-evaluate the function
+        userConfiguredDeploymentId = undefined
+      }
 
-      deploymentId = evaluateDeploymentId(id)
-      // Only set NEXT_DEPLOYMENT_ID if it's not already set (undefined) - prebuild scenario
-      // This ensures we never overwrite a Vercel-generated deployment ID
-      // Note: == null checks for both null and undefined, but env vars are typically undefined when not set
-      if (process.env.NEXT_DEPLOYMENT_ID == null) {
-        process.env.NEXT_DEPLOYMENT_ID = deploymentId
+      // User-configured deploymentId takes precedence over NEXT_DEPLOYMENT_ID
+      // Capture original NEXT_DEPLOYMENT_ID before we potentially overwrite it
+      const originalNextDeploymentId = process.env.NEXT_DEPLOYMENT_ID
+      if (userConfiguredDeploymentId !== undefined) {
+        // If NEXT_DEPLOYMENT_ID was already set and doesn't match user config, throw error
+        if (
+          originalNextDeploymentId != null &&
+          userConfiguredDeploymentId !== originalNextDeploymentId
+        ) {
+          throw new Error(
+            `The NEXT_DEPLOYMENT_ID environment variable value "${originalNextDeploymentId}" does not match the provided deploymentId "${userConfiguredDeploymentId}" in the config.`
+          )
+        }
+        // Use user-configured deploymentId
+        deploymentId = userConfiguredDeploymentId
+        // Only overwrite NEXT_DEPLOYMENT_ID if it wasn't already set (to avoid overwriting if function was called before)
+        if (process.env.NEXT_DEPLOYMENT_ID == null) {
+          process.env.NEXT_DEPLOYMENT_ID = userConfiguredDeploymentId
+        }
+      } else if (process.env.NEXT_DEPLOYMENT_ID != null) {
+        // No user config, use NEXT_DEPLOYMENT_ID if set
+        deploymentId = process.env.NEXT_DEPLOYMENT_ID
+      } else {
+        // Neither is set, use empty string
+        deploymentId = ''
       }
     }
 

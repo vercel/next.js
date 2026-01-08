@@ -6,7 +6,6 @@ import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import { tryToParsePath } from './try-to-parse-path'
 import { allowedStatusCodes } from './redirect-status'
 import { isFullStringUrl } from './url'
-import { generateDeploymentId } from '../build/generate-deployment-id'
 
 export type RouteHas =
   | {
@@ -727,10 +726,9 @@ export default async function loadCustomRoutes(
   }
 
   if (config.experimental?.useSkewCookie && config.deploymentId) {
-    // Evaluate deploymentId function if needed before string interpolation
-    // When NEXT_DEPLOYMENT_ID is set (Vercel deployment), config.deploymentId will be that value
-    // When NEXT_DEPLOYMENT_ID is not set (prebuild), config.deploymentId will be the user-configured value
-    const deploymentId = generateDeploymentId(config.deploymentId) || ''
+    // config.deploymentId is already evaluated as a string at this point
+    // (user-configured deploymentId takes precedence over NEXT_DEPLOYMENT_ID)
+    const deploymentId = config.deploymentId
     headers.unshift({
       source: '/:path*',
       headers: [

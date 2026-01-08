@@ -1145,19 +1145,8 @@ export interface NextConfig {
 
   /**
    * A unique identifier for a deployment that will be included in each request's query string or header.
-   * Can be a string or a function that returns a string (or Promise<string>).
-   * If not provided, a unique ID will be auto-generated.
-   *
-   * @example
-   * ```js
-   * // Static string
-   * deploymentId: 'my-deployment-123'
-   *
-   * // Function that generates a unique ID per build
-   * deploymentId: () => process.env.GIT_HASH || Date.now().toString()
-   * ```
    */
-  deploymentId?: string | (() => string)
+  deploymentId?: string
 
   /**
    * Deploy a Next.js application under a sub-path of a domain

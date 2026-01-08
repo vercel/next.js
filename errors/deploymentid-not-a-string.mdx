@@ -31,4 +31,4 @@ The `deploymentId` can be:
 
 - A string: `deploymentId: 'my-deployment-123'`
 - A function that returns a string: `deploymentId: () => process.env.GIT_HASH || ''`
-- `undefined` (will use auto-generated ID)
+- `undefined` (will be empty string, or use `NEXT_DEPLOYMENT_ID` environment variable if set)
