@@ -485,6 +485,13 @@ export type RoutesManifest = {
   skipProxyUrlNormalize?: boolean
   caseSensitive?: boolean
   /**
+   * User-configured deployment ID for skew protection.
+   * This allows users to specify a custom deployment identifier
+   * in their next.config.js that will be used for version skew protection
+   * with pre-built deployments.
+   */
+  deploymentId?: string
+  /**
    * Configuration related to Partial Prerendering.
    */
   ppr?: {
@@ -1604,6 +1611,7 @@ export default async function build(
       const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
 
       // Generate the routes manifest using the extracted helper
+      // config.deploymentId is already evaluated as a string at this point (from line 958-968)
       const { routesManifest, dynamicRoutes, sourcePages } = nextBuildSpan
         .traceChild('generate-routes-manifest')
         .traceFn(() =>
@@ -1616,6 +1624,10 @@ export default async function build(
             rewrites,
             restrictedRedirectPaths,
             isAppPPREnabled,
+            deploymentId:
+              typeof config.deploymentId === 'string'
+                ? config.deploymentId
+                : undefined,
           })
         )
 
