@@ -5,7 +5,7 @@
 use std::{collections::HashSet, mem::take, sync::Mutex};
 
 use anyhow::Result;
-use turbo_tasks::{Invalidator, ReadRef, Vc, get_invalidator};
+use turbo_tasks::{Invalidator, ReadRef, Vc, get_invalidator, with_turbo_tasks};
 use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
@@ -60,11 +60,14 @@ struct Counter {
 
 impl Counter {
     fn incr(&self) {
-        let mut lock = self.value.lock().unwrap();
-        lock.0 += 1;
-        for i in take(&mut lock.1) {
-            i.invalidate();
-        }
+        with_turbo_tasks(|tt| {
+            let mut lock = self.value.lock().unwrap();
+            lock.0 += 1;
+            let invalidators = take(&mut lock.1);
+            for i in invalidators {
+                i.invalidate(&**tt);
+            }
+        });
     }
 }
 

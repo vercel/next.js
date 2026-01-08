@@ -11,8 +11,8 @@ use parking_lot::{Mutex, MutexGuard};
 use tracing::trace_span;
 
 use crate::{
-    Invalidator, OperationValue, SerializationInvalidator, get_invalidator, mark_session_dependent,
-    mark_stateful, trace::TraceRawVcs,
+    Invalidator, OperationValue, SerializationInvalidator, get_invalidator,
+    manager::with_turbo_tasks, mark_session_dependent, mark_stateful, trace::TraceRawVcs,
 };
 
 #[derive(Encode, Decode)]
@@ -36,8 +36,13 @@ impl<T> StateInner<T> {
     pub fn set_unconditionally(&mut self, value: T) {
         self.value = value;
         let _span = trace_span!("state value changed", value_type = type_name::<T>()).entered();
-        for invalidator in take(&mut self.invalidators) {
-            invalidator.invalidate();
+        let invalidators = take(&mut self.invalidators);
+        if !invalidators.is_empty() {
+            with_turbo_tasks(|tt| {
+                for invalidator in invalidators {
+                    invalidator.invalidate(&**tt);
+                }
+            });
         }
     }
 
@@ -46,8 +51,13 @@ impl<T> StateInner<T> {
             return false;
         }
         let _span = trace_span!("state value changed", value_type = type_name::<T>()).entered();
-        for invalidator in take(&mut self.invalidators) {
-            invalidator.invalidate();
+        let invalidators = take(&mut self.invalidators);
+        if !invalidators.is_empty() {
+            with_turbo_tasks(|tt| {
+                for invalidator in invalidators {
+                    invalidator.invalidate(&**tt);
+                }
+            });
         }
         true
     }
@@ -60,8 +70,13 @@ impl<T: PartialEq> StateInner<T> {
         }
         let _span = trace_span!("state value changed", value_type = type_name::<T>()).entered();
         self.value = value;
-        for invalidator in take(&mut self.invalidators) {
-            invalidator.invalidate();
+        let invalidators = take(&mut self.invalidators);
+        if !invalidators.is_empty() {
+            with_turbo_tasks(|tt| {
+                for invalidator in invalidators {
+                    invalidator.invalidate(&**tt);
+                }
+            });
         }
         true
     }
@@ -92,8 +107,13 @@ impl<T> Drop for StateRef<'_, T> {
     fn drop(&mut self) {
         if self.mutated {
             let _span = trace_span!("state value changed", value_type = type_name::<T>()).entered();
-            for invalidator in take(&mut self.inner.invalidators) {
-                invalidator.invalidate();
+            let invalidators = take(&mut self.inner.invalidators);
+            if !invalidators.is_empty() {
+                with_turbo_tasks(|tt| {
+                    for invalidator in invalidators {
+                        invalidator.invalidate(&**tt);
+                    }
+                });
             }
             if let Some(serialization_invalidator) = self.serialization_invalidator {
                 serialization_invalidator.invalidate();
