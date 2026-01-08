@@ -260,6 +260,16 @@ where
         self.raw = self.raw.track_with_key(FxBuildHasher.hash_one(key));
         ReadKeyedVcFuture { future: self, key }
     }
+
+    /// Read the value and checks if it contains the given key. Only depends on the used key instead
+    /// of the full value.
+    pub fn contains_key<'l>(
+        mut self,
+        key: &'l <VcReadTarget<T> as Keyed>::Key,
+    ) -> ReadContainsKeyedVcFuture<'l, T> {
+        self.raw = self.raw.track_with_key(FxBuildHasher.hash_one(key));
+        ReadContainsKeyedVcFuture { future: self, key }
+    }
 }
 
 impl<T> From<ReadRawVcFuture> for ReadVcFuture<T, VcValueTypeCast<T>>
@@ -359,6 +369,39 @@ where
                     None
                 };
                 Poll::Ready(Ok(mapped_read_ref))
+            }
+            Poll::Ready(Err(err)) => Poll::Ready(Err(err)),
+            Poll::Pending => Poll::Pending,
+        }
+    }
+}
+
+pin_project! {
+    pub struct ReadContainsKeyedVcFuture<'l, T>
+    where
+        T: VcValueType,
+        VcReadTarget<T>: Keyed,
+    {
+        #[pin]
+        future: ReadVcFuture<T, VcValueTypeCast<T>>,
+        key: &'l <VcReadTarget<T> as Keyed>::Key,
+    }
+}
+
+impl<'l, T> Future for ReadContainsKeyedVcFuture<'l, T>
+where
+    T: VcValueType,
+    VcReadTarget<T>: Keyed,
+{
+    type Output = Result<bool>;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
+        // Safety: We never move the contents of `self`
+        let this = self.project();
+        match this.future.poll(cx) {
+            Poll::Ready(Ok(result)) => {
+                let result = (&*result).contains_key(this.key);
+                Poll::Ready(Ok(result))
             }
             Poll::Ready(Err(err)) => Poll::Ready(Err(err)),
             Poll::Pending => Poll::Pending,
