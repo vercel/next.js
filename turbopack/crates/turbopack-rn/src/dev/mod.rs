@@ -302,7 +302,11 @@ impl Svc {
             (&Method::GET, path) if path.ends_with(".bundle") => {
                 let entry_file = path.trim_start_matches('/').trim_end_matches(".bundle");
                 let entry_file = if entry_file == "index" {
-                    rcstr!("index.js")
+                    if std::fs::exists(PathBuf::from(&self.project_dir).join("index.ts"))? {
+                        rcstr!("index.ts")
+                    } else {
+                        rcstr!("index.js")
+                    }
                 } else {
                     entry_file.into()
                 };
