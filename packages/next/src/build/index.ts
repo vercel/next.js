@@ -128,7 +128,7 @@ import { sortByPageExts } from './sort-by-page-exts'
 import { getStaticInfoIncludingLayouts } from './get-static-info-including-layouts'
 import { PAGE_TYPES } from '../lib/page-types'
 import { generateBuildId } from './generate-build-id'
-import { generateDeploymentId } from './generate-deployment-id'
+import { resolveAndSetDeploymentId } from './generate-deployment-id'
 import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
 import createSpinner from './spinner'
@@ -964,49 +964,7 @@ export default async function build(
 
       // Generate deploymentId - can be a string or function
       // Call the function once and cache the result to ensure consistency throughout the build process
-      // If config.deploymentId is already a string (evaluated in config.ts), use it directly
-      // Otherwise, evaluate it (but only if NEXT_DEPLOYMENT_ID is not already set to avoid re-evaluating)
-      // Capture original NEXT_DEPLOYMENT_ID before we potentially overwrite it
-      const originalNextDeploymentId = process.env.NEXT_DEPLOYMENT_ID
-      let userConfiguredDeploymentId: string | undefined
-      if (typeof config.deploymentId === 'string') {
-        // Already evaluated, use the cached value
-        userConfiguredDeploymentId = config.deploymentId
-      } else if (
-        config.deploymentId != null &&
-        process.env.NEXT_DEPLOYMENT_ID == null
-      ) {
-        // Only evaluate if NEXT_DEPLOYMENT_ID is not already set (to avoid calling function multiple times)
-        userConfiguredDeploymentId = generateDeploymentId(config.deploymentId)
-      } else {
-        // NEXT_DEPLOYMENT_ID is already set, don't re-evaluate the function
-        userConfiguredDeploymentId = undefined
-      }
-
-      // User-configured deploymentId takes precedence over NEXT_DEPLOYMENT_ID
-      if (userConfiguredDeploymentId !== undefined) {
-        // If NEXT_DEPLOYMENT_ID was already set and doesn't match user config, throw error
-        if (
-          originalNextDeploymentId != null &&
-          userConfiguredDeploymentId !== originalNextDeploymentId
-        ) {
-          throw new Error(
-            `The NEXT_DEPLOYMENT_ID environment variable value "${originalNextDeploymentId}" does not match the provided deploymentId "${userConfiguredDeploymentId}" in the config.`
-          )
-        }
-        // Use user-configured deploymentId
-        config.deploymentId = userConfiguredDeploymentId
-        // Only overwrite NEXT_DEPLOYMENT_ID if it wasn't already set (to avoid overwriting if function was called before)
-        if (process.env.NEXT_DEPLOYMENT_ID == null) {
-          process.env.NEXT_DEPLOYMENT_ID = userConfiguredDeploymentId
-        }
-      } else if (process.env.NEXT_DEPLOYMENT_ID != null) {
-        // No user config, use NEXT_DEPLOYMENT_ID if set
-        config.deploymentId = process.env.NEXT_DEPLOYMENT_ID
-      } else {
-        // Neither is set, use empty string
-        config.deploymentId = ''
-      }
+      config.deploymentId = resolveAndSetDeploymentId(config.deploymentId)
       NextBuildContext.config = config
 
       let configOutDir = 'out'

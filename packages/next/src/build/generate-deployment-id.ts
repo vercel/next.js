@@ -49,3 +49,48 @@ export function evaluateDeploymentId(
   // Handle null, undefined, or any other type
   return ''
 }
+
+/**
+ * Resolves and sets the deployment ID from config, handling precedence and avoiding duplicate function calls.
+ * User-configured deploymentId takes precedence over NEXT_DEPLOYMENT_ID.
+ * Only evaluates the function if NEXT_DEPLOYMENT_ID is not already set (to avoid calling it multiple times).
+ *
+ * @param configDeploymentId - The deploymentId from config (can be string, function, or undefined)
+ * @returns The resolved deploymentId string to use
+ */
+export function resolveAndSetDeploymentId(
+  configDeploymentId: string | (() => string) | undefined
+): string {
+  // If config.deploymentId is already a string (evaluated earlier, e.g., in config.ts), use it directly
+  // Otherwise, evaluate it (but only if NEXT_DEPLOYMENT_ID is not already set to avoid re-evaluating)
+  let userConfiguredDeploymentId: string | undefined
+  if (typeof configDeploymentId === 'string') {
+    // Already evaluated, use the cached value
+    userConfiguredDeploymentId = configDeploymentId
+  } else if (
+    configDeploymentId != null &&
+    process.env.NEXT_DEPLOYMENT_ID == null
+  ) {
+    // Only evaluate if NEXT_DEPLOYMENT_ID is not already set (to avoid calling function multiple times)
+    userConfiguredDeploymentId = generateDeploymentId(configDeploymentId)
+  } else {
+    // NEXT_DEPLOYMENT_ID is already set, don't re-evaluate the function
+    userConfiguredDeploymentId = undefined
+  }
+
+  // User-configured deploymentId takes precedence over NEXT_DEPLOYMENT_ID
+  if (userConfiguredDeploymentId !== undefined) {
+    // Use user-configured deploymentId
+    // Only overwrite NEXT_DEPLOYMENT_ID if it wasn't already set (to avoid overwriting if function was called before)
+    if (process.env.NEXT_DEPLOYMENT_ID == null) {
+      process.env.NEXT_DEPLOYMENT_ID = userConfiguredDeploymentId
+    }
+    return userConfiguredDeploymentId
+  } else if (process.env.NEXT_DEPLOYMENT_ID != null) {
+    // No user config, use NEXT_DEPLOYMENT_ID if set
+    return process.env.NEXT_DEPLOYMENT_ID
+  } else {
+    // Neither is set, use empty string
+    return ''
+  }
+}
