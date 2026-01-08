@@ -15,7 +15,15 @@ describe('Middleware Redirect', () => {
     next = await createNext({
       files: {
         pages: new FileRef(join(__dirname, '../app/pages')),
-        'middleware.js': new FileRef(join(__dirname, '../app/middleware.js')),
+        ...(process.env.TEST_NODE_MIDDLEWARE
+          ? {
+              'proxy.js': new FileRef(join(__dirname, '../app/middleware.js')),
+            }
+          : {
+              'middleware.js': new FileRef(
+                join(__dirname, '../app/middleware.js')
+              ),
+            }),
         'next.config.js': new FileRef(join(__dirname, '../app/next.config.js')),
       },
     })
@@ -37,6 +45,15 @@ describe('Middleware Redirect', () => {
       expect(res.headers.get('location')?.endsWith('/default/about')).toEqual(
         false
       )
+    })
+
+    it('should have relative path for same host redirect', async () => {
+      const res = await next.fetch('/to?pathname=/another', {
+        // workaround for https://github.com/node-fetch/node-fetch/issues/417
+        redirect: 'manual-dont-change' as any,
+      })
+      expect(res.status).toBe(302)
+      expect(res.headers.get('Location')).toBe('/another')
     })
 
     it(`should redirect to data urls with data requests and internal redirects`, async () => {
