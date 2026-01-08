@@ -30,6 +30,7 @@ pub enum UpdateCellOperation {
         cell_ref: CellRef,
         #[bincode(with = "turbo_bincode::indexmap")]
         dependent_tasks: FxIndexMap<TaskId, SmallVec<[Option<u64>; 2]>>,
+        has_updated_key_hashes: bool,
         content: Option<TypedSharedReference>,
         queue: AggregationUpdateQueue,
     },
@@ -100,6 +101,7 @@ impl UpdateCellOperation {
             // When not recomputing, we need to notify dependent tasks if the content actually
             // changes.
 
+            let has_updated_key_hashes = updated_key_hashes.is_some();
             let updated_key_hashes_set = updated_key_hashes.map(|updated_key_hashes| {
                 Lazy::new(|| updated_key_hashes.into_iter().collect::<FxHashSet<u64>>())
             });
@@ -159,6 +161,7 @@ impl UpdateCellOperation {
                         cell,
                     },
                     dependent_tasks,
+                    has_updated_key_hashes,
                     content,
                     queue: AggregationUpdateQueue::new(),
                 }
@@ -220,6 +223,7 @@ impl Operation for UpdateCellOperation {
                     is_serializable_cell_content,
                     cell_ref,
                     ref mut dependent_tasks,
+                    has_updated_key_hashes,
                     ref mut content,
                     ref mut queue,
                 } => {
@@ -256,7 +260,7 @@ impl Operation for UpdateCellOperation {
                             #[cfg(feature = "trace_task_dirty")]
                             TaskDirtyCause::CellChange {
                                 value_type: cell_ref.cell.type_id,
-                                keys,
+                                keys: has_updated_key_hashes.then_some(keys).unwrap_or_default(),
                             },
                             queue,
                             ctx,
