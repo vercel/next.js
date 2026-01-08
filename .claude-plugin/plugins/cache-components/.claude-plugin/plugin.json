@@ -1,0 +1,20 @@
+{
+  "name": "cache-components",
+  "version": "1.0.0",
+  "description": "Expert guidance for Next.js Cache Components and Partial Prerendering (PPR). Proactively activates in projects with cacheComponents: true, providing patterns for 'use cache' directive, cacheLife(), cacheTag(), cache invalidation, and parameter permutation rendering.",
+  "author": {
+    "name": "Next.js Team",
+    "url": "https://nextjs.org"
+  },
+  "homepage": "https://nextjs.org/docs/app/building-your-application/caching",
+  "repository": "https://github.com/vercel/next.js",
+  "license": "MIT",
+  "keywords": [
+    "nextjs",
+    "cache",
+    "ppr",
+    "partial-prerendering",
+    "react-server-components",
+    "use-cache"
+  ]
+}

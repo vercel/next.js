@@ -20,6 +20,8 @@ packages/next/errors.json
 
 crates/**/tests/**/output*
 crates/core/tests/loader/issue-32553/input.js
+# prettier destroys 'use server'/'use client' directives in multi-file code examples
+.claude-plugin/**/*.md
 # prettier destroys the directives here
 crates/next-custom-transforms/tests/errors/react-server-components/client-graph/use-client/input.js
 crates/next-custom-transforms/tests/errors/react-server-components/server-graph/fake-client-entry/input.js
