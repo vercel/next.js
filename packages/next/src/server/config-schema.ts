@@ -568,6 +568,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           .max(50)
           .optional(),
         unoptimized: z.boolean().optional(),
+        customCacheHandler: z.boolean().optional(),
         contentSecurityPolicy: z.string().optional(),
         contentDispositionType: z.enum(['inline', 'attachment']).optional(),
         dangerouslyAllowSVG: z.boolean().optional(),

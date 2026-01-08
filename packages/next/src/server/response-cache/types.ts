@@ -105,6 +105,7 @@ export interface CachedImageValue {
   upstreamEtag: string
   buffer: Buffer
   extension: string
+  revalidate?: number
   isMiss?: boolean
   isStale?: boolean
 }

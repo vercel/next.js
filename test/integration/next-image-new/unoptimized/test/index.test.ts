@@ -127,6 +127,7 @@ function runTests(url: string, mode: 'dev' | 'server') {
             256, 384,
           ],
           unoptimized: true,
+          customCacheHandler: false,
         },
       })
     })

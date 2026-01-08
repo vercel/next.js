@@ -132,6 +132,13 @@ export type ImageConfigComplete = {
 
   /** @see [Unoptimized](https://nextjs.org/docs/api-reference/next/image#unoptimized) */
   unoptimized: boolean
+
+  /**
+   * When true, the `cacheHandler` configured in next.config.js will also be used
+   * for caching optimized images. When false, images use the default filesystem cache.
+   * @see [Image Optimization Caching](https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheHandler#image-optimization-caching)
+   */
+  customCacheHandler: boolean
 }
 
 export type ImageConfig = Partial<ImageConfigComplete>
@@ -159,4 +166,5 @@ export const imageConfigDefault: ImageConfigComplete = {
   remotePatterns: [], // default: allow no remote images
   qualities: [75],
   unoptimized: false,
+  customCacheHandler: false,
 }

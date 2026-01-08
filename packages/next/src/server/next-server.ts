@@ -84,7 +84,10 @@ import ResponseCache, {
   CachedRouteKind,
   type IncrementalResponseCacheEntry,
 } from './response-cache'
-import { IncrementalCache } from './lib/incremental-cache'
+import {
+  IncrementalCache,
+  type CacheHandler as ICacheHandler,
+} from './lib/incremental-cache'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
 import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
@@ -257,6 +260,7 @@ export default class NextNodeServer extends BaseServer<
   protected middlewareManifestPath: string
   private _serverDistDir: string | undefined
   private imageResponseCache?: ResponseCache
+  private imageCacheHandler?: ICacheHandler
   protected renderWorkersPromises?: Promise<void>
   protected dynamicRoutes?: {
     match: import('../shared/lib/router/utils/route-matcher').RouteMatchFn
@@ -987,9 +991,34 @@ export default class NextNodeServer extends BaseServer<
       const { ImageOptimizerCache } =
         require('./image-optimizer') as typeof import('./image-optimizer')
 
+      // Load custom cache handler if configured and opt-in via images.customCacheHandler
+      // Cache the handler instance to preserve state across requests
+      if (
+        !this.imageCacheHandler &&
+        this.nextConfig.images.customCacheHandler
+      ) {
+        const { cacheHandler } = this.nextConfig
+        if (cacheHandler) {
+          const CacheHandler = interopDefault(
+            await dynamicImportEsmDefault(
+              formatDynamicImportPath(this.distDir, cacheHandler)
+            )
+          )
+          this.imageCacheHandler = new CacheHandler({
+            dev: !!this.renderOpts.dev,
+            flushToDisk: this.nextConfig.experimental.isrFlushToDisk,
+            serverDistDir: this.serverDistDir,
+            maxMemoryCacheSize: this.nextConfig.cacheMaxMemorySize,
+            revalidatedTags: [],
+            _requestHeaders: {},
+          })
+        }
+      }
+
       const imageOptimizerCache = new ImageOptimizerCache({
         distDir: this.distDir,
         nextConfig: this.nextConfig,
+        cacheHandler: this.imageCacheHandler,
       })
 
       const { sendResponse, ImageError } =
