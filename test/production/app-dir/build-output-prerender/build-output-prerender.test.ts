@@ -48,7 +48,8 @@ describe('build-output-prerender', () => {
         } else {
           if (isTurbopack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "▲ Next.js x.y.z (Turbopack, Cache Components)
+             "▲ Next.js x.y.z (Turbopack)
+             - Cache Components enabled
              - Experiments (use with caution):
                ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
             `)
@@ -156,7 +157,8 @@ describe('build-output-prerender', () => {
           if (isTurbopack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode. Note: This may affect performance and should not be used for production.
-             ▲ Next.js x.y.z (Turbopack, Cache Components)
+             ▲ Next.js x.y.z (Turbopack)
+             - Cache Components enabled
              - Experiments (use with caution):
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
