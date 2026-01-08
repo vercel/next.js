@@ -226,7 +226,7 @@ impl Operation for UpdateCellOperation {
                     if let Some((dependent_task_id, keys)) = dependent_tasks.pop() {
                         let mut make_stale = false;
                         let dependent = ctx.task(dependent_task_id, TaskDataCategory::All);
-                        for key in keys {
+                        for key in keys.iter().copied() {
                             if dependent.has_key(&CachedDataItemKey::OutdatedCellDependency {
                                 target: cell_ref,
                                 key,
@@ -256,6 +256,7 @@ impl Operation for UpdateCellOperation {
                             #[cfg(feature = "trace_task_dirty")]
                             TaskDirtyCause::CellChange {
                                 value_type: cell_ref.cell.type_id,
+                                keys,
                             },
                             queue,
                             ctx,
