@@ -409,13 +409,13 @@ function installCompressedModuleFactories(chunkModules, offset, moduleFactories,
     values.pathname = inputUrl.replace(/[?#].*/, '');
     values.origin = values.protocol = '';
     values.toString = values.toJSON = (..._args)=>inputUrl;
-    for(const key in values)Object.defineProperty(this, key, {
+    for(const key in values)Object.defineProperty(realUrl, key, {
         enumerable: true,
         configurable: true,
         value: values[key]
     });
+    return realUrl;
 };
-relativeURL.prototype = URL.prototype;
 contextPrototype.U = relativeURL;
 /**
  * Utility function to ensure all variants of an enum are handled.
@@ -803,14 +803,26 @@ const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/;
 /**
  * Modules that call `module.hot.invalidate()` (while being updated).
  */ const queuedInvalidatedModules = new Set();
-class UpdateApplyError extends Error {
-    name = 'UpdateApplyError';
-    dependencyChain;
-    constructor(message, dependencyChain){
-        super(message);
-        this.dependencyChain = dependencyChain;
-    }
-}
+// class UpdateApplyError extends Error {
+//   name = 'UpdateApplyError'
+//
+//   dependencyChain: ModuleId[]
+//
+//   constructor(message: string, dependencyChain: ModuleId[]) {
+//     super(message)
+//     this.dependencyChain = dependencyChain
+//   }
+// }
+const UpdateApplyError = function UpdateApplyError(message, dependencyChain) {
+    // @ts-ignore-error
+    Error.call(this, message);
+    // @ts-ignore-error
+    this.name = 'UpdateApplyError';
+    // @ts-ignore-error
+    this.dependencyChain = dependencyChain;
+};
+UpdateApplyError.prototype = Object.create(Error.prototype);
+UpdateApplyError.prototype.constructor = UpdateApplyError;
 /**
  * Records parent-child relationship when a module imports another.
  * Should be called during module instantiation.

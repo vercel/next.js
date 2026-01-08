@@ -10935,7 +10935,7 @@ dependencies = [
  "hyper-util",
  "owo-colors",
  "pin-project-lite",
- "rand 0.9.0",
+ "rand 0.10.1",
  "regex",
  "rustc-hash 2.1.1",
  "serde",

@@ -2,7 +2,6 @@
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/resolve_error_esm/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
-__turbopack_context__.s([]);
 (()=>{
     const e = new Error("Cannot find module 'does-not-exist/path'");
     e.code = 'MODULE_NOT_FOUND';

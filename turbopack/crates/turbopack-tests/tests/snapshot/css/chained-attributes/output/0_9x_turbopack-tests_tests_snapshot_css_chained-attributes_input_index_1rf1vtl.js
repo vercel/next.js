@@ -2,7 +2,6 @@
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/chained-attributes/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
-__turbopack_context__.s([]);
 ;
 }),
 ]);

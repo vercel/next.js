@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/duplicate-imports/input/a.js"],"sourcesContent":["import shared from './shared.js'\n\nconsole.log('a', shared)\n"],"names":["console","log"],"mappings":"AAAA;;AAEAA,QAAQC,GAAG,CAAC,KAAK,mOAAM"}},
+    {"offset": {"line": 11, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/duplicate-imports/input/b.js"],"sourcesContent":["import './a.js'\nimport shared from './shared.js'\n\nconsole.log('a', shared)\n"],"names":["console","log"],"mappings":"AAAA;AACA;;;AAEAA,QAAQC,GAAG,CAAC,KAAK,mOAAM"}},
+    {"offset": {"line": 20, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/duplicate-imports/input/c.js"],"sourcesContent":["import './b.js'\nimport shared from './shared.js'\n\nconsole.log('c', shared)\n"],"names":["console","log"],"mappings":"AAAA;AACA;;;AAEAA,QAAQC,GAAG,CAAC,KAAK,mOAAM"}},
+    {"offset": {"line": 29, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/duplicate-imports/input/index.js"],"sourcesContent":["import './c.js'\n"],"names":[],"mappings":"AAAA"}},
+    {"offset": {"line": 34, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/duplicate-imports/input/shared.js"],"sourcesContent":["module.exports = 'shared'\n"],"names":["module","exports"],"mappings":"AAAAA,OAAOC,OAAO,GAAG"}}]
+}

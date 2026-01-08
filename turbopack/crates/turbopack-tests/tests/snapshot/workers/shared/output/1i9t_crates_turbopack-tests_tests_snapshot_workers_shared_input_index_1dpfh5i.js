@@ -423,13 +423,13 @@ function installCompressedModuleFactories(chunkModules, offset, moduleFactories,
     values.pathname = inputUrl.replace(/[?#].*/, '');
     values.origin = values.protocol = '';
     values.toString = values.toJSON = (..._args)=>inputUrl;
-    for(const key in values)Object.defineProperty(this, key, {
+    for(const key in values)Object.defineProperty(realUrl, key, {
         enumerable: true,
         configurable: true,
         value: values[key]
     });
+    return realUrl;
 };
-relativeURL.prototype = URL.prototype;
 contextPrototype.U = relativeURL;
 /**
  * Utility function to ensure all variants of an enum are handled.
@@ -622,7 +622,7 @@ browserContextPrototype.l = loadChunk;
 function loadInitialChunk(chunkPath, chunkData) {
     return loadChunkInternal(SourceType.Runtime, chunkPath, chunkData);
 }
-async function loadChunkInternal(sourceType, sourceData, chunkData) {
+function loadChunkInternal(sourceType, sourceData, chunkData) {
     if (typeof chunkData === 'string') {
         return loadChunkPath(sourceType, sourceData, chunkData);
     }
@@ -633,8 +633,7 @@ async function loadChunkInternal(sourceType, sourceData, chunkData) {
     });
     if (modulesPromises.length > 0 && modulesPromises.every((p)=>p)) {
         // When all included items are already loaded or loading, we can skip loading ourselves
-        await Promise.all(modulesPromises);
-        return;
+        return Promise.all(modulesPromises).then(()=>undefined);
     }
     const includedModuleChunksList = chunkData.moduleChunks || [];
     const moduleChunksPromises = includedModuleChunksList.map((included)=>{
@@ -647,8 +646,7 @@ async function loadChunkInternal(sourceType, sourceData, chunkData) {
         // Some module chunks are already loaded or loading.
         if (moduleChunksPromises.length === includedModuleChunksList.length) {
             // When all included module chunks are already loaded or loading, we can skip loading ourselves
-            await Promise.all(moduleChunksPromises);
-            return;
+            return Promise.all(moduleChunksPromises).then(()=>undefined);
         }
         const moduleChunksToLoad = new Set();
         for (const moduleChunk of includedModuleChunksList){
@@ -678,7 +676,7 @@ async function loadChunkInternal(sourceType, sourceData, chunkData) {
             availableModules.set(included, promise);
         }
     }
-    await promise;
+    return promise.then(()=>undefined);
 }
 const loadedChunk = Promise.resolve(undefined);
 const instrumentedBackendLoadChunks = new WeakMap();
@@ -858,14 +856,26 @@ function isCss(chunkUrl) {
 /**
  * Modules that call `module.hot.invalidate()` (while being updated).
  */ const queuedInvalidatedModules = new Set();
-class UpdateApplyError extends Error {
-    name = 'UpdateApplyError';
-    dependencyChain;
-    constructor(message, dependencyChain){
-        super(message);
-        this.dependencyChain = dependencyChain;
-    }
-}
+// class UpdateApplyError extends Error {
+//   name = 'UpdateApplyError'
+//
+//   dependencyChain: ModuleId[]
+//
+//   constructor(message: string, dependencyChain: ModuleId[]) {
+//     super(message)
+//     this.dependencyChain = dependencyChain
+//   }
+// }
+const UpdateApplyError = function UpdateApplyError(message, dependencyChain) {
+    // @ts-ignore-error
+    Error.call(this, message);
+    // @ts-ignore-error
+    this.name = 'UpdateApplyError';
+    // @ts-ignore-error
+    this.dependencyChain = dependencyChain;
+};
+UpdateApplyError.prototype = Object.create(Error.prototype);
+UpdateApplyError.prototype.constructor = UpdateApplyError;
 /**
  * Records parent-child relationship when a module imports another.
  * Should be called during module instantiation.
@@ -1898,15 +1908,19 @@ function handleApply(chunkListPath, update) {
     runtimeChunkLists.add(chunkListPath);
 }
 function registerChunk(registration) {
-    const chunk = getChunkFromRegistration(registration[0]);
+    const chunk = registration[0] === undefined ? undefined : getChunkFromRegistration(registration[0]);
     let runtimeParams;
     // When bootstrapping we are passed a single runtimeParams object so we can distinguish purely based on length
     if (registration.length === 2) {
         runtimeParams = registration[1];
     } else {
-        let chunkPath = getPathFromScript(chunk);
+        let chunkPath = chunk ? getPathFromScript(chunk) : undefined;
         runtimeParams = undefined;
-        installCompressedModuleFactories(registration, /* offset= */ 1, moduleFactories, (id)=>addModuleToChunk(id, chunkPath));
+        installCompressedModuleFactories(registration, /* offset= */ 1, moduleFactories, (id)=>{
+            if (chunkPath) {
+                addModuleToChunk(id, chunkPath);
+            }
+        });
     }
     return BACKEND.registerChunk(chunk, runtimeParams);
 }
@@ -1959,7 +1973,10 @@ let BACKEND;
  */ const chunkResolvers = new Map();
 (()=>{
     BACKEND = {
-        async registerChunk (chunk, params) {
+        registerChunk (chunk, params) {
+            if (chunk === undefined) {
+                throw new Error('Missing chunkPath');
+            }
             let chunkPath = getPathFromScript(chunk);
             let chunkUrl = getUrlFromScript(chunk);
             const resolver = getOrCreateResolver(chunkUrl);
@@ -1974,12 +1991,13 @@ let BACKEND;
                 getOrCreateResolver(otherChunkUrl);
             }
             // This waits for chunks to be loaded, but also marks included items as available.
-            await Promise.all(params.otherChunks.map((otherChunkData)=>loadInitialChunk(chunkPath, otherChunkData)));
-            if (params.runtimeModuleIds.length > 0) {
-                for (const moduleId of params.runtimeModuleIds){
-                    getOrInstantiateRuntimeModule(chunkPath, moduleId);
+            Promise.all(params.otherChunks.map((otherChunkData)=>loadInitialChunk(chunkPath, otherChunkData))).then(()=>{
+                if (params.runtimeModuleIds.length > 0) {
+                    for (const moduleId of params.runtimeModuleIds){
+                        getOrInstantiateRuntimeModule(chunkPath, moduleId);
+                    }
                 }
-            }
+            });
         },
         /**
      * Loads the given chunk, and returns a promise that resolves once the chunk

@@ -383,6 +383,9 @@ pub(crate) struct ImportMap {
     /// because of `export {}`
     has_exports: bool,
 
+    /// True, when the module uses CommonJs `module`
+    references_module: bool,
+
     /// True if the module is an ESM module due to top-level await.
     has_top_level_await: bool,
 
@@ -517,6 +520,9 @@ impl ImportMap {
 
         match specified_type {
             SpecifiedModuleType::Automatic => {
+                if self.references_module {
+                    return false;
+                }
                 self.has_exports || self.has_imports || self.has_top_level_await
             }
             SpecifiedModuleType::CommonJs => false,
@@ -1296,6 +1302,10 @@ impl Visit for Analyzer<'_> {
                 usage.make_side_effects();
             }
         } else {
+            if node.sym == "module" && node.ctxt.has_mark(self.unresolved_mark) {
+                self.data.references_module = true;
+            }
+
             // A regular variable
             if !is_unresolved(node, self.unresolved_mark) {
                 if let Some(top_level) = self.state.cur_top_level_decl_name() {

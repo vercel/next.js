@@ -265,6 +265,7 @@ pub async fn get_side_effect_free_declaration(
 }
 
 #[turbo_tasks::value(shared)]
+#[derive(Debug)]
 pub enum EcmascriptExports {
     /// A module using ESM exports.
     EsmExports(ResolvedVc<EsmExports>),

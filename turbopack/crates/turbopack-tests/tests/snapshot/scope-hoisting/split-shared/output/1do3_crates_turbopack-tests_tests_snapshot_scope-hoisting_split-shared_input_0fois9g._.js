@@ -1,4 +1,4 @@
-(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1do3_crates_turbopack-tests_tests_snapshot_scope-hoisting_split-shared_input_0-l1v8m._.js",
+(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1do3_crates_turbopack-tests_tests_snapshot_scope-hoisting_split-shared_input_0fois9g._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/split-shared/input/x/index.js [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
 
 setTimeout(()=>__turbopack_context__.A("[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/split-shared/input/x/inner.js [test] (ecmascript, async loader)"), 500);
@@ -21,7 +21,6 @@ setTimeout(()=>__turbopack_context__.A("[project]/turbopack/crates/turbopack-tes
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/split-shared/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
-__turbopack_context__.s([]);
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$scope$2d$hoisting$2f$split$2d$shared$2f$input$2f$x$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/split-shared/input/x/index.js [test] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$scope$2d$hoisting$2f$split$2d$shared$2f$input$2f$y$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/split-shared/input/y/index.js [test] (ecmascript)");
 ;
@@ -31,7 +30,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
 
 __turbopack_context__.v((parentImport) => {
     return Promise.all([
-  "output/1jsg_tests_snapshot_scope-hoisting_split-shared_input_y_middle_1inkhp4.js",
+  "output/0_9x_turbopack-tests_tests_snapshot_scope-hoisting_split-shared_input_y_0maq3z1._.js",
   "output/1jsg_tests_snapshot_scope-hoisting_split-shared_input_big_index_194gu9x.js"
 ].map((chunk) => __turbopack_context__.l(chunk))).then(() => {
         return parentImport("[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/split-shared/input/y/middle.js [test] (ecmascript)");
@@ -40,4 +39,4 @@ __turbopack_context__.v((parentImport) => {
 }),
 ]);
 
-//# sourceMappingURL=1do3_crates_turbopack-tests_tests_snapshot_scope-hoisting_split-shared_input_0-l1v8m._.js.map
+//# sourceMappingURL=1do3_crates_turbopack-tests_tests_snapshot_scope-hoisting_split-shared_input_0fois9g._.js.map

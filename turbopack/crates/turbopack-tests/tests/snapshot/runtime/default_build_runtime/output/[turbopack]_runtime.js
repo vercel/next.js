@@ -409,13 +409,13 @@ function installCompressedModuleFactories(chunkModules, offset, moduleFactories,
     values.pathname = inputUrl.replace(/[?#].*/, '');
     values.origin = values.protocol = '';
     values.toString = values.toJSON = (..._args)=>inputUrl;
-    for(const key in values)Object.defineProperty(this, key, {
+    for(const key in values)Object.defineProperty(realUrl, key, {
         enumerable: true,
         configurable: true,
         value: values[key]
     });
+    return realUrl;
 };
-relativeURL.prototype = URL.prototype;
 contextPrototype.U = relativeURL;
 /**
  * Utility function to ensure all variants of an enum are handled.

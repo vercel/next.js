@@ -258,6 +258,7 @@ enum DetectedDynamicExportType {
     Namespace,
     Value,
     None,
+    #[allow(dead_code)]
     UsingModuleDeclarations,
 }
 
@@ -265,18 +266,18 @@ enum DetectedDynamicExportType {
 fn detect_dynamic_export(p: &Program) -> DetectedDynamicExportType {
     use swc_core::ecma::visit::{Visit, VisitWith, visit_obj_and_computed};
 
-    if let Program::Module(m) = p {
-        // Check for imports/exports
-        if m.body.iter().any(|item| {
-            item.as_module_decl().is_some_and(|module_decl| {
-                module_decl.as_import().is_none_or(|import| {
-                    !is_turbopack_helper_import(import) && !is_swc_helper_import(import)
-                })
-            })
-        }) {
-            return DetectedDynamicExportType::UsingModuleDeclarations;
-        }
-    }
+    // if let Program::Module(m) = p {
+    //     // Check for imports/exports
+    //     if m.body.iter().any(|item| {
+    //         item.as_module_decl().is_some_and(|module_decl| {
+    //             module_decl.as_import().is_none_or(|import| {
+    //                 !is_turbopack_helper_import(import) && !is_swc_helper_import(import)
+    //             })
+    //         })
+    //     }) {
+    //         return DetectedDynamicExportType::UsingModuleDeclarations;
+    //     }
+    // }
 
     struct Visitor {
         cjs: bool,

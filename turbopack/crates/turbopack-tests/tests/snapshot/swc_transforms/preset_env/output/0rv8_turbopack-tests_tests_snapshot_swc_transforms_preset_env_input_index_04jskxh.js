@@ -652,13 +652,13 @@ function installCompressedModuleFactories(chunkModules, offset, moduleFactories,
         }
         return inputUrl;
     };
-    for(var key1 in values)Object.defineProperty(this, key1, {
+    for(var key1 in values)Object.defineProperty(realUrl, key1, {
         enumerable: true,
         configurable: true,
         value: values[key1]
     });
+    return realUrl;
 };
-relativeURL.prototype = URL.prototype;
 contextPrototype.U = relativeURL;
 /**
  * Utility function to ensure all variants of an enum are handled.
@@ -709,134 +709,6 @@ function applyModuleFactoryName(factory) {
  */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../base/globals.d.ts" />
 /// <reference path="../../../shared/runtime/runtime-utils.ts" />
 // Used in WebWorkers to tell the runtime about the chunk suffix
-function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
-    try {
-        var info = gen[key](arg);
-        var value = info.value;
-    } catch (error) {
-        reject(error);
-        return;
-    }
-    if (info.done) {
-        resolve(value);
-    } else {
-        Promise.resolve(value).then(_next, _throw);
-    }
-}
-function _async_to_generator(fn) {
-    return function() {
-        var self = this, args = arguments;
-        return new Promise(function(resolve, reject) {
-            var gen = fn.apply(self, args);
-            function _next(value) {
-                asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
-            }
-            function _throw(err) {
-                asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
-            }
-            _next(undefined);
-        });
-    };
-}
-function _ts_generator(thisArg, body) {
-    var f, y, t, _ = {
-        label: 0,
-        sent: function() {
-            if (t[0] & 1) throw t[1];
-            return t[1];
-        },
-        trys: [],
-        ops: []
-    }, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype), d = Object.defineProperty;
-    return d(g, "next", {
-        value: verb(0)
-    }), d(g, "throw", {
-        value: verb(1)
-    }), d(g, "return", {
-        value: verb(2)
-    }), typeof Symbol === "function" && d(g, Symbol.iterator, {
-        value: function() {
-            return this;
-        }
-    }), g;
-    function verb(n) {
-        return function(v) {
-            return step([
-                n,
-                v
-            ]);
-        };
-    }
-    function step(op) {
-        if (f) throw new TypeError("Generator is already executing.");
-        while(g && (g = 0, op[0] && (_ = 0)), _)try {
-            if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
-            if (y = 0, t) op = [
-                op[0] & 2,
-                t.value
-            ];
-            switch(op[0]){
-                case 0:
-                case 1:
-                    t = op;
-                    break;
-                case 4:
-                    _.label++;
-                    return {
-                        value: op[1],
-                        done: false
-                    };
-                case 5:
-                    _.label++;
-                    y = op[1];
-                    op = [
-                        0
-                    ];
-                    continue;
-                case 7:
-                    op = _.ops.pop();
-                    _.trys.pop();
-                    continue;
-                default:
-                    if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) {
-                        _ = 0;
-                        continue;
-                    }
-                    if (op[0] === 3 && (!t || op[1] > t[0] && op[1] < t[3])) {
-                        _.label = op[1];
-                        break;
-                    }
-                    if (op[0] === 6 && _.label < t[1]) {
-                        _.label = t[1];
-                        t = op;
-                        break;
-                    }
-                    if (t && _.label < t[2]) {
-                        _.label = t[2];
-                        _.ops.push(op);
-                        break;
-                    }
-                    if (t[2]) _.ops.pop();
-                    _.trys.pop();
-                    continue;
-            }
-            op = body.call(thisArg, _);
-        } catch (e) {
-            op = [
-                6,
-                e
-            ];
-            y = 0;
-        } finally{
-            f = t = 0;
-        }
-        if (op[0] & 5) throw op[1];
-        return {
-            value: op[0] ? op[1] : void 0,
-            done: true
-        };
-    }
-}
 var browserContextPrototype = Context.prototype;
 var moduleFactories = new Map();
 contextPrototype.M = moduleFactories;
@@ -850,179 +722,138 @@ function loadInitialChunk(chunkPath, chunkData) {
     return loadChunkInternal(SourceType.Runtime, chunkPath, chunkData);
 }
 function loadChunkInternal(sourceType, sourceData, chunkData) {
-    return _async_to_generator(function() {
-        var includedList, modulesPromises, includedModuleChunksList, moduleChunksPromises, promise, moduleChunksToLoad, _iteratorNormalCompletion, _didIteratorError, _iteratorError, _iterator, _step, moduleChunk, _iteratorNormalCompletion1, _didIteratorError1, _iteratorError1, _iterator1, _step1, moduleChunkToLoad, promise1, _iteratorNormalCompletion2, _didIteratorError2, _iteratorError2, _iterator2, _step2, includedModuleChunk, _iteratorNormalCompletion3, _didIteratorError3, _iteratorError3, _iterator3, _step3, included;
-        return _ts_generator(this, function(_state) {
-            switch(_state.label){
-                case 0:
-                    if (typeof chunkData === 'string') {
-                        return [
-                            2,
-                            loadChunkPath(sourceType, sourceData, chunkData)
-                        ];
-                    }
-                    includedList = chunkData.included || [];
-                    modulesPromises = includedList.map(function(included) {
-                        if (moduleFactories.has(included)) return true;
-                        return availableModules.get(included);
-                    });
-                    if (!(modulesPromises.length > 0 && modulesPromises.every(function(p) {
-                        return p;
-                    }))) return [
-                        3,
-                        2
-                    ];
-                    // When all included items are already loaded or loading, we can skip loading ourselves
-                    return [
-                        4,
-                        Promise.all(modulesPromises)
-                    ];
-                case 1:
-                    _state.sent();
-                    return [
-                        2
-                    ];
-                case 2:
-                    includedModuleChunksList = chunkData.moduleChunks || [];
-                    moduleChunksPromises = includedModuleChunksList.map(function(included) {
-                        // TODO(alexkirsz) Do we need this check?
-                        // if (moduleFactories[included]) return true;
-                        return availableModuleChunks.get(included);
-                    }).filter(function(p) {
-                        return p;
-                    });
-                    if (!(moduleChunksPromises.length > 0)) return [
-                        3,
-                        5
-                    ];
-                    if (!(moduleChunksPromises.length === includedModuleChunksList.length)) return [
-                        3,
-                        4
-                    ];
-                    // When all included module chunks are already loaded or loading, we can skip loading ourselves
-                    return [
-                        4,
-                        Promise.all(moduleChunksPromises)
-                    ];
-                case 3:
-                    _state.sent();
-                    return [
-                        2
-                    ];
-                case 4:
-                    moduleChunksToLoad = new Set();
-                    _iteratorNormalCompletion = true, _didIteratorError = false, _iteratorError = undefined;
-                    try {
-                        for(_iterator = includedModuleChunksList[Symbol.iterator](); !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true){
-                            moduleChunk = _step.value;
-                            if (!availableModuleChunks.has(moduleChunk)) {
-                                moduleChunksToLoad.add(moduleChunk);
-                            }
-                        }
-                    } catch (err) {
-                        _didIteratorError = true;
-                        _iteratorError = err;
-                    } finally{
-                        try {
-                            if (!_iteratorNormalCompletion && _iterator.return != null) {
-                                _iterator.return();
-                            }
-                        } finally{
-                            if (_didIteratorError) {
-                                throw _iteratorError;
-                            }
-                        }
-                    }
-                    _iteratorNormalCompletion1 = true, _didIteratorError1 = false, _iteratorError1 = undefined;
-                    try {
-                        for(_iterator1 = moduleChunksToLoad[Symbol.iterator](); !(_iteratorNormalCompletion1 = (_step1 = _iterator1.next()).done); _iteratorNormalCompletion1 = true){
-                            moduleChunkToLoad = _step1.value;
-                            promise1 = loadChunkPath(sourceType, sourceData, moduleChunkToLoad);
-                            availableModuleChunks.set(moduleChunkToLoad, promise1);
-                            moduleChunksPromises.push(promise1);
-                        }
-                    } catch (err) {
-                        _didIteratorError1 = true;
-                        _iteratorError1 = err;
-                    } finally{
-                        try {
-                            if (!_iteratorNormalCompletion1 && _iterator1.return != null) {
-                                _iterator1.return();
-                            }
-                        } finally{
-                            if (_didIteratorError1) {
-                                throw _iteratorError1;
-                            }
-                        }
-                    }
-                    promise = Promise.all(moduleChunksPromises);
-                    return [
-                        3,
-                        6
-                    ];
-                case 5:
-                    promise = loadChunkPath(sourceType, sourceData, chunkData.path);
-                    _iteratorNormalCompletion2 = true, _didIteratorError2 = false, _iteratorError2 = undefined;
-                    try {
-                        // Mark all included module chunks as loading if they are not already loaded or loading.
-                        for(_iterator2 = includedModuleChunksList[Symbol.iterator](); !(_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done); _iteratorNormalCompletion2 = true){
-                            includedModuleChunk = _step2.value;
-                            if (!availableModuleChunks.has(includedModuleChunk)) {
-                                availableModuleChunks.set(includedModuleChunk, promise);
-                            }
-                        }
-                    } catch (err) {
-                        _didIteratorError2 = true;
-                        _iteratorError2 = err;
-                    } finally{
-                        try {
-                            if (!_iteratorNormalCompletion2 && _iterator2.return != null) {
-                                _iterator2.return();
-                            }
-                        } finally{
-                            if (_didIteratorError2) {
-                                throw _iteratorError2;
-                            }
-                        }
-                    }
-                    _state.label = 6;
-                case 6:
-                    _iteratorNormalCompletion3 = true, _didIteratorError3 = false, _iteratorError3 = undefined;
-                    try {
-                        for(_iterator3 = includedList[Symbol.iterator](); !(_iteratorNormalCompletion3 = (_step3 = _iterator3.next()).done); _iteratorNormalCompletion3 = true){
-                            included = _step3.value;
-                            if (!availableModules.has(included)) {
-                                // It might be better to race old and new promises, but it's rare that the new promise will be faster than a request started earlier.
-                                // In production it's even more rare, because the chunk optimization tries to deduplicate modules anyway.
-                                availableModules.set(included, promise);
-                            }
-                        }
-                    } catch (err) {
-                        _didIteratorError3 = true;
-                        _iteratorError3 = err;
-                    } finally{
-                        try {
-                            if (!_iteratorNormalCompletion3 && _iterator3.return != null) {
-                                _iterator3.return();
-                            }
-                        } finally{
-                            if (_didIteratorError3) {
-                                throw _iteratorError3;
-                            }
-                        }
-                    }
-                    return [
-                        4,
-                        promise
-                    ];
-                case 7:
-                    _state.sent();
-                    return [
-                        2
-                    ];
-            }
+    if (typeof chunkData === 'string') {
+        return loadChunkPath(sourceType, sourceData, chunkData);
+    }
+    var includedList = chunkData.included || [];
+    var modulesPromises = includedList.map(function(included) {
+        if (moduleFactories.has(included)) return true;
+        return availableModules.get(included);
+    });
+    if (modulesPromises.length > 0 && modulesPromises.every(function(p) {
+        return p;
+    })) {
+        // When all included items are already loaded or loading, we can skip loading ourselves
+        return Promise.all(modulesPromises).then(function() {
+            return undefined;
         });
-    })();
+    }
+    var includedModuleChunksList = chunkData.moduleChunks || [];
+    var moduleChunksPromises = includedModuleChunksList.map(function(included) {
+        // TODO(alexkirsz) Do we need this check?
+        // if (moduleFactories[included]) return true;
+        return availableModuleChunks.get(included);
+    }).filter(function(p) {
+        return p;
+    });
+    var promise;
+    if (moduleChunksPromises.length > 0) {
+        // Some module chunks are already loaded or loading.
+        if (moduleChunksPromises.length === includedModuleChunksList.length) {
+            // When all included module chunks are already loaded or loading, we can skip loading ourselves
+            return Promise.all(moduleChunksPromises).then(function() {
+                return undefined;
+            });
+        }
+        var moduleChunksToLoad = new Set();
+        var _iteratorNormalCompletion = true, _didIteratorError = false, _iteratorError = undefined;
+        try {
+            for(var _iterator = includedModuleChunksList[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true){
+                var moduleChunk = _step.value;
+                if (!availableModuleChunks.has(moduleChunk)) {
+                    moduleChunksToLoad.add(moduleChunk);
+                }
+            }
+        } catch (err) {
+            _didIteratorError = true;
+            _iteratorError = err;
+        } finally{
+            try {
+                if (!_iteratorNormalCompletion && _iterator.return != null) {
+                    _iterator.return();
+                }
+            } finally{
+                if (_didIteratorError) {
+                    throw _iteratorError;
+                }
+            }
+        }
+        var _iteratorNormalCompletion1 = true, _didIteratorError1 = false, _iteratorError1 = undefined;
+        try {
+            for(var _iterator1 = moduleChunksToLoad[Symbol.iterator](), _step1; !(_iteratorNormalCompletion1 = (_step1 = _iterator1.next()).done); _iteratorNormalCompletion1 = true){
+                var moduleChunkToLoad = _step1.value;
+                var promise1 = loadChunkPath(sourceType, sourceData, moduleChunkToLoad);
+                availableModuleChunks.set(moduleChunkToLoad, promise1);
+                moduleChunksPromises.push(promise1);
+            }
+        } catch (err) {
+            _didIteratorError1 = true;
+            _iteratorError1 = err;
+        } finally{
+            try {
+                if (!_iteratorNormalCompletion1 && _iterator1.return != null) {
+                    _iterator1.return();
+                }
+            } finally{
+                if (_didIteratorError1) {
+                    throw _iteratorError1;
+                }
+            }
+        }
+        promise = Promise.all(moduleChunksPromises);
+    } else {
+        promise = loadChunkPath(sourceType, sourceData, chunkData.path);
+        var _iteratorNormalCompletion2 = true, _didIteratorError2 = false, _iteratorError2 = undefined;
+        try {
+            // Mark all included module chunks as loading if they are not already loaded or loading.
+            for(var _iterator2 = includedModuleChunksList[Symbol.iterator](), _step2; !(_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done); _iteratorNormalCompletion2 = true){
+                var includedModuleChunk = _step2.value;
+                if (!availableModuleChunks.has(includedModuleChunk)) {
+                    availableModuleChunks.set(includedModuleChunk, promise);
+                }
+            }
+        } catch (err) {
+            _didIteratorError2 = true;
+            _iteratorError2 = err;
+        } finally{
+            try {
+                if (!_iteratorNormalCompletion2 && _iterator2.return != null) {
+                    _iterator2.return();
+                }
+            } finally{
+                if (_didIteratorError2) {
+                    throw _iteratorError2;
+                }
+            }
+        }
+    }
+    var _iteratorNormalCompletion3 = true, _didIteratorError3 = false, _iteratorError3 = undefined;
+    try {
+        for(var _iterator3 = includedList[Symbol.iterator](), _step3; !(_iteratorNormalCompletion3 = (_step3 = _iterator3.next()).done); _iteratorNormalCompletion3 = true){
+            var included = _step3.value;
+            if (!availableModules.has(included)) {
+                // It might be better to race old and new promises, but it's rare that the new promise will be faster than a request started earlier.
+                // In production it's even more rare, because the chunk optimization tries to deduplicate modules anyway.
+                availableModules.set(included, promise);
+            }
+        }
+    } catch (err) {
+        _didIteratorError3 = true;
+        _iteratorError3 = err;
+    } finally{
+        try {
+            if (!_iteratorNormalCompletion3 && _iterator3.return != null) {
+                _iterator3.return();
+            }
+        } finally{
+            if (_didIteratorError3) {
+                throw _iteratorError3;
+            }
+        }
+    }
+    return promise.then(function() {
+        return undefined;
+    });
 }
 var loadedChunk = Promise.resolve(undefined);
 var instrumentedBackendLoadChunks = new WeakMap();
@@ -1239,7 +1070,7 @@ function instantiateModule(id, sourceType, sourceData) {
 }
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function registerChunk(registration) {
-    var chunk = getChunkFromRegistration(registration[0]);
+    var chunk = registration[0] === undefined ? undefined : getChunkFromRegistration(registration[0]);
     var runtimeParams;
     // When bootstrapping we are passed a single runtimeParams object so we can distinguish purely based on length
     if (registration.length === 2) {
@@ -1250,140 +1081,12 @@ function registerChunk(registration) {
     }
     return BACKEND.registerChunk(chunk, runtimeParams);
 }
-function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
-    try {
-        var info = gen[key](arg);
-        var value = info.value;
-    } catch (error) {
-        reject(error);
-        return;
-    }
-    if (info.done) {
-        resolve(value);
-    } else {
-        Promise.resolve(value).then(_next, _throw);
-    }
-}
-function _async_to_generator(fn) {
-    return function() {
-        var self1 = this, args = arguments;
-        return new Promise(function(resolve, reject) {
-            var gen = fn.apply(self1, args);
-            function _next(value) {
-                asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
-            }
-            function _throw(err) {
-                asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
-            }
-            _next(undefined);
-        });
-    };
-}
 function _instanceof(left, right) {
     "@swc/helpers - instanceof";
     if (right != null && typeof Symbol !== "undefined" && right[Symbol.hasInstance]) {
         return !!right[Symbol.hasInstance](left);
     } else {
         return left instanceof right;
-    }
-}
-function _ts_generator(thisArg, body) {
-    var f, y, t, _ = {
-        label: 0,
-        sent: function() {
-            if (t[0] & 1) throw t[1];
-            return t[1];
-        },
-        trys: [],
-        ops: []
-    }, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype), d = Object.defineProperty;
-    return d(g, "next", {
-        value: verb(0)
-    }), d(g, "throw", {
-        value: verb(1)
-    }), d(g, "return", {
-        value: verb(2)
-    }), typeof Symbol === "function" && d(g, Symbol.iterator, {
-        value: function() {
-            return this;
-        }
-    }), g;
-    function verb(n) {
-        return function(v) {
-            return step([
-                n,
-                v
-            ]);
-        };
-    }
-    function step(op) {
-        if (f) throw new TypeError("Generator is already executing.");
-        while(g && (g = 0, op[0] && (_ = 0)), _)try {
-            if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
-            if (y = 0, t) op = [
-                op[0] & 2,
-                t.value
-            ];
-            switch(op[0]){
-                case 0:
-                case 1:
-                    t = op;
-                    break;
-                case 4:
-                    _.label++;
-                    return {
-                        value: op[1],
-                        done: false
-                    };
-                case 5:
-                    _.label++;
-                    y = op[1];
-                    op = [
-                        0
-                    ];
-                    continue;
-                case 7:
-                    op = _.ops.pop();
-                    _.trys.pop();
-                    continue;
-                default:
-                    if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) {
-                        _ = 0;
-                        continue;
-                    }
-                    if (op[0] === 3 && (!t || op[1] > t[0] && op[1] < t[3])) {
-                        _.label = op[1];
-                        break;
-                    }
-                    if (op[0] === 6 && _.label < t[1]) {
-                        _.label = t[1];
-                        t = op;
-                        break;
-                    }
-                    if (t && _.label < t[2]) {
-                        _.label = t[2];
-                        _.ops.push(op);
-                        break;
-                    }
-                    if (t[2]) _.ops.pop();
-                    _.trys.pop();
-                    continue;
-            }
-            op = body.call(thisArg, _);
-        } catch (e) {
-            op = [
-                6,
-                e
-            ];
-            y = 0;
-        } finally{
-            f = t = 0;
-        }
-        if (op[0] & 5) throw op[1];
-        return {
-            value: op[0] ? op[1] : void 0,
-            done: true
-        };
     }
 }
 /**
@@ -1408,80 +1111,66 @@ var BACKEND;
 (function() {
     BACKEND = {
         registerChunk: function registerChunk(chunk, params) {
-            return _async_to_generator(function() {
-                var chunkPath, chunkUrl, resolver, _iteratorNormalCompletion, _didIteratorError, _iteratorError, _iterator, _step, otherChunkData, otherChunkPath, otherChunkUrl, _iteratorNormalCompletion1, _didIteratorError1, _iteratorError1, _iterator1, _step1, moduleId;
-                return _ts_generator(this, function(_state) {
-                    switch(_state.label){
-                        case 0:
-                            chunkPath = getPathFromScript(chunk);
-                            chunkUrl = getUrlFromScript(chunk);
-                            resolver = getOrCreateResolver(chunkUrl);
-                            resolver.resolve();
-                            if (params == null) {
-                                return [
-                                    2
-                                ];
-                            }
-                            _iteratorNormalCompletion = true, _didIteratorError = false, _iteratorError = undefined;
-                            try {
-                                for(_iterator = params.otherChunks[Symbol.iterator](); !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true){
-                                    otherChunkData = _step.value;
-                                    otherChunkPath = getChunkPath(otherChunkData);
-                                    otherChunkUrl = getChunkRelativeUrl(otherChunkPath);
-                                    // Chunk might have started loading, so we want to avoid triggering another load.
-                                    getOrCreateResolver(otherChunkUrl);
-                                }
-                            } catch (err) {
-                                _didIteratorError = true;
-                                _iteratorError = err;
-                            } finally{
-                                try {
-                                    if (!_iteratorNormalCompletion && _iterator.return != null) {
-                                        _iterator.return();
-                                    }
-                                } finally{
-                                    if (_didIteratorError) {
-                                        throw _iteratorError;
-                                    }
-                                }
-                            }
-                            // This waits for chunks to be loaded, but also marks included items as available.
-                            return [
-                                4,
-                                Promise.all(params.otherChunks.map(function(otherChunkData) {
-                                    return loadInitialChunk(chunkPath, otherChunkData);
-                                }))
-                            ];
-                        case 1:
-                            _state.sent();
-                            if (params.runtimeModuleIds.length > 0) {
-                                _iteratorNormalCompletion1 = true, _didIteratorError1 = false, _iteratorError1 = undefined;
-                                try {
-                                    for(_iterator1 = params.runtimeModuleIds[Symbol.iterator](); !(_iteratorNormalCompletion1 = (_step1 = _iterator1.next()).done); _iteratorNormalCompletion1 = true){
-                                        moduleId = _step1.value;
-                                        getOrInstantiateRuntimeModule(chunkPath, moduleId);
-                                    }
-                                } catch (err) {
-                                    _didIteratorError1 = true;
-                                    _iteratorError1 = err;
-                                } finally{
-                                    try {
-                                        if (!_iteratorNormalCompletion1 && _iterator1.return != null) {
-                                            _iterator1.return();
-                                        }
-                                    } finally{
-                                        if (_didIteratorError1) {
-                                            throw _iteratorError1;
-                                        }
-                                    }
-                                }
-                            }
-                            return [
-                                2
-                            ];
+            if (chunk === undefined) {
+                throw new Error('Missing chunkPath');
+            }
+            var chunkPath = getPathFromScript(chunk);
+            var chunkUrl = getUrlFromScript(chunk);
+            var resolver = getOrCreateResolver(chunkUrl);
+            resolver.resolve();
+            if (params == null) {
+                return;
+            }
+            var _iteratorNormalCompletion = true, _didIteratorError = false, _iteratorError = undefined;
+            try {
+                for(var _iterator = params.otherChunks[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true){
+                    var otherChunkData = _step.value;
+                    var otherChunkPath = getChunkPath(otherChunkData);
+                    var otherChunkUrl = getChunkRelativeUrl(otherChunkPath);
+                    // Chunk might have started loading, so we want to avoid triggering another load.
+                    getOrCreateResolver(otherChunkUrl);
+                }
+            } catch (err) {
+                _didIteratorError = true;
+                _iteratorError = err;
+            } finally{
+                try {
+                    if (!_iteratorNormalCompletion && _iterator.return != null) {
+                        _iterator.return();
                     }
-                });
-            })();
+                } finally{
+                    if (_didIteratorError) {
+                        throw _iteratorError;
+                    }
+                }
+            }
+            // This waits for chunks to be loaded, but also marks included items as available.
+            Promise.all(params.otherChunks.map(function(otherChunkData) {
+                return loadInitialChunk(chunkPath, otherChunkData);
+            })).then(function() {
+                if (params.runtimeModuleIds.length > 0) {
+                    var _iteratorNormalCompletion = true, _didIteratorError = false, _iteratorError = undefined;
+                    try {
+                        for(var _iterator = params.runtimeModuleIds[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true){
+                            var moduleId = _step.value;
+                            getOrInstantiateRuntimeModule(chunkPath, moduleId);
+                        }
+                    } catch (err) {
+                        _didIteratorError = true;
+                        _iteratorError = err;
+                    } finally{
+                        try {
+                            if (!_iteratorNormalCompletion && _iterator.return != null) {
+                                _iterator.return();
+                            }
+                        } finally{
+                            if (_didIteratorError) {
+                                throw _iteratorError;
+                            }
+                        }
+                    }
+                }
+            });
         },
         /**
      * Loads the given chunk, and returns a promise that resolves once the chunk
