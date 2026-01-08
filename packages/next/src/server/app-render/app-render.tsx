@@ -2247,8 +2247,6 @@ async function renderToHTMLOrFlightImpl(
       }
 
       didExecuteServerAction = true
-      // Restore the resume data cache
-      requestStore.renderResumeDataCache = renderResumeDataCache
     }
 
     const options: RenderResultOptions = {
