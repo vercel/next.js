@@ -2,7 +2,7 @@ use std::{
     fmt::Display,
     future::Future,
     hash::BuildHasherDefault,
-    mem::take,
+    mem::{ManuallyDrop, take},
     pin::Pin,
     sync::{
         Arc, Mutex, RwLock, Weak,
@@ -342,8 +342,17 @@ impl Display for ReadTracking {
     }
 }
 
+/// Safety: It is up to the callsite dereferencing the pointer to ensure `Send`+`Sync` for the
+/// pointer. Dereferencing a pointer is already unsafe.
+struct SendSyncConstPtr<T>(*const T);
+unsafe impl<T: Send> Send for SendSyncConstPtr<T> {}
+unsafe impl<T: Sync> Sync for SendSyncConstPtr<T> {}
+
 pub struct TurboTasks<B: Backend + 'static> {
     this: Weak<Self>,
+    /// The value that `turbo_tasks.this.as_ptr()` would return. This is used by `TurboTasks::pin`
+    /// to avoid `Weak`'s danging check inside of the hot codepath.
+    this_ptr: SendSyncConstPtr<Self>,
     backend: B,
     task_id_factory: IdFactoryWithReuse<TaskId>,
     transient_task_id_factory: IdFactoryWithReuse<TaskId>,
@@ -473,8 +482,10 @@ impl<B: Backend + 'static> TurboTasks<B> {
         let transient_task_id_factory =
             IdFactoryWithReuse::new(TaskId::try_from(TRANSIENT_TASK_BIT).unwrap(), TaskId::MAX);
         let execution_id_factory = IdFactory::new(ExecutionId::MIN, ExecutionId::MAX);
-        let this = Arc::new_cyclic(|this| Self {
-            this: this.clone(),
+        let mut this = Arc::new(Self {
+            // use sentinel values for this/this_ptr
+            this: Weak::new(),
+            this_ptr: SendSyncConstPtr(Weak::<Self>::new().as_ptr()),
             backend,
             task_id_factory,
             transient_task_id_factory,
@@ -497,12 +508,33 @@ impl<B: Backend + 'static> TurboTasks<B> {
             program_start: Instant::now(),
             compilation_events: CompilationEventQueue::default(),
         });
+        {
+            let this_ptr = Arc::as_ptr(&this);
+            let this_mut = Arc::get_mut(&mut this).unwrap();
+            unsafe { this_mut.this = Weak::clone(&ManuallyDrop::new(Weak::from_raw(this_ptr))) };
+            this_mut.this_ptr.0 = this_ptr;
+        }
         this.backend.startup(&*this);
         this
     }
 
     pub fn pin(&self) -> Arc<Self> {
-        self.this.upgrade().unwrap()
+        // Use `Arc::from_raw()` + `clone()` because it's slightly cheaper to bump the strong count
+        // of an `Arc` than a `Weak`. `Weak` must do a compare-and-swap because it cannot safely
+        // increment the strong reference count if it was previously zero.
+        //
+        // We know that the strong reference count cannot be zero within the `body` of `pin()`
+        // because we know that `&self` still exists.
+        //
+        // Caveats:
+        // - It would not be safe to call `.pin()` within a `Drop` impl of `TurboTasks`.
+        // - We assume that `Arc::into_inner` or `Arc::try_unwrap` are not called on
+        //   `Arc<TurboTasks>`.
+        //
+        // Safety: `this_ptr` is a pointer to `self`. We know it must be valid because `self` is,
+        // and because we assume that the `Arc` is never unwrapped.
+        assert!(self.this.strong_count() > 0);
+        unsafe { Arc::clone(&ManuallyDrop::new(Arc::from_raw(self.this_ptr.0))) }
     }
 
     /// Creates a new root task
