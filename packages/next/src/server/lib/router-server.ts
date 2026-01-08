@@ -105,7 +105,7 @@ export async function initialize(opts: {
     {
       silent: false,
       reportExperimentalFeatures(features) {
-        experimentalFeatures = features.sort(({ key: a }, { key: b }) =>
+        experimentalFeatures = features.toSorted(({ key: a }, { key: b }) =>
           a.localeCompare(b)
         )
       },

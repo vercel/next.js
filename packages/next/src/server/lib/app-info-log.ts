@@ -118,8 +118,5 @@ export function logExperimentalInfo({
  */
 export function getEnvInfo(dir: string): string[] {
   const { loadedEnvFiles } = loadEnvConfig(dir, true, console, false)
-  if (loadedEnvFiles.length > 0) {
-    return loadedEnvFiles.map((f) => f.path)
-  }
-  return []
+  return loadedEnvFiles.map((f) => f.path)
 }
