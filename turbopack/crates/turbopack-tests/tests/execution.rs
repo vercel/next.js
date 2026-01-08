@@ -520,12 +520,18 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         options
             .remove_unused_exports
             .then(|| binding_usage.unwrap()),
-    )
-    .unused_references(
-        options
-            .remove_unused_imports
-            .then(|| binding_usage.unwrap()),
     );
+
+    if options.remove_unused_imports {
+        builder = builder.unused_references(
+            binding_usage
+                .unwrap()
+                .unused_references()
+                .to_resolved()
+                .await?,
+        );
+    }
+
     if options.production_chunking {
         builder = builder
             .chunking_config(
