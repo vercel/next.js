@@ -35,6 +35,7 @@ import { type Span, trace, flushAllTraces } from '../../trace'
 import { isIPv6 } from './is-ipv6'
 import { AsyncCallbackSet } from './async-callback-set'
 import type { NextServer } from '../next'
+import { durationToString } from '../../build/duration-to-string'
 
 const debug = setupDebug('next:start-server')
 let startServerSpan: Span | undefined
@@ -372,14 +373,13 @@ export async function startServer(
       // so it reflects actual framework startup time
       const startTime = parseInt(process.env.NEXT_PRIVATE_START_TIME || '0', 10)
       const endTime = Date.now()
-      const startServerProcessDuration = endTime - startTime
+      const startServerProcessDurationMs = endTime - startTime
 
-      const formatDurationText =
-        startServerProcessDuration > 2000
-          ? `${Math.round(startServerProcessDuration / 100) / 10}s`
-          : `${Math.round(startServerProcessDuration)}ms`
+      const formattedStartDuration = durationToString(
+        startServerProcessDurationMs / 1000
+      )
 
-      Log.event(`Ready in ${formatDurationText}`)
+      Log.event(`Ready in ${formattedStartDuration}`)
 
       try {
         let cleanupStarted = false
