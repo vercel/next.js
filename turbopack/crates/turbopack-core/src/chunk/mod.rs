@@ -4,11 +4,9 @@ pub mod chunk_group;
 pub(crate) mod chunk_item_batch;
 pub mod chunking;
 pub(crate) mod chunking_context;
-pub(crate) mod containment_tree;
 pub(crate) mod data;
 pub(crate) mod evaluate;
 pub mod module_id_strategies;
-pub mod optimize;
 
 use std::fmt::Display;
 
