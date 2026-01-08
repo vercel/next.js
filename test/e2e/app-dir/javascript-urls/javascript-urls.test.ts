@@ -7,6 +7,8 @@ import {
 } from 'next-test-utils'
 import type { Page, Request } from 'playwright'
 
+const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
+
 describe('javascript-urls', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
@@ -247,40 +249,47 @@ describe('javascript-urls', () => {
     expect(safePageUrl).toContain('/app/safe')
   })
 
-  it('should prevent javascript URLs in pages router Link component', async () => {
-    const { beforePageLoad, getNavigationRequests } =
-      createNavigationInterceptor()
+  // React 18 did not block JavaScript URLs, it was just a console error.
+  if (!isReact18) {
+    it('should prevent javascript URLs in pages router Link component', async () => {
+      const { beforePageLoad, getNavigationRequests } =
+        createNavigationInterceptor()
 
-    const browser = await next.browser('/pages/link-href', {
-      pushErrorAsConsoleLog: true,
-      beforePageLoad,
-    })
-    const initialUrl = await browser.url()
+      const browser = await next.browser('/pages/link-href', {
+        pushErrorAsConsoleLog: true,
+        beforePageLoad,
+      })
+      const initialUrl = await browser.url()
 
-    await browser.elementByCss('a').click()
+      await browser.elementByCss('a').click()
 
-    await expectJavascriptUrlBlocked(browser, initialUrl, getNavigationRequests)
-
-    if (isNextDev) {
-      await waitForRedbox(browser)
-      expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
-        `"React has blocked a javascript: URL as a security precaution."`
+      await expectJavascriptUrlBlocked(
+        browser,
+        initialUrl,
+        getNavigationRequests
       )
-      browser.keydown('Escape')
-      await waitForNoRedbox(browser)
-    }
 
-    // Click the safe page link
-    await browser.elementByCss('a[href="/pages/safe"]').click()
+      if (isNextDev) {
+        await waitForRedbox(browser)
+        expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
+          `"React has blocked a javascript: URL as a security precaution."`
+        )
+        browser.keydown('Escape')
+        await waitForNoRedbox(browser)
+      }
 
-    // Wait for navigation to complete
-    await browser.waitForCondition(
-      'window.location.pathname.includes("/pages/safe")'
-    )
+      // Click the safe page link
+      await browser.elementByCss('a[href="/pages/safe"]').click()
 
-    const safePageUrl = await browser.url()
-    expect(safePageUrl).toContain('/pages/safe')
-  })
+      // Wait for navigation to complete
+      await browser.waitForCondition(
+        'window.location.pathname.includes("/pages/safe")'
+      )
+
+      const safePageUrl = await browser.url()
+      expect(safePageUrl).toContain('/pages/safe')
+    })
+  }
 
   it('should prevent javascript URLs in pages router Link as prop', async () => {
     const { beforePageLoad, getNavigationRequests } =
