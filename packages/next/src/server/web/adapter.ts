@@ -455,7 +455,10 @@ export async function adapter(
     if (!process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE) {
       if (redirectURL.host === requestURL.host) {
         redirectURL.buildId = buildId || redirectURL.buildId
-        response.headers.set('Location', redirectURL.toString())
+        response.headers.set(
+          'Location',
+          getRelativeURL(redirectURL, requestURL)
+        )
       }
     }
 

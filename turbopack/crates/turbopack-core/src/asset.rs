@@ -40,60 +40,52 @@ impl AssetContent {
     }
 
     #[turbo_tasks::function]
-    pub async fn parse_json(self: Vc<Self>) -> Result<Vc<FileJsonContent>> {
-        let this = self.await?;
-        match &*this {
-            AssetContent::File(content) => Ok(content.parse_json()),
-            AssetContent::Redirect { .. } => Ok(FileJsonContent::unparsable(rcstr!(
-                "a redirect can't be parsed as json"
-            ))
-            .cell()),
+    pub fn parse_json(&self) -> Vc<FileJsonContent> {
+        match self {
+            AssetContent::File(content) => content.parse_json(),
+            AssetContent::Redirect { .. } => {
+                FileJsonContent::unparsable(rcstr!("a redirect can't be parsed as json")).cell()
+            }
         }
     }
 
     #[turbo_tasks::function]
-    pub async fn file_content(self: Vc<Self>) -> Result<Vc<FileContent>> {
-        let this = self.await?;
-        match &*this {
-            AssetContent::File(content) => Ok(**content),
-            AssetContent::Redirect { .. } => Ok(FileContent::NotFound.cell()),
+    pub fn file_content(&self) -> Vc<FileContent> {
+        match self {
+            AssetContent::File(content) => **content,
+            AssetContent::Redirect { .. } => FileContent::NotFound.cell(),
         }
     }
 
     #[turbo_tasks::function]
-    pub async fn lines(self: Vc<Self>) -> Result<Vc<FileLinesContent>> {
-        let this = self.await?;
-        match &*this {
-            AssetContent::File(content) => Ok(content.lines()),
-            AssetContent::Redirect { .. } => Ok(FileLinesContent::Unparsable.cell()),
+    pub fn lines(&self) -> Vc<FileLinesContent> {
+        match self {
+            AssetContent::File(content) => content.lines(),
+            AssetContent::Redirect { .. } => FileLinesContent::Unparsable.cell(),
         }
     }
 
     #[turbo_tasks::function]
-    pub async fn len(self: Vc<Self>) -> Result<Vc<Option<u64>>> {
-        let this = self.await?;
-        match &*this {
-            AssetContent::File(content) => Ok(content.len()),
-            AssetContent::Redirect { .. } => Ok(Vc::cell(None)),
+    pub fn len(&self) -> Vc<Option<u64>> {
+        match self {
+            AssetContent::File(content) => content.len(),
+            AssetContent::Redirect { .. } => Vc::cell(None),
         }
     }
 
     #[turbo_tasks::function]
-    pub async fn parse_json_with_comments(self: Vc<Self>) -> Result<Vc<FileJsonContent>> {
-        let this = self.await?;
-        match &*this {
-            AssetContent::File(content) => Ok(content.parse_json_with_comments()),
-            AssetContent::Redirect { .. } => Ok(FileJsonContent::unparsable(rcstr!(
-                "a redirect can't be parsed as json"
-            ))
-            .cell()),
+    pub fn parse_json_with_comments(&self) -> Vc<FileJsonContent> {
+        match self {
+            AssetContent::File(content) => content.parse_json_with_comments(),
+            AssetContent::Redirect { .. } => {
+                FileJsonContent::unparsable(rcstr!("a redirect can't be parsed as json")).cell()
+            }
         }
     }
 
     #[turbo_tasks::function]
-    pub async fn write(self: Vc<Self>, path: FileSystemPath) -> Result<()> {
-        let this = self.await?;
-        match &*this {
+    pub async fn write(&self, path: FileSystemPath) -> Result<()> {
+        match self {
             AssetContent::File(file) => {
                 path.write(**file).as_side_effect().await?;
             }

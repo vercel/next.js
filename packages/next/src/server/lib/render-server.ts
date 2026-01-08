@@ -15,6 +15,8 @@ export type ServerInitResult = {
   server: NextServer
   // Make an effort to close upgraded HTTP requests (e.g. Turbopack HMR websockets)
   closeUpgraded: () => void
+  // The distDir from config, used by the parent process for telemetry/trace
+  distDir: string
 }
 
 let initializations: Record<string, Promise<ServerInitResult> | undefined> = {}
@@ -91,6 +93,7 @@ async function initializeImpl(opts: {
   startServerSpan: Span | undefined
   quiet?: boolean
   onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
+  distDir: string
 }): Promise<ServerInitResult> {
   const type = process.env.__NEXT_PRIVATE_RENDER_WORKER
   if (type) {
@@ -166,6 +169,7 @@ async function initializeImpl(opts: {
     closeUpgraded() {
       opts.bundlerService?.close()
     },
+    distDir: opts.distDir,
   }
 }
 

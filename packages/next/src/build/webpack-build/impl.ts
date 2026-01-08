@@ -1,3 +1,5 @@
+// Import cpu-profile first to start profiling early if enabled
+import { saveCpuProfile } from '../../server/lib/cpu-profile'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { stringBufferUtils } from 'next/dist/compiled/webpack-sources3'
 import { red } from '../../lib/picocolors'
@@ -415,6 +417,9 @@ export async function workerMain(workerData: {
   }
   NextBuildContext.nextBuildSpan.stop()
   await telemetry.flush()
+
+  // Save CPU profile before worker exits
+  await saveCpuProfile()
 
   return { ...result, debugTraceEvents: getTraceEvents() }
 }

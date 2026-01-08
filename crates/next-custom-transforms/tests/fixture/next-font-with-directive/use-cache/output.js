@@ -7,7 +7,7 @@ const $$RSC_SERVER_CACHE_0_INNER = async function Cached({ children }) {
     return <div className={inter.className}>{children}</div>;
 };
 export var $$RSC_SERVER_CACHE_0 = $$reactCache__(function Cached() {
-    return $$cache__("default", "c0dd5bb6fef67f5ab84327f5164ac2c3111a159337", 0, $$RSC_SERVER_CACHE_0_INNER, arguments);
+    return $$cache__("default", "c0dd5bb6fef67f5ab84327f5164ac2c3111a159337", 0, $$RSC_SERVER_CACHE_0_INNER, Array.prototype.slice.call(arguments, 0, 1));
 });
 registerServerReference($$RSC_SERVER_CACHE_0, "c0dd5bb6fef67f5ab84327f5164ac2c3111a159337", null);
 Object["defineProperty"]($$RSC_SERVER_CACHE_0, "name", {

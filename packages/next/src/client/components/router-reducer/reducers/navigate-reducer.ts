@@ -18,6 +18,7 @@ import {
 import { NavigationResultTag } from '../../segment-cache/types'
 import { getStaleTimeMs } from '../../segment-cache/cache'
 import { FreshnessPolicy } from '../ppr-navigations'
+import { isJavaScriptURLString } from '../../../lib/javascript-url'
 
 // These values are set by `define-env-plugin` (based on `nextConfig.experimental.staleTimes`)
 // and default to 5 minutes (static) / 0 seconds (dynamic)
@@ -34,6 +35,13 @@ export function handleExternalUrl(
   url: string,
   pendingPush: boolean
 ) {
+  if (isJavaScriptURLString(url)) {
+    console.error(
+      'Next.js has blocked a javascript: URL as a security precaution.'
+    )
+    return handleMutable(state, mutable)
+  }
+
   mutable.mpaNavigation = true
   mutable.canonicalUrl = url
   mutable.pendingPush = pendingPush
