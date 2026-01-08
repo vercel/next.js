@@ -416,7 +416,7 @@ impl SingleModuleGraph {
         // See https://en.wikipedia.org/wiki/Tarjan%27s_strongly_connected_components_algorithm, but
         // implemented iteratively instead of recursively.
         //
-        // Compared to the stadnard Tarjan's, this also treated self-references (via
+        // Compared to the standard Tarjan's, this also treated self-references (via
         // `has_self_loop`) as SCCs.
 
         #[derive(Clone)]
