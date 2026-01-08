@@ -1,7 +1,6 @@
 use std::{
     io::{self, ErrorKind},
     path::{Path, PathBuf},
-    thread::sleep,
     time::Duration,
 };
 
@@ -12,25 +11,22 @@ where
     F: Fn(&Path) -> io::Result<R> + Send + 'static,
     R: Send + 'static,
 {
-    turbo_tasks::spawn_blocking(move || {
-        let mut attempt = 1;
+    let mut attempt = 1;
 
-        loop {
-            return match func(&path) {
-                Ok(r) => Ok(r),
-                Err(err) => {
-                    if attempt < MAX_RETRY_ATTEMPTS && can_retry(&err) {
-                        sleep(get_retry_wait_time(attempt));
-                        attempt += 1;
-                        continue;
-                    }
-
-                    Err(err)
+    loop {
+        return match func(&path) {
+            Ok(r) => Ok(r),
+            Err(err) => {
+                if attempt < MAX_RETRY_ATTEMPTS && can_retry(&err) {
+                    tokio::time::sleep(get_retry_wait_time(attempt)).await;
+                    attempt += 1;
+                    continue;
                 }
-            };
-        }
-    })
-    .await
+
+                Err(err)
+            }
+        };
+    }
 }
 
 fn can_retry(err: &io::Error) -> bool {
