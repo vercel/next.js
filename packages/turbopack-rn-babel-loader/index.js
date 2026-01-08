@@ -30,6 +30,8 @@ const WORKLET_REGEX = new RegExp(
 )
 
 module.exports = function (content) {
+  let { reactNativeWorkletsInstalled } = this.getOptions() || {}
+
   let filename = this.resourcePath || ''
 
   let presets = []
@@ -52,9 +54,11 @@ module.exports = function (content) {
   if (runCodegenTransform) {
     plugins.push('@react-native/babel-plugin-codegen')
   }
-  let runWorkletTransform = WORKLET_REGEX.test(content)
-  if (runWorkletTransform) {
-    plugins.push('react-native-worklets/plugin')
+  if (reactNativeWorkletsInstalled) {
+    let runWorkletTransform = WORKLET_REGEX.test(content)
+    if (runWorkletTransform) {
+      plugins.push('react-native-worklets/plugin')
+    }
   }
 
   if (presets.length === 0 && plugins.length === 0) {

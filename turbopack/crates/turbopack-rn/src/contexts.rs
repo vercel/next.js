@@ -167,6 +167,9 @@ async fn get_client_module_options_context(
     let resolve_options_context =
         get_client_resolve_options_context(project_path.clone(), node_env, platform);
 
+    let react_native_worklets_installed =
+        *is_react_native_worklets_installed(project_path.clone(), resolve_options_context).await?;
+
     let webpack_rules = vec![(
         rcstr!("*.{js,jsx,cjs,mjs,ts,tsx}"),
         LoaderRuleItem {
@@ -174,7 +177,12 @@ async fn get_client_module_options_context(
                 loader: rcstr!(
                     "/Users/niklas/code/next.js/packages/turbopack-rn-babel-loader/index.js"
                 ),
-                options: Default::default(),
+                options: [(
+                    "reactNativeWorkletsInstalled".to_string(),
+                    react_native_worklets_installed.into(),
+                )]
+                .into_iter()
+                .collect(),
             }]),
             rename_as: Some(rcstr!("*")),
             module_type: None,
@@ -468,13 +476,14 @@ pub fn get_client_asset_context(
     asset_context
 }
 
-fn client_defines(node_env: &NodeEnv) -> CompileTimeDefines {
+fn client_defines(node_env: &NodeEnv, entry_filename: RcStr) -> CompileTimeDefines {
     compile_time_defines!(
         process.turbopack = true,
         process.env.TURBOPACK = true,
         process.env.NODE_ENV = node_env.to_string(),
         __DEV__ = *node_env == NodeEnv::Development,
-        process.env.EXPO_OS = "ios"
+        process.env.EXPO_OS = "ios",
+        process.env.TURBOPACK_RN_ENTRY = entry_filename
     )
 }
 
@@ -482,8 +491,12 @@ fn client_defines(node_env: &NodeEnv) -> CompileTimeDefines {
 pub async fn get_client_compile_time_info(
     browserslist_query: RcStr,
     node_env: Vc<NodeEnv>,
+    entry_filename: RcStr,
 ) -> Result<Vc<CompileTimeInfo>> {
     let node_env = node_env.await?;
+
+    let defines = client_defines(&node_env, entry_filename.clone());
+
     CompileTimeInfo::builder(
         Environment::new(ExecutionEnvironment::Browser(
             BrowserEnvironment {
@@ -497,10 +510,8 @@ pub async fn get_client_compile_time_info(
         .to_resolved()
         .await?,
     )
-    .defines(client_defines(&node_env).resolved_cell())
-    .free_var_references(
-        free_var_references!(..client_defines(&node_env).into_iter()).resolved_cell(),
-    )
+    .defines(defines.clone().resolved_cell())
+    .free_var_references(free_var_references!(..defines.into_iter()).resolved_cell())
     .cell()
     .await
 }

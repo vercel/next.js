@@ -17,7 +17,7 @@ use hyper_tungstenite::{HyperWebsocket, tungstenite::Message};
 use hyper_util::rt::TokioIo;
 use serde::Deserialize;
 use tokio::net::TcpListener;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     NonLocalValue, OperationVc, ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasks, Vc,
     trace::TraceRawVcs,
@@ -282,8 +282,8 @@ impl Svc {
                     let (response, websocket) = hyper_tungstenite::upgrade(&mut req, None).unwrap();
 
                     let source_provider = ServerSourceProvider {
-                        platform: query.platform.unwrap_or_else(|| "ios".into()),
-                        entries: vec![query.entry.context("expected entry query param")?],
+                        platform: query.platform.context("expected platform query param")?,
+                        entry: query.entry.context("expected entry query param")?.into(),
                         project_dir: self.project_dir.clone(),
                         root_dir: self.root_dir.clone(),
                     };
@@ -302,9 +302,9 @@ impl Svc {
             (&Method::GET, path) if path.ends_with(".bundle") => {
                 let entry_file = path.trim_start_matches('/').trim_end_matches(".bundle");
                 let entry_file = if entry_file == "index" {
-                    "index.js".to_string()
+                    rcstr!("index.js")
                 } else {
-                    entry_file.to_string()
+                    entry_file.into()
                 };
 
                 #[derive(Deserialize)]
@@ -332,7 +332,7 @@ impl Svc {
                     .run_once(async move {
                         let build_result_op = build_rn_internal(
                             query.platform.clone(),
-                            vec![entry_file],
+                            entry_file,
                             project_dir.clone(),
                             root_dir,
                         );
@@ -346,14 +346,15 @@ impl Svc {
                                 log_level: IssueSeverity::Warning,
                             })));
 
-                        handle_issues(
+                        // Still serve bundle even with fatal issues
+                        let _ = handle_issues(
                             build_result_op,
                             issue_reporter,
                             IssueSeverity::Error,
                             None,
                             None,
                         )
-                        .await?;
+                        .await;
 
                         let chunks = build_result_op
                             .read_strongly_consistent()
@@ -600,7 +601,7 @@ fn full<T: Into<Bytes>>(chunk: T) -> BoxBody<Bytes, anyhow::Error> {
 #[derive(Clone, TraceRawVcs, NonLocalValue)]
 struct ServerSourceProvider {
     platform: String,
-    entries: Vec<String>,
+    entry: RcStr,
     project_dir: RcStr,
     root_dir: RcStr,
 }
@@ -608,7 +609,7 @@ impl OutputAssetsProvider for ServerSourceProvider {
     fn get_output_assets(&self) -> OperationVc<OutputAssets> {
         get_rn_content_source(
             self.platform.clone(),
-            self.entries.clone(),
+            self.entry.clone(),
             self.project_dir.clone(),
             self.root_dir.clone(),
         )
@@ -618,11 +619,11 @@ impl OutputAssetsProvider for ServerSourceProvider {
 #[turbo_tasks::function(operation, root)]
 async fn get_rn_content_source(
     platform: String,
-    entries: Vec<String>,
+    entry: RcStr,
     project_dir: RcStr,
     root_dir: RcStr,
 ) -> Result<Vc<OutputAssets>> {
-    let assets = build_rn_internal(Some(platform), entries, project_dir, root_dir)
+    let assets = build_rn_internal(Some(platform), entry, project_dir, root_dir)
         .read_strongly_consistent()
         .await?;
     Ok(Vc::cell(

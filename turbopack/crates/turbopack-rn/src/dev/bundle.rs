@@ -51,12 +51,12 @@ use crate::{
 #[turbo_tasks::function(operation, root)]
 pub async fn build_rn_internal(
     platform: Option<String>,
-    entries: Vec<String>,
+    entry: RcStr,
     project_dir: RcStr,
     root_dir_vc: ResolvedVc<RcStr>,
 ) -> Result<Vc<OutputAssets>> {
     let output_fs = output_fs(project_dir.clone());
-    const OUTPUT_DIR: &str = "dist";
+    const OUTPUT_DIR: &str = ".turbopack";
     let project_relative = project_dir.strip_prefix(&*root_dir).unwrap();
     let project_relative: RcStr = project_relative
         .strip_prefix(MAIN_SEPARATOR)
@@ -91,7 +91,8 @@ pub async fn build_rn_internal(
     let minify_type = MinifyType::NoMinify;
     let scope_hoist = false;
 
-    let compile_time_info = get_client_compile_time_info(browserslist_query.clone(), node_env);
+    let compile_time_info =
+        get_client_compile_time_info(browserslist_query.clone(), node_env, entry.clone());
     let execution_context = ExecutionContext::new(
         root_path.clone(),
         Vc::upcast(
@@ -137,14 +138,12 @@ pub async fn build_rn_internal(
         .as_request(),
     )
     .flatten()
-    .chain(entries.into_iter().map(|p| {
-        Request::relative(
-            RcStr::from(p).into(),
-            Default::default(),
-            Default::default(),
-            false,
-        )
-    }))
+    .chain(std::iter::once(Request::relative(
+        entry.into(),
+        Default::default(),
+        Default::default(),
+        false,
+    )))
     .collect::<Vec<_>>();
 
     let origin = PlainResolveOrigin::new(asset_context, project_fs.root().await?.join("_")?);

@@ -51,16 +51,14 @@ use turbopack_nodejs::NodeJsChunkingContext;
 use crate::{
     arguments::{BuildArguments, Target},
     contexts::{NodeEnv, get_client_asset_context, get_client_compile_time_info},
-    util::{
-        EntryRequest, NormalizedDirs, normalize_dirs, normalize_entries, output_fs, project_fs,
-    },
+    util::{NormalizedDirs, normalize_dirs, output_fs, project_fs},
 };
 
 pub struct TurbopackBuildBuilder {
     turbo_tasks: Arc<TurboTasks<TurboTasksBackend>>,
     project_dir: RcStr,
     root_dir: RcStr,
-    entry_requests: Vec<EntryRequest>,
+    entry: RcStr,
     browserslist_query: RcStr,
     log_level: IssueSeverity,
     show_all: bool,
@@ -72,12 +70,17 @@ pub struct TurbopackBuildBuilder {
 }
 
 impl TurbopackBuildBuilder {
-    pub fn new(turbo_tasks: Arc<TurboTasks<Backend>>, project_dir: RcStr, root_dir: RcStr) -> Self {
+    pub fn new(
+        turbo_tasks: Arc<TurboTasks<TurboTasksBackend>>,
+        project_dir: RcStr,
+        root_dir: RcStr,
+        entry: RcStr,
+    ) -> Self {
         TurbopackBuildBuilder {
             turbo_tasks,
             project_dir,
             root_dir,
-            entry_requests: vec![],
+            entry,
             browserslist_query: "last 1 Chrome versions, last 1 Firefox versions, last 1 Safari \
                                  versions, last 1 Edge versions"
                 .into(),
@@ -91,11 +94,6 @@ impl TurbopackBuildBuilder {
             target: Target::Node,
             scope_hoist: true,
         }
-    }
-
-    pub fn entry_request(mut self, entry_asset_path: EntryRequest) -> Self {
-        self.entry_requests.push(entry_asset_path);
-        self
     }
 
     pub fn browserslist_query(mut self, browserslist_query: RcStr) -> Self {
@@ -144,7 +142,7 @@ impl TurbopackBuildBuilder {
                 let wrapper_op = extract_effects_operation(build_internal(
                     ResolvedVc::cell(self.project_dir.clone()),
                     ResolvedVc::cell(self.root_dir.clone()),
-                    self.entry_requests.clone(),
+                    self.entry.clone(),
                     self.browserslist_query,
                     self.source_maps_type,
                     self.minify_type,
@@ -181,7 +179,7 @@ async fn extract_effects_operation(op: OperationVc<()>) -> Result<Vc<Effects>> {
 async fn build_internal(
     project_dir_cell: ResolvedVc<RcStr>,
     root_dir_cell: ResolvedVc<RcStr>,
-    entry_requests: Vec<EntryRequest>,
+    entry: RcStr,
     browserslist_query: RcStr,
     source_maps_type: SourceMapsType,
     minify_type: MinifyType,
@@ -221,7 +219,8 @@ async fn build_internal(
         NodeEnv::Production => RuntimeType::Production,
     };
 
-    let compile_time_info = get_client_compile_time_info(browserslist_query.clone(), node_env);
+    let compile_time_info =
+        get_client_compile_time_info(browserslist_query.clone(), node_env, entry.clone());
     let execution_context = ExecutionContext::new(
         root_path.clone(),
         Vc::upcast(
@@ -254,27 +253,12 @@ async fn build_internal(
         None, // TODO
     );
 
-    let entry_requests = (*entry_requests
-        .into_iter()
-        .map(|r| async move {
-            Ok(match r {
-                EntryRequest::Relative(p) => Request::relative(
-                    p.clone().into(),
-                    Default::default(),
-                    Default::default(),
-                    false,
-                ),
-                EntryRequest::Module(m, p) => Request::module(
-                    m.clone().into(),
-                    p.clone().into(),
-                    Default::default(),
-                    Default::default(),
-                ),
-            })
-        })
-        .try_join()
-        .await?)
-        .to_vec();
+    let entry_requests = vec![Request::relative(
+        entry.into(),
+        Default::default(),
+        Default::default(),
+        false,
+    )];
 
     let origin = PlainResolveOrigin::new(asset_context, project_fs.root().await?.join("_")?);
     let project_dir = &project_dir;
@@ -533,7 +517,7 @@ pub async fn build(args: &BuildArguments) -> Result<()> {
         noop_backing_storage(),
     ));
 
-    let mut builder = TurbopackBuildBuilder::new(tt.clone(), project_dir, root_dir)
+    let builder = TurbopackBuildBuilder::new(tt.clone(), project_dir, root_dir, "index.js".into())
         .log_detail(args.common.log_detail)
         .log_level(
             args.common
@@ -555,10 +539,6 @@ pub async fn build(args: &BuildArguments) -> Result<()> {
         .scope_hoist(!args.no_scope_hoist)
         .target(args.common.target.unwrap_or(Target::Node))
         .show_all(args.common.show_all);
-
-    for entry in normalize_entries(&args.common.entries) {
-        builder = builder.entry_request(EntryRequest::Relative(entry));
-    }
 
     builder.build().await?;
 

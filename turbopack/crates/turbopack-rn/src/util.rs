@@ -1,31 +1,10 @@
 use std::{env::current_dir, path::PathBuf};
 
 use anyhow::{Context, Result};
-use bincode::{Decode, Encode};
 use dunce::canonicalize;
-use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{NonLocalValue, TaskInput, Vc, trace::TraceRawVcs};
+use turbo_tasks::Vc;
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
-
-#[derive(
-    Clone,
-    Debug,
-    TaskInput,
-    Hash,
-    PartialEq,
-    Eq,
-    NonLocalValue,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    Encode,
-    Decode,
-)]
-pub enum EntryRequest {
-    Relative(RcStr),
-    Module(RcStr, RcStr),
-}
 
 pub struct NormalizedDirs {
     /// Normalized project directory path as an absolute path
@@ -62,13 +41,6 @@ pub fn normalize_dirs(
         project_dir,
         root_dir,
     })
-}
-
-pub fn normalize_entries(entries: &Option<Vec<String>>) -> Vec<RcStr> {
-    entries
-        .as_ref()
-        .map(|v| v.iter().map(|v| RcStr::from(&**v)).collect())
-        .unwrap_or_else(|| vec![rcstr!("src/entry")])
 }
 
 #[turbo_tasks::function]
