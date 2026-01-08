@@ -223,9 +223,9 @@ impl AssetIdent {
         // For clippy -- This explicit deref is necessary
         let path = &self.path;
         let mut name = if let Some(inner) = context_path.get_path_to(path) {
-            clean_separators(inner)
+            escape_file_path(inner)
         } else {
-            clean_separators(&self.path.value_to_string().await?)
+            escape_file_path(&self.path.value_to_string().await?)
         };
         let removed_extension = name.ends_with(&*expected_extension);
         if removed_extension {
@@ -433,11 +433,42 @@ impl ValueToString for AssetIdent {
     }
 }
 
-fn clean_separators(s: &str) -> String {
-    static SEPARATOR_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"[/#?]").unwrap());
+fn escape_file_path(s: &str) -> String {
+    static SEPARATOR_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"[/#?:]").unwrap());
     SEPARATOR_REGEX.replace_all(s, "_").to_string()
 }
 
 fn clean_additional_extensions(s: &str) -> String {
     s.replace('.', "_")
+}
+
+#[cfg(test)]
+pub mod tests {
+    use turbo_rcstr::rcstr;
+    use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
+    use turbo_tasks_fs::{FileSystem, VirtualFileSystem};
+
+    use crate::ident::AssetIdent;
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_output_name_escaping() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            let fs = VirtualFileSystem::new_with_name(rcstr!("test"));
+            let root = fs.root().owned().await?;
+
+            let asset_ident = AssetIdent::from_path(root.join("a:b?c#d.js")?);
+            let output_name = asset_ident
+                .output_name(root.clone(), Some(rcstr!("prefix")), rcstr!(".js"))
+                .await?;
+            assert_eq!(&*output_name, "prefix-a_b_c_d.js");
+
+            Ok(())
+        })
+        .await
+        .unwrap();
+    }
 }
