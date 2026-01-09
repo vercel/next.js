@@ -440,9 +440,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
 
         {
             let _span = tracing::trace_span!("commit").entered();
-            batch
-                .commit()
-                .with_context(|| format!("Unable to commit operations"))?;
+            batch.commit().context("Unable to commit operations")?;
         }
         Ok(())
     }
