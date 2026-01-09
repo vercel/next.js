@@ -29,8 +29,12 @@ const WORKLET_REGEX = new RegExp(
   ].join('|')
 )
 
+const MACRO_REGEX = /[./]macro(\.c?js)?["']/
+
+const DEBUG = process.env.TURBOPACK_DEBUG_RN_BABEL_LOADER
+
 module.exports = function (content) {
-  let { reactNativeWorkletsInstalled } = this.getOptions() || {}
+  let { workletPluginName, babelPluginMacrosName } = this.getOptions() || {}
 
   let filename = this.resourcePath || ''
 
@@ -42,27 +46,32 @@ module.exports = function (content) {
     presets.push(['@babel/preset-flow', { experimental_useHermesParser: true }])
     plugins.push('@babel/plugin-syntax-jsx')
   }
-  let isTypescript = filename.endsWith('.ts') || filename.endsWith('.tsx')
-  if (isTypescript) {
-    plugins.push([
-      '@babel/plugin-syntax-typescript',
-      { isTSX: filename.endsWith('.tsx') },
-    ])
+
+  if (MACRO_REGEX.test(content)) {
+    plugins.push(babelPluginMacrosName)
   }
 
   let runCodegenTransform = content.includes('codegenNativeComponent<')
   if (runCodegenTransform) {
     plugins.push('@react-native/babel-plugin-codegen')
   }
-  if (reactNativeWorkletsInstalled) {
+  if (workletPluginName != null) {
     let runWorkletTransform = WORKLET_REGEX.test(content)
     if (runWorkletTransform) {
-      plugins.push('react-native-worklets/plugin')
+      plugins.push(workletPluginName)
     }
   }
 
   if (presets.length === 0 && plugins.length === 0) {
     return content
+  }
+
+  let isTypescript = filename.endsWith('.ts') || filename.endsWith('.tsx')
+  if (isTypescript) {
+    plugins.push([
+      '@babel/plugin-syntax-typescript',
+      { isTSX: filename.endsWith('.tsx') },
+    ])
   }
 
   let babelConfig = {
@@ -73,5 +82,19 @@ module.exports = function (content) {
   }
 
   this.getOptions = () => babelConfig
+
+  if (DEBUG != null) {
+    let async = this.async
+    this.async = function () {
+      let cb = async.call(this)
+      return (err, result) => {
+        if (filename.endsWith(DEBUG)) {
+          console.log(result)
+        }
+        cb(err, result)
+      }
+    }
+  }
+
   return babelLoader.call(this, content)
 }

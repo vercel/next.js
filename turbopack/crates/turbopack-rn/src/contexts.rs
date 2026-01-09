@@ -103,7 +103,7 @@ pub async fn get_client_resolve_options_context(
         enable_node_modules: Some(project_path.root().owned().await?),
         import_map: Some(next_client_import_map),
         enable_react_native_infix: platform,
-        browser: false,
+        browser: true,
         module: true,
         react_native: true,
         enable_react: true,
@@ -132,13 +132,11 @@ pub async fn get_client_resolve_options_context(
     .cell())
 }
 
-/// Checks whether we can resolve the React Refresh runtime module from the
-/// given path. Emits an issue if we can't.
 #[turbo_tasks::function]
-pub async fn is_react_native_worklets_installed(
+pub async fn detect_react_native_worklets_package(
     path: FileSystemPath,
     resolve_options_context: Vc<ResolveOptionsContext>,
-) -> Result<Vc<bool>> {
+) -> Result<Vc<Option<String>>> {
     let resolve_options = apply_cjs_specific_options(turbopack_resolve::resolve::resolve_options(
         path.clone(),
         resolve_options_context,
@@ -149,8 +147,43 @@ pub async fn is_react_native_worklets_installed(
         Request::parse_string(rcstr!("react-native-worklets")),
         resolve_options,
     );
+    if !*result.is_unresolvable().await? {
+        return Ok(Vc::cell(Some("react-native-worklets/plugin".to_string())));
+    }
 
-    Ok(Vc::cell(!*result.is_unresolvable().await?))
+    let result = turbopack_core::resolve::resolve(
+        path.clone(),
+        ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
+        Request::parse_string(rcstr!("react-native-reanimated")),
+        resolve_options,
+    );
+    if !*result.is_unresolvable().await? {
+        return Ok(Vc::cell(Some("react-native-reanimated/plugin".to_string())));
+    }
+
+    Ok(Vc::cell(None))
+}
+
+#[turbo_tasks::function]
+pub async fn detect_babel_plugin_macros_package(
+    path: FileSystemPath,
+    resolve_options_context: Vc<ResolveOptionsContext>,
+) -> Result<Vc<Option<String>>> {
+    let resolve_options = apply_cjs_specific_options(turbopack_resolve::resolve::resolve_options(
+        path.clone(),
+        resolve_options_context,
+    ));
+    let result = turbopack_core::resolve::resolve(
+        path.clone(),
+        ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
+        Request::parse_string(rcstr!("babel-plugin-macros")),
+        resolve_options,
+    );
+    if !*result.is_unresolvable().await? {
+        return Ok(Vc::cell(Some("babel-plugin-macros".to_string())));
+    }
+
+    Ok(Vc::cell(None))
 }
 
 #[turbo_tasks::function]
@@ -167,23 +200,19 @@ async fn get_client_module_options_context(
     let resolve_options_context =
         get_client_resolve_options_context(project_path.clone(), node_env, platform);
 
-    let react_native_worklets_installed =
-        *is_react_native_worklets_installed(project_path.clone(), resolve_options_context).await?;
+    let react_native_worklets_package =
+        detect_react_native_worklets_package(project_path.clone(), resolve_options_context)
+            .owned()
+            .await?;
+
+    let babel_plugin_macros_package =
+        detect_babel_plugin_macros_package(project_path.clone(), resolve_options_context)
+            .owned()
+            .await?;
 
     let webpack_rules = vec![(
         rcstr!("*.{js,jsx,cjs,mjs,ts,tsx}"),
         LoaderRuleItem {
-            loaders: ResolvedVc::cell(vec![WebpackLoaderItem {
-                loader: rcstr!(
-                    "/Users/niklas/code/next.js/packages/turbopack-rn-babel-loader/index.js"
-                ),
-                options: [(
-                    "reactNativeWorkletsInstalled".to_string(),
-                    react_native_worklets_installed.into(),
-                )]
-                .into_iter()
-                .collect(),
-            }]),
             rename_as: Some(rcstr!("*")),
             module_type: None,
             condition: Some(ConditionItem::Base {
@@ -195,31 +224,56 @@ async fn get_client_module_options_context(
                             "@flow",
                             // codegen
                             "codegenNativeComponent<",
-                            // Explicit worklets
-                            "'worklet'",
-                            "\"worklet\"",
-                            // https://github.com/software-mansion/react-native-reanimated/blob/ce9032c25e088e09bcce519963614cc5355beebb/packages/react-native-worklets/plugin/src/autoworkletization.ts#L16
-                            "useAnimatedScrollHandler",
-                            "react-native-gesture-handler",
-                            "useFrameCallback",
-                            "useAnimatedStyle",
-                            "useAnimatedProps",
-                            "createAnimatedPropAdapter",
-                            "useDerivedValue",
-                            "useAnimatedScrollHandler",
-                            "useAnimatedReaction",
-                            "withTiming",
-                            "withSpring",
-                            "withDecay",
-                            "withRepeat",
-                            "runOnUI",
-                            "executeOnUIRuntimeSync",
-                            "scheduleOnUI",
-                            "runOnUISync",
-                            "runOnUIAsync",
-                            "runOnRuntime",
-                            "scheduleOnRuntime",
                         ]
+                        .into_iter()
+                        .chain(
+                            react_native_worklets_package
+                                .as_ref()
+                                .map(|_| {
+                                    [
+                                        // Explicit worklets
+                                        "'worklet'",
+                                        "\"worklet\"",
+                                        // https://github.com/software-mansion/react-native-reanimated/blob/ce9032c25e088e09bcce519963614cc5355beebb/packages/react-native-worklets/plugin/src/autoworkletization.ts#L16
+                                        "useAnimatedScrollHandler",
+                                        "react-native-gesture-handler",
+                                        "useFrameCallback",
+                                        "useAnimatedStyle",
+                                        "useAnimatedProps",
+                                        "createAnimatedPropAdapter",
+                                        "useDerivedValue",
+                                        "useAnimatedScrollHandler",
+                                        "useAnimatedReaction",
+                                        "withTiming",
+                                        "withSpring",
+                                        "withDecay",
+                                        "withRepeat",
+                                        "runOnUI",
+                                        "executeOnUIRuntimeSync",
+                                        "scheduleOnUI",
+                                        "runOnUISync",
+                                        "runOnUIAsync",
+                                        "runOnRuntime",
+                                        "scheduleOnRuntime",
+                                    ]
+                                })
+                                .into_iter()
+                                .flatten(),
+                        )
+                        .chain(
+                            babel_plugin_macros_package
+                                .as_ref()
+                                .map(|_| {
+                                    [
+                                        // babel-plugin-macro
+                                        "[./]macro(\\.c?js)?[\"']",
+                                    ]
+                                    .into_iter()
+                                })
+                                .into_iter()
+                                .flatten(),
+                        )
+                        .collect::<Vec<_>>()
                         .join("|")
                         .as_str(),
                         "",
@@ -227,6 +281,23 @@ async fn get_client_module_options_context(
                     .resolved_cell(),
                 ),
             }),
+            loaders: ResolvedVc::cell(vec![WebpackLoaderItem {
+                loader: rcstr!(
+                    "/Users/niklas/code/next.js-rn/packages/turbopack-rn-babel-loader/index.js"
+                ),
+                options: [
+                    (
+                        "workletPluginName".to_string(),
+                        react_native_worklets_package.into(),
+                    ),
+                    (
+                        "babelPluginMacrosName".to_string(),
+                        babel_plugin_macros_package.into(),
+                    ),
+                ]
+                .into_iter()
+                .collect(),
+            }]),
         },
     )];
 
