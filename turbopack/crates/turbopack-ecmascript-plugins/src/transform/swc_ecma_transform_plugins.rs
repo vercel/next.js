@@ -124,7 +124,8 @@ impl Issue for SwcEcmaTransformFailureIssue {
                      plugin."
                 )),
                 StyledString::Text(rcstr!(
-                    "This might be due to a version mismatch between the plugin and Next.js."
+                    "This might be due to a version mismatch between the plugin and Next.js. \
+                    https://plugins.swc.rs/ can help you find the correct plugin version to use."
                 )),
                 StyledString::Text(Default::default()),
                 self.description.clone(),
