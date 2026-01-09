@@ -65,7 +65,7 @@ impl ExternalCjsModulesResolvePlugin {
 
 #[turbo_tasks::function]
 fn condition(root: FileSystemPath) -> Vc<AfterResolvePluginCondition> {
-    AfterResolvePluginCondition::new(
+    AfterResolvePluginCondition::new_with_glob(
         root,
         Glob::new(rcstr!("**/node_modules/**"), GlobOptions::default()),
     )

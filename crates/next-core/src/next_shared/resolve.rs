@@ -224,7 +224,7 @@ impl NextExternalResolvePlugin {
 impl AfterResolvePlugin for NextExternalResolvePlugin {
     #[turbo_tasks::function]
     async fn after_resolve_condition(&self) -> Result<Vc<AfterResolvePluginCondition>> {
-        Ok(AfterResolvePluginCondition::new(
+        Ok(AfterResolvePluginCondition::new_with_glob(
             self.project_path.root().owned().await?,
             Glob::new(
                 rcstr!("**/next/dist/**/*.{external,runtime.dev,runtime.prod}.js"),
@@ -282,7 +282,7 @@ impl NextNodeSharedRuntimeResolvePlugin {
 impl AfterResolvePlugin for NextNodeSharedRuntimeResolvePlugin {
     #[turbo_tasks::function]
     async fn after_resolve_condition(&self) -> Result<Vc<AfterResolvePluginCondition>> {
-        Ok(AfterResolvePluginCondition::new(
+        Ok(AfterResolvePluginCondition::new_with_glob(
             self.root.root().owned().await?,
             Glob::new(
                 rcstr!("**/next/dist/**/*.shared-runtime.js"),
@@ -410,7 +410,7 @@ impl NextSharedRuntimeResolvePlugin {
 impl AfterResolvePlugin for NextSharedRuntimeResolvePlugin {
     #[turbo_tasks::function]
     async fn after_resolve_condition(&self) -> Result<Vc<AfterResolvePluginCondition>> {
-        Ok(AfterResolvePluginCondition::new(
+        Ok(AfterResolvePluginCondition::new_with_glob(
             self.root.root().owned().await?,
             Glob::new(
                 rcstr!("**/next/dist/esm/**/*.shared-runtime.js"),
