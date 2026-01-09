@@ -225,25 +225,6 @@ interface StaticPrerenderStoreCommon {
   readonly allowEmptyStaticShell: boolean
 }
 
-export interface PrerenderStorePPR
-  extends CommonWorkUnitStore,
-    RevalidateStore {
-  readonly type: 'prerender-ppr'
-  readonly rootParams: Params
-  readonly dynamicTracking: null | DynamicTrackingState
-
-  /**
-   * The set of unknown route parameters. Accessing these will be tracked as
-   * a dynamic access.
-   */
-  readonly fallbackRouteParams: OpaqueFallbackRouteParams | null
-
-  /**
-   * The resume data cache for this prerender.
-   */
-  prerenderResumeDataCache: PrerenderResumeDataCache
-}
-
 export interface PrerenderStoreLegacy
   extends CommonWorkUnitStore,
     RevalidateStore {
@@ -251,10 +232,7 @@ export interface PrerenderStoreLegacy
   readonly rootParams: Params
 }
 
-export type PrerenderStore =
-  | PrerenderStoreLegacy
-  | PrerenderStorePPR
-  | PrerenderStoreModern
+export type PrerenderStore = PrerenderStoreLegacy | PrerenderStoreModern
 
 // /** Like `PrerenderStoreModern`, but only including static prerenders (i.e. not runtime prerenders) */
 export type StaticPrerenderStore = Exclude<
@@ -355,7 +333,6 @@ export function getPrerenderResumeDataCache(
   switch (workUnitStore.type) {
     case 'prerender':
     case 'prerender-runtime':
-    case 'prerender-ppr':
       return workUnitStore.prerenderResumeDataCache
     case 'prerender-client':
       // TODO eliminate fetch caching in client scope and stop exposing this data
@@ -391,10 +368,8 @@ export function getRenderResumeDataCache(
         // that is used to read from prefilled caches.
         return workUnitStore.renderResumeDataCache
       }
-    // fallthrough
-    case 'prerender-ppr':
-      // Otherwise we return the mutable resume data cache here as an immutable
-      // version of the cache as it can also be used for reading.
+      // Otherwise we return the mutable prerender resume data cache here as an
+      // immutable version of the cache as it can also be used for reading.
       return workUnitStore.prerenderResumeDataCache ?? null
     case 'cache':
     case 'private-cache':
@@ -420,7 +395,6 @@ export function getHmrRefreshHash(
       case 'request':
         return workUnitStore.cookies.get(NEXT_HMR_REFRESH_HASH_COOKIE)?.value
       case 'prerender-client':
-      case 'prerender-ppr':
       case 'prerender-legacy':
       case 'unstable-cache':
         break
@@ -445,7 +419,6 @@ export function isHmrRefresh(
       case 'prerender':
       case 'prerender-client':
       case 'prerender-runtime':
-      case 'prerender-ppr':
       case 'prerender-legacy':
       case 'unstable-cache':
         break
@@ -470,7 +443,6 @@ export function getServerComponentsHmrCache(
       case 'prerender':
       case 'prerender-client':
       case 'prerender-runtime':
-      case 'prerender-ppr':
       case 'prerender-legacy':
       case 'unstable-cache':
         break
@@ -499,7 +471,6 @@ export function getDraftModeProviderForCacheScope(
         return workUnitStore.draftMode
       case 'prerender':
       case 'prerender-client':
-      case 'prerender-ppr':
       case 'prerender-legacy':
         break
       default:
@@ -525,7 +496,6 @@ export function getCacheSignal(
       }
       // fallthrough
     }
-    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'cache':
     case 'private-cache':
@@ -545,7 +515,6 @@ export function getRuntimeStagePromise(
       return workUnitStore.runtimeStagePromise
     case 'prerender':
     case 'prerender-client':
-    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'request':
     case 'cache':

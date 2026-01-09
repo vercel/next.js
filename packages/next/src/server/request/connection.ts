@@ -4,7 +4,6 @@ import {
   workUnitAsyncStorage,
 } from '../app-render/work-unit-async-storage.external'
 import {
-  postponeWithTracking,
   throwToInterruptStaticGeneration,
   trackDynamicDataInDynamicRender,
 } from '../app-render/dynamic-rendering'
@@ -83,14 +82,6 @@ export function connection(): Promise<void> {
             workUnitStore.renderSignal,
             workStore.route,
             '`connection()`'
-          )
-        case 'prerender-ppr':
-          // We use React's postpone API to interrupt rendering here to create a
-          // dynamic hole
-          return postponeWithTracking(
-            workStore.route,
-            'connection',
-            workUnitStore.dynamicTracking
           )
         case 'prerender-legacy':
           // We throw an error here to interrupt prerendering to mark the route

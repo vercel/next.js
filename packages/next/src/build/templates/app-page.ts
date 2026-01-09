@@ -20,7 +20,6 @@ import { BaseServerSpan } from '../../server/lib/trace/constants'
 import { interopDefault } from '../../server/app-render/interop-default'
 import { stripFlightHeaders } from '../../server/app-render/strip-flight-headers'
 import { NodeNextRequest, NodeNextResponse } from '../../server/base-http/node'
-import { checkIsAppPPREnabled } from '../../server/lib/experimental/ppr'
 import {
   getFallbackRouteParams,
   createOpaqueFallbackRouteParams,
@@ -222,12 +221,10 @@ export async function handler(
   const isPossibleServerAction = getIsPossibleServerAction(req)
 
   /**
-   * If the route being rendered is an app page, and the ppr feature has been
-   * enabled, then the given route _could_ support PPR.
+   * If the route being rendered is an app page, and the cacheComponents feature
+   * has been enabled, then the given route _could_ support PPR.
    */
-  const couldSupportPPR: boolean = checkIsAppPPREnabled(
-    nextConfig.experimental.ppr
-  )
+  const couldSupportPPR: boolean = !!nextConfig.cacheComponents
 
   if (
     !getRequestMeta(req, 'postponed') &&
