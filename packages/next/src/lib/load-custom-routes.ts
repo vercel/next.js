@@ -725,6 +725,27 @@ export default async function loadCustomRoutes(
     )
   }
 
+  const cacheControlSources: string[] = []
+  for (const headerRoute of headers) {
+    if (!headerRoute.source.startsWith('/_next/')) {
+      continue
+    }
+    for (const header of headerRoute.headers) {
+      if (header.key.toLowerCase() === 'cache-control') {
+        cacheControlSources.push(headerRoute.source)
+        break
+      }
+    }
+  }
+  if (cacheControlSources.length > 0) {
+    console.warn(
+      bold(yellow(`Warning: `)) +
+        `Custom Cache-Control headers detected for the following routes:\n` +
+        cacheControlSources.map((source) => `  - ${source}`).join('\n') +
+        `\n\nSetting a custom Cache-Control header can break Next.js development behavior.`
+    )
+  }
+
   if (config.experimental?.useSkewCookie && config.deploymentId) {
     headers.unshift({
       source: '/:path*',
