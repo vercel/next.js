@@ -838,7 +838,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             let (task, reader) = ctx.task_pair(task_id, reader_id, TaskDataCategory::All);
             (task, Some(reader))
         } else {
-            (ctx.task(task_id, TaskDataCategory::Data), None)
+            (ctx.task(task_id, TaskDataCategory::All), None)
         };
 
         let content = if final_read_hint {
