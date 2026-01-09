@@ -35,6 +35,7 @@ import { CloseController } from './web-on-close'
 import { getEdgePreviewProps } from './get-edge-preview-props'
 import { getBuiltinRequestContext } from '../after/builtin-request-context'
 import { getImplicitTags } from '../lib/implicit-tags'
+import { setRequestMeta } from '../request-meta'
 
 export class NextRequestHint extends NextRequest {
   sourcePage: string
@@ -186,6 +187,10 @@ export async function adapter(
       signal: params.request.signal,
     },
   })
+
+  if (params.request.requestMeta) {
+    setRequestMeta(request, params.request.requestMeta)
+  }
 
   /**
    * This allows to identify the request as a data request. The user doesn't
@@ -455,7 +460,10 @@ export async function adapter(
     if (!process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE) {
       if (redirectURL.host === requestURL.host) {
         redirectURL.buildId = buildId || redirectURL.buildId
-        response.headers.set('Location', redirectURL.toString())
+        response.headers.set(
+          'Location',
+          getRelativeURL(redirectURL, requestURL)
+        )
       }
     }
 

@@ -35,6 +35,20 @@ pub trait KeyValueDatabase {
         key: &[u8],
     ) -> Result<Option<Self::ValueBuffer<'l>>>;
 
+    fn batch_get<'l, 'db: 'l>(
+        &'l self,
+        transaction: &'l Self::ReadTransaction<'db>,
+        key_space: KeySpace,
+        keys: &[&[u8]],
+    ) -> Result<Vec<Option<Self::ValueBuffer<'l>>>> {
+        let mut results = Vec::with_capacity(keys.len());
+        for key in keys {
+            let value = self.get(transaction, key_space, key)?;
+            results.push(value);
+        }
+        Ok(results)
+    }
+
     type SerialWriteBatch<'l>: SerialWriteBatch<'l>
         = UnimplementedWriteBatch
     where

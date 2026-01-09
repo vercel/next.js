@@ -244,7 +244,6 @@ function patchConsoleMethod(methodName: InterceptableConsoleMethod): void {
           }
         // intentional fallthrough
         case 'prerender-legacy':
-        case 'prerender-ppr':
         case 'cache':
         case 'unstable-cache':
         case 'private-cache':

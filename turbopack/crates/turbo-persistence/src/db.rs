@@ -1338,6 +1338,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     /// might hold onto a block of the database and it should not be hold long-term.
     pub fn get<K: QueryKey>(&self, family: usize, key: &K) -> Result<Option<ArcSlice<u8>>> {
         debug_assert!(family < FAMILIES, "Family index out of bounds");
+        let span =
+            tracing::trace_span!("database read", family, result_size = tracing::field::Empty)
+                .entered();
         let hash = hash_key(key);
         let inner = self.inner.read();
         for meta in inner.meta_files.iter().rev() {
@@ -1368,17 +1371,20 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                             LookupValue::Deleted => {
                                 #[cfg(feature = "stats")]
                                 self.stats.hits_deleted.fetch_add(1, Ordering::Relaxed);
+                                span.record("result_size", "deleted");
                                 return Ok(None);
                             }
                             LookupValue::Slice { value } => {
                                 #[cfg(feature = "stats")]
                                 self.stats.hits_small.fetch_add(1, Ordering::Relaxed);
+                                span.record("result_size", value.len());
                                 return Ok(Some(value));
                             }
                             LookupValue::Blob { sequence_number } => {
                                 #[cfg(feature = "stats")]
                                 self.stats.hits_blob.fetch_add(1, Ordering::Relaxed);
                                 let blob = self.read_blob(sequence_number)?;
+                                span.record("result_size", blob.len());
                                 return Ok(Some(blob));
                             }
                         }
@@ -1392,7 +1398,116 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         }
         #[cfg(feature = "stats")]
         self.stats.miss_global.fetch_add(1, Ordering::Relaxed);
+        span.record("result_size", "not found");
         Ok(None)
+    }
+
+    pub fn batch_get<K: QueryKey>(
+        &self,
+        family: usize,
+        keys: &[K],
+    ) -> Result<Vec<Option<ArcSlice<u8>>>> {
+        debug_assert!(family < FAMILIES, "Family index out of bounds");
+        let span = tracing::trace_span!(
+            "database batch read",
+            family,
+            keys = keys.len(),
+            not_found = tracing::field::Empty,
+            deleted = tracing::field::Empty,
+            result_size = tracing::field::Empty
+        )
+        .entered();
+        let mut cells: Vec<(u64, usize, Option<LookupValue>)> = Vec::with_capacity(keys.len());
+        let mut empty_cells = keys.len();
+        for (index, key) in keys.iter().enumerate() {
+            let hash = hash_key(key);
+            cells.push((hash, index, None));
+        }
+        cells.sort_by_key(|(hash, _, _)| *hash);
+        let inner = self.inner.read();
+        for meta in inner.meta_files.iter().rev() {
+            let _result = meta.batch_lookup(
+                family as u32,
+                keys,
+                &mut cells,
+                &mut empty_cells,
+                &self.amqf_cache,
+                &self.key_block_cache,
+                &self.value_block_cache,
+            )?;
+
+            #[cfg(feature = "stats")]
+            {
+                let crate::meta_file::MetaBatchLookupResult {
+                    family_miss,
+                    range_misses,
+                    quick_filter_misses,
+                    sst_misses,
+                    hits: _,
+                } = _result;
+                if family_miss {
+                    self.stats.miss_family.fetch_add(1, Ordering::Relaxed);
+                }
+                if range_misses > 0 {
+                    self.stats
+                        .miss_range
+                        .fetch_add(range_misses as u64, Ordering::Relaxed);
+                }
+                if quick_filter_misses > 0 {
+                    self.stats
+                        .miss_amqf
+                        .fetch_add(quick_filter_misses as u64, Ordering::Relaxed);
+                }
+                if sst_misses > 0 {
+                    self.stats
+                        .miss_key
+                        .fetch_add(sst_misses as u64, Ordering::Relaxed);
+                }
+            }
+
+            if empty_cells == 0 {
+                break;
+            }
+        }
+        let mut deleted = 0;
+        let mut not_found = 0;
+        let mut result_size = 0;
+        let mut results = vec![None; keys.len()];
+        for (hash, index, result) in cells {
+            if let Some(result) = result {
+                inner.accessed_key_hashes[family].insert(hash);
+                let result = match result {
+                    LookupValue::Deleted => {
+                        #[cfg(feature = "stats")]
+                        self.stats.hits_deleted.fetch_add(1, Ordering::Relaxed);
+                        deleted += 1;
+                        None
+                    }
+                    LookupValue::Slice { value } => {
+                        #[cfg(feature = "stats")]
+                        self.stats.hits_small.fetch_add(1, Ordering::Relaxed);
+                        result_size += value.len();
+                        Some(value)
+                    }
+                    LookupValue::Blob { sequence_number } => {
+                        #[cfg(feature = "stats")]
+                        self.stats.hits_blob.fetch_add(1, Ordering::Relaxed);
+                        let blob = self.read_blob(sequence_number)?;
+                        result_size += blob.len();
+                        Some(blob)
+                    }
+                };
+                results[index] = result;
+            } else {
+                #[cfg(feature = "stats")]
+                self.stats.miss_global.fetch_add(1, Ordering::Relaxed);
+                not_found += 1;
+            }
+        }
+        span.record("not_found", not_found);
+        span.record("deleted", deleted);
+        span.record("result_size", result_size);
+        Ok(results)
     }
 
     /// Returns database statistics.
