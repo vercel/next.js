@@ -107,6 +107,7 @@ function runTests(mode: 'dev' | 'server') {
             256, 384,
           ],
           unoptimized: false,
+          customCacheHandler: false,
         },
       })
     })

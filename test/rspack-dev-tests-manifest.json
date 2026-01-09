@@ -1872,6 +1872,26 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/dev-cache-control-no-cache-disabled/dev-cache-control-no-cache-disabled.test.ts": {
+    "passed": [
+      "experimental.devCacheControlNoCache disabled (default) should use no-store for app router by default",
+      "experimental.devCacheControlNoCache disabled (default) should use no-store for pages router by default"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/dev-cache-control-no-cache/dev-cache-control-no-cache.test.ts": {
+    "passed": [
+      "experimental.devCacheControlNoCache when enabled should use no-cache instead of no-store for app router",
+      "experimental.devCacheControlNoCache when enabled should use no-cache instead of no-store for pages router"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/dev-indicator/dev-indicator.test.ts": {
     "passed": [
       "dev indicator - route type getInitialProps should be marked dynamic on first load",
@@ -4592,6 +4612,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/cdn-cache-control-header/cdn-cache-control-header.test.ts": {
+    "passed": [
+      "cdn-cache-control-header should use custom CDN cache control header name from experimental config"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/client-module-with-package-type/index.test.ts": {
     "passed": [
       "esm-client-module-without-exports \"type\": \"commonjs\" in package.json should render without errors: import cjs",
@@ -4953,6 +4982,19 @@
       "dedupe-rsc-error-log should only log RSC error once for nodejs runtime",
       "dedupe-rsc-error-log should only log SSR error once for edge runtime",
       "dedupe-rsc-error-log should only log SSR error once for nodejs runtime"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/default-error-page-ui/default-error-page-ui.test.ts": {
+    "passed": [
+      "app dir - default error page UI should display server error page with Error reference",
+      "app dir - default error page UI should have left-aligned text in error page",
+      "app dir - default error page UI should have proper styling in the default error page",
+      "app dir - default error page UI should reload the page when Reload page button is clicked",
+      "app dir - default error page UI should render client error page with correct UI elements"
     ],
     "failed": [],
     "pending": [],
@@ -5714,6 +5756,25 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/javascript-urls/javascript-urls.test.ts": {
+    "passed": [
+      "javascript-urls should prevent javascript URLs in link `as`",
+      "javascript-urls should prevent javascript URLs in link `href`",
+      "javascript-urls should prevent javascript URLs in pages router Link as prop",
+      "javascript-urls should prevent javascript URLs in pages router Link component",
+      "javascript-urls should prevent javascript URLs in pages router router.push",
+      "javascript-urls should prevent javascript URLs in pages router router.replace",
+      "javascript-urls should prevent javascript URLs in route.prefetch",
+      "javascript-urls should prevent javascript URLs in route.push",
+      "javascript-urls should prevent javascript URLs in route.replace",
+      "javascript-urls should prevent javascript URLs in server action redirect through form action",
+      "javascript-urls should prevent javascript URLs in server action redirect through onClick"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/layout-params/layout-params.test.ts": {
     "passed": [
       "app dir - layout params basic params check layout renders just it's params",
@@ -6010,8 +6071,8 @@
   },
   "test/e2e/app-dir/metadata-static-file/metadata-static-file-dynamic-route.test.ts": {
     "passed": [
-      "metadata-files-static-output-dynamic-route should have correct link tags for dynamic page",
-      "metadata-files-static-output-dynamic-route should serve static files when requested to its route for dynamic page"
+      "metadata-files-static-output-dynamic-route should have correct link tags for dynamic page with static placeholder",
+      "metadata-files-static-output-dynamic-route should serve static files when requested with placeholder for dynamic page"
     ],
     "failed": [],
     "pending": [],
@@ -7839,6 +7900,16 @@
       "setting cookies stops cookie mutations when changing phases from an action to a page render",
       "setting cookies stops cookie mutations when changing phases from an action to after via closure",
       "setting cookies stops cookie mutations when changing phases from middleware to after via closure"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/pnpm-workspace-root/pnpm-workspace-root.test.ts": {
+    "passed": [
+      "pnpm-workspace-root should detect root directory from pnpm-workspace.yaml and allow imports from outside app dir",
+      "pnpm-workspace-root should not have multiple lockfiles warning when pnpm-workspace.yaml is present"
     ],
     "failed": [],
     "pending": [],
@@ -9675,7 +9746,9 @@
   },
   "test/e2e/app-dir/use-cache/use-cache.test.ts": {
     "passed": [
+      "use-cache caches a higher-order component in a \"use cache\" module",
       "use-cache can reference server actions in \"use cache\" functions",
+      "use-cache ignores unused arguments in a \"use cache\" function",
       "use-cache renders the not-found page when `notFound()` is used",
       "use-cache replays logs from \"use cache\" functions",
       "use-cache shares caches between the page/layout and generateMetadata",
@@ -10213,6 +10286,29 @@
       "Conflict between app file and pages file should show error overlay for /another",
       "Conflict between app file and pages file should support hmr with conflicts"
     ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/cpu-profiling/cpu-profiling-build.test.ts": {
+    "passed": ["CPU Profiling - next build skip for development/deploy mode"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/cpu-profiling/cpu-profiling-dev.test.ts": {
+    "passed": [
+      "CPU Profiling - next dev should create CPU profile files on exit"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/cpu-profiling/cpu-profiling.test.ts": {
+    "passed": ["CPU Profiling - next start skip for development/deploy mode"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -11462,6 +11558,35 @@
       "Middleware Redirect /fr should redirect to api route with locale",
       "Middleware Redirect /fr should redirect with a fragment",
       "Middleware Redirect does not include the locale in redirects by default",
+      "Middleware Redirect should have relative path for same host redirect",
+      "Middleware Redirect should implement internal redirects",
+      "Middleware Redirect should redirect",
+      "Middleware Redirect should redirect (infinite-loop)",
+      "Middleware Redirect should redirect cleanly with the original url param",
+      "Middleware Redirect should redirect multiple times",
+      "Middleware Redirect should redirect to api route with locale",
+      "Middleware Redirect should redirect to data urls with data requests and internal redirects",
+      "Middleware Redirect should redirect to external urls with data requests and external redirects",
+      "Middleware Redirect should redirect with a fragment"
+    ],
+    "failed": [
+      "Middleware Redirect should redirect correctly with redirect in next.config.js"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/middleware-redirects/test/node-runtime.test.ts": {
+    "passed": [
+      "Middleware Redirect /fr should implement internal redirects",
+      "Middleware Redirect /fr should redirect",
+      "Middleware Redirect /fr should redirect (infinite-loop)",
+      "Middleware Redirect /fr should redirect cleanly with the original url param",
+      "Middleware Redirect /fr should redirect multiple times",
+      "Middleware Redirect /fr should redirect to api route with locale",
+      "Middleware Redirect /fr should redirect with a fragment",
+      "Middleware Redirect does not include the locale in redirects by default",
+      "Middleware Redirect should have relative path for same host redirect",
       "Middleware Redirect should implement internal redirects",
       "Middleware Redirect should redirect",
       "Middleware Redirect should redirect (infinite-loop)",
@@ -13792,6 +13917,16 @@
       "Conflicting SSG paths production mode should show proper error when a dynamic SSG route conflicts with normal route",
       "Conflicting SSG paths production mode should show proper error when two dynamic SSG routes have conflicting paths"
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/cpu-profiling/test/index.test.ts": {
+    "passed": [
+      "CPU Profiling next build --experimental-cpu-prof should create CPU profile files with meaningful names",
+      "CPU Profiling next build --experimental-cpu-prof should create profiles for worker processes"
+    ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },

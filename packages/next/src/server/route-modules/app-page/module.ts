@@ -1,7 +1,7 @@
 import type { AppPageRouteDefinition } from '../../route-definitions/app-page-route-definition'
 import type RenderResult from '../../render-result'
 import type { RenderOpts } from '../../app-render/types'
-import type { NextParsedUrlQuery } from '../../request-meta'
+import { addRequestMeta, type NextParsedUrlQuery } from '../../request-meta'
 import type { LoaderTree } from '../../lib/app-dir-module'
 import type { PrerenderManifest } from '../../../build'
 
@@ -28,6 +28,10 @@ import {
   RSC_HEADER,
 } from '../../../client/components/app-router-headers'
 import { isInterceptionRouteAppPath } from '../../../shared/lib/router/utils/interception-routes'
+import { RSCPathnameNormalizer } from '../../normalizers/request/rsc'
+import { SegmentPrefixRSCPathnameNormalizer } from '../../normalizers/request/segment-prefix-rsc'
+import type { UrlWithParsedQuery } from 'url'
+import type { IncomingMessage } from 'http'
 
 let vendoredReactRSC
 let vendoredReactSSR
@@ -98,6 +102,46 @@ export class AppPageRouteModule extends RouteModule<
 
     // Match the pathname to the dynamic route.
     return matcher.match(pathname)
+  }
+
+  private normalizers = {
+    rsc: new RSCPathnameNormalizer(),
+    segmentPrefetchRSC: new SegmentPrefixRSCPathnameNormalizer(),
+  }
+
+  public normalizeUrl(
+    req: IncomingMessage | BaseNextRequest,
+    parsedUrl: UrlWithParsedQuery
+  ) {
+    if (this.normalizers.segmentPrefetchRSC.match(parsedUrl.pathname || '/')) {
+      const result = this.normalizers.segmentPrefetchRSC.extract(
+        parsedUrl.pathname || '/'
+      )
+      if (!result) return false
+
+      const { originalPathname, segmentPath } = result
+      parsedUrl.pathname = originalPathname
+
+      // Mark the request as a router prefetch request.
+      req.headers[RSC_HEADER] = '1'
+      req.headers[NEXT_ROUTER_PREFETCH_HEADER] = '1'
+      req.headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER] = segmentPath
+
+      addRequestMeta(req, 'isRSCRequest', true)
+      addRequestMeta(req, 'isPrefetchRSCRequest', true)
+      addRequestMeta(req, 'segmentPrefetchRSCRequest', segmentPath)
+    } else if (this.normalizers.rsc.match(parsedUrl.pathname || '/')) {
+      parsedUrl.pathname = this.normalizers.rsc.normalize(
+        parsedUrl.pathname || '/',
+        true
+      )
+
+      // Mark the request as a RSC request.
+      req.headers[RSC_HEADER] = '1'
+      addRequestMeta(req, 'isRSCRequest', true)
+    } else {
+      super.normalizeUrl(req, parsedUrl)
+    }
   }
 
   public render(

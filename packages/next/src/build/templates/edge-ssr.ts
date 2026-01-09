@@ -28,6 +28,8 @@ import type { RenderResultMetadata } from '../../server/render-result'
 import { getTracer, SpanKind, type Span } from '../../server/lib/trace/tracer'
 import { BaseServerSpan } from '../../server/lib/trace/constants'
 import { HTML_CONTENT_TYPE_HEADER } from '../../lib/constants'
+import type { RequestMeta } from '../../server/request-meta'
+import { toNodeOutgoingHttpHeaders } from '../../server/web/utils'
 
 // injected by the loader afterwards.
 declare const pageRouteModuleOptions: any
@@ -357,7 +359,7 @@ async function requestHandler(
   )
 }
 
-const handler: EdgeHandler = (opts) => {
+const internalHandler: EdgeHandler = (opts) => {
   return adapter({
     ...opts,
     IncrementalCache,
@@ -367,4 +369,50 @@ const handler: EdgeHandler = (opts) => {
     page: 'VAR_DEFINITION_PATHNAME',
   })
 }
-export default handler
+
+export async function handler(
+  request: Request,
+  ctx: {
+    waitUntil?: (prom: Promise<void>) => void
+    signal?: AbortSignal
+    requestMeta?: RequestMeta
+  }
+): Promise<Response> {
+  const result = await internalHandler({
+    request: {
+      url: request.url,
+      method: request.method,
+      headers: toNodeOutgoingHttpHeaders(request.headers),
+      nextConfig: {
+        basePath: process.env.__NEXT_BASE_PATH,
+        i18n: process.env.__NEXT_I18N_CONFIG as any,
+        trailingSlash: Boolean(process.env.__NEXT_TRAILING_SLASH),
+        experimental: {
+          cacheLife: process.env.__NEXT_CACHE_LIFE as any,
+          authInterrupts: Boolean(
+            process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS
+          ),
+          clientParamParsingOrigins: process.env
+            .__NEXT_CLIENT_PARAM_PARSING_ORIGINS as any,
+        },
+      },
+      page: {
+        name: 'VAR_DEFINITION_PATHNAME',
+      },
+      body:
+        request.method !== 'GET' && request.method !== 'HEAD'
+          ? (request.body ?? undefined)
+          : undefined,
+      waitUntil: ctx.waitUntil,
+      requestMeta: ctx.requestMeta,
+      signal: ctx.signal || new AbortController().signal,
+    },
+  })
+
+  ctx.waitUntil?.(result.waitUntil)
+
+  return result.response
+}
+
+// backwards compat
+export default internalHandler

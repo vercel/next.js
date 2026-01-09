@@ -8,6 +8,7 @@
 // stdlib into our source tree
 #![feature(normalize_lexically)]
 #![feature(trivial_bounds)]
+#![feature(downcast_unchecked)]
 // Junction points are used on Windows. We could use a third-party crate for this if the junction
 // API isn't eventually stabilized.
 #![cfg_attr(windows, feature(junction_point))]
@@ -41,7 +42,7 @@ use std::{
     io::{self, BufRead, BufReader, ErrorKind, Read},
     mem::take,
     path::{MAIN_SEPARATOR, Path, PathBuf},
-    sync::{Arc, LazyLock},
+    sync::{Arc, LazyLock, Weak},
     time::Duration,
 };
 
@@ -55,13 +56,16 @@ use jsonc_parser::{ParseOptions, parse_to_serde_value};
 use mime::Mime;
 use rustc_hash::FxHashSet;
 use serde_json::Value;
-use tokio::sync::{RwLock, RwLockReadGuard};
+use tokio::{
+    runtime::Handle,
+    sync::{RwLock, RwLockReadGuard},
+};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     ApplyEffectsContext, Completion, InvalidationReason, Invalidator, NonLocalValue, ReadRef,
-    ResolvedVc, TaskInput, ValueToString, Vc, debug::ValueDebugFormat, effect,
-    mark_session_dependent, mark_stateful, parallel, trace::TraceRawVcs,
+    ResolvedVc, TaskInput, TurboTasksApi, ValueToString, Vc, debug::ValueDebugFormat, effect,
+    mark_session_dependent, parallel, trace::TraceRawVcs, turbo_tasks_weak,
 };
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher, hash_xxh3_hash64};
 use turbo_unix_path::{
@@ -288,6 +292,15 @@ struct DiskFileSystemInner {
     /// Root paths that we do not allow access to from this filesystem.
     /// Useful for things like output directories to prevent accidental ouroboros situations.
     denied_paths: Vec<RcStr>,
+    /// Used by invalidators when called from a non-turbo-tasks thread, specifically in the fs
+    /// watcher.
+    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[bincode(skip, default = "turbo_tasks_weak")]
+    turbo_tasks: Weak<dyn TurboTasksApi>,
+    /// Used by invalidators when called from a non-tokio thread, specifically in the fs watcher.
+    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[bincode(skip, default = "Handle::current")]
+    tokio_handle: Handle,
 }
 
 impl DiskFileSystemInner {
@@ -371,6 +384,11 @@ impl DiskFileSystemInner {
 
     fn invalidate(&self) {
         let _span = tracing::info_span!("invalidate filesystem", name = &*self.root).entered();
+        let Some(turbo_tasks) = self.turbo_tasks.upgrade() else {
+            return;
+        };
+        let _guard = self.tokio_handle.enter();
+
         let invalidator_map = take(&mut *self.invalidator_map.lock().unwrap());
         let dir_invalidator_map = take(&mut *self.dir_invalidator_map.lock().unwrap());
         let invalidators = invalidator_map
@@ -378,7 +396,9 @@ impl DiskFileSystemInner {
             .chain(dir_invalidator_map)
             .flat_map(|(_, invalidators)| invalidators.into_keys())
             .collect::<Vec<_>>();
-        parallel::for_each_owned(invalidators, |invalidator| invalidator.invalidate());
+        parallel::for_each_owned(invalidators, |invalidator| {
+            invalidator.invalidate(&*turbo_tasks)
+        });
     }
 
     /// Invalidates every tracked file in the filesystem.
@@ -389,6 +409,11 @@ impl DiskFileSystemInner {
         reason: impl Fn(&Path) -> R + Sync,
     ) {
         let _span = tracing::info_span!("invalidate filesystem", name = &*self.root).entered();
+        let Some(turbo_tasks) = self.turbo_tasks.upgrade() else {
+            return;
+        };
+        let _guard = self.tokio_handle.enter();
+
         let invalidator_map = take(&mut *self.invalidator_map.lock().unwrap());
         let dir_invalidator_map = take(&mut *self.dir_invalidator_map.lock().unwrap());
         let invalidators = invalidator_map
@@ -402,7 +427,7 @@ impl DiskFileSystemInner {
             })
             .collect::<Vec<_>>();
         parallel::for_each_owned(invalidators, |(reason, invalidator)| {
-            invalidator.invalidate_with_reason(reason)
+            invalidator.invalidate_with_reason(&*turbo_tasks, reason)
         });
     }
 
@@ -412,18 +437,24 @@ impl DiskFileSystemInner {
         invalidators: Vec<(Invalidator, Option<WriteContent>)>,
     ) {
         if !invalidators.is_empty() {
+            let Some(turbo_tasks) = self.turbo_tasks.upgrade() else {
+                return;
+            };
+            let _guard = self.tokio_handle.enter();
+
             if let Some(path) = format_absolute_fs_path(full_path, &self.name, self.root_path()) {
                 if invalidators.len() == 1 {
                     let (invalidator, _) = invalidators.into_iter().next().unwrap();
-                    invalidator.invalidate_with_reason(Write { path });
+                    invalidator.invalidate_with_reason(&*turbo_tasks, Write { path });
                 } else {
                     invalidators.into_iter().for_each(|(invalidator, _)| {
-                        invalidator.invalidate_with_reason(Write { path: path.clone() });
+                        invalidator
+                            .invalidate_with_reason(&*turbo_tasks, Write { path: path.clone() });
                     });
                 }
             } else {
                 invalidators.into_iter().for_each(|(invalidator, _)| {
-                    invalidator.invalidate();
+                    invalidator.invalidate(&*turbo_tasks);
                 });
             }
         }
@@ -462,11 +493,11 @@ impl DiskFileSystemInner {
         if !already_created {
             let func = |p: &Path| std::fs::create_dir_all(p);
             retry_blocking(directory.to_path_buf(), func)
-                .concurrency_limited(&self.write_semaphore)
                 .instrument(tracing::info_span!(
                     "create directory",
                     name = display(directory.display())
                 ))
+                .concurrency_limited(&self.write_semaphore)
                 .await?;
             ApplyEffectsContext::with(|fs_context: &mut DiskFileSystemApplyContext| {
                 fs_context
@@ -634,8 +665,6 @@ impl DiskFileSystem {
 impl DiskFileSystem {
     #[turbo_tasks::function]
     fn new_internal(name: RcStr, root: RcStr, denied_paths: Vec<RcStr>) -> Vc<Self> {
-        mark_stateful();
-
         let instance = DiskFileSystem {
             inner: Arc::new(DiskFileSystemInner {
                 name,
@@ -648,6 +677,8 @@ impl DiskFileSystem {
                 write_semaphore: create_write_semaphore(),
                 watcher: DiskWatcher::new(),
                 denied_paths,
+                turbo_tasks: turbo_tasks_weak(),
+                tokio_handle: Handle::current(),
             }),
         };
 
@@ -677,11 +708,11 @@ impl FileSystem for DiskFileSystem {
 
         let _lock = self.inner.lock_path(&full_path).await;
         let content = match retry_blocking(full_path.clone(), |path: &Path| File::from_path(path))
-            .concurrency_limited(&self.inner.read_semaphore)
             .instrument(tracing::info_span!(
                 "read file",
                 name = display(full_path.display())
             ))
+            .concurrency_limited(&self.inner.read_semaphore)
             .await
         {
             Ok(file) => FileContent::new(file),
@@ -803,11 +834,11 @@ impl FileSystem for DiskFileSystem {
         let _lock = self.inner.lock_path(&full_path).await;
         let link_path =
             match retry_blocking(full_path.clone(), |path: &Path| std::fs::read_link(path))
-                .concurrency_limited(&self.inner.read_semaphore)
                 .instrument(tracing::info_span!(
                     "read symlink",
                     name = display(full_path.display())
                 ))
+                .concurrency_limited(&self.inner.read_semaphore)
                 .await
             {
                 Ok(res) => res,
@@ -925,11 +956,11 @@ impl FileSystem for DiskFileSystem {
             // not wasting cycles.
             let compare = content
                 .streaming_compare(&full_path)
-                .concurrency_limited(&inner.read_semaphore)
                 .instrument(tracing::info_span!(
                     "read file before write",
                     name = display(full_path.display())
                 ))
+                .concurrency_limited(&inner.read_semaphore)
                 .await?;
             if compare == FileComparison::Equal {
                 if !old_invalidators.is_empty() {
@@ -993,11 +1024,11 @@ impl FileSystem for DiskFileSystem {
                         }
                         Ok::<(), io::Error>(())
                     })
-                    .concurrency_limited(&inner.write_semaphore)
                     .instrument(tracing::info_span!(
                         "write file",
                         name = display(full_path.display())
                     ))
+                    .concurrency_limited(&inner.write_semaphore)
                     .await
                     .with_context(|| format!("failed to write to {}", full_path.display()))?;
                 }
@@ -1005,11 +1036,11 @@ impl FileSystem for DiskFileSystem {
                     retry_blocking(full_path.clone().into_owned(), |path| {
                         std::fs::remove_file(path)
                     })
-                    .concurrency_limited(&inner.write_semaphore)
                     .instrument(tracing::info_span!(
                         "remove file",
                         name = display(full_path.display())
                     ))
+                    .concurrency_limited(&inner.write_semaphore)
                     .await
                     .or_else(|err| {
                         if err.kind() == ErrorKind::NotFound {
@@ -1018,7 +1049,7 @@ impl FileSystem for DiskFileSystem {
                             Err(err)
                         }
                     })
-                    .with_context(|| anyhow!("removing {} failed", full_path.display()))?;
+                    .with_context(|| format!("removing {} failed", full_path.display()))?;
                 }
             }
 
@@ -1108,11 +1139,11 @@ impl FileSystem for DiskFileSystem {
             let old_content = match retry_blocking(full_path.clone().into_owned(), |path| {
                 std::fs::read_link(path)
             })
-            .concurrency_limited(&inner.read_semaphore)
             .instrument(tracing::info_span!(
                 "read symlink before write",
                 name = display(full_path.display())
             ))
+            .concurrency_limited(&inner.read_semaphore)
             .await
             {
                 Ok(res) => Some((res.is_absolute(), res)),
@@ -1164,13 +1195,19 @@ impl FileSystem for DiskFileSystem {
                         // fails with EEXIST if the link already exists instead of overwriting it.
                         // Windows has similar behavior with junction points.
                         remove_symbolic_link_dir_helper(&full_path)
+                            .instrument(tracing::info_span!(
+                                "remove existing symlink before write",
+                                name = display(full_path.display())
+                            ))
                             .concurrency_limited(&inner.write_semaphore)
                             .await
                             .with_context(|| {
-                                anyhow!("removing existing symlink {} failed", full_path.display())
+                                format!("removing existing symlink {} failed", full_path.display())
                             })?;
                     }
 
+                    let span =
+                        tracing::info_span!("create symlink", name = display(full_path.display()));
                     retry_blocking(target.clone(), move |target_path| {
                         let _span = tracing::info_span!(
                             "write symlink",
@@ -1190,6 +1227,8 @@ impl FileSystem for DiskFileSystem {
                             }
                         }
                     })
+                    .instrument(span)
+                    .concurrency_limited(&inner.write_semaphore)
                     .await
                     .with_context(|| {
                         #[cfg(not(windows))]
@@ -1212,9 +1251,13 @@ impl FileSystem for DiskFileSystem {
                 }
                 OsSpecificLinkContent::NotFound => {
                     remove_symbolic_link_dir_helper(&full_path)
+                        .instrument(tracing::info_span!(
+                            "remove symlink",
+                            name = display(full_path.display())
+                        ))
                         .concurrency_limited(&inner.write_semaphore)
                         .await
-                        .with_context(|| anyhow!("removing {} failed", full_path.display()))?;
+                        .with_context(|| format!("removing {} failed", full_path.display()))?;
                 }
             }
 
@@ -1240,11 +1283,11 @@ impl FileSystem for DiskFileSystem {
 
         let _lock = self.inner.lock_path(&full_path).await;
         let meta = retry_blocking(full_path.clone(), |path| std::fs::metadata(path))
-            .concurrency_limited(&self.inner.read_semaphore)
             .instrument(tracing::info_span!(
                 "read metadata",
                 name = display(full_path.display())
             ))
+            .concurrency_limited(&self.inner.read_semaphore)
             .await
             .with_context(|| format!("reading metadata for {}", full_path.display()))?;
 

@@ -1,6 +1,6 @@
 use std::{error::Error, str::FromStr};
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result};
 
 /// Reads an environment variable.
 pub fn read_env<T>(name: &str, default: T) -> Result<T>
@@ -13,7 +13,7 @@ where
         None | Some("") => Ok(default),
         Some(config) => config
             .parse()
-            .with_context(|| anyhow!("Invalid value for {}", name)),
+            .with_context(|| format!("Invalid value for {}", name)),
     }
 }
 
@@ -40,7 +40,7 @@ where
             .split(',')
             .map(|s| {
                 s.parse()
-                    .with_context(|| anyhow!("Invalid value for {}", name))
+                    .with_context(|| format!("Invalid value for {}", name))
             })
             .collect(),
     }
