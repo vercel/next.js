@@ -19,7 +19,7 @@ use swc_core::{
     },
 };
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, OperationVc, ResolvedVc, TryFlatJoinIterExt, Vc};
+use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, Vc};
 use turbo_tasks_fs::{self, File, FileContent, FileSystemPath, rope::RopeBuilder};
 use turbopack_core::{
     asset::AssetContent,
@@ -30,7 +30,9 @@ use turbopack_core::{
     file_source::FileSource,
     ident::AssetIdent,
     module::Module,
-    module_graph::{ModuleGraph, SingleModuleGraph, async_module_info::AsyncModulesInfo},
+    module_graph::{
+        ModuleGraph, SingleModuleGraphWithBindingUsage, async_module_info::AsyncModulesInfo,
+    },
     output::OutputAsset,
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::ModulePart,
@@ -454,10 +456,10 @@ pub struct AllModuleActions(
 
 #[turbo_tasks::function]
 pub async fn map_server_actions(
-    graph: OperationVc<SingleModuleGraph>,
+    graph: SingleModuleGraphWithBindingUsage,
 ) -> Result<Vc<AllModuleActions>> {
     let actions = graph
-        .connect()
+        .read()
         .await?
         .iter_nodes()
         .map(async |module| {

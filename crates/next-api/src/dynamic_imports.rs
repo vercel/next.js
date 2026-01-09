@@ -26,8 +26,8 @@ use next_core::{
     next_dynamic::NextDynamicEntryModule,
 };
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TryFlatJoinIterExt,
-    TryJoinIterExt, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
+    FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbopack_core::{
     chunk::{
@@ -35,7 +35,7 @@ use turbopack_core::{
         availability_info::AvailabilityInfo,
     },
     module::Module,
-    module_graph::{ModuleGraph, SingleModuleGraph},
+    module_graph::{ModuleGraph, SingleModuleGraphWithBindingUsage},
     output::{OutputAssetsReference, OutputAssetsWithReferenced},
 };
 
@@ -123,10 +123,10 @@ pub struct DynamicImportEntries(
 
 #[turbo_tasks::function]
 pub async fn map_next_dynamic(
-    graph: OperationVc<SingleModuleGraph>,
+    graph: SingleModuleGraphWithBindingUsage,
 ) -> Result<Vc<DynamicImportEntries>> {
     let actions = graph
-        .connect()
+        .read()
         .await?
         .iter_nodes()
         .map(|module| async move {

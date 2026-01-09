@@ -133,7 +133,7 @@ impl NextDynamicGraph {
         graph: SingleModuleGraphWithBindingUsage,
         is_single_page: bool,
     ) -> Result<Vc<Self>> {
-        let mapped = map_next_dynamic(graph.graph);
+        let mapped = map_next_dynamic(graph);
 
         Ok(NextDynamicGraph {
             is_single_page,
@@ -319,7 +319,7 @@ impl ServerActionsGraph {
         graph: SingleModuleGraphWithBindingUsage,
         is_single_page: bool,
     ) -> Result<Vc<Self>> {
-        let mapped = map_server_actions(graph.graph);
+        let mapped = map_server_actions(graph);
 
         Ok(ServerActionsGraph {
             is_single_page,
@@ -521,7 +521,7 @@ impl ClientReferencesGraph {
         graph: SingleModuleGraphWithBindingUsage,
         is_single_page: bool,
     ) -> Result<Vc<Self>> {
-        let mapped = map_client_references(graph.graph);
+        let mapped = map_client_references(graph);
 
         Ok(Self {
             is_single_page,

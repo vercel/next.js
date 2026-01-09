@@ -811,12 +811,12 @@ impl ModuleGraph {
 }
 
 #[derive(
-    Clone, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, NonLocalValue, Encode, Decode,
+    Clone, Copy, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, NonLocalValue, Encode, Decode,
 )]
 pub struct SingleModuleGraphWithBindingUsage {
-    pub graph: OperationVc<SingleModuleGraph>,
-    pub graph_idx: u32,
-    pub binding_usage: Option<OperationVc<BindingUsageInfo>>,
+    graph: OperationVc<SingleModuleGraph>,
+    graph_idx: u32,
+    binding_usage: Option<OperationVc<BindingUsageInfo>>,
 }
 
 impl SingleModuleGraphWithBindingUsage {
@@ -909,6 +909,10 @@ impl ModuleGraphRef {
         &self,
     ) -> impl Iterator<Item = (NodeIndex, &'_ SingleModuleGraphNode)> + '_ {
         self.graphs.iter().flat_map(|g| g.enumerate_nodes())
+    }
+
+    pub fn iter_nodes(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + '_ {
+        self.graphs.iter().flat_map(|g| g.iter_nodes())
     }
 
     /// Iterate the edges of a node REVERSED!
