@@ -29,8 +29,11 @@ export function fromNodeOutgoingHttpHeaders(
       // Try to recover from Mojibake (UTF-8 bytes interpreted as Latin-1)
       v = decodeMojibake(v)
 
-      // Encode non-ASCII characters to prevent corruption by the Headers API.
-      // The Headers API in edge runtime doesn't properly preserve Latin-1 characters.
+      // Encode non-ASCII characters for safe HTTP header transport.
+      // HTTP headers can be corrupted at multiple points:
+      // 1. HTTP/2 expects UTF-8; Latin-1 bytes get replaced with replacement chars
+      // 2. Some runtimes may not preserve non-ASCII in header values
+      // Percent-encoding ensures safe ASCII-only transmission.
       v = encodeHeaderValue(v)
 
       headers.append(key, v)
