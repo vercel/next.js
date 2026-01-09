@@ -361,12 +361,12 @@ describe('console-exit patches', () => {
       async function testForWorker() {
         let capturedOutput = ''
 
-        // Replace console.log to capture the trace output (console.trace uses console.log internally after our patch)
-        console.log = function (...args) {
+        // Replace console.error to capture the trace output (console.trace uses console.error internally after our patch)
+        console.error = function (...args) {
           capturedOutput = args.join(' ')
           reportResult({
             type: 'console-call',
-            method: 'log',
+            method: 'error',
             input: capturedOutput,
           })
         }

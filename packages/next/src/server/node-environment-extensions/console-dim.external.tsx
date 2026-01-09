@@ -204,7 +204,7 @@ function patchConsoleMethod(methodName: InterceptableConsoleMethod): void {
       const consoleStore = consoleAsyncStorage.getStore()
 
       // Special handling for console.trace: capture the stack trace early
-      // before the wrapper chain pollutes it, then use console.log to output
+      // before the wrapper chain pollutes it, then use console.error to output
       let traceStack: string | undefined
       if (methodName === 'trace') {
         traceStack = getCleanStackTrace()
@@ -329,10 +329,9 @@ function applyMethod<F extends (this: Console, ...args: any[]) => any>(
   traceStack?: string
 ): ReturnType<F> {
   if (methodName === 'trace' && traceStack !== undefined) {
-    // For console.trace, output the label + clean stack using console.log
-    // This goes through the wrapper chain for proper file logging
+    // For console.trace, output the label + clean stack using console.error (stderr)
     const label = args.length > 0 ? `Trace: ${args.join(' ')}` : 'Trace'
-    return console.log(`${label}\n${traceStack}`) as ReturnType<F>
+    return console.error(`${label}\n${traceStack}`) as ReturnType<F>
   }
   return method.apply(this, args)
 }
@@ -349,13 +348,13 @@ function applyWithDimming<F extends (this: Console, ...args: any[]) => any>(
   if (methodName === 'trace' && traceStack !== undefined) {
     const label = args.length > 0 ? `Trace: ${args.join(' ')}` : 'Trace'
     const traceOutput = `${label}\n${traceStack}`
-    // Use console.log with the dimmed trace output
-    const dimmedArgs = convertToDimmedArgs('log', [traceOutput])
+    // Use console.error with the dimmed trace output (outputs to stderr like native trace)
+    const dimmedArgs = convertToDimmedArgs('error', [traceOutput])
     if (consoleStore?.dim === true) {
-      return console.log(...dimmedArgs) as ReturnType<F>
+      return console.error(...dimmedArgs) as ReturnType<F>
     } else {
       return consoleAsyncStorage.run(DIMMED_STORE, () =>
-        console.log(...dimmedArgs)
+        console.error(...dimmedArgs)
       ) as ReturnType<F>
     }
   }
