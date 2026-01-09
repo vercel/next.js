@@ -168,7 +168,7 @@ async fn build_manifest(
 
     let actions_value = actions.await?;
     let loader_id = chunk_item.id().await?;
-    let loader_id = match &*loader_id {
+    let loader_id = match &loader_id {
         ModuleId::Number(id) => ActionManifestModuleId::Number(*id),
         ModuleId::String(id) => ActionManifestModuleId::String(id),
     };

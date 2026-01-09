@@ -10,8 +10,8 @@ use turbo_tasks_hash::DeterministicHash;
 use crate::{
     asset::Asset,
     chunk::{
-        ChunkItem, ChunkType, ChunkableModule, EvaluatableAssets, ModuleId,
-        availability_info::AvailabilityInfo,
+        ChunkItem, ChunkType, ChunkableModule, EvaluatableAssets,
+        availability_info::AvailabilityInfo, chunk_id_strategy::ModuleIdStrategy,
     },
     environment::Environment,
     ident::AssetIdent,
@@ -393,7 +393,8 @@ pub trait ChunkingContext {
         availability_info: AvailabilityInfo,
     ) -> Vc<Box<dyn ChunkItem>>;
     #[turbo_tasks::function]
-    fn async_loader_chunk_item_id(&self, module: Vc<Box<dyn ChunkableModule>>) -> Vc<ModuleId>;
+    fn async_loader_chunk_item_ident(&self, module: Vc<Box<dyn ChunkableModule>>)
+    -> Vc<AssetIdent>;
 
     #[turbo_tasks::function]
     fn chunk_group(
@@ -429,19 +430,7 @@ pub trait ChunkingContext {
     ) -> Result<Vc<EntryChunkGroupResult>>;
 
     #[turbo_tasks::function]
-    async fn chunk_item_id_from_ident(
-        self: Vc<Self>,
-        ident: Vc<AssetIdent>,
-    ) -> Result<Vc<ModuleId>>;
-
-    #[turbo_tasks::function]
-    fn chunk_item_id(self: Vc<Self>, module: Vc<Box<dyn ChunkItem>>) -> Vc<ModuleId> {
-        self.chunk_item_id_from_ident(module.asset_ident())
-    }
-    #[turbo_tasks::function]
-    fn chunk_item_id_from_module(self: Vc<Self>, module: Vc<Box<dyn Module>>) -> Vc<ModuleId> {
-        self.chunk_item_id_from_ident(module.ident())
-    }
+    async fn chunk_item_id_strategy(self: Vc<Self>) -> Result<Vc<ModuleIdStrategy>>;
 
     #[turbo_tasks::function]
     async fn module_export_usage(

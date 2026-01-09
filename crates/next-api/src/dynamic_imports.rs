@@ -84,10 +84,7 @@ pub(crate) async fn collect_next_dynamic_chunks(
                 chunking_context.async_loader_chunk_item(*module, module_graph, availability_info);
             let async_chunk_group = async_loader.references().to_resolved().await?;
 
-            let module_id = dynamic_entry
-                .chunk_item_id(chunking_context)
-                .to_resolved()
-                .await?;
+            let module_id = dynamic_entry.chunk_item_id(chunking_context).await?;
 
             Ok((*dynamic_entry, (module_id, async_chunk_group)))
         })
@@ -105,7 +102,7 @@ pub struct DynamicImportedChunks(
     #[bincode(with = "turbo_bincode::indexmap")]
     pub  FxIndexMap<
         ResolvedVc<NextDynamicEntryModule>,
-        (ResolvedVc<ModuleId>, ResolvedVc<OutputAssetsWithReferenced>),
+        (ModuleId, ResolvedVc<OutputAssetsWithReferenced>),
     >,
 );
 
