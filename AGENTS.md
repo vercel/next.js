@@ -41,13 +41,20 @@ The main Next.js framework lives in `packages/next/`. This is what gets publishe
 
 ## Git Workflow
 
-**Use Graphite for all git operations** instead of raw git commands:
+**CRITICAL: Use Graphite (`gt`) instead of git for ALL branch and commit operations.**
+
+NEVER use these git commands directly:
+
+- `git push` → use `gt submit --no-edit`
+- `git branch` → use `gt create`
+
+**Graphite commands:**
 
 - `gt create <branch-name> -m "message"` - Create a new branch with commit
 - `gt modify -a --no-edit` - Stage all and amend current branch's commit
-- `gt checkout <branch>` - Switch branches (use instead of `git checkout`)
+- `gt checkout <branch>` - Switch branches
 - `gt sync` - Sync and restack all branches
-- `gt submit --no-edit` - Push and create/update PRs (use `--no-edit` to avoid interactive prompts)
+- `gt submit --no-edit` - Push and create/update PRs
 - `gt log short` - View stack status
 
 **Note**: `gt submit` runs in interactive mode by default and won't push in automated contexts. Always use `gt submit --no-edit` or `gt submit -q` when running from Claude.
