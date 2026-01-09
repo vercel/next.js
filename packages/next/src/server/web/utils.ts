@@ -177,6 +177,10 @@ export function normalizeNextQueryParam(key: string): null | string {
  * Checks if a string contains any non-ASCII characters (code points > 127).
  * ASCII characters are in the range U+0000 to U+007F.
  *
+ * We use [^\u0000-\u007F] (matches anything outside ASCII) instead of [\x80-\xFF]
+ * (matches only Latin-1 extended 128-255) because HTTP headers may contain
+ * any Unicode character that needs encoding, not just Latin-1.
+ *
  * @param value - The string to check
  * @returns true if the string contains non-ASCII characters
  */

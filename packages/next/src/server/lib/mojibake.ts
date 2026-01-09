@@ -35,8 +35,9 @@ export function encodeMojibake(input: string): string {
  * @returns The decoded UTF-8 string, or the original if not Mojibake
  */
 export function decodeMojibake(input: string): string {
-  // Check if value contains non-ASCII characters that could be Mojibake
-
+  // Check if value contains Latin-1 extended characters (128-255) that could be Mojibake.
+  // We use [\x80-\xFF] instead of [^\u0000-\u007F] because Mojibake only produces
+  // characters in the Latin-1 range (0-255), not full Unicode.
   if (!/[\x80-\xFF]/.test(input)) {
     return input
   }
