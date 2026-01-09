@@ -22,6 +22,9 @@ let currentExecution: Execution | null = null
 const originalSetImmediate = globalThis.setImmediate
 const originalClearImmediate = globalThis.clearImmediate
 const originalNextTick = process.nextTick
+const originalSetImmediatePromisify: (typeof setImmediate)['__promisify__'] =
+  // @ts-expect-error: the types for `promisify.custom` are strange
+  originalSetImmediate[promisify.custom]
 
 export { originalSetImmediate as unpatchedSetImmediate }
 
@@ -621,10 +624,7 @@ function patchedSetImmediatePromise<T = void>(
   options?: import('node:timers').TimerOptions
 ): Promise<T> {
   if (currentExecution === null) {
-    const originalPromisify: (typeof setImmediate)['__promisify__'] =
-      // @ts-expect-error: the types for `promisify.custom` are strange
-      originalSetImmediate[promisify.custom]
-    return originalPromisify(value, options)
+    return originalSetImmediatePromisify(value, options)
   }
 
   return new Promise<T>((resolve, reject) => {
