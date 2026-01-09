@@ -45,6 +45,9 @@ use turbopack_ecmascript::{
     tree_shake::asset::EcmascriptModulePartAsset,
 };
 
+/// Metadata for a server action: (layer, exported_name, filename, line, col)
+type ActionMetadata = (ActionLayer, String, String, Option<u32>, Option<u32>);
+
 #[turbo_tasks::value]
 pub(crate) struct ServerActionsManifest {
     pub loader: ResolvedVc<Box<dyn EvaluatableAsset>>,
@@ -182,10 +185,7 @@ async fn build_manifest(
     };
 
     // Collect all the action metadata including filenames and location
-    let mut action_metadata: Vec<(
-        String,
-        (ActionLayer, String, String, Option<u32>, Option<u32>),
-    )> = Vec::new();
+    let mut action_metadata: Vec<(String, ActionMetadata)> = Vec::new();
     for (hash_id, (layer, meta, module)) in actions_value.iter() {
         // Use source_path from the action comment if available (contains original .ts/.tsx path),
         // otherwise fall back to module.ident().path() (may be compiled .js path)
