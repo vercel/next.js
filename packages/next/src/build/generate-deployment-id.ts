@@ -95,11 +95,8 @@ export function resolveAndSetDeploymentId(
 
   // User-configured deploymentId always takes precedence over NEXT_DEPLOYMENT_ID
   if (userConfiguredDeploymentId !== undefined) {
-    // Use user-configured deploymentId (takes precedence)
-    // Only set NEXT_DEPLOYMENT_ID if it wasn't already set (to avoid overwriting if function was called before)
-    if (process.env.NEXT_DEPLOYMENT_ID == null) {
-      process.env.NEXT_DEPLOYMENT_ID = userConfiguredDeploymentId
-    }
+    // User-configured deploymentId always takes precedence
+    process.env.NEXT_DEPLOYMENT_ID = userConfiguredDeploymentId
     return userConfiguredDeploymentId
   } else if (process.env.NEXT_DEPLOYMENT_ID != null) {
     // No user config, use NEXT_DEPLOYMENT_ID if set
