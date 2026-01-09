@@ -946,6 +946,8 @@ export default abstract class Server<
       // In minimal mode (Vercel), decode percent-encoded header values.
       // Middleware encodes non-ASCII characters for safe HTTP transport,
       // and we decode them here to restore the original values.
+      // Note: decodeHeaderValue is safe - it only decodes valid percent-encoded
+      // sequences and returns the original value if decoding fails.
       if (this.minimalMode) {
         for (const key of Object.keys(req.headers)) {
           const value = req.headers[key]
