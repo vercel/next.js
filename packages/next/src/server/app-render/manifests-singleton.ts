@@ -274,13 +274,21 @@ export function selectWorkerForForwarding(
 export function setManifestsSingleton({
   page,
   clientReferenceManifest,
-  serverActionsManifest,
+  serverActionsManifest: rawServerActionsManifest,
 }: {
   page: string
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>
   serverActionsManifest: DeepReadonly<ActionManifest>
 }) {
   const existingSingleton = globalThisWithManifests[MANIFESTS_SINGLETON]
+
+  const serverActionsManifest: DeepReadonly<ActionManifest> = {
+    encryptionKey: rawServerActionsManifest.encryptionKey,
+    // Use null-prototypes for the action objects to prevent prototype pollution
+    // from affecting action ID lookups.
+    node: Object.assign(Object.create(null), rawServerActionsManifest.node),
+    edge: Object.assign(Object.create(null), rawServerActionsManifest.edge),
+  }
 
   if (existingSingleton) {
     existingSingleton.clientReferenceManifestsPerRoute.set(
