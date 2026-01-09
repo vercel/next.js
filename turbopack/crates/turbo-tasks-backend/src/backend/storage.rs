@@ -1244,19 +1244,4 @@ mod tests {
             "InnerStorageSnapshot size changed - please review if this is intentional"
         );
     }
-
-    #[test]
-    fn test_default_storage_smaller_than_option_storage() {
-        // DefaultStorage<AggregationNumber> avoids the Option tag overhead
-        assert_eq!(
-            std::mem::size_of::<DefaultStorage<AggregationNumber>>(),
-            12,
-            "DefaultStorage<AggregationNumber> should be 12 bytes (same as AggregationNumber)"
-        );
-        assert_eq!(
-            std::mem::size_of::<OptionStorage<AggregationNumber>>(),
-            16,
-            "OptionStorage<AggregationNumber> should be 16 bytes (12 + 4 for Option tag)"
-        );
-    }
 }

@@ -133,7 +133,7 @@ impl<V> Storage for OptionStorage<V> {
     }
 }
 
-/// Storage for a single value that uses `Default::default()` to represent "empty".
+/// Storage for a single value that uses `Default::default()` to initialize the value "empty".
 #[derive(Debug, Clone)]
 pub struct DefaultStorage<V> {
     value: V,
