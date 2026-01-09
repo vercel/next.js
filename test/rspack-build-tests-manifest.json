@@ -3467,6 +3467,25 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/javascript-urls/javascript-urls.test.ts": {
+    "passed": [
+      "javascript-urls should prevent javascript URLs in link `as`",
+      "javascript-urls should prevent javascript URLs in link `href`",
+      "javascript-urls should prevent javascript URLs in pages router Link as prop",
+      "javascript-urls should prevent javascript URLs in pages router Link component",
+      "javascript-urls should prevent javascript URLs in pages router router.push",
+      "javascript-urls should prevent javascript URLs in pages router router.replace",
+      "javascript-urls should prevent javascript URLs in route.prefetch",
+      "javascript-urls should prevent javascript URLs in route.push",
+      "javascript-urls should prevent javascript URLs in route.replace",
+      "javascript-urls should prevent javascript URLs in server action redirect through form action",
+      "javascript-urls should prevent javascript URLs in server action redirect through onClick"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/layout-params/layout-params.test.ts": {
     "passed": [
       "app dir - layout params basic params check layout renders just it's params",
@@ -3719,8 +3738,9 @@
   },
   "test/e2e/app-dir/metadata-static-file/metadata-static-file-dynamic-route.test.ts": {
     "passed": [
-      "metadata-files-static-output-dynamic-route should have correct link tags for dynamic page",
-      "metadata-files-static-output-dynamic-route should serve static files when requested to its route for dynamic page"
+      "metadata-files-static-output-dynamic-route should display static metadata files with \"-\" placeholder in build output",
+      "metadata-files-static-output-dynamic-route should have correct link tags for dynamic page with static placeholder",
+      "metadata-files-static-output-dynamic-route should serve static files when requested with placeholder for dynamic page"
     ],
     "failed": [],
     "pending": [],
@@ -5564,6 +5584,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/pnpm-workspace-root/pnpm-workspace-root.test.ts": {
+    "passed": [
+      "pnpm-workspace-root should detect root directory from pnpm-workspace.yaml and allow imports from outside app dir",
+      "pnpm-workspace-root should not have multiple lockfiles warning when pnpm-workspace.yaml is present"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/ppr-errors/ppr-errors.test.ts": {
     "passed": [],
     "failed": [],
@@ -6873,6 +6903,7 @@
   },
   "test/e2e/app-dir/segment-cache/basic/segment-cache-basic.test.ts": {
     "passed": [
+      "segment cache (basic tests) can handle circular references in client component props",
       "segment cache (basic tests) does not cause infinite loop with cacheLife(\"seconds\")",
       "segment cache (basic tests) does not throw an error when navigating to a page with a server action",
       "segment cache (basic tests) navigate before any data has loaded into the prefetch cache",
@@ -7421,9 +7452,12 @@
       "typed-routes-validator should pass type checking with valid API route exports",
       "typed-routes-validator should pass type checking with valid layout exports",
       "typed-routes-validator should pass type checking with valid page exports",
+      "typed-routes-validator should pass type checking with valid page props",
       "typed-routes-validator should pass type checking with valid route handler exports"
     ],
-    "failed": [],
+    "failed": [
+      "typed-routes-validator should fail type checking with invalid page props"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -7662,7 +7696,9 @@
   },
   "test/e2e/app-dir/use-cache/use-cache.test.ts": {
     "passed": [
+      "use-cache caches a higher-order component in a \"use cache\" module",
       "use-cache can reference server actions in \"use cache\" functions",
+      "use-cache ignores unused arguments in a \"use cache\" function",
       "use-cache renders the not-found page when `notFound()` is used",
       "use-cache shares caches between the page/layout and generateMetadata",
       "use-cache should NOT update immediately after revalidateTag with profile (stale-while-revalidate)",
@@ -8206,10 +8242,46 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/cpu-profiling/cpu-profiling-build.test.ts": {
+    "passed": [
+      "CPU Profiling - next build should create CPU profile files after build"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/cpu-profiling/cpu-profiling-dev.test.ts": {
+    "passed": ["CPU Profiling - next dev skip for production mode"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/cpu-profiling/cpu-profiling.test.ts": {
+    "passed": [
+      "CPU Profiling - next start should create CPU profile files on exit"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/custom-app-render/custom-app-render.test.ts": {
     "passed": [
       "custom-app-render should render /",
       "custom-app-render should render /render"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/custom-cache-handler-image/custom-cache-handler-image.test.ts": {
+    "passed": [
+      "custom-cache-handler-image should evict oldest entries when cache exceeds max size",
+      "custom-cache-handler-image should miss cache for evicted entries",
+      "custom-cache-handler-image should use custom cache handler for image optimization"
     ],
     "failed": [],
     "pending": [],
@@ -9448,6 +9520,34 @@
       "Middleware Redirect /fr should redirect to api route with locale",
       "Middleware Redirect /fr should redirect with a fragment",
       "Middleware Redirect does not include the locale in redirects by default",
+      "Middleware Redirect should have relative path for same host redirect",
+      "Middleware Redirect should implement internal redirects",
+      "Middleware Redirect should redirect",
+      "Middleware Redirect should redirect (infinite-loop)",
+      "Middleware Redirect should redirect cleanly with the original url param",
+      "Middleware Redirect should redirect correctly with redirect in next.config.js",
+      "Middleware Redirect should redirect multiple times",
+      "Middleware Redirect should redirect to api route with locale",
+      "Middleware Redirect should redirect to data urls with data requests and internal redirects",
+      "Middleware Redirect should redirect to external urls with data requests and external redirects",
+      "Middleware Redirect should redirect with a fragment"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/middleware-redirects/test/node-runtime.test.ts": {
+    "passed": [
+      "Middleware Redirect /fr should implement internal redirects",
+      "Middleware Redirect /fr should redirect",
+      "Middleware Redirect /fr should redirect (infinite-loop)",
+      "Middleware Redirect /fr should redirect cleanly with the original url param",
+      "Middleware Redirect /fr should redirect multiple times",
+      "Middleware Redirect /fr should redirect to api route with locale",
+      "Middleware Redirect /fr should redirect with a fragment",
+      "Middleware Redirect does not include the locale in redirects by default",
+      "Middleware Redirect should have relative path for same host redirect",
       "Middleware Redirect should implement internal redirects",
       "Middleware Redirect should redirect",
       "Middleware Redirect should redirect (infinite-loop)",
@@ -11812,6 +11912,16 @@
       "Conflicting SSG paths production mode should show proper error when a dynamic SSG route conflicts with SSR route",
       "Conflicting SSG paths production mode should show proper error when a dynamic SSG route conflicts with normal route",
       "Conflicting SSG paths production mode should show proper error when two dynamic SSG routes have conflicting paths"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/cpu-profiling/test/index.test.ts": {
+    "passed": [
+      "CPU Profiling next build --experimental-cpu-prof should create CPU profile files with meaningful names",
+      "CPU Profiling next build --experimental-cpu-prof should create profiles for worker processes"
     ],
     "failed": [],
     "pending": [],
@@ -20584,12 +20694,12 @@
   },
   "test/production/app-dir/build-output-prerender/build-output-prerender.test.ts": {
     "passed": [
-      "build-output-prerender with a next config file with --debug-prerender prints a warning and the customized experimental flags",
       "build-output-prerender with a next config file with --debug-prerender shows all prerender errors with readable stacks and code frames",
       "build-output-prerender with a next config file without --debug-prerender shows only a single prerender error with a mangled stack",
       "build-output-prerender without a next config file without --debug-prerender prints no experimental flags (unless enabled via env variable)"
     ],
     "failed": [
+      "build-output-prerender with a next config file with --debug-prerender prints a warning and the customized experimental flags",
       "build-output-prerender with a next config file without --debug-prerender prints only the user-selected experimental flags (and the ones enabled via env variable)",
       "build-output-prerender without a next config file with --debug-prerender prints a warning and the customized experimental flags"
     ],
