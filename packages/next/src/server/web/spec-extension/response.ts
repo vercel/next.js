@@ -6,6 +6,7 @@ import {
   validateURL,
   encodeHeaderValue,
   decodeHeaderValue,
+  containsNonAscii,
 } from '../utils'
 import { ReflectAdapter } from './adapters/reflect'
 
@@ -26,16 +27,20 @@ function handleMiddlewareField(
     const keys = []
     const encodedKeys = []
     for (const [key, value] of init.request.headers) {
-      // First decode any values that were percent-encoded by fromNodeOutgoingHttpHeaders
-      // to preserve non-ASCII characters, then re-encode for the middleware header
+      let finalValue = value
+
+      // Decode to check if there are non-ASCII characters that need encoding.
+      // Only apply the decode-encode transformation if the decoded value actually
+      // contains non-ASCII characters. This avoids changing headers that intentionally
+      // contain percent-encoded ASCII characters (e.g., %20 for space).
       const decodedValue = decodeHeaderValue(value)
-      const encodedValue = encodeHeaderValue(decodedValue)
-      headers.set('x-middleware-request-' + key, encodedValue)
-      keys.push(key)
-      // Track headers that were encoded (value changed after encoding)
-      if (encodedValue !== decodedValue) {
+      if (containsNonAscii(decodedValue)) {
+        finalValue = encodeHeaderValue(decodedValue)
         encodedKeys.push(key)
       }
+
+      headers.set('x-middleware-request-' + key, finalValue)
+      keys.push(key)
     }
 
     headers.set('x-middleware-override-headers', keys.join(','))

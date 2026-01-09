@@ -31,11 +31,7 @@ export function fromNodeOutgoingHttpHeaders(
 
       // Encode non-ASCII characters to prevent corruption by the Headers API.
       // The Headers API in edge runtime doesn't properly preserve Latin-1 characters.
-      // eslint-disable-next-line no-control-regex
-      if (/[^\u0000-\u007F]/.test(v)) {
-        // Encode non-ASCII as percent-encoded UTF-8
-        v = encodeURIComponent(v)
-      }
+      v = encodeHeaderValue(v)
 
       headers.append(key, v)
     }
@@ -178,6 +174,18 @@ export function normalizeNextQueryParam(key: string): null | string {
 }
 
 /**
+ * Checks if a string contains any non-ASCII characters (code points > 127).
+ * ASCII characters are in the range U+0000 to U+007F.
+ *
+ * @param value - The string to check
+ * @returns true if the string contains non-ASCII characters
+ */
+export function containsNonAscii(value: string): boolean {
+  // eslint-disable-next-line no-control-regex
+  return /[^\u0000-\u007F]/.test(value)
+}
+
+/**
  * Encodes header values containing non-ASCII characters for safe HTTP transmission.
  * HTTP headers must be ASCII-safe, so non-ASCII characters are percent-encoded.
  *
@@ -185,9 +193,7 @@ export function normalizeNextQueryParam(key: string): null | string {
  * @returns The encoded header value
  */
 export function encodeHeaderValue(value: string): string {
-  // Check if the value contains non-ASCII characters
-  // eslint-disable-next-line no-control-regex
-  if (/[^\u0000-\u007F]/.test(value)) {
+  if (containsNonAscii(value)) {
     return encodeURIComponent(value)
   }
   return value

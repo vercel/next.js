@@ -186,4 +186,34 @@ describe('Middleware Non-ASCII Headers', () => {
     const headers = await res.json()
     expect(headers['x-city']).toBe('São Paulo')
   })
+
+  // Test for LOCAL scenario: when headers are sent as proper Latin-1 (not Mojibake)
+  // This happens when:
+  // - A local proxy (nginx, etc.) adds headers with non-ASCII
+  // - Node.js fetch/http client sends headers (converts to Latin-1)
+  // Unlike CDN scenario, these arrive as single-byte Latin-1, not UTF-8 Mojibake
+  it('should handle Latin-1 encoded headers (local proxy scenario)', async () => {
+    // When fetchViaHTTP sends "Montréal", it encodes as Latin-1:
+    // "é" becomes single byte 0xE9 (not UTF-8's 0xC3 0xA9)
+    // This simulates a local proxy adding headers
+    const res = await fetchViaHTTP(
+      next.url,
+      '/api/headers',
+      {},
+      {
+        headers: {
+          'x-city': 'Montréal', // Latin-1: é = 0xE9
+          'x-region': 'Île-de-France',
+          'x-country': 'Österreich',
+        },
+      }
+    )
+
+    expect(res.status).toBe(200)
+    const headers = await res.json()
+    // These should be preserved correctly through middleware
+    expect(headers['x-city']).toBe('Montréal')
+    expect(headers['x-region']).toBe('Île-de-France')
+    expect(headers['x-country']).toBe('Österreich')
+  })
 })
