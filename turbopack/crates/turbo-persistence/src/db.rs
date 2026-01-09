@@ -1338,9 +1338,12 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     /// might hold onto a block of the database and it should not be hold long-term.
     pub fn get<K: QueryKey>(&self, family: usize, key: &K) -> Result<Option<ArcSlice<u8>>> {
         debug_assert!(family < FAMILIES, "Family index out of bounds");
-        let span =
-            tracing::trace_span!("database read", family, result_size = tracing::field::Empty)
-                .entered();
+        let span = tracing::trace_span!(
+            "database read",
+            name = family,
+            result_size = tracing::field::Empty
+        )
+        .entered();
         let hash = hash_key(key);
         let inner = self.inner.read();
         for meta in inner.meta_files.iter().rev() {
@@ -1410,7 +1413,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         debug_assert!(family < FAMILIES, "Family index out of bounds");
         let span = tracing::trace_span!(
             "database batch read",
-            family,
+            name = family,
             keys = keys.len(),
             not_found = tracing::field::Empty,
             deleted = tracing::field::Empty,
