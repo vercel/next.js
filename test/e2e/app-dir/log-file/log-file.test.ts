@@ -67,7 +67,8 @@ describe('log-file', () => {
     return normalizeLogContent(newContent)
   }
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    await next.fetch('/404')
     // Reset log tracking at the start of each test to only capture new logs
     previousLogContent = readLogFile()
   })
