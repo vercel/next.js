@@ -14,7 +14,14 @@ function formatArg(arg: unknown): string {
   try {
     return stringify(arg) ?? String(arg)
   } catch {
-    return String(arg)
+    // String(arg) can throw for temporary client references (e.g., class instances
+    // passed from client to server) because accessing .toString() on them throws
+    // "Cannot access toString on the server"
+    try {
+      return String(arg)
+    } catch {
+      return '[unserializable]'
+    }
   }
 }
 
