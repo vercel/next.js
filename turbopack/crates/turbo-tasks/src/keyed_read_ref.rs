@@ -53,7 +53,7 @@ where
     T: Debug,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        (&**self).fmt(f)
+        (**self).fmt(f)
     }
 }
 
@@ -123,7 +123,7 @@ where
     }
 }
 
-impl<'a, A, T, I, J: Iterator<Item = I>> IntoIterator for &'a MappedReadRef<A, T>
+impl<A, T, I, J: Iterator<Item = I>> IntoIterator for &MappedReadRef<A, T>
 where
     T: Keyed,
     for<'b> &'b T: IntoIterator<Item = I, IntoIter = J>,
@@ -145,6 +145,6 @@ where
     where
         S: serde::Serializer,
     {
-        (&**self).serialize(serializer)
+        (**self).serialize(serializer)
     }
 }

@@ -362,7 +362,7 @@ where
         let this = self.project();
         match this.future.poll(cx) {
             Poll::Ready(Ok(result)) => {
-                let mapped_read_ref = if let Some(value) = (&*result).get(this.key) {
+                let mapped_read_ref = if let Some(value) = (*result).get(this.key) {
                     let ptr = value as *const _;
                     Some(unsafe { MappedReadRef::new(result.into_raw_arc(), ptr) })
                 } else {
@@ -400,7 +400,7 @@ where
         let this = self.project();
         match this.future.poll(cx) {
             Poll::Ready(Ok(result)) => {
-                let result = (&*result).contains_key(this.key);
+                let result = (*result).contains_key(this.key);
                 Poll::Ready(Ok(result))
             }
             Poll::Ready(Err(err)) => Poll::Ready(Err(err)),

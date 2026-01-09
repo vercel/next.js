@@ -1958,7 +1958,7 @@ impl CurrentCellRef {
             let old_value = extract_sr_value::<T>(old_sr)?;
             let old_value = <T as VcValueType>::Read::value_to_target_ref(old_value);
             let new_value = extract_sr_value::<T>(&new_shared_reference)?;
-            let new_value = <T as VcValueType>::Read::value_to_target_ref(&new_value);
+            let new_value = <T as VcValueType>::Read::value_to_target_ref(new_value);
             let updated_keys = old_value.different_keys(new_value);
             if updated_keys.is_empty() {
                 return None;

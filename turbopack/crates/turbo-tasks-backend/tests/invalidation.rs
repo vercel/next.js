@@ -110,9 +110,9 @@ async fn invalidation_set() {
         let b_ref = b.read_strongly_consistent().await?;
         let c_ref = c.read_strongly_consistent().await?;
 
-        assert_eq!(a_ref.value, true);
-        assert_eq!(b_ref.value, true);
-        assert_eq!(c_ref.value, false);
+        assert!(a_ref.value);
+        assert!(b_ref.value);
+        assert!(!c_ref.value);
 
         state.await?.set(2);
 
@@ -120,9 +120,9 @@ async fn invalidation_set() {
         let b_ref2 = b.read_strongly_consistent().await?;
         let c_ref2 = c.read_strongly_consistent().await?;
 
-        assert_eq!(a_ref2.value, true);
-        assert_eq!(b_ref2.value, true);
-        assert_eq!(c_ref2.value, false);
+        assert!(a_ref2.value);
+        assert!(b_ref2.value);
+        assert!(!c_ref2.value);
         assert_eq!(a_ref.random, a_ref2.random);
         assert_eq!(b_ref.random, b_ref2.random);
         assert_eq!(c_ref.random, c_ref2.random);
@@ -133,9 +133,9 @@ async fn invalidation_set() {
         let b_ref3 = b.read_strongly_consistent().await?;
         let c_ref3 = c.read_strongly_consistent().await?;
 
-        assert_eq!(a_ref3.value, false);
-        assert_eq!(b_ref3.value, true);
-        assert_eq!(c_ref3.value, true);
+        assert!(!a_ref3.value);
+        assert!(b_ref3.value);
+        assert!(c_ref3.value);
         assert_eq!(b_ref2.random, b_ref3.random);
 
         anyhow::Ok(())

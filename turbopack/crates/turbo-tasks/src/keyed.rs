@@ -185,7 +185,7 @@ mod tests {
     where
         T::Key: std::fmt::Debug + PartialEq,
     {
-        let diffs = a.different_keys(&b);
+        let diffs = a.different_keys(b);
         assert_eq!(diffs.len(), expected.len());
         for key in expected {
             assert!(diffs.contains(key));
