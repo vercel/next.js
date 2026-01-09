@@ -880,10 +880,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             // Having a task_pair here is not optimal, but otherwise this would lead to a race
             // condition. See below.
             // TODO(sokra): solve that in a more performant way.
-            let (task, reader) = ctx.task_pair(task_id, reader_id, TaskDataCategory::All);
+            let (task, reader) = ctx.task_pair(task_id, reader_id, TaskDataCategory::Data);
             (task, Some(reader))
         } else {
-            (ctx.task(task_id, TaskDataCategory::All), None)
+            (ctx.task(task_id, TaskDataCategory::Data), None)
         };
 
         let content = if final_read_hint {
@@ -986,7 +986,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             TaskExecutionReason::CellNotAvailable,
             || self.get_task_desc_fn(task_id),
         ));
-        ctx.schedule_task(task, TaskPriority::Initial);
+        drop(task);
+
+        ctx.schedule(task_id, TaskPriority::Initial);
 
         Ok(Err(listener))
     }
