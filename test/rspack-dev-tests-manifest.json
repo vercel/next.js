@@ -2006,12 +2006,12 @@
   },
   "test/development/jsconfig-path-reloading/index.test.ts": {
     "passed": [
+      "jsconfig-path-reloading jsconfig added after starting dev should automatically fast refresh content when path is added without error",
+      "jsconfig-path-reloading jsconfig added after starting dev should load with initial paths config correctly",
       "jsconfig-path-reloading jsconfig should automatically fast refresh content when path is added without error",
       "jsconfig-path-reloading jsconfig should load with initial paths config correctly"
     ],
     "failed": [
-      "jsconfig-path-reloading jsconfig added after starting dev should automatically fast refresh content when path is added without error",
-      "jsconfig-path-reloading jsconfig added after starting dev should load with initial paths config correctly",
       "jsconfig-path-reloading jsconfig added after starting dev should recover from module not found when paths is updated",
       "jsconfig-path-reloading jsconfig should recover from module not found when paths is updated"
     ],
@@ -2518,12 +2518,12 @@
   },
   "test/development/tsconfig-path-reloading/index.test.ts": {
     "passed": [
+      "tsconfig-path-reloading tsconfig added after starting dev should automatically fast refresh content when path is added without error",
+      "tsconfig-path-reloading tsconfig added after starting dev should load with initial paths config correctly",
       "tsconfig-path-reloading tsconfig should automatically fast refresh content when path is added without error",
       "tsconfig-path-reloading tsconfig should load with initial paths config correctly"
     ],
     "failed": [
-      "tsconfig-path-reloading tsconfig added after starting dev should automatically fast refresh content when path is added without error",
-      "tsconfig-path-reloading tsconfig added after starting dev should load with initial paths config correctly",
       "tsconfig-path-reloading tsconfig added after starting dev should recover from module not found when paths is updated",
       "tsconfig-path-reloading tsconfig should recover from module not found when paths is updated"
     ],
@@ -5715,10 +5715,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/interception-routes-output-export/interception-routes-output-export.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "interception-routes-output-export should error when using interception routes with static export"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10318,6 +10318,17 @@
     "passed": [
       "custom-app-render should render /",
       "custom-app-render should render /render"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/custom-cache-handler-image/custom-cache-handler-image.test.ts": {
+    "passed": [
+      "custom-cache-handler-image should evict oldest entries when cache exceeds max size",
+      "custom-cache-handler-image should miss cache for evicted entries",
+      "custom-cache-handler-image should use custom cache handler for image optimization"
     ],
     "failed": [],
     "pending": [],
