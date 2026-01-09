@@ -18,7 +18,14 @@ use crate::{
     data::CachedDataItem,
 };
 
+/// The maximum number of leaf distance updates to process before yielding back to the executor.
+/// This prevents long blocking operations and allows to interrupt the processing for persistent
+/// caching.
 const MAX_COUNT_BEFORE_YIELD: usize = 1000;
+
+/// We avoid incrementing the leaf distance by 1 each time to avoid frequent updates.
+/// Instead we use a buffer zone that shrinks as the leaf distance increases.
+/// This constant defines the size of that buffer zone at leaf distance 0.
 const BASE_LEAF_DISTANCE_BUFFER: u32 = 128;
 
 /// An leaf distance update job that is enqueued.
