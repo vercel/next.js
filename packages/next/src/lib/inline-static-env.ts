@@ -19,7 +19,9 @@ export async function inlineStaticEnv({
 }) {
   const nextConfigEnv = getNextConfigEnv(config)
   // User-configured deploymentId takes precedence over NEXT_DEPLOYMENT_ID
-  const deploymentId = evaluateDeploymentId(config.deploymentId || process.env.NEXT_DEPLOYMENT_ID)
+  const deploymentId = evaluateDeploymentId(
+    config.deploymentId || process.env.NEXT_DEPLOYMENT_ID
+  )
   const staticEnv = getStaticEnv(config, deploymentId)
 
   const serverDir = path.join(distDir, 'server')
