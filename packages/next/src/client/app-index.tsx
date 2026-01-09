@@ -234,6 +234,7 @@ function ServerRoot({
     <AppRouter
       actionQueue={actionQueue}
       globalErrorState={initialRSCPayload.G}
+      globalNotFoundPath={initialRSCPayload.n}
       webSocket={webSocket}
       staticIndicatorState={staticIndicatorState}
     />

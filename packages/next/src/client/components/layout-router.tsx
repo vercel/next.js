@@ -500,7 +500,6 @@ export default function OuterLayoutRouter({
   notFound,
   forbidden,
   unauthorized,
-  globalNotFoundPath,
   segmentViewBoundaries,
 }: {
   parallelRouterKey: string
@@ -513,7 +512,6 @@ export default function OuterLayoutRouter({
   notFound: React.ReactNode | undefined
   forbidden: React.ReactNode | undefined
   unauthorized: React.ReactNode | undefined
-  globalNotFoundPath: string | undefined
   segmentViewBoundaries?: React.ReactNode
 }) {
   const context = useContext(LayoutRouterContext)
@@ -676,7 +674,6 @@ export default function OuterLayoutRouter({
                   notFound={notFound}
                   forbidden={forbidden}
                   unauthorized={unauthorized}
-                  globalNotFoundPath={globalNotFoundPath}
                 >
                   <RedirectBoundary>
                     <InnerLayoutRouter

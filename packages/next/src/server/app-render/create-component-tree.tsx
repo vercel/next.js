@@ -58,11 +58,7 @@ export function createComponentTree(props: {
     {
       spanName: 'build component tree',
     },
-    () =>
-      createComponentTreeInternal(
-        { ...props, globalNotFoundPath: undefined },
-        true
-      )
+    () => createComponentTreeInternal(props, true)
   )
 }
 
@@ -91,7 +87,6 @@ async function createComponentTreeInternal(
     preloadCallbacks,
     authInterrupts,
     MetadataOutlet,
-    globalNotFoundPath,
   }: {
     loaderTree: LoaderTree
     parentParams: Params
@@ -104,7 +99,6 @@ async function createComponentTreeInternal(
     preloadCallbacks: PreloadCallbacks
     authInterrupts: boolean
     MetadataOutlet: ComponentType | null
-    globalNotFoundPath: string | undefined
   },
   isRoot: boolean
 ): Promise<CacheNodeSeedData> {
@@ -452,10 +446,6 @@ async function createComponentTreeInternal(
     tree,
   })
 
-  // Compute globalNotFoundPath at root level, then pass it through recursive calls
-  const resolvedGlobalNotFoundPath =
-    isRoot && !!tree[2]['global-not-found'] ? '/_not-found' : globalNotFoundPath
-
   // TODO: Combine this `map` traversal with the loop below that turns the array
   // into an object.
   const parallelRouteMap = await Promise.all(
@@ -547,7 +537,6 @@ async function createComponentTreeInternal(
               // `StreamingMetadataOutlet` is used to conditionally throw. In the case of parallel routes we will have more than one page
               // but we only want to throw on the first one.
               MetadataOutlet: isChildrenRouteKey ? MetadataOutlet : null,
-              globalNotFoundPath: resolvedGlobalNotFoundPath,
             },
             false
           )
@@ -636,7 +625,6 @@ async function createComponentTreeInternal(
             notFound: notFoundComponent,
             forbidden: forbiddenComponent,
             unauthorized: unauthorizedComponent,
-            globalNotFoundPath: resolvedGlobalNotFoundPath,
             ...(isSegmentViewEnabled && {
               segmentViewBoundaries,
             }),
