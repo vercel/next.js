@@ -256,17 +256,33 @@ export async function handler(
         return null
       }
 
-      // Read the entire body, tracking size
+      // Calculate max total body size to prevent buffering excessively large
+      // payloads before the action handler checks. We use stateLength (not
+      // maxPostponedStateSizeBytes) so the postponed state doesn't eat into
+      // the action body budget - it's already validated above.
+      const defaultActionBodySizeLimit = '1 MB'
+      const actionBodySizeLimit =
+        nextConfig.experimental.serverActions?.bodySizeLimit ??
+        defaultActionBodySizeLimit
+      const actionBodySizeLimitBytes =
+        actionBodySizeLimit !== defaultActionBodySizeLimit
+          ? (
+              require('next/dist/compiled/bytes') as typeof import('next/dist/compiled/bytes')
+            ).parse(actionBodySizeLimit)
+          : 1024 * 1024 // 1 MB
+      const maxTotalBodySize = stateLength + actionBodySizeLimitBytes
+
+      // Read the entire body, checking size as we go.
       const bodyChunks: Array<Buffer> = []
       let size = 0
       for await (const chunk of req) {
         const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
         size += buffer.byteLength
-        if (size > maxPostponedStateSizeBytes) {
+        if (size > maxTotalBodySize) {
           res.statusCode = 413
           res.end(
-            `Postponed state exceeded ${maxPostponedStateSize} limit. ` +
-              `To configure the limit, see: https://nextjs.org/docs/app/api-reference/config/next-config-js/max-postponed-state-size`
+            `Request body exceeded limit. ` +
+              `To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/next-config-js/serverActions#bodysizelimit`
           )
           ctx.waitUntil?.(Promise.resolve())
           return null
@@ -285,6 +301,10 @@ export async function handler(
         // Store the remaining action body for the action handler
         const actionBody = fullBody.subarray(stateLength)
         addRequestMeta(req, 'actionBody', actionBody)
+      } else {
+        throw new Error(
+          `invariant: expected ${stateLength} bytes of postponed state but only received ${fullBody.length} bytes`
+        )
       }
     }
   }
