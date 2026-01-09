@@ -2102,7 +2102,7 @@ async fn whole_app_module_graph_operation(
     let should_trace = next_mode_ref.is_production();
     let should_read_binding_usage = next_mode_ref.is_production();
     let base_single_module_graph = SingleModuleGraph::new_with_entries(
-        project.get_all_entries(),
+        project.get_all_entries().to_resolved().await?,
         should_trace,
         should_read_binding_usage,
     );
@@ -2123,7 +2123,10 @@ async fn whole_app_module_graph_operation(
         base
     };
 
-    let additional_entries = project.get_all_additional_entries(base);
+    let additional_entries = project
+        .get_all_additional_entries(base)
+        .to_resolved()
+        .await?;
 
     let additional_module_graph = SingleModuleGraph::new_with_entries_visited(
         additional_entries,

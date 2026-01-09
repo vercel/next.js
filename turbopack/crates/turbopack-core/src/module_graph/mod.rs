@@ -126,7 +126,7 @@ pub struct VisitedModules {
 
 #[turbo_tasks::value_impl]
 impl VisitedModules {
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(operation)]
     pub fn empty() -> Vc<Self> {
         Self {
             modules: Default::default(),
@@ -135,10 +135,11 @@ impl VisitedModules {
         .cell()
     }
 
-    #[turbo_tasks::function]
-    pub async fn from_graph(graph: Vc<SingleModuleGraph>) -> Result<Vc<Self>> {
+    #[turbo_tasks::function(operation)]
+    pub async fn from_graph(graph: OperationVc<SingleModuleGraph>) -> Result<Vc<Self>> {
         Ok(Self {
             modules: graph
+                .connect()
                 .await?
                 .enumerate_nodes()
                 .flat_map(|(node_idx, module)| match module {
@@ -157,19 +158,24 @@ impl VisitedModules {
         .cell())
     }
 
-    #[turbo_tasks::function]
-    pub fn with_incremented_index(&self) -> Result<Vc<Self>> {
+    #[turbo_tasks::function(operation)]
+    pub async fn with_incremented_index(this: OperationVc<Self>) -> Result<Vc<Self>> {
+        let this = this.connect().await?;
         Ok(Self {
-            modules: self.modules.clone(),
-            next_graph_idx: self.next_graph_idx + 1,
+            modules: this.modules.clone(),
+            next_graph_idx: this.next_graph_idx + 1,
         }
         .cell())
     }
 
-    #[turbo_tasks::function]
-    pub async fn concatenate(&self, graph: Vc<SingleModuleGraph>) -> Result<Vc<Self>> {
-        let graph = graph.await?;
-        let iter = self
+    #[turbo_tasks::function(operation)]
+    pub async fn concatenate(
+        this: OperationVc<Self>,
+        graph: OperationVc<SingleModuleGraph>,
+    ) -> Result<Vc<Self>> {
+        let graph = graph.connect().await?;
+        let this = this.connect().await?;
+        let iter = this
             .modules
             .iter()
             .map(|(module, idx)| (*module, *idx))
@@ -180,7 +186,7 @@ impl VisitedModules {
                         SingleModuleGraphNode::Module(module) => Some((
                             *module,
                             GraphNodeIndex {
-                                graph_idx: self.next_graph_idx,
+                                graph_idx: this.next_graph_idx,
                                 node_idx,
                             },
                         )),
@@ -189,7 +195,7 @@ impl VisitedModules {
             );
 
         let mut map = FxIndexMap::with_capacity_and_hasher(
-            self.modules.len() + graph.number_of_modules,
+            this.modules.len() + graph.number_of_modules,
             Default::default(),
         );
         for (k, v) in iter {
@@ -199,7 +205,7 @@ impl VisitedModules {
 
         Ok(Self {
             modules: map,
-            next_graph_idx: self.next_graph_idx + 1,
+            next_graph_idx: this.next_graph_idx + 1,
         }
         .cell())
     }
@@ -637,7 +643,7 @@ impl ImportTracer for ModuleGraphImportTracer {
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Default)]
 pub struct ModuleGraph {
-    pub graphs: Vec<ResolvedVc<SingleModuleGraph>>,
+    pub graphs: Vec<OperationVc<SingleModuleGraph>>,
 
     pub binding_usage: Option<OperationVc<BindingUsageInfo>>,
 }
@@ -645,7 +651,7 @@ pub struct ModuleGraph {
 #[turbo_tasks::value_impl]
 impl ModuleGraph {
     #[turbo_tasks::function]
-    pub fn from_graphs(graphs: Vec<ResolvedVc<SingleModuleGraph>>) -> Vc<Self> {
+    pub fn from_graphs(graphs: Vec<OperationVc<SingleModuleGraph>>) -> Vc<Self> {
         Self {
             graphs,
             binding_usage: None,
@@ -654,7 +660,7 @@ impl ModuleGraph {
     }
 
     #[turbo_tasks::function]
-    pub fn from_single_graph(graph: ResolvedVc<SingleModuleGraph>) -> Vc<Self> {
+    pub fn from_single_graph(graph: OperationVc<SingleModuleGraph>) -> Vc<Self> {
         Self {
             graphs: vec![graph],
             binding_usage: None,
@@ -669,7 +675,7 @@ impl ModuleGraph {
         include_binding_usage: bool,
     ) -> Vc<Self> {
         Self::from_single_graph(SingleModuleGraph::new_with_entries(
-            Vc::cell(vec![ChunkGroupEntry::Entry(vec![module])]),
+            ResolvedVc::cell(vec![ChunkGroupEntry::Entry(vec![module])]),
             include_traced,
             include_binding_usage,
         ))
@@ -677,7 +683,7 @@ impl ModuleGraph {
 
     #[turbo_tasks::function]
     pub fn from_modules(
-        modules: Vc<GraphEntries>,
+        modules: ResolvedVc<GraphEntries>,
         include_traced: bool,
         include_binding_usage: bool,
     ) -> Vc<Self> {
@@ -778,7 +784,7 @@ impl ModuleGraph {
     pub async fn read_graphs(self: Vc<ModuleGraph>) -> Result<ModuleGraphRef> {
         let this = self.await?;
         Ok(ModuleGraphRef {
-            graphs: this.graphs.iter().try_join().await?,
+            graphs: this.graphs.iter().map(|g| g.connect()).try_join().await?,
             skip_visited_module_children: false,
             graph_idx_override: None,
             binding_usage: if let Some(binding_usage) = this.binding_usage {
@@ -808,7 +814,7 @@ impl ModuleGraph {
     Clone, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, NonLocalValue, Encode, Decode,
 )]
 pub struct SingleModuleGraphWithBindingUsage {
-    pub graph: ResolvedVc<SingleModuleGraph>,
+    pub graph: OperationVc<SingleModuleGraph>,
     pub graph_idx: u32,
     pub binding_usage: Option<OperationVc<BindingUsageInfo>>,
 }
@@ -816,7 +822,7 @@ pub struct SingleModuleGraphWithBindingUsage {
 impl SingleModuleGraphWithBindingUsage {
     pub async fn read(self: &SingleModuleGraphWithBindingUsage) -> Result<ModuleGraphRef> {
         Ok(ModuleGraphRef {
-            graphs: vec![self.graph.await?],
+            graphs: vec![self.graph.connect().await?],
             skip_visited_module_children: true,
             graph_idx_override: Some(self.graph_idx),
             binding_usage: if let Some(binding_usage) = &self.binding_usage {
@@ -1387,9 +1393,9 @@ impl ModuleGraphRef {
 
 #[turbo_tasks::value_impl]
 impl SingleModuleGraph {
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(operation)]
     pub async fn new_with_entries(
-        entries: Vc<GraphEntries>,
+        entries: ResolvedVc<GraphEntries>,
         include_traced: bool,
         include_binding_usage: bool,
     ) -> Result<Vc<Self>> {
@@ -1402,33 +1408,33 @@ impl SingleModuleGraph {
         .await
     }
 
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(operation)]
     pub async fn new_with_entries_visited(
-        entries: Vc<GraphEntries>,
-        visited_modules: Vc<VisitedModules>,
+        entries: ResolvedVc<GraphEntries>,
+        visited_modules: OperationVc<VisitedModules>,
         include_traced: bool,
         include_binding_usage: bool,
     ) -> Result<Vc<Self>> {
         SingleModuleGraph::new_inner(
             &*entries.await?,
-            &visited_modules.await?.modules,
+            &visited_modules.connect().await?.modules,
             include_traced,
             include_binding_usage,
         )
         .await
     }
 
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(operation)]
     pub async fn new_with_entries_visited_intern(
         // This must not be a Vc<Vec<_>> to ensure layout segment optimization hits the cache
         entries: GraphEntriesT,
-        visited_modules: Vc<VisitedModules>,
+        visited_modules: OperationVc<VisitedModules>,
         include_traced: bool,
         include_binding_usage: bool,
     ) -> Result<Vc<Self>> {
         SingleModuleGraph::new_inner(
             &entries,
-            &visited_modules.await?.modules,
+            &visited_modules.connect().await?.modules,
             include_traced,
             include_binding_usage,
         )
@@ -1999,7 +2005,7 @@ pub mod tests {
             let b_module = make_module("b.js").await?;
 
             let parent_graph = SingleModuleGraph::new_with_entries(
-                GraphEntries::cell(GraphEntries(vec![ChunkGroupEntry::Entry(vec![b_module])])),
+                ResolvedVc::cell(vec![ChunkGroupEntry::Entry(vec![b_module])]),
                 false,
                 false,
             );
@@ -2007,7 +2013,7 @@ pub mod tests {
             let module_graph = ModuleGraph::from_graphs(vec![
                 parent_graph,
                 SingleModuleGraph::new_with_entries_visited(
-                    GraphEntries::cell(GraphEntries(vec![ChunkGroupEntry::Entry(vec![a_module])])),
+                    ResolvedVc::cell(vec![ChunkGroupEntry::Entry(vec![a_module])]),
                     VisitedModules::from_graph(parent_graph),
                     false,
                     false,
@@ -2236,7 +2242,7 @@ pub mod tests {
                 .try_join()
                 .await?;
             let graph = SingleModuleGraph::new_with_entries(
-                GraphEntries::cell(GraphEntries(vec![ChunkGroupEntry::Entry(
+                GraphEntries::resolved_cell(GraphEntries(vec![ChunkGroupEntry::Entry(
                     entry_modules.clone(),
                 )])),
                 false,
@@ -2247,6 +2253,7 @@ pub mod tests {
             // Technically they could always pull this name off of the
             // `module.ident().await?.path.path` themselves but you cannot `await` in visitors.
             let module_to_name = graph
+                .connect()
                 .await?
                 .modules
                 .keys()

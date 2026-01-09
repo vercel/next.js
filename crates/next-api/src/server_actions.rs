@@ -19,7 +19,7 @@ use swc_core::{
     },
 };
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, Vc};
+use turbo_tasks::{FxIndexMap, OperationVc, ResolvedVc, TryFlatJoinIterExt, Vc};
 use turbo_tasks_fs::{self, File, FileContent, FileSystemPath, rope::RopeBuilder};
 use turbopack_core::{
     asset::AssetContent,
@@ -453,8 +453,11 @@ pub struct AllModuleActions(
 );
 
 #[turbo_tasks::function]
-pub async fn map_server_actions(graph: Vc<SingleModuleGraph>) -> Result<Vc<AllModuleActions>> {
+pub async fn map_server_actions(
+    graph: OperationVc<SingleModuleGraph>,
+) -> Result<Vc<AllModuleActions>> {
     let actions = graph
+        .connect()
         .await?
         .iter_nodes()
         .map(async |module| {
