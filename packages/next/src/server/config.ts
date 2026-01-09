@@ -1670,11 +1670,12 @@ export default async function loadConfig(
     checkDeprecations(userConfig, configFileName, silent, dir)
 
     // Always validate the config against schema in non minimal mode
-    if (!process.env.NEXT_MINIMAL && !silent) {
+    // Note: We validate even when silent=true to catch fatal errors like deploymentId validation
+    if (!process.env.NEXT_MINIMAL) {
       await validateConfigSchema(
         userConfig,
         configFileName,
-        curLog.warn,
+        silent ? () => {} : curLog.warn,
         (messages) => {
           // Capture validation messages for MCP error reporting
           if (messages.length > 0) {
