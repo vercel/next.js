@@ -926,23 +926,9 @@ function assignDefaultsAndValidate(
   }
 
   // Evaluate deploymentId early if it's a function, so it's available as a string
-  // This needs to happen before validation checks
+  // This also validates length and format - validation happens inside resolveAndSetDeploymentId
   // Call the function once and cache the result to ensure consistency
   result.deploymentId = resolveAndSetDeploymentId(result.deploymentId)
-
-  // Validate after evaluation (applies to both string and function cases)
-  if (result.deploymentId != null && typeof result.deploymentId === 'string') {
-    if (result.deploymentId.startsWith('dpl_')) {
-      throw new Error(
-        `The deploymentId "${result.deploymentId}" cannot start with the "dpl_" prefix. Please choose a different deploymentId in your next.config.js. https://vercel.com/docs/skew-protection#custom-skew-protection-deployment-id`
-      )
-    }
-    if (result.deploymentId.length > 32) {
-      throw new Error(
-        `The deploymentId "${result.deploymentId}" exceeds the maximum length of 32 characters. Please choose a shorter deploymentId in your next.config.js. https://nextjs.org/docs/messages/deploymentid-too-long`
-      )
-    }
-  }
 
   if (
     result.experimental.runtimeServerDeploymentId == null &&

@@ -79,6 +79,20 @@ export function resolveAndSetDeploymentId(
     userConfiguredDeploymentId = undefined
   }
 
+  // Validate length early (before setting env var or returning)
+  if (userConfiguredDeploymentId !== undefined) {
+    if (userConfiguredDeploymentId.length > 32) {
+      throw new Error(
+        `The deploymentId "${userConfiguredDeploymentId}" exceeds the maximum length of 32 characters. Please choose a shorter deploymentId in your next.config.js. https://nextjs.org/docs/messages/deploymentid-too-long`
+      )
+    }
+    if (userConfiguredDeploymentId.startsWith('dpl_')) {
+      throw new Error(
+        `The deploymentId "${userConfiguredDeploymentId}" cannot start with the "dpl_" prefix. Please choose a different deploymentId in your next.config.js. https://vercel.com/docs/skew-protection#custom-skew-protection-deployment-id`
+      )
+    }
+  }
+
   // User-configured deploymentId always takes precedence over NEXT_DEPLOYMENT_ID
   if (userConfiguredDeploymentId !== undefined) {
     // Use user-configured deploymentId (takes precedence)
