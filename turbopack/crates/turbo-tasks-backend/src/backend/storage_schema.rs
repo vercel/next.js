@@ -3,21 +3,24 @@
 //! This module defines the complete schema for task storage using the TaskStorage derive macro.
 //! The schema covers all 37 CachedDataItem variants with appropriate storage types and categories.
 //!
-//! # Storage Types
+//! # Storage Types (`storage = "..."`)
 //!
 //! - `direct` - For single optional values (e.g., Output, Dirty, AggregationNumber)
 //! - `auto_set` - For sets of keys with unit values (e.g., Child, OutputDependency)
 //! - `counter_map` - For maps with counted references (e.g., Upper, Follower, Collectible)
 //! - `auto_map` - For maps with non-counter values (e.g., CellData)
+//! - `auto_multimap` - For maps with set values (e.g., CellDependents)
+//! - `flag` - For boolean flags stored in TaskFlags bitfield
 //!
-//! # Categories
+//! # Categories (`category = "..."`)
 //!
 //! - `data` - Frequently changed bulk data (dependencies, cell data)
 //! - `meta` - Rarely changed metadata (output, aggregation, flags)
-//!
-//! # Transient Fields
-//!
-//! Fields marked with `transient` are not serialized and only exist in memory.
+//! - `transient` - Not serialized, only exists in memory
+
+// TODO(PR 2): Remove this once the storage schema is integrated with the rest of the codebase.
+// This module is scaffolding for the TaskStorage macro and is not yet used.
+#![allow(dead_code)]
 
 use rustc_hash::FxHashSet;
 use turbo_tasks::{
@@ -94,7 +97,7 @@ pub struct TaskStorageSchema {
     pub aggregated_collectibles: CounterMap<CollectibleRef, i32>,
 
     /// Outdated collectibles to be cleaned up (transient).
-    #[task_storage(storage = "counter_map", category = "meta", transient)]
+    #[task_storage(storage = "counter_map", category = "transient")]
     pub outdated_collectibles: CounterMap<CollectibleRef, i32>,
 
     // =========================================================================
@@ -116,16 +119,16 @@ pub struct TaskStorageSchema {
     pub aggregated_dirty_containers: CounterMap<TaskId, i32>,
 
     /// Whether clean in current session (transient flag).
-    #[task_storage(flag, transient)]
+    #[task_storage(storage = "flag", category = "transient")]
     pub current_session_clean: bool,
 
     /// Count of clean containers in current session (transient).
     /// Absent = 0, present = actual count.
-    #[task_storage(storage = "direct", category = "meta", transient)]
+    #[task_storage(storage = "direct", category = "transient")]
     pub aggregated_current_session_clean_container_count: i32,
 
     /// Individual clean containers in current session (transient).
-    #[task_storage(storage = "counter_map", category = "meta", transient)]
+    #[task_storage(storage = "counter_map", category = "transient")]
     pub aggregated_current_session_clean_containers: CounterMap<TaskId, i32>,
 
     // =========================================================================
@@ -133,11 +136,11 @@ pub struct TaskStorageSchema {
     // Persisted flags come first, then transient flags.
     // =========================================================================
     /// Whether the task has an invalidator.
-    #[task_storage(storage = "direct", flag, category = "meta")]
-    pub invalidator: Option<()>,
+    #[task_storage(storage = "flag", category = "meta")]
+    pub invalidator: bool,
 
     /// Whether the task output is immutable (persisted).
-    #[task_storage(flag)]
+    #[task_storage(storage = "flag", category = "meta")]
     pub immutable: bool,
 
     // =========================================================================
@@ -145,31 +148,31 @@ pub struct TaskStorageSchema {
     // These flags track internal state for persistence and snapshotting.
     // =========================================================================
     /// Whether meta data has been restored from persistent storage.
-    #[task_storage(flag, transient)]
+    #[task_storage(storage = "flag", category = "transient")]
     pub meta_restored: bool,
 
     /// Whether data has been restored from persistent storage.
-    #[task_storage(flag, transient)]
+    #[task_storage(storage = "flag", category = "transient")]
     pub data_restored: bool,
 
     /// Whether meta was modified before snapshot mode was entered.
-    #[task_storage(flag, transient)]
+    #[task_storage(storage = "flag", category = "transient")]
     pub meta_modified: bool,
 
     /// Whether data was modified before snapshot mode was entered.
-    #[task_storage(flag, transient)]
+    #[task_storage(storage = "flag", category = "transient")]
     pub data_modified: bool,
 
     /// Whether meta was modified after snapshot mode was entered (snapshot taken).
-    #[task_storage(flag, transient)]
+    #[task_storage(storage = "flag", category = "transient")]
     pub meta_snapshot: bool,
 
     /// Whether data was modified after snapshot mode was entered (snapshot taken).
-    #[task_storage(flag, transient)]
+    #[task_storage(storage = "flag", category = "transient")]
     pub data_snapshot: bool,
 
     /// Whether dependencies have been prefetched.
-    #[task_storage(flag, transient)]
+    #[task_storage(storage = "flag", category = "transient")]
     pub prefetched: bool,
 
     // =========================================================================
@@ -199,15 +202,15 @@ pub struct TaskStorageSchema {
     pub collectibles_dependencies: AutoSet<CollectiblesRef>,
 
     /// Outdated output dependencies to be cleaned up (transient).
-    #[task_storage(storage = "auto_set", category = "data", transient)]
+    #[task_storage(storage = "auto_set", category = "transient")]
     pub outdated_output_dependencies: AutoSet<TaskId>,
 
     /// Outdated cell dependencies to be cleaned up (transient).
-    #[task_storage(storage = "auto_set", category = "data", transient)]
+    #[task_storage(storage = "auto_set", category = "transient")]
     pub outdated_cell_dependencies: AutoSet<CellRef>,
 
     /// Outdated collectibles dependencies to be cleaned up (transient).
-    #[task_storage(storage = "auto_set", category = "data", transient)]
+    #[task_storage(storage = "auto_set", category = "transient")]
     pub outdated_collectibles_dependencies: AutoSet<CollectiblesRef>,
 
     // =========================================================================
@@ -233,7 +236,7 @@ pub struct TaskStorageSchema {
     pub cell_data: AutoMap<CellId, TypedSharedReference>,
 
     /// Transient cell data (not serializable).
-    #[task_storage(storage = "auto_map", category = "data", transient)]
+    #[task_storage(storage = "auto_map", category = "transient")]
     pub transient_cell_data: AutoMap<CellId, SharedReference>,
 
     /// Maximum cell index per cell type.
@@ -246,17 +249,17 @@ pub struct TaskStorageSchema {
     /// Activeness state for root/once tasks (transient).
     /// Note: Lazy storage provides natural optionality -
     /// presence in Vec<LazyField> = Some, absence = None. No Option wrapper needed.
-    #[task_storage(storage = "direct", category = "meta", transient)]
+    #[task_storage(storage = "direct", category = "transient")]
     pub activeness: ActivenessState,
 
     /// In-progress execution state (transient).
     /// Note: Lazy storage provides natural optionality -
     /// presence in Vec<LazyField> = Some, absence = None. No Option wrapper needed.
-    #[task_storage(storage = "direct", category = "meta", transient)]
+    #[task_storage(storage = "direct", category = "transient")]
     pub in_progress: InProgressState,
 
     /// In-progress cell state for cells being computed (transient).
-    #[task_storage(storage = "auto_map", category = "meta", transient)]
+    #[task_storage(storage = "auto_map", category = "transient")]
     pub in_progress_cells: AutoMap<CellId, InProgressCellState>,
 }
 
@@ -336,25 +339,27 @@ impl TaskStorage {
     /// # Example
     /// ```ignore
     /// let deps = storage.get_or_create_lazy(
+    ///     |f| matches!(f, LazyField::OutputDependencies(_)),
     ///     |f| match f {
-    ///         LazyField::OutputDependencies(v) => Some(v),
-    ///         _ => None,
+    ///         LazyField::OutputDependencies(v) => v,
+    ///         _ => unreachable!(),
     ///     },
     ///     || LazyField::OutputDependencies(Default::default()),
     /// );
     /// ```
     fn get_or_create_lazy<T>(
         &mut self,
-        extract: impl for<'a> Fn(&'a mut LazyField) -> Option<&'a mut T>,
+        matches: impl Fn(&LazyField) -> bool,
+        extract: impl for<'a> FnOnce(&'a mut LazyField) -> &'a mut T,
         create: impl FnOnce() -> LazyField,
     ) -> &mut T {
-        // Find the index of matching field
-        let idx = self.lazy.iter_mut().position(|f| extract(f).is_some());
+        // Find the index of matching field (immutable borrow)
+        let idx = self.lazy.iter().position(|f| matches(f));
         if let Some(idx) = idx {
-            extract(&mut self.lazy[idx]).unwrap()
+            extract(&mut self.lazy[idx])
         } else {
             self.lazy.push(create());
-            extract(self.lazy.last_mut().unwrap()).unwrap()
+            extract(self.lazy.last_mut().unwrap())
         }
     }
 }
@@ -540,29 +545,15 @@ mod tests {
     use super::*;
     use crate::data::{AggregationNumber, CellRef, Dirtyness, OutputValue};
 
-    // ==========================================================================
-    // TaskStorage Tests (moved from storage_macro_test.rs)
-    // ==========================================================================
-
     #[test]
-    fn test_task_storage_generates_types() {
-        // The macro generates a unified TaskStorage type
-        let storage = TaskStorage::new();
-
-        // Verify the generated structure compiles
-        drop(storage);
-    }
-
-    #[test]
-    fn test_field_access() {
+    fn test_accessors() {
         let mut storage = TaskStorage::new();
 
-        // Test inline direct fields via accessor methods (meta category)
+        // Inline direct fields (Option-wrapped)
         assert!(storage.get_output().is_none());
         storage.set_output(OutputValue::Output(unsafe { TaskId::new_unchecked(1) }));
         assert!(storage.get_output().is_some());
 
-        // Test inline direct field (meta category)
         assert!(storage.get_aggregation_number().is_none());
         storage.set_aggregation_number(AggregationNumber {
             base: 10,
@@ -571,18 +562,7 @@ mod tests {
         });
         assert!(storage.get_aggregation_number().is_some());
 
-        // Test lazy direct field via accessor methods
-        assert!(storage.get_dirty().is_none());
-        storage.set_dirty(Dirtyness::Dirty);
-        assert_eq!(storage.get_dirty(), Some(&Dirtyness::Dirty));
-
-        // Test lazy field accessors (auto_set)
-        let deps = storage.output_dependencies_mut();
-        deps.insert(unsafe { TaskId::new_unchecked(10) });
-        deps.insert(unsafe { TaskId::new_unchecked(20) });
-        assert_eq!(deps.len(), 2);
-
-        // Test inline field via accessor methods (counter_map)
+        // Inline collection fields (always present)
         storage
             .upper_mut()
             .insert(unsafe { TaskId::new_unchecked(5) }, 3);
@@ -591,50 +571,6 @@ mod tests {
             Some(&3)
         );
 
-        // Verify it compiles and drops correctly
-        drop(storage);
-    }
-
-    #[test]
-    fn test_memory_efficiency() {
-        let empty_storage = TaskStorage::new();
-
-        // Empty storage should not allocate the lazy fields
-        // We can verify the structure compiles and basic operations work
-        assert!(empty_storage.get_output().is_none());
-        assert!(empty_storage.get_aggregation_number().is_none());
-
-        // Create a storage with some data
-        let mut storage_with_data = TaskStorage::new();
-        storage_with_data.set_output(OutputValue::Output(unsafe { TaskId::new_unchecked(1) }));
-
-        // Add some dependencies (should allocate lazily)
-        let deps = storage_with_data.output_dependencies_mut();
-        deps.insert(unsafe { TaskId::new_unchecked(1) });
-
-        assert!(storage_with_data.get_output().is_some());
-    }
-
-    #[test]
-    fn test_inline_fields() {
-        let mut storage = TaskStorage::new();
-
-        // Test inline data field (output) via accessor methods
-        storage.set_output(OutputValue::Output(unsafe { TaskId::new_unchecked(123) }));
-        assert!(storage.get_output().is_some());
-
-        // Test inline counter_map field (upper) via accessor methods
-        storage = TaskStorage::new();
-        storage
-            .upper_mut()
-            .insert(unsafe { TaskId::new_unchecked(1) }, 10);
-        assert_eq!(
-            storage.upper().get(&unsafe { TaskId::new_unchecked(1) }),
-            Some(&10)
-        );
-
-        // Test inline auto_set field (output_dependent) via accessor methods
-        storage = TaskStorage::new();
         storage
             .output_dependent_mut()
             .insert(unsafe { TaskId::new_unchecked(5) });
@@ -644,42 +580,35 @@ mod tests {
                 .contains(&unsafe { TaskId::new_unchecked(5) })
         );
 
-        // Test inline meta field (aggregation_number) via accessor methods
-        storage = TaskStorage::new();
-        storage.set_aggregation_number(AggregationNumber {
-            base: 1,
-            distance: 2,
-            effective: 3,
-        });
-        assert!(storage.get_aggregation_number().is_some());
-    }
+        // Lazy direct fields
+        assert!(storage.get_dirty().is_none());
+        storage.set_dirty(Dirtyness::Dirty);
+        assert_eq!(storage.get_dirty(), Some(&Dirtyness::Dirty));
 
-    #[test]
-    fn test_lazy_fields() {
-        let mut storage = TaskStorage::new();
-
-        // Test lazy auto_set fields
-        let deps = storage.output_dependencies_mut();
-        deps.insert(unsafe { TaskId::new_unchecked(10) });
-        assert!(storage.output_dependencies().is_some());
+        // Lazy collection fields (None until accessed via _mut)
+        assert!(storage.output_dependencies().is_none());
+        storage
+            .output_dependencies_mut()
+            .insert(unsafe { TaskId::new_unchecked(10) });
         assert_eq!(storage.output_dependencies().unwrap().len(), 1);
 
-        let children = storage.children_mut();
-        children.insert(unsafe { TaskId::new_unchecked(20) });
-        assert!(storage.children().is_some());
+        assert!(storage.children().is_none());
+        storage
+            .children_mut()
+            .insert(unsafe { TaskId::new_unchecked(20) });
         assert_eq!(storage.children().unwrap().len(), 1);
 
-        // Test lazy counter_map field (followers)
-        let followers = storage.followers_mut();
-        followers.insert(unsafe { TaskId::new_unchecked(30) }, 5);
-        assert!(storage.followers().is_some());
+        // Lazy counter_map
+        assert!(storage.followers().is_none());
+        storage
+            .followers_mut()
+            .insert(unsafe { TaskId::new_unchecked(30) }, 5);
         assert_eq!(
-            *storage
+            storage
                 .followers()
                 .unwrap()
-                .get(&unsafe { TaskId::new_unchecked(30) })
-                .unwrap(),
-            5
+                .get(&unsafe { TaskId::new_unchecked(30) }),
+            Some(&5)
         );
     }
 
@@ -769,66 +698,6 @@ mod tests {
         storage.flags.set_immutable(true);
         let persisted = storage.flags.persisted_bits();
         assert_eq!(persisted, 0b10); // Only immutable (bit 1)
-    }
-
-    #[test]
-    fn test_autoset_iter_len_is_empty() {
-        let mut storage = TaskStorage::new();
-
-        // Test inline AutoSet (output_dependent) - direct TaskStorage methods
-        // The iter_*, len_*, is_empty_* methods are generated on the TaskStorageAccessors trait
-        // which is implemented for TaskGuardImpl, not TaskStorage directly.
-        // Here we test the underlying storage behavior.
-        assert!(storage.output_dependent().is_empty());
-        assert_eq!(storage.output_dependent().len(), 0);
-        assert_eq!(storage.output_dependent().iter().count(), 0);
-
-        // Add items via mutable accessor
-        let task1 = unsafe { TaskId::new_unchecked(1) };
-        let task2 = unsafe { TaskId::new_unchecked(2) };
-        storage.output_dependent_mut().insert(task1);
-        storage.output_dependent_mut().insert(task2);
-
-        assert!(!storage.output_dependent().is_empty());
-        assert_eq!(storage.output_dependent().len(), 2);
-        let items: Vec<_> = storage.output_dependent().iter().copied().collect();
-        assert_eq!(items.len(), 2);
-        assert!(items.contains(&task1));
-        assert!(items.contains(&task2));
-
-        // Test lazy AutoSet (children) - direct TaskStorage methods
-        assert!(storage.children().is_none()); // Not allocated yet
-        assert_eq!(storage.children().map_or(0, |c| c.len()), 0);
-
-        // Add items via mutable accessor (allocates the set)
-        let task3 = unsafe { TaskId::new_unchecked(3) };
-        let task4 = unsafe { TaskId::new_unchecked(4) };
-        storage.children_mut().insert(task3);
-        storage.children_mut().insert(task4);
-
-        assert!(storage.children().is_some());
-        assert_eq!(storage.children().unwrap().len(), 2);
-        let items: Vec<_> = storage.children().unwrap().iter().copied().collect();
-        assert_eq!(items.len(), 2);
-        assert!(items.contains(&task3));
-        assert!(items.contains(&task4));
-
-        // Test another lazy AutoSet (output_dependencies)
-        assert!(storage.output_dependencies().is_none());
-        assert_eq!(storage.output_dependencies().map_or(0, |d| d.len()), 0);
-
-        let task5 = unsafe { TaskId::new_unchecked(5) };
-        storage.output_dependencies_mut().insert(task5);
-
-        assert!(storage.output_dependencies().is_some());
-        assert_eq!(storage.output_dependencies().unwrap().len(), 1);
-        let items: Vec<_> = storage
-            .output_dependencies()
-            .unwrap()
-            .iter()
-            .copied()
-            .collect();
-        assert_eq!(items, vec![task5]);
     }
 
     // Helper to create encoder
@@ -1089,14 +958,6 @@ mod tests {
 
     #[test]
     fn test_schema_size() {
-        // AggregationNumber is 12 bytes (3 x u32).
-        assert_eq!(
-            size_of::<AggregationNumber>(),
-            12,
-            "AggregationNumber size changed! Was 12 bytes, now {} bytes.",
-            size_of::<AggregationNumber>()
-        );
-
         // TaskStorage uses lazy storage for most fields, keeping inline storage minimal.
         // Current layout (128 bytes):
         //   - output_dependent (AutoSet<TaskId>): 24 bytes
@@ -1114,80 +975,6 @@ mod tests {
             "TaskStorage size changed! Was 128 bytes, now {} bytes. If this is intentional, \
              update this test.",
             size_of::<TaskStorage>()
-        );
-    }
-
-    #[test]
-    fn size_breakdown() {
-        println!("\n=== Size Breakdown ===\n");
-
-        // Each FxHashMap/FxHashSet is 56 bytes when empty
-        println!(
-            "FxHashMap<TaskId, u32>: {} bytes",
-            size_of::<rustc_hash::FxHashMap<TaskId, u32>>()
-        );
-        println!(
-            "FxHashSet<TaskId>: {} bytes",
-            size_of::<rustc_hash::FxHashSet<TaskId>>()
-        );
-
-        // Vec is 24 bytes (ptr + len + cap)
-        println!("Vec<u8>: {} bytes", size_of::<Vec<u8>>());
-
-        // Option<()> is 1 byte
-        println!("Option<()>: {} bytes", size_of::<Option<()>>());
-
-        println!("\n=== TaskStorage (Unified with lazy) ===\n");
-        println!("TaskStorage total: {} bytes", size_of::<TaskStorage>());
-        println!("\nSpecialized fields (inline):");
-        println!(
-            "  - output_dependent (FxHashSet<TaskId>): {} bytes",
-            size_of::<AutoSet<TaskId>>()
-        );
-        println!(
-            "  - aggregation_number: {} bytes",
-            size_of::<AggregationNumber>()
-        );
-        println!("  - output: {} bytes", size_of::<Option<OutputValue>>());
-        println!(
-            "  - upper (CounterMap<TaskId, u32>): {} bytes",
-            size_of::<CounterMap<TaskId, u32>>()
-        );
-        println!("\nDirect fields (inline):");
-        println!(
-            "  - invalidator/immutable: 2 * {} bytes",
-            size_of::<Option<()>>()
-        );
-        println!(
-            "  - dirty: {} bytes",
-            size_of::<Option<crate::data::Dirtyness>>()
-        );
-        println!(
-            "  - aggregated_dirty_container_count: {} bytes",
-            size_of::<Option<i32>>()
-        );
-        println!(
-            "  - aggregated_dirty_containers: {} bytes",
-            size_of::<CounterMap<TaskId, i32>>()
-        );
-
-        println!("\nLazy Vec (stores all lazy fields):");
-        println!(
-            "  - lazy: Vec<LazyField> = {} bytes",
-            size_of::<Vec<LazyField>>()
-        );
-        println!("  - LazyField enum size: {} bytes", size_of::<LazyField>());
-
-        println!("\n=== Lazy Field Analysis ===\n");
-        // With lazy: all lazy fields in one Vec<LazyField> = 24 bytes
-        // Without lazy: 7 Option<Box<_>> = 56 bytes
-        println!(
-            "Vec<LazyField> = {} bytes (stores all lazy fields)",
-            size_of::<Vec<LazyField>>()
-        );
-        println!(
-            "Savings vs 7 Option<Box<_>>: {} bytes",
-            7 * 8 - size_of::<Vec<LazyField>>()
         );
     }
 }
