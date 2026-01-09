@@ -8,7 +8,7 @@ use rustc_hash::FxHashMap;
 use turbo_tasks::{
     NonLocalValue, ResolvedVc, TryFlatJoinIterExt, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
-use turbopack_core::{module::Module, module_graph::SingleModuleGraphWithBindingUsage};
+use turbopack_core::{module::Module, module_graph::ModuleGraph};
 use turbopack_css::chunk::CssChunkPlaceable;
 
 #[derive(
@@ -29,9 +29,9 @@ pub struct ClientReferenceData(FxHashMap<ResolvedVc<Box<dyn Module>>, ClientMani
 
 #[turbo_tasks::function]
 pub async fn map_client_references(
-    graph: SingleModuleGraphWithBindingUsage,
+    graph: ResolvedVc<ModuleGraph>,
 ) -> Result<Vc<ClientReferenceData>> {
-    let graph = graph.read().await?;
+    let graph = graph.await?;
     let manifest = graph
         .iter_nodes()
         .map(|module| async move {

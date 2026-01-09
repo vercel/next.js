@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{Instrument, Level, Span};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    CollectiblesSource, FxIndexMap, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TaskInput,
+    CollectiblesSource, FxIndexMap, NonLocalValue, OperationVc, ReadRef, ResolvedVc,
     TryJoinIterExt, ValueToString, Vc,
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
@@ -640,32 +640,56 @@ impl ImportTracer for ModuleGraphImportTracer {
     }
 }
 
-#[turbo_tasks::value(shared)]
+/// The ReadRef version of ModuleGraphBase. This is better for eventual consistency, as the graphs
+/// aren't awaited multiple times within the same task.
+#[turbo_tasks::value(shared, serialization = "none", eq = "manual", cell = "new")]
 #[derive(Clone, Default)]
 pub struct ModuleGraph {
-    pub graphs: Vec<OperationVc<SingleModuleGraph>>,
+    input_graphs: Vec<OperationVc<SingleModuleGraph>>,
+    input_binding_usage: Option<OperationVc<BindingUsageInfo>>,
 
-    pub binding_usage: Option<OperationVc<BindingUsageInfo>>,
+    pub graphs: Vec<ReadRef<SingleModuleGraph>>,
+    // Whether to simply ignore SingleModuleGraphNode::VisitedModule during traversals. For single
+    // module graph usecases, this is what you want. For the whole graph, there should be an error.
+    skip_visited_module_children: bool,
+
+    pub graph_idx_override: Option<u32>,
+
+    pub binding_usage: Option<ReadRef<BindingUsageInfo>>,
 }
 
 #[turbo_tasks::value_impl]
 impl ModuleGraph {
     #[turbo_tasks::function]
-    pub fn from_graphs(graphs: Vec<OperationVc<SingleModuleGraph>>) -> Vc<Self> {
-        Self {
-            graphs,
-            binding_usage: None,
-        }
-        .cell()
+    pub async fn from_single_graph(graph: OperationVc<SingleModuleGraph>) -> Result<Vc<Self>> {
+        let graph = Self::create(vec![graph], None)
+            .read_strongly_consistent()
+            .await?;
+        Ok(ReadRef::cell(graph))
     }
 
     #[turbo_tasks::function]
-    pub fn from_single_graph(graph: OperationVc<SingleModuleGraph>) -> Vc<Self> {
-        Self {
-            graphs: vec![graph],
-            binding_usage: None,
-        }
-        .cell()
+    pub async fn from_graphs(graphs: Vec<OperationVc<SingleModuleGraph>>) -> Result<Vc<Self>> {
+        let graph = Self::create(graphs, None)
+            .read_strongly_consistent()
+            .await?;
+        Ok(ReadRef::cell(graph))
+    }
+
+    /// Analyze the module graph and remove unused references (by determining the used exports and
+    /// removing unused imports).
+    ///
+    /// In particular, this removes ChunkableModuleReference-s that list only unused exports in the
+    /// `import_usage()`
+    #[turbo_tasks::function]
+    pub async fn from_graphs_without_unused_references(
+        graphs: Vec<OperationVc<SingleModuleGraph>>,
+        binding_usage: OperationVc<BindingUsageInfo>,
+    ) -> Result<Vc<Self>> {
+        let graph = Self::create(graphs, Some(binding_usage))
+            .read_strongly_consistent()
+            .await?;
+        Ok(ReadRef::cell(graph))
     }
 
     #[turbo_tasks::function]
@@ -694,9 +718,50 @@ impl ModuleGraph {
         ))
     }
 
+    #[turbo_tasks::function(operation)]
+    async fn create(
+        graphs: Vec<OperationVc<SingleModuleGraph>>,
+        binding_usage: Option<OperationVc<BindingUsageInfo>>,
+    ) -> Result<Vc<ModuleGraph>> {
+        Ok(ModuleGraph {
+            input_graphs: graphs.clone(),
+            input_binding_usage: binding_usage,
+            graphs: graphs.iter().map(|g| g.connect()).try_join().await?,
+            skip_visited_module_children: false,
+            graph_idx_override: None,
+            binding_usage: if let Some(binding_usage) = binding_usage {
+                Some(binding_usage.connect().await?)
+            } else {
+                None
+            },
+        }
+        .cell())
+    }
+
+    #[turbo_tasks::function(operation)]
+    async fn create_layer(
+        graph: OperationVc<SingleModuleGraph>,
+        graph_idx: u32,
+        binding_usage: Option<OperationVc<BindingUsageInfo>>,
+    ) -> Result<Vc<Self>> {
+        Ok(Self {
+            input_graphs: vec![graph.clone()],
+            input_binding_usage: binding_usage,
+            graphs: vec![graph.connect().await?],
+            skip_visited_module_children: true,
+            graph_idx_override: Some(graph_idx),
+            binding_usage: if let Some(binding_usage) = binding_usage {
+                Some(binding_usage.connect().await?)
+            } else {
+                None
+            },
+        }
+        .cell())
+    }
+
     #[turbo_tasks::function]
     pub async fn chunk_group_info(self: Vc<Self>) -> Result<Vc<ChunkGroupInfo>> {
-        compute_chunk_group_info(&self.read_graphs().await?).await
+        compute_chunk_group_info(&*self.await?).await
     }
 
     #[turbo_tasks::function]
@@ -740,7 +805,7 @@ impl ModuleGraph {
         self: Vc<Self>,
         module: ResolvedVc<Box<dyn Module>>,
     ) -> Result<Vc<AsyncModuleInfo>> {
-        let graph_ref = self.read_graphs().await?;
+        let graph_ref = self.await?;
         let async_modules_info = self.async_module_info().await?;
 
         let entry = graph_ref.get_entry(module)?;
@@ -761,93 +826,34 @@ impl ModuleGraph {
         Ok(AsyncModuleInfo::new(referenced_modules))
     }
 
-    /// Analyze the module graph and remove unused references (by determining the used exports and
-    /// removing unused imports).
-    ///
-    /// In particular, this removes ChunkableModuleReference-s that list only unused exports in the
-    /// `import_usage()`
+    // TODO remove this method and use `from_graphs_without_unused_references` directly
     #[turbo_tasks::function]
-    pub async fn without_unused_references(
-        self: ResolvedVc<Self>,
+    pub fn without_unused_references(
+        &self,
         binding_usage: OperationVc<BindingUsageInfo>,
-    ) -> Result<Vc<Self>> {
-        Ok(Self {
-            graphs: self.await?.graphs.clone(),
-            binding_usage: Some(binding_usage),
-        }
-        .cell())
-    }
-}
-
-impl ModuleGraph {
-    /// Reads the ModuleGraph into a ModuleGraphRef, awaiting all underlying graphs.
-    pub async fn read_graphs(self: Vc<ModuleGraph>) -> Result<ModuleGraphRef> {
-        let this = self.await?;
-        Ok(ModuleGraphRef {
-            graphs: this.graphs.iter().map(|g| g.connect()).try_join().await?,
-            skip_visited_module_children: false,
-            graph_idx_override: None,
-            binding_usage: if let Some(binding_usage) = this.binding_usage {
-                Some(binding_usage.connect().await?)
-            } else {
-                None
-            },
-        })
+    ) -> Vc<Self> {
+        Self::from_graphs_without_unused_references(self.input_graphs.clone(), binding_usage)
     }
 
     /// Returns the underlying graphs as a list, to be used for individual graph traversals.
-    pub fn iter_graphs(
-        self: &ModuleGraph,
-    ) -> impl Iterator<Item = SingleModuleGraphWithBindingUsage> {
-        self.graphs
-            .iter()
-            .enumerate()
-            .map(|(graph_idx, graph)| SingleModuleGraphWithBindingUsage {
-                graph: *graph,
-                graph_idx: graph_idx as u32,
-                binding_usage: self.binding_usage,
-            })
+    #[turbo_tasks::function]
+    pub fn iter_graphs(&self) -> Vc<ModuleGraphLayers> {
+        Vc::cell(
+            self.input_graphs
+                .iter()
+                .enumerate()
+                .map(|(graph_idx, graph)| {
+                    ModuleGraph::create_layer(*graph, graph_idx as u32, self.input_binding_usage)
+                })
+                .collect(),
+        )
     }
 }
 
-#[derive(
-    Clone, Copy, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, NonLocalValue, Encode, Decode,
-)]
-pub struct SingleModuleGraphWithBindingUsage {
-    graph: OperationVc<SingleModuleGraph>,
-    graph_idx: u32,
-    binding_usage: Option<OperationVc<BindingUsageInfo>>,
-}
+#[turbo_tasks::value(transparent)]
+pub struct ModuleGraphLayers(Vec<OperationVc<ModuleGraph>>);
 
-impl SingleModuleGraphWithBindingUsage {
-    pub async fn read(self: &SingleModuleGraphWithBindingUsage) -> Result<ModuleGraphRef> {
-        Ok(ModuleGraphRef {
-            graphs: vec![self.graph.connect().await?],
-            skip_visited_module_children: true,
-            graph_idx_override: Some(self.graph_idx),
-            binding_usage: if let Some(binding_usage) = &self.binding_usage {
-                Some(binding_usage.connect().await?)
-            } else {
-                None
-            },
-        })
-    }
-}
-
-/// The ReadRef version of ModuleGraph. This is better for eventual consistency, as the graphs
-/// aren't awaited multiple times within the same task.
-pub struct ModuleGraphRef {
-    pub graphs: Vec<ReadRef<SingleModuleGraph>>,
-    // Whether to simply ignore SingleModuleGraphNode::VisitedModule during traversals. For single
-    // module graph usecases, this is what you want. For the whole graph, there should be an error.
-    skip_visited_module_children: bool,
-
-    pub graph_idx_override: Option<u32>,
-
-    pub binding_usage: Option<ReadRef<BindingUsageInfo>>,
-}
-
-impl ModuleGraphRef {
+impl ModuleGraph {
     fn get_entry(&self, entry: ResolvedVc<Box<dyn Module>>) -> Result<GraphNodeIndex> {
         if self.graph_idx_override.is_some() {
             debug_assert_eq!(self.graphs.len(), 1,);
@@ -1681,8 +1687,8 @@ pub mod tests {
         ident::AssetIdent,
         module::{Module, ModuleSideEffects},
         module_graph::{
-            GraphEntries, GraphTraversalAction, ModuleGraph, ModuleGraphRef, SingleModuleGraph,
-            VisitedModules, chunk_group_info::ChunkGroupEntry,
+            GraphEntries, GraphTraversalAction, ModuleGraph, SingleModuleGraph, VisitedModules,
+            chunk_group_info::ChunkGroupEntry,
         },
         reference::{ModuleReference, ModuleReferences, SingleChunkableModuleReference},
         resolve::ExportUsage,
@@ -2022,9 +2028,15 @@ pub mod tests {
                     false,
                     false,
                 ),
-            ])
-            .await?;
-            let child_graph = module_graph.iter_graphs().nth(1).unwrap().read().await?;
+            ]);
+            let child_graph = module_graph
+                .iter_graphs()
+                .await?
+                .iter()
+                .nth(1)
+                .unwrap()
+                .connect()
+                .await?;
             // test traversing forward from a in the child graph
             {
                 let mut visited_forward = Vec::new();
@@ -2210,7 +2222,7 @@ pub mod tests {
         entries: Vec<RcStr>,
         graph: FxHashMap<RcStr, Vec<RcStr>>,
         test_fn: impl FnOnce(
-            ModuleGraphRef,
+            &ModuleGraph,
             Vec<ResolvedVc<Box<dyn Module>>>,
             FxHashMap<ResolvedVc<Box<dyn Module>>, RcStr>,
         ) -> Result<()>
@@ -2267,7 +2279,7 @@ pub mod tests {
                 .into_iter()
                 .collect();
             test_fn(
-                ModuleGraph::from_single_graph(graph).read_graphs().await?,
+                &*ModuleGraph::from_single_graph(graph).await?,
                 entry_modules,
                 module_to_name,
             )

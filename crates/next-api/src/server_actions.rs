@@ -30,9 +30,7 @@ use turbopack_core::{
     file_source::FileSource,
     ident::AssetIdent,
     module::Module,
-    module_graph::{
-        ModuleGraph, SingleModuleGraphWithBindingUsage, async_module_info::AsyncModulesInfo,
-    },
+    module_graph::{ModuleGraph, async_module_info::AsyncModulesInfo},
     output::OutputAsset,
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::ModulePart,
@@ -455,11 +453,8 @@ pub struct AllModuleActions(
 );
 
 #[turbo_tasks::function]
-pub async fn map_server_actions(
-    graph: SingleModuleGraphWithBindingUsage,
-) -> Result<Vc<AllModuleActions>> {
+pub async fn map_server_actions(graph: ResolvedVc<ModuleGraph>) -> Result<Vc<AllModuleActions>> {
     let actions = graph
-        .read()
         .await?
         .iter_nodes()
         .map(async |module| {

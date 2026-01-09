@@ -128,7 +128,7 @@ pub async fn compute_binding_usage_info(
                  without_unused_references"
             );
         }
-        let graph_ref = graph.read_graphs().await?;
+        let graph_ref = graph.await?;
         let side_effect_free_modules = if remove_unused_imports {
             let side_effect_free_modules = compute_side_effect_free_module_info(*graph).await?;
             span.record("side_effect_free_modules", side_effect_free_modules.len());
