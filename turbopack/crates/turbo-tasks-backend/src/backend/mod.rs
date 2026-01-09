@@ -2129,7 +2129,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         drop(task);
 
         // Check if the task can be marked as immutable
-        // Note: We use TaskDataCategory::Meta because the Immutable flag is stored in Meta category
         let mut is_now_immutable = false;
         if let Some(dependencies) = task_dependencies_for_immutable
             && dependencies
