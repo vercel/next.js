@@ -23,7 +23,6 @@ import {
 import {
   getRedirectTypeFromError,
   getURLFromRedirectError,
-  getRedirectStatusCodeFromError,
 } from '../../client/components/redirect'
 import {
   isRedirectError,
@@ -59,6 +58,7 @@ import {
 } from './manifests-singleton'
 import { isNodeNextRequest, isWebNextRequest } from '../base-http/helpers'
 import { normalizeFilePath } from './segment-explorer-path'
+import type { ServerActionLogInfo } from '../dev/server-action-logger'
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
 import { synchronizeMutableCookies } from '../async-storage/request-store'
 import type { TemporaryReferenceSet } from 'react-server-dom-webpack/server'
@@ -1083,11 +1083,7 @@ export async function handleAction({
           ]
 
         // Log server action call in development
-        let logInfo: {
-          functionName: string
-          argsStr: string
-          location: string
-        } | null = null
+        let logInfo: ServerActionLogInfo | null = null
         if (process.env.NODE_ENV === 'development') {
           const serverActionsManifest = getServerActionsManifest()
           const runtime = process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
@@ -1120,155 +1116,11 @@ export async function handleAction({
               }
             }
 
-            // Format arguments for display
-            const formatArg = (arg: unknown, depth = 0): string => {
-              const maxDepth = 2
-              const maxStringLen = 50
-              const maxArrayItems = 3
-              const maxObjectKeys = 3
-
-              if (arg === null) return 'null'
-              if (arg === undefined) return 'undefined'
-
-              if (typeof arg === 'string') {
-                const truncated =
-                  arg.length > maxStringLen
-                    ? arg.slice(0, maxStringLen) + '...'
-                    : arg
-                return `"${truncated}"`
-              }
-
-              if (typeof arg === 'number' || typeof arg === 'boolean') {
-                return String(arg)
-              }
-
-              if (typeof arg === 'bigint') {
-                return `${arg}n`
-              }
-
-              if (typeof arg === 'symbol') {
-                return arg.toString()
-              }
-
-              if (typeof arg === 'function') {
-                return `[Function${arg.name ? `: ${arg.name}` : ''}]`
-              }
-
-              if (arg instanceof Date) {
-                return `Date(${arg.toISOString()})`
-              }
-
-              if (arg instanceof RegExp) {
-                return arg.toString()
-              }
-
-              if (typeof FormData !== 'undefined' && arg instanceof FormData) {
-                const keys = Array.from(arg.keys())
-                if (keys.length <= maxObjectKeys) {
-                  return `FormData { ${keys.join(', ')} }`
-                }
-                return `FormData { ${keys.slice(0, maxObjectKeys).join(', ')}, ... }`
-              }
-
-              if (ArrayBuffer.isView(arg) || arg instanceof ArrayBuffer) {
-                const len =
-                  arg instanceof ArrayBuffer ? arg.byteLength : arg.byteLength
-                return `[Buffer(${len})]`
-              }
-
-              if (Array.isArray(arg)) {
-                if (depth >= maxDepth) {
-                  return `[Array(${arg.length})]`
-                }
-                if (arg.length === 0) {
-                  return '[]'
-                }
-                if (arg.length <= maxArrayItems) {
-                  const items = arg
-                    .map((item) => formatArg(item, depth + 1))
-                    .join(', ')
-                  return `[${items}]`
-                }
-                const items = arg
-                  .slice(0, maxArrayItems)
-                  .map((item) => formatArg(item, depth + 1))
-                  .join(', ')
-                return `[${items}, ...(${arg.length - maxArrayItems} more)]`
-              }
-
-              if (typeof arg === 'object') {
-                // Check for React/RSC special objects (client/server references)
-                const obj = arg as Record<string, unknown>
-
-                // Filter out internal RSC flight protocol structures
-                if (
-                  'status' in obj &&
-                  (obj.status === 'resolved_model' ||
-                    obj.status === 'resolved_module' ||
-                    obj.status === 'pending' ||
-                    obj.status === 'blocked' ||
-                    obj.status === 'cyclic')
-                ) {
-                  return '[RSC]'
-                }
-
-                if ('$$typeof' in obj) {
-                  // React element or special type
-                  const typeName = obj.$$typeof?.toString() || ''
-                  if (typeName.includes('client.reference')) {
-                    return '[Client Reference]'
-                  }
-                  if (typeName.includes('server.reference')) {
-                    return '[Server Reference]'
-                  }
-                  if (typeName.includes('react.element')) {
-                    return '[React Element]'
-                  }
-                  return '[React Object]'
-                }
-                // Check for bound action arguments (has $$id marker)
-                if ('$$id' in obj) {
-                  return '[Server Reference]'
-                }
-
-                if (depth >= maxDepth) {
-                  return '{...}'
-                }
-                const keys = Object.keys(arg)
-                if (keys.length === 0) {
-                  return '{}'
-                }
-                if (keys.length <= maxObjectKeys) {
-                  const pairs = keys
-                    .map(
-                      (k) =>
-                        `${k}: ${formatArg((arg as Record<string, unknown>)[k], depth + 1)}`
-                    )
-                    .join(', ')
-                  return `{ ${pairs} }`
-                }
-                const pairs = keys
-                  .slice(0, maxObjectKeys)
-                  .map(
-                    (k) =>
-                      `${k}: ${formatArg((arg as Record<string, unknown>)[k], depth + 1)}`
-                  )
-                  .join(', ')
-                return `{ ${pairs}, ... }`
-              }
-
-              return String(arg)
-            }
-
-            const argsStr = boundActionArguments
-              .map((a) => formatArg(a))
-              .join(', ')
-            logInfo = { functionName, argsStr, location }
+            logInfo = { functionName, args: boundActionArguments, location }
           }
         }
 
         const startTime = performance.now()
-        let actionStatus = 200
         const { actionResult, skipPageRendering } =
           await executeActionAndPrepareForRender(
             actionHandler,
@@ -1276,33 +1128,15 @@ export async function handleAction({
             workStore,
             requestStore,
             actionWasForwarded
-          )
-            .catch((err) => {
-              if (isRedirectError(err)) {
-                actionStatus = getRedirectStatusCodeFromError(err)
-              } else if (isHTTPAccessFallbackError(err)) {
-                actionStatus = getAccessFallbackHTTPStatus(err)
-              } else {
-                actionStatus = 500
-              }
-              throw err
-            })
-            .finally(() => {
-              addRevalidationHeader(res, { workStore, requestStore })
-              if (logInfo) {
-                const duration = Math.round(performance.now() - startTime)
-                // Green for 2xx, cyan for 3xx, red for 4xx/5xx
-                let statusColor = '\x1b[32m' // green
-                if (actionStatus >= 300 && actionStatus < 400) {
-                  statusColor = '\x1b[36m' // cyan
-                } else if (actionStatus >= 400) {
-                  statusColor = '\x1b[31m' // red
-                }
-                console.log(
-                  ` ƒ ${logInfo.functionName}(${logInfo.argsStr}) ${statusColor}${actionStatus}\x1b[0m in ${duration}ms \x1b[2m${logInfo.location}\x1b[0m`
-                )
-              }
-            })
+          ).finally(() => {
+            addRevalidationHeader(res, { workStore, requestStore })
+            if (logInfo) {
+              // Dynamically require the logger only in development
+              const { logServerAction } =
+                require('../dev/server-action-logger') as typeof import('../dev/server-action-logger')
+              logServerAction(logInfo, startTime)
+            }
+          })
 
         // For form actions, we need to continue rendering the page.
         if (isFetchAction) {
