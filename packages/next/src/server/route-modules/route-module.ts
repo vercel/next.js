@@ -57,7 +57,7 @@ import type { BaseNextRequest } from '../base-http'
 import type { I18NConfig, NextConfigRuntime } from '../config-shared'
 import ResponseCache, { type ResponseGenerator } from '../response-cache'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
-import { evaluateDeploymentId } from '../../build/generate-deployment-id'
+import { evaluateDeploymentId } from '../evaluate-deployment-id'
 import {
   RouterServerContextSymbol,
   routerServerGlobal,

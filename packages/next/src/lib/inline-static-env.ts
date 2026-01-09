@@ -6,7 +6,7 @@ import globOriginal from 'next/dist/compiled/glob'
 import { Sema } from 'next/dist/compiled/async-sema'
 import type { NextConfigComplete } from '../server/config-shared'
 import { getNextConfigEnv, getStaticEnv } from './static-env'
-import { evaluateDeploymentId } from '../build/generate-deployment-id'
+import { evaluateDeploymentId } from '../server/evaluate-deployment-id'
 
 const glob = promisify(globOriginal)
 

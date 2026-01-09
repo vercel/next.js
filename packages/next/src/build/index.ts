@@ -128,10 +128,8 @@ import { sortByPageExts } from './sort-by-page-exts'
 import { getStaticInfoIncludingLayouts } from './get-static-info-including-layouts'
 import { PAGE_TYPES } from '../lib/page-types'
 import { generateBuildId } from './generate-build-id'
-import {
-  evaluateDeploymentId,
-  resolveAndSetDeploymentId,
-} from './generate-deployment-id'
+import { resolveAndSetDeploymentId } from './generate-deployment-id'
+import { evaluateDeploymentId } from '../server/evaluate-deployment-id'
 import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
 import createSpinner from './spinner'
