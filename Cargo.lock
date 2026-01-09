@@ -9450,6 +9450,7 @@ dependencies = [
  "turbo-persistence",
  "turbo-rcstr",
  "turbo-tasks",
+ "turbo-tasks-macros",
  "turbo-tasks-malloc",
  "turbo-tasks-testing",
 ]
