@@ -581,7 +581,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
             })
     }
 
-    unsafe fn lookup_typed_meta(
+    unsafe fn lookup_task_storage_meta(
         &self,
         tx: Option<&T::ReadTransaction<'_>>,
         task_id: TaskId,
@@ -611,10 +611,12 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
         }
         inner
             .with_tx(tx, |tx| lookup(&inner.database, tx, task_id, storage))
-            .with_context(|| format!("Looking up typed meta for {task_id} from database failed"))
+            .with_context(|| {
+                format!("Looking up task storage meta for {task_id} from database failed")
+            })
     }
 
-    unsafe fn lookup_typed_data(
+    unsafe fn lookup_task_storage_data(
         &self,
         tx: Option<&T::ReadTransaction<'_>>,
         task_id: TaskId,
@@ -644,7 +646,9 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
         }
         inner
             .with_tx(tx, |tx| lookup(&inner.database, tx, task_id, storage))
-            .with_context(|| format!("Looking up typed data for {task_id} from database failed"))
+            .with_context(|| {
+                format!("Looking up task storage data for {task_id} from database failed")
+            })
     }
 
     fn shutdown(&self) -> Result<()> {

@@ -406,6 +406,38 @@ impl IsTransient for (CellId, Option<u64>, TaskId) {
         self.2.is_transient()
     }
 }
+
+// ==========================================================================
+// TaskStorage Serialization Helpers
+// ==========================================================================
+
+/// Serialize TaskStorage meta fields directly to bytes.
+/// Uses the generated encode_meta method for efficient serialization.
+pub fn serialize_task_storage_meta(
+    storage: &TaskStorage,
+) -> Result<turbo_bincode::TurboBincodeBuffer, bincode::error::EncodeError> {
+    let mut buffer = turbo_bincode::TurboBincodeBuffer::new();
+    let mut encoder = bincode::enc::EncoderImpl::new(
+        turbo_bincode::TurboBincodeWriter::new(&mut buffer),
+        turbo_bincode::TURBO_BINCODE_CONFIG,
+    );
+    storage.encode_meta(&mut encoder)?;
+    Ok(buffer)
+}
+
+/// Serialize TaskStorage data fields directly to bytes.
+/// Uses the generated encode_data method for efficient serialization.
+pub fn serialize_task_storage_data(
+    storage: &TaskStorage,
+) -> Result<turbo_bincode::TurboBincodeBuffer, bincode::error::EncodeError> {
+    let mut buffer = turbo_bincode::TurboBincodeBuffer::new();
+    let mut encoder = bincode::enc::EncoderImpl::new(
+        turbo_bincode::TurboBincodeWriter::new(&mut buffer),
+        turbo_bincode::TURBO_BINCODE_CONFIG,
+    );
+    storage.encode_data(&mut encoder)?;
+    Ok(buffer)
+}
 #[cfg(test)]
 mod tests {
     use std::mem::size_of;
@@ -806,6 +838,71 @@ mod tests {
         assert!(decoded.output_dependent().is_empty());
         assert_eq!(decoded.children(), None);
         assert_eq!(decoded.output_dependencies(), None);
+    }
+
+    #[test]
+    fn test_serialize_helpers() {
+        // Test the serialize_task_storage_meta/data helper functions
+        let mut original = TaskStorage::new();
+        original.set_aggregation_number(AggregationNumber {
+            base: 10,
+            distance: 5,
+            effective: 15,
+        });
+        original.set_output(OutputValue::Output(unsafe { TaskId::new_unchecked(42) }));
+        original.flags.set_immutable(true);
+
+        // Add some data-category items (output_dependent is in data category)
+        original
+            .output_dependent_mut()
+            .insert(unsafe { TaskId::new_unchecked(20) });
+        original
+            .output_dependent_mut()
+            .insert(unsafe { TaskId::new_unchecked(21) });
+
+        // Serialize using helpers
+        let meta_buffer =
+            serialize_task_storage_meta(&original).expect("meta serialization failed");
+        let data_buffer =
+            serialize_task_storage_data(&original).expect("data serialization failed");
+
+        // Decode into new storage
+        let mut decoded = TaskStorage::new();
+        {
+            let mut decoder = new_decoder(&meta_buffer);
+            decoded
+                .decode_meta(&mut decoder)
+                .expect("decode meta failed");
+        }
+        {
+            let mut decoder = new_decoder(&data_buffer);
+            decoded
+                .decode_data(&mut decoder)
+                .expect("decode data failed");
+        }
+
+        // Verify meta fields
+        let agg = decoded
+            .get_aggregation_number()
+            .expect("missing aggregation_number");
+        assert_eq!(agg.base, 10);
+        assert_eq!(agg.distance, 5);
+        assert_eq!(agg.effective, 15);
+        assert!(decoded.get_output().is_some());
+        assert!(decoded.flags.immutable());
+
+        // Verify data fields
+        assert_eq!(decoded.output_dependent().len(), 2);
+        assert!(
+            decoded
+                .output_dependent()
+                .contains(&unsafe { TaskId::new_unchecked(20) })
+        );
+        assert!(
+            decoded
+                .output_dependent()
+                .contains(&unsafe { TaskId::new_unchecked(21) })
+        );
     }
 
     // ==========================================================================

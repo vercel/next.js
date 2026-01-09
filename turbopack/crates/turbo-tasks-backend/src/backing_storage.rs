@@ -3,7 +3,6 @@ use std::{any::type_name, sync::Arc};
 use anyhow::Result;
 use either::Either;
 use smallvec::SmallVec;
-use turbo_bincode::TurboBincodeBuffer;
 use turbo_tasks::{TaskId, backend::CachedTaskType};
 
 use crate::{
@@ -107,44 +106,16 @@ pub trait BackingStorageSealed: 'static + Send + Sync {
     }
 
     // =========================================================================
-    // Typed serialization methods for TaskStorage
+    // TaskStorage serialization methods
     // These methods provide direct serialization to/from TaskStorage without
     // the intermediate CachedDataItem representation.
     // =========================================================================
-
-    /// Serialize TaskStorage meta fields directly to bytes.
-    /// This uses the generated encode_meta method for efficient serialization.
-    fn serialize_typed_meta(&self, storage: &TaskStorage) -> Result<TurboBincodeBuffer> {
-        let mut buffer = TurboBincodeBuffer::new();
-        let mut encoder = bincode::enc::EncoderImpl::new(
-            turbo_bincode::TurboBincodeWriter::new(&mut buffer),
-            turbo_bincode::TURBO_BINCODE_CONFIG,
-        );
-        storage
-            .encode_meta(&mut encoder)
-            .map_err(|e| anyhow::anyhow!("Failed to encode meta: {e:?}"))?;
-        Ok(buffer)
-    }
-
-    /// Serialize TaskStorage data fields directly to bytes.
-    /// This uses the generated encode_data method for efficient serialization.
-    fn serialize_typed_data(&self, storage: &TaskStorage) -> Result<TurboBincodeBuffer> {
-        let mut buffer = TurboBincodeBuffer::new();
-        let mut encoder = bincode::enc::EncoderImpl::new(
-            turbo_bincode::TurboBincodeWriter::new(&mut buffer),
-            turbo_bincode::TURBO_BINCODE_CONFIG,
-        );
-        storage
-            .encode_data(&mut encoder)
-            .map_err(|e| anyhow::anyhow!("Failed to encode data: {e:?}"))?;
-        Ok(buffer)
-    }
 
     /// Lookup and decode meta fields directly into TaskStorage.
     /// # Safety
     ///
     /// `tx` must be a transaction from this BackingStorage instance.
-    unsafe fn lookup_typed_meta(
+    unsafe fn lookup_task_storage_meta(
         &self,
         tx: Option<&Self::ReadTransaction<'_>>,
         task_id: TaskId,
@@ -155,12 +126,46 @@ pub trait BackingStorageSealed: 'static + Send + Sync {
     /// # Safety
     ///
     /// `tx` must be a transaction from this BackingStorage instance.
-    unsafe fn lookup_typed_data(
+    unsafe fn lookup_task_storage_data(
         &self,
         tx: Option<&Self::ReadTransaction<'_>>,
         task_id: TaskId,
         storage: &mut TaskStorage,
     ) -> Result<()>;
+
+    /// Batch lookup and decode meta fields for multiple tasks.
+    /// # Safety
+    ///
+    /// `tx` must be a transaction from this BackingStorage instance.
+    unsafe fn batch_lookup_task_storage_meta(
+        &self,
+        tx: Option<&Self::ReadTransaction<'_>>,
+        task_ids: &[TaskId],
+        storages: &mut [TaskStorage],
+    ) -> Result<()> {
+        debug_assert_eq!(task_ids.len(), storages.len());
+        for (task_id, storage) in task_ids.iter().zip(storages.iter_mut()) {
+            unsafe { self.lookup_task_storage_meta(tx, *task_id, storage)? };
+        }
+        Ok(())
+    }
+
+    /// Batch lookup and decode data fields for multiple tasks.
+    /// # Safety
+    ///
+    /// `tx` must be a transaction from this BackingStorage instance.
+    unsafe fn batch_lookup_task_storage_data(
+        &self,
+        tx: Option<&Self::ReadTransaction<'_>>,
+        task_ids: &[TaskId],
+        storages: &mut [TaskStorage],
+    ) -> Result<()> {
+        debug_assert_eq!(task_ids.len(), storages.len());
+        for (task_id, storage) in task_ids.iter().zip(storages.iter_mut()) {
+            unsafe { self.lookup_task_storage_data(tx, *task_id, storage)? };
+        }
+        Ok(())
+    }
 
     fn shutdown(&self) -> Result<()> {
         Ok(())
@@ -296,7 +301,7 @@ where
         }
     }
 
-    unsafe fn lookup_typed_meta(
+    unsafe fn lookup_task_storage_meta(
         &self,
         tx: Option<&Self::ReadTransaction<'_>>,
         task_id: TaskId,
@@ -305,16 +310,16 @@ where
         match self {
             Either::Left(this) => {
                 let tx = tx.map(|tx| read_transaction_left_or_panic(tx.as_ref()));
-                unsafe { this.lookup_typed_meta(tx, task_id, storage) }
+                unsafe { this.lookup_task_storage_meta(tx, task_id, storage) }
             }
             Either::Right(this) => {
                 let tx = tx.map(|tx| read_transaction_right_or_panic(tx.as_ref()));
-                unsafe { this.lookup_typed_meta(tx, task_id, storage) }
+                unsafe { this.lookup_task_storage_meta(tx, task_id, storage) }
             }
         }
     }
 
-    unsafe fn lookup_typed_data(
+    unsafe fn lookup_task_storage_data(
         &self,
         tx: Option<&Self::ReadTransaction<'_>>,
         task_id: TaskId,
@@ -323,11 +328,11 @@ where
         match self {
             Either::Left(this) => {
                 let tx = tx.map(|tx| read_transaction_left_or_panic(tx.as_ref()));
-                unsafe { this.lookup_typed_data(tx, task_id, storage) }
+                unsafe { this.lookup_task_storage_data(tx, task_id, storage) }
             }
             Either::Right(this) => {
                 let tx = tx.map(|tx| read_transaction_right_or_panic(tx.as_ref()));
-                unsafe { this.lookup_typed_data(tx, task_id, storage) }
+                unsafe { this.lookup_task_storage_data(tx, task_id, storage) }
             }
         }
     }
