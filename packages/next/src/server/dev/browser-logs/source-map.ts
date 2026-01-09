@@ -261,7 +261,7 @@ export const withLocation = async (
   },
   ctx: MappingContext,
   distDir: string,
-  config: boolean | { logDepth?: number; showSourceLocation?: boolean }
+  config: boolean | string | { logDepth?: number; showSourceLocation?: boolean }
 ) => {
   if (typeof config === 'object' && config.showSourceLocation === false) {
     return original

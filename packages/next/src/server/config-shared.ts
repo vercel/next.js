@@ -757,11 +757,31 @@ export interface ExperimentalConfig {
   globalNotFound?: boolean
 
   /**
-   * Enable debug information to be forwarded from browser to dev server stdout/stderr
+   * Enable debug information to be forwarded from browser to dev server stdout/stderr.
+   *
+   * - `'warn'` (default): Forward warnings and errors to terminal
+   * - `'error'`: Forward only errors to terminal
+   * - `'info'`: Forward info, warnings, and errors to terminal
+   * - `'log'`: Forward log, info, warnings, and errors to terminal
+   * - `'verbose'`: Forward all browser console output including debug to terminal
+   * - `true`: Same as 'verbose' - forward all browser console output to terminal
+   * - `false`: Disable browser log forwarding to terminal
+   * - Object: Enable with custom configuration
    */
   browserDebugInfoInTerminal?:
     | boolean
+    | 'error'
+    | 'warn'
+    | 'info'
+    | 'log'
+    | 'verbose'
     | {
+        /**
+         * Minimum log level to show in terminal.
+         * @default 'warn'
+         */
+        level?: 'error' | 'warn' | 'info' | 'log' | 'verbose'
+
         /**
          * Option to limit stringification at a specific nesting depth when logging circular objects.
          * @default 5
@@ -1570,7 +1590,7 @@ export const defaultConfig = Object.freeze({
     useCache: undefined,
     slowModuleDetection: undefined,
     globalNotFound: false,
-    browserDebugInfoInTerminal: false,
+    browserDebugInfoInTerminal: 'warn',
     lockDistDir: true,
     isolatedDevBuild: true,
     proxyClientMaxBodySize: 10_485_760, // 10MB
