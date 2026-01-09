@@ -57,7 +57,7 @@ async function getTsConfig(dir: string): Promise<RelevantCompilerOptions> {
   const userTsConfigContent = readFileSync(resolvedTsConfigPath, 'utf8')
   const userTsConfig = CommentJson.parse(userTsConfigContent)
 
-  return userTsConfig
+  return userTsConfig.compilerOptions ?? {}
 }
 
 export async function transpileConfig({
