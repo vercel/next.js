@@ -158,12 +158,17 @@ describe('deploymentId function support', () => {
 
   it('should throw error when deploymentId function returns non-string', async () => {
     let errorThrown = false
+    let nextInstance: NextInstance | undefined
     try {
-      await createNext({
+      nextInstance = await createNext({
         files: {
           'app/layout.jsx': `
             export default function Layout({ children }) {
-              return children
+              return (
+                <html>
+                  <body>{children}</body>
+                </html>
+              )
             }
           `,
           'app/page.jsx': `
@@ -195,6 +200,10 @@ describe('deploymentId function support', () => {
           err.message.includes('build failed') ||
           err.message.includes('Failed to deploy')
       ).toBe(true)
+    } finally {
+      if (nextInstance) {
+        await nextInstance.destroy()
+      }
     }
     // Ensure an error was actually thrown
     expect(errorThrown).toBe(true)
@@ -202,12 +211,17 @@ describe('deploymentId function support', () => {
 
   it('should throw error when deploymentId exceeds 32 characters', async () => {
     let errorThrown = false
+    let nextInstance: NextInstance | undefined
     try {
-      await createNext({
+      nextInstance = await createNext({
         files: {
           'app/layout.jsx': `
             export default function Layout({ children }) {
-              return children
+              return (
+                <html>
+                  <body>{children}</body>
+                </html>
+              )
             }
           `,
           'app/page.jsx': `
@@ -234,6 +248,10 @@ describe('deploymentId function support', () => {
           err.message.includes('build failed') ||
           err.message.includes('Failed to deploy')
       ).toBe(true)
+    } finally {
+      if (nextInstance) {
+        await nextInstance.destroy()
+      }
     }
     // Ensure an error was actually thrown
     expect(errorThrown).toBe(true)
@@ -241,12 +259,17 @@ describe('deploymentId function support', () => {
 
   it('should throw error when deploymentId function returns string exceeding 32 characters', async () => {
     let errorThrown = false
+    let nextInstance: NextInstance | undefined
     try {
-      await createNext({
+      nextInstance = await createNext({
         files: {
           'app/layout.jsx': `
             export default function Layout({ children }) {
-              return children
+              return (
+                <html>
+                  <body>{children}</body>
+                </html>
+              )
             }
           `,
           'app/page.jsx': `
@@ -275,6 +298,10 @@ describe('deploymentId function support', () => {
           err.message.includes('build failed') ||
           err.message.includes('Failed to deploy')
       ).toBe(true)
+    } finally {
+      if (nextInstance) {
+        await nextInstance.destroy()
+      }
     }
     // Ensure an error was actually thrown
     expect(errorThrown).toBe(true)

@@ -468,11 +468,15 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .union([z.literal('anonymous'), z.literal('use-credentials')])
       .optional(),
     deploymentId: z
-      .string()
-      .max(
-        32,
-        'The deploymentId cannot exceed 32 characters. https://nextjs.org/docs/messages/deploymentid-too-long'
-      )
+      .union([
+        z
+          .string()
+          .max(
+            32,
+            'The deploymentId cannot exceed 32 characters. https://nextjs.org/docs/messages/deploymentid-too-long'
+          ),
+        z.function().args().returns(z.string()),
+      ])
       .optional(),
     devIndicators: z
       .union([

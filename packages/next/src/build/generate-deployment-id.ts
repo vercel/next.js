@@ -51,9 +51,11 @@ export function evaluateDeploymentId(
 }
 
 /**
- * Resolves and sets the deployment ID from config, handling precedence and avoiding duplicate function calls.
- * User-configured deploymentId takes precedence over NEXT_DEPLOYMENT_ID.
- * Only evaluates the function if NEXT_DEPLOYMENT_ID is not already set (to avoid calling it multiple times).
+ * Resolves and sets the deployment ID from config, handling precedence and ensuring function is only evaluated once.
+ * User-configured deploymentId always takes precedence over NEXT_DEPLOYMENT_ID.
+ * If configDeploymentId is already a string, it was evaluated earlier - use it directly.
+ * If configDeploymentId is a function, evaluate it once here (regardless of NEXT_DEPLOYMENT_ID).
+ * Only sets NEXT_DEPLOYMENT_ID if it wasn't already set (to avoid overwriting if function was called before).
  *
  * @param configDeploymentId - The deploymentId from config (can be string, function, or undefined)
  * @returns The resolved deploymentId string to use
@@ -61,27 +63,26 @@ export function evaluateDeploymentId(
 export function resolveAndSetDeploymentId(
   configDeploymentId: string | (() => string) | undefined
 ): string {
-  // If config.deploymentId is already a string (evaluated earlier, e.g., in config.ts), use it directly
-  // Otherwise, evaluate it (but only if NEXT_DEPLOYMENT_ID is not already set to avoid re-evaluating)
+  // User-configured deploymentId always takes precedence over NEXT_DEPLOYMENT_ID
+  // Evaluate function once if needed (if it's a function, not already a string)
   let userConfiguredDeploymentId: string | undefined
   if (typeof configDeploymentId === 'string') {
-    // Already evaluated, use the cached value
+    // Already evaluated earlier (e.g., in config.ts), use the cached value
+    // This ensures the function is only called once
     userConfiguredDeploymentId = configDeploymentId
-  } else if (
-    configDeploymentId != null &&
-    process.env.NEXT_DEPLOYMENT_ID == null
-  ) {
-    // Only evaluate if NEXT_DEPLOYMENT_ID is not already set (to avoid calling function multiple times)
+  } else if (configDeploymentId != null) {
+    // Function hasn't been evaluated yet - evaluate it once now
+    // We evaluate regardless of NEXT_DEPLOYMENT_ID to ensure user config can take precedence
     userConfiguredDeploymentId = generateDeploymentId(configDeploymentId)
   } else {
-    // NEXT_DEPLOYMENT_ID is already set, don't re-evaluate the function
+    // No user configuration provided
     userConfiguredDeploymentId = undefined
   }
 
-  // User-configured deploymentId takes precedence over NEXT_DEPLOYMENT_ID
+  // User-configured deploymentId always takes precedence over NEXT_DEPLOYMENT_ID
   if (userConfiguredDeploymentId !== undefined) {
-    // Use user-configured deploymentId
-    // Only overwrite NEXT_DEPLOYMENT_ID if it wasn't already set (to avoid overwriting if function was called before)
+    // Use user-configured deploymentId (takes precedence)
+    // Only set NEXT_DEPLOYMENT_ID if it wasn't already set (to avoid overwriting if function was called before)
     if (process.env.NEXT_DEPLOYMENT_ID == null) {
       process.env.NEXT_DEPLOYMENT_ID = userConfiguredDeploymentId
     }

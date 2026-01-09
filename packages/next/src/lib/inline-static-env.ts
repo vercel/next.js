@@ -6,6 +6,7 @@ import globOriginal from 'next/dist/compiled/glob'
 import { Sema } from 'next/dist/compiled/async-sema'
 import type { NextConfigComplete } from '../server/config-shared'
 import { getNextConfigEnv, getStaticEnv } from './static-env'
+import { evaluateDeploymentId } from '../build/generate-deployment-id'
 
 const glob = promisify(globOriginal)
 
@@ -18,11 +19,10 @@ export async function inlineStaticEnv({
 }) {
   const nextConfigEnv = getNextConfigEnv(config)
   // User-configured deploymentId takes precedence over NEXT_DEPLOYMENT_ID
-  // config.deploymentId is already evaluated as a string at this point (from config.ts)
   let deploymentId: string
   if (config.deploymentId) {
-    // User-configured deploymentId takes precedence
-    deploymentId = config.deploymentId
+    // User-configured deploymentId takes precedence - evaluate function if needed
+    deploymentId = evaluateDeploymentId(config.deploymentId)
   } else if (process.env.NEXT_DEPLOYMENT_ID != null) {
     // No user config, use NEXT_DEPLOYMENT_ID if set
     deploymentId = process.env.NEXT_DEPLOYMENT_ID
