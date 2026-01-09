@@ -23,14 +23,24 @@ function handleMiddlewareField(
     }
 
     const keys = []
+    const encodedKeys = []
     for (const [key, value] of init.request.headers) {
       // Encode non-ASCII characters for safe HTTP header transmission.
       // If value is already percent-encoded (all ASCII), it passes through unchanged.
-      headers.set('x-middleware-request-' + key, encodeHeaderValue(value))
+      const encodedValue = encodeHeaderValue(value)
+      headers.set('x-middleware-request-' + key, encodedValue)
       keys.push(key)
+      // Track headers that were actually encoded (value changed)
+      if (encodedValue !== value) {
+        encodedKeys.push(key)
+      }
     }
 
     headers.set('x-middleware-override-headers', keys.join(','))
+    // Add marker for headers that were percent-encoded, so server knows which to decode
+    if (encodedKeys.length > 0) {
+      headers.set('x-middleware-request-encoded', encodedKeys.join(','))
+    }
   }
 }
 

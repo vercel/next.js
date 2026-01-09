@@ -943,19 +943,24 @@ export default abstract class Server<
         isNodeNextResponse(res) ? res.originalResponse : res
       )
 
-      // In minimal mode (Vercel), decode percent-encoded header values.
-      // Middleware encodes non-ASCII characters for safe HTTP transport,
-      // and we decode them here to restore the original values.
-      // Note: decodeHeaderValue is safe - it only decodes valid percent-encoded
-      // sequences and returns the original value if decoding fails.
+      // In minimal mode (Vercel), decode headers that were percent-encoded by middleware
+      // to preserve non-ASCII characters during transport. Only decode headers explicitly
+      // marked as encoded to avoid affecting other headers with intentional percent-encoding.
       if (this.minimalMode) {
-        for (const key of Object.keys(req.headers)) {
-          const value = req.headers[key]
-          if (typeof value === 'string') {
-            req.headers[key] = decodeHeaderValue(value)
-          } else if (Array.isArray(value)) {
-            req.headers[key] = value.map(decodeHeaderValue)
+        const encodedHeadersList = req.headers['x-middleware-request-encoded']
+        if (typeof encodedHeadersList === 'string') {
+          const encodedHeaders = encodedHeadersList.split(',')
+          for (const headerName of encodedHeaders) {
+            const trimmedName = headerName.trim()
+            const headerValue = req.headers[trimmedName]
+            if (typeof headerValue === 'string') {
+              req.headers[trimmedName] = decodeHeaderValue(headerValue)
+            } else if (Array.isArray(headerValue)) {
+              req.headers[trimmedName] = headerValue.map(decodeHeaderValue)
+            }
           }
+          // Clean up the marker header
+          delete req.headers['x-middleware-request-encoded']
         }
       }
 

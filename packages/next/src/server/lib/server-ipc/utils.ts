@@ -45,6 +45,7 @@ const INTERNAL_HEADERS = [
   'x-middleware-set-cookie',
   'x-middleware-skip',
   'x-middleware-override-headers',
+  'x-middleware-request-encoded',
   'x-middleware-next',
   'x-now-route-matches',
   'x-matched-path',
