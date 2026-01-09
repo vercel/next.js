@@ -12,8 +12,7 @@ it('should skip over module', () => {
 
   // module.js should be optimized away by tree-shaking
   // (it's just a re-export aggregator with no side effects)
-  // TODO: this is wrong currently since we do not infer the module to be side effect free
-  expect(modules).toContainEqual(expect.stringMatching(/module\.js/))
+  expect(modules).not.toContainEqual(expect.stringMatching(/module\.js/))
 
   // But a.js and b.js should be loaded directly
   expect(modules).toContainEqual(expect.stringMatching(/a\.js/))
