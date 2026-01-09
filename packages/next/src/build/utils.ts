@@ -1263,7 +1263,10 @@ export async function copyTracedFiles(
   }
   try {
     const packageJsonPath = path.join(distDir, '../package.json')
-    const packageJsonContent = await fs.readFile(packageJsonPath, 'utf8')
+    const packageJsonContent = await fs.readFile(
+      /* turbopackIgnore: true */ packageJsonPath,
+      'utf8'
+    )
     const packageJson = JSON.parse(packageJsonContent)
     moduleType = packageJson.type === 'module'
 
@@ -1280,7 +1283,9 @@ export async function copyTracedFiles(
   const copiedFiles = new Set()
 
   async function handleTraceFiles(traceFilePath: string) {
-    const traceData = JSON.parse(await fs.readFile(traceFilePath, 'utf8')) as {
+    const traceData = JSON.parse(
+      await fs.readFile(/* turbopackIgnore: true */ traceFilePath, 'utf8')
+    ) as {
       files: string[]
     }
     const copySema = new Sema(10, { capacity: traceData.files.length })
