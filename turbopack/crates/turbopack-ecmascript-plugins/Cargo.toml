@@ -26,6 +26,7 @@ workspace = true
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 bincode = { workspace = true }
+either = { workspace = true }
 indexmap = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
