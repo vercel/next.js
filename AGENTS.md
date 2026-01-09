@@ -307,7 +307,7 @@ See [Codebase structure](#codebase-structure) above for detailed explanations.
 When running Next.js integration tests, you must rebuild if source files have changed:
 
 - **Edited Next.js code?** → `pnpm build`
-- **Edited Turbopack (Rust)?** → `pnpm build-native`
+- **Edited Turbopack (Rust)?** → `pnpm swc-build-native`
 - **Edited both?** → `pnpm turbo build build-native`
 
 ## Development Anti-Patterns
