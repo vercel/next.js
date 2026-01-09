@@ -1093,6 +1093,12 @@ export async function handleAction({
             const INLINE_ACTION_PREFIX = '$$RSC_SERVER_ACTION_'
             const isInlineAction =
               actionInfo.exportedName?.startsWith(INLINE_ACTION_PREFIX)
+
+            const projectDir =
+              ctx.renderOpts.dir ||
+              (process.env.NEXT_RUNTIME === 'edge' ? '' : process.cwd())
+            const location = normalizeFilePath(projectDir, actionInfo.filename)
+
             // Format function name for display
             let functionName: string
             if (isInlineAction) {
@@ -1100,20 +1106,7 @@ export async function handleAction({
             } else if (actionInfo.exportedName === 'default') {
               functionName = 'default'
             } else {
-              functionName = actionInfo.exportedName || '<inline action>'
-            }
-            const projectDir =
-              ctx.renderOpts.dir ||
-              (process.env.NEXT_RUNTIME === 'edge' ? '' : process.cwd())
-            const filename = normalizeFilePath(projectDir, actionInfo.filename)
-
-            // Build location string with line:col if available
-            let location = filename
-            if (actionInfo.line != null) {
-              location += `:${actionInfo.line}`
-              if (actionInfo.col != null) {
-                location += `:${actionInfo.col}`
-              }
+              functionName = actionInfo.exportedName || '<action>'
             }
 
             logInfo = { functionName, args: boundActionArguments, location }

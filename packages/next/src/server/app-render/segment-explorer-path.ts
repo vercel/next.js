@@ -37,6 +37,20 @@ export function normalizeFilePath(
       .replace(/^\//, '')
   }
 
+  // Handle case where filename is relative to a parent of projectDir
+  // (e.g., in tests where filename is "test/tmp/next-test-XXX/app/page.js"
+  // but projectDir is the test temp directory)
+  if (relativePath.includes('/')) {
+    const projectDirName = projectDir.split(/[\\/]/).pop() || ''
+    if (projectDirName) {
+      const projectDirWithSlash = projectDirName + '/'
+      const idx = relativePath.indexOf(projectDirWithSlash)
+      if (idx >= 0) {
+        relativePath = relativePath.slice(idx + projectDirWithSlash.length)
+      }
+    }
+  }
+
   return relativePath
 }
 

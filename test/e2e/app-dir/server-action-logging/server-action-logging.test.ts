@@ -143,6 +143,23 @@ describe('server-action-logging', () => {
     })
   })
 
+  it('should log inline action', async () => {
+    const browser = await next.browser('/inline')
+    await browser.waitForElementByCss('#inline-page')
+    const outputIndex = next.cliOutput.length
+
+    await browser.elementByCss('#true-inline-action').click()
+    await browser.waitForElementByCss('#result')
+
+    await retry(() => {
+      const logs = stripAnsi(next.cliOutput.slice(outputIndex))
+      // Inline actions show as <inline action> with file location
+      expect(logs).toMatch(
+        /ƒ <inline action>\(10\) in \d+ms app\/inline\/page\.js/
+      )
+    })
+  })
+
   it('should show relative file path in log', async () => {
     const browser = await next.browser('/')
     const outputIndex = next.cliOutput.length
