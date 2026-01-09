@@ -19,7 +19,6 @@ import { findPagesDir } from '../../lib/find-pages-dir'
 import { PAGE_TYPES } from '../../lib/page-types'
 import loadCustomRoutes from '../../lib/load-custom-routes'
 import { generateRoutesManifest } from '../generate-routes-manifest'
-import { checkIsAppPPREnabled } from '../../server/lib/experimental/ppr'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { resolveAndSetDeploymentId } from '../generate-deployment-id'
 import http from 'node:http'
@@ -191,7 +190,7 @@ async function collectRoutesForAnalyze(
     config.basePath ? `${config.basePath}${pathPrefix}` : pathPrefix
   )
 
-  const isAppPPREnabled = checkIsAppPPREnabled(config.experimental.ppr)
+  const isAppPPREnabled = !!config.cacheComponents
 
   // Generate routes manifest
   const { routesManifest } = generateRoutesManifest({

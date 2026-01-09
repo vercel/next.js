@@ -521,7 +521,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     )
     .unused_references(
         options
-            .remove_unused_exports
+            .remove_unused_imports
             .then(|| binding_usage.unwrap()),
     );
     if options.production_chunking {
