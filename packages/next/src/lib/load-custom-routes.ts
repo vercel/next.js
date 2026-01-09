@@ -728,13 +728,12 @@ export default async function loadCustomRoutes(
   if (config.experimental?.useSkewCookie && config.deploymentId) {
     // config.deploymentId is already evaluated as a string at this point
     // (user-configured deploymentId takes precedence over NEXT_DEPLOYMENT_ID)
-    const deploymentId = config.deploymentId
     headers.unshift({
       source: '/:path*',
       headers: [
         {
           key: 'Set-Cookie',
-          value: `__vdpl=${deploymentId}; Path=/; HttpOnly`,
+          value: `__vdpl=${config.deploymentId}; Path=/; HttpOnly`,
         },
       ],
     })
