@@ -5,7 +5,7 @@ use std::{
     sync::{Arc, LazyLock, Mutex, PoisonError, Weak},
 };
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result};
 use turbo_bincode::{
     TurboBincodeBuffer, turbo_bincode_decode, turbo_bincode_encode, turbo_bincode_encode_into,
 };
@@ -328,7 +328,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                                         WriteBuffer::Borrowed(&task_id.to_le_bytes()),
                                     )
                                     .with_context(|| {
-                                        anyhow!(
+                                        format!(
                                             "Unable to write task cache {task_type:?} => {task_id}"
                                         )
                                     })?;
@@ -339,7 +339,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                                         WriteBuffer::Borrowed(&task_type_bytes),
                                     )
                                     .with_context(|| {
-                                        anyhow!(
+                                        format!(
                                             "Unable to write task cache {task_id} => {task_type:?}"
                                         )
                                     })?;
@@ -373,14 +373,14 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                             batch
                                 .put(KeySpace::TaskMeta, WriteBuffer::Borrowed(key), meta)
                                 .with_context(|| {
-                                    anyhow!("Unable to write meta items for {task_id}")
+                                    format!("Unable to write meta items for {task_id}")
                                 })?;
                         }
                         if let Some(data) = data {
                             batch
                                 .put(KeySpace::TaskData, WriteBuffer::Borrowed(key), data)
                                 .with_context(|| {
-                                    anyhow!("Unable to write data items for {task_id}")
+                                    format!("Unable to write data items for {task_id}")
                                 })?;
                         }
                     }
@@ -415,7 +415,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                                 WriteBuffer::Borrowed(&task_id.to_le_bytes()),
                             )
                             .with_context(|| {
-                                anyhow!("Unable to write task cache {task_type:?} => {task_id}")
+                                format!("Unable to write task cache {task_type:?} => {task_id}")
                             })?;
                         batch
                             .put(
@@ -424,7 +424,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                                 WriteBuffer::Borrowed(&task_type_bytes),
                             )
                             .with_context(|| {
-                                anyhow!("Unable to write task cache {task_id} => {task_type:?}")
+                                format!("Unable to write task cache {task_id} => {task_type:?}")
                             })?;
                         next_task_id = next_task_id.max(task_id + 1);
                     }
@@ -440,9 +440,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
 
         {
             let _span = tracing::trace_span!("commit").entered();
-            batch
-                .commit()
-                .with_context(|| anyhow!("Unable to commit operations"))?;
+            batch.commit().context("Unable to commit operations")?;
         }
         Ok(())
     }

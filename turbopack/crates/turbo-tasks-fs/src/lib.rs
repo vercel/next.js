@@ -1049,7 +1049,7 @@ impl FileSystem for DiskFileSystem {
                             Err(err)
                         }
                     })
-                    .with_context(|| anyhow!("removing {} failed", full_path.display()))?;
+                    .with_context(|| format!("removing {} failed", full_path.display()))?;
                 }
             }
 
@@ -1202,7 +1202,7 @@ impl FileSystem for DiskFileSystem {
                             .concurrency_limited(&inner.write_semaphore)
                             .await
                             .with_context(|| {
-                                anyhow!("removing existing symlink {} failed", full_path.display())
+                                format!("removing existing symlink {} failed", full_path.display())
                             })?;
                     }
 
@@ -1257,7 +1257,7 @@ impl FileSystem for DiskFileSystem {
                         ))
                         .concurrency_limited(&inner.write_semaphore)
                         .await
-                        .with_context(|| anyhow!("removing {} failed", full_path.display()))?;
+                        .with_context(|| format!("removing {} failed", full_path.display()))?;
                 }
             }
 
