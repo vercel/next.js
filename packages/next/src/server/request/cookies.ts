@@ -16,7 +16,6 @@ import {
 } from '../app-render/work-unit-async-storage.external'
 import {
   delayUntilRuntimeStage,
-  postponeWithTracking,
   throwToInterruptStaticGeneration,
   trackDynamicDataInDynamicRender,
 } from '../app-render/dynamic-rendering'
@@ -79,14 +78,6 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
           const exportName = '`cookies`'
           throw new InvariantError(
             `${exportName} must not be used within a Client Component. Next.js should be preventing ${exportName} from being included in Client Components statically, but did not in this case.`
-          )
-        case 'prerender-ppr':
-          // We need track dynamic access here eagerly to keep continuity with
-          // how cookies has worked in PPR without cacheComponents.
-          return postponeWithTracking(
-            workStore.route,
-            callingExpression,
-            workUnitStore.dynamicTracking
           )
         case 'prerender-legacy':
           // We track dynamic access here so we don't need to wrap the cookies

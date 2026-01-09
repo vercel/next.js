@@ -9903,6 +9903,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "bincode 2.0.1",
+ "either",
  "indexmap 2.9.0",
  "rustc-hash 2.1.1",
  "serde",

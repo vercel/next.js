@@ -480,7 +480,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             )
             .unused_references(
                 options
-                    .remove_unused_exports
+                    .remove_unused_imports
                     .then(|| binding_usage.unwrap()),
             )
             .debug_ids(options.enable_debug_ids)
@@ -521,7 +521,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             )
             .unused_references(
                 options
-                    .remove_unused_exports
+                    .remove_unused_imports
                     .then(|| binding_usage.unwrap()),
             )
             .debug_ids(options.enable_debug_ids)
