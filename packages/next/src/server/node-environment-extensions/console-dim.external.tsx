@@ -168,6 +168,28 @@ function convertToDimmedArgs(
   }
 }
 
+/**
+ * For console.trace, we need special handling because it captures the stack trace
+ * at the point where it's called. When wrapped by multiple patching functions,
+ * the stack trace includes all the wrapper frames which pollutes the output.
+ *
+ * This function captures a clean stack trace, filters out internal Next.js frames,
+ * and formats it like console.trace would.
+ */
+function getCleanStackTrace(): string {
+  const err = new Error()
+  const stack = err.stack || ''
+  const lines = stack.split('\n')
+
+  // Filter out internal wrapper frames from node-environment-extensions
+  const filteredLines = lines.filter((line) => {
+    return !line.includes('/node-environment-extensions/')
+  })
+
+  // Remove the "Error" header line and join
+  return filteredLines.slice(1).join('\n')
+}
+
 // Based on https://github.com/facebook/react/blob/28dc0776be2e1370fe217549d32aee2519f0cf05/packages/react-server/src/ReactFlightServer.js#L248
 function patchConsoleMethod(methodName: InterceptableConsoleMethod): void {
   const descriptor = Object.getOwnPropertyDescriptor(console, methodName)
@@ -180,6 +202,13 @@ function patchConsoleMethod(methodName: InterceptableConsoleMethod): void {
     const originalName = Object.getOwnPropertyDescriptor(originalMethod, 'name')
     const wrapperMethod = function (this: typeof console, ...args: any[]) {
       const consoleStore = consoleAsyncStorage.getStore()
+
+      // Special handling for console.trace: capture the stack trace early
+      // before the wrapper chain pollutes it, then use console.log to output
+      let traceStack: string | undefined
+      if (methodName === 'trace') {
+        traceStack = getCleanStackTrace()
+      }
 
       // First we see if there is a cache signal for our current scope. If we're in a client render it'll
       // come from the client React cacheSignal implementation. If we are in a server render it'll come from
@@ -200,7 +229,8 @@ function patchConsoleMethod(methodName: InterceptableConsoleMethod): void {
             consoleStore,
             originalMethod,
             methodName,
-            args
+            args,
+            traceStack
           )
         } else if (consoleStore?.dim === true) {
           return applyWithDimming.call(
@@ -208,10 +238,17 @@ function patchConsoleMethod(methodName: InterceptableConsoleMethod): void {
             consoleStore,
             originalMethod,
             methodName,
-            args
+            args,
+            traceStack
           )
         } else {
-          return originalMethod.apply(this, args)
+          return applyMethod.call(
+            this,
+            originalMethod,
+            methodName,
+            args,
+            traceStack
+          )
         }
       }
 
@@ -239,7 +276,8 @@ function patchConsoleMethod(methodName: InterceptableConsoleMethod): void {
               consoleStore,
               originalMethod,
               methodName,
-              args
+              args,
+              traceStack
             )
           }
         // intentional fallthrough
@@ -255,10 +293,17 @@ function patchConsoleMethod(methodName: InterceptableConsoleMethod): void {
               consoleStore,
               originalMethod,
               methodName,
-              args
+              args,
+              traceStack
             )
           } else {
-            return originalMethod.apply(this, args)
+            return applyMethod.call(
+              this,
+              originalMethod,
+              methodName,
+              args,
+              traceStack
+            )
           }
         default:
           workUnitStore satisfies never
@@ -273,13 +318,48 @@ function patchConsoleMethod(methodName: InterceptableConsoleMethod): void {
   }
 }
 
+/**
+ * Helper to apply the console method, with special handling for console.trace
+ */
+function applyMethod<F extends (this: Console, ...args: any[]) => any>(
+  this: Console,
+  method: F,
+  methodName: InterceptableConsoleMethod,
+  args: Parameters<F>,
+  traceStack?: string
+): ReturnType<F> {
+  if (methodName === 'trace' && traceStack !== undefined) {
+    // For console.trace, output the label + clean stack using console.log
+    // This goes through the wrapper chain for proper file logging
+    const label = args.length > 0 ? `Trace: ${args.join(' ')}` : 'Trace'
+    return console.log(`${label}\n${traceStack}`) as ReturnType<F>
+  }
+  return method.apply(this, args)
+}
+
 function applyWithDimming<F extends (this: Console, ...args: any[]) => any>(
   this: Console,
   consoleStore: undefined | ConsoleStore,
   method: F,
   methodName: InterceptableConsoleMethod,
-  args: Parameters<F>
+  args: Parameters<F>,
+  traceStack?: string
 ): ReturnType<F> {
+  // Special handling for console.trace with clean stack
+  if (methodName === 'trace' && traceStack !== undefined) {
+    const label = args.length > 0 ? `Trace: ${args.join(' ')}` : 'Trace'
+    const traceOutput = `${label}\n${traceStack}`
+    // Use console.log with the dimmed trace output
+    const dimmedArgs = convertToDimmedArgs('log', [traceOutput])
+    if (consoleStore?.dim === true) {
+      return console.log(...dimmedArgs) as ReturnType<F>
+    } else {
+      return consoleAsyncStorage.run(DIMMED_STORE, () =>
+        console.log(...dimmedArgs)
+      ) as ReturnType<F>
+    }
+  }
+
   if (consoleStore?.dim === true) {
     return method.apply(this, convertToDimmedArgs(methodName, args))
   } else {
