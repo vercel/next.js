@@ -973,11 +973,10 @@ impl AppProject {
                     .await?
                 {
                     full_with_unused_references
-                        .without_unused_references(
-                            *compute_binding_usage_info(full_with_unused_references, true)
-                                .resolve_strongly_consistent()
-                                .await?,
-                        )
+                        .without_unused_references(compute_binding_usage_info(
+                            full_with_unused_references,
+                            true,
+                        ))
                         .to_resolved()
                         .await?
                 } else {

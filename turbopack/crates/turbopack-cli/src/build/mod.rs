@@ -314,11 +314,13 @@ async fn build_internal(
             .to_resolved()
             .await?,
     );
-    let binding_usage = compute_binding_usage_info(module_graph.to_resolved().await?, true)
-        .resolve_strongly_consistent()
+    let binding_usage = compute_binding_usage_info(module_graph.to_resolved().await?, true);
+    let unused_references = binding_usage
+        .connect()
+        .unused_references()
+        .to_resolved()
         .await?;
-    let unused_references = binding_usage.unused_references().to_resolved().await?;
-    module_graph = module_graph.without_unused_references(*binding_usage);
+    module_graph = module_graph.without_unused_references(binding_usage);
 
     let chunking_context: Vc<Box<dyn ChunkingContext>> = match target {
         Target::Browser => {
@@ -344,7 +346,7 @@ async fn build_internal(
             )
             .source_maps(source_maps_type)
             .module_id_strategy(module_id_strategy)
-            .export_usage(Some(binding_usage))
+            .export_usage(Some(binding_usage.connect().to_resolved().await?))
             .unused_references(unused_references)
             .current_chunk_method(CurrentChunkMethod::DocumentCurrentScript)
             .minify_type(minify_type);
@@ -394,7 +396,7 @@ async fn build_internal(
             )
             .source_maps(source_maps_type)
             .module_id_strategy(module_id_strategy)
-            .export_usage(Some(binding_usage))
+            .export_usage(Some(binding_usage.connect().to_resolved().await?))
             .unused_references(unused_references)
             .minify_type(minify_type);
 

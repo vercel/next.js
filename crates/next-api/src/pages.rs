@@ -754,11 +754,10 @@ impl PageEndpoint {
                 .turbopack_remove_unused_imports(next_mode)
                 .await?
             {
-                graph = graph.without_unused_references(
-                    *compute_binding_usage_info(graph.to_resolved().await?, true)
-                        .resolve_strongly_consistent()
-                        .await?,
-                );
+                graph = graph.without_unused_references(compute_binding_usage_info(
+                    graph.to_resolved().await?,
+                    true,
+                ));
             }
 
             Ok(graph)

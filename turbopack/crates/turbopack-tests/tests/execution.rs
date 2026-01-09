@@ -482,19 +482,15 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     let mut module_graph = ModuleGraph::from_modules(entries.graph_entries(), false, true);
 
     let binding_usage = if options.remove_unused_imports || options.remove_unused_exports {
-        Some(
-            compute_binding_usage_info(
-                module_graph.to_resolved().await?,
-                options.remove_unused_imports,
-            )
-            .resolve_strongly_consistent()
-            .await?,
-        )
+        Some(compute_binding_usage_info(
+            module_graph.to_resolved().await?,
+            options.remove_unused_imports,
+        ))
     } else {
         None
     };
     if options.remove_unused_imports {
-        module_graph = module_graph.without_unused_references(*binding_usage.unwrap());
+        module_graph = module_graph.without_unused_references(binding_usage.unwrap());
     }
 
     let mut builder = NodeJsChunkingContext::builder(
@@ -516,16 +512,17 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     } else {
         MinifyType::NoMinify
     })
-    .export_usage(
-        options
-            .remove_unused_exports
-            .then(|| binding_usage.unwrap()),
-    );
+    .export_usage(if options.remove_unused_exports {
+        Some(binding_usage.unwrap().connect().to_resolved().await?)
+    } else {
+        None
+    });
 
     if options.remove_unused_imports {
         builder = builder.unused_references(
             binding_usage
                 .unwrap()
+                .connect()
                 .unused_references()
                 .to_resolved()
                 .await?,

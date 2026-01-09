@@ -440,19 +440,15 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
     );
 
     let binding_usage = if options.remove_unused_imports || options.remove_unused_exports {
-        Some(
-            compute_binding_usage_info(
-                module_graph.to_resolved().await?,
-                options.remove_unused_imports,
-            )
-            .resolve_strongly_consistent()
-            .await?,
-        )
+        Some(compute_binding_usage_info(
+            module_graph.to_resolved().await?,
+            options.remove_unused_imports,
+        ))
     } else {
         None
     };
     if options.remove_unused_imports {
-        module_graph = module_graph.without_unused_references(*binding_usage.unwrap());
+        module_graph = module_graph.without_unused_references(binding_usage.unwrap());
     }
 
     let chunk_root_path = project_path.join("output")?;
@@ -477,11 +473,11 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             )
             .minify_type(options.minify_type)
             .module_merging(options.scope_hoisting)
-            .export_usage(
-                options
-                    .remove_unused_exports
-                    .then(|| binding_usage.unwrap()),
-            )
+            .export_usage(if options.remove_unused_exports {
+                Some(binding_usage.unwrap().connect().to_resolved().await?)
+            } else {
+                None
+            })
             .debug_ids(options.enable_debug_ids)
             .source_map_source_type(options.source_map_source_type);
 
@@ -489,6 +485,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 builder = builder.unused_references(
                     binding_usage
                         .unwrap()
+                        .connect()
                         .unused_references()
                         .to_resolved()
                         .await?,
@@ -523,11 +520,11 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             )
             .minify_type(options.minify_type)
             .module_merging(options.scope_hoisting)
-            .export_usage(
-                options
-                    .remove_unused_exports
-                    .then(|| binding_usage.unwrap()),
-            )
+            .export_usage(if options.remove_unused_exports {
+                Some(binding_usage.unwrap().connect().to_resolved().await?)
+            } else {
+                None
+            })
             .debug_ids(options.enable_debug_ids)
             .source_map_source_type(options.source_map_source_type);
 
@@ -535,6 +532,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 builder = builder.unused_references(
                     binding_usage
                         .unwrap()
+                        .connect()
                         .unused_references()
                         .to_resolved()
                         .await?,

@@ -16,8 +16,8 @@ use serde::{Deserialize, Serialize};
 use tracing::{Instrument, Level, Span};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    CollectiblesSource, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt,
-    ValueToString, Vc,
+    CollectiblesSource, FxIndexMap, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TaskInput,
+    TryJoinIterExt, ValueToString, Vc,
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
     trace::TraceRawVcs,
@@ -639,7 +639,7 @@ impl ImportTracer for ModuleGraphImportTracer {
 pub struct ModuleGraph {
     pub graphs: Vec<ResolvedVc<SingleModuleGraph>>,
 
-    pub binding_usage: Option<ResolvedVc<BindingUsageInfo>>,
+    pub binding_usage: Option<OperationVc<BindingUsageInfo>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -763,7 +763,7 @@ impl ModuleGraph {
     #[turbo_tasks::function]
     pub async fn without_unused_references(
         self: ResolvedVc<Self>,
-        binding_usage: ResolvedVc<BindingUsageInfo>,
+        binding_usage: OperationVc<BindingUsageInfo>,
     ) -> Result<Vc<Self>> {
         Ok(Self {
             graphs: self.await?.graphs.clone(),
@@ -782,7 +782,7 @@ impl ModuleGraph {
             skip_visited_module_children: false,
             graph_idx_override: None,
             binding_usage: if let Some(binding_usage) = this.binding_usage {
-                Some(binding_usage.await?)
+                Some(binding_usage.connect().await?)
             } else {
                 None
             },
@@ -810,7 +810,7 @@ impl ModuleGraph {
 pub struct SingleModuleGraphWithBindingUsage {
     pub graph: ResolvedVc<SingleModuleGraph>,
     pub graph_idx: u32,
-    pub binding_usage: Option<ResolvedVc<BindingUsageInfo>>,
+    pub binding_usage: Option<OperationVc<BindingUsageInfo>>,
 }
 
 impl SingleModuleGraphWithBindingUsage {
@@ -820,7 +820,7 @@ impl SingleModuleGraphWithBindingUsage {
             skip_visited_module_children: true,
             graph_idx_override: Some(self.graph_idx),
             binding_usage: if let Some(binding_usage) = &self.binding_usage {
-                Some(binding_usage.await?)
+                Some(binding_usage.connect().await?)
             } else {
                 None
             },
