@@ -18,7 +18,7 @@ use turbo_tasks::{
 
 use crate::{
     GitVersionInfo,
-    backend::{AnyOperation, TaskDataCategory},
+    backend::{AnyOperation, TaskDataCategory, storage_schema::TaskStorage},
     backing_storage::{BackingStorage, BackingStorageSealed},
     data::CachedDataItem,
     database::{
@@ -579,6 +579,72 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                     task_ids.len()
                 )
             })
+    }
+
+    unsafe fn lookup_typed_meta(
+        &self,
+        tx: Option<&T::ReadTransaction<'_>>,
+        task_id: TaskId,
+        storage: &mut TaskStorage,
+    ) -> Result<()> {
+        let inner = &*self.inner;
+        fn lookup<D: KeyValueDatabase>(
+            database: &D,
+            tx: &D::ReadTransaction<'_>,
+            task_id: TaskId,
+            storage: &mut TaskStorage,
+        ) -> Result<()> {
+            let Some(bytes) =
+                database.get(tx, KeySpace::TaskMeta, IntKey::new(*task_id).as_ref())?
+            else {
+                return Ok(());
+            };
+            let mut decoder = bincode::de::DecoderImpl::new(
+                turbo_bincode::TurboBincodeReader::new(bytes.borrow()),
+                turbo_bincode::TURBO_BINCODE_CONFIG,
+                (),
+            );
+            storage
+                .decode_meta(&mut decoder)
+                .map_err(|e| anyhow::anyhow!("Failed to decode meta: {e:?}"))?;
+            Ok(())
+        }
+        inner
+            .with_tx(tx, |tx| lookup(&inner.database, tx, task_id, storage))
+            .with_context(|| format!("Looking up typed meta for {task_id} from database failed"))
+    }
+
+    unsafe fn lookup_typed_data(
+        &self,
+        tx: Option<&T::ReadTransaction<'_>>,
+        task_id: TaskId,
+        storage: &mut TaskStorage,
+    ) -> Result<()> {
+        let inner = &*self.inner;
+        fn lookup<D: KeyValueDatabase>(
+            database: &D,
+            tx: &D::ReadTransaction<'_>,
+            task_id: TaskId,
+            storage: &mut TaskStorage,
+        ) -> Result<()> {
+            let Some(bytes) =
+                database.get(tx, KeySpace::TaskData, IntKey::new(*task_id).as_ref())?
+            else {
+                return Ok(());
+            };
+            let mut decoder = bincode::de::DecoderImpl::new(
+                turbo_bincode::TurboBincodeReader::new(bytes.borrow()),
+                turbo_bincode::TURBO_BINCODE_CONFIG,
+                (),
+            );
+            storage
+                .decode_data(&mut decoder)
+                .map_err(|e| anyhow::anyhow!("Failed to decode data: {e:?}"))?;
+            Ok(())
+        }
+        inner
+            .with_tx(tx, |tx| lookup(&inner.database, tx, task_id, storage))
+            .with_context(|| format!("Looking up typed data for {task_id} from database failed"))
     }
 
     fn shutdown(&self) -> Result<()> {

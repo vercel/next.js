@@ -3,10 +3,11 @@ use std::{any::type_name, sync::Arc};
 use anyhow::Result;
 use either::Either;
 use smallvec::SmallVec;
+use turbo_bincode::TurboBincodeBuffer;
 use turbo_tasks::{TaskId, backend::CachedTaskType};
 
 use crate::{
-    backend::{AnyOperation, TaskDataCategory},
+    backend::{AnyOperation, TaskDataCategory, storage_schema::TaskStorage},
     data::CachedDataItem,
     utils::chunked_vec::ChunkedVec,
 };
@@ -104,6 +105,62 @@ pub trait BackingStorageSealed: 'static + Send + Sync {
         }
         Ok(results)
     }
+
+    // =========================================================================
+    // Typed serialization methods for TaskStorage
+    // These methods provide direct serialization to/from TaskStorage without
+    // the intermediate CachedDataItem representation.
+    // =========================================================================
+
+    /// Serialize TaskStorage meta fields directly to bytes.
+    /// This uses the generated encode_meta method for efficient serialization.
+    fn serialize_typed_meta(&self, storage: &TaskStorage) -> Result<TurboBincodeBuffer> {
+        let mut buffer = TurboBincodeBuffer::new();
+        let mut encoder = bincode::enc::EncoderImpl::new(
+            turbo_bincode::TurboBincodeWriter::new(&mut buffer),
+            turbo_bincode::TURBO_BINCODE_CONFIG,
+        );
+        storage
+            .encode_meta(&mut encoder)
+            .map_err(|e| anyhow::anyhow!("Failed to encode meta: {e:?}"))?;
+        Ok(buffer)
+    }
+
+    /// Serialize TaskStorage data fields directly to bytes.
+    /// This uses the generated encode_data method for efficient serialization.
+    fn serialize_typed_data(&self, storage: &TaskStorage) -> Result<TurboBincodeBuffer> {
+        let mut buffer = TurboBincodeBuffer::new();
+        let mut encoder = bincode::enc::EncoderImpl::new(
+            turbo_bincode::TurboBincodeWriter::new(&mut buffer),
+            turbo_bincode::TURBO_BINCODE_CONFIG,
+        );
+        storage
+            .encode_data(&mut encoder)
+            .map_err(|e| anyhow::anyhow!("Failed to encode data: {e:?}"))?;
+        Ok(buffer)
+    }
+
+    /// Lookup and decode meta fields directly into TaskStorage.
+    /// # Safety
+    ///
+    /// `tx` must be a transaction from this BackingStorage instance.
+    unsafe fn lookup_typed_meta(
+        &self,
+        tx: Option<&Self::ReadTransaction<'_>>,
+        task_id: TaskId,
+        storage: &mut TaskStorage,
+    ) -> Result<()>;
+
+    /// Lookup and decode data fields directly into TaskStorage.
+    /// # Safety
+    ///
+    /// `tx` must be a transaction from this BackingStorage instance.
+    unsafe fn lookup_typed_data(
+        &self,
+        tx: Option<&Self::ReadTransaction<'_>>,
+        task_id: TaskId,
+        storage: &mut TaskStorage,
+    ) -> Result<()>;
 
     fn shutdown(&self) -> Result<()> {
         Ok(())
@@ -235,6 +292,42 @@ where
             Either::Right(this) => {
                 let tx = tx.map(|tx| read_transaction_right_or_panic(tx.as_ref()));
                 unsafe { this.batch_lookup_data(tx, task_ids, category) }
+            }
+        }
+    }
+
+    unsafe fn lookup_typed_meta(
+        &self,
+        tx: Option<&Self::ReadTransaction<'_>>,
+        task_id: TaskId,
+        storage: &mut TaskStorage,
+    ) -> Result<()> {
+        match self {
+            Either::Left(this) => {
+                let tx = tx.map(|tx| read_transaction_left_or_panic(tx.as_ref()));
+                unsafe { this.lookup_typed_meta(tx, task_id, storage) }
+            }
+            Either::Right(this) => {
+                let tx = tx.map(|tx| read_transaction_right_or_panic(tx.as_ref()));
+                unsafe { this.lookup_typed_meta(tx, task_id, storage) }
+            }
+        }
+    }
+
+    unsafe fn lookup_typed_data(
+        &self,
+        tx: Option<&Self::ReadTransaction<'_>>,
+        task_id: TaskId,
+        storage: &mut TaskStorage,
+    ) -> Result<()> {
+        match self {
+            Either::Left(this) => {
+                let tx = tx.map(|tx| read_transaction_left_or_panic(tx.as_ref()));
+                unsafe { this.lookup_typed_data(tx, task_id, storage) }
+            }
+            Either::Right(this) => {
+                let tx = tx.map(|tx| read_transaction_right_or_panic(tx.as_ref()));
+                unsafe { this.lookup_typed_data(tx, task_id, storage) }
             }
         }
     }
