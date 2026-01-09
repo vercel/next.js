@@ -954,7 +954,7 @@ impl AppProject {
                 visited_modules = VisitedModules::concatenate(visited_modules, graph);
 
                 let base = ModuleGraph::from_graphs(graphs.clone());
-                let additional_entries = endpoint.additional_entries(base);
+                let additional_entries = endpoint.additional_entries(base.connect());
                 let additional_module_graph = SingleModuleGraph::new_with_entries_visited_intern(
                     additional_entries.owned().await?,
                     visited_modules,
@@ -963,30 +963,29 @@ impl AppProject {
                 );
                 graphs.push(additional_module_graph);
 
-                let full_with_unused_references =
-                    ModuleGraph::from_graphs(graphs).to_resolved().await?;
-
-                let full = if *self
+                let remove_unused_imports = *self
                     .project
                     .next_config()
                     .turbopack_remove_unused_imports(next_mode)
-                    .await?
-                {
-                    full_with_unused_references
-                        .without_unused_references(compute_binding_usage_info(
-                            full_with_unused_references,
-                            true,
-                        ))
-                        .to_resolved()
-                        .await?
+                    .await?;
+
+                let binding_usage_info = remove_unused_imports.then(|| {
+                    compute_binding_usage_info(
+                        ModuleGraph::from_graphs(graphs.clone()),
+                        should_read_binding_usage,
+                    )
+                });
+
+                let full = if let Some(binding_usage_info) = binding_usage_info {
+                    ModuleGraph::from_graphs_without_unused_references(graphs, binding_usage_info)
                 } else {
-                    full_with_unused_references
+                    ModuleGraph::from_graphs(graphs)
                 };
 
                 Ok(BaseAndFullModuleGraph {
-                    base: base.to_resolved().await?,
-                    full_with_unused_references,
-                    full,
+                    base: base.connect().to_resolved().await?,
+                    full: full.connect().to_resolved().await?,
+                    binding_usage_info,
                 }
                 .cell())
             }

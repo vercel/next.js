@@ -747,20 +747,20 @@ impl PageEndpoint {
             );
             graphs.push(graph);
 
-            let mut graph = ModuleGraph::from_graphs(graphs);
-
-            if *project
+            let remove_unused_imports = *project
                 .next_config()
                 .turbopack_remove_unused_imports(next_mode)
-                .await?
-            {
-                graph = graph.without_unused_references(compute_binding_usage_info(
-                    graph.to_resolved().await?,
-                    true,
-                ));
-            }
+                .await?;
 
-            Ok(graph)
+            let graph = if remove_unused_imports {
+                let graph = ModuleGraph::from_graphs(graphs.clone());
+                let binding_usage_info = compute_binding_usage_info(graph, true);
+                ModuleGraph::from_graphs_without_unused_references(graphs, binding_usage_info)
+            } else {
+                ModuleGraph::from_graphs(graphs)
+            };
+
+            Ok(graph.connect())
         } else {
             Ok(*project.whole_app_module_graphs().await?.full)
         }

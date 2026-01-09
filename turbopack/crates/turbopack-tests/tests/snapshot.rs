@@ -43,7 +43,7 @@ use turbopack_core::{
     issue::{CollectibleIssuesExt, IssueFilter},
     module::Module,
     module_graph::{
-        ModuleGraph,
+        ModuleGraph, SingleModuleGraph,
         binding_usage_info::compute_binding_usage_info,
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
     },
@@ -433,23 +433,28 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         bail!("Entry module is not chunkable, so it can't be used to bootstrap the application")
     };
 
-    let mut module_graph = ModuleGraph::from_modules(
-        Vc::cell(vec![ChunkGroupEntry::Entry(entry_modules.clone())]),
+    let single_graph = SingleModuleGraph::new_with_entries(
+        ResolvedVc::cell(vec![ChunkGroupEntry::Entry(entry_modules.clone())]),
         false,
         true,
     );
+    let mut module_graph = ModuleGraph::from_single_graph(single_graph);
 
     let binding_usage = if options.remove_unused_imports || options.remove_unused_exports {
         Some(compute_binding_usage_info(
-            module_graph.to_resolved().await?,
+            module_graph,
             options.remove_unused_imports,
         ))
     } else {
         None
     };
-    if options.remove_unused_imports {
-        module_graph = module_graph.without_unused_references(binding_usage.unwrap());
+    if options.remove_unused_imports
+        && let Some(binding_usage) = binding_usage
+    {
+        module_graph =
+            ModuleGraph::from_single_graph_without_unused_references(single_graph, binding_usage);
     }
+    let module_graph = module_graph.connect();
 
     let chunk_root_path = project_path.join("output")?;
     let static_root_path = project_path.join("static")?;
