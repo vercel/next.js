@@ -1003,6 +1003,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         let map = iter_many!(self, OutputDependency { target } => (target, TaskDataCategory::Meta))
             .chain(iter_many!(self, CellDependency { target } => (target.task, TaskDataCategory::All)))
             .chain(iter_many!(self, CollectiblesDependency { target } => (target.task, TaskDataCategory::All)))
+            .chain(iter_many!(self, Child { task } => (task, TaskDataCategory::All)))
             .collect::<FxIndexMap<_, _>>();
         (map.len() > 1).then_some(map)
     }
