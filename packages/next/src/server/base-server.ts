@@ -469,8 +469,9 @@ export default abstract class Server<
         : (this.nextConfig.deploymentId as string) || ''
 
       deploymentId = id
-      if (process.env.NEXT_DEPLOYMENT_ID == null) {
-        process.env.NEXT_DEPLOYMENT_ID = id
+      // Use bracket notation to prevent webpack from replacing this at build time
+      if (process.env['NEXT_DEPLOYMENT_ID'] == null) {
+        process.env['NEXT_DEPLOYMENT_ID'] = id
       }
     }
 

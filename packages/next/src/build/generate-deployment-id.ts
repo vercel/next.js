@@ -96,11 +96,12 @@ export function resolveAndSetDeploymentId(
   // User-configured deploymentId always takes precedence over NEXT_DEPLOYMENT_ID
   if (userConfiguredDeploymentId !== undefined) {
     // User-configured deploymentId always takes precedence
-    process.env.NEXT_DEPLOYMENT_ID = userConfiguredDeploymentId
+    // Use bracket notation to prevent webpack from replacing this at build time
+    process.env['NEXT_DEPLOYMENT_ID'] = userConfiguredDeploymentId
     return userConfiguredDeploymentId
-  } else if (process.env.NEXT_DEPLOYMENT_ID != null) {
+  } else if (process.env['NEXT_DEPLOYMENT_ID'] != null) {
     // No user config, use NEXT_DEPLOYMENT_ID if set
-    return process.env.NEXT_DEPLOYMENT_ID
+    return process.env['NEXT_DEPLOYMENT_ID']
   } else {
     // Neither is set, use empty string
     return ''
