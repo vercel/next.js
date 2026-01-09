@@ -1168,8 +1168,8 @@ function loadChunkPath(sourceType, sourceData, chunkPath) {
 /**
  * Returns an absolute url to an asset.
  */ function resolvePathFromModule(moduleId) {
-    var exported = this.r(moduleId);
     var _ref;
+    var exported = this.r(moduleId);
     return (_ref = exported === null || exported === void 0 ? void 0 : exported.default) !== null && _ref !== void 0 ? _ref : exported;
 }
 browserContextPrototype.R = resolvePathFromModule;
@@ -1445,8 +1445,8 @@ function _ts_generator(thisArg, body) {
  */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../../../browser/runtime/base/runtime-base.ts" />
 /// <reference path="../../../shared/runtime-types.d.ts" />
 function getChunkSuffixFromScriptSrc() {
-    var _document_currentScript_getAttribute, _document_currentScript_getAttribute1, _document_currentScript, _document;
     var _self_TURBOPACK_CHUNK_SUFFIX;
+    var _document_currentScript_getAttribute, _document_currentScript_getAttribute1, _document_currentScript, _document;
     // TURBOPACK_CHUNK_SUFFIX is set in web workers
     return ((_self_TURBOPACK_CHUNK_SUFFIX = self.TURBOPACK_CHUNK_SUFFIX) !== null && _self_TURBOPACK_CHUNK_SUFFIX !== void 0 ? _self_TURBOPACK_CHUNK_SUFFIX : (_document = document) === null || _document === void 0 ? void 0 : (_document_currentScript = _document.currentScript) === null || _document_currentScript === void 0 ? void 0 : (_document_currentScript_getAttribute1 = _document_currentScript.getAttribute) === null || _document_currentScript_getAttribute1 === void 0 ? void 0 : (_document_currentScript_getAttribute = _document_currentScript_getAttribute1.call(_document_currentScript, 'src')) === null || _document_currentScript_getAttribute === void 0 ? void 0 : _document_currentScript_getAttribute.replace(/^(.*(?=\?)|^.*$)/, '')) || '';
 }

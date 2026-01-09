@@ -49,8 +49,7 @@ if (
   process.exit(1)
 }
 
-// Start performance profiling after Node.js version is checked
-performance.mark('next-start')
+process.env.NEXT_PRIVATE_START_TIME = Date.now().toString()
 
 for (const dependency of ['react', 'react-dom']) {
   try {

@@ -21,8 +21,8 @@ use rustc_hash::FxHashSet;
 use tracing::instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, InvalidationReason, InvalidationReasonKind, Invalidator, parallel, spawn_thread,
-    util::StaticOrArc,
+    FxIndexSet, InvalidationReason, InvalidationReasonKind, Invalidator, TurboTasksApi, parallel,
+    spawn_thread, util::StaticOrArc,
 };
 
 use crate::{
@@ -401,8 +401,9 @@ impl DiskWatcher {
         // side-effect, this will call `ensure_watched` again, setting up any watchers needed.
         //
         // Best is to start_watching before starting to read
-        {
+        if let Some(turbo_tasks) = fs_inner.turbo_tasks.upgrade() {
             let _span = tracing::info_span!("invalidate filesystem").entered();
+            let _guard = fs_inner.tokio_handle.enter();
             let invalidator_map = take(&mut *fs_inner.invalidator_map.lock().unwrap());
             let dir_invalidator_map = take(&mut *fs_inner.dir_invalidator_map.lock().unwrap());
             let iter = invalidator_map.into_iter().chain(dir_invalidator_map);
@@ -418,14 +419,14 @@ impl DiskWatcher {
                     })
                     .collect::<Vec<_>>();
                 parallel::for_each_owned(invalidators, |(reason, (invalidator, _))| {
-                    invalidator.invalidate_with_reason(reason);
+                    invalidator.invalidate_with_reason(&*turbo_tasks, reason);
                 });
             } else {
                 let invalidators = iter
                     .flat_map(|(_, invalidators)| invalidators.into_keys())
                     .collect::<Vec<_>>();
                 parallel::for_each_owned(invalidators, |invalidator| {
-                    invalidator.invalidate();
+                    invalidator.invalidate(&*turbo_tasks);
                 });
             }
         }
@@ -688,17 +689,25 @@ impl DiskWatcher {
                 }
             }
 
+            let Some(turbo_tasks) = fs_inner.turbo_tasks.upgrade() else {
+                // TurboTasks was dropped, stop watching
+                break 'outer;
+            };
+            let _guard = fs_inner.tokio_handle.enter();
+
             let _lock = fs_inner.invalidation_lock.blocking_write();
             {
                 let mut invalidator_map = fs_inner.invalidator_map.lock().unwrap();
                 invalidate_path(
                     &fs_inner,
+                    &*turbo_tasks,
                     report_invalidation_reason,
                     &mut invalidator_map,
                     batched_invalidate_path.drain(),
                 );
                 invalidate_path_and_children_execute(
                     &fs_inner,
+                    &*turbo_tasks,
                     report_invalidation_reason,
                     &mut invalidator_map,
                     batched_invalidate_path_and_children.drain(),
@@ -708,12 +717,14 @@ impl DiskWatcher {
                 let mut dir_invalidator_map = fs_inner.dir_invalidator_map.lock().unwrap();
                 invalidate_path(
                     &fs_inner,
+                    &*turbo_tasks,
                     report_invalidation_reason,
                     &mut dir_invalidator_map,
                     batched_invalidate_path_dir.drain(),
                 );
                 invalidate_path_and_children_execute(
                     &fs_inner,
+                    &*turbo_tasks,
                     report_invalidation_reason,
                     &mut dir_invalidator_map,
                     batched_invalidate_path_and_children_dir.drain(),
@@ -751,6 +762,7 @@ impl DiskWatcher {
 )]
 fn invalidate(
     inner: &DiskFileSystemInner,
+    turbo_tasks: &dyn TurboTasksApi,
     report_invalidation_reason: bool,
     path: &Path,
     invalidator: Invalidator,
@@ -758,38 +770,40 @@ fn invalidate(
     if report_invalidation_reason
         && let Some(path) = format_absolute_fs_path(path, &inner.name, inner.root_path())
     {
-        invalidator.invalidate_with_reason(WatchChange { path });
+        invalidator.invalidate_with_reason(turbo_tasks, WatchChange { path });
         return;
     }
-    invalidator.invalidate();
+    invalidator.invalidate(turbo_tasks);
 }
 
 fn invalidate_path(
     inner: &DiskFileSystemInner,
+    turbo_tasks: &dyn TurboTasksApi,
     report_invalidation_reason: bool,
     invalidator_map: &mut LockedInvalidatorMap,
     paths: impl Iterator<Item = PathBuf>,
 ) {
     for path in paths {
         if let Some(invalidators) = invalidator_map.remove(&path) {
-            invalidators
-                .into_iter()
-                .for_each(|(i, _)| invalidate(inner, report_invalidation_reason, &path, i));
+            invalidators.into_iter().for_each(|(i, _)| {
+                invalidate(inner, turbo_tasks, report_invalidation_reason, &path, i)
+            });
         }
     }
 }
 
 fn invalidate_path_and_children_execute(
     inner: &DiskFileSystemInner,
+    turbo_tasks: &dyn TurboTasksApi,
     report_invalidation_reason: bool,
     invalidator_map: &mut LockedInvalidatorMap,
     paths: impl Iterator<Item = PathBuf>,
 ) {
     for path in paths {
         for (_, invalidators) in invalidator_map.extract_path_with_children(&path) {
-            invalidators
-                .into_iter()
-                .for_each(|(i, _)| invalidate(inner, report_invalidation_reason, &path, i));
+            invalidators.into_iter().for_each(|(i, _)| {
+                invalidate(inner, turbo_tasks, report_invalidation_reason, &path, i)
+            });
         }
     }
 }

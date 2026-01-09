@@ -187,17 +187,18 @@ import {
   updateBuildDiagnostics,
   recordFetchMetrics,
 } from '../diagnostics/build-diagnostics'
-import { getStartServerInfo, logStartInfo } from '../server/lib/app-info-log'
+import {
+  getEnvInfo,
+  logExperimentalInfo,
+  logStartInfo,
+  type ConfiguredExperimentalFeature,
+} from '../server/lib/app-info-log'
 import type { NextEnabledDirectories } from '../server/base-server'
 import { hasCustomExportOutput } from '../export/utils'
 import { traceMemoryUsage } from '../lib/memory/trace'
 import { generateEncryptionKeyBase64 } from '../server/app-render/encryption-utils-server'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import uploadTrace from '../trace/upload-trace'
-import {
-  checkIsAppPPREnabled,
-  checkIsRoutePPREnabled,
-} from '../server/lib/experimental/ppr'
 import { FallbackMode, fallbackModeToFallbackField } from '../lib/fallback'
 import { RenderingMode } from './rendering-mode'
 import { InvariantError } from '../shared/lib/invariant-error'
@@ -931,6 +932,7 @@ export default async function build(
       NextBuildContext.loadedEnvFiles = loadedEnvFiles
 
       const turborepoAccessTraceResult = new TurborepoAccessTraceResult()
+      let experimentalFeatures: ConfiguredExperimentalFeature[] = []
       const config: NextConfigComplete = await nextBuildSpan
         .traceChild('load-next-config')
         .traceAsyncFn(() =>
@@ -941,6 +943,11 @@ export default async function build(
                 silent: false,
                 reactProductionProfiling,
                 debugPrerender,
+                reportExperimentalFeatures(features) {
+                  experimentalFeatures = features.toSorted(
+                    ({ key: a }, { key: b }) => a.localeCompare(b)
+                  )
+                },
               }),
             turborepoAccessTraceResult
           )
@@ -1117,20 +1124,18 @@ export default async function build(
       )
 
       // Always log next version first then start rest jobs
-      const { envInfo, experimentalFeatures, cacheComponents } =
-        await getStartServerInfo({
-          dir,
-          dev: false,
-          debugPrerender,
-        })
+      const envInfo = getEnvInfo(dir)
 
       logStartInfo({
         networkUrl: null,
         appUrl: null,
         envInfo,
-        experimentalFeatures,
         logBundler: true,
-        cacheComponents,
+      })
+
+      logExperimentalInfo({
+        experimentalFeatures,
+        cacheComponents: !!config.cacheComponents,
       })
 
       const typeCheckingOptions: Parameters<typeof startTypeChecking>[0] = {
@@ -1587,7 +1592,7 @@ export default async function build(
       const isAuthInterruptsEnabled = Boolean(
         config.experimental.authInterrupts
       )
-      const isAppPPREnabled = checkIsAppPPREnabled(config.experimental.ppr)
+      const isAppPPREnabled = isAppCacheComponentsEnabled
 
       const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
 
@@ -2142,7 +2147,6 @@ export default async function build(
               locales: config.i18n?.locales,
               defaultLocale: config.i18n?.defaultLocale,
               nextConfigOutput: config.output,
-              pprConfig: config.experimental.ppr,
               cacheLifeProfiles: config.cacheLife,
               buildId,
               sriEnabled,
@@ -2364,7 +2368,6 @@ export default async function build(
                               : config.experimental.isrFlushToDisk,
                             cacheMaxMemorySize: config.cacheMaxMemorySize,
                             nextConfigOutput: config.output,
-                            pprConfig: config.experimental.ppr,
                             cacheLifeProfiles: config.cacheLife,
                             buildId,
                             sriEnabled,
@@ -2939,9 +2942,8 @@ export default async function build(
                 const appConfig = appDefaultConfigs.get(originalAppPath)
                 const isDynamicError = appConfig?.dynamic === 'error'
 
-                const isRoutePPREnabled: boolean = appConfig
-                  ? checkIsRoutePPREnabled(config.experimental.ppr)
-                  : false
+                const isRoutePPREnabled: boolean =
+                  !!appConfig && isAppCacheComponentsEnabled
 
                 routes.forEach((route) => {
                   // If the route has any dynamic root segments, we need to skip
@@ -3130,8 +3132,7 @@ export default async function build(
             // When this is an app page and PPR is enabled, the route supports
             // partial pre-rendering.
             const isRoutePPREnabled: true | undefined =
-              !isAppRouteHandler &&
-              checkIsRoutePPREnabled(config.experimental.ppr)
+              !isAppRouteHandler && isAppCacheComponentsEnabled
                 ? true
                 : undefined
 
@@ -4138,6 +4139,7 @@ export default async function build(
               dir,
               distDir,
               config,
+              appType,
               buildId,
               configOutDir: path.join(dir, configOutDir),
               staticPages,

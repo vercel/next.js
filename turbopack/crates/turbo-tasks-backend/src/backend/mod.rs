@@ -835,10 +835,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             // Having a task_pair here is not optimal, but otherwise this would lead to a race
             // condition. See below.
             // TODO(sokra): solve that in a more performant way.
-            let (task, reader) = ctx.task_pair(task_id, reader_id, TaskDataCategory::Data);
+            let (task, reader) = ctx.task_pair(task_id, reader_id, TaskDataCategory::All);
             (task, Some(reader))
         } else {
-            (ctx.task(task_id, TaskDataCategory::Data), None)
+            (ctx.task(task_id, TaskDataCategory::All), None)
         };
 
         let content = if final_read_hint {
@@ -1755,7 +1755,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         task_id: TaskId,
         result: Result<RawVc, TurboTasksExecutionError>,
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
-        stateful: bool,
         has_invalidator: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> bool {
@@ -1774,7 +1773,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // at the start of every step.
 
         #[cfg(not(feature = "trace_task_details"))]
-        let _span = tracing::trace_span!("task execution completed").entered();
+        let span = tracing::trace_span!(
+            "task execution completed",
+            new_children = tracing::field::Empty
+        )
+        .entered();
         #[cfg(feature = "trace_task_details")]
         let span = tracing::trace_span!(
             "task execution completed",
@@ -1783,6 +1786,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 Ok(value) => display(either::Either::Left(value)),
                 Err(err) => display(either::Either::Right(err)),
             },
+            new_children = tracing::field::Empty,
             immutable = tracing::field::Empty,
             new_output = tracing::field::Empty,
             output_dependents = tracing::field::Empty,
@@ -1806,7 +1810,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             task_id,
             result,
             cell_counters,
-            stateful,
             has_invalidator,
         )
         else {
@@ -1834,6 +1837,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
 
         let has_new_children = !new_children.is_empty();
+        span.record("new_children", new_children.len());
 
         if has_new_children {
             self.task_execution_completed_unfinished_children_dirty(&mut ctx, &new_children)
@@ -1877,7 +1881,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         task_id: TaskId,
         result: Result<RawVc, TurboTasksExecutionError>,
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
-        stateful: bool,
         has_invalidator: bool,
     ) -> Option<TaskExecutionCompletePrepareResult> {
         let mut task = ctx.task(task_id, TaskDataCategory::All);
@@ -1942,11 +1945,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         // take the children from the task to process them
         let mut new_children = take(new_children);
-
-        // handle stateful
-        if stateful {
-            let _ = task.add(CachedDataItem::Stateful { value: () });
-        }
 
         // handle has_invalidator
         if has_invalidator {
@@ -2366,8 +2364,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             old_content = task.insert(CachedDataItem::Output { value });
         }
 
-        // If the task is not stateful and has no mutable children, it does not have a way to be
-        // invalidated and we can mark it as immutable.
+        // If the task has no invalidator and has no mutable dependencies, it does not have a way
+        // to be invalidated and we can mark it as immutable.
         if is_now_immutable {
             let _ = task.add(CachedDataItem::Immutable { value: () });
         }
@@ -3243,7 +3241,6 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         task_id: TaskId,
         result: Result<RawVc, TurboTasksExecutionError>,
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
-        stateful: bool,
         has_invalidator: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> bool {
@@ -3251,7 +3248,6 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
             task_id,
             result,
             cell_counters,
-            stateful,
             has_invalidator,
             turbo_tasks,
         )
