@@ -14,7 +14,6 @@ workspace = true
 [dependencies]
 anyhow = { workspace = true }
 quick_cache = { workspace = true }
-reqwest = { workspace = true, features = ["rustls"] }
 serde = { workspace = true }
 tokio = { workspace = true }
 turbo-rcstr = { workspace = true }
@@ -22,13 +21,21 @@ turbo-tasks = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbopack-core = { workspace = true }
 
-# Use prebuilt NASM objects on Windows to avoid requiring NASM installation
-[target.'cfg(windows)'.dependencies]
-aws-lc-rs = { version = "1", default-features = false, features = ["prebuilt-nasm"] }
+# On macOS, use the default rustls configuration (uses aws-lc-rs)
+[target.'cfg(target_os = "macos")'.dependencies]
+reqwest = { workspace = true, features = ["rustls"] }
+
+# On Linux and Windows, use ring as the rustls crypto provider.
+# - Linux: aws-lc-rs has cross-compilation issues:
+#   https://github.com/aws/aws-lc-rs/issues/673
+# - Windows: aws-lc-sys requires NASM and CMake which we don't have installed in
+#   CI, and would complicate the development environment setup.
+[target.'cfg(any(target_os = "linux", target_os = "windows"))'.dependencies]
+reqwest = { workspace = true, features = ["rustls-no-provider"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 
 [dev-dependencies]
 mockito = { version = "1.7.0", default-features = false }
 tokio = { workspace = true, features = ["full"] }
 turbo-tasks-testing = { workspace = true }
 turbo-tasks-backend = { workspace = true }
-

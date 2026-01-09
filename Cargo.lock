@@ -6095,6 +6095,7 @@ checksum = "c0ebcbd2f03de0fc1122ad9bb24b127a5a6cd51d72604a3f3c50ac459762b6cc"
 dependencies = [
  "aws-lc-rs",
  "once_cell",
+ "ring",
  "rustls-pki-types",
  "rustls-webpki",
  "subtle",
@@ -9371,10 +9372,10 @@ name = "turbo-tasks-fetch"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "aws-lc-rs",
  "mockito",
  "quick_cache",
  "reqwest",
+ "rustls",
  "serde",
  "tokio",
  "turbo-rcstr",
