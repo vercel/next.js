@@ -65,6 +65,11 @@ function normalizeNextConfigZodErrors(
       // We exit the build when encountering an error in the images config
       shouldExit = true
     }
+    if (issue.path[0] === 'deploymentId') {
+      // We exit the build when encountering an error in the deploymentId config
+      // (e.g., exceeds max length, invalid function return type)
+      shouldExit = true
+    }
     if (
       issue.code === 'unrecognized_keys' &&
       issue.path[0] === 'experimental'
