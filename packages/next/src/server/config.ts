@@ -1615,6 +1615,15 @@ export default async function loadConfig(
       updateInitialEnv(newEnv)
 
       if (rawConfig) {
+        // Even for raw config, evaluate deploymentId to ensure validation happens early
+        // This prevents errors from being thrown later in base-server.ts after the server starts
+        if ((userConfigModule as NextConfigComplete).deploymentId) {
+          ;(userConfigModule as NextConfigComplete).deploymentId =
+            resolveAndSetDeploymentId(
+              (userConfigModule as NextConfigComplete).deploymentId
+            )
+        }
+
         // Cache the raw config
         configCache.set(cacheKey, {
           config: userConfigModule as NextConfigComplete,

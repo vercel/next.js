@@ -369,8 +369,7 @@ export async function startServer(
         logBundler: isDev,
       })
 
-      // Calculate and log "Ready in X" before loading config
-      // so it reflects actual framework startup time
+      // Calculate startup duration early
       const startTime = parseInt(process.env.NEXT_PRIVATE_START_TIME || '0', 10)
       const endTime = Date.now()
       const startServerProcessDurationMs = endTime - startTime
@@ -378,8 +377,6 @@ export async function startServer(
       const formattedStartDuration = durationToString(
         startServerProcessDurationMs / 1000
       )
-
-      Log.event(`Ready in ${formattedStartDuration}`)
 
       try {
         let cleanupStarted = false
@@ -474,6 +471,10 @@ export async function startServer(
             cacheComponents: initResult.cacheComponents,
           })
         }
+
+        // Log "Ready in X" AFTER config is loaded and validated
+        // This ensures errors are thrown before the server reports it's ready
+        Log.event(`Ready in ${formattedStartDuration}`)
 
         handlersReady()
 
