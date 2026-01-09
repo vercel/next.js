@@ -66,7 +66,6 @@ import { getBotType, isBot } from '../shared/lib/router/utils/is-bot'
 import RenderResult from './render-result'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
-import { resolveAndSetDeploymentId } from '../build/generate-deployment-id'
 import * as Log from '../build/output/log'
 import { getServerUtils } from './server-utils'
 import isError, { getProperError } from '../lib/is-error'
@@ -464,15 +463,14 @@ export default abstract class Server<
       }
       deploymentId = process.env.NEXT_DEPLOYMENT_ID
     } else {
-      // Generate deploymentId - can be a string or function
-      // Call the function once and cache the result to ensure consistency
-      // If useSkewCookie is enabled, skip user-configured deploymentId (it will be handled by skew cookie logic)
-      if (this.nextConfig.experimental.useSkewCookie) {
-        // useSkewCookie mode: use NEXT_DEPLOYMENT_ID if set, otherwise empty string
-        deploymentId = process.env.NEXT_DEPLOYMENT_ID || ''
-      } else {
-        // Normal mode: use utility function to resolve and set deploymentId
-        deploymentId = resolveAndSetDeploymentId(this.nextConfig.deploymentId)
+      // deploymentId is resolved to a string in config.ts via resolveAndSetDeploymentId
+      let id = this.nextConfig.experimental.useSkewCookie
+        ? ''
+        : (this.nextConfig.deploymentId as string) || ''
+
+      deploymentId = id
+      if (process.env.NEXT_DEPLOYMENT_ID == null) {
+        process.env.NEXT_DEPLOYMENT_ID = id
       }
     }
 

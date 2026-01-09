@@ -128,7 +128,10 @@ import { sortByPageExts } from './sort-by-page-exts'
 import { getStaticInfoIncludingLayouts } from './get-static-info-including-layouts'
 import { PAGE_TYPES } from '../lib/page-types'
 import { generateBuildId } from './generate-build-id'
-import { resolveAndSetDeploymentId } from './generate-deployment-id'
+import {
+  evaluateDeploymentId,
+  resolveAndSetDeploymentId,
+} from './generate-deployment-id'
 import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
 import createSpinner from './spinner'
@@ -149,7 +152,6 @@ import type { DynamicManifestRoute, PageInfo, PageInfos } from './utils'
 import type { FallbackRouteParam, PrerenderedRoute } from './static-paths/types'
 import type { AppSegmentConfig } from './segment-config/app/app-segment-config'
 import { writeBuildId } from './write-build-id'
-import { writeDeploymentId } from './write-deployment-id'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import isError from '../lib/is-error'
 import type { NextError } from '../lib/is-error'
@@ -1608,7 +1610,6 @@ export default async function build(
       const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
 
       // Generate the routes manifest using the extracted helper
-      // config.deploymentId is already evaluated as a string at this point (from line 958-968)
       const { routesManifest, dynamicRoutes, sourcePages } = nextBuildSpan
         .traceChild('generate-routes-manifest')
         .traceFn(() =>
@@ -1621,10 +1622,7 @@ export default async function build(
             rewrites,
             restrictedRedirectPaths,
             isAppPPREnabled,
-            deploymentId:
-              typeof config.deploymentId === 'string'
-                ? config.deploymentId
-                : undefined,
+            deploymentId: evaluateDeploymentId(config.deploymentId),
           })
         )
 
@@ -2757,12 +2755,6 @@ export default async function build(
       }
 
       await writeBuildId(distDir, buildId)
-
-      // Write deploymentId to .next/deployment-id.txt if present
-      // This allows the Vercel builder to read it and include it in the build output
-      if (config.deploymentId) {
-        await writeDeploymentId(distDir, config.deploymentId)
-      }
 
       const features: EventBuildFeatureUsage[] = [
         {
