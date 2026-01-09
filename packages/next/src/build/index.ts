@@ -4155,10 +4155,7 @@ export default async function build(
               config,
               appType,
               buildId,
-              deploymentId:
-                typeof config.deploymentId === 'string'
-                  ? config.deploymentId
-                  : process.env.NEXT_DEPLOYMENT_ID || '',
+              deploymentId: (config.deploymentId as string) || '',
               configOutDir: path.join(dir, configOutDir),
               staticPages,
               serverPropsPages,
