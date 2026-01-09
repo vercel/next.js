@@ -1,5 +1,9 @@
 import Link from 'next/link'
 
+export function generateStaticParams() {
+  return [{ lang: 'en' }]
+}
+
 export default async function Layout(props) {
   const params = await props.params
 

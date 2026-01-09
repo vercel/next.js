@@ -1,3 +1,7 @@
+export function generateStaticParams() {
+  return [{ productId: 'some-text' }]
+}
+
 export default async function Page({
   params,
 }: {

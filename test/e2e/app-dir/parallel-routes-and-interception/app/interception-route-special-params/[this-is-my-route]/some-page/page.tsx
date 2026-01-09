@@ -1,3 +1,7 @@
+export function generateStaticParams() {
+  return [{ 'this-is-my-route': 'some-random-param' }]
+}
+
 export default async function Page({ params }) {
   return (
     <div>
