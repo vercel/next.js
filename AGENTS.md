@@ -295,6 +295,14 @@ See [Codebase structure](#codebase-structure) above for detailed explanations.
 - Keep commit messages concise and descriptive
 - PR descriptions should focus on what changed and why
 
+## Rebuilding Before Running Tests
+
+When running Next.js integration tests, you must rebuild if source files have changed:
+
+- **Edited Next.js code?** → `pnpm build`
+- **Edited Turbopack (Rust)?** → `pnpm build-native`
+- **Edited both?** → `pnpm turbo build build-native`
+
 ## Development Anti-Patterns
 
 ### Test Gotchas
@@ -305,6 +313,7 @@ See [Codebase structure](#codebase-structure) above for detailed explanations.
 ### Rust/Cargo
 
 - cargo fmt uses ASCII order (uppercase before lowercase) - just run `cargo fmt`
+- **Internal compiler error (ICE)?** Delete incremental compilation artifacts and retry. Remove `*/incremental` directories from your cargo target directory (default `target/`, or check `CARGO_TARGET_DIR` env var)
 
 ### Node.js Source Maps
 
