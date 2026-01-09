@@ -4,8 +4,6 @@ const { version: nextVersion } = require('next/package.json')
 
 const cacheComponentsEnabled = process.env.__NEXT_CACHE_COMPONENTS === 'true'
 
-const pprEnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
-
 describe('build-output-prerender', () => {
   describe('with a next config file', () => {
     describe('without --debug-prerender', () => {
@@ -26,29 +24,17 @@ describe('build-output-prerender', () => {
             `)
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "▲ Next.js x.y.z (webpack, Cache Components)
+             "▲ Next.js x.y.z (webpack)
+             - Cache Components enabled
              - Experiments (use with caution):
                ✓ reactDebugChannel (enabled by \`__NEXT_EXPERIMENTAL_DEBUG_CHANNEL\`)"
-            `)
-          }
-        } else if (pprEnabled) {
-          if (isTurbopack) {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "▲ Next.js x.y.z (Turbopack, Cache Components)
-              - Experiments (use with caution):
-                ✓ ppr (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)"
-            `)
-          } else {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "▲ Next.js x.y.z (webpack, Cache Components)
-              - Experiments (use with caution):
-                ✓ ppr (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)"
             `)
           }
         } else {
           if (isTurbopack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "▲ Next.js x.y.z (Turbopack, Cache Components)
+             "▲ Next.js x.y.z (Turbopack)
+             - Cache Components enabled
              - Experiments (use with caution):
                ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
             `)
@@ -58,7 +44,8 @@ describe('build-output-prerender', () => {
             `)
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "▲ Next.js x.y.z (webpack, Cache Components)
+             "▲ Next.js x.y.z (webpack)
+             - Cache Components enabled
              - Experiments (use with caution):
                ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
             `)
@@ -122,32 +109,11 @@ describe('build-output-prerender', () => {
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode. Note: This may affect performance and should not be used for production.
-             ▲ Next.js x.y.z (webpack, Cache Components)
+             ▲ Next.js x.y.z (webpack)
+             - Cache Components enabled
              - Experiments (use with caution):
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ✓ reactDebugChannel (enabled by \`__NEXT_EXPERIMENTAL_DEBUG_CHANNEL\`)
-               ⨯ serverMinification (disabled by \`--debug-prerender\`)
-               ✓ serverSourceMaps (enabled by \`--debug-prerender\`)"
-            `)
-          }
-        } else if (pprEnabled) {
-          if (isTurbopack) {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "⚠ Prerendering is running in debug mode. Note: This may affect performance and should not be used for production.
-             ▲ Next.js x.y.z (Turbopack, Cache Components)
-             - Experiments (use with caution):
-               ✓ ppr (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
-               ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
-               ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
-               ⨯ turbopackMinify (disabled by \`--debug-prerender\`)"
-            `)
-          } else {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "⚠ Prerendering is running in debug mode. Note: This may affect performance and should not be used for production.
-             ▲ Next.js x.y.z (webpack, Cache Components)
-             - Experiments (use with caution):
-               ✓ ppr (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
-               ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ⨯ serverMinification (disabled by \`--debug-prerender\`)
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)"
             `)
@@ -156,7 +122,8 @@ describe('build-output-prerender', () => {
           if (isTurbopack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode. Note: This may affect performance and should not be used for production.
-             ▲ Next.js x.y.z (Turbopack, Cache Components)
+             ▲ Next.js x.y.z (Turbopack)
+             - Cache Components enabled
              - Experiments (use with caution):
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
@@ -175,7 +142,8 @@ describe('build-output-prerender', () => {
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode. Note: This may affect performance and should not be used for production.
-             ▲ Next.js x.y.z (webpack, Cache Components)
+             ▲ Next.js x.y.z (webpack)
+             - Cache Components enabled
              - Experiments (use with caution):
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ⨯ serverMinification (disabled by \`--debug-prerender\`)
@@ -266,23 +234,10 @@ describe('build-output-prerender', () => {
             `)
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "▲ Next.js x.y.z (webpack, Cache Components)
+             "▲ Next.js x.y.z (webpack)
+             - Cache Components enabled
              - Experiments (use with caution):
                ✓ reactDebugChannel (enabled by \`__NEXT_EXPERIMENTAL_DEBUG_CHANNEL\`)"
-            `)
-          }
-        } else if (pprEnabled) {
-          if (isTurbopack) {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "▲ Next.js x.y.z (Turbopack)
-              - Experiments (use with caution):
-                ✓ ppr (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)"
-            `)
-          } else {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "▲ Next.js x.y.z (webpack)
-              - Experiments (use with caution):
-                ✓ ppr (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)"
             `)
           }
         } else {
@@ -331,34 +286,13 @@ describe('build-output-prerender', () => {
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode. Note: This may affect performance and should not be used for production.
-             ▲ Next.js x.y.z (webpack, Cache Components)
+             ▲ Next.js x.y.z (webpack)
+             - Cache Components enabled
              - Experiments (use with caution):
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ✓ reactDebugChannel (enabled by \`__NEXT_EXPERIMENTAL_DEBUG_CHANNEL\`)
                ⨯ serverMinification (disabled by \`--debug-prerender\`)
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)"
-            `)
-          }
-        } else if (pprEnabled) {
-          if (isTurbopack) {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "⚠ Prerendering is running in debug mode. Note: This may affect performance and should not be used for production.
-              ▲ Next.js x.y.z (Turbopack)
-              - Experiments (use with caution):
-                ✓ ppr (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
-                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
-                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
-                ⨯ turbopackMinify (disabled by \`--debug-prerender\`)"
-            `)
-          } else {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "⚠ Prerendering is running in debug mode. Note: This may affect performance and should not be used for production.
-              ▲ Next.js x.y.z (webpack)
-              - Experiments (use with caution):
-                ✓ ppr (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
-                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
-                ⨯ serverMinification (disabled by \`--debug-prerender\`)
-                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)"
             `)
           }
         } else {

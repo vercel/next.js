@@ -1,5 +1,44 @@
 # Next.js Development Guide
 
+## Codebase structure
+
+### Monorepo Overview
+
+This is a pnpm monorepo containing the Next.js framework and related packages.
+
+```
+next.js/
+├── packages/           # Published npm packages
+├── turbopack/          # Turbopack bundler (Rust) - git subtree
+├── crates/             # Rust crates for Next.js SWC bindings
+├── test/               # All test suites
+├── examples/           # Example Next.js applications
+├── docs/               # Documentation
+└── scripts/            # Build and maintenance scripts
+```
+
+### Core Package: `packages/next`
+
+The main Next.js framework lives in `packages/next/`. This is what gets published as the `next` npm package.
+
+**Source code** is in `packages/next/src/`.
+
+**Key entry points:**
+
+- Dev server: `src/cli/next-dev.ts` → `src/server/dev/next-dev-server.ts`
+- Production server: `src/cli/next-start.ts` → `src/server/next-server.ts`
+- Build: `src/cli/next-build.ts` → `src/build/index.ts`
+
+**Compiled output** goes to `packages/next/dist/` (mirrors src/ structure).
+
+### Other Important Packages
+
+- `packages/create-next-app/` - The `create-next-app` CLI tool
+- `packages/next-swc/` - Native Rust bindings (SWC transforms)
+- `packages/eslint-plugin-next/` - ESLint rules for Next.js
+- `packages/font/` - `next/font` implementation
+- `packages/third-parties/` - Third-party script integrations
+
 ## Git Workflow
 
 **Use Graphite for all git operations** instead of raw git commands:
@@ -110,7 +149,68 @@ pnpm test-dev-turbo test/development/
 
 - `pnpm test-unit` - Run unit tests only (fast, no browser)
 - `pnpm testonly <path>` - Run tests without rebuilding (faster iteration)
-- `pnpm new-test` - Generate a new test file from template
+- `pnpm new-test` - Generate a new test file from template (interactive)
+
+**Generate tests non-interactively (for AI agents):**
+
+```bash
+# Use --args for non-interactive mode
+# Format: pnpm new-test --args <appDir> <name> <type>
+# appDir: true/false (is this for app directory?)
+# name: test name (e.g. "my-feature")
+# type: e2e | production | development | unit
+
+pnpm new-test --args true my-feature e2e
+```
+
+## Writing Tests
+
+**Test writing expectations:**
+
+- **Use `pnpm new-test` to generate new test suites** - it creates proper structure with fixture files
+
+- **Use `retry()` from `next-test-utils` instead of `setTimeout` for waiting**
+
+  ```typescript
+  // Good - use retry() for polling/waiting
+  import { retry } from 'next-test-utils'
+  await retry(async () => {
+    const text = await browser.elementByCss('p').text()
+    expect(text).toBe('expected value')
+  })
+
+  // Bad - don't use setTimeout for waiting
+  await new Promise((resolve) => setTimeout(resolve, 1000))
+  ```
+
+- **Do NOT use `check()` - it is deprecated. Use `retry()` + `expect()` instead**
+
+  ```typescript
+  // Deprecated - don't use check()
+  await check(() => browser.elementByCss('p').text(), /expected/)
+
+  // Good - use retry() with expect()
+  await retry(async () => {
+    const text = await browser.elementByCss('p').text()
+    expect(text).toMatch(/expected/)
+  })
+  ```
+
+- **Prefer real fixture directories over inline `files` objects**
+
+  ```typescript
+  // Good - use a real directory with fixture files
+  const { next } = nextTestSetup({
+    files: __dirname, // points to directory containing test fixtures
+  })
+
+  // Avoid - inline file definitions are harder to maintain
+  const { next } = nextTestSetup({
+    files: {
+      'app/page.tsx': `export default function Page() { ... }`,
+    },
+  })
+  ```
 
 ## Linting and Types
 
@@ -160,19 +260,18 @@ pnpm test-dev-turbo test/path/to/test.ts
 pnpm test-start-turbo test/path/to/test.ts
 ```
 
-## Key Directories
+## Key Directories (Quick Reference)
+
+See [Codebase structure](#codebase-structure) above for detailed explanations.
 
 - `packages/next/src/` - Main Next.js source code
-  - `server/` - Server runtime (dev server, router, rendering)
-  - `client/` - Client-side code
-  - `build/` - Build tooling (webpack, turbopack configs)
-  - `cli/` - CLI entry points
-- `packages/next/dist/` - Compiled output
-- `turbopack/` - Turbopack bundler (Rust)
-- `test/` - Test suites
-  - `development/` - Dev server tests
-  - `production/` - Production build tests
-  - `e2e/` - End-to-end tests
+- `packages/next/src/server/` - Server runtime (most changes happen here)
+- `packages/next/src/client/` - Client-side runtime
+- `packages/next/src/build/` - Build tooling
+- `test/e2e/` - End-to-end tests
+- `test/development/` - Dev server tests
+- `test/production/` - Production build tests
+- `test/unit/` - Unit tests (fast, no browser)
 
 ## Development Tips
 

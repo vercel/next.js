@@ -26,6 +26,9 @@ import { interopDefault } from '../../lib/interop-default'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { checkIsOnDemandRevalidate } from '../../server/api-utils'
 import { CloseController } from '../../server/web/web-on-close'
+import { parseMaxPostponedStateSize } from '../../shared/lib/size-limit'
+import { toNodeOutgoingHttpHeaders } from '../../server/web/utils'
+import type { RequestMeta } from '../../server/request-meta'
 
 declare const incrementalCacheHandler: any
 // OPTIONAL_IMPORT:incrementalCacheHandler
@@ -159,6 +162,9 @@ async function requestHandler(
           nextConfig.experimental.clientTraceMetadata || ([] as any),
         clientParamParsingOrigins:
           nextConfig.experimental.clientParamParsingOrigins,
+        maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
+          nextConfig.experimental.maxPostponedStateSize
+        ),
       },
 
       incrementalCache: await pageRouteModule.getIncrementalCache(
@@ -355,7 +361,7 @@ async function requestHandler(
   )
 }
 
-const handler: EdgeHandler = (opts) => {
+const internalHandler: EdgeHandler = (opts) => {
   return adapter({
     ...opts,
     IncrementalCache,
@@ -364,4 +370,50 @@ const handler: EdgeHandler = (opts) => {
     page: 'VAR_PAGE',
   })
 }
-export default handler
+
+export async function handler(
+  request: Request,
+  ctx: {
+    waitUntil?: (prom: Promise<void>) => void
+    signal?: AbortSignal
+    requestMeta?: RequestMeta
+  }
+): Promise<Response> {
+  const result = await internalHandler({
+    request: {
+      url: request.url,
+      method: request.method,
+      headers: toNodeOutgoingHttpHeaders(request.headers),
+      nextConfig: {
+        basePath: process.env.__NEXT_BASE_PATH,
+        i18n: process.env.__NEXT_I18N_CONFIG as any,
+        trailingSlash: Boolean(process.env.__NEXT_TRAILING_SLASH),
+        experimental: {
+          cacheLife: process.env.__NEXT_CACHE_LIFE as any,
+          authInterrupts: Boolean(
+            process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS
+          ),
+          clientParamParsingOrigins: process.env
+            .__NEXT_CLIENT_PARAM_PARSING_ORIGINS as any,
+        },
+      },
+      page: {
+        name: 'VAR_PAGE',
+      },
+      body:
+        request.method !== 'GET' && request.method !== 'HEAD'
+          ? (request.body ?? undefined)
+          : undefined,
+      waitUntil: ctx.waitUntil,
+      requestMeta: ctx.requestMeta,
+      signal: ctx.signal || new AbortController().signal,
+    },
+  })
+
+  ctx.waitUntil?.(result.waitUntil)
+
+  return result.response
+}
+
+// backwards compat
+export default internalHandler
