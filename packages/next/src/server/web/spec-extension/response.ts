@@ -5,8 +5,6 @@ import {
   toNodeOutgoingHttpHeaders,
   validateURL,
   encodeHeaderValue,
-  decodeHeaderValue,
-  containsNonAscii,
 } from '../utils'
 import { ReflectAdapter } from './adapters/reflect'
 
@@ -25,30 +23,14 @@ function handleMiddlewareField(
     }
 
     const keys = []
-    const encodedKeys = []
     for (const [key, value] of init.request.headers) {
-      let finalValue = value
-
-      // Decode to check if there are non-ASCII characters that need encoding.
-      // Only apply the decode-encode transformation if the decoded value actually
-      // contains non-ASCII characters. This avoids changing headers that intentionally
-      // contain percent-encoded ASCII characters (e.g., %20 for space).
-      const decodedValue = decodeHeaderValue(value)
-      if (containsNonAscii(decodedValue)) {
-        finalValue = encodeHeaderValue(decodedValue)
-        encodedKeys.push(key)
-      }
-
-      headers.set('x-middleware-request-' + key, finalValue)
+      // Encode non-ASCII characters for safe HTTP header transmission.
+      // If value is already percent-encoded (all ASCII), it passes through unchanged.
+      headers.set('x-middleware-request-' + key, encodeHeaderValue(value))
       keys.push(key)
     }
 
     headers.set('x-middleware-override-headers', keys.join(','))
-    // Add a marker header listing which headers have percent-encoded values
-    // This allows the server to decode them in minimal mode (Vercel)
-    if (encodedKeys.length > 0) {
-      headers.set('x-middleware-request-encoded', encodedKeys.join(','))
-    }
   }
 }
 
