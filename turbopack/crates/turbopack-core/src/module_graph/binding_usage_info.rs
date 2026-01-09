@@ -146,10 +146,14 @@ pub async fn compute_binding_usage_info(
                 };
 
                 if remove_unused_imports {
-                    // If this is an export just being used for side effects, we can skip it if the
-                    // target is side effect free.
+                    // If this is export is just being used for side effects, we can skip it if the
+                    // target is side effect free.  Note. many `imports` create parallel Evaluation
+                    // and Named/All ExportUsage references
                     if matches!(&ref_data.binding_usage.export, ExportUsage::Evaluation)
-                        && side_effect_free_modules.as_ref().unwrap().contains(&target)
+                        && side_effect_free_modules
+                            .as_ref()
+                            .expect("this must be present if `remove_unused_imports` is true")
+                            .contains(&target)
                     {
                         #[cfg(debug_assertions)]
                         debug_unused_references_name.insert((
