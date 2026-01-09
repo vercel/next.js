@@ -395,9 +395,10 @@ pub async fn compute_module_batches(
         module_graph.traverse_cycles(
             |ref_data| ref_data.chunking_type.is_parallel(),
             |cycle| {
-                if cycle
-                    .iter()
-                    .any(|node| pre_batches.boundary_modules.contains(node))
+                if cycle.len() > 1
+                    && cycle
+                        .iter()
+                        .any(|node| pre_batches.boundary_modules.contains(node))
                 {
                     pre_batches
                         .boundary_modules

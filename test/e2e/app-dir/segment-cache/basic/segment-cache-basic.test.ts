@@ -412,4 +412,43 @@ describe('segment cache (basic tests)', () => {
     const content = await page.textContent()
     expect(content).toContain('Cache Life Seconds Page')
   })
+
+  // TODO: Requires a fix in React.
+  it.failing(
+    'can handle circular references in client component props',
+    async () => {
+      let act: ReturnType<typeof createRouterAct>
+      const browser = await next.browser('/', {
+        beforePageLoad(page) {
+          act = createRouterAct(page)
+        },
+      })
+
+      // Reveal the link to trigger a prefetch.
+      const link = await act(
+        async () => {
+          await browser
+            .elementByCss('input[data-link-accordion="/cycle"]')
+            .click()
+          return browser.elementByCss('a[href="/cycle"]')
+        },
+        { includes: 'testProp' }
+      )
+
+      await act(
+        async () => {
+          await link.click()
+
+          // The page should render immediately because it was prefetched, and it
+          // should show the resolved cycle text.
+          expect(await browser.elementById('cycle-check').text()).toBe(
+            'Cycle resolved'
+          )
+        },
+        // No additional requests were required, because everything was
+        // prefetched.
+        'no-requests'
+      )
+    }
+  )
 })

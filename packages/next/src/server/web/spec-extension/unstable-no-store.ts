@@ -37,7 +37,6 @@ export function unstable_noStore() {
         case 'prerender-runtime':
           // unstable_noStore() is a noop in Dynamic I/O.
           return
-        case 'prerender-ppr':
         case 'prerender-legacy':
         case 'request':
         case 'cache':

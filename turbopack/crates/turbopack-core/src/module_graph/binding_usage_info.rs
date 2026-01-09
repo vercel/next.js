@@ -197,15 +197,22 @@ pub async fn compute_binding_usage_info(
         )?;
 
         // Compute cycles and select modules to be 'circuit breakers'
+        //
+        // To break cycles we need to ensure that no importing module can observe a
+        // partially populated exports object.
+        //
         // A circuit breaker module will need to eagerly export lazy getters for its exports to
         // break an evaluation cycle all other modules can export values after defining them
+        //
+        // In particular, this is also needed with scope hoisting and self-imports, as in
+        // that case `__turbopack_esm__` is what initializes the exports object. (Without
+        // scope hoisting, the exports object is already populated before any executing the
+        // module factory.)
         let mut export_circuit_breakers = FxHashSet::default();
+
         graph.traverse_cycles(
             |e| e.chunking_type.is_parallel(),
             |cycle| {
-                // To break cycles we need to ensure that no importing module can observe a
-                // partially populated exports object.
-
                 // We could compute this based on the module graph via a DFS from each entry point
                 // to the cycle.  Whatever node is hit first is an entry point to the cycle.
                 // (scope hoisting does something similar) and then we would only need to
