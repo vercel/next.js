@@ -167,6 +167,7 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
         {
             use std::{cell::RefCell, rc::Rc, sync::Arc};
 
+            use anyhow::Context;
             use swc_core::{
                 common::{
                     comments::SingleThreadedComments,
@@ -249,8 +250,6 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
                 // still have to construct from raw bytes internally to perform actual
                 // transform.
                 for (plugin_name, plugin_config, plugin_module) in plugins {
-                    use anyhow::Context;
-
                     let mut transform_plugin_executor =
                         swc_core::plugin_runner::create_plugin_transform_executor(
                             ctx.source_map,
