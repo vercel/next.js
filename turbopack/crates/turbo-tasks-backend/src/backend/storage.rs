@@ -1224,10 +1224,6 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        data::AggregationNumber,
-        data_storage::{DefaultStorage, OptionStorage},
-    };
 
     #[test]
     fn test_inner_storage_size() {
