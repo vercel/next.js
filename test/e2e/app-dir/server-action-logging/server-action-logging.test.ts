@@ -129,6 +129,20 @@ describe('server-action-logging', () => {
     })
   })
 
+  it('should log server action with promise argument', async () => {
+    const browser = await next.browser('/')
+    const outputIndex = next.cliOutput.length
+
+    await browser.elementByCss('#promise-arg-action').click()
+    await browser.waitForElementByCss('#result')
+
+    await retry(() => {
+      const logs = stripAnsi(next.cliOutput.slice(outputIndex))
+      expect(logs).toContain('ƒ promiseArgAction')
+      expect(logs).toMatch(/ƒ promiseArgAction\(.*\) in \d+ms/)
+    })
+  })
+
   it('should show relative file path in log', async () => {
     const browser = await next.browser('/')
     const outputIndex = next.cliOutput.length

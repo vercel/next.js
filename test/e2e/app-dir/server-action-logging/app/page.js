@@ -10,6 +10,7 @@ import {
   objectArgAction,
   arrayArgAction,
   inlineAction,
+  promiseArgAction,
 } from './actions'
 
 export default function Page() {
@@ -69,6 +70,12 @@ export default function Page() {
     setResult({ doubled: res })
   }
 
+  const handlePromiseArg = async () => {
+    setError(null)
+    const res = await promiseArgAction(Promise.resolve('hello'))
+    setResult(res)
+  }
+
   return (
     <div>
       <h1>Server Action Logging Test</h1>
@@ -97,6 +104,9 @@ export default function Page() {
         </button>
         <button id="inline-action" onClick={handleInline}>
           Inline Action
+        </button>
+        <button id="promise-arg-action" onClick={handlePromiseArg}>
+          Promise Arg Action
         </button>
       </div>
 

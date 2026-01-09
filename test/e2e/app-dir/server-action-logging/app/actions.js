@@ -42,3 +42,9 @@ export async function arrayArgAction(items) {
 export const inlineAction = async (value) => {
   return value * 2
 }
+
+// Action with promise argument
+export async function promiseArgAction(promiseValue) {
+  const resolved = await promiseValue
+  return { resolved }
+}
