@@ -3,10 +3,10 @@
 # ============================================
 
 # IMPORTANT: Node.js and Nginxinc Image Version Maintenance
-# This Dockerfile uses Node.js 24.11.1-slim and Nginxinc image with alpine3.22, which was the latest LTS version at the time of writing.
+# This Dockerfile uses Node.js 24.12.0-slim and Nginxinc image with alpine3.22, which was the latest LTS version at the time of writing.
 # To ensure security and compatibility, regularly validate and update the NODE_VERSION ARG and NGINXINC_IMAGE_TAG to the latest LTS versions.
 
-ARG NODE_VERSION=24.11.1-slim
+ARG NODE_VERSION=24.12.0-slim
 ARG NGINXINC_IMAGE_TAG=alpine3.22
 
 FROM node:${NODE_VERSION} AS dependencies

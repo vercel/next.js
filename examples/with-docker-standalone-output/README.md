@@ -101,7 +101,7 @@ Learn more about [Next.js standalone output](https://nextjs.org/docs/pages/api-r
 - **Non-root user**: Runs as `node` user for security
 - **Optimized layers**: Leverages Docker layer caching effectively
 - **Standalone output**: Copies only the necessary files from `.next/standalone` and `.next/static`
-- **Node.js version maintenance**: Uses Node.js 24.11.1-slim (latest LTS at time of writing). Update the `NODE_VERSION` ARG to the latest LTS version for security updates.
+- **Node.js version maintenance**: Uses Node.js 24.12.0-slim (latest LTS at time of writing). Update the `NODE_VERSION` ARG to the latest LTS version for security updates.
 
 **Why Node.js slim image tag?**: The slim variant provides optimal compatibility with npm packages and native dependencies while maintaining a smaller image size (~226MB). Slim uses glibc (standard Linux), ensuring better compatibility than Alpine's musl libc, which can cause issues with some npm packages. This makes it ideal for public examples where reliability and compatibility are priorities.
 
@@ -114,7 +114,7 @@ Learn more about [Next.js standalone output](https://nextjs.org/docs/pages/api-r
 
 To switch to Alpine, simply change the `NODE_VERSION` ARG in the Dockerfile to `24.11.1-alpine`.
 
-**⚠️ Important - Node.js Version Maintenance**: This Dockerfile uses Node.js 24.11.1-slim, which was the latest LTS version at the time of writing. To ensure security and stay up-to-date, regularly check and update the `NODE_VERSION` ARG in the Dockerfile to the latest Node.js LTS version. Check the latest version at [Nodejs official website](https://nodejs.org/) and browse available Node.js images on [Docker Hub](https://hub.docker.com/_/node).
+**⚠️ Important - Node.js Version Maintenance**: This Dockerfile uses Node.js 24.12.0-slim, which was the latest LTS version at the time of writing. To ensure security and stay up-to-date, regularly check and update the `NODE_VERSION` ARG in the Dockerfile to the latest Node.js LTS version. Check the latest version at [Nodejs official website](https://nodejs.org/) and browse available Node.js images on [Docker Hub](https://hub.docker.com/_/node).
 
 ## Deployment
 

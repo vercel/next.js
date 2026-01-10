@@ -142,14 +142,14 @@ Learn more about [Next.js static export](https://nextjs.org/docs/app/api-referen
 #### serve-based (`Dockerfile.serve`)
 
 - **Multi-stage build**: Separates dependency installation (`dependencies`), build (`builder`), and runtime (`runner`) stages
-- **Node.js runtime**: Uses `node:24.11.1-slim` for running serve package
+- **Node.js runtime**: Uses `node:24.12.0-slim` for running serve package
 - **serve package**: Uses `serve@14.2.5` for serving static files
 - **BuildKit cache mounts**: Speeds up builds by caching package manager stores and Next.js build cache
 - **Non-root user**: Runs as `node` user for security
 - **SPA mode**: Configured with single-page application support
 - **Port**: 3000
 
-**Node.js version maintenance**: Uses Node.js 24.11.1-slim (latest LTS at time of writing). Update the `NODE_VERSION` ARG to the latest LTS version for security updates.
+**Node.js version maintenance**: Uses Node.js 24.12.0-slim (latest LTS at time of writing). Update the `NODE_VERSION` ARG to the latest LTS version for security updates.
 
 **Nginx image maintenance**: Uses `nginxinc/nginx-unprivileged:alpine3.22`. Update the `NGINXINC_IMAGE_TAG` ARG to the latest version for security updates.
 
@@ -166,7 +166,7 @@ To switch to Alpine, simply change the `NODE_VERSION` ARG in the Dockerfile to `
 
 **⚠️ Important - Version Maintenance**:
 
-- **Node.js**: This Dockerfile uses Node.js 24.11.1-slim, which was the latest LTS version at the time of writing. To ensure security and stay up-to-date, regularly check and update the `NODE_VERSION` ARG in the Dockerfile to the latest Node.js LTS version. Check the latest version at [Node.js official website](https://nodejs.org/) and browse available Node.js images on [Docker Hub](https://hub.docker.com/_/node).
+- **Node.js**: This Dockerfile uses Node.js 24.12.0-slim, which was the latest LTS version at the time of writing. To ensure security and stay up-to-date, regularly check and update the `NODE_VERSION` ARG in the Dockerfile to the latest Node.js LTS version. Check the latest version at [Node.js official website](https://nodejs.org/) and browse available Node.js images on [Docker Hub](https://hub.docker.com/_/node).
 
 - **Nginx**: The Nginx Dockerfile uses `nginxinc/nginx-unprivileged:alpine3.22`. Regularly check and update the `NGINXINC_IMAGE_TAG` ARG to the latest version. Browse available Nginx images on [Docker Hub](https://hub.docker.com/r/nginxinc/nginx-unprivileged).
 
