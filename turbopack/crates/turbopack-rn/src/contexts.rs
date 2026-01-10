@@ -297,78 +297,136 @@ async fn get_client_module_options_context(
     )
     .owned()
     .await?;
+    let react_native_unistyles_name = detect_babel_plugin_package(
+        app_path.clone(),
+        resolve_options_context,
+        rcstr!("react-native-unistyles"),
+    )
+    .owned()
+    .await?;
 
     let webpack_rules = vec![(
         rcstr!("*.{js,jsx,cjs,mjs,ts,tsx}"),
         LoaderRuleItem {
             rename_as: Some(rcstr!("*")),
             module_type: None,
-            condition: Some(ConditionItem::Base {
-                path: None,
-                content: Some(
-                    EsRegex::new(
-                        [
-                            // Flow syntax
-                            "@flow",
-                            // codegen
-                            "codegenNativeComponent<",
-                        ]
-                        .into_iter()
-                        .chain(
-                            react_native_worklets_package
-                                .as_ref()
-                                .map(|_| {
-                                    [
-                                        // Explicit worklets
-                                        "'worklet'",
-                                        "\"worklet\"",
-                                        // https://github.com/software-mansion/react-native-reanimated/blob/ce9032c25e088e09bcce519963614cc5355beebb/packages/react-native-worklets/plugin/src/autoworkletization.ts#L16
-                                        "useAnimatedScrollHandler",
-                                        "react-native-gesture-handler",
-                                        "useFrameCallback",
-                                        "useAnimatedStyle",
-                                        "useAnimatedProps",
-                                        "createAnimatedPropAdapter",
-                                        "useDerivedValue",
-                                        "useAnimatedScrollHandler",
-                                        "useAnimatedReaction",
-                                        "withTiming",
-                                        "withSpring",
-                                        "withDecay",
-                                        "withRepeat",
-                                        "runOnUI",
-                                        "executeOnUIRuntimeSync",
-                                        "scheduleOnUI",
-                                        "runOnUISync",
-                                        "runOnUIAsync",
-                                        "runOnRuntime",
-                                        "scheduleOnRuntime",
-                                    ]
-                                })
+            condition: Some(ConditionItem::Any(
+                [
+                    react_native_unistyles_name
+                        .as_ref()
+                        .map(|_| {
+                            anyhow::Ok(ConditionItem::Base {
+                                // TODO don't run in node_modules
+                                path: None,
+                                query: None,
+                                content_type: None,
+                                content: Some(
+                                    EsRegex::new(
+                                        vec![
+                                            // https://github.com/jpudysz/react-native-unistyles/blob/513855f8f581c1fc3731fea4c3a476ebab0a46e1/plugin/src/consts.ts#L3
+                                            "react-native-unistyles",
+                                            "ActivityIndicator",
+                                            "View",
+                                            "Text",
+                                            "Image",
+                                            "ImageBackground",
+                                            "KeyboardAvoidingView",
+                                            "Pressable",
+                                            "ScrollView",
+                                            "FlatList",
+                                            "SectionList",
+                                            "Switch",
+                                            "TextInput",
+                                            "RefreshControl",
+                                            "TouchableHighlight",
+                                            "TouchableOpacity",
+                                            "VirtualizedList",
+                                            "Animated",
+                                            "SafeAreaView",
+                                        ]
+                                        .join("|")
+                                        .as_str(),
+                                        "",
+                                    )?
+                                    .resolved_cell(),
+                                ),
+                            })
+                        })
+                        .transpose()?,
+                    Some(ConditionItem::Base {
+                        path: None,
+                        query: None,
+                        content_type: None,
+                        content: Some(
+                            EsRegex::new(
+                                [
+                                    // Flow syntax
+                                    "@flow",
+                                    // codegen
+                                    "codegenNativeComponent<",
+                                ]
                                 .into_iter()
-                                .flatten(),
-                        )
-                        .chain(
-                            babel_plugin_macros_name
-                                .as_ref()
-                                .map(|_| {
-                                    [
-                                        // babel-plugin-macro
-                                        "[./]macro(\\.c?js)?[\"']",
-                                    ]
-                                    .into_iter()
-                                })
-                                .into_iter()
-                                .flatten(),
-                        )
-                        .collect::<Vec<_>>()
-                        .join("|")
-                        .as_str(),
-                        "",
-                    )?
-                    .resolved_cell(),
-                ),
-            }),
+                                .chain(
+                                    react_native_worklets_package
+                                        .as_ref()
+                                        .map(|_| {
+                                            [
+                                                // Explicit worklets
+                                                "'worklet'",
+                                                "\"worklet\"",
+                                                // https://github.com/software-mansion/react-native-reanimated/blob/ce9032c25e088e09bcce519963614cc5355beebb/packages/react-native-worklets/plugin/src/autoworkletization.ts#L16
+                                                "useAnimatedScrollHandler",
+                                                "react-native-gesture-handler",
+                                                "useFrameCallback",
+                                                "useAnimatedStyle",
+                                                "useAnimatedProps",
+                                                "createAnimatedPropAdapter",
+                                                "useDerivedValue",
+                                                "useAnimatedScrollHandler",
+                                                "useAnimatedReaction",
+                                                "withTiming",
+                                                "withSpring",
+                                                "withDecay",
+                                                "withRepeat",
+                                                "runOnUI",
+                                                "executeOnUIRuntimeSync",
+                                                "scheduleOnUI",
+                                                "runOnUISync",
+                                                "runOnUIAsync",
+                                                "runOnRuntime",
+                                                "scheduleOnRuntime",
+                                            ]
+                                        })
+                                        .into_iter()
+                                        .flatten(),
+                                )
+                                .chain(
+                                    babel_plugin_macros_name
+                                        .as_ref()
+                                        .map(|_| {
+                                            [
+                                                // babel-plugin-macro
+                                                "[./]macro(\\.c?js)?[\"']",
+                                            ]
+                                            .into_iter()
+                                        })
+                                        .into_iter()
+                                        .flatten(),
+                                )
+                                .collect::<Vec<_>>()
+                                .join("|")
+                                .as_str(),
+                                "",
+                            )?
+                            .resolved_cell(),
+                        ),
+                    }),
+                ]
+                .into_iter()
+                .flatten()
+                .collect::<Vec<_>>()
+                .into_boxed_slice(),
+            )),
             loaders: ResolvedVc::cell(vec![WebpackLoaderItem {
                 loader: rcstr!(
                     "/Users/niklas/code/next.js-rn/packages/turbopack-rn-babel-loader/index.js"

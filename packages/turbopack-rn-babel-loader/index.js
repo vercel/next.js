@@ -31,6 +31,31 @@ const WORKLET_REGEX = new RegExp(
 
 const MACRO_REGEX = /[./]macro(\.c?js)?["']/
 
+const UNISTYLES_REGEX = new RegExp(
+  [
+    // https://github.com/jpudysz/react-native-unistyles/blob/513855f8f581c1fc3731fea4c3a476ebab0a46e1/plugin/src/consts.ts#L3
+    'react-native-unistyles',
+    'ActivityIndicator',
+    'View',
+    'Text',
+    'Image',
+    'ImageBackground',
+    'KeyboardAvoidingView',
+    'Pressable',
+    'ScrollView',
+    'FlatList',
+    'SectionList',
+    'Switch',
+    'TextInput',
+    'RefreshControl',
+    'TouchableHighlight',
+    'TouchableOpacity',
+    'VirtualizedList',
+    'Animated',
+    'SafeAreaView',
+  ].join('|')
+)
+
 const DEBUG = process.env.TURBOPACK_DEBUG_RN_BABEL_LOADER
 
 module.exports = function (content) {
@@ -76,6 +101,11 @@ module.exports = function (content) {
     if (runWorkletTransform) {
       plugins.push(workletPluginName)
     }
+  }
+
+  if (!filename.includes('node_modules') && UNISTYLES_REGEX.test(content)) {
+    // TODO root is hardcoded
+    plugins.push(['react-native-unistyles/plugin', { root: './src' }])
   }
 
   if (presets.length === 0 && plugins.length === 0) {
