@@ -48,8 +48,10 @@ interface CallSite {
  * This preserves the structured data so we don't need to parse stack strings later.
  */
 interface CapturedFrame {
-  /** Function name from getFunctionName() or getMethodName() */
+  /** Function name from getFunctionName() */
   functionName: string | undefined
+  /** Method name from getMethodName() (for [as methodName] format) */
+  methodName: string | undefined
   /** Type name from getTypeName() for qualified names like "Foo.bar" */
   typeName: string | undefined
   /** File name from getFileName() */
@@ -140,17 +142,32 @@ export function parseFrames(stackString: string): CapturedFrame[] {
   const parsedFrames = parseStack(stackString)
   return parsedFrames.map((frame) => {
     // Extract "async " and "new " prefixes from method name
-    let methodName = frame.methodName ?? ''
-    const isAsync = methodName.startsWith('async ')
+    let name = frame.methodName ?? ''
+    const isAsync = name.startsWith('async ')
     if (isAsync) {
-      methodName = methodName.slice(6)
+      name = name.slice(6)
     }
-    const isConstructor = methodName.startsWith('new ')
+    const isConstructor = name.startsWith('new ')
     if (isConstructor) {
-      methodName = methodName.slice(4)
+      name = name.slice(4)
     }
+
+    // Parse "FunctionName [as methodName]" format (e.g., "eval [as _onTimeout]")
+    let functionName: string | undefined
+    let methodName: string | undefined
+    const asMatch = name.match(/^(.+?) [as (.+)]$/)
+    if (asMatch) {
+      functionName = asMatch[1] || undefined
+      methodName = asMatch[2] || undefined
+    } else {
+      // Could be just functionName or just methodName - we can't distinguish from parsed stack
+      functionName = name || undefined
+      methodName = undefined
+    }
+
     return {
-      functionName: methodName || undefined,
+      functionName,
+      methodName,
       typeName: undefined,
       fileName: frame.file ?? undefined,
       lineNumber: frame.line1 ?? undefined,
@@ -230,23 +247,32 @@ function parseEvalOrigin(
  */
 function captureCallSite(callSite: CallSite): CapturedFrame {
   let fileName = callSite.getFileName() ?? undefined
-  let lineNumber = callSite.getLineNumber() ?? undefined
-  let columnNumber = callSite.getColumnNumber() ?? undefined
+  const lineNumber = callSite.getLineNumber() ?? undefined
+  const columnNumber = callSite.getColumnNumber() ?? undefined
 
   // For eval frames, getFileName() returns undefined but getEvalOrigin() contains the source location.
-  // This is common in edge runtime with eval-source-map.
+  // When using eval-source-map (common in webpack dev mode), the sourceURL comment in the eval'd code
+  // causes V8 to set evalOrigin to just the sourceURL (e.g., "webpack-internal:///(rsc)/./app/page.tsx").
+  // The lineNumber/columnNumber are positions within the eval'd code which will be source-mapped.
+  // When NOT using sourceURL, evalOrigin has format "eval at <name> (file:line:col)" and we extract the file.
   if (fileName === undefined && callSite.isEval()) {
-    const evalOrigin = parseEvalOrigin(callSite.getEvalOrigin())
+    const evalOrigin = callSite.getEvalOrigin()
     if (evalOrigin) {
-      fileName = evalOrigin.file
-      lineNumber = evalOrigin.line
-      columnNumber = evalOrigin.column
+      // Check if this is a traditional eval origin with (file:line:col) format
+      const parsed = parseEvalOrigin(evalOrigin)
+      if (parsed) {
+        fileName = parsed.file
+        // Don't override lineNumber/columnNumber - they're positions in eval code that need source mapping
+      } else {
+        // evalOrigin is just the sourceURL from eval-source-map
+        fileName = evalOrigin
+      }
     }
   }
 
   return {
-    functionName:
-      callSite.getFunctionName() ?? callSite.getMethodName() ?? undefined,
+    functionName: callSite.getFunctionName() ?? undefined,
+    methodName: callSite.getMethodName() ?? undefined,
     typeName: callSite.getTypeName() ?? undefined,
     fileName,
     lineNumber,
@@ -515,6 +541,7 @@ function resolveFunctionName(
       // Format it with typeName and async/constructor prefixes to match the mangledName format
       return formatMethodName(
         foundName,
+        capturedFrame.methodName,
         capturedFrame.typeName,
         capturedFrame.isAsync,
         capturedFrame.isConstructor
@@ -549,37 +576,52 @@ interface SourceMappedFrame {
  */
 function formatMethodName(
   functionName: string | undefined,
+  callSiteMethodName: string | undefined,
   typeName: string | undefined,
   isAsync: boolean,
   isConstructor: boolean = false
 ): string {
-  let methodName: string
-  if (functionName) {
+  let result: string
+
+  // Determine the base name to display
+  const displayName = functionName ?? callSiteMethodName
+
+  if (displayName) {
     // Include typeName if present (e.g., "Object.then", "Promise.resolve")
     // This matches V8's native formatting
     if (typeName && typeName !== 'global') {
-      methodName = typeName + '.' + functionName
+      result = typeName + '.' + displayName
     } else {
-      methodName = functionName
+      result = displayName
+    }
+
+    // Add "[as methodName]" suffix when both functionName and methodName exist
+    // This matches V8's format for cases like "Timeout.eval [as _onTimeout]"
+    if (
+      functionName &&
+      callSiteMethodName &&
+      functionName !== callSiteMethodName
+    ) {
+      result += ' [as ' + callSiteMethodName + ']'
     }
   } else {
     // Use '<unknown>' for compatibility with stacktrace-parser which uses this
     // string for frames without a method name (e.g., "at (file.js:1:1)")
     // in the future this should probably be `<anonymous>`
-    methodName = '<unknown>'
+    result = '<unknown>'
   }
 
   // Add "new " prefix for constructor calls (before async)
   if (isConstructor) {
-    methodName = 'new ' + methodName
+    result = 'new ' + result
   }
 
   // Add "async " prefix for async functions
   if (isAsync) {
-    methodName = 'async ' + methodName
+    result = 'async ' + result
   }
 
-  return methodName
+  return result
 }
 
 /**
@@ -589,6 +631,7 @@ function createUnsourcemappedFrame(frame: CapturedFrame): SourceMappedFrame {
   const file = frame.fileName ?? null
   const methodName = formatMethodName(
     frame.functionName,
+    frame.methodName,
     frame.typeName,
     frame.isAsync,
     frame.isConstructor
@@ -753,6 +796,7 @@ function getSourcemappedFrameIfPossible(
   // Compute the full mangled name including typeName and constructor prefix for proper formatting
   const mangledName = formatMethodName(
     capturedFrame.functionName,
+    capturedFrame.methodName,
     capturedFrame.typeName,
     capturedFrame.isAsync,
     capturedFrame.isConstructor
