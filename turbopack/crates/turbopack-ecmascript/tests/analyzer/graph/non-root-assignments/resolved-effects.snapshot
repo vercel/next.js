@@ -7,4 +7,3 @@
 0 -> 4 call = ???*0*((...) => undefined, 1)
 - *0* FreeVar(setTimeout)
   ⚠️  unknown global
-  ⚠️  This value might have side effects

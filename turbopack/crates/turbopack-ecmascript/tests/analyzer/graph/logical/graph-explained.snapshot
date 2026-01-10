@@ -12,6 +12,11 @@ d (const after eval) = !(x)
 
 e (const after eval) = !(!(x))
 
+n (const after eval) = ((r*0* && t["__esModule"]) ? t : {"default": t})
+- *0* ⚠️ This value might have side effects
+
+r (const after eval) = {}
+
 resolve1 (const after eval) = (1 && 2 && FreeVar(global) && 3 && 4)
 
 resolve2 (const after eval) = (1 && 2 && 0 && FreeVar(global) && 4)
@@ -23,6 +28,10 @@ resolve4 (const after eval) = (true || FreeVar(global))
 resolve5 (const after eval) = (FreeVar(global) && false)
 
 resolve6 (const after eval) = (false && FreeVar(global))
+
+t (const after eval) = (???*0* | r)
+- *0* t
+  ⚠️  pattern without value
 
 x (const after eval) = true
 

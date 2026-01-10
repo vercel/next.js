@@ -10,9 +10,9 @@ b (const after eval) = *anonymous function 66*
 
 c (const after eval) = *arrow function 118*
 
-d (const after eval) = ???*0*
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+d (const after eval) = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* unsupported expression
 
 e (const after eval) = (...) => undefined
 

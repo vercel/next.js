@@ -61,7 +61,6 @@
                 ),
             ),
             reason: "pattern without value",
-            has_side_effects: false,
         },
     ),
     (
@@ -119,7 +118,6 @@
         Unknown {
             original_value: None,
             reason: "for-in variable currently not analyzed",
-            has_side_effects: false,
         },
     ),
     (

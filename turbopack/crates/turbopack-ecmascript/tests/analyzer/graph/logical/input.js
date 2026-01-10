@@ -14,3 +14,7 @@ let resolve3 = global || true;
 let resolve4 = true || global;
 let resolve5 = global && false;
 let resolve6 = false && global;
+
+const r = {};
+var t,
+    n = (t = r) && t.__esModule ? t : { default: t }

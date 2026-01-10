@@ -16,7 +16,6 @@ path = (
 - *1* module<./libvips, {}>["runtimePlatformArch"]()
   ⚠️  nested operation
 - *2* unknown mutation
-  ⚠️  This value might have side effects
 
 paths = [
     `../src/build/Release/sharp-${???*0*}.node`,
@@ -46,11 +45,9 @@ sharp = (???*0* | ???*1*)
         )
     )
   ⚠️  only constant argument is supported
-  ⚠️  This value might have side effects
 - *2* require: The require method from CommonJS
 - *3* module<./libvips, {}>["runtimePlatformArch"]()
   ⚠️  nested operation
 - *4* module<./libvips, {}>["runtimePlatformArch"]()
   ⚠️  nested operation
 - *5* unknown mutation
-  ⚠️  This value might have side effects

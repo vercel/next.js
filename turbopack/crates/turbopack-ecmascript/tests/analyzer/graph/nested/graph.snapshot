@@ -59,11 +59,13 @@
     ),
     (
         "d",
-        Unknown {
-            original_value: None,
-            reason: "unsupported expression",
-            has_side_effects: true,
-        },
+        Effectful(
+            2,
+            Unknown {
+                original_value: None,
+                reason: "unsupported expression",
+            },
+        ),
     ),
     (
         "e",

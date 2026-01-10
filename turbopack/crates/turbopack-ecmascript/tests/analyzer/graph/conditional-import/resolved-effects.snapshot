@@ -28,9 +28,9 @@
 
 0 -> 14 conditional = true
 
-14 -> 15 unreachable = ???*0*
-- *0* unreachable
-  ⚠️  This value might have side effects
+14 -> 15 unreachable = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* unreachable
 
 0 -> 16 call = import*0*("c")
 - *0* import: The dynamic import() method from the ESM specification: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#dynamic_imports

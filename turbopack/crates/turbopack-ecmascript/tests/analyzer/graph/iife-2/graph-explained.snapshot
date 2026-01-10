@@ -1,8 +1,8 @@
 _ (const after eval) = (...) => parent
 
-i = (0 | ???*0*)
-- *0* updated with update expression
-  ⚠️  This value might have side effects
+i = (0 | ???*1**0*)
+- *0* ⚠️ This value might have side effects
+- *1* updated with update expression
 
 key = (keys[i] | undefined)
 

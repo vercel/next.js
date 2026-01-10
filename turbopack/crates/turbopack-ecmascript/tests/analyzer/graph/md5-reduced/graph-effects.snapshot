@@ -114,11 +114,13 @@
                 #3,
             ),
         ),
-        prop: Unknown {
-            original_value: None,
-            reason: "unsupported expression",
-            has_side_effects: true,
-        },
+        prop: Effectful(
+            2,
+            Unknown {
+                original_value: None,
+                reason: "unsupported expression",
+            },
+        ),
         ast_path: [
             Program(
                 Script,
@@ -174,13 +176,15 @@
             ),
         ),
         prop: Add(
-            3,
+            4,
             [
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Effectful(
+                    2,
+                    Unknown {
+                        original_value: None,
+                        reason: "unsupported expression",
+                    },
+                ),
                 Constant(
                     Num(
                         ConstantNumber(
@@ -444,11 +448,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Effectful(
+                    2,
+                    Unknown {
+                        original_value: None,
+                        reason: "unsupported expression",
+                    },
+                ),
             ),
         ],
         ast_path: [
@@ -684,11 +690,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Effectful(
+                    2,
+                    Unknown {
+                        original_value: None,
+                        reason: "unsupported expression",
+                    },
+                ),
             ),
         ],
         ast_path: [
@@ -1166,11 +1174,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Effectful(
+                    2,
+                    Unknown {
+                        original_value: None,
+                        reason: "unsupported expression",
+                    },
+                ),
             ),
         ],
         ast_path: [
@@ -1406,11 +1416,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Effectful(
+                    2,
+                    Unknown {
+                        original_value: None,
+                        reason: "unsupported expression",
+                    },
+                ),
             ),
         ],
         ast_path: [
@@ -1888,11 +1900,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Effectful(
+                    2,
+                    Unknown {
+                        original_value: None,
+                        reason: "unsupported expression",
+                    },
+                ),
             ),
         ],
         ast_path: [
@@ -2128,11 +2142,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Effectful(
+                    2,
+                    Unknown {
+                        original_value: None,
+                        reason: "unsupported expression",
+                    },
+                ),
             ),
         ],
         ast_path: [
@@ -2610,11 +2626,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Effectful(
+                    2,
+                    Unknown {
+                        original_value: None,
+                        reason: "unsupported expression",
+                    },
+                ),
             ),
         ],
         ast_path: [
@@ -2850,11 +2868,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Effectful(
+                    2,
+                    Unknown {
+                        original_value: None,
+                        reason: "unsupported expression",
+                    },
+                ),
             ),
         ],
         ast_path: [
@@ -3090,11 +3110,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Effectful(
+                    2,
+                    Unknown {
+                        original_value: None,
+                        reason: "unsupported expression",
+                    },
+                ),
             ),
         ],
         ast_path: [
@@ -3572,11 +3594,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Effectful(
+                    2,
+                    Unknown {
+                        original_value: None,
+                        reason: "unsupported expression",
+                    },
+                ),
             ),
         ],
         ast_path: [
@@ -3812,11 +3836,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Effectful(
+                    2,
+                    Unknown {
+                        original_value: None,
+                        reason: "unsupported expression",
+                    },
+                ),
             ),
         ],
         ast_path: [
@@ -5073,11 +5099,13 @@
         ),
         args: [
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Effectful(
+                    2,
+                    Unknown {
+                        original_value: None,
+                        reason: "unsupported expression",
+                    },
+                ),
             ),
             Value(
                 Variable(

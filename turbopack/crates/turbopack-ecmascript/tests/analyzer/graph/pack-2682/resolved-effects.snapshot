@@ -3,7 +3,6 @@
 0 -> 3 member call = ???*0*["random"]()
 - *0* FreeVar(Math)
   ⚠️  unknown global
-  ⚠️  This value might have side effects
 
 0 -> 5 free var = FreeVar(JSON)
 
@@ -21,7 +20,6 @@
 )
 - *0* FreeVar(JSON)
   ⚠️  unknown global
-  ⚠️  This value might have side effects
 - *1* ???*2*["variable"]
   ⚠️  unknown object
 - *2* arguments[0]
@@ -33,9 +31,9 @@
 - *5* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-0 -> 8 unreachable = ???*0*
-- *0* unreachable
-  ⚠️  This value might have side effects
+0 -> 8 unreachable = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* unreachable
 
 0 -> 9 call = (...) => FreeVar(JSON)["stringify"](
     {

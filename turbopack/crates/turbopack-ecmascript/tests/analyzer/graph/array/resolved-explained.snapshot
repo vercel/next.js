@@ -7,10 +7,8 @@ c = (1 | "foo" | ???*0*)
   ⚠️  unknown array prototype methods or values
 - *1* ???*2*["index"]
   ⚠️  unknown object
-  ⚠️  This value might have side effects
 - *2* FreeVar(global)
   ⚠️  unknown global
-  ⚠️  This value might have side effects
 
 d1 = [1, "foo"]
 
@@ -19,14 +17,11 @@ d2 = (1 | "foo" | ???*0*)
   ⚠️  unknown array prototype methods or values
 - *1* ???*2*["index"]
   ⚠️  unknown object
-  ⚠️  This value might have side effects
 - *2* FreeVar(global)
   ⚠️  unknown global
-  ⚠️  This value might have side effects
 
 d3 = ("foo" | ???*0*)
 - *0* unknown mutation
-  ⚠️  This value might have side effects
 
 d4 = ???*0*
 - *0* [1, "foo"][2]
@@ -34,8 +29,6 @@ d4 = ???*0*
 
 value#3 = (1 | "foo" | ???*0*)
 - *0* unknown mutation
-  ⚠️  This value might have side effects
 
 value#5 = ???*0*
 - *0* unknown mutation
-  ⚠️  This value might have side effects

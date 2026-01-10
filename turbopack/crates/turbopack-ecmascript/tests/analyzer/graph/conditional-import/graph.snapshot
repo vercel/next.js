@@ -32,7 +32,6 @@
                         ),
                     ),
                     reason: "pattern without value",
-                    has_side_effects: false,
                 },
                 Call(
                     3,

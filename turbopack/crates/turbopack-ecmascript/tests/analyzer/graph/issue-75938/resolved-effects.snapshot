@@ -2,7 +2,6 @@
 
 2 -> 3 call = new ???*0*()
 - *0* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 6 member call = module<react, {}>["useMemo"]((...) => ???*0*, [])["hi"]()
 - *0* new HelloWorld()
@@ -13,13 +12,12 @@
     {"onClick": (...) => helloWorld["hi"](), "children": "Click me"}
 )
 
-0 -> 8 unreachable = ???*0*
-- *0* unreachable
-  ⚠️  This value might have side effects
+0 -> 8 unreachable = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* unreachable
 
 0 -> 9 member call = ???*0*[???*1*]((...) => undefined)
 - *0* unsupported expression
-  ⚠️  This value might have side effects
 - *1* private names in member expressions are not supported
 
 9 -> 10 free var = FreeVar(alert)
@@ -29,12 +27,11 @@
 9 -> 13 call = ???*0*(module<./external, {}>["fooBar"]())
 - *0* FreeVar(alert)
   ⚠️  unknown global
-  ⚠️  This value might have side effects
 
 0 -> 14 call = ???*0*()
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-0 -> 15 unreachable = ???*0*
-- *0* unreachable
-  ⚠️  This value might have side effects
+0 -> 15 unreachable = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* unreachable

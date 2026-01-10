@@ -331,4 +331,195 @@
         ],
         span: 387..393,
     },
+    Member {
+        obj: Variable(
+            (
+                "t",
+                #2,
+            ),
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "__esModule",
+                ),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    16,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    1,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Cond,
+            ),
+            CondExpr(
+                Test,
+            ),
+            Expr(
+                Bin,
+            ),
+            BinExpr(
+                Right,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 436..448,
+    },
+    Conditional {
+        condition: Logical(
+            6,
+            And,
+            [
+                Effectful(
+                    2,
+                    Variable(
+                        (
+                            "r",
+                            #2,
+                        ),
+                    ),
+                ),
+                Member(
+                    3,
+                    Variable(
+                        (
+                            "t",
+                            #2,
+                        ),
+                    ),
+                    Constant(
+                        Str(
+                            Atom(
+                                "__esModule",
+                            ),
+                        ),
+                    ),
+                ),
+            ],
+        ),
+        kind: Ternary {
+            then: EffectsBlock {
+                effects: [],
+                range: Exact(
+                    [
+                        Program(
+                            Script,
+                        ),
+                        Script(
+                            Body(
+                                16,
+                            ),
+                        ),
+                        Stmt(
+                            Decl,
+                        ),
+                        Decl(
+                            Var,
+                        ),
+                        VarDecl(
+                            Decls(
+                                1,
+                            ),
+                        ),
+                        VarDeclarator(
+                            Init,
+                        ),
+                        Expr(
+                            Cond,
+                        ),
+                        CondExpr(
+                            Cons,
+                        ),
+                    ],
+                ),
+            },
+            else: EffectsBlock {
+                effects: [],
+                range: Exact(
+                    [
+                        Program(
+                            Script,
+                        ),
+                        Script(
+                            Body(
+                                16,
+                            ),
+                        ),
+                        Stmt(
+                            Decl,
+                        ),
+                        Decl(
+                            Var,
+                        ),
+                        VarDecl(
+                            Decls(
+                                1,
+                            ),
+                        ),
+                        VarDeclarator(
+                            Init,
+                        ),
+                        Expr(
+                            Cond,
+                        ),
+                        CondExpr(
+                            Alt,
+                        ),
+                    ],
+                ),
+            },
+        },
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    16,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    1,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Cond,
+            ),
+            CondExpr(
+                Test,
+            ),
+        ],
+        span: 425..469,
+    },
 ]

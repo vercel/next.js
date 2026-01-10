@@ -1,6 +1,6 @@
-a#3 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+a#3 = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
 a#5 = ???*0*
 - *0* arguments[1]
@@ -10,9 +10,9 @@ a#6 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-b#3 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+b#3 = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
 b#5 = ???*0*
 - *0* arguments[2]
@@ -22,17 +22,17 @@ b#6 = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analyzed yet
 
-c#3 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+c#3 = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
 c#6 = ???*0*
 - *0* arguments[2]
   ⚠️  function calls are not analyzed yet
 
-d#3 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+d#3 = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
 d#6 = ???*0*
 - *0* arguments[3]
@@ -56,25 +56,25 @@ md5cmn = (...) => FreeVar(safeAdd)(
     b
 )
 
-md5ff = (...) => md5cmn(???*0*, a, b, x, s, t)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+md5ff = (...) => md5cmn(???*1**0*, a, b, x, s, t)
+- *0* ⚠️ This value might have side effects
+- *1* unsupported expression
 
-olda = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+olda = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
-oldb = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+oldb = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
-oldc = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+oldc = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
-oldd = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+oldd = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
 q = ???*0*
 - *0* arguments[0]

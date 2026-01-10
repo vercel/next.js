@@ -1,34 +1,42 @@
 [
     (
         "X",
-        Unknown {
-            original_value: None,
-            reason: "unsupported expression",
-            has_side_effects: true,
-        },
+        Effectful(
+            2,
+            Unknown {
+                original_value: None,
+                reason: "unsupported expression",
+            },
+        ),
     ),
     (
         "bound_this_ctor",
-        Unknown {
-            original_value: None,
-            reason: "unsupported expression",
-            has_side_effects: true,
-        },
+        Effectful(
+            2,
+            Unknown {
+                original_value: None,
+                reason: "unsupported expression",
+            },
+        ),
     ),
     (
         "bound_this_static",
-        Unknown {
-            original_value: None,
-            reason: "unsupported expression",
-            has_side_effects: true,
-        },
+        Effectful(
+            2,
+            Unknown {
+                original_value: None,
+                reason: "unsupported expression",
+            },
+        ),
     ),
     (
         "free_this_root",
-        Unknown {
-            original_value: None,
-            reason: "unsupported expression",
-            has_side_effects: true,
-        },
+        Effectful(
+            2,
+            Unknown {
+                original_value: None,
+                reason: "unsupported expression",
+            },
+        ),
     ),
 ]

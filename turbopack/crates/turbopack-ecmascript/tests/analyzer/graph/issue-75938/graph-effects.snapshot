@@ -724,15 +724,16 @@
         ],
     },
     MemberCall {
-        obj: Unknown {
-            original_value: None,
-            reason: "unsupported expression",
-            has_side_effects: true,
-        },
+        obj: Effectful(
+            2,
+            Unknown {
+                original_value: None,
+                reason: "unsupported expression",
+            },
+        ),
         prop: Unknown {
             original_value: None,
             reason: "private names in member expressions are not supported",
-            has_side_effects: false,
         },
         args: [
             Closure(

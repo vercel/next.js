@@ -12,9 +12,9 @@
 
 0 -> 7 free var = FreeVar(platformKey)
 
-0 -> 8 unreachable = ???*0*
-- *0* unreachable
-  ⚠️  This value might have side effects
+0 -> 8 unreachable = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* unreachable
 
 0 -> 9 call = (...) => {"pkg": pkg, "subpath": subpath}()
 
@@ -28,17 +28,13 @@
   ⚠️  pattern without value
 - *2* {}[???*3*]
   ⚠️  unknown object prototype methods or values
-  ⚠️  This value might have side effects
 - *3* FreeVar(platformKey)
   ⚠️  unknown global
-  ⚠️  This value might have side effects
 - *4* unknown mutation
-  ⚠️  This value might have side effects
 - *5* subpath
   ⚠️  pattern without value
 - *6* unknown mutation
-  ⚠️  This value might have side effects
 
-0 -> 13 unreachable = ???*0*
-- *0* unreachable
-  ⚠️  This value might have side effects
+0 -> 13 unreachable = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* unreachable

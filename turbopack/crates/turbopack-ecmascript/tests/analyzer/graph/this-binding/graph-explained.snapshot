@@ -1,15 +1,15 @@
-X (const after eval) = ???*0*
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+X (const after eval) = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* unsupported expression
 
-bound_this_ctor = ???*0*
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+bound_this_ctor = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* unsupported expression
 
-bound_this_static (const after eval) = ???*0*
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+bound_this_static (const after eval) = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* unsupported expression
 
-free_this_root (const after eval) = ???*0*
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+free_this_root (const after eval) = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* unsupported expression

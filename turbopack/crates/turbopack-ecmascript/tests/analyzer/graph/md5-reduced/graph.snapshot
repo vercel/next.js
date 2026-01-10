@@ -2,7 +2,7 @@
     (
         "a#3",
         Alternatives {
-            total_nodes: 52,
+            total_nodes: 54,
             values: [
                 Constant(
                     Num(
@@ -12,7 +12,7 @@
                     ),
                 ),
                 Call(
-                    11,
+                    12,
                     Variable(
                         (
                             "md5ff",
@@ -66,15 +66,17 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "md5ff",
@@ -140,11 +142,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
@@ -320,15 +324,17 @@
     (
         "b#3",
         Alternatives {
-            total_nodes: 54,
+            total_nodes: 58,
             values: [
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Effectful(
+                    2,
+                    Unknown {
+                        original_value: None,
+                        reason: "unsupported expression",
+                    },
+                ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "md5ff",
@@ -394,15 +400,17 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "md5ff",
@@ -468,15 +476,17 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "md5ff",
@@ -542,11 +552,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
@@ -646,13 +658,15 @@
     (
         "c#3",
         Alternatives {
-            total_nodes: 54,
+            total_nodes: 58,
             values: [
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Effectful(
+                    2,
+                    Unknown {
+                        original_value: None,
+                        reason: "unsupported expression",
+                    },
+                ),
                 Call(
                     13,
                     Variable(
@@ -730,7 +744,7 @@
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "md5ff",
@@ -796,15 +810,17 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "md5ff",
@@ -870,15 +886,17 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "md5ff",
@@ -944,11 +962,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
             ],
@@ -965,7 +985,7 @@
     (
         "d#3",
         Alternatives {
-            total_nodes: 54,
+            total_nodes: 57,
             values: [
                 Constant(
                     Num(
@@ -975,7 +995,7 @@
                     ),
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "md5ff",
@@ -1041,11 +1061,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
@@ -1125,7 +1147,7 @@
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "md5ff",
@@ -1191,15 +1213,17 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "md5ff",
@@ -1265,11 +1289,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
             ],
@@ -1298,7 +1324,6 @@
                         ),
                     ),
                     reason: "pattern without value",
-                    has_side_effects: false,
                 },
                 Constant(
                     Num(
@@ -1422,10 +1447,10 @@
     (
         "md5ff",
         Function(
-            9,
+            10,
             1530,
             Call(
-                8,
+                9,
                 Variable(
                     (
                         "md5cmn",
@@ -1433,11 +1458,13 @@
                     ),
                 ),
                 [
-                    Unknown {
-                        original_value: None,
-                        reason: "unsupported expression",
-                        has_side_effects: true,
-                    },
+                    Effectful(
+                        2,
+                        Unknown {
+                            original_value: None,
+                            reason: "unsupported expression",
+                        },
+                    ),
                     Variable(
                         (
                             "a",
@@ -1487,7 +1514,6 @@
                         ),
                     ),
                     reason: "pattern without value",
-                    has_side_effects: false,
                 },
                 Variable(
                     (
@@ -1514,7 +1540,6 @@
                         ),
                     ),
                     reason: "pattern without value",
-                    has_side_effects: false,
                 },
                 Variable(
                     (
@@ -1541,7 +1566,6 @@
                         ),
                     ),
                     reason: "pattern without value",
-                    has_side_effects: false,
                 },
                 Variable(
                     (
@@ -1568,7 +1592,6 @@
                         ),
                     ),
                     reason: "pattern without value",
-                    has_side_effects: false,
                 },
                 Variable(
                     (

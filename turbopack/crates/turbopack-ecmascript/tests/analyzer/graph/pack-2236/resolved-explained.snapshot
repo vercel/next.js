@@ -5,4 +5,3 @@ Redis = (???*0* ? module<ioredis, {}> : module<@upstash/redis, {}>["Redis"])
   ⚠️  nested operation
 - *2* FreeVar(EdgeRuntime)
   ⚠️  unknown global
-  ⚠️  This value might have side effects

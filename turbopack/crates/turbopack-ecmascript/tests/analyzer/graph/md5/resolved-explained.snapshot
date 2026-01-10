@@ -18,9 +18,9 @@ a#18 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-a#7 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+a#7 = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
 b#14 = ???*0*
 - *0* arguments[2]
@@ -42,29 +42,25 @@ b#18 = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analyzed yet
 
-b#7 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+b#7 = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
-bitRotateLeft = (...) => ???*0*
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+bitRotateLeft = (...) => ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* unsupported expression
 
 bytes = (???*0* | new ???*1*((???*2* | undefined["length"])))
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 - *1* FreeVar(Array)
   ⚠️  unknown global
-  ⚠️  This value might have side effects
 - *2* ???*3*["length"]
   ⚠️  unknown object
-  ⚠️  This value might have side effects
 - *3* ???*4*(FreeVar(encodeURIComponent)(bytes))
   ⚠️  unknown callee
-  ⚠️  This value might have side effects
 - *4* FreeVar(unescape)
   ⚠️  unknown global
-  ⚠️  This value might have side effects
 
 bytesToWords = (...) => output
 
@@ -84,9 +80,9 @@ c#18 = ???*0*
 - *0* arguments[2]
   ⚠️  function calls are not analyzed yet
 
-c#7 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+c#7 = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
 cnt = ???*0*
 - *0* arguments[1]
@@ -108,32 +104,29 @@ d#18 = ???*0*
 - *0* arguments[3]
   ⚠️  function calls are not analyzed yet
 
-d#7 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+d#7 = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
 hex = (???*0* | ???*1*)
 - *0* hex
   ⚠️  pattern without value
 - *1* ???*2*(
-        (hexTab["charAt"](???*3*) + hexTab["charAt"](???*4*)),
+        (hexTab["charAt"](???*4**3*) + hexTab["charAt"](???*6**5*)),
         16
     )
   ⚠️  unknown callee
-  ⚠️  This value might have side effects
 - *2* FreeVar(parseInt)
   ⚠️  unknown global
-  ⚠️  This value might have side effects
-- *3* unsupported expression
-  ⚠️  This value might have side effects
+- *3* ⚠️ This value might have side effects
 - *4* unsupported expression
-  ⚠️  This value might have side effects
+- *5* ⚠️ This value might have side effects
+- *6* unsupported expression
 
 hexTab = "0123456789abcdef"
 
 i#3 = (0 | undefined | ???*0*)
 - *0* updated with update expression
-  ⚠️  This value might have side effects
 
 i#5 = (???*0* | 0 | (???*1* + 8))
 - *0* i
@@ -169,21 +162,17 @@ len = ???*0*
 
 length32 = ???*0*
 - *0* unsupported expression
-  ⚠️  This value might have side effects
 
 length8 = ???*0*
 - *0* unsupported expression
-  ⚠️  This value might have side effects
 
 lsw = (???*0* + ???*1*)
 - *0* unsupported expression
-  ⚠️  This value might have side effects
 - *1* unsupported expression
-  ⚠️  This value might have side effects
 
-md5 = (...) => md5ToHexEncodedArray(wordsToMd5(bytesToWords(bytes), ???*0*))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+md5 = (...) => md5ToHexEncodedArray(wordsToMd5(bytesToWords(bytes), ???*1**0*))
+- *0* ⚠️ This value might have side effects
+- *1* unsupported expression
 
 md5ToHexEncodedArray = (...) => output
 
@@ -192,57 +181,52 @@ md5cmn = (...) => safeAdd(
     b
 )
 
-md5ff = (...) => md5cmn(???*0*, a, b, x, s, t)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+md5ff = (...) => md5cmn(???*1**0*, a, b, x, s, t)
+- *0* ⚠️ This value might have side effects
+- *1* unsupported expression
 
-md5gg = (...) => md5cmn(???*0*, a, b, x, s, t)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+md5gg = (...) => md5cmn(???*1**0*, a, b, x, s, t)
+- *0* ⚠️ This value might have side effects
+- *1* unsupported expression
 
-md5hh = (...) => md5cmn(???*0*, a, b, x, s, t)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+md5hh = (...) => md5cmn(???*1**0*, a, b, x, s, t)
+- *0* ⚠️ This value might have side effects
+- *1* unsupported expression
 
-md5ii = (...) => md5cmn(???*0*, a, b, x, s, t)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+md5ii = (...) => md5cmn(???*1**0*, a, b, x, s, t)
+- *0* ⚠️ This value might have side effects
+- *1* unsupported expression
 
 msg = (???*0* | undefined)
 - *0* ???*1*(FreeVar(encodeURIComponent)(bytes))
   ⚠️  unknown callee
-  ⚠️  This value might have side effects
 - *1* FreeVar(unescape)
   ⚠️  unknown global
-  ⚠️  This value might have side effects
 
 msw = (???*0* + ???*1* + ???*2*)
 - *0* unsupported expression
-  ⚠️  This value might have side effects
 - *1* unsupported expression
-  ⚠️  This value might have side effects
 - *2* unsupported expression
-  ⚠️  This value might have side effects
 
 num = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-olda = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+olda = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
-oldb = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+oldb = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
-oldc = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+oldc = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
-oldd = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+oldd = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
 output#5 = []
 
@@ -272,9 +256,9 @@ s#18 = ???*0*
 - *0* arguments[5]
   ⚠️  function calls are not analyzed yet
 
-safeAdd = (...) => ???*0*
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+safeAdd = (...) => ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* unsupported expression
 
 t#14 = ???*0*
 - *0* arguments[5]
@@ -326,7 +310,6 @@ x#5 = (???*0* | ???*1*)
 - *0* x
   ⚠️  pattern without value
 - *1* unsupported expression
-  ⚠️  This value might have side effects
 
 x#7 = ???*0*
 - *0* arguments[0]

@@ -10,6 +10,7 @@ use std::{
 };
 
 use anyhow::{Result, bail};
+use either::Either;
 use graph::VarGraph;
 use num_bigint::BigInt;
 use num_traits::identities::Zero;
@@ -435,7 +436,6 @@ pub enum JsValue {
     Unknown {
         original_value: Option<Arc<JsValue>>,
         reason: Cow<'static, str>,
-        has_side_effects: bool,
     },
 
     // NESTED VALUES
@@ -525,6 +525,8 @@ pub enum JsValue {
     FreeVar(Atom),
     /// This is a reference to a imported module.
     Module(ModuleValue),
+    // A known value with a side effect.
+    Effectful(u32, Box<JsValue>),
 }
 
 impl From<&'_ str> for JsValue {
@@ -806,6 +808,7 @@ impl Display for JsValue {
             JsValue::TypeOf(_, operand) => write!(f, "typeof({operand})"),
             JsValue::Promise(_, operand) => write!(f, "Promise<{operand}>"),
             JsValue::Awaited(_, operand) => write!(f, "await({operand})"),
+            JsValue::Effectful(_, operand) => write!(f, "effectful({operand})"),
         }
     }
 }
@@ -868,6 +871,7 @@ impl JsValue {
             | JsValue::Alternatives { .. }
             | JsValue::Function(..)
             | JsValue::Promise(..)
+            | JsValue::Effectful(..)
             | JsValue::Member(..) => JsValueMetaKind::Nested,
             JsValue::Concat(..)
             | JsValue::Add(..)
@@ -1099,19 +1103,23 @@ impl JsValue {
         side_effects: bool,
         reason: impl Into<Cow<'static, str>>,
     ) -> Self {
-        Self::Unknown {
-            original_value: Some(value.into()),
-            reason: reason.into(),
-            has_side_effects: side_effects,
-        }
+        JsValue::maybe_with_side_effect(
+            Self::Unknown {
+                original_value: Some(value.into()),
+                reason: reason.into(),
+            },
+            side_effects,
+        )
     }
 
     pub fn unknown_empty(side_effects: bool, reason: impl Into<Cow<'static, str>>) -> Self {
-        Self::Unknown {
-            original_value: None,
-            reason: reason.into(),
-            has_side_effects: side_effects,
-        }
+        JsValue::maybe_with_side_effect(
+            Self::Unknown {
+                original_value: None,
+                reason: reason.into(),
+            },
+            side_effects,
+        )
     }
 
     pub fn unknown_if(
@@ -1120,15 +1128,21 @@ impl JsValue {
         side_effects: bool,
         reason: impl Into<Cow<'static, str>>,
     ) -> Self {
-        if is_unknown {
-            Self::Unknown {
-                original_value: Some(value.into()),
-                reason: reason.into(),
-                has_side_effects: side_effects,
-            }
-        } else {
-            value
-        }
+        JsValue::maybe_with_side_effect(
+            if is_unknown {
+                Self::Unknown {
+                    original_value: Some(value.into()),
+                    reason: reason.into(),
+                }
+            } else {
+                value
+            },
+            side_effects,
+        )
+    }
+
+    pub fn effectful(value: JsValue) -> JsValue {
+        Self::Effectful(1 + value.total_nodes(), Box::new(value))
     }
 }
 
@@ -1168,7 +1182,8 @@ impl JsValue {
             | JsValue::Iterated(c, ..)
             | JsValue::Promise(c, ..)
             | JsValue::Awaited(c, ..)
-            | JsValue::TypeOf(c, ..) => *c,
+            | JsValue::TypeOf(c, ..)
+            | JsValue::Effectful(c, ..) => *c,
         }
     }
 
@@ -1196,7 +1211,8 @@ impl JsValue {
             }
             | JsValue::Concat(c, list)
             | JsValue::Add(c, list)
-            | JsValue::Logical(c, _, list) => {
+            | JsValue::Logical(c, _, list)
+            | JsValue::SuperCall(c, list) => {
                 *c = 1 + total_nodes(list);
             }
 
@@ -1206,13 +1222,13 @@ impl JsValue {
             JsValue::Tenary(c, test, cons, alt) => {
                 *c = 1 + test.total_nodes() + cons.total_nodes() + alt.total_nodes();
             }
-            JsValue::Not(c, r) => {
-                *c = 1 + r.total_nodes();
-            }
-            JsValue::Promise(c, r) => {
-                *c = 1 + r.total_nodes();
-            }
-            JsValue::Awaited(c, r) => {
+            JsValue::Effectful(c, r)
+            | JsValue::Awaited(c, r)
+            | JsValue::Promise(c, r)
+            | JsValue::Not(c, r)
+            | JsValue::Function(c, _, r)
+            | JsValue::Iterated(c, r)
+            | JsValue::TypeOf(c, r) => {
                 *c = 1 + r.total_nodes();
             }
 
@@ -1229,31 +1245,14 @@ impl JsValue {
                     })
                     .sum::<u32>();
             }
-            JsValue::New(c, f, list) => {
+            JsValue::Call(c, f, list) | JsValue::New(c, f, list) => {
                 *c = 1 + f.total_nodes() + total_nodes(list);
-            }
-            JsValue::Call(c, f, list) => {
-                *c = 1 + f.total_nodes() + total_nodes(list);
-            }
-            JsValue::SuperCall(c, list) => {
-                *c = 1 + total_nodes(list);
             }
             JsValue::MemberCall(c, o, m, list) => {
                 *c = 1 + o.total_nodes() + m.total_nodes() + total_nodes(list);
             }
             JsValue::Member(c, o, p) => {
                 *c = 1 + o.total_nodes() + p.total_nodes();
-            }
-            JsValue::Function(c, _, r) => {
-                *c = 1 + r.total_nodes();
-            }
-
-            JsValue::Iterated(c, iterable) => {
-                *c = 1 + iterable.total_nodes();
-            }
-
-            JsValue::TypeOf(c, operand) => {
-                *c = 1 + operand.total_nodes();
             }
         }
     }
@@ -1273,6 +1272,7 @@ impl JsValue {
     pub fn debug_assert_total_nodes_up_to_date(&mut self) {}
 
     pub fn ensure_node_limit(&mut self, limit: u32) {
+        const REASON: &str = "node limit reached";
         fn cmp_nodes(a: &JsValue, b: &JsValue) -> Ordering {
             a.total_nodes().cmp(&b.total_nodes())
         }
@@ -1285,10 +1285,11 @@ impl JsValue {
                     max = item;
                 }
             }
-            max.make_unknown_without_content(side_effects, "node limit reached");
+            max.make_unknown_without_content(side_effects, REASON);
         }
         if self.total_nodes() > limit {
-            match self {
+            let (side_effects, this) = self.without_side_effects_mut();
+            match this {
                 JsValue::Constant(_)
                 | JsValue::Url(_, _)
                 | JsValue::FreeVar(_)
@@ -1296,15 +1297,22 @@ impl JsValue {
                 | JsValue::Module(..)
                 | JsValue::WellKnownObject(_)
                 | JsValue::WellKnownFunction(_)
-                | JsValue::Argument(..) => {
-                    self.make_unknown_without_content(false, "node limit reached")
+                | JsValue::Argument(..)
+                | JsValue::Unknown { .. } => {
+                    self.make_unknown_without_content(side_effects, REASON);
+                    return;
                 }
-                &mut JsValue::Unknown {
-                    original_value: _,
-                    reason: _,
-                    has_side_effects,
-                } => self.make_unknown_without_content(has_side_effects, "node limit reached"),
-
+                JsValue::Iterated(_, operand)
+                | JsValue::TypeOf(_, operand)
+                | JsValue::Awaited(_, operand)
+                | JsValue::Promise(_, operand)
+                | JsValue::Function(_, _, operand)
+                | JsValue::Not(_, operand) => {
+                    // why replace the inner part instead of the outer value? useful to maintain
+                    // that it is `Iterated`?
+                    operand.make_unknown_without_content(side_effects, REASON);
+                    return;
+                }
                 JsValue::Array { items: list, .. }
                 | JsValue::Alternatives {
                     total_nodes: _,
@@ -1315,67 +1323,46 @@ impl JsValue {
                 | JsValue::Logical(_, _, list)
                 | JsValue::Add(_, list) => {
                     make_max_unknown(list.iter_mut());
-                    self.update_total_nodes();
-                }
-                JsValue::Not(_, r) => {
-                    r.make_unknown_without_content(false, "node limit reached");
                 }
                 JsValue::Binary(_, a, _, b) => {
                     if a.total_nodes() > b.total_nodes() {
-                        a.make_unknown_without_content(b.has_side_effects(), "node limit reached");
+                        a.make_unknown_without_content(b.has_side_effects(), REASON);
                     } else {
-                        b.make_unknown_without_content(a.has_side_effects(), "node limit reached");
+                        b.make_unknown_without_content(a.has_side_effects(), REASON);
                     }
-                    self.update_total_nodes();
                 }
                 JsValue::Object { parts, .. } => {
                     make_max_unknown(parts.iter_mut().flat_map(|v| match v {
-                        // TODO this probably can avoid heap allocation somehow
-                        ObjectPart::KeyValue(k, v) => vec![k, v].into_iter(),
-                        ObjectPart::Spread(s) => vec![s].into_iter(),
+                        ObjectPart::KeyValue(k, v) => Either::Left([k, v].into_iter()),
+                        ObjectPart::Spread(s) => Either::Right([s].into_iter()),
                     }));
-                    self.update_total_nodes();
+                    self.make_with_side_effect(side_effects);
                 }
                 JsValue::New(_, f, args) => {
                     make_max_unknown([&mut **f].into_iter().chain(args.iter_mut()));
-                    self.update_total_nodes();
                 }
                 JsValue::Call(_, f, args) => {
                     make_max_unknown([&mut **f].into_iter().chain(args.iter_mut()));
-                    self.update_total_nodes();
                 }
                 JsValue::SuperCall(_, args) => {
                     make_max_unknown(args.iter_mut());
-                    self.update_total_nodes();
                 }
                 JsValue::MemberCall(_, o, p, args) => {
                     make_max_unknown([&mut **o, &mut **p].into_iter().chain(args.iter_mut()));
-                    self.update_total_nodes();
                 }
                 JsValue::Tenary(_, test, cons, alt) => {
                     make_max_unknown([&mut **test, &mut **cons, &mut **alt].into_iter());
-                    self.update_total_nodes();
-                }
-                JsValue::Iterated(_, iterable) => {
-                    iterable.make_unknown_without_content(false, "node limit reached");
-                }
-                JsValue::TypeOf(_, operand) => {
-                    operand.make_unknown_without_content(false, "node limit reached");
-                }
-                JsValue::Awaited(_, operand) => {
-                    operand.make_unknown_without_content(false, "node limit reached");
-                }
-                JsValue::Promise(_, operand) => {
-                    operand.make_unknown_without_content(false, "node limit reached");
                 }
                 JsValue::Member(_, o, p) => {
                     make_max_unknown([&mut **o, &mut **p].into_iter());
-                    self.update_total_nodes();
                 }
-                JsValue::Function(_, _, r) => {
-                    r.make_unknown_without_content(false, "node limit reached");
+                JsValue::Effectful(_, _) => {
+                    unreachable!();
                 }
-            }
+            };
+
+            self.update_total_nodes();
+            self.make_with_side_effect(side_effects);
         }
     }
 }
@@ -1722,39 +1709,22 @@ impl JsValue {
             JsValue::Unknown {
                 original_value: inner,
                 reason: explainer,
-                has_side_effects,
             } => {
-                let has_side_effects = *has_side_effects;
                 if unknown_depth == 0 || explainer.is_empty() {
                     "???".to_string()
                 } else if let Some(inner) = inner {
                     let i = hints.len();
-                    hints.push(String::new());
+                    hints.push(String::new()); // add a placeholder since `explain_internal` may add more hints
                     hints[i] = format!(
-                        "- *{}* {}\n  ⚠️  {}{}",
+                        "- *{}* {}\n  ⚠️  {}",
                         i,
                         inner.explain_internal(hints, 1, depth, unknown_depth - 1),
                         explainer,
-                        if has_side_effects {
-                            "\n  ⚠️  This value might have side effects"
-                        } else {
-                            ""
-                        }
                     );
                     format!("???*{i}*")
                 } else {
                     let i = hints.len();
-                    hints.push(String::new());
-                    hints[i] = format!(
-                        "- *{}* {}{}",
-                        i,
-                        explainer,
-                        if has_side_effects {
-                            "\n  ⚠️  This value might have side effects"
-                        } else {
-                            ""
-                        }
-                    );
+                    hints.push(format!("- *{}* {}", i, explainer));
                     format!("???*{i}*")
                 }
             }
@@ -1852,16 +1822,16 @@ impl JsValue {
             JsValue::WellKnownFunction(func) => {
                 let (name, explainer) = match func {
                     WellKnownFunctionKind::ArrayFilter => (
-                      "Array.prototype.filter".to_string(),
-                      "The standard Array.prototype.filter method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/filter"
+                        "Array.prototype.filter".to_string(),
+                        "The standard Array.prototype.filter method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/filter"
                     ),
                     WellKnownFunctionKind::ArrayForEach => (
-                      "Array.prototype.forEach".to_string(),
-                      "The standard Array.prototype.forEach method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/forEach"
+                        "Array.prototype.forEach".to_string(),
+                        "The standard Array.prototype.forEach method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/forEach"
                     ),
                     WellKnownFunctionKind::ArrayMap => (
-                      "Array.prototype.map".to_string(),
-                      "The standard Array.prototype.map method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/map"
+                        "Array.prototype.map".to_string(),
+                        "The standard Array.prototype.map method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/map"
                     ),
                     WellKnownFunctionKind::ObjectAssign => (
                         "Object.assign".to_string(),
@@ -1947,32 +1917,32 @@ impl JsValue {
                         "require('express')().set('view engine', 'jade')  https://github.com/expressjs/express"
                     ),
                     WellKnownFunctionKind::NodeStrongGlobalize => (
-                      "SetRootDir".to_string(),
-                      "require('strong-globalize')()  https://github.com/strongloop/strong-globalize"
+                        "SetRootDir".to_string(),
+                        "require('strong-globalize')()  https://github.com/strongloop/strong-globalize"
                     ),
                     WellKnownFunctionKind::NodeStrongGlobalizeSetRootDir => (
-                      "SetRootDir".to_string(),
-                      "require('strong-globalize').SetRootDir(__dirname)  https://github.com/strongloop/strong-globalize"
+                        "SetRootDir".to_string(),
+                        "require('strong-globalize').SetRootDir(__dirname)  https://github.com/strongloop/strong-globalize"
                     ),
                     WellKnownFunctionKind::NodeResolveFrom => (
-                      "resolveFrom".to_string(),
-                      "require('resolve-from')(__dirname, 'node-gyp/bin/node-gyp')  https://github.com/sindresorhus/resolve-from"
+                        "resolveFrom".to_string(),
+                        "require('resolve-from')(__dirname, 'node-gyp/bin/node-gyp')  https://github.com/sindresorhus/resolve-from"
                     ),
                     WellKnownFunctionKind::NodeProtobufLoad => (
-                      "load/loadSync".to_string(),
-                      "require('@grpc/proto-loader').load(filepath, { includeDirs: [root] }) https://github.com/grpc/grpc-node"
+                        "load/loadSync".to_string(),
+                        "require('@grpc/proto-loader').load(filepath, { includeDirs: [root] }) https://github.com/grpc/grpc-node"
                     ),
                     WellKnownFunctionKind::NodeWorkerConstructor => (
-                      "Worker".to_string(),
-                      "The Node.js worker_threads Worker constructor: https://nodejs.org/api/worker_threads.html#worker_threads_class_worker"
+                        "Worker".to_string(),
+                        "The Node.js worker_threads Worker constructor: https://nodejs.org/api/worker_threads.html#worker_threads_class_worker"
                     ),
                     WellKnownFunctionKind::WorkerConstructor => (
-                      "Worker".to_string(),
-                      "The standard Worker constructor: https://developer.mozilla.org/en-US/docs/Web/API/Worker/Worker"
+                        "Worker".to_string(),
+                        "The standard Worker constructor: https://developer.mozilla.org/en-US/docs/Web/API/Worker/Worker"
                     ),
                     WellKnownFunctionKind::URLConstructor => (
-                      "URL".to_string(),
-                      "The standard URL constructor: https://developer.mozilla.org/en-US/docs/Web/API/URL/URL"
+                        "URL".to_string(),
+                        "The standard URL constructor: https://developer.mozilla.org/en-US/docs/Web/API/URL/URL"
                     ),
                 };
                 if depth > 0 {
@@ -1997,6 +1967,14 @@ impl JsValue {
                 } else {
                     "(...) => ...".to_string()
                 }
+            }
+            JsValue::Effectful(_, operand) => {
+                let i = hints.len();
+                hints.push(format!("- *{i}* ⚠️ This value might have side effects"));
+                format!(
+                    "{}*{i}*",
+                    operand.explain_internal_inner(hints, indent_depth, depth, unknown_depth)
+                )
             }
         }
     }
@@ -2048,6 +2026,36 @@ impl JsValue {
 
     pub fn add_unknown_mutations(&mut self, side_effects: bool) {
         self.add_alt(JsValue::unknown_empty(side_effects, "unknown mutation"));
+    }
+}
+
+// side effect management
+impl JsValue {
+    pub fn maybe_with_side_effect(v: JsValue, side_effects: bool) -> JsValue {
+        if side_effects && !matches!(v, JsValue::Effectful(_, _)) {
+            JsValue::effectful(v)
+        } else {
+            v
+        }
+    }
+    pub fn make_with_side_effect(&mut self, side_effects: bool) {
+        if side_effects && !matches!(self, JsValue::Effectful(_, _)) {
+            *self = JsValue::effectful(take(self));
+        }
+    }
+    pub fn without_side_effects(&self) -> (bool, &JsValue) {
+        if let JsValue::Effectful(_size, box inner) = self {
+            (true, inner)
+        } else {
+            (false, self)
+        }
+    }
+    pub fn without_side_effects_mut(&mut self) -> (bool, &mut JsValue) {
+        if let JsValue::Effectful(_size, inner) = self {
+            (true, inner.as_mut())
+        } else {
+            (false, self)
+        }
     }
 }
 
@@ -2228,7 +2236,6 @@ impl JsValue {
 
     pub fn has_side_effects(&self) -> bool {
         match self {
-            JsValue::Constant(_) => false,
             JsValue::Concat(_, values)
             | JsValue::Add(_, values)
             | JsValue::Logical(_, _, values)
@@ -2237,41 +2244,37 @@ impl JsValue {
                 values,
                 logical_property: _,
             } => values.iter().any(JsValue::has_side_effects),
-            JsValue::Binary(_, a, _, b) => a.has_side_effects() || b.has_side_effects(),
+            JsValue::Binary(_, a, _, b) | JsValue::Member(_, a, b) => {
+                a.has_side_effects() || b.has_side_effects()
+            }
             JsValue::Tenary(_, test, cons, alt) => {
                 test.has_side_effects() || cons.has_side_effects() || alt.has_side_effects()
             }
-            JsValue::Not(_, value) => value.has_side_effects(),
+            JsValue::Not(_, value)
+            | JsValue::Iterated(_, value)
+            | JsValue::TypeOf(_, value)
+            | JsValue::Promise(_, value)
+            | JsValue::Awaited(_, value) => value.has_side_effects(),
             JsValue::Array { items, .. } => items.iter().any(JsValue::has_side_effects),
             JsValue::Object { parts, .. } => parts.iter().any(|v| match v {
                 ObjectPart::KeyValue(k, v) => k.has_side_effects() || v.has_side_effects(),
                 ObjectPart::Spread(v) => v.has_side_effects(),
             }),
-            // As function bodies aren't analyzed for side-effects, we have to assume every call can
-            // have sideeffects as well.
-            // Otherwise it would be
-            // `func_body(callee).has_side_effects() ||
-            //      callee.has_side_effects() || args.iter().any(JsValue::has_side_effects`
-            JsValue::New(_, _callee, _args) => true,
-            JsValue::Call(_, _callee, _args) => true,
-            JsValue::SuperCall(_, _args) => true,
-            JsValue::MemberCall(_, _obj, _prop, _args) => true,
-            JsValue::Member(_, obj, prop) => obj.has_side_effects() || prop.has_side_effects(),
-            JsValue::Function(_, _, _) => false,
-            JsValue::Url(_, _) => false,
-            JsValue::Variable(_) => false,
-            JsValue::Module(_) => false,
-            JsValue::WellKnownObject(_) => false,
-            JsValue::WellKnownFunction(_) => false,
-            JsValue::FreeVar(_) => false,
-            JsValue::Unknown {
-                has_side_effects, ..
-            } => *has_side_effects,
-            JsValue::Argument(_, _) => false,
-            JsValue::Iterated(_, iterable) => iterable.has_side_effects(),
-            JsValue::TypeOf(_, operand) => operand.has_side_effects(),
-            JsValue::Promise(_, operand) => operand.has_side_effects(),
-            JsValue::Awaited(_, operand) => operand.has_side_effects(),
+            JsValue::New(..)
+            | JsValue::Call(..)
+            | JsValue::SuperCall(..)
+            | JsValue::MemberCall(..)
+            | JsValue::Effectful(_, _) => true,
+            JsValue::Constant(_)
+            | JsValue::Function(_, _, _)
+            | JsValue::Url(_, _)
+            | JsValue::Variable(_)
+            | JsValue::Module(_)
+            | JsValue::WellKnownObject(_)
+            | JsValue::WellKnownFunction(_)
+            | JsValue::FreeVar(_)
+            | JsValue::Unknown { .. }
+            | JsValue::Argument(_, _) => false,
         }
     }
 
@@ -2346,6 +2349,7 @@ impl JsValue {
                 }
                 .map(|x| x ^ negate)
             }
+            JsValue::Effectful(_, box inner) => inner.is_truthy(),
             _ => None,
         }
     }
@@ -2387,6 +2391,7 @@ impl JsValue {
                 }
                 LogicalOperator::NullishCoalescing => all_if_known(list, JsValue::is_nullish),
             },
+            JsValue::Effectful(_, box inner) => inner.is_nullish(),
             _ => None,
         }
     }
@@ -2430,6 +2435,7 @@ impl JsValue {
             | JsValue::WellKnownObject(..)
             | JsValue::WellKnownFunction(..)
             | JsValue::Function(..) => Some(false),
+            JsValue::Effectful(_, box inner) => inner.is_empty_string(),
             _ => None,
         }
     }
@@ -2444,82 +2450,8 @@ impl JsValue {
                 values,
                 logical_property: _,
             } => values.iter().any(|x| x.is_unknown()),
+            JsValue::Effectful(_, inner) => inner.is_unknown(),
             _ => false,
-        }
-    }
-
-    /// Checks if we know that the value is a string. Returns None if we
-    /// don't know. Returns Some if we know if or if not the value is a string.
-    pub fn is_string(&self) -> Option<bool> {
-        match self {
-            JsValue::Constant(ConstantValue::Str(..))
-            | JsValue::Concat(..)
-            | JsValue::TypeOf(..) => Some(true),
-
-            // Objects are not strings
-            JsValue::Constant(..)
-            | JsValue::Array { .. }
-            | JsValue::Object { .. }
-            | JsValue::Url(..)
-            | JsValue::Module(..)
-            | JsValue::Function(..)
-            | JsValue::WellKnownObject(_)
-            | JsValue::WellKnownFunction(_)
-            | JsValue::Promise(_, _) => Some(false),
-
-            // Booleans are not strings
-            JsValue::Not(..) | JsValue::Binary(..) => Some(false),
-
-            JsValue::Add(_, list) => any_if_known(list, JsValue::is_string),
-            JsValue::Logical(_, op, list) => match op {
-                LogicalOperator::And => {
-                    shortcircuit_if_known(list, JsValue::is_truthy, JsValue::is_string)
-                }
-                LogicalOperator::Or => {
-                    shortcircuit_if_known(list, JsValue::is_falsy, JsValue::is_string)
-                }
-                LogicalOperator::NullishCoalescing => {
-                    shortcircuit_if_known(list, JsValue::is_not_nullish, JsValue::is_string)
-                }
-            },
-
-            JsValue::Alternatives {
-                total_nodes: _,
-                values,
-                logical_property: _,
-            } => merge_if_known(values, JsValue::is_string),
-
-            JsValue::Call(
-                _,
-                box JsValue::WellKnownFunction(
-                    WellKnownFunctionKind::RequireResolve
-                    | WellKnownFunctionKind::PathJoin
-                    | WellKnownFunctionKind::PathResolve(..)
-                    | WellKnownFunctionKind::OsArch
-                    | WellKnownFunctionKind::OsPlatform
-                    | WellKnownFunctionKind::PathDirname
-                    | WellKnownFunctionKind::PathToFileUrl
-                    | WellKnownFunctionKind::ProcessCwd,
-                ),
-                _,
-            ) => Some(true),
-
-            JsValue::Awaited(_, operand) => match &**operand {
-                JsValue::Promise(_, v) => v.is_string(),
-                v => v.is_string(),
-            },
-
-            JsValue::FreeVar(..)
-            | JsValue::Variable(_)
-            | JsValue::Unknown { .. }
-            | JsValue::Argument(..)
-            | JsValue::New(..)
-            | JsValue::Call(..)
-            | JsValue::MemberCall(..)
-            | JsValue::Member(..)
-            | JsValue::Tenary(..)
-            | JsValue::SuperCall(..)
-            | JsValue::Iterated(..) => None,
         }
     }
 
@@ -2527,10 +2459,11 @@ impl JsValue {
     /// None if we don't know. Returns Some if we know if or if not the
     /// value starts with the given string.
     pub fn starts_with(&self, str: &str) -> Option<bool> {
-        if let Some(s) = self.as_str() {
+        let (_, this) = self.without_side_effects();
+        if let Some(s) = this.as_str() {
             return Some(s.starts_with(str));
         }
-        match self {
+        match this {
             JsValue::Alternatives {
                 total_nodes: _,
                 values,
@@ -2562,10 +2495,11 @@ impl JsValue {
     /// None if we don't know. Returns Some if we know if or if not the
     /// value ends with the given string.
     pub fn ends_with(&self, str: &str) -> Option<bool> {
-        if let Some(s) = self.as_str() {
+        let (_, this) = self.without_side_effects();
+        if let Some(s) = this.as_str() {
             return Some(s.ends_with(str));
         }
-        match self {
+        match this {
             JsValue::Alternatives {
                 total_nodes: _,
                 values,
@@ -2811,7 +2745,8 @@ impl JsValue {
             JsValue::Iterated(_, operand)
             | JsValue::TypeOf(_, operand)
             | JsValue::Promise(_, operand)
-            | JsValue::Awaited(_, operand) => {
+            | JsValue::Awaited(_, operand)
+            | JsValue::Effectful(_, operand) => {
                 let modified = visitor(operand);
                 if modified {
                     self.update_total_nodes();
@@ -3008,7 +2943,8 @@ impl JsValue {
             JsValue::Iterated(_, operand)
             | JsValue::TypeOf(_, operand)
             | JsValue::Promise(_, operand)
-            | JsValue::Awaited(_, operand) => {
+            | JsValue::Awaited(_, operand)
+            | JsValue::Effectful(_, operand) => {
                 visitor(operand);
             }
 
@@ -3132,7 +3068,7 @@ impl JsValue {
                 let mut added: Vec<JsValue> = Vec::new();
                 let mut iter = take(v).into_iter();
                 while let Some(item) = iter.next() {
-                    if item.is_string() == Some(true) {
+                    if item.as_str().is_some() {
                         let mut concat = match added.len() {
                             0 => Vec::new(),
                             1 => vec![added.into_iter().next().unwrap()],
@@ -3186,6 +3122,7 @@ impl JsValue {
                     self.update_total_nodes();
                 }
             }
+            JsValue::Effectful(_, box inner @ JsValue::Effectful(..)) => *self = take(inner),
             _ => {}
         }
     }
@@ -3282,6 +3219,9 @@ impl JsValue {
             (JsValue::Call(lc, lf, la), JsValue::Call(rc, rf, ra)) => {
                 lc == rc && lf.similar(rf, depth - 1) && all_similar(la, ra, depth - 1)
             }
+            (JsValue::SuperCall(lc, la), JsValue::SuperCall(rc, ra)) => {
+                lc == rc && all_similar(la, ra, depth - 1)
+            }
             (JsValue::MemberCall(lc, lo, lp, la), JsValue::MemberCall(rc, ro, rp, ra)) => {
                 lc == rc
                     && lo.similar(ro, depth - 1)
@@ -3291,9 +3231,25 @@ impl JsValue {
             (JsValue::Member(lc, lo, lp), JsValue::Member(rc, ro, rp)) => {
                 lc == rc && lo.similar(ro, depth - 1) && lp.similar(rp, depth - 1)
             }
+            (JsValue::Tenary(lc, lt, lcons, lalt), JsValue::Tenary(rc, rt, rcons, ralt)) => {
+                lc == rc
+                    && lt.similar(rt, depth - 1)
+                    && lcons.similar(rcons, depth - 1)
+                    && lalt.similar(ralt, depth - 1)
+            }
             (JsValue::Binary(lc, la, lo, lb), JsValue::Binary(rc, ra, ro, rb)) => {
                 lc == rc && lo == ro && la.similar(ra, depth - 1) && lb.similar(rb, depth - 1)
             }
+            (JsValue::Promise(lc, l), JsValue::Promise(rc, r)) => {
+                lc == rc && l.similar(r, depth - 1)
+            }
+            (JsValue::Awaited(lc, l), JsValue::Awaited(rc, r)) => {
+                lc == rc && l.similar(r, depth - 1)
+            }
+            (JsValue::Iterated(lc, l), JsValue::Iterated(rc, r)) => {
+                lc == rc && l.similar(r, depth - 1)
+            }
+            (JsValue::TypeOf(lc, l), JsValue::TypeOf(rc, r)) => lc == rc && l.similar(r, depth - 1),
             (
                 JsValue::Module(ModuleValue {
                     module: l,
@@ -3310,19 +3266,28 @@ impl JsValue {
                 JsValue::Unknown {
                     original_value: _,
                     reason: l,
-                    has_side_effects: ls,
                 },
                 JsValue::Unknown {
                     original_value: _,
                     reason: r,
-                    has_side_effects: rs,
                 },
-            ) => l == r && ls == rs,
+            ) => l == r,
             (JsValue::Function(lc, _, l), JsValue::Function(rc, _, r)) => {
                 lc == rc && l.similar(r, depth - 1)
             }
             (JsValue::Argument(li, l), JsValue::Argument(ri, r)) => li == ri && l == r,
-            _ => false,
+            (JsValue::Effectful(lc, l), JsValue::Effectful(rc, r)) => {
+                lc == rc && l.similar(r, depth - 1)
+            }
+            _ => {
+                debug_assert!(
+                    std::mem::discriminant(self) != std::mem::discriminant(other),
+                    "Missing case in similar() for matching variants: {:?} and {:?}",
+                    self,
+                    other
+                );
+                false
+            }
         }
     }
 
@@ -3409,7 +3374,8 @@ impl JsValue {
             JsValue::Iterated(_, operand)
             | JsValue::TypeOf(_, operand)
             | JsValue::Promise(_, operand)
-            | JsValue::Awaited(_, operand) => {
+            | JsValue::Awaited(_, operand)
+            | JsValue::Effectful(_, operand) => {
                 operand.similar_hash(state, depth - 1);
             }
             JsValue::Module(ModuleValue {
@@ -3424,10 +3390,8 @@ impl JsValue {
             JsValue::Unknown {
                 original_value: _,
                 reason: v,
-                has_side_effects,
             } => {
                 Hash::hash(v, state);
-                Hash::hash(has_side_effects, state);
             }
             JsValue::Function(_, _, v) => v.similar_hash(state, depth - 1),
             JsValue::Argument(i, v) => {

@@ -1,6 +1,6 @@
-*arrow function 173* = (...) => (???*0* | undefined)
-- *0* spread in function calls is not supported
-  ⚠️  This value might have side effects
+*arrow function 173* = (...) => (???*1**0* | undefined)
+- *0* ⚠️ This value might have side effects
+- *1* spread in function calls is not supported
 
 ComponentMod = arguments[0]
 
@@ -8,9 +8,9 @@ args = ???*0*
 - *0* args
   ⚠️  pattern without value
 
-clientComponentLoadTimes = (0 | (clientComponentLoadTimes + ???*0*))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+clientComponentLoadTimes = (0 | (clientComponentLoadTimes + ???*1**0*))
+- *0* ⚠️ This value might have side effects
+- *1* unsupported expression
 
 getClientComponentLoaderMetrics (const after eval) = (...) => metrics
 

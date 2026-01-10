@@ -14,7 +14,6 @@
 0 -> 9 member call = ???*0*["debug"]("####", ???*1*, (???*2* ? true : false))
 - *0* FreeVar(console)
   ⚠️  unknown global
-  ⚠️  This value might have side effects
 - *1* arguments[1]
   ⚠️  function calls are not analyzed yet
 - *2* arguments[1]
@@ -37,25 +36,19 @@
   ⚠️  function calls are not analyzed yet
 - *5* ???*6*[i]
   ⚠️  unknown object
-  ⚠️  This value might have side effects
 - *6* ???*7*(???*9*)
   ⚠️  unknown callee
-  ⚠️  This value might have side effects
 - *7* Object*8*["keys"]
   ⚠️  unsupported property on global Object
-  ⚠️  This value might have side effects
 - *8* Object: The global Object variable
 - *9* arguments[0]
   ⚠️  function calls are not analyzed yet
 - *10* ???*11*[i]
   ⚠️  unknown object
-  ⚠️  This value might have side effects
 - *11* ???*12*(???*14*)
   ⚠️  unknown callee
-  ⚠️  This value might have side effects
 - *12* Object*13*["keys"]
   ⚠️  unsupported property on global Object
-  ⚠️  This value might have side effects
 - *13* Object: The global Object variable
 - *14* arguments[0]
   ⚠️  function calls are not analyzed yet
@@ -64,8 +57,8 @@
 - *16* arguments[2]
   ⚠️  function calls are not analyzed yet
 
-0 -> 15 unreachable = ???*0*
-- *0* unreachable
-  ⚠️  This value might have side effects
+0 -> 15 unreachable = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* unreachable
 
 0 -> 16 call = (...) => parent({"wrapper": {"data": {"key": {}}}}, "", {})

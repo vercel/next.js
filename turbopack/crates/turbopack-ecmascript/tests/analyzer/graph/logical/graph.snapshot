@@ -169,6 +169,78 @@
         ),
     ),
     (
+        "n",
+        Tenary(
+            11,
+            Logical(
+                6,
+                And,
+                [
+                    Effectful(
+                        2,
+                        Variable(
+                            (
+                                "r",
+                                #2,
+                            ),
+                        ),
+                    ),
+                    Member(
+                        3,
+                        Variable(
+                            (
+                                "t",
+                                #2,
+                            ),
+                        ),
+                        Constant(
+                            Str(
+                                Atom(
+                                    "__esModule",
+                                ),
+                            ),
+                        ),
+                    ),
+                ],
+            ),
+            Variable(
+                (
+                    "t",
+                    #2,
+                ),
+            ),
+            Object {
+                total_nodes: 3,
+                parts: [
+                    KeyValue(
+                        Constant(
+                            Str(
+                                Atom(
+                                    "default",
+                                ),
+                            ),
+                        ),
+                        Variable(
+                            (
+                                "t",
+                                #2,
+                            ),
+                        ),
+                    ),
+                ],
+                mutable: true,
+            },
+        ),
+    ),
+    (
+        "r",
+        Object {
+            total_nodes: 1,
+            parts: [],
+            mutable: true,
+        },
+    ),
+    (
         "resolve1",
         Logical(
             6,
@@ -307,6 +379,32 @@
                 ),
             ],
         ),
+    ),
+    (
+        "t",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Unknown {
+                    original_value: Some(
+                        Variable(
+                            (
+                                "t",
+                                #2,
+                            ),
+                        ),
+                    ),
+                    reason: "pattern without value",
+                },
+                Variable(
+                    (
+                        "r",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
     ),
     (
         "x",

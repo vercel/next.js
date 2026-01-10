@@ -1,7 +1,6 @@
 0 -> 1 typeof = typeof(???*0*)
 - *0* FreeVar(EdgeRuntime)
   ⚠️  unknown global
-  ⚠️  This value might have side effects
 
 0 -> 2 free var = FreeVar(EdgeRuntime)
 
@@ -10,7 +9,6 @@
   ⚠️  nested operation
 - *1* FreeVar(EdgeRuntime)
   ⚠️  unknown global
-  ⚠️  This value might have side effects
 
 3 -> 4 free var = FreeVar(require)
 

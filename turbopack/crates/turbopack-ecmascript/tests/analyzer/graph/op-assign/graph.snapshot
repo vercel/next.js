@@ -2,16 +2,18 @@
     (
         "*arrow function 173*",
         Function(
-            4,
+            5,
             173,
             Alternatives {
-                total_nodes: 3,
+                total_nodes: 4,
                 values: [
-                    Unknown {
-                        original_value: None,
-                        reason: "spread in function calls is not supported",
-                        has_side_effects: true,
-                    },
+                    Effectful(
+                        2,
+                        Unknown {
+                            original_value: None,
+                            reason: "spread in function calls is not supported",
+                        },
+                    ),
                     Constant(
                         Undefined,
                     ),
@@ -39,13 +41,12 @@
                 ),
             ),
             reason: "pattern without value",
-            has_side_effects: false,
         },
     ),
     (
         "clientComponentLoadTimes",
         Alternatives {
-            total_nodes: 5,
+            total_nodes: 6,
             values: [
                 Constant(
                     Num(
@@ -55,7 +56,7 @@
                     ),
                 ),
                 Add(
-                    3,
+                    4,
                     [
                         Variable(
                             (
@@ -63,11 +64,13 @@
                                 #2,
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
             ],
@@ -146,7 +149,6 @@
                 ),
             ),
             reason: "pattern without value",
-            has_side_effects: false,
         },
     ),
     (

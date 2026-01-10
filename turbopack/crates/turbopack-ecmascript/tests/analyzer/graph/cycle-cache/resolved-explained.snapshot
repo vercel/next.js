@@ -50,9 +50,9 @@ c = (7 | 8 | 9 | 1 | 2 | 3 | 4 | 5 | 6 | ???*0*)
 - *0* c
   ⚠️  circular variable reference
 
-d = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+d = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
 f11 = ((...) => *arrow function 431* | (...) => *arrow function 474*)
 
@@ -142,145 +142,145 @@ f72 = (
   | (...) => *arrow function 474*
 )
 
-f81 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+f81 = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
-f82 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+f82 = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
-f91 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+f91 = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
-f92 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+f92 = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
-fa1 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+fa1 = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
-fa2 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+fa2 = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
-fb1 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+fb1 = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
-fb2 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+fb2 = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
-fc1 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+fc1 = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
-fc2 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+fc2 = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
-fd1 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+fd1 = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
-fd2 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+fd2 = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
-fe1 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+fe1 = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
-fe2 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+fe2 = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
-ff1 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+ff1 = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
-ff2 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+ff2 = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
-fg1 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+fg1 = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
-fg2 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+fg2 = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
-fh1 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+fh1 = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
-fh2 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+fh2 = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
-fi1 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+fi1 = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
-fi2 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+fi2 = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
-fj1 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+fj1 = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
-fj2 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+fj2 = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
-fk1 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+fk1 = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
-fk2 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+fk2 = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
-fl1 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+fl1 = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
-fl2 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+fl2 = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
 x = (1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | ???*0*)
 - *0* a
   ⚠️  circular variable reference
 
-x1 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+x1 = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
-x2 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+x2 = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
-x3 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+x3 = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
-x4 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+x4 = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
-x5 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+x5 = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
-x6 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
+x6 = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* max number of linking steps reached
 
 y = (1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | ???*0*)
 - *0* a

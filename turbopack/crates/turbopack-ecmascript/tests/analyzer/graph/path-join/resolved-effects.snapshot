@@ -26,7 +26,6 @@
 - *0* path: The Node.js path module: https://nodejs.org/api/path.html
 - *1* FreeVar(global)
   ⚠️  unknown global
-  ⚠️  This value might have side effects
 
 0 -> 16 free var = FreeVar(require)
 

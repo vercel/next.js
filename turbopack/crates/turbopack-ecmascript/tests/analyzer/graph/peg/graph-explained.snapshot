@@ -77,9 +77,9 @@
 
 *anonymous function 16713* = (...) => {"type": "number_constant", "value": FreeVar(Number)(text())}
 
-*anonymous function 16837* = (...) => (head ? ???*0* : [])
-- *0* spread is not supported
-  ⚠️  This value might have side effects
+*anonymous function 16837* = (...) => (head ? ???*1**0* : [])
+- *0* ⚠️ This value might have side effects
+- *1* spread is not supported
 
 *anonymous function 16925* = (...) => subquery
 
@@ -118,9 +118,9 @@
 
 *anonymous function 4902* = (...) => v
 
-*anonymous function 4960* = (...) => {"type": "object_property_list", "properties": ???*0*}
-- *0* spread is not supported
-  ⚠️  This value might have side effects
+*anonymous function 4960* = (...) => {"type": "object_property_list", "properties": ???*1**0*}
+- *0* ⚠️ This value might have side effects
+- *1* spread is not supported
 
 *anonymous function 5104* = (...) => v
 
@@ -134,9 +134,9 @@
 
 *anonymous function 5672* = (...) => {"type": "filter_condition", "condition": condition}
 
-*anonymous function 5793* = (...) => {"type": "sort_specification", "expressions": ???*0*}
-- *0* spread is not supported
-  ⚠️  This value might have side effects
+*anonymous function 5793* = (...) => {"type": "sort_specification", "expressions": ???*1**0*}
+- *0* ⚠️ This value might have side effects
+- *1* spread is not supported
 
 *anonymous function 5936* = (...) => {"type": "sort_expression", "expression": expression, "order": order}
 
@@ -146,9 +146,9 @@
 
 *anonymous function 6458* = (...) => {"type": "scalar_function_expression", "name": name, "arguments": args}
 
-*anonymous function 6748* = (...) => {"type": "scalar_object_expression", "properties": (head ? ???*0* : [])}
-- *0* spread is not supported
-  ⚠️  This value might have side effects
+*anonymous function 6748* = (...) => {"type": "scalar_object_expression", "properties": (head ? ???*1**0* : [])}
+- *0* ⚠️ This value might have side effects
+- *1* spread is not supported
 
 *anonymous function 702* = (...) => `"${literalEscape(expectation["text"])}"`
 
@@ -171,13 +171,13 @@
 
 *anonymous function 8139* = (...) => {"type": "string_constant", "value": chars["join"]("")}
 
-*anonymous function 8336* = (...) => {"type": "array_constant", "elements": ???*0*}
-- *0* spread is not supported
-  ⚠️  This value might have side effects
+*anonymous function 8336* = (...) => {"type": "array_constant", "elements": ???*1**0*}
+- *0* ⚠️ This value might have side effects
+- *1* spread is not supported
 
-*anonymous function 8472* = (...) => {"type": "object_constant", "properties": ???*0*}
-- *0* spread is not supported
-  ⚠️  This value might have side effects
+*anonymous function 8472* = (...) => {"type": "object_constant", "properties": ???*1**0*}
+- *0* ⚠️ This value might have side effects
+- *1* spread is not supported
 
 *anonymous function 9682* = (...) => "ASC"
 
@@ -255,13 +255,13 @@ describeExpectation = (...) => DESCRIBE_EXPECTATION_FNS[expectation["type"]](exp
 describeExpected = (...) => (
   | descriptions[0]
   | `${descriptions[0]} or ${descriptions[1]}`
-  | `${descriptions["slice"](0, ???*0*)["join"](", ")}, or ${descriptions[???*1*]}`
+  | `${descriptions["slice"](0, ???*1**0*)["join"](", ")}, or ${descriptions[???*3**2*]}`
   | undefined
 )
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+- *0* ⚠️ This value might have side effects
 - *1* unsupported expression
-  ⚠️  This value might have side effects
+- *2* ⚠️ This value might have side effects
+- *3* unsupported expression
 
 describeFound = (...) => (found ? `"${literalEscape(found)}"` : "end of input")
 
@@ -293,11 +293,11 @@ escapedParts = (
   | ""
   | (
       + escapedParts
-      + (???*0* ? `${classEscape(expectation["parts"][i][0])}-${classEscape(expectation["parts"][i][1])}` : classEscape(expectation["parts"][i]))
+      + (???*1**0* ? `${classEscape(expectation["parts"][i][0])}-${classEscape(expectation["parts"][i][1])}` : classEscape(expectation["parts"][i]))
     )
 )
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+- *0* ⚠️ This value might have side effects
+- *1* unsupported expression
 
 expectation#11 = arguments[0]
 
@@ -389,17 +389,17 @@ hex#56 = arguments[0]
 
 hex#7 = (...) => ch["charCodeAt"](0)["toString"](16)["toUpperCase"]()
 
-i#22 = (???*0* | 0 | ???*1* | 1)
+i#22 = (???*0* | 0 | ???*2**1* | 1)
 - *0* i
   ⚠️  pattern without value
-- *1* updated with update expression
-  ⚠️  This value might have side effects
+- *1* ⚠️ This value might have side effects
+- *2* updated with update expression
 
-i#9 = (???*0* | 0 | ???*1*)
+i#9 = (???*0* | 0 | ???*2**1*)
 - *0* i
   ⚠️  pattern without value
-- *1* updated with update expression
-  ⚠️  This value might have side effects
+- *1* ⚠️ This value might have side effects
+- *2* updated with update expression
 
 ignoreCase#107 = arguments[1]
 
@@ -409,11 +409,11 @@ input = arguments[0]
 
 inverted = arguments[1]
 
-j = (???*0* | 1 | ???*1*)
+j = (???*0* | 1 | ???*2**1*)
 - *0* j
   ⚠️  pattern without value
-- *1* updated with update expression
-  ⚠️  This value might have side effects
+- *1* ⚠️ This value might have side effects
+- *2* updated with update expression
 
 joins = arguments[1]
 
@@ -469,13 +469,13 @@ order = arguments[1]
 
 orderBy = arguments[4]
 
-p = (???*0* | ???*1* | ???*2*)
+p = (???*0* | ???*2**1* | ???*4**3*)
 - *0* p
   ⚠️  pattern without value
-- *1* unsupported expression
-  ⚠️  This value might have side effects
-- *2* updated with update expression
-  ⚠️  This value might have side effects
+- *1* ⚠️ This value might have side effects
+- *2* unsupported expression
+- *3* ⚠️ This value might have side effects
+- *4* updated with update expression
 
 parent = arguments[1]
 
@@ -938,7 +938,7 @@ peg$currPos = (
   | s9
   | s11
   | s0
-  | ???*0*
+  | ???*1**0*
   | s0
   | s3
   | s0
@@ -1068,8 +1068,8 @@ peg$currPos = (
   | s0
   | s0
 )
-- *0* updated with update expression
-  ⚠️  This value might have side effects
+- *0* ⚠️ This value might have side effects
+- *1* updated with update expression
 
 peg$endExpectation = (...) => {"type": "end"}
 
@@ -1356,9 +1356,9 @@ peg$savedPos = (
   | s0
 )
 
-peg$silentFails = (0 | ???*0*)
-- *0* updated with update expression
-  ⚠️  This value might have side effects
+peg$silentFails = (0 | ???*1**0*)
+- *0* ⚠️ This value might have side effects
+- *1* updated with update expression
 
 peg$startRuleFunction = (peg$parsesql | peg$startRuleFunctions[options["startRule"]])
 

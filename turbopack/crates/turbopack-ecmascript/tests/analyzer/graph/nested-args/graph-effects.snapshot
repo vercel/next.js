@@ -253,12 +253,14 @@
     },
     Conditional {
         condition: Binary(
-            3,
-            Unknown {
-                original_value: None,
-                reason: "unsupported expression",
-                has_side_effects: true,
-            },
+            4,
+            Effectful(
+                2,
+                Unknown {
+                    original_value: None,
+                    reason: "unsupported expression",
+                },
+            ),
             StrictEqual,
             Constant(
                 Num(

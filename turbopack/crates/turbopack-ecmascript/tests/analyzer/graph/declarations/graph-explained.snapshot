@@ -16,9 +16,9 @@ d (const after eval) = "hello"
 
 dd (const after eval) = d
 
-e (const after eval) = ???*0*
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+e (const after eval) = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* unsupported expression
 
 ee (const after eval) = e
 

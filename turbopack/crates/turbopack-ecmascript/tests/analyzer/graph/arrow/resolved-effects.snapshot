@@ -1,31 +1,31 @@
-0 -> 1 unreachable = ???*0*
-- *0* unreachable
-  ⚠️  This value might have side effects
+0 -> 1 unreachable = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* unreachable
 
-0 -> 2 unreachable = ???*0*
-- *0* unreachable
-  ⚠️  This value might have side effects
+0 -> 2 unreachable = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* unreachable
 
-0 -> 3 unreachable = ???*0*
-- *0* unreachable
-  ⚠️  This value might have side effects
+0 -> 3 unreachable = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* unreachable
 
-0 -> 4 unreachable = ???*0*
-- *0* unreachable
-  ⚠️  This value might have side effects
+0 -> 4 unreachable = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* unreachable
 
-0 -> 5 unreachable = ???*0*
-- *0* unreachable
-  ⚠️  This value might have side effects
+0 -> 5 unreachable = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* unreachable
 
-0 -> 6 unreachable = ???*0*
-- *0* unreachable
-  ⚠️  This value might have side effects
+0 -> 6 unreachable = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* unreachable
 
-0 -> 7 unreachable = ???*0*
-- *0* unreachable
-  ⚠️  This value might have side effects
+0 -> 7 unreachable = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* unreachable
 
-0 -> 8 unreachable = ???*0*
-- *0* unreachable
-  ⚠️  This value might have side effects
+0 -> 8 unreachable = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* unreachable

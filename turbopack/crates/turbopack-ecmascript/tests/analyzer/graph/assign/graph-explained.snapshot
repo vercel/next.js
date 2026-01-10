@@ -1,12 +1,12 @@
 a (const after eval) = ("" | `${a}x`)
 
-b (const after eval) = (0 | ???*0*)
-- *0* unsupported assign operation
-  ⚠️  This value might have side effects
+b (const after eval) = (0 | ???*1**0*)
+- *0* ⚠️ This value might have side effects
+- *1* unsupported assign operation
 
-c (const after eval) = (0 | ???*0*)
-- *0* updated with update expression
-  ⚠️  This value might have side effects
+c (const after eval) = (0 | ???*1**0*)
+- *0* ⚠️ This value might have side effects
+- *1* updated with update expression
 
 d (const after eval) = (0 | 1)
 

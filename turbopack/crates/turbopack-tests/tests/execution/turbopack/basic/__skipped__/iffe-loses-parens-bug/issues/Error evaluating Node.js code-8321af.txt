@@ -1,0 +1,36 @@
+error - [transform] /turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/iffe-loses-parens-bug/input/index.js  Error evaluating Node.js code
+  
+  Error: Failed to load chunk bf321_tests_execution_turbopack_basic_iffe-loses-parens-bug_input_index_26ac9d71.js from module [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/iffe-loses-parens-bug/input/index.js [test] (ecmascript, async loader)
+      at Context.loadChunkAsync [as l] (turbopack:///[turbopack]/nodejs/runtime.ts:141:9) [WORKSPACE_ROOT/turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/iffe-loses-parens-bug/output/[turbopack]_runtime.js:661:36]
+      [at WORKSPACE_ROOT/turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/iffe-loses-parens-bug/output/bf321_tests_execution_turbopack_basic_iffe-loses-parens-bug_input_index_ab197351.js:7:40]
+      [at <anonymous>]
+      [at WORKSPACE_ROOT/turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/iffe-loses-parens-bug/output/bf321_tests_execution_turbopack_basic_iffe-loses-parens-bug_input_index_ab197351.js:7:3]
+      at Context.asyncLoader [as A] (turbopack:///[turbopack]/shared/runtime-utils.ts:369:10) [WORKSPACE_ROOT/turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/iffe-loses-parens-bug/output/[turbopack]_runtime.js:238:12]
+      at run (turbopack/crates/turbopack-tests/js/jest-entry.ts:40:3) [WORKSPACE_ROOT/turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/iffe-loses-parens-bug/output/[root-of-the-server]__cba7f18e._.js:49:33]
+      36 | 
+      37 | export default async function run() {
+      38 |   setupGlobals()
+      39 | 
+         |   v
+      40 +   await import('TESTS')
+         |   ^
+      41 | 
+      42 |   let jestResult = await jest.run()
+      43 |   // Jest test results can contain references to arbitrary objects.
+      44 |   // Defensively remove circular references to avoid breaking our serialization protocol.
+  
+      at run (turbopack:///[turbopack-node]/ipc/evaluate.ts:92:29) [WORKSPACE_ROOT/turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/iffe-loses-parens-bug/output/[turbopack-node]__55a91445._.js:411:37]
+      at run (turbopack:///[turbopack-node]/ipc/evaluate.ts:115:11) [WORKSPACE_ROOT/turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/iffe-loses-parens-bug/output/[turbopack-node]__55a91445._.js:432:25]
+      [at process.processTicksAndRejections (node:internal/process/task_queues:95:5)]
+  Caused by: SyntaxError: Function statements require a function name
+      [at WORKSPACE_ROOT/turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/iffe-loses-parens-bug/output/bf321_tests_execution_turbopack_basic_iffe-loses-parens-bug_input_index_26ac9d71.js]
+      [at wrapSafe (node:internal/modules/cjs/loader:1464:18)]
+      [at Module._compile (node:internal/modules/cjs/loader:1495:20)]
+      [at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)]
+      [at Module.load (node:internal/modules/cjs/loader:1266:32)]
+      [at Module._load (node:internal/modules/cjs/loader:1091:12)]
+      [at Module.require (node:internal/modules/cjs/loader:1289:19)]
+      [at require (node:internal/modules/helpers:182:18)]
+      at Context.loadChunkAsync [as l] (turbopack:///[turbopack]/nodejs/runtime.ts:133:55) [WORKSPACE_ROOT/turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/iffe-loses-parens-bug/output/[turbopack]_runtime.js:655:34]
+      [at WORKSPACE_ROOT/turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/iffe-loses-parens-bug/output/bf321_tests_execution_turbopack_basic_iffe-loses-parens-bug_input_index_ab197351.js:7:40]
+      [at <anonymous>]

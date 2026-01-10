@@ -2428,11 +2428,15 @@
         ),
         args: [
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "assignment expression",
-                    has_side_effects: true,
-                },
+                Effectful(
+                    2,
+                    Variable(
+                        (
+                            "moduleId",
+                            #6,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [

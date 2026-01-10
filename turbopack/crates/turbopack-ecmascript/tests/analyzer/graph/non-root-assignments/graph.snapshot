@@ -11,11 +11,13 @@
     ),
     (
         "ConstAfterEvalClass",
-        Unknown {
-            original_value: None,
-            reason: "unsupported expression",
-            has_side_effects: true,
-        },
+        Effectful(
+            2,
+            Unknown {
+                original_value: None,
+                reason: "unsupported expression",
+            },
+        ),
     ),
     (
         "d1",
@@ -40,7 +42,7 @@
     (
         "i",
         Alternatives {
-            total_nodes: 3,
+            total_nodes: 4,
             values: [
                 Constant(
                     Num(
@@ -49,11 +51,13 @@
                         ),
                     ),
                 ),
-                Unknown {
-                    original_value: None,
-                    reason: "updated with update expression",
-                    has_side_effects: true,
-                },
+                Effectful(
+                    2,
+                    Unknown {
+                        original_value: None,
+                        reason: "updated with update expression",
+                    },
+                ),
             ],
             logical_property: None,
         },
@@ -116,7 +120,6 @@
                         ),
                     ),
                     reason: "pattern without value",
-                    has_side_effects: false,
                 },
                 Constant(
                     Num(

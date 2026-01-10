@@ -36,7 +36,7 @@
     (
         "b",
         Alternatives {
-            total_nodes: 3,
+            total_nodes: 4,
             values: [
                 Constant(
                     Num(
@@ -45,11 +45,13 @@
                         ),
                     ),
                 ),
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported assign operation",
-                    has_side_effects: true,
-                },
+                Effectful(
+                    2,
+                    Unknown {
+                        original_value: None,
+                        reason: "unsupported assign operation",
+                    },
+                ),
             ],
             logical_property: None,
         },
@@ -57,7 +59,7 @@
     (
         "c",
         Alternatives {
-            total_nodes: 3,
+            total_nodes: 4,
             values: [
                 Constant(
                     Num(
@@ -66,11 +68,13 @@
                         ),
                     ),
                 ),
-                Unknown {
-                    original_value: None,
-                    reason: "updated with update expression",
-                    has_side_effects: true,
-                },
+                Effectful(
+                    2,
+                    Unknown {
+                        original_value: None,
+                        reason: "updated with update expression",
+                    },
+                ),
             ],
             logical_property: None,
         },

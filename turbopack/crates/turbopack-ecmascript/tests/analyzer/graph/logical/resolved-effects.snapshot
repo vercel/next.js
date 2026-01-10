@@ -13,3 +13,10 @@
 0 -> 7 free var = FreeVar(global)
 
 0 -> 8 free var = FreeVar(global)
+
+0 -> 10 conditional = (???*0* | undefined | ???*2*)
+- *0* ???*1*["__esModule"]
+  ⚠️  unknown object
+- *1* t
+  ⚠️  pattern without value
+- *2* unknown mutation

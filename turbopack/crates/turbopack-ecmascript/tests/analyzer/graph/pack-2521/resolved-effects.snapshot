@@ -10,7 +10,6 @@
 0 -> 6 member call = ???*0*["log"]("runtimePlatform:", module<./libvips, {}>["runtimePlatformArch"]())
 - *0* FreeVar(console)
   ⚠️  unknown global
-  ⚠️  This value might have side effects
 
 0 -> 7 free var = FreeVar(require)
 
@@ -29,7 +28,6 @@
 - *2* module<./libvips, {}>["runtimePlatformArch"]()
   ⚠️  nested operation
 - *3* unknown mutation
-  ⚠️  This value might have side effects
 
 0 -> 10 member call = []["push"](???*0*)
 - *0* err

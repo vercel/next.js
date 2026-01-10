@@ -1,10 +1,12 @@
 [
     Conditional {
-        condition: Unknown {
-            original_value: None,
-            reason: "labeled statement",
-            has_side_effects: true,
-        },
+        condition: Effectful(
+            2,
+            Unknown {
+                original_value: None,
+                reason: "labeled statement",
+            },
+        ),
         kind: Labeled {
             body: EffectsBlock {
                 effects: [

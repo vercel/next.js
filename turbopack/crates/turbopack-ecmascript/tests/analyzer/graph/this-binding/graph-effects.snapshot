@@ -1,10 +1,12 @@
 [
     Member {
-        obj: Unknown {
-            original_value: None,
-            reason: "unsupported expression",
-            has_side_effects: true,
-        },
+        obj: Effectful(
+            2,
+            Unknown {
+                original_value: None,
+                reason: "unsupported expression",
+            },
+        ),
         prop: Constant(
             Str(
                 Atom(

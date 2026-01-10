@@ -29,4 +29,3 @@ x#17 = (...) => undefined
 
 y = ???*0*
 - *0* unknown mutation
-  ⚠️  This value might have side effects

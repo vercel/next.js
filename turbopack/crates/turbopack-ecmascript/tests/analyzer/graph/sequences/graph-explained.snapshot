@@ -1,8 +1,8 @@
-x (const after eval) = (1 | ???*0*)
-- *0* updated with update expression
-  ⚠️  This value might have side effects
+x (const after eval) = (1 | ???*1**0*)
+- *0* ⚠️ This value might have side effects
+- *1* updated with update expression
 
-y (const after eval) = ???*0*
-- *0* 2
+y (const after eval) = ???*1**0*
+- *0* ⚠️ This value might have side effects
+- *1* 2
   ⚠️  sequence with side effects
-  ⚠️  This value might have side effects

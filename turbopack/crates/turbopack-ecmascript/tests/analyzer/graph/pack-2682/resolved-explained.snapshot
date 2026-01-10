@@ -20,10 +20,8 @@ res = ???*0*
         }
     )
   ⚠️  unknown callee object
-  ⚠️  This value might have side effects
 - *1* FreeVar(JSON)
   ⚠️  unknown global
-  ⚠️  This value might have side effects
 
 variable = (???*0* | "true")
 - *0* ???*1*["variable"]

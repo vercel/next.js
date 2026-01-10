@@ -57,16 +57,18 @@
     (
         "*anonymous function 5013*",
         Function(
-            4,
+            5,
             5013,
             Add(
-                3,
+                4,
                 [
-                    Unknown {
-                        original_value: None,
-                        reason: "unsupported expression",
-                        has_side_effects: true,
-                    },
+                    Effectful(
+                        2,
+                        Unknown {
+                            original_value: None,
+                            reason: "unsupported expression",
+                        },
+                    ),
                     Variable(
                         (
                             "b",
@@ -80,16 +82,18 @@
     (
         "*anonymous function 5163*",
         Function(
-            4,
+            5,
             5163,
             Add(
-                3,
+                4,
                 [
-                    Unknown {
-                        original_value: None,
-                        reason: "unsupported expression",
-                        has_side_effects: true,
-                    },
+                    Effectful(
+                        2,
+                        Unknown {
+                            original_value: None,
+                            reason: "unsupported expression",
+                        },
+                    ),
                     Variable(
                         (
                             "b",
@@ -103,16 +107,18 @@
     (
         "*anonymous function 5313*",
         Function(
-            4,
+            5,
             5313,
             Add(
-                3,
+                4,
                 [
-                    Unknown {
-                        original_value: None,
-                        reason: "unsupported expression",
-                        has_side_effects: true,
-                    },
+                    Effectful(
+                        2,
+                        Unknown {
+                            original_value: None,
+                            reason: "unsupported expression",
+                        },
+                    ),
                     Variable(
                         (
                             "b",
@@ -126,16 +132,18 @@
     (
         "*anonymous function 5454*",
         Function(
-            4,
+            5,
             5454,
             Add(
-                3,
+                4,
                 [
-                    Unknown {
-                        original_value: None,
-                        reason: "unsupported expression",
-                        has_side_effects: true,
-                    },
+                    Effectful(
+                        2,
+                        Unknown {
+                            original_value: None,
+                            reason: "unsupported expression",
+                        },
+                    ),
                     Variable(
                         (
                             "b",
@@ -355,7 +363,7 @@
     (
         "a#4",
         Alternatives {
-            total_nodes: 211,
+            total_nodes: 222,
             values: [
                 Constant(
                     Num(
@@ -365,7 +373,7 @@
                     ),
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "FF",
@@ -431,15 +439,17 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "FF",
@@ -505,11 +515,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
@@ -665,7 +677,7 @@
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "GG",
@@ -731,15 +743,17 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "GG",
@@ -805,11 +819,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
@@ -889,7 +905,7 @@
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "GG",
@@ -955,15 +971,17 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "HH",
@@ -1029,15 +1047,17 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "HH",
@@ -1103,11 +1123,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
@@ -1187,7 +1209,7 @@
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "HH",
@@ -1253,15 +1275,17 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "II",
@@ -1327,11 +1351,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
@@ -1487,7 +1513,7 @@
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "II",
@@ -1553,18 +1579,22 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Effectful(
+                    2,
+                    Unknown {
+                        original_value: None,
+                        reason: "unsupported expression",
+                    },
+                ),
             ],
             logical_property: None,
         },
@@ -1618,15 +1648,17 @@
     (
         "b#4",
         Alternatives {
-            total_nodes: 210,
+            total_nodes: 223,
             values: [
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Effectful(
+                    2,
+                    Unknown {
+                        original_value: None,
+                        reason: "unsupported expression",
+                    },
+                ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "FF",
@@ -1692,15 +1724,17 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "FF",
@@ -1766,15 +1800,17 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "FF",
@@ -1840,11 +1876,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
@@ -1924,7 +1962,7 @@
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "GG",
@@ -1990,15 +2028,17 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "GG",
@@ -2064,11 +2104,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
@@ -2148,7 +2190,7 @@
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "GG",
@@ -2214,15 +2256,17 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "HH",
@@ -2288,15 +2332,17 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "HH",
@@ -2362,11 +2408,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
@@ -2446,7 +2494,7 @@
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "HH",
@@ -2512,15 +2560,17 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "II",
@@ -2586,15 +2636,17 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "II",
@@ -2660,11 +2712,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
@@ -2744,7 +2798,7 @@
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "II",
@@ -2810,11 +2864,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
             ],
@@ -2898,13 +2954,15 @@
     (
         "c#4",
         Alternatives {
-            total_nodes: 210,
+            total_nodes: 221,
             values: [
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Effectful(
+                    2,
+                    Unknown {
+                        original_value: None,
+                        reason: "unsupported expression",
+                    },
+                ),
                 Call(
                     13,
                     Variable(
@@ -2982,7 +3040,7 @@
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "FF",
@@ -3048,15 +3106,17 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "FF",
@@ -3122,15 +3182,17 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "FF",
@@ -3196,11 +3258,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
@@ -3280,7 +3344,7 @@
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "GG",
@@ -3346,15 +3410,17 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "GG",
@@ -3420,11 +3486,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
@@ -3580,7 +3648,7 @@
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "HH",
@@ -3646,15 +3714,17 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "HH",
@@ -3720,11 +3790,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
@@ -3804,7 +3876,7 @@
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "II",
@@ -3870,15 +3942,17 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "II",
@@ -3944,15 +4018,17 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "II",
@@ -4018,11 +4094,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
@@ -4172,7 +4250,7 @@
     (
         "d#4",
         Alternatives {
-            total_nodes: 211,
+            total_nodes: 224,
             values: [
                 Constant(
                     Num(
@@ -4182,7 +4260,7 @@
                     ),
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "FF",
@@ -4248,11 +4326,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
@@ -4332,7 +4412,7 @@
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "FF",
@@ -4398,15 +4478,17 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "FF",
@@ -4472,15 +4554,17 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "GG",
@@ -4546,11 +4630,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
@@ -4630,7 +4716,7 @@
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "GG",
@@ -4696,15 +4782,17 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "GG",
@@ -4770,15 +4858,17 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "HH",
@@ -4844,11 +4934,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
@@ -4928,7 +5020,7 @@
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "HH",
@@ -4994,15 +5086,17 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "HH",
@@ -5068,11 +5162,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
@@ -5152,7 +5248,7 @@
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "II",
@@ -5218,15 +5314,17 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "II",
@@ -5292,15 +5390,17 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
                 Call(
-                    13,
+                    14,
                     Variable(
                         (
                             "II",
@@ -5366,18 +5466,22 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Effectful(
+                            2,
+                            Unknown {
+                                original_value: None,
+                                reason: "unsupported expression",
+                            },
+                        ),
                     ],
                 ),
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Effectful(
+                    2,
+                    Unknown {
+                        original_value: None,
+                        reason: "unsupported expression",
+                    },
+                ),
             ],
             logical_property: None,
         },
@@ -5468,7 +5572,7 @@
     (
         "i",
         Alternatives {
-            total_nodes: 6,
+            total_nodes: 7,
             values: [
                 Constant(
                     Num(
@@ -5477,11 +5581,13 @@
                         ),
                     ),
                 ),
-                Unknown {
-                    original_value: None,
-                    reason: "updated with update expression",
-                    has_side_effects: true,
-                },
+                Effectful(
+                    2,
+                    Unknown {
+                        original_value: None,
+                        reason: "updated with update expression",
+                    },
+                ),
                 Add(
                     3,
                     [
@@ -5524,11 +5630,13 @@
     ),
     (
         "l",
-        Unknown {
-            original_value: None,
-            reason: "unsupported expression",
-            has_side_effects: true,
-        },
+        Effectful(
+            2,
+            Unknown {
+                original_value: None,
+                reason: "unsupported expression",
+            },
+        ),
     ),
     (
         "m",
@@ -5702,7 +5810,7 @@
     (
         "n#10",
         Add(
-            5,
+            7,
             [
                 Variable(
                     (
@@ -5710,16 +5818,20 @@
                         #10,
                     ),
                 ),
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Effectful(
+                    2,
+                    Unknown {
+                        original_value: None,
+                        reason: "unsupported expression",
+                    },
+                ),
+                Effectful(
+                    2,
+                    Unknown {
+                        original_value: None,
+                        reason: "unsupported expression",
+                    },
+                ),
                 Variable(
                     (
                         "t",
@@ -5732,7 +5844,7 @@
     (
         "n#7",
         Add(
-            5,
+            7,
             [
                 Variable(
                     (
@@ -5740,16 +5852,20 @@
                         #7,
                     ),
                 ),
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Effectful(
+                    2,
+                    Unknown {
+                        original_value: None,
+                        reason: "unsupported expression",
+                    },
+                ),
+                Effectful(
+                    2,
+                    Unknown {
+                        original_value: None,
+                        reason: "unsupported expression",
+                    },
+                ),
                 Variable(
                     (
                         "t",
@@ -5762,7 +5878,7 @@
     (
         "n#8",
         Add(
-            5,
+            7,
             [
                 Variable(
                     (
@@ -5770,16 +5886,20 @@
                         #8,
                     ),
                 ),
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Effectful(
+                    2,
+                    Unknown {
+                        original_value: None,
+                        reason: "unsupported expression",
+                    },
+                ),
+                Effectful(
+                    2,
+                    Unknown {
+                        original_value: None,
+                        reason: "unsupported expression",
+                    },
+                ),
                 Variable(
                     (
                         "t",
@@ -5792,7 +5912,7 @@
     (
         "n#9",
         Add(
-            5,
+            7,
             [
                 Variable(
                     (
@@ -5800,16 +5920,20 @@
                         #9,
                     ),
                 ),
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Effectful(
+                    2,
+                    Unknown {
+                        original_value: None,
+                        reason: "unsupported expression",
+                    },
+                ),
+                Effectful(
+                    2,
+                    Unknown {
+                        original_value: None,
+                        reason: "unsupported expression",
+                    },
+                ),
                 Variable(
                     (
                         "t",

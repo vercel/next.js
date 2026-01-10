@@ -12,7 +12,6 @@ c = (...) => undefined
 
 d = ???*0*
 - *0* unsupported expression
-  ⚠️  This value might have side effects
 
 e = (...) => undefined
 
@@ -46,11 +45,9 @@ z#3 = (...) => undefined
 
 z#6 = ???*0*
 - *0* unsupported expression
-  ⚠️  This value might have side effects
 
 z#7 = ???*0*
 - *0* unsupported expression
-  ⚠️  This value might have side effects
 
 z#9 = (...) => undefined
 
