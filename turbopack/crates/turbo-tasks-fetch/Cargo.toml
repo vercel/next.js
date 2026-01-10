@@ -41,7 +41,7 @@ reqwest = { workspace = true, features = ["rustls"] }
 #   possibly switch to always using `native-tls` on Windows in the future.
 [target.'cfg(any(target_os = "linux", all(target_os = "windows", not(target_arch = "aarch64"))))'.dependencies]
 reqwest = { workspace = true, features = ["rustls-no-provider"] }
-rustls = { version = "0.23", default-features = false, features = ["ring"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 
 # On Windows ARM64, use native-tls because rustls with ring has build issues.
 [target.'cfg(all(target_os = "windows", target_arch = "aarch64"))'.dependencies]
