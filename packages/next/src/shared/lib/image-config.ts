@@ -106,6 +106,9 @@ export type ImageConfigComplete = {
   /** @see [Maximum Redirects](https://nextjs.org/docs/api-reference/next/image#maximumredirects) */
   maximumRedirects: number
 
+  /** @see [Maximum Response Body](https://nextjs.org/docs/api-reference/next/image#maximumresponsebody) */
+  maximumResponseBody: number
+
   /** @see [Dangerously Allow Local IP](https://nextjs.org/docs/api-reference/next/image#dangerously-allow-local-ip) */
   dangerouslyAllowLocalIP: boolean
 
@@ -129,6 +132,13 @@ export type ImageConfigComplete = {
 
   /** @see [Unoptimized](https://nextjs.org/docs/api-reference/next/image#unoptimized) */
   unoptimized: boolean
+
+  /**
+   * When true, the `cacheHandler` configured in next.config.js will also be used
+   * for caching optimized images. When false, images use the default filesystem cache.
+   * @see [Image Optimization Caching](https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheHandler#image-optimization-caching)
+   */
+  customCacheHandler: boolean
 }
 
 export type ImageConfig = Partial<ImageConfigComplete>
@@ -147,6 +157,7 @@ export const imageConfigDefault: ImageConfigComplete = {
   minimumCacheTTL: 14400, // 4 hours
   formats: ['image/webp'],
   maximumRedirects: 3,
+  maximumResponseBody: 300_000_000, // 300MB
   dangerouslyAllowLocalIP: false,
   dangerouslyAllowSVG: false,
   contentSecurityPolicy: `script-src 'none'; frame-src 'none'; sandbox;`,
@@ -155,4 +166,5 @@ export const imageConfigDefault: ImageConfigComplete = {
   remotePatterns: [], // default: allow no remote images
   qualities: [75],
   unoptimized: false,
+  customCacheHandler: false,
 }

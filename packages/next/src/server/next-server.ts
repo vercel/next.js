@@ -22,7 +22,6 @@ import type { Params } from './request/params'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { RouteMatch } from './route-matches/route-match'
 import type { IncomingMessage, ServerResponse } from 'http'
-import type { UrlWithParsedQuery } from 'url'
 import type { ParsedUrlQuery } from 'querystring'
 import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
 import type { CacheControl } from './lib/cache-control'
@@ -85,7 +84,10 @@ import ResponseCache, {
   CachedRouteKind,
   type IncrementalResponseCacheEntry,
 } from './response-cache'
-import { IncrementalCache } from './lib/incremental-cache'
+import {
+  IncrementalCache,
+  type CacheHandler as ICacheHandler,
+} from './lib/incremental-cache'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
 import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
@@ -258,6 +260,7 @@ export default class NextNodeServer extends BaseServer<
   protected middlewareManifestPath: string
   private _serverDistDir: string | undefined
   private imageResponseCache?: ResponseCache
+  private imageCacheHandler?: ICacheHandler
   protected renderWorkersPromises?: Promise<void>
   protected dynamicRoutes?: {
     match: import('../shared/lib/router/utils/route-matcher').RouteMatchFn
@@ -606,6 +609,7 @@ export default class NextNodeServer extends BaseServer<
       generateEtags: boolean
       poweredByHeader: boolean
       cacheControl: CacheControl | undefined
+      cdnCacheControlHeader?: string
     }
   ): Promise<void> {
     return sendRenderResult({
@@ -615,6 +619,7 @@ export default class NextNodeServer extends BaseServer<
       generateEtags: options.generateEtags,
       poweredByHeader: options.poweredByHeader,
       cacheControl: options.cacheControl,
+      cdnCacheControlHeader: options.cdnCacheControlHeader,
     })
   }
 
@@ -784,6 +789,7 @@ export default class NextNodeServer extends BaseServer<
         ? await fetchExternalImage(
             href,
             this.nextConfig.images.dangerouslyAllowLocalIP,
+            this.nextConfig.images.maximumResponseBody,
             this.nextConfig.images.maximumRedirects
           )
         : await fetchInternalImage(
@@ -985,9 +991,34 @@ export default class NextNodeServer extends BaseServer<
       const { ImageOptimizerCache } =
         require('./image-optimizer') as typeof import('./image-optimizer')
 
+      // Load custom cache handler if configured and opt-in via images.customCacheHandler
+      // Cache the handler instance to preserve state across requests
+      if (
+        !this.imageCacheHandler &&
+        this.nextConfig.images.customCacheHandler
+      ) {
+        const { cacheHandler } = this.nextConfig
+        if (cacheHandler) {
+          const CacheHandler = interopDefault(
+            await dynamicImportEsmDefault(
+              formatDynamicImportPath(this.distDir, cacheHandler)
+            )
+          )
+          this.imageCacheHandler = new CacheHandler({
+            dev: !!this.renderOpts.dev,
+            flushToDisk: this.nextConfig.experimental.isrFlushToDisk,
+            serverDistDir: this.serverDistDir,
+            maxMemoryCacheSize: this.nextConfig.cacheMaxMemorySize,
+            revalidatedTags: [],
+            _requestHeaders: {},
+          })
+        }
+      }
+
       const imageOptimizerCache = new ImageOptimizerCache({
         distDir: this.distDir,
         nextConfig: this.nextConfig,
+        cacheHandler: this.imageCacheHandler,
       })
 
       const { sendResponse, ImageError } =
@@ -1636,7 +1667,7 @@ export default class NextNodeServer extends BaseServer<
     request: NodeNextRequest
     response: NodeNextResponse
     parsedUrl: ParsedUrl
-    parsed: UrlWithParsedQuery
+    parsed: NextUrlWithParsedQuery
     onWarning?: (warning: Error) => void
   }) {
     if (process.env.NEXT_MINIMAL) {

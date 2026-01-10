@@ -10,12 +10,16 @@ import { RouteKind } from '../../server/route-kind' with { 'turbopack-transition
 
 import { getRevalidateReason } from '../../server/instrumentation/utils'
 import { getTracer, SpanKind, type Span } from '../../server/lib/trace/tracer'
-import { addRequestMeta, getRequestMeta } from '../../server/request-meta'
+import type { RequestMeta } from '../../server/request-meta'
+import {
+  addRequestMeta,
+  getRequestMeta,
+  setRequestMeta,
+} from '../../server/request-meta'
 import { BaseServerSpan } from '../../server/lib/trace/constants'
 import { interopDefault } from '../../server/app-render/interop-default'
 import { stripFlightHeaders } from '../../server/app-render/strip-flight-headers'
 import { NodeNextRequest, NodeNextResponse } from '../../server/base-http/node'
-import { checkIsAppPPREnabled } from '../../server/lib/experimental/ppr'
 import {
   getFallbackRouteParams,
   createOpaqueFallbackRouteParams,
@@ -56,6 +60,7 @@ import type { CacheControl } from '../../server/lib/cache-control'
 import { ENCODED_TAGS } from '../../server/stream-utils/encoded-tags'
 import { sendRenderResult } from '../../server/send-payload'
 import { NoFallbackError } from '../../shared/lib/no-fallback-error.external'
+import { parseMaxPostponedStateSize } from '../../shared/lib/size-limit'
 
 // These are injected by the loader afterwards.
 
@@ -115,15 +120,18 @@ export async function handler(
   req: IncomingMessage,
   res: ServerResponse,
   ctx: {
-    waitUntil: (prom: Promise<void>) => void
+    waitUntil?: (prom: Promise<void>) => void
+    requestMeta?: RequestMeta
   }
 ) {
+  if (ctx.requestMeta) {
+    setRequestMeta(req, ctx.requestMeta)
+  }
+
   if (routeModule.isDev) {
     addRequestMeta(req, 'devRequestTimingInternalsEnd', process.hrtime.bigint())
   }
-  const isMinimalMode = Boolean(
-    process.env.MINIMAL_MODE || getRequestMeta(req, 'minimalMode')
-  )
+  const isMinimalMode = Boolean(getRequestMeta(req, 'minimalMode'))
 
   let srcPage = 'VAR_DEFINITION_PAGE'
 
@@ -213,12 +221,10 @@ export async function handler(
   const isPossibleServerAction = getIsPossibleServerAction(req)
 
   /**
-   * If the route being rendered is an app page, and the ppr feature has been
-   * enabled, then the given route _could_ support PPR.
+   * If the route being rendered is an app page, and the cacheComponents feature
+   * has been enabled, then the given route _could_ support PPR.
    */
-  const couldSupportPPR: boolean = checkIsAppPPREnabled(
-    nextConfig.experimental.ppr
-  )
+  const couldSupportPPR: boolean = !!nextConfig.cacheComponents
 
   if (
     !getRequestMeta(req, 'postponed') &&
@@ -593,6 +599,9 @@ export async function handler(
               nextConfig.experimental.clientTraceMetadata || ([] as any),
             clientParamParsingOrigins:
               nextConfig.experimental.clientParamParsingOrigins,
+            maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
+              nextConfig.experimental.maxPostponedStateSize
+            ),
           },
 
           waitUntil: ctx.waitUntil,
@@ -997,7 +1006,12 @@ export async function handler(
 
       // In dev, we should not cache pages for any reason.
       if (routeModule.isDev) {
-        res.setHeader('Cache-Control', 'no-store, must-revalidate')
+        res.setHeader(
+          'Cache-Control',
+          nextConfig.experimental.devCacheControlNoCache
+            ? 'no-cache, must-revalidate'
+            : 'no-store, must-revalidate'
+        )
       }
 
       if (!cacheEntry) {
@@ -1136,6 +1150,8 @@ export async function handler(
               RSC_CONTENT_TYPE_HEADER
             ),
             cacheControl: cacheEntry.cacheControl,
+            cdnCacheControlHeader:
+              nextConfig.experimental.cdnCacheControlHeader,
           })
         }
 
@@ -1153,6 +1169,7 @@ export async function handler(
           poweredByHeader: nextConfig.poweredByHeader,
           result: RenderResult.EMPTY,
           cacheControl: cacheEntry.cacheControl,
+          cdnCacheControlHeader: nextConfig.experimental.cdnCacheControlHeader,
         })
       }
 
@@ -1242,6 +1259,8 @@ export async function handler(
                 poweredByHeader: nextConfig.poweredByHeader,
                 result: RenderResult.EMPTY,
                 cacheControl: cacheEntry.cacheControl,
+                cdnCacheControlHeader:
+                  nextConfig.experimental.cdnCacheControlHeader,
               })
             } else {
               // Otherwise this case is not expected.
@@ -1258,6 +1277,8 @@ export async function handler(
             poweredByHeader: nextConfig.poweredByHeader,
             result: cachedData.html,
             cacheControl: cacheEntry.cacheControl,
+            cdnCacheControlHeader:
+              nextConfig.experimental.cdnCacheControlHeader,
           })
         }
 
@@ -1273,6 +1294,7 @@ export async function handler(
             RSC_CONTENT_TYPE_HEADER
           ),
           cacheControl: cacheEntry.cacheControl,
+          cdnCacheControlHeader: nextConfig.experimental.cdnCacheControlHeader,
         })
       }
 
@@ -1305,6 +1327,7 @@ export async function handler(
           poweredByHeader: nextConfig.poweredByHeader,
           result: body,
           cacheControl: cacheEntry.cacheControl,
+          cdnCacheControlHeader: nextConfig.experimental.cdnCacheControlHeader,
         })
       }
 
@@ -1331,6 +1354,7 @@ export async function handler(
           poweredByHeader: nextConfig.poweredByHeader,
           result: body,
           cacheControl: { revalidate: 0, expire: undefined },
+          cdnCacheControlHeader: nextConfig.experimental.cdnCacheControlHeader,
         })
       }
 
@@ -1390,6 +1414,7 @@ export async function handler(
         // the response being sent to the client it's dynamic parts are streamed
         // to the client on the same request.
         cacheControl: { revalidate: 0, expire: undefined },
+        cdnCacheControlHeader: nextConfig.experimental.cdnCacheControlHeader,
       })
     }
 

@@ -6,10 +6,10 @@ import { revalidateTag } from 'next/cache'
 const RevalidateViaPage = async ({
   searchParams,
 }: {
-  searchParams: Promise<{ tag: string }>
+  searchParams: Promise<Record<string, string | string[] | undefined>>
 }) => {
   const { tag } = await searchParams
-  revalidateTag(tag, 'max')
+  revalidateTag(tag as any, 'max')
 
   return (
     <div className="flex flex-col items-center justify-center h-screen">

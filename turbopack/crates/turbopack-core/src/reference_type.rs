@@ -2,7 +2,6 @@ use std::fmt::Display;
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
 
@@ -36,8 +35,6 @@ impl InnerAssets {
     Eq,
     TraceRawVcs,
     NonLocalValue,
-    Serialize,
-    Deserialize,
     Debug,
     Default,
     Clone,
@@ -54,19 +51,7 @@ pub enum CommonJsReferenceSubType {
 }
 
 #[derive(
-    PartialEq,
-    Eq,
-    TraceRawVcs,
-    NonLocalValue,
-    Serialize,
-    Deserialize,
-    Debug,
-    Clone,
-    Copy,
-    Hash,
-    TaskInput,
-    Encode,
-    Decode,
+    PartialEq, Eq, TraceRawVcs, NonLocalValue, Debug, Clone, Copy, Hash, TaskInput, Encode, Decode,
 )]
 pub enum ImportWithType {
     Json,
@@ -78,8 +63,6 @@ pub enum ImportWithType {
     Eq,
     TraceRawVcs,
     NonLocalValue,
-    Serialize,
-    Deserialize,
     Debug,
     Default,
     Clone,
@@ -136,16 +119,14 @@ impl ImportContext {
     }
 
     #[turbo_tasks::function]
-    pub async fn add_attributes(
-        self: Vc<Self>,
+    pub fn add_attributes(
+        &self,
         attr_layer: Option<RcStr>,
         attr_media: Option<RcStr>,
         attr_supports: Option<RcStr>,
-    ) -> Result<Vc<Self>> {
-        let this = &*self.await?;
-
+    ) -> Vc<Self> {
         let layers = {
-            let mut layers = this.layers.clone();
+            let mut layers = self.layers.clone();
             if let Some(attr_layer) = attr_layer
                 && !layers.contains(&attr_layer)
             {
@@ -155,7 +136,7 @@ impl ImportContext {
         };
 
         let media = {
-            let mut media = this.media.clone();
+            let mut media = self.media.clone();
             if let Some(attr_media) = attr_media
                 && !media.contains(&attr_media)
             {
@@ -165,7 +146,7 @@ impl ImportContext {
         };
 
         let supports = {
-            let mut supports = this.supports.clone();
+            let mut supports = self.supports.clone();
             if let Some(attr_supports) = attr_supports
                 && !supports.contains(&attr_supports)
             {
@@ -174,7 +155,7 @@ impl ImportContext {
             supports
         };
 
-        Ok(ImportContext::new(layers, media, supports))
+        ImportContext::new(layers, media, supports)
     }
 
     #[turbo_tasks::function]
@@ -220,8 +201,6 @@ impl ImportContext {
     Eq,
     TraceRawVcs,
     NonLocalValue,
-    Serialize,
-    Deserialize,
     Debug,
     Default,
     Clone,
@@ -250,8 +229,6 @@ pub enum CssReferenceSubType {
     Eq,
     TraceRawVcs,
     NonLocalValue,
-    Serialize,
-    Deserialize,
     Debug,
     Default,
     Clone,
@@ -270,19 +247,7 @@ pub enum UrlReferenceSubType {
 }
 
 #[derive(
-    PartialEq,
-    Eq,
-    TraceRawVcs,
-    NonLocalValue,
-    Serialize,
-    Deserialize,
-    Debug,
-    Clone,
-    Copy,
-    Hash,
-    TaskInput,
-    Encode,
-    Decode,
+    PartialEq, Eq, TraceRawVcs, NonLocalValue, Debug, Clone, Copy, Hash, TaskInput, Encode, Decode,
 )]
 pub enum TypeScriptReferenceSubType {
     Custom(u8),
@@ -290,19 +255,7 @@ pub enum TypeScriptReferenceSubType {
 }
 
 #[derive(
-    PartialEq,
-    Eq,
-    TraceRawVcs,
-    NonLocalValue,
-    Serialize,
-    Deserialize,
-    Debug,
-    Clone,
-    Copy,
-    Hash,
-    TaskInput,
-    Encode,
-    Decode,
+    PartialEq, Eq, TraceRawVcs, NonLocalValue, Debug, Clone, Copy, Hash, TaskInput, Encode, Decode,
 )]
 pub enum WorkerReferenceSubType {
     WebWorker,
@@ -316,19 +269,7 @@ pub enum WorkerReferenceSubType {
 // TODO(sokra) this was next.js specific values. We want to solve this in a
 // different way.
 #[derive(
-    PartialEq,
-    Eq,
-    TraceRawVcs,
-    NonLocalValue,
-    Serialize,
-    Deserialize,
-    Debug,
-    Clone,
-    Copy,
-    Hash,
-    TaskInput,
-    Encode,
-    Decode,
+    PartialEq, Eq, TraceRawVcs, NonLocalValue, Debug, Clone, Copy, Hash, TaskInput, Encode, Decode,
 )]
 pub enum EntryReferenceSubType {
     Web,
@@ -352,8 +293,6 @@ pub enum EntryReferenceSubType {
     Eq,
     TraceRawVcs,
     NonLocalValue,
-    Serialize,
-    Deserialize,
     Debug,
     Default,
     Clone,

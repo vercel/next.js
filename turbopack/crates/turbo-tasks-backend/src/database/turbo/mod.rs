@@ -84,6 +84,15 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
         self.db.get(key_space as usize, &key)
     }
 
+    fn batch_get<'l, 'db: 'l>(
+        &'l self,
+        _transaction: &'l Self::ReadTransaction<'db>,
+        key_space: KeySpace,
+        keys: &[&[u8]],
+    ) -> Result<Vec<Option<Self::ValueBuffer<'l>>>> {
+        self.db.batch_get(key_space as usize, keys)
+    }
+
     type ConcurrentWriteBatch<'l>
         = TurboWriteBatch<'l>
     where

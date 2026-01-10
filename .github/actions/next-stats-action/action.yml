@@ -1,0 +1,10 @@
+name: 'Next.js PR Stats'
+description: 'Compare PR stats with canary'
+inputs:
+  bundler:
+    description: 'Bundler to benchmark (webpack|turbopack|both)'
+    default: 'both'
+    required: false
+runs:
+  using: 'docker'
+  image: 'Dockerfile'

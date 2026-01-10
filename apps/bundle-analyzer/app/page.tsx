@@ -1,6 +1,7 @@
 'use client'
 
 import type React from 'react'
+
 import { useEffect, useMemo, useState } from 'react'
 import useSWR from 'swr'
 import { ErrorState } from '@/components/error-state'
@@ -11,18 +12,39 @@ import { TreemapVisualizer } from '@/components/treemap-visualizer'
 
 import { Badge } from '@/components/ui/badge'
 import { TreemapSkeleton } from '@/components/ui/skeleton'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { MultiSelect } from '@/components/ui/multi-select'
 import { AnalyzeData, ModulesData } from '@/lib/analyze-data'
 import { computeActiveEntries, computeModuleDepthMap } from '@/lib/module-graph'
 import { fetchStrict } from '@/lib/utils'
 import { formatBytes } from '@/lib/utils'
+import { SizeMode } from '@/lib/treemap-layout'
+import {
+  Monitor,
+  Server,
+  FileCode,
+  FileJson,
+  Palette,
+  Package,
+} from 'lucide-react'
+
+enum Environment {
+  Client = 'client',
+  Server = 'server',
+}
 
 export default function Home() {
   const [selectedRoute, setSelectedRoute] = useState<string | null>(null)
-  const [environmentFilter, setEnvironmentFilter] = useState<
-    'client' | 'server'
-  >('client')
-  const [typeFilter, setTypeFilter] = useState<string[]>(['js', 'css', 'json'])
+  const [environmentFilter, setEnvironmentFilter] = useState<Environment>(
+    Environment.Client
+  )
+  const [typeFilter, setTypeFilter] = useState(['js', 'css', 'json'])
   const [selectedSourceIndex, setSelectedSourceIndex] = useState<number | null>(
     null
   )
@@ -100,15 +122,15 @@ export default function Home() {
   }, [modulesData, analyzeData])
 
   const filterSource = useMemo(() => {
-    if (!analyzeData) return undefined
+    if (!analyzeData) return () => true
 
     return (sourceIndex: number) => {
       const flags = analyzeData.getSourceFlags(sourceIndex)
 
       // Check environment filter
       const hasEnvironment =
-        (environmentFilter === 'client' && flags.client) ||
-        (environmentFilter === 'server' && flags.server)
+        (environmentFilter === Environment.Client && flags.client) ||
+        (environmentFilter === Environment.Server && flags.server)
 
       // Check type filter
       const hasType =
@@ -145,54 +167,19 @@ export default function Home() {
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
     >
-      <div className="flex-none px-4 py-2 border-b border-border flex items-center gap-4">
-        <div className="basis-1/3 flex">
-          <RouteTypeahead
-            selectedRoute={selectedRoute}
-            onRouteSelected={(route) => {
-              setSelectedRoute(route)
-              setSelectedSourceIndex(null)
-              setFocusedSourceIndex(null)
-            }}
-          />
-        </div>
-
-        <div className="basis-2/3 flex justify-end">
-          {analyzeData && (
-            <>
-              <ToggleGroup
-                type="single"
-                className="mr-4"
-                value={environmentFilter}
-                onValueChange={(value) => {
-                  if (value) setEnvironmentFilter(value as 'client' | 'server')
-                }}
-                size="sm"
-              >
-                <ToggleGroupItem value="client">Client</ToggleGroupItem>
-                <ToggleGroupItem value="server">Server</ToggleGroupItem>
-              </ToggleGroup>
-
-              <ToggleGroup
-                type="multiple"
-                className="mr-4"
-                value={typeFilter}
-                onValueChange={(value) => {
-                  if (value.length > 0) setTypeFilter(value)
-                }}
-                size="sm"
-              >
-                <ToggleGroupItem value="js">JS</ToggleGroupItem>
-                <ToggleGroupItem value="css">CSS</ToggleGroupItem>
-                <ToggleGroupItem value="json">JSON</ToggleGroupItem>
-                <ToggleGroupItem value="asset">Asset</ToggleGroupItem>
-              </ToggleGroup>
-
-              <FileSearch value={searchQuery} onChange={setSearchQuery} />
-            </>
-          )}
-        </div>
-      </div>
+      <TopBar
+        analyzeData={analyzeData}
+        selectedRoute={selectedRoute}
+        setSelectedRoute={setSelectedRoute}
+        environmentFilter={environmentFilter}
+        setEnvironmentFilter={setEnvironmentFilter}
+        setSelectedSourceIndex={setSelectedSourceIndex}
+        setFocusedSourceIndex={setFocusedSourceIndex}
+        typeFilter={typeFilter}
+        setTypeFilter={setTypeFilter}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+      />
 
       <div className="flex-1 flex min-h-0">
         {error && !analyzeData ? (
@@ -235,6 +222,7 @@ export default function Home() {
                 onHoveredNodeChange={setHoveredNodeInfo}
                 searchQuery={searchQuery}
                 filterSource={filterSource}
+                sizeMode={SizeMode.Compressed}
               />
             </div>
 
@@ -252,6 +240,7 @@ export default function Home() {
               selectedSourceIndex={selectedSourceIndex}
               moduleDepthMap={moduleDepthMap}
               environmentFilter={environmentFilter}
+              filterSource={filterSource}
             />
           </>
         ) : null}
@@ -266,7 +255,7 @@ export default function Home() {
                   {hoveredNodeInfo.name}
                 </span>
                 <span className="ml-2 text-muted-foreground">
-                  {formatBytes(hoveredNodeInfo.size)}
+                  {`${formatBytes(hoveredNodeInfo.size)} compressed`}
                 </span>
                 {(hoveredNodeInfo.server || hoveredNodeInfo.client) && (
                   <span className="ml-2 inline-flex gap-1">
@@ -287,6 +276,115 @@ export default function Home() {
       )}
     </main>
   )
+}
+
+const typeFilterOptions = [
+  {
+    value: 'js',
+    label: 'JavaScript',
+    icon: <FileCode className="h-3.5 w-3.5" />,
+  },
+  { value: 'css', label: 'CSS', icon: <Palette className="h-3.5 w-3.5" /> },
+  {
+    value: 'json',
+    label: 'JSON',
+    icon: <FileJson className="h-3.5 w-3.5" />,
+  },
+  {
+    value: 'asset',
+    label: 'Asset',
+    icon: <Package className="h-3.5 w-3.5" />,
+  },
+]
+
+function TopBar({
+  analyzeData,
+  selectedRoute,
+  setSelectedRoute,
+  environmentFilter,
+  setEnvironmentFilter,
+  setSelectedSourceIndex,
+  setFocusedSourceIndex,
+  typeFilter,
+  setTypeFilter,
+  searchQuery,
+  setSearchQuery,
+}: {
+  analyzeData: AnalyzeData | undefined
+  selectedRoute: string | null
+  setSelectedRoute: (route: string | null) => void
+  environmentFilter: Environment
+  setEnvironmentFilter: (env: Environment) => void
+  setSelectedSourceIndex: (index: number | null) => void
+  setFocusedSourceIndex: (index: number | null) => void
+  typeFilter: string[]
+  setTypeFilter: (types: string[]) => void
+  searchQuery: string
+  setSearchQuery: (query: string) => void
+}) {
+  return (
+    <div className="flex-none px-4 py-2 border-b border-border flex items-center gap-3">
+      <div className="flex-1 flex">
+        <RouteTypeahead
+          selectedRoute={selectedRoute}
+          onRouteSelected={(route) => {
+            setSelectedRoute(route)
+            setSelectedSourceIndex(null)
+            setFocusedSourceIndex(null)
+          }}
+        />
+      </div>
+
+      <div className="flex items-center gap-2">
+        {analyzeData && (
+          <>
+            <Select
+              value={environmentFilter}
+              onValueChange={(value: Environment) =>
+                setEnvironmentFilter(value)
+              }
+            >
+              <SelectTrigger className="w-28">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={Environment.Client}>
+                  <div className="flex items-center gap-1.5">
+                    <Monitor className="h-3.5 w-3.5" />
+                    <span className="text-xs">Client</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value={Environment.Server}>
+                  <div className="flex items-center gap-1.5">
+                    <Server className="h-3.5 w-3.5" />
+                    <span className="text-xs">Server</span>
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+
+            <MultiSelect
+              options={typeFilterOptions}
+              value={typeFilter}
+              onValueChange={setTypeFilter}
+              selectionName={{ singular: 'file type', plural: 'file types' }}
+              triggerIcon={<FileCode className="h-3.5 w-3.5" />}
+              triggerClassName="w-36"
+              aria-label="Filter by file type"
+            />
+
+            <ControlDivider />
+
+            <FileSearch value={searchQuery} onChange={setSearchQuery} />
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function ControlDivider() {
+  return <span className="h-6 w-px bg-muted-foreground/30" />
 }
 
 function getRootSourceIndex(analyzeData: AnalyzeData | undefined): number {

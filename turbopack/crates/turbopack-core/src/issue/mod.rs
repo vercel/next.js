@@ -30,7 +30,9 @@ use crate::{
 };
 
 #[turbo_tasks::value(shared)]
-#[derive(PartialOrd, Ord, Copy, Clone, Hash, Debug, DeterministicHash, TaskInput)]
+#[derive(
+    PartialOrd, Ord, Copy, Clone, Hash, Debug, DeterministicHash, TaskInput, Serialize, Deserialize,
+)]
 #[serde(rename_all = "camelCase")]
 pub enum IssueSeverity {
     Bug,
@@ -80,7 +82,7 @@ impl Display for IssueSeverity {
 /// Represents a section of structured styled text. This can be interpreted and
 /// rendered by various UIs as appropriate, e.g. HTML for display on the web,
 /// ANSI sequences in TTYs.
-#[derive(Clone, Debug, PartialOrd, Ord, DeterministicHash)]
+#[derive(Clone, Debug, PartialOrd, Ord, DeterministicHash, Serialize)]
 #[turbo_tasks::value(shared)]
 pub enum StyledString {
     /// Multiple [StyledString]s concatenated into a single line. Each item is
@@ -280,19 +282,7 @@ impl CapturedIssues {
 }
 
 #[derive(
-    Clone,
-    Copy,
-    Debug,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    Hash,
-    TaskInput,
-    TraceRawVcs,
-    NonLocalValue,
-    Encode,
-    Decode,
+    Clone, Copy, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, NonLocalValue, Encode, Decode,
 )]
 pub struct IssueSource {
     source: ResolvedVc<Box<dyn Source>>,
@@ -301,19 +291,7 @@ pub struct IssueSource {
 
 /// The end position is the first character after the range
 #[derive(
-    Clone,
-    Copy,
-    Debug,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    Hash,
-    TaskInput,
-    TraceRawVcs,
-    NonLocalValue,
-    Encode,
-    Decode,
+    Clone, Copy, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, NonLocalValue, Encode, Decode,
 )]
 enum SourceRange {
     LineColumn(SourcePos, SourcePos),
@@ -632,7 +610,7 @@ async fn into_plain_trace(traces: Vec<Vec<ReadRef<AssetIdent>>>) -> Result<Vec<P
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Clone, Debug, PartialOrd, Ord, DeterministicHash)]
+#[derive(Clone, Debug, PartialOrd, Ord, DeterministicHash, Serialize)]
 pub enum IssueStage {
     Config,
     AppStructure,

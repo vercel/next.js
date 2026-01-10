@@ -4,8 +4,10 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::ModuleRule;
 use turbopack_ecmascript_plugins::transform::relay::RelayTransformer;
 
-use super::get_ecma_transform_rule;
-use crate::{next_config::NextConfig, next_shared::transforms::EcmascriptTransformStage};
+use crate::{
+    next_config::NextConfig,
+    next_shared::transforms::{EcmascriptTransformStage, get_ecma_transform_rule},
+};
 
 /// Returns a transform rule for the relay graphql transform.
 pub async fn get_relay_transform_rule(

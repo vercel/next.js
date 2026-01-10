@@ -49,7 +49,7 @@ pub struct ModuleBatchesGraphEdge {
     pub module: Option<ResolvedVc<Box<dyn Module>>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Debug, Clone, TraceRawVcs, NonLocalValue, Encode, Decode)]
 struct EntriesList(
     #[bincode(with = "turbo_bincode::indexset")] pub FxIndexSet<ResolvedVc<Box<dyn Module>>>,
 );
@@ -289,7 +289,7 @@ impl PreBatches {
             this: self,
         };
         let mut visited = FxHashSet::default();
-        module_graph.traverse_edges_from_entries_dfs(
+        module_graph.traverse_edges_dfs(
             std::iter::once(entry),
             &mut state,
             |parent_info, node, state| {
@@ -355,7 +355,7 @@ pub async fn compute_module_batches(
 
         // Walk the module graph and mark all modules that are boundary modules (referenced from a
         // different chunk group bitmap)
-        module_graph.traverse_all_edges_unordered(|parent, node| {
+        module_graph.traverse_edges_unordered(|parent, node| {
             if let Some((parent, ty)) = parent {
                 let std::collections::hash_set::Entry::Vacant(entry) =
                     pre_batches.boundary_modules.entry(node)
@@ -395,9 +395,10 @@ pub async fn compute_module_batches(
         module_graph.traverse_cycles(
             |ref_data| ref_data.chunking_type.is_parallel(),
             |cycle| {
-                if cycle
-                    .iter()
-                    .any(|node| pre_batches.boundary_modules.contains(node))
+                if cycle.len() > 1
+                    && cycle
+                        .iter()
+                        .any(|node| pre_batches.boundary_modules.contains(node))
                 {
                     pre_batches
                         .boundary_modules

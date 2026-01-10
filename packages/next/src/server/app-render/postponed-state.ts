@@ -116,7 +116,8 @@ export async function getDynamicDataPostponedState(
 
 export function parsePostponedState(
   state: string,
-  interpolatedParams: Params
+  interpolatedParams: Params,
+  maxPostponedStateSizeBytes: number | undefined
 ): PostponedState {
   try {
     const postponedStringLengthMatch = state.match(/^([0-9]*):/)?.[1]
@@ -134,7 +135,10 @@ export function parsePostponedState(
     )
 
     const renderResumeDataCache = createRenderResumeDataCache(
-      state.slice(postponedStringLengthMatch.length + postponedStringLength + 1)
+      state.slice(
+        postponedStringLengthMatch.length + postponedStringLength + 1
+      ),
+      maxPostponedStateSizeBytes
     )
 
     try {

@@ -7,7 +7,6 @@ import type { ProxyMatcher } from './analysis/get-page-static-info'
 import type { Rewrite } from '../lib/load-custom-routes'
 import path from 'node:path'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
-import { checkIsAppPPREnabled } from '../server/lib/experimental/ppr'
 import {
   getNextConfigEnv,
   getNextPublicEnvironmentVariables,
@@ -115,7 +114,6 @@ export function getDefineEnv({
   const nextPublicEnv = getNextPublicEnvironmentVariables()
   const nextConfigEnv = getNextConfigEnv(config)
 
-  const isPPREnabled = checkIsAppPPREnabled(config.experimental.ppr)
   const isCacheComponentsEnabled = !!config.cacheComponents
   const isUseCacheEnabled = !!config.experimental.useCache
 
@@ -147,8 +145,6 @@ export function getDefineEnv({
       : process.env.NEXT_RSPACK
         ? 'Rspack'
         : 'Webpack',
-    // minimal mode is enforced when an adapter is configured
-    'process.env.MINIMAL_MODE': Boolean(config.experimental.adapterPath),
     // TODO: enforce `NODE_ENV` on `process.env`, and add a test:
     'process.env.NODE_ENV':
       dev || config.experimental.allowDevelopmentBuild
@@ -163,7 +159,6 @@ export function getDefineEnv({
     'process.env.__NEXT_APP_NAV_FAIL_HANDLING': Boolean(
       config.experimental.appNavFailHandling
     ),
-    'process.env.__NEXT_PPR': isPPREnabled,
     'process.env.__NEXT_CACHE_COMPONENTS': isCacheComponentsEnabled,
     'process.env.__NEXT_USE_CACHE': isUseCacheEnabled,
 
@@ -345,6 +340,9 @@ export function getDefineEnv({
       config.experimental.reactDebugChannel ?? false,
     'process.env.__NEXT_TRANSITION_INDICATOR':
       config.experimental.transitionIndicator ?? false,
+    'process.env.__NEXT_CACHE_LIFE': config.cacheLife,
+    'process.env.__NEXT_CLIENT_PARAM_PARSING_ORIGINS':
+      config.experimental.clientParamParsingOrigins || [],
   }
 
   const userDefines = config.compiler?.define ?? {}

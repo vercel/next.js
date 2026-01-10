@@ -1,6 +1,5 @@
 use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
@@ -61,8 +60,6 @@ pub const CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR: &str =
     PartialEq,
     Eq,
     Hash,
-    Serialize,
-    Deserialize,
     TraceRawVcs,
     DeterministicHash,
     NonLocalValue,
@@ -878,10 +875,10 @@ impl ChunkingContext for BrowserChunkingContext {
 
     #[turbo_tasks::function]
     async fn module_export_usage(
-        self: Vc<Self>,
+        &self,
         module: ResolvedVc<Box<dyn Module>>,
     ) -> Result<Vc<ModuleExportUsage>> {
-        if let Some(export_usage) = self.await?.export_usage {
+        if let Some(export_usage) = self.export_usage {
             Ok(export_usage.await?.used_exports(module).await?)
         } else {
             Ok(ModuleExportUsage::all())
@@ -890,10 +887,10 @@ impl ChunkingContext for BrowserChunkingContext {
 
     #[turbo_tasks::function]
     async fn is_reference_unused(
-        self: Vc<Self>,
+        &self,
         reference: ResolvedVc<Box<dyn ModuleReference>>,
     ) -> Result<Vc<bool>> {
-        if let Some(unused_references) = self.await?.unused_references {
+        if let Some(unused_references) = self.unused_references {
             Ok(Vc::cell(
                 unused_references.await?.is_reference_unused(&reference),
             ))

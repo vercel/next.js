@@ -30,7 +30,7 @@ use next_core::tracing_presets::{
 };
 use once_cell::sync::Lazy;
 use rand::Rng;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use tokio::{io::AsyncWriteExt, runtime::Handle, time::Instant};
 use tracing::Instrument;
 use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
@@ -1520,13 +1520,11 @@ pub fn project_compilation_events_subscribe(
 #[derive(
     Clone,
     Debug,
-    Deserialize,
     Eq,
     Hash,
     NonLocalValue,
     OperationValue,
     PartialEq,
-    Serialize,
     TaskInput,
     TraceRawVcs,
     Encode,

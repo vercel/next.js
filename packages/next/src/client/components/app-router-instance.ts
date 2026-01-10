@@ -30,6 +30,7 @@ import type {
 import { setLinkForCurrentNavigation, type LinkInstance } from './links'
 import type { ClientInstrumentationHooks } from '../app-index'
 import type { GlobalErrorComponent } from './builtin/global-error'
+import { isJavaScriptURLString } from '../lib/javascript-url'
 
 export type DispatchStatePromise = React.Dispatch<ReducerState>
 
@@ -79,13 +80,7 @@ function runRemainingActions(
     // after the navigation has already finished and the queue is empty
     if (actionQueue.needsRefresh) {
       actionQueue.needsRefresh = false
-      actionQueue.dispatch(
-        {
-          type: ACTION_REFRESH,
-          origin: window.location.origin,
-        },
-        setState
-      )
+      actionQueue.dispatch({ type: ACTION_REFRESH }, setState)
     }
   }
 }
@@ -331,6 +326,11 @@ export const publicAppRouterInstance: AppRouterInstance = {
     // data in the router reducer state; it writes into a global mutable
     // cache. So we don't need to dispatch an action.
     (href: string, options?: PrefetchOptions) => {
+      if (isJavaScriptURLString(href)) {
+        throw new Error(
+          'Next.js has blocked a javascript: URL as a security precaution.'
+        )
+      }
       const actionQueue = getAppRouterActionQueue()
       const prefetchKind = options?.kind ?? PrefetchKind.AUTO
 
@@ -346,10 +346,6 @@ export const publicAppRouterInstance: AppRouterInstance = {
         case PrefetchKind.FULL: {
           fetchStrategy = FetchStrategy.Full
           break
-        }
-        case PrefetchKind.TEMPORARY: {
-          // This concept doesn't exist in the segment cache implementation.
-          return
         }
         default: {
           prefetchKind satisfies never
@@ -370,11 +366,21 @@ export const publicAppRouterInstance: AppRouterInstance = {
       )
     },
   replace: (href: string, options?: NavigateOptions) => {
+    if (isJavaScriptURLString(href)) {
+      throw new Error(
+        'Next.js has blocked a javascript: URL as a security precaution.'
+      )
+    }
     startTransition(() => {
       dispatchNavigateAction(href, 'replace', options?.scroll ?? true, null)
     })
   },
   push: (href: string, options?: NavigateOptions) => {
+    if (isJavaScriptURLString(href)) {
+      throw new Error(
+        'Next.js has blocked a javascript: URL as a security precaution.'
+      )
+    }
     startTransition(() => {
       dispatchNavigateAction(href, 'push', options?.scroll ?? true, null)
     })
@@ -383,7 +389,6 @@ export const publicAppRouterInstance: AppRouterInstance = {
     startTransition(() => {
       dispatchAppRouterAction({
         type: ACTION_REFRESH,
-        origin: window.location.origin,
       })
     })
   },
@@ -396,7 +401,6 @@ export const publicAppRouterInstance: AppRouterInstance = {
       startTransition(() => {
         dispatchAppRouterAction({
           type: ACTION_HMR_REFRESH,
-          origin: window.location.origin,
         })
       })
     }
