@@ -16,7 +16,9 @@ use tokio::time::sleep;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{NonLocalValue, ResolvedVc, TransientInstance, Vc, trace::TraceRawVcs};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
-use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath};
+use turbo_tasks_fs::{
+    DiskFileSystem, File, FileContent, FileSystem, FileSystemPath, LinkContent, LinkType,
+};
 
 /// A collection of fuzzers for `turbo-tasks`. These are not test cases as they're slow and (in many
 /// cases) non-deterministic.
@@ -66,6 +68,10 @@ struct FsWatcher {
     /// Number of symlink modifications per iteration (only used when --symlinks is set).
     #[arg(long, default_value_t = 20, requires = "symlinks")]
     symlink_modifications: u32,
+    /// Track file writes instead of reads. When enabled, the fuzzer writes files via
+    /// turbo-tasks and verifies that external modifications trigger invalidations.
+    #[arg(long)]
+    track_writes: bool,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -79,6 +85,17 @@ enum SymlinkMode {
     /// Test junction points (Windows-only)
     #[cfg(windows)]
     Junction,
+}
+
+impl SymlinkMode {
+    fn to_link_type(self) -> LinkType {
+        match self {
+            SymlinkMode::File => LinkType::empty(),
+            SymlinkMode::Directory => LinkType::DIRECTORY,
+            #[cfg(windows)]
+            SymlinkMode::Junction => LinkType::DIRECTORY,
+        }
+    }
 }
 
 #[tokio::main]
@@ -129,21 +146,31 @@ async fn fuzz_fs_watcher(args: FsWatcher) -> anyhow::Result<()> {
             project_fs.await?.start_watching(None).await?;
         }
 
-        let read_all_paths_op = read_all_paths_operation(
+        let symlink_count = if args.symlinks.is_some() {
+            args.symlink_count
+        } else {
+            0
+        };
+        let track_writes = args.track_writes;
+        let symlink_mode = args.symlinks;
+        let symlink_is_directory =
+            symlink_mode.map(|m| m.to_link_type().contains(LinkType::DIRECTORY));
+
+        read_or_write_all_paths_operation(
             invalidations.clone(),
             project_root.clone(),
             args.depth,
             args.width,
-            if args.symlinks.is_some() {
-                args.symlink_count
-            } else {
-                0
-            },
-        );
-        read_all_paths_op.read_strongly_consistent().await?;
+            symlink_count,
+            symlink_is_directory,
+            track_writes,
+        )
+        .read_strongly_consistent()
+        .await?;
         {
             let mut invalidations = invalidations.0.lock().unwrap();
-            println!("read all {} files", invalidations.len());
+            let verb = if track_writes { "wrote" } else { "read" };
+            println!("{} all {} files", verb, invalidations.len());
             invalidations.clear();
         }
 
@@ -201,7 +228,17 @@ async fn fuzz_fs_watcher(args: FsWatcher) -> anyhow::Result<()> {
             // there's no way to know when we've received all the pending events from the operating
             // system, so just sleep and pray
             sleep(Duration::from_millis(args.notify_timeout_ms)).await;
-            read_all_paths_op.read_strongly_consistent().await?;
+            read_or_write_all_paths_operation(
+                invalidations.clone(),
+                project_root.clone(),
+                args.depth,
+                args.width,
+                symlink_count,
+                symlink_is_directory,
+                track_writes,
+            )
+            .read_strongly_consistent()
+            .await?;
             {
                 let mut invalidations = invalidations.0.lock().unwrap();
                 let symlink_info = if args.symlinks.is_some() {
@@ -267,43 +304,97 @@ async fn read_link(
     Ok(())
 }
 
+#[turbo_tasks::function]
+async fn write_path(
+    invalidations: TransientInstance<PathInvalidations>,
+    path: FileSystemPath,
+) -> anyhow::Result<()> {
+    let path_str = path.path.clone();
+    invalidations.0.lock().unwrap().insert(path_str);
+    let content = FileContent::Content(File::from(""));
+    let _ = path.write(content.cell()).await?;
+    Ok(())
+}
+
+#[turbo_tasks::function]
+async fn write_link(
+    invalidations: TransientInstance<PathInvalidations>,
+    path: FileSystemPath,
+    target: RcStr,
+    is_directory: bool,
+) -> anyhow::Result<()> {
+    let path_str = path.path.clone();
+    invalidations.0.lock().unwrap().insert(path_str);
+    let link_type = if is_directory {
+        LinkType::DIRECTORY
+    } else {
+        LinkType::empty()
+    };
+    let link_content = LinkContent::Link { target, link_type };
+    let _ = path
+        .fs()
+        .write_link(path.clone(), link_content.cell())
+        .await?;
+    Ok(())
+}
+
 #[turbo_tasks::function(operation)]
-async fn read_all_paths_operation(
+async fn read_or_write_all_paths_operation(
     invalidations: TransientInstance<PathInvalidations>,
     root: FileSystemPath,
     depth: usize,
     width: usize,
     symlink_count: u32,
+    symlink_is_directory: Option<bool>,
+    write: bool,
 ) -> anyhow::Result<()> {
-    async fn read_all_paths_inner(
+    async fn process_paths_inner(
         invalidations: TransientInstance<PathInvalidations>,
         parent: FileSystemPath,
         depth: usize,
         width: usize,
+        write: bool,
     ) -> anyhow::Result<()> {
         for child_id in 0..width {
             let child_name = child_id.to_string();
             let child_path = parent.join(&child_name)?;
             if depth == 1 {
-                read_path(invalidations.clone(), child_path).await?;
+                if write {
+                    write_path(invalidations.clone(), child_path).await?;
+                } else {
+                    read_path(invalidations.clone(), child_path).await?;
+                }
             } else {
-                Box::pin(read_all_paths_inner(
+                Box::pin(process_paths_inner(
                     invalidations.clone(),
                     child_path,
                     depth - 1,
                     width,
+                    write,
                 ))
                 .await?;
             }
         }
         Ok(())
     }
-    read_all_paths_inner(invalidations.clone(), root.clone(), depth, width).await?;
+    process_paths_inner(invalidations.clone(), root.clone(), depth, width, write).await?;
 
-    let symlinks_dir = root.join("_symlinks")?;
-    for i in 0..symlink_count {
-        let symlink_path = symlinks_dir.join(&i.to_string())?;
-        read_link(invalidations.clone(), symlink_path).await?;
+    if symlink_count > 0 {
+        let symlinks_dir = root.join("_symlinks")?;
+        for i in 0..symlink_count {
+            let symlink_path = symlinks_dir.join(&i.to_string())?;
+            if write {
+                write_link(
+                    invalidations.clone(),
+                    symlink_path,
+                    rcstr!("../0"),
+                    symlink_is_directory.unwrap_or(false),
+                )
+                .await?;
+            } else {
+                read_link(invalidations.clone(), symlink_path).await?;
+            }
+        }
     }
 
     Ok(())
