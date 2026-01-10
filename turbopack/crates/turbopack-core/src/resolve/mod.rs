@@ -121,7 +121,8 @@ impl BindingUsage {
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Clone, Default, Hash, Serialize, Deserialize)]
 pub enum ImportUsage {
-    /// This import is used at the top level of the module
+    /// This import is used at the top level of the module.  For example, for module level side
+    /// effects
     #[default]
     TopLevel,
     /// This import is used only by these specific exports, if all exports are unused, the import

@@ -146,9 +146,9 @@ pub async fn compute_binding_usage_info(
                 };
 
                 if remove_unused_imports {
-                    // If this is export is just being used for side effects, we can skip it if the
-                    // target is side effect free.  Note. many `imports` create parallel Evaluation
-                    // and Named/All ExportUsage references
+                    // If this is an evaluation reference and the target has no side effects
+                    // then we can drop it. NOTE: many `imports` create parallel Evaluation
+                    // and Named/All references
                     if matches!(&ref_data.binding_usage.export, ExportUsage::Evaluation)
                         && side_effect_free_modules
                             .as_ref()
