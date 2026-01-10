@@ -74,10 +74,12 @@ jobs:
       matrix:
         group: [1/8, 2/8, 3/8, 4/8, 5/8, 6/8, 7/8, 8/8]
     with:
+      # TODO: remove continue on error after testing
       afterBuild: |
         npm i -g vercel@latest && \
         NEXT_E2E_TEST_TIMEOUT=240000 \
         NEXT_TEST_MODE=deploy \
+        NEXT_TEST_CONTINUE_ON_ERROR=true \
         IS_WEBPACK_TEST=1 \
         NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json" \
         NEXT_TEST_VERSION="${{ github.event.inputs.nextVersion || needs.setup.outputs.next-version || 'canary' }}" \
