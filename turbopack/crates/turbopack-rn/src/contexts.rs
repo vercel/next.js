@@ -74,6 +74,7 @@ pub async fn get_client_import_map(
     import_map.insert_singleton_alias(rcstr!("react"), app_path.clone());
     import_map.insert_singleton_alias(rcstr!("react-dom"), app_path.clone());
     import_map.insert_singleton_alias(rcstr!("@react-native/js-polyfills"), app_path.clone());
+    import_map.insert_singleton_alias(rcstr!("expo"), app_path.clone());
     import_map.insert_singleton_alias(rcstr!("react-native"), app_path.clone());
     import_map.insert_singleton_alias(rcstr!("react-native-url-polyfill"), app_path.clone());
 

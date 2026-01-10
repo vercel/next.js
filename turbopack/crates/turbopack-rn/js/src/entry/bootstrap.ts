@@ -5,6 +5,11 @@ import 'react-native-url-polyfill/auto'
 // @ts-ignore
 import { DevSettings } from 'react-native'
 
+try {
+  // @ts-ignore
+  require('expo/virtual/streams.js')
+} catch (e) {}
+
 // @ts-ignore
 globalThis.location = { reload: () => DevSettings.reload() }
 
