@@ -87,6 +87,23 @@ pub trait BackingStorageSealed: 'static + Send + Sync {
         task_id: TaskId,
         category: TaskDataCategory,
     ) -> Result<Vec<CachedDataItem>>;
+    /// # Safety
+    ///
+    /// `tx` must be a transaction from this BackingStorage instance.
+    unsafe fn batch_lookup_data(
+        &self,
+        tx: Option<&Self::ReadTransaction<'_>>,
+        task_ids: &[TaskId],
+        category: TaskDataCategory,
+    ) -> Result<Vec<Vec<CachedDataItem>>> {
+        let mut results = Vec::with_capacity(task_ids.len());
+        for &task_id in task_ids {
+            // TODO more efficient batch implementation
+            let data = unsafe { self.lookup_data(tx, task_id, category)? };
+            results.push(data);
+        }
+        Ok(results)
+    }
 
     fn shutdown(&self) -> Result<()> {
         Ok(())
@@ -200,6 +217,24 @@ where
             Either::Right(this) => {
                 let tx = tx.map(|tx| read_transaction_right_or_panic(tx.as_ref()));
                 unsafe { this.lookup_data(tx, task_id, category) }
+            }
+        }
+    }
+
+    unsafe fn batch_lookup_data(
+        &self,
+        tx: Option<&Self::ReadTransaction<'_>>,
+        task_ids: &[TaskId],
+        category: TaskDataCategory,
+    ) -> Result<Vec<Vec<CachedDataItem>>> {
+        match self {
+            Either::Left(this) => {
+                let tx = tx.map(|tx| read_transaction_left_or_panic(tx.as_ref()));
+                unsafe { this.batch_lookup_data(tx, task_ids, category) }
+            }
+            Either::Right(this) => {
+                let tx = tx.map(|tx| read_transaction_right_or_panic(tx.as_ref()));
+                unsafe { this.batch_lookup_data(tx, task_ids, category) }
             }
         }
     }

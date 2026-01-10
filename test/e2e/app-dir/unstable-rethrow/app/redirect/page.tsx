@@ -8,4 +8,5 @@ export default function Page() {
     unstable_rethrow(err)
     console.error('[test assertion]: error leaked', err)
   }
+  return null
 }

@@ -2,8 +2,9 @@ use std::{future::Future, sync::Arc};
 
 use anyhow::{Context, Result, anyhow};
 use bytes_str::BytesStr;
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
+    atoms::Atom,
     base::SwcComments,
     common::{
         BytePos, FileName, GLOBALS, Globals, LineCol, Mark, SyntaxContext,
@@ -12,7 +13,7 @@ use swc_core::{
         source_map::{Files, SourceMapGenConfig, build_source_map},
     },
     ecma::{
-        ast::{EsVersion, Id, ObjectPatProp, Pat, Program, VarDecl},
+        ast::{EsVersion, Id, Ident, IdentName, ObjectPatProp, Pat, Program, VarDecl},
         lints::{self, config::LintConfig, rules::LintParams},
         parser::{EsSyntax, Parser, Syntax, TsSyntax, lexer::Lexer},
         transforms::{
@@ -47,9 +48,101 @@ use super::EcmascriptModuleAssetType;
 use crate::{
     EcmascriptInputTransform,
     analyzer::graph::EvalContext,
+    magic_identifier,
     swc_comments::ImmutableComments,
     transform::{EcmascriptInputTransforms, TransformContext},
 };
+
+/// Collects identifier names and their byte positions from an AST.
+/// This is used to populate the `names` field in source maps.
+/// Based on swc_compiler_base::IdentCollector.
+pub struct IdentCollector {
+    names_vec: Vec<(BytePos, Atom)>,
+    /// Stack of current class names for mapping constructors to class names
+    class_stack: Vec<Atom>,
+}
+
+impl IdentCollector {
+    /// Converts the collected identifiers into a map keyed by the start position of the identifier
+    pub fn into_map(self) -> FxHashMap<BytePos, Atom> {
+        FxHashMap::from_iter(self.names_vec)
+    }
+}
+impl Default for IdentCollector {
+    fn default() -> Self {
+        Self {
+            names_vec: Vec::with_capacity(128),
+            class_stack: Vec::new(),
+        }
+    }
+}
+
+/// Unmangles a Turbopack magic identifier, returning the original name or the input if not mangled
+fn unmangle_atom(name: &Atom) -> Atom {
+    magic_identifier::unmangle(name)
+        .map(Atom::from)
+        .unwrap_or_else(|| name.clone())
+}
+
+impl Visit for IdentCollector {
+    noop_visit_type!();
+
+    fn visit_ident(&mut self, ident: &Ident) {
+        // Skip dummy spans - these are synthetic/generated identifiers
+        if !ident.span.lo.is_dummy() {
+            // we can get away with just the `lo` positions since identifiers cannot overlap.
+            self.names_vec
+                .push((ident.span.lo, unmangle_atom(&ident.sym)));
+        }
+    }
+
+    fn visit_ident_name(&mut self, ident: &IdentName) {
+        if ident.span.lo.is_dummy() {
+            return;
+        }
+
+        // Map constructor names to the class name
+        let mut sym = &ident.sym;
+        if ident.sym == "constructor" {
+            if let Some(class_name) = self.class_stack.last() {
+                sym = class_name;
+            } else {
+                // If no class name in stack, skip the constructor mapping
+                return;
+            }
+        }
+
+        self.names_vec.push((ident.span.lo, unmangle_atom(sym)));
+    }
+
+    fn visit_class_decl(&mut self, decl: &swc_core::ecma::ast::ClassDecl) {
+        // Push class name onto stack
+        self.class_stack.push(decl.ident.sym.clone());
+
+        // Visit the identifier and class
+        self.visit_ident(&decl.ident);
+        self.visit_class(&decl.class);
+
+        // Pop class name from stack
+        self.class_stack.pop();
+    }
+
+    fn visit_class_expr(&mut self, expr: &swc_core::ecma::ast::ClassExpr) {
+        // Push class name onto stack if it exists
+        if let Some(ref ident) = expr.ident {
+            self.class_stack.push(ident.sym.clone());
+            self.visit_ident(ident);
+        }
+
+        // Visit the class body
+        self.visit_class(&expr.class);
+
+        // Pop class name from stack if it was pushed
+        if expr.ident.is_some() {
+            self.class_stack.pop();
+        }
+    }
+}
 
 #[turbo_tasks::value(shared, serialization = "none", eq = "manual", cell = "new")]
 #[allow(clippy::large_enum_variant)]
@@ -82,6 +175,7 @@ pub fn generate_js_source_map<'a>(
     original_source_maps: impl IntoIterator<Item = &'a Rope>,
     original_source_maps_complete: bool,
     inline_sources_content: bool,
+    names: FxHashMap<BytePos, Atom>,
 ) -> Result<Rope> {
     let original_source_maps = original_source_maps
         .into_iter()
@@ -107,6 +201,7 @@ pub fn generate_js_source_map<'a>(
             // We only need the source content of `A`, and a way to map the content of `B` back to
             // `A`, while constructing the final source map, `C`.
             inline_sources_content: inline_sources_content && !fast_path_single_original_source_map,
+            names,
         },
     );
 
@@ -145,6 +240,7 @@ pub fn generate_js_source_map<'a>(
 /// sourcemap, so we need to provide a custom config to do it.
 pub struct InlineSourcesContentConfig {
     inline_sources_content: bool,
+    names: FxHashMap<BytePos, Atom>,
 }
 
 impl SourceMapGenConfig for InlineSourcesContentConfig {
@@ -159,6 +255,10 @@ impl SourceMapGenConfig for InlineSourcesContentConfig {
 
     fn inline_sources_content(&self, _f: &FileName) -> bool {
         self.inline_sources_content
+    }
+
+    fn name_for_bytepos(&self, pos: BytePos) -> Option<&str> {
+        self.names.get(&pos).map(|v| &**v)
     }
 }
 

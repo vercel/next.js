@@ -44,6 +44,7 @@ import { disableSmoothScrollDuringRouteTransition } from './utils/disable-smooth
 import type { Params } from '../../../server/request/params'
 import { MATCHED_PATH_HEADER } from '../../../lib/constants'
 import { getDeploymentId } from '../deployment-id'
+import { isJavaScriptURLString } from '../../../client/lib/javascript-url'
 
 let resolveRewrites: typeof import('./utils/resolve-rewrites').default
 if (process.env.__NEXT_HAS_REWRITES) {
@@ -995,6 +996,14 @@ export default class Router implements BaseRouter {
    * @param options object you can define `shallow` and other options
    */
   push(url: Url, as?: Url, options: TransitionOptions = {}) {
+    if (
+      isJavaScriptURLString(url.toString()) ||
+      (as && isJavaScriptURLString(as.toString()))
+    ) {
+      throw new Error(
+        'Next.js has blocked a javascript: URL as a security precaution.'
+      )
+    }
     if (process.env.__NEXT_SCROLL_RESTORATION) {
       // TODO: remove in the future when we update history before route change
       // is complete, as the popstate event should handle this capture.
@@ -1019,6 +1028,14 @@ export default class Router implements BaseRouter {
    * @param options object you can define `shallow` and other options
    */
   replace(url: Url, as?: Url, options: TransitionOptions = {}) {
+    if (
+      isJavaScriptURLString(url.toString()) ||
+      (as && isJavaScriptURLString(as.toString()))
+    ) {
+      throw new Error(
+        'Next.js has blocked a javascript: URL as a security precaution.'
+      )
+    }
     ;({ url, as } = prepareUrlAs(this, url, as))
     return this.change('replaceState', url, as, options)
   }

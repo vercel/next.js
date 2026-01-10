@@ -17,7 +17,7 @@ const $$RSC_SERVER_CACHE_1 = wrapItLikeItsHot(({ hot })=>{
 let $$RSC_SERVER_CACHE_default = $$RSC_SERVER_CACHE_1;
 if (typeof $$RSC_SERVER_CACHE_1 === "function") {
     $$RSC_SERVER_CACHE_default = $$reactCache__(function() {
-        return $$cache__("default", "ffc18c215a6b7cdc64bf709f3a714ffdef1bf9651d", 0, $$RSC_SERVER_CACHE_1, arguments);
+        return $$cache__("default", "ffc18c215a6b7cdc64bf709f3a714ffdef1bf9651d", 0, $$RSC_SERVER_CACHE_1, Array.prototype.slice.call(arguments));
     });
     registerServerReference($$RSC_SERVER_CACHE_default, "ffc18c215a6b7cdc64bf709f3a714ffdef1bf9651d", null);
 }
