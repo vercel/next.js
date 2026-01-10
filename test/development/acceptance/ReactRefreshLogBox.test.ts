@@ -68,6 +68,8 @@ describe('ReactRefreshLogBox', () => {
             |                           ^",
          "stack": [
            "onClick index.js (8:27)",
+           "a <anonymous>",
+           "Page index.js (7:19)",
          ],
        }
       `)
@@ -377,6 +379,7 @@ describe('ReactRefreshLogBox', () => {
              |                                                   ^",
            "stack": [
              "FunctionDefault FunctionDefault.js (1:51)",
+             "App index.js (24:7)",
            ],
          }
         `)
@@ -644,6 +647,7 @@ describe('ReactRefreshLogBox', () => {
              |           ^",
            "stack": [
              "ClickCount.render Child.js (4:11)",
+             "Home index.js (6:7)",
            ],
          }
         `)
@@ -853,6 +857,8 @@ describe('ReactRefreshLogBox', () => {
            |           ^",
          "stack": [
            "Index.useCallback[boom] index.js (5:11)",
+           "button <anonymous>",
+           "Index index.js (9:7)",
          ],
        }
       `)
