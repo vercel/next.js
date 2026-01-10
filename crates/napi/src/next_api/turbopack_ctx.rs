@@ -359,20 +359,15 @@ pub fn log_internal_error_and_inform(internal_error: &anyhow::Error) {
         env!("VERGEN_GIT_DESCRIBE"),
         env!("NEXTJS_VERSION")
     );
-    let new_discussion_url = if supports_hyperlinks::supports_hyperlinks() {
-        "clicking here.".hyperlink(
-            format!(
-                "https://github.com/vercel/next.js/discussions/new?category=turbopack-error-report&title={}&body={}&labels=Turbopack,Turbopack%20Panic%20Backtrace",
-                &urlencoding::encode(&title),
-                &urlencoding::encode(&format!("{}\n\nError message:\n```\n{}\n```", &version_str, &internal_error_str))
-            )
-        )
+    let bug_report_url = format!(
+        "https://bugs.nextjs.org/search?category=turbopack-error-report&title={}&body={}&labels=Turbopack,Turbopack%20Panic%20Backtrace",
+        &urlencoding::encode(&title),
+        &urlencoding::encode(&format!("{}\n\nError message:\n```\n{}\n```", &version_str, &internal_error_str))
+    );
+    let bug_report_message = if supports_hyperlinks::supports_hyperlinks() {
+        "clicking here.".hyperlink(&bug_report_url)
     } else {
-        format!(
-            "clicking here: https://github.com/vercel/next.js/discussions/new?category=turbopack-error-report&title={}&body={}&labels=Turbopack,Turbopack%20Panic%20Backtrace",
-            &urlencoding::encode(&title),
-            &urlencoding::encode(&format!("{}\n\nError message:\n```\n{}\n```", &version_str, &title))
-        )
+        format!("clicking here: {}", bug_report_url)
     };
 
     eprintln!(
@@ -380,6 +375,6 @@ pub fn log_internal_error_and_inform(internal_error: &anyhow::Error) {
          {}.\n\nTo help make Turbopack better, report this error by {}\n-----\n",
         "FATAL".red().bold(),
         PANIC_LOG.to_string_lossy(),
-        &new_discussion_url
+        &bug_report_message
     );
 }
