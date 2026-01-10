@@ -214,9 +214,7 @@ export class NextDeployInstance extends NextInstance {
     }
 
     require('console').log(`Deployment URL: ${this._url}`)
-    const buildIdUrl = `${this._url}${
-      this.basePath || ''
-    }/_next/static/__BUILD_ID`
+    const buildIdUrl = `${this._url}${this.basePath || ''}/__BUILD_ID`
 
     const buildIdRes = await fetch(buildIdUrl)
 

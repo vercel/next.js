@@ -277,7 +277,7 @@ export class NextInstance {
                 scripts: {
                   // since we can't get the build id as a build artifact, make it
                   // available under the static files
-                  'post-build': `cp ${this.distDir}/BUILD_ID ${this.distDir}/static/__BUILD_ID`,
+                  'post-build': `cp ${this.distDir}/BUILD_ID .next/output/static/__BUILD_ID`,
                   ...pkgScripts,
                   build:
                     (pkgScripts['build'] || this.buildCommand || 'next build') +

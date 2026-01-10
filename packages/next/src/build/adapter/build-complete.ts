@@ -1165,11 +1165,19 @@ export async function handleBuildComplete({
           // normalize these for consistency
           for (const key of Object.keys(meta.headers)) {
             const keyLower = key.toLowerCase()
-            if (keyLower !== key) {
-              const value = meta.headers[key]
-              delete meta.headers[key]
-              meta.headers[keyLower] = value
+            let value = meta.headers[key]
+
+            // normalize values to strings (e.g. set-cookie can be an array)
+            if (Array.isArray(value)) {
+              value = value.join(', ')
+            } else if (typeof value !== 'string') {
+              value = String(value)
             }
+
+            if (keyLower !== key) {
+              delete meta.headers[key]
+            }
+            meta.headers[keyLower] = value
           }
         }
 
@@ -1430,6 +1438,7 @@ export async function handleBuildComplete({
                   initialStatus: fallbackStatus,
                   initialHeaders: {
                     ...fallbackHeaders,
+                    ...(appPageKeys?.length ? { vary: varyHeader } : {}),
                     'content-type': HTML_CONTENT_TYPE_HEADER,
                   },
                   initialExpiration: fallbackExpire,

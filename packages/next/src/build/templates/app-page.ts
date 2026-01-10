@@ -575,7 +575,17 @@ export async function handler(
       })
     }
 
-    const incrementalCache = getRequestMeta(req, 'incrementalCache')
+    const incrementalCache =
+      getRequestMeta(req, 'incrementalCache') ||
+      (await routeModule.getIncrementalCache(
+        req,
+        nextConfig,
+        prerenderManifest,
+        isMinimalMode
+      ))
+
+    incrementalCache?.resetRequestCache()
+    ;(globalThis as any).__incrementalCache = incrementalCache
 
     const doRender = async ({
       span,
