@@ -246,6 +246,7 @@ async fn build_internal(
 
     let asset_context = get_client_asset_context(
         project_path.clone(),
+        project_path.clone(),
         execution_context,
         compile_time_info,
         node_env,
@@ -504,9 +505,9 @@ async fn build_internal(
 
 pub async fn build(args: &BuildArguments) -> Result<()> {
     let NormalizedDirs {
-        project_dir,
-        root_dir,
-    } = normalize_dirs(&args.common.dir, &args.common.root)?;
+        root_dir: project_dir,
+        app_dir,
+    } = normalize_dirs(&args.common.root, &args.common.dir)?;
 
     let tt = TurboTasks::new(TurboTasksBackend::new(
         BackendOptions {
@@ -517,7 +518,7 @@ pub async fn build(args: &BuildArguments) -> Result<()> {
         noop_backing_storage(),
     ));
 
-    let builder = TurbopackBuildBuilder::new(tt.clone(), project_dir, root_dir, "index.js".into())
+    let builder = TurbopackBuildBuilder::new(tt.clone(), app_dir, project_dir, "index.js".into())
         .log_detail(args.common.log_detail)
         .log_level(
             args.common

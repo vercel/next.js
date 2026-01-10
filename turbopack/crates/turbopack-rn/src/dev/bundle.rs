@@ -1,4 +1,4 @@
-use std::path::MAIN_SEPARATOR;
+use std::path::{MAIN_SEPARATOR, PathBuf};
 
 use anyhow::{Context, Result};
 use rustc_hash::FxHashSet;
@@ -52,31 +52,47 @@ use crate::{
 pub async fn build_rn_internal(
     platform: Option<String>,
     entry: RcStr,
-    project_dir: RcStr,
+    // [project]
     root_dir_vc: ResolvedVc<RcStr>,
+    // where to resolve the HTTP request from
+    app_dir_vc: ResolvedVc<RcStr>,
 ) -> Result<Vc<OutputAssets>> {
-    let output_fs = output_fs(project_dir.clone());
+    let entry_parsed = PathBuf::from(entry.as_str());
+    // TODO this relies on the entry file to always be next to package.json
+    let entry_dirname = entry_parsed.parent().and_then(|p| p.to_str()).unwrap_or("");
+
+    let app_dir = app_dir_vc.await?;
+    let root_dir = root_dir_vc.await?;
+
+    println!("project_dir {}, app_dir {}", root_dir, app_dir);
+
+    let output_fs = output_fs(*app_dir_vc);
     const OUTPUT_DIR: &str = ".turbopack";
-    let project_relative = project_dir.strip_prefix(&*root_dir).unwrap();
-    let project_relative: RcStr = project_relative
+    let app_relative = app_dir.strip_prefix(root_dir.as_str()).unwrap();
+    let app_relative: RcStr = app_relative
         .strip_prefix(MAIN_SEPARATOR)
-        .unwrap_or(project_relative)
+        .unwrap_or(app_relative)
         .replace(MAIN_SEPARATOR, "/")
         .into();
     let project_fs = project_fs(
         *root_dir_vc,
         /* watch= */ true,
-        join_path(project_relative.as_str(), OUTPUT_DIR)
-            .unwrap()
-            .into(),
+        join_path(app_relative.as_str(), OUTPUT_DIR).unwrap().into(),
     );
     let root_path = project_fs.root().owned().await?;
-    let project_path = root_path.join(&project_relative)?;
+    let project_dir = root_path.join(&app_relative)?;
+    let app_path = if !entry_dirname.is_empty() {
+        project_dir.join(entry_dirname)?
+    } else {
+        project_dir.clone()
+    };
+
     let build_output_root = output_fs.root().await?.join("dist")?;
 
     let node_env = NodeEnv::Development.cell();
 
-    let build_output_root_to_root_path = project_path
+    let build_output_root_to_root_path = app_path
+        .join(OUTPUT_DIR)?
         .join("dist")?
         .get_relative_path_to(&root_path)
         .context("Project path is in root path")?;
@@ -97,7 +113,7 @@ pub async fn build_rn_internal(
         root_path.clone(),
         Vc::upcast(
             NodeJsChunkingContext::builder(
-                project_path.clone(),
+                root_path.clone(),
                 build_output_root.join("build")?,
                 build_output_root_to_root_path.clone(),
                 build_output_root.join("build")?,
@@ -117,7 +133,8 @@ pub async fn build_rn_internal(
     );
 
     let asset_context = get_client_asset_context(
-        project_path.clone(),
+        root_path.clone(),
+        app_path.clone(),
         execution_context,
         compile_time_info,
         node_env,
@@ -127,51 +144,52 @@ pub async fn build_rn_internal(
 
     let entry_requests = std::iter::once(
         assert_can_resolve_react_refresh(
-            project_path.clone(),
+            app_path.clone(),
             get_client_resolve_options_context(
-                project_path.clone(),
+                root_path.clone(),
+                app_path.clone(),
                 node_env,
                 platform.map(RcStr::from),
             ),
         )
         .await?
-        .as_request(),
+        .as_request()
+        .map(|r| {
+            anyhow::Ok((
+                PlainResolveOrigin::new(asset_context, app_path.join("_")?),
+                r,
+            ))
+        })
+        .transpose()?,
     )
     .flatten()
-    .chain(std::iter::once(Request::relative(
-        entry.into(),
-        Default::default(),
-        Default::default(),
-        false,
+    .chain(std::iter::once((
+        PlainResolveOrigin::new(asset_context, project_dir.join("_")?),
+        Request::relative(entry.into(), Default::default(), Default::default(), false),
     )))
     .collect::<Vec<_>>();
 
-    let origin = PlainResolveOrigin::new(asset_context, project_fs.root().await?.join("_")?);
-    let project_dir = &project_dir;
-    let main_entries = async move {
-        entry_requests
-            .into_iter()
-            .map(|request_vc| async move {
-                let ty = ReferenceType::Entry(EntryReferenceSubType::Undefined);
-                let request = request_vc.await?;
-                origin
-                    .resolve_asset(request_vc, origin.resolve_options(ty.clone()), ty)
-                    .await?
-                    .first_module()
-                    .await?
-                    .with_context(|| {
-                        format!(
-                            "Unable to resolve entry {} from directory {}.",
-                            request.request().unwrap(),
-                            project_dir
-                        )
-                    })
-            })
-            .try_join()
-            .await
-    }
-    .instrument(tracing::info_span!("resolve entries"))
-    .await?;
+    let main_entries = entry_requests
+        .into_iter()
+        .map(async |(origin, request_vc)| {
+            let ty = ReferenceType::Entry(EntryReferenceSubType::Undefined);
+            let request = request_vc.await?;
+            origin
+                .resolve_asset(request_vc, origin.await?.resolve_options(), ty)
+                .await?
+                .await?
+                .first_module()
+                .await?
+                .with_context(|| {
+                    format!(
+                        "Unable to resolve entry {} from directory {}.",
+                        request.request().unwrap(),
+                        app_dir
+                    )
+                })
+        })
+        .try_join()
+        .await?;
 
     let entries = [asset_context
         .process(
@@ -202,7 +220,7 @@ pub async fn build_rn_internal(
 
     let chunking_context: Vc<Box<dyn ChunkingContext>> = {
         let mut builder = BrowserChunkingContext::builder(
-            project_path,
+            root_path,
             build_output_root.clone(),
             build_output_root_to_root_path,
             build_output_root.clone(),

@@ -34,27 +34,43 @@ const MACRO_REGEX = /[./]macro(\.c?js)?["']/
 const DEBUG = process.env.TURBOPACK_DEBUG_RN_BABEL_LOADER
 
 module.exports = function (content) {
-  let { workletPluginName, babelPluginMacrosName } = this.getOptions() || {}
+  let {
+    cwd,
+    babelPresetFlowName,
+    babelPluginSyntaxJsxName,
+    babelPluginCodegenName,
+    babelPluginSyntaxTypescriptName,
+    workletPluginName,
+    babelPluginMacrosName,
+  } = this.getOptions() || {}
 
   let filename = this.resourcePath || ''
 
   let presets = []
   let plugins = []
 
-  let isFlow = content.includes('@flow')
-  if (isFlow) {
-    presets.push(['@babel/preset-flow', { experimental_useHermesParser: true }])
-    plugins.push('@babel/plugin-syntax-jsx')
+  if (content.includes('@flow')) {
+    if (babelPresetFlowName == null) {
+      throw new Error('Missing babelPresetFlowName')
+    }
+    if (babelPluginSyntaxJsxName == null) {
+      throw new Error('Missing babelPluginSyntaxJsxName')
+    }
+    presets.push([babelPresetFlowName, { experimental_useHermesParser: true }])
+    plugins.push(babelPluginSyntaxJsxName)
   }
 
-  if (MACRO_REGEX.test(content)) {
+  if (babelPluginMacrosName != null && MACRO_REGEX.test(content)) {
     plugins.push(babelPluginMacrosName)
   }
 
-  let runCodegenTransform = content.includes('codegenNativeComponent<')
-  if (runCodegenTransform) {
-    plugins.push('@react-native/babel-plugin-codegen')
+  if (content.includes('codegenNativeComponent<')) {
+    if (babelPluginCodegenName == null) {
+      throw new Error('Missing babelPluginCodegenName')
+    }
+    plugins.push(babelPluginCodegenName)
   }
+
   if (workletPluginName != null) {
     let runWorkletTransform = WORKLET_REGEX.test(content)
     if (runWorkletTransform) {
@@ -66,10 +82,12 @@ module.exports = function (content) {
     return content
   }
 
-  let isTypescript = filename.endsWith('.ts') || filename.endsWith('.tsx')
-  if (isTypescript) {
+  if (filename.endsWith('.ts') || filename.endsWith('.tsx')) {
+    if (babelPluginSyntaxTypescriptName == null) {
+      throw new Error('Missing babelPluginSyntaxTypescriptName')
+    }
     plugins.push([
-      '@babel/plugin-syntax-typescript',
+      babelPluginSyntaxTypescriptName,
       { isTSX: filename.endsWith('.tsx') },
     ])
   }
@@ -77,6 +95,7 @@ module.exports = function (content) {
   let babelConfig = {
     babelrc: false,
     configFile: false,
+    cwd,
     presets,
     plugins,
   }

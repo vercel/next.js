@@ -6,20 +6,19 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::Vc;
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 
+/// Normalized absolute paths
 pub struct NormalizedDirs {
-    /// Normalized project directory path as an absolute path
-    pub project_dir: RcStr,
-    /// Normalized root directory path as an absolute path
     pub root_dir: RcStr,
+    pub app_dir: RcStr,
 }
 
 /// Normalizes (canonicalizes and represents as an absolute path in a String)
 /// the project and root directories.
 pub fn normalize_dirs(
-    project_dir: &Option<PathBuf>,
     root_dir: &Option<PathBuf>,
+    app_dir: &Option<PathBuf>,
 ) -> Result<NormalizedDirs> {
-    let project_dir: RcStr = project_dir
+    let root_dir: RcStr = root_dir
         .as_ref()
         .map(canonicalize)
         .unwrap_or_else(current_dir)
@@ -28,19 +27,19 @@ pub fn normalize_dirs(
         .context("project directory contains invalid characters")?
         .into();
 
-    let root_dir = match root_dir.as_ref() {
+    let app_dir = match app_dir.as_ref() {
         Some(root) => canonicalize(root)
             .context("root directory can't be found")?
             .to_str()
             .context("root directory contains invalid characters")?
             .into(),
-        None => project_dir.clone(),
+        None => canonicalize(std::env::current_dir()?)?
+            .to_str()
+            .context("root directory contains invalid characters")?
+            .into(),
     };
 
-    Ok(NormalizedDirs {
-        project_dir,
-        root_dir,
-    })
+    Ok(NormalizedDirs { root_dir, app_dir })
 }
 
 #[turbo_tasks::function]

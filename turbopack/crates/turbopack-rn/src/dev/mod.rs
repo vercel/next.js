@@ -84,10 +84,7 @@ pub async fn start_server(args: &DevArguments) -> Result<()> {
         ))
     };
 
-    let NormalizedDirs {
-        project_dir,
-        root_dir,
-    } = normalize_dirs(&args.common.dir, &args.common.root)?;
+    let NormalizedDirs { root_dir, app_dir } = normalize_dirs(&args.common.root, &args.common.dir)?;
     let (root_dir_cell, app_dir_cell) = {
         let root_dir = root_dir.clone();
         let app_dir = app_dir.clone();
@@ -105,8 +102,9 @@ pub async fn start_server(args: &DevArguments) -> Result<()> {
 
     let svc = Svc {
         turbo_tasks,
-        project_dir,
         root_dir,
+        root_dir_cell,
+        app_dir_cell,
     };
 
     let http = http1::Builder::new();
@@ -135,8 +133,8 @@ pub async fn start_server(args: &DevArguments) -> Result<()> {
 struct Svc {
     turbo_tasks: Arc<TurboTasks<TurboTasksBackend>>,
     root_dir_cell: ResolvedVc<RcStr>,
-    project_dir: RcStr,
     root_dir: RcStr,
+    app_dir_cell: ResolvedVc<RcStr>,
 }
 
 impl Service<hyper::Request<Incoming>> for Svc {
@@ -184,7 +182,7 @@ impl Svc {
                 ));
                 res.headers_mut().append(
                     "X-React-Native-Project-Root",
-                    HeaderValue::from_str(&self.project_dir).unwrap(),
+                    HeaderValue::from_str(&self.root_dir).unwrap(),
                 );
                 res.headers_mut().append(
                     "X-Content-Type-Options",
@@ -284,8 +282,8 @@ impl Svc {
                     let source_provider = ServerSourceProvider {
                         platform: query.platform.context("expected platform query param")?,
                         entry: query.entry.context("expected entry query param")?.into(),
-                        project_dir: self.project_dir.clone(),
-                        root_dir: self.root_dir.clone(),
+                        root_dir: self.root_dir_cell,
+                        app_dir: self.app_dir_cell,
                     };
                     let update_server = UpdateServer::new(source_provider);
                     update_server.run(&*self.turbo_tasks, websocket);
@@ -302,7 +300,7 @@ impl Svc {
             (&Method::GET, path) if path.ends_with(".bundle") => {
                 let entry_file = path.trim_start_matches('/').trim_end_matches(".bundle");
                 let entry_file = if entry_file == "index" {
-                    if std::fs::exists(PathBuf::from(&self.project_dir).join("index.ts"))? {
+                    if std::fs::exists(PathBuf::from(&self.root_dir).join("index.ts"))? {
                         rcstr!("index.ts")
                     } else {
                         rcstr!("index.js")
@@ -327,9 +325,11 @@ impl Svc {
                 let query: Query =
                     serde_qs::from_str(req.uri().query().unwrap_or_default()).unwrap();
 
-                let project_dir = self.project_dir.clone();
+                // become [project]/
                 let root_dir = self.root_dir.clone();
                 let root_dir_cell = self.root_dir_cell;
+                // where to resolve localhost:8081/foo/bar/index.bundle from
+                let app_dir_cell = self.app_dir_cell;
 
                 match self
                     .turbo_tasks
@@ -337,13 +337,13 @@ impl Svc {
                         let build_result_op = build_rn_internal(
                             query.platform.clone(),
                             entry_file,
-                            project_dir.clone(),
-                            root_dir,
+                            root_dir_cell,
+                            app_dir_cell,
                         );
 
                         let issue_reporter: Vc<Box<dyn IssueReporter>> =
                             Vc::upcast(ConsoleUi::new(TransientInstance::new(LogOptions {
-                                project_dir: PathBuf::from(project_dir),
+                                project_dir: PathBuf::from(root_dir),
                                 current_dir: current_dir().unwrap(),
                                 show_all: true,
                                 log_detail: false,
@@ -444,7 +444,7 @@ impl Svc {
                 println!("Serving asset file: {}", file);
 
                 let file = &*file;
-                let content = std::fs::read(PathBuf::from(&self.project_dir).join(file))?;
+                let content = std::fs::read(PathBuf::from(&self.root_dir).join(file))?;
                 let response = Response::new(full(content));
                 return Ok(response);
             }
@@ -606,16 +606,16 @@ fn full<T: Into<Bytes>>(chunk: T) -> BoxBody<Bytes, anyhow::Error> {
 struct ServerSourceProvider {
     platform: String,
     entry: RcStr,
-    project_dir: RcStr,
-    root_dir: RcStr,
+    root_dir: ResolvedVc<RcStr>,
+    app_dir: ResolvedVc<RcStr>,
 }
 impl OutputAssetsProvider for ServerSourceProvider {
     fn get_output_assets(&self) -> OperationVc<OutputAssets> {
         get_rn_content_source(
             self.platform.clone(),
             self.entry.clone(),
-            self.project_dir.clone(),
-            self.root_dir.clone(),
+            self.root_dir,
+            self.app_dir,
         )
     }
 }
@@ -624,10 +624,10 @@ impl OutputAssetsProvider for ServerSourceProvider {
 async fn get_rn_content_source(
     platform: String,
     entry: RcStr,
-    project_dir: RcStr,
-    root_dir: RcStr,
+    root_dir: ResolvedVc<RcStr>,
+    app_dir: ResolvedVc<RcStr>,
 ) -> Result<Vc<OutputAssets>> {
-    let assets = build_rn_internal(Some(platform), entry, project_dir, root_dir)
+    let assets = build_rn_internal(Some(platform), entry, root_dir, app_dir)
         .read_strongly_consistent()
         .await?;
     Ok(Vc::cell(
