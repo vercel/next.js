@@ -910,6 +910,8 @@ describe('ReactRefreshLogBox', () => {
            |           ^",
          "stack": [
            "Index.useCallback[boom] index.js (5:11)",
+           "button <anonymous>",
+           "Index index.js (9:7)",
          ],
        }
       `)
@@ -961,6 +963,8 @@ describe('ReactRefreshLogBox', () => {
            |           ^",
          "stack": [
            "Index.useCallback[boom] index.js (5:11)",
+           "button <anonymous>",
+           "Index index.js (9:7)",
          ],
        }
       `)
@@ -1012,6 +1016,8 @@ describe('ReactRefreshLogBox', () => {
            |           ^",
          "stack": [
            "Index.useCallback[boom] index.js (5:11)",
+           "button <anonymous>",
+           "Index index.js (9:7)",
          ],
        }
       `)
