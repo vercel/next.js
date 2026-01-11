@@ -1815,7 +1815,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         else {
             // Task was stale and has been rescheduled
             #[cfg(feature = "trace_task_details")]
-            span.record("stale", "true");
+            span.record("stale", "prepare");
             return true;
         };
 
@@ -1848,7 +1848,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         {
             // Task was stale and has been rescheduled
             #[cfg(feature = "trace_task_details")]
-            span.record("stale", "true");
+            span.record("stale", "connect");
             return true;
         }
 
@@ -1863,7 +1863,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         ) {
             // Task was stale and has been rescheduled
             #[cfg(feature = "trace_task_details")]
-            span.record("stale", "true");
+            span.record("stale", "finish");
             return true;
         }
 
