@@ -2743,10 +2743,16 @@ fn generate_cached_data_adapter_trait_methods(
         /// Add a CachedDataItem to storage.
         ///
         /// Returns `true` if the item was newly added, `false` if it already existed.
+        /// Does NOT overwrite if the key already exists.
         fn add(&mut self, item: crate::data::CachedDataItem) -> bool {
             use turbo_tasks::KeyValuePair;
             let (key, value) = item.into_key_and_value();
-            self.insert_kv(key, value).is_none()
+            // Check first - add should not overwrite existing values
+            if self.contains_key(&key) {
+                return false;
+            }
+            self.insert_kv(key, value);
+            true
         }
 
         /// Insert a CachedDataItem, returning the old value if present.
@@ -2914,11 +2920,6 @@ fn generate_cached_data_adapter_trait_methods(
                 .collect()
         }
 
-        /// Shrink storage for a specific type to reduce memory.
-        fn shrink_to_fit_type(&mut self, _ty: crate::data::CachedDataItemType) {
-            // TaskStorage's shrink_to_fit() shrinks all collection fields
-            self.shrink_to_fit();
-        }
     }
 }
 

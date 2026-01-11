@@ -2539,16 +2539,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
 
         // Shrink memory usage
-        task.shrink_to_fit(CachedDataItemType::CellData);
-        task.shrink_to_fit(CachedDataItemType::TransientCellData);
-        task.shrink_to_fit(CachedDataItemType::CellTypeMaxIndex);
-        task.shrink_to_fit(CachedDataItemType::CellDependency);
-        task.shrink_to_fit(CachedDataItemType::OutputDependency);
-        task.shrink_to_fit(CachedDataItemType::CollectiblesDependency);
-        task.shrink_to_fit(CachedDataItemType::OutdatedOutputDependency);
-        task.shrink_to_fit(CachedDataItemType::OutdatedCellDependency);
-        task.shrink_to_fit(CachedDataItemType::OutdatedCollectiblesDependency);
-        task.shrink_to_fit(CachedDataItemType::OutdatedCollectible);
+        task.shrink_to_fit();
 
         drop(task);
     }

@@ -679,7 +679,7 @@ pub trait TaskGuard: Debug {
         &self,
         ty: CachedDataItemType,
     ) -> impl Iterator<Item = (CachedDataItemKey, CachedDataItemValueRef<'_>)>;
-    fn shrink_to_fit(&mut self, ty: CachedDataItemType);
+    fn shrink_to_fit(&mut self);
     fn extract_if<'l, F>(
         &'l mut self,
         ty: CachedDataItemType,
@@ -1003,8 +1003,8 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         self.task.iter(ty)
     }
 
-    fn shrink_to_fit(&mut self, ty: CachedDataItemType) {
-        self.task.shrink_to_fit_type(ty)
+    fn shrink_to_fit(&mut self) {
+        self.task.shrink_to_fit()
     }
 
     #[track_caller]
