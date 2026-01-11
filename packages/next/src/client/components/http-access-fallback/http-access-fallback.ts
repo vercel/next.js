@@ -59,3 +59,33 @@ export function getAccessFallbackErrorTypeByStatus(
       return
   }
 }
+
+// Special error type for client-side global-not-found triggers.
+// This has a different digest format so HTTPAccessFallbackBoundary won't catch it,
+// but GlobalNotFoundBoundary can recognize and handle it.
+export const GLOBAL_NOT_FOUND_ERROR_CODE = 'NEXT_GLOBAL_NOT_FOUND'
+
+export type GlobalNotFoundError = Error & {
+  digest: typeof GLOBAL_NOT_FOUND_ERROR_CODE
+  globalNotFoundPath: string
+}
+
+export function createGlobalNotFoundError(
+  globalNotFoundPath: string
+): GlobalNotFoundError {
+  const error = new Error(GLOBAL_NOT_FOUND_ERROR_CODE) as GlobalNotFoundError
+  error.digest = GLOBAL_NOT_FOUND_ERROR_CODE
+  error.globalNotFoundPath = globalNotFoundPath
+  return error
+}
+
+export function isGlobalNotFoundError(
+  error: unknown
+): error is GlobalNotFoundError {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'digest' in error &&
+    error.digest === GLOBAL_NOT_FOUND_ERROR_CODE
+  )
+}

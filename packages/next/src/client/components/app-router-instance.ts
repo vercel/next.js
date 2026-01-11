@@ -216,6 +216,14 @@ function dispatchAction(
 
 let globalActionQueue: AppRouterActionQueue | null = null
 
+// Re-export from global-not-found-state.ts for backward compatibility
+export {
+  setGlobalNotFoundPath,
+  getGlobalNotFoundPath,
+  markAppAsHydrated,
+  isAppHydrated,
+} from './global-not-found-state'
+
 export function createMutableActionQueue(
   initialState: AppRouterState,
   instrumentationHooks: ClientInstrumentationHooks | null
@@ -377,11 +385,9 @@ function gesturePush(href: string, options?: NavigateOptions): void {
  * Used when notFound() is triggered on the client side.
  */
 export function dispatchGlobalNotFoundAction(notFoundUrl: string) {
-  startTransition(() => {
-    dispatchAppRouterAction({
-      type: ACTION_GLOBAL_NOT_FOUND,
-      url: notFoundUrl,
-    })
+  dispatchAppRouterAction({
+    type: ACTION_GLOBAL_NOT_FOUND,
+    url: notFoundUrl,
   })
 }
 

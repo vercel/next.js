@@ -1,13 +1,16 @@
 import type { FlightRouterState } from '../../../../shared/lib/app-router-types'
 import type {
-  Mutable,
+  AppRouterState,
   GlobalNotFoundAction,
   ReadonlyReducerState,
   ReducerState,
 } from '../router-reducer-types'
-import { handleMutable } from '../handle-mutable'
 import { fetchServerResponse } from '../fetch-server-response'
-import { createCacheNodeForGlobalNotFound } from '../ppr-navigations'
+import {
+  FreshnessPolicy,
+  startPPRNavigation,
+  type NavigationRequestAccumulation,
+} from '../ppr-navigations'
 import { convertServerPatchToFullTree } from '../../segment-cache/navigation'
 
 // Special tree that requests all data for a route (used when we don't know
@@ -18,6 +21,40 @@ const DynamicRequestTreeForEntireRoute: FlightRouterState = [
   null,
   'refetch',
 ]
+
+/**
+ * Creates a new AppRouterState for global-not-found.
+ * This replaces the content without changing the URL.
+ */
+function completeGlobalNotFound(
+  oldState: AppRouterState,
+  tree: FlightRouterState,
+  cache: AppRouterState['cache'],
+  renderedSearch: string
+): AppRouterState {
+  return {
+    // Keep the current URL - don't change it
+    canonicalUrl: oldState.canonicalUrl,
+    renderedSearch,
+    pushRef: {
+      pendingPush: false,
+      mpaNavigation: false,
+      // Don't update history state
+      preserveCustomHistoryState: true,
+    },
+    focusAndScrollRef: {
+      apply: true,
+      onlyHashChange: false,
+      hashFragment: null,
+      segmentPaths: [],
+    },
+    cache,
+    tree,
+    nextUrl: oldState.nextUrl,
+    previousNextUrl: oldState.previousNextUrl,
+    debugInfo: oldState.debugInfo,
+  }
+}
 
 /**
  * Handles the ACTION_GLOBAL_NOT_FOUND action.
@@ -34,11 +71,6 @@ export function globalNotFoundReducer(
 ): ReducerState {
   const { url } = action
   const notFoundUrl = new URL(url, location.origin)
-  const mutable: Mutable = {}
-
-  // Don't update history state - keep the current URL
-  mutable.preserveCustomHistoryState = true
-  mutable.pendingPush = false
 
   // Fetch the global-not-found RSC payload directly
   // Use the special "refetch entire route" tree since we don't know
@@ -49,36 +81,54 @@ export function globalNotFoundReducer(
   }).then(
     (result) => {
       if (typeof result === 'string') {
-        // Server returned MPA navigation URL - this shouldn't happen for
-        // /_not-found but if it does, just return current state
+        // Server returned MPA navigation URL - this can happen if the server
+        // returned HTML instead of RSC. Return current state - the
+        // GlobalNotFoundBoundary will handle showing fallback UI.
         return state
       }
 
       const { flightData, renderedSearch } = result
 
       // Convert the server response to a full tree
-      // Use the same tree we sent in the request
       const navigationSeed = convertServerPatchToFullTree(
         DynamicRequestTreeForEntireRoute,
         flightData,
         renderedSearch
       )
 
-      // Create cache node directly, bypassing navigation compatibility checks
-      const { cacheNode, flightRouterState } = createCacheNodeForGlobalNotFound(
-        navigationSeed.tree,
+      // Use startPPRNavigation to create the cache node
+      const currentUrl = new URL(state.canonicalUrl, location.origin)
+      const accumulation: NavigationRequestAccumulation = {
+        scrollableSegments: null,
+        separateRefreshUrls: null,
+      }
+
+      const task = startPPRNavigation(
+        Date.now(),
+        currentUrl,
+        state.renderedSearch,
+        state.cache,
+        state.tree,
+        navigationSeed.routeTree,
+        navigationSeed.metadataVaryPath,
+        FreshnessPolicy.Default,
         navigationSeed.data,
-        navigationSeed.head
+        navigationSeed.head,
+        false,
+        accumulation
       )
 
-      // Apply the new content without changing the URL
-      mutable.cache = cacheNode
-      mutable.patchedTree = flightRouterState
-      mutable.renderedSearch = renderedSearch
-      // Intentionally NOT setting mutable.canonicalUrl to keep the URL unchanged
-      mutable.shouldScroll = true
+      if (task === null) {
+        // Could not create navigation task - return current state
+        return state
+      }
 
-      return handleMutable(state, mutable)
+      return completeGlobalNotFound(
+        state,
+        task.route,
+        task.node,
+        renderedSearch
+      )
     },
     () => {
       // Fetch failed - return current state

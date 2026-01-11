@@ -42,18 +42,20 @@ describe('global-not-found - basic', () => {
     )
   })
 
-  // TODO: This test is flaky in dev mode with Turbopack due to a race condition
-  // where Fast Refresh causes chunk hash mismatches during RSC navigation.
-  // The fix requires adding waitForTurbopackRuntimeHotUpdate() in fetch-server-response.ts
-  // similar to what exists for Webpack (waitForWebpackRuntimeHotUpdate).
-  // See: packages/next/src/client/components/router-reducer/fetch-server-response.ts:224-228
-  it.skip('should render global-not-found when notFound() is triggered via client interaction', async () => {
+  it('should render global-not-found when notFound() is triggered via client interaction', async () => {
     const browser = await next.browser('/client-trigger')
 
-    // Page should render initially
-    expect(await browser.elementByCss('#page-title').text()).toBe(
-      'Client Trigger Not Found Page'
-    )
+    // Wait for page to be ready and hydration to complete
+    await retry(async () => {
+      expect(await browser.elementByCss('#page-title').text()).toBe(
+        'Client Trigger Not Found Page'
+      )
+    }, 10000)
+
+    // Wait for HMR to settle and hydration useEffect to run
+    if (isNextDev) {
+      await new Promise((resolve) => setTimeout(resolve, 2000))
+    }
 
     // Click button to trigger notFound()
     await browser.elementByCss('#trigger-not-found').click()
@@ -63,7 +65,7 @@ describe('global-not-found - basic', () => {
       expect(await browser.elementByCss('#global-error-title').text()).toBe(
         'global-not-found'
       )
-    })
+    }, 15000)
     expect(
       await browser.elementByCss('html').getAttribute('data-global-not-found')
     ).toBe('true')

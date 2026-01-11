@@ -1545,6 +1545,7 @@ async function getRSCPayload(
     m: missingSlots,
     G: [GlobalError, globalErrorStyles],
     S: workStore.isStaticGeneration,
+    n: hasGlobalNotFound ? '/_not-found' : undefined,
   }
 }
 

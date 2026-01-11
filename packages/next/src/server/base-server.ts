@@ -2571,6 +2571,15 @@ export default abstract class Server<
       fastPath = false
     }
 
+    // Special handling for direct RSC requests to /_not-found
+    // When the client triggers notFound() and fetches /_not-found as RSC,
+    // we should render the global-not-found page with RSC content type.
+    const isRSCRequest = getRequestMeta(req, 'isRSCRequest') ?? false
+    if (pathname === UNDERSCORE_NOT_FOUND_ROUTE && isRSCRequest) {
+      res.statusCode = 404
+      return this.renderErrorToResponse(ctx, null)
+    }
+
     try {
       for await (const match of fastPath && existingMatch
         ? [existingMatch]

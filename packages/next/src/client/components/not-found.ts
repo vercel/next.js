@@ -1,7 +1,9 @@
 import {
   HTTP_ERROR_FALLBACK_ERROR_CODE,
   type HTTPAccessFallbackError,
+  createGlobalNotFoundError,
 } from './http-access-fallback/http-access-fallback'
+import { getGlobalNotFoundPath, isAppHydrated } from './global-not-found-state'
 
 /**
  * This function allows you to render the [not-found.js file](https://nextjs.org/docs/app/api-reference/file-conventions/not-found)
@@ -21,6 +23,21 @@ import {
 const DIGEST = `${HTTP_ERROR_FALLBACK_ERROR_CODE};404`
 
 export function notFound(): never {
+  // On the client, if global-not-found is enabled AND the app has finished hydration,
+  // throw a special error type that HTTPAccessFallbackBoundary won't catch
+  // (because isHTTPAccessFallbackError returns false for it), but
+  // GlobalNotFoundBoundary will handle.
+  //
+  // The isAppHydrated() check ensures that notFound() calls during initial render
+  // (SSR/hydration) behave normally (render default not-found within layout),
+  // while user-triggered notFound() calls after hydration trigger the global-not-found.
+  if (typeof window !== 'undefined' && isAppHydrated()) {
+    const globalNotFoundPath = getGlobalNotFoundPath()
+    if (globalNotFoundPath) {
+      throw createGlobalNotFoundError(globalNotFoundPath)
+    }
+  }
+
   const error = new Error(DIGEST) as HTTPAccessFallbackError
   ;(error as HTTPAccessFallbackError).digest = DIGEST
 

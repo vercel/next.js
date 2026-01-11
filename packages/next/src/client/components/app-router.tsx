@@ -1,6 +1,7 @@
 import React, {
   useEffect,
   useMemo,
+  useRef,
   startTransition,
   useInsertionEffect,
   useDeferredValue,
@@ -36,6 +37,8 @@ import { useNavFailureHandler } from './nav-failure-handler'
 import {
   dispatchTraverseAction,
   publicAppRouterInstance,
+  setGlobalNotFoundPath,
+  markAppAsHydrated,
   type AppRouterActionQueue,
   type GlobalErrorState,
 } from './app-router-instance'
@@ -44,7 +47,7 @@ import { isRedirectError } from './redirect-error'
 import { pingVisibleLinks } from './links'
 import RootErrorBoundary from './errors/root-error-boundary'
 import DefaultGlobalError from './builtin/global-error'
-import { GlobalNotFoundBoundary } from './global-not-found-boundary'
+import { GlobalNotFoundBoundary } from './global-not-found-context'
 import { RootLayoutBoundary } from '../../lib/framework/boundary-components'
 import type { StaticIndicatorState } from '../dev/hot-reloader/app/hot-reloader-app'
 import { getDeploymentIdQueryOrEmptyString } from '../../shared/lib/deployment-id'
@@ -159,6 +162,10 @@ function Router({
   webSocket: WebSocket | undefined
   staticIndicatorState: StaticIndicatorState | undefined
 }) {
+  // Store globalNotFoundPath globally so notFound() can access it
+  // This must be set early (during render) so it's available when notFound() is called
+  setGlobalNotFoundPath(globalNotFoundPath)
+
   const state = useActionQueue(actionQueue)
   const { canonicalUrl } = state
   // Add memoized pathname/query for useSearchParams and usePathname.
@@ -224,6 +231,13 @@ function Router({
     return () => {
       window.removeEventListener('pageshow', handlePageShow)
     }
+  }, [])
+
+  // Mark the app as hydrated after the first effect runs.
+  // This allows notFound() to distinguish between initial render (SSR/hydration)
+  // and user-triggered renders (where global-not-found should be shown).
+  useEffect(() => {
+    markAppAsHydrated()
   }, [])
 
   useEffect(() => {
@@ -396,6 +410,15 @@ function Router({
 
   const { cache, tree, nextUrl, focusAndScrollRef, previousNextUrl } = state
 
+  // Track cache changes for GlobalNotFoundBoundary key
+  // This ensures the boundary resets when the router cache updates
+  const cacheKeyRef = useRef({ cache, key: 0 })
+  if (cacheKeyRef.current.cache !== cache) {
+    cacheKeyRef.current.cache = cache
+    cacheKeyRef.current.key++
+  }
+  const cacheKey = cacheKeyRef.current.key
+
   const matchingHead = useMemo(() => {
     return findHeadInCache(cache, tree[1])
   }, [cache, tree])
@@ -477,7 +500,10 @@ function Router({
       {/* GlobalNotFoundBoundary catches NOT_FOUND errors that bubble up when no
           segment-level not-found boundary handles them. It must be inside RedirectBoundary
           so it catches errors before DevRootHTTPAccessFallbackBoundary (dev mode). */}
-      <GlobalNotFoundBoundary globalNotFoundPath={globalNotFoundPath}>
+      <GlobalNotFoundBoundary
+        globalNotFoundPath={globalNotFoundPath}
+        cacheKey={cacheKey}
+      >
         {/* RootLayoutBoundary enables detection of Suspense boundaries around the root layout.
             When users wrap their layout in <Suspense>, this creates the component stack pattern
             "Suspense -> RootLayoutBoundary" which dynamic-rendering.ts uses to allow dynamic rendering. */}
