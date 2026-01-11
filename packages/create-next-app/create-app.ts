@@ -1,7 +1,15 @@
 /* eslint-disable import/no-extraneous-dependencies */
 
 import retry from 'async-retry'
-import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  writeFileSync,
+  readFileSync,
+  appendFileSync,
+} from 'node:fs'
+
 import { basename, dirname, join, resolve } from 'node:path'
 import { cyan, green, red } from 'picocolors'
 import type { RepoInfo } from './helpers/examples'
@@ -257,9 +265,8 @@ export async function createApp({
       reactCompiler,
     })
   }
-  // --- MongoDB Logic Start ---
-  // --- MongoDB Change Start ---
-  if (mongodb) {
+// --- MongoDB Logic Start ---
+if (mongodb) {
   const dbFolderPath = join(root, 'lib')
   const dbFilePath = join(dbFolderPath, typescript ? 'db.ts' : 'db.js')
 
@@ -312,23 +319,22 @@ export default clientPromise
 `
 
   const dbCode = typescript ? dbCodeTs : dbCodeJs
-
   writeFileSync(dbFilePath, dbCode)
 
-  // Safely append to .env.local without leading newline
+  // Safely append to .env.local (no leading newline)
   const envPath = join(root, '.env.local')
   const mongodbUri =
     'MONGODB_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/myDatabase?retryWrites=true&w=majority\n'
 
-  if (fs.existsSync(envPath)) {
-    const existingContent = fs.readFileSync(envPath, 'utf-8')
+  if (existsSync(envPath)) {
+    const existingContent = readFileSync(envPath, 'utf-8')
     const contentToAppend = existingContent.endsWith('\n')
       ? mongodbUri
       : `\n${mongodbUri}`
 
-    fs.appendFileSync(envPath, contentToAppend)
+    appendFileSync(envPath, contentToAppend)
   } else {
-    fs.writeFileSync(envPath, mongodbUri)
+    writeFileSync(envPath, mongodbUri)
   }
 
   console.log(
@@ -337,6 +343,7 @@ export default clientPromise
     )}`
   )
 }
+// --- MongoDB Logic End ---
 
   if (disableGit) {
     console.log('Skipping git initialization.')
