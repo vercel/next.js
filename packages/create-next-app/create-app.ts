@@ -298,7 +298,7 @@ export default clientPromise`
     writeFileSync(dbFilePath, dbCode)
 
     // Safely append to .env.local with proper casting
-    const fs = require('node:fs') as typeof import('node:fs')
+    
     const envPath = join(root, '.env.local')
     const envContent = `\nMONGODB_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/myDatabase?retryWrites=true&w=majority\n`
 
