@@ -2926,7 +2926,7 @@ fn generate_cached_data_adapter_trait_methods(
 fn generate_insert_kv_arms(grouped_fields: &GroupedFields) -> proc_macro2::TokenStream {
     let arms: Vec<_> = grouped_fields
         .fields_with_variant()
-        .map(|field| generate_insert_kv_arm(field))
+        .map(generate_insert_kv_arm)
         .collect();
 
     quote! { #(#arms)* }
@@ -3016,7 +3016,7 @@ fn generate_insert_kv_arm_flag(field: &FieldInfo, variant: &Ident) -> proc_macro
 fn generate_get_arms(grouped_fields: &GroupedFields) -> proc_macro2::TokenStream {
     let arms: Vec<_> = grouped_fields
         .fields_with_variant()
-        .map(|field| generate_get_arm(field))
+        .map(generate_get_arm)
         .collect();
 
     quote! { #(#arms)* }
@@ -3111,7 +3111,7 @@ fn generate_get_arm_flag(field: &FieldInfo, variant: &Ident) -> proc_macro2::Tok
 fn generate_remove_arms(grouped_fields: &GroupedFields) -> proc_macro2::TokenStream {
     let arms: Vec<_> = grouped_fields
         .fields_with_variant()
-        .map(|field| generate_remove_arm(field))
+        .map(generate_remove_arm)
         .collect();
 
     quote! { #(#arms)* }
@@ -3186,7 +3186,7 @@ fn generate_remove_arm_flag(field: &FieldInfo, variant: &Ident) -> proc_macro2::
 fn generate_get_mut_arms(grouped_fields: &GroupedFields) -> proc_macro2::TokenStream {
     let arms: Vec<_> = grouped_fields
         .fields_with_variant()
-        .map(|field| generate_get_mut_arm(field))
+        .map(generate_get_mut_arm)
         .collect();
 
     quote! { #(#arms)* }
@@ -3252,7 +3252,7 @@ fn generate_get_mut_arm_flag_none(_field: &FieldInfo, variant: &Ident) -> proc_m
 fn generate_count_arms(grouped_fields: &GroupedFields) -> proc_macro2::TokenStream {
     let arms: Vec<_> = grouped_fields
         .fields_with_variant()
-        .map(|field| generate_count_arm(field))
+        .map(generate_count_arm)
         .collect();
 
     quote! { #(#arms)* }
@@ -3314,7 +3314,7 @@ fn generate_count_arm_flag(field: &FieldInfo, variant: &Ident) -> proc_macro2::T
 fn generate_iter_arms(grouped_fields: &GroupedFields) -> proc_macro2::TokenStream {
     let arms: Vec<_> = grouped_fields
         .fields_with_variant()
-        .map(|field| generate_iter_arm(field))
+        .map(generate_iter_arm)
         .collect();
 
     quote! { #(#arms)* }
