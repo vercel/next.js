@@ -141,11 +141,10 @@
   "test/development/acceptance-app/editor-links.test.ts": {
     "passed": [
       "Error overlay - editor links opening links in import traces should be possible to open import trace files on RSC parse error",
+      "Error overlay - editor links opening links in import traces should be possible to open import trace files on module not found error",
       "Error overlay - editor links should be possible to open source file on build error"
     ],
-    "failed": [
-      "Error overlay - editor links opening links in import traces should be possible to open import trace files on module not found error"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9379,9 +9378,9 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/static-shell-debugging/static-shell-debugging.test.ts": {
-    "passed": [],
+    "passed": ["static-shell-debugging should render the full page"],
     "failed": [],
-    "pending": ["static-shell-debugging should render the full page"],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -12630,6 +12629,7 @@
   },
   "test/e2e/swc-plugins/index.test.ts": {
     "passed": [
+      "swcPlugins incompatible plugin version shows a redbox in dev",
       "swcPlugins invalid plugin name shows a redbox in dev",
       "swcPlugins supports swcPlugins basic case"
     ],
