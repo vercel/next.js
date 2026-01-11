@@ -95,9 +95,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 25
+
+      - name: Check non-docs only change
+        run: echo "DOCS_CHANGE<<EOF" >> $GITHUB_OUTPUT; echo "$(node scripts/run-for-change.mjs --not --type docs --exec echo 'nope')" >> $GITHUB_OUTPUT; echo 'EOF' >> $GITHUB_OUTPUT
+        id: docs-change
 
       - name: Download all stats artifacts
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         uses: actions/download-artifact@v4
         with:
           pattern: pr-stats-*
@@ -105,15 +110,18 @@ jobs:
           merge-multiple: true
 
       - name: Setup Node.js
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
 
       - name: Install dependencies
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         working-directory: .github/actions/next-stats-action
         run: npm install
 
       - name: Aggregate and post results
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         working-directory: .github/actions/next-stats-action
         run: node src/aggregate-results.js ${{ github.workspace }}/stats-results
         env:
