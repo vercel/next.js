@@ -18,17 +18,13 @@
 //! - `meta` - Rarely changed metadata (output, aggregation, flags)
 //! - `transient` - Not serialized, only exists in memory
 
-// TODO(PR 2): Remove this once the storage schema is integrated with the rest of the codebase.
-// This module is scaffolding for the TaskStorage macro and is not yet used.
-#![allow(dead_code)]
 
 use turbo_tasks::{
     CellId, SharedReference, TaskId, TraitTypeId, TypedSharedReference, ValueTypeId, task_storage,
 };
 
 use crate::data::{
-    ActivenessState, AggregationNumber, CellRef, CollectibleRef, CollectiblesRef, Dirtyness,
-    InProgressCellState, InProgressState, OutputValue,
+    ActivenessState, AggregationNumber, CellRef, CollectibleRef, CollectiblesRef, Dirtyness, InProgressCellState, InProgressState, LeafDistance, OutputValue
 };
 
 /// Auto-set storage for small sets of keys with unit values.
@@ -59,6 +55,10 @@ struct TaskStorageSchema {
     // =========================================================================
     // INLINE FIELDS (hot path, always allocated inline)
     // =========================================================================
+    /// The task's distance for prioritizing invalidation execution
+    #[field(storage = "direct", category = "meta", inline, default)]
+    pub leaf_distance: LeafDistance;
+
     /// The task's aggregation number for the aggregation tree.
     /// Uses Default::default() semantics - a zero aggregation number means "not set".
     #[field(storage = "direct", category = "meta", inline, default)]

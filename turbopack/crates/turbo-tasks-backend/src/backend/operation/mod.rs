@@ -24,6 +24,7 @@ use crate::{
     backend::{
         OperationGuard, TaskDataCategory, TransientTask, TurboTasksBackend, TurboTasksBackendInner,
         storage::{SpecificTaskDataCategory, StorageWriteGuard, get, iter_many, remove},
+        storage_schema::{TaskStorage, TaskStorageAccessors},
     },
     backing_storage::{BackingStorage, BackingStorageSealed},
     data::{
@@ -159,24 +160,36 @@ where
         true
     }
 
-    fn restore_task_data(
+    fn restore_task_data_typed(
         &mut self,
         task_id: TaskId,
         category: TaskDataCategory,
-    ) -> Vec<CachedDataItem> {
+    ) -> TaskStorage {
         if !self.ensure_transaction() {
-            // If we don't need to restore, we can just return an empty vector
-            return Vec::new();
+            // If we don't need to restore, we can just return an empty storage
+            return TaskStorage::default();
         }
         let tx = self.get_tx();
+        let mut storage = TaskStorage::default();
         // Safety: `tx` is a valid transaction from `self.backend.backing_storage`.
-        let result = unsafe {
-            self.backend
-                .backing_storage
-                .lookup_data(tx, task_id, category)
-        };
+        let result = match category {
+            TaskDataCategory::Meta | TaskDataCategory::All => unsafe {
+                self.backend
+                    .backing_storage
+                    .lookup_task_storage_meta(tx, task_id, &mut storage)
+            },
+            TaskDataCategory::Data => Ok(()),
+        }
+        .and_then(|_| match category {
+            TaskDataCategory::Data | TaskDataCategory::All => unsafe {
+                self.backend
+                    .backing_storage
+                    .lookup_task_storage_data(tx, task_id, &mut storage)
+            },
+            TaskDataCategory::Meta => Ok(()),
+        });
         match result {
-            Ok(data) => data,
+            Ok(()) => storage,
             Err(e) => {
                 let task_name = self.backend.get_task_description(task_id);
                 panic!(
@@ -187,12 +200,15 @@ where
         }
     }
 
-    fn restore_task_data_batch(
+    fn restore_task_data_batch_typed(
         &mut self,
         task_ids: &[TaskId],
         category: TaskDataCategory,
-    ) -> Option<Vec<Vec<CachedDataItem>>> {
-        debug_assert!(task_ids.len() > 1, "Use restore_task_data for single task");
+    ) -> Option<Vec<TaskStorage>> {
+        debug_assert!(
+            task_ids.len() > 1,
+            "Use restore_task_data_typed for single task"
+        );
         if !self.ensure_transaction() {
             // If we don't need to restore, we return None
             return None;
@@ -202,7 +218,7 @@ where
         let result = unsafe {
             self.backend
                 .backing_storage
-                .batch_lookup_data(tx, task_ids, category)
+                .batch_lookup_task_storage(tx, task_ids, category)
         };
         match result {
             Ok(result) => Some(result),
@@ -311,22 +327,24 @@ where
             0 => {}
             1 => {
                 let task_id = tasks_to_restore_for_data[0];
-                let data = self.restore_task_data(task_id, TaskDataCategory::Data);
+                let storage = self.restore_task_data_typed(task_id, TaskDataCategory::Data);
                 let idx = tasks_to_restore_for_data_indicies[0];
-                tasks[idx].2 = Some(data);
+                tasks[idx].2 = Some(storage);
             }
             _ => {
-                if let Some(data) =
-                    self.restore_task_data_batch(&tasks_to_restore_for_data, TaskDataCategory::Data)
-                {
-                    data.into_iter()
+                if let Some(storages) = self.restore_task_data_batch_typed(
+                    &tasks_to_restore_for_data,
+                    TaskDataCategory::Data,
+                ) {
+                    storages
+                        .into_iter()
                         .zip(tasks_to_restore_for_data_indicies)
-                        .for_each(|(items, idx)| {
-                            tasks[idx].2 = Some(items);
+                        .for_each(|(storage, idx)| {
+                            tasks[idx].2 = Some(storage);
                         });
                 } else {
                     for idx in tasks_to_restore_for_data_indicies {
-                        tasks[idx].2 = Some(Vec::new());
+                        tasks[idx].2 = Some(TaskStorage::default());
                     }
                 }
             }
@@ -335,29 +353,31 @@ where
             0 => {}
             1 => {
                 let task_id = tasks_to_restore_for_meta[0];
-                let data = self.restore_task_data(task_id, TaskDataCategory::Meta);
+                let storage = self.restore_task_data_typed(task_id, TaskDataCategory::Meta);
                 let idx = tasks_to_restore_for_meta_indicies[0];
-                tasks[idx].3 = Some(data);
+                tasks[idx].3 = Some(storage);
             }
             _ => {
-                if let Some(data) =
-                    self.restore_task_data_batch(&tasks_to_restore_for_meta, TaskDataCategory::Meta)
-                {
-                    data.into_iter()
+                if let Some(storages) = self.restore_task_data_batch_typed(
+                    &tasks_to_restore_for_meta,
+                    TaskDataCategory::Meta,
+                ) {
+                    storages
+                        .into_iter()
                         .zip(tasks_to_restore_for_meta_indicies)
-                        .for_each(|(items, idx)| {
-                            tasks[idx].3 = Some(items);
+                        .for_each(|(storage, idx)| {
+                            tasks[idx].3 = Some(storage);
                         });
                 } else {
                     for idx in tasks_to_restore_for_meta_indicies {
-                        tasks[idx].3 = Some(Vec::new());
+                        tasks[idx].3 = Some(TaskStorage::default());
                     }
                 }
             }
         }
 
-        for (task_id, category, items_for_data, items_for_meta) in tasks {
-            if items_for_data.is_none() && items_for_meta.is_none() {
+        for (task_id, category, storage_for_data, storage_for_meta) in tasks {
+            if storage_for_data.is_none() && storage_for_meta.is_none() {
                 continue;
             }
             #[cfg(debug_assertions)]
@@ -369,22 +389,16 @@ where
             }
 
             let mut task = self.backend.storage.access_mut(task_id);
-            if let Some(items) = items_for_data
+            if let Some(storage) = storage_for_data
                 && !task.state().is_restored(TaskDataCategory::Data)
             {
-                // TODO store items groups by type to be able to use extend here
-                for item in items {
-                    task.add(item);
-                }
+                task.restore_from(storage, TaskDataCategory::Data);
                 task.state_mut().set_restored(TaskDataCategory::Data);
             }
-            if let Some(items) = items_for_meta
+            if let Some(storage) = storage_for_meta
                 && !task.state().is_restored(TaskDataCategory::Meta)
             {
-                // TODO store items groups by type to be able to use extend here
-                for item in items {
-                    task.add(item);
-                }
+                task.restore_from(storage, TaskDataCategory::Meta);
                 task.state_mut().set_restored(TaskDataCategory::Meta);
             }
             prepared_task_callback(self, task_id, category, task);
@@ -429,12 +443,10 @@ where
                         // Avoid holding the lock too long since this can also affect other tasks
                         drop(task);
 
-                        let items = self.restore_task_data(task_id, category);
+                        let storage = self.restore_task_data_typed(task_id, category);
                         task = self.backend.storage.access_mut(task_id);
                         if !task.state().is_restored(category) {
-                            for item in items {
-                                task.add(item);
-                            }
+                            task.restore_from(storage, category);
                             task.state_mut().set_restored(category);
                         }
                     }
@@ -518,22 +530,20 @@ where
                 drop(task1);
                 drop(task2);
 
-                let items1 = (!is_restored1).then(|| self.restore_task_data(task_id1, category));
-                let items2 = (!is_restored2).then(|| self.restore_task_data(task_id2, category));
+                let storage1 =
+                    (!is_restored1).then(|| self.restore_task_data_typed(task_id1, category));
+                let storage2 =
+                    (!is_restored2).then(|| self.restore_task_data_typed(task_id2, category));
 
                 let (t1, t2) = self.backend.storage.access_pair_mut(task_id1, task_id2);
                 task1 = t1;
                 task2 = t2;
                 if !task1.state().is_restored(category) {
-                    for item in items1.unwrap() {
-                        task1.add(item);
-                    }
+                    task1.restore_from(storage1.unwrap(), category);
                     task1.state_mut().set_restored(category);
                 }
                 if !task2.state().is_restored(category) {
-                    for item in items2.unwrap() {
-                        task2.add(item);
-                    }
+                    task2.restore_from(storage2.unwrap(), category);
                     task2.state_mut().set_restored(category);
                 }
             }
@@ -841,9 +851,8 @@ impl<B: BackingStorage> Debug for TaskGuardImpl<'_, B> {
         if let Some(task_type) = self.backend.task_cache.lookup_reverse(&self.task_id) {
             d.field("task_type", &task_type);
         };
-        for (key, value) in self.task.iter_all() {
-            d.field(&format!("{key:?}"), &value);
-        }
+        // Use TaskStorage's derived Debug impl
+        d.field("storage", &*self.task);
         d.finish()
     }
 }
@@ -995,7 +1004,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
     }
 
     fn shrink_to_fit(&mut self, ty: CachedDataItemType) {
-        self.task.shrink_to_fit(ty)
+        self.task.shrink_to_fit_type(ty)
     }
 
     #[track_caller]
@@ -1011,7 +1020,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         if !self.task_id.is_transient() && ty.is_persistent() {
             self.task.track_modification(ty.category().into_specific());
         }
-        self.task.extract_if(ty, f)
+        self.task.extract_if(ty, f).into_iter()
     }
 
     fn invalidate_serialization(&mut self) {

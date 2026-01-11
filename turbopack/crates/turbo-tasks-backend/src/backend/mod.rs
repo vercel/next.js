@@ -26,7 +26,7 @@ use smallvec::{SmallVec, smallvec};
 use tokio::time::{Duration, Instant};
 use tracing::{Span, trace_span};
 use turbo_tasks::{
-    CellId, FxDashMap, KeyValuePair, RawVc, ReadCellOptions, ReadCellTracking, ReadConsistency,
+    CellId, FxDashMap, RawVc, ReadCellOptions, ReadCellTracking, ReadConsistency,
     ReadOutputOptions, ReadTracking, TRANSIENT_TASK_BIT, TaskExecutionReason, TaskId, TaskPriority,
     TraitTypeId, TurboTasksBackendApi, ValueTypeId,
     backend::{
@@ -56,9 +56,10 @@ use crate::{
             make_task_dirty_internal, prepare_new_children,
         },
         storage::{
-            InnerStorageSnapshot, Storage, count, get, get_many, get_mut, get_mut_or_insert_with,
+            Storage, TaskStorageSnapshot, count, get, get_many, get_mut, get_mut_or_insert_with,
             iter_many, remove,
         },
+        storage_schema::{TaskStorage, TaskStorageAccessors},
     },
     backing_storage::BackingStorage,
     data::{
@@ -1066,76 +1067,39 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let snapshot_time = Instant::now();
         drop(snapshot_request);
 
-        let preprocess = |task_id: TaskId, inner: &storage::InnerStorage| {
+        let preprocess = |task_id: TaskId, inner: &TaskStorage| {
             if task_id.is_transient() {
                 return (None, None);
             }
-            let len = inner.len();
 
             let meta_restored = inner.state().meta_restored();
             let data_restored = inner.state().data_restored();
 
-            let mut meta = meta_restored.then(|| Vec::with_capacity(len));
-            let mut data = data_restored.then(|| Vec::with_capacity(len));
-            for (key, value) in inner.iter_all() {
-                if key.is_persistent() && value.is_persistent() {
-                    match key.category() {
-                        TaskDataCategory::Meta => {
-                            if let Some(meta) = &mut meta {
-                                meta.push(CachedDataItem::from_key_and_value_ref(key, value))
-                            }
-                        }
-                        TaskDataCategory::Data => {
-                            if let Some(data) = &mut data {
-                                data.push(CachedDataItem::from_key_and_value_ref(key, value))
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-            }
+            // Encode meta/data directly from TaskStorage
+            let meta =
+                meta_restored.then(|| self.backing_storage.serialize_task_storage_meta(inner));
+            let data =
+                data_restored.then(|| self.backing_storage.serialize_task_storage_data(inner));
 
             (meta, data)
         };
-        let process = |task_id: TaskId, (meta, data): (Option<Vec<_>>, Option<Vec<_>>)| {
-            // TODO: perf: Instead of returning a `Vec` of individually allocated `SmallVec`s, it'd
-            // be better to append everything to a flat per-task or per-shard `Vec<u8>`, and have
-            // each `serialize` call return `(start_idx, end_idx)`.
-            (
-                task_id,
-                meta.map(|d| self.backing_storage.serialize(task_id, &d)),
-                data.map(|d| self.backing_storage.serialize(task_id, &d)),
-            )
-        };
-        let process_snapshot = |task_id: TaskId, inner: Box<InnerStorageSnapshot>| {
+        let process = |task_id: TaskId, (meta, data): (Option<_>, Option<_>)| (task_id, meta, data);
+        let process_snapshot = |task_id: TaskId, inner: Box<TaskStorageSnapshot>| {
             if task_id.is_transient() {
                 return (task_id, None, None);
             }
-            let len = inner.len();
-            let mut meta = inner.meta_modified.then(|| Vec::with_capacity(len));
-            let mut data = inner.data_modified.then(|| Vec::with_capacity(len));
-            for (key, value) in inner.iter_all() {
-                if key.is_persistent() && value.is_persistent() {
-                    match key.category() {
-                        TaskDataCategory::Meta => {
-                            if let Some(meta) = &mut meta {
-                                meta.push(CachedDataItem::from_key_and_value_ref(key, value));
-                            }
-                        }
-                        TaskDataCategory::Data => {
-                            if let Some(data) = &mut data {
-                                data.push(CachedDataItem::from_key_and_value_ref(key, value));
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-            }
-            (
-                task_id,
-                meta.map(|meta| self.backing_storage.serialize(task_id, &meta)),
-                data.map(|data| self.backing_storage.serialize(task_id, &data)),
-            )
+
+            // Encode meta/data directly from TaskStorage snapshot
+            let meta = inner.meta_modified.then(|| {
+                self.backing_storage
+                    .serialize_task_storage_meta(&inner.storage)
+            });
+            let data = inner.data_modified.then(|| {
+                self.backing_storage
+                    .serialize_task_storage_data(&inner.storage)
+            });
+
+            (task_id, meta, data)
         };
 
         let snapshot = self
@@ -1184,50 +1148,26 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 let mut iter = iter
                     .filter_map(
                         |(task_id, meta, data): (
-                            _,
-                            Option<Result<SmallVec<_>>>,
-                            Option<Result<SmallVec<_>>>,
+                            TaskId,
+                            Option<SmallVec<_>>,
+                            Option<SmallVec<_>>,
                         )| {
-                            let meta = match meta {
-                                Some(Ok(meta)) => {
-                                    #[cfg(feature = "print_cache_item_size")]
-                                    task_cache_stats
-                                        .lock()
-                                        .entry(self.get_task_description(task_id))
-                                        .or_default()
-                                        .add_meta(&meta);
-                                    Some(meta)
-                                }
-                                None => None,
-                                Some(Err(err)) => {
-                                    println!(
-                                        "Serializing task {} failed (meta): {:?}",
-                                        self.get_task_description(task_id),
-                                        err
-                                    );
-                                    None
-                                }
-                            };
-                            let data = match data {
-                                Some(Ok(data)) => {
-                                    #[cfg(feature = "print_cache_item_size")]
-                                    task_cache_stats
-                                        .lock()
-                                        .entry(self.get_task_description(task_id))
-                                        .or_default()
-                                        .add_data(&data);
-                                    Some(data)
-                                }
-                                None => None,
-                                Some(Err(err)) => {
-                                    println!(
-                                        "Serializing task {} failed (data): {:?}",
-                                        self.get_task_description(task_id),
-                                        err
-                                    );
-                                    None
-                                }
-                            };
+                            #[cfg(feature = "print_cache_item_size")]
+                            if let Some(ref meta) = meta {
+                                task_cache_stats
+                                    .lock()
+                                    .entry(self.get_task_description(task_id))
+                                    .or_default()
+                                    .add_meta(meta);
+                            }
+                            #[cfg(feature = "print_cache_item_size")]
+                            if let Some(ref data) = data {
+                                task_cache_stats
+                                    .lock()
+                                    .entry(self.get_task_description(task_id))
+                                    .or_default()
+                                    .add_data(data);
+                            }
                             (meta.is_some() || data.is_some()).then_some((task_id, meta, data))
                         },
                     )

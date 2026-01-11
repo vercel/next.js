@@ -2,12 +2,11 @@ use std::{any::type_name, sync::Arc};
 
 use anyhow::Result;
 use either::Either;
-use smallvec::SmallVec;
+use turbo_bincode::TurboBincodeBuffer;
 use turbo_tasks::{TaskId, backend::CachedTaskType};
 
 use crate::{
     backend::{AnyOperation, TaskDataCategory, storage_schema::TaskStorage},
-    data::CachedDataItem,
     utils::chunked_vec::ChunkedVec,
 };
 
@@ -44,8 +43,6 @@ pub trait BackingStorageSealed: 'static + Send + Sync {
     type ReadTransaction<'l>;
     fn next_free_task_id(&self) -> Result<TaskId>;
     fn uncompleted_operations(&self) -> Result<Vec<AnyOperation>>;
-    #[allow(clippy::ptr_arg)]
-    fn serialize(&self, task: TaskId, data: &Vec<CachedDataItem>) -> Result<SmallVec<[u8; 16]>>;
     fn save_snapshot<I>(
         &self,
         operations: Vec<Arc<AnyOperation>>,
@@ -56,8 +53,8 @@ pub trait BackingStorageSealed: 'static + Send + Sync {
         I: Iterator<
                 Item = (
                     TaskId,
-                    Option<SmallVec<[u8; 16]>>,
-                    Option<SmallVec<[u8; 16]>>,
+                    Option<TurboBincodeBuffer>,
+                    Option<TurboBincodeBuffer>,
                 ),
             > + Send
             + Sync;
@@ -78,38 +75,18 @@ pub trait BackingStorageSealed: 'static + Send + Sync {
         tx: Option<&Self::ReadTransaction<'_>>,
         task_id: TaskId,
     ) -> Result<Option<Arc<CachedTaskType>>>;
-    /// # Safety
-    ///
-    /// `tx` must be a transaction from this BackingStorage instance.
-    unsafe fn lookup_data(
-        &self,
-        tx: Option<&Self::ReadTransaction<'_>>,
-        task_id: TaskId,
-        category: TaskDataCategory,
-    ) -> Result<Vec<CachedDataItem>>;
-    /// # Safety
-    ///
-    /// `tx` must be a transaction from this BackingStorage instance.
-    unsafe fn batch_lookup_data(
-        &self,
-        tx: Option<&Self::ReadTransaction<'_>>,
-        task_ids: &[TaskId],
-        category: TaskDataCategory,
-    ) -> Result<Vec<Vec<CachedDataItem>>> {
-        let mut results = Vec::with_capacity(task_ids.len());
-        for &task_id in task_ids {
-            // TODO more efficient batch implementation
-            let data = unsafe { self.lookup_data(tx, task_id, category)? };
-            results.push(data);
-        }
-        Ok(results)
-    }
 
     // =========================================================================
     // TaskStorage serialization methods
     // These methods provide direct serialization to/from TaskStorage without
     // the intermediate CachedDataItem representation.
     // =========================================================================
+
+    /// Serialize meta fields from TaskStorage to bytes.
+    fn serialize_task_storage_meta(&self, storage: &TaskStorage) -> TurboBincodeBuffer;
+
+    /// Serialize data fields from TaskStorage to bytes.
+    fn serialize_task_storage_data(&self, storage: &TaskStorage) -> TurboBincodeBuffer;
 
     /// Lookup and decode meta fields directly into TaskStorage.
     /// # Safety
@@ -133,39 +110,17 @@ pub trait BackingStorageSealed: 'static + Send + Sync {
         storage: &mut TaskStorage,
     ) -> Result<()>;
 
-    /// Batch lookup and decode meta fields for multiple tasks.
+    /// Batch lookup and decode data for multiple tasks directly into TaskStorage instances.
+    /// Returns a vector of TaskStorage, one for each task_id in the input slice.
     /// # Safety
     ///
     /// `tx` must be a transaction from this BackingStorage instance.
-    unsafe fn batch_lookup_task_storage_meta(
+    unsafe fn batch_lookup_task_storage(
         &self,
         tx: Option<&Self::ReadTransaction<'_>>,
         task_ids: &[TaskId],
-        storages: &mut [TaskStorage],
-    ) -> Result<()> {
-        debug_assert_eq!(task_ids.len(), storages.len());
-        for (task_id, storage) in task_ids.iter().zip(storages.iter_mut()) {
-            unsafe { self.lookup_task_storage_meta(tx, *task_id, storage)? };
-        }
-        Ok(())
-    }
-
-    /// Batch lookup and decode data fields for multiple tasks.
-    /// # Safety
-    ///
-    /// `tx` must be a transaction from this BackingStorage instance.
-    unsafe fn batch_lookup_task_storage_data(
-        &self,
-        tx: Option<&Self::ReadTransaction<'_>>,
-        task_ids: &[TaskId],
-        storages: &mut [TaskStorage],
-    ) -> Result<()> {
-        debug_assert_eq!(task_ids.len(), storages.len());
-        for (task_id, storage) in task_ids.iter().zip(storages.iter_mut()) {
-            unsafe { self.lookup_task_storage_data(tx, *task_id, storage)? };
-        }
-        Ok(())
-    }
+        category: TaskDataCategory,
+    ) -> Result<Vec<TaskStorage>>;
 
     fn shutdown(&self) -> Result<()> {
         Ok(())
@@ -197,10 +152,6 @@ where
         either::for_both!(self, this => this.uncompleted_operations())
     }
 
-    fn serialize(&self, task: TaskId, data: &Vec<CachedDataItem>) -> Result<SmallVec<[u8; 16]>> {
-        either::for_both!(self, this => this.serialize(task, data))
-    }
-
     fn save_snapshot<I>(
         &self,
         operations: Vec<Arc<AnyOperation>>,
@@ -211,8 +162,8 @@ where
         I: Iterator<
                 Item = (
                     TaskId,
-                    Option<SmallVec<[u8; 16]>>,
-                    Option<SmallVec<[u8; 16]>>,
+                    Option<TurboBincodeBuffer>,
+                    Option<TurboBincodeBuffer>,
                 ),
             > + Send
             + Sync,
@@ -265,40 +216,12 @@ where
         }
     }
 
-    unsafe fn lookup_data(
-        &self,
-        tx: Option<&Self::ReadTransaction<'_>>,
-        task_id: TaskId,
-        category: TaskDataCategory,
-    ) -> Result<Vec<CachedDataItem>> {
-        match self {
-            Either::Left(this) => {
-                let tx = tx.map(|tx| read_transaction_left_or_panic(tx.as_ref()));
-                unsafe { this.lookup_data(tx, task_id, category) }
-            }
-            Either::Right(this) => {
-                let tx = tx.map(|tx| read_transaction_right_or_panic(tx.as_ref()));
-                unsafe { this.lookup_data(tx, task_id, category) }
-            }
-        }
+    fn serialize_task_storage_meta(&self, storage: &TaskStorage) -> TurboBincodeBuffer {
+        either::for_both!(self, this => this.serialize_task_storage_meta(storage))
     }
 
-    unsafe fn batch_lookup_data(
-        &self,
-        tx: Option<&Self::ReadTransaction<'_>>,
-        task_ids: &[TaskId],
-        category: TaskDataCategory,
-    ) -> Result<Vec<Vec<CachedDataItem>>> {
-        match self {
-            Either::Left(this) => {
-                let tx = tx.map(|tx| read_transaction_left_or_panic(tx.as_ref()));
-                unsafe { this.batch_lookup_data(tx, task_ids, category) }
-            }
-            Either::Right(this) => {
-                let tx = tx.map(|tx| read_transaction_right_or_panic(tx.as_ref()));
-                unsafe { this.batch_lookup_data(tx, task_ids, category) }
-            }
-        }
+    fn serialize_task_storage_data(&self, storage: &TaskStorage) -> TurboBincodeBuffer {
+        either::for_both!(self, this => this.serialize_task_storage_data(storage))
     }
 
     unsafe fn lookup_task_storage_meta(
@@ -333,6 +256,24 @@ where
             Either::Right(this) => {
                 let tx = tx.map(|tx| read_transaction_right_or_panic(tx.as_ref()));
                 unsafe { this.lookup_task_storage_data(tx, task_id, storage) }
+            }
+        }
+    }
+
+    unsafe fn batch_lookup_task_storage(
+        &self,
+        tx: Option<&Self::ReadTransaction<'_>>,
+        task_ids: &[TaskId],
+        category: TaskDataCategory,
+    ) -> Result<Vec<TaskStorage>> {
+        match self {
+            Either::Left(this) => {
+                let tx = tx.map(|tx| read_transaction_left_or_panic(tx.as_ref()));
+                unsafe { this.batch_lookup_task_storage(tx, task_ids, category) }
+            }
+            Either::Right(this) => {
+                let tx = tx.map(|tx| read_transaction_right_or_panic(tx.as_ref()));
+                unsafe { this.batch_lookup_task_storage(tx, task_ids, category) }
             }
         }
     }
