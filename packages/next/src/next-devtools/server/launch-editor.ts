@@ -462,7 +462,7 @@ export async function openFileInEditor(
   }
 
   const normalized = path.normalize(candidate)
-  if (!normalized.startsWith(base + path.sep)) {
+  if (!(normalized.startsWith(base + path.sep) || normalized === base)) {
     return { found: false, error: new Error('Path escapes project root') }
   }
 
