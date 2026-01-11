@@ -260,59 +260,84 @@ export async function createApp({
   // --- MongoDB Logic Start ---
   // --- MongoDB Change Start ---
   if (mongodb) {
-    const dbFolderPath = join(root, 'lib')
-    const dbFilePath = join(dbFolderPath, typescript ? 'db.ts' : 'db.js')
+  const dbFolderPath = join(root, 'lib')
+  const dbFilePath = join(dbFolderPath, typescript ? 'db.ts' : 'db.js')
 
-    if (!existsSync(dbFolderPath)) {
-      mkdirSync(dbFolderPath, { recursive: true })
-    }
+  if (!existsSync(dbFolderPath)) {
+    mkdirSync(dbFolderPath, { recursive: true })
+  }
 
-    const dbCode = `import { MongoClient } from 'mongodb'
+  const dbCodeTs = `
+import { MongoClient } from 'mongodb'
 
-if (!process.env.MONGODB_URI) {
-  throw new Error('Invalid/Missing environment variable: "MONGODB_URI"')
-}
-
-const uri = process.env.MONGODB_URI
-const options = {}
+const uri = process.env.MONGODB_URI!
 
 let client: MongoClient
 let clientPromise: Promise<MongoClient>
 
 if (process.env.NODE_ENV === 'development') {
-  let globalWithMongo = global as typeof globalThis & {
-    _mongoClientPromise?: Promise<MongoClient>
+  if (!(global as any)._mongoClientPromise) {
+    client = new MongoClient(uri)
+    ;(global as any)._mongoClientPromise = client.connect()
   }
-  if (!globalWithMongo._mongoClientPromise) {
-    client = new MongoClient(uri, options)
-    globalWithMongo._mongoClientPromise = client.connect()
-  }
-  clientPromise = globalWithMongo._mongoClientPromise
+  clientPromise = (global as any)._mongoClientPromise
 } else {
-  client = new MongoClient(uri, options)
+  client = new MongoClient(uri)
   clientPromise = client.connect()
 }
 
-export default clientPromise`
+export default clientPromise
+`
 
-    writeFileSync(dbFilePath, dbCode)
+  const dbCodeJs = `
+import { MongoClient } from 'mongodb'
 
-    // Safely append to .env.local with proper casting
-    
-    const envPath = join(root, '.env.local')
-    const envContent = `\nMONGODB_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/myDatabase?retryWrites=true&w=majority\n`
+const uri = process.env.MONGODB_URI
 
-    if (fs.existsSync(envPath)) {
-      fs.appendFileSync(envPath, envContent)
-    } else {
-      fs.writeFileSync(envPath, envContent)
-    }
+let client
+let clientPromise
 
-    console.log(
-      `${green('Added')} MongoDB connection utility in ${cyan('lib/db.' + (typescript ? 'ts' : 'js'))}`
-    )
+if (process.env.NODE_ENV === 'development') {
+  if (!global._mongoClientPromise) {
+    client = new MongoClient(uri)
+    global._mongoClientPromise = client.connect()
   }
-  // --- MongoDB Logic End ---
+  clientPromise = global._mongoClientPromise
+} else {
+  client = new MongoClient(uri)
+  clientPromise = client.connect()
+}
+
+export default clientPromise
+`
+
+  const dbCode = typescript ? dbCodeTs : dbCodeJs
+
+  writeFileSync(dbFilePath, dbCode)
+
+  // Safely append to .env.local without leading newline
+  const envPath = join(root, '.env.local')
+  const mongodbUri =
+    'MONGODB_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/myDatabase?retryWrites=true&w=majority\n'
+
+  if (fs.existsSync(envPath)) {
+    const existingContent = fs.readFileSync(envPath, 'utf-8')
+    const contentToAppend = existingContent.endsWith('\n')
+      ? mongodbUri
+      : `\n${mongodbUri}`
+
+    fs.appendFileSync(envPath, contentToAppend)
+  } else {
+    fs.writeFileSync(envPath, mongodbUri)
+  }
+
+  console.log(
+    `${green('Added')} MongoDB connection utility in ${cyan(
+      'lib/db.' + (typescript ? 'ts' : 'js')
+    )}`
+  )
+}
+
   if (disableGit) {
     console.log('Skipping git initialization.')
     console.log()
