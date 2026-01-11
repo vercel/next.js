@@ -106,8 +106,9 @@ describe('use-cache-close-over-function', () => {
               '\n   ^^^^^^^^^^^' +
               '\n    at createCachedFn (app/server/page.tsx:6:3)' +
               '\n    at eval (app/server/page.tsx:12:24)' +
-              // TODO(veil): Should be source-mapped.
-              '\n    at <unknown> (rsc)'
+              // TODO(veil): Should be source-mapped. The frame shows the generated file path
+              // because source mapping this frame fails (sourcePosition.source === null).
+              '\n    at <unknown> (.next/dev/server/app/server/page.js:'
       )
       expect(cliOutput).toContain(
         '' +

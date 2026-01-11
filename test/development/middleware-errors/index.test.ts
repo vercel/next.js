@@ -310,14 +310,14 @@ describe('middleware - development errors', () => {
             ? '\n⨯ Error: booooom!' +
               `\n    at <unknown> (${getDistDir()}/server/edge-runtime-webpack.js:35)` +
               '\n    at eval (middleware.js:3:13)' +
-              `\n    at (middleware)/./middleware.js (${getDistDir()}/server/middleware.js:26:1)` +
+              `\n    at <unknown> (${getDistDir()}/server/middleware.js:26:1)` +
               '\n    at __webpack_require__ '
             : '\n⨯ Error: booooom!' +
               // TODO: Should be anonymous method without a method name
               '\n    at <unknown> (middleware.js:3)' +
               // TODO: Should be ignore-listed
               '\n    at eval (middleware.js:3:13)' +
-              `\n    at (middleware)/./middleware.js (${getDistDir()}/server/middleware.js:18:1)` +
+              `\n    at <unknown> (${getDistDir()}/server/middleware.js:18:1)` +
               '\n    at __webpack_require__ '
       )
     })

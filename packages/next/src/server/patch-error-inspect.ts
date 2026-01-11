@@ -68,6 +68,12 @@ interface CapturedFrame {
   isAsync: boolean
   /** Whether this is a constructor call (new Foo()) */
   isConstructor: boolean
+  /**
+   * Original V8 CallSite.toString() result.
+   * Used for unsourcemapped frames to preserve V8's native formatting.
+   * Undefined when the frame was reconstructed from a parsed stack string.
+   */
+  originalString: string | undefined
 }
 
 /**
@@ -176,6 +182,8 @@ export function parseFrames(stackString: string): CapturedFrame[] {
       enclosingColumnNumber: undefined,
       isAsync,
       isConstructor,
+      // Parsed frames don't have the original V8 string
+      originalString: undefined,
     }
   })
 }
@@ -247,14 +255,17 @@ function parseEvalOrigin(
  */
 function captureCallSite(callSite: CallSite): CapturedFrame {
   let fileName = callSite.getFileName() ?? undefined
-  const lineNumber = callSite.getLineNumber() ?? undefined
-  const columnNumber = callSite.getColumnNumber() ?? undefined
+  let lineNumber = callSite.getLineNumber() ?? undefined
+  let columnNumber = callSite.getColumnNumber() ?? undefined
 
   // For eval frames, getFileName() returns undefined but getEvalOrigin() contains the source location.
-  // When using eval-source-map (common in webpack dev mode), the sourceURL comment in the eval'd code
-  // causes V8 to set evalOrigin to just the sourceURL (e.g., "webpack-internal:///(rsc)/./app/page.tsx").
-  // The lineNumber/columnNumber are positions within the eval'd code which will be source-mapped.
-  // When NOT using sourceURL, evalOrigin has format "eval at <name> (file:line:col)" and we extract the file.
+  // There are two formats:
+  // 1. Traditional eval: "eval at <name> (webpack-internal:///.../page.js:10:5)" - extract file:line:col
+  // 2. eval-source-map: just "webpack-internal:///.../page.js" (sourceURL in eval'd code) - use as fileName
+  //
+  // For case 1, we must use the line:col from the eval origin (position in the source file)
+  // because getLineNumber/getColumnNumber return positions in the eval'd code which don't map correctly.
+  // For case 2, the getLineNumber/getColumnNumber positions ARE correct for source mapping.
   if (fileName === undefined && callSite.isEval()) {
     const evalOrigin = callSite.getEvalOrigin()
     if (evalOrigin) {
@@ -262,7 +273,8 @@ function captureCallSite(callSite: CallSite): CapturedFrame {
       const parsed = parseEvalOrigin(evalOrigin)
       if (parsed) {
         fileName = parsed.file
-        // Don't override lineNumber/columnNumber - they're positions in eval code that need source mapping
+        lineNumber = parsed.line
+        columnNumber = parsed.column
       } else {
         // evalOrigin is just the sourceURL from eval-source-map
         fileName = evalOrigin
@@ -282,6 +294,8 @@ function captureCallSite(callSite: CallSite): CapturedFrame {
     enclosingColumnNumber: callSite.getEnclosingColumnNumber?.() ?? undefined,
     isAsync: callSite.isAsync(),
     isConstructor: callSite.isConstructor(),
+    // Store V8's native formatting for use when we don't source-map the frame
+    originalString: callSite.toString(),
   }
 }
 
@@ -407,20 +421,27 @@ function buildNameMappings(
 ): NameMappingsByLine {
   const nameMappings: NameMappingsByLine = new Map()
 
-  sourceMapConsumer.eachMapping((mapping) => {
-    if (!mapping.name) return
+  try {
+    sourceMapConsumer.eachMapping((mapping) => {
+      if (!mapping.name) return
 
-    let lineEntries = nameMappings.get(mapping.generatedLine)
-    if (!lineEntries) {
-      lineEntries = []
-      nameMappings.set(mapping.generatedLine, lineEntries)
+      let lineEntries = nameMappings.get(mapping.generatedLine)
+      if (!lineEntries) {
+        lineEntries = []
+        nameMappings.set(mapping.generatedLine, lineEntries)
+      }
+      lineEntries.push({ column: mapping.generatedColumn, name: mapping.name })
+    })
+
+    // Sort each line's entries by column for efficient searching
+    for (const entries of nameMappings.values()) {
+      entries.sort((a, b) => a.column - b.column)
     }
-    lineEntries.push({ column: mapping.generatedColumn, name: mapping.name })
-  })
-
-  // Sort each line's entries by column for efficient searching
-  for (const entries of nameMappings.values()) {
-    entries.sort((a, b) => a.column - b.column)
+  } catch {
+    // Some source maps (particularly indexed/sectioned ones) may have invalid
+    // internal state that causes eachMapping to fail. Return empty mappings
+    // rather than crashing error formatting.
+    nameMappings.clear()
   }
 
   return nameMappings
@@ -564,6 +585,13 @@ interface SourceMappedFrame {
   stack: IgnorableStackFrame
   // DEV only
   code: string | null
+  /**
+   * Original V8 CallSite.toString() result for unsourcemapped frames.
+   * When present, this should be used directly for output instead of
+   * formatting from stack fields - V8's native formatting handles all
+   * edge cases (numeric names, special chars, async, constructor, etc.).
+   */
+  originalString?: string
 }
 
 /**
@@ -584,12 +612,23 @@ function formatMethodName(
   let result: string
 
   // Determine the base name to display
-  const displayName = functionName ?? callSiteMethodName
+  let displayName = functionName ?? callSiteMethodName
+
+  // Webpack module wrapper functions have the module path as their name, e.g.,
+  // "(rsc)/./app/page.tsx" or "(ssr)/./app/page.tsx". These are not meaningful
+  // function names and should be treated as <unknown>.
+  if (displayName && /^\([^)]+\)\/\.\//.test(displayName)) {
+    displayName = undefined
+  }
 
   if (displayName) {
     // Include typeName if present (e.g., "Object.then", "Promise.resolve")
-    // This matches V8's native formatting
-    if (typeName && typeName !== 'global') {
+    // This matches V8's native formatting, but V8 omits typeName for:
+    // - Numeric method names (e.g., webpack module IDs like "7210")
+    // - Names starting with special characters (e.g., "(rsc)/./app/page.tsx")
+    const shouldOmitTypeName =
+      /^\d+$/.test(displayName) || /^[^a-zA-Z_$]/.test(displayName)
+    if (typeName && typeName !== 'global' && !shouldOmitTypeName) {
       result = typeName + '.' + displayName
     } else {
       result = displayName
@@ -626,9 +665,13 @@ function formatMethodName(
 
 /**
  * Create an unsourcemapped frame from a captured frame.
+ * When the frame has an originalString from V8's CallSite.toString(),
+ * we store it to use V8's native formatting directly in output.
  */
 function createUnsourcemappedFrame(frame: CapturedFrame): SourceMappedFrame {
   const file = frame.fileName ?? null
+  // formatMethodName is still needed for methodName field (used by sandwich algorithm, etc.)
+  // but originalString will be used for actual output when available
   const methodName = formatMethodName(
     frame.functionName,
     frame.methodName,
@@ -646,6 +689,9 @@ function createUnsourcemappedFrame(frame: CapturedFrame): SourceMappedFrame {
       ignored: file !== null && shouldIgnoreListGeneratedFrame(file),
     },
     code: null,
+    // Store original V8 string for direct use in output - handles all edge cases
+    // (numeric names, special characters, async, constructor, etc.) correctly
+    originalString: frame.originalString,
   }
 }
 
@@ -653,11 +699,15 @@ function ignoreListAnonymousStackFramesIfSandwiched(
   sourceMappedFrames: Array<{
     stack: IgnorableStackFrame
     code: string | null
+    originalString?: string
   }>
 ) {
   return ignoreListAnonymousStackFramesIfSandwichedGeneric(
     sourceMappedFrames,
-    (frame) => frame.stack.file === '<anonymous>',
+    // Native functions (Set.forEach, JSON.stringify, etc.) have null file names
+    // when captured via CallSite, but may have '<anonymous>' as string when
+    // the frames come from parsing the stack string (fallback path).
+    (frame) => frame.stack.file === null || frame.stack.file === '<anonymous>',
     (frame) => frame.stack.ignored,
     (frame) => frame.stack.methodName,
     (frame) => {
@@ -975,6 +1025,7 @@ function parseAndSourceMap(
   const sourceMappedFrames: Array<{
     stack: IgnorableStackFrame
     code: string | null
+    originalString?: string
   }> = []
   let sourceFrame: null | string = null
   for (const frame of frames) {
@@ -1004,26 +1055,21 @@ function parseAndSourceMap(
   for (let i = 0; i < sourceMappedFrames.length; i++) {
     const frame = sourceMappedFrames[i]
 
+    // Note: We don't use frame.originalString here because V8's formatting
+    // includes absolute paths and doesn't match our desired output format.
+    // The formatMethodName function handles method name edge cases (numeric
+    // names, special characters, etc.) to match V8's behavior.
+    const frameStr = frameToString(
+      frame.stack.methodName,
+      frame.stack.file,
+      frame.stack.line1,
+      frame.stack.column1
+    )
+
     if (!frame.stack.ignored) {
-      sourceMappedStack +=
-        '\n' +
-        frameToString(
-          frame.stack.methodName,
-          frame.stack.file,
-          frame.stack.line1,
-          frame.stack.column1
-        )
+      sourceMappedStack += '\n' + frameStr
     } else if (showIgnoreListed) {
-      sourceMappedStack +=
-        '\n' +
-        dim(
-          frameToString(
-            frame.stack.methodName,
-            frame.stack.file,
-            frame.stack.line1,
-            frame.stack.column1
-          )
-        )
+      sourceMappedStack += '\n' + dim(frameStr)
     }
   }
 
