@@ -5545,19 +5545,16 @@ const getGlobalErrorStyles = async (
   const {
     componentMod: { createElement },
   } = ctx
-  const GlobalErrorComponent: GlobalErrorComponent =
-    ctx.componentMod.GlobalError
-  let globalErrorStyles
-  if (globalErrorModule) {
-    const [, styles] = await createComponentStylesAndScripts({
-      ctx,
-      filePath: globalErrorModule[1],
-      getComponent: globalErrorModule[0],
-      injectedCSS: new Set(),
-      injectedJS: new Set(),
-    })
-    globalErrorStyles = styles
-  }
+
+  const [GlobalErrorComponent, styles] = await createComponentStylesAndScripts({
+    ctx,
+    filePath: globalErrorModule![1],
+    getComponent: globalErrorModule![0],
+    injectedCSS: new Set(),
+    injectedJS: new Set(),
+  })
+
+  let globalErrorStyles: ReactNode = styles
   if (ctx.renderOpts.dev) {
     const dir =
       (process.env.NEXT_RUNTIME === 'edge'
@@ -5566,7 +5563,7 @@ const getGlobalErrorStyles = async (
 
     const globalErrorModulePath = normalizeConventionFilePath(
       dir,
-      globalErrorModule?.[1]
+      globalErrorModule![1]
     )
     if (globalErrorModulePath) {
       const SegmentViewNode = ctx.componentMod.SegmentViewNode
