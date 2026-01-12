@@ -1,17 +1,19 @@
 import type { Options as SWCOptions } from '@swc/core'
 import type { CompilerOptions } from 'typescript'
 
-import { resolve } from 'node:path'
-import { readFile } from 'node:fs/promises'
+import path from 'node:path'
+import { readFileSync, existsSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
+import * as CommentJson from 'next/dist/compiled/comment-json'
 import { deregisterHook, registerHook, requireFromString } from './require-hook'
 import { warn, warnOnce } from '../output/log'
-import { installDependencies } from '../../lib/install-dependencies'
 import { getNodeOptionsArgs } from '../../server/lib/utils'
+
+type RelevantCompilerOptions = Pick<CompilerOptions, 'paths' | 'baseUrl'>
 
 function resolveSWCOptions(
   cwd: string,
-  compilerOptions: CompilerOptions
+  compilerOptions: RelevantCompilerOptions
 ): SWCOptions {
   return {
     jsc: {
@@ -21,7 +23,7 @@ function resolveSWCOptions(
       ...(compilerOptions.paths ? { paths: compilerOptions.paths } : {}),
       ...(compilerOptions.baseUrl
         ? // Needs to be an absolute path.
-          { baseUrl: resolve(cwd, compilerOptions.baseUrl) }
+          { baseUrl: path.resolve(cwd, compilerOptions.baseUrl) }
         : compilerOptions.paths
           ? // If paths is given, baseUrl is required.
             { baseUrl: cwd }
@@ -40,79 +42,106 @@ function resolveSWCOptions(
   } satisfies SWCOptions
 }
 
-// Ported from next/src/lib/verify-typescript-setup.ts
-// Although this overlaps with the later `verifyTypeScriptSetup`,
-// it is acceptable since the time difference in the worst case is trivial,
-// as we are only preparing to install the dependencies once more.
-async function verifyTypeScriptSetup(cwd: string, configFileName: string) {
-  try {
-    // Quick module check.
-    require.resolve('typescript', { paths: [cwd] })
-  } catch (error) {
-    if (
-      error &&
-      typeof error === 'object' &&
-      'code' in error &&
-      error.code === 'MODULE_NOT_FOUND'
-    ) {
-      warn(
-        `Installing TypeScript as it was not found while loading "${configFileName}".`
-      )
+function resolveExtends(extendsPath: string, currentConfigDir: string): string {
+  // Relative paths are resolved relative to the current config's directory
+  if (
+    extendsPath.startsWith('./') ||
+    extendsPath.startsWith('../') ||
+    path.isAbsolute(extendsPath)
+  ) {
+    const resolved = path.resolve(currentConfigDir, extendsPath)
+    // TypeScript allows omitting .json extension
+    if (existsSync(resolved)) {
+      return resolved
+    }
+    if (!resolved.endsWith('.json') && existsSync(resolved + '.json')) {
+      return resolved + '.json'
+    }
+    return resolved
+  }
 
-      await installDependencies(cwd, [{ pkg: 'typescript' }], true).catch(
-        (err) => {
-          if (err && typeof err === 'object' && 'command' in err) {
-            console.error(
-              `Failed to install TypeScript, please install it manually to continue:\n` +
-                (err as any).command +
-                '\n'
-            )
-          }
-          throw err
-        }
-      )
+  // Package paths - use require.resolve to find the package
+  try {
+    // Try resolving as a direct path within the package
+    return require.resolve(extendsPath, { paths: [currentConfigDir] })
+  } catch {
+    // If that fails, try appending tsconfig.json for package names like "@tsconfig/node18"
+    try {
+      return require.resolve(extendsPath + '/tsconfig.json', {
+        paths: [currentConfigDir],
+      })
+    } catch {
+      // Return the original path and let it fail later with a clear error
+      return path.resolve(currentConfigDir, extendsPath)
     }
   }
 }
 
-async function getTsConfig(cwd: string): Promise<CompilerOptions> {
-  const ts: typeof import('typescript') = require(
-    require.resolve('typescript', { paths: [cwd] })
-  )
+function loadTsConfigFile(
+  configPath: string,
+  visited: Set<string>
+): RelevantCompilerOptions {
+  const resolvedPath = path.resolve(configPath)
 
-  // NOTE: This doesn't fully cover the edge case for setting
-  // "typescript.tsconfigPath" in next config which is currently
-  // a restriction.
-  const tsConfigPath = ts.findConfigFile(
-    cwd,
-    ts.sys.fileExists,
-    'tsconfig.json'
-  )
+  if (visited.has(resolvedPath)) {
+    return {}
+  }
+  visited.add(resolvedPath)
 
-  if (!tsConfigPath) {
-    // It is ok to not return ts.getDefaultCompilerOptions() because
-    // we are only looking for paths and baseUrl from tsConfig.
+  if (!existsSync(resolvedPath)) {
     return {}
   }
 
-  const configFile = ts.readConfigFile(tsConfigPath, ts.sys.readFile)
-  const parsedCommandLine = ts.parseJsonConfigFileContent(
-    configFile.config,
-    ts.sys,
-    cwd
-  )
+  const configContent = readFileSync(resolvedPath, 'utf8')
+  const config = CommentJson.parse(configContent)
+  const configDir = path.dirname(resolvedPath)
 
-  return parsedCommandLine.options
+  let mergedOptions: RelevantCompilerOptions = {}
+
+  // Note that config options from `extends` should get overwritten, not merged
+  if (config.extends) {
+    const extendsList = Array.isArray(config.extends)
+      ? config.extends
+      : [config.extends]
+
+    for (const extendsPath of extendsList) {
+      const parentConfigPath = resolveExtends(extendsPath, configDir)
+      const parentOptions = loadTsConfigFile(parentConfigPath, visited)
+      mergedOptions = { ...mergedOptions, ...parentOptions }
+    }
+  }
+
+  const currentOptions = config.compilerOptions ?? {}
+  mergedOptions = {
+    ...mergedOptions,
+    paths: currentOptions.paths ?? mergedOptions.paths,
+    baseUrl: currentOptions.baseUrl ?? mergedOptions.baseUrl,
+  }
+
+  return mergedOptions
+}
+
+async function loadTsConfig(dir: string): Promise<RelevantCompilerOptions> {
+  // NOTE: This doesn't fully cover the edge case for setting
+  // "typescript.tsconfigPath" in next config which is currently
+  // a restriction.
+  // It's a chicken-and-egg problem since we need to transpile
+  // the next config to get that value.
+  const resolvedTsConfigPath = path.join(dir, 'tsconfig.json')
+
+  if (!existsSync(resolvedTsConfigPath)) {
+    return {}
+  }
+
+  return loadTsConfigFile(resolvedTsConfigPath, new Set())
 }
 
 export async function transpileConfig({
   nextConfigPath,
-  configFileName,
-  cwd,
+  dir,
 }: {
   nextConfigPath: string
-  configFileName: string
-  cwd: string
+  dir: string
 }) {
   try {
     // envs are passed to the workers and preserve the flag
@@ -132,7 +161,7 @@ export async function transpileConfig({
           process.execArgv.includes('--no-experimental-strip-types')
         ) {
           warnOnce(
-            `Skipped resolving "${configFileName}" using Node.js native TypeScript resolution because it was disabled by the "--no-experimental-strip-types" flag.` +
+            `Skipped resolving "${path.basename(nextConfigPath)}" using Node.js native TypeScript resolution because it was disabled by the "--no-experimental-strip-types" flag.` +
               ' Falling back to legacy resolution.' +
               ' Learn more: https://nextjs.org/docs/app/api-reference/config/typescript#using-nodejs-native-typescript-resolver-for-nextconfigts'
           )
@@ -142,7 +171,7 @@ export async function transpileConfig({
         process.env.__NEXT_NODE_NATIVE_TS_LOADER_ENABLED = 'false'
       } catch (cause) {
         warnOnce(
-          `Failed to import "${configFileName}" using Node.js native TypeScript resolution.` +
+          `Failed to import "${path.basename(nextConfigPath)}" using Node.js native TypeScript resolution.` +
             ' Falling back to legacy resolution.' +
             ' Learn more: https://nextjs.org/docs/app/api-reference/config/typescript#using-nodejs-native-typescript-resolver-for-nextconfigts',
           { cause }
@@ -152,29 +181,28 @@ export async function transpileConfig({
       }
     }
 
-    // Ensure TypeScript is installed to use the API.
-    await verifyTypeScriptSetup(cwd, configFileName)
-    const compilerOptions = await getTsConfig(cwd)
-
-    return handleCJS({ cwd, nextConfigPath, compilerOptions })
+    const compilerOptions = await loadTsConfig(dir)
+    return handleCJS({ dir, nextConfigPath, compilerOptions })
   } catch (cause) {
-    throw new Error(`Failed to transpile "${configFileName}".`, { cause })
+    throw new Error(`Failed to transpile "${path.basename(nextConfigPath)}".`, {
+      cause,
+    })
   }
 }
 
 async function handleCJS({
-  cwd,
+  dir,
   nextConfigPath,
   compilerOptions,
 }: {
-  cwd: string
+  dir: string
   nextConfigPath: string
-  compilerOptions: CompilerOptions
+  compilerOptions: RelevantCompilerOptions
 }) {
-  const swcOptions = resolveSWCOptions(cwd, compilerOptions)
+  const swcOptions = resolveSWCOptions(dir, compilerOptions)
   let hasRequire = false
   try {
-    const nextConfigString = await readFile(nextConfigPath, 'utf8')
+    const nextConfigString = readFileSync(nextConfigPath, 'utf8')
     // lazy require swc since it loads React before even setting NODE_ENV
     // resulting loading Development React on Production
     const { loadBindings } = require('../swc') as typeof import('../swc')
@@ -190,7 +218,7 @@ async function handleCJS({
     // filename & extension don't matter here
     const config = requireFromString(
       code,
-      resolve(cwd, 'next.config.compiled.js')
+      path.resolve(dir, 'next.config.compiled.js')
     )
     // At this point we have already loaded the bindings without this configuration setting due to the `transform` call above.
     // Possibly we fell back to wasm in which case, it all works out but if not we need to warn

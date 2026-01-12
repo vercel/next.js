@@ -197,9 +197,7 @@ export async function writeConfigurationDefaults(
     writeFileSync(tsConfigPath, '{}' + os.EOL)
   }
 
-  const userTsConfigContent = readFileSync(tsConfigPath, {
-    encoding: 'utf8',
-  })
+  const userTsConfigContent = readFileSync(tsConfigPath, 'utf8')
   const userTsConfig = CommentJson.parse(userTsConfigContent)
 
   // Bail automatic setup when the user has extended or referenced another config
