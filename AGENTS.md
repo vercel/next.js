@@ -52,7 +52,7 @@ The main Next.js framework lives in `packages/next/`. This is what gets publishe
 
 **Note**: `gt submit` runs in interactive mode by default and won't push in automated contexts. Always use `gt submit --no-edit` or `gt submit -q` when running from Claude.
 
-**Creating PRs with descriptions**: All PRs created require a description. `gt submit --no-edit` creates PRs in draft mode without a description. To add a PR title and description, use `gh pr edit` immediately after submitting:
+**Creating PRs with descriptions**: All PRs created require a description. `gt submit --no-edit` creates PRs in draft mode without a description. To add a PR title and description, use `gh pr edit` immediately after submitting. The PR description needs to follow the mandatory format of .github/pull_request_template.md in the repository:
 
 ```bash
 gt submit --no-edit
@@ -159,6 +159,8 @@ pnpm test-dev-turbo test/development/
 - `pnpm new-test` - Generate a new test file from template (interactive)
 
 **Generate tests non-interactively (for AI agents):**
+
+Generating tests using `pnpm new-test` is mandatory.
 
 ```bash
 # Use --args for non-interactive mode
