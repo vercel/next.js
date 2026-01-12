@@ -4,11 +4,9 @@ pub mod chunk_group;
 pub(crate) mod chunk_item_batch;
 pub mod chunking;
 pub(crate) mod chunking_context;
-pub(crate) mod containment_tree;
 pub(crate) mod data;
 pub(crate) mod evaluate;
 pub mod module_id_strategies;
-pub mod optimize;
 
 use std::fmt::Display;
 
@@ -23,7 +21,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_hash::DeterministicHash;
 
-pub use self::{
+pub use crate::chunk::{
     chunk_item_batch::{
         ChunkItemBatchGroup, ChunkItemBatchWithAsyncModuleInfo,
         ChunkItemOrBatchWithAsyncModuleInfo, batch_info,
@@ -52,7 +50,7 @@ use crate::{
 
 /// A module id, which can be a number or string
 #[turbo_tasks::value(shared, operation)]
-#[derive(Debug, Clone, Hash, Ord, PartialOrd, DeterministicHash)]
+#[derive(Debug, Clone, Hash, Ord, PartialOrd, DeterministicHash, Serialize)]
 #[serde(untagged)]
 pub enum ModuleId {
     Number(u64),
@@ -149,19 +147,7 @@ impl MergeableModules {
 
 /// Whether a given module needs to be exposed (depending on how it is imported by other modules)
 #[derive(
-    Copy,
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    TaskInput,
-    Hash,
-    Encode,
-    Decode,
+    Copy, Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, TaskInput, Hash, Encode, Decode,
 )]
 pub enum MergeableModuleExposure {
     // This module is only used from within the current group, and only individual exports are
@@ -513,18 +499,7 @@ impl AsyncModuleInfo {
 }
 
 #[derive(
-    Serialize,
-    Deserialize,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    Hash,
-    TraceRawVcs,
-    TaskInput,
-    NonLocalValue,
-    Encode,
-    Decode,
+    Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, TaskInput, NonLocalValue, Encode, Decode,
 )]
 pub struct ChunkItemWithAsyncModuleInfo {
     pub chunk_item: ResolvedVc<Box<dyn ChunkItem>>,

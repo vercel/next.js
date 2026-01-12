@@ -12,9 +12,9 @@ import type {
   NavigationFlightResponse,
 } from '../../../shared/lib/app-router-types'
 
-import type { NEXT_ROUTER_SEGMENT_PREFETCH_HEADER } from '../app-router-headers'
 import {
-  NEXT_ROUTER_PREFETCH_HEADER,
+  type NEXT_ROUTER_PREFETCH_HEADER,
+  type NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_RSC_UNION_QUERY,
   NEXT_URL,
@@ -28,7 +28,6 @@ import {
 } from '../app-router-headers'
 import { callServer } from '../../app-call-server'
 import { findSourceMapURL } from '../../app-find-source-map-url'
-import { PrefetchKind } from './router-reducer-types'
 import {
   normalizeFlightData,
   prepareFlightRouterStateForRequest,
@@ -36,10 +35,7 @@ import {
 } from '../../flight-data-helpers'
 import { getAppBuildId } from '../../app-build-id'
 import { setCacheBustingSearchParam } from './set-cache-busting-search-param'
-import {
-  getRenderedSearch,
-  urlToUrlWithoutFlightMarker,
-} from '../../route-params'
+import { urlToUrlWithoutFlightMarker } from '../../route-params'
 import type { NormalizedSearch } from '../segment-cache/cache-key'
 import { getDeploymentId } from '../../../shared/lib/deployment-id'
 
@@ -64,7 +60,6 @@ if (
 export interface FetchServerResponseOptions {
   readonly flightRouterState: FlightRouterState
   readonly nextUrl: string | null
-  readonly prefetchKind?: PrefetchKind
   readonly isHmrRefresh?: boolean
 }
 
@@ -128,7 +123,7 @@ export async function fetchServerResponse(
   url: URL,
   options: FetchServerResponseOptions
 ): Promise<FetchServerResponseResult> {
-  const { flightRouterState, nextUrl, prefetchKind } = options
+  const { flightRouterState, nextUrl } = options
 
   const headers: RequestHeaders = {
     // Enable flight response
@@ -138,16 +133,6 @@ export async function fetchServerResponse(
       flightRouterState,
       options.isHmrRefresh
     ),
-  }
-
-  /**
-   * Three cases:
-   * - `prefetchKind` is `undefined`, it means it's a normal navigation, so we want to prefetch the page data fully
-   * - `prefetchKind` is `full` - we want to prefetch the whole page so same as above
-   * - `prefetchKind` is `auto` - if the page is dynamic, prefetch the page data partially, if static prefetch the page data fully
-   */
-  if (prefetchKind === PrefetchKind.AUTO) {
-    headers[NEXT_ROUTER_PREFETCH_HEADER] = '1'
   }
 
   if (process.env.NODE_ENV === 'development' && options.isHmrRefresh) {
@@ -163,16 +148,6 @@ export async function fetchServerResponse(
   const originalUrl = url
 
   try {
-    // When creating a "temporary" prefetch (the "on-demand" prefetch that gets created on navigation, if one doesn't exist)
-    // we send the request with a "high" priority as it's in response to a user interaction that could be blocking a transition.
-    // Otherwise, all other prefetches are sent with a "low" priority.
-    // We use "auto" for in all other cases to match the existing default, as this function is shared outside of prefetching.
-    const fetchPriority = prefetchKind
-      ? prefetchKind === PrefetchKind.TEMPORARY
-        ? 'high'
-        : 'low'
-      : 'auto'
-
     if (process.env.NODE_ENV === 'production') {
       if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {
         // In "output: export" mode, we can't rely on headers to distinguish
@@ -196,7 +171,7 @@ export async function fetchServerResponse(
     const res = await createFetch<NavigationFlightResponse>(
       url,
       headers,
-      fetchPriority,
+      'auto',
       shouldImmediatelyDecode
     )
 
@@ -278,7 +253,14 @@ export async function fetchServerResponse(
     return {
       flightData: normalizedFlightData,
       canonicalUrl: canonicalUrl,
-      renderedSearch: getRenderedSearch(res),
+      // TODO: We should be able to read this from the rewrite header, not the
+      // Flight response. Theoretically they should always agree, but there are
+      // currently some cases where it's incorrect for interception routes. We
+      // can always trust the value in the response body. However, per-segment
+      // prefetch responses don't embed the value in the body; they rely on the
+      // header alone. So we need to investigate why the header is sometimes
+      // wrong for interception routes.
+      renderedSearch: flightResponse.q as NormalizedSearch,
       couldBeIntercepted: interception,
       prerendered: flightResponse.S,
       postponed,

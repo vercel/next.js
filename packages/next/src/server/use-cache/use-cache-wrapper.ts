@@ -839,10 +839,8 @@ export async function cache(
   id: string,
   boundArgsLength: number,
   originalFn: (...args: unknown[]) => Promise<unknown>,
-  argsObj: IArguments
+  args: unknown[]
 ) {
-  let args = Array.prototype.slice.call(argsObj)
-
   const isPrivate = kind === 'private'
 
   // Private caches are currently only stored in the Resume Data Cache (RDC),
@@ -1124,7 +1122,7 @@ export async function cache(
       )
     }
 
-    const encryptedBoundArgs = args.shift()
+    const encryptedBoundArgs = args.shift() as Promise<string>
     const boundArgs = await decryptActionBoundArgs(id, encryptedBoundArgs)
 
     if (!Array.isArray(boundArgs)) {
@@ -1242,7 +1240,27 @@ export async function cache(
     }
     const cachedEntry = renderResumeDataCache.cache.get(serializedCacheKey)
     if (cachedEntry !== undefined) {
-      const existingEntry = await cachedEntry
+      let existingEntry: CacheEntry | undefined = await cachedEntry
+
+      // Check if the RDC entry should be discarded due to recently revalidated tags.
+      // When a server action calls updateTag(), the re-render should see fresh data
+      // instead of stale RDC data.
+      if (existingEntry !== undefined) {
+        const implicitTags = workUnitStore?.implicitTags?.tags ?? []
+        if (
+          existingEntry.tags.some((tag) =>
+            isRecentlyRevalidatedTag(tag, workStore)
+          ) ||
+          implicitTags.some((tag) => isRecentlyRevalidatedTag(tag, workStore))
+        ) {
+          debug?.(
+            'discarding RDC entry due to recently revalidated tags',
+            serializedCacheKey
+          )
+          existingEntry = undefined
+        }
+      }
+
       if (workUnitStore !== undefined && existingEntry !== undefined) {
         if (
           existingEntry.revalidate === 0 ||
@@ -1256,6 +1274,20 @@ export async function cache(
               // generating static pages for such data. It's better to leave
               // a dynamic hole that can be filled in during the resume with
               // a potentially cached entry.
+              if (existingEntry.revalidate === 0) {
+                debug?.(
+                  'omitting entry',
+                  serializedCacheKey,
+                  'from static shell due to revalidate: 0'
+                )
+              } else {
+                debug?.(
+                  'omitting entry',
+                  serializedCacheKey,
+                  'from static shell due to short expire value:',
+                  existingEntry.expire
+                )
+              }
               if (cacheSignal) {
                 cacheSignal.endRead()
               }
@@ -1307,6 +1339,12 @@ export async function cache(
               // stale in less then 30 seconds, we consider this cache entry
               // dynamic as it's not worth prefetching. It's better to leave
               // a dynamic hole that can be filled during the navigation.
+              debug?.(
+                'omitting entry',
+                serializedCacheKey,
+                'from runtime shell due to short stale value:',
+                existingEntry.stale
+              )
               if (cacheSignal) {
                 cacheSignal.endRead()
               }
@@ -1344,22 +1382,35 @@ export async function cache(
         }
       }
 
-      // We want to make sure we only propagate cache life & tags if the
-      // entry was *not* omitted from the prerender. So we only do this
-      // after the above early returns.
-      propagateCacheLifeAndTags(cacheContext, existingEntry)
+      if (existingEntry !== undefined) {
+        debug?.('Resume Data Cache entry found', serializedCacheKey)
 
-      const [streamA, streamB] = existingEntry.value.tee()
-      existingEntry.value = streamB
+        // We want to make sure we only propagate cache life & tags if the
+        // entry was *not* omitted from the prerender. So we only do this
+        // after the above early returns.
+        propagateCacheLifeAndTags(cacheContext, existingEntry)
 
-      if (cacheSignal) {
-        // When we have a cacheSignal we need to block on reading the cache
-        // entry before ending the read.
-        stream = createTrackedReadableStream(streamA, cacheSignal)
+        const [streamA, streamB] = existingEntry.value.tee()
+        existingEntry.value = streamB
+
+        if (cacheSignal) {
+          // When we have a cacheSignal we need to block on reading the cache
+          // entry before ending the read.
+          stream = createTrackedReadableStream(streamA, cacheSignal)
+        } else {
+          stream = streamA
+        }
       } else {
-        stream = streamA
+        // Entry was discarded (e.g. due to recently revalidated tags)
+        debug?.('Resume Data Cache entry discarded', serializedCacheKey)
+
+        if (cacheSignal) {
+          cacheSignal.endRead()
+        }
       }
     } else {
+      debug?.('Resume Data Cache entry not found', serializedCacheKey)
+
       if (cacheSignal) {
         cacheSignal.endRead()
       }
@@ -1481,6 +1532,20 @@ export async function cache(
           // pages for such data. It's better to leave a dynamic hole that
           // can be filled in during the resume with a potentially cached
           // entry.
+          if (entry.revalidate === 0) {
+            debug?.(
+              'omitting entry',
+              serializedCacheKey,
+              'from static shell due to revalidate: 0'
+            )
+          } else {
+            debug?.(
+              'omitting entry',
+              serializedCacheKey,
+              'from static shell due to short expire value:',
+              entry.expire
+            )
+          }
           if (cacheSignal) {
             cacheSignal.endRead()
           }

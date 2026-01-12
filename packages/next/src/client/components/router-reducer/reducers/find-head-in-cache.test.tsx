@@ -30,12 +30,10 @@ describe('findHeadInCache', () => {
 
     const cache: CacheNode = {
       navigatedAt,
-      lazyData: null,
       rsc: null,
       prefetchRsc: null,
       head: null,
       prefetchHead: null,
-      loading: null,
       parallelRoutes: new Map([
         [
           'children',
@@ -44,12 +42,10 @@ describe('findHeadInCache', () => {
               'linking',
               {
                 navigatedAt,
-                lazyData: null,
                 rsc: null,
                 prefetchRsc: null,
                 head: null,
                 prefetchHead: null,
-                loading: null,
                 parallelRoutes: new Map([
                   [
                     'children',
@@ -58,10 +54,8 @@ describe('findHeadInCache', () => {
                         'about',
                         {
                           navigatedAt,
-                          lazyData: null,
                           head: null,
                           prefetchHead: null,
-                          loading: null,
                           parallelRoutes: new Map([
                             [
                               'children',
@@ -70,11 +64,9 @@ describe('findHeadInCache', () => {
                                   '',
                                   {
                                     navigatedAt,
-                                    lazyData: null,
                                     rsc: null,
                                     prefetchRsc: null,
                                     prefetchHead: null,
-                                    loading: null,
                                     parallelRoutes: new Map(),
                                     head: null,
                                   },
@@ -90,7 +82,6 @@ describe('findHeadInCache', () => {
                       // [
                       //   '',
                       //   {
-                      //     lazyData: null,
                       //     rsc: <>Page</>,
                       //     prefetchRsc: null,
                       //     parallelRoutes: new Map(),

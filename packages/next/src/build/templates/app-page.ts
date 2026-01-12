@@ -10,7 +10,12 @@ import { RouteKind } from '../../server/route-kind' with { 'turbopack-transition
 
 import { getRevalidateReason } from '../../server/instrumentation/utils'
 import { getTracer, SpanKind, type Span } from '../../server/lib/trace/tracer'
-import { addRequestMeta, getRequestMeta } from '../../server/request-meta'
+import type { RequestMeta } from '../../server/request-meta'
+import {
+  addRequestMeta,
+  getRequestMeta,
+  setRequestMeta,
+} from '../../server/request-meta'
 import { BaseServerSpan } from '../../server/lib/trace/constants'
 import { interopDefault } from '../../server/app-render/interop-default'
 import { stripFlightHeaders } from '../../server/app-render/strip-flight-headers'
@@ -51,11 +56,16 @@ import {
   HTML_CONTENT_TYPE_HEADER,
   NEXT_CACHE_TAGS_HEADER,
   NEXT_RESUME_HEADER,
+  NEXT_RESUME_STATE_LENGTH_HEADER,
 } from '../../lib/constants'
 import type { CacheControl } from '../../server/lib/cache-control'
 import { ENCODED_TAGS } from '../../server/stream-utils/encoded-tags'
 import { sendRenderResult } from '../../server/send-payload'
 import { NoFallbackError } from '../../shared/lib/no-fallback-error.external'
+import {
+  DEFAULT_MAX_POSTPONED_STATE_SIZE,
+  parseMaxPostponedStateSize,
+} from '../../shared/lib/size-limit'
 
 // These are injected by the loader afterwards.
 
@@ -115,15 +125,18 @@ export async function handler(
   req: IncomingMessage,
   res: ServerResponse,
   ctx: {
-    waitUntil: (prom: Promise<void>) => void
+    waitUntil?: (prom: Promise<void>) => void
+    requestMeta?: RequestMeta
   }
 ) {
+  if (ctx.requestMeta) {
+    setRequestMeta(req, ctx.requestMeta)
+  }
+
   if (routeModule.isDev) {
     addRequestMeta(req, 'devRequestTimingInternalsEnd', process.hrtime.bigint())
   }
-  const isMinimalMode = Boolean(
-    process.env.MINIMAL_MODE || getRequestMeta(req, 'minimalMode')
-  )
+  const isMinimalMode = Boolean(getRequestMeta(req, 'minimalMode'))
 
   let srcPage = 'VAR_DEFINITION_PAGE'
 
@@ -219,6 +232,92 @@ export async function handler(
   const couldSupportPPR: boolean = checkIsAppPPREnabled(
     nextConfig.experimental.ppr
   )
+
+  // Stash postponed state for server actions when in minimal mode.
+  // We extract it here so the RDC is available for the re-render after the action completes.
+  const resumeStateLengthHeader = req.headers[NEXT_RESUME_STATE_LENGTH_HEADER]
+  if (
+    !getRequestMeta(req, 'postponed') &&
+    isMinimalMode &&
+    couldSupportPPR &&
+    isPossibleServerAction &&
+    resumeStateLengthHeader &&
+    typeof resumeStateLengthHeader === 'string'
+  ) {
+    const stateLength = parseInt(resumeStateLengthHeader, 10)
+    const maxPostponedStateSize =
+      nextConfig.experimental.maxPostponedStateSize ??
+      DEFAULT_MAX_POSTPONED_STATE_SIZE
+    const maxPostponedStateSizeBytes = parseMaxPostponedStateSize(
+      nextConfig.experimental.maxPostponedStateSize
+    )
+
+    if (!isNaN(stateLength) && stateLength > 0) {
+      if (
+        maxPostponedStateSizeBytes === undefined ||
+        stateLength > maxPostponedStateSizeBytes
+      ) {
+        res.statusCode = 413
+        res.end(
+          `Postponed state exceeded ${maxPostponedStateSize} limit. ` +
+            `To configure the limit, see: https://nextjs.org/docs/app/api-reference/config/next-config-js/max-postponed-state-size`
+        )
+        ctx.waitUntil?.(Promise.resolve())
+        return null
+      }
+
+      // Calculate max total body size to prevent buffering excessively large
+      // payloads before the action handler checks. We use stateLength (not
+      // maxPostponedStateSizeBytes) so the postponed state doesn't eat into
+      // the action body budget - it's already validated above.
+      const defaultActionBodySizeLimit = '1 MB'
+      const actionBodySizeLimit =
+        nextConfig.experimental.serverActions?.bodySizeLimit ??
+        defaultActionBodySizeLimit
+      const actionBodySizeLimitBytes =
+        actionBodySizeLimit !== defaultActionBodySizeLimit
+          ? (
+              require('next/dist/compiled/bytes') as typeof import('next/dist/compiled/bytes')
+            ).parse(actionBodySizeLimit)
+          : 1024 * 1024 // 1 MB
+      const maxTotalBodySize = stateLength + actionBodySizeLimitBytes
+
+      // Read the entire body, checking size as we go.
+      const bodyChunks: Array<Buffer> = []
+      let size = 0
+      for await (const chunk of req) {
+        const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+        size += buffer.byteLength
+        if (size > maxTotalBodySize) {
+          res.statusCode = 413
+          res.end(
+            `Request body exceeded limit. ` +
+              `To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/next-config-js/serverActions#bodysizelimit`
+          )
+          ctx.waitUntil?.(Promise.resolve())
+          return null
+        }
+        bodyChunks.push(buffer)
+      }
+      const fullBody = Buffer.concat(bodyChunks)
+
+      if (fullBody.length >= stateLength) {
+        // Extract postponed state from the beginning
+        const postponedState = fullBody
+          .subarray(0, stateLength)
+          .toString('utf8')
+        addRequestMeta(req, 'postponed', postponedState)
+
+        // Store the remaining action body for the action handler
+        const actionBody = fullBody.subarray(stateLength)
+        addRequestMeta(req, 'actionBody', actionBody)
+      } else {
+        throw new Error(
+          `invariant: expected ${stateLength} bytes of postponed state but only received ${fullBody.length} bytes`
+        )
+      }
+    }
+  }
 
   if (
     !getRequestMeta(req, 'postponed') &&
@@ -593,6 +692,9 @@ export async function handler(
               nextConfig.experimental.clientTraceMetadata || ([] as any),
             clientParamParsingOrigins:
               nextConfig.experimental.clientParamParsingOrigins,
+            maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
+              nextConfig.experimental.maxPostponedStateSize
+            ),
           },
 
           waitUntil: ctx.waitUntil,
@@ -844,17 +946,20 @@ export async function handler(
           ? minimalPostponed
           : undefined
 
-      // If this is a dynamic RSC request, we should use the postponed data from
-      // the static render (if available). This ensures that we can utilize the
-      // resume data cache (RDC) from the static render to ensure that the data
-      // is consistent between the static and dynamic renders.
+      // If this is a dynamic RSC request or a server action request, we should
+      // use the postponed data from the static render (if available). This
+      // ensures that we can utilize the resume data cache (RDC) from the static
+      // render to ensure that the data is consistent between the static and
+      // dynamic renders (for navigations) or when re-rendering after a server
+      // action.
       if (
         // Only enable RDC for Navigations if the feature is enabled.
         supportsRDCForNavigations &&
         process.env.NEXT_RUNTIME !== 'edge' &&
         !isMinimalMode &&
         incrementalCache &&
-        isDynamicRSCRequest &&
+        // Include both dynamic RSC requests (navigations) and server actions
+        (isDynamicRSCRequest || isPossibleServerAction) &&
         // We don't typically trigger an on-demand revalidation for dynamic RSC
         // requests, as we're typically revalidating the page in the background
         // instead. However, if the cache entry is stale, we should trigger a
@@ -997,7 +1102,12 @@ export async function handler(
 
       // In dev, we should not cache pages for any reason.
       if (routeModule.isDev) {
-        res.setHeader('Cache-Control', 'no-store, must-revalidate')
+        res.setHeader(
+          'Cache-Control',
+          nextConfig.experimental.devCacheControlNoCache
+            ? 'no-cache, must-revalidate'
+            : 'no-store, must-revalidate'
+        )
       }
 
       if (!cacheEntry) {
@@ -1136,6 +1246,8 @@ export async function handler(
               RSC_CONTENT_TYPE_HEADER
             ),
             cacheControl: cacheEntry.cacheControl,
+            cdnCacheControlHeader:
+              nextConfig.experimental.cdnCacheControlHeader,
           })
         }
 
@@ -1153,6 +1265,7 @@ export async function handler(
           poweredByHeader: nextConfig.poweredByHeader,
           result: RenderResult.EMPTY,
           cacheControl: cacheEntry.cacheControl,
+          cdnCacheControlHeader: nextConfig.experimental.cdnCacheControlHeader,
         })
       }
 
@@ -1242,6 +1355,8 @@ export async function handler(
                 poweredByHeader: nextConfig.poweredByHeader,
                 result: RenderResult.EMPTY,
                 cacheControl: cacheEntry.cacheControl,
+                cdnCacheControlHeader:
+                  nextConfig.experimental.cdnCacheControlHeader,
               })
             } else {
               // Otherwise this case is not expected.
@@ -1258,6 +1373,8 @@ export async function handler(
             poweredByHeader: nextConfig.poweredByHeader,
             result: cachedData.html,
             cacheControl: cacheEntry.cacheControl,
+            cdnCacheControlHeader:
+              nextConfig.experimental.cdnCacheControlHeader,
           })
         }
 
@@ -1273,6 +1390,7 @@ export async function handler(
             RSC_CONTENT_TYPE_HEADER
           ),
           cacheControl: cacheEntry.cacheControl,
+          cdnCacheControlHeader: nextConfig.experimental.cdnCacheControlHeader,
         })
       }
 
@@ -1305,6 +1423,7 @@ export async function handler(
           poweredByHeader: nextConfig.poweredByHeader,
           result: body,
           cacheControl: cacheEntry.cacheControl,
+          cdnCacheControlHeader: nextConfig.experimental.cdnCacheControlHeader,
         })
       }
 
@@ -1331,6 +1450,7 @@ export async function handler(
           poweredByHeader: nextConfig.poweredByHeader,
           result: body,
           cacheControl: { revalidate: 0, expire: undefined },
+          cdnCacheControlHeader: nextConfig.experimental.cdnCacheControlHeader,
         })
       }
 
@@ -1390,6 +1510,7 @@ export async function handler(
         // the response being sent to the client it's dynamic parts are streamed
         // to the client on the same request.
         cacheControl: { revalidate: 0, expire: undefined },
+        cdnCacheControlHeader: nextConfig.experimental.cdnCacheControlHeader,
       })
     }
 

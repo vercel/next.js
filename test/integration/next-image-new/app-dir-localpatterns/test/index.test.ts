@@ -98,6 +98,7 @@ function runTests(mode: 'dev' | 'server') {
             },
           ],
           maximumRedirects: 3,
+          maximumResponseBody: 300000000,
           minimumCacheTTL: 14400,
           path: '/_next/image',
           qualities: [75],
@@ -106,6 +107,7 @@ function runTests(mode: 'dev' | 'server') {
             256, 384,
           ],
           unoptimized: false,
+          customCacheHandler: false,
         },
       })
     })

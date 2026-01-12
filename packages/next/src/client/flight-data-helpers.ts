@@ -244,7 +244,7 @@ function stripClientOnlyDataFromFlightRouterState(
   const [
     segment,
     parallelRoutes,
-    _url, // Intentionally unused - URLs are client-only
+    _refreshState, // Intentionally unused - URLs are client-only
     refreshMarker,
     isRootLayout,
     hasLoadingBoundary,
@@ -261,12 +261,11 @@ function stripClientOnlyDataFromFlightRouterState(
       stripClientOnlyDataFromFlightRouterState(childState)
   }
 
-  const result: FlightRouterState = [
-    cleanedSegment,
-    cleanedParallelRoutes,
-    null, // URLs omitted - server reconstructs paths from segments
-    shouldPreserveRefreshMarker(refreshMarker) ? refreshMarker : null,
-  ]
+  const result: FlightRouterState = [cleanedSegment, cleanedParallelRoutes]
+  if (refreshMarker) {
+    result[2] = null // null slightly more compact than undefined
+    result[3] = refreshMarker
+  }
 
   // Append optional fields if present
   if (isRootLayout !== undefined) {
@@ -276,6 +275,7 @@ function stripClientOnlyDataFromFlightRouterState(
     result[5] = hasLoadingBoundary
   }
 
+  // Everything else is used only by the client and is not needed for requests.
   return result
 }
 
@@ -291,15 +291,4 @@ function stripSearchParamsFromPageSegment(segment: Segment): Segment {
     return PAGE_SEGMENT_KEY
   }
   return segment
-}
-
-/**
- * Determines whether the refresh marker should be sent to the server
- * Client-only markers like 'refresh' are stripped, while server-needed markers
- * like 'refetch' and 'inside-shared-layout' are preserved.
- */
-function shouldPreserveRefreshMarker(
-  refreshMarker: FlightRouterState[3]
-): boolean {
-  return Boolean(refreshMarker && refreshMarker !== 'refresh')
 }

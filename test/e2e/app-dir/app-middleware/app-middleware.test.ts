@@ -10,9 +10,11 @@ describe('app-dir with middleware', () => {
   })
 
   it('should warn when deprecated middleware file is used', async () => {
-    expect(next.cliOutput).toContain(
-      'The "middleware" file convention is deprecated. Please use "proxy" instead.'
-    )
+    await retry(async () => {
+      expect(next.cliOutput).toContain(
+        'The "middleware" file convention is deprecated. Please use "proxy" instead.'
+      )
+    })
   })
 
   it('should filter correctly after middleware rewrite', async () => {

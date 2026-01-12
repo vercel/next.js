@@ -26,7 +26,8 @@ describe('build-output-prerender', () => {
             `)
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "▲ Next.js x.y.z (webpack, Cache Components)
+             "▲ Next.js x.y.z (webpack)
+             - Cache Components enabled
              - Experiments (use with caution):
                ✓ reactDebugChannel (enabled by \`__NEXT_EXPERIMENTAL_DEBUG_CHANNEL\`)"
             `)
@@ -47,17 +48,23 @@ describe('build-output-prerender', () => {
           }
         } else {
           if (isTurbopack) {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(
-              `"▲ Next.js x.y.z (Turbopack, Cache Components)"`
-            )
+            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+             "▲ Next.js x.y.z (Turbopack)
+             - Cache Components enabled
+             - Experiments (use with caution):
+               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
+            `)
           } else if (isRspack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (Rspack, Cache Components)"
             `)
           } else {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(
-              `"▲ Next.js x.y.z (webpack, Cache Components)"`
-            )
+            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+             "▲ Next.js x.y.z (webpack)
+             - Cache Components enabled
+             - Experiments (use with caution):
+               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
+            `)
           }
         }
       })
@@ -67,7 +74,7 @@ describe('build-output-prerender', () => {
           // TODO(veil): Why is the location incomplete unless we enable --no-mangling?
           expect(getPrerenderOutput(next.cliOutput)).toMatchInlineSnapshot(`
            "Error: Route "/client" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-               at c (app/client/page.tsx:4:28)
+               at <unknown> (app/client/page.tsx:4:28)
              2 |
              3 | export default function Page() {
            > 4 |   return <p>Current time: {new Date().toISOString()}</p>
@@ -118,7 +125,8 @@ describe('build-output-prerender', () => {
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode. Note: This may affect performance and should not be used for production.
-             ▲ Next.js x.y.z (webpack, Cache Components)
+             ▲ Next.js x.y.z (webpack)
+             - Cache Components enabled
              - Experiments (use with caution):
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ✓ reactDebugChannel (enabled by \`__NEXT_EXPERIMENTAL_DEBUG_CHANNEL\`)
@@ -152,10 +160,12 @@ describe('build-output-prerender', () => {
           if (isTurbopack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode. Note: This may affect performance and should not be used for production.
-             ▲ Next.js x.y.z (Turbopack, Cache Components)
+             ▲ Next.js x.y.z (Turbopack)
+             - Cache Components enabled
              - Experiments (use with caution):
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
+               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)
                ⨯ turbopackMinify (disabled by \`--debug-prerender\`)"
             `)
           } else if (isRspack) {
@@ -170,11 +180,13 @@ describe('build-output-prerender', () => {
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode. Note: This may affect performance and should not be used for production.
-             ▲ Next.js x.y.z (webpack, Cache Components)
+             ▲ Next.js x.y.z (webpack)
+             - Cache Components enabled
              - Experiments (use with caution):
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ⨯ serverMinification (disabled by \`--debug-prerender\`)
-               ✓ serverSourceMaps (enabled by \`--debug-prerender\`)"
+               ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
+               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
             `)
           }
         }
@@ -260,7 +272,8 @@ describe('build-output-prerender', () => {
             `)
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "▲ Next.js x.y.z (webpack, Cache Components)
+             "▲ Next.js x.y.z (webpack)
+             - Cache Components enabled
              - Experiments (use with caution):
                ✓ reactDebugChannel (enabled by \`__NEXT_EXPERIMENTAL_DEBUG_CHANNEL\`)"
             `)
@@ -281,17 +294,21 @@ describe('build-output-prerender', () => {
           }
         } else {
           if (isTurbopack) {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(
-              `"▲ Next.js x.y.z (Turbopack)"`
-            )
+            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+             "▲ Next.js x.y.z (Turbopack)
+             - Experiments (use with caution):
+               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
+            `)
           } else if (isRspack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(
               `"▲ Next.js x.y.z (Rspack)"`
             )
           } else {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(
-              `"▲ Next.js x.y.z (webpack)"`
-            )
+            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+             "▲ Next.js x.y.z (webpack)
+             - Experiments (use with caution):
+               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
+            `)
           }
         }
       })
@@ -321,7 +338,8 @@ describe('build-output-prerender', () => {
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode. Note: This may affect performance and should not be used for production.
-             ▲ Next.js x.y.z (webpack, Cache Components)
+             ▲ Next.js x.y.z (webpack)
+             - Cache Components enabled
              - Experiments (use with caution):
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ✓ reactDebugChannel (enabled by \`__NEXT_EXPERIMENTAL_DEBUG_CHANNEL\`)
@@ -359,6 +377,7 @@ describe('build-output-prerender', () => {
              - Experiments (use with caution):
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
+               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)
                ⨯ turbopackMinify (disabled by \`--debug-prerender\`)"
             `)
           } else if (isRspack) {
@@ -377,7 +396,8 @@ describe('build-output-prerender', () => {
              - Experiments (use with caution):
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ⨯ serverMinification (disabled by \`--debug-prerender\`)
-               ✓ serverSourceMaps (enabled by \`--debug-prerender\`)"
+               ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
+               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
             `)
           }
         }

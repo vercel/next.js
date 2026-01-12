@@ -10,7 +10,7 @@ use std::{env, path::PathBuf};
 use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
 use dunce::canonicalize;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
@@ -69,7 +69,7 @@ struct RunTestResult {
 }
 
 #[turbo_tasks::value]
-#[derive(Clone)]
+#[derive(Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct JsResult {
     uncaught_exceptions: Vec<String>,
@@ -128,6 +128,7 @@ fn test_skipped_fails(resource: PathBuf) {
                 .test_results
                 .into_iter()
                 .any(|r| !r.errors.is_empty()),
+        "Expected an error, but the test passed?"
     );
 }
 
@@ -234,16 +235,7 @@ async fn run_inner_operation(
 }
 
 #[derive(
-    PartialEq,
-    Eq,
-    Debug,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    ValueDebugFormat,
-    NonLocalValue,
-    Encode,
-    Decode,
+    PartialEq, Eq, Debug, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue, Encode, Decode,
 )]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct TestOptions {
@@ -424,6 +416,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
                 ),
                 import_externals: true,
                 enable_exports_info_inlining: true,
+                infer_module_side_effects: true,
                 ..Default::default()
             },
             environment: Some(env),
@@ -514,6 +507,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         env,
         RuntimeType::Development,
     )
+    .source_map_source_type(turbopack_core::chunk::SourceMapSourceType::RelativeUri)
     .module_merging(options.scope_hoisting)
     .minify_type(if options.minify {
         MinifyType::Minify {
@@ -529,7 +523,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     )
     .unused_references(
         options
-            .remove_unused_exports
+            .remove_unused_imports
             .then(|| binding_usage.unwrap()),
     );
     if options.production_chunking {

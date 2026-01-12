@@ -1,28 +1,14 @@
-use std::{
-    fmt::Display,
-    hash::Hash,
-    mem::replace,
-    sync::{Arc, Weak},
-};
+use std::{fmt::Display, mem::replace, sync::Arc};
 
-use anyhow::Result;
-use bincode::{
-    Decode, Encode,
-    de::Decoder,
-    enc::Encoder,
-    error::{DecodeError, EncodeError},
-    impl_borrow_decode,
-};
+use bincode::{Decode, Encode};
 use indexmap::map::Entry;
-use serde::{Deserialize, Serialize, de::Visitor};
-use tokio::runtime::Handle;
 use turbo_dyn_eq_hash::{
     DynEq, DynHash, impl_eq_for_dyn, impl_hash_for_dyn, impl_partial_eq_for_dyn,
 };
 
 use crate::{
     FxIndexMap, FxIndexSet, TaskId, TurboTasksApi,
-    manager::{current_task_if_available, mark_invalidator, with_turbo_tasks},
+    manager::{current_task_if_available, mark_invalidator},
     trace::TraceRawVcs,
     util::StaticOrArc,
 };
@@ -33,141 +19,52 @@ use crate::{
 pub fn get_invalidator() -> Option<Invalidator> {
     if let Some(task) = current_task_if_available("turbo_tasks::get_invalidator()") {
         mark_invalidator();
-
-        let handle = Handle::current();
-        Some(Invalidator {
-            task,
-            turbo_tasks: with_turbo_tasks(Arc::downgrade),
-            handle,
-        })
+        Some(Invalidator { task })
     } else {
         None
     }
 }
 
+/// A lightweight handle to invalidate a task. Only stores the task ID.
+/// The caller must provide the `TurboTasksApi` when calling invalidation methods.
+#[derive(Clone, Copy, Hash, PartialEq, Eq, Encode, Decode)]
 pub struct Invalidator {
     task: TaskId,
-    turbo_tasks: Weak<dyn TurboTasksApi>,
-    handle: Handle,
 }
 
 impl Invalidator {
-    pub fn invalidate(self) {
-        let Invalidator {
-            task,
-            turbo_tasks,
-            handle,
-        } = self;
-        let _guard = handle.enter();
-        if let Some(turbo_tasks) = turbo_tasks.upgrade() {
-            turbo_tasks.invalidate(task);
-        }
+    pub fn invalidate(self, turbo_tasks: &dyn TurboTasksApi) {
+        turbo_tasks.invalidate(self.task);
     }
 
-    pub fn invalidate_with_reason<T: InvalidationReason>(self, reason: T) {
-        let Invalidator {
-            task,
-            turbo_tasks,
-            handle,
-        } = self;
-        let _guard = handle.enter();
-        if let Some(turbo_tasks) = turbo_tasks.upgrade() {
-            turbo_tasks.invalidate_with_reason(
-                task,
-                (Arc::new(reason) as Arc<dyn InvalidationReason>).into(),
-            );
-        }
+    pub fn invalidate_with_reason<T: InvalidationReason>(
+        self,
+        turbo_tasks: &dyn TurboTasksApi,
+        reason: T,
+    ) {
+        turbo_tasks.invalidate_with_reason(
+            self.task,
+            (Arc::new(reason) as Arc<dyn InvalidationReason>).into(),
+        );
     }
 
-    pub fn invalidate_with_static_reason<T: InvalidationReason>(self, reason: &'static T) {
-        let Invalidator {
-            task,
-            turbo_tasks,
-            handle,
-        } = self;
-        let _guard = handle.enter();
-        if let Some(turbo_tasks) = turbo_tasks.upgrade() {
-            turbo_tasks
-                .invalidate_with_reason(task, (reason as &'static dyn InvalidationReason).into());
-        }
+    pub fn invalidate_with_static_reason<T: InvalidationReason>(
+        self,
+        turbo_tasks: &dyn TurboTasksApi,
+        reason: &'static T,
+    ) {
+        turbo_tasks.invalidate_with_reason(
+            self.task,
+            (reason as &'static dyn InvalidationReason).into(),
+        );
     }
 }
-
-impl Hash for Invalidator {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.task.hash(state);
-    }
-}
-
-impl PartialEq for Invalidator {
-    fn eq(&self, other: &Self) -> bool {
-        self.task == other.task
-    }
-}
-
-impl Eq for Invalidator {}
 
 impl TraceRawVcs for Invalidator {
     fn trace_raw_vcs(&self, _context: &mut crate::trace::TraceRawVcsContext) {
         // nothing here
     }
 }
-
-impl Serialize for Invalidator {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_newtype_struct("Invalidator", &self.task)
-    }
-}
-
-impl<'de> Deserialize<'de> for Invalidator {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct V;
-
-        impl<'de> Visitor<'de> for V {
-            type Value = Invalidator;
-
-            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                write!(f, "an Invalidator")
-            }
-
-            fn visit_newtype_struct<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                Ok(Invalidator {
-                    task: TaskId::deserialize(deserializer)?,
-                    turbo_tasks: with_turbo_tasks(Arc::downgrade),
-                    handle: tokio::runtime::Handle::current(),
-                })
-            }
-        }
-        deserializer.deserialize_newtype_struct("Invalidator", V)
-    }
-}
-
-impl Encode for Invalidator {
-    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
-        Encode::encode(&self.task, encoder)
-    }
-}
-
-impl<Context> Decode<Context> for Invalidator {
-    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
-        Ok(Invalidator {
-            task: Decode::decode(decoder)?,
-            turbo_tasks: with_turbo_tasks(Arc::downgrade),
-            handle: tokio::runtime::Handle::current(),
-        })
-    }
-}
-
-impl_borrow_decode!(Invalidator);
 
 /// A user-facing reason why a task was invalidated. This should only be used
 /// for invalidation that were triggered by the user.

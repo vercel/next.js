@@ -147,8 +147,6 @@ export function getDefineEnv({
       : process.env.NEXT_RSPACK
         ? 'Rspack'
         : 'Webpack',
-    // minimal mode is enforced when an adapter is configured
-    'process.env.MINIMAL_MODE': Boolean(config.experimental.adapterPath),
     // TODO: enforce `NODE_ENV` on `process.env`, and add a test:
     'process.env.NODE_ENV':
       dev || config.experimental.allowDevelopmentBuild
@@ -345,6 +343,9 @@ export function getDefineEnv({
       config.experimental.reactDebugChannel ?? false,
     'process.env.__NEXT_TRANSITION_INDICATOR':
       config.experimental.transitionIndicator ?? false,
+    'process.env.__NEXT_CACHE_LIFE': config.cacheLife,
+    'process.env.__NEXT_CLIENT_PARAM_PARSING_ORIGINS':
+      config.experimental.clientParamParsingOrigins || [],
   }
 
   const userDefines = config.compiler?.define ?? {}

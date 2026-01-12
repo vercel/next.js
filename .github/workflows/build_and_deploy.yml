@@ -3,10 +3,19 @@ name: build-and-deploy
 
 on:
   push:
+    # Don't run when tags are pushed
+    branches:
+      - '**'
   # we need the preview tarball for deploy tests
   pull_request:
     types: [opened, synchronize]
   workflow_dispatch:
+
+concurrency:
+  # Limit concurrent runs to 1 per PR,
+  # but allow concurrent runs on push if they potentially use different source code
+  group: ${{ github.event_name == 'pull_request' && format('{0}-pr-{1}', github.workflow, github.ref_name) || format('{0}-sha-{1}', github.workflow, github.sha) }}
+  cancel-in-progress: true
 
 env:
   NAPI_CLI_VERSION: 2.18.4
@@ -99,10 +108,8 @@ jobs:
         id: cache-pnpm-store
         with:
           path: ${{ steps.get-store-path.outputs.STORE_PATH }}
-          key: pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: |
-            pnpm-store-
-            pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
+          key: pnpm-store-v2-${{ hashFiles('pnpm-lock.yaml') }}
+          # Do not use restore-keys since it leads to indefinite growth of the cache.
 
       - run: pnpm install
 
@@ -672,34 +679,6 @@ jobs:
     steps:
       - run: exit 1
         if: ${{ always() && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) }}
-
-  releaseStats:
-    name: Release Stats
-    runs-on:
-      - 'self-hosted'
-      - 'linux'
-      - 'x64'
-      - 'metal'
-    timeout-minutes: 25
-    needs: [publishRelease]
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 25
-
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: next-swc-binaries-*
-          merge-multiple: true
-          path: packages/next-swc/native
-
-      - run: cp -r packages/next-swc/native .github/actions/next-stats-action/native
-
-      - run: ./scripts/release-stats.sh
-      - uses: ./.github/actions/next-stats-action
-        env:
-          PR_STATS_COMMENT_TOKEN: ${{ secrets.PR_STATS_COMMENT_TOKEN }}
-          NEXT_SKIP_NATIVE_POSTINSTALL: 1
 
   upload_turbopack_bytesize:
     if: ${{ needs.deploy-target.outputs.value != 'automated-preview'}}

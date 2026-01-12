@@ -2,7 +2,11 @@
 
 import { Suspense, use } from 'react'
 
-function Content({ searchParams }: { searchParams: Promise<{ foo: string }> }) {
+function Content({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}) {
   const searchParamsDict = use(searchParams)
 
   let query = null
@@ -20,7 +24,7 @@ function Content({ searchParams }: { searchParams: Promise<{ foo: string }> }) {
 export default function ClientPageWithSearchParam({
   searchParams,
 }: {
-  searchParams: Promise<{ foo: string }>
+  searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
   return (
     <Suspense fallback="Loading...">

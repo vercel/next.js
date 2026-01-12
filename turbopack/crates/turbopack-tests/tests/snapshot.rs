@@ -358,6 +358,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                     ..Default::default()
                 })),
                 ignore_dynamic_requests: true,
+                infer_module_side_effects: true,
                 enable_exports_info_inlining: true,
                 ..Default::default()
             },
@@ -480,7 +481,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             )
             .unused_references(
                 options
-                    .remove_unused_exports
+                    .remove_unused_imports
                     .then(|| binding_usage.unwrap()),
             )
             .debug_ids(options.enable_debug_ids)
@@ -521,7 +522,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             )
             .unused_references(
                 options
-                    .remove_unused_exports
+                    .remove_unused_imports
                     .then(|| binding_usage.unwrap()),
             )
             .debug_ids(options.enable_debug_ids)

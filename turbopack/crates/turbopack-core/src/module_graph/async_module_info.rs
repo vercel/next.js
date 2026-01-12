@@ -80,7 +80,7 @@ async fn compute_async_module_info_single(
     let mut async_modules = FxHashSet::default();
     async_modules.extend(self_async_modules.iter());
 
-    graph.traverse_edges_from_entries_dfs_reversed(
+    graph.traverse_edges_reverse_dfs(
         self_async_modules,
         &mut (),
         // child is the previously visited module which must be async

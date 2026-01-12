@@ -1,5 +1,4 @@
 use anyhow::{Context, Result, bail};
-use font_fallback::FontFallbackResult;
 use indoc::formatdoc;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
@@ -21,21 +20,17 @@ use turbopack_core::{
     virtual_source::VirtualSource,
 };
 
-use self::{
-    font_fallback::get_font_fallbacks,
-    options::{FontDescriptors, NextFontLocalOptions, options_from_request},
-    stylesheet::build_stylesheet,
-    util::build_font_family_string,
-};
-use super::{
-    font_fallback::FontFallbacks,
-    util::{FontCssProperties, can_use_next_font},
-};
 use crate::{
     next_app::metadata::split_extension,
     next_font::{
-        local::options::FontWeight,
-        util::{get_request_hash, get_request_id},
+        font_fallback::FontFallbacks,
+        local::{
+            font_fallback::{FontFallbackResult, get_font_fallbacks},
+            options::{FontDescriptors, FontWeight, NextFontLocalOptions, options_from_request},
+            stylesheet::build_stylesheet,
+            util::build_font_family_string,
+        },
+        util::{FontCssProperties, can_use_next_font, get_request_hash, get_request_id},
     },
 };
 
