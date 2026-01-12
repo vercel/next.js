@@ -3,7 +3,6 @@ import type {
   RootTreePrefetch,
   SegmentPrefetch,
 } from '../../../server/app-render/collect-segment-data'
-import type { LoadingModuleData } from '../../../shared/lib/app-router-types'
 import type {
   CacheNodeSeedData,
   Segment as FlightRouterStateSegment,
@@ -44,7 +43,10 @@ import {
   finalizePageVaryPath,
   clonePageVaryPathWithNewSearchParams,
   type PageVaryPath,
+  type LayoutVaryPath,
   finalizeMetadataVaryPath,
+  getPartialPageVaryPath,
+  getPartialLayoutVaryPath,
 } from './vary-path'
 import { getAppBuildId } from '../../app-build-id'
 import { createHrefFromUrl } from '../router-reducer/create-href-from-url'
@@ -124,6 +126,7 @@ type RouteTreeShared = {
   // TODO: Remove the `segment` field, now that it can be reconstructed
   // from `param`.
   segment: FlightRouterStateSegment
+  refreshState: RefreshState | null
   slots: null | {
     [parallelRouteKey: string]: RouteTree
   }
@@ -143,9 +146,14 @@ type RouteTreeShared = {
   hasRuntimePrefetch: boolean
 }
 
+export type RefreshState = {
+  canonicalUrl: string
+  renderedSearch: NormalizedSearch
+}
+
 type LayoutRouteTree = RouteTreeShared & {
   isPage: false
-  varyPath: SegmentVaryPath
+  varyPath: LayoutVaryPath
 }
 
 type PageRouteTree = RouteTreeShared & {
@@ -228,7 +236,6 @@ type SegmentCacheEntryShared = {
 export type EmptySegmentCacheEntry = SegmentCacheEntryShared & {
   status: EntryStatus.Empty
   rsc: null
-  loading: null
   isPartial: true
   promise: null
 }
@@ -236,7 +243,6 @@ export type EmptySegmentCacheEntry = SegmentCacheEntryShared & {
 export type PendingSegmentCacheEntry = SegmentCacheEntryShared & {
   status: EntryStatus.Pending
   rsc: null
-  loading: null
   isPartial: boolean
   promise: null | PromiseWithResolvers<FulfilledSegmentCacheEntry | null>
 }
@@ -244,7 +250,6 @@ export type PendingSegmentCacheEntry = SegmentCacheEntryShared & {
 type RejectedSegmentCacheEntry = SegmentCacheEntryShared & {
   status: EntryStatus.Rejected
   rsc: null
-  loading: null
   isPartial: true
   promise: null
 }
@@ -252,7 +257,6 @@ type RejectedSegmentCacheEntry = SegmentCacheEntryShared & {
 export type FulfilledSegmentCacheEntry = SegmentCacheEntryShared & {
   status: EntryStatus.Fulfilled
   rsc: React.ReactNode | null
-  loading: LoadingModuleData | Promise<LoadingModuleData>
   isPartial: boolean
   promise: null
 }
@@ -638,6 +642,7 @@ function createOptimisticRouteTree(
     return {
       requestKey: tree.requestKey,
       segment: tree.segment,
+      refreshState: tree.refreshState,
       varyPath: clonePageVaryPathWithNewSearchParams(
         tree.varyPath,
         newRenderedSearch
@@ -653,6 +658,7 @@ function createOptimisticRouteTree(
   return {
     requestKey: tree.requestKey,
     segment: tree.segment,
+    refreshState: tree.refreshState,
     varyPath: tree.varyPath,
     isPage: false,
     slots: clonedSlots,
@@ -800,7 +806,6 @@ export function upsertSegmentEntry(
       // the entry expires.
       const rejectedEntry: RejectedSegmentCacheEntry = candidateEntry as any
       rejectedEntry.status = EntryStatus.Rejected
-      rejectedEntry.loading = null
       rejectedEntry.rsc = null
       return null
     }
@@ -823,7 +828,6 @@ export function createDetachedSegmentCacheEntry(
     // when a fetch is actually initiated.
     fetchStrategy: FetchStrategy.PPR,
     rsc: null,
-    loading: null,
     isPartial: true,
     promise: null,
 
@@ -889,6 +893,7 @@ function fulfillRouteCacheEntry(
   const metadata: RouteTree = {
     requestKey: HEAD_REQUEST_KEY,
     segment: HEAD_REQUEST_KEY,
+    refreshState: null,
     varyPath: metadataVaryPath,
     // The metadata isn't really a "page" (though it isn't really a "segment"
     // either) but for the purposes of how this field is used, it behaves like
@@ -915,14 +920,12 @@ function fulfillRouteCacheEntry(
 function fulfillSegmentCacheEntry(
   segmentCacheEntry: PendingSegmentCacheEntry,
   rsc: React.ReactNode,
-  loading: LoadingModuleData | Promise<LoadingModuleData>,
   staleAt: number,
   isPartial: boolean
 ): FulfilledSegmentCacheEntry {
   const fulfilledEntry: FulfilledSegmentCacheEntry = segmentCacheEntry as any
   fulfilledEntry.status = EntryStatus.Fulfilled
   fulfilledEntry.rsc = rsc
-  fulfilledEntry.loading = loading
   fulfilledEntry.staleAt = staleAt
   fulfilledEntry.isPartial = isPartial
   // Resolve any listeners that were waiting for this data.
@@ -1117,13 +1120,14 @@ function convertTreePrefetchToRouteTree(
   return {
     requestKey,
     segment,
-    varyPath,
+    refreshState: null,
     // TODO: Cheating the type system here a bit because TypeScript can't tell
     // that the type of isPage and varyPath are consistent. The fix would be to
     // create separate constructors and call the appropriate one from each of
     // the branches above. Just seems a bit overkill only for one field so I'll
     // leave it as-is for now. If isPage were wrong it would break the behavior
     // and we'd catch it quickly, anyway.
+    varyPath: varyPath as any,
     isPage: isPage as boolean as any,
     slots,
     isRootLayout: prefetch.isRootLayout,
@@ -1134,7 +1138,7 @@ function convertTreePrefetchToRouteTree(
   }
 }
 
-function convertRootFlightRouterStateToRouteTree(
+export function convertRootFlightRouterStateToRouteTree(
   flightRouterState: FlightRouterState,
   renderedSearch: NormalizedSearch,
   acc: RouteTreeAccumulator
@@ -1148,14 +1152,63 @@ function convertRootFlightRouterStateToRouteTree(
   )
 }
 
+export function convertReusedFlightRouterStateToRouteTree(
+  parentRouteTree: RouteTree,
+  parallelRouteKey: string,
+  flightRouterState: FlightRouterState,
+  renderedSearch: NormalizedSearch,
+  acc: RouteTreeAccumulator
+) {
+  // Create a RouteTree for a FlightRouterState that was reused from an older
+  // route. This happens during a navigation when a parallel route slot does not
+  // match the target route; we reuse whatever slot was already active.
+
+  // Unlike a FlightRouterState, the RouteTree type contains backreferences to
+  // the parent segments. Append the vary path to the parent's vary path.
+  const parentPartialVaryPath = parentRouteTree.isPage
+    ? getPartialPageVaryPath(parentRouteTree.varyPath)
+    : getPartialLayoutVaryPath(parentRouteTree.varyPath)
+  const segment = flightRouterState[0]
+  // And the request key.
+  const parentRequestKey = parentRouteTree.requestKey
+  const requestKeyPart = createSegmentRequestKeyPart(segment)
+  const requestKey = appendSegmentRequestKeyPart(
+    parentRequestKey,
+    parallelRouteKey,
+    requestKeyPart
+  )
+  return convertFlightRouterStateToRouteTree(
+    flightRouterState,
+    requestKey,
+    parentPartialVaryPath,
+    renderedSearch,
+    acc
+  )
+}
+
 function convertFlightRouterStateToRouteTree(
   flightRouterState: FlightRouterState,
   requestKey: SegmentRequestKey,
   parentPartialVaryPath: PartialSegmentVaryPath | null,
-  renderedSearch: NormalizedSearch,
+  parentRenderedSearch: NormalizedSearch,
   acc: RouteTreeAccumulator
 ): RouteTree {
   const originalSegment = flightRouterState[0]
+
+  // If the FlightRouterState has a refresh state, then this segment is part of
+  // an inactive parallel route. It has a different rendered search query than
+  // the outer parent route. In order to construct the inactive route correctly,
+  // we must restore the query that was originally used to render it.
+  const compressedRefreshState = flightRouterState[2] ?? null
+  const refreshState =
+    compressedRefreshState !== null
+      ? {
+          canonicalUrl: compressedRefreshState[0] as string,
+          renderedSearch: compressedRefreshState[1] as NormalizedSearch,
+        }
+      : null
+  const renderedSearch =
+    refreshState !== null ? refreshState.renderedSearch : parentRenderedSearch
 
   let segment: FlightRouterStateSegment
   let partialVaryPath: PartialSegmentVaryPath | null
@@ -1245,13 +1298,14 @@ function convertFlightRouterStateToRouteTree(
   return {
     requestKey,
     segment,
-    varyPath,
+    refreshState,
     // TODO: Cheating the type system here a bit because TypeScript can't tell
     // that the type of isPage and varyPath are consistent. The fix would be to
     // create separate constructors and call the appropriate one from each of
     // the branches above. Just seems a bit overkill only for one field so I'll
     // leave it as-is for now. If isPage were wrong it would break the behavior
     // and we'd catch it quickly, anyway.
+    varyPath: varyPath as any,
     isPage: isPage as boolean as any,
     slots,
     isRootLayout: flightRouterState[4] === true,
@@ -1662,7 +1716,6 @@ export async function fetchSegmentOnCacheMiss(
       value: fulfillSegmentCacheEntry(
         segmentCacheEntry,
         serverData.rsc,
-        serverData.loading,
         // TODO: The server does not currently provide per-segment stale time.
         // So we use the stale time of the route.
         route.staleAt,
@@ -2015,7 +2068,6 @@ function writeDynamicRenderResponseIntoCache(
         fetchStrategy,
         route,
         head,
-        null,
         flightData.isHeadPartial,
         staleAt,
         route.metadata,
@@ -2061,14 +2113,12 @@ function writeSeedDataIntoCache(
   // This function is used to write the result of a runtime server request
   // (CacheNodeSeedData) into the prefetch cache.
   const rsc = seedData[0]
-  const loading = seedData[2]
   const isPartial = rsc === null || isResponsePartial
   fulfillEntrySpawnedByRuntimePrefetch(
     now,
     fetchStrategy,
     route,
     rsc,
-    loading,
     isPartial,
     staleAt,
     tree,
@@ -2108,7 +2158,6 @@ function fulfillEntrySpawnedByRuntimePrefetch(
     | FetchStrategy.Full,
   route: FulfilledRouteCacheEntry,
   rsc: React.ReactNode,
-  loading: LoadingModuleData | Promise<LoadingModuleData>,
   isPartial: boolean,
   staleAt: number,
   tree: RouteTree,
@@ -2125,7 +2174,7 @@ function fulfillEntrySpawnedByRuntimePrefetch(
       ? entriesOwnedByCurrentTask.get(tree.requestKey)
       : undefined
   if (ownedEntry !== undefined) {
-    fulfillSegmentCacheEntry(ownedEntry, rsc, loading, staleAt, isPartial)
+    fulfillSegmentCacheEntry(ownedEntry, rsc, staleAt, isPartial)
   } else {
     // There's no matching entry. Attempt to create a new one.
     const possiblyNewEntry = readOrCreateSegmentCacheEntry(
@@ -2140,7 +2189,6 @@ function fulfillEntrySpawnedByRuntimePrefetch(
       fulfillSegmentCacheEntry(
         upgradeToPendingSegment(newEntry, fetchStrategy),
         rsc,
-        loading,
         staleAt,
         isPartial
       )
@@ -2153,7 +2201,6 @@ function fulfillEntrySpawnedByRuntimePrefetch(
           fetchStrategy
         ),
         rsc,
-        loading,
         staleAt,
         isPartial
       )

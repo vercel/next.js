@@ -835,10 +835,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             // Having a task_pair here is not optimal, but otherwise this would lead to a race
             // condition. See below.
             // TODO(sokra): solve that in a more performant way.
-            let (task, reader) = ctx.task_pair(task_id, reader_id, TaskDataCategory::Data);
+            let (task, reader) = ctx.task_pair(task_id, reader_id, TaskDataCategory::All);
             (task, Some(reader))
         } else {
-            (ctx.task(task_id, TaskDataCategory::Data), None)
+            (ctx.task(task_id, TaskDataCategory::All), None)
         };
 
         let content = if final_read_hint {
@@ -1815,7 +1815,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         else {
             // Task was stale and has been rescheduled
             #[cfg(feature = "trace_task_details")]
-            span.record("stale", "true");
+            span.record("stale", "prepare");
             return true;
         };
 
@@ -1848,7 +1848,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         {
             // Task was stale and has been rescheduled
             #[cfg(feature = "trace_task_details")]
-            span.record("stale", "true");
+            span.record("stale", "connect");
             return true;
         }
 
@@ -1863,7 +1863,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         ) {
             // Task was stale and has been rescheduled
             #[cfg(feature = "trace_task_details")]
-            span.record("stale", "true");
+            span.record("stale", "finish");
             return true;
         }
 

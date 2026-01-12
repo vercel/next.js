@@ -424,6 +424,7 @@ function Router({
       parentCacheNode: cache,
       parentSegmentPath: null,
       parentParams: {},
+      parentLoadingData: null,
       // This is the <Activity> "name" that shows up in the Suspense DevTools.
       // It represents the root of the app.
       debugNameContext: '/',
