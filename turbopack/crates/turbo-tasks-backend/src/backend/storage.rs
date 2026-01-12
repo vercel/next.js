@@ -14,7 +14,7 @@ use crate::{
         AggregationNumber, CachedDataItem, CachedDataItemKey, CachedDataItemType,
         CachedDataItemValue, CachedDataItemValueRef, CachedDataItemValueRefMut, OutputValue,
     },
-    data_storage::{AutoMapStorage, OptionStorage},
+    data_storage::{AutoMapStorage, DefaultStorage, OptionStorage},
     utils::{
         dash_map_drop_contents::drop_contents,
         dash_map_multi::{RefMut, get_multiple_mut},
@@ -138,7 +138,7 @@ impl InnerStorageState {
 }
 
 pub struct InnerStorageSnapshot {
-    aggregation_number: OptionStorage<AggregationNumber>,
+    aggregation_number: DefaultStorage<AggregationNumber>,
     output_dependent: AutoMapStorage<TaskId, ()>,
     output: OptionStorage<OutputValue>,
     upper: AutoMapStorage<TaskId, u32>,
@@ -206,7 +206,7 @@ impl InnerStorageSnapshot {
 
 #[derive(Debug, Clone)]
 pub struct InnerStorage {
-    aggregation_number: OptionStorage<AggregationNumber>,
+    aggregation_number: DefaultStorage<AggregationNumber>,
     output_dependent: AutoMapStorage<TaskId, ()>,
     output: OptionStorage<OutputValue>,
     upper: AutoMapStorage<TaskId, u32>,
@@ -1218,5 +1218,26 @@ where
         }
         self.guard = None;
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_inner_storage_size() {
+        // InnerStorage size affects memory usage per task.
+        // We track this to catch unexpected bloat from type changes.
+        assert_eq!(
+            std::mem::size_of::<InnerStorage>(),
+            128,
+            "InnerStorage size changed - please review if this is intentional"
+        );
+        assert_eq!(
+            std::mem::size_of::<InnerStorageSnapshot>(),
+            128,
+            "InnerStorageSnapshot size changed - please review if this is intentional"
+        );
     }
 }

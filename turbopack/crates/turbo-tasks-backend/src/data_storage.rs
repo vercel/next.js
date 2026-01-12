@@ -133,6 +133,120 @@ impl<V> Storage for OptionStorage<V> {
     }
 }
 
+/// Storage for a single value that uses `Default::default()` to initialize the value "empty".
+#[derive(Debug, Clone)]
+pub struct DefaultStorage<V> {
+    value: V,
+}
+
+impl<V: Default> Default for DefaultStorage<V> {
+    fn default() -> Self {
+        Self {
+            value: V::default(),
+        }
+    }
+}
+
+impl<V: Default + PartialEq> Storage for DefaultStorage<V> {
+    type K = ();
+    type V = V;
+    type Iterator<'l>
+        = std::option::IntoIter<(&'l (), &'l V)>
+    where
+        Self: 'l;
+
+    fn add(&mut self, _: (), value: V) -> bool {
+        if self.value == V::default() {
+            self.value = value;
+            true
+        } else {
+            false
+        }
+    }
+
+    fn extend(&mut self, items: impl Iterator<Item = (Self::K, Self::V)>) -> bool {
+        let mut added = true;
+        for (_, value) in items {
+            added = self.insert((), value).is_none() && added;
+        }
+        added
+    }
+
+    fn insert(&mut self, _: (), value: V) -> Option<V> {
+        let old = std::mem::replace(&mut self.value, value);
+        if old == V::default() { None } else { Some(old) }
+    }
+
+    fn remove(&mut self, _: &()) -> Option<V> {
+        let old = std::mem::take(&mut self.value);
+        if old == V::default() { None } else { Some(old) }
+    }
+
+    fn contains_key(&self, _: &()) -> bool {
+        self.value != V::default()
+    }
+
+    fn get(&self, _: &()) -> Option<&V> {
+        if self.value != V::default() {
+            Some(&self.value)
+        } else {
+            None
+        }
+    }
+
+    fn get_mut(&mut self, _: &()) -> Option<&mut V> {
+        if self.value != V::default() {
+            Some(&mut self.value)
+        } else {
+            None
+        }
+    }
+
+    fn get_mut_or_insert_with(&mut self, _: (), f: impl FnOnce() -> V) -> &mut V {
+        if self.value == V::default() {
+            self.value = f();
+        }
+        &mut self.value
+    }
+
+    fn shrink_to_fit(&mut self) {
+        // Nothing to do
+    }
+
+    fn is_empty(&self) -> bool {
+        self.value == V::default()
+    }
+
+    fn len(&self) -> usize {
+        if self.value != V::default() { 1 } else { 0 }
+    }
+
+    fn iter(&self) -> Self::Iterator<'_> {
+        if self.value != V::default() {
+            Some(value_to_key_value(&self.value)).into_iter()
+        } else {
+            None.into_iter()
+        }
+    }
+
+    fn extract_if<'l, F>(&'l mut self, mut f: F) -> impl Iterator<Item = (Self::K, Self::V)>
+    where
+        F: for<'a, 'b> FnMut(&'a Self::K, &'b mut Self::V) -> bool + 'l,
+    {
+        if self.value != V::default() && f(&(), &mut self.value) {
+            let old = std::mem::take(&mut self.value);
+            return Some(((), old)).into_iter();
+        }
+        None.into_iter()
+    }
+
+    fn update(&mut self, _: (), update: impl FnOnce(Option<V>) -> Option<V>) {
+        let old = std::mem::take(&mut self.value);
+        let old_opt = if old == V::default() { None } else { Some(old) };
+        self.value = update(old_opt).unwrap_or_default();
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct AutoMapStorage<K, V> {
     map: AutoMap<K, V, BuildHasherDefault<FxHasher>, 1>,
