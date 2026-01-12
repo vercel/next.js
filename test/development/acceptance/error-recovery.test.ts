@@ -326,7 +326,7 @@ describe('pages/ error recovery', () => {
              |         ^",
            "stack": [
              "Child child.js (3:9)",
-             "Index index.js (6:7)",
+             "Index index.js (6:13)",
            ],
          }
         `)
