@@ -5,6 +5,7 @@ import { htmlEscapeJsonString } from '../htmlescape'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { getClientReferenceManifest } from './manifests-singleton'
+import { isNextRouterError } from '../../client/components/is-next-router-error'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -196,9 +197,16 @@ export function createInlinedDataReadableStream(
           controller.close()
         }
       } catch (error) {
-        // There was a problem in the upstream reader or during decoding or enqueuing
-        // forward the error downstream
-        controller.error(error)
+        // There was a problem in the upstream reader or during decoding or enqueuing.
+        // For Next.js router errors (notFound, forbidden, unauthorized, redirect),
+        // close the stream gracefully to allow any serialized error data to reach
+        // the client, where error boundaries can handle them properly.
+        if (isNextRouterError(error)) {
+          controller.close()
+        } else {
+          // For other errors, forward the error downstream
+          controller.error(error)
+        }
       }
     },
   })
