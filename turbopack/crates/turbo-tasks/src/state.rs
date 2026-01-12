@@ -8,15 +8,15 @@ use std::{
 use auto_hash_map::AutoSet;
 use bincode::{Decode, Encode};
 use parking_lot::{Mutex, MutexGuard};
-use serde::{Deserialize, Serialize};
 use tracing::trace_span;
 
 use crate::{
-    Invalidator, OperationValue, SerializationInvalidator, get_invalidator, mark_session_dependent,
-    mark_stateful, trace::TraceRawVcs,
+    Invalidator, OperationValue, SerializationInvalidator, get_invalidator,
+    get_serialization_invalidator, manager::with_turbo_tasks, mark_session_dependent,
+    trace::TraceRawVcs,
 };
 
-#[derive(Serialize, Deserialize, Encode, Decode)]
+#[derive(Encode, Decode)]
 struct StateInner<T> {
     value: T,
     invalidators: AutoSet<Invalidator>,
@@ -37,8 +37,13 @@ impl<T> StateInner<T> {
     pub fn set_unconditionally(&mut self, value: T) {
         self.value = value;
         let _span = trace_span!("state value changed", value_type = type_name::<T>()).entered();
-        for invalidator in take(&mut self.invalidators) {
-            invalidator.invalidate();
+        let invalidators = take(&mut self.invalidators);
+        if !invalidators.is_empty() {
+            with_turbo_tasks(|tt| {
+                for invalidator in invalidators {
+                    invalidator.invalidate(&**tt);
+                }
+            });
         }
     }
 
@@ -47,8 +52,13 @@ impl<T> StateInner<T> {
             return false;
         }
         let _span = trace_span!("state value changed", value_type = type_name::<T>()).entered();
-        for invalidator in take(&mut self.invalidators) {
-            invalidator.invalidate();
+        let invalidators = take(&mut self.invalidators);
+        if !invalidators.is_empty() {
+            with_turbo_tasks(|tt| {
+                for invalidator in invalidators {
+                    invalidator.invalidate(&**tt);
+                }
+            });
         }
         true
     }
@@ -61,8 +71,13 @@ impl<T: PartialEq> StateInner<T> {
         }
         let _span = trace_span!("state value changed", value_type = type_name::<T>()).entered();
         self.value = value;
-        for invalidator in take(&mut self.invalidators) {
-            invalidator.invalidate();
+        let invalidators = take(&mut self.invalidators);
+        if !invalidators.is_empty() {
+            with_turbo_tasks(|tt| {
+                for invalidator in invalidators {
+                    invalidator.invalidate(&**tt);
+                }
+            });
         }
         true
     }
@@ -93,8 +108,13 @@ impl<T> Drop for StateRef<'_, T> {
     fn drop(&mut self) {
         if self.mutated {
             let _span = trace_span!("state value changed", value_type = type_name::<T>()).entered();
-            for invalidator in take(&mut self.inner.invalidators) {
-                invalidator.invalidate();
+            let invalidators = take(&mut self.inner.invalidators);
+            if !invalidators.is_empty() {
+                with_turbo_tasks(|tt| {
+                    for invalidator in invalidators {
+                        invalidator.invalidate(&**tt);
+                    }
+                });
             }
             if let Some(serialization_invalidator) = self.serialization_invalidator {
                 serialization_invalidator.invalidate();
@@ -161,7 +181,7 @@ mod parking_lot_mutex_bincode {
 /// [strong consistency]: crate::OperationVc::read_strongly_consistent
 /// [`OperationVc`]: crate::OperationVc
 /// [`OperationValue`]: crate::OperationValue
-#[derive(Serialize, Deserialize, Encode, Decode)]
+#[derive(Encode, Decode)]
 pub struct State<T> {
     serialization_invalidator: SerializationInvalidator,
     #[bincode(with = "parking_lot_mutex_bincode")]
@@ -202,7 +222,7 @@ impl<T> State<T> {
         T: OperationValue,
     {
         Self {
-            serialization_invalidator: mark_stateful(),
+            serialization_invalidator: get_serialization_invalidator(),
             inner: Mutex::new(StateInner::new(value)),
         }
     }
@@ -272,10 +292,9 @@ impl<T: PartialEq> State<T> {
     }
 }
 
-#[derive(Serialize, Deserialize, Encode, Decode)]
+#[derive(Encode, Decode)]
 #[bincode(bounds = "")]
 pub struct TransientState<T> {
-    #[serde(skip, default = "default_transient_state_inner")]
     #[bincode(skip, default = "default_transient_state_inner")]
     inner: Mutex<StateInner<Option<T>>>,
 }
@@ -314,7 +333,6 @@ impl<T> Eq for TransientState<T> {}
 
 impl<T> TransientState<T> {
     pub fn new() -> Self {
-        mark_stateful();
         Self {
             inner: Mutex::new(StateInner::new(None)),
         }

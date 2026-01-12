@@ -290,18 +290,33 @@ impl Request {
                 Request::PackageInternal { path } => {
                     path.push(item);
                 }
-                Request::DataUri { .. } => {
-                    result = Request::Dynamic;
-                }
-                Request::Uri { .. } => {
-                    result = Request::Dynamic;
-                }
                 Request::Unknown { path } => {
                     path.push(item);
                 }
-                Request::Dynamic => {}
+                Request::DataUri { .. } | Request::Uri { .. } | Request::Dynamic => {
+                    return Request::Dynamic;
+                }
                 Request::Alternatives { .. } => unreachable!(),
             };
+        }
+        if let Request::Relative {
+            path,
+            fragment,
+            query,
+            ..
+        } = &mut result
+            && fragment.is_empty()
+            && query.is_empty()
+            && let Pattern::Concatenation(parts) = path
+            && let Pattern::Constant(last_part) = parts.last().unwrap()
+        {
+            let (prefix, new_query, new_fragment) = split_off_query_fragment(last_part);
+
+            *parts.last_mut().unwrap() = prefix;
+            *query = new_query;
+            *fragment = new_fragment;
+            // now that we have composed the request try to find the query and fragment
+            path.normalize();
         }
 
         result

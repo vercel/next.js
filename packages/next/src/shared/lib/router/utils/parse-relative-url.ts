@@ -3,12 +3,17 @@ import { getLocationOrigin } from '../../utils'
 import { searchParamsToUrlQuery } from './querystring'
 
 export interface ParsedRelativeUrl {
+  auth: string | null
   hash: string
+  host: string | null
+  hostname: string | null
   href: string
   pathname: string
+  port: string | null
+  protocol: string | null
   query: ParsedUrlQuery
   search: string
-  slashes: undefined
+  slashes: null
 }
 
 /**
@@ -44,23 +49,32 @@ export function parseRelativeUrl(
         )
       : globalBase
 
-  const { pathname, searchParams, search, hash, href, origin } = new URL(
-    url,
-    resolvedBase
+  const { pathname, searchParams, search, hash, href, origin } = url.startsWith(
+    '/'
   )
+    ? // 'http://localhost:3000///' would be received as '///' in Node.js' IncomingMessage
+      // See https://nodejs.org/api/http.html#messageurl
+      // Not using `origin` to support other protocols
+      new URL(`${resolvedBase.protocol}//${resolvedBase.host}${url}`)
+    : new URL(url, resolvedBase)
 
   if (origin !== globalBase.origin) {
     throw new Error(`invariant: invalid relative URL, router received ${url}`)
   }
 
   return {
+    auth: null,
+    host: null,
+    hostname: null,
     pathname,
+    port: null,
+    protocol: null,
     query: parseQuery ? searchParamsToUrlQuery(searchParams) : undefined,
     search,
     hash,
     href: href.slice(origin.length),
     // We don't know for relative URLs at this point since we set a custom, internal
     // base that isn't surfaced to users.
-    slashes: undefined,
+    slashes: null,
   }
 }

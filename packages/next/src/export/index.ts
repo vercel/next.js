@@ -46,6 +46,7 @@ import {
 } from '../shared/lib/constants'
 import loadConfig from '../server/config'
 import type { ExportPathMap } from '../server/config-shared'
+import { parseMaxPostponedStateSize } from '../server/config-shared'
 import { eventCliSession } from '../telemetry/events'
 import { hasNextSupport } from '../server/ci-info'
 import { Telemetry } from '../telemetry/storage'
@@ -396,6 +397,9 @@ async function exportAppImpl(
       dynamicOnHover: nextConfig.experimental.dynamicOnHover ?? false,
       inlineCss: nextConfig.experimental.inlineCss ?? false,
       authInterrupts: !!nextConfig.experimental.authInterrupts,
+      maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
+        nextConfig.experimental.maxPostponedStateSize
+      ),
     },
     reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
     hasReadableErrorStacks:

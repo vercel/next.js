@@ -72,6 +72,7 @@ Through `next-devtools-mcp`, agents can use the following tools:
 - **`get_logs`**: Get the path to the development log file containing browser console logs and server output
 - **`get_page_metadata`**: Get metadata about specific pages including routes, components, and rendering information
 - **`get_project_metadata`**: Retrieve project structure, configuration, and dev server URL
+- **`get_routes`**: Get all routes that will become entry points by scanning the filesystem. Returns routes grouped by router type (appRouter, pagesRouter). Dynamic segments appear as `[param]` or `[...slug]` patterns
 - **`get_server_action_by_id`**: Look up Server Actions by their ID to find the source file and function name
 
 ## Using with agents

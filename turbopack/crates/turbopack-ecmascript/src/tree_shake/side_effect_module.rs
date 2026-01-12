@@ -1,12 +1,12 @@
 use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
-use turbo_tasks_fs::{FileContent, glob::Glob};
+use turbo_tasks_fs::FileContent;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkableModule, ChunkingContext, EvaluatableAsset},
     ident::AssetIdent,
-    module::Module,
+    module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     reference::{ModuleReferences, SingleChunkableModuleReference},
     resolve::{ExportUsage, ModulePart},
@@ -114,8 +114,11 @@ impl Module for SideEffectsModule {
     }
 
     #[turbo_tasks::function]
-    fn is_marked_as_side_effect_free(self: Vc<Self>, _: Vc<Glob>) -> Vc<bool> {
-        Vc::cell(true)
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        // This module exists to collect side effects from references.  So it isn't side effectful
+        // but it may depend on side effectful modules.  use this mode to allow inner graph tree
+        // shaking to still potentially trim this module and its dependencies.
+        ModuleSideEffects::ModuleEvaluationIsSideEffectFree.cell()
     }
 }
 

@@ -1,0 +1,15 @@
+[package]
+name = "turbo-frozenmap"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+bincode = { workspace = true }
+indexmap = { workspace = true }
+serde = { workspace = true }
+
+[dev-dependencies]
+
+[lints]
+workspace = true

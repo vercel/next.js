@@ -6,12 +6,11 @@ use std::{
 
 use concurrent_queue::ConcurrentQueue;
 use rustc_hash::FxHashMap;
-use serde::{Deserialize, Serialize, de::Visitor};
 use turbo_tasks::{Invalidator, ReadRef};
 
 use crate::{FileContent, LinkContent};
 
-#[derive(Serialize, Deserialize, PartialEq, Eq)]
+#[derive(PartialEq, Eq)]
 pub enum WriteContent {
     File(ReadRef<FileContent>),
     Link(ReadRef<LinkContent>),
@@ -62,51 +61,5 @@ impl InvalidatorMap {
                      never closed"
                 )
             });
-    }
-}
-
-impl Serialize for InvalidatorMap {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        // TODO: This stores absolute `PathBuf`s, which are machine-specific. This should
-        // normalize/denormalize paths relative to the disk filesystem root.
-        //
-        // Potential optimization: We invalidate all fs reads immediately upon resuming from a
-        // persisted cache, but we don't invalidate the fs writes. Those read invalidations trigger
-        // re-inserts into the `InvalidatorMap`. If we knew that certain invalidators were only
-        // needed for reads, we could potentially avoid serializing those paths entirely.
-        let inner: &LockedInvalidatorMap = &self.lock().unwrap();
-        serializer.serialize_newtype_struct("InvalidatorMap", inner)
-    }
-}
-
-impl<'de> Deserialize<'de> for InvalidatorMap {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct V;
-
-        impl<'de> Visitor<'de> for V {
-            type Value = InvalidatorMap;
-
-            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                write!(f, "an InvalidatorMap")
-            }
-
-            fn visit_newtype_struct<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                Ok(InvalidatorMap {
-                    queue: ConcurrentQueue::unbounded(),
-                    map: Mutex::new(Deserialize::deserialize(deserializer)?),
-                })
-            }
-        }
-
-        deserializer.deserialize_newtype_struct("InvalidatorMap", V)
     }
 }

@@ -32,7 +32,7 @@ concurrent-queue = { workspace = true }
 dashmap = { workspace = true }
 dunce = { workspace = true }
 futures = { workspace = true }
-include_dir = { version = "0.7.2", features = ["nightly"] }
+include_dir = { version = "0.7.3", features = ["nightly"] }
 indexmap = { workspace = true }
 jsonc-parser = { version = "0.26.3", features = ["serde"] }
 mime = { workspace = true }
@@ -41,7 +41,6 @@ parking_lot = { workspace = true }
 regex = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true, features = ["rc"] }
-serde_bytes = { workspace = true }
 serde_json = { workspace = true }
 serde_path_to_error = { workspace = true }
 tokio = { workspace = true }

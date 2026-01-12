@@ -25,7 +25,6 @@ use next_core::{
     next_app::ClientReferencesChunks, next_client_reference::EcmascriptClientReferenceModule,
     next_dynamic::NextDynamicEntryModule,
 };
-use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
     debug::ValueDebugFormat, trace::TraceRawVcs,
@@ -110,18 +109,7 @@ pub struct DynamicImportedChunks(
     >,
 );
 
-#[derive(
-    Clone,
-    PartialEq,
-    Eq,
-    ValueDebugFormat,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
+#[derive(Clone, PartialEq, Eq, ValueDebugFormat, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub enum DynamicImportEntriesMapType {
     DynamicEntry(ResolvedVc<NextDynamicEntryModule>),
     ClientReference(ResolvedVc<EcmascriptClientReferenceModule>),

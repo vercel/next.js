@@ -29,13 +29,13 @@ import {
   CONFIG_FILES,
   PHASE_DEVELOPMENT_SERVER,
 } from '../../shared/lib/constants'
-import { getStartServerInfo, logStartInfo } from './app-info-log'
+import { getEnvInfo, logExperimentalInfo, logStartInfo } from './app-info-log'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import { type Span, trace, flushAllTraces } from '../../trace'
 import { isIPv6 } from './is-ipv6'
 import { AsyncCallbackSet } from './async-callback-set'
 import type { NextServer } from '../next'
-import type { ConfiguredExperimentalFeature } from '../config'
+import { durationToString } from '../../build/duration-to-string'
 
 const debug = setupDebug('next:start-server')
 let startServerSpan: Span | undefined
@@ -166,9 +166,13 @@ export async function getRequestHandlers({
   })
 }
 
+export type StartServerResult = {
+  distDir: string
+}
+
 export async function startServer(
   serverOptions: StartServerOptions
-): Promise<void> {
+): Promise<StartServerResult> {
   const {
     dir,
     isDev,
@@ -301,7 +305,7 @@ export async function startServer(
 
   let cleanupListeners = isDev ? new AsyncCallbackSet() : undefined
 
-  await new Promise<void>((resolve) => {
+  const distDir = await new Promise<string>((resolve) => {
     server.on('listening', async () => {
       const addr = server.address()
       const actualHostname = formatHostname(
@@ -354,28 +358,30 @@ export async function startServer(
         process.env.__NEXT_EXPERIMENTAL_HTTPS = '1'
       }
 
-      // Only load env and config in dev to for logging purposes
-      let envInfo: string[] | undefined
-      let experimentalFeatures: ConfiguredExperimentalFeature[] | undefined
-      let cacheComponents: boolean | undefined
+      // Get env info first (fast, doesn't require config)
+      const envInfo = isDev ? getEnvInfo(dir) : undefined
+
+      // Log basic startup info immediately (before loading config)
+      logStartInfo({
+        networkUrl,
+        appUrl,
+        envInfo,
+        logBundler: isDev,
+      })
+
+      // Calculate and log "Ready in X" before loading config
+      // so it reflects actual framework startup time
+      const startTime = parseInt(process.env.NEXT_PRIVATE_START_TIME || '0', 10)
+      const endTime = Date.now()
+      const startServerProcessDurationMs = endTime - startTime
+
+      const formattedStartDuration = durationToString(
+        startServerProcessDurationMs / 1000
+      )
+
+      Log.event(`Ready in ${formattedStartDuration}`)
+
       try {
-        if (isDev) {
-          const startServerInfo = await getStartServerInfo({ dir, dev: isDev })
-          envInfo = startServerInfo.envInfo
-          cacheComponents = startServerInfo.cacheComponents
-          experimentalFeatures = startServerInfo.experimentalFeatures
-        }
-        logStartInfo({
-          networkUrl,
-          appUrl,
-          envInfo,
-          experimentalFeatures,
-          cacheComponents,
-          logBundler: isDev,
-        })
-
-        Log.event(`Starting...`)
-
         let cleanupStarted = false
         let closeUpgraded: (() => void) | null = null
         const cleanup = () => {
@@ -442,6 +448,7 @@ export async function startServer(
           process.on('SIGTERM', cleanup)
         }
 
+        // Now load config via getRequestHandlers (single loadConfig call)
         const initResult = await getRequestHandlers({
           dir,
           port,
@@ -460,21 +467,15 @@ export async function startServer(
         nextServer = initResult.server
         closeUpgraded = initResult.closeUpgraded
 
-        const startServerProcessDuration =
-          performance.mark('next-start-end') &&
-          performance.measure(
-            'next-start-duration',
-            'next-start',
-            'next-start-end'
-          ).duration
+        // Log experimental features after config is loaded
+        if (isDev) {
+          logExperimentalInfo({
+            experimentalFeatures: initResult.experimentalFeatures,
+            cacheComponents: initResult.cacheComponents,
+          })
+        }
 
         handlersReady()
-        const formatDurationText =
-          startServerProcessDuration > 2000
-            ? `${Math.round(startServerProcessDuration / 100) / 10}s`
-            : `${Math.round(startServerProcessDuration)}ms`
-
-        Log.event(`Ready in ${formatDurationText}`)
 
         if (process.env.TURBOPACK && isDev) {
           await validateTurboNextConfig({
@@ -482,14 +483,14 @@ export async function startServer(
             configPhase: PHASE_DEVELOPMENT_SERVER,
           })
         }
+
+        resolve(initResult.distDir)
       } catch (err) {
         // fatal error if we can't setup
         handlersError()
         console.error(err)
         process.exit(1)
       }
-
-      resolve()
     })
     server.listen(port, hostname)
   })
@@ -521,6 +522,8 @@ export async function startServer(
       process.exit(RESTART_EXIT_CODE)
     })
   }
+
+  return { distDir }
 }
 
 if (process.env.NEXT_PRIVATE_WORKER && process.send) {
@@ -538,7 +541,7 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
         'memory.totalMem': String(os.totalmem()),
         'memory.heapSizeLimit': String(v8.getHeapStatistics().heap_size_limit),
       })
-      await startServerSpan.traceAsyncFn(() =>
+      const result = await startServerSpan.traceAsyncFn(() =>
         startServer(msg.nextWorkerOptions)
       )
       const memoryUsage = process.memoryUsage()
@@ -551,7 +554,11 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
         'memory.heapUsed',
         String(memoryUsage.heapUsed)
       )
-      process.send({ nextServerReady: true, port: process.env.PORT })
+      process.send({
+        nextServerReady: true,
+        port: process.env.PORT,
+        distDir: result.distDir,
+      })
     }
   })
   process.send({ nextWorkerReady: true })

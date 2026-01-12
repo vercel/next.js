@@ -1,7 +1,4 @@
-import {
-  abortAndThrowOnSynchronousRequestDataAccess,
-  postponeWithTracking,
-} from '../../app-render/dynamic-rendering'
+import { abortAndThrowOnSynchronousRequestDataAccess } from '../../app-render/dynamic-rendering'
 import { isDynamicRoute } from '../../../shared/lib/router/utils'
 import {
   NEXT_CACHE_IMPLICIT_TAG_ID,
@@ -11,6 +8,10 @@ import { workAsyncStorage } from '../../app-render/work-async-storage.external'
 import { workUnitAsyncStorage } from '../../app-render/work-unit-async-storage.external'
 import { DynamicServerError } from '../../../client/components/hooks-server-context'
 import { InvariantError } from '../../../shared/lib/invariant-error'
+import {
+  ActionDidRevalidateDynamicOnly,
+  ActionDidRevalidateStaticAndDynamic as ActionDidRevalidate,
+} from '../../../shared/lib/action-revalidation-kind'
 
 type CacheLifeConfig = {
   expire?: number
@@ -73,8 +74,9 @@ export function refresh() {
   }
 
   if (workStore) {
-    // TODO: break this to it's own field
-    workStore.pathWasRevalidated = true
+    // The Server Action version of refresh() only revalidates the dynamic data
+    // on the client. It doesn't affect cached data.
+    workStore.pathWasRevalidated = ActionDidRevalidateDynamicOnly
   }
 }
 
@@ -157,12 +159,6 @@ function revalidate(
         throw new InvariantError(
           `${expression} must not be used within a client component. Next.js should be preventing ${expression} from being included in client components statically, but did not in this case.`
         )
-      case 'prerender-ppr':
-        return postponeWithTracking(
-          store.route,
-          expression,
-          workUnitStore.dynamicTracking
-        )
       case 'prerender-legacy':
         workUnitStore.revalidate = 0
 
@@ -226,6 +222,6 @@ function revalidate(
 
   if (!profile || cacheLife?.expire === 0) {
     // TODO: only revalidate if the path matches
-    store.pathWasRevalidated = true
+    store.pathWasRevalidated = ActionDidRevalidate
   }
 }

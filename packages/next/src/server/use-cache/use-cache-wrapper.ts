@@ -58,7 +58,6 @@ import { getCacheHandler } from './handlers'
 import { UseCacheTimeoutError } from './use-cache-errors'
 import {
   createHangingInputAbortSignal,
-  postponeWithTracking,
   throwToInterruptStaticGeneration,
 } from '../app-render/dynamic-rendering'
 import {
@@ -230,7 +229,6 @@ function createUseCacheStore(
           break
         case 'prerender-runtime':
         case 'prerender':
-        case 'prerender-ppr':
         case 'prerender-legacy':
         case 'unstable-cache':
           break
@@ -364,7 +362,6 @@ function propagateCacheLifeAndTags(
       case 'private-cache':
       case 'prerender':
       case 'prerender-runtime':
-      case 'prerender-ppr':
       case 'prerender-legacy':
         propagateCacheLifeAndTagsToRevalidateStore(
           cacheContext.outerWorkUnitStore,
@@ -487,8 +484,7 @@ async function collectResult(
       case 'private-cache':
       case 'cache':
       case 'unstable-cache':
-      case 'prerender-legacy':
-      case 'prerender-ppr': {
+      case 'prerender-legacy': {
         propagateCacheLifeAndTags(cacheContext, entry)
         break
       }
@@ -564,7 +560,6 @@ async function generateCacheEntryImpl(
                       }
                     })
                     break
-                  case 'prerender-ppr':
                   case 'prerender-legacy':
                   case 'request':
                   case 'cache':
@@ -706,7 +701,6 @@ async function generateCacheEntryImpl(
         await new Promise((resolve) => setTimeout(resolve))
       }
     // fallthrough
-    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'cache':
     case 'private-cache':
@@ -839,10 +833,8 @@ export async function cache(
   id: string,
   boundArgsLength: number,
   originalFn: (...args: unknown[]) => Promise<unknown>,
-  argsObj: IArguments
+  args: unknown[]
 ) {
-  let args = Array.prototype.slice.call(argsObj)
-
   const isPrivate = kind === 'private'
 
   // Private caches are currently only stored in the Resume Data Cache (RDC),
@@ -888,12 +880,6 @@ export async function cache(
           workUnitStore.renderSignal,
           workStore.route,
           expression
-        )
-      case 'prerender-ppr':
-        return postponeWithTracking(
-          workStore.route,
-          expression,
-          workUnitStore.dynamicTracking
         )
       case 'prerender-legacy':
         return throwToInterruptStaticGeneration(
@@ -954,7 +940,6 @@ export async function cache(
         )
       case 'prerender':
       case 'prerender-runtime':
-      case 'prerender-ppr':
       case 'prerender-legacy':
       case 'request':
       case 'cache':
@@ -1124,7 +1109,7 @@ export async function cache(
       )
     }
 
-    const encryptedBoundArgs = args.shift()
+    const encryptedBoundArgs = args.shift() as Promise<string>
     const boundArgs = await decryptActionBoundArgs(id, encryptedBoundArgs)
 
     if (!Array.isArray(boundArgs)) {
@@ -1200,7 +1185,6 @@ export async function cache(
         break
       }
     // fallthrough
-    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'request':
     // TODO(restart-on-cache-miss): We need to handle params/searchParams on page components.
@@ -1256,6 +1240,20 @@ export async function cache(
               // generating static pages for such data. It's better to leave
               // a dynamic hole that can be filled in during the resume with
               // a potentially cached entry.
+              if (existingEntry.revalidate === 0) {
+                debug?.(
+                  'omitting entry',
+                  serializedCacheKey,
+                  'from static shell due to revalidate: 0'
+                )
+              } else {
+                debug?.(
+                  'omitting entry',
+                  serializedCacheKey,
+                  'from static shell due to short expire value:',
+                  existingEntry.expire
+                )
+              }
               if (cacheSignal) {
                 cacheSignal.endRead()
               }
@@ -1289,7 +1287,6 @@ export async function cache(
               }
               break
             }
-            case 'prerender-ppr':
             case 'prerender-legacy':
             case 'cache':
             case 'private-cache':
@@ -1307,6 +1304,12 @@ export async function cache(
               // stale in less then 30 seconds, we consider this cache entry
               // dynamic as it's not worth prefetching. It's better to leave
               // a dynamic hole that can be filled during the navigation.
+              debug?.(
+                'omitting entry',
+                serializedCacheKey,
+                'from runtime shell due to short stale value:',
+                existingEntry.stale
+              )
               if (cacheSignal) {
                 cacheSignal.endRead()
               }
@@ -1332,7 +1335,6 @@ export async function cache(
               break
             }
             case 'prerender':
-            case 'prerender-ppr':
             case 'prerender-legacy':
             case 'cache':
             case 'private-cache':
@@ -1343,6 +1345,8 @@ export async function cache(
           }
         }
       }
+
+      debug?.('Resume Data Cache entry found', serializedCacheKey)
 
       // We want to make sure we only propagate cache life & tags if the
       // entry was *not* omitted from the prerender. So we only do this
@@ -1360,6 +1364,8 @@ export async function cache(
         stream = streamA
       }
     } else {
+      debug?.('Resume Data Cache entry not found', serializedCacheKey)
+
       if (cacheSignal) {
         cacheSignal.endRead()
       }
@@ -1391,7 +1397,6 @@ export async function cache(
             }
             break
           case 'prerender-runtime':
-          case 'prerender-ppr':
           case 'prerender-legacy':
           case 'request':
           case 'cache':
@@ -1481,6 +1486,20 @@ export async function cache(
           // pages for such data. It's better to leave a dynamic hole that
           // can be filled in during the resume with a potentially cached
           // entry.
+          if (entry.revalidate === 0) {
+            debug?.(
+              'omitting entry',
+              serializedCacheKey,
+              'from static shell due to revalidate: 0'
+            )
+          } else {
+            debug?.(
+              'omitting entry',
+              serializedCacheKey,
+              'from static shell due to short expire value:',
+              entry.expire
+            )
+          }
           if (cacheSignal) {
             cacheSignal.endRead()
           }
@@ -1506,7 +1525,6 @@ export async function cache(
           break
         }
         case 'prerender-runtime':
-        case 'prerender-ppr':
         case 'prerender-legacy':
         case 'cache':
         case 'private-cache':
@@ -1747,7 +1765,6 @@ function shouldForceRevalidate(
       case 'prerender-runtime':
       case 'prerender':
       case 'prerender-client':
-      case 'prerender-ppr':
       case 'prerender-legacy':
       case 'unstable-cache':
         break
@@ -1790,7 +1807,6 @@ function shouldDiscardCacheEntry(
         return false
       case 'prerender-runtime':
       case 'prerender-client':
-      case 'prerender-ppr':
       case 'prerender-legacy':
       case 'request':
       case 'cache':

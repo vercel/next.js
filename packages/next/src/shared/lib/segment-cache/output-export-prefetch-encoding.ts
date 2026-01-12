@@ -16,9 +16,6 @@
 const DOCTYPE_PREFIX = '<!DOCTYPE html>' // 15 bytes
 const MAX_BUILD_ID_LENGTH = 24
 
-// Request the first 64 bytes. The Range header is inclusive of the end value.
-export const DOC_PREFETCH_RANGE_HEADER_VALUE = 'bytes=0-63'
-
 function escapeBuildId(buildId: string) {
   // If the build id is longer than the given limit, it's OK for our purposes
   // to only match the beginning.
@@ -46,16 +43,6 @@ export function insertBuildIdComment(originalHtml: string, buildId: string) {
   // The comment must be inserted after the doctype.
   return originalHtml.replace(
     DOCTYPE_PREFIX,
-    DOCTYPE_PREFIX + '<!--' + escapeBuildId(buildId) + '-->'
-  )
-}
-
-export function doesExportedHtmlMatchBuildId(
-  partialHtmlDocument: string,
-  buildId: string
-) {
-  // Check whether the document starts with the expected buildId.
-  return partialHtmlDocument.startsWith(
     DOCTYPE_PREFIX + '<!--' + escapeBuildId(buildId) + '-->'
   )
 }

@@ -2,19 +2,17 @@ use std::{borrow::Cow, fmt::Display, io::Write};
 
 use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::{
-    FileContent, FileSystem, FileSystemPath, LinkType, VirtualFileSystem, glob::Glob,
-    rope::RopeBuilder,
+    FileContent, FileSystem, FileSystemPath, LinkType, VirtualFileSystem, rope::RopeBuilder,
 };
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
     ident::{AssetIdent, Layer},
-    module::Module,
+    module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     output::{
         OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsReferences,
@@ -45,19 +43,7 @@ use crate::{
 };
 
 #[derive(
-    Copy,
-    Clone,
-    Debug,
-    Eq,
-    PartialEq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    TaskInput,
-    Hash,
-    NonLocalValue,
-    Encode,
-    Decode,
+    Copy, Clone, Debug, Eq, PartialEq, TraceRawVcs, TaskInput, Hash, NonLocalValue, Encode, Decode,
 )]
 pub enum CachedExternalType {
     CommonJs,
@@ -68,18 +54,7 @@ pub enum CachedExternalType {
 }
 
 #[derive(
-    Clone,
-    Debug,
-    Eq,
-    PartialEq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    TaskInput,
-    Hash,
-    NonLocalValue,
-    Encode,
-    Decode,
+    Clone, Debug, Eq, PartialEq, TraceRawVcs, TaskInput, Hash, NonLocalValue, Encode, Decode,
 )]
 /// Whether to add a traced reference to the external module using the given context and resolve
 /// origin.
@@ -360,7 +335,7 @@ impl Module for CachedExternalModule {
                             // == false`. Optimize this case by using `ModuleWithoutSelfAsync` to
                             // short circuit that computation and thus defer parsing traced modules
                             // to emitting to not block all of chunking on this.
-                            .map(|m| Vc::upcast(ModuleWithoutSelfAsync::new(*m))),
+                            .map(|m| Vc::upcast(SideEffectfulModuleWithoutSelfAsync::new(*m))),
                     )
                     .map(|s| {
                         Vc::upcast::<Box<dyn ModuleReference>>(TracedModuleReference::new(s))
@@ -382,11 +357,8 @@ impl Module for CachedExternalModule {
     }
 
     #[turbo_tasks::function]
-    fn is_marked_as_side_effect_free(
-        self: Vc<Self>,
-        _side_effect_free_packages: Vc<Glob>,
-    ) -> Vc<bool> {
-        Vc::cell(false)
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        ModuleSideEffects::SideEffectful.cell()
     }
 }
 
@@ -531,23 +503,23 @@ impl EcmascriptChunkItem for CachedExternalModuleChunkItem {
     }
 }
 
-/// A wrapper "passthrough" module type that always returns `false` for `is_self_async`. Be careful
-/// when using it, as it may hide async dependencies.
+/// A wrapper "passthrough" module type that always returns `false` for `is_self_async` and
+/// `SideEffects` for `side_effects`.Be careful when using it, as it may hide async dependencies.
 #[turbo_tasks::value]
-pub struct ModuleWithoutSelfAsync {
+struct SideEffectfulModuleWithoutSelfAsync {
     module: ResolvedVc<Box<dyn Module>>,
 }
 
 #[turbo_tasks::value_impl]
-impl ModuleWithoutSelfAsync {
+impl SideEffectfulModuleWithoutSelfAsync {
     #[turbo_tasks::function]
-    pub fn new(module: ResolvedVc<Box<dyn Module>>) -> Vc<Self> {
-        Self::cell(ModuleWithoutSelfAsync { module })
+    fn new(module: ResolvedVc<Box<dyn Module>>) -> Vc<Self> {
+        Self::cell(SideEffectfulModuleWithoutSelfAsync { module })
     }
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for ModuleWithoutSelfAsync {
+impl Asset for SideEffectfulModuleWithoutSelfAsync {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
         self.module.content()
@@ -555,7 +527,7 @@ impl Asset for ModuleWithoutSelfAsync {
 }
 
 #[turbo_tasks::value_impl]
-impl Module for ModuleWithoutSelfAsync {
+impl Module for SideEffectfulModuleWithoutSelfAsync {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
         self.module.ident()
@@ -571,6 +543,10 @@ impl Module for ModuleWithoutSelfAsync {
         self.module.references()
     }
 
+    #[turbo_tasks::function]
+    fn side_effects(&self) -> Vc<ModuleSideEffects> {
+        ModuleSideEffects::SideEffectful.cell()
+    }
     // Don't override and use default is_self_async that always returns false
 }
 

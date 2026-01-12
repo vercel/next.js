@@ -1,6 +1,5 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
@@ -224,19 +223,7 @@ impl CompileTimeDefines {
     }
 }
 
-#[derive(
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub enum InputRelativeConstant {
     // The project relative directory name of the source file
     DirName,
@@ -295,19 +282,7 @@ pub struct FreeVarReferences(
     pub  FxIndexMap<Vec<DefinableNameSegment>, FreeVarReference>,
 );
 
-#[derive(
-    Debug,
-    Default,
-    Clone,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub struct FreeVarReferenceVcs(
     #[bincode(with = "turbo_bincode::indexmap")]
     pub  FxIndexMap<Vec<DefinableNameSegment>, ResolvedVc<FreeVarReference>>,

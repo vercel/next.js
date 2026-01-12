@@ -86,7 +86,7 @@ export default async function Page() {
 }
 ```
 
-> **Good to know**: You can verify that a route was fully prerendered by checking the build output summary. Alternatively see what content was added to the static shell of any page by viewing the page source in your browser.
+> **Good to know**: You can verify that a route was fully prerendered by checking the build output summary. Alternatively, see what content was added to the static shell of any page by viewing the page source in your browser.
 
 ## Defer rendering to request time
 
@@ -102,12 +102,11 @@ External systems provide content asynchronously, which often takes an unpredicta
 
 In general, when you need the latest data from the source on each request (like real-time feeds or personalized content), defer rendering by providing fallback UI with a Suspense boundary.
 
-For example the `DynamicContent` component below uses multiple operations that are not automatically prerendered.
+For example, the `DynamicContent` component below uses multiple operations that are not automatically prerendered.
 
 ```tsx filename="page.tsx"
 import { Suspense } from 'react'
 import fs from 'node:fs/promises'
-import { setTimeout } from 'node:timers/promises'
 
 async function DynamicContent() {
   // Network request
@@ -120,7 +119,7 @@ async function DynamicContent() {
   const file = await fs.readFile('..', 'utf-8')
 
   // Simulating external system delay
-  await setTimeout(100) // from 'node:timers/promises'
+  await new Promise((resolve) => setTimeout(resolve, 100))
 
   return <div>Not in the static shell</div>
 }
@@ -158,7 +157,7 @@ A specific type of dynamic data that requires request context, only available wh
 - [`cookies()`](/docs/app/api-reference/functions/cookies) - User's cookie data
 - [`headers()`](/docs/app/api-reference/functions/headers) - Request headers
 - [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) - URL query parameters
-- [`params`](/docs/app/api-reference/file-conventions/page#params-optional) - Dynamic route parameters (unless at least one sample is provided via [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params))
+- [`params`](/docs/app/api-reference/file-conventions/page#params-optional) - Dynamic route parameters (unless at least one sample is provided via [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params)). See [Dynamic Routes with Cache Components](/docs/app/api-reference/file-conventions/dynamic-routes#with-cache-components) for detailed patterns.
 
 ```tsx filename="page.tsx"
 import { cookies, headers } from 'next/headers'
@@ -174,7 +173,7 @@ async function RuntimeData({ searchParams }) {
 }
 ```
 
-To use the `RuntimeData` component in, wrap it in a `<Suspense>` boundary:
+To use the `RuntimeData` component, wrap it in a `<Suspense>` boundary:
 
 ```tsx filename="page.tsx"
 export default async function Page(props) {
@@ -504,6 +503,12 @@ During prerendering the header (static) and the blog posts fetched from the API 
 
 When a user visits the page, they instantly see this prerendered shell with the header and blog posts. Only the personalized preferences need to stream in at request time since they depend on the user's cookies. This ensures fast initial page loads while still providing personalized content.
 
+## Metadata and Viewport
+
+`generateMetadata` and `generateViewport` are part of rendering your page or layout. During prerendering, their access to runtime data or uncached dynamic data is tracked separately from the rest of the page.
+
+If a page or layout is prerenderable but only metadata or viewport accesses uncached dynamic data or runtime data, Next.js requires an explicit choice: cache the data if possible, or signal that deferred rendering is intentional. See [Metadata with Cache Components](/docs/app/api-reference/functions/generate-metadata#with-cache-components) and [Viewport with Cache Components](/docs/app/api-reference/functions/generate-viewport#with-cache-components) for how to handle this.
+
 ## Enabling Cache Components
 
 You can enable Cache Components (which includes PPR) by adding the [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) option to your Next config file:
@@ -569,7 +574,7 @@ export default function Page() {
 
 ### `dynamic = "force-static"`
 
-Start by removing it. When unhandled dynamic or runtime data access is detected during development and built time, Next.js raises an error. Otherwise, the [prerendering](#automatically-prerendered-content) step automatically extracts the static HTML shell.
+Start by removing it. When unhandled dynamic or runtime data access is detected during development and build time, Next.js raises an error. Otherwise, the [prerendering](#automatically-prerendered-content) step automatically extracts the static HTML shell.
 
 For dynamic data access, add [`use cache`](#using-use-cache) as close to the data access as possible with a long [`cacheLife`](/docs/app/api-reference/functions/cacheLife) like `'max'` to maintain cached behavior. If needed, add it at the top of the page or layout.
 
