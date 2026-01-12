@@ -30,6 +30,7 @@
   "autoprefixer",
   "aws-crt",
   "bcrypt",
+  "better-auth",
   "better-sqlite3",
   "canvas",
   "chromadb-default-embed",
