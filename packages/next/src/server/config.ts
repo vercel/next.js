@@ -1350,6 +1350,9 @@ function assignDefaultsAndValidate(
   }
 
   if (result.cacheComponents) {
+    // TODO: remove once we've finished migrating internally to cacheComponents.
+    result.experimental.ppr = true
+
     // Prerender sourcemaps are enabled by default when using cacheComponents, unless explicitly disabled.
     if (result.enablePrerenderSourceMaps === undefined) {
       result.enablePrerenderSourceMaps = true
@@ -1601,8 +1604,7 @@ export default async function loadConfig(
       } else if (configFileName === 'next.config.ts') {
         userConfigModule = await transpileConfig({
           nextConfigPath: path,
-          configFileName,
-          cwd: dir,
+          dir,
         })
       } else {
         userConfigModule = await import(pathToFileURL(path).href)

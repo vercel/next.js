@@ -39,6 +39,13 @@ declare module '*.module.scss' {
   export default classes
 }
 
+// CSS side-effect imports (non-modules)
+// These are needed for `noUncheckedSideEffectImports` support
+// See: https://www.typescriptlang.org/tsconfig/#noUncheckedSideEffectImports
+declare module '*.css' {}
+declare module '*.sass' {}
+declare module '*.scss' {}
+
 // We implement the behavior of `import 'server-only'` and `import 'client-only'` on the compiler level
 // and thus don't require having them installed as dependencies.
 // By default it works fine with typescript, because (surprisingly) TSC *doesn't check side-effecting imports*.

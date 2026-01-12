@@ -6,7 +6,7 @@ import type {
   Mutable,
 } from '../router-reducer-types'
 import { handleExternalUrl, handleNavigationResult } from './navigate-reducer'
-import { navigateToSeededRoute } from '../../segment-cache/navigation'
+import { navigateToKnownRoute } from '../../segment-cache/navigation'
 import { refreshReducer } from './refresh-reducer'
 import { FreshnessPolicy } from '../ppr-navigations'
 
@@ -30,6 +30,7 @@ export function serverPatchReducer(
     return handleExternalUrl(state, mutable, retryUrl.href, false)
   }
   const currentUrl = new URL(state.canonicalUrl, location.origin)
+  const currentRenderedSearch = state.renderedSearch
   if (action.previousTree !== state.tree) {
     // There was another, more recent navigation since the once that
     // mismatched. We can abort the retry, but we still need to refresh the
@@ -44,12 +45,13 @@ export function serverPatchReducer(
   const pendingPush = false
   const shouldScroll = true
   const now = Date.now()
-  const result = navigateToSeededRoute(
+  const result = navigateToKnownRoute(
     now,
     retryUrl,
     retryCanonicalUrl,
     retrySeed,
     currentUrl,
+    currentRenderedSearch,
     state.cache,
     state.tree,
     FreshnessPolicy.RefreshAll,
