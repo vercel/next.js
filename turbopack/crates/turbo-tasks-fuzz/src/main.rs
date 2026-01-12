@@ -14,7 +14,9 @@ use rand::{Rng, RngCore, SeedableRng};
 use rustc_hash::FxHashSet;
 use tokio::time::sleep;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{NonLocalValue, ResolvedVc, TransientInstance, Vc, trace::TraceRawVcs};
+use turbo_tasks::{
+    NonLocalValue, ResolvedVc, TransientInstance, Vc, apply_effects, trace::TraceRawVcs,
+};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_fs::{
     DiskFileSystem, File, FileContent, FileSystem, FileSystemPath, LinkContent, LinkType,
@@ -156,7 +158,7 @@ async fn fuzz_fs_watcher(args: FsWatcher) -> anyhow::Result<()> {
         let symlink_is_directory =
             symlink_mode.map(|m| m.to_link_type().contains(LinkType::DIRECTORY));
 
-        read_or_write_all_paths_operation(
+        let initial_op = read_or_write_all_paths_operation(
             invalidations.clone(),
             project_root.clone(),
             args.depth,
@@ -164,9 +166,11 @@ async fn fuzz_fs_watcher(args: FsWatcher) -> anyhow::Result<()> {
             symlink_count,
             symlink_is_directory,
             track_writes,
-        )
-        .read_strongly_consistent()
-        .await?;
+        );
+        initial_op.read_strongly_consistent().await?;
+        if track_writes {
+            apply_effects(initial_op).await?;
+        }
         {
             let mut invalidations = invalidations.0.lock().unwrap();
             let verb = if track_writes { "wrote" } else { "read" };
@@ -228,7 +232,7 @@ async fn fuzz_fs_watcher(args: FsWatcher) -> anyhow::Result<()> {
             // there's no way to know when we've received all the pending events from the operating
             // system, so just sleep and pray
             sleep(Duration::from_millis(args.notify_timeout_ms)).await;
-            read_or_write_all_paths_operation(
+            let read_or_write_op = read_or_write_all_paths_operation(
                 invalidations.clone(),
                 project_root.clone(),
                 args.depth,
@@ -236,9 +240,11 @@ async fn fuzz_fs_watcher(args: FsWatcher) -> anyhow::Result<()> {
                 symlink_count,
                 symlink_is_directory,
                 track_writes,
-            )
-            .read_strongly_consistent()
-            .await?;
+            );
+            read_or_write_op.read_strongly_consistent().await?;
+            if track_writes {
+                apply_effects(read_or_write_op).await?;
+            }
             {
                 let mut invalidations = invalidations.0.lock().unwrap();
                 let symlink_info = if args.symlinks.is_some() {
