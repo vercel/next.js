@@ -662,7 +662,9 @@ pub trait TaskGuard: Debug {
     /// Only returns Some once per task.
     /// It returns a set of tasks and which info is needed.
     fn prefetch(&mut self) -> Option<FxIndexMap<TaskId, TaskDataCategory>>;
-    fn is_immutable(&self) -> bool;
+    fn is_immutable(&self) -> bool {
+        self.has_key(&CachedDataItemKey::Immutable {})
+    }
     fn is_dirty(&self) -> bool {
         get!(self, Dirty).is_some_and(|dirtyness| match dirtyness {
             Dirtyness::Dirty => true,
@@ -1006,10 +1008,6 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
             .chain(iter_many!(self, Child { task } => (task, TaskDataCategory::All)))
             .collect::<FxIndexMap<_, _>>();
         (map.len() > 1).then_some(map)
-    }
-
-    fn is_immutable(&self) -> bool {
-        self.task.contains_key(&CachedDataItemKey::Immutable {})
     }
 }
 
