@@ -58,6 +58,7 @@ import { getCacheHandler } from './handlers'
 import { UseCacheTimeoutError } from './use-cache-errors'
 import {
   createHangingInputAbortSignal,
+  postponeWithTracking,
   throwToInterruptStaticGeneration,
 } from '../app-render/dynamic-rendering'
 import {
@@ -229,6 +230,7 @@ function createUseCacheStore(
           break
         case 'prerender-runtime':
         case 'prerender':
+        case 'prerender-ppr':
         case 'prerender-legacy':
         case 'unstable-cache':
           break
@@ -362,6 +364,7 @@ function propagateCacheLifeAndTags(
       case 'private-cache':
       case 'prerender':
       case 'prerender-runtime':
+      case 'prerender-ppr':
       case 'prerender-legacy':
         propagateCacheLifeAndTagsToRevalidateStore(
           cacheContext.outerWorkUnitStore,
@@ -484,7 +487,8 @@ async function collectResult(
       case 'private-cache':
       case 'cache':
       case 'unstable-cache':
-      case 'prerender-legacy': {
+      case 'prerender-legacy':
+      case 'prerender-ppr': {
         propagateCacheLifeAndTags(cacheContext, entry)
         break
       }
@@ -560,6 +564,7 @@ async function generateCacheEntryImpl(
                       }
                     })
                     break
+                  case 'prerender-ppr':
                   case 'prerender-legacy':
                   case 'request':
                   case 'cache':
@@ -701,6 +706,7 @@ async function generateCacheEntryImpl(
         await new Promise((resolve) => setTimeout(resolve))
       }
     // fallthrough
+    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'cache':
     case 'private-cache':
@@ -881,6 +887,12 @@ export async function cache(
           workStore.route,
           expression
         )
+      case 'prerender-ppr':
+        return postponeWithTracking(
+          workStore.route,
+          expression,
+          workUnitStore.dynamicTracking
+        )
       case 'prerender-legacy':
         return throwToInterruptStaticGeneration(
           expression,
@@ -940,6 +952,7 @@ export async function cache(
         )
       case 'prerender':
       case 'prerender-runtime':
+      case 'prerender-ppr':
       case 'prerender-legacy':
       case 'request':
       case 'cache':
@@ -1185,6 +1198,7 @@ export async function cache(
         break
       }
     // fallthrough
+    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'request':
     // TODO(restart-on-cache-miss): We need to handle params/searchParams on page components.
@@ -1287,6 +1301,7 @@ export async function cache(
               }
               break
             }
+            case 'prerender-ppr':
             case 'prerender-legacy':
             case 'cache':
             case 'private-cache':
@@ -1335,6 +1350,7 @@ export async function cache(
               break
             }
             case 'prerender':
+            case 'prerender-ppr':
             case 'prerender-legacy':
             case 'cache':
             case 'private-cache':
@@ -1397,6 +1413,7 @@ export async function cache(
             }
             break
           case 'prerender-runtime':
+          case 'prerender-ppr':
           case 'prerender-legacy':
           case 'request':
           case 'cache':
@@ -1525,6 +1542,7 @@ export async function cache(
           break
         }
         case 'prerender-runtime':
+        case 'prerender-ppr':
         case 'prerender-legacy':
         case 'cache':
         case 'private-cache':
@@ -1765,6 +1783,7 @@ function shouldForceRevalidate(
       case 'prerender-runtime':
       case 'prerender':
       case 'prerender-client':
+      case 'prerender-ppr':
       case 'prerender-legacy':
       case 'unstable-cache':
         break
@@ -1807,6 +1826,7 @@ function shouldDiscardCacheEntry(
         return false
       case 'prerender-runtime':
       case 'prerender-client':
+      case 'prerender-ppr':
       case 'prerender-legacy':
       case 'request':
       case 'cache':

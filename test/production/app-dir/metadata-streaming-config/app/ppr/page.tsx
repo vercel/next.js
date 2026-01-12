@@ -1,15 +1,8 @@
-import { Suspense } from 'react'
 import { connection } from 'next/server'
 
-async function DynamicContent() {
+export default async function Page() {
   await connection()
   return <p>ppr</p>
 }
 
-export default function Page() {
-  return (
-    <Suspense fallback={<p>Loading...</p>}>
-      <DynamicContent />
-    </Suspense>
-  )
-}
+export const experimental_ppr = true

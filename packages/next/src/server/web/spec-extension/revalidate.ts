@@ -1,4 +1,7 @@
-import { abortAndThrowOnSynchronousRequestDataAccess } from '../../app-render/dynamic-rendering'
+import {
+  abortAndThrowOnSynchronousRequestDataAccess,
+  postponeWithTracking,
+} from '../../app-render/dynamic-rendering'
 import { isDynamicRoute } from '../../../shared/lib/router/utils'
 import {
   NEXT_CACHE_IMPLICIT_TAG_ID,
@@ -158,6 +161,12 @@ function revalidate(
       case 'prerender-client':
         throw new InvariantError(
           `${expression} must not be used within a client component. Next.js should be preventing ${expression} from being included in client components statically, but did not in this case.`
+        )
+      case 'prerender-ppr':
+        return postponeWithTracking(
+          store.route,
+          expression,
+          workUnitStore.dynamicTracking
         )
       case 'prerender-legacy':
         workUnitStore.revalidate = 0

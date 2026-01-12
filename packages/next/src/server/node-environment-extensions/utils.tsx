@@ -142,6 +142,7 @@ export function io(expression: string, type: ApiType) {
         }
       }
       break
+    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'cache':
     case 'private-cache':
