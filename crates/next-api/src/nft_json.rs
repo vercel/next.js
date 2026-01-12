@@ -147,10 +147,16 @@ impl Asset for NftJsonAsset {
         );
         async move {
             let mut result: BTreeSet<RcStr> = BTreeSet::new();
+            let project_path = this.project.project_path().owned().await?;
 
             let output_root_ref = this.project.output_fs().root().await?;
             let project_root_ref = this.project.project_fs().root().await?;
             let next_config = this.project.next_config();
+            let next_config_path = this
+                .project
+                .next_config()
+                .config_file_path(project_path.clone())
+                .await?;
 
             let output_file_tracing_includes = &*next_config.output_file_tracing_includes().await?;
             let output_file_tracing_excludes = &*next_config.output_file_tracing_excludes().await?;
@@ -173,7 +179,6 @@ impl Asset for NftJsonAsset {
                 .chain(std::iter::once(chunk))
                 .collect();
 
-            let project_path = this.project.project_path().owned().await?;
             let exclude_glob = if let Some(route) = &this.page_name {
                 if let Some(excludes_config) = output_file_tracing_excludes {
                     let mut combined_excludes = BTreeSet::new();
@@ -230,13 +235,11 @@ impl Asset for NftJsonAsset {
                 None
             };
 
+            let entries = Vc::cell(entries);
             // Collect base assets first
-            let all_assets = all_assets_from_entries_filtered(
-                Vc::cell(entries),
-                Some(client_root),
-                exclude_glob,
-            )
-            .await?;
+            let all_assets =
+                all_assets_from_entries_filtered(entries, Some(client_root.clone()), exclude_glob)
+                    .await?;
 
             for referenced_chunk in all_assets.iter().copied() {
                 if chunk.eq(&referenced_chunk) {
@@ -244,6 +247,19 @@ impl Asset for NftJsonAsset {
                 }
 
                 let referenced_chunk_path = referenced_chunk.path().await?;
+
+                if referenced_chunk_path == next_config_path {
+                    // If next.config.js was traced, assume that the whole project was traced
+                    // (unintentionally). Throw a build error in this case to avoid deploying
+                    // unnecessary files.
+                    error_unexpected_file(
+                        entries,
+                        Some(client_root.clone()),
+                        exclude_glob,
+                        *referenced_chunk,
+                    )
+                    .await?;
+                }
 
                 if referenced_chunk_path.has_extension(".map") {
                     continue;
@@ -440,6 +456,80 @@ pub async fn all_assets_from_entries_filtered(
             .map(|n| n.0)
             .collect(),
     ))
+}
+
+#[turbo_tasks::function]
+pub async fn error_unexpected_file(
+    entries: Vc<OutputAssets>,
+    client_root: Option<FileSystemPath>,
+    exclude_glob: Option<Vc<Glob>>,
+    referenced_chunk: ResolvedVc<Box<dyn OutputAsset>>,
+) -> Result<()> {
+    let exclude_glob = if let Some(exclude_glob) = exclude_glob {
+        Some(exclude_glob.await?)
+    } else {
+        None
+    };
+    let emit_spans = tracing::enabled!(Level::INFO);
+    let map = AdjacencyMap::new()
+        .visit(
+            entries
+                .await?
+                .iter()
+                .map(async |asset| {
+                    Ok((
+                        *asset,
+                        if emit_spans {
+                            // INVALIDATION: we don't need to invalidate the list of assets when
+                            // the span name changes
+                            Some(asset.path_string().untracked().await?)
+                        } else {
+                            None
+                        },
+                    ))
+                })
+                .try_join()
+                .await?,
+            OutputAssetFilteredVisit {
+                client_root,
+                exclude_glob,
+                emit_spans,
+            },
+        )
+        .await
+        .completed()?;
+
+    let reversed = map.reversed();
+
+    let mut path = vec![];
+    {
+        let mut current = (
+            referenced_chunk,
+            if emit_spans {
+                // INVALIDATION: we don't need to invalidate the list of assets when
+                // the span name changes
+                Some(referenced_chunk.path_string().untracked().await?)
+            } else {
+                None
+            },
+        );
+        while let Some((from, _)) = reversed.get(&current).and_then(|mut edges| edges.next()) {
+            current = from.clone();
+            path.push(current.0);
+        }
+    }
+
+    bail!(
+        "Encountered unexpected file in NFT list: {}\nDependency trace:\n{:#?}",
+        referenced_chunk.path_string().await?,
+        path.iter()
+            .rev()
+            .map(|a| a.path_string())
+            .try_join()
+            .await?
+    );
+
+    Ok(())
 }
 
 struct OutputAssetFilteredVisit {
