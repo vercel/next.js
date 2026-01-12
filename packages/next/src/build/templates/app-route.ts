@@ -6,7 +6,12 @@ import {
 import { RouteKind } from '../../server/route-kind'
 import { patchFetch as _patchFetch } from '../../server/lib/patch-fetch'
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { addRequestMeta, getRequestMeta } from '../../server/request-meta'
+import {
+  addRequestMeta,
+  getRequestMeta,
+  setRequestMeta,
+  type RequestMeta,
+} from '../../server/request-meta'
 import { getTracer, type Span, SpanKind } from '../../server/lib/trace/tracer'
 import { setManifestsSingleton } from '../../server/app-render/manifests-singleton'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
@@ -22,7 +27,7 @@ import {
   fromNodeOutgoingHttpHeaders,
   toNodeOutgoingHttpHeaders,
 } from '../../server/web/utils'
-import { getCacheControlHeader } from '../../server/lib/cache-control'
+import { setCacheControlHeaders } from '../../server/lib/cache-control'
 import { INFINITE_CACHE, NEXT_CACHE_TAGS_HEADER } from '../../lib/constants'
 import { NoFallbackError } from '../../shared/lib/no-fallback-error.external'
 import {
@@ -81,9 +86,13 @@ export async function handler(
   req: IncomingMessage,
   res: ServerResponse,
   ctx: {
-    waitUntil: (prom: Promise<void>) => void
+    waitUntil?: (prom: Promise<void>) => void
+    requestMeta?: RequestMeta
   }
 ) {
+  if (ctx.requestMeta) {
+    setRequestMeta(req, ctx.requestMeta)
+  }
   if (routeModule.isDev) {
     addRequestMeta(req, 'devRequestTimingInternalsEnd', process.hrtime.bigint())
   }
@@ -280,9 +289,7 @@ export async function handler(
         }
       })
     }
-    const isMinimalMode = Boolean(
-      process.env.MINIMAL_MODE || getRequestMeta(req, 'minimalMode')
-    )
+    const isMinimalMode = Boolean(getRequestMeta(req, 'minimalMode'))
 
     const handleResponse = async (currentSpan?: Span) => {
       const responseGenerator: ResponseGenerator = async ({
@@ -452,9 +459,10 @@ export async function handler(
         !res.getHeader('Cache-Control') &&
         !headers.get('Cache-Control')
       ) {
-        headers.set(
-          'Cache-Control',
-          getCacheControlHeader(cacheEntry.cacheControl)
+        setCacheControlHeaders(
+          headers,
+          cacheEntry.cacheControl,
+          nextConfig.experimental.cdnCacheControlHeader
         )
       }
 

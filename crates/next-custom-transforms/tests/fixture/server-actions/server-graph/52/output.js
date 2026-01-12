@@ -9,7 +9,7 @@ fn1([$$ACTION_ARG_0, $$ACTION_ARG_1], c) {
     return $$ACTION_ARG_0 + $$ACTION_ARG_1 + c;
 };
 export var $$RSC_SERVER_CACHE_0 = $$reactCache__(function fn1() {
-    return $$cache__("default", "e03128060c414d59f8552e4788b846c0d2b7f74743", 2, $$RSC_SERVER_CACHE_0_INNER, arguments);
+    return $$cache__("default", "e03128060c414d59f8552e4788b846c0d2b7f74743", 2, $$RSC_SERVER_CACHE_0_INNER, Array.prototype.slice.call(arguments, 0, 2));
 });
 registerServerReference($$RSC_SERVER_CACHE_0, "e03128060c414d59f8552e4788b846c0d2b7f74743", null);
 Object["defineProperty"]($$RSC_SERVER_CACHE_0, "name", {
@@ -21,7 +21,7 @@ fn2([$$ACTION_ARG_0, $$ACTION_ARG_1]) {
     return $$ACTION_ARG_0 + $$ACTION_ARG_1;
 };
 export var $$RSC_SERVER_CACHE_1 = $$reactCache__(function fn2() {
-    return $$cache__("default", "c0951c375b4a6a6e89d67b743ec5808127cfde405d", 2, $$RSC_SERVER_CACHE_1_INNER, arguments);
+    return $$cache__("default", "c0951c375b4a6a6e89d67b743ec5808127cfde405d", 2, $$RSC_SERVER_CACHE_1_INNER, Array.prototype.slice.call(arguments, 0, 1));
 });
 registerServerReference($$RSC_SERVER_CACHE_1, "c0951c375b4a6a6e89d67b743ec5808127cfde405d", null);
 Object["defineProperty"]($$RSC_SERVER_CACHE_1, "name", {

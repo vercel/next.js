@@ -10,7 +10,7 @@ use turbopack_core::{
     },
     context::AssetContext,
     ident::AssetIdent,
-    module::{Module, OptionModule},
+    module::{Module, ModuleSideEffects, OptionModule},
     module_graph::ModuleGraph,
     output::{OutputAssetsReference, OutputAssetsWithReferenced},
     reference::{ModuleReferences, SingleChunkableModuleReference},
@@ -61,20 +61,19 @@ impl WebAssemblyModuleAsset {
     }
 
     #[turbo_tasks::function]
-    async fn loader_as_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
-        let this = self.await?;
-        let query = &this.source.ident().await?.query;
+    async fn loader_as_module(&self) -> Result<Vc<Box<dyn Module>>> {
+        let query = &self.source.ident().await?.query;
 
         let loader_source = if query == "?module" {
-            compiling_loader_source(*this.source)
+            compiling_loader_source(*self.source)
         } else {
-            instantiating_loader_source(*this.source)
+            instantiating_loader_source(*self.source)
         };
 
-        let module = this.asset_context.process(
+        let module = self.asset_context.process(
             loader_source,
             ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
-                rcstr!("WASM_PATH") => ResolvedVc::upcast(RawWebAssemblyModuleAsset::new(*this.source, *this.asset_context).to_resolved().await?),
+                rcstr!("WASM_PATH") => ResolvedVc::upcast(RawWebAssemblyModuleAsset::new(*self.source, *self.asset_context).to_resolved().await?),
             })),
         ).module();
 
@@ -143,6 +142,14 @@ impl Module for WebAssemblyModuleAsset {
     #[turbo_tasks::function]
     fn is_self_async(self: Vc<Self>) -> Vc<bool> {
         Vc::cell(true)
+    }
+
+    #[turbo_tasks::function]
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        // Both versions of this module have a top level await that instantiates a wasm module
+        // wasm module instantiation can trigger arbitrary side effects from the native start
+        // function
+        ModuleSideEffects::SideEffectful.cell()
     }
 }
 

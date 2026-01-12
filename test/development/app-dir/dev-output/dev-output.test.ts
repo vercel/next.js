@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-const { version: nextVersion } = require('next/package.json')
+import { retry } from 'next-test-utils'
 
 const cacheComponentsEnabled = process.env.__NEXT_CACHE_COMPONENTS === 'true'
 
@@ -9,42 +9,30 @@ describe('dev-output', () => {
   })
 
   it('shows Cache Components indicator when enabled', async () => {
-    const preamble = getPreambleOutput(next.cliOutput)
+    await next.fetch('/')
+    await retry(async () => {
+      const output = next.cliOutput
 
-    if (cacheComponentsEnabled) {
-      if (isTurbopack) {
-        expect(preamble).toContain('Next.js')
-        expect(preamble).toContain('Turbopack')
-        expect(preamble).toContain('Cache Components')
+      if (cacheComponentsEnabled) {
+        if (isTurbopack) {
+          expect(output).toContain('Next.js')
+          expect(output).toContain('Turbopack')
+          expect(output).toContain('Cache Components')
+        } else {
+          expect(output).toContain('Next.js')
+          expect(output).toContain('webpack')
+          expect(output).toContain('Cache Components')
+        }
       } else {
-        expect(preamble).toContain('Next.js')
-        expect(preamble).toContain('webpack')
-        expect(preamble).toContain('Cache Components')
+        // When cache components env is not set, should not show the indicator
+        expect(output).toContain('Next.js')
+        if (isTurbopack) {
+          expect(output).toContain('Turbopack')
+        } else {
+          expect(output).toContain('webpack')
+        }
+        expect(output).not.toContain('Cache Components')
       }
-    } else {
-      // When cache components env is not set, should not show the indicator
-      expect(preamble).toContain('Next.js')
-      if (isTurbopack) {
-        expect(preamble).toContain('Turbopack')
-      } else {
-        expect(preamble).toContain('webpack')
-      }
-      expect(preamble).not.toContain('Cache Components')
-    }
+    })
   })
 })
-
-function getPreambleOutput(cliOutput: string): string {
-  const lines: string[] = []
-
-  for (const line of cliOutput.split('\n')) {
-    // Capture lines up to and including the "Local:" line
-    lines.push(line.replace(nextVersion, 'x.y.z'))
-
-    if (line.includes('Local:')) {
-      break
-    }
-  }
-
-  return lines.join('\n').trim()
-}

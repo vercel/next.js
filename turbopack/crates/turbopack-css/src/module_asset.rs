@@ -16,7 +16,7 @@ use turbopack_core::{
         Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
         OptionStyledString, StyledString,
     },
-    module::Module,
+    module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     output::OutputAssetsReference,
     reference::{ModuleReference, ModuleReferences},
@@ -110,6 +110,13 @@ impl Module for ModuleCssAsset {
             .collect();
 
         Ok(Vc::cell(references))
+    }
+
+    #[turbo_tasks::function]
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        // modules can still effect global styles using `:root` selectors and other similar features
+        // We could do better with some static analysis if we want
+        ModuleSideEffects::SideEffectful.cell()
     }
 }
 
@@ -438,7 +445,7 @@ fn generate_minimal_source_map(filename: String, source: String) -> Result<Rope>
     }
     let sm: Arc<SourceMap> = Default::default();
     sm.new_source_file(FileName::Custom(filename).into(), source);
-    let map = generate_js_source_map(&*sm, mappings, None, true, true)?;
+    let map = generate_js_source_map(&*sm, mappings, None, true, true, Default::default())?;
     Ok(map)
 }
 

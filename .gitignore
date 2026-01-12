@@ -63,3 +63,13 @@ test-timings.json
 
 # Storybook
 *storybook.log
+
+# Claude Code (local settings and session files)
+.claude/settings.local.json
+.claude/plans/
+.claude/todos.json
+CLAUDE.local.md
+
+# Conductor (worktrees created by Conductor app, but keep scripts/)
+.conductor/*/
+!.conductor/scripts/

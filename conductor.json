@@ -1,0 +1,24 @@
+{
+  "name": "next.js",
+  "description": "Next.js framework development workspace",
+  "scripts": {
+    "setup": "./.conductor/scripts/setup.sh",
+    "run": "./.conductor/scripts/run.sh"
+  },
+  "worktree": {
+    "default_branch": "canary"
+  },
+  "environment": {
+    "NEXT_TELEMETRY_DISABLED": "1",
+    "TURBO_TELEMETRY_DISABLED": "1"
+  },
+  "recommendations": {
+    "parallel_agents": 3,
+    "notes": [
+      "Each worktree uses ~500MB-1GB disk space after build",
+      "Run 'pnpm sweep' periodically to clean Rust build artifacts",
+      "Use 'pnpm test-dev-turbo' for fastest test iteration",
+      "Never run 'pnpm build' while 'pnpm dev' is active (causes corruption)"
+    ]
+  }
+}

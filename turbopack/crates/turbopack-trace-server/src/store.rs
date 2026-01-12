@@ -16,7 +16,11 @@ use crate::{
 
 pub type SpanId = NonZeroUsize;
 
-const CUT_OFF_DEPTH: u32 = 150;
+/// This max depth is used to avoid deep recursion in the span tree,
+/// which can lead to stack overflows and performance issues.
+/// Spans deeper than this depth will be re-parented to an ancestor
+/// at the cut-off depth (Flattening).
+const CUT_OFF_DEPTH: u32 = 80;
 
 pub struct Store {
     pub(crate) spans: Vec<Span>,
@@ -110,17 +114,25 @@ impl Store {
             extra: OnceLock::new(),
             names: OnceLock::new(),
         });
-        let parent = if let Some(parent) = parent {
+        let mut parent = if let Some(parent) = parent {
             outdated_spans.insert(parent);
             &mut self.spans[parent.get()]
         } else {
             &mut self.spans[0]
         };
-        parent.start = min(parent.start, start);
-        let depth = parent.depth + 1;
+        let mut depth = parent.depth + 1;
+        if depth >= CUT_OFF_DEPTH
+            && let Some(parent_of_parent) = parent.parent
+        {
+            outdated_spans.insert(parent_of_parent);
+            self.spans[id.get()].parent = Some(parent_of_parent);
+            parent = &mut self.spans[parent_of_parent.get()];
+            depth = CUT_OFF_DEPTH - 1;
+        }
         if depth < CUT_OFF_DEPTH {
             parent.events.push(SpanEvent::Child { index: id });
         }
+        parent.start = min(parent.start, start);
         let span = &mut self.spans[id.get()];
         span.depth = depth;
         id

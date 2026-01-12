@@ -53,6 +53,8 @@ pub struct Options {
     pub is_react_server_layer: bool,
     pub cache_components_enabled: bool,
     pub use_cache_enabled: bool,
+    #[serde(default)]
+    pub taint_enabled: bool,
 }
 
 /// A visitor that transforms given module to use module proxy if it's a React
@@ -63,6 +65,7 @@ struct ReactServerComponents<C: Comments> {
     is_react_server_layer: bool,
     cache_components_enabled: bool,
     use_cache_enabled: bool,
+    taint_enabled: bool,
     filepath: String,
     app_dir: Option<PathBuf>,
     comments: C,
@@ -96,6 +99,7 @@ enum RSCErrorKind {
     NextRscErrDeprecatedApi((String, String, Span)),
     NextSsrDynamicFalseNotAllowed(Span),
     NextRscErrIncompatibleRouteSegmentConfig(Span, String, NextConfigProperty),
+    NextRscErrTaintWithoutConfig((String, Span)),
 }
 
 #[derive(Clone, Debug, Copy)]
@@ -128,6 +132,7 @@ impl<C: Comments> VisitMut for ReactServerComponents<C> {
             self.is_react_server_layer,
             self.cache_components_enabled,
             self.use_cache_enabled,
+            self.taint_enabled,
             self.filepath.clone(),
             self.app_dir.clone(),
         );
@@ -329,7 +334,7 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
             )
         },
         RSCErrorKind::NextRscErrClientMetadataExport((source, span)) => {
-            (format!("You are attempting to export \"{source}\" from a component marked with \"use client\", which is disallowed. Either remove the export, or the \"use client\" directive. Read more: https://nextjs.org/docs/app/api-reference/directives/use-client\n\n"), vec![span])
+            (format!("You are attempting to export \"{source}\" from a component marked with \"use client\", which is disallowed. \"{source}\" must be resolved on the server before the page component is rendered. Keep your page as a Server Component and move Client Component logic to a separate file. Read more: https://nextjs.org/docs/app/api-reference/functions/generate-metadata#why-generatemetadata-is-server-component-only\n\n"), vec![span])
         },
         RSCErrorKind::NextRscErrConflictMetadataExport((span1, span2)) => (
             "\"metadata\" and \"generateMetadata\" cannot be exported at the same time, please keep one of them. Read more: https://nextjs.org/docs/app/api-reference/file-conventions/metadata\n\n".to_string(),
@@ -354,6 +359,12 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
         ),
         RSCErrorKind::NextRscErrIncompatibleRouteSegmentConfig(span, segment, property) => (
             format!("Route segment config \"{segment}\" is not compatible with `nextConfig.{property}`. Please remove it."),
+            vec![span],
+        ),
+        RSCErrorKind::NextRscErrTaintWithoutConfig((api_name, span)) => (
+            format!(
+                "You're importing `{api_name}` from React which requires `experimental.taint: true` in your Next.js config. Learn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/taint"
+            ),
             vec![span],
         ),
     };
@@ -576,6 +587,7 @@ struct ReactServerComponentValidator {
     is_react_server_layer: bool,
     cache_components_enabled: bool,
     use_cache_enabled: bool,
+    taint_enabled: bool,
     filepath: String,
     app_dir: Option<PathBuf>,
     invalid_server_imports: Vec<Wtf8Atom>,
@@ -583,6 +595,8 @@ struct ReactServerComponentValidator {
     deprecated_apis_mapping: FxHashMap<Wtf8Atom, Vec<&'static str>>,
     invalid_client_imports: Vec<Wtf8Atom>,
     invalid_client_lib_apis_mapping: FxHashMap<Wtf8Atom, Vec<&'static str>>,
+    /// React taint APIs that require `experimental.taint` config
+    react_taint_apis: Vec<&'static str>,
     pub module_directive: Option<ModuleDirective>,
     pub export_names: Vec<Atom>,
     imports: ImportMap,
@@ -593,6 +607,7 @@ impl ReactServerComponentValidator {
         is_react_server_layer: bool,
         cache_components_enabled: bool,
         use_cache_enabled: bool,
+        taint_enabled: bool,
         filename: String,
         app_dir: Option<PathBuf>,
     ) -> Self {
@@ -600,6 +615,7 @@ impl ReactServerComponentValidator {
             is_react_server_layer,
             cache_components_enabled,
             use_cache_enabled,
+            taint_enabled,
             filepath: filename,
             app_dir,
             module_directive: None,
@@ -689,6 +705,10 @@ impl ReactServerComponentValidator {
                     ],
                 ),
             ]),
+            react_taint_apis: vec![
+                "experimental_taintObjectReference",
+                "experimental_taintUniqueValue",
+            ],
             imports: ImportMap::default(),
         }
     }
@@ -735,6 +755,35 @@ impl ReactServerComponentValidator {
                         &self.app_dir,
                         &self.filepath,
                         RSCErrorKind::NextRscErrReactApi((specifier.0.to_string(), specifier.1)),
+                    );
+                }
+            }
+        }
+    }
+
+    /// Check for React taint API imports when taint is not enabled
+    fn assert_react_taint_apis(&self, imports: &[ModuleImports]) {
+        // Skip check if taint is enabled or if file is from node_modules
+        if self.taint_enabled || self.is_from_node_modules(&self.filepath) {
+            return;
+        }
+
+        for import in imports {
+            let source = &import.source.0;
+            // Only check imports from 'react'
+            if source.as_str() != Some("react") {
+                continue;
+            }
+
+            for specifier in &import.specifiers {
+                if self.react_taint_apis.contains(&specifier.0.as_str()) {
+                    report_error(
+                        &self.app_dir,
+                        &self.filepath,
+                        RSCErrorKind::NextRscErrTaintWithoutConfig((
+                            specifier.0.to_string(),
+                            specifier.1,
+                        )),
                     );
                 }
             }
@@ -1043,6 +1092,9 @@ impl Visit for ReactServerComponentValidator {
         self.module_directive = directive;
         self.export_names = export_names;
 
+        // Check for taint API usage without config (runs for all files)
+        self.assert_react_taint_apis(&imports);
+
         if self.is_react_server_layer {
             if directive == Some(ModuleDirective::UseClient) {
                 return;
@@ -1094,6 +1146,10 @@ pub fn server_components_assert(
         Config::WithOptions(x) => x.use_cache_enabled,
         _ => false,
     };
+    let taint_enabled: bool = match &config {
+        Config::WithOptions(x) => x.taint_enabled,
+        _ => false,
+    };
     let filename = match filename {
         FileName::Custom(path) => format!("<{path}>"),
         _ => filename.to_string(),
@@ -1102,6 +1158,7 @@ pub fn server_components_assert(
         is_react_server_layer,
         cache_components_enabled,
         use_cache_enabled,
+        taint_enabled,
         filename,
         app_dir,
     )
@@ -1127,10 +1184,15 @@ pub fn server_components<C: Comments>(
         Config::WithOptions(x) => x.use_cache_enabled,
         _ => false,
     };
+    let taint_enabled: bool = match &config {
+        Config::WithOptions(x) => x.taint_enabled,
+        _ => false,
+    };
     visit_mut_pass(ReactServerComponents {
         is_react_server_layer,
         cache_components_enabled,
         use_cache_enabled,
+        taint_enabled,
         comments,
         filepath: match &*filename {
             FileName::Custom(path) => format!("<{path}>"),

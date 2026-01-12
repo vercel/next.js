@@ -105,19 +105,6 @@ function HistoryUpdater({
   return null
 }
 
-export function createEmptyCacheNode(): CacheNode {
-  return {
-    lazyData: null,
-    rsc: null,
-    prefetchRsc: null,
-    head: null,
-    prefetchHead: null,
-    parallelRoutes: new Map(),
-    loading: null,
-    navigatedAt: -1,
-  }
-}
-
 function copyNextJsInternalHistoryState(data: any) {
   if (data == null) data = {}
   const currentState = window.history.state
@@ -437,6 +424,7 @@ function Router({
       parentCacheNode: cache,
       parentSegmentPath: null,
       parentParams: {},
+      parentLoadingData: null,
       // This is the <Activity> "name" that shows up in the Suspense DevTools.
       // It represents the root of the app.
       debugNameContext: '/',

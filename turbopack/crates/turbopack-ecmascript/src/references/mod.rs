@@ -39,7 +39,6 @@ use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
-use serde::{Deserialize, Serialize};
 use swc_core::{
     atoms::{Atom, Wtf8Atom, atom},
     common::{
@@ -77,7 +76,7 @@ use turbopack_core::{
     environment::Rendering,
     error::PrettyPrintError,
     issue::{IssueExt, IssueSeverity, IssueSource, StyledString, analyze::AnalyzeIssue},
-    module::Module,
+    module::{Module, ModuleSideEffects},
     reference::{ModuleReference, ModuleReferences},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{
@@ -111,7 +110,7 @@ use crate::{
         },
         imports::{ImportAnnotations, ImportAttributes, ImportedSymbol, Reexport},
         linker::link,
-        parse_require_context,
+        parse_require_context, side_effects,
         top_level_await::has_top_level_await,
         well_known::replace_well_known,
     },
@@ -172,7 +171,7 @@ pub struct AnalyzeEcmascriptModuleResult {
     pub code_generation: ResolvedVc<CodeGens>,
     pub exports: ResolvedVc<EcmascriptExports>,
     pub async_module: ResolvedVc<OptionAsyncModule>,
-    pub has_side_effect_free_directive: bool,
+    pub side_effects: ModuleSideEffects,
     /// `true` when the analysis was successful.
     pub successful: bool,
     pub source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
@@ -233,7 +232,7 @@ struct AnalyzeEcmascriptModuleResultBuilder {
     async_module: ResolvedVc<OptionAsyncModule>,
     successful: bool,
     source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
-    has_side_effect_free_directive: bool,
+    side_effects: ModuleSideEffects,
     #[cfg(debug_assertions)]
     ident: RcStr,
 }
@@ -253,7 +252,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             async_module: ResolvedVc::cell(None),
             successful: false,
             source_map: None,
-            has_side_effect_free_directive: false,
+            side_effects: ModuleSideEffects::SideEffectful,
             #[cfg(debug_assertions)]
             ident: Default::default(),
         }
@@ -331,8 +330,8 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     }
 
     /// Set whether this module is side-effect free according to a user-provided directive.
-    pub fn set_has_side_effect_free_directive(&mut self, value: bool) {
-        self.has_side_effect_free_directive = value;
+    pub fn set_side_effects_mode(&mut self, value: ModuleSideEffects) {
+        self.side_effects = value;
     }
 
     /// Sets whether the analysis was successful.
@@ -443,7 +442,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                 code_generation: ResolvedVc::cell(code_generation),
                 exports: self.exports.resolved_cell(),
                 async_module: self.async_module,
-                has_side_effect_free_directive: self.has_side_effect_free_directive,
+                side_effects: self.side_effects,
                 successful: self.successful,
                 source_map: self.source_map,
             },
@@ -658,7 +657,21 @@ async fn analyze_ecmascript_module_internal(
         },
         _ => false,
     });
-    analysis.set_has_side_effect_free_directive(has_side_effect_free_directive);
+    analysis.set_side_effects_mode(if has_side_effect_free_directive {
+        ModuleSideEffects::SideEffectFree
+    } else if options.infer_module_side_effects {
+        // Analyze the AST to infer side effects
+        GLOBALS.set(globals, || {
+            side_effects::compute_module_evaluation_side_effects(
+                program,
+                comments,
+                eval_context.unresolved_mark,
+            )
+        })
+    } else {
+        // If inference is disabled, assume side effects
+        ModuleSideEffects::SideEffectful
+    });
 
     let is_esm = eval_context.is_esm(specified_type);
     let compile_time_info = compile_time_info_for_module_options(
@@ -852,6 +865,7 @@ async fn analyze_ecmascript_module_internal(
                     &import_references,
                     &mut analysis,
                     analyze_mode,
+                    &var_graph,
                 );
                 // ModuleReferencesVisitor has already called analysis.add_esm_reexport_reference
                 // for any references in esm_exports
@@ -3525,6 +3539,7 @@ struct ModuleReferencesVisitor<'a> {
     webpack_runtime: Option<(RcStr, Span)>,
     webpack_entry: bool,
     webpack_chunks: Vec<Lit>,
+    var_graph: &'a VarGraph,
 }
 
 impl<'a> ModuleReferencesVisitor<'a> {
@@ -3533,6 +3548,7 @@ impl<'a> ModuleReferencesVisitor<'a> {
         import_references: &'a [ResolvedVc<EsmAssetReference>],
         analysis: &'a mut AnalyzeEcmascriptModuleResultBuilder,
         analyze_mode: AnalyzeMode,
+        var_graph: &'a VarGraph,
     ) -> Self {
         Self {
             analyze_mode,
@@ -3544,6 +3560,32 @@ impl<'a> ModuleReferencesVisitor<'a> {
             webpack_runtime: None,
             webpack_entry: false,
             webpack_chunks: Vec::new(),
+            var_graph,
+        }
+    }
+}
+
+impl<'a> ModuleReferencesVisitor<'a> {
+    /// Returns the liveness of a given export identifier.  An export is live if it might
+    /// change values after module evaluation.
+    fn get_export_ident_liveness(&self, id: Id) -> Liveness {
+        if let Some(crate::analyzer::graph::VarMeta {
+            value: _,
+            assignment_scopes: assignment_kinds,
+        }) = self.var_graph.values.get(&id)
+        {
+            // If all assignments are in module scope, the export is not live.
+            if *assignment_kinds != crate::analyzer::graph::AssignmentScopes::AllInModuleEvalScope {
+                Liveness::Live
+            } else {
+                Liveness::Constant
+            }
+        } else {
+            // If we haven't computed a value for it, that means it might be
+            // A free variable
+            // an imported variable
+            // In those cases, we just assume that the value is live since we don't know anything
+            Liveness::Live
         }
     }
 }
@@ -3612,6 +3654,7 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
             .map(find_turbopack_part_id_in_asserts)
             .is_some();
 
+        // This is for a statement like `export {a, b as c}` with no `from` clause.
         if export.src.is_none() {
             for spec in export.specifiers.iter() {
                 fn to_rcstr(name: &ModuleExportName) -> RcStr {
@@ -3652,14 +3695,20 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
                                     EsmExport::ImportedNamespace(ResolvedVc::upcast(esm_ref))
                                 }
                             } else {
+                                let liveness = match orig {
+                                    ModuleExportName::Ident(ident) => {
+                                        self.get_export_ident_liveness(ident.to_id())
+                                    }
+                                    ModuleExportName::Str(_) => Liveness::Constant,
+                                };
+
                                 EsmExport::LocalBinding(
                                     binding_name,
                                     if is_fake_esm {
+                                        // it is likely that these are not always actually mutable.
                                         Liveness::Mutable
                                     } else {
-                                        // If this is `export {foo} from 'mod'` and `foo` is a const
-                                        // in mod then we could export as Const here.
-                                        Liveness::Live
+                                        liveness
                                     },
                                 )
                             }
@@ -3684,30 +3733,23 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
     ) {
         {
             let decl: &Decl = &export.decl;
-            let insert_export_binding = &mut |name: RcStr, liveness: Liveness| {
+            let insert_export_binding = &mut |id: &Atom, ctx: SyntaxContext| {
+                let liveness = self.get_export_ident_liveness((id.clone(), ctx));
+                let name: RcStr = id.as_str().into();
                 self.esm_exports
                     .insert(name.clone(), EsmExport::LocalBinding(name, liveness));
             };
             match decl {
                 Decl::Class(ClassDecl { ident, .. }) | Decl::Fn(FnDecl { ident, .. }) => {
-                    // TODO: examine whether the value is ever mutated rather than just checking
-                    // 'const'
-                    insert_export_binding(ident.sym.as_str().into(), Liveness::Live);
+                    insert_export_binding(&ident.sym, ident.ctxt);
                 }
                 Decl::Var(var_decl) => {
-                    // TODO: examine whether the value is ever mutated rather than just checking
-                    // 'const'
-                    let liveness = match var_decl.kind {
-                        VarDeclKind::Var => Liveness::Live,
-                        VarDeclKind::Let => Liveness::Live,
-                        VarDeclKind::Const => Liveness::Constant,
-                    };
-                    let decls = &*var_decl.decls;
-                    decls.iter().for_each(|VarDeclarator { name, .. }| {
-                        for_each_ident_in_pat(name, &mut |name, _| {
-                            insert_export_binding(name.as_str().into(), liveness)
-                        })
-                    });
+                    var_decl
+                        .decls
+                        .iter()
+                        .for_each(|VarDeclarator { name, .. }| {
+                            for_each_ident_in_pat(name, insert_export_binding);
+                        });
                 }
                 Decl::Using(_) => {
                     // See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/export#:~:text=You%20cannot%20use%20export%20on%20a%20using%20or%20await%20using%20declaration
@@ -3755,21 +3797,18 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
     ) {
         match &export.decl {
             DefaultDecl::Class(ClassExpr { ident, .. }) | DefaultDecl::Fn(FnExpr { ident, .. }) => {
-                self.esm_exports.insert(
-                    rcstr!("default"),
-                    EsmExport::LocalBinding(
-                        ident
-                            .as_ref()
-                            .map(|i| i.sym.as_str().into())
-                            .unwrap_or_else(|| magic_identifier::mangle("default export").into()),
-                        // Default export declarations can only be mutated if they have a name.
-                        if ident.is_some() {
-                            Liveness::Live
-                        } else {
-                            Liveness::Constant
-                        },
+                let export = match ident {
+                    Some(ident) => EsmExport::LocalBinding(
+                        ident.sym.as_str().into(),
+                        self.get_export_ident_liveness(ident.to_id()),
                     ),
-                );
+                    // If there is no name, like `export default function(){}` then it is not live.
+                    None => EsmExport::LocalBinding(
+                        magic_identifier::mangle("default export").into(),
+                        Liveness::Constant,
+                    ),
+                };
+                self.esm_exports.insert(rcstr!("default"), export);
             }
             DefaultDecl::TsInterfaceDecl(..) => {
                 // ignore
@@ -3920,9 +3959,7 @@ async fn resolve_as_webpack_runtime(
     }
 }
 
-#[derive(
-    Hash, Debug, Clone, Eq, Serialize, Deserialize, PartialEq, TraceRawVcs, Encode, Decode,
-)]
+#[derive(Hash, Debug, Clone, Eq, PartialEq, TraceRawVcs, Encode, Decode)]
 pub struct AstPath(
     #[bincode(with_serde)]
     #[turbo_tasks(trace_ignore)]

@@ -10,7 +10,7 @@ mod update_collectible;
 use std::{
     fmt::{Debug, Formatter},
     mem::transmute,
-    sync::{Arc, atomic::Ordering},
+    sync::atomic::Ordering,
 };
 
 use bincode::{Decode, Encode};
@@ -21,10 +21,9 @@ use turbo_tasks::{
 use crate::{
     backend::{
         OperationGuard, TaskDataCategory, TransientTask, TurboTasksBackend, TurboTasksBackendInner,
-        TurboTasksBackendJob,
         storage::{SpecificTaskDataCategory, StorageWriteGuard, get, iter_many, remove},
     },
-    backing_storage::BackingStorage,
+    backing_storage::{BackingStorage, BackingStorageSealed},
     data::{
         CachedDataItem, CachedDataItemKey, CachedDataItemType, CachedDataItemValue,
         CachedDataItemValueRef, CachedDataItemValueRefMut, Dirtyness,
@@ -50,6 +49,27 @@ pub trait ExecuteContext<'e>: Sized {
     where
         'e: 'l;
     fn task(&mut self, task_id: TaskId, category: TaskDataCategory) -> Self::TaskGuardImpl;
+    /// Prepares (as in fetches from persistent storage) a list of tasks.
+    /// The iterator should not have duplicates, as this would cause over-fetching.
+    fn prepare_tasks(
+        &mut self,
+        task_ids: impl IntoIterator<Item = (TaskId, TaskDataCategory)> + Clone,
+    );
+    fn for_each_task(
+        &mut self,
+        task_ids: impl IntoIterator<Item = (TaskId, TaskDataCategory)>,
+        func: impl FnMut(Self::TaskGuardImpl, &mut Self),
+    );
+    fn for_each_task_meta(
+        &mut self,
+        task_ids: impl IntoIterator<Item = TaskId>,
+        func: impl FnMut(Self::TaskGuardImpl, &mut Self),
+    ) {
+        self.for_each_task(
+            task_ids.into_iter().map(|id| (id, TaskDataCategory::Meta)),
+            func,
+        )
+    }
     fn is_once_task(&self, task_id: TaskId) -> bool;
     fn task_pair(
         &mut self,
@@ -83,7 +103,7 @@ where
     _operation_guard: Option<OperationGuard<'e, B>>,
     transaction: TransactionState<'e, 'tx, B>,
     #[cfg(debug_assertions)]
-    active_task_locks: Arc<std::sync::atomic::AtomicU8>,
+    active_task_locks: std::sync::Arc<std::sync::atomic::AtomicU8>,
 }
 
 impl<'e, 'tx, B: BackingStorage> ExecuteContextImpl<'e, 'tx, B>
@@ -100,7 +120,7 @@ where
             _operation_guard: Some(backend.start_operation()),
             transaction: TransactionState::None,
             #[cfg(debug_assertions)]
-            active_task_locks: Arc::new(std::sync::atomic::AtomicU8::new(0)),
+            active_task_locks: std::sync::Arc::new(std::sync::atomic::AtomicU8::new(0)),
         }
     }
 
@@ -115,21 +135,16 @@ where
             _operation_guard: Some(backend.start_operation()),
             transaction: TransactionState::Borrowed(transaction),
             #[cfg(debug_assertions)]
-            active_task_locks: Arc::new(std::sync::atomic::AtomicU8::new(0)),
+            active_task_locks: std::sync::Arc::new(std::sync::atomic::AtomicU8::new(0)),
         }
     }
 
-    fn restore_task_data(
-        &mut self,
-        task_id: TaskId,
-        category: TaskDataCategory,
-    ) -> Vec<CachedDataItem> {
+    fn ensure_transaction(&mut self) -> bool {
         if matches!(self.transaction, TransactionState::None) {
             let check_backing_storage = self.backend.should_restore()
                 && self.backend.local_is_partial.load(Ordering::Acquire);
             if !check_backing_storage {
-                // If we don't need to restore, we can just return an empty vector
-                return Vec::new();
+                return false;
             }
             let tx = self.backend.backing_storage.start_read_transaction();
             let tx = tx.map(|tx| {
@@ -138,11 +153,19 @@ where
             });
             self.transaction = TransactionState::Owned(tx);
         }
-        let tx = match &self.transaction {
-            TransactionState::None => unreachable!(),
-            TransactionState::Borrowed(tx) => *tx,
-            TransactionState::Owned(tx) => tx.as_ref(),
-        };
+        true
+    }
+
+    fn restore_task_data(
+        &mut self,
+        task_id: TaskId,
+        category: TaskDataCategory,
+    ) -> Vec<CachedDataItem> {
+        if !self.ensure_transaction() {
+            // If we don't need to restore, we can just return an empty vector
+            return Vec::new();
+        }
+        let tx = self.get_tx();
         // Safety: `tx` is a valid transaction from `self.backend.backing_storage`.
         let result = unsafe {
             self.backend
@@ -158,6 +181,210 @@ where
                     e.context(format!("{category:?} for {task_name} ({task_id}))"))
                 )
             }
+        }
+    }
+
+    fn restore_task_data_batch(
+        &mut self,
+        task_ids: &[TaskId],
+        category: TaskDataCategory,
+    ) -> Option<Vec<Vec<CachedDataItem>>> {
+        debug_assert!(task_ids.len() > 1, "Use restore_task_data for single task");
+        if !self.ensure_transaction() {
+            // If we don't need to restore, we return None
+            return None;
+        }
+        let tx = self.get_tx();
+        // Safety: `tx` is a valid transaction from `self.backend.backing_storage`.
+        let result = unsafe {
+            self.backend
+                .backing_storage
+                .batch_lookup_data(tx, task_ids, category)
+        };
+        match result {
+            Ok(result) => Some(result),
+            Err(e) => {
+                panic!(
+                    "Failed to restore task data (corrupted database or bug): {:?}",
+                    e.context(format!(
+                        "{category:?} for batch of {} tasks",
+                        task_ids.len()
+                    ))
+                )
+            }
+        }
+    }
+
+    fn get_tx(&self) -> Option<&<B as BackingStorageSealed>::ReadTransaction<'tx>> {
+        match &self.transaction {
+            TransactionState::None => unreachable!(),
+            TransactionState::Borrowed(tx) => *tx,
+            TransactionState::Owned(tx) => tx.as_ref(),
+        }
+    }
+
+    fn prepare_tasks_with_callback(
+        &mut self,
+        task_ids: impl IntoIterator<Item = (TaskId, TaskDataCategory)>,
+        call_prepared_task_callback_for_transient_tasks: bool,
+        mut prepared_task_callback: impl FnMut(
+            &mut Self,
+            TaskId,
+            TaskDataCategory,
+            StorageWriteGuard<'e>,
+        ),
+    ) {
+        let mut data_count = 0;
+        let mut meta_count = 0;
+        let mut all_count = 0;
+        let mut tasks = task_ids
+            .into_iter()
+            .filter(|&(id, category)| {
+                if id.is_transient() {
+                    if call_prepared_task_callback_for_transient_tasks {
+                        let mut task = self.backend.storage.access_mut(id);
+                        if !task.state().is_restored(category) {
+                            task.state_mut().set_restored(TaskDataCategory::All);
+                        }
+                        prepared_task_callback(self, id, category, task);
+                    }
+                    false
+                } else {
+                    true
+                }
+            })
+            .inspect(|(_, category)| match category {
+                TaskDataCategory::Data => data_count += 1,
+                TaskDataCategory::Meta => meta_count += 1,
+                TaskDataCategory::All => all_count += 1,
+            })
+            .map(|(id, category)| (id, category, None, None))
+            .collect::<Vec<_>>();
+        data_count += all_count;
+        meta_count += all_count;
+
+        let mut tasks_to_restore_for_data = Vec::with_capacity(data_count);
+        let mut tasks_to_restore_for_data_indicies = Vec::with_capacity(data_count);
+        let mut tasks_to_restore_for_meta = Vec::with_capacity(meta_count);
+        let mut tasks_to_restore_for_meta_indicies = Vec::with_capacity(meta_count);
+        for (i, &(task_id, category, _, _)) in tasks.iter().enumerate() {
+            #[cfg(debug_assertions)]
+            if self.active_task_locks.fetch_add(1, Ordering::AcqRel) != 0 {
+                panic!(
+                    "Concurrent task lock acquisition detected. This is not allowed and indicates \
+                     a bug. It can lead to deadlocks."
+                );
+            }
+
+            let task = self.backend.storage.access_mut(task_id);
+            let mut ready = true;
+            if matches!(category, TaskDataCategory::Data | TaskDataCategory::All)
+                && !task.state().is_restored(TaskDataCategory::Data)
+            {
+                tasks_to_restore_for_data.push(task_id);
+                tasks_to_restore_for_data_indicies.push(i);
+                ready = false;
+            }
+            if matches!(category, TaskDataCategory::Meta | TaskDataCategory::All)
+                && !task.state().is_restored(TaskDataCategory::Meta)
+            {
+                tasks_to_restore_for_meta.push(task_id);
+                tasks_to_restore_for_meta_indicies.push(i);
+                ready = false;
+            }
+            if ready {
+                prepared_task_callback(self, task_id, category, task);
+            }
+            #[cfg(debug_assertions)]
+            self.active_task_locks.fetch_sub(1, Ordering::AcqRel);
+        }
+        if tasks_to_restore_for_meta.is_empty() && tasks_to_restore_for_data.is_empty() {
+            return;
+        }
+
+        match tasks_to_restore_for_data.len() {
+            0 => {}
+            1 => {
+                let task_id = tasks_to_restore_for_data[0];
+                let data = self.restore_task_data(task_id, TaskDataCategory::Data);
+                let idx = tasks_to_restore_for_data_indicies[0];
+                tasks[idx].2 = Some(data);
+            }
+            _ => {
+                if let Some(data) =
+                    self.restore_task_data_batch(&tasks_to_restore_for_data, TaskDataCategory::Data)
+                {
+                    data.into_iter()
+                        .zip(tasks_to_restore_for_data_indicies)
+                        .for_each(|(items, idx)| {
+                            tasks[idx].2 = Some(items);
+                        });
+                } else {
+                    for idx in tasks_to_restore_for_data_indicies {
+                        tasks[idx].2 = Some(Vec::new());
+                    }
+                }
+            }
+        }
+        match tasks_to_restore_for_meta.len() {
+            0 => {}
+            1 => {
+                let task_id = tasks_to_restore_for_meta[0];
+                let data = self.restore_task_data(task_id, TaskDataCategory::Meta);
+                let idx = tasks_to_restore_for_meta_indicies[0];
+                tasks[idx].3 = Some(data);
+            }
+            _ => {
+                if let Some(data) =
+                    self.restore_task_data_batch(&tasks_to_restore_for_meta, TaskDataCategory::Meta)
+                {
+                    data.into_iter()
+                        .zip(tasks_to_restore_for_meta_indicies)
+                        .for_each(|(items, idx)| {
+                            tasks[idx].3 = Some(items);
+                        });
+                } else {
+                    for idx in tasks_to_restore_for_meta_indicies {
+                        tasks[idx].3 = Some(Vec::new());
+                    }
+                }
+            }
+        }
+
+        for (task_id, category, items_for_data, items_for_meta) in tasks {
+            if items_for_data.is_none() && items_for_meta.is_none() {
+                continue;
+            }
+            #[cfg(debug_assertions)]
+            if self.active_task_locks.fetch_add(1, Ordering::AcqRel) != 0 {
+                panic!(
+                    "Concurrent task lock acquisition detected. This is not allowed and indicates \
+                     a bug. It can lead to deadlocks."
+                );
+            }
+
+            let mut task = self.backend.storage.access_mut(task_id);
+            if let Some(items) = items_for_data
+                && !task.state().is_restored(TaskDataCategory::Data)
+            {
+                // TODO store items groups by type to be able to use extend here
+                for item in items {
+                    task.add(item);
+                }
+                task.state_mut().set_restored(TaskDataCategory::Data);
+            }
+            if let Some(items) = items_for_meta
+                && !task.state().is_restored(TaskDataCategory::Meta)
+            {
+                // TODO store items groups by type to be able to use extend here
+                for item in items {
+                    task.add(item);
+                }
+                task.state_mut().set_restored(TaskDataCategory::Meta);
+            }
+            prepared_task_callback(self, task_id, category, task);
+            #[cfg(debug_assertions)]
+            self.active_task_locks.fetch_sub(1, Ordering::AcqRel);
         }
     }
 }
@@ -218,6 +445,38 @@ where
             #[cfg(debug_assertions)]
             active_task_locks: self.active_task_locks.clone(),
         }
+    }
+
+    fn prepare_tasks(&mut self, task_ids: impl IntoIterator<Item = (TaskId, TaskDataCategory)>) {
+        self.prepare_tasks_with_callback(task_ids, false, |_, _, _, _| {});
+    }
+
+    fn for_each_task(
+        &mut self,
+        task_ids: impl IntoIterator<Item = (TaskId, TaskDataCategory)>,
+        mut func: impl FnMut(Self::TaskGuardImpl, &mut Self),
+    ) {
+        let backend = self.backend;
+        #[cfg(debug_assertions)]
+        let active_task_locks = self.active_task_locks.clone();
+        self.prepare_tasks_with_callback(task_ids, true, |this, task_id, _category, task| {
+            // The prepare_tasks_with_callback already increased the active_task_locks count and
+            // checked for concurrent access but it will also decrement it again, so we
+            // need to increase it again here as Drop will decrement it
+            #[cfg(debug_assertions)]
+            active_task_locks.fetch_add(1, Ordering::AcqRel);
+
+            let guard: TaskGuardImpl<'_, B> = TaskGuardImpl {
+                task,
+                task_id,
+                backend,
+                #[cfg(debug_assertions)]
+                category: _category,
+                #[cfg(debug_assertions)]
+                active_task_locks: active_task_locks.clone(),
+            };
+            func(guard, this);
+        });
     }
 
     fn is_once_task(&self, task_id: TaskId) -> bool {
@@ -301,14 +560,7 @@ where
         self.schedule_task(task);
     }
 
-    fn schedule_task(&self, mut task: Self::TaskGuardImpl) {
-        if let Some(tasks_to_prefetch) = task.prefetch() {
-            self.turbo_tasks
-                .schedule_backend_background_job(TurboTasksBackendJob::Prefetch {
-                    data: Arc::new(tasks_to_prefetch),
-                    range: None,
-                });
-        }
+    fn schedule_task(&self, task: Self::TaskGuardImpl) {
         self.turbo_tasks.schedule(task.id());
     }
 
@@ -350,7 +602,7 @@ impl<'e, B: BackingStorage> ChildExecuteContext<'e> for ChildExecuteContextImpl<
             _operation_guard: None,
             transaction: TransactionState::None,
             #[cfg(debug_assertions)]
-            active_task_locks: Arc::new(std::sync::atomic::AtomicU8::new(0)),
+            active_task_locks: std::sync::Arc::new(std::sync::atomic::AtomicU8::new(0)),
         }
     }
 }
@@ -406,7 +658,10 @@ pub trait TaskGuard: Debug {
     where
         F: for<'a> FnMut(CachedDataItemKey, CachedDataItemValueRef<'a>) -> bool + 'l;
     fn invalidate_serialization(&mut self);
-    fn prefetch(&mut self) -> Option<FxIndexMap<TaskId, bool>>;
+    /// Determine which tasks to prefetch for a task.
+    /// Only returns Some once per task.
+    /// It returns a set of tasks and which info is needed.
+    fn prefetch(&mut self) -> Option<FxIndexMap<TaskId, TaskDataCategory>>;
     fn is_immutable(&self) -> bool;
     fn is_dirty(&self) -> bool {
         get!(self, Dirty).is_some_and(|dirtyness| match dirtyness {
@@ -503,7 +758,7 @@ pub struct TaskGuardImpl<'a, B: BackingStorage> {
     #[cfg(debug_assertions)]
     category: TaskDataCategory,
     #[cfg(debug_assertions)]
-    active_task_locks: Arc<std::sync::atomic::AtomicU8>,
+    active_task_locks: std::sync::Arc<std::sync::atomic::AtomicU8>,
 }
 
 #[cfg(debug_assertions)]
@@ -740,18 +995,17 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         }
     }
 
-    fn prefetch(&mut self) -> Option<FxIndexMap<TaskId, bool>> {
-        if !self.task.state().prefetched() {
-            self.task.state_mut().set_prefetched(true);
-            let map = iter_many!(self, OutputDependency { target } => (target, false))
-                .chain(iter_many!(self, CellDependency { target } => (target.task, true)))
-                .chain(iter_many!(self, CollectiblesDependency { target } => (target.task, true)))
-                .collect::<FxIndexMap<_, _>>();
-            if map.len() > 16 {
-                return Some(map);
-            }
+    fn prefetch(&mut self) -> Option<FxIndexMap<TaskId, TaskDataCategory>> {
+        if self.task.state().prefetched() {
+            return None;
         }
-        None
+        self.task.state_mut().set_prefetched(true);
+        let map = iter_many!(self, OutputDependency { target } => (target, TaskDataCategory::Meta))
+            .chain(iter_many!(self, CellDependency { target } => (target.task, TaskDataCategory::All)))
+            .chain(iter_many!(self, CollectiblesDependency { target } => (target.task, TaskDataCategory::All)))
+            .chain(iter_many!(self, Child { task } => (task, TaskDataCategory::All)))
+            .collect::<FxIndexMap<_, _>>();
+        (map.len() > 1).then_some(map)
     }
 
     fn is_immutable(&self) -> bool {

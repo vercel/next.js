@@ -37,7 +37,6 @@
 #![feature(downcast_unchecked)]
 #![feature(ptr_metadata)]
 #![feature(sync_unsafe_cell)]
-#![feature(vec_into_raw_parts)]
 #![feature(async_fn_traits)]
 
 pub mod backend;
@@ -112,8 +111,9 @@ pub use crate::{
     manager::{
         CurrentCellRef, ReadConsistency, ReadTracking, TaskPersistence, TurboTasks, TurboTasksApi,
         TurboTasksBackendApi, TurboTasksCallApi, Unused, UpdateInfo, dynamic_call, emit,
-        mark_finished, mark_root, mark_session_dependent, mark_stateful, prevent_gc, run, run_once,
-        run_once_with_reason, trait_call, turbo_tasks, turbo_tasks_scope,
+        get_serialization_invalidator, mark_finished, mark_root, mark_session_dependent,
+        prevent_gc, run, run_once, run_once_with_reason, trait_call, turbo_tasks,
+        turbo_tasks_scope, turbo_tasks_weak, with_turbo_tasks,
     },
     output::OutputContent,
     raw_vc::{CellId, RawVc, ReadRawVcFuture, ResolveTypeError},
@@ -137,8 +137,6 @@ pub use crate::{
         VcValueTypeCast,
     },
 };
-
-pub type SliceMap<K, V> = Box<[(K, V)]>;
 
 pub type FxIndexSet<T> = indexmap::IndexSet<T, BuildHasherDefault<FxHasher>>;
 pub type FxIndexMap<K, V> = indexmap::IndexMap<K, V, BuildHasherDefault<FxHasher>>;

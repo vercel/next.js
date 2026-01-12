@@ -20,8 +20,10 @@ import { hrtimeDurationToString } from './duration-to-string'
 function verifyTypeScriptSetup(
   dir: string,
   distDir: string,
+  strictRouteTypes: boolean,
   typeCheckPreflight: boolean,
   tsconfigPath: string | undefined,
+  typedRoutes: boolean,
   disableStaticImages: boolean,
   cacheDir: string | undefined,
   enableWorkerThreads: boolean | undefined,
@@ -50,8 +52,10 @@ function verifyTypeScriptSetup(
     .verifyTypeScriptSetup({
       dir,
       distDir,
+      strictRouteTypes,
       typeCheckPreflight,
       tsconfigPath,
+      typedRoutes,
       disableStaticImages,
       cacheDir,
       hasAppDir,
@@ -117,8 +121,10 @@ export async function startTypeChecking({
         verifyTypeScriptSetup(
           dir,
           config.distDir,
+          Boolean(config.experimental.strictRouteTypes),
           !ignoreTypeScriptErrors,
           config.typescript.tsconfigPath,
+          Boolean(config.typedRoutes),
           config.images.disableStaticImages,
           cacheDir,
           config.experimental.workerThreads,
@@ -136,11 +142,11 @@ export async function startTypeChecking({
 
     if (typeCheckingSpinner) {
       typeCheckingSpinner.stop()
-
-      createSpinner(
-        `Finished TypeScript${ignoreTypeScriptErrors ? ' config validation' : ''} in ${hrtimeDurationToString(typeCheckEnd)}`
-      )?.stopAndPersist()
     }
+
+    createSpinner(
+      `Finished TypeScript${ignoreTypeScriptErrors ? ' config validation' : ''} in ${hrtimeDurationToString(typeCheckEnd)}`
+    )?.stopAndPersist()
 
     if (!ignoreTypeScriptErrors && verifyResult) {
       telemetry.record(

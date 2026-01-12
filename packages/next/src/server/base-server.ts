@@ -6,6 +6,10 @@ import type {
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { Params } from './request/params'
 import type { NextConfig, NextConfigRuntime } from './config-shared'
+import {
+  DEFAULT_MAX_POSTPONED_STATE_SIZE,
+  parseMaxPostponedStateSize,
+} from './config-shared'
 import type {
   NextParsedUrlQuery,
   NextUrlWithParsedQuery,
@@ -18,7 +22,6 @@ import type {
   ServerOnInstrumentationRequestError,
 } from './app-render/types'
 import type { ServerComponentsHmrCache } from './response-cache'
-import type { UrlWithParsedQuery } from 'url'
 import {
   NormalizeError,
   DecodeError,
@@ -46,7 +49,7 @@ import type { PathnameNormalizer } from './normalizers/request/pathname-normaliz
 import type { InstrumentationModule } from './instrumentation/types'
 
 import * as path from 'path'
-import { format as formatUrl, parse as parseUrl } from 'url'
+import { format as formatUrl } from 'url'
 import { formatHostname } from './lib/format-hostname'
 import {
   APP_PATHS_MANIFEST,
@@ -75,7 +78,10 @@ import {
 import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { getHostname } from '../shared/lib/get-hostname'
-import { parseUrl as parseUrlUtil } from '../shared/lib/router/utils/parse-url'
+import {
+  parseUrl,
+  parseUrl as parseUrlUtil,
+} from '../shared/lib/router/utils/parse-url'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
 import {
   RSC_HEADER,
@@ -128,7 +134,6 @@ import { toRoute } from './lib/to-route'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import { isNodeNextRequest, isNodeNextResponse } from './base-http/helpers'
 import { patchSetHeaderWithCookieSupport } from './lib/patch-set-header'
-import { checkIsAppPPREnabled } from './lib/experimental/ppr'
 import {
   getBuiltinRequestContext,
   type WaitUntil,
@@ -370,6 +375,7 @@ export default abstract class Server<
       generateEtags: boolean
       poweredByHeader: boolean
       cacheControl: CacheControl | undefined
+      cdnCacheControlHeader?: string
     }
   ): Promise<void>
 
@@ -416,7 +422,7 @@ export default abstract class Server<
     readonly data: NextDataPathnameNormalizer | undefined
   }
 
-  private readonly isAppPPREnabled: boolean
+  private readonly isCacheComponentsEnabled: boolean
 
   /**
    * This is used to persist cache scopes across
@@ -498,9 +504,8 @@ export default abstract class Server<
 
     this.enabledDirectories = this.getEnabledDirectories(dev)
 
-    this.isAppPPREnabled =
-      this.enabledDirectories.app &&
-      checkIsAppPPREnabled(this.nextConfig.experimental.ppr)
+    this.isCacheComponentsEnabled =
+      this.enabledDirectories.app && !!this.nextConfig.cacheComponents
 
     this.normalizers = {
       // We should normalize the pathname from the RSC prefix only in minimal
@@ -558,6 +563,11 @@ export default abstract class Server<
         dynamicOnHover: this.nextConfig.experimental.dynamicOnHover ?? false,
         inlineCss: this.nextConfig.experimental.inlineCss ?? false,
         authInterrupts: !!this.nextConfig.experimental.authInterrupts,
+        cdnCacheControlHeader:
+          this.nextConfig.experimental.cdnCacheControlHeader,
+        maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
+          this.nextConfig.experimental.maxPostponedStateSize
+        ),
       },
       onInstrumentationRequestError:
         this.instrumentationOnRequestError.bind(this),
@@ -953,7 +963,7 @@ export default abstract class Server<
           throw new Error('Invariant: url can not be undefined')
         }
 
-        parsedUrl = parseUrl(req.url!, true)
+        parsedUrl = parseUrl(req.url)
       }
 
       if (!parsedUrl.pathname) {
@@ -1044,16 +1054,39 @@ export default abstract class Server<
           // It's important to execute the following block even it the request
           // matches a pages data route from above.
           if (
-            this.isAppPPREnabled &&
+            this.isCacheComponentsEnabled &&
             this.minimalMode &&
             req.headers[NEXT_RESUME_HEADER] === '1' &&
             req.method === 'POST'
           ) {
+            // Get the configured max postponed state size.
+            const maxPostponedStateSize =
+              this.nextConfig.experimental.maxPostponedStateSize ??
+              DEFAULT_MAX_POSTPONED_STATE_SIZE
+            const maxPostponedStateSizeBytes = parseMaxPostponedStateSize(
+              this.nextConfig.experimental.maxPostponedStateSize
+            )
+            if (maxPostponedStateSizeBytes === undefined) {
+              throw new Error(
+                'maxPostponedStateSize must be a valid number (bytes) or filesize format string (e.g., "5mb")'
+              )
+            }
+
             // Decode the postponed state from the request body, it will come as
             // an array of buffers, so collect them and then concat them to form
             // the string.
             const body: Array<Buffer> = []
+            let size = 0
             for await (const chunk of req.body) {
+              size += Buffer.byteLength(chunk)
+              if (size > maxPostponedStateSizeBytes) {
+                res.statusCode = 413
+                const errorMessage =
+                  `Postponed state exceeded ${maxPostponedStateSize} limit. ` +
+                  `To configure the limit, see: https://nextjs.org/docs/app/api-reference/config/next-config-js/max-postponed-state-size`
+                res.body(errorMessage).send()
+                return
+              }
               body.push(chunk)
             }
             const postponed = Buffer.concat(body).toString('utf8')
@@ -1681,7 +1714,7 @@ export default abstract class Server<
   protected async run(
     req: ServerRequest,
     res: ServerResponse,
-    parsedUrl: UrlWithParsedQuery
+    parsedUrl: NextUrlWithParsedQuery
   ): Promise<void> {
     return getTracer().trace(BaseServerSpan.run, async () =>
       this.runImpl(req, res, parsedUrl)
@@ -1691,7 +1724,7 @@ export default abstract class Server<
   private async runImpl(
     req: ServerRequest,
     res: ServerResponse,
-    parsedUrl: UrlWithParsedQuery
+    parsedUrl: NextUrlWithParsedQuery
   ): Promise<void> {
     await this.handleCatchallRenderRequest(req, res, parsedUrl)
   }
@@ -1747,7 +1780,12 @@ export default abstract class Server<
 
       // In dev, we should not cache pages for any reason.
       if (dev) {
-        res.setHeader('Cache-Control', 'no-store, must-revalidate')
+        res.setHeader(
+          'Cache-Control',
+          this.nextConfig.experimental.devCacheControlNoCache
+            ? 'no-cache, must-revalidate'
+            : 'no-store, must-revalidate'
+        )
         cacheControl = undefined
       }
 
@@ -1760,6 +1798,8 @@ export default abstract class Server<
         generateEtags,
         poweredByHeader,
         cacheControl,
+        cdnCacheControlHeader:
+          this.nextConfig.experimental.cdnCacheControlHeader,
       })
       res.statusCode = originalStatus
     }
@@ -2135,7 +2175,7 @@ export default abstract class Server<
      * enabled, then the given route _could_ support PPR.
      */
     const couldSupportPPR: boolean =
-      this.isAppPPREnabled &&
+      this.isCacheComponentsEnabled &&
       typeof routeModule !== 'undefined' &&
       isAppPageRouteModule(routeModule)
 
@@ -2963,7 +3003,7 @@ export default abstract class Server<
     parsedUrl?: Pick<NextUrlWithParsedQuery, 'pathname' | 'query'>,
     setHeaders = true
   ): Promise<void> {
-    const { pathname, query } = parsedUrl ? parsedUrl : parseUrl(req.url!, true)
+    const { pathname, query } = parsedUrl ? parsedUrl : parseUrl(req.url)
 
     // Ensure the locales are provided on the request meta.
     if (this.nextConfig.i18n) {

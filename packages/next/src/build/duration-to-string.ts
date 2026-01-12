@@ -21,7 +21,7 @@ const MILLISECONDS_THRESHOLD_NANOSECONDS = 2_000_000 // 2 milliseconds in nanose
  * - >= 2 minutes: show in minutes with 1 decimal place (e.g., "2.5min")
  * - >= 40 seconds: show in whole seconds (e.g., "45s")
  * - >= 2 seconds: show in seconds with 1 decimal place (e.g., "3.2s")
- * - < 2 seconds: show in milliseconds with 1 decimal place (e.g., "1500.0ms")
+ * - < 2 seconds: show in whole milliseconds (e.g., "1500ms")
  *
  * @deprecated Use durationToStringWithNanoseconds instead, collect time in nanoseconds using process.hrtime.bigint().
  * @param compilerDuration - Duration in seconds as a number
@@ -35,7 +35,7 @@ export function durationToString(compilerDuration: number) {
   } else if (compilerDuration > SECONDS_THRESHOLD_LOW) {
     return `${compilerDuration.toFixed(1)}s`
   } else {
-    return `${(compilerDuration * MILLISECONDS_PER_SECOND).toFixed(1)}ms`
+    return `${(compilerDuration * MILLISECONDS_PER_SECOND).toFixed(0)}ms`
   }
 }
 

@@ -1,0 +1,11 @@
+{
+  "name": "test-imports-sync",
+  "type": "module",
+  "imports": {
+    "#internal": {
+      "module-sync": "./internal-sync.js",
+      "import": "./internal-import.js",
+      "default": "./internal-default.js"
+    }
+  }
+}
