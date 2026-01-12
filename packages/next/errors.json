@@ -977,5 +977,8 @@
   "976": "Decompressed resume data cache exceeded %s byte limit",
   "977": "maxPostponedStateSize must be a valid number (bytes) or filesize format string (e.g., \"5mb\")",
   "978": "Next.js has blocked a javascript: URL as a security precaution.",
-  "979": "invariant: expected %s bytes of postponed state but only received %s bytes"
+  "979": "invariant: expected %s bytes of postponed state but only received %s bytes",
+  "980": "deploymentId function must return a string. https://nextjs.org/docs/messages/deploymentid-not-a-string",
+  "981": "The deploymentId \"%s\" cannot start with the \"dpl_\" prefix. Please choose a different deploymentId in your next.config.js. https://vercel.com/docs/skew-protection#custom-skew-protection-deployment-id",
+  "982": "The deploymentId \"%s\" exceeds the maximum length of 32 characters. Please choose a shorter deploymentId in your next.config.js. https://nextjs.org/docs/messages/deploymentid-too-long"
 }

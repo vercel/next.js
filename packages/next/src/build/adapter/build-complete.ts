@@ -386,6 +386,11 @@ export interface NextAdapter {
      * influenced by NextConfig.generateBuildId
      */
     buildId: string
+    /**
+     * deploymentId is the current deployment ID, this can be
+     * influenced by NextConfig.deploymentId or NEXT_DEPLOYMENT_ID environment variable
+     */
+    deploymentId: string
   }) => Promise<void> | void
 }
 
@@ -415,6 +420,7 @@ export async function handleBuildComplete({
   config,
   appType,
   buildId,
+  deploymentId,
   configOutDir,
   distDir,
   pageKeys,
@@ -438,6 +444,7 @@ export async function handleBuildComplete({
   appType: 'app' | 'pages' | 'hybrid'
   distDir: string
   buildId: string
+  deploymentId: string
   configOutDir: string
   adapterPath: string
   tracingRoot: string
@@ -1856,6 +1863,7 @@ export async function handleBuildComplete({
         config,
         distDir,
         buildId,
+        deploymentId,
         nextVersion,
         projectDir: dir,
         repoRoot: tracingRoot,
