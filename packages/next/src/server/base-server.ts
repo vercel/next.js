@@ -464,16 +464,12 @@ export default abstract class Server<
       }
       deploymentId = process.env.NEXT_DEPLOYMENT_ID
     } else {
-      // deploymentId is resolved to a string in config.ts via resolveAndSetDeploymentId
       let id = this.nextConfig.experimental.useSkewCookie
         ? ''
-        : (this.nextConfig.deploymentId as string) || ''
+        : this.nextConfig.deploymentId || ''
 
       deploymentId = id
-      // Use bracket notation to prevent webpack from replacing this at build time
-      if (process.env['NEXT_DEPLOYMENT_ID'] == null) {
-        process.env['NEXT_DEPLOYMENT_ID'] = id
-      }
+      process.env.NEXT_DEPLOYMENT_ID = id
     }
 
     this.hostname = hostname

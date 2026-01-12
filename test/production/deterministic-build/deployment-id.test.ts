@@ -42,8 +42,6 @@ const IGNORE_CONTENT = new RegExp(
     'client-build-manifest\\.json',
     'fallback-build-manifest\\.json',
     'middleware-build-manifest\\.js',
-    // Contains the deploymentId which is expected to change between deployments
-    'routes-manifest\\.json',
   ]
     .map((v) => '(?:\\/|^)' + v + '$')
     .join('|')
