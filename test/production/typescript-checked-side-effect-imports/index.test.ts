@@ -19,6 +19,8 @@ describe('Side-effect imports with noUncheckedSideEffectImports', () => {
     expect(buildResult.cliOutput).not.toContain('server-only')
     expect(buildResult.cliOutput).not.toContain('client-only')
     expect(buildResult.cliOutput).not.toContain('globals.css')
+    expect(buildResult.cliOutput).not.toContain('globals.sass')
+    expect(buildResult.cliOutput).not.toContain('globals.scss')
     expect(buildResult.exitCode).toBe(0)
   })
 })
