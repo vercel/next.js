@@ -26,6 +26,9 @@ turbopack-core = { workspace = true }
 # Be careful when selecting tls backend. If you must verify ALL build targets of
 # next-swc to ensure it works. next-swc have various platforms, some don't
 # support native-tls (using openssl-sys) and some aren't buildable with rustls.
+#
+# The TLS backend used must match with the construction of `request::Client` in
+# `src/client.rs`.
 
 # On macOS, use the default rustls configuration (uses aws-lc-rs).
 [target.'cfg(target_os = "macos")'.dependencies]
@@ -39,12 +42,12 @@ reqwest = { workspace = true, features = ["rustls"] }
 # - Windows: aws-lc-sys requires NASM and CMake which we don't have installed in
 #   CI, and would complicate the development environment setup. We could
 #   possibly switch to always using `native-tls` on Windows in the future.
-[target.'cfg(any(target_os = "linux", all(target_os = "windows", not(target_arch = "aarch64"))))'.dependencies]
+[target.'cfg(any(target_os = "linux", all(windows, not(target_arch = "aarch64"))))'.dependencies]
 reqwest = { workspace = true, features = ["rustls-no-provider"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 
 # On Windows ARM64, use native-tls because rustls with ring has build issues.
-[target.'cfg(all(target_os = "windows", target_arch = "aarch64"))'.dependencies]
+[target.'cfg(all(windows, target_arch = "aarch64"))'.dependencies]
 reqwest = { workspace = true, features = ["native-tls"] }
 
 [dev-dependencies]

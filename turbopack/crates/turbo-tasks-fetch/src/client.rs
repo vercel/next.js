@@ -45,7 +45,23 @@ impl FetchClientConfig {
     }
 
     fn try_build_uncached_reqwest_client(&self) -> reqwest::Result<reqwest::Client> {
-        reqwest::Client::builder().build()
+        let mut builder = reqwest::Client::builder();
+        #[cfg(any(target_os = "linux", all(windows, not(target_arch = "aarch64"))))]
+        {
+            use std::sync::Once;
+            static ONCE: Once = Once::new();
+            ONCE.call_once(|| {
+                rustls::crypto::ring::default_provider()
+                    .install_default()
+                    .unwrap()
+            });
+            builder = builder.tls_backend_rustls();
+        }
+        #[cfg(all(windows, target_arch = "aarch64"))]
+        {
+            builder = builder.tls_backend_native();
+        }
+        builder.build()
     }
 }
 
