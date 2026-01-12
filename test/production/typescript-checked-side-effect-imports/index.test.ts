@@ -3,6 +3,7 @@ import { nextTestSetup } from 'e2e-utils'
 describe('Side-effect imports with noUncheckedSideEffectImports', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
+    dependencies: { sass: '1.54.0' },
     skipDeployment: true, // No need to run this in deployment mode.
     skipStart: true,
   })
