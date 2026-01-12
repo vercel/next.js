@@ -477,6 +477,7 @@ ${ENDGROUP}`)
     '.bin',
     `jest${process.platform === 'win32' ? '.CMD' : ''}`
   )
+  let firstError = true
   let hadFailures = false
 
   const runTestOnce = (/** @type {TestFile} */ test, isFinalRun, isRetry) =>
@@ -590,7 +591,13 @@ ${ENDGROUP}`)
         if (isChildExitWithNonZero) {
           if (hideOutput) {
             await outputSema.acquire()
-            process.stdout.write(`${GROUP}❌ ${test.file} output\n`)
+            const isExpanded = firstError
+            if (isExpanded) {
+              firstError = false
+              process.stdout.write(`❌ ${test.file} output:\n`)
+            } else {
+              process.stdout.write(`${GROUP}❌ ${test.file} output\n`)
+            }
 
             let output = ''
             // limit out to last 64kb so that we don't
@@ -604,7 +611,11 @@ ${ENDGROUP}`)
               errorsPerTests.set(test.file, output)
             }
 
-            process.stdout.write(`end of ${test.file} output\n${ENDGROUP}\n`)
+            if (isExpanded) {
+              process.stdout.write(`end of ${test.file} output\n`)
+            } else {
+              process.stdout.write(`end of ${test.file} output\n${ENDGROUP}\n`)
+            }
             outputSema.release()
           }
           const err = new Error(
