@@ -685,7 +685,7 @@ ${ENDGROUP}`)
     }
 
     // Emit test output, parsed by the commenter webhook to notify about failing tests
-    if (isTestJob) {
+    if (!passed && isTestJob) {
       try {
         const testsOutput = await fsp.readFile(
           `${test.file}${RESULTS_EXT}`,
