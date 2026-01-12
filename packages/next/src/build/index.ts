@@ -128,8 +128,6 @@ import { sortByPageExts } from './sort-by-page-exts'
 import { getStaticInfoIncludingLayouts } from './get-static-info-including-layouts'
 import { PAGE_TYPES } from '../lib/page-types'
 import { generateBuildId } from './generate-build-id'
-import { resolveAndSetDeploymentId } from './generate-deployment-id'
-import { evaluateDeploymentId } from '../server/evaluate-deployment-id'
 import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
 import createSpinner from './spinner'
@@ -489,13 +487,6 @@ export type RoutesManifest = {
   }
   skipProxyUrlNormalize?: boolean
   caseSensitive?: boolean
-  /**
-   * User-configured deployment ID for skew protection.
-   * This allows users to specify a custom deployment identifier
-   * in their next.config.js that will be used for version skew protection
-   * with pre-built deployments.
-   */
-  deploymentId?: string
   /**
    * Configuration related to Partial Prerendering.
    */
@@ -973,9 +964,7 @@ export default async function build(
       // Install the native bindings early so we can have synchronous access later.
       await installBindings(config.experimental?.useWasmBinary)
 
-      // Generate deploymentId - can be a string or function
-      // Call the function once and cache the result to ensure consistency throughout the build process
-      config.deploymentId = resolveAndSetDeploymentId(config.deploymentId)
+      process.env.NEXT_DEPLOYMENT_ID = config.deploymentId || ''
       NextBuildContext.config = config
 
       let configOutDir = 'out'
@@ -1020,7 +1009,7 @@ export default async function build(
       // when using compile mode static env isn't inlined so we
       // need to populate in normal runtime env
       if (isCompileMode || isGenerateMode) {
-        populateStaticEnv(config, config.deploymentId || '')
+        populateStaticEnv(config, config.deploymentId)
       }
 
       const customRoutes: CustomRoutes = await nextBuildSpan
@@ -1624,7 +1613,6 @@ export default async function build(
             rewrites,
             restrictedRedirectPaths,
             isAppPPREnabled,
-            deploymentId: evaluateDeploymentId(config.deploymentId),
           })
         )
 
@@ -4161,7 +4149,6 @@ export default async function build(
               config,
               appType,
               buildId,
-              deploymentId: (config.deploymentId as string) || '',
               configOutDir: path.join(dir, configOutDir),
               staticPages,
               serverPropsPages,

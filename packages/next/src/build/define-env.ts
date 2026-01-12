@@ -44,7 +44,6 @@ export interface DefineEnvOptions {
 interface DefineEnv {
   [key: string]:
     | string
-    | (() => string)
     | string[]
     | boolean
     | ProxyMatcher[]
