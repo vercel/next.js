@@ -57,15 +57,13 @@ describe('mismatching prefetch', () => {
           // Simultaneously, the dynamic content for page A is requested.
         },
         // When the dynamic request is received, Next.js will discover that the
-        // route has changed and rewrite to page B.
-        [
-          { includes: 'Dynamic page b' },
-          // It's expected that the dynamic page for B is requested twice:
-          // once due to the mismatching prefetch, and again during the
-          // retry, because a retry caused by a mismatch implicitly
-          // performs a soft refresh of all the dynamic data on the page.
-          { includes: 'Dynamic page b' },
-        ]
+        // route has changed and rewrite to page B. The client will detect a
+        // mismatch and render again using the new route from the server.
+        //
+        // This shouldn't require a second dynamic request, though, because we
+        // can reuse the data sent by the server. So, page B should only render
+        // once on the server.
+        [{ includes: 'Dynamic page b' }]
       )
 
       // The redirected page loads successfully.

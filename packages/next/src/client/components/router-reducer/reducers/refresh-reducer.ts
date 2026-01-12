@@ -6,7 +6,7 @@ import type {
 import { handleNavigationResult } from './navigate-reducer'
 import {
   convertServerPatchToFullTree,
-  navigateToSeededRoute,
+  navigateToKnownRoute,
 } from '../../segment-cache/navigation'
 import { revalidateEntireCache } from '../../segment-cache/cache'
 import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
@@ -54,7 +54,7 @@ export function refreshDynamicData(
   )
 
   const now = Date.now()
-  const result = navigateToSeededRoute(
+  const result = navigateToKnownRoute(
     now,
     currentUrl,
     currentCanonicalUrl,

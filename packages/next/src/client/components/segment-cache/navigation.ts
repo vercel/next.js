@@ -4,10 +4,7 @@ import type {
   FlightSegmentPath,
 } from '../../../shared/lib/app-router-types'
 import type { CacheNode } from '../../../shared/lib/app-router-types'
-import type {
-  HeadData,
-  LoadingModuleData,
-} from '../../../shared/lib/app-router-types'
+import type { HeadData } from '../../../shared/lib/app-router-types'
 import type { NormalizedFlightData } from '../../flight-data-helpers'
 import { fetchServerResponse } from '../router-reducer/fetch-server-response'
 import {
@@ -21,8 +18,6 @@ import { createHrefFromUrl } from '../router-reducer/create-href-from-url'
 import {
   EntryStatus,
   readRouteCacheEntry,
-  readSegmentCacheEntry,
-  waitForSegmentCacheEntry,
   requestOptimisticRouteCacheEntry,
   convertRootFlightRouterStateToRouteTree,
   type RouteTree,
@@ -82,59 +77,21 @@ export function navigate(
   const now = Date.now()
   const href = url.href
 
-  // We special case navigations to the exact same URL as the current location.
-  // It's a common UI pattern for apps to refresh when you click a link to the
-  // current page. So when this happens, we refresh the dynamic data in the page
-  // segments.
-  //
-  // Note that this does not apply if the any part of the hash or search query
-  // has changed. This might feel a bit weird but it makes more sense when you
-  // consider that the way to trigger this behavior is to click the same link
-  // multiple times.
-  //
-  // TODO: We should probably refresh the *entire* route when this case occurs,
-  // not just the page segments. Essentially treating it the same as a refresh()
-  // triggered by an action, which is the more explicit way of modeling the UI
-  // pattern described above.
-  //
-  // Also note that this only refreshes the dynamic data, not static/ cached
-  // data. If the page segment is fully static and prefetched, the request is
-  // skipped. (This is also how refresh() works.)
-  const isSamePageNavigation = href === currentUrl.href
-
   const cacheKey = createCacheKey(href, nextUrl)
   const route = readRouteCacheEntry(now, cacheKey)
   if (route !== null && route.status === EntryStatus.Fulfilled) {
     // We have a matching prefetch.
-    const prefetchData = readRenderSnapshotFromCache(now, route, route.tree)
-    const headSnapshot = readHeadSnapshotFromCache(now, route)
-    const prefetchHead = headSnapshot.rsc
-    const isPrefetchHeadPartial = headSnapshot.isPartial
-    // TODO: The "canonicalUrl" stored in the cache doesn't include the hash,
-    // because hash entries do not vary by hash fragment. However, the one
-    // we set in the router state *does* include the hash, and it's used to
-    // sync with the actual browser location. To make this less of a refactor
-    // hazard, we should always track the hash separately from the rest of
-    // the URL.
-    const newCanonicalUrl = route.canonicalUrl + url.hash
-    const renderedSearch = route.renderedSearch
     return navigateUsingPrefetchedRouteTree(
       now,
       url,
       currentUrl,
       currentRenderedSearch,
       nextUrl,
-      isSamePageNavigation,
       currentCacheNode,
       currentFlightRouterState,
-      route.tree,
-      prefetchData,
-      prefetchHead,
-      isPrefetchHeadPartial,
-      newCanonicalUrl,
-      renderedSearch,
       freshnessPolicy,
-      shouldScroll
+      shouldScroll,
+      route
     )
   }
 
@@ -151,33 +108,17 @@ export function navigate(
     const optimisticRoute = requestOptimisticRouteCacheEntry(now, url, nextUrl)
     if (optimisticRoute !== null) {
       // We have an optimistic route tree. Proceed with the normal flow.
-      const prefetchData = readRenderSnapshotFromCache(
-        now,
-        optimisticRoute,
-        optimisticRoute.tree
-      )
-      const headSnapshot = readHeadSnapshotFromCache(now, optimisticRoute)
-      const prefetchHead = headSnapshot.rsc
-      const isPrefetchHeadPartial = headSnapshot.isPartial
-      const newCanonicalUrl = optimisticRoute.canonicalUrl + url.hash
-      const newRenderedSearch = optimisticRoute.renderedSearch
       return navigateUsingPrefetchedRouteTree(
         now,
         url,
         currentUrl,
         currentRenderedSearch,
         nextUrl,
-        isSamePageNavigation,
         currentCacheNode,
         currentFlightRouterState,
-        optimisticRoute.tree,
-        prefetchData,
-        prefetchHead,
-        isPrefetchHeadPartial,
-        newCanonicalUrl,
-        newRenderedSearch,
         freshnessPolicy,
-        shouldScroll
+        shouldScroll,
+        optimisticRoute
       )
     }
   }
@@ -189,7 +130,7 @@ export function navigate(
   }
   return {
     tag: NavigationResultTag.Async,
-    data: navigateDynamicallyWithNoPrefetch(
+    data: navigateToUnknownRoute(
       now,
       url,
       currentUrl,
@@ -204,7 +145,7 @@ export function navigate(
   }
 }
 
-export function navigateToSeededRoute(
+export function navigateToKnownRoute(
   now: number,
   url: URL,
   canonicalUrl: string,
@@ -223,6 +164,24 @@ export function navigateToSeededRoute(
     scrollableSegments: null,
     separateRefreshUrls: null,
   }
+  // We special case navigations to the exact same URL as the current location.
+  // It's a common UI pattern for apps to refresh when you click a link to the
+  // current page. So when this happens, we refresh the dynamic data in the page
+  // segments.
+  //
+  // Note that this does not apply if the any part of the hash or search query
+  // has changed. This might feel a bit weird but it makes more sense when you
+  // consider that the way to trigger this behavior is to click the same link
+  // multiple times.
+  //
+  // TODO: We should probably refresh the *entire* route when this case occurs,
+  // not just the page segments. Essentially treating it the same as a refresh()
+  // triggered by an action, which is the more explicit way of modeling the UI
+  // pattern described above.
+  //
+  // Also note that this only refreshes the dynamic data, not static/ cached
+  // data. If the page segment is fully static and prefetched, the request is
+  // skipped. (This is also how refresh() works.)
   const isSamePageNavigation = url.href === currentUrl.href
   const task = startPPRNavigation(
     now,
@@ -231,12 +190,10 @@ export function navigateToSeededRoute(
     currentCacheNode,
     currentFlightRouterState,
     navigationSeed.routeTree,
+    navigationSeed.metadataVaryPath,
     freshnessPolicy,
     navigationSeed.data,
     navigationSeed.head,
-    null,
-    null,
-    false,
     isSamePageNavigation,
     accumulation
   )
@@ -264,62 +221,35 @@ function navigateUsingPrefetchedRouteTree(
   currentUrl: URL,
   currentRenderedSearch: string,
   nextUrl: string | null,
-  isSamePageNavigation: boolean,
   currentCacheNode: CacheNode | null,
   currentFlightRouterState: FlightRouterState,
-  routeTree: RouteTree,
-  prefetchSeedData: CacheNodeSeedData | null,
-  prefetchHead: HeadData | null,
-  isPrefetchHeadPartial: boolean,
-  canonicalUrl: string,
-  renderedSearch: string,
   freshnessPolicy: FreshnessPolicy,
-  shouldScroll: boolean
+  shouldScroll: boolean,
+  route: FulfilledRouteCacheEntry
 ): SuccessfulNavigationResult | MPANavigationResult {
-  // Recursively construct a prefetch tree by reading from the Segment Cache. To
-  // maintain compatibility, we output the same data structures as the old
-  // prefetching implementation: FlightRouterState and CacheNodeSeedData.
-  // TODO: Eventually updateCacheNodeOnNavigation (or the equivalent) should
-  // read from the Segment Cache directly. It's only structured this way for now
-  // so we can share code with the old prefetching implementation.
-  const accumulation: NavigationRequestAccumulation = {
-    scrollableSegments: null,
-    separateRefreshUrls: null,
+  const routeTree = route.tree
+  const canonicalUrl = route.canonicalUrl + url.hash
+  const renderedSearch = route.renderedSearch
+  const prefetchSeed: NavigationSeed = {
+    renderedSearch,
+    routeTree,
+    metadataVaryPath: route.metadata.varyPath as any,
+    data: null,
+    head: null,
   }
-  const seedData = null
-  const seedHead = null
-  const task = startPPRNavigation(
+  return navigateToKnownRoute(
     now,
+    url,
+    canonicalUrl,
+    prefetchSeed,
     currentUrl,
     currentRenderedSearch,
     currentCacheNode,
     currentFlightRouterState,
-    routeTree,
     freshnessPolicy,
-    seedData,
-    seedHead,
-    prefetchSeedData,
-    prefetchHead,
-    isPrefetchHeadPartial,
-    isSamePageNavigation,
-    accumulation
+    nextUrl,
+    shouldScroll
   )
-  if (task !== null) {
-    spawnDynamicRequests(task, url, nextUrl, freshnessPolicy, accumulation)
-    return navigationTaskToResult(
-      task,
-      canonicalUrl,
-      renderedSearch,
-      accumulation.scrollableSegments,
-      shouldScroll,
-      url.hash
-    )
-  }
-  // Could not perform a SPA navigation. Revert to a full-page (MPA) navigation.
-  return {
-    tag: NavigationResultTag.MPA,
-    data: canonicalUrl,
-  }
 }
 
 function navigationTaskToResult(
@@ -344,111 +274,6 @@ function navigationTaskToResult(
   }
 }
 
-function readRenderSnapshotFromCache(
-  now: number,
-  route: FulfilledRouteCacheEntry,
-  tree: RouteTree
-): CacheNodeSeedData {
-  let childSeedDatas: {
-    [parallelRouteKey: string]: CacheNodeSeedData | null
-  } = {}
-  const slots = tree.slots
-  if (slots !== null) {
-    for (const parallelRouteKey in slots) {
-      const childTree = slots[parallelRouteKey]
-      childSeedDatas[parallelRouteKey] = readRenderSnapshotFromCache(
-        now,
-        route,
-        childTree
-      )
-    }
-  }
-
-  let rsc: React.ReactNode | null = null
-  let loading: LoadingModuleData | Promise<LoadingModuleData> = null
-  let isPartial: boolean = true
-
-  const segmentEntry = readSegmentCacheEntry(now, tree.varyPath)
-  if (segmentEntry !== null) {
-    switch (segmentEntry.status) {
-      case EntryStatus.Fulfilled: {
-        // Happy path: a cache hit
-        rsc = segmentEntry.rsc
-        loading = segmentEntry.loading
-        isPartial = segmentEntry.isPartial
-        break
-      }
-      case EntryStatus.Pending: {
-        // We haven't received data for this segment yet, but there's already
-        // an in-progress request. Since it's extremely likely to arrive
-        // before the dynamic data response, we might as well use it.
-        const promiseForFulfilledEntry = waitForSegmentCacheEntry(segmentEntry)
-        rsc = promiseForFulfilledEntry.then((entry) =>
-          entry !== null ? entry.rsc : null
-        )
-        loading = promiseForFulfilledEntry.then((entry) =>
-          entry !== null ? entry.loading : null
-        )
-        // Because the request is still pending, we typically don't know yet
-        // whether the response will be partial. We shouldn't skip this segment
-        // during the dynamic navigation request. Otherwise, we might need to
-        // do yet another request to fill in the remaining data, creating
-        // a waterfall.
-        //
-        // The one exception is if this segment is being fetched with via
-        // prefetch={true} (i.e. the "force stale" or "full" strategy). If so,
-        // we can assume the response will be full. This field is set to `false`
-        // for such segments.
-        isPartial = segmentEntry.isPartial
-        break
-      }
-      case EntryStatus.Empty:
-      case EntryStatus.Rejected:
-        break
-      default:
-        segmentEntry satisfies never
-    }
-  }
-
-  // We don't need this information in a render snapshot, so this can just be a placeholder.
-  const hasRuntimePrefetch = false
-
-  return [rsc, childSeedDatas, loading, isPartial, hasRuntimePrefetch]
-}
-
-function readHeadSnapshotFromCache(
-  now: number,
-  route: FulfilledRouteCacheEntry
-): { rsc: HeadData; isPartial: boolean } {
-  // Same as readRenderSnapshotFromCache, but for the head
-  let rsc: React.ReactNode | null = null
-  let isPartial: boolean = true
-  const segmentEntry = readSegmentCacheEntry(now, route.metadata.varyPath)
-  if (segmentEntry !== null) {
-    switch (segmentEntry.status) {
-      case EntryStatus.Fulfilled: {
-        rsc = segmentEntry.rsc
-        isPartial = segmentEntry.isPartial
-        break
-      }
-      case EntryStatus.Pending: {
-        const promiseForFulfilledEntry = waitForSegmentCacheEntry(segmentEntry)
-        rsc = promiseForFulfilledEntry.then((entry) =>
-          entry !== null ? entry.rsc : null
-        )
-        isPartial = segmentEntry.isPartial
-        break
-      }
-      case EntryStatus.Empty:
-      case EntryStatus.Rejected:
-        break
-      default:
-        segmentEntry satisfies never
-    }
-  }
-  return { rsc, isPartial }
-}
-
 // Used to request all the dynamic data for a route, rather than just a subset,
 // e.g. during a refresh or a revalidation. Typically this gets constructed
 // during the normal flow when diffing the route tree, but for an unprefetched
@@ -461,7 +286,7 @@ const DynamicRequestTreeForEntireRoute: FlightRouterState = [
   'refetch',
 ]
 
-async function navigateDynamicallyWithNoPrefetch(
+async function navigateToUnknownRoute(
   now: number,
   url: URL,
   currentUrl: URL,
@@ -535,7 +360,7 @@ async function navigateDynamicallyWithNoPrefetch(
     renderedSearch
   )
 
-  return navigateToSeededRoute(
+  return navigateToKnownRoute(
     now,
     url,
     createHrefFromUrl(canonicalUrl),
