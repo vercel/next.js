@@ -61,7 +61,7 @@ pub type AutoMultimap<K, V> = rustc_hash::FxHashMap<K, rustc_hash::FxHashSet<V>>
 #[derive(TaskStorage)]
 #[allow(
     dead_code,
-    reason = "this isn't dead it is scaffolding for the derive macro"
+    reason = "this isn't dead, it is scaffolding for the derive macro"
 )]
 pub struct TaskStorageSchema {
     // =========================================================================
