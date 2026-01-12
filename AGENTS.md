@@ -311,3 +311,10 @@ See [Codebase structure](#codebase-structure) above for detailed explanations.
 - `findSourceMap()` needs `--enable-source-maps` flag or returns undefined
 - Source map paths vary (webpack: `./src/`, tsc: `src/`) - try multiple formats
 - `process.cwd()` in stack trace formatting produces different paths in tests vs production
+
+### Documentation Code Blocks
+
+- When adding `highlight={...}` attributes to code blocks, carefully count the actual line numbers within the code block
+- Account for empty lines, import statements, and type imports that shift line numbers
+- Highlights should point to the actual relevant code, not unrelated lines like `return (` or framework boilerplate
+- Double-check highlights by counting lines from 1 within each code block
