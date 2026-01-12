@@ -1,9 +1,7 @@
 import type {
-  Mutable,
   ReadonlyReducerState,
   ReducerState,
 } from '../router-reducer-types'
-import { handleNavigationResult } from './navigate-reducer'
 import {
   convertServerPatchToFullTree,
   navigateToKnownRoute,
@@ -45,7 +43,7 @@ export function refreshDynamicData(
   const currentUrl = new URL(currentCanonicalUrl, location.origin)
   const currentRenderedSearch = state.renderedSearch
   const currentFlightRouterState = state.tree
-  const shouldScroll = true
+  const shouldScroll = false
 
   // Create a NavigationSeed from the current FlightRouterState.
   // TODO: Eventually we will store this type directly on the state object
@@ -58,8 +56,10 @@ export function refreshDynamicData(
   )
 
   const now = Date.now()
-  const result = navigateToKnownRoute(
+  const navigateType = 'replace'
+  return navigateToKnownRoute(
     now,
+    state,
     currentUrl,
     currentCanonicalUrl,
     refreshSeed,
@@ -69,11 +69,8 @@ export function refreshDynamicData(
     currentFlightRouterState,
     freshnessPolicy,
     nextUrlForRefresh,
-    shouldScroll
+    shouldScroll,
+    navigateType,
+    null
   )
-
-  const mutable: Mutable = {}
-  mutable.preserveCustomHistoryState = false
-
-  return handleNavigationResult(currentUrl, state, mutable, false, result)
 }
