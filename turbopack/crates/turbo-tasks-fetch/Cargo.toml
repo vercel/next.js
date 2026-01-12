@@ -11,26 +11,9 @@ bench = false
 [lints]
 workspace = true
 
-# Enable specific tls features per-target.
-#
-# Be careful when selecting tls backend, including change default tls backend.
-# If you changed, must verify with ALL build targets with next-swc to ensure
-# it works. next-swc have various platforms, some doesn't support native (using openssl-sys)
-# and some aren't buildable with rustls.
-[target.'cfg(all(target_os = "windows", target_arch = "aarch64"))'.dependencies]
-reqwest = { workspace = true, features = ["native-tls"] }
-
-# If you modify this cfg, make sure you update `FetchClient::try_build_uncached_reqwest_client`,
-# `has_rustls_cause`, and `errors_on_tls_connection`
-[target.'cfg(not(any(all(target_os = "windows", target_arch = "aarch64"), target_arch="wasm32")))'.dependencies]
-reqwest = { workspace = true, features = ["rustls-tls-webpki-roots", "rustls-tls-native-roots"] }
-# we just need the `rustls::Error` type (no default features)
-rustls = { version = "0.23.0", default-features = false }
-
 [dependencies]
 anyhow = { workspace = true }
 quick_cache = { workspace = true }
-reqwest = { workspace = true }
 serde = { workspace = true }
 tokio = { workspace = true }
 turbo-rcstr = { workspace = true }
@@ -38,9 +21,37 @@ turbo-tasks = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbopack-core = { workspace = true }
 
+# Enable specific tls features per-target.
+#
+# Be careful when selecting tls backend. If you must verify ALL build targets of
+# next-swc to ensure it works. next-swc have various platforms, some don't
+# support native-tls (using openssl-sys) and some aren't buildable with rustls.
+#
+# The TLS backend used must match with the construction of `request::Client` in
+# `src/client.rs`.
+
+# On macOS, use the default rustls configuration (uses aws-lc-rs).
+[target.'cfg(target_os = "macos")'.dependencies]
+reqwest = { workspace = true, features = ["rustls"] }
+
+# On Linux (all architectures) and Windows x86-64, use ring for rustls.
+# - Linux: aws-lc-rs has cross-compilation issues in our CI:
+#   https://github.com/aws/aws-lc-rs/issues/673
+# - On Linux, linking with the native SSL library can be distro-dependent, so
+#   it's easier for us to statically link ring or aws-lc-rs.
+# - Windows: aws-lc-sys requires NASM and CMake which we don't have installed in
+#   CI, and would complicate the development environment setup. We could
+#   possibly switch to always using `native-tls` on Windows in the future.
+[target.'cfg(any(target_os = "linux", all(windows, not(target_arch = "aarch64"))))'.dependencies]
+reqwest = { workspace = true, features = ["rustls-no-provider"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+
+# On Windows ARM64, use native-tls because rustls with ring has build issues.
+[target.'cfg(all(windows, target_arch = "aarch64"))'.dependencies]
+reqwest = { workspace = true, features = ["native-tls"] }
+
 [dev-dependencies]
 mockito = { version = "1.7.0", default-features = false }
 tokio = { workspace = true, features = ["full"] }
 turbo-tasks-testing = { workspace = true }
 turbo-tasks-backend = { workspace = true }
-
