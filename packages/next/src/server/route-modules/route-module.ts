@@ -631,11 +631,27 @@ export abstract class RouteModule<
 
     const { basePath, i18n, rewrites } = routesManifest
 
+    // Injected in base-server.ts
+    const protocol = req.headers['x-forwarded-proto']?.includes('https')
+      ? 'https'
+      : 'http'
+
+    // When there are hostname and port we build an absolute URL
+    if (!getRequestMeta(req, 'initURL')) {
+      const initUrl = serverFilesManifest?.config.experimental.trustHostHeader
+        ? `https://${req.headers.host || 'localhost'}${req.url}`
+        : req.url
+
+      addRequestMeta(req, 'initURL', initUrl)
+      addRequestMeta(req, 'initProtocol', protocol)
+    }
+
     if (basePath) {
       req.url = removePathPrefix(req.url || '/', basePath)
     }
 
     const parsedUrl = parseReqUrl(req.url || '/')
+    addRequestMeta(req, 'initQuery', { ...parsedUrl?.query })
     // if we couldn't parse the URL we can't continue
     if (!parsedUrl) {
       return
