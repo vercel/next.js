@@ -52,6 +52,13 @@ The main Next.js framework lives in `packages/next/`. This is what gets publishe
 
 **Note**: `gt submit` runs in interactive mode by default and won't push in automated contexts. Always use `gt submit --no-edit` or `gt submit -q` when running from Claude.
 
+**Creating PRs with descriptions**: All PRs created require a description. `gt submit --no-edit` creates PRs in draft mode without a description. To add a PR title and description, use `gh pr edit` immediately after submitting:
+
+```bash
+gt submit --no-edit
+gh pr edit <pr-number> --body "Place description here"
+```
+
 **Graphite Stack Safety Rules:**
 
 - Graphite force-pushes everything - old commits only recoverable via reflog
