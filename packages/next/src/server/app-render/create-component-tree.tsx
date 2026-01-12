@@ -670,7 +670,8 @@ async function createComponentTreeInternal(
 
   // When the segment does not have a layout or page we still have to add the layout router to ensure the path holds the loading component
   if (!MaybeComponent) {
-    return [
+    return createSeedData(
+      ctx,
       createElement(
         Fragment,
         {
@@ -682,12 +683,11 @@ async function createComponentTreeInternal(
       parallelRouteCacheNodeSeedData,
       loadingData,
       isPossiblyPartialResponse,
-      hasRuntimePrefetch,
-    ]
+      hasRuntimePrefetch
+    )
   }
 
   const Component = MaybeComponent
-
   const isClientComponent = isClientReference(layoutOrPageMod)
 
   if (
@@ -783,7 +783,8 @@ async function createComponentTreeInternal(
           )
         : pageElement
 
-    return [
+    return createSeedData(
+      ctx,
       createElement(
         Fragment,
         {
@@ -796,8 +797,8 @@ async function createComponentTreeInternal(
       parallelRouteCacheNodeSeedData,
       loadingData,
       isPossiblyPartialResponse,
-      hasRuntimePrefetch,
-    ]
+      hasRuntimePrefetch
+    )
   } else {
     const SegmentComponent = Component
     const isRootLayoutWithChildrenSlotAndAtLeastOneMoreSlot =
@@ -1003,13 +1004,14 @@ async function createComponentTreeInternal(
         : segmentNode
 
     // For layouts we just render the component
-    return [
+    return createSeedData(
+      ctx,
       wrappedSegmentNode,
       parallelRouteCacheNodeSeedData,
       loadingData,
       isPossiblyPartialResponse,
-      hasRuntimePrefetch,
-    ]
+      hasRuntimePrefetch
+    )
   }
 }
 
@@ -1152,4 +1154,34 @@ async function createBoundaryConventionElement({
       : element
 
   return [wrappedElement, pagePath] as const
+}
+
+function createSeedData(
+  ctx: AppRenderContext,
+  rsc: React.ReactNode,
+  parallelRoutes: Record<string, CacheNodeSeedData | null>,
+  loading: LoadingModuleData | null,
+  isPossiblyPartialResponse: boolean,
+  hasRuntimePrefetch: boolean
+): CacheNodeSeedData {
+  if (loading !== null) {
+    // If a loading.tsx boundary is present, wrap the component data in an
+    // additional context provider to pass the loading data to the next
+    // set of children.
+    // NOTE: The reason this is a separate wrapper from LayoutRouter is because
+    // not all segments render a LayoutRouter component, e.g. the root segment.
+    const LoadingBoundaryProvider = ctx.componentMod.LoadingBoundaryProvider
+    const createElement = ctx.componentMod.createElement
+    rsc = createElement(LoadingBoundaryProvider, {
+      loading: loading,
+      children: rsc,
+    })
+  }
+  return [
+    rsc,
+    parallelRoutes,
+    null,
+    isPossiblyPartialResponse,
+    hasRuntimePrefetch,
+  ]
 }

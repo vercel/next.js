@@ -9,6 +9,7 @@ import type {
   FlightRouterState,
   FlightSegmentPath,
   CacheNode,
+  LoadingModuleData,
 } from './app-router-types'
 import React from 'react'
 
@@ -63,6 +64,7 @@ export const LayoutRouterContext = React.createContext<{
   parentCacheNode: CacheNode
   parentSegmentPath: FlightSegmentPath | null
   parentParams: Params
+  parentLoadingData: LoadingModuleData | null
   debugNameContext: string
   url: string
   isActive: boolean

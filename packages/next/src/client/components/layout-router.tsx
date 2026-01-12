@@ -378,6 +378,10 @@ function InnerLayoutRouter({
         parentCacheNode: cacheNode,
         parentSegmentPath: segmentPath,
         parentParams: params,
+        // This is always set to null as we enter a child segment. It's
+        // populated by LoadingBoundaryProvider the next time we reach a
+        // loading boundary.
+        parentLoadingData: null,
         debugNameContext: debugNameContext,
 
         // TODO-APP: overriding of url for parallel routes
@@ -392,6 +396,51 @@ function InnerLayoutRouter({
   return children
 }
 
+export function LoadingBoundaryProvider({
+  loading,
+  children,
+}: {
+  loading: LoadingModuleData
+  children: React.ReactNode
+}) {
+  // Provides the data needed to render a loading.tsx boundary, via context.
+  //
+  // loading.tsx creates a Suspense boundary around each of a layout's child
+  // slots. (Might be bit confusing to think about the data flow, but: if
+  // loading.tsx and layout.tsx are in the same directory, they are assigned
+  // to the same CacheNode.)
+  //
+  // This provider component does not render the Suspense boundary directly;
+  // that's handled by LoadingBoundary.
+  //
+  // TODO: For simplicity, we should combine this provider with LoadingBoundary
+  // and render the Suspense boundary directly. The only real benefit of doing
+  // it separately is so that when there are multiple parallel routes, we only
+  // send the boundary data once, rather than once per child. But that's a
+  // negligible benefit and can be achieved via caching instead.
+  const parentContext = use(LayoutRouterContext)
+  if (parentContext === null) {
+    return children
+  }
+  // All values except for parentLoadingData are the same as the parent context.
+  return (
+    <LayoutRouterContext.Provider
+      value={{
+        parentTree: parentContext.parentTree,
+        parentCacheNode: parentContext.parentCacheNode,
+        parentSegmentPath: parentContext.parentSegmentPath,
+        parentParams: parentContext.parentParams,
+        parentLoadingData: loading,
+        debugNameContext: parentContext.debugNameContext,
+        url: parentContext.url,
+        isActive: parentContext.isActive,
+      }}
+    >
+      {children}
+    </LayoutRouterContext.Provider>
+  )
+}
+
 /**
  * Renders suspense boundary with the provided "loading" property as the fallback.
  * If no loading property is provided it renders the children without a suspense boundary.
@@ -402,33 +451,18 @@ function LoadingBoundary({
   children,
 }: {
   name: ActivityProps['name']
-  loading: LoadingModuleData | Promise<LoadingModuleData>
+  loading: LoadingModuleData | null
   children: React.ReactNode
 }): JSX.Element {
-  // If loading is a promise, unwrap it. This happens in cases where we haven't
-  // yet received the loading data from the server — which includes whether or
-  // not this layout has a loading component at all.
-  //
-  // It's OK to suspend here instead of inside the fallback because this
-  // promise will resolve simultaneously with the data for the segment itself.
-  // So it will never suspend for longer than it would have if we didn't use
-  // a Suspense fallback at all.
-  let loadingModuleData
-  if (
-    typeof loading === 'object' &&
-    loading !== null &&
-    typeof (loading as any).then === 'function'
-  ) {
-    const promiseForLoading = loading as Promise<LoadingModuleData>
-    loadingModuleData = use(promiseForLoading)
-  } else {
-    loadingModuleData = loading as LoadingModuleData
-  }
-
-  if (loadingModuleData) {
-    const loadingRsc = loadingModuleData[0]
-    const loadingStyles = loadingModuleData[1]
-    const loadingScripts = loadingModuleData[2]
+  // TODO: For LoadingBoundary, and the other built-in boundary types, don't
+  // wrap in an extra function component if no user-defined boundary is
+  // provided. In other words, inline this conditional wrapping logic into
+  // the parent component. More efficient and keeps unnecessary junk out of
+  // the component stack.
+  if (loading !== null) {
+    const loadingRsc = loading[0]
+    const loadingStyles = loading[1]
+    const loadingScripts = loading[2]
     return (
       <Suspense
         name={name}
@@ -487,6 +521,7 @@ export default function OuterLayoutRouter({
     parentCacheNode,
     parentSegmentPath,
     parentParams,
+    parentLoadingData,
     url,
     isActive,
     debugNameContext,
@@ -616,15 +651,6 @@ export default function OuterLayoutRouter({
     const isVirtual = debugName === undefined
     const debugNameToDisplay = isVirtual ? undefined : debugNameContext
 
-    // TODO: The loading module data for a segment is stored on the parent, then
-    // applied to each of that parent segment's parallel route slots. In the
-    // simple case where there's only one parallel route (the `children` slot),
-    // this is no different from if the loading module data where stored on the
-    // child directly. But I'm not sure this actually makes sense when there are
-    // multiple parallel routes. It's not a huge issue because you always have
-    // the option to define a narrower loading boundary for a particular slot. But
-    // this sort of smells like an implementation accident to me.
-    const loadingModuleData = parentCacheNode.loading
     let child = (
       <TemplateContext.Provider
         key={stateKey}
@@ -637,7 +663,17 @@ export default function OuterLayoutRouter({
             >
               <LoadingBoundary
                 name={debugNameToDisplay}
-                loading={loadingModuleData}
+                // TODO: The loading module data for a segment is stored on the
+                // parent, then applied to each of that parent segment's
+                // parallel route slots. In the simple case where there's only
+                // one parallel route (the `children` slot), this is no
+                // different from if the loading module data were stored on the
+                // child directly. But I'm not sure this actually makes sense
+                // when there are multiple parallel routes. It's not a huge
+                // issue because you always have the option to define a narrower
+                // loading boundary for a particular slot. But this sort of
+                // smells like an implementation accident to me.
+                loading={parentLoadingData}
               >
                 <HTTPAccessFallbackBoundary
                   notFound={notFound}
