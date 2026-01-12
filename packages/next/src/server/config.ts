@@ -45,7 +45,7 @@ import { djb2Hash } from '../shared/lib/hash'
 import type { NextAdapter } from '../build/adapter/build-complete'
 import { HardDeprecatedConfigError } from '../shared/lib/errors/hard-deprecated-config-error'
 import { NextInstanceErrorState } from './mcp/tools/next-instance-error-state'
-import { resolveAndSetDeploymentId } from '../build/generate-deployment-id'
+import { evaluateDeploymentId } from './evaluate-deployment-id'
 
 export { normalizeConfig } from './config-shared'
 export type { DomainLocale, NextConfig } from './config-shared'
@@ -63,11 +63,6 @@ function normalizeNextConfigZodErrors(
 
     if (issue.path[0] === 'images') {
       // We exit the build when encountering an error in the images config
-      shouldExit = true
-    }
-    if (issue.path[0] === 'deploymentId') {
-      // We exit the build when encountering an error in the deploymentId config
-      // (e.g., exceeds max length, invalid function return type)
       shouldExit = true
     }
     if (
@@ -931,9 +926,18 @@ function assignDefaultsAndValidate(
   }
 
   // Evaluate deploymentId early if it's a function, so it's available as a string
-  // This also validates length and format - validation happens inside resolveAndSetDeploymentId
-  // Call the function once and cache the result to ensure consistency
-  result.deploymentId = resolveAndSetDeploymentId(result.deploymentId)
+  // User-configured deploymentId always takes precedence over NEXT_DEPLOYMENT_ID env var
+  // This ensures the function is only called once and the result is cached
+  if (result.deploymentId != null) {
+    result.deploymentId = evaluateDeploymentId(result.deploymentId)
+    // Set process.env so it's available to other parts of the system
+    if (process.env['NEXT_DEPLOYMENT_ID'] == null) {
+      process.env['NEXT_DEPLOYMENT_ID'] = result.deploymentId
+    }
+  } else if (process.env.NEXT_DEPLOYMENT_ID) {
+    // No user config, fall back to NEXT_DEPLOYMENT_ID env var
+    result.deploymentId = process.env.NEXT_DEPLOYMENT_ID
+  }
 
   if (
     result.experimental.runtimeServerDeploymentId == null &&
@@ -1615,15 +1619,6 @@ export default async function loadConfig(
       updateInitialEnv(newEnv)
 
       if (rawConfig) {
-        // Even for raw config, evaluate deploymentId to ensure validation happens early
-        // This prevents errors from being thrown later in base-server.ts after the server starts
-        if ((userConfigModule as NextConfigComplete).deploymentId) {
-          ;(userConfigModule as NextConfigComplete).deploymentId =
-            resolveAndSetDeploymentId(
-              (userConfigModule as NextConfigComplete).deploymentId
-            )
-        }
-
         // Cache the raw config
         configCache.set(cacheKey, {
           config: userConfigModule as NextConfigComplete,
@@ -1679,12 +1674,11 @@ export default async function loadConfig(
     checkDeprecations(userConfig, configFileName, silent, dir)
 
     // Always validate the config against schema in non minimal mode
-    // Note: We validate even when silent=true to catch fatal errors like deploymentId validation
-    if (!process.env.NEXT_MINIMAL) {
+    if (!process.env.NEXT_MINIMAL && !silent) {
       await validateConfigSchema(
         userConfig,
         configFileName,
-        silent ? () => {} : curLog.warn,
+        curLog.warn,
         (messages) => {
           // Capture validation messages for MCP error reporting
           if (messages.length > 0) {

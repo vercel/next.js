@@ -467,57 +467,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     crossOrigin: z
       .union([z.literal('anonymous'), z.literal('use-credentials')])
       .optional(),
-    deploymentId: z
-      .union([
-        z
-          .string()
-          .max(
-            32,
-            'The deploymentId cannot exceed 32 characters. https://nextjs.org/docs/messages/deploymentid-too-long'
-          )
-          .refine(
-            (val) => !val.startsWith('dpl_'),
-            'The deploymentId cannot start with the "dpl_" prefix. Please choose a different deploymentId in your next.config.js. https://vercel.com/docs/skew-protection#custom-skew-protection-deployment-id'
-          ),
-        z
-          .function()
-          .args()
-          .returns(z.string())
-          .superRefine((fn, ctx) => {
-            try {
-              const result = (fn as () => string)()
-              if (typeof result !== 'string') {
-                ctx.addIssue({
-                  code: z.ZodIssueCode.custom,
-                  message:
-                    'deploymentId function must return a string. https://nextjs.org/docs/messages/deploymentid-not-a-string',
-                })
-                return
-              }
-              if (result.length > 32) {
-                ctx.addIssue({
-                  code: z.ZodIssueCode.custom,
-                  message: `The deploymentId "${result}" exceeds the maximum length of 32 characters. Please choose a shorter deploymentId in your next.config.js. https://nextjs.org/docs/messages/deploymentid-too-long`,
-                })
-                return
-              }
-              if (result.startsWith('dpl_')) {
-                ctx.addIssue({
-                  code: z.ZodIssueCode.custom,
-                  message: `The deploymentId "${result}" cannot start with the "dpl_" prefix. Please choose a different deploymentId in your next.config.js. https://vercel.com/docs/skew-protection#custom-skew-protection-deployment-id`,
-                })
-                return
-              }
-            } catch (err) {
-              ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                message:
-                  'deploymentId function must return a string. https://nextjs.org/docs/messages/deploymentid-not-a-string',
-              })
-            }
-          }) as zod.ZodType<() => string>,
-      ])
-      .optional(),
+    deploymentId: z.string().optional(),
     devIndicators: z
       .union([
         z.object({
