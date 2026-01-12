@@ -1742,6 +1742,13 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                     .join("dist/client/components/builtin/unauthorized.js")?,
             );
         }
+        if modules.global_error.is_none() {
+            modules.global_error = Some(
+                get_next_package(app_dir.clone())
+                    .await?
+                    .join("dist/client/components/builtin/global-error.js")?,
+            );
+        }
 
         // Next.js has this logic in "collect-app-paths", where the root not-found page
         // is considered as its own entry point.
@@ -1752,14 +1759,6 @@ async fn directory_tree_to_entrypoints_internal_untraced(
             is_global_not_found_enabled || modules.global_not_found.is_some();
 
         let not_found_root_modules = modules.without_leaves();
-        let global_error_path = match &modules.global_error {
-            Some(path) => Some(path.clone()),
-            None => Some(
-                get_next_package(app_dir.clone())
-                    .await?
-                    .join("dist/client/components/builtin/global-error.js")?,
-            ),
-        };
         let not_found_tree = AppPageLoaderTree {
             page: app_page.clone(),
             segment: directory_name.clone(),
@@ -1802,7 +1801,6 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                         }
                     },
                     modules: AppDirModules {
-                        global_error: global_error_path.clone(),
                         ..Default::default()
                     },
                     global_metadata,
@@ -1854,8 +1852,6 @@ async fn directory_tree_to_entrypoints_internal_untraced(
         if matches!(*next_mode.await?, NextMode::Build) {
             // Use built-in global-error.js to create a `_global-error/page` route.
             let next_package = get_next_package(app_dir.clone()).await?;
-            let global_error_path =
-                Some(next_package.join("dist/client/components/builtin/global-error.js")?);
             let global_error_tree = AppPageLoaderTree {
                 page: app_page.clone(),
                 segment: directory_name.clone(),
@@ -1873,8 +1869,11 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                         static_siblings: Vec::new(),
                     }
                 },
+                // global-error is needed for getGlobalErrorStyles to work during rendering
                 modules: AppDirModules {
-                    global_error: global_error_path,
+                    global_error: Some(
+                        next_package.join("dist/client/components/builtin/global-error.js")?,
+                    ),
                     ..Default::default()
                 },
                 global_metadata,

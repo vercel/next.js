@@ -443,9 +443,6 @@ async function createTreeCodeFromPath(
               )?.[1] ?? defaultGlobalNotFoundPath)
             : undefined
 
-          const globalErrorVarName = `globalError${nestedCollectedDeclarations.length}`
-          nestedCollectedDeclarations.push([globalErrorVarName, globalError])
-
           // If custom global-not-found.js is defined, use global-not-found.js
           if (matchedGlobalNotFound) {
             const varName = `notFound${nestedCollectedDeclarations.length}`
@@ -464,12 +461,7 @@ async function createTreeCodeFromPath(
                     ${JSON.stringify(defaultEmptyStubPath)}
                   ]
                 }]
-              }, {
-                '${GLOBAL_ERROR_FILE_TYPE}': [
-                  ${globalErrorVarName},
-                  ${JSON.stringify(globalError)}
-                ]
-              }]
+              }, {}]
             }`
           } else {
             // If custom not-found.js is found, use it and layout to compose the page,
@@ -487,12 +479,7 @@ async function createTreeCodeFromPath(
                     ${JSON.stringify(notFoundPath)}
                   ]
                 }]
-              }, {
-                '${GLOBAL_ERROR_FILE_TYPE}': [
-                  ${globalErrorVarName},
-                  ${JSON.stringify(globalError)}
-                ]
-              }]
+              }, {}]
             }`
           }
         }
@@ -500,24 +487,17 @@ async function createTreeCodeFromPath(
 
       // If it's app-error route, set app-error as children page
       if (isAppErrorRoute) {
-        const pageVarName = `appError${nestedCollectedDeclarations.length}`
-        nestedCollectedDeclarations.push([pageVarName, appErrorPath])
-        const globalErrorVarName = `globalError${nestedCollectedDeclarations.length}`
-        nestedCollectedDeclarations.push([globalErrorVarName, globalError])
+        const varName = `appError${nestedCollectedDeclarations.length}`
+        nestedCollectedDeclarations.push([varName, appErrorPath])
         subtreeCode = `{
           children: [${JSON.stringify(UNDERSCORE_GLOBAL_ERROR_ROUTE.slice(1))}, {
             children: ['${PAGE_SEGMENT_KEY}', {}, {
               page: [
-                ${pageVarName},
+                ${varName},
                 ${JSON.stringify(appErrorPath)}
               ]
             }]
-          }, {
-            '${GLOBAL_ERROR_FILE_TYPE}': [
-              ${globalErrorVarName},
-              ${JSON.stringify(globalError)}
-            ]
-          }]
+          }, {}]
         }`
       }
 

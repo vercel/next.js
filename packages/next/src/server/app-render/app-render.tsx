@@ -388,7 +388,8 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
     {
       children: [PAGE_SEGMENT_KEY, {}, notFoundTreeComponents, null],
     },
-    // When global-not-found is present, skip layout from components
+    // When global-not-found is present, use full components including global-error.
+    // Otherwise, use empty modules - getGlobalErrorStyles will fall back to the default.
     hasGlobalNotFound ? components : {},
     null, // staticSiblings
   ]
