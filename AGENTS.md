@@ -160,7 +160,7 @@ pnpm test-dev-turbo test/development/
 
 **Generate tests non-interactively (for AI agents):**
 
-Generating tests using pnpm new-tests is mandatory.
+Generating tests using `pnpm new-test` is mandatory.
 
 ```bash
 # Use --args for non-interactive mode
