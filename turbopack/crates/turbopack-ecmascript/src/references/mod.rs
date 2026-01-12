@@ -3,7 +3,6 @@ pub mod async_module;
 pub mod cjs;
 pub mod constant_condition;
 pub mod constant_value;
-pub mod dir_list;
 pub mod dynamic_expression;
 pub mod esm;
 pub mod exports_info;
