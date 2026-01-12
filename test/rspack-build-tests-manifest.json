@@ -22302,7 +22302,7 @@
   },
   "test/production/typescript-checked-side-effect-imports/index.test.ts": {
     "passed": [
-      "Imports of server/client-only with noUncheckedSideEffectImports Should build without typescript errors"
+      "Side-effect imports with noUncheckedSideEffectImports Should build without typescript errors"
     ],
     "failed": [],
     "pending": [],
