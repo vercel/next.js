@@ -25,6 +25,7 @@ export const NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER =
   'x-next-revalidate-tag-token'
 
 export const NEXT_RESUME_HEADER = 'next-resume'
+export const NEXT_RESUME_STATE_LENGTH_HEADER = 'x-next-resume-state-length'
 
 // if these change make sure we update the related
 // documentation as well
