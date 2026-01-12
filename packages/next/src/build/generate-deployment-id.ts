@@ -63,6 +63,14 @@ export function resolveAndSetDeploymentId(
         `The deploymentId "${userConfiguredDeploymentId}" cannot start with the "dpl_" prefix. Please choose a different deploymentId in your next.config.js. https://vercel.com/docs/skew-protection#custom-skew-protection-deployment-id`
       )
     }
+    // Validate character set: only base62 (a-z, A-Z, 0-9) plus hyphen and underscore
+    // This prevents URL-unfriendly characters and control characters
+    const validCharacterPattern = /^[a-zA-Z0-9_-]+$/
+    if (!validCharacterPattern.test(userConfiguredDeploymentId)) {
+      throw new Error(
+        `The deploymentId "${userConfiguredDeploymentId}" contains invalid characters. Only alphanumeric characters (a-z, A-Z, 0-9), hyphens (-), and underscores (_) are allowed. https://vercel.com/docs/skew-protection#custom-skew-protection-deployment-id`
+      )
+    }
   }
 
   // User-configured deploymentId always takes precedence over NEXT_DEPLOYMENT_ID
