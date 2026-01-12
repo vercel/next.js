@@ -242,14 +242,6 @@ impl FieldInfo {
         quote! { LazyField::#variant_name(#value_expr) }
     }
 
-    /// Generate the matches! pattern for this lazy field.
-    ///
-    /// Returns `LazyField::Variant(_)`
-    fn lazy_matches_pattern(&self) -> proc_macro2::TokenStream {
-        let variant_name = &self.variant_name;
-        quote! { LazyField::#variant_name(_) }
-    }
-
     /// Generate a matches closure for get_or_create_lazy.
     ///
     /// Returns `|f| matches!(f, LazyField::Variant(_))`
@@ -260,10 +252,23 @@ impl FieldInfo {
         }
     }
 
-    /// Generate an unwrap closure for get_or_create_lazy.
+    /// Generate an unwrap closure for get_or_create_lazy (mutable reference).
     ///
     /// Returns `|f| match f { LazyField::Variant(v) => v, _ => unreachable!() }`
     fn lazy_unwrap_closure(&self) -> proc_macro2::TokenStream {
+        let variant_name = &self.variant_name;
+        quote! {
+            |f| match f {
+                LazyField::#variant_name(v) => v,
+                _ => unreachable!(),
+            }
+        }
+    }
+
+    /// Generate an unwrap closure for take_lazy/set_lazy (consuming/owned).
+    ///
+    /// Returns `|f| match f { LazyField::Variant(v) => v, _ => unreachable!() }`
+    fn lazy_unwrap_owned_closure(&self) -> proc_macro2::TokenStream {
         let variant_name = &self.variant_name;
         quote! {
             |f| match f {
@@ -815,6 +820,7 @@ fn generate_task_flags_bitfield(grouped_fields: &GroupedFields) -> proc_macro2::
             #(#bitfield_accessors;)*
         }
 
+        #[automatically_derived]
         impl TaskFlags {
             /// Mask for persisted flags (lower bits only)
             pub const PERSISTED_MASK: u16 = #persisted_mask;
@@ -914,11 +920,13 @@ fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> proc_macro2::Toke
     quote! {
         /// All lazily-allocated fields stored in a single Vec.
         /// Fields are stored directly (unboxed) to avoid allocation overhead.
+        #[automatically_derived]
         #[derive(Debug, Clone, PartialEq)]
         pub enum LazyField {
             #(#variants),*
         }
 
+        #[automatically_derived]
         impl LazyField {
             /// Returns true if this field is empty (can be removed from the Vec)
             pub fn is_empty(&self) -> bool {
@@ -997,7 +1005,7 @@ fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> proc_macro2:
     quote! {
         /// Unified typed storage containing all task fields.
         /// This is designed to be embedded in the actual InnerStorage for incremental migration.
-
+        #[automatically_derived]
         #[derive(Debug, Clone, Default, PartialEq)]
         pub struct TaskStorage {
             #(#field_defs,)*
@@ -1005,6 +1013,7 @@ fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> proc_macro2:
             #lazy_field
         }
 
+        #[automatically_derived]
         impl TaskStorage {
             pub fn new() -> Self {
                 Self::default()
@@ -1023,6 +1032,7 @@ fn generate_accessor_methods(grouped_fields: &GroupedFields) -> proc_macro2::Tok
     }
 
     quote! {
+        #[automatically_derived]
         impl TaskStorage {
             #methods
         }
@@ -1114,9 +1124,9 @@ fn generate_direct_field_accessors(field: &FieldInfo) -> proc_macro2::TokenStrea
     } else {
         // Lazy: field is stored in Vec<LazyField>
         let extractor = field.lazy_extractor_closure();
-        let matches_pattern = field.lazy_matches_pattern();
+        let matches_closure = field.lazy_matches_closure();
+        let unwrap_owned = field.lazy_unwrap_owned_closure();
         let constructor = field.lazy_constructor(quote! { value });
-        let variant_name = &field.variant_name;
 
         quote! {
             fn #get_name(&self) -> Option<&#field_type> {
@@ -1125,24 +1135,11 @@ fn generate_direct_field_accessors(field: &FieldInfo) -> proc_macro2::TokenStrea
 
             /// Set the field value, returning the old value if present.
             fn #set_name(&mut self, value: #field_type) -> Option<#field_type> {
-                // Find and remove existing if any
-                let old = self.lazy.iter().position(|f| matches!(f, #matches_pattern))
-                    .map(|idx| {
-                        match self.lazy.swap_remove(idx) {
-                            LazyField::#variant_name(v) => v,
-                            _ => unreachable!(),
-                        }
-                    });
-                self.lazy.push(#constructor);
-                old
+                self.set_lazy(#matches_closure, #unwrap_owned, #constructor)
             }
 
             fn #take_name(&mut self) -> Option<#field_type> {
-                let idx = self.lazy.iter().position(|f| matches!(f, #matches_pattern))?;
-                match self.lazy.swap_remove(idx) {
-                    LazyField::#variant_name(v) => Some(v),
-                    _ => unreachable!(),
-                }
+                self.take_lazy(#matches_closure, #unwrap_owned)
             }
 
             /// Get a mutable reference to the field value (if present).
@@ -1230,6 +1227,7 @@ fn generate_task_storage_accessors_trait(
         /// and `check_access()` methods, and all accessor methods are provided automatically.
         ///
         /// This is designed to work with TaskGuard.
+        #[automatically_derived]
         pub trait TaskStorageAccessors {
             /// Access the typed storage (read-only)
             fn typed(&self) -> &TaskStorage;
@@ -2398,6 +2396,7 @@ fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> proc_macro2
     let decode_data_lazy = generate_decode_lazy_fields(&persistent_lazy_data);
 
     quote! {
+        #[automatically_derived]
         impl TaskStorage {
             /// Encode meta category fields directly to bincode.
             /// Only persistent (non-transient) fields are encoded.
@@ -2541,6 +2540,10 @@ fn generate_filter_predicate(
 /// The `value_ref` parameter is an expression that evaluates to a *reference* to the value
 /// (e.g., `&self.field_name` for inline fields, or `data` for lazy fields where `data`
 /// is already a reference from the match arm).
+///
+/// For non-filtered fields, encodes the value directly.
+/// For filtered fields, uses a single-pass collect to a Vec, then encodes.
+/// This avoids multiple iterations (check non-empty + count + encode).
 fn generate_encode_value(
     field: &FieldInfo,
     value_ref: proc_macro2::TokenStream,
@@ -2563,24 +2566,24 @@ fn generate_encode_value(
             }
         }
         FilterPredicateType::Set => {
-            // For AutoSet<K>, filter out transient keys
+            // For AutoSet<K>, filter out transient keys - collect once then encode
             quote! {
                 {
-                    let count = (#value_ref).iter().filter(#predicate).count();
-                    bincode::Encode::encode(&count, encoder)?;
-                    for key in (#value_ref).iter().filter(#predicate) {
+                    let filtered: Vec<_> = (#value_ref).iter().filter(#predicate).collect();
+                    bincode::Encode::encode(&filtered.len(), encoder)?;
+                    for key in filtered {
                         bincode::Encode::encode(key, encoder)?;
                     }
                 }
             }
         }
         FilterPredicateType::CounterMap => {
-            // For counter maps, filter out entries with transient keys
+            // For counter maps, filter out entries with transient keys - collect once
             quote! {
                 {
-                    let count = (#value_ref).iter().filter(#predicate).count();
-                    bincode::Encode::encode(&count, encoder)?;
-                    for (key, value) in (#value_ref).iter().filter(#predicate) {
+                    let filtered: Vec<_> = (#value_ref).iter().filter(#predicate).collect();
+                    bincode::Encode::encode(&filtered.len(), encoder)?;
+                    for (key, value) in filtered {
                         bincode::Encode::encode(key, encoder)?;
                         bincode::Encode::encode(value, encoder)?;
                     }
@@ -2588,12 +2591,12 @@ fn generate_encode_value(
             }
         }
         FilterPredicateType::Map => {
-            // For maps, filter out entries with transient keys or values
+            // For maps, filter out entries with transient keys or values - collect once
             quote! {
                 {
-                    let count = (#value_ref).iter().filter(#predicate).count();
-                    bincode::Encode::encode(&count, encoder)?;
-                    for (key, value) in (#value_ref).iter().filter(#predicate) {
+                    let filtered: Vec<_> = (#value_ref).iter().filter(#predicate).collect();
+                    bincode::Encode::encode(&filtered.len(), encoder)?;
+                    for (key, value) in filtered {
                         bincode::Encode::encode(key, encoder)?;
                         bincode::Encode::encode(value, encoder)?;
                     }
@@ -2602,58 +2605,24 @@ fn generate_encode_value(
         }
         FilterPredicateType::MapWithSetValues => {
             // For maps with set values, filter transient entries from the inner sets
+            // Collect outer entries that have non-transient inner values
             quote! {
                 {
-                    // Count entries where filtered set is non-empty
-                    let count = (#value_ref).iter().filter(#predicate).count();
-                    bincode::Encode::encode(&count, encoder)?;
-                    for (key, value) in (#value_ref).iter().filter(#predicate) {
-                        let filtered: Vec<_> = value.iter()
+                    // Collect entries where inner set has non-transient values
+                    let filtered: Vec<_> = (#value_ref).iter().filter(#predicate).collect();
+                    bincode::Encode::encode(&filtered.len(), encoder)?;
+                    for (key, value) in filtered {
+                        // Filter inner set values
+                        let inner: Vec<_> = value.iter()
                             .filter(|item| !item.is_transient())
                             .collect();
                         bincode::Encode::encode(key, encoder)?;
-                        bincode::Encode::encode(&filtered.len(), encoder)?;
-                        for item in filtered {
+                        bincode::Encode::encode(&inner.len(), encoder)?;
+                        for item in inner {
                             bincode::Encode::encode(item, encoder)?;
                         }
                     }
                 }
-            }
-        }
-    }
-}
-
-/// Check if encoding with transient filtering might produce an empty result.
-///
-/// For non-filtered fields, encoding always produces output.
-/// For filtered fields, the result might be empty (skip discriminant).
-fn field_needs_empty_check(field: &FieldInfo) -> bool {
-    generate_filter_predicate(field).is_some()
-}
-
-/// Generate an expression that checks if a value is non-empty after transient filtering.
-///
-/// Returns code that evaluates to `true` if there's data to encode.
-fn generate_non_empty_check(
-    field: &FieldInfo,
-    value_expr: proc_macro2::TokenStream,
-) -> proc_macro2::TokenStream {
-    let Some((predicate, pred_type)) = generate_filter_predicate(field) else {
-        return quote! { true };
-    };
-
-    match pred_type {
-        FilterPredicateType::Option => {
-            quote! {
-                (#value_expr).as_ref().map_or(false, #predicate)
-            }
-        }
-        FilterPredicateType::Set
-        | FilterPredicateType::CounterMap
-        | FilterPredicateType::Map
-        | FilterPredicateType::MapWithSetValues => {
-            quote! {
-                (#value_expr).iter().any(#predicate)
             }
         }
     }
@@ -2667,6 +2636,91 @@ fn generate_encode_inline_field(field: &FieldInfo) -> proc_macro2::TokenStream {
     generate_encode_value(field, quote! { &self.#field_name })
 }
 
+/// Generate code to encode a lazy field value with discriminant.
+///
+/// For filtered fields, collects to a Vec first, then checks if non-empty before
+/// writing discriminant. This avoids multiple iterations over the data.
+fn generate_encode_lazy_field_with_discriminant(
+    field: &FieldInfo,
+    discriminant: u8,
+) -> proc_macro2::TokenStream {
+    let Some((predicate, pred_type)) = generate_filter_predicate(field) else {
+        // No filtering needed - encode directly
+        return quote! {
+            bincode::Encode::encode(&#discriminant, encoder)?;
+            bincode::Encode::encode(data, encoder)?;
+        };
+    };
+
+    match pred_type {
+        FilterPredicateType::Option => {
+            // For Option<T>, check if the value is transient
+            quote! {
+                {
+                    let filtered_value = data.as_ref().filter(#predicate);
+                    if filtered_value.is_some() {
+                        bincode::Encode::encode(&#discriminant, encoder)?;
+                        bincode::Encode::encode(&filtered_value, encoder)?;
+                    }
+                }
+            }
+        }
+        FilterPredicateType::Set => {
+            // Collect once, check if non-empty, then encode
+            quote! {
+                {
+                    let filtered: Vec<_> = data.iter().filter(#predicate).collect();
+                    if !filtered.is_empty() {
+                        bincode::Encode::encode(&#discriminant, encoder)?;
+                        bincode::Encode::encode(&filtered.len(), encoder)?;
+                        for key in filtered {
+                            bincode::Encode::encode(key, encoder)?;
+                        }
+                    }
+                }
+            }
+        }
+        FilterPredicateType::CounterMap | FilterPredicateType::Map => {
+            // Collect once, check if non-empty, then encode
+            quote! {
+                {
+                    let filtered: Vec<_> = data.iter().filter(#predicate).collect();
+                    if !filtered.is_empty() {
+                        bincode::Encode::encode(&#discriminant, encoder)?;
+                        bincode::Encode::encode(&filtered.len(), encoder)?;
+                        for (key, value) in filtered {
+                            bincode::Encode::encode(key, encoder)?;
+                            bincode::Encode::encode(value, encoder)?;
+                        }
+                    }
+                }
+            }
+        }
+        FilterPredicateType::MapWithSetValues => {
+            // Collect outer entries, check if non-empty, then encode with inner filtering
+            quote! {
+                {
+                    let filtered: Vec<_> = data.iter().filter(#predicate).collect();
+                    if !filtered.is_empty() {
+                        bincode::Encode::encode(&#discriminant, encoder)?;
+                        bincode::Encode::encode(&filtered.len(), encoder)?;
+                        for (key, value) in filtered {
+                            let inner: Vec<_> = value.iter()
+                                .filter(|item| !item.is_transient())
+                                .collect();
+                            bincode::Encode::encode(key, encoder)?;
+                            bincode::Encode::encode(&inner.len(), encoder)?;
+                            for item in inner {
+                                bincode::Encode::encode(item, encoder)?;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 /// Generate code to encode lazy fields to bincode.
 /// Uses sentinel-terminated format: [discriminant, data]... [sentinel]
 fn generate_encode_lazy_fields(fields: &[&FieldInfo]) -> proc_macro2::TokenStream {
@@ -2677,24 +2731,7 @@ fn generate_encode_lazy_fields(fields: &[&FieldInfo]) -> proc_macro2::TokenStrea
     // Generate match arms for encoding each field variant
     let encode_arms = gen_lazy_match_arms_indexed(fields.iter().copied(), |idx, field| {
         let discriminant = idx as u8 + 1;
-        let encode_body = generate_encode_value(field, quote! { data });
-
-        if field_needs_empty_check(field) {
-            // For fields with transient filtering, check if non-empty before writing discriminant
-            let non_empty_check = generate_non_empty_check(field, quote! { data });
-            quote! {
-                if #non_empty_check {
-                    bincode::Encode::encode(&#discriminant, encoder)?;
-                    #encode_body
-                }
-            }
-        } else {
-            // No filtering, always encode
-            quote! {
-                bincode::Encode::encode(&#discriminant, encoder)?;
-                #encode_body
-            }
-        }
+        generate_encode_lazy_field_with_discriminant(field, discriminant)
     });
 
     quote! {
@@ -2800,6 +2837,7 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> proc_mac
     };
 
     quote! {
+        #[automatically_derived]
         impl TaskStorage {
             /// Create a snapshot containing all persistent fields (both meta and data).
             ///
@@ -3028,6 +3066,7 @@ fn generate_shrink_to_fit_method(grouped_fields: &GroupedFields) -> proc_macro2:
     };
 
     quote! {
+        #[automatically_derived]
         impl TaskStorage {
             /// Shrink all collection fields to fit their current contents.
             ///

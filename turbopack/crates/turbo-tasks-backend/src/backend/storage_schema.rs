@@ -354,12 +354,48 @@ impl TaskStorage {
         create: impl FnOnce() -> LazyField,
     ) -> &mut T {
         // Find the index of matching field (immutable borrow)
-        let idx = self.lazy.iter().position(|f| matches(f));
+        let idx = self.lazy.iter().position(matches);
         if let Some(idx) = idx {
             extract(&mut self.lazy[idx])
         } else {
             self.lazy.push(create());
             extract(self.lazy.last_mut().unwrap())
+        }
+    }
+
+    /// Take a lazy field by predicate, removing it from the Vec.
+    ///
+    /// Uses a `matches` predicate to find the field index, then `extract` to
+    /// unwrap the value from the removed field.
+    ///
+    /// Returns `None` if no matching field exists.
+    fn take_lazy<T>(
+        &mut self,
+        matches: impl Fn(&LazyField) -> bool,
+        extract: impl FnOnce(LazyField) -> T,
+    ) -> Option<T> {
+        let idx = self.lazy.iter().position(matches)?;
+        Some(extract(self.lazy.swap_remove(idx)))
+    }
+
+    /// Set a lazy field value, replacing any existing value.
+    ///
+    /// Uses a `matches` predicate to find an existing field. If found, replaces it
+    /// in place and extracts the old value. Otherwise pushes the new value.
+    ///
+    /// Returns the old value if one existed.
+    fn set_lazy<T>(
+        &mut self,
+        matches: impl Fn(&LazyField) -> bool,
+        extract: impl FnOnce(LazyField) -> T,
+        new_value: LazyField,
+    ) -> Option<T> {
+        if let Some(idx) = self.lazy.iter().position(matches) {
+            let old = std::mem::replace(&mut self.lazy[idx], new_value);
+            Some(extract(old))
+        } else {
+            self.lazy.push(new_value);
+            None
         }
     }
 }
