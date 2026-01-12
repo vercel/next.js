@@ -33,14 +33,14 @@ module.exports = {
 }
 ```
 
-### Option 3: Use Environment Variables
+### Option 3: Truncate Environment Variables
 
-You can use environment variables to set a shorter deployment ID:
+If using environment variables, ensure the value is truncated to 32 characters:
 
 ```js
 // next.config.js
 module.exports = {
-  deploymentId: process.env.DEPLOYMENT_ID, // Ensure this is ≤ 32 characters
+  deploymentId: process.env.DEPLOYMENT_ID?.substring(0, 32),
 }
 ```
 
