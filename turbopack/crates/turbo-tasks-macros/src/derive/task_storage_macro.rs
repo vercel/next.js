@@ -868,6 +868,19 @@ fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> TokenStream {
         })
         .collect();
 
+    // Generate ordering_key method arms (returns variant index for sorting)
+    let ordering_key_arms: Vec<_> = all_lazy_fields
+        .iter()
+        .enumerate()
+        .map(|(idx, field)| {
+            let variant_name = &field.variant_name;
+            let idx = idx as u8;
+            quote! {
+                LazyField::#variant_name(_) => #idx
+            }
+        })
+        .collect();
+
     quote! {
         #[doc = "All lazily-allocated fields stored in a single Vec."]
         #[doc = "Fields are stored directly (unboxed) to avoid allocation overhead."]
@@ -904,6 +917,13 @@ fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> TokenStream {
             #[doc = "Returns true if this field belongs to the data category"]
             pub fn is_data(&self) -> bool {
                 !self.is_meta()
+            }
+
+            #[doc = "Returns a stable ordering key for deterministic serialization"]
+            pub fn ordering_key(&self) -> u8 {
+                match self {
+                    #(#ordering_key_arms),*
+                }
             }
         }
     }
@@ -2190,8 +2210,8 @@ fn gen_encode_body(grouped_fields: &GroupedFields, category: Category) -> TokenS
         .persistent_inline(category.clone())
         .map(generate_encode_inline_field)
         .collect();
-    let lazy: Vec<_> = grouped_fields.persistent_lazy(category).collect();
-    let lazy_encode = generate_encode_lazy_fields(&lazy);
+    let lazy: Vec<_> = grouped_fields.persistent_lazy(category.clone()).collect();
+    let lazy_encode = generate_encode_lazy_fields(&lazy, category);
 
     quote! {
         #(#inline)*
@@ -2307,182 +2327,65 @@ fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> TokenStream
 /// Sentinel byte marking the end of lazy fields in serialization.
 const LAZY_FIELD_SENTINEL: u8 = 0x00;
 
-// =============================================================================
-// Transient Filtering Helpers
-// =============================================================================
-
-/// Filter predicate type for transient filtering.
+/// Generate code to encode a field value.
 ///
-/// Describes what type of value the filter applies to:
-/// - `Option`: filter predicate for Option inner value
-/// - `Set`: filter predicate for set elements
-/// - `Map`: filter predicate for map entries (key, value)
-/// - `CounterMap`: filter predicate for counter map entries (key only)
-#[derive(Clone, Copy)]
-enum FilterPredicateType {
-    Option,
-    Set,
-    Map,
-    CounterMap,
-}
-
-/// Generate the filter predicate closure for a field.
-///
-/// Returns the predicate expression (e.g., `|k| !k.is_transient()`) and the predicate type.
-/// Returns `None` if no filtering is needed.
-fn generate_filter_predicate(field: &FieldInfo) -> Option<(TokenStream, FilterPredicateType)> {
-    if !field.filter_transient {
-        return None;
-    }
+/// Handles filtering, sorting, and the differences between inline and lazy encoding.
+/// - `lazy_index`: None for inline fields, Some(n) for lazy fields (writes index before data)
+/// - Collections are sorted for deterministic output (improves compression)
+/// - Empty collections are skipped entirely
+/// - Transient values are filtered out when `filter_transient` is set
+fn generate_encode_field_value(
+    field: &FieldInfo,
+    value_ref: TokenStream,
+    lazy_index: Option<u8>,
+) -> TokenStream {
+    let index_prefix = match lazy_index {
+        Some(idx) => quote! { bincode::Encode::encode(&#idx, encoder)?; },
+        None => quote! {},
+    };
+    let must_render = if lazy_index.is_some() {
+        quote! {false}
+    } else {
+        quote! {true}
+    };
 
     match field.storage_type {
-        StorageType::Direct => Some((
-            quote! { |v| !v.is_transient() },
-            FilterPredicateType::Option,
-        )),
-        StorageType::AutoSet => Some((quote! { |k| !k.is_transient() }, FilterPredicateType::Set)),
-        StorageType::CounterMap => Some((
-            quote! { |(k, _)| !k.is_transient() },
-            FilterPredicateType::CounterMap,
-        )),
-        StorageType::AutoMap => Some((
-            quote! { |(k, v)| !k.is_transient() && !v.is_transient() },
-            FilterPredicateType::Map,
-        )),
-        StorageType::Flag => {
-            // Flags are encoded in TaskFlags bitfield, not individually
-            unreachable!("Flag fields should not reach generate_filter_predicate")
-        }
-    }
-}
-
-/// Generate code to encode a value with transient filtering based on field configuration.
-///
-/// This is a shared helper used by both inline field encoding and lazy field encoding.
-/// The `value_ref` parameter is an expression that evaluates to a *reference* to the value
-/// (e.g., `&self.field_name` for inline fields, or `data` for lazy fields where `data`
-/// is already a reference from the match arm).
-///
-/// For non-filtered fields, encodes the value directly.
-/// For filtered fields, uses a single-pass collect to a Vec, then encodes.
-/// This avoids multiple iterations (check non-empty + count + encode).
-fn generate_encode_value(field: &FieldInfo, value_ref: TokenStream) -> TokenStream {
-    let Some((predicate, pred_type)) = generate_filter_predicate(field) else {
-        // No filtering needed, just encode normally
-        return quote! {
-            bincode::Encode::encode(#value_ref, encoder)?;
-        };
-    };
-
-    match pred_type {
-        FilterPredicateType::Option => {
-            // For Option<T>, check if the value is transient and encode None if so
+        StorageType::AutoSet => {
+            // Collect, filter transients if needed, sort for deterministic output
+            let collect_expr = if field.filter_transient {
+                quote! { (#value_ref).iter().filter(|k| !k.is_transient()).collect() }
+            } else {
+                quote! { (#value_ref).iter().collect() }
+            };
             quote! {
                 {
-                    let filtered_value = (#value_ref).as_ref().filter(#predicate);
-                    bincode::Encode::encode(&filtered_value, encoder)?;
-                }
-            }
-        }
-        FilterPredicateType::Set => {
-            // For AutoSet<K>, filter out transient keys - collect once then encode
-            quote! {
-                {
-                    let filtered: Vec<_> = (#value_ref).iter().filter(#predicate).collect();
-                    bincode::Encode::encode(&filtered.len(), encoder)?;
-                    for key in filtered {
-                        bincode::Encode::encode(key, encoder)?;
-                    }
-                }
-            }
-        }
-        FilterPredicateType::CounterMap => {
-            // For counter maps, filter out entries with transient keys - collect once
-            quote! {
-                {
-                    let filtered: Vec<_> = (#value_ref).iter().filter(#predicate).collect();
-                    bincode::Encode::encode(&filtered.len(), encoder)?;
-                    for (key, value) in filtered {
-                        bincode::Encode::encode(key, encoder)?;
-                        bincode::Encode::encode(value, encoder)?;
-                    }
-                }
-            }
-        }
-        FilterPredicateType::Map => {
-            // For maps, filter out entries with transient keys or values - collect once
-            quote! {
-                {
-                    let filtered: Vec<_> = (#value_ref).iter().filter(#predicate).collect();
-                    bincode::Encode::encode(&filtered.len(), encoder)?;
-                    for (key, value) in filtered {
-                        bincode::Encode::encode(key, encoder)?;
-                        bincode::Encode::encode(value, encoder)?;
-                    }
-                }
-            }
-        }
-    }
-}
-
-/// Generate code to encode an inline field to bincode.
-///
-/// Delegates to `generate_encode_value` with `&self.field_name` as the value reference.
-fn generate_encode_inline_field(field: &FieldInfo) -> TokenStream {
-    let field_name = &field.field_name;
-    generate_encode_value(field, quote! { &self.#field_name })
-}
-
-/// Generate code to encode a lazy field value with index.
-///
-/// For filtered fields, collects to a Vec first, then checks if non-empty before
-/// writing index. This avoids multiple iterations over the data.
-fn generate_encode_lazy_field_with_index(field: &FieldInfo, index: u8) -> TokenStream {
-    let Some((predicate, pred_type)) = generate_filter_predicate(field) else {
-        // No filtering needed - encode directly
-        return quote! {
-            bincode::Encode::encode(&#index, encoder)?;
-            bincode::Encode::encode(data, encoder)?;
-        };
-    };
-
-    match pred_type {
-        FilterPredicateType::Option => {
-            // For Option<T>, check if the value is transient
-            quote! {
-                {
-                    let filtered_value = data.as_ref().filter(#predicate);
-                    if filtered_value.is_some() {
-                        bincode::Encode::encode(&#index, encoder)?;
-                        bincode::Encode::encode(&filtered_value, encoder)?;
-                    }
-                }
-            }
-        }
-        FilterPredicateType::Set => {
-            // Collect once, check if non-empty, then encode
-            quote! {
-                {
-                    let filtered: Vec<_> = data.iter().filter(#predicate).collect();
-                    if !filtered.is_empty() {
-                        bincode::Encode::encode(&#index, encoder)?;
-                        bincode::Encode::encode(&filtered.len(), encoder)?;
-                        for key in filtered {
+                    let mut sorted: Vec<_> = #collect_expr;
+                    if #must_render || !sorted.is_empty() {
+                        sorted.sort_unstable();
+                        #index_prefix
+                        bincode::Encode::encode(&sorted.len(), encoder)?;
+                        for key in sorted {
                             bincode::Encode::encode(key, encoder)?;
                         }
                     }
                 }
             }
         }
-        FilterPredicateType::CounterMap | FilterPredicateType::Map => {
-            // Collect once, check if non-empty, then encode
+        StorageType::AutoMap => {
+            // Collect, filter transient keys and values if needed, sort by key
+            let collect_expr = if field.filter_transient {
+                quote! { (#value_ref).iter().filter(|(k, v)| !k.is_transient() && !v.is_transient()).collect() }
+            } else {
+                quote! { (#value_ref).iter().collect() }
+            };
             quote! {
                 {
-                    let filtered: Vec<_> = data.iter().filter(#predicate).collect();
-                    if !filtered.is_empty() {
-                        bincode::Encode::encode(&#index, encoder)?;
-                        bincode::Encode::encode(&filtered.len(), encoder)?;
-                        for (key, value) in filtered {
+                    let mut sorted: Vec<_> = #collect_expr;
+                    if #must_render || !sorted.is_empty() {
+                        sorted.sort_unstable_by_key(|(k, _)| *k);
+                        #index_prefix
+                        bincode::Encode::encode(&sorted.len(), encoder)?;
+                        for (key, value) in sorted {
                             bincode::Encode::encode(key, encoder)?;
                             bincode::Encode::encode(value, encoder)?;
                         }
@@ -2490,12 +2393,78 @@ fn generate_encode_lazy_field_with_index(field: &FieldInfo, index: u8) -> TokenS
                 }
             }
         }
+        StorageType::CounterMap => {
+            // Collect, filter transient keys if needed, sort by key
+            let collect_expr = if field.filter_transient {
+                quote! { (#value_ref).iter().filter(|(k, _)| !k.is_transient()).collect() }
+            } else {
+                quote! { (#value_ref).iter().collect() }
+            };
+            quote! {
+                {
+                    let mut sorted: Vec<_> = #collect_expr;
+                    if #must_render ||!sorted.is_empty() {
+                        sorted.sort_unstable_by_key(|(k, _)| *k);
+                        #index_prefix
+                        bincode::Encode::encode(&sorted.len(), encoder)?;
+                        for (key, value) in sorted {
+                            bincode::Encode::encode(key, encoder)?;
+                            bincode::Encode::encode(value, encoder)?;
+                        }
+                    }
+                }
+            }
+        }
+        StorageType::Direct => {
+            if field.filter_transient {
+                // Direct fields with filter_transient are Option types
+                // For inline: always encode (None if filtered out)
+                // For lazy: skip entirely if filtered to None
+                match lazy_index {
+                    None => quote! {
+                        {
+                            let filtered_value = (#value_ref).as_ref().filter(|v| !v.is_transient());
+                            bincode::Encode::encode(&filtered_value, encoder)?;
+                        }
+                    },
+                    Some(_) => quote! {
+                        {
+                            let filtered_value = (#value_ref).as_ref().filter(|v| !v.is_transient());
+                            if #must_render || filtered_value.is_some() {
+                                #index_prefix
+                                bincode::Encode::encode(&filtered_value, encoder)?;
+                            }
+                        }
+                    },
+                }
+            } else {
+                // Direct fields without filtering: encode directly
+                quote! {
+                    #index_prefix
+                    bincode::Encode::encode(#value_ref, encoder)?;
+                }
+            }
+        }
+        StorageType::Flag => {
+            unreachable!("Flag fields should not reach generate_encode_field_value")
+        }
     }
+}
+
+/// Generate code to encode an inline field to bincode.
+fn generate_encode_inline_field(field: &FieldInfo) -> TokenStream {
+    let field_name = &field.field_name;
+    generate_encode_field_value(field, quote! { &self.#field_name }, None)
+}
+
+/// Generate code to encode a lazy field value with index.
+fn generate_encode_lazy_field_with_index(field: &FieldInfo, index: u8) -> TokenStream {
+    generate_encode_field_value(field, quote! { data }, Some(index))
 }
 
 /// Generate code to encode lazy fields to bincode.
 /// Uses sentinel-terminated format: [index, data]... [sentinel]
-fn generate_encode_lazy_fields(fields: &[&FieldInfo]) -> TokenStream {
+fn generate_encode_lazy_fields(fields: &[&FieldInfo], category: Category) -> TokenStream {
     if fields.is_empty() {
         return quote! {};
     }
@@ -2507,15 +2476,35 @@ fn generate_encode_lazy_fields(fields: &[&FieldInfo]) -> TokenStream {
         generate_encode_lazy_field_with_index(field, idx)
     });
 
+    // Generate filter predicate based on category (must also be persistent)
+    let filter_predicate = match category {
+        Category::Meta => quote! { |f| f.is_meta() },
+        Category::Data => quote! { |f| f.is_data() },
+        Category::Transient => {
+            // Transient fields are not serialized
+            unreachable!(
+                "generate_encode_lazy_fields should not be called with Category::Transient"
+            );
+        }
+    };
+
     quote! {
+        // Filter to category first, then sort for deterministic encoding order.
+        // This improves compression when multiple tasks are encoded together.
+        let mut sorted_lazy: Vec<_> = self.lazy.iter().filter(#filter_predicate).collect();
+        sorted_lazy.sort_unstable_by_key(|f| f.ordering_key());
+
         // Encode each persistent lazy field in this category
-        for field in &self.lazy {
+        for field in sorted_lazy {
             match field {
                 #(#encode_arms)*
-                _ => {} // Skip fields not in this category
+                _ => {
+                    unreachable!("everything should have already been filtered.");
+                }
             }
         }
         // Write sentinel to mark end of lazy fields
+        // NOTE: we don't write a length prefix for lazy fields since it is possible that some of them get completely filtered.
         bincode::Encode::encode(&#LAZY_FIELD_SENTINEL, encoder)?;
     }
 }

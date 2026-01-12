@@ -35,7 +35,7 @@ macro_rules! transient_traits {
     };
 }
 
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Encode, Decode)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Encode, Decode)]
 pub struct CellRef {
     pub task: TaskId,
     pub cell: CellId,
@@ -48,7 +48,7 @@ impl CellRef {
     }
 }
 
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Encode, Decode)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Encode, Decode)]
 pub struct CollectibleRef {
     pub collectible_type: TraitTypeId,
     pub cell: CellRef,
@@ -61,7 +61,7 @@ impl CollectibleRef {
     }
 }
 
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Encode, Decode)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Encode, Decode)]
 pub struct CollectiblesRef {
     pub task: TaskId,
     pub collectible_type: TraitTypeId,
