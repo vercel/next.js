@@ -15,7 +15,7 @@ permissions:
 jobs:
   retry-on-failure:
     name: retry failed jobs
-    # Retry the test-e2e-deploy-release workflow up to 2 times
+    # Retry the test-e2e-deploy-release workflow once
     if: >-
       ${{
         startsWith(github.event.workflow_run.display_title, 'test-e2e-deploy') &&
