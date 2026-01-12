@@ -45,6 +45,7 @@ import { djb2Hash } from '../shared/lib/hash'
 import type { NextAdapter } from '../build/adapter/build-complete'
 import { HardDeprecatedConfigError } from '../shared/lib/errors/hard-deprecated-config-error'
 import { NextInstanceErrorState } from './mcp/tools/next-instance-error-state'
+import { evaluateDeploymentId } from './evaluate-deployment-id'
 
 export { normalizeConfig } from './config-shared'
 export type { DomainLocale, NextConfig } from './config-shared'
@@ -924,26 +925,27 @@ function assignDefaultsAndValidate(
     }
   }
 
+  // Evaluate deploymentId early if it's a function, so it's available as a string
+  // User-configured deploymentId always takes precedence over NEXT_DEPLOYMENT_ID env var
+  // This ensures the function is only called once and the result is cached
+  if (result.deploymentId != null) {
+    result.deploymentId = evaluateDeploymentId(result.deploymentId)
+    // Set process.env so it's available to other parts of the system
+    if (process.env['NEXT_DEPLOYMENT_ID'] == null) {
+      process.env['NEXT_DEPLOYMENT_ID'] = result.deploymentId
+    }
+  } else if (process.env.NEXT_DEPLOYMENT_ID) {
+    // No user config, fall back to NEXT_DEPLOYMENT_ID env var
+    result.deploymentId = process.env.NEXT_DEPLOYMENT_ID
+  }
+
   if (
     result.experimental.runtimeServerDeploymentId == null &&
     phase === PHASE_PRODUCTION_BUILD &&
     ciEnvironment.hasNextSupport &&
     process.env.NEXT_DEPLOYMENT_ID
   ) {
-    if (
-      result.deploymentId != null &&
-      result.deploymentId !== process.env.NEXT_DEPLOYMENT_ID
-    ) {
-      throw new Error(
-        `The NEXT_DEPLOYMENT_ID environment variable value "${process.env.NEXT_DEPLOYMENT_ID}" does not match the provided deploymentId "${result.deploymentId}" in the config.`
-      )
-    }
     result.experimental.runtimeServerDeploymentId = true
-  }
-
-  // only leverage deploymentId
-  if (process.env.NEXT_DEPLOYMENT_ID) {
-    result.deploymentId = process.env.NEXT_DEPLOYMENT_ID
   }
 
   const tracingRoot = result?.outputFileTracingRoot

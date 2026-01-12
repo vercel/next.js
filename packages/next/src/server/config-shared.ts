@@ -1145,8 +1145,9 @@ export interface NextConfig {
 
   /**
    * A unique identifier for a deployment that will be included in each request's query string or header.
+   * Can be a string or a function that returns a string.
    */
-  deploymentId?: string
+  deploymentId?: string | (() => string)
 
   /**
    * Deploy a Next.js application under a sub-path of a domain
