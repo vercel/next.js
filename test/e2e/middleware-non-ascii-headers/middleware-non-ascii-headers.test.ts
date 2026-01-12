@@ -35,6 +35,7 @@ describe('Middleware Non-ASCII Headers', () => {
     next = await createNext({
       files: {
         pages: new FileRef(join(__dirname, 'app/pages')),
+        app: new FileRef(join(__dirname, 'app/app')),
         'next.config.js': new FileRef(join(__dirname, 'app/next.config.js')),
         'middleware.js': new FileRef(join(__dirname, 'app/middleware.js')),
       },
@@ -264,5 +265,75 @@ describe('Middleware Non-ASCII Headers', () => {
     expect(headers['x-simple']).toBe('hello-world')
     expect(headers['x-number']).toBe('12345')
     expect(headers['x-special']).toBe('test_value-123')
+  })
+
+  // ============================================================
+  // App Route Handler Tests
+  // These test fromNodeOutgoingHttpHeaders in NextRequest adapter
+  // ============================================================
+
+  describe('App Route Handler', () => {
+    // App Route handlers should see properly decoded headers (same as middleware)
+    // fromNodeOutgoingHttpHeaders applies mojibake recovery without encoding
+    it('should read non-ASCII request headers correctly in route handler', async () => {
+      // Test that App Route handlers can read mojibake headers correctly
+      // fromNodeOutgoingHttpHeaders decodes mojibake but doesn't encode by default
+      const res = await fetchViaHTTP(
+        next.url,
+        '/api/route-headers',
+        {},
+        {
+          headers: {
+            'x-city': toMojibake('Montréal'),
+            'x-country': toMojibake('Österreich'),
+          },
+        }
+      )
+
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      // Headers should be decoded correctly (mojibake recovered to UTF-8)
+      expect(body['x-city']).toBe('Montréal')
+      expect(body['x-country']).toBe('Österreich')
+    })
+
+    // Response headers with non-ASCII values arrive as mojibake
+    // (UTF-8 bytes interpreted as Latin-1 by HTTP transport)
+    it('should show that response headers with non-ASCII arrive as mojibake', async () => {
+      // Test that route handlers setting non-ASCII response headers
+      // have those headers arrive as mojibake to the client
+      const res = await fetchViaHTTP(next.url, '/api/route-headers', {}, {})
+
+      expect(res.status).toBe(200)
+      // Response headers with non-ASCII values get mangled during HTTP transport
+      // UTF-8 bytes are interpreted as Latin-1 (mojibake)
+      const cityHeader = res.headers.get('x-response-city')
+      const countryHeader = res.headers.get('x-response-country')
+
+      // These arrive as mojibake: "Montréal" → "MontrÃ©al", "Österreich" → "Ãsterreich"
+      expect(cityHeader).toBe(toMojibake('Montréal'))
+      expect(countryHeader).toBe(toMojibake('Österreich'))
+    })
+
+    it('should preserve intentional percent-encoding in route handler', async () => {
+      // Test that intentional percent-encoding is not double-encoded or decoded
+      const res = await fetchViaHTTP(
+        next.url,
+        '/api/route-headers',
+        {},
+        {
+          headers: {
+            'x-path': '/hello%2Fworld',
+            'x-query': 'foo%20bar',
+          },
+        }
+      )
+
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      // Intentional percent-encoding should be preserved
+      expect(body['x-path']).toBe('/hello%2Fworld')
+      expect(body['x-query']).toBe('foo%20bar')
+    })
   })
 })

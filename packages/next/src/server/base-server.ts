@@ -111,7 +111,7 @@ import {
 import { BaseServerSpan } from './lib/trace/constants'
 import { I18NProvider } from './lib/i18n-provider'
 import { sendResponse } from './send-response'
-import { normalizeNextQueryParam, decodeHeaderValue } from './web/utils'
+import { normalizeNextQueryParam } from './web/utils'
 import {
   HTML_CONTENT_TYPE_HEADER,
   JSON_CONTENT_TYPE_HEADER,
@@ -944,24 +944,21 @@ export default abstract class Server<
       )
 
       // In minimal mode (Vercel), decode headers that were percent-encoded by middleware
-      // to preserve non-ASCII characters during transport. Only decode headers explicitly
-      // marked as encoded to avoid affecting other headers with intentional percent-encoding.
+      // to preserve non-ASCII characters during transport.
       if (this.minimalMode) {
-        const encodedHeadersList = req.headers['x-middleware-request-encoded']
-        if (typeof encodedHeadersList === 'string') {
-          const encodedHeaders = encodedHeadersList.split(',')
-          for (const headerName of encodedHeaders) {
-            const trimmedName = headerName.trim()
-            const headerValue = req.headers[trimmedName]
-            if (typeof headerValue === 'string') {
-              req.headers[trimmedName] = decodeHeaderValue(headerValue)
-            } else if (Array.isArray(headerValue)) {
-              req.headers[trimmedName] = headerValue.map(decodeHeaderValue)
+        const encodedHeaders = req.headers['x-middleware-request-encoded']
+        if (typeof encodedHeaders === 'string') {
+          for (const key of encodedHeaders.split(',')) {
+            const headerKey = key.trim()
+            const value = req.headers[headerKey]
+            if (typeof value === 'string' && /%[0-9A-Fa-f]{2}/.test(value)) {
+              try {
+                req.headers[headerKey] = decodeURIComponent(value)
+              } catch {}
             }
           }
-          // Clean up the marker header
-          delete req.headers['x-middleware-request-encoded']
         }
+        delete req.headers['x-middleware-request-encoded']
       }
 
       const urlParts = (req.url || '').split('?', 1)

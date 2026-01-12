@@ -14,7 +14,7 @@ import { getCloneableBody } from '../../body-streams'
 import { filterReqHeaders, ipcForbiddenHeaders } from '../server-ipc/utils'
 import { stringifyQuery } from '../../server-route-utils'
 import { formatHostname } from '../format-hostname'
-import { toNodeOutgoingHttpHeaders, decodeHeaderValue } from '../../web/utils'
+import { toNodeOutgoingHttpHeaders } from '../../web/utils'
 import { isAbortError } from '../../pipe-readable'
 import { getHostname } from '../../../shared/lib/get-hostname'
 import {
@@ -608,16 +608,10 @@ export function getResolveRoutes(
                 }
               }
 
-              // Update or add headers.
+              // Update or add headers (without decoding yet).
               for (const key of overriddenHeaders.keys()) {
                 const valueKey = 'x-middleware-request-' + key
-                const encodedValue = middlewareHeaders[valueKey]
-                const newValue =
-                  encodedValue == null
-                    ? undefined
-                    : typeof encodedValue === 'string'
-                      ? decodeHeaderValue(encodedValue)
-                      : encodedValue.map(decodeHeaderValue)
+                const newValue = middlewareHeaders[valueKey]
                 const oldValue = req.headers[key]
 
                 if (oldValue !== newValue) {
@@ -626,7 +620,24 @@ export function getResolveRoutes(
                 delete middlewareHeaders[valueKey]
               }
 
-              // Clean up the encoded headers marker
+              // Decode only headers that were explicitly marked as encoded.
+              // This preserves intentional percent-encoding (like %2F, %20) in other headers.
+              const encodedHeaders =
+                middlewareHeaders['x-middleware-request-encoded']
+              if (typeof encodedHeaders === 'string') {
+                for (const key of encodedHeaders.split(',')) {
+                  const headerKey = key.trim()
+                  const value = req.headers[headerKey]
+                  if (
+                    typeof value === 'string' &&
+                    /%[0-9A-Fa-f]{2}/.test(value)
+                  ) {
+                    try {
+                      req.headers[headerKey] = decodeURIComponent(value)
+                    } catch {}
+                  }
+                }
+              }
               delete middlewareHeaders['x-middleware-request-encoded']
             }
 

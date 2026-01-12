@@ -18,6 +18,7 @@ export function fromNodeOutgoingHttpHeaders(
   nodeHeaders: OutgoingHttpHeaders
 ): Headers {
   const headers = new Headers()
+
   for (let [key, value] of Object.entries(nodeHeaders)) {
     const values = Array.isArray(value) ? value : [value]
     for (let v of values) {
@@ -26,15 +27,10 @@ export function fromNodeOutgoingHttpHeaders(
         v = v.toString()
       }
 
-      // Try to recover from Mojibake (UTF-8 bytes interpreted as Latin-1)
+      // Try to recover from Mojibake (UTF-8 bytes interpreted as Latin-1).
+      // This can happen when CDN/proxy sends UTF-8 header bytes but Node.js
+      // HTTP parser interprets them as Latin-1.
       v = decodeMojibake(v)
-
-      // Encode non-ASCII characters for safe HTTP header transport.
-      // HTTP headers can be corrupted at multiple points:
-      // 1. HTTP/2 expects UTF-8; Latin-1 bytes get replaced with replacement chars
-      // 2. Some runtimes may not preserve non-ASCII in header values
-      // Percent-encoding ensures safe ASCII-only transmission.
-      v = encodeHeaderValue(v)
 
       headers.append(key, v)
     }
@@ -213,7 +209,6 @@ export function encodeHeaderValue(value: string): string {
  * @returns The decoded header value
  */
 export function decodeHeaderValue(value: string): string {
-  // Check if value contains percent-encoded sequences
   if (/%[0-9A-Fa-f]{2}/.test(value)) {
     try {
       return decodeURIComponent(value)
