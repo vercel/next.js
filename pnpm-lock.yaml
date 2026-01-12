@@ -213,6 +213,9 @@ importers:
       '@types/trusted-types':
         specifier: 2.0.3
         version: 2.0.3
+      '@types/yargs':
+        specifier: 16.0.11
+        version: 16.0.11
       '@vercel/devlow-bench':
         specifier: workspace:*
         version: link:turbopack/packages/devlow-bench
@@ -6904,6 +6907,9 @@ packages:
 
   '@types/yargs-parser@21.0.0':
     resolution: {integrity: sha512-iO9ZQHkZxHn4mSakYV0vFHAVDyEOIJQrV2uZ06HxEPcx+mt8swXoZHIbaaJ2crJYFfErySgktuTZ3BeLz+XmFA==}
+
+  '@types/yargs@16.0.11':
+    resolution: {integrity: sha512-sbtvk8wDN+JvEdabmZExoW/HNr1cB7D/j4LT08rMiuikfA7m/JNJg7ATQcgzs34zHnoScDkY0ZRSl29Fkmk36g==}
 
   '@types/yargs@17.0.10':
     resolution: {integrity: sha512-gmEaFwpj/7f/ROdtIlci1R1VYU1J4j95m8T+Tj3iBgiBFKg1foE/PSl93bBd5T9LDXNPo8UlNN6W0qwD8O5OaA==}
@@ -24369,6 +24375,10 @@ snapshots:
       '@types/node': 20.17.6(patch_hash=rvl3vkomen3tospgr67bzubfyu)
 
   '@types/yargs-parser@21.0.0': {}
+
+  '@types/yargs@16.0.11':
+    dependencies:
+      '@types/yargs-parser': 21.0.0
 
   '@types/yargs@17.0.10':
     dependencies:
