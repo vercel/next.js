@@ -216,4 +216,53 @@ describe('Middleware Non-ASCII Headers', () => {
     expect(headers['x-region']).toBe('Île-de-France')
     expect(headers['x-country']).toBe('Österreich')
   })
+
+  // Test that intentional percent-encoding is preserved (not decoded)
+  // This verifies the concern about breaking changes where %20 or %2F
+  // should remain encoded if the user intentionally set them that way.
+  it('should preserve intentional percent-encoding in ASCII headers', async () => {
+    const res = await fetchViaHTTP(
+      next.url,
+      '/api/headers',
+      {},
+      {
+        headers: {
+          // These are intentionally percent-encoded ASCII values
+          // They should NOT be decoded to spaces/slashes
+          'x-path': '/hello%2Fworld', // %2F = encoded slash
+          'x-query': 'foo%20bar', // %20 = encoded space
+          'x-mixed': 'test%26value', // %26 = encoded ampersand
+        },
+      }
+    )
+
+    expect(res.status).toBe(200)
+    const headers = await res.json()
+    // Intentional percent-encoding should be preserved
+    expect(headers['x-path']).toBe('/hello%2Fworld')
+    expect(headers['x-query']).toBe('foo%20bar')
+    expect(headers['x-mixed']).toBe('test%26value')
+  })
+
+  // Test that pure ASCII headers pass through unchanged
+  it('should pass through pure ASCII headers unchanged', async () => {
+    const res = await fetchViaHTTP(
+      next.url,
+      '/api/headers',
+      {},
+      {
+        headers: {
+          'x-simple': 'hello-world',
+          'x-number': '12345',
+          'x-special': 'test_value-123',
+        },
+      }
+    )
+
+    expect(res.status).toBe(200)
+    const headers = await res.json()
+    expect(headers['x-simple']).toBe('hello-world')
+    expect(headers['x-number']).toBe('12345')
+    expect(headers['x-special']).toBe('test_value-123')
+  })
 })
