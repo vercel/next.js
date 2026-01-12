@@ -45,6 +45,7 @@ impl FetchClientConfig {
     }
 
     fn try_build_uncached_reqwest_client(&self) -> reqwest::Result<reqwest::Client> {
+        #[allow(unused_mut)]
         let mut builder = reqwest::Client::builder();
         #[cfg(any(target_os = "linux", all(windows, not(target_arch = "aarch64"))))]
         {
