@@ -56,7 +56,7 @@ Fonts are scoped to the component they're used in. To apply a font to your entir
 
 To start using `next/font`, import it from [`next/font/local`](#local-fonts) or [`next/font/google`](#google-fonts), call it as a function with the appropriate options, and set the `className` of the element you want to apply the font to. For example, you can apply fonts globally in your [Custom App](/docs/pages/building-your-application/routing/custom-app) (`pages/_app`):
 
-```tsx filename="pages/_app.tsx" highlight={1,3-5,10} switcher
+```tsx filename="pages/_app.tsx" highlight={1,4-6,10} switcher
 import { Geist } from 'next/font/google'
 import type { AppProps } from 'next/app'
 
@@ -91,7 +91,7 @@ export default function MyApp({ Component, pageProps }) {
 
 If you want to apply the font to the `<html>` element, you can use a [Custom Document](/docs/pages/building-your-application/routing/custom-document) (`pages/_document`):
 
-```tsx filename="pages/_document.tsx" highlight={2,9,14} switcher
+```tsx filename="pages/_document.tsx" highlight={2,4-6,10} switcher
 import { Html, Head, Main, NextScript } from 'next/document'
 import { Geist } from 'next/font/google'
 
@@ -112,7 +112,7 @@ export default function Document() {
 }
 ```
 
-```jsx filename="pages/_document.js" highlight={2,9,14} switcher
+```jsx filename="pages/_document.js" highlight={2,4-6,10} switcher
 import { Html, Head, Main, NextScript } from 'next/document'
 import { Geist } from 'next/font/google'
 
