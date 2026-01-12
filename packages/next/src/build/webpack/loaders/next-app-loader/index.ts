@@ -487,17 +487,24 @@ async function createTreeCodeFromPath(
 
       // If it's app-error route, set app-error as children page
       if (isAppErrorRoute) {
-        const varName = `appError${nestedCollectedDeclarations.length}`
-        nestedCollectedDeclarations.push([varName, appErrorPath])
+        const pageVarName = `appError${nestedCollectedDeclarations.length}`
+        nestedCollectedDeclarations.push([pageVarName, appErrorPath])
+        const globalErrorVarName = `globalError${nestedCollectedDeclarations.length}`
+        nestedCollectedDeclarations.push([globalErrorVarName, globalError])
         subtreeCode = `{
           children: [${JSON.stringify(UNDERSCORE_GLOBAL_ERROR_ROUTE.slice(1))}, {
             children: ['${PAGE_SEGMENT_KEY}', {}, {
               page: [
-                ${varName},
+                ${pageVarName},
                 ${JSON.stringify(appErrorPath)}
               ]
             }]
-          }, {}]
+          }, {
+            '${GLOBAL_ERROR_FILE_TYPE}': [
+              ${globalErrorVarName},
+              ${JSON.stringify(globalError)}
+            ]
+          }]
         }`
       }
 
