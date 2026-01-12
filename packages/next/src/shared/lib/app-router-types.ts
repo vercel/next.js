@@ -108,7 +108,7 @@ export type Segment =
 export type FlightRouterState = [
   segment: Segment,
   parallelRoutes: { [parallelRouterKey: string]: FlightRouterState },
-  refreshState?: RefreshState | null,
+  refreshState?: CompressedRefreshState | null,
   /**
    * - "refetch" is used during a request to inform the server where rendering
    *   should start from.
@@ -151,7 +151,7 @@ export type FlightRouterState = [
  * a refresh of the segment, and the search query is needed for looking up
  * matching entries in the segment cache.
  */
-export type RefreshState = [url: string, renderedSearch: string]
+export type CompressedRefreshState = [url: string, renderedSearch: string]
 
 export const enum HasLoadingBoundary {
   // There is a loading boundary in this particular segment
