@@ -86,6 +86,8 @@ describe('log-file', () => {
          "[xx:xx:xx.xxx] Server  LOG     RSC: This is a log message from server component
          [xx:xx:xx.xxx] Server  ERROR   RSC: This is an error message from server component
          [xx:xx:xx.xxx] Server  WARN    RSC: This is a warning message from server component
+         [xx:xx:xx.xxx] Server  ERROR   [browser] " Server  RSC: This is an error message from server component" "\\n    at Page (app/server/page.tsx:4:11)\\n    at Page (<anonymous>)\\n  2 |   // Logging in RSC render\\n  3 |   console.log('RSC: This is a log message from server component')\\n> 4 |   console.error('RSC: This is an error message from server component')\\n    |           ^\\n  5 |   console.warn('RSC: This is a warning message from server component')\\n  6 |\\n  7 |   return <p>hello world</p>" "(app/server/page.tsx:4:11)"
+         [xx:xx:xx.xxx] Browser ERROR    Server  RSC: This is an error message from server component "\\n    at Page (app/server/page.tsx:4:11)\\n    at Page (<anonymous>)\\n  2 |   // Logging in RSC render\\n  3 |   console.log('RSC: This is a log message from server component')\\n> 4 |   console.error('RSC: This is an error message from server component')\\n    |           ^\\n  5 |   console.warn('RSC: This is a warning message from server component')\\n  6 |\\n  7 |   return <p>hello world</p>" "(app/server/page.tsx:4:11)"
          "
         `)
       })
@@ -122,6 +124,10 @@ describe('log-file', () => {
         expect(newLogContent).toMatchInlineSnapshot(`
          "[xx:xx:xx.xxx] Browser LOG     Client: Complex circular object: {"data":{"nested":{"items":[1,2,3],"value":42},"parent":"[Circular]"},"metadata":{"name":"safe stringify","version":"1.0.0"},"name":"test"}
          [xx:xx:xx.xxx] Browser ERROR   Client: This is an error message from client component
+         [xx:xx:xx.xxx] Browser WARN    Client: This is a warning message from client component
+         [xx:xx:xx.xxx] Server  ERROR   [browser] "Client: This is an error message from client component" "\\n    at ClientPage.useEffect (app/client/page.tsx:25:13)\\n  23 |     circularObj.data.parent = circularObj\\n  24 |     console.log('Client: Complex circular object:', circularObj)\\n> 25 |     console.error('Client: This is an error message from client component')\\n     |             ^\\n  26 |     console.warn('Client: This is a warning message from client component')\\n  27 |   }, [])\\n  28 |" "(app/client/page.tsx:25:13)"
+         [xx:xx:xx.xxx] Browser ERROR   Client: This is an error message from client component "\\n    at ClientPage.useEffect (app/client/page.tsx:25:13)\\n  23 |     circularObj.data.parent = circularObj\\n  24 |     console.log('Client: Complex circular object:', circularObj)\\n> 25 |     console.error('Client: This is an error message from client component')\\n     |             ^\\n  26 |     console.warn('Client: This is a warning message from client component')\\n  27 |   }, [])\\n  28 |" "(app/client/page.tsx:25:13)"
+         [xx:xx:xx.xxx] Server  WARN    [browser] "Client: This is a warning message from client component" "(app/client/page.tsx:26:13)"
          [xx:xx:xx.xxx] Browser WARN    Client: This is a warning message from client component
          "
         `)
