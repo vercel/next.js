@@ -222,7 +222,17 @@ export type AppRouterState = {
    * - This is the url you see in the browser.
    */
   canonicalUrl: string
+
+  /**
+   * The search query observed by the server during rendering. This may be
+   * different from the canonical URL's search query if the server performed
+   * a rewrite. Even though a client component won't observe this (unless it
+   * were passed from a Server component), the client router needs to know this
+   * so it can properly cache segment data; it'ss part of a page segment's
+   * cache key.
+   */
   renderedSearch: string
+
   /**
    * The underlying "url" representing the UI state, which is used for intercepting routes.
    */

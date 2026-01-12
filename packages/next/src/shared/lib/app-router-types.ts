@@ -108,16 +108,10 @@ export type Segment =
 export type FlightRouterState = [
   segment: Segment,
   parallelRoutes: { [parallelRouterKey: string]: FlightRouterState },
-  url?: string | null,
+  refreshState?: RefreshState | null,
   /**
-   * "refresh" and "refetch", despite being similarly named, have different
-   * semantics:
    * - "refetch" is used during a request to inform the server where rendering
    *   should start from.
-   *
-   * - "refresh" is used by the client to mark that a segment should re-fetch the
-   *   data from the server for the current segment. It uses the "url" property
-   *   above to determine where to fetch from.
    *
    * - "inside-shared-layout" is used during a prefetch request to inform the
    *   server that even if the segment matches, it should be treated as if it's
@@ -137,12 +131,7 @@ export type FlightRouterState = [
    *   make sense for the client to send a FlightRouterState, since this type is
    *   overloaded with concerns.
    */
-  refresh?:
-    | 'refetch'
-    | 'refresh'
-    | 'inside-shared-layout'
-    | 'metadata-only'
-    | null,
+  refresh?: 'refetch' | 'inside-shared-layout' | 'metadata-only' | null,
   isRootLayout?: boolean,
   /**
    * Only present when responding to a tree prefetch request. Indicates whether
@@ -151,6 +140,18 @@ export type FlightRouterState = [
    */
   hasLoadingBoundary?: HasLoadingBoundary,
 ]
+
+/**
+ * When rendering a parallel route, some of the parallel paths may not match
+ * the current URL. In that case, the Next client has to render something,
+ * so it will render whichever was the last route to match that slot. We use
+ * this type to track when this has happened. It's a tuple of the original
+ * URL that was used to fetch the segment, and the (possibly rewritten) search
+ * query that was rendered by the server. The URL is needed when performing
+ * a refresh of the segment, and the search query is needed for looking up
+ * matching entries in the segment cache.
+ */
+export type RefreshState = [url: string, renderedSearch: string]
 
 export const enum HasLoadingBoundary {
   // There is a loading boundary in this particular segment

@@ -10,8 +10,8 @@ describe('prepareFlightRouterStateForRequest', () => {
       const flightRouterState: FlightRouterState = [
         '__PAGE__?{"sensitive":"data"}',
         {},
-        '/some/url',
-        'refresh',
+        ['/some/url', ''],
+        'refetch',
         true,
         1,
       ]
@@ -61,14 +61,13 @@ describe('prepareFlightRouterStateForRequest', () => {
       const flightRouterState: FlightRouterState = [
         'segment',
         {},
-        '/sensitive/url/path',
-        null,
+        ['/sensitive/url/path', ''],
       ]
 
       const result = prepareFlightRouterStateForRequest(flightRouterState)
       const decoded = JSON.parse(decodeURIComponent(result))
 
-      expect(decoded[2]).toBeNull()
+      expect(decoded[2]).toBeUndefined()
     })
   })
 
@@ -77,7 +76,7 @@ describe('prepareFlightRouterStateForRequest', () => {
       const flightRouterState: FlightRouterState = [
         'segment',
         {},
-        '/url',
+        ['/url', ''],
         'refetch',
       ]
 
@@ -91,7 +90,7 @@ describe('prepareFlightRouterStateForRequest', () => {
       const flightRouterState: FlightRouterState = [
         'segment',
         {},
-        '/url',
+        ['/url', ''],
         'inside-shared-layout',
       ]
 
@@ -101,27 +100,27 @@ describe('prepareFlightRouterStateForRequest', () => {
       expect(decoded[3]).toBe('inside-shared-layout')
     })
 
-    it('should strip "refresh" marker (client-only)', () => {
+    it('should strip "refresh" state (client-only)', () => {
+      const flightRouterState: FlightRouterState = ['segment', {}, ['/url', '']]
+
+      const result = prepareFlightRouterStateForRequest(flightRouterState)
+      const decoded = JSON.parse(decodeURIComponent(result))
+
+      expect(decoded[2]).toBeUndefined()
+    })
+
+    it('should strip null refresh marker', () => {
       const flightRouterState: FlightRouterState = [
         'segment',
         {},
-        '/url',
-        'refresh',
+        ['/url', ''],
+        null,
       ]
 
       const result = prepareFlightRouterStateForRequest(flightRouterState)
       const decoded = JSON.parse(decodeURIComponent(result))
 
-      expect(decoded[3]).toBeNull()
-    })
-
-    it('should strip null refresh marker', () => {
-      const flightRouterState: FlightRouterState = ['segment', {}, '/url', null]
-
-      const result = prepareFlightRouterStateForRequest(flightRouterState)
-      const decoded = JSON.parse(decodeURIComponent(result))
-
-      expect(decoded[3]).toBeNull()
+      expect(decoded[3]).toBeUndefined()
     })
   })
 
@@ -178,12 +177,7 @@ describe('prepareFlightRouterStateForRequest', () => {
       const result = prepareFlightRouterStateForRequest(flightRouterState)
       const decoded = JSON.parse(decodeURIComponent(result))
 
-      expect(decoded).toEqual([
-        'segment',
-        {},
-        null, // URL
-        null, // refresh marker
-      ])
+      expect(decoded).toEqual(['segment', {}])
     })
   })
 
@@ -192,15 +186,10 @@ describe('prepareFlightRouterStateForRequest', () => {
       const flightRouterState: FlightRouterState = [
         'parent',
         {
-          children: [
-            '__PAGE__?{"nested":"param"}',
-            {},
-            '/nested/url',
-            'refresh',
-          ],
-          modal: ['modal-segment', {}, '/modal/url', 'refetch'],
+          children: ['__PAGE__?{"nested":"param"}', {}, ['/nested/url', '']],
+          modal: ['modal-segment', {}, ['/modal/url', ''], 'refetch'],
         },
-        '/parent/url',
+        ['/parent/url', ''],
         'inside-shared-layout',
       ]
 
@@ -213,8 +202,8 @@ describe('prepareFlightRouterStateForRequest', () => {
           children: [
             '__PAGE__', // search params stripped
             {},
-            null, // URL stripped
-            null, // 'refresh' marker stripped
+            // URL stripped
+            // 'refresh' marker stripped
           ],
           modal: [
             'modal-segment',
@@ -238,7 +227,7 @@ describe('prepareFlightRouterStateForRequest', () => {
               children: [
                 '__PAGE__?{"deep":"nesting"}',
                 {},
-                '/deep/url',
+                ['/deep/url', ''],
                 'refetch',
               ],
             },
@@ -266,20 +255,20 @@ describe('prepareFlightRouterStateForRequest', () => {
               modal: [
                 '__PAGE__?{"modalParam":"data"}',
                 {},
-                '/modal/path',
-                'refresh',
+                ['/modal/path', ''],
+                null,
                 false,
                 HasLoadingBoundary.SegmentHasLoadingBoundary,
               ],
             },
-            '/dashboard/url',
+            ['/dashboard/url', ''],
             'refetch',
             true,
             1,
           ],
-          sidebar: [['slug', 'user-123', 'd'], {}, '/sidebar/url', null],
+          sidebar: [['slug', 'user-123', 'd'], {}, ['/sidebar/url', ''], null],
         },
-        '/main/url',
+        ['/main/url', ''],
         'inside-shared-layout',
         true,
         1,
@@ -312,8 +301,8 @@ describe('prepareFlightRouterStateForRequest', () => {
       // Sidebar route (dynamic segment) checks
       const sidebarRoute = decoded[1].sidebar
       expect(sidebarRoute[0]).toEqual(['slug', 'user-123', 'd']) // dynamic segment preserved
-      expect(sidebarRoute[2]).toBeNull() // URL stripped
-      expect(sidebarRoute[3]).toBeNull() // null marker remains null
+      expect(sidebarRoute[2]).toBeUndefined() // URL stripped
+      expect(sidebarRoute[3]).toBeUndefined() // null marker stripped
     })
   })
 })

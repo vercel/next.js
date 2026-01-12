@@ -50,6 +50,7 @@ export function restoreReducer(
   const task = startPPRNavigation(
     now,
     currentUrl,
+    state.renderedSearch,
     state.cache,
     state.tree,
     treeToRestore,

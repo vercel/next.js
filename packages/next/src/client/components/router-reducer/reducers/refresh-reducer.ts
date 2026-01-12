@@ -36,6 +36,7 @@ export function refreshDynamicData(
   // existing dynamic data (including in shared layouts) is re-fetched.
   const currentCanonicalUrl = state.canonicalUrl
   const currentUrl = new URL(currentCanonicalUrl, location.origin)
+  const currentRenderedSearch = state.renderedSearch
   const currentFlightRouterState = state.tree
   const shouldScroll = true
 
@@ -53,6 +54,7 @@ export function refreshDynamicData(
     currentCanonicalUrl,
     navigationSeed,
     currentUrl,
+    currentRenderedSearch,
     state.cache,
     currentFlightRouterState,
     freshnessPolicy,

@@ -2,6 +2,7 @@ import type {
   CacheNodeSeedData,
   FlightRouterState,
   FlightSegmentPath,
+  RefreshState,
 } from '../../../shared/lib/app-router-types'
 import type {
   ChildSegmentMap,
@@ -51,7 +52,7 @@ export type NavigationTask = {
   // The URL that should be used to fetch the dynamic data. This is only set
   // when the segment cannot be refetched from the current route, because it's
   // part of a "default" parallel slot that was reused during a navigation.
-  refreshUrl: string | null
+  refreshState: RefreshState | null
   children: Map<string, NavigationTask> | null
 }
 
@@ -175,6 +176,7 @@ export function createInitialCacheNodeForHydration(
 export function startPPRNavigation(
   navigatedAt: number,
   oldUrl: URL,
+  oldRenderedSearch: string,
   oldCacheNode: CacheNode | null,
   oldRouterState: FlightRouterState,
   newRouterState: FlightRouterState,
@@ -189,7 +191,11 @@ export function startPPRNavigation(
 ): NavigationTask | null {
   const didFindRootLayout = false
   const parentNeedsDynamicRequest = false
-  const parentRefreshUrl = null
+  const parentRefreshState = null
+  const oldRootRefreshState: RefreshState = [
+    createHrefFromUrl(oldUrl),
+    oldRenderedSearch,
+  ]
   return updateCacheNodeOnNavigation(
     navigatedAt,
     oldUrl,
@@ -207,7 +213,8 @@ export function startPPRNavigation(
     null,
     null,
     parentNeedsDynamicRequest,
-    parentRefreshUrl,
+    oldRootRefreshState,
+    parentRefreshState,
     accumulation
   )
 }
@@ -229,7 +236,8 @@ function updateCacheNodeOnNavigation(
   parentSegmentPath: FlightSegmentPath | null,
   parentParallelRouteKey: string | null,
   parentNeedsDynamicRequest: boolean,
-  parentRefreshUrl: string | null,
+  oldRootRefreshState: RefreshState,
+  parentRefreshState: RefreshState | null,
   accumulation: NavigationRequestAccumulation
 ): NavigationTask | null {
   // Check if this segment matches the one in the previous route.
@@ -441,20 +449,20 @@ function updateCacheNodeOnNavigation(
   // current route; it may have been reused from an older route. If so,
   // we need to fetch its data from the old route's URL rather than current
   // route's URL. Keep track of this as we traverse the tree.
-  const href = newRouterState[2]
-  const refreshUrl =
-    typeof href === 'string' && newRouterState[3] === 'refresh'
+  const maybeRefreshState = newRouterState[2]
+  const refreshState =
+    maybeRefreshState !== undefined && maybeRefreshState !== null
       ? // This segment is not present in the current route. Track its
         // refresh URL as we continue traversing the tree.
-        href
+        maybeRefreshState
       : // Inherit the refresh URL from the parent.
-        parentRefreshUrl
+        parentRefreshState
 
   // If this segment itself needs to fetch new data from the server, then by
   // definition it is being refreshed. Track its refresh URL so we know which
   // URL to request the data from.
-  if (needsDynamicRequest && refreshUrl !== null) {
-    accumulateRefreshUrl(accumulation, refreshUrl)
+  if (needsDynamicRequest && refreshState !== null) {
+    accumulateRefreshUrl(accumulation, refreshState)
   }
 
   // As we diff the trees, we may sometimes modify (copy-on-write, not mutate)
@@ -524,7 +532,7 @@ function updateCacheNodeOnNavigation(
       // a soft navigation; instead, the client reuses whatever segment was
       // already active in that slot on the previous route.
       newRouterStateChild = reuseActiveSegmentInDefaultSlot(
-        oldUrl,
+        oldRootRefreshState,
         oldRouterStateChild
       )
       newSegmentChild = newRouterStateChild[0]
@@ -561,7 +569,8 @@ function updateCacheNodeOnNavigation(
       segmentPath,
       parallelRouteKey,
       parentNeedsDynamicRequest || needsDynamicRequest,
-      refreshUrl,
+      oldRootRefreshState,
+      refreshState,
       accumulation
     )
 
@@ -618,7 +627,7 @@ function updateCacheNodeOnNavigation(
       childNeedsDynamicRequest,
       parentNeedsDynamicRequest
     ),
-    refreshUrl,
+    refreshState,
     children: taskChildren,
   }
 }
@@ -923,7 +932,7 @@ function createCacheNodeOnNavigation(
     ),
     // This route is not part of the current tree, so there's no reason to
     // track the refresh URL.
-    refreshUrl: null,
+    refreshState: null,
     children: taskChildren,
   }
 }
@@ -986,7 +995,7 @@ function createDynamicRequestTree(
 
 function accumulateRefreshUrl(
   accumulation: NavigationRequestAccumulation,
-  refreshUrl: string
+  refreshState: RefreshState
 ) {
   // This is a refresh navigation, and we're inside a "default" slot that's
   // not part of the current route; it was reused from an older route. In
@@ -998,6 +1007,7 @@ function accumulateRefreshUrl(
   // we don't do it immediately here is so we can deduplicate multiple
   // instances of the same URL into a single request. See
   // listenForDynamicRequest for more details.
+  const refreshUrl = refreshState[0]
   const separateRefreshUrls = accumulation.separateRefreshUrls
   if (separateRefreshUrls === null) {
     accumulation.separateRefreshUrls = new Set([refreshUrl])
@@ -1007,7 +1017,7 @@ function accumulateRefreshUrl(
 }
 
 function reuseActiveSegmentInDefaultSlot(
-  oldUrl: URL,
+  oldRootRefreshState: RefreshState,
   oldRouterState: FlightRouterState
 ): FlightRouterState {
   // This is a "default" segment. These are never sent by the server during a
@@ -1015,26 +1025,22 @@ function reuseActiveSegmentInDefaultSlot(
   // active in that slot on the previous route. This means if we later need to
   // refresh the segment, it will have to be refetched from the previous route's
   // URL. We store it in the Flight Router State.
-  //
-  // TODO: We also mark the segment with a "refresh" marker but I think we can
-  // get rid of that eventually by making sure we only add URLs to page segments
-  // that are reused. Then the presence of the URL alone is enough.
   let reusedRouterState
 
-  const oldRefreshMarker = oldRouterState[3]
-  if (oldRefreshMarker === 'refresh') {
+  const oldRefreshState = oldRouterState[2]
+  if (oldRefreshState !== undefined && oldRefreshState !== null) {
     // This segment was already reused from an even older route. Keep its
-    // existing URL and refresh marker.
+    // existing URL and refresh state.
     reusedRouterState = oldRouterState
   } else {
-    // This segment was not previously reused, and it's not on the new route.
-    // So it must have been delivered in the old route.
+    // Since this route didn't already have a refresh state, it must have been
+    // reachable from the root of the old route. So we use the refresh state
+    // that represents the old route.
     reusedRouterState = patchRouterStateWithNewChildren(
       oldRouterState,
       oldRouterState[1]
     )
-    reusedRouterState[2] = createHrefFromUrl(oldUrl)
-    reusedRouterState[3] = 'refresh'
+    reusedRouterState[2] = oldRootRefreshState
   }
 
   return reusedRouterState
@@ -1631,7 +1637,7 @@ function abortRemainingPendingTasks(
     //
     // When this happens, we treat this the same as a refresh(). The entire
     // tree will be re-rendered from the root.
-    if (task.refreshUrl === null) {
+    if (task.refreshState === null) {
       // Trigger a "soft" refresh. Essentially the same as calling `refresh()`
       // in a Server Action.
       exitStatus = NavigationTaskExitStatus.SoftRetry

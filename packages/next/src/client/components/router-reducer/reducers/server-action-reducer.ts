@@ -382,6 +382,7 @@ export function serverActionReducer(
       // If there was no redirect, then the target URL is the same as the
       // current URL.
       const currentUrl = new URL(state.canonicalUrl, location.origin)
+      const currentRenderedSearch = state.renderedSearch
       const redirectUrl =
         redirectLocation !== undefined ? redirectLocation : currentUrl
       const currentFlightRouterState = state.tree
@@ -425,6 +426,7 @@ export function serverActionReducer(
             redirectCanonicalUrl,
             navigationSeed,
             currentUrl,
+            currentRenderedSearch,
             state.cache,
             currentFlightRouterState,
             freshnessPolicy,
@@ -446,6 +448,7 @@ export function serverActionReducer(
       const result = navigateUsingSegmentCache(
         redirectUrl,
         currentUrl,
+        currentRenderedSearch,
         state.cache,
         currentFlightRouterState,
         nextUrl,

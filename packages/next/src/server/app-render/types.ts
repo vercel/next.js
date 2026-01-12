@@ -61,12 +61,11 @@ export const flightRouterStateSchema: s.Describe<any> = s.tuple([
     s.string(),
     s.lazy(() => flightRouterStateSchema)
   ),
-  s.optional(s.nullable(s.string())),
+  s.optional(s.nullable(s.tuple([s.string(), s.string()]))),
   s.optional(
     s.nullable(
       s.union([
         s.literal('refetch'),
-        s.literal('refresh'),
         s.literal('inside-shared-layout'),
         s.literal('metadata-only'),
       ])

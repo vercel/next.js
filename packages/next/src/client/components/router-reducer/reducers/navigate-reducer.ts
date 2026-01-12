@@ -170,9 +170,11 @@ export function navigateReducer(
   // implementation. Eventually we'll rewrite the router reducer to a
   // state machine.
   const currentUrl = new URL(state.canonicalUrl, location.origin)
+  const currentRenderedSearch = state.renderedSearch
   const result = navigateUsingSegmentCache(
     url,
     currentUrl,
+    currentRenderedSearch,
     state.cache,
     state.tree,
     state.nextUrl,
