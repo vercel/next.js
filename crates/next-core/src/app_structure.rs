@@ -1752,6 +1752,14 @@ async fn directory_tree_to_entrypoints_internal_untraced(
             is_global_not_found_enabled || modules.global_not_found.is_some();
 
         let not_found_root_modules = modules.without_leaves();
+        let global_error_path = match &modules.global_error {
+            Some(path) => Some(path.clone()),
+            None => Some(
+                get_next_package(app_dir.clone())
+                    .await?
+                    .join("dist/client/components/builtin/global-error.js")?,
+            ),
+        };
         let not_found_tree = AppPageLoaderTree {
             page: app_page.clone(),
             segment: directory_name.clone(),
@@ -1794,6 +1802,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                         }
                     },
                     modules: AppDirModules {
+                        global_error: global_error_path.clone(),
                         ..Default::default()
                     },
                     global_metadata,

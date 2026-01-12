@@ -5546,10 +5546,22 @@ const getGlobalErrorStyles = async (
     componentMod: { createElement },
   } = ctx
 
+  // If globalErrorModule is not available (e.g., during error rendering),
+  // fall back to the default global error component
+  if (!globalErrorModule) {
+    const DefaultGlobalError: GlobalErrorComponent = (
+      await import('../../client/components/builtin/global-error')
+    ).default
+    return {
+      GlobalError: DefaultGlobalError,
+      styles: undefined,
+    }
+  }
+
   const [GlobalErrorComponent, styles] = await createComponentStylesAndScripts({
     ctx,
-    filePath: globalErrorModule![1],
-    getComponent: globalErrorModule![0],
+    filePath: globalErrorModule[1],
+    getComponent: globalErrorModule[0],
     injectedCSS: new Set(),
     injectedJS: new Set(),
   })
@@ -5563,7 +5575,7 @@ const getGlobalErrorStyles = async (
 
     const globalErrorModulePath = normalizeConventionFilePath(
       dir,
-      globalErrorModule![1]
+      globalErrorModule[1]
     )
     if (globalErrorModulePath) {
       const SegmentViewNode = ctx.componentMod.SegmentViewNode

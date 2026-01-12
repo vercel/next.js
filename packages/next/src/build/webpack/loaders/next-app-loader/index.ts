@@ -443,6 +443,9 @@ async function createTreeCodeFromPath(
               )?.[1] ?? defaultGlobalNotFoundPath)
             : undefined
 
+          const globalErrorVarName = `globalError${nestedCollectedDeclarations.length}`
+          nestedCollectedDeclarations.push([globalErrorVarName, globalError])
+
           // If custom global-not-found.js is defined, use global-not-found.js
           if (matchedGlobalNotFound) {
             const varName = `notFound${nestedCollectedDeclarations.length}`
@@ -461,7 +464,12 @@ async function createTreeCodeFromPath(
                     ${JSON.stringify(defaultEmptyStubPath)}
                   ]
                 }]
-              }, {}]
+              }, {
+                '${GLOBAL_ERROR_FILE_TYPE}': [
+                  ${globalErrorVarName},
+                  ${JSON.stringify(globalError)}
+                ]
+              }]
             }`
           } else {
             // If custom not-found.js is found, use it and layout to compose the page,
@@ -479,7 +487,12 @@ async function createTreeCodeFromPath(
                     ${JSON.stringify(notFoundPath)}
                   ]
                 }]
-              }, {}]
+              }, {
+                '${GLOBAL_ERROR_FILE_TYPE}': [
+                  ${globalErrorVarName},
+                  ${JSON.stringify(globalError)}
+                ]
+              }]
             }`
           }
         }
