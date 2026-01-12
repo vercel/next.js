@@ -783,7 +783,7 @@ async fn analyze_ecmascript_module_internal(
             import_usage.insert(
                 *reference,
                 if has_global_usage {
-                    ImportUsage::SideEffects
+                    ImportUsage::TopLevel
                 } else {
                     ImportUsage::Exports(
                         var_graph
@@ -2942,7 +2942,7 @@ async fn handle_free_var_reference(
                             ) => export.clone().map(ModulePart::export),
                             None => None,
                         },
-                        ImportUsage::SideEffects,
+                        ImportUsage::TopLevel,
                         state.import_externals,
                         state.tree_shaking_mode,
                     )

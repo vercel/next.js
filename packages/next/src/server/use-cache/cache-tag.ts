@@ -14,6 +14,7 @@ export function cacheTag(...tags: string[]): void {
     case 'prerender':
     case 'prerender-client':
     case 'prerender-runtime':
+    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'request':
     case 'unstable-cache':

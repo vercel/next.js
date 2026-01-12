@@ -14,6 +14,7 @@ import {
 import type { FlightRouterState } from '../../../../shared/lib/app-router-types'
 import { handleExternalUrl } from './navigate-reducer'
 import type { Mutable } from '../router-reducer-types'
+import { convertServerPatchToFullTree } from '../../segment-cache/navigation'
 
 export function restoreReducer(
   state: ReadonlyReducerState,
@@ -47,18 +48,22 @@ export function restoreReducer(
     scrollableSegments: null,
     separateRefreshUrls: null,
   }
+  const restoreSeed = convertServerPatchToFullTree(
+    treeToRestore,
+    null,
+    renderedSearch
+  )
   const task = startPPRNavigation(
     now,
     currentUrl,
+    state.renderedSearch,
     state.cache,
     state.tree,
-    treeToRestore,
+    restoreSeed.routeTree,
+    restoreSeed.metadataVaryPath,
     FreshnessPolicy.HistoryTraversal,
     null,
     null,
-    null,
-    null,
-    false,
     false,
     accumulation
   )
@@ -91,7 +96,7 @@ export function restoreReducer(
     focusAndScrollRef: state.focusAndScrollRef,
     cache: task.node,
     // Restore provided tree
-    tree: treeToRestore,
+    tree: task.route,
 
     nextUrl: restoredNextUrl,
     // TODO: We need to restore previousNextUrl, too, which represents the
