@@ -95,8 +95,8 @@ pub trait BackingStorageSealed: 'static + Send + Sync {
         storage: &mut TaskStorage,
     ) -> Result<()>;
 
-    /// Batch lookup and decode data for multiple tasks directly into TaskStorage instances.
-    /// Returns a vector of TaskStorage, one for each task_id in the input slice.
+    /// Batch lookup and decode data for multiple tasks directly into TypedStorage instances.
+    /// Returns a vector of TypedStorage, one for each task_id in the input slice.
     /// # Safety
     ///
     /// `tx` must be a transaction from this BackingStorage instance.
