@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::VecDeque, sync::Arc};
+use std::{borrow::Cow, sync::Arc};
 
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
@@ -19,7 +19,7 @@ use turbo_tasks::{
     FxIndexMap, NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat,
     trace::TraceRawVcs,
 };
-use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemPath};
+use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
@@ -47,123 +47,12 @@ use crate::{
     create_visitor,
     references::{
         AstPath,
+        dir_list::{DirListFilter, FlatDirList},
         pattern_mapping::{PatternMapping, ResolveType},
     },
     runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_MODULE_CONTEXT, TURBOPACK_REQUIRE},
     utils::module_id_to_lit,
 };
-
-#[turbo_tasks::value]
-#[derive(Debug)]
-pub(crate) enum DirListEntry {
-    File(FileSystemPath),
-    Dir(ResolvedVc<DirList>),
-}
-
-#[turbo_tasks::value(transparent)]
-pub(crate) struct DirList(
-    #[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, DirListEntry>,
-);
-
-#[turbo_tasks::value_impl]
-impl DirList {
-    #[turbo_tasks::function]
-    pub(crate) fn read(dir: FileSystemPath, recursive: bool, filter: Vc<EsRegex>) -> Vc<Self> {
-        Self::read_internal(dir.clone(), dir, recursive, filter)
-    }
-
-    #[turbo_tasks::function]
-    pub(crate) async fn read_internal(
-        root: FileSystemPath,
-        dir: FileSystemPath,
-        recursive: bool,
-        filter: Vc<EsRegex>,
-    ) -> Result<Vc<Self>> {
-        let root_val = root.clone();
-        let dir_val = dir.clone();
-        let regex = &filter.await?;
-
-        let mut list = FxIndexMap::default();
-
-        let dir_content = dir.read_dir().await?;
-        let entries = match &*dir_content {
-            DirectoryContent::Entries(entries) => Some(entries),
-            DirectoryContent::NotFound => None,
-        };
-
-        for (_, entry) in entries.iter().flat_map(|m| m.iter()) {
-            match entry {
-                DirectoryEntry::File(path) => {
-                    if let Some(relative_path) = root_val.get_relative_path_to(path)
-                        && regex.is_match(&relative_path)
-                    {
-                        list.insert(relative_path, DirListEntry::File(path.clone()));
-                    }
-                }
-                DirectoryEntry::Directory(path) if recursive => {
-                    if let Some(relative_path) = dir_val.get_relative_path_to(path) {
-                        list.insert(
-                            relative_path,
-                            DirListEntry::Dir(
-                                DirList::read_internal(
-                                    root.clone(),
-                                    path.clone(),
-                                    recursive,
-                                    filter,
-                                )
-                                .to_resolved()
-                                .await?,
-                            ),
-                        );
-                    }
-                }
-                // ignore everything else
-                _ => {}
-            }
-        }
-
-        list.sort_keys();
-
-        Ok(Vc::cell(list))
-    }
-
-    #[turbo_tasks::function]
-    async fn flatten(self: Vc<Self>) -> Result<Vc<FlatDirList>> {
-        let this = self.await?;
-
-        let mut queue = VecDeque::from([this]);
-
-        let mut list = FxIndexMap::default();
-
-        while let Some(dir) = queue.pop_front() {
-            for (k, entry) in &*dir {
-                match entry {
-                    DirListEntry::File(path) => {
-                        list.insert(k.clone(), path.clone());
-                    }
-                    DirListEntry::Dir(d) => {
-                        queue.push_back(d.await?);
-                    }
-                }
-            }
-        }
-
-        Ok(Vc::cell(list))
-    }
-}
-
-#[turbo_tasks::value(transparent)]
-pub(crate) struct FlatDirList(
-    #[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, FileSystemPath>,
-);
-
-#[turbo_tasks::value_impl]
-impl FlatDirList {
-    #[turbo_tasks::function]
-    pub(crate) fn read(dir: FileSystemPath, recursive: bool, filter: Vc<EsRegex>) -> Vc<Self> {
-        DirList::read(dir, recursive, filter).flatten()
-    }
-}
 
 #[turbo_tasks::value]
 #[derive(Debug)]
@@ -192,7 +81,7 @@ impl RequireContextMap {
     ) -> Result<Vc<Self>> {
         let origin_path = origin.origin_path().await?.parent();
 
-        let list = &*FlatDirList::read(dir, recursive, filter).await?;
+        let list = &*FlatDirList::read(dir, recursive, DirListFilter::Regex(filter)).await?;
 
         let mut map = FxIndexMap::default();
 

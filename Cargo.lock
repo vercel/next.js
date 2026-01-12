@@ -9867,6 +9867,7 @@ dependencies = [
  "strsim 0.11.1",
  "swc_core",
  "swc_sourcemap",
+ "tempfile",
  "tokio",
  "tracing",
  "turbo-bincode",
