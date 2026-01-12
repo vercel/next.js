@@ -1517,6 +1517,7 @@ export default async function build(
           // Write the entry file at {distDirRoot}/types/routes.d.ts
           // This ensures next-env.d.ts has a consistent import path
           const entryFilePath = path.join(
+            dir,
             config.distDirRoot,
             'types',
             'routes.d.ts'
