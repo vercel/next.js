@@ -24,14 +24,6 @@ const NEXT_BA_TARBALL = `${TARBALLS}/next-bundle-analyzer.tar`
 
 type CompressOpt = 'none' | 'strip' | 'objcopy-zlib' | 'objcopy-zstd'
 
-interface CliOptions {
-  jsBuild?: boolean
-  project?: string
-  tar?: boolean
-  compress?: CompressOpt
-  _: string[]
-}
-
 const cliOptions = yargs(hideBin(process.argv))
   .scriptName('pack-next')
   .command('$0', 'Pack Next.js for testing in external projects')
@@ -50,7 +42,6 @@ const cliOptions = yargs(hideBin(process.argv))
     describe: 'Create tarballs instead of direct reflinks',
   })
   .option('compress', {
-    type: 'string',
     describe:
       'How compress the binary, useful on platforms where tarballs can ' +
       'exceed 2 GiB, which causes ERR_FS_FILE_TOO_LARGE with pnpm. Defaults ' +
@@ -59,11 +50,13 @@ const cliOptions = yargs(hideBin(process.argv))
     choices: [
       'none',
       'strip',
-      ...(process.platform === 'linux' ? ['objcopy-zlib', 'objcopy-zstd'] : []),
+      ...(process.platform === 'linux'
+        ? (['objcopy-zlib', 'objcopy-zstd'] as const)
+        : ([] as const)),
     ] as const,
   })
   .check((opts) => {
-    const compress = opts.compress as CompressOpt | undefined
+    const compress = opts.compress
     if (!opts.tar && (compress ?? 'none') !== 'none') {
       throw new Error('--compress is only valid in combination with --tar')
     }
@@ -71,10 +64,10 @@ const cliOptions = yargs(hideBin(process.argv))
   })
   .middleware((opts) => {
     if (opts.tar && process.platform === 'linux' && opts.compress == null) {
-      ;(opts as CliOptions).compress = 'strip'
+      opts.compress = 'strip'
     }
   })
-  .strict().argv as unknown as CliOptions
+  .strict().argv
 
 interface PackageFiles {
   nextFile: string
@@ -97,7 +90,7 @@ async function main(): Promise<void> {
     await Promise.all(binaries.map((bin) => fs.rm(bin)))
   }
 
-  await buildNative(cliOptions._)
+  await buildNative(cliOptions._ as string[])
 
   if (cliOptions.tar) {
     await fs.mkdir(TARBALLS, { recursive: true })
