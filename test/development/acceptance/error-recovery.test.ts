@@ -315,7 +315,7 @@ describe('pages/ error recovery', () => {
            ],
          }
         `)
-      } else {
+      } else if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
          {
            "description": "oops",
@@ -327,6 +327,21 @@ describe('pages/ error recovery', () => {
            "stack": [
              "Child child.js (3:9)",
              "Index index.js (6:13)",
+           ],
+         }
+        `)
+      } else {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "oops",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "child.js (3:9) @ Child
+         > 3 |   throw new Error('oops')
+             |         ^",
+           "stack": [
+             "Child child.js (3:9)",
+             "Index index.js (6:7)",
            ],
          }
         `)
