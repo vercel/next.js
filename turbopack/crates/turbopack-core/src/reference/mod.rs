@@ -125,7 +125,7 @@ impl ChunkableModuleReference for SingleChunkableModuleReference {
     #[turbo_tasks::function]
     async fn binding_usage(&self) -> Result<Vc<BindingUsage>> {
         Ok(BindingUsage {
-            import: ImportUsage::SideEffects,
+            import: ImportUsage::TopLevel,
             export: self.export.owned().await?,
         }
         .cell())

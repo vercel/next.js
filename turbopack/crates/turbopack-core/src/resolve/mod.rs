@@ -117,20 +117,23 @@ impl BindingUsage {
     }
 }
 
+/// Defines where an import is used in a module
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Clone, Default, Hash, Serialize, Deserialize)]
 pub enum ImportUsage {
-    /// This import is used by some side effect in the module (and can't be tree shaken).
+    /// This import is used at the top level of the module.  For example, for module level side
+    /// effects
     #[default]
-    SideEffects,
+    TopLevel,
     /// This import is used only by these specific exports, if all exports are unused, the import
     /// can also be removed.
     ///
     /// (This is only ever set on `ModulePart::Export` references. Side effects are handled via
-    /// `ModulePart::Evaluation` references, which always have `ImportUsage::SideEffects`.)
+    /// `ModulePart::Evaluation` references, which always have `ImportUsage::TopLevel`.)
     Exports(FrozenSet<RcStr>),
 }
 
+/// Defines what parts of a module are used by another module
 #[turbo_tasks::value]
 #[derive(Debug, Clone, Default, Hash, Serialize, Deserialize)]
 pub enum ExportUsage {

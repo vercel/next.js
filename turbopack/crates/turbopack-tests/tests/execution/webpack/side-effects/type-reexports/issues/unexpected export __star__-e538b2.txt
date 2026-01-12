@@ -3,8 +3,3 @@ warning - [analysis] /turbopack/crates/turbopack-tests/tests/execution/webpack/s
   export * used with module [project]/turbopack/crates/turbopack-tests/tests/execution/webpack/side-effects/type-reexports/input/empty.js [test] (ecmascript) which has no exports
   Typescript only: Did you want to export only types with `export type * from "..."`?
   Note: Using `export type` is more efficient than `export *` as it won't emit any runtime code.
-  
-  Import trace:
-    test:
-      ./turbopack/crates/turbopack-tests/tests/execution/webpack/side-effects/type-reexports/input/empty.js
-      ./turbopack/crates/turbopack-tests/tests/execution/webpack/side-effects/type-reexports/input/index.js
