@@ -29,12 +29,10 @@ let argv = require('yargs/yargs')(process.argv.slice(2))
   .string('g')
   .alias('g', 'group')
   .number('c')
-  .boolean('related')
   .boolean('dry')
   .boolean('print-tests')
   .describe('print-tests', 'Prints the test files that will be run')
   .boolean('local')
-  .alias('r', 'related')
   .alias('c', 'concurrency').argv
 
 function escapeRegexp(str) {
@@ -236,7 +234,6 @@ async function main() {
     group: argv.group ?? false,
     testPattern: argv.testPattern ?? false,
     type: argv.type ?? false,
-    related: argv.related ?? false,
     retries: argv.retries ?? DEFAULT_NUM_RETRIES,
     dry: argv.dry ?? false,
     local: argv.local ?? false,
@@ -286,20 +283,6 @@ async function main() {
 
     if (options.testPattern && typeof options.testPattern === 'string') {
       testPatternRegex = new RegExp(options.testPattern)
-    }
-
-    if (options.related) {
-      const { getRelatedTests } = await import('./scripts/run-related-test.mjs')
-      const tests = await getRelatedTests()
-      if (tests.length)
-        testPatternRegex = new RegExp(tests.map(escapeRegexp).join('|'))
-
-      if (testPatternRegex) {
-        console.log('Running related tests:', testPatternRegex.toString())
-      } else {
-        console.log('No matching related tests, exiting.')
-        process.exit(0)
-      }
     }
 
     tests = (
@@ -555,7 +538,6 @@ ${ENDGROUP}`)
               // Format the output of junit report to include the test name
               // For the debugging purpose to compare actual run list to the generated reports
               // [NOTE]: This won't affect if junit reporter is not enabled
-              // @ts-expect-error .replaceAll() does exist. Follow-up why TS is not recognizing it
               JEST_JUNIT_OUTPUT_NAME: test.file.replaceAll('/', '_'),
               // Specify suite name for the test to avoid unexpected merging across different env / grouped tests
               // This is not individual suites name (corresponding 'describe'), top level suite name which have redundant names by default

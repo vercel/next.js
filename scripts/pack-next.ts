@@ -34,7 +34,7 @@ interface CliOptions {
 
 const cliOptions = yargs(hideBin(process.argv))
   .scriptName('pack-next')
-  .command('$0')
+  .command('$0', 'Pack Next.js for testing in external projects')
   .option('js-build', {
     type: 'boolean',
     default: true,
@@ -60,17 +60,18 @@ const cliOptions = yargs(hideBin(process.argv))
       'none',
       'strip',
       ...(process.platform === 'linux' ? ['objcopy-zlib', 'objcopy-zstd'] : []),
-    ],
+    ] as const,
   })
-  .check((opts: CliOptions) => {
-    if (!opts.tar && (opts.compress ?? 'none') !== 'none') {
+  .check((opts) => {
+    const compress = opts.compress as CompressOpt | undefined
+    if (!opts.tar && (compress ?? 'none') !== 'none') {
       throw new Error('--compress is only valid in combination with --tar')
     }
     return true
   })
-  .middleware((opts: CliOptions) => {
+  .middleware((opts) => {
     if (opts.tar && process.platform === 'linux' && opts.compress == null) {
-      opts.compress = 'strip'
+      ;(opts as CliOptions).compress = 'strip'
     }
   })
   .strict().argv as unknown as CliOptions
