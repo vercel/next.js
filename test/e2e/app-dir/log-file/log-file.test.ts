@@ -3,6 +3,8 @@ import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
+const isCacheComponentsEnabled = process.env.__NEXT_CACHE_COMPONENTS === 'true'
+
 describe('log-file', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
@@ -82,14 +84,23 @@ describe('log-file', () => {
     if (isNextDev) {
       await retry(async () => {
         const newLogContent = getNewLogContent()
-        expect(newLogContent).toMatchInlineSnapshot(`
-         "[xx:xx:xx.xxx] Server  LOG     RSC: This is a log message from server component
-         [xx:xx:xx.xxx] Server  ERROR   RSC: This is an error message from server component
-         [xx:xx:xx.xxx] Server  WARN    RSC: This is a warning message from server component
-         [xx:xx:xx.xxx] Server  ERROR   [browser] " Server  RSC: This is an error message from server component" "\\n    at Page (app/server/page.tsx:4:11)\\n    at Page (<anonymous>)\\n  2 |   // Logging in RSC render\\n  3 |   console.log('RSC: This is a log message from server component')\\n> 4 |   console.error('RSC: This is an error message from server component')\\n    |           ^\\n  5 |   console.warn('RSC: This is a warning message from server component')\\n  6 |\\n  7 |   return <p>hello world</p>" "(app/server/page.tsx:4:11)"
-         [xx:xx:xx.xxx] Browser ERROR    Server  RSC: This is an error message from server component "\\n    at Page (app/server/page.tsx:4:11)\\n    at Page (<anonymous>)\\n  2 |   // Logging in RSC render\\n  3 |   console.log('RSC: This is a log message from server component')\\n> 4 |   console.error('RSC: This is an error message from server component')\\n    |           ^\\n  5 |   console.warn('RSC: This is a warning message from server component')\\n  6 |\\n  7 |   return <p>hello world</p>" "(app/server/page.tsx:4:11)"
-         "
-        `)
+        if (isCacheComponentsEnabled) {
+          expect(newLogContent).toMatchInlineSnapshot(`
+           "[xx:xx:xx.xxx] Server  LOG     RSC: This is a log message from server component
+           [xx:xx:xx.xxx] Server  ERROR   RSC: This is an error message from server component
+           [xx:xx:xx.xxx] Server  WARN    RSC: This is a warning message from server component
+           [xx:xx:xx.xxx] Server  ERROR   [browser] " Prerender  RSC: This is an error message from server component" "\\n    at Page (app/server/page.tsx:4:11)\\n    at Page (<anonymous>)\\n  2 |   // Logging in RSC render\\n  3 |   console.log('RSC: This is a log message from server component')\\n> 4 |   console.error('RSC: This is an error message from server component')\\n    |           ^\\n  5 |   console.warn('RSC: This is a warning message from server component')\\n  6 |\\n  7 |   return <p>hello world</p>" "(app/server/page.tsx:4:11)"
+           [xx:xx:xx.xxx] Browser ERROR    Prerender  RSC: This is an error message from server component "\\n    at Page (app/server/page.tsx:4:11)\\n    at Page (<anonymous>)\\n  2 |   // Logging in RSC render\\n  3 |   console.log('RSC: This is a log message from server component')\\n> 4 |   console.error('RSC: This is an error message from server component')\\n    |           ^\\n  5 |   console.warn('RSC: This is a warning message from server component')\\n  6 |\\n  7 |   return <p>hello world</p>" "(app/server/page.tsx:4:11)"
+           "
+          `)
+        } else {
+          expect(newLogContent).toMatchInlineSnapshot(`
+           "[xx:xx:xx.xxx] Server  LOG     RSC: This is a log message from server component
+           [xx:xx:xx.xxx] Server  ERROR   RSC: This is an error message from server component
+           [xx:xx:xx.xxx] Server  WARN    RSC: This is a warning message from server component
+           "
+          `)
+        }
       })
     } else {
       expect(hasLogFile()).toBe(false)
