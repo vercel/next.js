@@ -93,7 +93,14 @@ export function restoreReducer(
       // Ensures that the custom history state that was set is preserved when applying this update.
       preserveCustomHistoryState: true,
     },
-    focusAndScrollRef: state.focusAndScrollRef,
+    // During history traversal (back/forward), disable Next's focus/scroll management
+    // to avoid interfering with browser or manual scroll restoration.
+    focusAndScrollRef: {
+      apply: false,
+      onlyHashChange: false,
+      hashFragment: null,
+      segmentPaths: [],
+    },
     cache: task.node,
     // Restore provided tree
     tree: task.route,

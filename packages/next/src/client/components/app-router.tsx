@@ -52,6 +52,9 @@ const globalMutable: {
   pendingMpaPath?: string
 } = {}
 
+// Pending manual scroll restoration captured from history state on popstate.
+let pendingScrollRestore: { x: number; y: number } | null = null
+
 function HistoryUpdater({
   appRouterState,
 }: {
@@ -372,6 +375,17 @@ function Router({
         return
       }
 
+      // Capture scroll coordinates stored on the target history entry for manual restoration.
+      const restore = event.state.__PRIVATE_NEXTJS_SCROLL
+      if (restore && typeof restore.y === 'number') {
+        pendingScrollRestore = {
+          x: Number(restore.x) || 0,
+          y: Number(restore.y) || 0,
+        }
+      } else {
+        pendingScrollRestore = null
+      }
+
       // TODO-APP: Ideally the back button should not use startTransition as it should apply the updates synchronously
       // Without startTransition works if the cache is there for this path
       startTransition(() => {
@@ -444,6 +458,22 @@ function Router({
       previousNextUrl,
     }
   }, [tree, focusAndScrollRef, nextUrl, previousNextUrl])
+
+  // After a restore traversal commits, apply manual scroll restoration if present.
+  useEffect(() => {
+    if (pendingScrollRestore) {
+      // Defer to allow layout to stabilize (use two RAFs to reduce content-visibility timing issues).
+      const { x, y } = pendingScrollRestore
+      pendingScrollRestore = null
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          try {
+            window.scrollTo(x, y)
+          } catch {}
+        })
+      })
+    }
+  }, [tree])
 
   let head
   if (matchingHead !== null) {
