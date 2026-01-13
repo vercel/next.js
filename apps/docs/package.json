@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "dev": "next dev",
     "dev-docs": "next dev --turbo",
+    "build": "next build",
     "build-docs": "next build",
     "start": "next start",
     "postinstall": "fumadocs-mdx"
