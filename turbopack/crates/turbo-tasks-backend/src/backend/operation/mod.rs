@@ -22,21 +22,19 @@ use turbo_tasks::{
 
 use crate::{
     backend::{
-        OperationGuard, TaskDataCategory, TransientTask, TurboTasksBackend, TurboTasksBackendInner,
+        OperationGuard, TaskDataCategory, TaskStorageAccessors, TransientTask, TurboTasksBackend,
+        TurboTasksBackendInner,
         storage::{SpecificTaskDataCategory, StorageWriteGuard, get, iter_many, remove},
-        storage_schema::{TaskStorage, TaskStorageAccessors},
+        storage_schema::TaskStorage,
     },
     backing_storage::{BackingStorage, BackingStorageSealed},
-    data::{
-        CachedDataItem, CachedDataItemKey, CachedDataItemType, CachedDataItemValue,
-        CachedDataItemValueRef, CachedDataItemValueRefMut, Dirtyness,
-    },
+    data::{CachedDataItemKey, Dirtyness},
 };
 
 pub trait Operation:
     Encode + Decode<()> + Default + TryFrom<AnyOperation, Error = ()> + Into<AnyOperation>
 {
-    fn execute(self, ctx: &mut impl ExecuteContext);
+    fn execute(self, ctx: &mut impl ExecuteContext<'_>);
 }
 
 #[derive(Copy, Clone)]
@@ -264,8 +262,8 @@ where
                         let mut task = self.backend.storage.access_mut(id);
                         // TODO add is_restoring and avoid concurrent restores and duplicates tasks
                         // ids in `task_ids`
-                        if !task.state().is_restored(category) {
-                            task.state_mut().set_restored(TaskDataCategory::All);
+                        if !task.flags.is_restored(category) {
+                            task.flags.set_restored(TaskDataCategory::All);
                         }
                         prepared_task_callback(self, id, category, task);
                     }
@@ -300,14 +298,14 @@ where
             let task = self.backend.storage.access_mut(task_id);
             let mut ready = true;
             if matches!(category, TaskDataCategory::Data | TaskDataCategory::All)
-                && !task.state().is_restored(TaskDataCategory::Data)
+                && !task.flags.is_restored(TaskDataCategory::Data)
             {
                 tasks_to_restore_for_data.push(task_id);
                 tasks_to_restore_for_data_indicies.push(i);
                 ready = false;
             }
             if matches!(category, TaskDataCategory::Meta | TaskDataCategory::All)
-                && !task.state().is_restored(TaskDataCategory::Meta)
+                && !task.flags.is_restored(TaskDataCategory::Meta)
             {
                 tasks_to_restore_for_meta.push(task_id);
                 tasks_to_restore_for_meta_indicies.push(i);
@@ -390,16 +388,16 @@ where
 
             let mut task = self.backend.storage.access_mut(task_id);
             if let Some(storage) = storage_for_data
-                && !task.state().is_restored(TaskDataCategory::Data)
+                && !task.flags.is_restored(TaskDataCategory::Data)
             {
                 task.restore_from(storage, TaskDataCategory::Data);
-                task.state_mut().set_restored(TaskDataCategory::Data);
+                task.flags.set_restored(TaskDataCategory::Data);
             }
             if let Some(storage) = storage_for_meta
-                && !task.state().is_restored(TaskDataCategory::Meta)
+                && !task.flags.is_restored(TaskDataCategory::Meta)
             {
                 task.restore_from(storage, TaskDataCategory::Meta);
-                task.state_mut().set_restored(TaskDataCategory::Meta);
+                task.flags.set_restored(TaskDataCategory::Meta);
             }
             prepared_task_callback(self, task_id, category, task);
             #[cfg(debug_assertions)]
@@ -434,20 +432,20 @@ where
         }
 
         let mut task = self.backend.storage.access_mut(task_id);
-        if !task.state().is_restored(category) {
+        if !task.flags.is_restored(category) {
             if task_id.is_transient() {
-                task.state_mut().set_restored(TaskDataCategory::All);
+                task.flags.set_restored(TaskDataCategory::All);
             } else {
                 for category in category {
-                    if !task.state().is_restored(category) {
+                    if !task.flags.is_restored(category) {
                         // Avoid holding the lock too long since this can also affect other tasks
                         drop(task);
 
                         let storage = self.restore_task_data_typed(task_id, category);
                         task = self.backend.storage.access_mut(task_id);
-                        if !task.state().is_restored(category) {
+                        if !task.flags.is_restored(category) {
                             task.restore_from(storage, category);
-                            task.state_mut().set_restored(category);
+                            task.flags.set_restored(category);
                         }
                     }
                 }
@@ -522,8 +520,8 @@ where
         }
 
         let (mut task1, mut task2) = self.backend.storage.access_pair_mut(task_id1, task_id2);
-        let is_restored1 = task1.state().is_restored(category);
-        let is_restored2 = task2.state().is_restored(category);
+        let is_restored1 = task1.flags.is_restored(category);
+        let is_restored2 = task2.flags.is_restored(category);
         if !is_restored1 || !is_restored2 {
             for category in category {
                 // Avoid holding the lock too long since this can also affect other tasks
@@ -538,13 +536,13 @@ where
                 let (t1, t2) = self.backend.storage.access_pair_mut(task_id1, task_id2);
                 task1 = t1;
                 task2 = t2;
-                if !task1.state().is_restored(category) {
+                if !task1.flags.is_restored(category) {
                     task1.restore_from(storage1.unwrap(), category);
-                    task1.state_mut().set_restored(category);
+                    task1.flags.set_restored(category);
                 }
-                if !task2.state().is_restored(category) {
+                if !task2.flags.is_restored(category) {
                     task2.restore_from(storage2.unwrap(), category);
-                    task2.state_mut().set_restored(category);
+                    task2.flags.set_restored(category);
                 }
             }
         }
@@ -637,63 +635,16 @@ impl<'e, B: BackingStorage> ChildExecuteContext<'e> for ChildExecuteContextImpl<
     }
 }
 
-pub trait TaskGuard: Debug {
+pub trait TaskGuard: Debug + TaskStorageAccessors {
     fn id(&self) -> TaskId;
-    /// Adds a new item to the task if the key is not already present.
-    /// Returns `true` if the item was added.
-    /// Returns `false` if an item with the same key was already present.
-    #[must_use]
-    fn add(&mut self, item: CachedDataItem) -> bool;
-    /// Adds a new item to the task. The key must not be already present.
-    /// Might panic if the key is already present.
-    fn add_new(&mut self, item: CachedDataItem);
-    /// Extends the task with items from the iterator.
-    /// Overwrites existing keys.
-    /// Returns `true` if all items were new and added.
-    /// Returns `false` if any item had a key that was already present.
-    fn extend(
-        &mut self,
-        ty: CachedDataItemType,
-        items: impl Iterator<Item = CachedDataItem>,
-    ) -> bool;
-    /// Extends the task with items from the iterator.
-    /// Might panic if any item has a key that is already present.
-    fn extend_new(&mut self, ty: CachedDataItemType, items: impl Iterator<Item = CachedDataItem>);
-    fn insert(&mut self, item: CachedDataItem) -> Option<CachedDataItemValue>;
-    fn update(
-        &mut self,
-        key: CachedDataItemKey,
-        update: impl FnOnce(Option<CachedDataItemValue>) -> Option<CachedDataItemValue>,
-    );
-    fn remove(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValue>;
-    fn get(&self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRef<'_>>;
-    fn get_mut(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRefMut<'_>>;
-    fn get_mut_or_insert_with(
-        &mut self,
-        key: CachedDataItemKey,
-        insert: impl FnOnce() -> CachedDataItemValue,
-    ) -> CachedDataItemValueRefMut<'_>;
-    fn has_key(&self, key: &CachedDataItemKey) -> bool;
-    fn count(&self, ty: CachedDataItemType) -> usize;
-    fn iter(
-        &self,
-        ty: CachedDataItemType,
-    ) -> impl Iterator<Item = (CachedDataItemKey, CachedDataItemValueRef<'_>)>;
-    fn shrink_to_fit(&mut self);
-    fn extract_if<'l, F>(
-        &'l mut self,
-        ty: CachedDataItemType,
-        f: F,
-    ) -> impl Iterator<Item = CachedDataItem>
-    where
-        F: for<'a> FnMut(CachedDataItemKey, CachedDataItemValueRef<'a>) -> bool + 'l;
+
     fn invalidate_serialization(&mut self);
     /// Determine which tasks to prefetch for a task.
     /// Only returns Some once per task.
     /// It returns a set of tasks and which info is needed.
     fn prefetch(&mut self) -> Option<FxIndexMap<TaskId, TaskDataCategory>>;
     fn is_immutable(&self) -> bool {
-        self.has_key(&CachedDataItemKey::Immutable {})
+        self.contains_key(&CachedDataItemKey::Immutable {})
     }
     fn is_dirty(&self) -> Option<TaskPriority> {
         get!(self, Dirty).and_then(|dirtyness| match dirtyness {
@@ -862,167 +813,6 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         self.task_id
     }
 
-    #[track_caller]
-    fn add(&mut self, item: CachedDataItem) -> bool {
-        let category = item.category();
-        self.check_access(category);
-        if !self.task_id.is_transient() && item.is_persistent() {
-            if self.task.contains_key(&item.key()) {
-                return false;
-            }
-            self.task.track_modification(category.into_specific());
-        }
-        self.task.add(item)
-    }
-
-    #[track_caller]
-    fn add_new(&mut self, item: CachedDataItem) {
-        let category = item.category();
-        self.check_access(category);
-        if !self.task_id.is_transient() && item.is_persistent() {
-            self.task.track_modification(category.into_specific());
-        }
-        let added = self.task.add(item);
-        assert!(added, "Item already exists");
-    }
-
-    #[track_caller]
-    fn extend(
-        &mut self,
-        ty: CachedDataItemType,
-        items: impl Iterator<Item = CachedDataItem>,
-    ) -> bool {
-        let category = ty.category();
-        self.check_access(category);
-        if !self.task_id.is_transient() && ty.is_persistent() {
-            let mut items = items.peekable();
-            // Check if the iterator is empty
-            if items.peek().is_none() {
-                return true;
-            }
-            // TODO this is not optimal as we always track a modification even if nothing is changed
-            self.task.track_modification(category.into_specific());
-            self.task.extend(ty, items)
-        } else {
-            self.task.extend(ty, items)
-        }
-    }
-
-    #[track_caller]
-    fn extend_new(&mut self, ty: CachedDataItemType, items: impl Iterator<Item = CachedDataItem>) {
-        let category = ty.category();
-        self.check_access(category);
-        if !self.task_id.is_transient() && ty.is_persistent() {
-            self.task.track_modification(category.into_specific());
-        }
-
-        let added = self.task.extend(ty, items);
-        assert!(added, "At least one item already exists");
-    }
-
-    #[track_caller]
-    fn insert(&mut self, item: CachedDataItem) -> Option<CachedDataItemValue> {
-        let category = item.category();
-        self.check_access(category);
-        if !self.task_id.is_transient() && item.is_persistent() {
-            self.task.track_modification(category.into_specific());
-        }
-        self.task.insert(item)
-    }
-
-    #[track_caller]
-    fn update(
-        &mut self,
-        key: CachedDataItemKey,
-        update: impl FnOnce(Option<CachedDataItemValue>) -> Option<CachedDataItemValue>,
-    ) {
-        let category = key.category();
-        self.check_access(category);
-        if !self.task_id.is_transient() && key.is_persistent() {
-            self.task.track_modification(category.into_specific());
-        }
-        self.task.update(key, update);
-    }
-
-    #[track_caller]
-    fn remove(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValue> {
-        let category = key.category();
-        self.check_access(category);
-        if !self.task_id.is_transient() && key.is_persistent() {
-            self.task.track_modification(category.into_specific());
-        }
-        self.task.remove(key)
-    }
-
-    fn get(&self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRef<'_>> {
-        self.check_access(key.category());
-        self.task.get(key)
-    }
-
-    #[track_caller]
-    fn get_mut(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRefMut<'_>> {
-        let category = key.category();
-        self.check_access(category);
-        if !self.task_id.is_transient() && key.is_persistent() {
-            self.task.track_modification(category.into_specific());
-        }
-        self.task.get_mut(key)
-    }
-
-    #[track_caller]
-    fn get_mut_or_insert_with(
-        &mut self,
-        key: CachedDataItemKey,
-        insert: impl FnOnce() -> CachedDataItemValue,
-    ) -> CachedDataItemValueRefMut<'_> {
-        let category = key.category();
-        self.check_access(category);
-        if !self.task_id.is_transient() && key.is_persistent() {
-            self.task.track_modification(category.into_specific());
-        }
-        self.task.get_mut_or_insert_with(key, insert)
-    }
-
-    #[track_caller]
-    fn has_key(&self, key: &CachedDataItemKey) -> bool {
-        self.check_access(key.category());
-        self.task.contains_key(key)
-    }
-
-    #[track_caller]
-    fn count(&self, ty: CachedDataItemType) -> usize {
-        self.check_access(ty.category());
-        self.task.count(ty)
-    }
-
-    fn iter(
-        &self,
-        ty: CachedDataItemType,
-    ) -> impl Iterator<Item = (CachedDataItemKey, CachedDataItemValueRef<'_>)> {
-        self.check_access(ty.category());
-        self.task.iter(ty)
-    }
-
-    fn shrink_to_fit(&mut self) {
-        self.task.shrink_to_fit()
-    }
-
-    #[track_caller]
-    fn extract_if<'l, F>(
-        &'l mut self,
-        ty: CachedDataItemType,
-        f: F,
-    ) -> impl Iterator<Item = CachedDataItem>
-    where
-        F: for<'a> FnMut(CachedDataItemKey, CachedDataItemValueRef<'a>) -> bool + 'l,
-    {
-        self.check_access(ty.category());
-        if !self.task_id.is_transient() && ty.is_persistent() {
-            self.task.track_modification(ty.category().into_specific());
-        }
-        self.task.extract_if(ty, f).into_iter()
-    }
-
     fn invalidate_serialization(&mut self) {
         // TODO this causes race conditions, since we never know when a value is changed. We can't
         // "snapshot" the value correctly.
@@ -1033,16 +823,34 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
     }
 
     fn prefetch(&mut self) -> Option<FxIndexMap<TaskId, TaskDataCategory>> {
-        if self.task.state().prefetched() {
+        if self.task.flags.prefetched() {
             return None;
         }
-        self.task.state_mut().set_prefetched(true);
+        self.task.flags.set_prefetched(true);
         let map = iter_many!(self, OutputDependency { target } => (target, TaskDataCategory::Meta))
             .chain(iter_many!(self, CellDependency { target, key: _ } => (target.task, TaskDataCategory::All)))
             .chain(iter_many!(self, CollectiblesDependency { target } => (target.task, TaskDataCategory::All)))
             .chain(iter_many!(self, Child { task } => (task, TaskDataCategory::All)))
             .collect::<FxIndexMap<_, _>>();
         (map.len() > 1).then_some(map)
+    }
+}
+
+impl<'a, B: BackingStorage> TaskStorageAccessors for TaskGuardImpl<'a, B> {
+    fn typed(&self) -> &TaskStorage {
+        &self.task
+    }
+
+    fn typed_mut(&mut self) -> &mut TaskStorage {
+        &mut self.task
+    }
+
+    fn track_modification(&mut self, category: crate::backend::storage::SpecificTaskDataCategory) {
+        self.task.track_modification(category);
+    }
+
+    fn check_access(&self, category: crate::backend::TaskDataCategory) {
+        TaskGuardImpl::check_access(self, category);
     }
 }
 

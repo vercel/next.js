@@ -2790,6 +2790,11 @@ fn generate_cached_data_adapter_trait_methods(
             self.get(key).is_some()
         }
 
+        /// Check if a key exists in storage (alias for contains_key for backward compatibility).
+        fn has_key(&self, key: &crate::data::CachedDataItemKey) -> bool {
+            self.contains_key(key)
+        }
+
         /// Get a reference to a CachedDataItem value by key.
         fn get(
             &self,
@@ -2885,6 +2890,26 @@ fn generate_cached_data_adapter_trait_methods(
                 }
             }
             all_new
+        }
+
+        /// Add a CachedDataItem that must not already exist.
+        /// Panics if the item already exists.
+        fn add_new(&mut self, item: crate::data::CachedDataItem) {
+            if !self.add(item) {
+                panic!("add_new: item already exists");
+            }
+        }
+
+        /// Extend with items that must all be new.
+        /// Panics if any item already exists.
+        fn extend_new(
+            &mut self,
+            _ty: crate::data::CachedDataItemType,
+            items: impl IntoIterator<Item = crate::data::CachedDataItem>,
+        ) {
+            for item in items {
+                self.add_new(item);
+            }
         }
 
         /// Remove items matching a predicate.

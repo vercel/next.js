@@ -1071,8 +1071,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 return (None, None);
             }
 
-            let meta_restored = inner.state().meta_restored();
-            let data_restored = inner.state().data_restored();
+            let meta_restored = inner.flags.meta_restored();
+            let data_restored = inner.flags.data_restored();
 
             // Encode meta/data directly from TaskStorage
             let meta =

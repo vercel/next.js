@@ -12,7 +12,7 @@ use turbo_tasks::{CellId, FxIndexMap, TaskId, TypedSharedReference, backend::Cel
 use crate::backend::operation::invalidate::TaskDirtyCause;
 use crate::{
     backend::{
-        TaskDataCategory,
+        TaskDataCategory, TaskStorageAccessors,
         operation::{
             AggregationUpdateQueue, ExecuteContext, Operation, TaskGuard,
             invalidate::make_task_dirty_internal,

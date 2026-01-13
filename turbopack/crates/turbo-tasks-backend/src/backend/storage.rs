@@ -95,8 +95,8 @@ impl From<&TaskStorage> for TaskStorageSnapshot {
     fn from(storage: &TaskStorage) -> Self {
         Self {
             storage: storage.clone(),
-            meta_modified: storage.state().meta_modified(),
-            data_modified: storage.state().data_modified(),
+            meta_modified: storage.flags.meta_modified(),
+            data_modified: storage.flags.data_modified(),
         }
     }
 }
@@ -234,9 +234,8 @@ impl Storage {
         // We also need to unset all the modified flags.
         for key in removed_modified {
             if let Some(mut inner) = self.map.get_mut(&key) {
-                let state = inner.state_mut();
-                state.set_data_modified(false);
-                state.set_meta_modified(false);
+                inner.flags.set_data_modified(false);
+                inner.flags.set_meta_modified(false);
             }
         }
 
@@ -263,14 +262,13 @@ impl Storage {
         // And update the flags
         for key in removed_snapshots {
             if let Some(mut inner) = self.map.get_mut(&key) {
-                let state = inner.state_mut();
-                if state.meta_snapshot() {
-                    state.set_meta_snapshot(false);
-                    state.set_meta_modified(true);
+                if inner.flags.meta_snapshot() {
+                    inner.flags.set_meta_snapshot(false);
+                    inner.flags.set_meta_modified(true);
                 }
-                if state.data_snapshot() {
-                    state.set_data_snapshot(false);
-                    state.set_data_modified(true);
+                if inner.flags.data_snapshot() {
+                    inner.flags.set_data_snapshot(false);
+                    inner.flags.set_data_modified(true);
                 }
             }
         }
@@ -327,28 +325,27 @@ pub struct StorageWriteGuard<'a> {
 impl StorageWriteGuard<'_> {
     /// Tracks mutation of this task
     pub fn track_modification(&mut self, category: SpecificTaskDataCategory) {
-        let state = self.inner.state();
+        let flags = &self.inner.flags;
         let snapshot = match category {
-            SpecificTaskDataCategory::Meta => state.meta_snapshot(),
-            SpecificTaskDataCategory::Data => state.data_snapshot(),
+            SpecificTaskDataCategory::Meta => flags.meta_snapshot(),
+            SpecificTaskDataCategory::Data => flags.data_snapshot(),
         };
         if !snapshot {
             let modified = match category {
-                SpecificTaskDataCategory::Meta => state.meta_modified(),
-                SpecificTaskDataCategory::Data => state.data_modified(),
+                SpecificTaskDataCategory::Meta => flags.meta_modified(),
+                SpecificTaskDataCategory::Data => flags.data_modified(),
             };
             match (self.storage.snapshot_mode(), modified) {
                 (false, false) => {
                     // Not in snapshot mode and item is unmodified
-                    if !state.any_snapshot() && !state.any_modified() {
+                    if !flags.any_snapshot() && !flags.any_modified() {
                         self.storage
                             .modified
                             .insert(*self.inner.key(), ModifiedState::Modified);
                     }
-                    let state = self.inner.state_mut();
                     match category {
-                        SpecificTaskDataCategory::Meta => state.set_meta_modified(true),
-                        SpecificTaskDataCategory::Data => state.set_data_modified(true),
+                        SpecificTaskDataCategory::Meta => self.inner.flags.set_meta_modified(true),
+                        SpecificTaskDataCategory::Data => self.inner.flags.set_data_modified(true),
                     }
                 }
                 (false, true) => {
@@ -357,30 +354,28 @@ impl StorageWriteGuard<'_> {
                 }
                 (true, false) => {
                     // In snapshot mode and item is unmodified (so it's not part of the snapshot)
-                    if !state.any_snapshot() {
+                    if !flags.any_snapshot() {
                         self.storage
                             .modified
                             .insert(*self.inner.key(), ModifiedState::Snapshot(None));
                     }
-                    let state = self.inner.state_mut();
                     match category {
-                        SpecificTaskDataCategory::Meta => state.set_meta_snapshot(true),
-                        SpecificTaskDataCategory::Data => state.set_data_snapshot(true),
+                        SpecificTaskDataCategory::Meta => self.inner.flags.set_meta_snapshot(true),
+                        SpecificTaskDataCategory::Data => self.inner.flags.set_data_snapshot(true),
                     }
                 }
                 (true, true) => {
                     // In snapshot mode and item is modified (so it's part of the snapshot)
                     // We need to store the original version that is part of the snapshot
-                    if !state.any_snapshot() {
+                    if !flags.any_snapshot() {
                         self.storage.modified.insert(
                             *self.inner.key(),
                             ModifiedState::Snapshot(Some(Box::new((&**self.inner).into()))),
                         );
                     }
-                    let state = self.inner.state_mut();
                     match category {
-                        SpecificTaskDataCategory::Meta => state.set_meta_snapshot(true),
-                        SpecificTaskDataCategory::Data => state.set_data_snapshot(true),
+                        SpecificTaskDataCategory::Meta => self.inner.flags.set_meta_snapshot(true),
+                        SpecificTaskDataCategory::Data => self.inner.flags.set_data_snapshot(true),
                     }
                 }
             }
@@ -429,7 +424,7 @@ macro_rules! count {
 macro_rules! get {
     ($task:ident, $key:ident $input:tt) => {{
         #[allow(unused_imports)]
-        use $crate::backend::operation::TaskGuard;
+        use $crate::backend::storage_schema::TaskStorageAccessors;
         if let Some($crate::data::CachedDataItemValueRef::$key {
             value,
         }) = $task.get(&$crate::data::CachedDataItemKey::$key $input) {
@@ -446,7 +441,7 @@ macro_rules! get {
 macro_rules! get_mut {
     ($task:ident, $key:ident $input:tt) => {{
         #[allow(unused_imports)]
-        use $crate::backend::operation::TaskGuard;
+        use $crate::backend::storage_schema::TaskStorageAccessors;
         if let Some($crate::data::CachedDataItemValueRefMut::$key {
             value,
         }) = $task.get_mut(&$crate::data::CachedDataItemKey::$key $input) {
@@ -487,7 +482,7 @@ macro_rules! get_mut_or_insert_with {
 macro_rules! iter_many {
     ($task:ident, $key:ident $key_pattern:tt $(if $cond:expr)? => $iter_item:expr) => {{
         #[allow(unused_imports)]
-        use $crate::backend::operation::TaskGuard;
+        use $crate::backend::storage_schema::TaskStorageAccessors;
         $task
             .iter($crate::data::CachedDataItemType::$key)
             .filter_map(|(key, _)| match key {
@@ -499,7 +494,7 @@ macro_rules! iter_many {
     }};
     ($task:ident, $key:ident $input:tt $value_pattern:tt $(if $cond:expr)? => $iter_item:expr) => {{
         #[allow(unused_imports)]
-        use $crate::backend::operation::TaskGuard;
+        use $crate::backend::storage_schema::TaskStorageAccessors;
         $task
             .iter($crate::data::CachedDataItemType::$key)
             .filter_map(|(key, value)| match (key, value) {
@@ -525,7 +520,7 @@ macro_rules! get_many {
 macro_rules! update {
     ($task:ident, $key:ident $input:tt, $update:expr) => {{
         #[allow(unused_imports)]
-        use $crate::backend::operation::TaskGuard;
+        use $crate::backend::storage_schema::TaskStorageAccessors;
         #[allow(unused_mut)]
         let mut update = $update;
         $task.update($crate::data::CachedDataItemKey::$key $input, |old| {
@@ -628,7 +623,7 @@ macro_rules! update_count_and_get {
 macro_rules! remove {
     ($task:ident, $key:ident $input:tt) => {{
         #[allow(unused_imports)]
-        use $crate::backend::operation::TaskGuard;
+        use $crate::backend::storage_schema::TaskStorageAccessors;
         if let Some($crate::data::CachedDataItemValue::$key { value }) = $task.remove(
             &$crate::data::CachedDataItemKey::$key $input
         ) {
@@ -687,8 +682,7 @@ where
         }
         while let Some(task_id) = self.modified.pop() {
             let inner = self.storage.map.get(&task_id).unwrap();
-            let state = inner.state();
-            if !state.any_snapshot() {
+            if !inner.flags.any_snapshot() {
                 let preprocessed = (self.preprocess)(task_id, &inner);
                 drop(inner);
                 return Some((self.process)(task_id, preprocessed));

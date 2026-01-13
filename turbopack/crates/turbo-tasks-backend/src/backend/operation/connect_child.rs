@@ -5,9 +5,10 @@ use crate::{
     backend::{
         TaskDataCategory, get_mut,
         operation::{
-            ExecuteContext, Operation, TaskGuard,
+            ExecuteContext, Operation,
             aggregation_update::{AggregationUpdateJob, AggregationUpdateQueue},
         },
+        storage_schema::TaskStorageAccessors,
     },
     data::{CachedDataItem, CachedDataItemKey, InProgressState, InProgressStateInner},
 };
@@ -26,7 +27,7 @@ impl ConnectChildOperation {
     pub fn run(
         parent_task_id: Option<TaskId>,
         child_task_id: TaskId,
-        mut ctx: impl ExecuteContext,
+        mut ctx: impl ExecuteContext<'_>,
     ) {
         if let Some(parent_task_id) = parent_task_id {
             let mut parent_task = ctx.task(parent_task_id, TaskDataCategory::All);
