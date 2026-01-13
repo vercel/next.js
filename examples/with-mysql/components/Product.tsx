@@ -1,15 +1,15 @@
-import Image from "next/image";
+import Image from 'next/image'
 import type {
   Product as ProductType,
   Category,
-} from "@/lib/generated/prisma/client";
+} from '@/lib/generated/prisma/client'
 
 type ProductWithCategory = ProductType & {
-  category: Category | null;
-};
+  category: Category | null
+}
 
 export function Product({ product }: { product: ProductWithCategory }) {
-  const { name, description, price, image, category } = product;
+  const { name, description, price, image, category } = product
 
   return (
     <div className="max-w-[250px] rounded overflow-hidden shadow-lg">
@@ -33,5 +33,5 @@ export function Product({ product }: { product: ProductWithCategory }) {
         )}
       </div>
     </div>
-  );
+  )
 }
