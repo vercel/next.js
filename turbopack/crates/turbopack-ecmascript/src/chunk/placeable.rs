@@ -1,6 +1,8 @@
 use anyhow::Result;
+use either::Either;
+use itertools::Itertools;
 use turbo_rcstr::rcstr;
-use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{
     FileJsonContent, FileSystemPath,
     glob::{Glob, GlobOptions},
@@ -52,23 +54,23 @@ async fn side_effects_from_package_json(
         if let Some(side_effects) = side_effects.as_bool() {
             return Ok(SideEffectsValue::Constant(side_effects).cell());
         } else if let Some(side_effects) = side_effects.as_array() {
-            let globs = side_effects
+            let (globs, issues): (Vec<_>, Vec<_>) = side_effects
                 .iter()
-                .filter_map(|side_effect| {
+                .map(|side_effect| {
                     if let Some(side_effect) = side_effect.as_str() {
                         if side_effect.contains('/') {
-                            Some(Glob::new(
+                            Either::Left(Glob::new(
                                 side_effect.strip_prefix("./").unwrap_or(side_effect).into(),
                                 GlobOptions::default(),
                             ))
                         } else {
-                            Some(Glob::new(
+                            Either::Left(Glob::new(
                                 format!("**/{side_effect}").into(),
                                 GlobOptions::default(),
                             ))
                         }
                     } else {
-                        SideEffectsInPackageJsonIssue {
+                        Either::Right(SideEffectsInPackageJsonIssue {
                             // TODO(PACK-4879): This should point at the buggy element
                             source: IssueSource::from_source_only(ResolvedVc::upcast(
                                 package_json_file,
@@ -80,37 +82,43 @@ async fn side_effects_from_package_json(
                                 )
                                 .into(),
                             )),
-                        }
-                        .resolved_cell()
-                        .emit();
-                        None
+                        })
                     }
                 })
                 .map(|glob| async move {
-                    match glob.resolve().await {
-                        Ok(glob) => Ok(Some(glob)),
-                        Err(err) => {
-                            SideEffectsInPackageJsonIssue {
-                                // TODO(PACK-4879): This should point at the buggy glob
-                                source: IssueSource::from_source_only(ResolvedVc::upcast(
-                                    package_json_file,
-                                )),
-                                description: Some(StyledString::Text(
-                                    format!(
-                                        "Invalid glob in sideEffects: {}",
-                                        PrettyPrintError(&err)
-                                    )
-                                    .into(),
-                                )),
+                    Ok(match glob {
+                        Either::Left(glob) => {
+                            match glob.resolve().await {
+                                Ok(glob) => Either::Left(glob),
+                                Err(err) => {
+                                    Either::Right(SideEffectsInPackageJsonIssue {
+                                        // TODO(PACK-4879): This should point at the buggy glob
+                                        source: IssueSource::from_source_only(ResolvedVc::upcast(
+                                            package_json_file,
+                                        )),
+                                        description: Some(StyledString::Text(
+                                            format!(
+                                                "Invalid glob in sideEffects: {}",
+                                                PrettyPrintError(&err)
+                                            )
+                                            .into(),
+                                        )),
+                                    })
+                                }
                             }
-                            .resolved_cell()
-                            .emit();
-                            Ok(None)
                         }
-                    }
+                        Either::Right(_) => glob,
+                    })
                 })
-                .try_flat_join()
-                .await?;
+                .try_join()
+                .await?
+                .into_iter()
+                .partition_map(|either| either);
+
+            for issue in issues {
+                issue.resolved_cell().emit();
+            }
+
             return Ok(
                 SideEffectsValue::Glob(Glob::alternatives(globs).to_resolved().await?).cell(),
             );
