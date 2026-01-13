@@ -2,7 +2,6 @@
 
 use std::{
     borrow::Cow,
-    cmp::Ordering,
     fmt::{Display, Formatter, Write},
     hash::{BuildHasherDefault, Hash, Hasher},
     mem::take,

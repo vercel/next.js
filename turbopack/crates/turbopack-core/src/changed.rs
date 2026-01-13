@@ -7,7 +7,7 @@ use turbo_tasks::{
 use crate::{
     asset::Asset,
     module::Module,
-    output::{ExpandOutputAssetsInput, OutputAsset, OutputAssets, expand_output_assets},
+    output::{ExpandOutputAssetsInput, OutputAsset, expand_output_assets},
     reference::primary_referenced_modules,
 };
 

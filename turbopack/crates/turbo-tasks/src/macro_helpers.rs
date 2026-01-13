@@ -9,7 +9,7 @@ pub use tracing;
 
 use crate::{
     FxDashMap, NonLocalValue, RawVc, TaskInput, TaskPersistence, TraitTypeId, ValueType,
-    ValueTypeId, Vc, debug::ValueDebugFormatString, task::TaskOutput,
+    ValueTypeId, debug::ValueDebugFormatString,
 };
 pub use crate::{
     global_name, inventory_submit,

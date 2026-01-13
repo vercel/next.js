@@ -12,7 +12,7 @@ use bincode::{
     enc::Encoder,
     error::{DecodeError, EncodeError},
 };
-use futures::{Stream as StreamTrait, StreamExt, TryStreamExt};
+use futures::{Stream as StreamTrait, StreamExt};
 
 /// Streams allow for streaming values from source to sink.
 ///
