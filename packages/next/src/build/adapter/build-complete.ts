@@ -1279,7 +1279,7 @@ export async function handleBuildComplete({
           groupId: prerenderGroupId,
 
           pprChain:
-            isAppPage && config.experimental.ppr
+            isAppPage && renderingMode === RenderingMode.PARTIALLY_STATIC
               ? {
                   headers: {
                     [NEXT_RESUME_HEADER]: '1',
@@ -1429,13 +1429,16 @@ export async function handleBuildComplete({
           pathname: dynamicRoute,
           parentOutputId: parentOutput.id,
           groupId: prerenderGroupId,
-          config: {
-            allowQuery,
-            allowHeader,
-            renderingMode,
-            bypassFor: experimentalBypassFor,
-            bypassToken: prerenderManifest.preview.previewModeId,
-          },
+
+          pprChain:
+            isAppPage && renderingMode === RenderingMode.PARTIALLY_STATIC
+              ? {
+                  headers: {
+                    [NEXT_RESUME_HEADER]: '1',
+                  },
+                }
+              : undefined,
+
           fallback:
             typeof fallback === 'string'
               ? {
@@ -1450,11 +1453,19 @@ export async function handleBuildComplete({
                     ...fallbackHeaders,
                     ...(appPageKeys?.length ? { vary: varyHeader } : {}),
                     'content-type': HTML_CONTENT_TYPE_HEADER,
+                    ...meta.headers,
                   },
                   initialExpiration: fallbackExpire,
                   initialRevalidate: fallbackRevalidate || 1,
                 }
               : undefined,
+          config: {
+            allowQuery,
+            allowHeader,
+            renderingMode,
+            bypassFor: isAppPage ? experimentalBypassFor : undefined,
+            bypassToken: prerenderManifest.preview.previewModeId,
+          },
         }
 
         if (!config.i18n || isAppPage) {
