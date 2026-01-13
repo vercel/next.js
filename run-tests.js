@@ -53,10 +53,6 @@ const DEFAULT_NUM_RETRIES = 2
 const DEFAULT_CONCURRENCY = 2
 const RESULTS_EXT = `.results.json`
 const isTestJob = !!process.env.NEXT_TEST_JOB
-// Check env to see if test should continue even if some of test fails
-const shouldContinueTestsOnError =
-  process.env.NEXT_TEST_CONTINUE_ON_ERROR === 'true'
-
 const KV_TIMINGS_KEY = 'test-timings'
 
 const kvClient =
@@ -482,8 +478,6 @@ ${ENDGROUP}`)
     `jest${process.platform === 'win32' ? '.CMD' : ''}`
   )
   let firstError = true
-  const testController = new AbortController()
-  const testSignal = testController.signal
   let hadFailures = false
 
   const runTestOnce = (/** @type {TestFile} */ test, isFinalRun, isRetry) =>
@@ -597,13 +591,10 @@ ${ENDGROUP}`)
         if (isChildExitWithNonZero) {
           if (hideOutput) {
             await outputSema.acquire()
-            const isExpanded =
-              firstError && !testSignal.aborted && !shouldContinueTestsOnError
+            const isExpanded = firstError
             if (isExpanded) {
               firstError = false
               process.stdout.write(`❌ ${test.file} output:\n`)
-            } else if (testSignal.aborted) {
-              process.stdout.write(`${GROUP}${test.file} output (killed)\n`)
             } else {
               process.stdout.write(`${GROUP}❌ ${test.file} output\n`)
             }
@@ -616,7 +607,7 @@ ${ENDGROUP}`)
               output += chunk.toString()
             }
 
-            if (process.env.CI && !testSignal.aborted) {
+            if (process.env.CI) {
               errorsPerTests.set(test.file, output)
             }
 
@@ -700,24 +691,12 @@ ${ENDGROUP}`)
 
     if (!passed) {
       hadFailures = true
-      const error = new Error(
-        // "failed to pass within" is a keyword parsed by next-pr-webhook
-        `${test.file} failed to pass within ${numRetries} retries`
-      )
-      console.error(error.message)
-
-      if (!shouldContinueTestsOnError) {
-        testController.abort(error)
-      } else {
-        console.log(
-          `CONTINUE_ON_ERROR enabled, continuing tests after ${test.file} failed`
-        )
-      }
+      // "failed to pass within" is a keyword parsed by next-pr-webhook
+      console.error(`${test.file} failed to pass within ${numRetries} retries`)
     }
 
-    // Emit test output if test failed or if we're continuing tests on error
-    // This is parsed by the commenter webhook to notify about failing tests
-    if ((!passed || shouldContinueTestsOnError) && isTestJob) {
+    // Emit test output, parsed by the commenter webhook to notify about failing tests
+    if (!passed && isTestJob) {
       try {
         const testsOutput = await fsp.readFile(
           `${test.file}${RESULTS_EXT}`,
@@ -761,13 +740,6 @@ ${ENDGROUP}`)
       await sema.acquire()
 
       try {
-        if (testSignal.aborted) {
-          // We already logged the abort reason. No need to include it in cause.
-          const error = new Error(`Skipped due to abort.`)
-          error.name = test.file
-          throw error
-        }
-
         await runTest(test)
       } finally {
         sema.release()
@@ -781,11 +753,6 @@ ${ENDGROUP}`)
       hadFailures = true
       console.error(result.reason)
     }
-  }
-
-  if (hadFailures && !shouldContinueTestsOnError) {
-    // TODO: Does it make sense to update timings if there were failures if without shouldContinueTestsOnError?
-    return hadFailures
   }
 
   if (options.timings) {
