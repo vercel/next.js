@@ -243,6 +243,8 @@ where
                 if id.is_transient() {
                     if call_prepared_task_callback_for_transient_tasks {
                         let mut task = self.backend.storage.access_mut(id);
+                        // TODO add is_restoring and avoid concurrent restores and duplicates tasks
+                        // ids in `task_ids`
                         if !task.state().is_restored(category) {
                             task.state_mut().set_restored(TaskDataCategory::All);
                         }
@@ -1003,7 +1005,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         }
         self.task.state_mut().set_prefetched(true);
         let map = iter_many!(self, OutputDependency { target } => (target, TaskDataCategory::Meta))
-            .chain(iter_many!(self, CellDependency { target } => (target.task, TaskDataCategory::All)))
+            .chain(iter_many!(self, CellDependency { target, key: _ } => (target.task, TaskDataCategory::All)))
             .chain(iter_many!(self, CollectiblesDependency { target } => (target.task, TaskDataCategory::All)))
             .chain(iter_many!(self, Child { task } => (task, TaskDataCategory::All)))
             .collect::<FxIndexMap<_, _>>();

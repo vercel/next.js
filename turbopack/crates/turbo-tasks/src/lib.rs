@@ -54,6 +54,8 @@ mod id_factory;
 mod invalidation;
 mod join_iter_ext;
 mod key_value_pair;
+pub mod keyed;
+pub mod keyed_read_ref;
 #[doc(hidden)]
 pub mod macro_helpers;
 mod magic_any;
@@ -109,11 +111,11 @@ pub use crate::{
     key_value_pair::KeyValuePair,
     magic_any::MagicAny,
     manager::{
-        CurrentCellRef, ReadConsistency, ReadTracking, TaskPersistence, TurboTasks, TurboTasksApi,
-        TurboTasksBackendApi, TurboTasksCallApi, Unused, UpdateInfo, dynamic_call, emit,
-        get_serialization_invalidator, mark_finished, mark_root, mark_session_dependent,
-        prevent_gc, run, run_once, run_once_with_reason, trait_call, turbo_tasks,
-        turbo_tasks_scope, turbo_tasks_weak, with_turbo_tasks,
+        CurrentCellRef, ReadCellTracking, ReadConsistency, ReadTracking, TaskPersistence,
+        TurboTasks, TurboTasksApi, TurboTasksBackendApi, TurboTasksCallApi, Unused, UpdateInfo,
+        dynamic_call, emit, get_serialization_invalidator, mark_finished, mark_root,
+        mark_session_dependent, prevent_gc, run, run_once, run_once_with_reason, trait_call,
+        turbo_tasks, turbo_tasks_scope, turbo_tasks_weak, with_turbo_tasks,
     },
     output::OutputContent,
     raw_vc::{CellId, RawVc, ReadRawVcFuture, ResolveTypeError},
@@ -132,9 +134,9 @@ pub use crate::{
     value_type::{TraitMethod, TraitType, ValueType},
     vc::{
         Dynamic, NonLocalValue, OperationValue, OperationVc, OptionVcExt, ReadVcFuture, ResolvedVc,
-        Upcast, UpcastStrict, ValueDefault, Vc, VcCast, VcCellCompareMode, VcCellNewMode,
-        VcDefaultRead, VcRead, VcTransparentRead, VcValueTrait, VcValueTraitCast, VcValueType,
-        VcValueTypeCast,
+        Upcast, UpcastStrict, ValueDefault, Vc, VcCast, VcCellCompareMode, VcCellKeyedCompareMode,
+        VcCellNewMode, VcDefaultRead, VcRead, VcTransparentRead, VcValueTrait, VcValueTraitCast,
+        VcValueType, VcValueTypeCast,
     },
 };
 

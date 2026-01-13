@@ -1,10 +1,22 @@
-use std::{any::Any, marker::PhantomData, mem::ManuallyDrop, pin::Pin, task::Poll};
+use std::{
+    any::Any,
+    hash::{BuildHasher, Hash},
+    marker::PhantomData,
+    mem::ManuallyDrop,
+    pin::Pin,
+    task::Poll,
+};
 
 use anyhow::Result;
 use futures::Future;
+use pin_project_lite::pin_project;
+use rustc_hash::FxBuildHasher;
 
 use super::traits::VcValueType;
-use crate::{ReadRawVcFuture, ReadRef, VcCast, VcValueTrait, VcValueTraitCast, VcValueTypeCast};
+use crate::{
+    ReadRawVcFuture, ReadRef, VcCast, VcValueTrait, VcValueTraitCast, VcValueTypeCast,
+    keyed::Keyed, keyed_read_ref::MappedReadRef,
+};
 
 type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;
 
@@ -204,16 +216,21 @@ where
     T: ?Sized,
     Cast: VcCast,
 {
+    /// Do not use this: Use [`OperationVc::read_strongly_consistent`] instead.
     pub fn strongly_consistent(mut self) -> Self {
         self.raw = self.raw.strongly_consistent();
         self
     }
 
+    /// Returns a untracked read of the value. This will not invalidate the current function when
+    /// the read value changed.
     pub fn untracked(mut self) -> Self {
         self.raw = self.raw.untracked();
         self
     }
 
+    /// Read the value with the hint that this is the final read of the value. This might drop the
+    /// cell content. Future reads might need to recompute the value.
     pub fn final_read_hint(mut self) -> Self {
         self.raw = self.raw.final_read_hint();
         self
@@ -225,8 +242,36 @@ where
     T: VcValueType,
     VcReadTarget<T>: Clone,
 {
+    /// Read the value and returns a owned version of it. It might clone the value.
     pub fn owned(self) -> ReadOwnedVcFuture<T> {
         ReadOwnedVcFuture { future: self }
+    }
+}
+
+impl<T> ReadVcFuture<T, VcValueTypeCast<T>>
+where
+    T: VcValueType,
+    VcReadTarget<T>: Keyed,
+    <VcReadTarget<T> as Keyed>::Key: Hash,
+{
+    /// Read the value and selects a keyed value from it. Only depends on the used key instead of
+    /// the full value.
+    pub fn get<'l>(mut self, key: &'l <VcReadTarget<T> as Keyed>::Key) -> ReadKeyedVcFuture<'l, T> {
+        self.raw = self.raw.track_with_key(FxBuildHasher.hash_one(key));
+        ReadKeyedVcFuture { future: self, key }
+    }
+
+    /// Read the value and checks if it contains the given key. Only depends on the used key instead
+    /// of the full value.
+    ///
+    /// Note: This is also invalidated when the value of the key changes, not only when the presence
+    /// of the key changes.
+    pub fn contains_key<'l>(
+        mut self,
+        key: &'l <VcReadTarget<T> as Keyed>::Key,
+    ) -> ReadContainsKeyedVcFuture<'l, T> {
+        self.raw = self.raw.track_with_key(FxBuildHasher.hash_one(key));
+        ReadContainsKeyedVcFuture { future: self, key }
     }
 }
 
@@ -290,6 +335,77 @@ where
         let future = unsafe { self.map_unchecked_mut(|this| &mut this.future) };
         match future.poll(cx) {
             Poll::Ready(Ok(result)) => Poll::Ready(Ok(ReadRef::into_owned(result))),
+            Poll::Ready(Err(err)) => Poll::Ready(Err(err)),
+            Poll::Pending => Poll::Pending,
+        }
+    }
+}
+
+pin_project! {
+    pub struct ReadKeyedVcFuture<'l, T>
+    where
+        T: VcValueType,
+        VcReadTarget<T>: Keyed,
+    {
+        #[pin]
+        future: ReadVcFuture<T, VcValueTypeCast<T>>,
+        key: &'l <VcReadTarget<T> as Keyed>::Key,
+    }
+}
+
+impl<'l, T> Future for ReadKeyedVcFuture<'l, T>
+where
+    T: VcValueType,
+    VcReadTarget<T>: Keyed,
+{
+    type Output = Result<Option<MappedReadRef<T, <VcReadTarget<T> as Keyed>::Value>>>;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
+        // Safety: We never move the contents of `self`
+        let this = self.project();
+        match this.future.poll(cx) {
+            Poll::Ready(Ok(result)) => {
+                let mapped_read_ref = if let Some(value) = (*result).get(this.key) {
+                    let ptr = value as *const _;
+                    Some(unsafe { MappedReadRef::new(result.into_raw_arc(), ptr) })
+                } else {
+                    None
+                };
+                Poll::Ready(Ok(mapped_read_ref))
+            }
+            Poll::Ready(Err(err)) => Poll::Ready(Err(err)),
+            Poll::Pending => Poll::Pending,
+        }
+    }
+}
+
+pin_project! {
+    pub struct ReadContainsKeyedVcFuture<'l, T>
+    where
+        T: VcValueType,
+        VcReadTarget<T>: Keyed,
+    {
+        #[pin]
+        future: ReadVcFuture<T, VcValueTypeCast<T>>,
+        key: &'l <VcReadTarget<T> as Keyed>::Key,
+    }
+}
+
+impl<'l, T> Future for ReadContainsKeyedVcFuture<'l, T>
+where
+    T: VcValueType,
+    VcReadTarget<T>: Keyed,
+{
+    type Output = Result<bool>;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
+        // Safety: We never move the contents of `self`
+        let this = self.project();
+        match this.future.poll(cx) {
+            Poll::Ready(Ok(result)) => {
+                let result = (*result).contains_key(this.key);
+                Poll::Ready(Ok(result))
+            }
             Poll::Ready(Err(err)) => Poll::Ready(Err(err)),
             Poll::Pending => Poll::Pending,
         }
