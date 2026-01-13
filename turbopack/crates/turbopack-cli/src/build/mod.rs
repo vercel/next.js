@@ -317,6 +317,7 @@ async fn build_internal(
     let binding_usage = compute_binding_usage_info(module_graph.to_resolved().await?, true)
         .resolve_strongly_consistent()
         .await?;
+    let unused_references = binding_usage.unused_references().to_resolved().await?;
     module_graph = module_graph.without_unused_references(*binding_usage);
 
     let chunking_context: Vc<Box<dyn ChunkingContext>> = match target {
@@ -344,7 +345,7 @@ async fn build_internal(
             .source_maps(source_maps_type)
             .module_id_strategy(module_id_strategy)
             .export_usage(Some(binding_usage))
-            .unused_references(Some(binding_usage))
+            .unused_references(unused_references)
             .current_chunk_method(CurrentChunkMethod::DocumentCurrentScript)
             .minify_type(minify_type);
 
@@ -394,7 +395,7 @@ async fn build_internal(
             .source_maps(source_maps_type)
             .module_id_strategy(module_id_strategy)
             .export_usage(Some(binding_usage))
-            .unused_references(Some(binding_usage))
+            .unused_references(unused_references)
             .minify_type(minify_type);
 
             match *node_env.await? {
