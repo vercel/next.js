@@ -969,17 +969,21 @@ impl AppProject {
                     .turbopack_remove_unused_imports(next_mode)
                     .await?;
 
-                let binding_usage_info = remove_unused_imports.then(|| {
-                    compute_binding_usage_info(
-                        ModuleGraph::from_graphs(graphs.clone()),
+                let (full, binding_usage_info) = if remove_unused_imports {
+                    let full_with_unused_references = ModuleGraph::from_graphs(graphs.clone());
+                    let binding_usage_info = compute_binding_usage_info(
+                        full_with_unused_references,
                         should_read_binding_usage,
+                    );
+                    (
+                        ModuleGraph::from_graphs_without_unused_references(
+                            graphs,
+                            binding_usage_info,
+                        ),
+                        Some(binding_usage_info),
                     )
-                });
-
-                let full = if let Some(binding_usage_info) = binding_usage_info {
-                    ModuleGraph::from_graphs_without_unused_references(graphs, binding_usage_info)
                 } else {
-                    ModuleGraph::from_graphs(graphs)
+                    (ModuleGraph::from_graphs(graphs), None)
                 };
 
                 Ok(BaseAndFullModuleGraph {
