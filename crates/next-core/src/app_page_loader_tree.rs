@@ -258,15 +258,21 @@ impl AppPageLoaderTreeBuilder {
         writeln!(
             self.loader_tree_code,
             "{s}  url: fillMetadataSegment({}, await props.params, {}, true) + \
-             `?${{{identifier}.src.split(\"/\").splice(-1)[0]}}`,",
+             `?${{{identifier}.default.src.split(\"/\").splice(-1)[0]}}`,",
             StringifyJs(&pathname_prefix),
             StringifyJs(metadata_route),
         )?;
 
         let numeric_sizes = name == "twitter" || name == "openGraph";
         if numeric_sizes {
-            writeln!(self.loader_tree_code, "{s}  width: {identifier}.width,")?;
-            writeln!(self.loader_tree_code, "{s}  height: {identifier}.height,")?;
+            writeln!(
+                self.loader_tree_code,
+                "{s}  width: {identifier}.default.width,"
+            )?;
+            writeln!(
+                self.loader_tree_code,
+                "{s}  height: {identifier}.default.height,"
+            )?;
         } else {
             // For SVGs, skip sizes and use "any" to let it scale automatically based on viewport,
             // For the images doesn't provide the size properly, use "any" as well.
@@ -274,7 +280,7 @@ impl AppPageLoaderTreeBuilder {
             let sizes = if path.has_extension(".svg") {
                 "any".to_string()
             } else {
-                format!("${{{identifier}.width}}x${{{identifier}.height}}")
+                format!("${{{identifier}.default.width}}x${{{identifier}.default.height}}")
             };
             writeln!(self.loader_tree_code, "{s}  sizes: `{sizes}`,")?;
         }
