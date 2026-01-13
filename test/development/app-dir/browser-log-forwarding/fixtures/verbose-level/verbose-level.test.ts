@@ -20,13 +20,17 @@ describe('browser-log-forwarding verbose level', () => {
     // Get final output after logs are forwarded
     const output = next.cliOutput.slice(outputIndex)
 
-    // Filter to only browser forwarded logs, excluding hydration noise
+    // Filter to only browser forwarded logs, excluding noise
     const browserLogs = output
       .split('\n')
       .filter(
         (line) =>
           line.includes('[browser]') &&
-          !line.includes('Next.js hydrate callback fire')
+          !line.includes('Next.js hydrate callback fire') &&
+          !line.includes('connected to ws at') &&
+          !line.includes('received ws message') &&
+          !line.includes('Download the React DevTools') &&
+          !line.includes('Next.js page already hydrated')
       )
       .join('\n')
 
