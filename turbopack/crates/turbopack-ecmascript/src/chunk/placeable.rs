@@ -73,16 +73,13 @@ async fn side_effects_from_package_json(
                             source: IssueSource::from_source_only(ResolvedVc::upcast(
                                 package_json_file,
                             )),
-                            description: Some(
-                                StyledString::Text(
-                                    format!(
-                                        "Each element in sideEffects must be a string, but found \
-                                         {side_effect:?}"
-                                    )
-                                    .into(),
+                            description: Some(StyledString::Text(
+                                format!(
+                                    "Each element in sideEffects must be a string, but found \
+                                     {side_effect:?}"
                                 )
-                                .resolved_cell(),
-                            ),
+                                .into(),
+                            )),
                         }
                         .resolved_cell()
                         .emit();
@@ -98,16 +95,13 @@ async fn side_effects_from_package_json(
                                 source: IssueSource::from_source_only(ResolvedVc::upcast(
                                     package_json_file,
                                 )),
-                                description: Some(
-                                    StyledString::Text(
-                                        format!(
-                                            "Invalid glob in sideEffects: {}",
-                                            PrettyPrintError(&err)
-                                        )
-                                        .into(),
+                                description: Some(StyledString::Text(
+                                    format!(
+                                        "Invalid glob in sideEffects: {}",
+                                        PrettyPrintError(&err)
                                     )
-                                    .resolved_cell(),
-                                ),
+                                    .into(),
+                                )),
                             }
                             .resolved_cell()
                             .emit();
@@ -124,15 +118,12 @@ async fn side_effects_from_package_json(
             SideEffectsInPackageJsonIssue {
                 // TODO(PACK-4879): This should point at the buggy value
                 source: IssueSource::from_source_only(ResolvedVc::upcast(package_json_file)),
-                description: Some(
-                    StyledString::Text(
-                        format!(
-                            "sideEffects must be a boolean or an array, but found {side_effects:?}"
-                        )
-                        .into(),
+                description: Some(StyledString::Text(
+                    format!(
+                        "sideEffects must be a boolean or an array, but found {side_effects:?}"
                     )
-                    .resolved_cell(),
-                ),
+                    .into(),
+                )),
             }
             .resolved_cell()
             .emit();
@@ -144,7 +135,7 @@ async fn side_effects_from_package_json(
 #[turbo_tasks::value]
 struct SideEffectsInPackageJsonIssue {
     source: IssueSource,
-    description: Option<ResolvedVc<StyledString>>,
+    description: Option<StyledString>,
 }
 
 #[turbo_tasks::value_impl]
@@ -170,7 +161,12 @@ impl Issue for SideEffectsInPackageJsonIssue {
 
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(self.description)
+        Vc::cell(
+            self.description
+                .as_ref()
+                .cloned()
+                .map(|s| s.resolved_cell()),
+        )
     }
 
     #[turbo_tasks::function]
