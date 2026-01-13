@@ -184,9 +184,12 @@ impl AppPageLoaderTreeBuilder {
                 let identifier = magic_identifier::mangle(&format!("{name} #{i}"));
                 let inner_module_id = format!("METADATA_{i}");
 
+                // This should use the same importing mechanism as create_module_tuple_code, so that
+                // the relative order of items is retained (which isn't the case
+                // when mixing ESM imports and requires).
                 self.base
                     .imports
-                    .push(format!("import {identifier} from \"{inner_module_id}\";").into());
+                    .push(format!("const {identifier} = require(\"{inner_module_id}\");").into());
 
                 let source = dynamic_image_metadata_source(
                     *ResolvedVc::upcast(self.base.module_asset_context),
@@ -228,9 +231,12 @@ impl AppPageLoaderTreeBuilder {
             self.base.imports.push(helper_import);
         }
 
+        // This should use the same importing mechanism as create_module_tuple_code, so that the
+        // relative order of items is retained (which isn't the case when mixing ESM imports and
+        // requires).
         self.base
             .imports
-            .push(format!("import {identifier} from \"{inner_module_id}\";").into());
+            .push(format!("const {identifier} = require(\"{inner_module_id}\");").into());
         let module = StructuredImageModuleType::create_module(
             Vc::upcast(FileSource::new(path.clone())),
             BlurPlaceholderMode::None,
@@ -280,9 +286,12 @@ impl AppPageLoaderTreeBuilder {
             let identifier = magic_identifier::mangle(&format!("{name} alt text #{i}"));
             let inner_module_id = format!("METADATA_ALT_{i}");
 
+            // This should use the same importing mechanism as create_module_tuple_code, so that the
+            // relative order of items is retained (which isn't the case when mixing ESM imports and
+            // requires).
             self.base
                 .imports
-                .push(format!("import {identifier} from \"{inner_module_id}\";").into());
+                .push(format!("const {identifier} = require(\"{inner_module_id}\");").into());
 
             let module = self
                 .base
