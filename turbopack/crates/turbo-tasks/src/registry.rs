@@ -5,7 +5,7 @@ use once_cell::sync::Lazy;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
-    TraitType, ValueType,
+    TraitMethod, TraitType, ValueType,
     id::{FunctionId, TraitTypeId, ValueTypeId},
     macro_helpers::CollectableFunction,
     native_function::NativeFunction,
@@ -170,6 +170,56 @@ static TRAITS: Lazy<Registry<TraitType>> = Lazy::new(|| {
         .collect::<Vec<_>>();
     Registry::new_from_items(all_traits)
 });
+
+static DEVIRTUALIZED_TRAIT_METHODS: Lazy<FxHashMap<&'static TraitMethod, &'static NativeFunction>> =
+    Lazy::new(|| {
+        #[derive(Default)]
+        enum Impls {
+            #[default]
+            None,
+            One(&'static NativeFunction),
+            MoreThanOne,
+        }
+        impl Impls {
+            fn push(&mut self, func: &'static NativeFunction) {
+                let new = match self {
+                    Impls::None => Impls::One(func),
+                    Impls::One(_) => Impls::MoreThanOne,
+                    Impls::MoreThanOne => Impls::MoreThanOne,
+                };
+                *self = new;
+            }
+        }
+        let mut trait_method_to_impls = FxHashMap::default();
+        for tt in &TRAITS.id_to_item {
+            for (_, tm) in &tt.methods {
+                trait_method_to_impls
+                    .insert(tm, tm.default_method.map(Impls::One).unwrap_or(Impls::None));
+            }
+        }
+        for value in &VALUES.id_to_item {
+            for (tm, nf) in &value.trait_methods {
+                trait_method_to_impls.entry(tm).or_default().push(nf);
+            }
+        }
+
+        trait_method_to_impls
+            .into_iter()
+            .filter_map(|(k, v)| {
+                if let Impls::One(f) = v {
+                    Some((k, f))
+                } else {
+                    None
+                }
+            })
+            .collect()
+    });
+
+pub fn get_devirtualized_trait_impl(
+    trait_method: &'static TraitMethod,
+) -> Option<&'static NativeFunction> {
+    DEVIRTUALIZED_TRAIT_METHODS.get(trait_method).copied()
+}
 
 pub fn get_trait_type_id(trait_type: &'static TraitType) -> TraitTypeId {
     TRAITS.get_id(trait_type)

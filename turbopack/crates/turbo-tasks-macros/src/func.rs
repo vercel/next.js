@@ -561,22 +561,35 @@ impl TurboFn<'_> {
         let inputs = self.exposed_input_idents();
         let persistence = self.persistence_with_this();
         parse_quote! {
-            {
-                #assertions
-                let inputs = std::boxed::Box::new((#(#inputs,)*));
-                let this = #converted_this;
-                let persistence = #persistence;
-                static TRAIT_METHOD: turbo_tasks::macro_helpers::Lazy<&'static turbo_tasks::TraitMethod> =
-                        turbo_tasks::macro_helpers::Lazy::new(|| #trait_type_ident.get(stringify!(#ident)));
-                <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
+        {
+            #assertions
+            let inputs = std::boxed::Box::new((#(#inputs,)*));
+            let this = #converted_this;
+            let persistence = #persistence;
+            static TRAIT_METHOD: turbo_tasks::macro_helpers::Lazy<&'static turbo_tasks::TraitMethod> =
+                    turbo_tasks::macro_helpers::Lazy::new(|| #trait_type_ident.get(stringify!(#ident)));
+            static DEVIRTUALIZED: turbo_tasks::macro_helpers::Lazy<Option<&'static turbo_tasks::macro_helpers::NativeFunction>> =
+                 turbo_tasks::macro_helpers::Lazy::new(|| turbo_tasks::registry::get_devirtualized_trait_impl(*TRAIT_METHOD));
+
+            <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(match *DEVIRTUALIZED {
+                Some(f) => {
+                    turbo_tasks::dynamic_call(
+                        f,
+                        Some(this),
+                        inputs as std::boxed::Box<dyn turbo_tasks::MagicAny>,
+                        persistence,
+                    )
+                }
+                None => {
                     turbo_tasks::trait_call(
                         *TRAIT_METHOD,
                         this,
                         inputs as std::boxed::Box<dyn turbo_tasks::MagicAny>,
                         persistence,
                     )
-                )
-            }
+                }
+            })
+        }
         }
     }
 

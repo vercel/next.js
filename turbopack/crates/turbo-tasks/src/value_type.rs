@@ -33,7 +33,7 @@ pub struct ValueType {
     /// Set of traits available
     traits: AutoSet<TraitTypeId>,
     /// List of trait methods available
-    trait_methods: AutoMap<&'static TraitMethod, &'static NativeFunction>,
+    pub(crate) trait_methods: AutoMap<&'static TraitMethod, &'static NativeFunction>,
 
     /// Functions to convert to write the type to a buffer or read it from a buffer.
     pub bincode: Option<(AnyEncodeFn, AnyDecodeFn<SharedReference>)>,
