@@ -362,6 +362,23 @@ enum Category {
     Transient,
 }
 
+/// Try to extract a string literal from an expression, emitting an error if it's not a string.
+fn expect_string_literal<'a>(expr: &'a syn::Expr, attr_name: &str) -> Option<&'a syn::LitStr> {
+    if let syn::Expr::Lit(syn::ExprLit {
+        lit: syn::Lit::Str(lit_str),
+        ..
+    }) = expr
+    {
+        Some(lit_str)
+    } else {
+        expr.span()
+            .unwrap()
+            .error(format!("`{attr_name}` value must be a string literal"))
+            .emit();
+        None
+    }
+}
+
 fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
     let field_name = field.ident.as_ref().unwrap().clone();
     let field_type = field.ty.clone();
@@ -409,11 +426,7 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
 
                     match ident.to_string().as_str() {
                         "storage" => {
-                            if let syn::Expr::Lit(syn::ExprLit {
-                                lit: syn::Lit::Str(lit_str),
-                                ..
-                            }) = &nv.value
-                            {
+                            if let Some(lit_str) = expect_string_literal(&nv.value, "storage") {
                                 storage_type = Some(match lit_str.value().as_str() {
                                     "direct" => StorageType::Direct,
                                     "auto_set" => StorageType::AutoSet,
@@ -433,20 +446,10 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
                                         continue;
                                     }
                                 });
-                            } else {
-                                nv.value
-                                    .span()
-                                    .unwrap()
-                                    .error("storage value must be a string literal")
-                                    .emit();
                             }
                         }
                         "category" => {
-                            if let syn::Expr::Lit(syn::ExprLit {
-                                lit: syn::Lit::Str(lit_str),
-                                ..
-                            }) = &nv.value
-                            {
+                            if let Some(lit_str) = expect_string_literal(&nv.value, "category") {
                                 category = Some(match lit_str.value().as_str() {
                                     "data" => Category::Data,
                                     "meta" => Category::Meta,
@@ -462,12 +465,6 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
                                         continue;
                                     }
                                 });
-                            } else {
-                                nv.value
-                                    .span()
-                                    .unwrap()
-                                    .error("category value must be a string literal")
-                                    .emit();
                             }
                         }
                         other => {
