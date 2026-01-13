@@ -4,7 +4,7 @@ use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 
 use crate::{
     module::{Module, ModuleSideEffects},
-    module_graph::{GraphTraversalAction, ModuleGraph},
+    module_graph::{GraphTraversalAction, ModuleGraph, ModuleGraphLayer},
 };
 
 /// This lists all the modules that are side effect free
@@ -37,7 +37,7 @@ pub async fn compute_side_effect_free_module_info(
 
 #[turbo_tasks::function]
 async fn compute_side_effect_free_module_info_single(
-    graph: ResolvedVc<ModuleGraph>,
+    graph: ResolvedVc<ModuleGraphLayer>,
     parent_side_effect_free_modules: Vc<SideEffectFreeModules>,
 ) -> Result<Vc<SideEffectFreeModules>> {
     let parent_side_effect_free_modules = parent_side_effect_free_modules.await?;

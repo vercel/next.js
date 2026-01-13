@@ -4,7 +4,7 @@ use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, Vc};
 
 use crate::{
     module::{Module, Modules},
-    module_graph::{GraphTraversalAction, ModuleGraph},
+    module_graph::{GraphTraversalAction, ModuleGraph, ModuleGraphLayer},
 };
 
 #[turbo_tasks::value(transparent)]
@@ -49,7 +49,7 @@ pub async fn compute_async_module_info(
 
 #[turbo_tasks::function]
 async fn compute_async_module_info_single(
-    graph: ResolvedVc<ModuleGraph>,
+    graph: ResolvedVc<ModuleGraphLayer>,
     parent_async_modules: Vc<AsyncModulesInfo>,
 ) -> Result<Vc<AsyncModulesInfo>> {
     let parent_async_modules = parent_async_modules.await?;

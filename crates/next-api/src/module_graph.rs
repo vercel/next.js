@@ -23,7 +23,7 @@ use turbopack_core::{
     context::AssetContext,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     module::Module,
-    module_graph::{GraphTraversalAction, ModuleGraph},
+    module_graph::{GraphTraversalAction, ModuleGraph, ModuleGraphLayer},
 };
 use turbopack_css::{CssModuleAsset, ModuleCssAsset};
 
@@ -35,7 +35,7 @@ use crate::{
 
 #[turbo_tasks::value]
 pub struct NextDynamicGraph {
-    graph: ResolvedVc<ModuleGraph>,
+    graph: ResolvedVc<ModuleGraphLayer>,
     is_single_page: bool,
 
     /// list of NextDynamicEntryModules
@@ -131,7 +131,7 @@ pub struct DynamicImportEntriesWithImporter(
 impl NextDynamicGraph {
     #[turbo_tasks::function]
     pub async fn new_with_entries(
-        graph: ResolvedVc<ModuleGraph>,
+        graph: ResolvedVc<ModuleGraphLayer>,
         is_single_page: bool,
     ) -> Result<Vc<Self>> {
         let mapped = map_next_dynamic(*graph);
@@ -233,7 +233,7 @@ impl NextDynamicGraph {
 
 #[turbo_tasks::value]
 pub struct ServerActionsGraph {
-    graph: ResolvedVc<ModuleGraph>,
+    graph: ResolvedVc<ModuleGraphLayer>,
     is_single_page: bool,
 
     /// (Layer, RSC or Browser module) -> list of actions
@@ -318,7 +318,7 @@ impl ServerActionsGraphs {
 impl ServerActionsGraph {
     #[turbo_tasks::function]
     pub async fn new_with_entries(
-        graph: ResolvedVc<ModuleGraph>,
+        graph: ResolvedVc<ModuleGraphLayer>,
         is_single_page: bool,
     ) -> Result<Vc<Self>> {
         let mapped = map_server_actions(*graph);
@@ -409,7 +409,7 @@ impl ServerActionsGraph {
 #[turbo_tasks::value]
 pub struct ClientReferencesGraph {
     is_single_page: bool,
-    graph: ResolvedVc<ModuleGraph>,
+    graph: ResolvedVc<ModuleGraphLayer>,
 
     /// List of client references (modules that entries into the client graph)
     data: ResolvedVc<ClientReferenceData>,
@@ -521,7 +521,7 @@ impl ClientReferencesGraphs {
 impl ClientReferencesGraph {
     #[turbo_tasks::function]
     pub async fn new_with_entries(
-        graph: ResolvedVc<ModuleGraph>,
+        graph: ResolvedVc<ModuleGraphLayer>,
         is_single_page: bool,
     ) -> Result<Vc<Self>> {
         let mapped = map_client_references(*graph);
@@ -769,7 +769,7 @@ struct ModuleNameMap(#[bincode(with = "turbo_bincode::indexmap")] pub FxModuleNa
 #[tracing::instrument(level = "info", name = "validate pages css imports", skip_all)]
 #[turbo_tasks::function]
 async fn validate_pages_css_imports_individual(
-    graph: ResolvedVc<ModuleGraph>,
+    graph: ResolvedVc<ModuleGraphLayer>,
     is_single_page: bool,
     entry: Vc<Box<dyn Module>>,
     app_module: ResolvedVc<Box<dyn Module>>,

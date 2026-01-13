@@ -2,6 +2,7 @@ use core::panic;
 use std::{
     collections::{BinaryHeap, VecDeque},
     future::Future,
+    ops::Deref,
 };
 
 use anyhow::{Context, Result, bail};
@@ -643,19 +644,11 @@ impl ImportTracer for ModuleGraphImportTracer {
 /// The ReadRef version of ModuleGraphBase. This is better for eventual consistency, as the graphs
 /// aren't awaited multiple times within the same task.
 #[turbo_tasks::value(shared, serialization = "none", eq = "manual", cell = "new")]
-#[derive(Clone, Default)]
 pub struct ModuleGraph {
     input_graphs: Vec<OperationVc<SingleModuleGraph>>,
     input_binding_usage: Option<OperationVc<BindingUsageInfo>>,
 
-    pub graphs: Vec<ReadRef<SingleModuleGraph>>,
-    // Whether to simply ignore SingleModuleGraphNode::VisitedModule during traversals. For single
-    // module graph usecases, this is what you want. For the whole graph, there should be an error.
-    skip_visited_module_children: bool,
-
-    pub graph_idx_override: Option<u32>,
-
-    pub binding_usage: Option<ReadRef<BindingUsageInfo>>,
+    snapshot: ModuleGraphSnapshot,
 }
 
 #[turbo_tasks::value_impl]
@@ -716,34 +709,15 @@ impl ModuleGraph {
         Ok(ModuleGraph {
             input_graphs: graphs.clone(),
             input_binding_usage: binding_usage,
-            graphs: graphs.iter().map(|g| g.connect()).try_join().await?,
-            skip_visited_module_children: false,
-            graph_idx_override: None,
-            binding_usage: if let Some(binding_usage) = binding_usage {
-                Some(binding_usage.connect().await?)
-            } else {
-                None
-            },
-        }
-        .cell())
-    }
-
-    #[turbo_tasks::function(operation)]
-    async fn create_layer(
-        graph: OperationVc<SingleModuleGraph>,
-        graph_idx: u32,
-        binding_usage: Option<OperationVc<BindingUsageInfo>>,
-    ) -> Result<Vc<Self>> {
-        Ok(Self {
-            input_graphs: vec![graph.clone()],
-            input_binding_usage: binding_usage,
-            graphs: vec![graph.connect().await?],
-            skip_visited_module_children: true,
-            graph_idx_override: Some(graph_idx),
-            binding_usage: if let Some(binding_usage) = binding_usage {
-                Some(binding_usage.connect().await?)
-            } else {
-                None
+            snapshot: ModuleGraphSnapshot {
+                graphs: graphs.iter().map(|g| g.connect()).try_join().await?,
+                skip_visited_module_children: false,
+                graph_idx_override: None,
+                binding_usage: if let Some(binding_usage) = binding_usage {
+                    Some(binding_usage.connect().await?)
+                } else {
+                    None
+                },
             },
         }
         .cell())
@@ -824,17 +798,74 @@ impl ModuleGraph {
                 .iter()
                 .enumerate()
                 .map(|(graph_idx, graph)| {
-                    ModuleGraph::create_layer(*graph, graph_idx as u32, self.input_binding_usage)
+                    ModuleGraphLayer::new(*graph, graph_idx as u32, self.input_binding_usage)
                 })
                 .collect(),
         )
     }
 }
 
-#[turbo_tasks::value(transparent)]
-pub struct ModuleGraphLayers(Vec<OperationVc<ModuleGraph>>);
+impl Deref for ModuleGraph {
+    type Target = ModuleGraphSnapshot;
 
-impl ModuleGraph {
+    fn deref(&self) -> &Self::Target {
+        &self.snapshot
+    }
+}
+
+#[turbo_tasks::value(shared, serialization = "none", eq = "manual", cell = "new")]
+pub struct ModuleGraphLayer {
+    snapshot: ModuleGraphSnapshot,
+}
+
+#[turbo_tasks::value_impl]
+impl ModuleGraphLayer {
+    #[turbo_tasks::function(operation)]
+    async fn new(
+        graph: OperationVc<SingleModuleGraph>,
+        graph_idx: u32,
+        binding_usage: Option<OperationVc<BindingUsageInfo>>,
+    ) -> Result<Vc<Self>> {
+        Ok(Self {
+            snapshot: ModuleGraphSnapshot {
+                graphs: vec![graph.connect().await?],
+                skip_visited_module_children: true,
+                graph_idx_override: Some(graph_idx),
+                binding_usage: if let Some(binding_usage) = binding_usage {
+                    Some(binding_usage.connect().await?)
+                } else {
+                    None
+                },
+            },
+        }
+        .cell())
+    }
+}
+
+impl Deref for ModuleGraphLayer {
+    type Target = ModuleGraphSnapshot;
+
+    fn deref(&self) -> &Self::Target {
+        &self.snapshot
+    }
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct ModuleGraphLayers(Vec<OperationVc<ModuleGraphLayer>>);
+
+#[derive(TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+pub struct ModuleGraphSnapshot {
+    pub graphs: Vec<ReadRef<SingleModuleGraph>>,
+    // Whether to simply ignore SingleModuleGraphNode::VisitedModule during traversals. For single
+    // module graph usecases, this is what you want. For the whole graph, there should be an error.
+    skip_visited_module_children: bool,
+
+    pub graph_idx_override: Option<u32>,
+
+    pub binding_usage: Option<ReadRef<BindingUsageInfo>>,
+}
+
+impl ModuleGraphSnapshot {
     fn get_entry(&self, entry: ResolvedVc<Box<dyn Module>>) -> Result<GraphNodeIndex> {
         if self.graph_idx_override.is_some() {
             debug_assert_eq!(self.graphs.len(), 1,);

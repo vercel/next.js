@@ -35,7 +35,7 @@ use turbopack_core::{
         availability_info::AvailabilityInfo,
     },
     module::Module,
-    module_graph::ModuleGraph,
+    module_graph::{ModuleGraph, ModuleGraphLayer},
     output::{OutputAssetsReference, OutputAssetsWithReferenced},
 };
 
@@ -122,7 +122,9 @@ pub struct DynamicImportEntries(
 );
 
 #[turbo_tasks::function]
-pub async fn map_next_dynamic(graph: ResolvedVc<ModuleGraph>) -> Result<Vc<DynamicImportEntries>> {
+pub async fn map_next_dynamic(
+    graph: ResolvedVc<ModuleGraphLayer>,
+) -> Result<Vc<DynamicImportEntries>> {
     let actions = graph
         .await?
         .iter_nodes()
