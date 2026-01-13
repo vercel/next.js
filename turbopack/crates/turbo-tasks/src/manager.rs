@@ -1786,7 +1786,6 @@ pub struct CurrentCellRef {
     is_serializable_cell_content: bool,
 }
 
-type VcReadRepr<T> = <<T as VcValueType>::Read as VcRead<T>>::Repr;
 type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;
 
 impl CurrentCellRef {
@@ -1798,14 +1797,10 @@ impl CurrentCellRef {
         T: VcValueType,
     {
         self.conditional_update_with_shared_reference(|old_shared_reference| {
-            let old_ref = old_shared_reference
-                .and_then(|sr| sr.0.downcast_ref::<VcReadRepr<T>>())
-                .map(|content| <T::Read as VcRead<T>>::repr_to_value_ref(content));
+            let old_ref = old_shared_reference.and_then(|sr| sr.0.downcast_ref::<T>());
             let (new_value, updated_key_hashes) = functor(old_ref)?;
             Some((
-                SharedReference::new(triomphe::Arc::new(<T::Read as VcRead<T>>::value_to_repr(
-                    new_value,
-                ))),
+                SharedReference::new(triomphe::Arc::new(new_value)),
                 updated_key_hashes,
             ))
         })
@@ -1891,22 +1886,21 @@ impl CurrentCellRef {
         });
     }
 
-    /// Replace the current cell's content with `new_shared_reference` if the
-    /// current content is not equal by value with the existing content.
+    /// Replace the current cell's content with `new_shared_reference` if the current content is not
+    /// equal by value with the existing content.
     ///
     /// If you already have a `SharedReference`, this is a faster version of
     /// [`CurrentCellRef::compare_and_update`].
     ///
-    /// The [`SharedReference`] is expected to use the `<T::Read as
-    /// VcRead<T>>::Repr` type for its representation of the value.
+    /// The value should be stored in [`SharedReference`] using the type `T`.
     pub fn compare_and_update_with_shared_reference<T>(&self, new_shared_reference: SharedReference)
     where
         T: VcValueType + PartialEq,
     {
         self.conditional_update_with_shared_reference(|old_sr| {
             if let Some(old_sr) = old_sr {
-                let old_value = extract_sr_value::<T>(old_sr)?;
-                let new_value = extract_sr_value::<T>(&new_shared_reference)?;
+                let old_value = extract_sr_value::<T>(old_sr);
+                let new_value = extract_sr_value::<T>(&new_shared_reference);
                 if old_value == new_value {
                     return None;
                 }
@@ -1955,9 +1949,9 @@ impl CurrentCellRef {
             let Some(old_sr) = old_sr else {
                 return Some((new_shared_reference, None));
             };
-            let old_value = extract_sr_value::<T>(old_sr)?;
+            let old_value = extract_sr_value::<T>(old_sr);
             let old_value = <T as VcValueType>::Read::value_to_target_ref(old_value);
-            let new_value = extract_sr_value::<T>(&new_shared_reference)?;
+            let new_value = extract_sr_value::<T>(&new_shared_reference);
             let new_value = <T as VcValueType>::Read::value_to_target_ref(new_value);
             let updated_keys = old_value.different_keys(new_value);
             if updated_keys.is_empty() {
@@ -1982,9 +1976,7 @@ impl CurrentCellRef {
             self.current_task,
             self.index,
             self.is_serializable_cell_content,
-            CellContent(Some(SharedReference::new(triomphe::Arc::new(
-                <T::Read as VcRead<T>>::value_to_repr(new_value),
-            )))),
+            CellContent(Some(SharedReference::new(triomphe::Arc::new(new_value)))),
             None,
             verification_mode,
         )
@@ -1996,8 +1988,7 @@ impl CurrentCellRef {
     /// If the passed-in [`SharedReference`] is the same as the existing cell's
     /// by identity, no update is performed.
     ///
-    /// The [`SharedReference`] is expected to use the `<T::Read as
-    /// VcRead<T>>::Repr` type for its representation of the value.
+    /// The value should be stored in [`SharedReference`] using the type `T`.
     pub fn update_with_shared_reference(
         &self,
         shared_ref: SharedReference,
@@ -2045,9 +2036,9 @@ impl From<CurrentCellRef> for RawVc {
     }
 }
 
-fn extract_sr_value<T: VcValueType>(sr: &SharedReference) -> Option<&T> {
-    sr.0.downcast_ref::<VcReadRepr<T>>()
-        .map(<T::Read as VcRead<T>>::repr_to_value_ref)
+fn extract_sr_value<T: VcValueType>(sr: &SharedReference) -> &T {
+    sr.0.downcast_ref::<T>()
+        .expect("cannot update SharedReference of different type")
 }
 
 pub fn find_cell_by_type<T: VcValueType>() -> CurrentCellRef {
