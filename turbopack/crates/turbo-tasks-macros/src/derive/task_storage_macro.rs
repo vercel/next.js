@@ -376,17 +376,13 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
     let mut filter_transient = false;
     let mut use_default = false;
 
-    // Parse attributes
-    for attr in &field.attrs {
-        if !attr
-            .path()
+    // Find and parse the task_storage attribute
+    if let Some(attr) = field.attrs.iter().find(|attr| {
+        attr.path()
             .get_ident()
             .map(|ident| *ident == "task_storage")
             .unwrap_or_default()
-        {
-            continue;
-        }
-
+    }) {
         let nested = match attr.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated) {
             Ok(punctuated) => punctuated,
             Err(e) => {
@@ -395,7 +391,7 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
                     .unwrap()
                     .error(format!("failed to parse task_storage attribute: {e}"))
                     .emit();
-                continue;
+                Punctuated::new()
             }
         };
 
@@ -403,71 +399,134 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
             match &meta {
                 Meta::NameValue(nv) => {
                     let Some(ident) = nv.path.get_ident() else {
+                        nv.path
+                            .span()
+                            .unwrap()
+                            .error("expected simple identifier")
+                            .emit();
                         continue;
                     };
 
-                    if *ident == "storage"
-                        && let syn::Expr::Lit(syn::ExprLit {
-                            lit: syn::Lit::Str(lit_str),
-                            ..
-                        }) = &nv.value
-                    {
-                        storage_type = Some(match lit_str.value().as_str() {
-                            "direct" => StorageType::Direct,
-                            "auto_set" => StorageType::AutoSet,
-                            "auto_map" => StorageType::AutoMap,
-                            "auto_multimap" => StorageType::AutoMultimap,
-                            "counter_map" => StorageType::CounterMap,
-                            "flag" => StorageType::Flag,
-                            other => {
-                                meta.span()
+                    match ident.to_string().as_str() {
+                        "storage" => {
+                            if let syn::Expr::Lit(syn::ExprLit {
+                                lit: syn::Lit::Str(lit_str),
+                                ..
+                            }) = &nv.value
+                            {
+                                storage_type = Some(match lit_str.value().as_str() {
+                                    "direct" => StorageType::Direct,
+                                    "auto_set" => StorageType::AutoSet,
+                                    "auto_map" => StorageType::AutoMap,
+                                    "auto_multimap" => StorageType::AutoMultimap,
+                                    "counter_map" => StorageType::CounterMap,
+                                    "flag" => StorageType::Flag,
+                                    other => {
+                                        meta.span()
+                                            .unwrap()
+                                            .error(format!(
+                                                "unknown storage type: `{other}`. Expected \
+                                                 `direct`, `auto_set`, `auto_map`, \
+                                                 `auto_multimap`, `counter_map`, or `flag`"
+                                            ))
+                                            .emit();
+                                        continue;
+                                    }
+                                });
+                            } else {
+                                nv.value
+                                    .span()
                                     .unwrap()
-                                    .error(format!(
-                                        "unknown storage type: {other}. Expected \"direct\", \
-                                         \"auto_set\", \"auto_map\", \"auto_multimap\", \
-                                         \"counter_map\", or \"flag\""
-                                    ))
+                                    .error("storage value must be a string literal")
                                     .emit();
-                                continue;
                             }
-                        });
-                    } else if *ident == "category"
-                        && let syn::Expr::Lit(syn::ExprLit {
-                            lit: syn::Lit::Str(lit_str),
-                            ..
-                        }) = &nv.value
-                    {
-                        category = Some(match lit_str.value().as_str() {
-                            "data" => Category::Data,
-                            "meta" => Category::Meta,
-                            "transient" => Category::Transient,
-                            other => {
-                                meta.span()
+                        }
+                        "category" => {
+                            if let syn::Expr::Lit(syn::ExprLit {
+                                lit: syn::Lit::Str(lit_str),
+                                ..
+                            }) = &nv.value
+                            {
+                                category = Some(match lit_str.value().as_str() {
+                                    "data" => Category::Data,
+                                    "meta" => Category::Meta,
+                                    "transient" => Category::Transient,
+                                    other => {
+                                        meta.span()
+                                            .unwrap()
+                                            .error(format!(
+                                                "unknown category: `{other}`. Expected `data`, \
+                                                 `meta`, or `transient`"
+                                            ))
+                                            .emit();
+                                        continue;
+                                    }
+                                });
+                            } else {
+                                nv.value
+                                    .span()
                                     .unwrap()
-                                    .error(format!(
-                                        "unknown category: {other}. Expected \"data\", \"meta\", \
-                                         or \"transient\""
-                                    ))
+                                    .error("category value must be a string literal")
                                     .emit();
-                                continue;
                             }
-                        });
-                    }
-                }
-                Meta::Path(path) => {
-                    if let Some(ident) = path.get_ident() {
-                        if *ident == "inline" {
-                            inline = true;
-                        } else if *ident == "filter_transient" {
-                            filter_transient = true;
-                        } else if *ident == "default" {
-                            use_default = true;
+                        }
+                        other => {
+                            meta.span()
+                                .unwrap()
+                                .error(format!(
+                                    "unknown attribute `{other}`, expected `storage` or `category`"
+                                ))
+                                .emit();
                         }
                     }
                 }
-                _ => {}
+                Meta::Path(path) => {
+                    let Some(ident) = path.get_ident() else {
+                        path.span()
+                            .unwrap()
+                            .error("expected simple identifier")
+                            .emit();
+                        continue;
+                    };
+
+                    match ident.to_string().as_str() {
+                        "inline" => inline = true,
+                        "filter_transient" => filter_transient = true,
+                        "default" => use_default = true,
+                        other => {
+                            meta.span()
+                                .unwrap()
+                                .error(format!(
+                                    "unknown modifier `{other}`, expected `inline`, \
+                                     `filter_transient`, or `default`"
+                                ))
+                                .emit();
+                        }
+                    }
+                }
+                Meta::List(list) => {
+                    meta.span()
+                        .unwrap()
+                        .error(format!(
+                            "unexpected nested list `{}(...)`, expected key-value or modifier",
+                            list.path
+                                .get_ident()
+                                .map(|i| i.to_string())
+                                .unwrap_or_default()
+                        ))
+                        .emit();
+                }
             }
         }
+    } else {
+        field_name
+            .span()
+            .unwrap()
+            .error(format!(
+                "field `{field_name}` is missing required #[task_storage(...)] attribute. \
+                 Expected #[task_storage(storage = \"...\", category = \"...\")]"
+            ))
+            .emit();
     }
 
     // Require explicit storage type
