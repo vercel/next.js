@@ -942,6 +942,16 @@ export abstract class RouteModule<
     if (resolvedPathname === '/index') {
       resolvedPathname = '/'
     }
+    if (
+      res &&
+      !!req.headers['x-nextjs-data'] &&
+      (!res.statusCode || res.statusCode === 200)
+    ) {
+      res.setHeader(
+        'x-nextjs-matched-path',
+        `${locale ? `/${locale}` : ''}${resolvedPathname}`
+      )
+    }
     const encodedResolvedPathname = resolvedPathname
 
     // we decode for cache key/manifest usage encoded is
