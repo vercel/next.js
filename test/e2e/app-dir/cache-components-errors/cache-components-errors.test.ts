@@ -829,7 +829,7 @@ describe('Cache Components Errors', () => {
               if (isTurbopack) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-random-with-fallback" used \`Math.random()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random
-                     at a (app/sync-random-with-fallback/page.tsx:37:23)
+                     at RandomReadingComponent (app/sync-random-with-fallback/page.tsx:37:23)
                    35 |     use(new Promise((r) => process.nextTick(r)))
                    36 |   }
                  > 37 |   const random = Math.random()
@@ -941,7 +941,7 @@ describe('Cache Components Errors', () => {
               if (isTurbopack) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-random-without-fallback" used \`Math.random()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random
-                     at a (app/sync-random-without-fallback/page.tsx:32:15)
+                     at RandomReadingComponent (app/sync-random-without-fallback/page.tsx:32:15)
                    30 |
                    31 | function getRandomNumber() {
                  > 32 |   return Math.random()
@@ -1202,8 +1202,8 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error occurred prerendering page "/sync-cookies". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
-                     at a (app/sync-cookies/page.tsx:18:36)
-                     at b (<anonymous>)
+                     at CookiesReadingComponent (app/sync-cookies/page.tsx:18:36)
+                     at a (<anonymous>)
                    16 | async function CookiesReadingComponent() {
                    17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync access
                  > 18 |   const token = (cookies() as any).get('token')
@@ -1538,8 +1538,8 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error occurred prerendering page "/sync-headers". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
-                     at a (app/sync-headers/page.tsx:18:40)
-                     at b (<anonymous>)
+                     at HeadersReadingComponent (app/sync-headers/page.tsx:18:40)
+                     at a (<anonymous>)
                    16 | async function HeadersReadingComponent() {
                    17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync access
                  > 18 |   const userAgent = (headers() as any).get('user-agent')
@@ -3336,7 +3336,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: "use cache: private" must not be used within \`unstable_cache()\`.
                      at <unknown> (app/use-cache-private-in-unstable-cache/page.tsx:21:38)
-                     at async g (app/use-cache-private-in-unstable-cache/page.tsx:16:16)
+                     at async ComponentWithCachedData (app/use-cache-private-in-unstable-cache/page.tsx:16:16)
                    19 | }
                    20 |
                  > 21 | const getCachedData = unstable_cache(async () => {
@@ -3772,7 +3772,7 @@ describe('Cache Components Errors', () => {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-current-time/date" used \`Date()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time
-                   at a (app/sync-io-current-time/date/page.tsx:19:16)
+                   at DateReadingComponent (app/sync-io-current-time/date/page.tsx:19:16)
                  17 | async function DateReadingComponent() {
                  18 |   await new Promise((r) => process.nextTick(r))
                > 19 |   return <div>{Date()}</div>
@@ -3874,7 +3874,7 @@ describe('Cache Components Errors', () => {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-current-time/date-now" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time
-                   at a (app/sync-io-current-time/date-now/page.tsx:19:21)
+                   at DateReadingComponent (app/sync-io-current-time/date-now/page.tsx:19:21)
                  17 | async function DateReadingComponent() {
                  18 |   await new Promise((r) => process.nextTick(r))
                > 19 |   return <div>{Date.now()}</div>
@@ -3976,7 +3976,7 @@ describe('Cache Components Errors', () => {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-current-time/new-date" used \`new Date()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time
-                   at a (app/sync-io-current-time/new-date/page.tsx:19:16)
+                   at DateReadingComponent (app/sync-io-current-time/new-date/page.tsx:19:16)
                  17 | async function DateReadingComponent() {
                  18 |   await new Promise((r) => process.nextTick(r))
                > 19 |   return <div>{new Date().toString()}</div>
@@ -4078,7 +4078,7 @@ describe('Cache Components Errors', () => {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-random/math-random" used \`Math.random()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random
-                   at a (app/sync-io-random/math-random/page.tsx:19:21)
+                   at SyncIOComponent (app/sync-io-random/math-random/page.tsx:19:21)
                  17 | async function SyncIOComponent() {
                  18 |   await new Promise((r) => process.nextTick(r))
                > 19 |   return <div>{Math.random()}</div>
@@ -4182,7 +4182,7 @@ describe('Cache Components Errors', () => {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-web-crypto/get-random-value" used \`crypto.getRandomValues()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random cryptographic values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-crypto
-                   at a (app/sync-io-web-crypto/get-random-value/page.tsx:20:10)
+                   at SyncIOComponent (app/sync-io-web-crypto/get-random-value/page.tsx:20:10)
                  18 |   await new Promise((r) => process.nextTick(r))
                  19 |   const buffer = new Uint8Array(8)
                > 20 |   crypto.getRandomValues(buffer)
@@ -4285,7 +4285,7 @@ describe('Cache Components Errors', () => {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-web-crypto/random-uuid" used \`crypto.randomUUID()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random cryptographic values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-crypto
-                   at a (app/sync-io-web-crypto/random-uuid/page.tsx:19:23)
+                   at SyncIOComponent (app/sync-io-web-crypto/random-uuid/page.tsx:19:23)
                  17 | async function SyncIOComponent() {
                  18 |   await new Promise((r) => process.nextTick(r))
                > 19 |   return <div>{crypto.randomUUID()}</div>
@@ -4387,7 +4387,7 @@ describe('Cache Components Errors', () => {
             } else {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/generate-key-pair-sync" used \`require('node:crypto').generateKeyPairSync(...)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random
-                   at a (app/sync-io-node-crypto/generate-key-pair-sync/page.tsx:20:24)
+                   at SyncIOComponent (app/sync-io-node-crypto/generate-key-pair-sync/page.tsx:20:24)
                  18 | async function SyncIOComponent() {
                  19 |   await new Promise((r) => process.nextTick(r))
                > 20 |   const first = crypto.generateKeyPairSync('rsa', keyGenOptions)
@@ -4509,7 +4509,7 @@ describe('Cache Components Errors', () => {
             } else {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/generate-key-sync" used \`require('node:crypto').generateKeySync(...)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random
-                   at a (app/sync-io-node-crypto/generate-key-sync/page.tsx:21:6)
+                   at SyncIOComponent (app/sync-io-node-crypto/generate-key-sync/page.tsx:21:6)
                  19 |   await new Promise((r) => process.nextTick(r))
                  20 |   const first = crypto
                > 21 |     .generateKeySync('hmac', {
@@ -4631,7 +4631,7 @@ describe('Cache Components Errors', () => {
             } else {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/generate-prime-sync" used \`require('node:crypto').generatePrimeSync(...)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random
-                   at a (app/sync-io-node-crypto/generate-prime-sync/page.tsx:20:39)
+                   at SyncIOComponent (app/sync-io-node-crypto/generate-prime-sync/page.tsx:20:39)
                  18 | async function SyncIOComponent() {
                  19 |   await new Promise((r) => process.nextTick(r))
                > 20 |   const first = new Uint8Array(crypto.generatePrimeSync(128))
@@ -4753,7 +4753,7 @@ describe('Cache Components Errors', () => {
             } else {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/get-random-values" used \`crypto.getRandomValues()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random cryptographic values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-crypto
-                   at a (app/sync-io-node-crypto/get-random-values/page.tsx:21:10)
+                   at SyncIOComponent (app/sync-io-node-crypto/get-random-values/page.tsx:21:10)
                  19 |   await new Promise((r) => process.nextTick(r))
                  20 |   const first = new Uint8Array(8)
                > 21 |   crypto.getRandomValues(first)
@@ -4875,7 +4875,7 @@ describe('Cache Components Errors', () => {
             } else {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-bytes" used \`require('node:crypto').randomBytes(size)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random
-                   at a (app/sync-io-node-crypto/random-bytes/page.tsx:20:24)
+                   at SyncIOComponent (app/sync-io-node-crypto/random-bytes/page.tsx:20:24)
                  18 | async function SyncIOComponent() {
                  19 |   await new Promise((r) => process.nextTick(r))
                > 20 |   const first = crypto.randomBytes(8)
@@ -4997,7 +4997,7 @@ describe('Cache Components Errors', () => {
             } else {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-fill-sync" used \`require('node:crypto').randomFillSync(...)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random
-                   at a (app/sync-io-node-crypto/random-fill-sync/page.tsx:21:10)
+                   at SyncIOComponent (app/sync-io-node-crypto/random-fill-sync/page.tsx:21:10)
                  19 |   await new Promise((r) => process.nextTick(r))
                  20 |   const first = new Uint8Array(16)
                > 21 |   crypto.randomFillSync(first, 4, 8)
@@ -5119,7 +5119,7 @@ describe('Cache Components Errors', () => {
             } else {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-int-between" used \`require('node:crypto').randomInt(min, max)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random
-                   at a (app/sync-io-node-crypto/random-int-between/page.tsx:20:24)
+                   at SyncIOComponent (app/sync-io-node-crypto/random-int-between/page.tsx:20:24)
                  18 | async function SyncIOComponent() {
                  19 |   await new Promise((r) => process.nextTick(r))
                > 20 |   const first = crypto.randomInt(128, 256)
@@ -5241,7 +5241,7 @@ describe('Cache Components Errors', () => {
             } else {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-int-up-to" used \`require('node:crypto').randomInt(min, max)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random
-                   at a (app/sync-io-node-crypto/random-int-up-to/page.tsx:20:24)
+                   at SyncIOComponent (app/sync-io-node-crypto/random-int-up-to/page.tsx:20:24)
                  18 | async function SyncIOComponent() {
                  19 |   await new Promise((r) => process.nextTick(r))
                > 20 |   const first = crypto.randomInt(128)
@@ -5363,7 +5363,7 @@ describe('Cache Components Errors', () => {
             } else {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-uuid" used \`require('node:crypto').randomUUID()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random
-                   at a (app/sync-io-node-crypto/random-uuid/page.tsx:20:24)
+                   at SyncIOComponent (app/sync-io-node-crypto/random-uuid/page.tsx:20:24)
                  18 | async function SyncIOComponent() {
                  19 |   await new Promise((r) => process.nextTick(r))
                > 20 |   const first = crypto.randomUUID()
