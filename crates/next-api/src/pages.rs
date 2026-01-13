@@ -24,6 +24,7 @@ use next_core::{
         PagesDirectoryStructure, PagesStructure, PagesStructureItem, find_pages_structure,
     },
     parse_segment_config_from_source,
+    polyfills::PolyfillsAsset,
     segment_config::ParseSegmentMode,
     util::{NextRuntime, get_asset_prefix_from_pathname, pages_function_name},
 };
@@ -1222,13 +1223,9 @@ impl PageEndpoint {
         &self,
         client_chunks: ResolvedVc<OutputAssets>,
     ) -> Result<Vc<Box<dyn OutputAsset>>> {
-        let node_root = self.pages_project.project().node_root().owned().await?;
-        let client_relative_path = self
-            .pages_project
-            .project()
-            .client_relative_path()
-            .owned()
-            .await?;
+        let project = self.pages_project.project();
+        let node_root = project.node_root().owned().await?;
+        let client_relative_path = project.client_relative_path().owned().await?;
 
         // Check if we should include pages in the manifest
         let pages_structure = self.pages_structure.await?;
@@ -1238,6 +1235,19 @@ impl PageEndpoint {
             fxindexmap![] // Empty pages when no user pages should be created
         };
 
+        let polyfill_output_asset = ResolvedVc::upcast(
+            PolyfillsAsset::new(
+                project.project_path().owned().await?,
+                project.client_chunking_context(),
+                project
+                    .client_compile_time_info()
+                    .environment()
+                    .runtime_versions(),
+            )
+            .to_resolved()
+            .await?,
+        );
+
         let manifest_path_prefix = get_asset_prefix_from_pathname(&self.pathname);
         let build_manifest = BuildManifest {
             output_path: node_root.join(&format!(
@@ -1245,7 +1255,7 @@ impl PageEndpoint {
             ))?,
             client_relative_path,
             pages,
-            polyfill_files: Default::default(),
+            polyfill_files: vec![polyfill_output_asset],
             root_main_files: Default::default(),
         };
         Ok(Vc::upcast(build_manifest.cell()))

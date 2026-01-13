@@ -5,7 +5,7 @@ const MODERN_BROWSERSLIST_TARGET = require('./src/shared/lib/modern-browserslist
 
 const path = require('path')
 
-const transform = require('@swc/core').transform
+const { transform } = require('@swc/core')
 
 module.exports = function (task) {
   task.plugin(
@@ -193,6 +193,35 @@ if ((typeof exports.default === 'function' || (typeof exports.default === 'objec
       file.data = Buffer.from(setNextVersion(output.code))
     }
   )
+
+  task.plugin('swc_minify', {}, function* (file) {
+    if (
+      file.base.endsWith('.d.ts') ||
+      file.base.endsWith('.json') ||
+      file.base.endsWith('.jsonc') ||
+      file.base.endsWith('.woff2')
+    )
+      return
+
+    /** @type {import('@swc/core').Options} */
+    const options = {
+      minify: true,
+    }
+
+    const source = file.data.toString('utf-8')
+    const output = yield transform(source, options)
+
+    if (output.map) {
+      const map = `${file.base}.map`
+      this._.files.push({
+        base: map,
+        dir: file.dir,
+        data: Buffer.from(output.map),
+      })
+    }
+
+    file.data = Buffer.from(output.code)
+  })
 }
 
 function setNextVersion(code) {

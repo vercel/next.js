@@ -6,7 +6,7 @@ use next_core::{
         Entrypoints as AppEntrypoints, FileSystemPathVec, MetadataItem, collect_root_params,
         get_entrypoints,
     },
-    get_edge_resolve_options_context, get_next_package,
+    get_edge_resolve_options_context,
     next_app::{
         AppEntry, AppPage, get_app_client_references_chunks, get_app_client_shared_chunk_group,
         get_app_page_entry, get_app_route_entry, metadata::route::get_app_metadata_route_entry,
@@ -32,6 +32,7 @@ use next_core::{
     next_server_component::NextServerComponentTransition,
     next_server_utility::{NEXT_SERVER_UTILITY_MERGE_TAG, NextServerUtilityTransition},
     parse_segment_config_from_source,
+    polyfills::PolyfillsAsset,
     segment_config::{NextSegmentConfig, ParseSegmentMode},
     util::{NextRuntime, app_function_name, module_styles_rule_condition, styles_rule_condition},
 };
@@ -66,11 +67,8 @@ use turbopack_core::{
     reference::all_assets_from_entries,
     reference_type::{CommonJsReferenceSubType, CssReferenceSubType, ReferenceType},
     resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
-    source::Source,
-    source_map::SourceMapAsset,
     virtual_output::VirtualOutputAsset,
 };
-use turbopack_ecmascript::single_file_ecmascript_output::SingleFileEcmascriptOutput;
 use turbopack_resolve::{ecmascript::cjs_resolve, resolve_options_context::ResolveOptionsContext};
 
 use crate::{
@@ -1338,45 +1336,24 @@ impl AppEndpoint {
             server_assets.extend(assets.all_assets().await?.iter().copied());
         }
 
-        let manifest_path_prefix = &app_entry.original_name;
-
-        // polyfill-nomodule.js is a pre-compiled asset distributed as part of next
-        let next_package = get_next_package(project.project_path().owned().await?).await?;
-        let polyfill_source_path =
-            next_package.join("dist/build/polyfills/polyfill-nomodule.js")?;
-        let polyfill_source = FileSource::new(polyfill_source_path.clone());
-        let polyfill_output_path = client_chunking_context
-            .chunk_path(
-                Some(Vc::upcast(polyfill_source)),
-                polyfill_source.ident(),
-                None,
-                rcstr!(".js"),
+        let polyfill_output_asset = ResolvedVc::upcast(
+            PolyfillsAsset::new(
+                project.project_path().owned().await?,
+                *client_chunking_context,
+                project
+                    .client_compile_time_info()
+                    .environment()
+                    .runtime_versions(),
             )
-            .owned()
-            .await?;
-
-        let polyfill_output = SingleFileEcmascriptOutput::new(
-            polyfill_output_path.clone(),
-            polyfill_source_path,
-            Vc::upcast(polyfill_source),
-        )
-        .to_resolved()
-        .await?;
-
-        let polyfill_output_asset = ResolvedVc::upcast(polyfill_output);
+            .to_resolved()
+            .await?,
+        );
         client_assets.insert(polyfill_output_asset);
-
-        let polyfill_source_map_asset = SourceMapAsset::new_fixed(
-            polyfill_output_path.clone(),
-            *ResolvedVc::upcast(polyfill_output),
-        )
-        .to_resolved()
-        .await?;
-        client_assets.insert(ResolvedVc::upcast(polyfill_source_map_asset));
 
         let client_assets: ResolvedVc<OutputAssets> =
             ResolvedVc::cell(client_assets.into_iter().collect::<Vec<_>>());
 
+        let manifest_path_prefix = &app_entry.original_name;
         if emit_manifests != EmitManifests::None {
             if *this
                 .app_project
