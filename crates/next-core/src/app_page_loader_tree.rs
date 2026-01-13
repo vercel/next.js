@@ -204,7 +204,7 @@ impl AppPageLoaderTreeBuilder {
                     .insert(inner_module_id.into(), module);
 
                 let s = "      ";
-                writeln!(self.loader_tree_code, "{s}{identifier},")?;
+                writeln!(self.loader_tree_code, "{s}{identifier}.default,")?;
             }
         }
         Ok(())
@@ -311,7 +311,7 @@ impl AppPageLoaderTreeBuilder {
                 .inner_assets
                 .insert(inner_module_id.into(), module);
 
-            writeln!(self.loader_tree_code, "{s}  alt: {identifier},")?;
+            writeln!(self.loader_tree_code, "{s}  alt: {identifier}.default,")?;
         }
 
         writeln!(self.loader_tree_code, "{s}}}]),")?;
