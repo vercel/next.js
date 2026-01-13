@@ -78,9 +78,9 @@ type NameMappingsByLine = Map<number, Array<{ column: number; name: string }>>
 interface SourceMapCacheEntry {
   map: SyncSourceMapConsumer
   payload: ModernSourceMapPayload
-  /** Cached name mappings for efficient lookup */
+  /** Cached name mappings for efficient lookup, the SourceMapConsumer doesn't allow random access */
   nameMappings?: NameMappingsByLine
-  /** Cached generated source file content for name validation */
+  /** Cached generated source file content for name validation, if `null` then we failed to read the file. */
   generatedSource?: string | null
   /** File name (URL) for reading generated source */
   fileName: string
@@ -374,7 +374,9 @@ function getSourcemappedFrameIfPossible(
     }
     let maybeSourceMapPayload: ModernSourceMapPayload | undefined
     try {
+      console.error('looking up source map for ', sourceURL)
       const sourceMap = nativeFindSourceMap(sourceURL)
+      console.error('\tfound source map')
       maybeSourceMapPayload = sourceMap?.payload
     } catch (cause) {
       // We should not log an actual error instance here because that will re-enter
@@ -393,10 +395,12 @@ function getSourcemappedFrameIfPossible(
       // source map.
       return createUnsourcemappedFrame(frame)
     }
+    console.error('1: maybeSourceMapPayload=', maybeSourceMapPayload)
     if (maybeSourceMapPayload === undefined) {
       maybeSourceMapPayload = bundlerFindSourceMapPayload(sourceURL)
     }
 
+    console.error('2: maybeSourceMapPayload=', maybeSourceMapPayload)
     if (maybeSourceMapPayload === undefined) {
       return createUnsourcemappedFrame(frame)
     }
@@ -408,11 +412,13 @@ function getSourcemappedFrameIfPossible(
       // relative paths but is actually wrong (the chunk and sourcemap have different content hashes).
       // We are using the node API to read the sourcemap and it doesn't give us access to the URI.
       const sourceMapURL = sourceURL + '.map'
+      console.error('about to parse sourcemap for ', sourceURL)
       sourceMapConsumer = new SyncSourceMapConsumer(
         sourceMapPayload,
         // @ts-expect-error: our typings don't include this parameter but it is here.
         sourceMapURL
       )
+      console.error('\tparsed source map')
     } catch (cause) {
       // We should not log an actual error instance here because that will re-enter
       // this codepath during error inspection and could lead to infinite recursion.
@@ -492,43 +498,33 @@ function getSourcemappedFrameIfPossible(
     ?.replace('__webpack_exports__.', '')
 
   if (enclosingPosition && sourceMapCacheEntry && methodName) {
-    // Parse the methodName to extract components for reconstruction
-    // Format: [async] [new] [TypeName.]functionName[ [as methodName]]
-    let prefix = ''
-    let remaining = methodName
+    // Parse methodName format: [async] [new] [TypeName.]functionName[ [as methodName]]
+    // We need to extract just the functionName part for deobfuscation
+    let funcStart = 0
+    let funcEnd = methodName.length
 
-    // Extract "async " prefix
-    if (remaining.startsWith('async ')) {
-      prefix += 'async '
-      remaining = remaining.slice(6)
+    // Skip "async " prefix
+    if (methodName.startsWith('async ')) {
+      funcStart = 6
     }
-    // Extract "new " prefix
-    if (remaining.startsWith('new ')) {
-      prefix += 'new '
-      remaining = remaining.slice(4)
+    // Skip "new " prefix
+    if (methodName.startsWith('new ', funcStart)) {
+      funcStart += 4
     }
 
-    // Extract " [as methodName]" suffix
-    // Note: We keep the [as methodName] suffix unchanged since we can't
-    // deobfuscate property names - the enclosing position only tells us
-    // where the function is defined, not where it's accessed
-    let asSuffix = ''
-    const asIndex = remaining.indexOf(' [as ')
+    // Find " [as methodName]" suffix
+    const asIndex = methodName.indexOf(' [as ', funcStart)
     if (asIndex !== -1) {
-      asSuffix = remaining.slice(asIndex)
-      remaining = remaining.slice(0, asIndex)
+      funcEnd = asIndex
     }
 
-    // Extract TypeName. prefix (e.g., "Object.foo" -> typeName="Object.", functionName="foo")
-    let typePrefix = ''
-    const dotIndex = remaining.lastIndexOf('.') // Use lastIndexOf for nested namespaces
-    if (dotIndex !== -1) {
-      typePrefix = remaining.slice(0, dotIndex + 1)
-      remaining = remaining.slice(dotIndex + 1)
+    // Find TypeName. prefix (after async/new, before [as])
+    const dotIndex = methodName.lastIndexOf('.', funcEnd)
+    if (dotIndex !== -1 && dotIndex >= funcStart) {
+      funcStart = dotIndex + 1
     }
 
-    // `remaining` is now the raw function name
-    const rawFunctionName = remaining
+    const rawFunctionName = methodName.slice(funcStart, funcEnd)
 
     const deobfuscatedName = findNameAtPosition(
       getNameMappings(sourceMapCacheEntry),
@@ -539,8 +535,11 @@ function getSourcemappedFrameIfPossible(
     )
 
     if (deobfuscatedName) {
-      // Reconstruct the method name with the deobfuscated function name
-      methodName = prefix + typePrefix + deobfuscatedName + asSuffix
+      // Replace the function name portion, keeping prefix and suffix
+      methodName =
+        methodName.slice(0, funcStart) +
+        deobfuscatedName +
+        methodName.slice(funcEnd)
     }
   }
 
