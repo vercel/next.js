@@ -22,7 +22,7 @@ describe('server-action-logging', () => {
       await retry(() => {
         const logs = stripAnsi(next.cliOutput.slice(outputIndex))
         // Should not contain the server action log format
-        expect(logs).not.toContain('ƒ successAction')
+        expect(logs).not.toContain('└─ ƒ successAction')
       })
     })
     return
@@ -37,8 +37,8 @@ describe('server-action-logging', () => {
 
     await retry(() => {
       const logs = stripAnsi(next.cliOutput.slice(outputIndex))
-      expect(logs).toContain('ƒ successAction')
-      expect(logs).toMatch(/ƒ successAction\(5\) in \d+ms/)
+      expect(logs).toContain('└─ ƒ successAction')
+      expect(logs).toMatch(/└─ ƒ successAction\(5\) in \d+ms/)
     })
   })
 
@@ -51,8 +51,8 @@ describe('server-action-logging', () => {
 
     await retry(() => {
       const logs = stripAnsi(next.cliOutput.slice(outputIndex))
-      expect(logs).toContain('ƒ multiArgAction')
-      expect(logs).toMatch(/ƒ multiArgAction\(1, 2, 3\) in \d+ms/)
+      expect(logs).toContain('└─ ƒ multiArgAction')
+      expect(logs).toMatch(/└─ ƒ multiArgAction\(1, 2, 3\) in \d+ms/)
     })
   })
 
@@ -65,10 +65,10 @@ describe('server-action-logging', () => {
 
     await retry(() => {
       const logs = stripAnsi(next.cliOutput.slice(outputIndex))
-      expect(logs).toContain('ƒ objectArgAction')
+      expect(logs).toContain('└─ ƒ objectArgAction')
       // safe-stable-stringify outputs JSON format
       expect(logs).toMatch(
-        /ƒ objectArgAction\(\{"name":"test","value":42\}\) in \d+ms/
+        /└─ ƒ objectArgAction\(\{"name":"test","value":42\}\) in \d+ms/
       )
     })
   })
@@ -82,9 +82,9 @@ describe('server-action-logging', () => {
 
     await retry(() => {
       const logs = stripAnsi(next.cliOutput.slice(outputIndex))
-      expect(logs).toContain('ƒ arrayArgAction')
+      expect(logs).toContain('└─ ƒ arrayArgAction')
       // Arrays are truncated by safe-stable-stringify
-      expect(logs).toMatch(/ƒ arrayArgAction\(\[1,2,3,.*\]\) in \d+ms/)
+      expect(logs).toMatch(/└─ ƒ arrayArgAction\(\[1,2,3,.*\]\) in \d+ms/)
     })
   })
 
@@ -97,8 +97,10 @@ describe('server-action-logging', () => {
 
     await retry(() => {
       const logs = stripAnsi(next.cliOutput.slice(outputIndex))
-      expect(logs).toContain('ƒ redirectAction')
-      expect(logs).toMatch(/ƒ redirectAction\("\/redirect-target"\) in \d+ms/)
+      expect(logs).toContain('└─ ƒ redirectAction')
+      expect(logs).toMatch(
+        /└─ ƒ redirectAction\("\/redirect-target"\) in \d+ms/
+      )
     })
   })
 
@@ -110,8 +112,8 @@ describe('server-action-logging', () => {
 
     await retry(() => {
       const logs = stripAnsi(next.cliOutput.slice(outputIndex))
-      expect(logs).toContain('ƒ notFoundAction')
-      expect(logs).toMatch(/ƒ notFoundAction\(\) in \d+ms/)
+      expect(logs).toContain('└─ ƒ notFoundAction')
+      expect(logs).toMatch(/└─ ƒ notFoundAction\(\) in \d+ms/)
     })
   })
 
@@ -124,8 +126,8 @@ describe('server-action-logging', () => {
 
     await retry(() => {
       const logs = stripAnsi(next.cliOutput.slice(outputIndex))
-      expect(logs).toContain('ƒ errorAction')
-      expect(logs).toMatch(/ƒ errorAction\(\) in \d+ms/)
+      expect(logs).toContain('└─ ƒ errorAction')
+      expect(logs).toMatch(/└─ ƒ errorAction\(\) in \d+ms/)
     })
   })
 
@@ -138,8 +140,8 @@ describe('server-action-logging', () => {
 
     await retry(() => {
       const logs = stripAnsi(next.cliOutput.slice(outputIndex))
-      expect(logs).toContain('ƒ promiseArgAction')
-      expect(logs).toMatch(/ƒ promiseArgAction\(.*\) in \d+ms/)
+      expect(logs).toContain('└─ ƒ promiseArgAction')
+      expect(logs).toMatch(/└─ ƒ promiseArgAction\(.*\) in \d+ms/)
     })
   })
 
@@ -155,7 +157,7 @@ describe('server-action-logging', () => {
       const logs = stripAnsi(next.cliOutput.slice(outputIndex))
       // Inline actions show as <inline action> with file location
       expect(logs).toMatch(
-        /ƒ <inline action>\(10\) in \d+ms app\/inline\/page\.js/
+        /└─ ƒ <inline action>\(10\) in \d+ms app\/inline\/page\.js/
       )
     })
   })

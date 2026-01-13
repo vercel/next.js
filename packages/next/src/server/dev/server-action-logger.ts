@@ -49,6 +49,6 @@ export function logServerAction(
   const duration = Math.round(performance.now() - startTime)
   const argsStr = formatArgs(info.args)
   console.log(
-    ` ƒ ${info.functionName}(${argsStr}) in ${duration}ms ${dim(info.location)}`
+    ` └─ ƒ ${info.functionName}(${argsStr}) in ${duration}ms ${dim(info.location)}`
   )
 }
