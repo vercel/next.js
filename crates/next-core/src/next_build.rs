@@ -1,8 +1,8 @@
 use anyhow::Result;
-use turbo_rcstr::{RcStr, rcstr};
+use turbo_rcstr::rcstr;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_core::resolve::{ExternalTraced, ExternalType, options::ImportMapping};
+use turbopack_core::resolve::options::ImportMapping;
 
 use crate::next_import_map::get_next_package;
 
