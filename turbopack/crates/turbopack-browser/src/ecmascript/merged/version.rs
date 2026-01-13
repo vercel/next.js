@@ -1,4 +1,3 @@
-use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ReadRef, Vc};
 use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_hex};
@@ -11,29 +10,28 @@ use super::super::version::EcmascriptBrowserChunkVersion;
 #[turbo_tasks::value(serialization = "none", shared)]
 pub(super) struct EcmascriptBrowserMergedChunkVersion {
     #[turbo_tasks(trace_ignore)]
-    pub(super) versions: Vec<ReadRef<EcmascriptBrowserChunkVersion>>,
+    pub(super) versions: Vec<(ReadRef<EcmascriptBrowserChunkVersion>, RcStr)>,
 }
 
 #[turbo_tasks::value_impl]
 impl Version for EcmascriptBrowserMergedChunkVersion {
     #[turbo_tasks::function]
-    async fn id(&self) -> Result<Vc<RcStr>> {
+    fn id(&self) -> Vc<RcStr> {
         let mut hasher = Xxh3Hash64Hasher::new();
         hasher.write_value(self.versions.len());
-        let sorted_ids = {
-            let mut sorted_ids = self
-                .versions
-                .iter()
-                .map(|version| version.id_ref())
-                .collect::<Vec<_>>();
-            sorted_ids.sort();
-            sorted_ids
-        };
+
+        let mut sorted_ids = self
+            .versions
+            .iter()
+            .map(|(_, version)| version)
+            .collect::<Vec<_>>();
+        sorted_ids.sort();
         for id in sorted_ids {
             hasher.write_value(id);
         }
+
         let hash = hasher.finish();
         let hex_hash = encode_hex(hash);
-        Ok(Vc::cell(hex_hash.into()))
+        Vc::cell(hex_hash.into())
     }
 }
