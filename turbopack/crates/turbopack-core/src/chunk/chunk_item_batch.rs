@@ -280,13 +280,11 @@ impl ChunkItemBatchGroup {
                         ChunkItemBatchGroup {
                             items,
                             chunk_groups: this.chunk_groups.clone(),
-                        },
+                        }
+                        .resolved_cell(),
                     )
                 })
-                .map(async |(ty, batch_group)| Ok((ty, batch_group.resolved_cell())))
-                .try_join()
-                .await?
-                .into()
+                .collect()
         };
         Ok(Vc::cell(result))
     }

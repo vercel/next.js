@@ -1,6 +1,8 @@
 use anyhow::Result;
+use either::Either;
+use itertools::Itertools;
 use turbo_rcstr::rcstr;
-use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{
     FileJsonContent, FileSystemPath,
     glob::{Glob, GlobOptions},
@@ -52,71 +54,71 @@ async fn side_effects_from_package_json(
         if let Some(side_effects) = side_effects.as_bool() {
             return Ok(SideEffectsValue::Constant(side_effects).cell());
         } else if let Some(side_effects) = side_effects.as_array() {
-            let globs = side_effects
+            let (globs, issues): (Vec<_>, Vec<_>) = side_effects
                 .iter()
-                .filter_map(|side_effect| {
+                .map(|side_effect| {
                     if let Some(side_effect) = side_effect.as_str() {
                         if side_effect.contains('/') {
-                            Some(Glob::new(
+                            Either::Left(Glob::new(
                                 side_effect.strip_prefix("./").unwrap_or(side_effect).into(),
                                 GlobOptions::default(),
                             ))
                         } else {
-                            Some(Glob::new(
+                            Either::Left(Glob::new(
                                 format!("**/{side_effect}").into(),
                                 GlobOptions::default(),
                             ))
                         }
                     } else {
-                        SideEffectsInPackageJsonIssue {
+                        Either::Right(SideEffectsInPackageJsonIssue {
                             // TODO(PACK-4879): This should point at the buggy element
                             source: IssueSource::from_source_only(ResolvedVc::upcast(
                                 package_json_file,
                             )),
-                            description: Some(
-                                StyledString::Text(
-                                    format!(
-                                        "Each element in sideEffects must be a string, but found \
-                                         {side_effect:?}"
-                                    )
-                                    .into(),
+                            description: Some(StyledString::Text(
+                                format!(
+                                    "Each element in sideEffects must be a string, but found \
+                                     {side_effect:?}"
                                 )
-                                .resolved_cell(),
-                            ),
-                        }
-                        .resolved_cell()
-                        .emit();
-                        None
+                                .into(),
+                            )),
+                        })
                     }
                 })
                 .map(|glob| async move {
-                    match glob.resolve().await {
-                        Ok(glob) => Ok(Some(glob)),
-                        Err(err) => {
-                            SideEffectsInPackageJsonIssue {
-                                // TODO(PACK-4879): This should point at the buggy glob
-                                source: IssueSource::from_source_only(ResolvedVc::upcast(
-                                    package_json_file,
-                                )),
-                                description: Some(
-                                    StyledString::Text(
-                                        format!(
-                                            "Invalid glob in sideEffects: {}",
-                                            PrettyPrintError(&err)
-                                        )
-                                        .into(),
-                                    )
-                                    .resolved_cell(),
-                                ),
+                    Ok(match glob {
+                        Either::Left(glob) => {
+                            match glob.resolve().await {
+                                Ok(glob) => Either::Left(glob),
+                                Err(err) => {
+                                    Either::Right(SideEffectsInPackageJsonIssue {
+                                        // TODO(PACK-4879): This should point at the buggy glob
+                                        source: IssueSource::from_source_only(ResolvedVc::upcast(
+                                            package_json_file,
+                                        )),
+                                        description: Some(StyledString::Text(
+                                            format!(
+                                                "Invalid glob in sideEffects: {}",
+                                                PrettyPrintError(&err)
+                                            )
+                                            .into(),
+                                        )),
+                                    })
+                                }
                             }
-                            .resolved_cell()
-                            .emit();
-                            Ok(None)
                         }
-                    }
+                        Either::Right(_) => glob,
+                    })
                 })
-                .try_flat_join()
-                .await?;
+                .try_join()
+                .await?
+                .into_iter()
+                .partition_map(|either| either);
+
+            for issue in issues {
+                issue.resolved_cell().emit();
+            }
+
             return Ok(
                 SideEffectsValue::Glob(Glob::alternatives(globs).to_resolved().await?).cell(),
             );
@@ -124,15 +126,12 @@ async fn side_effects_from_package_json(
             SideEffectsInPackageJsonIssue {
                 // TODO(PACK-4879): This should point at the buggy value
                 source: IssueSource::from_source_only(ResolvedVc::upcast(package_json_file)),
-                description: Some(
-                    StyledString::Text(
-                        format!(
-                            "sideEffects must be a boolean or an array, but found {side_effects:?}"
-                        )
-                        .into(),
+                description: Some(StyledString::Text(
+                    format!(
+                        "sideEffects must be a boolean or an array, but found {side_effects:?}"
                     )
-                    .resolved_cell(),
-                ),
+                    .into(),
+                )),
             }
             .resolved_cell()
             .emit();
@@ -144,7 +143,7 @@ async fn side_effects_from_package_json(
 #[turbo_tasks::value]
 struct SideEffectsInPackageJsonIssue {
     source: IssueSource,
-    description: Option<ResolvedVc<StyledString>>,
+    description: Option<StyledString>,
 }
 
 #[turbo_tasks::value_impl]
@@ -170,7 +169,12 @@ impl Issue for SideEffectsInPackageJsonIssue {
 
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(self.description)
+        Vc::cell(
+            self.description
+                .as_ref()
+                .cloned()
+                .map(|s| s.resolved_cell()),
+        )
     }
 
     #[turbo_tasks::function]
