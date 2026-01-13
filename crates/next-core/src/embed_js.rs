@@ -21,10 +21,3 @@ pub(crate) async fn next_js_file(path: RcStr) -> Result<Vc<FileContent>> {
 pub(crate) async fn next_js_file_path(path: RcStr) -> Result<Vc<FileSystemPath>> {
     Ok(next_js_fs().root().await?.join(&path)?.cell())
 }
-
-#[turbo_tasks::function]
-pub(crate) async fn next_asset(path: RcStr) -> Result<Vc<Box<dyn Source>>> {
-    Ok(Vc::upcast(FileSource::new(
-        next_js_file_path(path).owned().await?,
-    )))
-}

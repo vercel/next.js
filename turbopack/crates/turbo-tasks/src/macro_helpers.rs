@@ -51,13 +51,6 @@ pub fn get_persistence_from_inputs_and_this(
     }
 }
 
-pub fn assert_returns_non_local_value<ReturnType, Rv>()
-where
-    ReturnType: TaskOutput<Return = Vc<Rv>>,
-    Rv: NonLocalValue + Send,
-{
-}
-
 pub fn assert_argument_is_non_local_value<Argument: NonLocalValue>() {}
 
 #[macro_export]

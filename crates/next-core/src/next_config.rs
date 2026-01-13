@@ -1650,21 +1650,11 @@ impl NextConfig {
         Vc::cell(self.experimental.swc_plugins.clone().unwrap_or_default())
     }
 
-    #[turbo_tasks::function]
-    pub fn experimental_sri(&self) -> Vc<OptionSubResourceIntegrity> {
-        Vc::cell(self.experimental.sri.clone())
-    }
-
-    #[turbo_tasks::function]
-    pub fn experimental_server_actions(&self) -> Vc<OptionServerActions> {
-        Vc::cell(match self.experimental.server_actions.as_ref() {
-            Some(ServerActionsOrLegacyBool::ServerActionsConfig(server_actions)) => {
-                Some(server_actions.clone())
-            }
-            Some(ServerActionsOrLegacyBool::LegacyBool(true)) => Some(ServerActions::default()),
-            _ => None,
-        })
-    }
+    // TODO not implemented yet
+    // #[turbo_tasks::function]
+    // pub fn experimental_sri(&self) -> Vc<OptionSubResourceIntegrity> {
+    //     Vc::cell(self.experimental.sri.clone())
+    // }
 
     #[turbo_tasks::function]
     pub fn experimental_turbopack_use_builtin_babel(&self) -> Vc<Option<bool>> {
