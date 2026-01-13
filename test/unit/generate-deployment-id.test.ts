@@ -189,17 +189,19 @@ describe('resolveAndSetDeploymentId', () => {
       expect(result).toBe('')
     })
 
-    it('should handle empty string user-configured deployment ID', () => {
+    it('should handle empty string user-configured deployment ID (treated as not configured)', () => {
+      delete process.env.NEXT_DEPLOYMENT_ID
       const result = resolveAndSetDeploymentId('', 'user-config')
       expect(result).toBe('')
-      expect(process.env.NEXT_DEPLOYMENT_ID).toBe('')
+      expect(process.env.NEXT_DEPLOYMENT_ID).toBeUndefined()
     })
 
-    it('should handle function returning empty string for user-configured deployment ID', () => {
+    it('should handle function returning empty string for user-configured deployment ID (treated as not configured)', () => {
+      process.env.NEXT_DEPLOYMENT_ID = 'env-var-id'
       const fn = () => ''
       const result = resolveAndSetDeploymentId(fn, 'user-config')
-      expect(result).toBe('')
-      expect(process.env.NEXT_DEPLOYMENT_ID).toBe('')
+      expect(result).toBe('env-var-id')
+      expect(process.env.NEXT_DEPLOYMENT_ID).toBe('env-var-id')
     })
 
     it('should fall back to env var when user-config source but configDeploymentId is undefined', () => {
@@ -214,23 +216,117 @@ describe('resolveAndSetDeploymentId', () => {
       expect(result).toBe('')
     })
 
-    it('should handle user-configured empty string taking precedence over env var', () => {
+    it('should handle user-configured empty string (treated as not configured, falls back to env var)', () => {
       process.env.NEXT_DEPLOYMENT_ID = 'env-var-id'
       const result = resolveAndSetDeploymentId('', 'user-config')
-      expect(result).toBe('')
-      expect(process.env.NEXT_DEPLOYMENT_ID).toBe('')
+      expect(result).toBe('env-var-id')
+      expect(process.env.NEXT_DEPLOYMENT_ID).toBe('env-var-id')
     })
 
-    it('should handle whitespace-only user-configured deployment ID', () => {
-      const result = resolveAndSetDeploymentId('   ', 'user-config')
-      expect(result).toBe('   ')
-      expect(process.env.NEXT_DEPLOYMENT_ID).toBe('   ')
+    it('should reject whitespace-only user-configured deployment ID (contains invalid characters)', () => {
+      expect(() => resolveAndSetDeploymentId('   ', 'user-config')).toThrow(
+        'contains invalid characters'
+      )
     })
 
     it('should handle whitespace-only NEXT_DEPLOYMENT_ID when source is env-var', () => {
       process.env.NEXT_DEPLOYMENT_ID = '   '
       const result = resolveAndSetDeploymentId(undefined, 'env-var')
       expect(result).toBe('   ')
+    })
+  })
+
+  describe('Character validation', () => {
+    beforeEach(() => {
+      delete process.env.NEXT_DEPLOYMENT_ID
+    })
+
+    it('should reject deploymentId with invalid characters (spaces)', () => {
+      expect(() =>
+        resolveAndSetDeploymentId('my deployment id', 'user-config')
+      ).toThrow('contains invalid characters')
+    })
+
+    it('should reject deploymentId with invalid characters (question mark)', () => {
+      expect(() =>
+        resolveAndSetDeploymentId('my-deployment?id=123', 'user-config')
+      ).toThrow('contains invalid characters')
+    })
+
+    it('should reject deploymentId with invalid characters (ampersand)', () => {
+      expect(() =>
+        resolveAndSetDeploymentId('my-deployment&id=123', 'user-config')
+      ).toThrow('contains invalid characters')
+    })
+
+    it('should reject deploymentId with invalid characters (percent)', () => {
+      expect(() =>
+        resolveAndSetDeploymentId('my-deployment%20id', 'user-config')
+      ).toThrow('contains invalid characters')
+    })
+
+    it('should reject deploymentId with invalid characters (slash)', () => {
+      expect(() =>
+        resolveAndSetDeploymentId('my/deployment/id', 'user-config')
+      ).toThrow('contains invalid characters')
+    })
+
+    it('should reject deploymentId with invalid characters (dot)', () => {
+      expect(() =>
+        resolveAndSetDeploymentId('my.deployment.id', 'user-config')
+      ).toThrow('contains invalid characters')
+    })
+
+    it('should reject deploymentId with control characters', () => {
+      expect(() =>
+        resolveAndSetDeploymentId('my-deployment\tid', 'user-config')
+      ).toThrow('contains invalid characters')
+    })
+
+    it('should allow deploymentId with valid characters (base62 + hyphen + underscore)', () => {
+      const result = resolveAndSetDeploymentId(
+        'my-deployment_v2-abc123XYZ',
+        'user-config'
+      )
+      expect(result).toBe('my-deployment_v2-abc123XYZ')
+      expect(process.env.NEXT_DEPLOYMENT_ID).toBe('my-deployment_v2-abc123XYZ')
+    })
+
+    it('should allow deploymentId with only alphanumeric characters', () => {
+      const result = resolveAndSetDeploymentId('abc123XYZ789', 'user-config')
+      expect(result).toBe('abc123XYZ789')
+      expect(process.env.NEXT_DEPLOYMENT_ID).toBe('abc123XYZ789')
+    })
+
+    it('should allow deploymentId with only hyphens', () => {
+      const result = resolveAndSetDeploymentId('---', 'user-config')
+      expect(result).toBe('---')
+      expect(process.env.NEXT_DEPLOYMENT_ID).toBe('---')
+    })
+
+    it('should allow deploymentId with only underscores', () => {
+      const result = resolveAndSetDeploymentId('___', 'user-config')
+      expect(result).toBe('___')
+      expect(process.env.NEXT_DEPLOYMENT_ID).toBe('___')
+    })
+
+    it('should reject deploymentId from function that returns invalid characters', () => {
+      const fn = () => 'my deployment id'
+      expect(() => resolveAndSetDeploymentId(fn, 'user-config')).toThrow(
+        'contains invalid characters'
+      )
+    })
+
+    it('should allow deploymentId from function that returns valid characters', () => {
+      const fn = () => 'my-deployment_v2-abc123XYZ'
+      const result = resolveAndSetDeploymentId(fn, 'user-config')
+      expect(result).toBe('my-deployment_v2-abc123XYZ')
+      expect(process.env.NEXT_DEPLOYMENT_ID).toBe('my-deployment_v2-abc123XYZ')
+    })
+
+    it('should allow empty string (treated as not configured)', () => {
+      const result = resolveAndSetDeploymentId('', 'user-config')
+      expect(result).toBe('')
     })
   })
 })

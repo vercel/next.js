@@ -48,6 +48,11 @@ export function resolveAndSetDeploymentId(
   }
 
   if (userConfiguredDeploymentId !== undefined) {
+    // Empty string is treated as "not configured" - fall back to env var
+    if (userConfiguredDeploymentId.length === 0) {
+      return process.env['NEXT_DEPLOYMENT_ID'] || ''
+    }
+
     if (userConfiguredDeploymentId.length > 32) {
       throw new Error(
         `The deploymentId "${userConfiguredDeploymentId}" exceeds the maximum length of 32 characters. Please choose a shorter deploymentId in your next.config.js. https://nextjs.org/docs/messages/deploymentid-too-long`
@@ -56,6 +61,12 @@ export function resolveAndSetDeploymentId(
     if (userConfiguredDeploymentId.startsWith('dpl_')) {
       throw new Error(
         `The deploymentId "${userConfiguredDeploymentId}" cannot start with the "dpl_" prefix. Please choose a different deploymentId in your next.config.js. https://vercel.com/docs/skew-protection#custom-skew-protection-deployment-id`
+      )
+    }
+    const validCharacterPattern = /^[a-zA-Z0-9_-]+$/
+    if (!validCharacterPattern.test(userConfiguredDeploymentId)) {
+      throw new Error(
+        `The deploymentId "${userConfiguredDeploymentId}" contains invalid characters. Only alphanumeric characters (a-z, A-Z, 0-9), hyphens (-), and underscores (_) are allowed. https://nextjs.org/docs/messages/deploymentid-invalid-characters`
       )
     }
     process.env['NEXT_DEPLOYMENT_ID'] = userConfiguredDeploymentId
