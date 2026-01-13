@@ -11,15 +11,11 @@ jobs:
     if: github.ref != 'refs/heads/canary'
     steps:
       - uses: actions/checkout@v4
-      - name: Install Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Install dependencies
-        run: pnpm install
-      - name: Build docs
-        run: pnpm --filter=apps/docs build
-      - name: Deploy to Vercel
+      - name: Deploy to Vercel (build on Vercel)
         uses: amondnet/vercel-action@v20
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
@@ -27,3 +23,5 @@ jobs:
           working-directory: apps/docs
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}

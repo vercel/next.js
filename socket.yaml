@@ -9,6 +9,7 @@ githubApp:
 
 triggerPaths:
   - 'packages/*/package.json'
+
   - 'package.json'
   - 'pnpm-lock.yaml'
   - 'pnpm-workspace.yaml'
