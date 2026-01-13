@@ -374,9 +374,7 @@ function getSourcemappedFrameIfPossible(
     }
     let maybeSourceMapPayload: ModernSourceMapPayload | undefined
     try {
-      console.error('looking up source map for ', sourceURL)
       const sourceMap = nativeFindSourceMap(sourceURL)
-      console.error('\tfound source map')
       maybeSourceMapPayload = sourceMap?.payload
     } catch (cause) {
       // We should not log an actual error instance here because that will re-enter
@@ -395,12 +393,10 @@ function getSourcemappedFrameIfPossible(
       // source map.
       return createUnsourcemappedFrame(frame)
     }
-    console.error('1: maybeSourceMapPayload=', maybeSourceMapPayload)
     if (maybeSourceMapPayload === undefined) {
       maybeSourceMapPayload = bundlerFindSourceMapPayload(sourceURL)
     }
 
-    console.error('2: maybeSourceMapPayload=', maybeSourceMapPayload)
     if (maybeSourceMapPayload === undefined) {
       return createUnsourcemappedFrame(frame)
     }
@@ -412,13 +408,11 @@ function getSourcemappedFrameIfPossible(
       // relative paths but is actually wrong (the chunk and sourcemap have different content hashes).
       // We are using the node API to read the sourcemap and it doesn't give us access to the URI.
       const sourceMapURL = sourceURL + '.map'
-      console.error('about to parse sourcemap for ', sourceURL)
       sourceMapConsumer = new SyncSourceMapConsumer(
         sourceMapPayload,
         // @ts-expect-error: our typings don't include this parameter but it is here.
         sourceMapURL
       )
-      console.error('\tparsed source map')
     } catch (cause) {
       // We should not log an actual error instance here because that will re-enter
       // this codepath during error inspection and could lead to infinite recursion.
