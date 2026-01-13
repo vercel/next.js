@@ -973,9 +973,10 @@ export default async function build(
       // Install the native bindings early so we can have synchronous access later.
       await installBindings(config.experimental?.useWasmBinary)
 
-      // Generate deploymentId - can be a string or function
-      // Call the function once and cache the result to ensure consistency throughout the build process
-      config.deploymentId = resolveAndSetDeploymentId(config.deploymentId)
+      config.deploymentId = resolveAndSetDeploymentId(
+        config.deploymentId,
+        config.deploymentId != null ? 'user-config' : 'env-var'
+      )
       NextBuildContext.config = config
 
       let configOutDir = 'out'

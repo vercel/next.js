@@ -54,9 +54,10 @@ export default async function analyze({
       reactProductionProfiling,
     })
 
-    // Generate deploymentId - can be a string or function
-    // Call the function once and cache the result to ensure consistency throughout the analyze process
-    config.deploymentId = resolveAndSetDeploymentId(config.deploymentId)
+    config.deploymentId = resolveAndSetDeploymentId(
+      config.deploymentId,
+      config.deploymentId != null ? 'user-config' : 'env-var'
+    )
 
     const distDir = path.join(dir, '.next')
     const telemetry = new Telemetry({ distDir })

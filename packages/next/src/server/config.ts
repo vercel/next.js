@@ -934,10 +934,9 @@ function assignDefaultsAndValidate(
     if (process.env['NEXT_DEPLOYMENT_ID'] == null) {
       process.env['NEXT_DEPLOYMENT_ID'] = result.deploymentId
     }
-  } else if (process.env.NEXT_DEPLOYMENT_ID) {
-    // No user config, fall back to NEXT_DEPLOYMENT_ID env var
-    result.deploymentId = process.env.NEXT_DEPLOYMENT_ID
   }
+  // Don't set result.deploymentId from NEXT_DEPLOYMENT_ID to preserve distinction
+  // between user-configured and env-var-sourced IDs for validation in build/index.ts
 
   if (
     result.experimental.runtimeServerDeploymentId == null &&

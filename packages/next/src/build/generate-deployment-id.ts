@@ -22,36 +22,31 @@ export function generateDeploymentId(
   return undefined
 }
 
+type DeploymentIdSource = 'user-config' | 'env-var'
+
 /**
  * Resolves and sets the deployment ID from config, handling precedence and ensuring function is only evaluated once.
  * User-configured deploymentId always takes precedence over NEXT_DEPLOYMENT_ID.
- * If configDeploymentId is already a string, it was evaluated earlier - use it directly.
- * If configDeploymentId is a function, evaluate it once here (regardless of NEXT_DEPLOYMENT_ID).
- * Only sets NEXT_DEPLOYMENT_ID if it wasn't already set (to avoid overwriting if function was called before).
  *
  * @param configDeploymentId - The deploymentId from config (can be string, function, or undefined)
+ * @param source - Source indicator: 'user-config' treats as user-configured (validates), 'env-var' uses NEXT_DEPLOYMENT_ID
  * @returns The resolved deploymentId string to use
  */
 export function resolveAndSetDeploymentId(
-  configDeploymentId: string | (() => string) | undefined
+  configDeploymentId: string | (() => string) | undefined,
+  source: DeploymentIdSource
 ): string {
-  // User-configured deploymentId always takes precedence over NEXT_DEPLOYMENT_ID
-  // Evaluate function once if needed (if it's a function, not already a string)
-  let userConfiguredDeploymentId: string | undefined
-  if (typeof configDeploymentId === 'string') {
-    // Already evaluated earlier (e.g., in config.ts), use the cached value
-    // This ensures the function is only called once
-    userConfiguredDeploymentId = configDeploymentId
-  } else if (configDeploymentId != null) {
-    // Function hasn't been evaluated yet - evaluate it once now
-    // We evaluate regardless of NEXT_DEPLOYMENT_ID to ensure user config can take precedence
-    userConfiguredDeploymentId = generateDeploymentId(configDeploymentId)
-  } else {
-    // No user configuration provided
-    userConfiguredDeploymentId = undefined
+  if (source === 'env-var') {
+    return process.env['NEXT_DEPLOYMENT_ID'] || ''
   }
 
-  // Validate length early (before setting env var or returning)
+  let userConfiguredDeploymentId: string | undefined
+  if (typeof configDeploymentId === 'string') {
+    userConfiguredDeploymentId = configDeploymentId
+  } else if (typeof configDeploymentId === 'function') {
+    userConfiguredDeploymentId = generateDeploymentId(configDeploymentId)
+  }
+
   if (userConfiguredDeploymentId !== undefined) {
     if (userConfiguredDeploymentId.length > 32) {
       throw new Error(
@@ -63,19 +58,9 @@ export function resolveAndSetDeploymentId(
         `The deploymentId "${userConfiguredDeploymentId}" cannot start with the "dpl_" prefix. Please choose a different deploymentId in your next.config.js. https://vercel.com/docs/skew-protection#custom-skew-protection-deployment-id`
       )
     }
-  }
-
-  // User-configured deploymentId always takes precedence over NEXT_DEPLOYMENT_ID
-  if (userConfiguredDeploymentId !== undefined) {
-    // User-configured deploymentId always takes precedence
-    // Use bracket notation to prevent webpack from replacing this at build time
     process.env['NEXT_DEPLOYMENT_ID'] = userConfiguredDeploymentId
     return userConfiguredDeploymentId
-  } else if (process.env['NEXT_DEPLOYMENT_ID'] != null) {
-    // No user config, use NEXT_DEPLOYMENT_ID if set
-    return process.env['NEXT_DEPLOYMENT_ID']
-  } else {
-    // Neither is set, use empty string
-    return ''
   }
+
+  return process.env['NEXT_DEPLOYMENT_ID'] || ''
 }
