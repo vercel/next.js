@@ -2549,27 +2549,20 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             // Note: We do not mark the tasks as dirty here, as these tasks are unused or stale
             // anyway and we want to avoid needless re-executions. When the cells become
             // used again, they are invalidated from the update cell operation.
+            let is_cell_unused = |cell: CellId| {
+                cell_counters
+                    .get(&cell.type_id)
+                    .is_none_or(|start_index| cell.index >= *start_index)
+            };
             if task_id.is_transient()
-                || iter_many!(task, CellData { cell }
-                    if cell_counters
-                        .get(&cell.type_id)
-                        .is_none_or(|start_index| cell.index >= *start_index)
-                    => cell)
-                .count()
-                    > 0
+                || iter_many!(task, CellData { cell } => cell).any(is_cell_unused)
             {
                 removed_data.extend(task.extract_if(CachedDataItemType::CellData, |key, _| {
                     matches!(key, CachedDataItemKey::CellData { cell } if cell_counters.get(&cell.type_id).is_none_or(|start_index| cell.index >= *start_index))
                 }));
             }
             if task_id.is_transient()
-                || iter_many!(task, TransientCellData { cell }
-                    if cell_counters
-                        .get(&cell.type_id)
-                        .is_none_or(|start_index| cell.index >= *start_index)
-                    => cell)
-                .count()
-                    > 0
+                || iter_many!(task, TransientCellData { cell } => cell).any(is_cell_unused)
             {
                 removed_data.extend(task.extract_if(
                     CachedDataItemType::TransientCellData,
