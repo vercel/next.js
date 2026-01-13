@@ -34,10 +34,11 @@ use turbo_tasks::{
     event::{Event, EventListener},
     message_queue::TimingEvent,
     registry::get_value_type,
+    scope::scope_and_block,
     task_statistics::TaskStatisticsApi,
     trace::TraceRawVcs,
     turbo_tasks,
-    util::IdFactoryWithReuse,
+    util::{IdFactoryWithReuse, good_chunk_size, into_chunks},
 };
 
 pub use self::{operation::AnyOperation, storage::TaskDataCategory};
@@ -46,10 +47,11 @@ use crate::backend::operation::TaskDirtyCause;
 use crate::{
     backend::{
         operation::{
-            AggregationUpdateJob, AggregationUpdateQueue, CleanupOldEdgesOperation,
-            ComputeDirtyAndCleanUpdate, ConnectChildOperation, ExecuteContext, ExecuteContextImpl,
-            Operation, OutdatedEdge, TaskGuard, connect_children, get_aggregation_number,
-            get_uppers, is_root_node, make_task_dirty_internal, prepare_new_children,
+            AggregationUpdateJob, AggregationUpdateQueue, ChildExecuteContext,
+            CleanupOldEdgesOperation, ComputeDirtyAndCleanUpdate, ConnectChildOperation,
+            ExecuteContext, ExecuteContextImpl, Operation, OutdatedEdge, TaskGuard,
+            connect_children, get_aggregation_number, get_uppers, is_root_node,
+            make_task_dirty_internal, prepare_new_children,
         },
         storage::{
             InnerStorageSnapshot, Storage, count, get, get_many, get_mut, get_mut_or_insert_with,
@@ -67,6 +69,11 @@ use crate::{
         ptr_eq_arc::PtrEqArc, shard_amount::compute_shard_amount, sharded::Sharded, swap_retain,
     },
 };
+
+/// Threshold for parallelizing making dependent tasks dirty.
+/// If the number of dependent tasks exceeds this threshold,
+/// the operation will be parallelized.
+const DEPENDENT_TASKS_DIRTY_PARALLIZATION_THRESHOLD: usize = 10000;
 
 const SNAPSHOT_REQUESTED_BIT: usize = 1 << (usize::BITS - 1);
 
@@ -2186,8 +2193,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             );
         }
 
-        let mut queue = AggregationUpdateQueue::new();
-        for dependent_task_id in output_dependent_tasks {
+        fn process_output_dependents(
+            ctx: &mut impl ExecuteContext<'_>,
+            task_id: TaskId,
+            dependent_task_id: TaskId,
+            queue: &mut AggregationUpdateQueue,
+        ) {
             #[cfg(feature = "trace_task_output_dependencies")]
             let span = tracing::trace_span!(
                 "invalidate output dependency",
@@ -2200,7 +2211,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 // once tasks are never invalidated
                 #[cfg(feature = "trace_task_output_dependencies")]
                 span.record("result", "once task");
-                continue;
+                return;
             }
             let mut make_stale = true;
             let dependent = ctx.task(dependent_task_id, TaskDataCategory::All);
@@ -2217,7 +2228,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 // output anymore and doesn't need to be invalidated
                 #[cfg(feature = "trace_task_output_dependencies")]
                 span.record("result", "no backward dependency");
-                continue;
+                return;
             }
             make_task_dirty_internal(
                 dependent,
@@ -2225,14 +2236,41 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 make_stale,
                 #[cfg(feature = "trace_task_dirty")]
                 TaskDirtyCause::OutputChange { task_id },
-                &mut queue,
+                queue,
                 ctx,
             );
             #[cfg(feature = "trace_task_output_dependencies")]
             span.record("result", "marked dirty");
         }
 
-        queue.execute(ctx);
+        if output_dependent_tasks.len() > DEPENDENT_TASKS_DIRTY_PARALLIZATION_THRESHOLD {
+            let chunk_size = good_chunk_size(output_dependent_tasks.len());
+            let chunks = into_chunks(output_dependent_tasks.to_vec(), chunk_size);
+            let _ = scope_and_block(chunks.len(), |scope| {
+                for chunk in chunks {
+                    let child_ctx = ctx.child_context();
+                    scope.spawn(move || {
+                        let mut ctx = child_ctx.create();
+                        let mut queue = AggregationUpdateQueue::new();
+                        for dependent_task_id in chunk {
+                            process_output_dependents(
+                                &mut ctx,
+                                task_id,
+                                dependent_task_id,
+                                &mut queue,
+                            )
+                        }
+                        queue.execute(&mut ctx);
+                    });
+                }
+            });
+        } else {
+            let mut queue = AggregationUpdateQueue::new();
+            for dependent_task_id in output_dependent_tasks {
+                process_output_dependents(ctx, task_id, dependent_task_id, &mut queue);
+            }
+            queue.execute(ctx);
+        }
     }
 
     fn task_execution_completed_unfinished_children_dirty(
