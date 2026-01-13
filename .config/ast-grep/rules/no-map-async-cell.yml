@@ -8,13 +8,16 @@ language: Rust
 rule:
   all:
     - any:
-        - pattern: $X.cell()
-        - pattern: $X.resolved_cell()
+        - pattern: $_X.cell()
+        - pattern: $_X.resolved_cell()
+        - pattern: ResolvedVc::cell($_X)
+        - pattern: Vc::cell($_X)
     - inside:
         stopBy: end
         all:
           - any:
               - pattern: 'async |$$$ARGS| $BODY'
+              - pattern: 'async move |$$$ARGS| $BODY'
               - pattern: '|$$$ARGS| async { $$$BODY }'
               - pattern: '|$$$ARGS| async move { $$$BODY }'
           - inside:
