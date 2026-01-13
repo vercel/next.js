@@ -177,8 +177,8 @@ async function loadComponentsImpl<
   sriEnabled: boolean
   needsManifestsForLegacyReasons: boolean
 }): Promise<LoadComponentsReturnType<N>> {
-  let DocumentMod = {}
-  let AppMod = {}
+  let DocumentMod: any = {}
+  let AppMod: any = {}
   if (!isAppPath) {
     ;[DocumentMod, AppMod] = await Promise.all([
       requirePage('/_document', distDir, false),
