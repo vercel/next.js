@@ -16,6 +16,7 @@ use bincode::{
     impl_borrow_decode,
 };
 use rustc_hash::FxHasher;
+use smallvec::SmallVec;
 use tracing::Span;
 use turbo_bincode::{
     TurboBincodeDecode, TurboBincodeDecoder, TurboBincodeEncode, TurboBincodeEncoder,
@@ -508,6 +509,7 @@ pub trait Backend: Sync + Send {
         index: CellId,
         is_serializable_cell_content: bool,
         content: CellContent,
+        updated_key_hashes: Option<SmallVec<[u64; 2]>>,
         verification_mode: VerificationMode,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     );

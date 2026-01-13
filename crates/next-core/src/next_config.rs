@@ -10,7 +10,7 @@ use turbo_tasks::{
     FxIndexMap, NonLocalValue, OperationValue, ResolvedVc, TaskInput, Vc, debug::ValueDebugFormat,
     trace::TraceRawVcs,
 };
-use turbo_tasks_env::{EnvMap, ProcessEnv};
+use turbo_tasks_env::EnvMap;
 use turbo_tasks_fetch::FetchClientConfig;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{
@@ -989,7 +989,6 @@ pub struct ExperimentalConfig {
     turbopack_client_side_nested_async_chunking: Option<bool>,
     turbopack_server_side_nested_async_chunking: Option<bool>,
     turbopack_import_type_bytes: Option<bool>,
-    turbopack_use_system_tls_certs: Option<bool>,
     /// Disable automatic configuration of the sass loader.
     #[serde(default)]
     turbopack_use_builtin_sass: Option<bool>,
@@ -2008,28 +2007,8 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn fetch_client(
-        &self,
-        env: Vc<Box<dyn ProcessEnv>>,
-    ) -> Result<Vc<FetchClientConfig>> {
-        // Support both an env var and the experimental flag to provide more flexibility to
-        // developers on locked down systems, depending on if they want to configure this on a
-        // per-system or per-project basis.
-        let use_system_tls_certs = env
-            .read(rcstr!("NEXT_TURBOPACK_EXPERIMENTAL_USE_SYSTEM_TLS_CERTS"))
-            .await?
-            .as_ref()
-            .and_then(|env_value| {
-                // treat empty value same as an unset value
-                (!env_value.is_empty()).then(|| env_value == "1" || env_value == "true")
-            })
-            .or(self.experimental.turbopack_use_system_tls_certs)
-            .unwrap_or(false);
-        Ok(FetchClientConfig {
-            tls_built_in_webpki_certs: !use_system_tls_certs,
-            tls_built_in_native_certs: use_system_tls_certs,
-        }
-        .cell())
+    pub fn fetch_client(&self) -> Vc<FetchClientConfig> {
+        FetchClientConfig::default().cell()
     }
 }
 

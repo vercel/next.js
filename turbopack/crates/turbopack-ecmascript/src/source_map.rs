@@ -1,8 +1,8 @@
 use std::sync::LazyLock;
 
 use anyhow::Result;
-use either::Either;
 use regex::Regex;
+use swc_core::common::comments::{Comment, CommentKind};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath, rope::Rope};
@@ -11,8 +11,6 @@ use turbopack_core::{
     source::Source,
     source_map::{GenerateSourceMap, utils::resolve_source_map_sources},
 };
-
-use crate::swc_comments::ImmutableComments;
 
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Clone)]
@@ -38,6 +36,20 @@ impl GenerateSourceMap for InlineSourceMap {
     }
 }
 
+const SOURCE_MAPPING_URL_PREFIX: &str = "# sourceMappingURL=";
+const SOURCE_MAPPING_URL_PREFIX_LEGACY: &str = "@ sourceMappingURL=";
+
+/// Checks if a line comment is a sourceMappingURL directive and extracts the URL.
+pub fn extract_source_mapping_url(comment: &Comment) -> Option<&str> {
+    if comment.kind != CommentKind::Line {
+        return None;
+    }
+    let text = comment.text.trim();
+    text.strip_prefix(SOURCE_MAPPING_URL_PREFIX)
+        .or_else(|| text.strip_prefix(SOURCE_MAPPING_URL_PREFIX_LEGACY))
+        .map(|url| url.trim())
+}
+
 fn maybe_decode_data_url(url: &str) -> Option<Rope> {
     const DATA_PREAMBLE: &str = "data:application/json;base64,";
     const DATA_PREAMBLE_CHARSET: &str = "data:application/json;charset=utf-8;base64,";
@@ -56,9 +68,26 @@ fn maybe_decode_data_url(url: &str) -> Option<Rope> {
         .map(Rope::from)
 }
 
+/// Extracts the sourceMappingURL from raw file content.
+/// This searches for a comment at the end of the file (only followed by whitespace).
+pub fn extract_source_mapping_url_from_content(file_content: &str) -> Option<&str> {
+    // TODO this should use https://tc39.es/ecma426/#sec-JavaScriptExtractSourceMapURL instead
+
+    // Find a matching comment at the end of the file (only followed by whitespace)
+    static SOURCE_MAP_FILE_REFERENCE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"\n//[@#]\s*sourceMappingURL=(\S*)[\n\s]*$").unwrap());
+
+    file_content.rfind("\n//").and_then(|start| {
+        let line = &file_content[start..];
+        SOURCE_MAP_FILE_REFERENCE
+            .captures(line)
+            .map(|m| m.get(1).unwrap().as_str())
+    })
+}
+
 pub async fn parse_source_map_comment(
     source: ResolvedVc<Box<dyn Source>>,
-    comments: Either<&ImmutableComments, &str>,
+    source_mapping_url: Option<&str>,
     origin_path: &FileSystemPath,
 ) -> Result<
     Option<(
@@ -66,42 +95,7 @@ pub async fn parse_source_map_comment(
         Option<ResolvedVc<Box<dyn ModuleReference>>>,
     )>,
 > {
-    // See https://tc39.es/ecma426/#sec-MatchSourceMapURL for the official regex.
-    let source_map_comment = match comments {
-        Either::Left(comments) => {
-            // Only use the last sourceMappingURL comment by spec
-            static SOURCE_MAP_FILE_REFERENCE: LazyLock<Regex> =
-                LazyLock::new(|| Regex::new(r"[@#]\s*sourceMappingURL=(\S*)$").unwrap());
-            let mut paths_by_pos = Vec::new();
-            for (pos, comments) in comments.trailing.iter() {
-                for comment in comments.iter().rev() {
-                    if let Some(m) = SOURCE_MAP_FILE_REFERENCE.captures(&comment.text) {
-                        let path = m.get(1).unwrap().as_str();
-                        paths_by_pos.push((pos, path));
-                        break;
-                    }
-                }
-            }
-            paths_by_pos
-                .into_iter()
-                .max_by_key(|&(pos, _)| pos)
-                .map(|(_, path)| path)
-        }
-        Either::Right(file_content) => {
-            // Find a matching comment at the end of the file (only followed by whitespace)
-            static SOURCE_MAP_FILE_REFERENCE: LazyLock<Regex> =
-                LazyLock::new(|| Regex::new(r"\n//[@#]\s*sourceMappingURL=(\S*)[\n\s]*$").unwrap());
-
-            file_content.rfind("\n//").and_then(|start| {
-                let line = &file_content[start..];
-                SOURCE_MAP_FILE_REFERENCE
-                    .captures(line)
-                    .map(|m| m.get(1).unwrap().as_str())
-            })
-        }
-    };
-
-    if let Some(path) = source_map_comment {
+    if let Some(path) = source_mapping_url {
         static JSON_DATA_URL_BASE64: LazyLock<Regex> = LazyLock::new(|| {
             Regex::new(r"^data:application\/json;(?:charset=utf-8;)?base64").unwrap()
         });

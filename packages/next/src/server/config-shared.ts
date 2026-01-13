@@ -280,12 +280,6 @@ export interface ExperimentalConfig {
   linkNoTouchStart?: boolean
   caseSensitiveRoutes?: boolean
   /**
-   * Custom header name to use for CDN cache control instead of the default
-   * 'CDN-Cache-Control'. This can be used to target specific CDN providers
-   * that do not support `CDN-Cache-Control` and have their own custom header.
-   */
-  cdnCacheControlHeader?: string
-  /**
    * The origins that are allowed to write the rewritten headers when
    * performing a non-relative rewrite. When undefined, no non-relative
    * rewrites will get the rewrite headers.
@@ -484,31 +478,6 @@ export interface ExperimentalConfig {
    * Defaults to `true`
    */
   turbopackInferModuleSideEffects?: boolean
-
-  /**
-   * Use the system-provided CA roots instead of bundled CA roots for external HTTPS requests
-   * made by Turbopack. Currently this is only used for fetching data from Google Fonts.
-   *
-   * This may be useful in cases where you or an employer are MITMing traffic.
-   *
-   * This option is experimental because:
-   * - This may cause small performance problems, as it uses [`rustls-native-certs`](
-   *   https://github.com/rustls/rustls-native-certs).
-   * - In the future, this may become the default, and this option may be eliminated, once
-   *   <https://github.com/seanmonstar/reqwest/issues/2159> is resolved.
-   *
-   * Users who need to configure this behavior system-wide can override the project
-   * configuration using the `NEXT_TURBOPACK_EXPERIMENTAL_USE_SYSTEM_TLS_CERTS=1` environment
-   * variable.
-   *
-   * This option is ignored on Windows on ARM, where the native TLS implementation is always
-   * used.
-   *
-   * If you need to set a proxy, Turbopack [respects the common `HTTP_PROXY` and `HTTPS_PROXY`
-   * environment variable convention](https://docs.rs/reqwest/latest/reqwest/#proxies). HTTP
-   * proxies are supported, SOCKS proxies are not currently supported.
-   */
-  turbopackUseSystemTlsCerts?: boolean
 
   /**
    * Set this to `false` to disable the automatic configuration of the babel loader when a Babel
@@ -1534,7 +1503,6 @@ export const defaultConfig = Object.freeze({
     serverMinification: true,
     linkNoTouchStart: false,
     caseSensitiveRoutes: false,
-    cdnCacheControlHeader: undefined,
     clientParamParsingOrigins: undefined,
     dynamicOnHover: false,
     preloadEntriesOnStart: true,
@@ -1684,7 +1652,6 @@ export interface NextConfigRuntime {
     | 'clientParamParsingOrigins'
     | 'adapterPath'
     | 'allowedRevalidateHeaderKeys'
-    | 'cdnCacheControlHeader'
     | 'fetchCacheKeyPrefix'
     | 'isrFlushToDisk'
     | 'optimizeCss'
@@ -1741,7 +1708,6 @@ export function getNextConfigRuntime(
         clientParamParsingOrigins: ex.clientParamParsingOrigins,
         adapterPath: ex.adapterPath,
         allowedRevalidateHeaderKeys: ex.allowedRevalidateHeaderKeys,
-        cdnCacheControlHeader: ex.cdnCacheControlHeader,
         fetchCacheKeyPrefix: ex.fetchCacheKeyPrefix,
         isrFlushToDisk: ex.isrFlushToDisk,
         optimizeCss: ex.optimizeCss,

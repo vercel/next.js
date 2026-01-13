@@ -24,8 +24,8 @@ use smallvec::{SmallVec, smallvec};
 use tokio::time::{Duration, Instant};
 use tracing::{Span, trace_span};
 use turbo_tasks::{
-    CellId, FxDashMap, KeyValuePair, RawVc, ReadCellOptions, ReadConsistency, ReadOutputOptions,
-    ReadTracking, TRANSIENT_TASK_BIT, TaskExecutionReason, TaskId, TraitTypeId,
+    CellId, FxDashMap, KeyValuePair, RawVc, ReadCellOptions, ReadCellTracking, ReadConsistency,
+    ReadOutputOptions, ReadTracking, TRANSIENT_TASK_BIT, TaskExecutionReason, TaskId, TraitTypeId,
     TurboTasksBackendApi, ValueTypeId,
     backend::{
         Backend, CachedTaskType, CellContent, TaskExecutionSpec, TransientTaskRoot,
@@ -791,12 +791,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             reader: Option<TaskId>,
             reader_task: Option<impl TaskGuard>,
             cell: CellId,
+            key: Option<u64>,
         ) {
             if let Some(mut reader_task) = reader_task
                 && (!task.is_immutable() || cfg!(feature = "verify_immutable"))
             {
                 let _ = task.add(CachedDataItem::CellDependent {
                     cell,
+                    key,
                     task: reader.unwrap(),
                     value: (),
                 });
@@ -812,10 +814,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     cell,
                 };
                 if reader_task
-                    .remove(&CachedDataItemKey::OutdatedCellDependency { target })
+                    .remove(&CachedDataItemKey::OutdatedCellDependency { target, key })
                     .is_none()
                 {
-                    let _ = reader_task.add(CachedDataItem::CellDependency { target, value: () });
+                    let _ = reader_task.add(CachedDataItem::CellDependency {
+                        target,
+                        key,
+                        value: (),
+                    });
                 }
             }
         }
@@ -828,7 +834,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         let mut ctx = self.execute_context(turbo_tasks);
         let (mut task, reader_task) = if self.should_track_dependencies()
-            && !matches!(tracking, ReadTracking::Untracked)
+            && !matches!(tracking, ReadCellTracking::Untracked)
             && let Some(reader_id) = reader
             && reader_id != task_id
         {
@@ -848,7 +854,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         };
         if let Some(content) = content {
             if tracking.should_track(false) {
-                add_cell_dependency(task_id, task, reader, reader_task, cell);
+                add_cell_dependency(task_id, task, reader, reader_task, cell, tracking.key());
             }
             return Ok(Ok(TypedCellContent(
                 cell.type_id,
@@ -875,7 +881,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         .copied();
         let Some(max_id) = max_id else {
             if tracking.should_track(true) {
-                add_cell_dependency(task_id, task, reader, reader_task, cell);
+                add_cell_dependency(task_id, task, reader, reader_task, cell, tracking.key());
             }
             bail!(
                 "Cell {cell:?} no longer exists in task {} (no cell of this type exists)",
@@ -884,7 +890,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         };
         if cell.index >= max_id {
             if tracking.should_track(true) {
-                add_cell_dependency(task_id, task, reader, reader_task, cell);
+                add_cell_dependency(task_id, task, reader, reader_task, cell, tracking.key());
             }
             bail!(
                 "Cell {cell:?} no longer exists in task {} (index out of bounds)",
@@ -1684,22 +1690,26 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             if self.should_track_dependencies() {
                 // Make all dependencies outdated
                 let outdated_cell_dependencies_to_add =
-                    iter_many!(task, CellDependency { target } => target)
+                    iter_many!(task, CellDependency { target, key } => (target, key))
                         .collect::<SmallVec<[_; 8]>>();
                 let outdated_cell_dependencies_to_remove =
-                    iter_many!(task, OutdatedCellDependency { target } => target)
-                        .filter(|&target| {
-                            !task.has_key(&CachedDataItemKey::CellDependency { target })
+                    iter_many!(task, OutdatedCellDependency { target, key } => (target, key))
+                        .filter(|&(target, key)| {
+                            !task.has_key(&CachedDataItemKey::CellDependency { target, key })
                         })
                         .collect::<SmallVec<[_; 8]>>();
                 task.extend(
                     CachedDataItemType::OutdatedCellDependency,
                     outdated_cell_dependencies_to_add
                         .into_iter()
-                        .map(|target| CachedDataItem::OutdatedCellDependency { target, value: () }),
+                        .map(|(target, key)| CachedDataItem::OutdatedCellDependency {
+                            target,
+                            key,
+                            value: (),
+                        }),
                 );
-                for target in outdated_cell_dependencies_to_remove {
-                    task.remove(&CachedDataItemKey::OutdatedCellDependency { target });
+                for (target, key) in outdated_cell_dependencies_to_remove {
+                    task.remove(&CachedDataItemKey::OutdatedCellDependency { target, key });
                 }
 
                 let outdated_output_dependencies_to_add =
@@ -2000,7 +2010,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             Some(
                 // Collect all dependencies on tasks to check if all dependencies are immutable
                 iter_many!(task, OutputDependency { target } => target)
-                    .chain(iter_many!(task, CellDependency { target } => target.task))
+                    .chain(iter_many!(task, CellDependency { target, key: _ } => target.task))
                     .collect::<FxHashSet<_>>(),
             )
         } else {
@@ -2054,10 +2064,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         );
 
         if self.should_track_dependencies() {
-            old_edges.extend(iter_many!(task, OutdatedCellDependency { target } => OutdatedEdge::CellDependency(target)));
+            old_edges.extend(iter_many!(task, OutdatedCellDependency { target, key } => OutdatedEdge::CellDependency(target, key)));
             old_edges.extend(iter_many!(task, OutdatedOutputDependency { target } => OutdatedEdge::OutputDependency(target)));
             old_edges.extend(
-                iter_many!(task, CellDependent { cell, task } => (cell, task)).filter_map(
+                iter_many!(task, CellDependent { cell, task, key: _ } => (cell, task)).filter_map(
                     |(cell, task)| {
                         if cell_counters
                             .get(&cell.type_id)
@@ -2742,6 +2752,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         cell: CellId,
         is_serializable_cell_content: bool,
         content: CellContent,
+        updated_key_hashes: Option<SmallVec<[u64; 2]>>,
         verification_mode: VerificationMode,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
@@ -2750,6 +2761,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             cell,
             content,
             is_serializable_cell_content,
+            updated_key_hashes,
             verification_mode,
             self.execute_context(turbo_tasks),
         );
@@ -3337,6 +3349,7 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         cell: CellId,
         is_serializable_cell_content: bool,
         content: CellContent,
+        updated_key_hashes: Option<SmallVec<[u64; 2]>>,
         verification_mode: VerificationMode,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) {
@@ -3345,6 +3358,7 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
             cell,
             is_serializable_cell_content,
             content,
+            updated_key_hashes,
             verification_mode,
             turbo_tasks,
         );
