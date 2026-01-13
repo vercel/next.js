@@ -1,7 +1,6 @@
 use std::io::Write;
 
 use anyhow::{Result, bail};
-use either::Either;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use tracing::Instrument;
@@ -31,7 +30,7 @@ use turbopack_ecmascript::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemOptions,
         EcmascriptChunkPlaceable, EcmascriptChunkType, EcmascriptExports,
     },
-    source_map::parse_source_map_comment,
+    source_map::{extract_source_mapping_url_from_content, parse_source_map_comment},
     utils::StringifyJs,
 };
 
@@ -263,9 +262,10 @@ impl EcmascriptChunkItem for RawEcmascriptChunkItem {
             }
 
             code += "(function(){\n";
+            let source_mapping_url = extract_source_mapping_url_from_content(&content_str);
             let source_map = if let Some((source_map, _)) = parse_source_map_comment(
                 source,
-                Either::Right(&content_str),
+                source_mapping_url,
                 &*self.module.ident().path().await?,
             )
             .await?

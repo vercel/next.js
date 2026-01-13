@@ -159,6 +159,7 @@ pub enum ParseResult {
         globals: Arc<Globals>,
         #[turbo_tasks(debug_ignore, trace_ignore)]
         source_map: Arc<swc_core::common::SourceMap>,
+        source_mapping_url: Option<RcStr>,
     },
     Unparsable {
         messages: Option<Vec<RcStr>>,
@@ -593,14 +594,18 @@ async fn parse_file_content(
                 Some(source),
             );
 
+            let (comments, source_mapping_url) =
+                ImmutableComments::new_with_source_mapping_url(comments);
+
             Ok::<ParseResult, anyhow::Error>(ParseResult::Ok {
                 program: parsed_program,
-                comments: Arc::new(ImmutableComments::new(comments)),
+                comments: Arc::new(comments),
                 eval_context,
                 // Temporary globals as the current one can't be moved yet, since they are
                 // borrowed
                 globals: Arc::new(Globals::new()),
                 source_map,
+                source_mapping_url: source_mapping_url.map(|s| s.into()),
             })
         },
         |f, cx| GLOBALS.set(globals_ref, || HANDLER.set(&handler, || f.poll(cx))),

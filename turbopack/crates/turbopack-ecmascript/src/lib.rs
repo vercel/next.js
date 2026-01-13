@@ -2043,6 +2043,7 @@ async fn with_consumed_parse_result<T>(
                     globals,
                     eval_context,
                     comments,
+                    ..
                 }) => (
                     program.take(),
                     &*source_map,
@@ -2068,6 +2069,7 @@ async fn with_consumed_parse_result<T>(
                         globals,
                         eval_context,
                         comments,
+                        ..
                     } = &**parsed
                     else {
                         unreachable!();
