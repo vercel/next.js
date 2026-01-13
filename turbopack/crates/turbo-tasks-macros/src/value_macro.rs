@@ -8,7 +8,7 @@ use syn::{
     Error, Expr, ExprLit, Fields, FieldsUnnamed, Generics, Item, ItemEnum, ItemStruct, Lit, LitStr,
     Meta, MetaNameValue, Token,
     parse::{Parse, ParseStream},
-    parse_macro_input, parse_quote,
+    parse_macro_input,
     spanned::Spanned,
 };
 
@@ -221,7 +221,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                  [`{inner_type_string}`].",
             );
 
-            struct_attributes.push(parse_quote! {
+            struct_attributes.push(quote! {
                 #[doc = #doc_str]
             });
         }
