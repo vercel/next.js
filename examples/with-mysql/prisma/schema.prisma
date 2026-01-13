@@ -14,7 +14,7 @@ model Product {
   description String
   price       Decimal
   image       String
-  category    Category? @relation(fields: [categoryId], references: [id])
+  category    Category @relation(fields: [categoryId], references: [id])
   categoryId  Int
 
   @@index([categoryId])
