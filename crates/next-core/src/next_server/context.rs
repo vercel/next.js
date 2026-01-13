@@ -16,7 +16,7 @@ use turbopack::{
 use turbopack_core::{
     chunk::{
         ChunkingConfig, MangleType, MinifyType, SourceMapSourceType, SourceMapsType,
-        module_id_strategies::ModuleIdStrategy,
+        UnusedReferences, module_id_strategies::ModuleIdStrategy,
     },
     compile_time_defines,
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReferences},
@@ -995,7 +995,7 @@ pub struct ServerChunkingContextOptions {
     pub environment: Vc<Environment>,
     pub module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
     pub export_usage: Vc<OptionBindingUsageInfo>,
-    pub unused_references: Vc<OptionBindingUsageInfo>,
+    pub unused_references: Vc<UnusedReferences>,
     pub minify: Vc<bool>,
     pub source_maps: Vc<SourceMapsType>,
     pub no_mangling: Vc<bool>,
@@ -1056,7 +1056,7 @@ pub async fn get_server_chunking_context_with_client_assets(
     .source_maps(*source_maps.await?)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
-    .unused_references(*unused_references.await?)
+    .unused_references(unused_references.to_resolved().await?)
     .file_tracing(next_mode.is_production())
     .debug_ids(*debug_ids.await?)
     .nested_async_availability(*nested_async_chunking.await?);
@@ -1140,7 +1140,7 @@ pub async fn get_server_chunking_context(
     .source_maps(*source_maps.await?)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
-    .unused_references(*unused_references.await?)
+    .unused_references(unused_references.to_resolved().await?)
     .file_tracing(next_mode.is_production())
     .debug_ids(*debug_ids.await?)
     .nested_async_availability(*nested_async_chunking.await?);

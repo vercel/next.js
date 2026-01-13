@@ -6,7 +6,7 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
     chunk::{
-        ChunkingConfig, ChunkingContext, MangleType, MinifyType, SourceMapsType,
+        ChunkingConfig, ChunkingContext, MangleType, MinifyType, SourceMapsType, UnusedReferences,
         module_id_strategies::ModuleIdStrategy,
     },
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences},
@@ -205,7 +205,7 @@ pub struct EdgeChunkingContextOptions {
     pub environment: Vc<Environment>,
     pub module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
     pub export_usage: Vc<OptionBindingUsageInfo>,
-    pub unused_references: Vc<OptionBindingUsageInfo>,
+    pub unused_references: Vc<UnusedReferences>,
     pub turbo_minify: Vc<bool>,
     pub turbo_source_maps: Vc<SourceMapsType>,
     pub no_mangling: Vc<bool>,
@@ -261,7 +261,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
     .source_maps(*turbo_source_maps.await?)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
-    .unused_references(*unused_references.await?)
+    .unused_references(unused_references.to_resolved().await?)
     .nested_async_availability(*nested_async_chunking.await?);
 
     if !next_mode.is_development() {
@@ -338,7 +338,7 @@ pub async fn get_edge_chunking_context(
     .source_maps(*turbo_source_maps.await?)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
-    .unused_references(*unused_references.await?)
+    .unused_references(unused_references.to_resolved().await?)
     .nested_async_availability(*nested_async_chunking.await?);
 
     if !next_mode.is_development() {

@@ -47,7 +47,7 @@ use turbopack_core::{
     PROJECT_FILESYSTEM_NAME,
     changed::content_changed,
     chunk::{
-        ChunkingContext, EvaluatableAssets,
+        ChunkingContext, EvaluatableAssets, UnusedReferences,
         module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
     },
     compile_time_info::CompileTimeInfo,
@@ -2067,17 +2067,15 @@ impl Project {
 
     /// Compute the unused references that were removed (inner graph tree shaking).
     #[turbo_tasks::function]
-    pub async fn unused_references(self: Vc<Self>) -> Result<Vc<OptionBindingUsageInfo>> {
+    pub async fn unused_references(self: Vc<Self>) -> Result<Vc<UnusedReferences>> {
         if *self
             .next_config()
             .turbopack_remove_unused_imports(self.next_mode())
             .await?
         {
-            Ok(Vc::cell(Some(
-                self.binding_usage_info().to_resolved().await?,
-            )))
+            Ok(self.binding_usage_info().unused_references())
         } else {
-            Ok(Vc::cell(None))
+            Ok(Vc::cell(Default::default()))
         }
     }
 

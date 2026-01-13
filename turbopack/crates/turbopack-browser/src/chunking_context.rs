@@ -14,6 +14,7 @@ use turbopack_core::{
         Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule, ChunkingConfig,
         ChunkingConfigs, ChunkingContext, EntryChunkGroupResult, EvaluatableAsset,
         EvaluatableAssets, MinifyType, ModuleId, SourceMapSourceType, SourceMapsType,
+        UnusedReferences,
         availability_info::AvailabilityInfo,
         chunk_group::{MakeChunkGroupResult, make_chunk_group},
         module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
@@ -27,7 +28,6 @@ use turbopack_core::{
         chunk_group_info::ChunkGroup,
     },
     output::{OutputAsset, OutputAssets},
-    reference::ModuleReference,
 };
 use turbopack_ecmascript::{
     async_chunk::module::AsyncLoaderModule,
@@ -174,11 +174,8 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
-    pub fn unused_references(
-        mut self,
-        unused_references: Option<ResolvedVc<BindingUsageInfo>>,
-    ) -> Self {
-        self.chunking_context.unused_references = unused_references;
+    pub fn unused_references(mut self, unused_references: ResolvedVc<UnusedReferences>) -> Self {
+        self.chunking_context.unused_references = Some(unused_references);
         self
     }
 
@@ -305,7 +302,7 @@ pub struct BrowserChunkingContext {
     /// The module export usage info, if available.
     export_usage: Option<ResolvedVc<BindingUsageInfo>>,
     /// Which references are unused and should be skipped (e.g. during codegen).
-    unused_references: Option<ResolvedVc<BindingUsageInfo>>,
+    unused_references: Option<ResolvedVc<UnusedReferences>>,
     /// The chunking configs
     chunking_configs: Vec<(ResolvedVc<Box<dyn ChunkType>>, ChunkingConfig)>,
     /// Whether to use absolute URLs for static assets (e.g. in CSS: `url("/absolute/path")`)
@@ -886,16 +883,11 @@ impl ChunkingContext for BrowserChunkingContext {
     }
 
     #[turbo_tasks::function]
-    async fn is_reference_unused(
-        &self,
-        reference: ResolvedVc<Box<dyn ModuleReference>>,
-    ) -> Result<Vc<bool>> {
+    fn unused_references(&self) -> Vc<UnusedReferences> {
         if let Some(unused_references) = self.unused_references {
-            Ok(Vc::cell(
-                unused_references.await?.is_reference_unused(&reference),
-            ))
+            *unused_references
         } else {
-            Ok(Vc::cell(false))
+            Vc::cell(Default::default())
         }
     }
 

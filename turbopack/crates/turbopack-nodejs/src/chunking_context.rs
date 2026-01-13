@@ -8,7 +8,7 @@ use turbopack_core::{
     chunk::{
         Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule, ChunkingConfig,
         ChunkingConfigs, ChunkingContext, EntryChunkGroupResult, EvaluatableAssets, MinifyType,
-        ModuleId, SourceMapSourceType, SourceMapsType,
+        ModuleId, SourceMapSourceType, SourceMapsType, UnusedReferences,
         availability_info::AvailabilityInfo,
         chunk_group::{MakeChunkGroupResult, make_chunk_group},
         module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
@@ -22,7 +22,6 @@ use turbopack_core::{
         chunk_group_info::ChunkGroup,
     },
     output::{OutputAsset, OutputAssets},
-    reference::ModuleReference,
 };
 use turbopack_ecmascript::{
     async_chunk::module::AsyncLoaderModule,
@@ -123,11 +122,8 @@ impl NodeJsChunkingContextBuilder {
         self
     }
 
-    pub fn unused_references(
-        mut self,
-        unused_references: Option<ResolvedVc<BindingUsageInfo>>,
-    ) -> Self {
-        self.chunking_context.unused_references = unused_references;
+    pub fn unused_references(mut self, unused_references: ResolvedVc<UnusedReferences>) -> Self {
+        self.chunking_context.unused_references = Some(unused_references);
         self
     }
 
@@ -202,7 +198,7 @@ pub struct NodeJsChunkingContext {
     /// The module export usage info, if available.
     export_usage: Option<ResolvedVc<BindingUsageInfo>>,
     /// Which references are unused and should be skipped (e.g. during codegen).
-    unused_references: Option<ResolvedVc<BindingUsageInfo>>,
+    unused_references: Option<ResolvedVc<UnusedReferences>>,
     /// The strategy to use for generating source map source uris
     source_map_source_type: SourceMapSourceType,
     /// The chunking configs
@@ -633,16 +629,11 @@ impl ChunkingContext for NodeJsChunkingContext {
     }
 
     #[turbo_tasks::function]
-    async fn is_reference_unused(
-        &self,
-        reference: ResolvedVc<Box<dyn ModuleReference>>,
-    ) -> Result<Vc<bool>> {
+    fn unused_references(&self) -> Vc<UnusedReferences> {
         if let Some(unused_references) = self.unused_references {
-            Ok(Vc::cell(
-                unused_references.await?.is_reference_unused(&reference),
-            ))
+            *unused_references
         } else {
-            Ok(Vc::cell(false))
+            Vc::cell(Default::default())
         }
     }
 

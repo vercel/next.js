@@ -29,7 +29,7 @@ pub use crate::chunk::{
     chunking_context::{
         ChunkGroupResult, ChunkGroupType, ChunkingConfig, ChunkingConfigs, ChunkingContext,
         ChunkingContextExt, EntryChunkGroupResult, MangleType, MinifyType, SourceMapSourceType,
-        SourceMapsType,
+        SourceMapsType, UnusedReferences,
     },
     data::{ChunkData, ChunkDataOption, ChunksData},
     evaluate::{EvaluatableAsset, EvaluatableAssetExt, EvaluatableAssets},
