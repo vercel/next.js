@@ -369,6 +369,11 @@ const createLogEntry = (level: LogMethod, args: any[]) => {
 }
 
 export const forwardErrorLog = (args: any[]) => {
+  // Skip React server replayed logs - they were already logged on the server
+  if (isReactServerReplayedLog(args)) {
+    return
+  }
+
   // Always log to client file logger with args (formatting done inside log method)
   clientFileLogger.log('error', args)
   // Only forward to terminal if enabled
