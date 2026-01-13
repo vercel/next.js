@@ -1,7 +1,10 @@
 use proc_macro::TokenStream;
 use quote::quote;
 use rustc_hash::FxHashSet;
-use syn::{GenericParam, Lifetime, Type, parse_macro_input, spanned::Spanned, visit_mut::VisitMut};
+use syn::{
+    GenericParam, Lifetime, Type, TypeTuple, parse_macro_input, punctuated::Punctuated,
+    spanned::Spanned, token, visit_mut::VisitMut,
+};
 
 use crate::{
     generic_type_input::GenericTypeInput, global_name::global_name, ident::get_type_ident,
@@ -124,7 +127,10 @@ impl VisitMut for ReplaceGenericsVisitor<'_> {
                 .contains(&type_path.path.segments[0].ident.to_string())
         {
             // Replace the whole path with ()
-            *node = syn::parse_quote! { () };
+            *node = Type::Tuple(TypeTuple {
+                paren_token: token::Paren::default(),
+                elems: Punctuated::new(),
+            });
             return;
         }
 
