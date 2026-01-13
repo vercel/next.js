@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ReadRef, TryJoinIterExt, Vc};
+use turbo_tasks::{ReadRef, Vc};
 use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_hex};
 use turbopack_core::version::Version;
 
@@ -24,9 +24,8 @@ impl Version for EcmascriptBrowserMergedChunkVersion {
             let mut sorted_ids = self
                 .versions
                 .iter()
-                .map(|version| async move { ReadRef::cell(version.clone()).id().await })
-                .try_join()
-                .await?;
+                .map(|version| version.id_ref())
+                .collect::<Vec<_>>();
             sorted_ids.sort();
             sorted_ids
         };

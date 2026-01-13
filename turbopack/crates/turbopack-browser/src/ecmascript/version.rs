@@ -43,10 +43,8 @@ impl EcmascriptBrowserChunkVersion {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl Version for EcmascriptBrowserChunkVersion {
-    #[turbo_tasks::function]
-    fn id(&self) -> Vc<RcStr> {
+impl EcmascriptBrowserChunkVersion {
+    pub fn id_ref(&self) -> String {
         let mut hasher = Xxh3Hash64Hasher::new();
         hasher.write_ref(&self.chunk_path);
         let sorted_hashes = {
@@ -58,7 +56,14 @@ impl Version for EcmascriptBrowserChunkVersion {
             hasher.write_value(hash);
         }
         let hash = hasher.finish();
-        let hex_hash = encode_hex(hash);
-        Vc::cell(hex_hash.into())
+        encode_hex(hash)
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Version for EcmascriptBrowserChunkVersion {
+    #[turbo_tasks::function]
+    fn id(&self) -> Vc<RcStr> {
+        Vc::cell(self.id_ref().into())
     }
 }
