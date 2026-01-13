@@ -1,5 +1,7 @@
+use std::sync::Arc;
+
 use bincode::{Decode, Encode};
-use turbo_tasks::{TaskExecutionReason, TaskId};
+use turbo_tasks::{TaskExecutionReason, TaskId, backend::CachedTaskType, event::EventDescription};
 
 use crate::{
     backend::{
@@ -11,6 +13,7 @@ use crate::{
         storage_schema::TaskStorageAccessors,
     },
     data::{InProgressState, InProgressStateInner},
+    utils::arc_or_owned::ArcOrOwned,
 };
 
 #[derive(Encode, Decode, Clone, Default)]
@@ -27,6 +30,7 @@ impl ConnectChildOperation {
     pub fn run(
         parent_task_id: Option<TaskId>,
         child_task_id: TaskId,
+        child_task_type: Option<ArcOrOwned<CachedTaskType>>,
         mut ctx: impl ExecuteContext<'_>,
     ) {
         if let Some(parent_task_id) = parent_task_id {
@@ -63,14 +67,21 @@ impl ConnectChildOperation {
         if ctx.should_track_activeness() && parent_task_id.is_some() {
             queue.push(AggregationUpdateJob::IncreaseActiveCount {
                 task: child_task_id,
+                task_type: child_task_type.map(Arc::from),
             });
         } else {
             let mut child_task = ctx.task(child_task_id, TaskDataCategory::All);
+            if let Some(child_task_type) = child_task_type
+                && !child_task.has_persistent_task_type()
+            {
+                child_task.set_persistent_task_type(child_task_type.into());
+            }
 
             if !child_task.has_output()
-                && child_task.add_scheduled(TaskExecutionReason::Connect, || {
-                    ctx.get_task_desc_fn(child_task_id)
-                })
+                && child_task.add_scheduled(
+                    TaskExecutionReason::Connect,
+                    EventDescription::new(|| child_task.get_task_desc_fn()),
+                )
             {
                 ctx.schedule_task(child_task, ctx.get_current_task_priority());
             }

@@ -409,8 +409,6 @@ pub trait Backend: Sync + Send {
     ) {
     }
 
-    fn get_task_description(&self, task: TaskId) -> String;
-
     fn try_start_task_execution<'a>(
         &'a self,
         task: TaskId,
