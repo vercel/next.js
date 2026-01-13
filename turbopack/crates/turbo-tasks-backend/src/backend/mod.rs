@@ -2067,7 +2067,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             old_edges.extend(iter_many!(task, OutdatedCellDependency { target, key } => OutdatedEdge::CellDependency(target, key)));
             old_edges.extend(iter_many!(task, OutdatedOutputDependency { target } => OutdatedEdge::OutputDependency(target)));
             old_edges.extend(
-                iter_many!(task, CellDependent { cell, task } => (cell, task)).filter_map(
+                iter_many!(task, CellDependent { cell, task, key: _ } => (cell, task)).filter_map(
                     |(cell, task)| {
                         if cell_counters
                             .get(&cell.type_id)
