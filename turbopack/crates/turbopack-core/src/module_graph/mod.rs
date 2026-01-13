@@ -1,11 +1,10 @@
 use core::panic;
 use std::{
-    collections::{BinaryHeap, VecDeque, hash_map::Entry},
+    collections::{BinaryHeap, VecDeque},
     future::Future,
 };
 
 use anyhow::{Context, Result, bail};
-use auto_hash_map::AutoSet;
 use bincode::{Decode, Encode};
 use petgraph::{
     Direction,
@@ -27,7 +26,7 @@ use turbo_tasks_fs::FileSystemPath;
 
 use crate::{
     chunk::{AsyncModuleInfo, ChunkingContext, ChunkingType},
-    issue::{ImportTrace, ImportTracer, ImportTraces, Issue},
+    issue::{ImportTracer, ImportTraces, Issue},
     module::Module,
     module_graph::{
         async_module_info::{AsyncModulesInfo, compute_async_module_info},
