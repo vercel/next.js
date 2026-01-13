@@ -761,9 +761,7 @@ export interface ExperimentalConfig {
    *
    * - `'warn'` (default): Forward warnings and errors to terminal
    * - `'error'`: Forward only errors to terminal
-   * - `'info'`: Forward info, warnings, and errors to terminal
-   * - `'log'`: Forward log, info, warnings, and errors to terminal
-   * - `'verbose'`: Forward all browser console output including debug to terminal
+   * - `'verbose'`: Forward all browser console output to terminal
    * - `true`: Same as 'verbose' - forward all browser console output to terminal
    * - `false`: Disable browser log forwarding to terminal
    * - Object: Enable with custom configuration
@@ -772,15 +770,13 @@ export interface ExperimentalConfig {
     | boolean
     | 'error'
     | 'warn'
-    | 'info'
-    | 'log'
     | 'verbose'
     | {
         /**
          * Minimum log level to show in terminal.
-         * @default 'warn'
+         * @default 'verbose' (for object config, to preserve backward compatibility)
          */
-        level?: 'error' | 'warn' | 'info' | 'log' | 'verbose'
+        level?: 'error' | 'warn' | 'verbose'
 
         /**
          * Option to limit stringification at a specific nesting depth when logging circular objects.

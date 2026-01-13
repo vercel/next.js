@@ -445,44 +445,47 @@ async function handleDefaultConsole(
   }
 }
 
-type LogLevel = 'error' | 'warn' | 'info' | 'log' | 'verbose'
+type LogLevel = 'error' | 'warn' | 'verbose'
 
 type BrowserLogConfig =
   | boolean
   | LogLevel
-  | { level?: LogLevel; logDepth?: number; showSourceLocation?: boolean }
+  | { level?: LogLevel; showSourceLocation?: boolean }
 
 // Log levels from most severe to least severe
 // Lower index = more severe
 const LOG_LEVEL_PRIORITY: Record<LogLevel, number> = {
   error: 0,
   warn: 1,
-  info: 2,
-  log: 3,
-  verbose: 4,
+  verbose: 2,
 }
 
 // Map console methods to log levels
 const METHOD_TO_LEVEL: Record<string, LogLevel> = {
   error: 'error',
   warn: 'warn',
-  info: 'info',
-  log: 'log',
+  info: 'verbose',
+  log: 'verbose',
   debug: 'verbose',
-  table: 'log',
-  trace: 'log',
-  dir: 'log',
-  dirxml: 'log',
+  table: 'verbose',
+  trace: 'verbose',
+  dir: 'verbose',
+  dirxml: 'verbose',
   assert: 'error',
-  group: 'log',
-  groupCollapsed: 'log',
-  groupEnd: 'log',
+  group: 'verbose',
+  groupCollapsed: 'verbose',
+  groupEnd: 'verbose',
 }
 
 function shouldShowEntry(
   entry: ServerLogEntry,
   config: BrowserLogConfig
 ): boolean {
+  // If config is false, don't show any entries
+  if (config === false) {
+    return false
+  }
+
   // Determine the effective minimum log level
   const minLevel: LogLevel =
     typeof config === 'string'
@@ -491,7 +494,7 @@ function shouldShowEntry(
         ? 'verbose' // true means show everything
         : typeof config === 'object'
           ? (config.level ?? 'verbose') // object config defaults to verbose for backward compatibility
-          : 'warn' // this case shouldn't happen, but default to warn
+          : 'warn' // default for new installations
 
   const minPriority = LOG_LEVEL_PRIORITY[minLevel]
 
