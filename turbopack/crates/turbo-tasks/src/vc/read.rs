@@ -263,6 +263,9 @@ where
 
     /// Read the value and checks if it contains the given key. Only depends on the used key instead
     /// of the full value.
+    ///
+    /// Note: This is also invalidated when the value of the key changes, not only when the presence
+    /// of the key changes.
     pub fn contains_key<'l>(
         mut self,
         key: &'l <VcReadTarget<T> as Keyed>::Key,
