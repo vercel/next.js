@@ -464,7 +464,7 @@ export default abstract class Server<
       }
       deploymentId = process.env.NEXT_DEPLOYMENT_ID
     } else {
-      // deploymentId is resolved to a string in config.ts via resolveAndSetDeploymentId
+      // deploymentId is resolved to a string in config.ts via evaluateDeploymentId during config initialization
       let id = this.nextConfig.experimental.useSkewCookie
         ? ''
         : (this.nextConfig.deploymentId as string) || ''
