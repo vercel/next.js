@@ -553,19 +553,17 @@ describe('use-cache', () => {
     it('should send an SWR cache-control header based on the revalidate and expire values', async () => {
       let response = await next.fetch('/cache-life')
 
-      expect(response.headers.get('cache-control')).toBe('s-maxage=100')
-      expect(response.headers.get('cdn-cache-control')).toBe(
+      expect(response.headers.get('cache-control')).toBe(
         // revalidate is set to 100, expire is set to 300 => SWR 200
-        'max-age=100, stale-while-revalidate=200'
+        's-maxage=100, stale-while-revalidate=200'
       )
 
       response = await next.fetch('/cache-fetch')
 
-      expect(response.headers.get('cache-control')).toBe('s-maxage=900')
-      expect(response.headers.get('cdn-cache-control')).toBe(
+      expect(response.headers.get('cache-control')).toBe(
         // revalidate is set to 900, expire is one year (31536000, default
         // expireTime) => SWR 31535100
-        'max-age=900, stale-while-revalidate=31535100'
+        's-maxage=900, stale-while-revalidate=31535100'
       )
     })
 

@@ -101,7 +101,7 @@ import {
 import { getTracer } from './lib/trace/tracer'
 import { RenderSpan } from './lib/trace/constants'
 import { ReflectAdapter } from './web/spec-extension/adapters/reflect'
-import { setResponseCacheControlHeaders } from './lib/cache-control'
+import { getCacheControlHeader } from './lib/cache-control'
 import { getErrorSource } from '../shared/lib/error-source'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import type { PagesDevOverlayBridgeType } from '../next-devtools/userspace/pages/pages-dev-overlay-setup'
@@ -287,7 +287,6 @@ export type RenderOptsPartial = {
   expireTime?: number
   experimental: {
     clientTraceMetadata?: string[]
-    cdnCacheControlHeader?: string
   }
 }
 
@@ -556,10 +555,9 @@ export async function renderToHTMLImpl(
   // ensure we set cache header so it's not rendered on-demand
   // every request
   if (isAutoExport && !dev && isExperimentalCompile) {
-    setResponseCacheControlHeaders(
-      res,
-      { revalidate: false, expire: expireTime },
-      renderOpts.experimental.cdnCacheControlHeader
+    res.setHeader(
+      'Cache-Control',
+      getCacheControlHeader({ revalidate: false, expire: expireTime })
     )
     isAutoExport = false
   }
