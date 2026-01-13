@@ -930,11 +930,9 @@ function assignDefaultsAndValidate(
   // This ensures the function is only called once and the result is cached
   if (result.deploymentId != null) {
     result.deploymentId = evaluateDeploymentId(result.deploymentId)
-    // Set process.env so it's available to other parts of the system
-    if (process.env['NEXT_DEPLOYMENT_ID'] == null) {
-      process.env['NEXT_DEPLOYMENT_ID'] = result.deploymentId
-    }
   }
+  // Don't set process.env['NEXT_DEPLOYMENT_ID'] here - resolveAndSetDeploymentId() in build/index.ts
+  // will validate and set it after validation to prevent invalid IDs from being set
   // Don't set result.deploymentId from NEXT_DEPLOYMENT_ID to preserve distinction
   // between user-configured and env-var-sourced IDs for validation in build/index.ts
 
