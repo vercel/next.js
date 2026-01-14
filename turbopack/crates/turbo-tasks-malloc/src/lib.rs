@@ -77,15 +77,6 @@ impl AllocationCounters {
             _not_send: PhantomData {},
         }
     }
-    pub fn until_now(&self) -> AllocationInfo {
-        let new = TurboMalloc::allocation_counters();
-        AllocationInfo {
-            allocations: new.allocations - self.allocations,
-            deallocations: new.deallocations - self.deallocations,
-            allocation_count: new.allocation_count - self.allocation_count,
-            deallocation_count: new.deallocation_count - self.deallocation_count,
-        }
-    }
 }
 
 /// Turbo's preferred global allocator. This is a new type instead of a type

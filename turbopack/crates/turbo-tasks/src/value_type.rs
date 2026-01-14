@@ -192,10 +192,6 @@ impl ValueType {
     pub fn has_trait(&self, trait_type: &TraitTypeId) -> bool {
         self.traits.contains(trait_type)
     }
-
-    pub fn traits_iter(&self) -> impl Iterator<Item = TraitTypeId> + '_ {
-        self.traits.iter().cloned()
-    }
 }
 
 // A collectable struct for value types

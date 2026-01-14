@@ -61,13 +61,6 @@ impl<T> Deref for DetachedVc<T> {
     }
 }
 
-pub fn serde_enum_to_string<T: Serialize>(value: &T) -> Result<String> {
-    Ok(serde_json::to_value(value)?
-        .as_str()
-        .context("value must serialize to a string")?
-        .to_string())
-}
-
 /// An opaque handle to the root of a turbo-tasks computation created by
 /// [`turbo_tasks::TurboTasks::spawn_root_task`] that can be passed back and forth to JS across the
 /// [`napi`][mod@napi] boundary via [`External`].

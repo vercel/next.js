@@ -422,17 +422,6 @@ impl ReadRawVcFuture {
         self
     }
 
-    /// This will not track the value or the error as dependency.
-    /// Make sure to handle eventual consistency errors.
-    ///
-    /// INVALIDATION: Be careful with this, it will not track dependencies, so
-    /// using it could break cache invalidation.
-    pub fn untracked_including_errors(mut self) -> Self {
-        self.read_output_options.tracking = ReadTracking::Untracked;
-        self.read_cell_options.tracking = ReadCellTracking::Untracked;
-        self
-    }
-
     /// Hint that this is the final read of the cell content.
     pub fn final_read_hint(mut self) -> Self {
         self.read_cell_options.final_read_hint = true;

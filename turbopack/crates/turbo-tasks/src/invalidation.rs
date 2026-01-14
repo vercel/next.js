@@ -47,17 +47,6 @@ impl Invalidator {
             (Arc::new(reason) as Arc<dyn InvalidationReason>).into(),
         );
     }
-
-    pub fn invalidate_with_static_reason<T: InvalidationReason>(
-        self,
-        turbo_tasks: &dyn TurboTasksApi,
-        reason: &'static T,
-    ) {
-        turbo_tasks.invalidate_with_reason(
-            self.task,
-            (reason as &'static dyn InvalidationReason).into(),
-        );
-    }
 }
 
 impl TraceRawVcs for Invalidator {

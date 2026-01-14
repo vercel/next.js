@@ -13,24 +13,6 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::utils::StringifyJs;
 
-#[turbo_tasks::function]
-pub fn route_bootstrap(
-    asset: Vc<Box<dyn Module>>,
-    asset_context: Vc<Box<dyn AssetContext>>,
-    base_path: FileSystemPath,
-    bootstrap_asset: Vc<Box<dyn Source>>,
-    config: Vc<BootstrapConfig>,
-) -> Vc<Box<dyn EvaluatableAsset>> {
-    bootstrap(
-        asset,
-        asset_context,
-        base_path,
-        bootstrap_asset,
-        Vc::cell(FxIndexMap::default()),
-        config,
-    )
-}
-
 #[turbo_tasks::value(transparent)]
 pub struct BootstrapConfig(#[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<String, String>);
 
