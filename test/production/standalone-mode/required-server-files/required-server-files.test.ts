@@ -482,7 +482,12 @@ describe('required server files', () => {
     expect(props4.gspCalls).toBe(props3.gspCalls)
   })
 
-  it('should cap de-dupe previousCacheItem expires time', async () => {
+  it('should bypass cache for on-demand revalidate in minimal mode', async () => {
+    const previewProps = JSON.parse(
+      await next.readFile('standalone/.next/prerender-manifest.json')
+    ).preview
+
+    // First request - get initial gspCalls
     const res = await fetchViaHTTP(appPort, '/gsp-long-revalidate', undefined, {
       redirect: 'manual',
     })
@@ -491,18 +496,23 @@ describe('required server files', () => {
     const props = JSON.parse($('#props').text())
     expect(props.gspCalls).toBeDefined()
 
-    await waitFor(1000)
-
+    // On-demand revalidation request should bypass cache and trigger fresh GSP call
     const res2 = await fetchViaHTTP(
       appPort,
-      `/_next/data/${next.buildId}/gsp-long-revalidate.json`,
+      '/gsp-long-revalidate',
       undefined,
       {
+        headers: {
+          'x-prerender-revalidate': previewProps.previewModeId,
+        },
         redirect: 'manual',
       }
     )
     expect(res2.status).toBe(200)
-    const { pageProps: props2 } = await res2.json()
+    const $2 = cheerio.load(await res2.text())
+    const props2 = JSON.parse($2('#props').text())
+
+    // On-demand revalidation should trigger fresh GSP call
     expect(props2.gspCalls).not.toBe(props.gspCalls)
   })
 
