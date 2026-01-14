@@ -25,7 +25,7 @@ impl Version for EcmascriptBrowserMergedChunkVersion {
             .iter()
             .map(|(_, version)| version)
             .collect::<Vec<_>>();
-        sorted_ids.sort();
+        sorted_ids.sort_unstable();
         for id in sorted_ids {
             hasher.write_value(id);
         }

@@ -158,10 +158,16 @@ pub(super) async fn update_ecmascript_merged_chunk(
     let mut from_versions_by_chunk_path: FxIndexMap<_, _> = from
         .versions
         .iter()
-        .map(|version| (&*version.chunk_path, version))
+        .map(|(version, _)| (&*version.chunk_path, version))
         .collect();
 
-    let merged_module_map = MergedModuleMap::new(from.versions.to_vec());
+    let merged_module_map = MergedModuleMap::new(
+        from.versions
+            .iter()
+            .cloned()
+            .map(|(version, _)| version)
+            .collect(),
+    );
 
     let content = content.await?;
     let to_contents = content
