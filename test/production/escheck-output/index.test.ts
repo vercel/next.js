@@ -106,8 +106,9 @@ async function detectPolyfills(next) {
   const { polyfillFiles } = await next.readJSON('.next/build-manifest.json')
 
   const polyfills = {
-    'Symbol.prototype.description': '"description"in Symbol.prototype',
-    'String.prototype.trimStart': '"trimStart"in String.prototype',
+    'Symbol.prototype.description':
+      'Object.defineProperty(Symbol.prototype,"description"',
+    'String.prototype.trimStart': 'String.prototype.trimStart=',
     'Array.prototype.at': 'Array.prototype.at=',
     'Array.prototype.flat': 'Array.prototype.flat=',
     'Object.fromEntries': 'Object.fromEntries=',
