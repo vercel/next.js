@@ -42,7 +42,6 @@ where
         Impl: Send,
     {
         let mut futures = FuturesUnordered::new();
-        let mut is_abort = false;
 
         // Populate `futures` with all the roots, `root_nodes` isn't required to be `Send`, so this
         // has to happen outside of the future. We could require `root_nodes` to be `Send` in the
@@ -62,18 +61,11 @@ where
                 VisitControlFlow::Exclude => {
                     // do nothing
                 }
-                VisitControlFlow::Abort => {
-                    // this must be returned inside the `async` block below so that it's part of the
-                    // returned future
-                    is_abort = true;
-                }
             }
         }
 
         async move {
-            if is_abort {
-                return GraphTraversalResult::Aborted;
-            }
+            let mut result = Ok(());
             loop {
                 match futures.next().await {
                     Some((parent_node, span, Ok(edges))) => {
@@ -94,17 +86,14 @@ where
                                 VisitControlFlow::Exclude => {
                                     // do nothing
                                 }
-                                VisitControlFlow::Abort => {
-                                    return GraphTraversalResult::Aborted;
-                                }
                             }
                         }
                     }
                     Some((_, _, Err(err))) => {
-                        return GraphTraversalResult::Completed(Err(err));
+                        result = Err(err);
                     }
                     None => {
-                        return GraphTraversalResult::Completed(Ok(self));
+                        return GraphTraversalResult::Completed(result.map(|()| self));
                     }
                 }
             }
@@ -114,14 +103,12 @@ where
 
 pub enum GraphTraversalResult<Completed> {
     Completed(Completed),
-    Aborted,
 }
 
 impl<Completed> GraphTraversalResult<Completed> {
     pub fn completed(self) -> Completed {
         match self {
             GraphTraversalResult::Completed(completed) => completed,
-            GraphTraversalResult::Aborted => panic!("Graph traversal was aborted"),
         }
     }
 }

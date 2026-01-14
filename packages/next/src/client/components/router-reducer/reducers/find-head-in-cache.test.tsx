@@ -34,7 +34,6 @@ describe('findHeadInCache', () => {
       prefetchRsc: null,
       head: null,
       prefetchHead: null,
-      loading: null,
       parallelRoutes: new Map([
         [
           'children',
@@ -47,7 +46,6 @@ describe('findHeadInCache', () => {
                 prefetchRsc: null,
                 head: null,
                 prefetchHead: null,
-                loading: null,
                 parallelRoutes: new Map([
                   [
                     'children',
@@ -58,7 +56,6 @@ describe('findHeadInCache', () => {
                           navigatedAt,
                           head: null,
                           prefetchHead: null,
-                          loading: null,
                           parallelRoutes: new Map([
                             [
                               'children',
@@ -70,7 +67,6 @@ describe('findHeadInCache', () => {
                                     rsc: null,
                                     prefetchRsc: null,
                                     prefetchHead: null,
-                                    loading: null,
                                     parallelRoutes: new Map(),
                                     head: null,
                                   },
