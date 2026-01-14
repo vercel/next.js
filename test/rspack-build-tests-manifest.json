@@ -2299,15 +2299,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/cdn-cache-control-header/cdn-cache-control-header.test.ts": {
-    "passed": [
-      "cdn-cache-control-header should use custom CDN cache control header name from experimental config"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/client-module-with-package-type/index.test.ts": {
     "passed": [
       "esm-client-module-without-exports \"type\": \"commonjs\" in package.json should render without errors: import cjs",
@@ -6149,7 +6140,10 @@
   "test/e2e/app-dir/resume-data-cache/resume-data-cache.test.ts": {
     "passed": [
       "resume-data-cache should have consistent data between static and dynamic renders with fetch cache",
-      "resume-data-cache should have consistent data between static and dynamic renders with use cache"
+      "resume-data-cache should have consistent data between static and dynamic renders with use cache",
+      "resume-data-cache should see fresh data after updateTag in server action with fetch cache",
+      "resume-data-cache should see fresh data after updateTag in server action with use cache",
+      "resume-data-cache should use RDC for server action re-renders"
     ],
     "failed": [],
     "pending": [],
@@ -7308,9 +7302,9 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/static-shell-debugging/static-shell-debugging.test.ts": {
-    "passed": ["static-shell-debugging should render the full page"],
+    "passed": [],
     "failed": [],
-    "pending": [],
+    "pending": ["static-shell-debugging should render the full page"],
     "flakey": [],
     "runtimeError": false
   },
@@ -20879,11 +20873,11 @@
     "runtimeError": false
   },
   "test/production/app-dir/metadata-streaming-config/metadata-streaming-config-customized.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [],
+    "pending": [
       "app-dir - metadata-streaming-config-customized should have the customized streaming metadata config output in routes-manifest.json"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
