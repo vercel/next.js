@@ -58,6 +58,8 @@ import {
 import { createMetadataContext } from '../../lib/metadata/metadata-context'
 import { createRequestStoreForRender } from '../async-storage/request-store'
 import { createWorkStore } from '../async-storage/work-store'
+import type {
+  HTTPAccessErrorStatus} from '../../client/components/http-access-fallback/http-access-fallback';
 import {
   getAccessFallbackErrorTypeByStatus,
   getAccessFallbackHTTPStatus,
@@ -93,7 +95,11 @@ import { getRequiredScripts } from './required-scripts'
 import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
 import { makeGetServerInsertedHTML } from './make-get-server-inserted-html'
 import { walkTreeWithFlightRouterState } from './walk-tree-with-flight-router-state'
-import { createComponentTree, getRootParams } from './create-component-tree'
+import {
+  createComponentTree,
+  getRootParams,
+  type PrerenderHTTPErrorState,
+} from './create-component-tree'
 import { getAssetQueryString } from './get-asset-query-string'
 import {
   getClientReferenceManifest,
@@ -1421,7 +1427,8 @@ function getRenderedSearch(query: NextParsedUrlQuery): string {
 async function getRSCPayload(
   tree: LoaderTree,
   ctx: AppRenderContext,
-  is404: boolean
+  is404: boolean,
+  prerenderHTTPError?: PrerenderHTTPErrorState
 ): Promise<InitialRSCPayload & { P: ReactNode }> {
   const injectedCSS = new Set<string>()
   const injectedJS = new Set<string>()
@@ -1480,6 +1487,7 @@ async function getRSCPayload(
     preloadCallbacks,
     authInterrupts: ctx.renderOpts.experimental.authInterrupts,
     MetadataOutlet,
+    prerenderHTTPError,
   })
 
   // When the `vary` response header is present with `Next-URL`, that means there's a chance
@@ -5392,16 +5400,37 @@ async function prerenderToStream(
           : INFINITE_CACHE,
       tags: [...(prerenderStore?.tags || implicitTags.tags)],
     })
-    const errorRSCPayload = await workUnitAsyncStorage.run(
-      prerenderLegacyStore,
-      getErrorRSCPayload,
-      tree,
-      ctx,
-      reactServerErrorsByDigest.has((err as any).digest) ? undefined : err,
-      errorType
-    )
+    let errorRSCPayload: InitialRSCPayload & { P?: ReactNode }
 
-    const errorServerStream = workUnitAsyncStorage.run(
+    // For HTTP access errors (notFound, forbidden, unauthorized), re-render with
+    // the prerenderHTTPError so createComponentTree renders the fallback content
+    // in the proper layout context instead of an empty error shell
+    if (isHTTPAccessFallbackError(err)) {
+      const prerenderHTTPError = {
+        triggeredStatus:
+          res.statusCode as (typeof HTTPAccessErrorStatus)[keyof typeof HTTPAccessErrorStatus],
+      }
+      errorRSCPayload = await workUnitAsyncStorage.run(
+        prerenderLegacyStore,
+        getRSCPayload,
+        tree,
+        ctx,
+        true, // is404 - triggers not-found metadata handling
+        prerenderHTTPError
+      )
+    } else {
+      // For redirects and other errors, use the error payload
+      errorRSCPayload = await workUnitAsyncStorage.run(
+        prerenderLegacyStore,
+        getErrorRSCPayload,
+        tree,
+        ctx,
+        reactServerErrorsByDigest.has((err as any).digest) ? undefined : err,
+        errorType
+      )
+    }
+
+    const errorServerStreamRaw = workUnitAsyncStorage.run(
       prerenderLegacyStore,
       ComponentMod.renderToReadableStream,
       errorRSCPayload,
@@ -5411,6 +5440,24 @@ async function prerenderToStream(
         onError: serverComponentsErrorHandler,
       }
     )
+
+    // For HTTP access errors (notFound, forbidden, unauthorized), we re-render
+    // with prerenderHTTPError which produces the correct fallback content.
+    // We need to use this new stream for both HTML rendering and flight data.
+    // For other errors (redirects, 500), use the original flight stream.
+    const useNewFlightData = isHTTPAccessFallbackError(err)
+    let errorServerStream: ReadableStream<Uint8Array>
+    let errorFlightStream: ReadableStream<Uint8Array> | undefined
+
+    if (useNewFlightData) {
+      // Tee the stream so we can use one copy for ErrorApp HTML rendering
+      // and another for the flight data that gets inlined for hydration
+      const [streamForApp, streamForFlight] = errorServerStreamRaw.tee()
+      errorServerStream = streamForApp
+      errorFlightStream = streamForFlight
+    } else {
+      errorServerStream = errorServerStreamRaw
+    }
 
     try {
       // TODO we should use the same prerender semantics that we initially rendered
@@ -5454,9 +5501,11 @@ async function prerenderToStream(
         )
       }
 
-      // This is intentionally using the readable datastream from the main
-      // render rather than the flight data from the error page render
-      const flightStream = reactServerPrerenderResult.consumeAsStream()
+      // For HTTP access errors, use the new flight stream from the re-render.
+      // For other errors (redirects, 500), use the original stream which
+      // contains the error data needed for client-side handling.
+      const flightStream =
+        errorFlightStream ?? reactServerPrerenderResult.consumeAsStream()
 
       return {
         // Returning the error that was thrown so it can be used to handle
