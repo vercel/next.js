@@ -64,7 +64,7 @@ impl Operation for InvalidateOperation {
                         make_task_dirty(
                             task_id,
                             #[cfg(feature = "trace_task_dirty")]
-                            cause,
+                            cause.clone(),
                             &mut queue,
                             ctx,
                         );
@@ -90,11 +90,12 @@ impl Operation for InvalidateOperation {
 }
 
 #[cfg(feature = "trace_task_dirty")]
-#[derive(Serialize, Deserialize, Clone, Copy, Debug)]
+#[derive(Encode, Decode, Clone, Debug)]
 pub enum TaskDirtyCause {
     InitialDirty,
     CellChange {
         value_type: turbo_tasks::ValueTypeId,
+        keys: SmallVec<[Option<u64>; 2]>,
     },
     CellRemoved {
         value_type: turbo_tasks::ValueTypeId,
@@ -132,12 +133,27 @@ impl<'e, E: ExecuteContext<'e>> std::fmt::Display for TaskDirtyCauseInContext<'_
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.cause {
             TaskDirtyCause::InitialDirty => write!(f, "initial dirty"),
-            TaskDirtyCause::CellChange { value_type } => {
-                write!(
-                    f,
-                    "{} cell changed",
-                    turbo_tasks::registry::get_value_type(*value_type).name
-                )
+            TaskDirtyCause::CellChange { value_type, keys } => {
+                if keys.is_empty() {
+                    write!(
+                        f,
+                        "{} cell changed",
+                        turbo_tasks::registry::get_value_type(*value_type).name
+                    )
+                } else {
+                    write!(
+                        f,
+                        "{} cell changed (keys: {})",
+                        turbo_tasks::registry::get_value_type(*value_type).name,
+                        keys.iter()
+                            .map(|key| match key {
+                                Some(k) => k.to_string(),
+                                None => "*".to_string(),
+                            })
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    )
+                }
             }
             TaskDirtyCause::CellRemoved { value_type } => {
                 write!(

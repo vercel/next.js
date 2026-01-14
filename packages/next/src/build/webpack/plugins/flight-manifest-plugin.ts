@@ -578,13 +578,27 @@ export class ClientReferenceManifestPlugin {
         edgeRscModuleMapping: {},
       }
 
-      const segments = [...entryNameToGroupName(pageName).split('/'), 'page']
-      let group = ''
-      for (const segment of segments) {
-        for (const manifest of manifestsPerGroup.get(group) || []) {
+      // Route handlers don't render React components and don't need
+      // client component references from parent layouts/pages.
+      // They only need their own entry's manifest (for 'use cache' support).
+      const isRouteHandler = /\/route$/.test(pageName)
+
+      if (isRouteHandler) {
+        // Route handlers only get their own manifest, not parent manifests
+        const groupName = entryNameToGroupName(pageName)
+        for (const manifest of manifestsPerGroup.get(groupName) || []) {
           mergeManifest(mergedManifest, manifest)
         }
-        group += (group ? '/' : '') + segment
+      } else {
+        // Pages need manifests merged from parent layouts
+        const segments = [...entryNameToGroupName(pageName).split('/'), 'page']
+        let group = ''
+        for (const segment of segments) {
+          for (const manifest of manifestsPerGroup.get(group) || []) {
+            mergeManifest(mergedManifest, manifest)
+          }
+          group += (group ? '/' : '') + segment
+        }
       }
 
       const json = JSON.stringify(mergedManifest)

@@ -580,6 +580,7 @@ pub(super) async fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Result<Vc<
                         comments: comments.clone(),
                         source_map: source_map.clone(),
                         eval_context,
+                        source_mapping_url: None,
                     })
                 })
                 .collect();
@@ -705,6 +706,7 @@ pub(crate) async fn part_of_module(
                         eval_context,
                         globals: globals.clone(),
                         source_map: source_map.clone(),
+                        source_mapping_url: None,
                     }
                     .cell());
                 } else {

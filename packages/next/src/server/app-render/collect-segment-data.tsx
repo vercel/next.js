@@ -5,7 +5,6 @@ import type {
   InitialRSCPayload,
   DynamicParamTypesShort,
   HeadData,
-  LoadingModuleData,
 } from '../../shared/lib/app-router-types'
 import type { ManifestNode } from '../../build/webpack/plugins/flight-manifest-plugin'
 
@@ -68,7 +67,6 @@ export type TreePrefetch = {
 export type SegmentPrefetch = {
   buildId: string
   rsc: React.ReactNode | null
-  loading: LoadingModuleData | Promise<LoadingModuleData>
   isPartial: boolean
 }
 
@@ -243,13 +241,7 @@ async function PrefetchTreeData({
   // the client cache.
   segmentTasks.push(
     waitAtLeastOneReactRenderTask().then(() =>
-      renderSegmentPrefetch(
-        buildId,
-        head,
-        null,
-        HEAD_REQUEST_KEY,
-        clientModules
-      )
+      renderSegmentPrefetch(buildId, head, HEAD_REQUEST_KEY, clientModules)
     )
   )
 
@@ -316,13 +308,7 @@ function collectSegmentDataImpl(
       // Since we're already in the middle of a render, wait until after the
       // current task to escape the current rendering context.
       waitAtLeastOneReactRenderTask().then(() =>
-        renderSegmentPrefetch(
-          buildId,
-          seedData[0],
-          seedData[2],
-          requestKey,
-          clientModules
-        )
+        renderSegmentPrefetch(buildId, seedData[0], requestKey, clientModules)
       )
     )
   } else {
@@ -364,7 +350,6 @@ function collectSegmentDataImpl(
 async function renderSegmentPrefetch(
   buildId: string,
   rsc: React.ReactNode,
-  loading: LoadingModuleData | Promise<LoadingModuleData>,
   requestKey: SegmentRequestKey,
   clientModules: ManifestNode
 ): Promise<[SegmentRequestKey, Buffer]> {
@@ -374,7 +359,6 @@ async function renderSegmentPrefetch(
   const segmentPrefetch: SegmentPrefetch = {
     buildId,
     rsc,
-    loading,
     isPartial: await isPartialRSCData(rsc, clientModules),
   }
   // Since all we're doing is decoding and re-encoding a cached prerender, if

@@ -40,7 +40,7 @@ use turbopack_core::{
     file_source::FileSource,
     free_var_references,
     ident::Layer,
-    issue::CollectibleIssuesExt,
+    issue::{CollectibleIssuesExt, IssueFilter},
     module::Module,
     module_graph::{
         ModuleGraph,
@@ -229,7 +229,10 @@ async fn run_inner_operation(resource: RcStr) -> Result<()> {
     let out_op = run_test_operation(resource);
     let out_vc = out_op.resolve_strongly_consistent().await?.owned().await?;
 
-    let plain_issues = out_op.peek_issues().get_plain_issues().await?;
+    let plain_issues = out_op
+        .peek_issues()
+        .get_plain_issues(IssueFilter::everything())
+        .await?;
 
     snapshot_issues(plain_issues, out_vc.join("issues")?, &REPO_ROOT)
         .await
@@ -358,12 +361,13 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                     ..Default::default()
                 })),
                 ignore_dynamic_requests: true,
+                infer_module_side_effects: true,
                 enable_exports_info_inlining: true,
                 ..Default::default()
             },
             environment: Some(env),
             rules: vec![(
-                ContextCondition::InDirectory("node_modules".into()),
+                ContextCondition::InNodeModules,
                 ModuleOptionsContext {
                     environment: Some(env),
                     tree_shaking_mode: options.tree_shaking_mode,
@@ -384,7 +388,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             enable_node_modules: Some(project_root.clone()),
             custom_conditions: vec![rcstr!("development")],
             rules: vec![(
-                ContextCondition::InDirectory("node_modules".into()),
+                ContextCondition::InNodeModules,
                 ResolveOptionsContext {
                     enable_node_modules: Some(project_root.clone()),
                     custom_conditions: vec![rcstr!("development")],
@@ -478,13 +482,18 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                     .remove_unused_exports
                     .then(|| binding_usage.unwrap()),
             )
-            .unused_references(
-                options
-                    .remove_unused_imports
-                    .then(|| binding_usage.unwrap()),
-            )
             .debug_ids(options.enable_debug_ids)
             .source_map_source_type(options.source_map_source_type);
+
+            if options.remove_unused_imports {
+                builder = builder.unused_references(
+                    binding_usage
+                        .unwrap()
+                        .unused_references()
+                        .to_resolved()
+                        .await?,
+                );
+            }
 
             if options.production_chunking {
                 builder = builder
@@ -519,13 +528,18 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                     .remove_unused_exports
                     .then(|| binding_usage.unwrap()),
             )
-            .unused_references(
-                options
-                    .remove_unused_imports
-                    .then(|| binding_usage.unwrap()),
-            )
             .debug_ids(options.enable_debug_ids)
             .source_map_source_type(options.source_map_source_type);
+
+            if options.remove_unused_imports {
+                builder = builder.unused_references(
+                    binding_usage
+                        .unwrap()
+                        .unused_references()
+                        .to_resolved()
+                        .await?,
+                );
+            }
 
             if options.production_chunking {
                 builder = builder

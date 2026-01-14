@@ -1,6 +1,6 @@
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Upcast, Vc, trace::TraceRawVcs};
@@ -262,6 +262,9 @@ pub enum SourceMapSourceType {
     TurbopackUri,
 }
 
+#[turbo_tasks::value(transparent, cell = "keyed")]
+pub struct UnusedReferences(FxHashSet<ResolvedVc<Box<dyn ModuleReference>>>);
+
 /// A context for the chunking that influences the way chunks are created
 #[turbo_tasks::value_trait]
 pub trait ChunkingContext {
@@ -447,10 +450,7 @@ pub trait ChunkingContext {
     ) -> Result<Vc<ModuleExportUsage>>;
 
     #[turbo_tasks::function]
-    async fn is_reference_unused(
-        self: Vc<Self>,
-        reference: Vc<Box<dyn ModuleReference>>,
-    ) -> Result<Vc<bool>>;
+    async fn unused_references(self: Vc<Self>) -> Result<Vc<UnusedReferences>>;
 
     /// Returns whether debug IDs are enabled for this chunking context.
     #[turbo_tasks::function]

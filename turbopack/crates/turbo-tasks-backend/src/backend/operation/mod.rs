@@ -243,6 +243,8 @@ where
                 if id.is_transient() {
                     if call_prepared_task_callback_for_transient_tasks {
                         let mut task = self.backend.storage.access_mut(id);
+                        // TODO add is_restoring and avoid concurrent restores and duplicates tasks
+                        // ids in `task_ids`
                         if !task.state().is_restored(category) {
                             task.state_mut().set_restored(TaskDataCategory::All);
                         }
@@ -662,7 +664,9 @@ pub trait TaskGuard: Debug {
     /// Only returns Some once per task.
     /// It returns a set of tasks and which info is needed.
     fn prefetch(&mut self) -> Option<FxIndexMap<TaskId, TaskDataCategory>>;
-    fn is_immutable(&self) -> bool;
+    fn is_immutable(&self) -> bool {
+        self.has_key(&CachedDataItemKey::Immutable {})
+    }
     fn is_dirty(&self) -> bool {
         get!(self, Dirty).is_some_and(|dirtyness| match dirtyness {
             Dirtyness::Dirty => true,
@@ -1001,14 +1005,11 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         }
         self.task.state_mut().set_prefetched(true);
         let map = iter_many!(self, OutputDependency { target } => (target, TaskDataCategory::Meta))
-            .chain(iter_many!(self, CellDependency { target } => (target.task, TaskDataCategory::All)))
+            .chain(iter_many!(self, CellDependency { target, key: _ } => (target.task, TaskDataCategory::All)))
             .chain(iter_many!(self, CollectiblesDependency { target } => (target.task, TaskDataCategory::All)))
+            .chain(iter_many!(self, Child { task } => (task, TaskDataCategory::All)))
             .collect::<FxIndexMap<_, _>>();
         (map.len() > 1).then_some(map)
-    }
-
-    fn is_immutable(&self) -> bool {
-        self.task.contains_key(&CachedDataItemKey::Immutable {})
     }
 }
 

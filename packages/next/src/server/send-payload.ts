@@ -5,7 +5,7 @@ import type { CacheControl } from './lib/cache-control'
 import { isResSent } from '../shared/lib/utils'
 import { generateETag } from './lib/etag'
 import fresh from 'next/dist/compiled/fresh'
-import { setResponseCacheControlHeaders } from './lib/cache-control'
+import { getCacheControlHeader } from './lib/cache-control'
 import { HTML_CONTENT_TYPE_HEADER } from '../lib/constants'
 
 export function sendEtagResponse(
@@ -39,7 +39,6 @@ export async function sendRenderResult({
   generateEtags,
   poweredByHeader,
   cacheControl,
-  cdnCacheControlHeader,
 }: {
   req: IncomingMessage
   res: ServerResponse
@@ -47,7 +46,6 @@ export async function sendRenderResult({
   generateEtags: boolean
   poweredByHeader: boolean
   cacheControl: CacheControl | undefined
-  cdnCacheControlHeader?: string
 }): Promise<void> {
   if (isResSent(res)) {
     return
@@ -60,7 +58,7 @@ export async function sendRenderResult({
   // If cache control is already set on the response we don't
   // override it to allow users to customize it via next.config
   if (cacheControl && !res.getHeader('Cache-Control')) {
-    setResponseCacheControlHeaders(res, cacheControl, cdnCacheControlHeader)
+    res.setHeader('Cache-Control', getCacheControlHeader(cacheControl))
   }
 
   const payload = result.isDynamic ? null : result.toUnchunkedString()
