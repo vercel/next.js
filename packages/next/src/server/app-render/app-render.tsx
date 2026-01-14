@@ -388,9 +388,12 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
     {
       children: [PAGE_SEGMENT_KEY, {}, notFoundTreeComponents, null],
     },
-    // When global-not-found is present, use full components including global-error.
-    // Otherwise, use empty modules - getGlobalErrorStyles will fall back to the default.
-    hasGlobalNotFound ? components : {},
+    // Always include global-error so that getGlobalErrorStyles can access it.
+    // When global-not-found is present, use full components.
+    // Otherwise, only include global-error module.
+    hasGlobalNotFound
+      ? components
+      : { 'global-error': components['global-error'] },
     null, // staticSiblings
   ]
 }
@@ -5547,18 +5550,16 @@ const getGlobalErrorStyles = async (
     componentMod: { createElement },
   } = ctx
 
-  // If globalErrorModule is not available (e.g., during error rendering),
-  // fall back to the default global error component
+  // globalErrorModule should always be available as it's bundled by default
+  // (either user's custom global-error or the builtin one)
   if (!globalErrorModule) {
-    const DefaultGlobalError: GlobalErrorComponent = (
-      await import('../../client/components/builtin/global-error')
-    ).default
-    return {
-      GlobalError: DefaultGlobalError,
-      styles: undefined,
-    }
+    // This shouldn't happen in normal circumstances, but handle gracefully
+    throw new Error(
+      'Invariant: globalErrorModule is required but not found in loader tree'
+    )
   }
 
+  // Get the GlobalError component and styles from the loader tree
   const [GlobalErrorComponent, styles] = await createComponentStylesAndScripts({
     ctx,
     filePath: globalErrorModule[1],
@@ -5568,6 +5569,7 @@ const getGlobalErrorStyles = async (
   })
 
   let globalErrorStyles: ReactNode = styles
+
   if (ctx.renderOpts.dev) {
     const dir =
       (process.env.NEXT_RUNTIME === 'edge'
