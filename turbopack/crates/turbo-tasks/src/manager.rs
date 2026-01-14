@@ -520,7 +520,7 @@ struct CurrentTaskState {
     local_tasks: Vec<LocalTask>,
 
     /// Tracks currently running local tasks, and defers cleanup of the global task until those
-    /// complete. Also used by `detached_for_testing`.
+    /// complete. Also used by `spawn_detached_for_testing`.
     local_task_tracker: LocalTaskTracker,
 }
 

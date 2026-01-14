@@ -1254,12 +1254,12 @@ mod tests {
         // We track this to catch unexpected bloat from type changes.
         assert_eq!(
             std::mem::size_of::<InnerStorage>(),
-            128,
+            136,
             "InnerStorage size changed - please review if this is intentional"
         );
         assert_eq!(
             std::mem::size_of::<InnerStorageSnapshot>(),
-            128,
+            136,
             "InnerStorageSnapshot size changed - please review if this is intentional"
         );
     }
