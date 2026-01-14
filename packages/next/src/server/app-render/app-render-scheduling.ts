@@ -1,6 +1,6 @@
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { unpatchedSetImmediate } from '../node-environment-extensions/fast-set-immediate.external'
-import { scheduleTask } from './sequential-tasks'
+import { scheduleTask } from './sequential-tasks.external'
 
 function warnAboutRuntime() {
   console.warn(

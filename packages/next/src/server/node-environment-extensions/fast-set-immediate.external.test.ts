@@ -5,7 +5,7 @@ import {
   expectNoPendingImmediates,
 } from './fast-set-immediate.external'
 import { createAtomicTaskGroup } from '../app-render/app-render-scheduling'
-import { scheduleTask } from '../app-render/sequential-tasks'
+import { scheduleTask } from '../app-render/sequential-tasks.external'
 
 function createLogger() {
   const logs: string[] = []

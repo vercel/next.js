@@ -4,7 +4,7 @@ import {
   DANGEROUSLY_runPendingImmediatesAfterCurrentTask,
   expectNoPendingImmediates,
 } from '../node-environment-extensions/fast-set-immediate.external'
-import { cancelTask } from './sequential-tasks'
+import { cancelTask } from './sequential-tasks.external'
 
 /**
  * This is a utility function to make scheduling sequential tasks that run back to back easier.

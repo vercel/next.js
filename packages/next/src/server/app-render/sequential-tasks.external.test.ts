@@ -3,7 +3,7 @@ import {
   scheduleTask,
   cancelTask,
   expectNoPendingTasks,
-} from './sequential-tasks'
+} from './sequential-tasks.external'
 
 function createLogger() {
   const logs: string[] = []
