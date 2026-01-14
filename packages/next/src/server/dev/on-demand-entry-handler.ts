@@ -480,9 +480,8 @@ export async function findPagePathData(
 
       // If they're not presented, then fallback to global-not-found
       return {
-        filename: require.resolve(
-          'next/dist/client/components/builtin/global-not-found'
-        ),
+        filename:
+          require.resolve('next/dist/client/components/builtin/global-not-found'),
         bundlePath: `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}`,
         page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
       }

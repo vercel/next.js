@@ -274,7 +274,7 @@ export const INITIAL_OVERLAY_STATE: Omit<
   renderingIndicator: false,
   cacheIndicator: 'disabled',
   staticIndicator: 'disabled',
-  /* 
+  /*
     This is set to `true` when we can reliably know
     whether the indicator is in disabled state or not.  
     Otherwise the surface would flicker because the disabled flag loads from the config.

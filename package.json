@@ -74,10 +74,10 @@
     "lint": "run-p test-types lint-typescript prettier-check \"lint-eslint .\" lint-ast-grep lint-language",
     "lint-fix": "pnpm prettier-fix && pnpm lint-eslint --fix .",
     "lint-language": "alex .",
-    "prettier-check": "prettier --check .",
+    "prettier-check": "prettier --check --experimental-cli docs errors && pnpm oxfmt . --check --config=.prettierrc.json --ignore-path=.oxfmtignore && pnpm oxfmt examples --check --config=examples/.prettierrc.json --ignore-path=examples/.oxfmtignore",
+    "prettier-fix": "prettier --write --experimental-cli docs errors && pnpm oxfmt . --config=.prettierrc.json --ignore-path=.oxfmtignore && pnpm oxfmt examples --config=examples/.prettierrc.json --ignore-path=examples/.oxfmtignore",
     "check-examples": "./scripts/check-examples.sh",
     "get-test-timings": "node run-tests.js --timings --write-timings -g 1/1",
-    "prettier-fix": "prettier --write .",
     "types": "lerna run types --stream",
     "types:test-lib": "tsc --project test/lib/tsconfig.json",
     "check-precompiled": "./scripts/check-pre-compiled.sh",
@@ -245,6 +245,7 @@
     "nprogress": "0.2.0",
     "octokit": "3.1.0",
     "outdent": "0.8.0",
+    "oxfmt": "0.23.0",
     "pixrem": "5.0.0",
     "playwright": "1.48.0",
     "playwright-chromium": "1.48.0",
@@ -305,7 +306,7 @@
     "yargs": "16.2.0"
   },
   "engines": {
-    "node": ">=20.9.0",
+    "node": ">=20.10.0",
     "pnpm": "9.6.0"
   },
   "packageManager": "pnpm@9.6.0",

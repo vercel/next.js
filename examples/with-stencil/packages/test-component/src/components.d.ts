@@ -26,8 +26,7 @@ export namespace Components {
 
 declare global {
   interface HTMLMyComponentElement
-    extends Components.MyComponent,
-      HTMLStencilElement {}
+    extends Components.MyComponent, HTMLStencilElement {}
   var HTMLMyComponentElement: {
     prototype: HTMLMyComponentElement;
     new (): HTMLMyComponentElement;

@@ -30,9 +30,9 @@ export function IconsMetadata({ icons }: { icons: ResolvedMetadata['icons'] }) {
 
   const hasIcon = Boolean(
     shortcutList?.length ||
-      iconList?.length ||
-      appleList?.length ||
-      otherList?.length
+    iconList?.length ||
+    appleList?.length ||
+    otherList?.length
   )
   if (!hasIcon) return null
 

@@ -141,7 +141,7 @@ export async function handler(
 
   let isIsr = Boolean(
     prerenderManifest.dynamicRoutes[normalizedSrcPage] ||
-      prerenderManifest.routes[resolvedPathname]
+    prerenderManifest.routes[resolvedPathname]
   )
 
   const render404 = async () => {

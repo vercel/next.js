@@ -59,9 +59,7 @@ describe('webpack-config attachReactRefresh', () => {
         rules: [
           {
             use: [
-              require.resolve(
-                'next/dist/compiled/@next/react-refresh-utils/dist/loader'
-              ),
+              require.resolve('next/dist/compiled/@next/react-refresh-utils/dist/loader'),
               'rr',
             ],
           },
@@ -73,9 +71,7 @@ describe('webpack-config attachReactRefresh', () => {
         rules: [
           {
             use: [
-              require.resolve(
-                'next/dist/compiled/@next/react-refresh-utils/dist/loader'
-              ),
+              require.resolve('next/dist/compiled/@next/react-refresh-utils/dist/loader'),
               'rr',
             ],
           },

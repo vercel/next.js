@@ -34,8 +34,7 @@ interface SourceMap extends RawSourceMap {
   version: number
 }
 
-export interface EvalSourceMapDevToolPluginOptions
-  extends SourceMapDevToolPluginOptions {
+export interface EvalSourceMapDevToolPluginOptions extends SourceMapDevToolPluginOptions {
   // Fork
   shouldIgnorePath?: (modulePath: string) => boolean
 }

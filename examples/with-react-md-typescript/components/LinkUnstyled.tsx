@@ -2,7 +2,8 @@ import React, { ReactElement, AnchorHTMLAttributes } from "react";
 import Link, { LinkProps } from "next/link";
 
 export interface LinkUnstyledProps
-  extends Omit<LinkProps, "children" | "onError">,
+  extends
+    Omit<LinkProps, "children" | "onError">,
     Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "onError" | "href"> {}
 
 export default function LinkUnstyled({

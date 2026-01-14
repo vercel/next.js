@@ -545,9 +545,8 @@ export default async function getBaseWebpackConfig(
           emitDecoratorMetadata: Boolean(
             jsConfig?.compilerOptions?.emitDecoratorMetadata
           ),
-          regeneratorRuntimePath: require.resolve(
-            'next/dist/compiled/regenerator-runtime'
-          ),
+          regeneratorRuntimePath:
+            require.resolve('next/dist/compiled/regenerator-runtime'),
 
           ...extraOptions,
         },
@@ -1838,69 +1837,44 @@ export default async function getBaseWebpackConfig(
                             setImmediate: false,
                           }
                         : {
-                            assert: require.resolve(
-                              'next/dist/compiled/assert'
-                            ),
-                            buffer: require.resolve(
-                              'next/dist/compiled/buffer'
-                            ),
-                            constants: require.resolve(
-                              'next/dist/compiled/constants-browserify'
-                            ),
-                            crypto: require.resolve(
-                              'next/dist/compiled/crypto-browserify'
-                            ),
-                            domain: require.resolve(
-                              'next/dist/compiled/domain-browser'
-                            ),
-                            http: require.resolve(
-                              'next/dist/compiled/stream-http'
-                            ),
-                            https: require.resolve(
-                              'next/dist/compiled/https-browserify'
-                            ),
-                            os: require.resolve(
-                              'next/dist/compiled/os-browserify'
-                            ),
-                            path: require.resolve(
-                              'next/dist/compiled/path-browserify'
-                            ),
-                            punycode: require.resolve(
-                              'next/dist/compiled/punycode'
-                            ),
+                            assert:
+                              require.resolve('next/dist/compiled/assert'),
+                            buffer:
+                              require.resolve('next/dist/compiled/buffer'),
+                            constants:
+                              require.resolve('next/dist/compiled/constants-browserify'),
+                            crypto:
+                              require.resolve('next/dist/compiled/crypto-browserify'),
+                            domain:
+                              require.resolve('next/dist/compiled/domain-browser'),
+                            http: require.resolve('next/dist/compiled/stream-http'),
+                            https:
+                              require.resolve('next/dist/compiled/https-browserify'),
+                            os: require.resolve('next/dist/compiled/os-browserify'),
+                            path: require.resolve('next/dist/compiled/path-browserify'),
+                            punycode:
+                              require.resolve('next/dist/compiled/punycode'),
                             process: require.resolve('./polyfills/process'),
                             // Handled in separate alias
-                            querystring: require.resolve(
-                              'next/dist/compiled/querystring-es3'
-                            ),
-                            stream: require.resolve(
-                              'next/dist/compiled/stream-browserify'
-                            ),
-                            string_decoder: require.resolve(
-                              'next/dist/compiled/string_decoder'
-                            ),
+                            querystring:
+                              require.resolve('next/dist/compiled/querystring-es3'),
+                            stream:
+                              require.resolve('next/dist/compiled/stream-browserify'),
+                            string_decoder:
+                              require.resolve('next/dist/compiled/string_decoder'),
                             sys: require.resolve('next/dist/compiled/util'),
-                            timers: require.resolve(
-                              'next/dist/compiled/timers-browserify'
-                            ),
-                            tty: require.resolve(
-                              'next/dist/compiled/tty-browserify'
-                            ),
+                            timers:
+                              require.resolve('next/dist/compiled/timers-browserify'),
+                            tty: require.resolve('next/dist/compiled/tty-browserify'),
                             // Handled in separate alias
                             // url: require.resolve('url'),
                             util: require.resolve('next/dist/compiled/util'),
-                            vm: require.resolve(
-                              'next/dist/compiled/vm-browserify'
-                            ),
-                            zlib: require.resolve(
-                              'next/dist/compiled/browserify-zlib'
-                            ),
-                            events: require.resolve(
-                              'next/dist/compiled/events'
-                            ),
-                            setImmediate: require.resolve(
-                              'next/dist/compiled/setimmediate'
-                            ),
+                            vm: require.resolve('next/dist/compiled/vm-browserify'),
+                            zlib: require.resolve('next/dist/compiled/browserify-zlib'),
+                            events:
+                              require.resolve('next/dist/compiled/events'),
+                            setImmediate:
+                              require.resolve('next/dist/compiled/setimmediate'),
                           },
                   },
                 },

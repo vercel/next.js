@@ -81,8 +81,10 @@ type PagesComponents = {
   readonly Document: DocumentType
 }
 
-export interface PagesRouteModuleOptions
-  extends RouteModuleOptions<PagesRouteDefinition, PagesUserlandModule> {
+export interface PagesRouteModuleOptions extends RouteModuleOptions<
+  PagesRouteDefinition,
+  PagesUserlandModule
+> {
   readonly components: PagesComponents
 }
 

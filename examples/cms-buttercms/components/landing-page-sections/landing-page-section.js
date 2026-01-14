@@ -18,9 +18,9 @@ export default function LandingPageSection({ type, sectionData }) {
     ),
     two_column_with_image: dynamic(
       () =>
-        import(
-          "@/components/landing-page-sections/two-column-with-image"
-        ).catch(() => () => MissingSection),
+        import("@/components/landing-page-sections/two-column-with-image").catch(
+          () => () => MissingSection,
+        ),
       {
         loading: Preloader,
       },

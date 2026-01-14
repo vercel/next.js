@@ -23,7 +23,6 @@ export function displayContent(): Promise<void> {
         var x = document.querySelectorAll('[data-next-hide-fouc]'),
           i = x.length;
         i--;
-
       ) {
         x[i].parentNode!.removeChild(x[i])
       }

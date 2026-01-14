@@ -1,17 +1,17 @@
-import type { NextPage } from 'next'
-import Head from 'next/head'
-import Image from 'next/image'
-import { Box, Code, Text } from '@mantine/core'
-import Card from '../components/Card'
-import Grid from '../components/Grid'
+import type { NextPage } from "next";
+import Head from "next/head";
+import Image from "next/image";
+import { Box, Code, Text } from "@mantine/core";
+import Card from "../components/Card";
+import Grid from "../components/Grid";
 
 const Home: NextPage = () => {
   return (
     <Box
       component="main"
       sx={{
-        paddingLeft: '2rem',
-        paddingRight: '2rem',
+        paddingLeft: "2rem",
+        paddingRight: "2rem",
       }}
     >
       <Head>
@@ -23,24 +23,24 @@ const Home: NextPage = () => {
       <Box
         component="main"
         sx={{
-          minHeight: '100vh',
-          display: 'flex',
-          paddingTop: '2rem',
-          paddingBottom: '2rem',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          alignItems: 'center',
+          minHeight: "100vh",
+          display: "flex",
+          paddingTop: "2rem",
+          paddingBottom: "2rem",
+          flexDirection: "column",
+          justifyContent: "center",
+          alignItems: "center",
         }}
       >
         <Text
           sx={{
-            color: '#0070f3',
-            fontSize: '2rem',
-            '@media (min-width: 800px)': {
-              fontSize: '3rem',
+            color: "#0070f3",
+            fontSize: "2rem",
+            "@media (min-width: 800px)": {
+              fontSize: "3rem",
             },
-            fontWeight: 'bold',
-            textAlign: 'center',
+            fontWeight: "bold",
+            textAlign: "center",
           }}
         >
           Welcome to <a href="https://nextjs.org">Next.js!</a>
@@ -48,21 +48,21 @@ const Home: NextPage = () => {
 
         <Text
           sx={{
-            color: 'black',
-            fontSize: '0.9rem',
-            '@media (min-width: 700px)': {
-              fontSize: '1.2rem',
+            color: "black",
+            fontSize: "0.9rem",
+            "@media (min-width: 700px)": {
+              fontSize: "1.2rem",
             },
-            padding: '1rem',
-            textAlign: 'center',
+            padding: "1rem",
+            textAlign: "center",
           }}
         >
-          Get started by editing{' '}
+          Get started by editing{" "}
           <Code
             sx={{
-              color: 'black',
-              fontSize: '0.8rem',
-              textAlign: 'center',
+              color: "black",
+              fontSize: "0.8rem",
+              textAlign: "center",
             }}
           >
             pages/index.tsx
@@ -96,13 +96,13 @@ const Home: NextPage = () => {
       <Box
         component="footer"
         sx={{
-          display: 'flex',
-          flex: '1',
-          paddingTop: '2rem',
-          paddingBottom: '2rem',
-          borderTop: '1px solid #eaeaea',
-          justifyContent: 'center',
-          alignItems: 'center',
+          display: "flex",
+          flex: "1",
+          paddingTop: "2rem",
+          paddingBottom: "2rem",
+          borderTop: "1px solid #eaeaea",
+          justifyContent: "center",
+          alignItems: "center",
         }}
       >
         <a
@@ -110,14 +110,14 @@ const Home: NextPage = () => {
           target="_blank"
           rel="noopener noreferrer"
         >
-          Powered by{' '}
-          <Box component="span" sx={{ height: '1rem', marginLeft: '1.5rem' }}>
+          Powered by{" "}
+          <Box component="span" sx={{ height: "1rem", marginLeft: "1.5rem" }}>
             <Image src="/vercel.svg" alt="Vercel Logo" width={72} height={16} />
           </Box>
         </a>
       </Box>
     </Box>
-  )
-}
+  );
+};
 
-export default Home
+export default Home;

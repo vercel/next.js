@@ -308,7 +308,8 @@ export class IncrementalCache implements IncrementalCacheType {
       if (init.body instanceof Uint8Array) {
         bodyChunks.push(decoder.decode(init.body))
         ;(init as any)._ogBody = init.body
-      } // handle ReadableStream body
+      }
+      // handle ReadableStream body
       else if (typeof (init.body as any).getReader === 'function') {
         const readableBody = init.body as ReadableStream<Uint8Array | string>
 
@@ -347,7 +348,8 @@ export class IncrementalCache implements IncrementalCacheType {
         } catch (err) {
           console.error('Problem reading body', err)
         }
-      } // handle FormData or URLSearchParams bodies
+      }
+      // handle FormData or URLSearchParams bodies
       else if (typeof (init.body as any).keys === 'function') {
         const formData = init.body as FormData
         ;(init as any)._ogBody = init.body

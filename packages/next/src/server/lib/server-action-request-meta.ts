@@ -34,8 +34,8 @@ export function getServerActionRequestMetadata(
   )
   const isFetchAction = Boolean(
     actionId !== undefined &&
-      typeof actionId === 'string' &&
-      req.method === 'POST'
+    typeof actionId === 'string' &&
+    req.method === 'POST'
   )
 
   const isPossibleServerAction = Boolean(

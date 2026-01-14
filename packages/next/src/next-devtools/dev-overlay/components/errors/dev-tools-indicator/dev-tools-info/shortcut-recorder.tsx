@@ -342,7 +342,7 @@ export const SHORTCUT_RECORDER_STYLES = css`
     gap: 8px;
     position: relative;
     font-family: var(--font-stack-sans);
-
+  
     .shortcut-recorder-button {
       display: flex;
       align-items: center;
@@ -355,33 +355,33 @@ export const SHORTCUT_RECORDER_STYLES = css`
       font-size: var(--size-14);
       color: var(--color-gray-1000);
       transition: border-color 150ms var(--timing-swift);
-
+  
       &[data-has-shortcut='true'] {
         border: 1px solid var(--color-gray-alpha-400);
-
+  
         &:hover {
           border-color: var(--color-gray-500);
         }
       }
-
+  
       &:hover {
         border-color: var(--color-gray-600);
       }
-
+  
       &::placeholder {
         color: var(--color-gray-900);
       }
-
+  
       &[data-pristine='false']::placeholder {
         color: transparent;
       }
-
+  
       &:focus-visible {
         outline: var(--focus-ring);
         outline-offset: -1px;
       }
     }
-
+  
     kbd {
       display: inline-flex;
       align-items: center;
@@ -393,12 +393,12 @@ export const SHORTCUT_RECORDER_STYLES = css`
       font-size: 14px;
       border-radius: 4px;
       color: var(--color-gray-1000);
-
+  
       &[data-symbol='false'] {
         padding: 0 4px;
       }
     }
-
+  
     .shortcut-recorder-clear-button {
       cursor: pointer;
       color: var(--color-gray-1000);
@@ -409,22 +409,22 @@ export const SHORTCUT_RECORDER_STYLES = css`
       justify-content: center;
       border-radius: 4px;
       transition: background 150ms var(--timing-swift);
-
+  
       &:hover {
         background: var(--color-gray-300);
       }
-
+  
       &:focus-visible {
         outline: var(--focus-ring);
       }
-
+  
       svg {
         width: 14px;
         height: 14px;
       }
     }
   }
-
+  
   .shortcut-recorder-keys {
     pointer-events: none;
     user-select: none;
@@ -432,7 +432,7 @@ export const SHORTCUT_RECORDER_STYLES = css`
     align-items: center;
     gap: 2px;
   }
-
+  
   .shortcut-recorder-tooltip {
     --gap: 8px;
     --background: var(--color-gray-1000);
@@ -451,32 +451,32 @@ export const SHORTCUT_RECORDER_STYLES = css`
     transition:
       opacity 150ms var(--timing-swift),
       scale 150ms var(--timing-swift);
-
+  
     &[data-show='true'] {
       opacity: 1;
       scale: 1;
     }
-
+  
     svg {
       position: absolute;
       transform: translateX(-50%);
       bottom: -6px;
       left: 50%;
     }
-
+  
     .shortcut-recorder-status {
       display: flex;
       align-items: center;
       gap: 6px;
     }
-
+  
     .shortcut-recorder-status-icon {
       width: 7px;
       height: 7px;
       border-radius: 50%;
       flex-shrink: 0;
       background: var(--color-red-700);
-
+  
       &[data-success='true'] {
         background: var(--color-green-700);
       }

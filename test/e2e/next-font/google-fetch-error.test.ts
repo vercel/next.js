@@ -3,9 +3,8 @@ import { NextInstance } from 'e2e-utils'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 
-const mockedGoogleFontResponses = require.resolve(
-  './google-font-mocked-responses.js'
-)
+const mockedGoogleFontResponses =
+  require.resolve('./google-font-mocked-responses.js')
 
 describe('next/font/google fetch error', () => {
   const isDev = (global as any).isNextDev

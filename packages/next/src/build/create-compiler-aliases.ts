@@ -510,27 +510,20 @@ export function createVendoredReactAliases(
 export function getOptimizedModuleAliases(): CompilerAliases {
   return {
     unfetch: require.resolve('next/dist/build/polyfills/fetch/index.js'),
-    'isomorphic-unfetch': require.resolve(
-      'next/dist/build/polyfills/fetch/index.js'
-    ),
-    'whatwg-fetch': require.resolve(
-      'next/dist/build/polyfills/fetch/whatwg-fetch.js'
-    ),
-    'object-assign': require.resolve(
-      'next/dist/build/polyfills/object-assign.js'
-    ),
-    'object.assign/auto': require.resolve(
-      'next/dist/build/polyfills/object.assign/auto.js'
-    ),
-    'object.assign/implementation': require.resolve(
-      'next/dist/build/polyfills/object.assign/implementation.js'
-    ),
-    'object.assign/polyfill': require.resolve(
-      'next/dist/build/polyfills/object.assign/polyfill.js'
-    ),
-    'object.assign/shim': require.resolve(
-      'next/dist/build/polyfills/object.assign/shim.js'
-    ),
+    'isomorphic-unfetch':
+      require.resolve('next/dist/build/polyfills/fetch/index.js'),
+    'whatwg-fetch':
+      require.resolve('next/dist/build/polyfills/fetch/whatwg-fetch.js'),
+    'object-assign':
+      require.resolve('next/dist/build/polyfills/object-assign.js'),
+    'object.assign/auto':
+      require.resolve('next/dist/build/polyfills/object.assign/auto.js'),
+    'object.assign/implementation':
+      require.resolve('next/dist/build/polyfills/object.assign/implementation.js'),
+    'object.assign/polyfill':
+      require.resolve('next/dist/build/polyfills/object.assign/polyfill.js'),
+    'object.assign/shim':
+      require.resolve('next/dist/build/polyfills/object.assign/shim.js'),
     url: require.resolve('next/dist/compiled/native-url'),
   }
 }

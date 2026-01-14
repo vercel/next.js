@@ -3,8 +3,7 @@ import type { PagesAPIRouteDefinition } from '../route-definitions/pages-api-rou
 
 import { RouteKind } from '../route-kind'
 
-export interface PagesAPIRouteMatch
-  extends RouteMatch<PagesAPIRouteDefinition> {}
+export interface PagesAPIRouteMatch extends RouteMatch<PagesAPIRouteDefinition> {}
 
 /**
  * Checks if the given match is a Pages API route match.

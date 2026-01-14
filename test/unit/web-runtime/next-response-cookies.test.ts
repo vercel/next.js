@@ -41,9 +41,8 @@ it('reflect .set into `set-cookie`', async () => {
 })
 
 it('reflect .delete into `set-cookie`', async () => {
-  const { NextResponse } = await import(
-    'next/dist/server/web/spec-extension/response'
-  )
+  const { NextResponse } =
+    await import('next/dist/server/web/spec-extension/response')
 
   const response = new NextResponse()
 
@@ -108,9 +107,8 @@ it('reflect .delete into `set-cookie`', async () => {
 })
 
 it('response.cookie does not modify options', async () => {
-  const { NextResponse } = await import(
-    'next/dist/server/web/spec-extension/response'
-  )
+  const { NextResponse } =
+    await import('next/dist/server/web/spec-extension/response')
 
   const options = { maxAge: 10000 }
   const response = new NextResponse(null, {
