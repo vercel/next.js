@@ -1,11 +1,8 @@
-import { createNext } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
+import { execSync } from 'child_process'
 
 describe('escheck-output', () => {
-  let next: NextInstance | undefined
-  afterEach(() => next?.destroy())
-
-  it('should downlevel JS according to manual browserslist with es2020', async () => {
+  describe('es2020', () => {
     let browserslist = [
       'chrome 64',
       'edge 79',
@@ -13,34 +10,42 @@ describe('escheck-output', () => {
       'opera 51',
       'safari 12',
     ]
-    next = await createNext({
+    const { next } = nextTestSetup({
       files: __dirname,
       dependencies: { 'es-check': '9.5.3' },
       packageJson: {
         browserslist,
-        scripts: {
-          build: 'next build && es-check es2020 ".next/static/**/*.js"',
-        },
       },
-      installCommand: 'pnpm i',
-      buildCommand: 'pnpm build',
     })
-    expect(next.cliOutput).toContain('info: ✓ ES-Check passed!')
+
+    it('should downlevel JS according to manual browserslist with es2020', () => {
+      let esCheckOutput = execSync(
+        'node_modules/.bin/es-check es2020 ".next/static/**/*.js"',
+        { cwd: next.testDir }
+      ).toString()
+
+      expect(esCheckOutput).toContain('info: ✓ ES-Check passed!')
+    })
   })
 
-  it('should downlevel JS according to default browserslist', async () => {
+  describe('default browserslist', () => {
     let browserslist = ['chrome 111', 'edge 111', 'firefox 111', 'safari 16.4']
-    next = await createNext({
+
+    const { next } = nextTestSetup({
       files: __dirname,
       dependencies: { 'es-check': '9.5.3' },
       packageJson: {
-        scripts: {
-          build: `next build && es-check checkBrowser ".next/static/**/*.js" --browserslistQuery="${browserslist.join(', ')}"`,
-        },
+        browserslist,
       },
-      installCommand: 'pnpm i',
-      buildCommand: 'pnpm build',
     })
-    expect(next.cliOutput).toContain('info: ✓ ES-Check passed!')
+
+    it('should downlevel JS according to default browserslist', () => {
+      let esCheckOutput = execSync(
+        `node_modules/.bin/es-check checkBrowser ".next/static/**/*.js" --browserslistQuery="${browserslist.join(', ')}"`,
+        { cwd: next.testDir }
+      ).toString()
+
+      expect(esCheckOutput).toContain('info: ✓ ES-Check passed!')
+    })
   })
 })
