@@ -26,6 +26,18 @@ describe('escheck-output', () => {
 
       expect(esCheckOutput).toContain('info: ✓ ES-Check passed!')
     })
+
+    it('should not include outdated polyfills', async () => {
+      expect(await detectPolyfills(next)).toEqual([
+        '"description"in Symbol.prototype',
+        '"trimStart"in String.prototype',
+        'Array.prototype.at',
+        'Array.prototype.flat',
+        'Object.fromEntries',
+        'Object.hasOwn',
+        'URL.canParse',
+      ])
+    })
   })
 
   describe('default browserslist', () => {
@@ -47,5 +59,36 @@ describe('escheck-output', () => {
 
       expect(esCheckOutput).toContain('info: ✓ ES-Check passed!')
     })
+
+    it('should not include outdated polyfills', async () => {
+      expect(await detectPolyfills(next)).toEqual(['URL.canParse'])
+    })
   })
 })
+
+async function detectPolyfills(next) {
+  const { polyfillFiles } = await next.readJSON('.next/build-manifest.json')
+
+  const polyfills = [
+    '"description"in Symbol.prototype',
+    '"trimStart"in String.prototype',
+    'Array.prototype.at',
+    'Array.prototype.flat',
+    'Object.fromEntries',
+    'Object.hasOwn',
+    'URL.canParse',
+  ]
+
+  let foundPolyfills = new Set()
+
+  for (let file of polyfillFiles) {
+    let content = await next.readFile(`.next/${file}`)
+    for (let name of polyfills) {
+      if (content.includes(name)) {
+        foundPolyfills.add(name)
+      }
+    }
+  }
+
+  return [...foundPolyfills]
+}
