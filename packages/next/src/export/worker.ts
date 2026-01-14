@@ -389,10 +389,7 @@ export async function exportPages(
       process.env.NODE_OPTIONS?.includes('--inspect')
 
     const renderResumeDataCache = renderResumeDataCachesByPage[page]
-      ? createRenderResumeDataCache(
-          renderResumeDataCachesByPage[page],
-          renderOpts.experimental.maxPostponedStateSizeBytes
-        )
+      ? createRenderResumeDataCache(renderResumeDataCachesByPage[page])
       : undefined
 
     while (attempt < maxAttempts) {
