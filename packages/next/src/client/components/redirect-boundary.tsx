@@ -3,7 +3,7 @@ import React, { useEffect } from 'react'
 import type { AppRouterInstance } from '../../shared/lib/app-router-context.shared-runtime'
 import { useRouter } from './navigation'
 import { getRedirectTypeFromError, getURLFromRedirectError } from './redirect'
-import { RedirectType, isRedirectError } from './redirect-error'
+import { type RedirectType, isRedirectError } from './redirect-error'
 
 interface RedirectBoundaryProps {
   router: AppRouterInstance
@@ -23,7 +23,7 @@ function HandleRedirect({
 
   useEffect(() => {
     React.startTransition(() => {
-      if (redirectType === RedirectType.push) {
+      if (redirectType === 'push') {
         router.push(redirect, {})
       } else {
         router.replace(redirect, {})
