@@ -1,5 +1,5 @@
 import { InvariantError } from '../../shared/lib/invariant-error'
-import { bindSnapshot } from '../app-render/async-local-storage'
+import { bindSnapshot } from './async-local-storage'
 
 let lazyQueue: TaskQueue | null = null
 function getOrCreateQueue() {
