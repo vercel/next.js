@@ -124,7 +124,9 @@ The root layout can also be nested in the new folder (e.g. `app/[lang]/layout.js
 To help search engines discover your language-specific URLs, you can declare alternate versions using the Metadata API:
 
 ```tsx filename="app/[lang]/layout.tsx"
-export const metadata = {
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
   alternates: {
     languages: {
       'en-US': 'https://example.com/en-US',
