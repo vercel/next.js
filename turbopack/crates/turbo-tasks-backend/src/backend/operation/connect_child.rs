@@ -1,5 +1,5 @@
 use bincode::{Decode, Encode};
-use turbo_tasks::{TaskExecutionReason, TaskId, TaskPriority};
+use turbo_tasks::{TaskExecutionReason, TaskId};
 
 use crate::{
     backend::{

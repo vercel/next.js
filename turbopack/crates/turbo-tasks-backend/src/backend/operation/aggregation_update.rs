@@ -20,7 +20,7 @@ use smallvec::{SmallVec, smallvec};
     feature = "trace_find_and_schedule"
 ))]
 use tracing::{span::Span, trace_span};
-use turbo_tasks::{FxIndexMap, TaskExecutionReason, TaskId, TaskPriority};
+use turbo_tasks::{FxIndexMap, TaskExecutionReason, TaskId};
 
 #[cfg(feature = "trace_task_dirty")]
 use crate::backend::operation::invalidate::TaskDirtyCause;
