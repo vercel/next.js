@@ -7308,9 +7308,9 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/static-shell-debugging/static-shell-debugging.test.ts": {
-    "passed": [],
+    "passed": ["static-shell-debugging should render the full page"],
     "failed": [],
-    "pending": ["static-shell-debugging should render the full page"],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -10615,7 +10615,10 @@
   "test/e2e/swc-plugins/index.test.ts": {
     "passed": ["swcPlugins supports swcPlugins basic case"],
     "failed": [],
-    "pending": ["swcPlugins invalid plugin name shows a redbox in dev"],
+    "pending": [
+      "swcPlugins incompatible plugin version shows a redbox in dev",
+      "swcPlugins invalid plugin name shows a redbox in dev"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -20876,11 +20879,11 @@
     "runtimeError": false
   },
   "test/production/app-dir/metadata-streaming-config/metadata-streaming-config-customized.test.ts": {
-    "passed": [],
-    "failed": [],
-    "pending": [
+    "passed": [
       "app-dir - metadata-streaming-config-customized should have the customized streaming metadata config output in routes-manifest.json"
     ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -21676,9 +21679,9 @@
     "passed": [],
     "failed": [],
     "pending": [
-      "next-server-nft should not include .next directory in traces despite dynamic fs operations",
-      "next-server-nft should not trace too many files in next-minimal-server.js.nft.json",
-      "next-server-nft should not trace too many files in next-server.js.nft.json"
+      "next-server-nft default mode should not include .next directory in traces despite dynamic fs operations",
+      "next-server-nft default mode should not trace too many files in next-minimal-server.js.nft.json",
+      "next-server-nft with output:standalone should not trace too many files in next-server.js.nft.json"
     ],
     "flakey": [],
     "runtimeError": false
@@ -22302,7 +22305,7 @@
   },
   "test/production/typescript-checked-side-effect-imports/index.test.ts": {
     "passed": [
-      "Imports of server/client-only with noUncheckedSideEffectImports Should build without typescript errors"
+      "Side-effect imports with noUncheckedSideEffectImports Should build without typescript errors"
     ],
     "failed": [],
     "pending": [],

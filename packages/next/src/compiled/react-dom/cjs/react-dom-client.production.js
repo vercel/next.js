@@ -12508,6 +12508,14 @@ function replaySuspendedUnitOfWork(unitOfWork) {
       break;
     case 5:
       resetHooksOnUnwind(next);
+      var fiber = next;
+      fiber === hydrationParentFiber &&
+        (isHydrating
+          ? (popToNextHostParent(fiber),
+            5 === fiber.tag &&
+              null != fiber.stateNode &&
+              (nextHydratableInstance = fiber.stateNode))
+          : (popToNextHostParent(fiber), (isHydrating = !0)));
     default:
       unwindInterruptedWork(current, next),
         (next = workInProgress =
@@ -17988,14 +17996,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_2040 = React.version;
 if (
-  "19.3.0-canary-65eec428-20251218" !==
+  "19.3.0-canary-3e1abcc8-20260113" !==
   isomorphicReactPackageVersion$jscomp$inline_2040
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_2040,
-      "19.3.0-canary-65eec428-20251218"
+      "19.3.0-canary-3e1abcc8-20260113"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -18015,24 +18023,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2628 = {
+var internals$jscomp$inline_2630 = {
   bundleType: 0,
-  version: "19.3.0-canary-65eec428-20251218",
+  version: "19.3.0-canary-3e1abcc8-20260113",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-canary-65eec428-20251218"
+  reconcilerVersion: "19.3.0-canary-3e1abcc8-20260113"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2629 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2631 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2629.isDisabled &&
-    hook$jscomp$inline_2629.supportsFiber
+    !hook$jscomp$inline_2631.isDisabled &&
+    hook$jscomp$inline_2631.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2629.inject(
-        internals$jscomp$inline_2628
+      (rendererID = hook$jscomp$inline_2631.inject(
+        internals$jscomp$inline_2630
       )),
-        (injectedHook = hook$jscomp$inline_2629);
+        (injectedHook = hook$jscomp$inline_2631);
     } catch (err) {}
 }
 exports.createRoot = function (container, options) {
@@ -18118,4 +18126,4 @@ exports.hydrateRoot = function (container, initialChildren, options) {
   listenToAllSupportedEvents(container);
   return new ReactDOMHydrationRoot(initialChildren);
 };
-exports.version = "19.3.0-canary-65eec428-20251218";
+exports.version = "19.3.0-canary-3e1abcc8-20260113";

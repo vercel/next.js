@@ -146,7 +146,7 @@ impl ChunkableModuleReference for EcmascriptModulePartReference {
     #[turbo_tasks::function]
     async fn binding_usage(&self) -> Result<Vc<BindingUsage>> {
         Ok(BindingUsage {
-            import: ImportUsage::SideEffects,
+            import: ImportUsage::TopLevel,
             export: self.export_usage.owned().await?,
         }
         .cell())

@@ -174,9 +174,8 @@ describe('required server files i18n', () => {
       redirect: 'manual',
     })
     expect(res.status).toBe(200)
-    expect(res.headers.get('cache-control')).toBe('s-maxage=1')
-    expect(res.headers.get('cdn-cache-control')).toBe(
-      'max-age=1, stale-while-revalidate=31535999'
+    expect(res.headers.get('cache-control')).toBe(
+      's-maxage=1, stale-while-revalidate=31535999'
     )
 
     await waitFor(2000)
@@ -186,9 +185,8 @@ describe('required server files i18n', () => {
       redirect: 'manual',
     })
     expect(res2.status).toBe(404)
-    expect(res2.headers.get('cache-control')).toBe('s-maxage=1')
-    expect(res2.headers.get('cdn-cache-control')).toBe(
-      'max-age=1, stale-while-revalidate=31535999'
+    expect(res2.headers.get('cache-control')).toBe(
+      's-maxage=1, stale-while-revalidate=31535999'
     )
   })
 

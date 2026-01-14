@@ -123,6 +123,7 @@ export function getFlightStream<T>(
         return responseOnNextTick
       case 'prerender':
       case 'prerender-runtime':
+      case 'prerender-ppr':
       case 'prerender-legacy':
       case 'request':
       case 'cache':

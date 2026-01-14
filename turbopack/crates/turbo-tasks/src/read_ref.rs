@@ -32,7 +32,7 @@ type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;
 /// certain point in time.
 ///
 /// Internally it stores a reference counted reference to a value on the heap.
-pub struct ReadRef<T>(triomphe::Arc<T>);
+pub struct ReadRef<T>(pub(crate) triomphe::Arc<T>);
 
 impl<T> Clone for ReadRef<T> {
     fn clone(&self) -> Self {
@@ -253,6 +253,11 @@ impl<T> ReadRef<T> {
     /// (the behavior of [`Deref`]).
     pub fn as_raw_ref(this: &ReadRef<T>) -> &T {
         &this.0
+    }
+
+    /// Returns the inner `Arc<T>`.
+    pub fn into_raw_arc(self) -> triomphe::Arc<T> {
+        self.0
     }
 
     pub fn ptr_eq(&self, other: &ReadRef<T>) -> bool {

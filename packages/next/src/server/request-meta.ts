@@ -146,6 +146,13 @@ export interface RequestMeta {
   postponed?: string
 
   /**
+   * The action body extracted from a server action request when the postponed
+   * state was prepended to the body by the proxy. This allows the action
+   * handler to read the action payload without re-reading the consumed stream.
+   */
+  actionBody?: Buffer
+
+  /**
    * If provided, this will be called when a response cache entry was generated
    * or looked up in the cache.
    *

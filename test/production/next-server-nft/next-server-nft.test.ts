@@ -394,7 +394,6 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/semver/*",
            "/node_modules/sharp/*",
            "/node_modules/styled-jsx/*",
-           "/node_modules/typescript/*",
          ]
         `)
       })

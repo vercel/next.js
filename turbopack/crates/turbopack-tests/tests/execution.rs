@@ -128,6 +128,7 @@ fn test_skipped_fails(resource: PathBuf) {
                 .test_results
                 .into_iter()
                 .any(|r| !r.errors.is_empty()),
+        "Expected an error, but the test passed?"
     );
 }
 
@@ -415,6 +416,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
                 ),
                 import_externals: true,
                 enable_exports_info_inlining: true,
+                infer_module_side_effects: true,
                 ..Default::default()
             },
             environment: Some(env),
@@ -518,12 +520,18 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         options
             .remove_unused_exports
             .then(|| binding_usage.unwrap()),
-    )
-    .unused_references(
-        options
-            .remove_unused_imports
-            .then(|| binding_usage.unwrap()),
     );
+
+    if options.remove_unused_imports {
+        builder = builder.unused_references(
+            binding_usage
+                .unwrap()
+                .unused_references()
+                .to_resolved()
+                .await?,
+        );
+    }
+
     if options.production_chunking {
         builder = builder
             .chunking_config(

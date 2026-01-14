@@ -17,7 +17,7 @@ use turbopack_browser::{
 use turbopack_core::{
     chunk::{
         ChunkingConfig, ChunkingContext, MangleType, MinifyType, SourceMapSourceType,
-        SourceMapsType, module_id_strategies::ModuleIdStrategy,
+        SourceMapsType, UnusedReferences, module_id_strategies::ModuleIdStrategy,
     },
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences},
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment},
@@ -423,7 +423,7 @@ pub struct ClientChunkingContextOptions {
     pub environment: Vc<Environment>,
     pub module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
     pub export_usage: Vc<OptionBindingUsageInfo>,
-    pub unused_references: Vc<OptionBindingUsageInfo>,
+    pub unused_references: Vc<UnusedReferences>,
     pub minify: Vc<bool>,
     pub source_maps: Vc<SourceMapsType>,
     pub no_mangling: Vc<bool>,
@@ -481,7 +481,7 @@ pub async fn get_client_chunking_context(
     .asset_base_path(Some(asset_prefix))
     .current_chunk_method(CurrentChunkMethod::DocumentCurrentScript)
     .export_usage(*export_usage.await?)
-    .unused_references(*unused_references.await?)
+    .unused_references(unused_references.to_resolved().await?)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .debug_ids(*debug_ids.await?)
     .should_use_absolute_url_references(*should_use_absolute_url_references.await?)

@@ -4,7 +4,10 @@ import type {
   ReducerState,
 } from '../router-reducer-types'
 import { handleNavigationResult } from './navigate-reducer'
-import { navigateToSeededRoute } from '../../segment-cache/navigation'
+import {
+  convertServerPatchToFullTree,
+  navigateToKnownRoute,
+} from '../../segment-cache/navigation'
 import { revalidateEntireCache } from '../../segment-cache/cache'
 import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
 import { FreshnessPolicy } from '../ppr-navigations'
@@ -36,23 +39,28 @@ export function refreshDynamicData(
   // existing dynamic data (including in shared layouts) is re-fetched.
   const currentCanonicalUrl = state.canonicalUrl
   const currentUrl = new URL(currentCanonicalUrl, location.origin)
+  const currentRenderedSearch = state.renderedSearch
   const currentFlightRouterState = state.tree
   const shouldScroll = true
 
-  const navigationSeed = {
-    tree: state.tree,
-    renderedSearch: state.renderedSearch,
-    data: null,
-    head: null,
-  }
+  // Create a NavigationSeed from the current FlightRouterState.
+  // TODO: Eventually we will store this type directly on the state object
+  // instead of reconstructing it on demand. Part of a larger series of
+  // refactors to unify the various tree types that the client deals with.
+  const refreshSeed = convertServerPatchToFullTree(
+    currentFlightRouterState,
+    null,
+    currentRenderedSearch
+  )
 
   const now = Date.now()
-  const result = navigateToSeededRoute(
+  const result = navigateToKnownRoute(
     now,
     currentUrl,
     currentCanonicalUrl,
-    navigationSeed,
+    refreshSeed,
     currentUrl,
+    currentRenderedSearch,
     state.cache,
     currentFlightRouterState,
     freshnessPolicy,

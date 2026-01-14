@@ -50,7 +50,8 @@ import {
 import { revalidateEntireCache } from '../../segment-cache/cache'
 import { getDeploymentId } from '../../../../shared/lib/deployment-id'
 import {
-  navigateToSeededRoute,
+  convertServerPatchToFullTree,
+  navigateToKnownRoute,
   navigate as navigateUsingSegmentCache,
 } from '../../segment-cache/navigation'
 import type { NormalizedSearch } from '../../segment-cache/cache-key'
@@ -89,7 +90,6 @@ type FetchServerActionResult = {
   actionResult: ActionResult | undefined
   actionFlightData: NormalizedFlightData[] | string | undefined
   actionFlightDataRenderedSearch: NormalizedSearch | undefined
-  actionFlightDataCouldBeIntercepted: boolean | undefined
   isPrerender: boolean
 }
 
@@ -208,7 +208,6 @@ async function fetchServerAction(
   let actionResult: FetchServerActionResult['actionResult']
   let actionFlightData: FetchServerActionResult['actionFlightData']
   let actionFlightDataRenderedSearch: FetchServerActionResult['actionFlightDataRenderedSearch']
-  let actionFlightDataCouldBeIntercepted: FetchServerActionResult['actionFlightDataCouldBeIntercepted']
 
   if (isRscResponse) {
     const response: ActionFlightResponse = await createFromFetch(
@@ -227,21 +226,18 @@ async function fetchServerAction(
     if (maybeFlightData !== '') {
       actionFlightData = maybeFlightData
       actionFlightDataRenderedSearch = response.q as NormalizedSearch
-      actionFlightDataCouldBeIntercepted = response.i
     }
   } else {
     // An external redirect doesn't contain RSC data.
     actionResult = undefined
     actionFlightData = undefined
     actionFlightDataRenderedSearch = undefined
-    actionFlightDataCouldBeIntercepted = undefined
   }
 
   return {
     actionResult,
     actionFlightData,
     actionFlightDataRenderedSearch,
-    actionFlightDataCouldBeIntercepted,
     redirectLocation,
     redirectType,
     revalidationKind,
@@ -283,7 +279,6 @@ export function serverActionReducer(
       actionResult,
       actionFlightData: flightData,
       actionFlightDataRenderedSearch: flightDataRenderedSearch,
-      actionFlightDataCouldBeIntercepted: flightDataCouldBeIntercepted,
       redirectLocation,
       redirectType,
     }) => {
@@ -382,6 +377,7 @@ export function serverActionReducer(
       // If there was no redirect, then the target URL is the same as the
       // current URL.
       const currentUrl = new URL(state.canonicalUrl, location.origin)
+      const currentRenderedSearch = state.renderedSearch
       const redirectUrl =
         redirectLocation !== undefined ? redirectLocation : currentUrl
       const currentFlightRouterState = state.tree
@@ -396,49 +392,41 @@ export function serverActionReducer(
 
       // The server may have sent back new data. If so, we will perform a
       // "seeded" navigation that uses the data from the response.
-      if (flightData !== undefined) {
-        const normalizedFlightData = flightData[0]
-        if (
-          normalizedFlightData !== undefined &&
-          // TODO: Currently the server always renders from the root in
-          // response to a Server Action. In the case of a normal redirect
-          // with no revalidation, it should skip over the shared layouts.
-          normalizedFlightData.isRootRender &&
-          flightDataRenderedSearch !== undefined &&
-          flightDataCouldBeIntercepted !== undefined
-        ) {
-          // The server sent back new route data as part of the response. We
-          // will use this to render the new page. If this happens to be only a
-          // subset of the data needed to render the new page, we'll initiate a
-          // new fetch, like we would for a normal navigation.
-          const redirectCanonicalUrl = createHrefFromUrl(redirectUrl)
-          const navigationSeed = {
-            tree: normalizedFlightData.tree,
-            renderedSearch: flightDataRenderedSearch,
-            data: normalizedFlightData.seedData,
-            head: normalizedFlightData.head,
-          }
-          const now = Date.now()
-          const result = navigateToSeededRoute(
-            now,
-            redirectUrl,
-            redirectCanonicalUrl,
-            navigationSeed,
-            currentUrl,
-            state.cache,
-            currentFlightRouterState,
-            freshnessPolicy,
-            nextUrl,
-            shouldScroll
-          )
-          return handleNavigationResult(
-            redirectUrl,
-            state,
-            mutable,
-            pendingPush,
-            result
-          )
-        }
+      // TODO: Currently the server always renders from the root in
+      // response to a Server Action. In the case of a normal redirect
+      // with no revalidation, it should skip over the shared layouts.
+      if (flightData !== undefined && flightDataRenderedSearch !== undefined) {
+        // The server sent back new route data as part of the response. We
+        // will use this to render the new page. If this happens to be only a
+        // subset of the data needed to render the new page, we'll initiate a
+        // new fetch, like we would for a normal navigation.
+        const redirectCanonicalUrl = createHrefFromUrl(redirectUrl)
+        const redirectSeed = convertServerPatchToFullTree(
+          currentFlightRouterState,
+          flightData,
+          flightDataRenderedSearch
+        )
+        const now = Date.now()
+        const result = navigateToKnownRoute(
+          now,
+          redirectUrl,
+          redirectCanonicalUrl,
+          redirectSeed,
+          currentUrl,
+          currentRenderedSearch,
+          state.cache,
+          currentFlightRouterState,
+          freshnessPolicy,
+          nextUrl,
+          shouldScroll
+        )
+        return handleNavigationResult(
+          redirectUrl,
+          state,
+          mutable,
+          pendingPush,
+          result
+        )
       }
 
       // The server did not send back new data. We'll perform a regular, non-
@@ -446,6 +434,7 @@ export function serverActionReducer(
       const result = navigateUsingSegmentCache(
         redirectUrl,
         currentUrl,
+        currentRenderedSearch,
         state.cache,
         currentFlightRouterState,
         nextUrl,

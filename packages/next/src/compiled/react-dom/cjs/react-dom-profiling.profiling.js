@@ -14146,6 +14146,14 @@ function replaySuspendedUnitOfWork(unitOfWork) {
       break;
     case 5:
       resetHooksOnUnwind(next);
+      var fiber = next;
+      fiber === hydrationParentFiber &&
+        (isHydrating
+          ? (popToNextHostParent(fiber),
+            5 === fiber.tag &&
+              null != fiber.stateNode &&
+              (nextHydratableInstance = fiber.stateNode))
+          : (popToNextHostParent(fiber), (isHydrating = !0)));
     default:
       unwindInterruptedWork(current, next),
         (next = workInProgress =
@@ -19916,14 +19924,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_2337 = React.version;
 if (
-  "19.3.0-canary-65eec428-20251218" !==
+  "19.3.0-canary-3e1abcc8-20260113" !==
   isomorphicReactPackageVersion$jscomp$inline_2337
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_2337,
-      "19.3.0-canary-65eec428-20251218"
+      "19.3.0-canary-3e1abcc8-20260113"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -19943,24 +19951,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2938 = {
+var internals$jscomp$inline_2940 = {
   bundleType: 0,
-  version: "19.3.0-canary-65eec428-20251218",
+  version: "19.3.0-canary-3e1abcc8-20260113",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-canary-65eec428-20251218"
+  reconcilerVersion: "19.3.0-canary-3e1abcc8-20260113"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2939 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2941 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2939.isDisabled &&
-    hook$jscomp$inline_2939.supportsFiber
+    !hook$jscomp$inline_2941.isDisabled &&
+    hook$jscomp$inline_2941.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2939.inject(
-        internals$jscomp$inline_2938
+      (rendererID = hook$jscomp$inline_2941.inject(
+        internals$jscomp$inline_2940
       )),
-        (injectedHook = hook$jscomp$inline_2939);
+        (injectedHook = hook$jscomp$inline_2941);
     } catch (err) {}
 }
 function getCrossOriginStringAs(as, input) {
@@ -20207,7 +20215,7 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.3.0-canary-65eec428-20251218";
+exports.version = "19.3.0-canary-3e1abcc8-20260113";
 "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
   "function" ===
     typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

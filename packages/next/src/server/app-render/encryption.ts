@@ -276,6 +276,7 @@ export async function decryptActionBoundArgs(
             }
             break
           case 'prerender-client':
+          case 'prerender-ppr':
           case 'prerender-legacy':
           case 'request':
           case 'cache':

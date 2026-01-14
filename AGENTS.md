@@ -41,16 +41,30 @@ The main Next.js framework lives in `packages/next/`. This is what gets publishe
 
 ## Git Workflow
 
-**Use Graphite for all git operations** instead of raw git commands:
+**CRITICAL: Use Graphite (`gt`) instead of git for ALL branch and commit operations.**
+
+NEVER use these git commands directly:
+
+- `git push` → use `gt submit --no-edit`
+- `git branch` → use `gt create`
+
+**Graphite commands:**
 
 - `gt create <branch-name> -m "message"` - Create a new branch with commit
 - `gt modify -a --no-edit` - Stage all and amend current branch's commit
-- `gt checkout <branch>` - Switch branches (use instead of `git checkout`)
+- `gt checkout <branch>` - Switch branches
 - `gt sync` - Sync and restack all branches
-- `gt submit --no-edit` - Push and create/update PRs (use `--no-edit` to avoid interactive prompts)
+- `gt submit --no-edit` - Push and create/update PRs
 - `gt log short` - View stack status
 
 **Note**: `gt submit` runs in interactive mode by default and won't push in automated contexts. Always use `gt submit --no-edit` or `gt submit -q` when running from Claude.
+
+**Creating PRs with descriptions**: All PRs created require a description. `gt submit --no-edit` creates PRs in draft mode without a description. To add a PR title and description, use `gh pr edit` immediately after submitting. The PR description needs to follow the mandatory format of .github/pull_request_template.md in the repository:
+
+```bash
+gt submit --no-edit
+gh pr edit <pr-number> --body "Place description here"
+```
 
 **Graphite Stack Safety Rules:**
 
@@ -152,6 +166,8 @@ pnpm test-dev-turbo test/development/
 - `pnpm new-test` - Generate a new test file from template (interactive)
 
 **Generate tests non-interactively (for AI agents):**
+
+Generating tests using `pnpm new-test` is mandatory.
 
 ```bash
 # Use --args for non-interactive mode
@@ -285,6 +301,15 @@ See [Codebase structure](#codebase-structure) above for detailed explanations.
 - Do NOT add "Generated with Claude Code" or co-author footers to commits or PRs
 - Keep commit messages concise and descriptive
 - PR descriptions should focus on what changed and why
+- Do NOT mark PRs as "ready for review" (`gh pr ready`) - leave PRs in draft mode and let the user decide when to mark them ready
+
+## Rebuilding Before Running Tests
+
+When running Next.js integration tests, you must rebuild if source files have changed:
+
+- **Edited Next.js code?** → `pnpm build`
+- **Edited Turbopack (Rust)?** → `pnpm swc-build-native`
+- **Edited both?** → `pnpm turbo build build-native`
 
 ## Development Anti-Patterns
 
@@ -296,9 +321,17 @@ See [Codebase structure](#codebase-structure) above for detailed explanations.
 ### Rust/Cargo
 
 - cargo fmt uses ASCII order (uppercase before lowercase) - just run `cargo fmt`
+- **Internal compiler error (ICE)?** Delete incremental compilation artifacts and retry. Remove `*/incremental` directories from your cargo target directory (default `target/`, or check `CARGO_TARGET_DIR` env var)
 
 ### Node.js Source Maps
 
 - `findSourceMap()` needs `--enable-source-maps` flag or returns undefined
 - Source map paths vary (webpack: `./src/`, tsc: `src/`) - try multiple formats
 - `process.cwd()` in stack trace formatting produces different paths in tests vs production
+
+### Documentation Code Blocks
+
+- When adding `highlight={...}` attributes to code blocks, carefully count the actual line numbers within the code block
+- Account for empty lines, import statements, and type imports that shift line numbers
+- Highlights should point to the actual relevant code, not unrelated lines like `return (` or framework boilerplate
+- Double-check highlights by counting lines from 1 within each code block

@@ -1,7 +1,7 @@
 use std::{
     fmt::Display,
     future::Future,
-    hash::BuildHasherDefault,
+    hash::{BuildHasher, BuildHasherDefault},
     mem::take,
     pin::Pin,
     sync::{
@@ -14,8 +14,9 @@ use std::{
 use anyhow::{Result, anyhow};
 use auto_hash_map::AutoMap;
 use bincode::{Decode, Encode};
-use rustc_hash::FxHasher;
+use rustc_hash::{FxBuildHasher, FxHasher};
 use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
 use tokio::{select, sync::mpsc::Receiver, task_local};
 use tokio_util::task::TaskTracker;
 use tracing::{Instrument, instrument};
@@ -32,6 +33,7 @@ use crate::{
     event::{Event, EventListener},
     id::{ExecutionId, LocalTaskId, TRANSIENT_TASK_BIT, TraitTypeId},
     id_factory::IdFactoryWithReuse,
+    keyed::Keyed,
     macro_helpers::NativeFunction,
     magic_any::MagicAny,
     message_queue::{CompilationEvent, CompilationEventQueue},
@@ -162,6 +164,7 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         index: CellId,
         is_serializable_cell_content: bool,
         content: CellContent,
+        updated_key_hashes: Option<SmallVec<[u64; 2]>>,
         verification_mode: VerificationMode,
     );
     fn mark_own_task_as_finished(&self, task: TaskId);
@@ -303,6 +306,60 @@ pub enum ReadConsistency {
     ///
     /// Top-level code that returns data to the user should use strongly consistent reads.
     Strong,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ReadCellTracking {
+    /// Reads are tracked as dependencies of the current task.
+    Tracked {
+        /// The key used for the dependency
+        key: Option<u64>,
+    },
+    /// The read is only tracked when there is an error, otherwise it is untracked.
+    ///
+    /// INVALIDATION: Be careful with this, it will not track dependencies, so
+    /// using it could break cache invalidation.
+    TrackOnlyError,
+    /// The read is not tracked as a dependency of the current task.
+    ///
+    /// INVALIDATION: Be careful with this, it will not track dependencies, so
+    /// using it could break cache invalidation.
+    Untracked,
+}
+
+impl ReadCellTracking {
+    pub fn should_track(&self, is_err: bool) -> bool {
+        match self {
+            ReadCellTracking::Tracked { .. } => true,
+            ReadCellTracking::TrackOnlyError => is_err,
+            ReadCellTracking::Untracked => false,
+        }
+    }
+
+    pub fn key(&self) -> Option<u64> {
+        match self {
+            ReadCellTracking::Tracked { key } => *key,
+            ReadCellTracking::TrackOnlyError => None,
+            ReadCellTracking::Untracked => None,
+        }
+    }
+}
+
+impl Default for ReadCellTracking {
+    fn default() -> Self {
+        ReadCellTracking::Tracked { key: None }
+    }
+}
+
+impl Display for ReadCellTracking {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ReadCellTracking::Tracked { key: None } => write!(f, "tracked"),
+            ReadCellTracking::Tracked { key: Some(key) } => write!(f, "tracked with key {key}"),
+            ReadCellTracking::TrackOnlyError => write!(f, "track only error"),
+            ReadCellTracking::Untracked => write!(f, "untracked"),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Default)]
@@ -1343,6 +1400,7 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         index: CellId,
         is_serializable_cell_content: bool,
         content: CellContent,
+        updated_key_hashes: Option<SmallVec<[u64; 2]>>,
         verification_mode: VerificationMode,
     ) {
         self.backend.update_task_cell(
@@ -1350,6 +1408,7 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
             index,
             is_serializable_cell_content,
             content,
+            updated_key_hashes,
             verification_mode,
             self,
         );
@@ -1728,28 +1787,36 @@ pub struct CurrentCellRef {
 }
 
 type VcReadRepr<T> = <<T as VcValueType>::Read as VcRead<T>>::Repr;
+type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;
 
 impl CurrentCellRef {
     /// Updates the cell if the given `functor` returns a value.
-    pub fn conditional_update<T>(&self, functor: impl FnOnce(Option<&T>) -> Option<T>)
-    where
+    fn conditional_update<T>(
+        &self,
+        functor: impl FnOnce(Option<&T>) -> Option<(T, Option<SmallVec<[u64; 2]>>)>,
+    ) where
         T: VcValueType,
     {
         self.conditional_update_with_shared_reference(|old_shared_reference| {
             let old_ref = old_shared_reference
                 .and_then(|sr| sr.0.downcast_ref::<VcReadRepr<T>>())
                 .map(|content| <T::Read as VcRead<T>>::repr_to_value_ref(content));
-            let new_value = functor(old_ref)?;
-            Some(SharedReference::new(triomphe::Arc::new(
-                <T::Read as VcRead<T>>::value_to_repr(new_value),
-            )))
+            let (new_value, updated_key_hashes) = functor(old_ref)?;
+            Some((
+                SharedReference::new(triomphe::Arc::new(<T::Read as VcRead<T>>::value_to_repr(
+                    new_value,
+                ))),
+                updated_key_hashes,
+            ))
         })
     }
 
     /// Updates the cell if the given `functor` returns a `SharedReference`.
-    pub fn conditional_update_with_shared_reference(
+    fn conditional_update_with_shared_reference(
         &self,
-        functor: impl FnOnce(Option<&SharedReference>) -> Option<SharedReference>,
+        functor: impl FnOnce(
+            Option<&SharedReference>,
+        ) -> Option<(SharedReference, Option<SmallVec<[u64; 2]>>)>,
     ) {
         let tt = turbo_tasks();
         let cell_content = tt
@@ -1758,19 +1825,20 @@ impl CurrentCellRef {
                 self.index,
                 ReadCellOptions {
                     // INVALIDATION: Reading our own cell must be untracked
-                    tracking: ReadTracking::Untracked,
+                    tracking: ReadCellTracking::Untracked,
                     is_serializable_cell_content: self.is_serializable_cell_content,
                     final_read_hint: false,
                 },
             )
             .ok();
         let update = functor(cell_content.as_ref().and_then(|cc| cc.1.0.as_ref()));
-        if let Some(update) = update {
+        if let Some((update, updated_key_hashes)) = update {
             tt.update_own_task_cell(
                 self.current_task,
                 self.index,
                 self.is_serializable_cell_content,
                 CellContent(Some(update)),
+                updated_key_hashes,
                 VerificationMode::EqualityCheck,
             )
         }
@@ -1819,7 +1887,7 @@ impl CurrentCellRef {
             {
                 return None;
             }
-            Some(new_value)
+            Some((new_value, None))
         });
     }
 
@@ -1835,21 +1903,72 @@ impl CurrentCellRef {
     where
         T: VcValueType + PartialEq,
     {
-        fn extract_sr_value<T: VcValueType>(sr: &SharedReference) -> &T {
-            <T::Read as VcRead<T>>::repr_to_value_ref(
-                sr.0.downcast_ref::<VcReadRepr<T>>()
-                    .expect("cannot update SharedReference of different type"),
-            )
-        }
         self.conditional_update_with_shared_reference(|old_sr| {
             if let Some(old_sr) = old_sr {
-                let old_value: &T = extract_sr_value(old_sr);
-                let new_value = extract_sr_value(&new_shared_reference);
+                let old_value = extract_sr_value::<T>(old_sr)?;
+                let new_value = extract_sr_value::<T>(&new_shared_reference)?;
                 if old_value == new_value {
                     return None;
                 }
             }
-            Some(new_shared_reference)
+            Some((new_shared_reference, None))
+        });
+    }
+
+    /// See [`Self::compare_and_update`], but selectively update individual keys.
+    pub fn keyed_compare_and_update<T>(&self, new_value: T)
+    where
+        T: PartialEq + VcValueType,
+        VcReadTarget<T>: Keyed,
+        <VcReadTarget<T> as Keyed>::Key: std::hash::Hash,
+    {
+        self.conditional_update(|old_value| {
+            let Some(old_value) = old_value else {
+                return Some((new_value, None));
+            };
+            let old_value = <T as VcValueType>::Read::value_to_target_ref(old_value);
+            let new_value_ref = <T as VcValueType>::Read::value_to_target_ref(&new_value);
+            let updated_keys = old_value.different_keys(new_value_ref);
+            if updated_keys.is_empty() {
+                return None;
+            }
+            // Duplicates are very unlikely, but ok since the backend is deduplicating them
+            let updated_key_hashes = updated_keys
+                .into_iter()
+                .map(|key| FxBuildHasher.hash_one(key))
+                .collect();
+            Some((new_value, Some(updated_key_hashes)))
+        });
+    }
+
+    /// See [`Self::compare_and_update_with_shared_reference`], but selectively update individual
+    /// keys.
+    pub fn keyed_compare_and_update_with_shared_reference<T>(
+        &self,
+        new_shared_reference: SharedReference,
+    ) where
+        T: VcValueType + PartialEq,
+        VcReadTarget<T>: Keyed,
+        <VcReadTarget<T> as Keyed>::Key: std::hash::Hash,
+    {
+        self.conditional_update_with_shared_reference(|old_sr| {
+            let Some(old_sr) = old_sr else {
+                return Some((new_shared_reference, None));
+            };
+            let old_value = extract_sr_value::<T>(old_sr)?;
+            let old_value = <T as VcValueType>::Read::value_to_target_ref(old_value);
+            let new_value = extract_sr_value::<T>(&new_shared_reference)?;
+            let new_value = <T as VcValueType>::Read::value_to_target_ref(new_value);
+            let updated_keys = old_value.different_keys(new_value);
+            if updated_keys.is_empty() {
+                return None;
+            }
+            // Duplicates are very unlikely, but ok since the backend is deduplicating them
+            let updated_key_hashes = updated_keys
+                .into_iter()
+                .map(|key| FxBuildHasher.hash_one(key))
+                .collect();
+            Some((new_shared_reference, Some(updated_key_hashes)))
         });
     }
 
@@ -1866,6 +1985,7 @@ impl CurrentCellRef {
             CellContent(Some(SharedReference::new(triomphe::Arc::new(
                 <T::Read as VcRead<T>>::value_to_repr(new_value),
             )))),
+            None,
             verification_mode,
         )
     }
@@ -1891,7 +2011,7 @@ impl CurrentCellRef {
                     self.index,
                     ReadCellOptions {
                         // INVALIDATION: Reading our own cell must be untracked
-                        tracking: ReadTracking::Untracked,
+                        tracking: ReadCellTracking::Untracked,
                         is_serializable_cell_content: self.is_serializable_cell_content,
                         final_read_hint: false,
                     },
@@ -1912,6 +2032,7 @@ impl CurrentCellRef {
                 self.index,
                 self.is_serializable_cell_content,
                 CellContent(Some(shared_ref)),
+                None,
                 verification_mode,
             )
         }
@@ -1922,6 +2043,11 @@ impl From<CurrentCellRef> for RawVc {
     fn from(cell: CurrentCellRef) -> Self {
         RawVc::TaskCell(cell.current_task, cell.index)
     }
+}
+
+fn extract_sr_value<T: VcValueType>(sr: &SharedReference) -> Option<&T> {
+    sr.0.downcast_ref::<VcReadRepr<T>>()
+        .map(<T::Read as VcRead<T>>::repr_to_value_ref)
 }
 
 pub fn find_cell_by_type<T: VcValueType>() -> CurrentCellRef {

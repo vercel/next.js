@@ -119,6 +119,7 @@ async function createComponentTreeInternal(
       createServerParamsForServerSegment,
       createPrerenderParamsForClientSegment,
       serverHooks: { DynamicServerError },
+      Postpone,
     },
     pagePath,
     getDynamicParamFromSegment,
@@ -303,6 +304,7 @@ async function createComponentTreeInternal(
         case 'prerender':
         case 'prerender-runtime':
         case 'prerender-legacy':
+        case 'prerender-ppr':
           if (workUnitStore.revalidate > defaultRevalidate) {
             workUnitStore.revalidate = defaultRevalidate
           }
@@ -670,7 +672,8 @@ async function createComponentTreeInternal(
 
   // When the segment does not have a layout or page we still have to add the layout router to ensure the path holds the loading component
   if (!MaybeComponent) {
-    return [
+    return createSeedData(
+      ctx,
       createElement(
         Fragment,
         {
@@ -682,11 +685,46 @@ async function createComponentTreeInternal(
       parallelRouteCacheNodeSeedData,
       loadingData,
       isPossiblyPartialResponse,
-      hasRuntimePrefetch,
-    ]
+      hasRuntimePrefetch
+    )
   }
 
   const Component = MaybeComponent
+  // If force-dynamic is used and the current render supports postponing, we
+  // replace it with a node that will postpone the render. This ensures that the
+  // postpone is invoked during the react render phase and not during the next
+  // render phase.
+  // @TODO this does not actually do what it seems like it would or should do. The idea is that
+  // if we are rendering in a force-dynamic mode and we can postpone we should only make the segments
+  // that ask for force-dynamic to be dynamic, allowing other segments to still prerender. However
+  // because this comes after the children traversal and the static generation store is mutated every segment
+  // along the parent path of a force-dynamic segment will hit this condition effectively making the entire
+  // render force-dynamic. We should refactor this function so that we can correctly track which segments
+  // need to be dynamic
+  if (
+    workStore.isStaticGeneration &&
+    workStore.forceDynamic &&
+    experimental.isRoutePPREnabled
+  ) {
+    return createSeedData(
+      ctx,
+      createElement(
+        Fragment,
+        {
+          key: cacheNodeKey,
+        },
+        createElement(Postpone, {
+          reason: 'dynamic = "force-dynamic" was used',
+          route: workStore.route,
+        }),
+        layerAssets
+      ),
+      parallelRouteCacheNodeSeedData,
+      loadingData,
+      true,
+      hasRuntimePrefetch
+    )
+  }
 
   const isClientComponent = isClientReference(layoutOrPageMod)
 
@@ -783,7 +821,8 @@ async function createComponentTreeInternal(
           )
         : pageElement
 
-    return [
+    return createSeedData(
+      ctx,
       createElement(
         Fragment,
         {
@@ -796,8 +835,8 @@ async function createComponentTreeInternal(
       parallelRouteCacheNodeSeedData,
       loadingData,
       isPossiblyPartialResponse,
-      hasRuntimePrefetch,
-    ]
+      hasRuntimePrefetch
+    )
   } else {
     const SegmentComponent = Component
     const isRootLayoutWithChildrenSlotAndAtLeastOneMoreSlot =
@@ -1003,13 +1042,14 @@ async function createComponentTreeInternal(
         : segmentNode
 
     // For layouts we just render the component
-    return [
+    return createSeedData(
+      ctx,
       wrappedSegmentNode,
       parallelRouteCacheNodeSeedData,
       loadingData,
       isPossiblyPartialResponse,
-      hasRuntimePrefetch,
-    ]
+      hasRuntimePrefetch
+    )
   }
 }
 
@@ -1152,4 +1192,34 @@ async function createBoundaryConventionElement({
       : element
 
   return [wrappedElement, pagePath] as const
+}
+
+function createSeedData(
+  ctx: AppRenderContext,
+  rsc: React.ReactNode,
+  parallelRoutes: Record<string, CacheNodeSeedData | null>,
+  loading: LoadingModuleData | null,
+  isPossiblyPartialResponse: boolean,
+  hasRuntimePrefetch: boolean
+): CacheNodeSeedData {
+  if (loading !== null) {
+    // If a loading.tsx boundary is present, wrap the component data in an
+    // additional context provider to pass the loading data to the next
+    // set of children.
+    // NOTE: The reason this is a separate wrapper from LayoutRouter is because
+    // not all segments render a LayoutRouter component, e.g. the root segment.
+    const LoadingBoundaryProvider = ctx.componentMod.LoadingBoundaryProvider
+    const createElement = ctx.componentMod.createElement
+    rsc = createElement(LoadingBoundaryProvider, {
+      loading: loading,
+      children: rsc,
+    })
+  }
+  return [
+    rsc,
+    parallelRoutes,
+    null,
+    isPossiblyPartialResponse,
+    hasRuntimePrefetch,
+  ]
 }
