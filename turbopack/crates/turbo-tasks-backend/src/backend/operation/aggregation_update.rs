@@ -1503,7 +1503,7 @@ impl AggregationUpdateQueue {
         } else if !task.has_key(&CachedDataItemKey::Output {}) {
             Some((
                 TaskExecutionReason::ActivateInitial,
-                TaskPriority::initial(),
+                ctx.get_current_task_priority(),
             ))
         } else {
             None

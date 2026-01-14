@@ -422,6 +422,12 @@ impl TaskPriority {
         Self::Initial
     }
 
+    pub fn leaf() -> Self {
+        Self::Invalidation {
+            priority: Reverse(0),
+        }
+    }
+
     pub fn in_parent(&self, parent_priority: TaskPriority) -> Self {
         match self {
             TaskPriority::Initial => parent_priority,

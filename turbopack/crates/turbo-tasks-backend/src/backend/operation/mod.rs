@@ -685,7 +685,7 @@ pub trait TaskGuard: Debug {
             Dirtyness::Dirty(priority) => Some(*priority),
             Dirtyness::SessionDependent => {
                 if get!(self, CurrentSessionClean).is_none() {
-                    Some(TaskPriority::initial())
+                    Some(TaskPriority::leaf())
                 } else {
                     None
                 }

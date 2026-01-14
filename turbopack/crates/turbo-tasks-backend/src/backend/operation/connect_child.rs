@@ -74,7 +74,7 @@ impl ConnectChildOperation {
                     || ctx.get_task_desc_fn(child_task_id),
                 ))
             {
-                ctx.schedule_task(child_task, TaskPriority::initial());
+                ctx.schedule_task(child_task, ctx.get_current_task_priority());
             }
         }
 
