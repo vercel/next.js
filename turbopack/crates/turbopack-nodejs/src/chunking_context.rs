@@ -472,6 +472,8 @@ impl ChunkingContext for NodeJsChunkingContext {
             )
             .await?;
 
+            let chunks = chunks.await?;
+
             let assets = chunks
                 .iter()
                 .map(|chunk| self.generate_chunk(**chunk).to_resolved())
@@ -523,6 +525,8 @@ impl ChunkingContext for NodeJsChunkingContext {
                 availability_info,
             )
             .await?;
+
+            let chunks = chunks.await?;
 
             let extra_chunks = extra_chunks.await?;
             let mut other_chunks = chunks
