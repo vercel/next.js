@@ -689,9 +689,9 @@ export async function handleBuildComplete({
 
         function handleFile(file: string) {
           const originalPath = path.join(distDir, file)
-          const fileOutputPath = path.join(
-            path.relative(tracingRoot, distDir),
-            file
+          const fileOutputPath = path.relative(
+            config.distDir,
+            path.join(path.relative(tracingRoot, distDir), file)
           )
           if (!output.assets) {
             output.assets = {}
