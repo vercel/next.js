@@ -87,6 +87,10 @@ static SOURCE_MAP_PREFIX: Lazy<String> = Lazy::new(|| format!("{SOURCE_URL_PROTO
 static SOURCE_MAP_PREFIX_PROJECT: Lazy<String> =
     Lazy::new(|| format!("{SOURCE_URL_PROTOCOL}///[{PROJECT_FILESYSTEM_NAME}]/"));
 
+/// Next doesn't display warnings from node_modules, so configure turbopack to not report them
+/// either. This matches logic in `packages/next/src/server/dev/turbopack-utils.ts`
+pub const NEXT_ISSUE_FILTER: IssueFilter = IssueFilter::warnings_and_foreign_errors();
+
 #[napi(object)]
 #[derive(Clone, Debug)]
 pub struct NapiEnvVar {
@@ -1300,8 +1304,6 @@ pub fn project_hmr_events(
 struct HmrIdentifiers {
     pub identifiers: Vec<RcStr>,
 }
-
-pub const NEXT_ISSUE_FILTER: IssueFilter = IssueFilter::warnings_and_foreign_errors();
 
 #[turbo_tasks::value(serialization = "none")]
 struct HmrIdentifiersWithIssues {
