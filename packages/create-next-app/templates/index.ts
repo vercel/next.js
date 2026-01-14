@@ -322,8 +322,7 @@ export const installTemplate = async ({
   if (packageManager === "pnpm") {
     const pnpmWorkspaceYaml = [
       // required for v9, v10 doesn't need it anymore
-      "packages:",
-      "  - .",
+      "packages: []",
       // v10 setting without counterpart in v9
       "ignoredBuiltDependencies:",
       // Sharp has prebuilt binaries for the platforms next-swc has binaries.
