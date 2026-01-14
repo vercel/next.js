@@ -1,4 +1,7 @@
-import type { FlightRouterState } from '../../shared/lib/app-router-types'
+import type {
+  CacheNode,
+  FlightRouterState,
+} from '../../shared/lib/app-router-types'
 import { useState } from 'react'
 
 // When the flag is disabled, only track the currently active tree
@@ -6,6 +9,7 @@ const MAX_BF_CACHE_ENTRIES = process.env.__NEXT_CACHE_COMPONENTS ? 3 : 1
 
 export type RouterBFCacheEntry = {
   tree: FlightRouterState
+  cacheNode: CacheNode
   stateKey: string
   // The entries form a linked list, sorted in order of most recently active.
   next: RouterBFCacheEntry | null
@@ -33,6 +37,7 @@ export type RouterBFCacheEntry = {
  */
 export function useRouterBFCache(
   activeTree: FlightRouterState,
+  activeCacheNode: CacheNode,
   activeStateKey: string
 ): RouterBFCacheEntry {
   // The currently active entry. The entries form a linked list, sorted in
@@ -48,6 +53,7 @@ export function useRouterBFCache(
     () => {
       const initialEntry: RouterBFCacheEntry = {
         tree: activeTree,
+        cacheNode: activeCacheNode,
         stateKey: activeStateKey,
         next: null,
       }
@@ -72,6 +78,7 @@ export function useRouterBFCache(
   // linked list.
   const newActiveEntry: RouterBFCacheEntry = {
     tree: activeTree,
+    cacheNode: activeCacheNode,
     stateKey: activeStateKey,
     next: null,
   }
@@ -98,6 +105,7 @@ export function useRouterBFCache(
       n++
       const entry: RouterBFCacheEntry = {
         tree: oldEntry.tree,
+        cacheNode: oldEntry.cacheNode,
         stateKey: oldEntry.stateKey,
         next: null,
       }

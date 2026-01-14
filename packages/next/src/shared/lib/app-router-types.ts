@@ -14,8 +14,6 @@ export type LoadingModuleData =
 /** viewport metadata node */
 export type HeadData = React.ReactNode
 
-export type ChildSegmentMap = Map<string, CacheNode>
-
 /**
  * Cache node used in app-router / layout-router.
  */
@@ -48,14 +46,7 @@ export type CacheNode = {
 
   head: HeadData
 
-  parallelRoutes: Map<string, ChildSegmentMap>
-
-  /**
-   * The timestamp of the navigation that last updated the CacheNode's data. If
-   * a CacheNode is reused from a previous navigation, this value is not
-   * updated. Used to track the staleness of the data.
-   */
-  navigatedAt: number
+  slots: Record<string, CacheNode> | null
 }
 
 export type DynamicParamTypes =
