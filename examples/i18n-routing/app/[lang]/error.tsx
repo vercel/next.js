@@ -12,7 +12,7 @@ export default function Error({
   reset: () => void;
 }) {
   const params = useParams<{ lang: string }>();
-  const dictionary = getErrorDictionary(params.lang);
+  const dictionary = getErrorDictionary(params?.lang ?? "en");
 
   useEffect(() => {
     console.error(error);
