@@ -1,9 +1,10 @@
 import { InvariantError } from '../../shared/lib/invariant-error'
-import { createAtomicTimerGroup } from './app-render-scheduling'
+import { createAtomicTaskGroup } from './app-render-scheduling'
 import {
   DANGEROUSLY_runPendingImmediatesAfterCurrentTask,
   expectNoPendingImmediates,
 } from '../node-environment-extensions/fast-set-immediate.external'
+import { cancelTask } from './sequential-tasks'
 
 /**
  * This is a utility function to make scheduling sequential tasks that run back to back easier.
@@ -19,10 +20,10 @@ export function scheduleInSequentialTasks<R>(
     )
   } else {
     return new Promise((resolve, reject) => {
-      const scheduleTimeout = createAtomicTimerGroup()
+      const scheduleTask = createAtomicTaskGroup()
 
       let pendingResult: R | Promise<R>
-      scheduleTimeout(() => {
+      scheduleTask(() => {
         try {
           DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
           pendingResult = render()
@@ -31,7 +32,7 @@ export function scheduleInSequentialTasks<R>(
         }
       })
 
-      scheduleTimeout(() => {
+      scheduleTask(() => {
         try {
           expectNoPendingImmediates()
           followup()
@@ -60,50 +61,50 @@ export function pipelineInSequentialTasks<A, B, C>(
     )
   } else {
     return new Promise((resolve, reject) => {
-      const scheduleTimeout = createAtomicTimerGroup()
+      const scheduleTask = createAtomicTaskGroup()
 
       let oneResult: A
-      scheduleTimeout(() => {
+      scheduleTask(() => {
         try {
           DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
           oneResult = one()
         } catch (err) {
-          clearTimeout(twoId)
-          clearTimeout(threeId)
-          clearTimeout(fourId)
+          cancelTask(twoId)
+          cancelTask(threeId)
+          cancelTask(fourId)
           reject(err)
         }
       })
 
       let twoResult: B
-      const twoId = scheduleTimeout(() => {
+      const twoId = scheduleTask(() => {
         // if `one` threw, then this timeout would've been cleared,
         // so if we got here, we're guaranteed to have a value.
         try {
           DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
           twoResult = two(oneResult!)
         } catch (err) {
-          clearTimeout(threeId)
-          clearTimeout(fourId)
+          cancelTask(threeId)
+          cancelTask(fourId)
           reject(err)
         }
       })
 
       let threeResult: C
-      const threeId = scheduleTimeout(() => {
+      const threeId = scheduleTask(() => {
         // if `two` threw, then this timeout would've been cleared,
         // so if we got here, we're guaranteed to have a value.
         try {
           expectNoPendingImmediates()
           threeResult = three(twoResult!)
         } catch (err) {
-          clearTimeout(fourId)
+          cancelTask(fourId)
           reject(err)
         }
       })
 
       // We wait a task before resolving/rejecting
-      const fourId = scheduleTimeout(() => {
+      const fourId = scheduleTask(() => {
         resolve(threeResult)
       })
     })
