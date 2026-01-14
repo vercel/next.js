@@ -131,4 +131,21 @@ describe('react-performance-track', () => {
       ])
     )
   })
+
+  it('should show scheduleTask', async () => {
+    // This tests an internal scheduling function that relies on `MessagePort.postMessage`
+    // for scheduling tasks.
+    const browser = await next.browser('/schedule-task', { extraHTTPHeaders })
+    await browser.elementByCss('[data-react-server-requests-done]', {
+      state: 'attached',
+    })
+
+    const track = await browser.eval('window.reactServerRequests.getSnapshot()')
+    expect(track).toEqual(
+      expect.arrayContaining([
+        { name: '\u200bwaitForScheduleTask', properties: [] },
+        { name: '\u200bwaitForScheduleTask', properties: [] },
+      ])
+    )
+  })
 })

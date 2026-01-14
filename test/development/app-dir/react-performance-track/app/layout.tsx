@@ -31,6 +31,9 @@ export default function Root({ children }: { children: ReactNode }) {
           <li>
             <Link href="/draftMode">draftMode</Link>
           </li>
+          <li>
+            <Link href="/message-channel">MessageChannel</Link>
+          </li>
         </ul>
         <main>
           <Suspense fallback="Loading Server Requests">

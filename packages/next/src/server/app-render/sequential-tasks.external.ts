@@ -79,10 +79,22 @@ function createTaskQueue() {
     tasks,
     scheduleTask(callback: () => void): TaskHandle {
       const id = nextTaskId++ as TaskId
+
+      // NOTE: we need to preserve async context for the callback.
+      // However, It appears that adding a `AsyncLocalStorage.bind()` makes React's promise tracking
+      // not consider these tasks IO.
+      // We can work around this by deliberately naming the callback before snapshotting it.
+      // This name will then be used as `type` in async_hooks's `init`().
+      // x-ref: https://github.com/facebook/react/blob/4a3d993e52fd6bcadd9c3029c75df3c22684f69c/packages/react-server/src/ReactFlightServerConfigDebugNode.js#L145-L148
+      const name = 'NEXTJS_POSTMESSAGE_TASK'
+      const namedCallback = { [name]: () => callback() }[
+        name.slice(0) as typeof name
+      ]
+      const callbackWithAsyncContext = bindSnapshot(namedCallback)
+
       tasks.push({
         id,
-        // NOTE: we need to preserve async context for the callback.
-        callback: bindSnapshot(callback),
+        callback: callbackWithAsyncContext,
       })
 
       // Each message is processed in a separate task.
