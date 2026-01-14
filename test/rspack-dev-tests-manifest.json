@@ -4612,15 +4612,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/cdn-cache-control-header/cdn-cache-control-header.test.ts": {
-    "passed": [
-      "cdn-cache-control-header should use custom CDN cache control header name from experimental config"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/client-module-with-package-type/index.test.ts": {
     "passed": [
       "esm-client-module-without-exports \"type\": \"commonjs\" in package.json should render without errors: import cjs",
@@ -9379,9 +9370,9 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/static-shell-debugging/static-shell-debugging.test.ts": {
-    "passed": ["static-shell-debugging should render the full page"],
+    "passed": [],
     "failed": [],
-    "pending": [],
+    "pending": ["static-shell-debugging should render the full page"],
     "flakey": [],
     "runtimeError": false
   },
@@ -9735,10 +9726,11 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/use-cache-without-experimental-flag/use-cache-without-experimental-flag.test.ts": {
-    "passed": ["use-cache-without-experimental-flag should show a build error"],
-    "failed": [
-      "use-cache-without-experimental-flag should recover from the build error if useCache flag is set"
+    "passed": [
+      "use-cache-without-experimental-flag should recover from the build error if useCache flag is set",
+      "use-cache-without-experimental-flag should show a build error"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
