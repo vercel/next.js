@@ -744,6 +744,17 @@ export async function handleBuildComplete({
             pathname: rscPathname,
             id: page.name + '.rsc',
           })
+        } else if (serverPropsPages.has(route === '/index' ? '/' : route)) {
+          const nextDataPath = path.posix.join(
+            '/_next/data/',
+            buildId,
+            output.pathname + '.json'
+          )
+          outputs.appPages.push({
+            ...output,
+            pathname: nextDataPath,
+            id: page.name,
+          })
         }
       }
 
