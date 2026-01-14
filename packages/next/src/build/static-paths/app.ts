@@ -11,6 +11,7 @@ import path from 'node:path'
 import { AfterRunner } from '../../server/after/run-with-after'
 import { createWorkStore } from '../../server/async-storage/work-store'
 import { FallbackMode } from '../../lib/fallback'
+import { NEXT_QUERY_PARAM_PREFIX } from '../../lib/constants'
 import type { IncrementalCache } from '../../server/lib/incremental-cache'
 import {
   normalizePathname,
@@ -283,15 +284,17 @@ export function generateAllParamCombinations(
  */
 export function calculateFallbackMode(
   dynamicParams: boolean,
-  fallbackRootParams: readonly string[],
   baseFallbackMode: FallbackMode | undefined
 ): FallbackMode {
+  // When dynamicParams is enabled, use the base fallback mode to allow fallback
+  // shells to be served. Previously this forced BLOCKING_STATIC_RENDER when
+  // root params were unknown, but that prevented reuse of fallback shells
+  // across different requests with the same root param value.
+  //
+  // The fallbackRootParams are still tracked and included in cache keys to
+  // ensure each unique root param value gets its own cached content.
   return dynamicParams
-    ? // If the fallback params includes any root params, then we need to
-      // perform a blocking static render.
-      fallbackRootParams.length > 0
-      ? FallbackMode.BLOCKING_STATIC_RENDER
-      : (baseFallbackMode ?? FallbackMode.NOT_FOUND)
+    ? (baseFallbackMode ?? FallbackMode.NOT_FOUND)
     : FallbackMode.NOT_FOUND
 }
 
@@ -881,12 +884,12 @@ export async function buildAppStaticPaths({
         pathname: page,
         encodedPathname: page,
         fallbackRouteParams,
-        fallbackMode: calculateFallbackMode(
-          dynamicParams,
-          rootParamKeys,
-          fallbackMode
+        fallbackMode: calculateFallbackMode(dynamicParams, fallbackMode),
+        // Prefix root param keys with NEXT_QUERY_PARAM_PREFIX to match the
+        // format used in routeKeys for allowQuery cache key variation.
+        fallbackRootParams: rootParamKeys.map(
+          (key) => `${NEXT_QUERY_PARAM_PREFIX}${key}`
         ),
-        fallbackRootParams: rootParamKeys,
         throwOnEmptyStaticShell: true,
       })
     }
@@ -968,9 +971,11 @@ export async function buildAppStaticPaths({
       const fallbackRootParams: string[] = []
       for (const { paramName } of fallbackRouteParams) {
         // If the param is a root param then we can add it to the fallback
-        // root params.
+        // root params. We prefix with NEXT_QUERY_PARAM_PREFIX to match the
+        // format used in routeKeys, which is what the proxy expects for
+        // allowQuery cache key variation.
         if (rootParamSet.has(paramName)) {
-          fallbackRootParams.push(paramName)
+          fallbackRootParams.push(`${NEXT_QUERY_PARAM_PREFIX}${paramName}`)
         }
       }
 
@@ -981,11 +986,7 @@ export async function buildAppStaticPaths({
         pathname,
         encodedPathname: normalizePathname(encodedPathname),
         fallbackRouteParams,
-        fallbackMode: calculateFallbackMode(
-          dynamicParams,
-          fallbackRootParams,
-          fallbackMode
-        ),
+        fallbackMode: calculateFallbackMode(dynamicParams, fallbackMode),
         fallbackRootParams,
         throwOnEmptyStaticShell: true,
       })

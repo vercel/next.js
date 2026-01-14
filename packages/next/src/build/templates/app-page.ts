@@ -912,15 +912,16 @@ export async function handler(
             isFallback: true,
             prerenderManifest,
             isRoutePPREnabled,
-            responseGenerator: async () =>
-              doRender({
+            responseGenerator: async () => {
+              return doRender({
                 span,
                 // We pass `undefined` as rendering a fallback isn't resumed
                 // here.
                 postponed: undefined,
                 fallbackRouteParams,
                 forceStaticRender: false,
-              }),
+              })
+            },
             waitUntil: ctx.waitUntil,
             isMinimalMode,
           })
@@ -1052,13 +1053,20 @@ export async function handler(
         }
       }
 
+      // Determine if we should use fallback route params for rendering.
+      // This is used to render a fallback shell with placeholder params.
+      const shouldRenderFallbackShell = getRequestMeta(
+        req,
+        'renderFallbackShell'
+      )
+
       const fallbackRouteParams =
         // If we're in production and we have fallback route params, then we
         // can use the manifest fallback route params if we need to render the
         // fallback shell.
         isProduction &&
         prerenderInfo?.fallbackRouteParams &&
-        getRequestMeta(req, 'renderFallbackShell')
+        shouldRenderFallbackShell
           ? createOpaqueFallbackRouteParams(prerenderInfo.fallbackRouteParams)
           : // Otherwise, if we're debugging the fallback shell, then we have to
             // manually generate the fallback route params.

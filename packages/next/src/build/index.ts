@@ -3067,11 +3067,16 @@ export default async function build(
 
             // If the route has an empty static shell and is not configured to
             // throw on empty static shell, then we should use the blocking
-            // static render mode.
+            // static render mode. However, if the route has fallback root params,
+            // we preserve the PRERENDER mode to enable root param fallback shells.
             if (
               hasEmptyStaticShell &&
               !route.throwOnEmptyStaticShell &&
-              route.fallbackMode === FallbackMode.PRERENDER
+              route.fallbackMode === FallbackMode.PRERENDER &&
+              // Don't override to BLOCKING for routes with fallback root params,
+              // as we want to preserve the streaming behavior for root param
+              // fallback shells.
+              !(route.fallbackRootParams && route.fallbackRootParams.length > 0)
             ) {
               return FallbackMode.BLOCKING_STATIC_RENDER
             }
