@@ -7,6 +7,7 @@ import type {
 } from './types'
 
 import { Batcher } from '../../lib/batcher'
+import { LRUCache } from '../lib/lru-cache'
 import { scheduleOnNextTick } from '../../lib/scheduler'
 import {
   fromResponseCacheEntry,
@@ -43,11 +44,14 @@ export default class ResponseCache implements ResponseCacheBase {
     schedulerFn: scheduleOnNextTick,
   })
 
-  private previousCacheItem?: {
-    key: string
+  /**
+   * In-memory LRU cache for minimal mode. Automatically evicts least recently
+   * used entries when capacity is reached.
+   */
+  private readonly previousCacheItems = new LRUCache<{
     entry: IncrementalResponseCacheEntry | null
     expiresAt: number
-  }
+  }>(50)
 
   // we don't use minimal_mode name here as this.minimal_mode is
   // statically replace for server runtimes but we need it to
@@ -88,13 +92,19 @@ export default class ResponseCache implements ResponseCacheBase {
       })
     }
 
-    // Check minimal mode cache before doing any other work
-    if (
-      this.minimal_mode &&
-      this.previousCacheItem?.key === key &&
-      this.previousCacheItem.expiresAt > Date.now()
-    ) {
-      return toResponseCacheEntry(this.previousCacheItem.entry)
+    // Check minimal mode cache before doing any other work.
+    // Skip the cache for on-demand revalidations so they always get fresh content.
+    if (this.minimal_mode && !context.isOnDemandRevalidate) {
+      const cachedItem = this.previousCacheItems.get(key)
+      if (cachedItem) {
+        const now = Date.now()
+        if (cachedItem.expiresAt > now) {
+          return toResponseCacheEntry(cachedItem.entry)
+        }
+
+        // Entry exists but is expired - remove it
+        this.previousCacheItems.remove(key)
+      }
     }
 
     const {
@@ -193,8 +203,10 @@ export default class ResponseCache implements ResponseCacheBase {
 
       // Handle null response
       if (!incrementalResponseCacheEntry) {
-        // Unset the previous cache item if it was set so we don't use it again.
-        if (this.minimal_mode) this.previousCacheItem = undefined
+        // Remove the cache item if it was set so we don't use it again.
+        if (this.minimal_mode && this.previousCacheItems.has(key)) {
+          this.previousCacheItems.remove(key)
+        }
         return null
       }
 
@@ -286,11 +298,18 @@ export default class ResponseCache implements ResponseCacheBase {
       // defined.
       if (incrementalResponseCacheEntry.cacheControl) {
         if (this.minimal_mode) {
-          this.previousCacheItem = {
-            key,
+          // Use the revalidate time from cacheControl, falling back to 1
+          // second if revalidate is not a number (e.g., `false` for fully
+          // static pages).
+          const { revalidate } = incrementalResponseCacheEntry.cacheControl
+          const ttlMs =
+            typeof revalidate === 'number' ? revalidate * 1000 : 1000
+          const expiresAt = Date.now() + ttlMs
+
+          this.previousCacheItems.set(key, {
             entry: incrementalResponseCacheEntry,
-            expiresAt: Date.now() + 1000,
-          }
+            expiresAt,
+          })
         } else {
           await incrementalCache.set(key, incrementalResponseCacheEntry.value, {
             cacheControl: incrementalResponseCacheEntry.cacheControl,
