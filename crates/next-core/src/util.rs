@@ -146,7 +146,7 @@ pub async fn foreign_code_context_condition(
     ));
 
     let result = ContextCondition::all(vec![
-        ContextCondition::InDirectory("node_modules".to_string()),
+        ContextCondition::InNodeModules,
         not_next_template_dir,
         ContextCondition::not(ContextCondition::any(
             transpiled_packages
