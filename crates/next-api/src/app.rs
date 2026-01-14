@@ -29,6 +29,7 @@ use next_core::{
     next_server::{
         ServerContextType, get_server_module_options_context, get_server_resolve_options_context,
     },
+    next_server_component::NextServerComponentTransition,
     next_server_utility::{NEXT_SERVER_UTILITY_MERGE_TAG, NextServerUtilityTransition},
     parse_segment_config_from_source,
     segment_config::{NextSegmentConfig, ParseSegmentMode},
@@ -374,6 +375,10 @@ impl AppProject {
                 (
                     rcstr!("next-server-utility"),
                     ResolvedVc::upcast(NextServerUtilityTransition::new().to_resolved().await?),
+                ),
+                (
+                    rcstr!("next-server-component"),
+                    ResolvedVc::upcast(NextServerComponentTransition::new().to_resolved().await?),
                 ),
             ]
             .into_iter()
