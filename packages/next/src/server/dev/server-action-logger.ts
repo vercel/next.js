@@ -1,5 +1,4 @@
 import { configure } from 'next/dist/compiled/safe-stable-stringify'
-import { dim } from '../../lib/picocolors'
 
 // Configure stringify with reasonable limits for action logging
 const stringify = configure({
@@ -36,19 +35,4 @@ export interface ServerActionLogInfo {
   functionName: string
   args: unknown[]
   location: string
-}
-
-/**
- * Log server action invocation with function name, arguments and location.
- * Only used in development mode.
- */
-export function logServerAction(
-  info: ServerActionLogInfo,
-  startTime: number
-): void {
-  const duration = Math.round(performance.now() - startTime)
-  const argsStr = formatArgs(info.args)
-  console.log(
-    `   └─ ƒ ${info.functionName}(${argsStr}) in ${duration}ms ${dim(info.location)}`
-  )
 }

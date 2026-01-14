@@ -39,6 +39,15 @@ describe('server-action-logging', () => {
       const logs = stripAnsi(next.cliOutput.slice(outputIndex))
       expect(logs).toContain('└─ ƒ successAction')
       expect(logs).toMatch(/└─ ƒ successAction\(5\) in \d+ms/)
+
+      // Validate order: POST request and server action log should be on consecutive lines
+      const lines = logs.split('\n')
+      const postLineIndex = lines.findIndex((line) => line.includes('POST /'))
+      const actionLineIndex = lines.findIndex((line) =>
+        line.includes('└─ ƒ successAction')
+      )
+      expect(postLineIndex).toBeGreaterThan(-1)
+      expect(actionLineIndex).toBe(postLineIndex + 1)
     })
   })
 

@@ -65,7 +65,7 @@ import type { TemporaryReferenceSet } from 'react-server-dom-webpack/server'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { executeRevalidates } from '../revalidation-utils'
-import { getRequestMeta } from '../request-meta'
+import { addRequestMeta, getRequestMeta } from '../request-meta'
 import { setCacheBustingSearchParam } from '../../client/components/router-reducer/set-cache-busting-search-param'
 import {
   ActionDidNotRevalidate,
@@ -1124,10 +1124,14 @@ export async function handleAction({
           ).finally(() => {
             addRevalidationHeader(res, { workStore, requestStore })
             if (logInfo) {
-              // Dynamically require the logger only in development
-              const { logServerAction } =
-                require('../dev/server-action-logger') as typeof import('../dev/server-action-logger')
-              logServerAction(logInfo, startTime)
+              // Store server action log info to be logged after the request log
+              const duration = Math.round(performance.now() - startTime)
+              addRequestMeta(req, 'devServerActionLog', {
+                functionName: logInfo.functionName,
+                args: logInfo.args,
+                location: logInfo.location,
+                duration,
+              })
             }
           })
 
