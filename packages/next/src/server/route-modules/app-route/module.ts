@@ -87,7 +87,7 @@ import { INFINITE_CACHE } from '../../../lib/constants'
 import { executeRevalidates } from '../../revalidation-utils'
 import { trackPendingModules } from '../../app-render/module-loading/track-module-loading.external'
 import { InvariantError } from '../../../shared/lib/invariant-error'
-import { createPrerenderResumeDataCache } from '../../resume-data-cache/resume-data-cache'
+import type { PrerenderResumeDataCache } from '../../resume-data-cache/resume-data-cache'
 
 export class WrappedNextRouterError {
   constructor(
@@ -395,7 +395,12 @@ export class AppRouteRouteModule extends RouteModule<
           // `renderResumeDataCache` with a single `dataCache` property that is
           // conceptually not tied to resuming, and also avoids the unnecessary
           // complexity of using a mutable and an immutable resume data cache.
-          const prerenderResumeDataCache = createPrerenderResumeDataCache()
+          const prerenderResumeDataCache: PrerenderResumeDataCache = {
+            cache: new Map(),
+            fetch: new Map(),
+            encryptedBoundArgs: new Map(),
+            decryptedBoundArgs: new Map(),
+          }
 
           const prospectiveRoutePrerenderStore: PrerenderStore =
             (prerenderStore = {

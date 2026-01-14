@@ -68,6 +68,11 @@ import { isInterceptionRouteRewrite } from '../lib/generate-interception-routes-
 import type { ActionManifest } from '../build/webpack/plugins/flight-client-entry-plugin'
 import { extractInfoFromServerReferenceId } from '../shared/lib/server-reference-info'
 import { convertSegmentPathToStaticExportFilename } from '../shared/lib/segment-cache/segment-value-encoding'
+import {
+  parseSerializedResumeDataCache,
+  stringifyParsedResumeDataCache,
+  type ResumeStoreSerialized,
+} from './resume-data-cache-utils'
 import { getNextBuildDebuggerPortOffset } from '../lib/worker'
 
 export class ExportError extends Error {
@@ -663,7 +668,10 @@ async function exportAppImpl(
     results = await exportPagesInBatches(worker, initialPhaseExportPaths)
 
     if (finalPhaseExportPaths.length > 0) {
-      const renderResumeDataCachesByPage: Record<string, string> = {}
+      // Collect and merge RDC entries from all routes for each page.
+      // Different routes (e.g., /en/blog/hello-world and /fr/blog/hello-world)
+      // may have populated different cache entries that the fallback shell needs.
+      const parsedCachesByPage: Record<string, ResumeStoreSerialized> = {}
 
       for (const { page, result } of results) {
         if (!result) {
@@ -671,14 +679,40 @@ async function exportAppImpl(
         }
 
         if ('renderResumeDataCache' in result && result.renderResumeDataCache) {
-          // The last RDC for each page is used. We only need one. It should have
-          // all the entries that the fallback shell also needs. We don't need to
-          // merge them per page.
-          renderResumeDataCachesByPage[page] = result.renderResumeDataCache
+          const parsed = parseSerializedResumeDataCache(
+            result.renderResumeDataCache
+          )
+          if (parsed) {
+            const existing = parsedCachesByPage[page]
+            if (existing) {
+              // Merge entries (later entries win for duplicates)
+              existing.store.cache = {
+                ...existing.store.cache,
+                ...parsed.store.cache,
+              }
+              existing.store.fetch = {
+                ...existing.store.fetch,
+                ...parsed.store.fetch,
+              }
+              existing.store.encryptedBoundArgs = {
+                ...existing.store.encryptedBoundArgs,
+                ...parsed.store.encryptedBoundArgs,
+              }
+            } else {
+              parsedCachesByPage[page] = parsed
+            }
+          }
           // Remove the RDC string from the result so that it can be garbage
           // collected, when there are more results for the same page.
           result.renderResumeDataCache = undefined
         }
+      }
+
+      // Serialize merged caches once for the final phase
+      const renderResumeDataCachesByPage: Record<string, string> = {}
+      for (const [page, parsed] of Object.entries(parsedCachesByPage)) {
+        renderResumeDataCachesByPage[page] =
+          stringifyParsedResumeDataCache(parsed)
       }
 
       const finalPhaseResults = await exportPagesInBatches(
