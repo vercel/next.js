@@ -205,7 +205,6 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/compiled/react-is/cjs/react-is.production.js",
            "/node_modules/next/dist/compiled/react-is/index.js",
            "/node_modules/next/dist/compiled/regenerator-runtime/runtime.js",
-           "/node_modules/next/dist/compiled/safe-stable-stringify/index.js",
            "/node_modules/next/dist/compiled/semver/index.js",
            "/node_modules/next/dist/compiled/send/index.js",
            "/node_modules/next/dist/compiled/source-map/source-map.js",
