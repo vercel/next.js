@@ -644,7 +644,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             let is_dirty_label = if let Some(parent_priority) = is_dirty {
                                 format!(", dirty({parent_priority})")
                             } else {
-                                format!("")
+                                String::new()
                             };
                             let has_dirty_containers_label = if has_dirty_containers {
                                 ", dirty containers"

@@ -245,7 +245,7 @@ pub struct AggregationNumber {
 /// - `min` >= `min` of the dependency + 1: no change.
 /// - `min` <= `max`: only `min` is increased to the smallest possible value.
 /// - `min` > `max`: `min` is increased to the `max` value of the dependency + 1 and `max` is
-/// increased to `min` + buffer zone.
+///   increased to `min` + buffer zone.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Encode, Decode)]
 pub struct LeafDistance {
     /// This

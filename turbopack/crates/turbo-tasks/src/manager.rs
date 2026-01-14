@@ -490,6 +490,10 @@ pub struct TurboTasks<B: Backend + 'static> {
     compilation_events: CompilationEventQueue,
 }
 
+type LocalTaskTracker = Option<
+    FuturesUnordered<Either<JoinHandle, Pin<Box<dyn Future<Output = ()> + Send + Sync + 'static>>>>,
+>;
+
 /// Information about a non-local task. A non-local task can contain multiple "local" tasks, which
 /// all share the same non-local task state.
 ///
@@ -517,9 +521,7 @@ struct CurrentTaskState {
 
     /// Tracks currently running local tasks, and defers cleanup of the global task until those
     /// complete. Also used by `detached_for_testing`.
-    local_task_tracker: Option<
-        FuturesUnordered<Either<JoinHandle, Pin<Box<dyn Future<Output = ()> + Send + Sync>>>>,
-    >,
+    local_task_tracker: LocalTaskTracker,
 }
 
 impl CurrentTaskState {

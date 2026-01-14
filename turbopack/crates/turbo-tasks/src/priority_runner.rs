@@ -142,7 +142,7 @@ impl<
             // so we try to spawn a new worker if there is still work available.
             let active_polls = self.active_polls.load(Ordering::Relaxed) - 1;
             if active_polls >= self.target_workers
-                || !self.spawn_worker_if_work_available(&execute_context, true)
+                || !self.spawn_worker_if_work_available(execute_context, true)
             {
                 // Undo the added active poll since we didn't spawn a new worker.
                 self.active_polls.fetch_sub(1, Ordering::Relaxed);
@@ -266,7 +266,7 @@ impl<
                     // This future is done, we need to check the queue for more tasks,
                     // so we can continue working on a new future in this worker.
                     if let Some((new_future, new_tx)) =
-                        this.runner.pop_future_from_worker(&this.execute_context)
+                        this.runner.pop_future_from_worker(this.execute_context)
                     {
                         // We are replacing the future with a new one, but the current future is
                         // pinned. So we need to drop the future in place
@@ -298,7 +298,7 @@ impl<
                     if active_polls >= this.runner.target_workers
                         || !this
                             .runner
-                            .spawn_worker_if_work_available(&this.execute_context, true)
+                            .spawn_worker_if_work_available(this.execute_context, true)
                     {
                         // Undo the subtracted active poll since we didn't spawn a new worker.
                         // If the active polls became lower in the meantime we might have free
@@ -308,7 +308,7 @@ impl<
                             this.runner.active_polls.fetch_sub(1, Ordering::Relaxed) - 1;
                         if active_polls < this.runner.target_workers {
                             this.runner
-                                .spawn_worker_if_work_available(&this.execute_context, false);
+                                .spawn_worker_if_work_available(this.execute_context, false);
                         }
                     }
                     *this.has_active_poll = false;
@@ -386,15 +386,15 @@ mod tests {
         println!("Results: {:?}", *results);
 
         // The first two tasks are directly spawned without queuing
-        assert!(results[0..2].iter().any(|&x| x == 0));
-        assert!(results[0..2].iter().any(|&x| x == 1));
+        assert!(results[0..2].contains(&0));
+        assert!(results[0..2].contains(&1));
         // All tasks after that are queued and therefore prioritized
         // This means the highest priority tasks are executed next
-        assert!(results[2..4].iter().any(|&x| x == 9));
-        assert!(results[2..4].iter().any(|&x| x == 8));
+        assert!(results[2..4].contains(&9));
+        assert!(results[2..4].contains(&8));
         // The last tasks are the tasks with the lowest priority
-        assert!(results[8..10].iter().any(|&x| x == 2));
-        assert!(results[8..10].iter().any(|&x| x == 3));
+        assert!(results[8..10].contains(&2));
+        assert!(results[8..10].contains(&3));
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

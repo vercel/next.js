@@ -68,11 +68,9 @@ impl LeafDistanceUpdateQueue {
         match self.leaf_distance_updates.entry(task_id) {
             Entry::Occupied(mut entry) => {
                 let update = entry.get_mut();
-                if update.done {
-                    if update.dependencies_min < dependency_min {
-                        update.done = false;
-                        self.queue.push((Reverse(dependency_min), task_id));
-                    }
+                if update.done && update.dependencies_min < dependency_min {
+                    update.done = false;
+                    self.queue.push((Reverse(dependency_min), task_id));
                 }
                 update.add(dependency_min, dependency_max);
             }
