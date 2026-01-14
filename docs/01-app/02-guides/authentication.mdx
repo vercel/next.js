@@ -158,6 +158,7 @@ export const SignupFormSchema = z.object({
 To prevent unnecessary calls to your authentication provider's API or database, you can `return` early in the Server Action if any form fields do not match the defined schema.
 
 ```ts filename="app/actions/auth.ts" switcher
+import { z } from 'zod'
 import { SignupFormSchema, FormState } from '@/app/lib/definitions'
 
 export async function signup(state: FormState, formData: FormData) {
@@ -180,6 +181,7 @@ export async function signup(state: FormState, formData: FormData) {
 ```
 
 ```js filename="app/actions/auth.js" switcher
+import { z } from 'zod'
 import { SignupFormSchema } from '@/app/lib/definitions'
 
 export async function signup(state, formData) {
