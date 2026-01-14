@@ -111,7 +111,7 @@ import {
 import { BaseServerSpan } from './lib/trace/constants'
 import { I18NProvider } from './lib/i18n-provider'
 import { sendResponse } from './send-response'
-import { normalizeNextQueryParam } from './web/utils'
+import { normalizeNextQueryParam, decodeMiddlewareHeaders } from './web/utils'
 import {
   HTML_CONTENT_TYPE_HEADER,
   JSON_CONTENT_TYPE_HEADER,
@@ -943,23 +943,9 @@ export default abstract class Server<
         isNodeNextResponse(res) ? res.originalResponse : res
       )
 
-      // In minimal mode (Vercel), decode headers that were percent-encoded by middleware
+      // Decode headers that were percent-encoded by middleware
       // to preserve non-ASCII characters during transport.
-      if (this.minimalMode) {
-        const encodedHeaders = req.headers['x-middleware-request-encoded']
-        if (typeof encodedHeaders === 'string') {
-          for (const key of encodedHeaders.split(',')) {
-            const headerKey = key.trim()
-            const value = req.headers[headerKey]
-            if (typeof value === 'string' && /%[0-9A-Fa-f]{2}/.test(value)) {
-              try {
-                req.headers[headerKey] = decodeURIComponent(value)
-              } catch {}
-            }
-          }
-        }
-        delete req.headers['x-middleware-request-encoded']
-      }
+      decodeMiddlewareHeaders(req.headers)
 
       const urlParts = (req.url || '').split('?', 1)
       const urlNoQuery = urlParts[0]

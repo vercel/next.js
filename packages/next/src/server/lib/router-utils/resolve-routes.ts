@@ -620,25 +620,13 @@ export function getResolveRoutes(
                 delete middlewareHeaders[valueKey]
               }
 
-              // Decode only headers that were explicitly marked as encoded.
-              // This preserves intentional percent-encoding (like %2F, %20) in other headers.
-              const encodedHeaders =
-                middlewareHeaders['x-middleware-request-encoded']
-              if (typeof encodedHeaders === 'string') {
-                for (const key of encodedHeaders.split(',')) {
-                  const headerKey = key.trim()
-                  const value = req.headers[headerKey]
-                  if (
-                    typeof value === 'string' &&
-                    /%[0-9A-Fa-f]{2}/.test(value)
-                  ) {
-                    try {
-                      req.headers[headerKey] = decodeURIComponent(value)
-                    } catch {}
-                  }
-                }
+              // Copy the encoded headers marker to req.headers so base-server.ts
+              // can decode them later (unified handling for local and minimal modes).
+              if (middlewareHeaders['x-middleware-request-encoded']) {
+                req.headers['x-middleware-request-encoded'] =
+                  middlewareHeaders['x-middleware-request-encoded']
+                delete middlewareHeaders['x-middleware-request-encoded']
               }
-              delete middlewareHeaders['x-middleware-request-encoded']
             }
 
             if (

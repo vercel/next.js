@@ -218,3 +218,31 @@ export function decodeHeaderValue(value: string): string {
   }
   return value
 }
+
+/**
+ * Decodes middleware headers that were percent-encoded for safe HTTP transmission.
+ * Only decodes headers listed in 'x-middleware-request-encoded' marker.
+ * Deletes the marker after processing.
+ *
+ * @param headers - The headers object to decode (mutated in place)
+ */
+export function decodeMiddlewareHeaders(
+  headers: Record<string, string | string[] | undefined>
+): void {
+  const encodedHeadersList = headers['x-middleware-request-encoded']
+  if (typeof encodedHeadersList !== 'string') {
+    return
+  }
+
+  for (const key of encodedHeadersList.split(',')) {
+    const headerKey = key.trim()
+    const value = headers[headerKey]
+    if (typeof value === 'string' && /%[0-9A-Fa-f]{2}/.test(value)) {
+      try {
+        headers[headerKey] = decodeURIComponent(value)
+      } catch {}
+    }
+  }
+
+  delete headers['x-middleware-request-encoded']
+}
