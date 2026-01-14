@@ -378,11 +378,10 @@ where
     }
 }
 
-impl<T, Inner, Repr> Vc<T>
+impl<T, Inner> Vc<T>
 where
-    T: VcValueType<Read = VcTransparentRead<T, Inner, Repr>>,
+    T: VcValueType<Read = VcTransparentRead<T, Inner>>,
     Inner: Any + Send + Sync,
-    Repr: VcValueType,
 {
     pub fn cell(inner: Inner) -> Self {
         Self::cell_private(inner)

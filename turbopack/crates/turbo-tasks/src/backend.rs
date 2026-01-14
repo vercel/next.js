@@ -26,11 +26,10 @@ use turbo_rcstr::RcStr;
 
 use crate::{
     RawVc, ReadCellOptions, ReadOutputOptions, ReadRef, SharedReference, TaskId, TaskIdSet,
-    TraitRef, TraitTypeId, TurboTasksPanic, ValueTypeId, VcRead, VcValueTrait, VcValueType,
+    TraitRef, TraitTypeId, TurboTasksPanic, ValueTypeId, VcValueTrait, VcValueType,
     event::EventListener, macro_helpers::NativeFunction, magic_any::MagicAny,
     manager::TurboTasksBackendApi, raw_vc::CellId, registry,
     task::shared_reference::TypedSharedReference, task_statistics::TaskStatisticsApi,
-    triomphe_utils::unchecked_sidecast_triomphe_arc,
 };
 
 pub type TransientTaskRoot =
@@ -162,11 +161,8 @@ impl TypedCellContent {
     pub fn cast<T: VcValueType>(self) -> Result<ReadRef<T>> {
         let data = self.1.0.ok_or_else(|| anyhow!("Cell is empty"))?;
         let data = data
-            .downcast::<<T::Read as VcRead<T>>::Repr>()
+            .downcast::<T>()
             .map_err(|_err| anyhow!("Unexpected type in cell"))?;
-        // SAFETY: `T` and `T::Read::Repr` must have equivalent memory representations,
-        // guaranteed by the unsafe implementation of `VcValueType`.
-        let data = unsafe { unchecked_sidecast_triomphe_arc(data) };
         Ok(ReadRef::new_arc(data))
     }
 

@@ -135,11 +135,10 @@ where
     }
 }
 
-impl<T, Inner, Repr> Default for ResolvedVc<T>
+impl<T, Inner> Default for ResolvedVc<T>
 where
-    T: VcValueType<Read = VcTransparentRead<T, Inner, Repr>>,
+    T: VcValueType<Read = VcTransparentRead<T, Inner>>,
     Inner: Any + Send + Sync + Default,
-    Repr: VcValueType,
 {
     fn default() -> Self {
         Self::cell(Default::default())
@@ -178,11 +177,10 @@ where
     }
 }
 
-impl<T, Inner, Repr> ResolvedVc<T>
+impl<T, Inner> ResolvedVc<T>
 where
-    T: VcValueType<Read = VcTransparentRead<T, Inner, Repr>>,
+    T: VcValueType<Read = VcTransparentRead<T, Inner>>,
     Inner: Any + Send + Sync,
-    Repr: VcValueType,
 {
     pub fn cell(inner: Inner) -> Self {
         Self {

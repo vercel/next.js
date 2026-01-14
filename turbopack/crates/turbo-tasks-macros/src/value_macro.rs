@@ -256,7 +256,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                 content.0
             },
             quote! {
-                turbo_tasks::VcTransparentRead::<#ident, #inner_type, #ident>
+                turbo_tasks::VcTransparentRead::<#ident, #inner_type>
             },
         )
     } else {
