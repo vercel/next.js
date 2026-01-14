@@ -26,6 +26,7 @@ pub async fn make_production_chunks(
         "make production chunks",
         chunk_items = chunk_items.len(),
         chunks_before_limits = Empty,
+        merge_iterations = Empty,
         chunks = Empty,
         total_size = Empty
     );
@@ -203,6 +204,7 @@ pub async fn make_production_chunks(
                     unreachable!();
                 };
 
+                let mut iterations = 0;
                 while chunks_to_merge.len() > 1 {
                     // Find best candidate
                     let mut selection: Vec<MergeCandidate<'_>> = Vec::new();
@@ -211,23 +213,35 @@ pub async fn make_production_chunks(
                         // Exist early when no better overlaps are possible
                         if let Some((_, _, best_overlap, _)) = best_combination.as_ref() {
                             let candidate_best_possible_value = candidate.chunk_groups_len();
-                            if *best_overlap >= candidate_best_possible_value {
+
+                            /// Limit combinational complexity
+                            /// When we found a good merge combination we don't want to continue
+                            /// searching forever since the combinational complexity would be
+                            /// O(N^3). This limit makes it O(N * M * M) where M is the max
+                            /// combinational complexity. With a small and constant M this is
+                            /// effectively O(N).
+                            const MAX_COMBINATIONAL_COMPLEXITY: usize = 32;
+
+                            if *best_overlap > candidate_best_possible_value
+                                || selection.len() > MAX_COMBINATIONAL_COMPLEXITY
+                            {
                                 chunks_to_merge.push(candidate);
                                 break;
                             }
                         }
 
+                        let is_big_candidate = candidate.size > merge_threshold;
+
                         // Check all combination with the new candidate
                         for (i, other) in selection.iter().enumerate() {
+                            iterations += 1;
                             let overlap = overlap(&candidate.chunk_groups, &other.chunk_groups);
                             // It need to have at least two chunk groups in common
                             if overlap <= 1 {
                                 continue;
                             }
                             // If the candidate is already big enough, avoid shrinking the sharing
-                            if candidate.size > merge_threshold
-                                && overlap != candidate.chunk_groups_len()
-                            {
+                            if is_big_candidate && overlap != candidate.chunk_groups_len() {
                                 continue;
                             }
                             if other.size > merge_threshold && overlap != other.chunk_groups_len() {
@@ -491,6 +505,7 @@ pub async fn make_production_chunks(
                         break;
                     }
                 }
+                span.record("merge_iterations", iterations);
 
                 let mut remained_size = 0;
                 let mut remained_chunk_items = Vec::new();
