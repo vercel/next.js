@@ -22,6 +22,8 @@ export type ServerInitResult = {
   experimentalFeatures: ConfiguredExperimentalFeature[]
   // Whether cache components is enabled
   cacheComponents: boolean
+  // The basePath from config, used for displaying URLs with correct path prefix
+  basePath: string
 }
 
 let initializations: Record<string, Promise<ServerInitResult> | undefined> = {}
@@ -101,6 +103,7 @@ async function initializeImpl(opts: {
   distDir: string
   experimentalFeatures: ConfiguredExperimentalFeature[]
   cacheComponents: boolean
+  basePath: string
 }): Promise<ServerInitResult> {
   const type = process.env.__NEXT_PRIVATE_RENDER_WORKER
   if (type) {
@@ -179,6 +182,7 @@ async function initializeImpl(opts: {
     distDir: opts.distDir,
     experimentalFeatures: opts.experimentalFeatures,
     cacheComponents: opts.cacheComponents,
+    basePath: opts.basePath,
   }
 }
 

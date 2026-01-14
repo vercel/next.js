@@ -9,20 +9,10 @@ import { experimentalSchema } from '../config-schema'
 export type { ConfiguredExperimentalFeature }
 
 /**
- * Logs basic startup info that doesn't require config.
- * Called before "Ready in X" to show immediate feedback.
+ * Logs the Next.js banner with version and bundler info.
+ * Called immediately at startup for fast visual feedback.
  */
-export function logStartInfo({
-  networkUrl,
-  appUrl,
-  envInfo,
-  logBundler,
-}: {
-  networkUrl: string | null
-  appUrl: string | null
-  envInfo?: string[]
-  logBundler: boolean
-}) {
+export function logBanner({ logBundler }: { logBundler: boolean }) {
   let versionSuffix = ''
   const parts = []
 
@@ -45,11 +35,26 @@ export function logStartInfo({
       purple(`${Log.prefixes.ready} Next.js ${process.env.__NEXT_VERSION}`)
     )}${versionSuffix}`
   )
+}
+
+/**
+ * Logs URL and environment info.
+ * Called after config is loaded so URLs can include basePath.
+ */
+export function logUrls({
+  networkUrl,
+  appUrl,
+  envInfo,
+}: {
+  networkUrl: string | null
+  appUrl: string | null
+  envInfo?: string[]
+}) {
   if (appUrl) {
-    Log.bootstrap(`- Local:         ${appUrl}`)
+    Log.bootstrap(`- Local:        ${appUrl}`)
   }
   if (networkUrl) {
-    Log.bootstrap(`- Network:       ${networkUrl}`)
+    Log.bootstrap(`- Network:      ${networkUrl}`)
   }
   const inspectorUrl = inspector.url()
   if (inspectorUrl) {
@@ -61,6 +66,26 @@ export function logStartInfo({
     Log.bootstrap(`- Debugger port: ${debugPort}`)
   }
   if (envInfo?.length) Log.bootstrap(`- Environments: ${envInfo.join(', ')}`)
+}
+
+/**
+ * Logs basic startup info that doesn't require config.
+ * Called before "Ready in X" to show immediate feedback.
+ * @deprecated Use logBanner() and logUrls() separately for better control over timing.
+ */
+export function logStartInfo({
+  networkUrl,
+  appUrl,
+  envInfo,
+  logBundler,
+}: {
+  networkUrl: string | null
+  appUrl: string | null
+  envInfo?: string[]
+  logBundler: boolean
+}) {
+  logBanner({ logBundler })
+  logUrls({ networkUrl, appUrl, envInfo })
 }
 
 /**

@@ -738,6 +738,7 @@ export async function initialize(opts: {
     distDir: config.distDir,
     experimentalFeatures,
     cacheComponents: config.cacheComponents,
+    basePath: config.basePath,
   }
   renderServerOpts.serverFields.routerServerHandler = requestHandlerImpl
 
@@ -912,5 +913,6 @@ export async function initialize(opts: {
     distDir: config.distDir,
     experimentalFeatures,
     cacheComponents: config.cacheComponents,
+    basePath: config.basePath,
   }
 }

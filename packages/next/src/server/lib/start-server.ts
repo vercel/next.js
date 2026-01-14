@@ -29,7 +29,12 @@ import {
   CONFIG_FILES,
   PHASE_DEVELOPMENT_SERVER,
 } from '../../shared/lib/constants'
-import { getEnvInfo, logExperimentalInfo, logStartInfo } from './app-info-log'
+import {
+  getEnvInfo,
+  logBanner,
+  logExperimentalInfo,
+  logUrls,
+} from './app-info-log'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import { type Span, trace, flushAllTraces } from '../../trace'
 import { isIPv6 } from './is-ipv6'
@@ -361,13 +366,8 @@ export async function startServer(
       // Get env info first (fast, doesn't require config)
       const envInfo = isDev ? getEnvInfo(dir) : undefined
 
-      // Log basic startup info immediately (before loading config)
-      logStartInfo({
-        networkUrl,
-        appUrl,
-        envInfo,
-        logBundler: isDev,
-      })
+      // Log banner immediately for fast visual feedback
+      logBanner({ logBundler: isDev })
 
       // Calculate and log "Ready in X" before loading config
       // so it reflects actual framework startup time
@@ -466,6 +466,14 @@ export async function startServer(
         upgradeHandler = initResult.upgradeHandler
         nextServer = initResult.server
         closeUpgraded = initResult.closeUpgraded
+
+        // Log URLs after config is loaded so we can include basePath
+        const { basePath } = initResult
+        logUrls({
+          appUrl: appUrl + basePath,
+          networkUrl: networkUrl ? networkUrl + basePath : null,
+          envInfo,
+        })
 
         // Log experimental features after config is loaded
         if (isDev) {
