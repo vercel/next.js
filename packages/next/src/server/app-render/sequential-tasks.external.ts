@@ -68,8 +68,11 @@ function createTaskQueue() {
     }
   })
 
-  // In node, we need to `unref()` the MessagePort. Otherwise,
-  // a port with listeners can prevent the process from shutting down.
+  // In Node, we need to `unref()` the MessagePort, because a ref'd MessagePort
+  // with listeners attached will prevent the process from shutting down.
+  // Note that this means that if the only work remaining work is a task queued with `scheduleTask`,
+  // the process would shut down (unlike e.g `setTimeout`), so a general-purpose scheduler
+  // should keep the port ref'd while tasks are queued to avoid this. But in our case this doesn't matter.
   tryUnref(receivePort)
 
   return {
