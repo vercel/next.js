@@ -119,6 +119,19 @@ async function runAction({
       return
     }
 
+    // Prevent stale (the router navigated before the server action was resolved)
+    // state coming from an async server-action from overwriting newer state
+    if (
+      action.payload.type === ACTION_SERVER_ACTION &&
+      actionQueue.state !== prevState
+    ) {
+      // State changed (e.g. navigation committed) while this action was in flight.
+      // Do not commit the stale result.
+      runRemainingActions(actionQueue, setState)
+      action.resolve(actionQueue.state)
+      return
+    }
+
     actionQueue.state = nextState
 
     runRemainingActions(actionQueue, setState)
