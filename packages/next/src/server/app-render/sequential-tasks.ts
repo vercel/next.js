@@ -1,3 +1,4 @@
+import { InvariantError } from '../../shared/lib/invariant-error'
 import { bindSnapshot } from '../app-render/async-local-storage'
 
 let lazyQueue: TaskQueue | null = null
@@ -19,6 +20,16 @@ export function cancelTask(handle: TaskHandle): void {
   }
   const queue = getOrCreateQueue()
   queue.cancelTask(handle)
+}
+
+export function expectNoPendingTasks() {
+  if (!lazyQueue) {
+    return
+  }
+  const queue = getOrCreateQueue()
+  if (queue.tasks.length > 0) {
+    throw new InvariantError(`Expected all tasks to have been executed`)
+  }
 }
 
 type TaskId = number & { __tag: 'TaskId' }
@@ -119,6 +130,7 @@ function createTaskQueue() {
   }
 
   return {
+    tasks,
     scheduleTask(callback: () => void): TaskHandle {
       const id = nextTaskId++ as TaskId
       tasks.push({

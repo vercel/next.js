@@ -1,5 +1,9 @@
 import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
-import { scheduleTask, cancelTask } from './sequential-tasks'
+import {
+  scheduleTask,
+  cancelTask,
+  expectNoPendingTasks,
+} from './sequential-tasks'
 
 function createLogger() {
   const logs: string[] = []
@@ -19,6 +23,10 @@ function createLogger() {
   }
   return { logs, log }
 }
+
+afterEach(() => {
+  expectNoPendingTasks()
+})
 
 it('runs sequential tasks without interruption with timeouts or immediates', async () => {
   const { log, logs } = createLogger()
