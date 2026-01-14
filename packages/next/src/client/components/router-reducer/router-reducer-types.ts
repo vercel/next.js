@@ -4,7 +4,7 @@ import type {
   FlightSegmentPath,
 } from '../../../shared/lib/app-router-types'
 import type { NavigationSeed } from '../segment-cache/navigation'
-import type { FetchServerResponseResult } from './fetch-server-response'
+import type { RouterTask } from './reducers/router-task'
 
 export const ACTION_REFRESH = 'refresh'
 export const ACTION_NAVIGATE = 'navigate'
@@ -12,35 +12,6 @@ export const ACTION_RESTORE = 'restore'
 export const ACTION_SERVER_PATCH = 'server-patch'
 export const ACTION_HMR_REFRESH = 'hmr-refresh'
 export const ACTION_SERVER_ACTION = 'server-action'
-
-export type RouterChangeByServerResponse = ({
-  navigatedAt,
-  previousTree,
-  serverResponse,
-}: {
-  navigatedAt: number
-  previousTree: FlightRouterState
-  serverResponse: FetchServerResponseResult
-}) => void
-
-export interface Mutable {
-  mpaNavigation?: boolean
-  patchedTree?: FlightRouterState
-  renderedSearch?: string
-  canonicalUrl?: string
-  scrollableSegments?: FlightSegmentPath[]
-  pendingPush?: boolean
-  cache?: CacheNode
-  hashFragment?: string
-  shouldScroll?: boolean
-  preserveCustomHistoryState?: boolean
-  onlyHashChange?: boolean
-  collectedDebugInfo?: Array<unknown>
-}
-
-export interface ServerActionMutable extends Mutable {
-  inFlightServerAction?: Promise<any> | null
-}
 
 /**
  * Refresh triggers a refresh of the full page data.
@@ -135,9 +106,8 @@ export type AppHistoryState = {
  */
 export interface ServerPatchAction {
   type: typeof ACTION_SERVER_PATCH
-  previousTree: FlightRouterState
+  baseTask: RouterTask
   url: URL
-  nextUrl: string | null
   seed: NavigationSeed | null
   mpa: boolean
 }

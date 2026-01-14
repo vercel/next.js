@@ -148,7 +148,6 @@ import type { ServerComponentsHmrCache } from '../response-cache'
 import type { RequestErrorContext } from '../instrumentation/types'
 import { getIsPossibleServerAction } from '../lib/server-action-request-meta'
 import { createInitialRouterState } from '../../client/components/router-reducer/create-initial-router-state'
-import { createMutableActionQueue } from '../../client/components/app-router-instance'
 import { getRevalidateReason } from '../instrumentation/utils'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
@@ -1715,8 +1714,6 @@ function App<T>({
     location: null,
   })
 
-  const actionQueue = createMutableActionQueue(initialState, null)
-
   const { HeadManagerContext } =
     require('../../shared/lib/head-manager-context.shared-runtime') as typeof import('../../shared/lib/head-manager-context.shared-runtime')
 
@@ -1729,7 +1726,10 @@ function App<T>({
     >
       <ImageConfigContext.Provider value={images ?? imageConfigDefault}>
         <ServerInsertedHTMLProvider>
-          <AppRouter actionQueue={actionQueue} globalErrorState={response.G} />
+          <AppRouter
+            initialState={initialState}
+            globalErrorState={response.G}
+          />
         </ServerInsertedHTMLProvider>
       </ImageConfigContext.Provider>
     </HeadManagerContext.Provider>
@@ -1778,12 +1778,10 @@ function ErrorApp<T>({
     location: null,
   })
 
-  const actionQueue = createMutableActionQueue(initialState, null)
-
   return (
     <ImageConfigContext.Provider value={images ?? imageConfigDefault}>
       <ServerInsertedHTMLProvider>
-        <AppRouter actionQueue={actionQueue} globalErrorState={response.G} />
+        <AppRouter initialState={initialState} globalErrorState={response.G} />
       </ServerInsertedHTMLProvider>
     </ImageConfigContext.Provider>
   )

@@ -24,7 +24,7 @@ import {
   NavigationPromisesContext,
   type NavigationPromises,
 } from '../../shared/lib/hooks-client-context.shared-runtime'
-import { dispatchAppRouterAction, useActionQueue } from './use-action-queue'
+import { useActionQueue } from './use-action-queue'
 import { AppRouterAnnouncer } from './app-router-announcer'
 import { RedirectBoundary } from './redirect-boundary'
 import { findHeadInCache } from './router-reducer/reducers/find-head-in-cache'
@@ -36,17 +36,18 @@ import { useNavFailureHandler } from './nav-failure-handler'
 import {
   dispatchTraverseAction,
   publicAppRouterInstance,
-  type AppRouterActionQueue,
   type GlobalErrorState,
 } from './app-router-instance'
 import { getRedirectTypeFromError, getURLFromRedirectError } from './redirect'
-import { isRedirectError, RedirectType } from './redirect-error'
+import { isRedirectError } from './redirect-error'
 import { pingVisibleLinks } from './links'
 import RootErrorBoundary from './errors/root-error-boundary'
 import DefaultGlobalError from './builtin/global-error'
 import { RootLayoutBoundary } from '../../lib/framework/boundary-components'
 import type { StaticIndicatorState } from '../dev/hot-reloader/app/hot-reloader-app'
 import { getDeploymentIdQueryOrEmptyString } from '../../shared/lib/deployment-id'
+import { commitNavigation } from './router-reducer/reducers/router-task'
+import { dispatchAppRouterAction } from './router-reducer/reducers/router-task'
 
 const globalMutable: {
   pendingMpaPath?: string
@@ -58,6 +59,9 @@ function HistoryUpdater({
   appRouterState: AppRouterState
 }) {
   useInsertionEffect(() => {
+    commitNavigation(appRouterState)
+
+    // TODO: Move the rest of this effect into `commitNavigation`.
     if (process.env.__NEXT_APP_NAV_FAIL_HANDLING) {
       // clear pending URL as navigation is no longer
       // in flight
@@ -146,17 +150,17 @@ function Head({
  * The global router that wraps the application components.
  */
 function Router({
-  actionQueue,
+  initialState,
   globalError,
   webSocket,
   staticIndicatorState,
 }: {
-  actionQueue: AppRouterActionQueue
+  initialState: AppRouterState
   globalError: GlobalErrorState
   webSocket: WebSocket | undefined
   staticIndicatorState: StaticIndicatorState | undefined
 }) {
-  const state = useActionQueue(actionQueue)
+  const state = useActionQueue(initialState)
   const { canonicalUrl } = state
   // Add memoized pathname/query for useSearchParams and usePathname.
   const { searchParams, pathname } = useMemo(() => {
@@ -236,7 +240,7 @@ function Router({
         const redirectType = getRedirectTypeFromError(error)
         // TODO: This should access the router methods directly, rather than
         // go through the public interface.
-        if (redirectType === RedirectType.push) {
+        if (redirectType === 'push') {
           publicAppRouterInstance.push(url, {})
         } else {
           publicAppRouterInstance.replace(url, {})
@@ -553,12 +557,12 @@ function Router({
 }
 
 export default function AppRouter({
-  actionQueue,
+  initialState,
   globalErrorState,
   webSocket,
   staticIndicatorState,
 }: {
-  actionQueue: AppRouterActionQueue
+  initialState: AppRouterState
   globalErrorState: GlobalErrorState
   webSocket?: WebSocket
   staticIndicatorState?: StaticIndicatorState
@@ -567,7 +571,7 @@ export default function AppRouter({
 
   const router = (
     <Router
-      actionQueue={actionQueue}
+      initialState={initialState}
       globalError={globalErrorState}
       webSocket={webSocket}
       staticIndicatorState={staticIndicatorState}

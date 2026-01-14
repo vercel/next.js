@@ -1,6 +1,6 @@
 import { startTransition } from 'react'
 import { ACTION_SERVER_ACTION } from './components/router-reducer/router-reducer-types'
-import { dispatchAppRouterAction } from './components/use-action-queue'
+import { dispatchAppRouterAction } from './components/router-reducer/reducers/router-task'
 
 export async function callServer(actionId: string, actionArgs: any[]) {
   return new Promise((resolve, reject) => {
