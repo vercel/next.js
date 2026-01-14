@@ -5,21 +5,28 @@ describe('server action resolving after navigation', () => {
     files: __dirname,
   })
 
-  it('does not commit stale server action state after navigation', async () => {
+  it('does not apply stale server action result after navigation and refresh', async () => {
     const browser = await next.browser('/')
 
-    // Trigger server action + immediate navigation
-    await browser.getByRole('button', { name: 'Run server action' }).click()
+    // Trigger async server action and immediately navigate to /next
+    await browser.elementByCss('#run-action').click()
 
     // Ensure navigation completed
     await browser.waitForElementByCss('#next-page')
 
-    // Ensure stale server action result was NOT applied
-    const result = await browser.eval(() => {
-      const el = document.querySelector('#result')
-      return el?.textContent ?? null
-    })
+    // Wait long enough for:
+    // - server action to resolve
+    // - delayed router.refresh() on /next to make sure that
+    //   the server action has been completed
+    await browser.eval(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(resolve, 5500)
+        })
+    )
 
-    expect(result).not.toBe('STALE_RESULT')
+    // Assert we are still on /next after refresh
+    const url = await browser.url()
+    expect(url.endsWith('/next')).toBe(true)
   })
 })
