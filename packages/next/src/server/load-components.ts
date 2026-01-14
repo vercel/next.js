@@ -177,8 +177,8 @@ async function loadComponentsImpl<
   sriEnabled: boolean
   needsManifestsForLegacyReasons: boolean
 }): Promise<LoadComponentsReturnType<N>> {
-  let DocumentMod: any = {}
-  let AppMod: any = {}
+  let DocumentMod = {}
+  let AppMod = {}
   if (!isAppPath) {
     ;[DocumentMod, AppMod] = await Promise.all([
       requirePage('/_document', distDir, false),
@@ -308,7 +308,9 @@ async function loadComponentsImpl<
       ComponentMod
 
     return {
+      // @ts-expect-error this is indeed `{} || AppType` and not always `AppType`
       App,
+      // @ts-expect-error this is indeed `{} || DocumentType` and not always `DocumentType`
       Document,
       Component,
       buildManifest,
