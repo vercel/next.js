@@ -13363,6 +13363,14 @@ function replaySuspendedUnitOfWork(unitOfWork) {
       break;
     case 5:
       resetHooksOnUnwind(next);
+      var fiber = next;
+      fiber === hydrationParentFiber &&
+        (isHydrating
+          ? (popToNextHostParent(fiber),
+            5 === fiber.tag &&
+              null != fiber.stateNode &&
+              (nextHydratableInstance = fiber.stateNode))
+          : (popToNextHostParent(fiber), (isHydrating = !0)));
     default:
       unwindInterruptedWork(current, next),
         (next = workInProgress =
@@ -19643,14 +19651,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_2214 = React.version;
 if (
-  "19.3.0-experimental-65eec428-20251218" !==
+  "19.3.0-experimental-3e1abcc8-20260113" !==
   isomorphicReactPackageVersion$jscomp$inline_2214
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_2214,
-      "19.3.0-experimental-65eec428-20251218"
+      "19.3.0-experimental-3e1abcc8-20260113"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -19670,24 +19678,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2917 = {
+var internals$jscomp$inline_2919 = {
   bundleType: 0,
-  version: "19.3.0-experimental-65eec428-20251218",
+  version: "19.3.0-experimental-3e1abcc8-20260113",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-experimental-65eec428-20251218"
+  reconcilerVersion: "19.3.0-experimental-3e1abcc8-20260113"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2918 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2920 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2918.isDisabled &&
-    hook$jscomp$inline_2918.supportsFiber
+    !hook$jscomp$inline_2920.isDisabled &&
+    hook$jscomp$inline_2920.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2918.inject(
-        internals$jscomp$inline_2917
+      (rendererID = hook$jscomp$inline_2920.inject(
+        internals$jscomp$inline_2919
       )),
-        (injectedHook = hook$jscomp$inline_2918);
+        (injectedHook = hook$jscomp$inline_2920);
     } catch (err) {}
 }
 exports.createRoot = function (container, options) {
@@ -19782,4 +19790,4 @@ exports.hydrateRoot = function (container, initialChildren, options) {
   listenToAllSupportedEvents(container);
   return new ReactDOMHydrationRoot(initialChildren);
 };
-exports.version = "19.3.0-experimental-65eec428-20251218";
+exports.version = "19.3.0-experimental-3e1abcc8-20260113";
