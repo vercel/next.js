@@ -146,6 +146,11 @@ function isFunctionNameAtPosition(
 
 /**
  * Lazily build and cache name mappings from a source map.
+ *
+ * Ideally we would use `getOriginalPositionFor`/`getGeneratedPositionFor` instead
+ * of maintaining our own map and iterating all mappings, but there is a bug in the
+ * source-map library that prevents us from using these APIs on IndexedSourceMaps, so
+ * we need ot build our own datastructure.
  */
 function getNameMappings(entry: SourceMapCacheEntry): NameMappingsByLine {
   if (!entry.nameMappings) {
@@ -206,7 +211,6 @@ function findNameAtPosition(
       endIdx = mid
     }
   }
-
   // Check the first entry at or after the enclosing position
   if (startIdx < lineEntries.length) {
     const entry = lineEntries[startIdx]
@@ -218,7 +222,6 @@ function findNameAtPosition(
       return entry.name
     }
   }
-
   return undefined
 }
 
