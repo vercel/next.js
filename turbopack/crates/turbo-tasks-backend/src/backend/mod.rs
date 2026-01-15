@@ -817,7 +817,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         self.assert_not_persistent_calling_transient(reader, task_id, Some(cell));
 
         fn add_cell_dependency(
-            ctx: &mut impl ExecuteContext<'_>,
             task_id: TaskId,
             mut task: impl TaskGuard,
             reader: Option<TaskId>,
@@ -888,15 +887,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         };
         if let Some(content) = content {
             if tracking.should_track(false) {
-                add_cell_dependency(
-                    &mut ctx,
-                    task_id,
-                    task,
-                    reader,
-                    reader_task,
-                    cell,
-                    tracking.key(),
-                );
+                add_cell_dependency(task_id, task, reader, reader_task, cell, tracking.key());
             }
             return Ok(Ok(TypedCellContent(
                 cell.type_id,
@@ -923,15 +914,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         .copied();
         let Some(max_id) = max_id else {
             if tracking.should_track(true) {
-                add_cell_dependency(
-                    &mut ctx,
-                    task_id,
-                    task,
-                    reader,
-                    reader_task,
-                    cell,
-                    tracking.key(),
-                );
+                add_cell_dependency(task_id, task, reader, reader_task, cell, tracking.key());
             }
             bail!(
                 "Cell {cell:?} no longer exists in task {} (no cell of this type exists)",
@@ -940,15 +923,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         };
         if cell.index >= max_id {
             if tracking.should_track(true) {
-                add_cell_dependency(
-                    &mut ctx,
-                    task_id,
-                    task,
-                    reader,
-                    reader_task,
-                    cell,
-                    tracking.key(),
-                );
+                add_cell_dependency(task_id, task, reader, reader_task, cell, tracking.key());
             }
             bail!(
                 "Cell {cell:?} no longer exists in task {} (index out of bounds)",
