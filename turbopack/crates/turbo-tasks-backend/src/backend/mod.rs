@@ -1,6 +1,8 @@
+mod counter_map;
 mod dynamic_storage;
 mod operation;
 mod storage;
+mod storage_schema;
 
 use std::{
     borrow::Cow,

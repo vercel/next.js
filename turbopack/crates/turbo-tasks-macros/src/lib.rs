@@ -68,6 +68,15 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
 
 /// <!--
 /// Documentation for this macro is available on the re-export:
+/// <https://turbopack-rust-docs.vercel.sh/rustdoc/turbo_tasks/attr.task_storage.html>
+/// -->
+#[proc_macro_attribute]
+pub fn task_storage(_args: TokenStream, input: TokenStream) -> TokenStream {
+    derive::task_storage(input)
+}
+
+/// <!--
+/// Documentation for this macro is available on the re-export:
 /// <https://turbopack-rust-docs.vercel.sh/rustdoc/turbo_tasks/attr.value.html>
 /// -->
 #[allow_internal_unstable(min_specialization, into_future, trivial_bounds)]
