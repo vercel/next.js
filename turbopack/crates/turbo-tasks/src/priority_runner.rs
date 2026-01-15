@@ -2,21 +2,19 @@ use std::{
     collections::BinaryHeap,
     fmt::Debug,
     future::Future,
-    pin::{Pin, pin},
+    pin::Pin,
     ptr::drop_in_place,
     sync::{
         Arc,
         atomic::{AtomicUsize, Ordering},
     },
-    task::{Context, Poll, ready},
+    task::{Context, Poll},
+    time::{Duration, Instant},
 };
 
 use parking_lot::Mutex;
 use pin_project_lite::pin_project;
-use tokio::{
-    sync::oneshot::{Receiver, Sender},
-    task::yield_now,
-};
+use tokio::sync::oneshot::{Receiver, Sender};
 
 pub trait Executor<C, T, P>: Send + Sync {
     type Future: Future<Output = ()> + Send;
@@ -287,6 +285,7 @@ impl<
             this.runner.active_workers.fetch_add(1, Ordering::Relaxed);
             *this.state = WorkerState::UnfinishedFuture;
         }
+        let last_yield = Instant::now();
         loop {
             match this.state {
                 WorkerState::Closed => return Poll::Ready(()),
@@ -301,8 +300,10 @@ impl<
 
                             *this.state = WorkerState::Done;
 
-                            let yield_future = pin!(yield_now());
-                            ready!(yield_future.poll(cx));
+                            if last_yield.elapsed() > Duration::from_millis(5) {
+                                cx.waker().wake_by_ref();
+                                return Poll::Pending;
+                            }
                         }
                         Poll::Pending => {
                             // The current future is still pending, we need to suspend this worker.
