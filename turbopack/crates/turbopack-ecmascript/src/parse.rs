@@ -740,10 +740,10 @@ impl Visit for VarDeclWithTsDeclareCollector {
     }
 
     fn visit_ts_module_decl(&mut self, node: &TsModuleDecl) {
-        if node.declare {
-            if let TsModuleName::Ident(id) = &node.id {
-                self.id_with_ts_declare.insert(id.to_id());
-            }
+        if node.declare
+            && let TsModuleName::Ident(id) = &node.id
+        {
+            self.id_with_ts_declare.insert(id.to_id());
         }
     }
 }
