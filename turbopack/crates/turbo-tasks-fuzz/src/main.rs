@@ -1,6 +1,7 @@
 #![cfg_attr(windows, feature(junction_point))]
 
 mod fs_watcher;
+mod symlink_stress;
 
 use clap::{Parser, Subcommand};
 
@@ -22,6 +23,8 @@ struct Cli {
 enum Commands {
     /// Continuously fuzzes the filesystem watcher until ctrl+c'd.
     FsWatcher(fs_watcher::FsWatcher),
+    /// Stress tests symlink/junction writes in a tight loop.
+    SymlinkStress(symlink_stress::SymlinkStress),
 }
 
 #[tokio::main]
@@ -30,5 +33,6 @@ async fn main() -> anyhow::Result<()> {
 
     match cli.command {
         Commands::FsWatcher(args) => fs_watcher::run(args).await,
+        Commands::SymlinkStress(args) => symlink_stress::run(args).await,
     }
 }
