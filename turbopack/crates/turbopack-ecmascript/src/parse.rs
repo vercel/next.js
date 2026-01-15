@@ -828,7 +828,7 @@ mod tests {
     }
 
     #[test]
-    fn test_no_collect_declare_namespace() {
+    fn test_collect_declare_namespace() {
         // `declare namespace Foo {}` should also be collected
         let ids = parse_and_collect("declare namespace Foo {}");
         assert_eq!(ids, vec!["Foo"]);
