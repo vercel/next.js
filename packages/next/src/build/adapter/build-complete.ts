@@ -702,7 +702,10 @@ export async function handleBuildComplete({
           handleFile(file)
         }
         for (const item of [...(page.assets || [])]) {
-          handleFile(item.filePath)
+          if (!output.assets) {
+            output.assets = {}
+          }
+          output.assets[item.name] = path.join(distDir, item.filePath)
         }
         for (const item of page.wasm || []) {
           if (!output.wasmAssets) {
