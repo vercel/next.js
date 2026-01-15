@@ -484,28 +484,43 @@ fn verify_written_files(
     if symlink_count > 0 {
         let symlinks_dir = fs_root.join("_symlinks");
 
+        // Compute expected target based on mode. On Windows, junctions are stored with absolute
+        // paths by DiskFileSystem::write_link. We also need to canonicalize because read_link
+        // returns paths with the \\?\ extended-length prefix.
         #[cfg(windows)]
-        let expected_target = {
-            match symlink_mode {
-                Some(SymlinkMode::Junction) => {
-                    // On Windows, junctions are stored as absolute paths
-                    symlinks_dir.join(SYMLINK_SENTINEL_TARGET)
-                }
-                _ => PathBuf::from(SYMLINK_SENTINEL_TARGET),
+        let expected_target_canonicalized: Option<PathBuf> = match symlink_mode {
+            Some(SymlinkMode::Junction) => {
+                // Absolute path: fs_root/_symlinks/../0 resolves to fs_root/0
+                // Canonicalize to get the \\?\ prefixed form that read_link returns
+                std::fs::canonicalize(fs_root.join("0")).ok()
             }
-        };
-        #[cfg(not(windows))]
-        let expected_target = {
-            let _ = symlink_mode;
-            PathBuf::from(SYMLINK_SENTINEL_TARGET)
+            _ => None,
         };
 
         for i in 0..symlink_count {
             total += 1;
             let symlink_path = symlinks_dir.join(i.to_string());
-            match std::fs::read_link(&symlink_path) {
-                Ok(target) if target == expected_target => {}
-                _ => mismatched.push(symlink_path),
+            let matches = match std::fs::read_link(&symlink_path) {
+                Ok(target) => {
+                    #[cfg(windows)]
+                    {
+                        if let Some(ref expected) = expected_target_canonicalized {
+                            // Canonicalize the target we read back for consistent comparison
+                            std::fs::canonicalize(&target).ok().as_ref() == Some(expected)
+                        } else {
+                            target == Path::new(SYMLINK_SENTINEL_TARGET)
+                        }
+                    }
+                    #[cfg(not(windows))]
+                    {
+                        let _ = symlink_mode;
+                        target == Path::new(SYMLINK_SENTINEL_TARGET)
+                    }
+                }
+                Err(_) => false,
+            };
+            if !matches {
+                mismatched.push(symlink_path);
             }
         }
     }
