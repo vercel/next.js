@@ -1,5 +1,5 @@
-export const staleTime = 120 // 2 minutes
+export const staleTime = 100 // 100 seconds
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  return <div>{children}</div>
+  return <>{children}</>
 }

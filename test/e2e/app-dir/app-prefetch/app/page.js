@@ -25,30 +25,6 @@ export default function HomePage() {
       <a href="/static-page" id="to-static-page-hard">
         Hard Nav to Static Page
       </a>
-      <LinkAccordion href="/stale-time-static" id="to-stale-time-static">
-        To Static Page with staleTime export
-      </LinkAccordion>
-      <LinkAccordion href="/stale-time-inherit" id="to-stale-time-inherit">
-        To Page inheriting staleTime from layout
-      </LinkAccordion>
-      <LinkAccordion
-        href="/stale-time-inherit/override"
-        id="to-stale-time-override"
-      >
-        To Page overriding layout staleTime
-      </LinkAccordion>
-      <LinkAccordion href="/stale-time-dynamic" id="to-stale-time-dynamic">
-        To Dynamic Page with staleTime export
-      </LinkAccordion>
-      <LinkAccordion href="/stale-time-nested/inner" id="to-stale-time-nested">
-        To Nested Layout with staleTime (inner=200, outer=100)
-      </LinkAccordion>
-      <LinkAccordion href="/stale-time-zero" id="to-stale-time-zero">
-        To Page with staleTime=0
-      </LinkAccordion>
-      <LinkAccordion href="/stale-time-parallel" id="to-stale-time-parallel">
-        To Parallel Routes with different staleTime
-      </LinkAccordion>
     </>
   )
 }
