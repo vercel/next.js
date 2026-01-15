@@ -5,9 +5,7 @@ use rustc_hash::FxHasher;
 use smallvec::SmallVec;
 use tracing::{Instrument, field::Empty};
 use turbo_prehash::BuildHasherExt;
-use turbo_tasks::{
-    FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, TryJoinIterExt, Vc, keyed_read_ref::MappedReadRef,
-};
+use turbo_tasks::{FxIndexMap, FxIndexSet, MappedReadRef, ReadRef, ResolvedVc, TryJoinIterExt, Vc};
 
 use crate::{
     chunk::{
