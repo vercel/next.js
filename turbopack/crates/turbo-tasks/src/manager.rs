@@ -846,8 +846,8 @@ impl<B: Backend + 'static> TurboTasks<B> {
 
         #[cfg(feature = "tokio_tracing")]
         let description = format!(
-            "[local] (parent: {}) {}",
-            self.backend.get_task_description(parent_task_id),
+            "[local] (parent: {:?}) {}",
+            parent_task_id.map(|id| self.backend.get_task_description(id)),
             ty.task_type,
         );
         #[cfg(not(feature = "tokio_tracing"))]
