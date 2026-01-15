@@ -7,11 +7,10 @@ import { NextInstance } from 'e2e-utils'
 import {
   check,
   createNowRouteMatches,
-  fetchViaHTTP,
   findPort,
+  infra,
   initNextServerScript,
   killApp,
-  renderViaHTTP,
   waitFor,
 } from 'next-test-utils'
 import nodeFetch from 'node-fetch'
@@ -136,7 +135,7 @@ describe('required server files i18n', () => {
   })
 
   it('should not apply locale redirect in minimal mode', async () => {
-    const res = await fetchViaHTTP(appPort, '/', undefined, {
+    const res = await infra.fetch(appPort, '/', undefined, {
       redirect: 'manual',
       headers: {
         'accept-language': 'fr',
@@ -145,7 +144,7 @@ describe('required server files i18n', () => {
     expect(res.status).toBe(200)
     expect(await res.text()).toContain('index page')
 
-    const resCookie = await fetchViaHTTP(appPort, '/', undefined, {
+    const resCookie = await infra.fetch(appPort, '/', undefined, {
       redirect: 'manual',
       headers: {
         'accept-language': 'en',
@@ -170,7 +169,7 @@ describe('required server files i18n', () => {
   it('should set correct SWR headers with notFound gsp', async () => {
     await next.patchFile('standalone/data.txt', 'show')
 
-    const res = await fetchViaHTTP(appPort, '/gsp', undefined, {
+    const res = await infra.fetch(appPort, '/gsp', undefined, {
       redirect: 'manual',
     })
     expect(res.status).toBe(200)
@@ -181,7 +180,7 @@ describe('required server files i18n', () => {
     await waitFor(2000)
     await next.patchFile('standalone/data.txt', 'hide')
 
-    const res2 = await fetchViaHTTP(appPort, '/gsp', undefined, {
+    const res2 = await infra.fetch(appPort, '/gsp', undefined, {
       redirect: 'manual',
     })
     expect(res2.status).toBe(404)
@@ -193,7 +192,7 @@ describe('required server files i18n', () => {
   it('should set correct SWR headers with notFound gssp', async () => {
     await next.patchFile('standalone/data.txt', 'show')
 
-    const res = await fetchViaHTTP(appPort, '/gssp', undefined, {
+    const res = await infra.fetch(appPort, '/gssp', undefined, {
       redirect: 'manual',
     })
     expect(res.status).toBe(200)
@@ -203,7 +202,7 @@ describe('required server files i18n', () => {
 
     await next.patchFile('standalone/data.txt', 'hide')
 
-    const res2 = await fetchViaHTTP(appPort, '/gssp', undefined, {
+    const res2 = await infra.fetch(appPort, '/gssp', undefined, {
       redirect: 'manual',
     })
     await next.patchFile('standalone/data.txt', 'show')
@@ -215,14 +214,14 @@ describe('required server files i18n', () => {
   })
 
   it('should render SSR page correctly', async () => {
-    const html = await renderViaHTTP(appPort, '/gssp')
+    const html = await infra.render(appPort, '/gssp')
     const $ = cheerio.load(html)
     const data = JSON.parse($('#props').text())
 
     expect($('#gssp').text()).toBe('getServerSideProps page')
     expect(data.hello).toBe('world')
 
-    const html2 = await renderViaHTTP(appPort, '/gssp')
+    const html2 = await infra.render(appPort, '/gssp')
     const $2 = cheerio.load(html2)
     const data2 = JSON.parse($2('#props').text())
 
@@ -232,7 +231,7 @@ describe('required server files i18n', () => {
   })
 
   it('should render dynamic SSR page correctly', async () => {
-    const html = await renderViaHTTP(appPort, '/dynamic/first')
+    const html = await infra.render(appPort, '/dynamic/first')
     const $ = cheerio.load(html)
     const data = JSON.parse($('#props').text())
 
@@ -240,7 +239,7 @@ describe('required server files i18n', () => {
     expect($('#slug').text()).toBe('first')
     expect(data.hello).toBe('world')
 
-    const html2 = await renderViaHTTP(appPort, '/dynamic/second')
+    const html2 = await infra.render(appPort, '/dynamic/second')
     const $2 = cheerio.load(html2)
     const data2 = JSON.parse($2('#props').text())
 
@@ -251,7 +250,7 @@ describe('required server files i18n', () => {
   })
 
   it('should render fallback page correctly', async () => {
-    const html = await renderViaHTTP(appPort, '/fallback/first')
+    const html = await infra.render(appPort, '/fallback/first')
     const $ = cheerio.load(html)
     const data = JSON.parse($('#props').text())
 
@@ -260,7 +259,8 @@ describe('required server files i18n', () => {
     expect(data.hello).toBe('world')
 
     await waitFor(2000)
-    const html2 = await renderViaHTTP(appPort, '/fallback/first')
+
+    const html2 = await infra.render(appPort, '/fallback/first')
     const $2 = cheerio.load(html2)
     const data2 = JSON.parse($2('#props').text())
 
@@ -269,7 +269,7 @@ describe('required server files i18n', () => {
     expect(isNaN(data2.random)).toBe(false)
     expect(data2.random).not.toBe(data.random)
 
-    const html3 = await renderViaHTTP(appPort, '/fallback/second')
+    const html3 = await infra.render(appPort, '/fallback/second')
     const $3 = cheerio.load(html3)
     const data3 = JSON.parse($3('#props').text())
 
@@ -278,7 +278,7 @@ describe('required server files i18n', () => {
     expect(isNaN(data3.random)).toBe(false)
 
     const { pageProps: data4 } = JSON.parse(
-      await renderViaHTTP(
+      await infra.render(
         appPort,
         `/_next/data/${next.buildId}/en/fallback/third.json`
       )
@@ -288,7 +288,7 @@ describe('required server files i18n', () => {
   })
 
   it('should render SSR page correctly with x-matched-path', async () => {
-    const html = await renderViaHTTP(appPort, '/some-other-path', undefined, {
+    const html = await infra.render(appPort, '/some-other-path', undefined, {
       headers: {
         'x-matched-path': '/gssp',
       },
@@ -299,7 +299,7 @@ describe('required server files i18n', () => {
     expect($('#gssp').text()).toBe('getServerSideProps page')
     expect(data.hello).toBe('world')
 
-    const html2 = await renderViaHTTP(appPort, '/some-other-path', undefined, {
+    const html2 = await infra.render(appPort, '/some-other-path', undefined, {
       headers: {
         'x-matched-path': '/gssp',
       },
@@ -313,7 +313,7 @@ describe('required server files i18n', () => {
   })
 
   it('should render dynamic SSR page correctly with x-matched-path', async () => {
-    const html = await renderViaHTTP(
+    const html = await infra.render(
       appPort,
       '/some-other-path?nxtPslug=first',
       undefined,
@@ -330,7 +330,7 @@ describe('required server files i18n', () => {
     expect($('#slug').text()).toBe('first')
     expect(data.hello).toBe('world')
 
-    const html2 = await renderViaHTTP(
+    const html2 = await infra.render(
       appPort,
       '/some-other-path?nxtPslug=second',
       undefined,
@@ -348,7 +348,7 @@ describe('required server files i18n', () => {
     expect(isNaN(data2.random)).toBe(false)
     expect(data2.random).not.toBe(data.random)
 
-    const html3 = await renderViaHTTP(
+    const html3 = await infra.render(
       appPort,
       '/some-other-path?nxtPslug=second',
       undefined,
@@ -368,7 +368,7 @@ describe('required server files i18n', () => {
   })
 
   it('should render fallback page correctly with x-matched-path and routes-matches', async () => {
-    const html = await renderViaHTTP(appPort, '/fallback/first', undefined, {
+    const html = await infra.render(appPort, '/fallback/first', undefined, {
       headers: {
         'x-matched-path': '/fallback/first',
         'x-now-route-matches': createNowRouteMatches({
@@ -383,7 +383,7 @@ describe('required server files i18n', () => {
     expect($('#slug').text()).toBe('first')
     expect(data.hello).toBe('world')
 
-    const html2 = await renderViaHTTP(appPort, `/fallback/[slug]`, undefined, {
+    const html2 = await infra.render(appPort, `/fallback/[slug]`, undefined, {
       headers: {
         'x-matched-path': '/fallback/[slug]',
         'x-now-route-matches': createNowRouteMatches({
@@ -401,7 +401,7 @@ describe('required server files i18n', () => {
   })
 
   it('should return data correctly with x-matched-path', async () => {
-    const res = await fetchViaHTTP(
+    const res = await infra.fetch(
       appPort,
       `/_next/data/${next.buildId}/en/dynamic/first.json?${createNowRouteMatches(
         { slug: 'first' }
@@ -419,7 +419,7 @@ describe('required server files i18n', () => {
     expect(data.slug).toBe('first')
     expect(data.hello).toBe('world')
 
-    const res2 = await fetchViaHTTP(
+    const res2 = await infra.fetch(
       appPort,
       `/_next/data/${next.buildId}/en/fallback/[slug].json`,
       undefined,
@@ -440,7 +440,7 @@ describe('required server files i18n', () => {
   })
 
   it('should render fallback optional catch-all route correctly with x-matched-path and routes-matches', async () => {
-    const html = await renderViaHTTP(
+    const html = await infra.render(
       appPort,
       '/catch-all/[[...rest]]',
       undefined,
@@ -458,7 +458,7 @@ describe('required server files i18n', () => {
     expect(data.params).toEqual({})
     expect(data.hello).toBe('world')
 
-    const html2 = await renderViaHTTP(
+    const html2 = await infra.render(
       appPort,
       '/catch-all/[[...rest]]',
       undefined,
@@ -479,7 +479,7 @@ describe('required server files i18n', () => {
     expect(isNaN(data2.random)).toBe(false)
     expect(data2.random).not.toBe(data.random)
 
-    const html3 = await renderViaHTTP(
+    const html3 = await infra.render(
       appPort,
       '/catch-all/[[...rest]]',
       undefined,
@@ -502,7 +502,7 @@ describe('required server files i18n', () => {
   })
 
   it('should return data correctly with x-matched-path for optional catch-all route', async () => {
-    const res = await fetchViaHTTP(
+    const res = await infra.fetch(
       appPort,
       `/_next/data/${next.buildId}/en/catch-all.json`,
       undefined,
@@ -518,7 +518,7 @@ describe('required server files i18n', () => {
     expect(data.params).toEqual({})
     expect(data.hello).toBe('world')
 
-    const res2 = await fetchViaHTTP(
+    const res2 = await infra.fetch(
       appPort,
       `/_next/data/${next.buildId}/en/catch-all/[[...rest]].json`,
       undefined,
@@ -537,7 +537,7 @@ describe('required server files i18n', () => {
     expect(data2.params).toEqual({ rest: ['hello'] })
     expect(data2.hello).toBe('world')
 
-    const res3 = await fetchViaHTTP(
+    const res3 = await infra.fetch(
       appPort,
       `/_next/data/${next.buildId}/en/catch-all/[[...rest]].json`,
       undefined,
@@ -567,7 +567,7 @@ describe('required server files i18n', () => {
       '/fallback/another/',
       '/fallback/another',
     ]) {
-      const res = await fetchViaHTTP(appPort, path, undefined, {
+      const res = await infra.fetch(appPort, path, undefined, {
         redirect: 'manual',
       })
 
@@ -576,7 +576,7 @@ describe('required server files i18n', () => {
   })
 
   it('should normalize catch-all rewrite query values correctly', async () => {
-    const html = await renderViaHTTP(
+    const html = await infra.render(
       appPort,
       '/some-catch-all/hello/world',
       {
@@ -596,7 +596,7 @@ describe('required server files i18n', () => {
   })
 
   it('should handle bad request correctly with rewrite', async () => {
-    const res = await fetchViaHTTP(
+    const res = await infra.fetch(
       appPort,
       '/to-dynamic/%c0.%c0.',
       Object.fromEntries(
@@ -615,7 +615,7 @@ describe('required server files i18n', () => {
   })
 
   it('should bubble error correctly for gip page', async () => {
-    const res = await fetchViaHTTP(appPort, '/errors/gip', { crash: '1' })
+    const res = await infra.fetch(appPort, '/errors/gip', { crash: '1' })
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
 
@@ -629,7 +629,9 @@ describe('required server files i18n', () => {
   })
 
   it('should bubble error correctly for gssp page', async () => {
-    const res = await fetchViaHTTP(appPort, '/errors/gssp', { crash: '1' })
+    const res = await infra.fetch(appPort, '/errors/gssp', {
+      crash: '1',
+    })
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
     await check(
@@ -642,7 +644,7 @@ describe('required server files i18n', () => {
   })
 
   it('should bubble error correctly for gsp page', async () => {
-    const res = await fetchViaHTTP(appPort, '/errors/gsp/crash')
+    const res = await infra.fetch(appPort, '/errors/gsp/crash')
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
     await check(
@@ -656,7 +658,7 @@ describe('required server files i18n', () => {
 
   it('should bubble error correctly for API page', async () => {
     errors = []
-    const res = await fetchViaHTTP(appPort, '/api/error')
+    const res = await infra.fetch(appPort, '/api/error')
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
     await check(
@@ -669,7 +671,7 @@ describe('required server files i18n', () => {
   })
 
   it('should normalize optional values correctly for SSP page', async () => {
-    const res = await fetchViaHTTP(
+    const res = await infra.fetch(
       appPort,
       '/optional-ssp',
       Object.fromEntries(
@@ -697,7 +699,7 @@ describe('required server files i18n', () => {
   })
 
   it('should normalize optional values correctly for SSG page', async () => {
-    const res = await fetchViaHTTP(
+    const res = await infra.fetch(
       appPort,
       '/en/optional-ssg/[[...rest]]',
       undefined,
@@ -721,7 +723,7 @@ describe('required server files i18n', () => {
   })
 
   it('should normalize optional values correctly for nested optional SSG page', async () => {
-    const res = await fetchViaHTTP(
+    const res = await infra.fetch(
       appPort,
       '/en/[slug]/social/[[...rest]]',
       undefined,
@@ -746,7 +748,7 @@ describe('required server files i18n', () => {
   })
 
   it('should normalize optional values correctly for SSG page with encoded slash', async () => {
-    const res = await fetchViaHTTP(
+    const res = await infra.fetch(
       appPort,
       '/optional-ssg/[[...rest]]',
       undefined,
@@ -767,7 +769,7 @@ describe('required server files i18n', () => {
   })
 
   it('should normalize optional values correctly for API page', async () => {
-    const res = await fetchViaHTTP(
+    const res = await infra.fetch(
       appPort,
       '/api/optional',
       Object.fromEntries(
@@ -793,7 +795,7 @@ describe('required server files i18n', () => {
   })
 
   it('should match the index page correctly', async () => {
-    const res = await fetchViaHTTP(appPort, '/', undefined, {
+    const res = await infra.fetch(appPort, '/', undefined, {
       headers: {
         'x-matched-path': '/index',
       },
@@ -806,7 +808,7 @@ describe('required server files i18n', () => {
   })
 
   it('should match the root dyanmic page correctly', async () => {
-    const res = await fetchViaHTTP(appPort, '/slug-1', undefined, {
+    const res = await infra.fetch(appPort, '/slug-1', undefined, {
       headers: {
         'x-matched-path': '/[slug]',
       },
@@ -819,7 +821,7 @@ describe('required server files i18n', () => {
   })
 
   it('should have the correct asPath for fallback page', async () => {
-    const res = await fetchViaHTTP(appPort, '/en/fallback/[slug]', undefined, {
+    const res = await infra.fetch(appPort, '/en/fallback/[slug]', undefined, {
       headers: {
         'x-matched-path': '/en/fallback/[slug]',
         'x-now-route-matches': createNowRouteMatches(
@@ -844,7 +846,7 @@ describe('required server files i18n', () => {
   })
 
   it('should have the correct asPath for fallback page locale', async () => {
-    const res = await fetchViaHTTP(appPort, '/fr/fallback/[slug]', undefined, {
+    const res = await infra.fetch(appPort, '/fr/fallback/[slug]', undefined, {
       headers: {
         'x-matched-path': '/fr/fallback/[slug]',
         'x-now-route-matches': createNowRouteMatches(
