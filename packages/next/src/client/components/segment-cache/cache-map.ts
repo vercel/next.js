@@ -349,7 +349,6 @@ export function setInCacheMap<V extends MapValue>(
 
   // This is an LRU access. Move the entry to the front of the list.
   lruPut(entry)
-  updateLruSize(entry, value.size)
 }
 
 function setMapEntryValue(entry: UnknownMapEntry, value: MapValue): void {
