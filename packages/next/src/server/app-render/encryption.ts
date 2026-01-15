@@ -173,8 +173,9 @@ export const encryptActionBoundArgs = React.cache(
           // We can do this by piping debug info into a debug channel that throws it away.
           //
           // Note that this can result in dangling debug info references when we decode the bound args,
-          // but React ignores those as long as no debug channel is passed on the decode side, so it's fine.
+          // but React ignores those as long as no debug channel is passed on the decode side, so it's fine:
           // https://github.com/facebook/react/blob/bb8a76c6cc77ea2976d690ea09f5a1b3d9b1792a/packages/react-client/src/ReactFlightClient.js#L1711-L1729
+          // https://github.com/facebook/react/blob/bb8a76c6cc77ea2976d690ea09f5a1b3d9b1792a/packages/react-client/src/ReactFlightClient.js#L4005-L4025
           process.env.NODE_ENV === 'development' &&
           (prerenderResumeDataCache || renderResumeDataCache)
             ? {
@@ -316,6 +317,7 @@ export async function decryptActionBoundArgs(
       // In that case, it's important that we also *don't* pass a debug channel here, because that will make
       // the Flight Client ignore the dangling references:
       // https://github.com/facebook/react/blob/bb8a76c6cc77ea2976d690ea09f5a1b3d9b1792a/packages/react-client/src/ReactFlightClient.js#L1711-L1729
+      // https://github.com/facebook/react/blob/bb8a76c6cc77ea2976d690ea09f5a1b3d9b1792a/packages/react-client/src/ReactFlightClient.js#L4005-L4025
       debugChannel: undefined,
       serverConsumerManifest: {
         // moduleLoading must be null because we don't want to trigger preloads of ClientReferences
