@@ -1,6 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
-import { skip } from 'node:test'
 import { Page } from 'playwright'
 
 describe('app dir - workers', () => {
@@ -116,9 +115,7 @@ it('should have access to NEXT_DEPLOYMENT_ID in web worker', async () => {
 
   it('should support shared workers', async () => {
     if (!isTurbopack) {
-      skip(
-        'webpack requires a magic attribute for shared workers to function and this test does not include it'
-      )
+      // webpack requires a magic attribute for shared workers to function
       return
     }
     const browser = await next.browser('/shared', {
