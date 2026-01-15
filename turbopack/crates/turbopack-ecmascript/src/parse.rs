@@ -747,3 +747,90 @@ impl Visit for VarDeclWithTsDeclareCollector {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use swc_core::{
+        common::{FileName, GLOBALS, SourceMap, sync::Lrc},
+        ecma::parser::{Parser, Syntax, TsSyntax, lexer::Lexer},
+    };
+
+    use super::VarDeclWithTsDeclareCollector;
+
+    fn parse_and_collect(code: &str) -> Vec<String> {
+        GLOBALS.set(&Default::default(), || {
+            let cm: Lrc<SourceMap> = Default::default();
+            let fm = cm.new_source_file(FileName::Anon.into(), code.to_string());
+
+            let lexer = Lexer::new(
+                Syntax::Typescript(TsSyntax {
+                    tsx: false,
+                    decorators: true,
+                    ..Default::default()
+                }),
+                Default::default(),
+                (&*fm).into(),
+                None,
+            );
+
+            let mut parser = Parser::new_from(lexer);
+            let module = parser.parse_module().expect("Failed to parse");
+
+            let ids = VarDeclWithTsDeclareCollector::collect(&module);
+            let mut result: Vec<_> = ids.iter().map(|id| id.0.to_string()).collect();
+            result.sort();
+            result
+        })
+    }
+
+    #[test]
+    fn test_collect_declare_const() {
+        let ids = parse_and_collect("declare const Foo: number;");
+        assert_eq!(ids, vec!["Foo"]);
+    }
+
+    #[test]
+    fn test_collect_declare_global() {
+        let ids = parse_and_collect("declare global {}");
+        assert_eq!(ids, vec!["global"]);
+    }
+
+    #[test]
+    fn test_collect_declare_global_with_content() {
+        let ids = parse_and_collect(
+            r#"
+            declare global {
+                interface Window {
+                    foo: string;
+                }
+            }
+            "#,
+        );
+        assert_eq!(ids, vec!["global"]);
+    }
+
+    #[test]
+    fn test_collect_multiple_declares() {
+        let ids = parse_and_collect(
+            r#"
+            declare const Foo: number;
+            declare global {}
+            declare const Bar: string;
+            "#,
+        );
+        assert_eq!(ids, vec!["Bar", "Foo", "global"]);
+    }
+
+    #[test]
+    fn test_no_collect_non_declare() {
+        let ids = parse_and_collect("const Foo = 1;");
+        assert!(ids.is_empty());
+    }
+
+    #[test]
+    fn test_no_collect_declare_namespace() {
+        // `declare namespace Foo {}` should also be collected
+        let ids = parse_and_collect("declare namespace Foo {}");
+        assert_eq!(ids, vec!["Foo"]);
+    }
+}
