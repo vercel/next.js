@@ -747,8 +747,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     let leaf_distance = get!(task, LeafDistance).copied().unwrap_or_default();
                     let reader_leaf_distance =
                         get!(reader_task, LeafDistance).copied().unwrap_or_default();
-                    if reader_leaf_distance.min <= leaf_distance.min {
-                        queue.push(reader, leaf_distance.min, leaf_distance.max);
+                    if reader_leaf_distance.distance <= leaf_distance.distance {
+                        queue.push(
+                            reader,
+                            leaf_distance.distance,
+                            leaf_distance.max_distance_in_buffer,
+                        );
                     }
                 }
 

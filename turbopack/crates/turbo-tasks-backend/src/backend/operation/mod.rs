@@ -567,7 +567,12 @@ where
 
     fn schedule_task(&self, task: Self::TaskGuardImpl, parent_priority: TaskPriority) {
         let priority = if get!(task, Output).is_some() {
-            TaskPriority::invalidation(get!(task, LeafDistance).copied().unwrap_or_default().min)
+            TaskPriority::invalidation(
+                get!(task, LeafDistance)
+                    .copied()
+                    .unwrap_or_default()
+                    .distance,
+            )
         } else {
             TaskPriority::initial()
         };

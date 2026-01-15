@@ -238,21 +238,26 @@ pub struct AggregationNumber {
 }
 
 /// Monotonic increasing distance range to leaf nodes when following "dependencies" edges.
-/// It is a range and ranges might overlap. There is a strictly monotonic increasing `min` value.
-/// `max` value might not be monotonic. The `max` value is used as buffer zone to avoid too many
-/// updates to dependent nodes when the leaf distance increases slightly. When the leaf distance is
-/// increased it tries to keep the `max` value equal. When increasing there are three cases:
-/// - `min` >= `min` of the dependency + 1: no change.
-/// - `min` <= `max`: only `min` is increased to the smallest possible value.
-/// - `min` > `max`: `min` is increased to the `max` value of the dependency + 1 and `max` is
-///   increased to `min` + buffer zone.
+/// It is a range and ranges might overlap. There is a strictly monotonic increasing `distance`
+/// value. `max_distance_in_buffer` value might not be monotonic. The `max_distance_in_buffer` value
+/// is used as buffer zone to avoid too many updates to dependent nodes when the leaf distance
+/// increases slightly. When the leaf distance is increased it tries to keep the
+/// `max_distance_in_buffer` value equal. When increasing there are three cases:
+/// - `distance` >= `distance` of the dependency + 1: no change.
+/// - `distance` <= `max_distance_in_buffer`: only `distance` is increased to the smallest possible
+///   value.
+/// - `distance` > `max_distance_in_buffer`: `distance` is increased to the `max_distance_in_buffer`
+///   value of the dependency + 1 and `max_distance_in_buffer` is increased to `distance` + buffer
+///   zone.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Encode, Decode)]
 pub struct LeafDistance {
-    /// This
-    pub min: u32,
+    /// This is the strictly monotonic increasing minimum leaf distance.
+    pub distance: u32,
     /// A buffer zone value in which is usually safe to increase the leaf distance without causing
     /// too many updates to dependent nodes.
-    pub max: u32,
+    /// Newly added dependents might be added within this buffer zone to avoid propagating updates,
+    /// therefore one can't rely on this being safe. It's only "often safe".
+    pub max_distance_in_buffer: u32,
 }
 
 #[derive(Debug, Clone, KeyValuePair, Encode, Decode)]

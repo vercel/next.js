@@ -31,8 +31,8 @@ const BASE_LEAF_DISTANCE_BUFFER: u32 = 128;
 /// An leaf distance update job that is enqueued.
 #[derive(Encode, Decode, Clone)]
 struct LeafDistanceUpdate {
-    dependencies_min: u32,
-    dependencies_max: u32,
+    dependencies_distance: u32,
+    dependencies_max_distance_in_buffer: u32,
     done: bool,
     #[cfg(feature = "trace_leaf_distance_update")]
     #[bincode(skip, default)]
@@ -40,9 +40,11 @@ struct LeafDistanceUpdate {
 }
 
 impl LeafDistanceUpdate {
-    fn add(&mut self, dependency_min: u32, dependency_max: u32) {
-        self.dependencies_min = self.dependencies_min.max(dependency_min);
-        self.dependencies_max = self.dependencies_max.max(dependency_max);
+    fn add(&mut self, dependency_distance: u32, dependency_max_distance_in_buffer: u32) {
+        self.dependencies_distance = self.dependencies_distance.max(dependency_distance);
+        self.dependencies_max_distance_in_buffer = self
+            .dependencies_max_distance_in_buffer
+            .max(dependency_max_distance_in_buffer);
     }
 }
 
@@ -64,23 +66,28 @@ impl LeafDistanceUpdateQueue {
         self.queue.is_empty()
     }
 
-    pub fn push(&mut self, task_id: TaskId, dependency_min: u32, dependency_max: u32) {
+    pub fn push(
+        &mut self,
+        task_id: TaskId,
+        dependency_distance: u32,
+        dependency_max_distance_in_buffer: u32,
+    ) {
         match self.leaf_distance_updates.entry(task_id) {
             Entry::Occupied(mut entry) => {
                 let update = entry.get_mut();
-                if update.done && update.dependencies_min < dependency_min {
+                if update.done && update.dependencies_distance < dependency_distance {
                     update.done = false;
-                    self.queue.push((Reverse(dependency_min), task_id));
+                    self.queue.push((Reverse(dependency_distance), task_id));
                 }
-                update.add(dependency_min, dependency_max);
+                update.add(dependency_distance, dependency_max_distance_in_buffer);
             }
             Entry::Vacant(entry) => {
                 entry.insert(LeafDistanceUpdate {
-                    dependencies_min: dependency_min,
-                    dependencies_max: dependency_max,
+                    dependencies_distance: dependency_distance,
+                    dependencies_max_distance_in_buffer: dependency_max_distance_in_buffer,
                     done: false,
                 });
-                self.queue.push((Reverse(dependency_min), task_id));
+                self.queue.push((Reverse(dependency_distance), task_id));
             }
         };
     }
@@ -89,24 +96,29 @@ impl LeafDistanceUpdateQueue {
     pub fn process(&mut self, ctx: &mut impl ExecuteContext) -> bool {
         let mut remaining = MAX_COUNT_BEFORE_YIELD;
         while remaining > 0 {
-            if let Some((Reverse(queue_dependencies_min), task_id)) = self.queue.pop() {
+            if let Some((Reverse(queue_dependencies_distance), task_id)) = self.queue.pop() {
                 let &mut LeafDistanceUpdate {
-                    dependencies_min,
-                    dependencies_max,
+                    dependencies_distance,
+                    dependencies_max_distance_in_buffer,
                     ref mut done,
                     #[cfg(feature = "trace_leaf_distance_update")]
                     span,
                 } = self.leaf_distance_updates.get_mut(&task_id).unwrap();
-                if queue_dependencies_min != dependencies_min {
+                if queue_dependencies_distance != dependencies_distance {
                     // Stale entry in queue
                     // Re-enqueue to keep the ordering correct
-                    self.queue.push((Reverse(dependencies_min), task_id));
+                    self.queue.push((Reverse(dependencies_distance), task_id));
                     continue;
                 }
                 #[cfg(feature = "trace_leaf_distance_update")]
                 let _guard = span.map(|s| s.entered());
                 *done = true;
-                self.update_leaf_distance(ctx, task_id, dependencies_min, dependencies_max);
+                self.update_leaf_distance(
+                    ctx,
+                    task_id,
+                    dependencies_distance,
+                    dependencies_max_distance_in_buffer,
+                );
                 remaining -= 1;
             } else {
                 return true;
@@ -119,35 +131,38 @@ impl LeafDistanceUpdateQueue {
         &mut self,
         ctx: &mut impl ExecuteContext,
         task_id: TaskId,
-        dependencies_min: u32,
-        dependencies_max: u32,
+        dependencies_distance: u32,
+        dependencies_max_distance_in_buffer: u32,
     ) {
         #[cfg(feature = "trace_leaf_distance_update")]
-        let _span =
-            trace_span!("update leaf distance", dependencies_min, dependencies_max).entered();
-
+        let _span = trace_span!(
+            "update leaf distance",
+            dependencies_distance,
+            dependencies_max_distance_in_buffer
+        )
+        .entered();
         let mut task = ctx.task(
             task_id,
             // For performance reasons this should stay `Data` and not `All`
             TaskDataCategory::Data,
         );
-        debug_assert!(dependencies_max < u32::MAX / 2);
+        debug_assert!(dependencies_max_distance_in_buffer < u32::MAX / 2);
         let mut leaf_distance = get!(task, LeafDistance).copied().unwrap_or_default();
-        if leaf_distance.min > dependencies_min {
+        if leaf_distance.distance > dependencies_distance {
             // It is strictly monotonic. No need to update.
             return;
         }
         // It's not strictly monotonic, we need to update
-        if leaf_distance.max <= dependencies_min {
+        if leaf_distance.max_distance_in_buffer <= dependencies_distance {
             // We overshoot the buffer zone.
-            let old_value = leaf_distance.min;
-            leaf_distance.min = dependencies_max + 1;
+            let old_value = leaf_distance.distance;
+            leaf_distance.distance = dependencies_max_distance_in_buffer + 1;
             let buffer_size = BASE_LEAF_DISTANCE_BUFFER
-                - BASE_LEAF_DISTANCE_BUFFER.saturating_mul(old_value) / leaf_distance.min;
-            leaf_distance.max = leaf_distance.min + buffer_size;
+                - BASE_LEAF_DISTANCE_BUFFER.saturating_mul(old_value) / leaf_distance.distance;
+            leaf_distance.max_distance_in_buffer = leaf_distance.distance + buffer_size;
         } else {
             // We are within the buffer zone, keep the max as is
-            leaf_distance.min = dependencies_min + 1;
+            leaf_distance.distance = dependencies_distance + 1;
         }
         let dependents = iter_many!(task, OutputDependent { task } => task)
             // TODO Technically this is also needed, but there are cycles in the CellDependent graph
@@ -156,7 +171,11 @@ impl LeafDistanceUpdateQueue {
             // .chain(iter_many!(task, CellDependent { task, .. } => task))
             ;
         for dependent_id in dependents {
-            self.push(dependent_id, leaf_distance.min, leaf_distance.max);
+            self.push(
+                dependent_id,
+                leaf_distance.distance,
+                leaf_distance.max_distance_in_buffer,
+            );
         }
         task.insert(CachedDataItem::LeafDistance {
             value: leaf_distance,
