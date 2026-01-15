@@ -11,6 +11,7 @@ use turbopack_core::{
     module::Module,
     module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
     output::{OutputAssetsReference, OutputAssetsWithReferenced},
+    reference_type::WorkerReferenceSubType,
 };
 
 use super::module::WorkerLoaderModule;
@@ -19,7 +20,7 @@ use crate::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkType,
         data::EcmascriptChunkData,
     },
-    runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_WORKER_BLOB_URL},
+    runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_WORKER_URL},
     utils::StringifyJs,
 };
 
@@ -28,6 +29,8 @@ pub struct WorkerLoaderChunkItem {
     pub module: ResolvedVc<WorkerLoaderModule>,
     pub module_graph: ResolvedVc<ModuleGraph>,
     pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    #[allow(dead_code)]
+    pub worker_type: WorkerReferenceSubType,
 }
 
 #[turbo_tasks::value_impl]
@@ -67,7 +70,7 @@ impl EcmascriptChunkItem for WorkerLoaderChunkItem {
 
         let code = formatdoc! {
             r#"
-                {TURBOPACK_EXPORT_VALUE}({TURBOPACK_WORKER_BLOB_URL}({chunks:#}));
+                {TURBOPACK_EXPORT_VALUE}({TURBOPACK_WORKER_URL}({chunks:#}));
             "#,
             chunks = StringifyJs(&chunks_data),
         };
