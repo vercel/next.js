@@ -718,12 +718,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                     let result = CaptureFuture::new(future).await;
 
                     // wait for all spawned local tasks using `local` to finish
-                    while let Some(ltt) =
-                        CURRENT_TASK_STATE.with(|ts| ts.write().unwrap().local_task_tracker.take())
-                    {
-                        use futures::StreamExt;
-                        ltt.count().await;
-                    }
+                    wait_for_local_tasks().await;
 
                     match result {
                         Ok(Ok(raw_vc)) => Ok(raw_vc),
@@ -1200,12 +1195,7 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
                                 let result = CaptureFuture::new(future).await;
 
                                 // wait for all spawned local tasks using `local` to finish
-                                while let Some(ltt) = CURRENT_TASK_STATE
-                                    .with(|ts| ts.write().unwrap().local_task_tracker.take())
-                                {
-                                    use futures::StreamExt;
-                                    ltt.count().await;
-                                }
+                                wait_for_local_tasks().await;
 
                                 let result = match result {
                                     Ok(Ok(raw_vc)) => Ok(raw_vc),
@@ -1662,6 +1652,15 @@ impl<B: Backend + 'static> TurboTasksBackendApi<B> for TurboTasks<B> {
         self.currently_scheduled_foreground_jobs
             .load(Ordering::Acquire)
             == 0
+    }
+}
+
+async fn wait_for_local_tasks() {
+    while let Some(mut ltt) =
+        CURRENT_TASK_STATE.with(|ts| ts.write().unwrap().local_task_tracker.take())
+    {
+        use futures::StreamExt;
+        while ltt.next().await.is_none() {}
     }
 }
 
