@@ -2,18 +2,21 @@ use std::{
     collections::BinaryHeap,
     fmt::Debug,
     future::Future,
-    pin::Pin,
+    pin::{Pin, pin},
     ptr::drop_in_place,
     sync::{
         Arc,
         atomic::{AtomicUsize, Ordering},
     },
-    task::{Context, Poll},
+    task::{Context, Poll, ready},
 };
 
 use parking_lot::Mutex;
 use pin_project_lite::pin_project;
-use tokio::sync::oneshot::{Receiver, Sender};
+use tokio::{
+    sync::oneshot::{Receiver, Sender},
+    task::yield_now,
+};
 
 pub trait Executor<C, T, P>: Send + Sync {
     type Future: Future<Output = ()> + Send;
@@ -211,6 +214,14 @@ impl<
     }
 }
 
+#[derive(Debug)]
+enum WorkerState {
+    UnfinishedFuture,
+    PendingFuture,
+    Done,
+    Closed,
+}
+
 pin_project! {
     struct WorkerFuture<C, T, P, E>
     where
@@ -232,7 +243,7 @@ pin_project! {
         tx: Option<Sender<()>>,
         execute_context: Arc<C>,
         runner: Arc<PriorityRunner<C, T, P, E>>,
-        is_active: bool,
+        state: WorkerState,
     }
 }
 
@@ -254,7 +265,7 @@ impl<
             tx,
             execute_context,
             runner,
-            is_active: true,
+            state: WorkerState::UnfinishedFuture,
         });
     }
 }
@@ -270,25 +281,47 @@ impl<
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let mut this = self.project();
-        if !*this.is_active {
+        if matches!(this.state, WorkerState::PendingFuture) {
             // When the worker is not active (it previously returned Poll::Pending),
             // we need to mark it as active again since it is being polled now.
             this.runner.active_workers.fetch_add(1, Ordering::Relaxed);
-            *this.is_active = true;
+            *this.state = WorkerState::UnfinishedFuture;
         }
         loop {
-            match this.future.as_mut().poll(cx) {
-                Poll::Ready(()) => {
-                    // Notify that the task is done
-                    if let Some(tx) = this.tx.take() {
-                        let _ = tx.send(());
-                    }
+            match this.state {
+                WorkerState::Closed => return Poll::Ready(()),
+                WorkerState::PendingFuture => unreachable!(),
+                WorkerState::UnfinishedFuture => {
+                    match this.future.as_mut().poll(cx) {
+                        Poll::Ready(()) => {
+                            // Notify that the task is done
+                            if let Some(tx) = this.tx.take() {
+                                let _ = tx.send(());
+                            }
 
+                            *this.state = WorkerState::Done;
+
+                            let yield_future = pin!(yield_now());
+                            ready!(yield_future.poll(cx));
+                        }
+                        Poll::Pending => {
+                            // The current future is still pending, we need to suspend this worker.
+                            // But we if there are free capacity we can spawn a new worker to pick
+                            // up other tasks in the queue.
+                            this.runner
+                                .reuse_or_decrease_active_workers(this.execute_context);
+                            *this.state = WorkerState::PendingFuture;
+                            return Poll::Pending;
+                        }
+                    }
+                }
+                WorkerState::Done => {
                     let active_workers = this.runner.active_workers.load(Ordering::Relaxed);
                     if active_workers > this.runner.target_workers {
                         // There are more active workers than target, so we should end this
                         // worker.
                         this.runner.decrease_active_workers(this.execute_context);
+                        *this.state = WorkerState::Closed;
                         return Poll::Ready(());
                     }
 
@@ -309,22 +342,14 @@ impl<
                             future_slot.write(new_future);
                         }
                         *this.tx = new_tx;
-                        continue;
+                        *this.state = WorkerState::UnfinishedFuture;
                     } else {
                         // No more tasks to execute
                         // This worker ends here
                         this.runner.decrease_active_workers(this.execute_context);
+                        *this.state = WorkerState::Closed;
                         return Poll::Ready(());
                     }
-                }
-                Poll::Pending => {
-                    // The current future is still pending, we need to suspend this worker.
-                    // But we if there are free capacity we can spawn a new worker to pick up
-                    // other tasks in the queue.
-                    this.runner
-                        .reuse_or_decrease_active_workers(this.execute_context);
-                    *this.is_active = false;
-                    return Poll::Pending;
                 }
             }
         }
@@ -398,8 +423,60 @@ mod tests {
         println!("Results: {:?}", *results);
 
         // The first two tasks are directly spawned without queuing
-        assert!(results[0..2].contains(&0));
-        assert!(results[0..2].contains(&1));
+        assert_eq!(&results[0..2], &[0, 1]);
+        // All tasks after that are queued and therefore prioritized
+        // This means the highest priority tasks are executed next
+        assert!(results[2..4].contains(&9));
+        assert!(results[2..4].contains(&8));
+        // The last tasks are the tasks with the lowest priority
+        assert!(results[8..10].contains(&2));
+        assert!(results[8..10].contains(&3));
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_cpu_bound_with_yield_tasks() {
+        struct ExecutorImpl;
+
+        impl Executor<Mutex<Vec<u32>>, u32, u32> for ExecutorImpl {
+            type Future = Pin<Box<dyn Future<Output = ()> + Send>>;
+
+            fn execute(
+                &self,
+                execute_context: &Arc<Mutex<Vec<u32>>>,
+                task: u32,
+                _priority: u32,
+            ) -> Self::Future {
+                let execute_context = execute_context.clone();
+                Box::pin(async move {
+                    println!("Executing task {}...", task);
+                    sleep(Duration::from_millis(task as u64 * 10));
+                    execute_context.lock().push(task);
+                    println!("Finished task {}.", task);
+                    tokio::task::yield_now().await;
+                })
+            }
+        }
+
+        let executor = ExecutorImpl;
+
+        let runner: Arc<PriorityRunner<Mutex<Vec<u32>>, u32, u32, _>> =
+            Arc::new(PriorityRunner::new(executor));
+        let results = Arc::new(Mutex::new(Vec::new()));
+
+        for i in 0..10 {
+            let results = results.clone();
+            println!("Scheduling task {}...", i);
+            runner.schedule(&results, i, i);
+        }
+
+        while results.lock().len() < 10 {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+        let results = results.lock();
+        println!("Results: {:?}", *results);
+
+        // The first two tasks are directly spawned without queuing
+        assert_eq!(&results[0..2], &[0, 1]);
         // All tasks after that are queued and therefore prioritized
         // This means the highest priority tasks are executed next
         assert!(results[2..4].contains(&9));
@@ -451,5 +528,97 @@ mod tests {
         println!("Results: {:?}", *results);
 
         assert_eq!(*results, vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    }
+
+    #[test]
+    fn test_mixed_cpu_bound_and_waiting_tasks() {
+        tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(2)
+            .event_interval(1)
+            .global_queue_interval(1)
+            .disable_lifo_slot()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(test_mixed_cpu_bound_and_waiting_tasks_impl());
+    }
+
+    async fn test_mixed_cpu_bound_and_waiting_tasks_impl() {
+        struct ExecutorImpl;
+
+        impl Executor<Mutex<Vec<u32>>, u32, u32> for ExecutorImpl {
+            type Future = Pin<Box<dyn Future<Output = ()> + Send>>;
+
+            fn execute(
+                &self,
+                execute_context: &Arc<Mutex<Vec<u32>>>,
+                task: u32,
+                _priority: u32,
+            ) -> Self::Future {
+                let execute_context = execute_context.clone();
+                println!("Created task {}", task);
+                Box::pin(async move {
+                    let cpu_bound = task < 10;
+                    if cpu_bound {
+                        println!("Executing cpu-bound task {}...", task);
+                        // CPU bound task
+                        sleep(Duration::from_millis(task as u64 * 10));
+                    } else {
+                        println!("Executing waiting task {}...", task);
+                        // Waiting task
+                        tokio::time::sleep(Duration::from_millis(task as u64 * 10)).await;
+                    }
+                    execute_context.lock().push(task);
+                    if cpu_bound {
+                        println!("Finished cpu-bound task {}.", task);
+                    } else {
+                        println!("Finished waiting task {}.", task);
+                    }
+                })
+            }
+        }
+
+        let executor = ExecutorImpl;
+
+        let runner: Arc<PriorityRunner<Mutex<Vec<u32>>, u32, u32, _>> =
+            Arc::new(PriorityRunner::new(executor));
+        let results = Arc::new(Mutex::new(Vec::new()));
+
+        for i in 0..20 {
+            let results = results.clone();
+            println!("Scheduling task {}...", i);
+            runner.schedule(&results, i, i);
+        }
+
+        while results.lock().len() < 20 {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+        let results = results.lock();
+        println!("Results: {:?}", *results);
+
+        // The first two tasks are directly spawned without queuing
+        assert_eq!(&results[0..2], &[0, 1]);
+        // All tasks after that are queued and therefore prioritized
+        // The waiting tasks are just waiting, so all of them are executed.
+        // And the two highest priority cpu-bound tasks are executed too.
+        // Since we only have 2 workers, the waiting tasks ain't polled until the cpu-bound tasks
+        // are done.
+        assert!(results[2..4].contains(&9));
+        assert!(results[2..4].contains(&8));
+        let waiting_task_pos = results
+            .iter()
+            .position(|&x| x >= 10)
+            .expect("Waiting task should be executed");
+        // Waiting tasks should be interleaved with cpu-bound tasks
+        assert!(waiting_task_pos < 8);
+
+        let cpu_bound_results = results
+            .iter()
+            .copied()
+            .filter(|&x| x < 10)
+            .collect::<Vec<_>>();
+        // The last tasks are the tasks with the lowest priority
+        assert!(cpu_bound_results[8..10].contains(&2));
+        assert!(cpu_bound_results[8..10].contains(&3));
     }
 }
