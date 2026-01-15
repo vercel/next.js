@@ -39,6 +39,7 @@ use crate::ecmascript::{
     chunk::EcmascriptBrowserChunk,
     evaluate::chunk::EcmascriptBrowserEvaluateChunk,
     list::asset::{EcmascriptDevChunkList, EcmascriptDevChunkListSource},
+    worker::EcmascriptBrowserWorkerEntrypoint,
 };
 
 #[turbo_tasks::value]
@@ -896,6 +897,11 @@ impl ChunkingContext for BrowserChunkingContext {
     #[turbo_tasks::function]
     async fn debug_ids_enabled(self: Vc<Self>) -> Result<Vc<bool>> {
         Ok(Vc::cell(self.await?.debug_ids))
+    }
+
+    #[turbo_tasks::function]
+    fn worker_entrypoint(self: Vc<Self>) -> Vc<Box<dyn OutputAsset>> {
+        Vc::upcast(EcmascriptBrowserWorkerEntrypoint::new(Vc::upcast(self)))
     }
 }
 

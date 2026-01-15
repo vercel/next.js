@@ -150,6 +150,16 @@ impl OutputAssetsWithReferenced {
 #[turbo_tasks::value_impl]
 impl OutputAssetsWithReferenced {
     #[turbo_tasks::function]
+    pub fn empty() -> Vc<Self> {
+        OutputAssetsWithReferenced {
+            assets: OutputAssets::empty_resolved(),
+            referenced_assets: OutputAssets::empty_resolved(),
+            references: OutputAssetsReferences::empty_resolved(),
+        }
+        .cell()
+    }
+
+    #[turbo_tasks::function]
     pub fn from_assets(assets: ResolvedVc<OutputAssets>) -> Vc<Self> {
         OutputAssetsWithReferenced {
             assets,

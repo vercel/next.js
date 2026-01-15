@@ -2,7 +2,10 @@ error - [process module] /turbopack/crates/turbopack-tests/tests/snapshot/worker
   
   The module type must be Ecmascript or Typescript to add Ecmascript transforms
   
-  Import trace:
-    test:
+  Import traces:
+    #1 [test]:
+      ./turbopack/crates/turbopack-tests/tests/snapshot/workers/shared/input/worker.js
+      ./turbopack/crates/turbopack-tests/tests/snapshot/workers/shared/input/index.js
+    #2 [test]:
       ./turbopack/crates/turbopack-tests/tests/snapshot/workers/shared/input/worker.js
       ./turbopack/crates/turbopack-tests/tests/snapshot/workers/shared/input/index.js

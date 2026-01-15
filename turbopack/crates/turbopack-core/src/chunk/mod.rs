@@ -91,7 +91,7 @@ pub struct ModuleIds(Vec<ModuleId>);
 #[turbo_tasks::value_trait]
 pub trait ChunkableModule: Module + Asset {
     #[turbo_tasks::function]
-    fn as_chunk_item(
+    async fn as_chunk_item(
         self: Vc<Self>,
         module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
