@@ -176,7 +176,7 @@ impl<
     ) -> Option<(E::Future, Option<Sender<()>>)> {
         let mut queue = self.queue.lock();
         if let Some(heap_item) = queue.pop() {
-            if queue.len() * 2 < queue.capacity() {
+            if queue.len() * 2 + 16 < queue.capacity() {
                 queue.shrink_to_fit();
             }
             drop(queue);
@@ -198,7 +198,7 @@ impl<
     ) -> bool {
         let mut queue = self.queue.lock();
         if let Some(heap_item) = queue.pop() {
-            if queue.len() * 2 < queue.capacity() {
+            if queue.len() * 2 + 16 < queue.capacity() {
                 queue.shrink_to_fit();
             }
             drop(queue);
