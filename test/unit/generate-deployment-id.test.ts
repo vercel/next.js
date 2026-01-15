@@ -50,45 +50,6 @@ describe('resolveAndSetDeploymentId', () => {
     }
   })
 
-  describe('Vercel dpl_ prefix validation', () => {
-    it('should reject dpl_ prefixed deployment ID from user config (string)', () => {
-      const vercelDeploymentId = 'dpl_abc123xyz'
-      expect(() =>
-        resolveAndSetDeploymentId(vercelDeploymentId, 'user-config')
-      ).toThrow('cannot start with the "dpl_" prefix')
-    })
-
-    it('should reject dpl_ prefixed deployment ID from user config (function)', () => {
-      const vercelDeploymentId = 'dpl_abc123xyz'
-      const fn = () => vercelDeploymentId
-      expect(() => resolveAndSetDeploymentId(fn, 'user-config')).toThrow(
-        'cannot start with the "dpl_" prefix'
-      )
-    })
-
-    it('should allow dpl_ prefixed deployment ID from NEXT_DEPLOYMENT_ID env var (Vercel sets this)', () => {
-      const vercelDeploymentId = 'dpl_abc123xyz'
-      process.env.NEXT_DEPLOYMENT_ID = vercelDeploymentId
-      const result = resolveAndSetDeploymentId(undefined, 'env-var')
-      expect(result).toBe(vercelDeploymentId)
-    })
-
-    it('should reject dpl_ prefixed deployment ID when user explicitly sets it in config', () => {
-      const vercelDeploymentId = 'dpl_abc123xyz'
-      process.env.NEXT_DEPLOYMENT_ID = 'some-other-id'
-      expect(() =>
-        resolveAndSetDeploymentId(vercelDeploymentId, 'user-config')
-      ).toThrow('cannot start with the "dpl_" prefix')
-    })
-
-    it('should allow non-dpl_ prefixed deployment ID from user config', () => {
-      const validDeploymentId = 'my-deployment-123'
-      const result = resolveAndSetDeploymentId(validDeploymentId, 'user-config')
-      expect(result).toBe(validDeploymentId)
-      expect(process.env.NEXT_DEPLOYMENT_ID).toBe(validDeploymentId)
-    })
-  })
-
   describe('Precedence: user-configured vs NEXT_DEPLOYMENT_ID', () => {
     beforeEach(() => {
       delete process.env.NEXT_DEPLOYMENT_ID

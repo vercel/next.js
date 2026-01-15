@@ -58,11 +58,6 @@ export function resolveAndSetDeploymentId(
         `The deploymentId "${userConfiguredDeploymentId}" exceeds the maximum length of 32 characters. Please choose a shorter deploymentId in your next.config.js. https://nextjs.org/docs/messages/deploymentid-too-long`
       )
     }
-    if (userConfiguredDeploymentId.startsWith('dpl_')) {
-      throw new Error(
-        `The deploymentId "${userConfiguredDeploymentId}" cannot start with the "dpl_" prefix. Please choose a different deploymentId in your next.config.js. https://vercel.com/docs/skew-protection#custom-skew-protection-deployment-id`
-      )
-    }
     const validCharacterPattern = /^[a-zA-Z0-9_-]+$/
     if (!validCharacterPattern.test(userConfiguredDeploymentId)) {
       throw new Error(
