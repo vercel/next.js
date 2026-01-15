@@ -14,7 +14,7 @@ use turbopack_core::{
 
 #[derive(Default, Debug, Clone, TraceRawVcs, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub enum TsConfigHandling {
-    /// Ignore tsconfig files
+    /// Ignore tsconfig and jsconfig files
     Disabled,
     #[default]
     /// Find corresponding tsconfig files based on the location of the file
