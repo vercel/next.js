@@ -397,7 +397,7 @@ mod tests {
                 let execute_context = execute_context.clone();
                 Box::pin(async move {
                     println!("Executing task {}...", task);
-                    sleep(Duration::from_millis(task as u64 * 10));
+                    sleep(Duration::from_millis((task as u64 + 1) * 10));
                     execute_context.lock().push(task);
                     println!("Finished task {}.", task);
                 })
@@ -449,7 +449,7 @@ mod tests {
                 let execute_context = execute_context.clone();
                 Box::pin(async move {
                     println!("Executing task {}...", task);
-                    sleep(Duration::from_millis(task as u64 * 10));
+                    sleep(Duration::from_millis((task as u64 + 1) * 10));
                     execute_context.lock().push(task);
                     println!("Finished task {}.", task);
                     tokio::task::yield_now().await;
@@ -502,7 +502,7 @@ mod tests {
                 let execute_context = execute_context.clone();
                 Box::pin(async move {
                     println!("Executing task {}...", task);
-                    tokio::time::sleep(Duration::from_millis(task as u64 * 10)).await;
+                    tokio::time::sleep(Duration::from_millis((task as u64 + 1) * 10)).await;
                     execute_context.lock().push(task);
                     println!("Finished task {}.", task);
                 })
@@ -562,11 +562,11 @@ mod tests {
                     if cpu_bound {
                         println!("Executing cpu-bound task {}...", task);
                         // CPU bound task
-                        sleep(Duration::from_millis(task as u64 * 10));
+                        sleep(Duration::from_millis((task as u64 + 1) * 10));
                     } else {
                         println!("Executing waiting task {}...", task);
                         // Waiting task
-                        tokio::time::sleep(Duration::from_millis(task as u64 * 10)).await;
+                        tokio::time::sleep(Duration::from_millis((task as u64 + 1) * 10)).await;
                     }
                     execute_context.lock().push(task);
                     if cpu_bound {
