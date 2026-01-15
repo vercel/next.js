@@ -1968,12 +1968,13 @@ where
                         }
                     }
 
-                    let context_dir = origin.origin_path().await?.parent();
                     analysis.add_reference_code_gen(
                         WorkerAssetReference::new_node_worker_thread(
                             origin,
-                            context_dir,
+                            // WorkerThreads resolve filepaths relative to the process root
+                            get_traced_project_dir().await?,
                             Pattern::new(pat).to_resolved().await?,
+                            collect_affecting_sources,
                             get_issue_source(),
                             in_try,
                         ),

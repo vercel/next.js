@@ -50,10 +50,12 @@ pub struct WorkerAssetReference {
 pub enum WorkerRequest {
     /// Web workers use Request (URLs)
     Url(ResolvedVc<Request>),
-    /// Node.js workers use Pattern (file paths) with a context directory
+    /// Node.js workers use Pattern (file paths) with a context directory that should be the server
+    /// working directory
     Pattern {
         context_dir: FileSystemPath,
         path: ResolvedVc<Pattern>,
+        collect_affecting_sources: bool,
     },
 }
 
@@ -77,13 +79,18 @@ impl WorkerAssetReference {
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         context_dir: FileSystemPath,
         path: ResolvedVc<Pattern>,
+        collect_affecting_sources: bool,
         issue_source: IssueSource,
         in_try: bool,
     ) -> Self {
         WorkerAssetReference {
             worker_type: WorkerType::NodeWorkerThread,
             origin,
-            request: WorkerRequest::Pattern { context_dir, path },
+            request: WorkerRequest::Pattern {
+                context_dir,
+                path,
+                collect_affecting_sources,
+            },
             issue_source,
             in_try,
         }
@@ -105,14 +112,21 @@ impl ModuleReference for WorkerAssetReference {
                     self.in_try,
                 )
             }
-            (WorkerType::NodeWorkerThread, WorkerRequest::Pattern { context_dir, path }) => {
+            (
+                WorkerType::NodeWorkerThread,
+                WorkerRequest::Pattern {
+                    context_dir,
+                    path,
+                    collect_affecting_sources,
+                },
+            ) => {
                 let asset_context = self.origin.asset_context();
 
                 // Node.js worker resolution uses resolve_raw
                 let result = resolve_raw(
                     context_dir.clone(),
                     **path,
-                    /* collect_affecting_sources */ false,
+                    *collect_affecting_sources,
                     /* force_in_lookup_dir */ false,
                 );
                 let reference_type = ReferenceType::Worker(WorkerReferenceSubType::NodeWorker);

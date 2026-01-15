@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server'
 export async function GET() {
   try {
     // Test with a relative path instead of __filename
-    const worker = new Worker('../../worker-dir/simple-worker.ts')
+    const worker = new Worker('./app/worker-dir/simple-worker.ts')
 
     const message = await new Promise<string>((resolve, reject) => {
       const timeout = setTimeout(() => {

@@ -76,35 +76,27 @@ impl OutputAsset for NftJsonAsset {
     }
 }
 
-#[turbo_tasks::value(transparent)]
-pub struct OutputSpecifier(Option<RcStr>);
-
-async fn get_output_specifier(
-    chunk: ResolvedVc<Box<dyn OutputAsset>>,
+fn get_output_specifier(
     chunk_path: &FileSystemPath,
     ident_folder: &FileSystemPath,
     ident_folder_in_project_fs: &FileSystemPath,
     output_root: &FileSystemPath,
     project_root: &FileSystemPath,
-) -> Result<RcStr> {
+) -> Option<RcStr> {
     // include assets in the outputs such as referenced chunks
     if chunk_path.is_inside_ref(output_root) {
-        return Ok(ident_folder.get_relative_path_to(chunk_path).unwrap());
+        return Some(ident_folder.get_relative_path_to(chunk_path).unwrap());
     }
 
     // include assets in the project root such as images and traced references (externals)
     if chunk_path.is_inside_ref(project_root) {
-        return Ok(ident_folder_in_project_fs
-            .get_relative_path_to(chunk_path)
-            .unwrap());
+        return Some(
+            ident_folder_in_project_fs
+                .get_relative_path_to(chunk_path)
+                .unwrap(),
+        );
     }
-
-    // This should effectively be unreachable
-    bail!(
-        "NftJsonAsset: cannot handle filepath '{chunk_path}' for {chunk:?} it is not under the \
-         output_root: '{output_root}' or the project_root: '{project_root}'",
-        chunk_path = chunk_path.value_to_string().await?
-    );
+    None
 }
 
 /// Apply outputFileTracingIncludes patterns to find additional files
@@ -290,15 +282,21 @@ impl Asset for NftJsonAsset {
                     }
                 }
 
-                let specifier = get_output_specifier(
-                    referenced_chunk,
+                let Some(specifier) = get_output_specifier(
                     &referenced_chunk_path,
                     &ident_folder,
                     &ident_folder_in_project_fs,
                     &output_root_ref,
                     &project_root_ref,
-                )
-                .await?;
+                ) else {
+                    // This should effectively be unreachable
+                    bail!(
+                        "NftJsonAsset: cannot handle filepath '{chunk_path}' for \
+                         {referenced_chunk:?} it is not under the output_root: \
+                         '{output_root_ref}' or the project_root: '{project_root_ref}'",
+                        chunk_path = referenced_chunk_path.value_to_string().await?
+                    );
+                };
 
                 result.insert(specifier);
             }
