@@ -1660,7 +1660,7 @@ async fn wait_for_local_tasks() {
         CURRENT_TASK_STATE.with(|ts| ts.write().unwrap().local_task_tracker.take())
     {
         use futures::StreamExt;
-        while ltt.next().await.is_none() {}
+        while ltt.next().await.is_some() {}
     }
 }
 
