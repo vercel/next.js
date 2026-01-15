@@ -274,6 +274,8 @@ export default class NextNodeServer extends BaseServer<
     // when using compile mode static env isn't inlined so we
     // need to populate in normal runtime env
     if (this.renderOpts.isExperimentalCompile) {
+      // immutableAssetToken only works with Turbopack, and `isExperimentalCompile` isn't supported
+      // with that anyway, so we can assign immutableAssetToken to deploymentId here
       populateStaticEnv(this.nextConfig, this.deploymentId || '')
     }
 
@@ -634,6 +636,9 @@ export default class NextNodeServer extends BaseServer<
           {
             buildId: this.buildId,
             deploymentId: this.deploymentId,
+            immutableAssetToken:
+              this.nextConfig.experimental.immutableAssetToken ??
+              this.deploymentId,
           }
         )
       } else {
@@ -649,6 +654,9 @@ export default class NextNodeServer extends BaseServer<
           {
             buildId: this.buildId,
             deploymentId: this.deploymentId,
+            immutableAssetToken:
+              this.nextConfig.experimental.immutableAssetToken ??
+              this.deploymentId,
             customServer: this.serverOptions.customServer || undefined,
           },
           {

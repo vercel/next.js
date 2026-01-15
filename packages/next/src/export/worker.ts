@@ -86,6 +86,7 @@ async function exportPageImpl(
     outDir: commonOutDir,
     buildId,
     deploymentId,
+    immutableAssetToken,
     renderResumeDataCache,
   } = input
 
@@ -275,7 +276,11 @@ async function exportPageImpl(
 
   // Handle App Pages
   if (isAppDir) {
-    const sharedContext: AppSharedContext = { buildId, deploymentId }
+    const sharedContext: AppSharedContext = {
+      buildId,
+      deploymentId,
+      immutableAssetToken,
+    }
 
     return exportAppPage(
       req,
@@ -296,6 +301,7 @@ async function exportPageImpl(
     const sharedContext: PagesSharedContext = {
       buildId,
       deploymentId,
+      immutableAssetToken,
       customServer: undefined,
     }
 
@@ -418,6 +424,7 @@ export async function exportPages(
             sriEnabled: Boolean(nextConfig.experimental.sri?.algorithm),
             buildId: input.buildId,
             deploymentId: input.deploymentId,
+            immutableAssetToken: input.immutableAssetToken,
             renderResumeDataCache,
           }),
           hasDebuggerAttached

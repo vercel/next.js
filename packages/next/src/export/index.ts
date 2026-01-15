@@ -704,6 +704,9 @@ async function exportAppImpl(
           worker.exportPages({
             buildId,
             deploymentId: nextConfig.deploymentId,
+            immutableAssetToken:
+              nextConfig.experimental.immutableAssetToken ??
+              nextConfig.deploymentId,
             exportPaths: batch,
             parentSpanId: span.getId(),
             pagesDataDir,

@@ -117,6 +117,7 @@ async function requestHandler(
     reactLoadableManifest,
     subresourceIntegrityManifest,
     dynamicCssManifest,
+    immutableAssetToken,
   } = prepareResult
 
   initializeCacheHandlers(nextConfig.cacheMaxMemorySize)
@@ -129,6 +130,7 @@ async function requestHandler(
     sharedContext: {
       buildId,
       deploymentId,
+      immutableAssetToken: immutableAssetToken,
       customServer: undefined,
     },
 
