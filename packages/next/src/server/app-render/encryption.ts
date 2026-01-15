@@ -153,11 +153,35 @@ export const encryptActionBoundArgs = React.cache(
       })
     }
 
+    const prerenderResumeDataCache = workUnitStore
+      ? getPrerenderResumeDataCache(workUnitStore)
+      : null
+    const renderResumeDataCache = workUnitStore
+      ? getRenderResumeDataCache(workUnitStore)
+      : null
+
     // Using Flight to serialize the args into a string.
     const serialized = await streamToString(
       renderToReadableStream(args, clientModules, {
         filterStackFrame,
         signal: hangingInputAbortSignal,
+        debugChannel:
+          // In Cache Components, we want to cache the encrypted result,
+          // and we use the unencrypted bound args as a cache key.
+          // In order to do that we need to strip debug info, because it
+          // contains timing information and thus changes each time we serialize the args.
+          // We can do this by piping debug info into a debug channel that throws it away.
+          //
+          // Note that this can result in dangling debug info references when we decode the bound args,
+          // but React ignores those as long as no debug channel is passed on the decode side, so it's fine:
+          // https://github.com/facebook/react/blob/bb8a76c6cc77ea2976d690ea09f5a1b3d9b1792a/packages/react-client/src/ReactFlightClient.js#L1711-L1729
+          // https://github.com/facebook/react/blob/bb8a76c6cc77ea2976d690ea09f5a1b3d9b1792a/packages/react-client/src/ReactFlightClient.js#L4005-L4025
+          process.env.NODE_ENV === 'development' &&
+          (prerenderResumeDataCache || renderResumeDataCache)
+            ? {
+                writable: new WritableStream(),
+              }
+            : undefined,
         onError(err) {
           if (hangingInputAbortSignal?.aborted) {
             return
@@ -201,8 +225,6 @@ export const encryptActionBoundArgs = React.cache(
 
     startReadOnce()
 
-    const prerenderResumeDataCache = getPrerenderResumeDataCache(workUnitStore)
-    const renderResumeDataCache = getRenderResumeDataCache(workUnitStore)
     const cacheKey = actionId + serialized
 
     const cachedEncrypted =
@@ -291,6 +313,12 @@ export async function decryptActionBoundArgs(
     }),
     {
       findSourceMapURL,
+      // NOTE: When we serialized the bound args, we may have used a dummy debug channel to strip debug info.
+      // In that case, it's important that we also *don't* pass a debug channel here, because that will make
+      // the Flight Client ignore the dangling references:
+      // https://github.com/facebook/react/blob/bb8a76c6cc77ea2976d690ea09f5a1b3d9b1792a/packages/react-client/src/ReactFlightClient.js#L1711-L1729
+      // https://github.com/facebook/react/blob/bb8a76c6cc77ea2976d690ea09f5a1b3d9b1792a/packages/react-client/src/ReactFlightClient.js#L4005-L4025
+      debugChannel: undefined,
       serverConsumerManifest: {
         // moduleLoading must be null because we don't want to trigger preloads of ClientReferences
         // to be added to the current execution. Instead, we'll wait for any ClientReference
