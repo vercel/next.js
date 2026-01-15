@@ -48,18 +48,20 @@ export default class ResponseCache implements ResponseCacheBase {
    * In-memory LRU cache for minimal mode. Automatically evicts least recently
    * used entries when capacity is reached.
    */
-  private readonly previousCacheItems = new LRUCache<{
+  private readonly previousCacheItems: LRUCache<{
     entry: IncrementalResponseCacheEntry | null
     expiresAt: number
-  }>(50)
+    invocationID: string | undefined
+  }>
 
   // we don't use minimal_mode name here as this.minimal_mode is
   // statically replace for server runtimes but we need it to
   // be dynamic here
   private minimal_mode?: boolean
 
-  constructor(minimal_mode: boolean) {
+  constructor(minimal_mode: boolean, maxSize: number = 5) {
     this.minimal_mode = minimal_mode
+    this.previousCacheItems = new LRUCache(maxSize)
   }
 
   /**
@@ -81,6 +83,12 @@ export default class ResponseCache implements ResponseCacheBase {
       isRoutePPREnabled?: boolean
       isFallback?: boolean
       waitUntil?: (prom: Promise<any>) => void
+
+      /**
+       * The invocation ID from the infrastructure. Used to scope the
+       * in-memory cache to a single revalidation request in minimal mode.
+       */
+      invocationID?: string
     }
   ): Promise<ResponseCacheEntry | null> {
     // If there is no key for the cache, we can't possibly look this up in the
@@ -93,13 +101,13 @@ export default class ResponseCache implements ResponseCacheBase {
     }
 
     // Check minimal mode cache before doing any other work.
-    // Skip the cache for on-demand revalidations so they always get fresh content.
-    if (this.minimal_mode && !context.isOnDemandRevalidate) {
+    if (this.minimal_mode) {
       const cachedItem = this.previousCacheItems.get(key)
       if (cachedItem) {
-        const now = Date.now()
-        if (cachedItem.expiresAt > now) {
-          return toResponseCacheEntry(cachedItem.entry)
+        if (cachedItem.invocationID === context.invocationID) {
+          if (cachedItem.expiresAt > Date.now()) {
+            return toResponseCacheEntry(cachedItem.entry)
+          }
         }
 
         // Entry exists but is expired - remove it
@@ -115,6 +123,7 @@ export default class ResponseCache implements ResponseCacheBase {
       isPrefetch = false,
       waitUntil,
       routeKind,
+      invocationID,
     } = context
 
     const response = await this.getBatcher.batch(
@@ -130,6 +139,7 @@ export default class ResponseCache implements ResponseCacheBase {
             isRoutePPREnabled,
             isPrefetch,
             routeKind,
+            invocationID,
           },
           resolve
         )
@@ -163,6 +173,7 @@ export default class ResponseCache implements ResponseCacheBase {
       isRoutePPREnabled: boolean
       isPrefetch: boolean
       routeKind: RouteKind
+      invocationID: string | undefined
     },
     resolve: (value: IncrementalResponseCacheEntry | null) => void
   ): Promise<IncrementalResponseCacheEntry | null> {
@@ -198,21 +209,18 @@ export default class ResponseCache implements ResponseCacheBase {
         context.isFallback,
         responseGenerator,
         previousIncrementalCacheEntry,
-        previousIncrementalCacheEntry !== null && !context.isOnDemandRevalidate
+        previousIncrementalCacheEntry !== null && !context.isOnDemandRevalidate,
+        undefined,
+        context.invocationID
       )
 
       // Handle null response
       if (!incrementalResponseCacheEntry) {
         // Remove the cache item if it was set so we don't use it again.
-        if (this.minimal_mode && this.previousCacheItems.has(key)) {
+        if (this.minimal_mode) {
           this.previousCacheItems.remove(key)
         }
         return null
-      }
-
-      // Resolve for on-demand revalidation or if not already resolved
-      if (context.isOnDemandRevalidate && !resolved) {
-        return incrementalResponseCacheEntry
       }
 
       return incrementalResponseCacheEntry
@@ -238,6 +246,8 @@ export default class ResponseCache implements ResponseCacheBase {
    * @param responseGenerator - The response generator to use to generate the response cache entry.
    * @param previousIncrementalCacheEntry - The previous cache entry to use to revalidate the cache entry.
    * @param hasResolved - Whether the response has been resolved.
+   * @param waitUntil - Optional function to register background work.
+   * @param invocationID - The invocation ID for cache key scoping.
    * @returns The revalidated cache entry.
    */
   public async revalidate(
@@ -248,7 +258,8 @@ export default class ResponseCache implements ResponseCacheBase {
     responseGenerator: ResponseGenerator,
     previousIncrementalCacheEntry: IncrementalResponseCacheEntry | null,
     hasResolved: boolean,
-    waitUntil?: (prom: Promise<any>) => void
+    waitUntil?: (prom: Promise<any>) => void,
+    invocationID?: string
   ) {
     return this.revalidateBatcher.batch(key, () => {
       const promise = this.handleRevalidate(
@@ -258,7 +269,8 @@ export default class ResponseCache implements ResponseCacheBase {
         isFallback,
         responseGenerator,
         previousIncrementalCacheEntry,
-        hasResolved
+        hasResolved,
+        invocationID
       )
 
       // We need to ensure background revalidates are passed to waitUntil.
@@ -275,7 +287,8 @@ export default class ResponseCache implements ResponseCacheBase {
     isFallback: boolean,
     responseGenerator: ResponseGenerator,
     previousIncrementalCacheEntry: IncrementalResponseCacheEntry | null,
-    hasResolved: boolean
+    hasResolved: boolean,
+    invocationID: string | undefined
   ) {
     try {
       // Generate the response cache entry using the response generator.
@@ -298,17 +311,18 @@ export default class ResponseCache implements ResponseCacheBase {
       // defined.
       if (incrementalResponseCacheEntry.cacheControl) {
         if (this.minimal_mode) {
-          // Use the revalidate time from cacheControl, falling back to 1
-          // second if revalidate is not a number (e.g., `false` for fully
+          // Use the revalidate time from cacheControl, falling back to 30
+          // seconds if revalidate is not a number (e.g., `false` for fully
           // static pages).
           const { revalidate } = incrementalResponseCacheEntry.cacheControl
           const ttlMs =
-            typeof revalidate === 'number' ? revalidate * 1000 : 1000
+            typeof revalidate === 'number' ? revalidate * 1000 : 30 * 1000
           const expiresAt = Date.now() + ttlMs
 
           this.previousCacheItems.set(key, {
             entry: incrementalResponseCacheEntry,
             expiresAt,
+            invocationID,
           })
         } else {
           await incrementalCache.set(key, incrementalResponseCacheEntry.value, {

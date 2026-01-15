@@ -5,8 +5,8 @@ import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import {
   createNowRouteMatches,
-  fetchViaHTTP,
   findPort,
+  infra,
   initNextServerScript,
   killApp,
   retry,
@@ -144,7 +144,7 @@ describe.skip('required server files app router', () => {
 
       require('console').error('requesting', outputSegmentPath)
 
-      const res = await fetchViaHTTP(appPort, outputSegmentPath, undefined, {
+      const res = await infra.fetch(appPort, outputSegmentPath, undefined, {
         headers: {
           'x-matched-path': '/isr/[slug].segments/_tree.segment.rsc',
           'x-now-route-matches': createNowRouteMatches({
@@ -167,7 +167,7 @@ describe.skip('required server files app router', () => {
   })
 
   it('should properly stream resume with Next-Resume', async () => {
-    const res = await fetchViaHTTP(appPort, '/delayed', undefined, {
+    const res = await infra.fetch(appPort, '/delayed', undefined, {
       headers: {
         'x-matched-path': '/delayed',
         'next-resume': '1',
@@ -199,7 +199,7 @@ describe.skip('required server files app router', () => {
   })
 
   it('should properly handle prerender for bot request', async () => {
-    const res = await fetchViaHTTP(appPort, '/isr/first', undefined, {
+    const res = await infra.fetch(appPort, '/isr/first', undefined, {
       headers: {
         'user-agent':
           'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.179 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
@@ -213,7 +213,7 @@ describe.skip('required server files app router', () => {
 
     expect($('#page').text()).toBe('/isr/[slug]')
 
-    const rscRes = await fetchViaHTTP(appPort, '/isr/first.rsc', undefined, {
+    const rscRes = await infra.fetch(appPort, '/isr/first.rsc', undefined, {
       headers: {
         'user-agent':
           'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.179 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
@@ -225,7 +225,7 @@ describe.skip('required server files app router', () => {
   })
 
   it('should properly handle fallback for bot request', async () => {
-    const res = await fetchViaHTTP(appPort, '/isr/[slug]', undefined, {
+    const res = await infra.fetch(appPort, '/isr/[slug]', undefined, {
       headers: {
         'user-agent':
           'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.179 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
@@ -242,7 +242,7 @@ describe.skip('required server files app router', () => {
 
     expect($('#page').text()).toBe('/isr/[slug]')
 
-    const rscRes = await fetchViaHTTP(appPort, '/isr/[slug].rsc', undefined, {
+    const rscRes = await infra.fetch(appPort, '/isr/[slug].rsc', undefined, {
       headers: {
         'user-agent':
           'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.179 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
@@ -260,7 +260,7 @@ describe.skip('required server files app router', () => {
     const metadata = await next.readJSON('.next/server/app/[...catchAll].meta')
     const postponed = metadata.postponed
 
-    const res = await fetchViaHTTP(
+    const res = await infra.fetch(
       appPort,
       // The pathname here represents a route that doesn't actually exist, but
       // we want to simulate a pages route Link that performs a prefetch to a
@@ -297,7 +297,7 @@ describe.skip('required server files app router', () => {
 
   describe('middleware rewrite', () => {
     it('should work with a dynamic path with Next-Resume', async () => {
-      const res = await fetchViaHTTP(
+      const res = await infra.fetch(
         appPort,
         '/rewrite-with-cookie',
         undefined,
@@ -327,7 +327,7 @@ describe.skip('required server files app router', () => {
   it('should still render when postponed is corrupted with Next-Resume', async () => {
     const random = Math.random().toString(36).substring(2)
 
-    const res = await fetchViaHTTP(appPort, '/dyn/' + random, undefined, {
+    const res = await infra.fetch(appPort, '/dyn/' + random, undefined, {
       method: 'POST',
       headers: {
         'x-matched-path': '/dyn/[slug]',
@@ -369,7 +369,7 @@ describe.skip('required server files app router', () => {
       ],
     ]) {
       require('console').error('checking', { path, tags })
-      const res = await fetchViaHTTP(appPort, path, undefined, {
+      const res = await infra.fetch(appPort, path, undefined, {
         redirect: 'manual',
       })
       expect(res.status).toBe(200)
@@ -390,7 +390,7 @@ describe.skip('required server files app router', () => {
       '/api/ssr/first',
       '/api/ssr/second',
     ]) {
-      const res = await fetchViaHTTP(appPort, path, undefined, {
+      const res = await infra.fetch(appPort, path, undefined, {
         redirect: 'manual',
       })
 
@@ -412,7 +412,7 @@ describe.skip('required server files app router', () => {
       '/api/ssr/first',
       '/api/ssr/second',
     ]) {
-      const res = await fetchViaHTTP(
+      const res = await infra.fetch(
         appPort,
         path,
         { hello: 'world' },
@@ -433,7 +433,7 @@ describe.skip('required server files app router', () => {
   })
 
   it('should handle RSC requests', async () => {
-    const res = await fetchViaHTTP(appPort, '/dyn/first.rsc', undefined, {
+    const res = await infra.fetch(appPort, '/dyn/first.rsc', undefined, {
       headers: {
         'x-matched-path': '/dyn/[slug]',
         'x-now-route-matches': createNowRouteMatches({
@@ -462,7 +462,7 @@ describe.skip('required server files app router', () => {
 
     // Then let's do a Dynamic RSC request and verify that the random value is
     // not present in the response without passing the postponed state.
-    let res = await fetchViaHTTP(
+    let res = await infra.fetch(
       appPort,
       '/rewrite/second-cookie.rsc',
       undefined,
@@ -508,7 +508,7 @@ describe.skip('required server files app router', () => {
 
     // Then let's get the Dynamic RSC request and verify that the random value
     // is present in the response by passing the postponed state.
-    res = await fetchViaHTTP(appPort, '/rewrite/second-cookie.rsc', undefined, {
+    res = await infra.fetch(appPort, '/rewrite/second-cookie.rsc', undefined, {
       method: 'POST',
       headers: {
         'x-matched-path': '/rewrite/[slug]',
@@ -551,7 +551,7 @@ describe.skip('required server files app router', () => {
   })
 
   it('should handle revalidating the fallback page', async () => {
-    const res = await fetchViaHTTP(appPort, '/postpone/isr/[slug]', undefined, {
+    const res = await infra.fetch(appPort, '/postpone/isr/[slug]', undefined, {
       headers: {
         'x-matched-path': '/postpone/isr/[slug]',
         // We don't include the `x-now-route-matches` header because we want to

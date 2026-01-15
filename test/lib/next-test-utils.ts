@@ -16,6 +16,7 @@ import { writeFile } from 'fs-extra'
 import getPort from 'get-port'
 import { getRandomPort } from 'get-port-please'
 import fetch from 'node-fetch'
+import { nanoid } from 'nanoid'
 import qs from 'querystring'
 import treeKill from 'tree-kill'
 import { once } from 'events'
@@ -195,6 +196,101 @@ export function fetchViaHTTP(
 ): Promise<Response> {
   const url = query ? withQuery(pathname, query) : pathname
   return fetch(getFullUrl(appPort, url), opts)
+}
+
+/**
+ * Creates a request group with a frozen x-vercel-id for testing cache
+ * deduplication. All requests within a group share the same x-vercel-id.
+ */
+function createInfraGroup() {
+  const invocationID = `test:${nanoid()}`
+
+  const groupFetch = (
+    appPort: string | number,
+    pathname: string,
+    query?: Record<string, any>,
+    opts?: RequestInit
+  ) => {
+    return fetchViaHTTP(appPort, pathname, query, {
+      ...opts,
+      headers: {
+        ...opts?.headers,
+        'x-vercel-id': invocationID,
+      },
+    })
+  }
+
+  return {
+    fetch: groupFetch,
+    render: async (
+      appPort: string | number,
+      pathname: string,
+      query?: Record<string, any>,
+      opts?: RequestInit
+    ) => {
+      const res = await groupFetch(appPort, pathname, query, opts)
+      return res.text()
+    },
+  }
+}
+
+/**
+ * Infrastructure helpers for testing Next.js in minimal/standalone mode.
+ *
+ * Usage:
+ *   // Independent requests (each gets a fresh x-vercel-id)
+ *   const html = await infra.render(appPort, '/page')
+ *   const html2 = await infra.render(appPort, '/page') // different x-vercel-id
+ *
+ *   // Grouped requests (for testing cache deduplication)
+ *   const group = infra.group()
+ *   const res1 = await group.fetch(appPort, '/page')
+ *   const res2 = await group.fetch(appPort, '/_next/data/.../page.json')
+ *   // Both requests share the same x-vercel-id
+ */
+export const infra = {
+  /**
+   * Creates a request group with a frozen x-vercel-id. All requests made
+   * through the returned group share the same x-vercel-id, enabling testing
+   * of cache deduplication behavior.
+   *
+   * @returns A group object with `fetch` and `render` methods
+   */
+  group: createInfraGroup,
+
+  /**
+   * Makes an HTTP request with a fresh x-vercel-id. Each call generates a
+   * new x-vercel-id, so requests are independent and won't share cached data.
+   *
+   * @param appPort - The port or URL of the app
+   * @param pathname - The path to request
+   * @param query - Optional query parameters
+   * @param opts - Optional fetch options
+   * @returns The fetch Response object
+   */
+  fetch: (
+    appPort: string | number,
+    pathname: string,
+    query?: Record<string, any>,
+    opts?: RequestInit
+  ) => createInfraGroup().fetch(appPort, pathname, query, opts),
+
+  /**
+   * Makes an HTTP request and returns the response body as text. Each call
+   * generates a new x-vercel-id, so requests are independent.
+   *
+   * @param appPort - The port or URL of the app
+   * @param pathname - The path to request
+   * @param query - Optional query parameters
+   * @param opts - Optional fetch options
+   * @returns The response body as a string
+   */
+  render: (
+    appPort: string | number,
+    pathname: string,
+    query?: Record<string, any>,
+    opts?: RequestInit
+  ) => createInfraGroup().render(appPort, pathname, query, opts),
 }
 
 export function renderViaHTTP(

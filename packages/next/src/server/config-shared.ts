@@ -870,6 +870,12 @@ export interface ExperimentalConfig {
    * @default false
    */
   devCacheControlNoCache?: boolean
+
+  /**
+   * Maximum number of responses to cache in the in-memory LRU cache for
+   * minimal mode (standalone deployments). Defaults to 5.
+   */
+  maxResponseCacheSize?: number
 }
 
 export type ExportPathMap = {
@@ -1596,6 +1602,7 @@ export const defaultConfig = Object.freeze({
     turbopackFileSystemCacheForBuild: false,
     turbopackInferModuleSideEffects: true,
     devCacheControlNoCache: false,
+    maxResponseCacheSize: 5,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
@@ -1692,6 +1699,7 @@ export interface NextConfigRuntime {
     | 'runtimeServerDeploymentId'
     | 'maxPostponedStateSize'
     | 'devCacheControlNoCache'
+    | 'maxResponseCacheSize'
   > & {
     // Pick on @internal fields generates invalid .d.ts files
     /** @internal */
@@ -1749,6 +1757,7 @@ export function getNextConfigRuntime(
         runtimeServerDeploymentId: ex.runtimeServerDeploymentId,
         maxPostponedStateSize: ex.maxPostponedStateSize,
         devCacheControlNoCache: ex.devCacheControlNoCache,
+        maxResponseCacheSize: ex.maxResponseCacheSize,
 
         trustHostHeader: ex.trustHostHeader,
         isExperimentalCompile: ex.isExperimentalCompile,
