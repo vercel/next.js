@@ -1681,16 +1681,14 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
         fn #update_count_name(&mut self, key: #key_type, delta: #value_type) -> bool {
             #check_access
             #track_modification
-            use crate::backend::storage_schema::CounterMapExt;
-            #mut_expr.update_count(key, delta)
+                        #mut_expr.update_count(key, delta)
         }
 
         /// Update a counter by the given delta and return the new value.
         fn #update_and_get_name(&mut self, key: #key_type, delta: #value_type) -> #value_type {
             #check_access
             #track_modification
-            use crate::backend::storage_schema::CounterMapExt;
-            #mut_expr.update_and_get(key, delta)
+                        #mut_expr.update_and_get(key, delta)
         }
 
         /// Update a counter using a closure that receives the current value
@@ -1701,16 +1699,14 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
         {
             #check_access
             #track_modification
-            use crate::backend::storage_schema::CounterMapExt;
-            #mut_expr.update_with(key, f)
+                        #mut_expr.update_with(key, f)
         }
 
         /// Add a new entry, panicking if the entry already exists.
         fn #add_entry_name(&mut self, key: #key_type, value: #value_type) {
             #check_access
             #track_modification
-            use crate::backend::storage_schema::CounterMapExt;
-            #mut_expr.add_entry(key, value)
+                        #mut_expr.add_entry(key, value)
         }
 
         /// Remove an entry, returning the value if present.
@@ -1726,8 +1722,7 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
         fn #update_positive_crossing_name(&mut self, key: #key_type, delta: #value_type) -> bool {
             #check_access
             #track_modification
-            use crate::backend::storage_schema::CounterMapExt;
-            #mut_expr.update_positive_crossing(key, delta)
+                        #mut_expr.update_positive_crossing(key, delta)
         }
 
         /// Get the number of entries in the counter map

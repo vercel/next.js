@@ -1,3 +1,4 @@
+mod counter_map;
 mod dynamic_storage;
 mod operation;
 mod storage;
