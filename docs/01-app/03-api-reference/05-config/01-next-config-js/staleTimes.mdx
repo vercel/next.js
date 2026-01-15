@@ -34,8 +34,34 @@ The `static` and `dynamic` properties correspond with the time period (in second
 > - [Loading boundaries](/docs/app/api-reference/file-conventions/loading) are considered reusable for the `static` period defined in this configuration.
 > - This doesn't affect [partial rendering](/docs/app/getting-started/linking-and-navigating#client-side-transitions), **meaning shared layouts won't automatically be refetched on every navigation, only the page segment that changes.**
 > - This doesn't change [back/forward caching](/docs/app/guides/caching#client-side-router-cache) behavior to prevent layout shift and to prevent losing the browser scroll position.
+> - Individual pages and layouts can override these global defaults using [`export const staleTime`](/docs/app/api-reference/file-conventions/route-segment-config#staletime).
 
 You can learn more about the Client Router Cache [here](/docs/app/guides/caching#client-side-router-cache).
+
+## Recommendation: Use Cache Components for granular control
+
+For more flexible and granular caching control, consider using [Cache Components](/docs/app/getting-started/cache-components) with the [`cacheLife`](/docs/app/api-reference/functions/cacheLife) function. Cache Components allows you to:
+
+- Define cache behavior at the component or function level (not just route level)
+- Set different stale, revalidate, and expire times independently
+- Use built-in cache profiles like `'hours'`, `'days'`, or `'weeks'`
+- Tag cached data for on-demand revalidation with [`cacheTag`](/docs/app/api-reference/functions/cacheTag)
+
+```tsx filename="app/page.tsx"
+import { cacheLife } from 'next/cache'
+
+export default async function Page() {
+  'use cache'
+  cacheLife({
+    stale: 300, // 5 minutes
+    revalidate: 900, // 15 minutes
+    expire: 3600, // 1 hour
+  })
+
+  const data = await fetchData()
+  return <div>{data}</div>
+}
+```
 
 ### Version History
 

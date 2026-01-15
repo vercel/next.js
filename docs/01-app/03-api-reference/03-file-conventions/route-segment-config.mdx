@@ -20,6 +20,7 @@ The Route Segment options allows you to configure the behavior of a [Page](/docs
 | [`runtime`](#runtime)                 | `'nodejs' \| 'edge'`                                                                                                      | `'nodejs'`                 |
 | [`preferredRegion`](#preferredregion) | `'auto' \| 'global' \| 'home' \| string \| string[]`                                                                      | `'auto'`                   |
 | [`maxDuration`](#maxduration)         | `number`                                                                                                                  | Set by deployment platform |
+| [`staleTime`](#staletime)             | `number`                                                                                                                  | (from global config)       |
 
 ## Options
 
@@ -201,6 +202,27 @@ export const maxDuration = 5
 > **Good to know**:
 >
 > - If using [Server Actions](/docs/app/getting-started/updating-data), set the `maxDuration` at the page level to change the default timeout of all Server Actions used on the page.
+
+### `staleTime`
+
+Set the client-side router cache staleness time for a layout or page. This controls how long prefetched data remains fresh before the client refetches it.
+
+```tsx filename="layout.tsx | page.tsx" switcher
+export const staleTime = 300 // 5 minutes in seconds
+```
+
+```js filename="layout.js | page.js" switcher
+export const staleTime = 300 // 5 minutes in seconds
+```
+
+- **`number`**: Time in seconds before prefetched data becomes stale on the client.
+
+> **Good to know:**
+>
+> - Unlike `revalidate` which uses the minimum value across layouts, `staleTime` uses the nested-most value (page overrides layout).
+> - This overrides the global [`experimental.staleTimes.static`](/docs/app/api-reference/config/next-config-js/staleTimes) or `experimental.staleTimes.dynamic` configuration for the specific route.
+> - Setting `staleTime = 0` causes the client to refetch on every navigation.
+> - For more granular caching control, consider using [Cache Components](/docs/app/getting-started/cache-components) with [`cacheLife`](/docs/app/api-reference/functions/cacheLife) which provides finer-grained control over cache behavior.
 
 ### `generateStaticParams`
 

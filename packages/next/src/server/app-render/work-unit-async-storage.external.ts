@@ -66,6 +66,12 @@ export interface RequestStore extends CommonWorkUnitStore {
    */
   renderResumeDataCache: RenderResumeDataCache | null
 
+  /**
+   * The client-side stale time in seconds, set via export const staleTime.
+   * This is used for dynamic pages to set the x-nextjs-stale-time header.
+   */
+  stale?: number
+
   // DEV-only
   usedDynamic?: boolean
   devFallbackParams?: OpaqueFallbackRouteParams | null

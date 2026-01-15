@@ -143,6 +143,12 @@ const AppSegmentConfigSchema = z.object({
    * The maximum duration for the page in seconds.
    */
   maxDuration: z.number().int().nonnegative().optional(),
+
+  /**
+   * The client-side stale time for the router cache in seconds.
+   * Can be set in layouts (inherited by pages) or pages (overrides layout).
+   */
+  staleTime: z.number().int().nonnegative().optional(),
 })
 
 /**
@@ -170,6 +176,11 @@ export function parseAppSegmentConfig(
             return {
               // @TODO replace this link with a link to the docs when they are written
               message: `Invalid unstable_prefetch value ${JSON.stringify(ctx.data)} on "${route}", must be an object with a mode of "static" or "runtime". Read more at https://nextjs.org/docs/messages/invalid-prefetch-configuration`,
+            }
+          }
+          case 'staleTime': {
+            return {
+              message: `Invalid staleTime value ${JSON.stringify(ctx.data)} on "${route}", must be a non-negative integer (seconds)`,
             }
           }
           default:
@@ -240,6 +251,12 @@ export type AppSegmentConfig = {
    * The maximum duration for the page in seconds.
    */
   maxDuration?: number
+
+  /**
+   * The client-side stale time for the router cache in seconds.
+   * Can be set in layouts (inherited by pages) or pages (overrides layout).
+   */
+  staleTime?: number
 }
 
 /**

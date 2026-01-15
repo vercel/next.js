@@ -217,6 +217,7 @@ import { imageConfigDefault } from '../../shared/lib/image-config'
 import { RenderStage, StagedRenderingController } from './staged-rendering'
 import { anySegmentHasRuntimePrefetchEnabled } from './staged-validation'
 import { warnOnce } from '../../shared/lib/utils/warn-once'
+import { extractStaleTimeFromLoaderTree } from './extract-stale-time-from-loader-tree'
 
 export type GetDynamicParamFromSegment = (
   // The LoaderTree to extract the dynamic param from
@@ -647,6 +648,18 @@ async function generateDynamicFlightRenderResult(
     setReactDebugChannel(debugChannel.clientSide, htmlRequestId, requestId)
   }
 
+  // Extract staleTime for dynamic pages if not already set by createComponentTree.
+  // This handles cases where walkTreeWithFlightRouterState short-circuits for
+  // prefetch requests without a loading component.
+  if (requestStore.stale === undefined) {
+    const extractedStaleTime = await extractStaleTimeFromLoaderTree(
+      ctx.componentMod.routeModule.userland.loaderTree
+    )
+    if (typeof extractedStaleTime === 'number') {
+      requestStore.stale = extractedStaleTime
+    }
+  }
+
   const { clientModules } = getClientReferenceManifest()
 
   // For app dir, use the bundled version of Flight server renderer (renderToReadableStream)
@@ -671,9 +684,19 @@ async function generateDynamicFlightRenderResult(
     }
   )
 
+  // Set stale time header for dynamic RSC requests if the page exported staleTime
+  const metadata: AppPageRenderResultMetadata = {
+    fetchMetrics: workStore.fetchMetrics,
+  }
+  if (typeof requestStore.stale === 'number') {
+    metadata.headers = {
+      [NEXT_ROUTER_STALE_TIME_HEADER]: String(requestStore.stale),
+    }
+  }
+
   return new FlightRenderResult(
     flightReadableStream,
-    { fetchMetrics: workStore.fetchMetrics },
+    metadata,
     options?.waitUntil
   )
 }
@@ -2290,6 +2313,14 @@ async function renderToHTMLOrFlightImpl(
       didExecuteServerAction ? undefined : createRequestStore,
       devFallbackParams
     )
+
+    // Set stale time header for dynamic pages if the page exported staleTime
+    if (typeof requestStore.stale === 'number') {
+      metadata.headers ??= {}
+      metadata.headers[NEXT_ROUTER_STALE_TIME_HEADER] = String(
+        requestStore.stale
+      )
+    }
 
     // Invalid dynamic usages should only error the request in development.
     // In production, it's better to produce a result.

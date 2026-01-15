@@ -338,6 +338,36 @@ async function createComponentTreeInternal(
     }
   }
 
+  // staleTime can be set by layouts or pages
+  // Unlike revalidate which uses minimum, staleTime uses direct override
+  // (nested-most value wins - page overrides layout)
+  if (typeof layoutOrPageMod?.staleTime === 'number') {
+    const staleTime = layoutOrPageMod.staleTime
+    const workUnitStore = workUnitAsyncStorage.getStore()
+
+    if (workUnitStore) {
+      switch (workUnitStore.type) {
+        case 'prerender':
+        case 'prerender-runtime':
+        case 'prerender-legacy':
+        case 'prerender-ppr':
+        case 'request':
+          // Set stale time for static prerendering and dynamic requests
+          // Used to set the x-nextjs-stale-time header
+          workUnitStore.stale = staleTime
+          break
+        // createComponentTree is not called for these stores:
+        case 'cache':
+        case 'private-cache':
+        case 'prerender-client':
+        case 'unstable-cache':
+          break
+        default:
+          workUnitStore satisfies never
+      }
+    }
+  }
+
   const isStaticGeneration = workStore.isStaticGeneration
 
   // Assume the segment we're rendering contains only partial data if PPR is
