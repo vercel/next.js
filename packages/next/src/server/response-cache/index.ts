@@ -50,7 +50,6 @@ export default class ResponseCache implements ResponseCacheBase {
    */
   private readonly previousCacheItems: LRUCache<{
     entry: IncrementalResponseCacheEntry | null
-    expiresAt: number
     invocationID: string | undefined
   }>
 
@@ -103,15 +102,8 @@ export default class ResponseCache implements ResponseCacheBase {
     // Check minimal mode cache before doing any other work.
     if (this.minimal_mode) {
       const cachedItem = this.previousCacheItems.get(key)
-      if (cachedItem) {
-        if (cachedItem.invocationID === context.invocationID) {
-          if (cachedItem.expiresAt > Date.now()) {
-            return toResponseCacheEntry(cachedItem.entry)
-          }
-        }
-
-        // Entry exists but is expired - remove it
-        this.previousCacheItems.remove(key)
+      if (cachedItem && cachedItem.invocationID === context.invocationID) {
+        return toResponseCacheEntry(cachedItem.entry)
       }
     }
 
@@ -311,17 +303,8 @@ export default class ResponseCache implements ResponseCacheBase {
       // defined.
       if (incrementalResponseCacheEntry.cacheControl) {
         if (this.minimal_mode) {
-          // Use the revalidate time from cacheControl, falling back to 30
-          // seconds if revalidate is not a number (e.g., `false` for fully
-          // static pages).
-          const { revalidate } = incrementalResponseCacheEntry.cacheControl
-          const ttlMs =
-            typeof revalidate === 'number' ? revalidate * 1000 : 30 * 1000
-          const expiresAt = Date.now() + ttlMs
-
           this.previousCacheItems.set(key, {
             entry: incrementalResponseCacheEntry,
-            expiresAt,
             invocationID,
           })
         } else {
