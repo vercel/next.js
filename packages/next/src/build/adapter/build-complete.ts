@@ -1773,7 +1773,7 @@ export async function handleBuildComplete({
 
       const sourceRegex = routeRegex.namedRegex.replace(
         '^',
-        `^${config.basePath && config.basePath !== '/' ? path.posix.join('/', config.basePath || '') : ''}[/]?${shouldLocalize ? '(?<nextLocale>[^/]{1,})?' : ''}`
+        `^${config.basePath && config.basePath !== '/' ? path.posix.join('/', config.basePath || '') : ''}[/]?${shouldLocalize ? '(?<nextLocale>[^/]{1,})' : ''}`
       )
       const destination =
         path.posix.join(
@@ -1900,7 +1900,7 @@ export async function handleBuildComplete({
                     config.basePath,
                     `_next/data`,
                     escapeStringRegexp(buildId)
-                  )}[/]?${shouldLocalize ? '(?<nextLocale>[^/]{1,})?' : ''}`
+                  )}[/]?${shouldLocalize ? '(?<nextLocale>[^/]{1,})' : ''}`
                 ),
           destination,
           has: isFallbackFalse ? fallbackFalseHasCondition : undefined,
