@@ -692,11 +692,10 @@ browserContextPrototype.P = resolveAbsolutePath;
  * @param shared whether this is a SharedWorker (uses querystring for URL identity)
  */ function getWorkerURL(entrypoint, moduleChunks, shared) {
     const url = new URL(getChunkRelativeUrl(entrypoint), location.origin);
+    // S = chunk suffix, NC = next chunk URLs (reversed for stack-based loading)
     const params = {
-        globals: {
-            S: CHUNK_SUFFIX,
-            NC: moduleChunks.map((chunk)=>getChunkRelativeUrl(chunk))
-        }
+        S: CHUNK_SUFFIX,
+        NC: moduleChunks.map((chunk)=>getChunkRelativeUrl(chunk)).reverse()
     };
     const paramsJson = JSON.stringify(params);
     if (shared) {

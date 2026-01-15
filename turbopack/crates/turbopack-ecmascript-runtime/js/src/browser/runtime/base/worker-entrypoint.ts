@@ -3,12 +3,10 @@
  */
 
 interface WorkerBootstrapConfig {
-  globals: {
-    // TURBOPACK_CHUNK_SUFFIX
-    S?: string
-    // TURBOPACK_NEXT_CHUNK_URLS
-    NC?: string[]
-  }
+  // TURBOPACK_CHUNK_SUFFIX
+  S?: string
+  // TURBOPACK_NEXT_CHUNK_URLS
+  NC?: string[]
 }
 
 ;(() => {
@@ -23,8 +21,8 @@ interface WorkerBootstrapConfig {
   if (!paramsString) return
 
   const config: WorkerBootstrapConfig = JSON.parse(paramsString)
-  const TURBOPACK_CHUNK_SUFFIX = config.globals.S ?? ''
-  const TURBOPACK_NEXT_CHUNK_URLS = config.globals.NC ?? []
+  const TURBOPACK_CHUNK_SUFFIX = config.S ?? ''
+  const TURBOPACK_NEXT_CHUNK_URLS = config.NC ?? []
 
   Object.assign(self, {
     TURBOPACK_CHUNK_SUFFIX,
