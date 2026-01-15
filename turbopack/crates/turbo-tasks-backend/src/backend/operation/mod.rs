@@ -16,8 +16,7 @@ use std::{
 
 use bincode::{Decode, Encode};
 use turbo_tasks::{
-    CellId, FxIndexMap, KeyValuePair, TaskId, TaskPriority, TurboTasksBackendApi,
-    TypedSharedReference,
+    CellId, FxIndexMap, TaskId, TaskPriority, TurboTasksBackendApi, TypedSharedReference,
 };
 
 use crate::{
@@ -874,7 +873,7 @@ pub enum AnyOperation {
 }
 
 impl AnyOperation {
-    pub fn execute(self, ctx: &mut impl ExecuteContext) {
+    pub fn execute(self, ctx: &mut impl ExecuteContext<'_>) {
         match self {
             AnyOperation::ConnectChild(op) => op.execute(ctx),
             AnyOperation::Invalidate(op) => op.execute(ctx),

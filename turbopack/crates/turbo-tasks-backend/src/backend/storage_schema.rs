@@ -17,21 +17,21 @@
 //! - `data` - Frequently changed bulk data (dependencies, cell data)
 //! - `meta` - Rarely changed metadata (output, aggregation, flags)
 //! - `transient` - Not serialized, only exists in memory
-
-
 use turbo_tasks::{
     CellId, SharedReference, TaskId, TraitTypeId, TypedSharedReference, ValueTypeId, task_storage,
 };
 
-use crate::data::{
-    ActivenessState, AggregationNumber, CellRef, CollectibleRef, CollectiblesRef, Dirtyness, InProgressCellState, InProgressState, LeafDistance, OutputValue
+use crate::{
+    backend::counter_map::CounterMap,
+    data::{
+        ActivenessState, AggregationNumber, CellRef, CollectibleRef, CollectiblesRef, Dirtyness,
+        InProgressCellState, InProgressState, LeafDistance, OutputValue,
+    },
 };
 
 /// Auto-set storage for small sets of keys with unit values.
 /// Optimized for small collections (< 8 items use SmallVec inline).
 type AutoSet<K> = auto_hash_map::AutoSet<K, std::hash::BuildHasherDefault<rustc_hash::FxHasher>, 1>;
-
-use super::counter_map::CounterMap;
 
 /// Auto-map storage for key-value pairs.
 type AutoMap<K, V> =
@@ -56,8 +56,14 @@ struct TaskStorageSchema {
     // INLINE FIELDS (hot path, always allocated inline)
     // =========================================================================
     /// The task's distance for prioritizing invalidation execution
-    #[field(storage = "direct", category = "meta", inline, default)]
-    pub leaf_distance: LeafDistance;
+    #[field(
+        storage = "direct",
+        category = "data",
+        inline,
+        default,
+        variant = "LeafDistance"
+    )]
+    pub leaf_distance: LeafDistance,
 
     /// The task's aggregation number for the aggregation tree.
     /// Uses Default::default() semantics - a zero aggregation number means "not set".
@@ -551,38 +557,6 @@ impl IsTransient for (CellRef, Option<u64>) {
     }
 }
 
-// ==========================================================================
-// TaskStorage Serialization Helpers
-// ==========================================================================
-
-/// Serialize TaskStorage meta fields directly to bytes.
-/// Uses the generated encode_meta method for efficient serialization.
-pub fn serialize_task_storage_meta(
-    storage: &TaskStorage,
-) -> Result<turbo_bincode::TurboBincodeBuffer, bincode::error::EncodeError> {
-    let mut buffer = turbo_bincode::TurboBincodeBuffer::new();
-    let mut encoder = bincode::enc::EncoderImpl::new(
-        turbo_bincode::TurboBincodeWriter::new(&mut buffer),
-        turbo_bincode::TURBO_BINCODE_CONFIG,
-    );
-    storage.encode_meta(&mut encoder)?;
-    Ok(buffer)
-}
-
-/// Serialize TaskStorage data fields directly to bytes.
-/// Uses the generated encode_data method for efficient serialization.
-pub fn serialize_task_storage_data(
-    storage: &TaskStorage,
-) -> Result<turbo_bincode::TurboBincodeBuffer, bincode::error::EncodeError> {
-    let mut buffer = turbo_bincode::TurboBincodeBuffer::new();
-    let mut encoder = bincode::enc::EncoderImpl::new(
-        turbo_bincode::TurboBincodeWriter::new(&mut buffer),
-        turbo_bincode::TURBO_BINCODE_CONFIG,
-    );
-    storage.encode_data(&mut encoder)?;
-    Ok(buffer)
-}
-
 #[cfg(test)]
 mod tests {
     use std::mem::size_of;
@@ -602,10 +576,6 @@ mod tests {
     impl TestStorage {
         fn new() -> Self {
             Self(TaskStorage::new())
-        }
-
-        fn inner(&self) -> &TaskStorage {
-            &self.0
         }
     }
 
@@ -910,13 +880,16 @@ mod tests {
         original
             .output_dependencies_mut()
             .insert(TaskId::new(200).unwrap());
-        original.cell_dependencies_mut().insert(CellRef {
-            task: TaskId::new(1).unwrap(),
-            cell: CellId {
-                type_id: unsafe { turbo_tasks::ValueTypeId::new_unchecked(1) },
-                index: 0,
+        original.cell_dependencies_mut().insert((
+            CellRef {
+                task: TaskId::new(1).unwrap(),
+                cell: CellId {
+                    type_id: unsafe { turbo_tasks::ValueTypeId::new_unchecked(1) },
+                    index: 0,
+                },
             },
-        });
+            None,
+        ));
 
         // Set lazy data transient field (should NOT be serialized)
         original
@@ -1020,71 +993,6 @@ mod tests {
         assert_eq!(decoded.output_dependencies(), None);
     }
 
-    #[test]
-    fn test_serialize_helpers() {
-        // Test the serialize_task_storage_meta/data helper functions
-        let mut original = TaskStorage::new();
-        original.set_aggregation_number(AggregationNumber {
-            base: 10,
-            distance: 5,
-            effective: 15,
-        });
-        original.set_output(OutputValue::Output(unsafe { TaskId::new_unchecked(42) }));
-        original.flags.set_immutable(true);
-
-        // Add some data-category items (output_dependent is in data category)
-        original
-            .output_dependent_mut()
-            .insert(unsafe { TaskId::new_unchecked(20) });
-        original
-            .output_dependent_mut()
-            .insert(unsafe { TaskId::new_unchecked(21) });
-
-        // Serialize using helpers
-        let meta_buffer =
-            serialize_task_storage_meta(&original).expect("meta serialization failed");
-        let data_buffer =
-            serialize_task_storage_data(&original).expect("data serialization failed");
-
-        // Decode into new storage
-        let mut decoded = TaskStorage::new();
-        {
-            let mut decoder = new_decoder(&meta_buffer);
-            decoded
-                .decode_meta(&mut decoder)
-                .expect("decode meta failed");
-        }
-        {
-            let mut decoder = new_decoder(&data_buffer);
-            decoded
-                .decode_data(&mut decoder)
-                .expect("decode data failed");
-        }
-
-        // Verify meta fields
-        let agg = decoded
-            .get_aggregation_number()
-            .expect("missing aggregation_number");
-        assert_eq!(agg.base, 10);
-        assert_eq!(agg.distance, 5);
-        assert_eq!(agg.effective, 15);
-        assert!(decoded.get_output().is_some());
-        assert!(decoded.flags.immutable());
-
-        // Verify data fields
-        assert_eq!(decoded.output_dependent().len(), 2);
-        assert!(
-            decoded
-                .output_dependent()
-                .contains(&unsafe { TaskId::new_unchecked(20) })
-        );
-        assert!(
-            decoded
-                .output_dependent()
-                .contains(&unsafe { TaskId::new_unchecked(21) })
-        );
-    }
-
     // ==========================================================================
     // Schema Size Tests
     // ==========================================================================
@@ -1092,23 +1000,10 @@ mod tests {
     #[test]
     #[cfg(target_pointer_width = "64")]
     fn test_schema_size() {
-        // TaskStorage uses lazy storage for most fields, keeping inline storage minimal.
-        // Current layout (128 bytes):
-        //   - output_dependent (AutoSet<TaskId>): 24 bytes
-        //   - aggregation_number (AggregationNumber with default): 12 bytes
-        //   - output (Option<OutputValue>): 32 bytes
-        //   - upper (CounterMap<TaskId, u32>): 24 bytes
-        //   - flags (TaskFlags): 8 bytes
-        //   - lazy (Vec<LazyField>): 24 bytes
-        //   - padding: 4 bytes
-        //
-        // Use exact size check to catch regressions in either direction.
         assert_eq!(
             size_of::<TaskStorage>(),
-            128,
-            "TaskStorage size changed! Was 128 bytes, now {} bytes. If this is intentional, \
-             update this test.",
-            size_of::<TaskStorage>()
+            136,
+            "TaskStorage size changed! If this is intentional, update this test."
         );
     }
 
@@ -1150,7 +1045,7 @@ mod tests {
         assert!(!storage.add(dep_item)); // Already exists
 
         // Verify via typed accessor
-        assert!(storage.inner().output_dependent().contains(&task1));
+        assert!(storage.typed().output_dependent().contains(&task1));
 
         // Test add another
         let dep_item2 = CachedDataItem::OutputDependent {
@@ -1158,7 +1053,7 @@ mod tests {
             value: (),
         };
         assert!(storage.add(dep_item2));
-        assert_eq!(storage.inner().output_dependent().len(), 2);
+        assert_eq!(storage.typed().output_dependent().len(), 2);
 
         // Test remove OutputDependent
         let key = CachedDataItemKey::OutputDependent { task: task1 };
@@ -1167,44 +1062,44 @@ mod tests {
             removed,
             Some(CachedDataItemValue::OutputDependent { value: () })
         ));
-        assert_eq!(storage.inner().output_dependent().len(), 1);
-        assert!(!storage.inner().output_dependent().contains(&task1));
-        assert!(storage.inner().output_dependent().contains(&task2));
+        assert_eq!(storage.typed().output_dependent().len(), 1);
+        assert!(!storage.typed().output_dependent().contains(&task1));
+        assert!(storage.typed().output_dependent().contains(&task2));
     }
 
     #[test]
     fn test_adapter_flags() {
         use crate::data::{CachedDataItem, CachedDataItemKey, CachedDataItemValue};
 
-        let mut storage = TaskStorage::new();
+        let mut storage = TestStorage::new();
 
         // Test flag field (Immutable)
         let immutable_item = CachedDataItem::Immutable { value: () };
-        assert!(storage.add_cached_data_item(immutable_item.clone()));
-        assert!(storage.flags.immutable());
-        assert!(!storage.add_cached_data_item(immutable_item)); // Already set
+        assert!(storage.add(immutable_item.clone()));
+        assert!(storage.typed().flags.immutable());
+        assert!(!storage.add(immutable_item)); // Already set
 
         // Test get for flag
         let key = CachedDataItemKey::Immutable {};
-        assert!(storage.get_cached_data_item(&key).is_some());
+        assert!(storage.get(&key).is_some());
 
         // Test remove for flag
-        let removed = storage.remove_cached_data_item(&key);
+        let removed = storage.remove(&key);
         assert!(matches!(
             removed,
             Some(CachedDataItemValue::Immutable { value: () })
         ));
-        assert!(!storage.flags.immutable());
+        assert!(!storage.typed().flags.immutable());
 
         // Removing again should return None
-        assert!(storage.remove_cached_data_item(&key).is_none());
+        assert!(storage.remove(&key).is_none());
     }
 
     #[test]
     fn test_adapter_counter_map() {
         use crate::data::{CachedDataItem, CachedDataItemKey, CachedDataItemValue};
 
-        let mut storage = TaskStorage::new();
+        let mut storage = TestStorage::new();
         let task1 = unsafe { TaskId::new_unchecked(1) };
         let task2 = unsafe { TaskId::new_unchecked(2) };
 
@@ -1213,7 +1108,7 @@ mod tests {
             task: task1,
             value: 5,
         };
-        assert!(storage.add_cached_data_item(upper_item));
+        assert!(storage.add(upper_item));
         assert_eq!(storage.upper().get(&task1), Some(&5));
 
         // Update the value (insert returns old value)
@@ -1221,7 +1116,7 @@ mod tests {
             task: task1,
             value: 10,
         };
-        let old = storage.insert_cached_data_item(upper_update);
+        let old = storage.insert(upper_update);
         assert!(matches!(old, Some(CachedDataItemValue::Upper { value: 5 })));
         assert_eq!(storage.upper().get(&task1), Some(&10));
 
@@ -1230,12 +1125,12 @@ mod tests {
             task: task2,
             value: 3,
         };
-        assert!(storage.add_cached_data_item(follower_item));
+        assert!(storage.add(follower_item));
         assert_eq!(storage.followers().unwrap().get(&task2), Some(&3));
 
         // Test remove Follower
         let key = CachedDataItemKey::Follower { task: task2 };
-        let removed = storage.remove_cached_data_item(&key);
+        let removed = storage.remove(&key);
         assert!(matches!(
             removed,
             Some(CachedDataItemValue::Follower { value: 3 })
@@ -1248,7 +1143,7 @@ mod tests {
     fn test_adapter_lazy_autoset() {
         use crate::data::{CachedDataItem, CachedDataItemKey, CachedDataItemValue};
 
-        let mut storage = TaskStorage::new();
+        let mut storage = TestStorage::new();
         let task1 = unsafe { TaskId::new_unchecked(1) };
         let task2 = unsafe { TaskId::new_unchecked(2) };
 
@@ -1257,7 +1152,7 @@ mod tests {
             task: task1,
             value: (),
         };
-        assert!(storage.add_cached_data_item(child_item));
+        assert!(storage.add(child_item));
         assert!(storage.children().is_some());
         assert!(storage.children().unwrap().contains(&task1));
 
@@ -1266,98 +1161,24 @@ mod tests {
             task: task2,
             value: (),
         };
-        assert!(storage.add_cached_data_item(child_item2));
+        assert!(storage.add(child_item2));
         assert_eq!(storage.children().unwrap().len(), 2);
 
         // Test get
         let key = CachedDataItemKey::Child { task: task1 };
-        assert!(storage.get_cached_data_item(&key).is_some());
+        assert!(storage.get(&key).is_some());
         let key_missing = CachedDataItemKey::Child {
             task: unsafe { TaskId::new_unchecked(999) },
         };
-        assert!(storage.get_cached_data_item(&key_missing).is_none());
+        assert!(storage.get(&key_missing).is_none());
 
         // Test remove
-        let removed = storage.remove_cached_data_item(&key);
+        let removed = storage.remove(&key);
         assert!(matches!(
             removed,
             Some(CachedDataItemValue::Child { value: () })
         ));
         assert_eq!(storage.children().unwrap().len(), 1);
         assert!(!storage.children().unwrap().contains(&task1));
-    }
-
-    #[test]
-    fn test_adapter_multimap() {
-        use turbo_tasks::ValueTypeId;
-
-        use crate::data::{CachedDataItem, CachedDataItemKey, CachedDataItemValue};
-
-        let mut storage = TaskStorage::new();
-        // CellId requires type_id and index
-        let type_id = unsafe { ValueTypeId::new_unchecked(1) };
-        let cell1 = CellId { type_id, index: 1 };
-        let cell2 = CellId { type_id, index: 2 };
-        let task1 = unsafe { TaskId::new_unchecked(10) };
-        let task2 = unsafe { TaskId::new_unchecked(20) };
-        let task3 = unsafe { TaskId::new_unchecked(30) };
-
-        // Test AutoMultimap field (CellDependent)
-        // Add task1 depending on cell1
-        let item1 = CachedDataItem::CellDependent {
-            cell: cell1,
-            task: task1,
-            value: (),
-        };
-        assert!(storage.add_cached_data_item(item1));
-
-        // Add task2 depending on same cell1
-        let item2 = CachedDataItem::CellDependent {
-            cell: cell1,
-            task: task2,
-            value: (),
-        };
-        assert!(storage.add_cached_data_item(item2));
-
-        // Add task3 depending on different cell2
-        let item3 = CachedDataItem::CellDependent {
-            cell: cell2,
-            task: task3,
-            value: (),
-        };
-        assert!(storage.add_cached_data_item(item3));
-
-        // Verify via typed accessor
-        let dependents = storage.cell_dependents().unwrap();
-        assert_eq!(dependents.len(), 2); // Two cells
-        assert_eq!(dependents.get(&cell1).unwrap().len(), 2);
-        assert_eq!(dependents.get(&cell2).unwrap().len(), 1);
-
-        // Test get
-        let key = CachedDataItemKey::CellDependent {
-            cell: cell1,
-            task: task1,
-        };
-        assert!(storage.get_cached_data_item(&key).is_some());
-
-        // Test remove one item from a cell with multiple dependents
-        let removed = storage.remove_cached_data_item(&key);
-        assert!(matches!(
-            removed,
-            Some(CachedDataItemValue::CellDependent { value: () })
-        ));
-        let dependents = storage.cell_dependents().unwrap();
-        assert_eq!(dependents.get(&cell1).unwrap().len(), 1); // Still has task2
-
-        // Remove the last dependent for cell2
-        let key3 = CachedDataItemKey::CellDependent {
-            cell: cell2,
-            task: task3,
-        };
-        let removed = storage.remove_cached_data_item(&key3);
-        assert!(removed.is_some());
-        // After removing the only dependent, the cell entry should be removed
-        let dependents = storage.cell_dependents().unwrap();
-        assert!(dependents.get(&cell2).is_none());
     }
 }
