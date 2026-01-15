@@ -209,12 +209,9 @@ pub async fn get_browser_runtime_code(
 /// Returns the code for the ECMAScript worker entrypoint bootstrap.
 #[turbo_tasks::function]
 pub async fn get_worker_runtime_code(
-    environment: ResolvedVc<Environment>,
+    asset_context: Vc<Box<dyn AssetContext>>,
     generate_source_map: bool,
 ) -> Result<Vc<Code>> {
-    // TODO: This is not the correct asset context
-    let asset_context = get_runtime_asset_context(*environment).resolve().await?;
-
     Ok(embed_static_code(
         asset_context,
         rcstr!("browser/runtime/base/worker-entrypoint.ts"),

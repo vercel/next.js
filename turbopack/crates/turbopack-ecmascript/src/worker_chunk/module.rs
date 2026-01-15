@@ -12,7 +12,7 @@ use turbopack_core::{
     module_graph::ModuleGraph,
     reference::{ModuleReference, ModuleReferences},
     reference_type::WorkerReferenceSubType,
-    resolve::ModuleResolveResult,
+    resolve::{ModuleResolveResult, origin::ResolveOrigin},
 };
 
 use super::chunk_item::WorkerLoaderChunkItem;
@@ -23,6 +23,7 @@ use super::chunk_item::WorkerLoaderChunkItem;
 pub struct WorkerLoaderModule {
     pub inner: ResolvedVc<Box<dyn ChunkableModule>>,
     pub worker_type: WorkerReferenceSubType,
+    pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -31,10 +32,12 @@ impl WorkerLoaderModule {
     pub fn new(
         module: ResolvedVc<Box<dyn ChunkableModule>>,
         worker_type: WorkerReferenceSubType,
+        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     ) -> Vc<Self> {
         Self::cell(WorkerLoaderModule {
             inner: module,
             worker_type,
+            origin,
         })
     }
 
@@ -87,12 +90,14 @@ impl ChunkableModule for WorkerLoaderModule {
         module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
+        let this = self.await?;
         Ok(Vc::upcast(
             WorkerLoaderChunkItem {
                 module: self,
                 module_graph,
                 chunking_context,
-                worker_type: self.await?.worker_type,
+                worker_type: this.worker_type,
+                origin: this.origin,
             }
             .cell(),
         ))

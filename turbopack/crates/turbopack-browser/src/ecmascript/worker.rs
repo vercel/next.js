@@ -6,6 +6,7 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkingContext, MinifyType},
     code_builder::Code,
+    context::AssetContext,
     ident::AssetIdent,
     output::{OutputAsset, OutputAssetsReference, OutputAssetsWithReferenced},
     source_map::{GenerateSourceMap, SourceMapAsset},
@@ -14,18 +15,23 @@ use turbopack_ecmascript::minify::minify;
 use turbopack_ecmascript_runtime::get_worker_runtime_code;
 
 /// A pre-compiled worker entrypoint that bootstraps workers by reading config from URL params.
-/// This is a singleton per chunking context - all workers share the same entrypoint file.
+/// The entrypoint is keyed by (chunking_context, asset_context) to ensure proper compilation.
 #[turbo_tasks::value(shared)]
 pub struct EcmascriptBrowserWorkerEntrypoint {
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    asset_context: ResolvedVc<Box<dyn AssetContext>>,
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptBrowserWorkerEntrypoint {
     #[turbo_tasks::function]
-    pub async fn new(chunking_context: Vc<Box<dyn ChunkingContext>>) -> Result<Vc<Self>> {
+    pub async fn new(
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        asset_context: Vc<Box<dyn AssetContext>>,
+    ) -> Result<Vc<Self>> {
         Ok(EcmascriptBrowserWorkerEntrypoint {
             chunking_context: chunking_context.to_resolved().await?,
+            asset_context: asset_context.to_resolved().await?,
         }
         .cell())
     }
@@ -33,14 +39,13 @@ impl EcmascriptBrowserWorkerEntrypoint {
     #[turbo_tasks::function]
     async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
         let this = self.await?;
-        let environment = this.chunking_context.environment();
 
         let source_maps = *this
             .chunking_context
             .reference_chunk_source_maps(Vc::upcast(self))
             .await?;
 
-        let mut code = (*get_worker_runtime_code(environment, source_maps).await?).clone();
+        let mut code = (*get_worker_runtime_code(*this.asset_context, source_maps).await?).clone();
 
         if let MinifyType::Minify { mangle } = *this.chunking_context.minify_type().await? {
             code = minify(code, source_maps, mangle)?;

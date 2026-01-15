@@ -83,7 +83,11 @@ impl WorkerAssetReference {
             return Ok(None);
         };
 
-        Ok(Some(WorkerLoaderModule::new(*chunkable, self.worker_type)))
+        Ok(Some(WorkerLoaderModule::new(
+            *chunkable,
+            self.worker_type,
+            *self.origin,
+        )))
     }
 }
 
