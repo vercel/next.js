@@ -94,7 +94,7 @@ function runTests(mode: 'server' | 'dev') {
               search: '',
             },
           ],
-          maximumResponseBody: 300000000,
+          maximumResponseBody: 50000000,
           minimumCacheTTL: 60,
           path: '/_next/image',
           sizes: [

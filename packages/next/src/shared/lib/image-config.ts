@@ -140,7 +140,7 @@ export const imageConfigDefault: ImageConfigComplete = {
   disableStaticImages: false,
   minimumCacheTTL: 60,
   formats: ['image/webp'],
-  maximumResponseBody: 300_000_000, // 300MB
+  maximumResponseBody: 50_000_000, // 50 MB
   dangerouslyAllowSVG: false,
   contentSecurityPolicy: `script-src 'none'; frame-src 'none'; sandbox;`,
   contentDispositionType: 'attachment',

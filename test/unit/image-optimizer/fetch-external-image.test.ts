@@ -18,7 +18,7 @@ describe('fetchExternalImage', () => {
 
       const error = await fetchExternalImage(
         'http://example.com/no-body.jpg',
-        300_000_000
+        50_000_000
       ).catch((e) => e)
 
       expect(error).toBeInstanceOf(ImageError)
