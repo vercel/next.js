@@ -175,8 +175,13 @@ async fn fuzz_fs_watcher(args: FsWatcher) -> anyhow::Result<()> {
         initial_op.read_strongly_consistent().await?;
         if track_writes {
             apply_effects(initial_op).await?;
-            let (total, mismatched) =
-                verify_written_files(&fs_root, args.depth, args.width, symlink_count);
+            let (total, mismatched) = verify_written_files(
+                &fs_root,
+                args.depth,
+                args.width,
+                symlink_count,
+                symlink_mode,
+            );
             println!("wrote all {} paths, {} mismatches", total, mismatched.len());
             if args.print_missing_invalidations && !mismatched.is_empty() {
                 for path in &mismatched {
@@ -260,8 +265,13 @@ async fn fuzz_fs_watcher(args: FsWatcher) -> anyhow::Result<()> {
             };
             if track_writes {
                 apply_effects(read_or_write_op).await?;
-                let (total, mismatched) =
-                    verify_written_files(&fs_root, args.depth, args.width, symlink_count);
+                let (total, mismatched) = verify_written_files(
+                    &fs_root,
+                    args.depth,
+                    args.width,
+                    symlink_count,
+                    symlink_mode,
+                );
                 println!(
                     "modified {} files{}. verified {} paths, {} mismatches",
                     modified_file_paths.len(),
@@ -443,6 +453,7 @@ fn verify_written_files(
     depth: usize,
     width: usize,
     symlink_count: u32,
+    symlink_mode: Option<SymlinkMode>,
 ) -> (usize, Vec<PathBuf>) {
     fn check_files_inner(
         parent: &Path,
@@ -470,14 +481,30 @@ fn verify_written_files(
 
     check_files_inner(fs_root, depth, width, &mut total, &mut mismatched);
 
-    // Check symlinks
     if symlink_count > 0 {
         let symlinks_dir = fs_root.join("_symlinks");
+
+        #[cfg(windows)]
+        let expected_target = {
+            match symlink_mode {
+                Some(SymlinkMode::Junction) => {
+                    // On Windows, junctions are stored as absolute paths
+                    symlinks_dir.join(SYMLINK_SENTINEL_TARGET)
+                }
+                _ => PathBuf::from(SYMLINK_SENTINEL_TARGET),
+            }
+        };
+        #[cfg(not(windows))]
+        let expected_target = {
+            let _ = symlink_mode;
+            PathBuf::from(SYMLINK_SENTINEL_TARGET)
+        };
+
         for i in 0..symlink_count {
             total += 1;
             let symlink_path = symlinks_dir.join(i.to_string());
             match std::fs::read_link(&symlink_path) {
-                Ok(target) if target == Path::new(SYMLINK_SENTINEL_TARGET) => {}
+                Ok(target) if target == expected_target => {}
                 _ => mismatched.push(symlink_path),
             }
         }
