@@ -1191,12 +1191,10 @@ browserContextPrototype.P = resolveAbsolutePath;
  */ function getWorkerURL(entrypoint, moduleChunks, shared) {
     var url = new URL(getChunkRelativeUrl(entrypoint), location.origin);
     var params = {
-        globals: {
-            S: CHUNK_SUFFIX,
-            NC: moduleChunks.map(function(chunk) {
-                return getChunkRelativeUrl(chunk);
-            })
-        }
+        S: CHUNK_SUFFIX,
+        NC: moduleChunks.map(function(chunk) {
+            return getChunkRelativeUrl(chunk);
+        }).reverse()
     };
     var paramsJson = JSON.stringify(params);
     if (shared) {

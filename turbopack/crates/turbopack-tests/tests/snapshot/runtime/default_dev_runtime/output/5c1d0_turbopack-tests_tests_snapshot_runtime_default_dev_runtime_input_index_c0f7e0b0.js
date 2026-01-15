@@ -693,10 +693,8 @@ browserContextPrototype.P = resolveAbsolutePath;
  */ function getWorkerURL(entrypoint, moduleChunks, shared) {
     const url = new URL(getChunkRelativeUrl(entrypoint), location.origin);
     const params = {
-        globals: {
-            S: CHUNK_SUFFIX,
-            NC: moduleChunks.map((chunk)=>getChunkRelativeUrl(chunk))
-        }
+        S: CHUNK_SUFFIX,
+        NC: moduleChunks.map((chunk)=>getChunkRelativeUrl(chunk)).reverse()
     };
     const paramsJson = JSON.stringify(params);
     if (shared) {
