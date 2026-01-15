@@ -13,7 +13,10 @@ use swc_core::{
         source_map::{Files, SourceMapGenConfig, build_source_map},
     },
     ecma::{
-        ast::{EsVersion, Id, Ident, IdentName, ObjectPatProp, Pat, Program, VarDecl},
+        ast::{
+            EsVersion, Id, Ident, IdentName, ObjectPatProp, Pat, Program, TsModuleDecl,
+            TsModuleName, VarDecl,
+        },
         lints::{self, config::LintConfig, rules::LintParams},
         parser::{EsSyntax, Parser, Syntax, TsSyntax, lexer::Lexer},
         transforms::{
@@ -733,6 +736,14 @@ impl Visit for VarDeclWithTsDeclareCollector {
     fn visit_var_decl(&mut self, node: &VarDecl) {
         for decl in node.decls.iter() {
             self.handle_pat(&decl.name, node.declare);
+        }
+    }
+
+    fn visit_ts_module_decl(&mut self, node: &TsModuleDecl) {
+        if node.declare {
+            if let TsModuleName::Ident(id) = &node.id {
+                self.id_with_ts_declare.insert(id.to_id());
+            }
         }
     }
 }
