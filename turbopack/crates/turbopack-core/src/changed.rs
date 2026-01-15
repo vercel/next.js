@@ -7,7 +7,7 @@ use turbo_tasks::{
 use crate::{
     asset::Asset,
     module::Module,
-    output::{ExpandOutputAssetsInput, OutputAsset, OutputAssets, expand_output_assets},
+    output::{ExpandOutputAssetsInput, OutputAsset, expand_output_assets},
     reference::primary_referenced_modules,
 };
 
@@ -55,24 +55,6 @@ pub async fn any_content_changed_of_output_asset(
             .await?;
 
     Ok(Vc::<Completions>::cell(completions).completed())
-}
-
-/// Returns a completion that changes when any content of any asset in the given
-/// output asset graphs changes.
-#[turbo_tasks::function]
-pub async fn any_content_changed_of_output_assets(
-    roots: Vc<OutputAssets>,
-) -> Result<Vc<Completion>> {
-    Ok(Vc::<Completions>::cell(
-        roots
-            .await?
-            .iter()
-            .map(|&a| any_content_changed_of_output_asset(*a))
-            .map(|v| v.to_resolved())
-            .try_join()
-            .await?,
-    )
-    .completed())
 }
 
 /// Returns a completion that changes when the content of the given asset

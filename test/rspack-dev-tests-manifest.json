@@ -4612,15 +4612,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/cdn-cache-control-header/cdn-cache-control-header.test.ts": {
-    "passed": [
-      "cdn-cache-control-header should use custom CDN cache control header name from experimental config"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/client-module-with-package-type/index.test.ts": {
     "passed": [
       "esm-client-module-without-exports \"type\": \"commonjs\" in package.json should render without errors: import cjs",
@@ -12630,6 +12621,7 @@
   },
   "test/e2e/swc-plugins/index.test.ts": {
     "passed": [
+      "swcPlugins incompatible plugin version shows a redbox in dev",
       "swcPlugins invalid plugin name shows a redbox in dev",
       "swcPlugins supports swcPlugins basic case"
     ],

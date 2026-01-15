@@ -372,13 +372,6 @@ impl<T> TransientState<T> {
         inner.set_unconditionally(Some(value));
     }
 
-    /// Unset the current value without comparing it with the old value. This
-    /// should only be used if one is sure that the value has changed.
-    pub fn unset_unconditionally(&self) {
-        let mut inner = self.inner.lock();
-        inner.set_unconditionally(None);
-    }
-
     /// Updates the current state with the `update` function. The `update`
     /// function need to return `true` when the value was modified. Exposing
     /// the current value from the `update` function is not allowed and will

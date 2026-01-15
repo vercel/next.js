@@ -308,7 +308,9 @@ async function loadComponentsImpl<
       ComponentMod
 
     return {
+      // @ts-expect-error this is indeed `{} || AppType` and not always `AppType`
       App,
+      // @ts-expect-error this is indeed `{} || DocumentType` and not always `DocumentType`
       Document,
       Component,
       buildManifest,

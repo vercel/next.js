@@ -220,18 +220,16 @@ describe('required server files', () => {
       path: '/optional-ssg/redirect-1',
       dest: '/somewhere',
       cacheControl: 's-maxage=31536000',
-      cdnCacheControl: 'max-age=31536000',
     },
     {
       case: 'redirect with revalidate',
       path: '/optional-ssg/redirect-2',
       dest: '/somewhere-else',
-      cacheControl: 's-maxage=5',
-      cdnCacheControl: 'max-age=5, stale-while-revalidate=31535995',
+      cacheControl: 's-maxage=5, stale-while-revalidate=31535995',
     },
   ])(
     `should have correct cache-control for $case`,
-    async ({ path, dest, cacheControl, cdnCacheControl }) => {
+    async ({ path, dest, cacheControl }) => {
       const res = await fetchViaHTTP(appPort, path, undefined, {
         redirect: 'manual',
       })
@@ -240,7 +238,6 @@ describe('required server files', () => {
         dest
       )
       expect(res.headers.get('cache-control')).toBe(cacheControl)
-      expect(res.headers.get('cdn-cache-control')).toBe(cdnCacheControl)
 
       const dataRes = await fetchViaHTTP(
         appPort,
@@ -250,8 +247,6 @@ describe('required server files', () => {
           redirect: 'manual',
         }
       )
-      expect(dataRes.headers.get('cache-control')).toBe(cacheControl)
-      expect(dataRes.headers.get('cdn-cache-control')).toBe(cdnCacheControl)
       expect((await dataRes.json()).pageProps).toEqual({
         __N_REDIRECT: dest,
         __N_REDIRECT_STATUS: 307,
@@ -302,24 +297,21 @@ describe('required server files', () => {
       path: '/optional-ssg/not-found-1',
       dest: '/somewhere',
       cacheControl: 's-maxage=31536000',
-      cdnCacheControl: 'max-age=31536000',
     },
     {
       case: 'notFound with revalidate',
       path: '/optional-ssg/not-found-2',
       dest: '/somewhere-else',
-      cacheControl: 's-maxage=5',
-      cdnCacheControl: 'max-age=5, stale-while-revalidate=31535995',
+      cacheControl: 's-maxage=5, stale-while-revalidate=31535995',
     },
   ])(
     `should have correct cache-control for $case`,
-    async ({ path, dest, cacheControl, cdnCacheControl }) => {
+    async ({ path, dest, cacheControl }) => {
       const res = await fetchViaHTTP(appPort, path, undefined, {
         redirect: 'manual',
       })
       expect(res.status).toBe(404)
       expect(res.headers.get('cache-control')).toBe(cacheControl)
-      expect(res.headers.get('cdn-cache-control')).toBe(cdnCacheControl)
 
       const dataRes = await fetchViaHTTP(
         appPort,
@@ -330,7 +322,6 @@ describe('required server files', () => {
         }
       )
       expect(dataRes.headers.get('cache-control')).toBe(cacheControl)
-      expect(dataRes.headers.get('cdn-cache-control')).toBe(cdnCacheControl)
     }
   )
 
@@ -338,7 +329,6 @@ describe('required server files', () => {
     const res = await fetchViaHTTP(appPort, '/optional-ssg/props-no-revalidate')
     expect(res.status).toBe(200)
     expect(res.headers.get('cache-control')).toBe('s-maxage=31536000')
-    expect(res.headers.get('cdn-cache-control')).toBe('max-age=31536000')
     const $ = cheerio.load(await res.text())
     expect(JSON.parse($('#props').text()).params).toEqual({
       rest: ['props-no-revalidate'],
@@ -351,7 +341,6 @@ describe('required server files', () => {
     )
     expect(dataRes.status).toBe(200)
     expect(res.headers.get('cache-control')).toBe('s-maxage=31536000')
-    expect(res.headers.get('cdn-cache-control')).toBe('max-age=31536000')
     expect((await dataRes.json()).pageProps.params).toEqual({
       rest: ['props-no-revalidate'],
     })
@@ -544,9 +533,8 @@ describe('required server files', () => {
       redirect: 'manual',
     })
     expect(res.status).toBe(200)
-    expect(res.headers.get('cache-control')).toBe('s-maxage=1')
-    expect(res.headers.get('cdn-cache-control')).toBe(
-      'max-age=1, stale-while-revalidate=31535999'
+    expect(res.headers.get('cache-control')).toBe(
+      's-maxage=1, stale-while-revalidate=31535999'
     )
 
     await waitFor(2000)
@@ -556,9 +544,8 @@ describe('required server files', () => {
       redirect: 'manual',
     })
     expect(res2.status).toBe(404)
-    expect(res2.headers.get('cache-control')).toBe('s-maxage=1')
-    expect(res2.headers.get('cdn-cache-control')).toBe(
-      'max-age=1, stale-while-revalidate=31535999'
+    expect(res2.headers.get('cache-control')).toBe(
+      's-maxage=1, stale-while-revalidate=31535999'
     )
   })
 

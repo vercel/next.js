@@ -1010,18 +1010,6 @@ pub async fn emit_asset(asset: Vc<Box<dyn OutputAsset>>) -> Result<()> {
 }
 
 #[turbo_tasks::function]
-pub async fn emit_asset_into_dir(
-    asset: Vc<Box<dyn OutputAsset>>,
-    output_dir: FileSystemPath,
-) -> Result<()> {
-    let dir = output_dir.clone();
-    if asset.path().await?.is_inside_ref(&dir) {
-        emit_asset(asset).as_side_effect().await?;
-    }
-    Ok(())
-}
-
-#[turbo_tasks::function]
 pub async fn emit_assets_into_dir(
     assets: Vc<ExpandedOutputAssets>,
     output_dir: FileSystemPath,
