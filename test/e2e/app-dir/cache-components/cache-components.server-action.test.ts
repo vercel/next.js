@@ -25,7 +25,7 @@ describe('cache-components', () => {
 
     await browser.elementByCss('button').click()
     await retry(async () => {
-      expect(await browser.elementByCss('p').text()).toBe('result')
+      expect(await browser.elementByCss('p').text()).toBe('result and more')
     })
 
     expect(next.cliOutput).not.toInclude('Error: Route "/server-action-inline"')
