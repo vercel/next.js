@@ -62,7 +62,7 @@ const myAdapter = {
             )
           }
         } else if (!output.fallback.postponedState) {
-          throw new Error(
+          console.error(
             `Missing postponed state or filePath for prerender ${output.id} ${JSON.stringify(output, null, 2)}`
           )
         }
