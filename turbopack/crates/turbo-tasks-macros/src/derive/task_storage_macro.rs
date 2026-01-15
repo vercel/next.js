@@ -1,81 +1,39 @@
-use proc_macro::TokenStream;
+use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{
-    Data, DeriveInput, Fields, Ident, Meta, Token, Type, parse_macro_input, punctuated::Punctuated,
-    spanned::Spanned,
-};
+use syn::{Fields, Ident, ItemStruct, Meta, Token, Type, punctuated::Punctuated, spanned::Spanned};
 
 /// Derives the TaskStorage trait and generates optimized storage structures.
-///
-/// This macro analyzes field annotations and generates:
-/// 1. A unified TaskStorage struct
-/// 2. LazyField enum for lazy_vec fields
-/// 3. Typed accessor methods on TaskStorage
-/// 4. TaskStorageAccessors trait with accessor methods
-/// 5. TaskFlags bitfield for boolean flags
-///
-/// # Field Attributes
-///
-/// All fields require two attributes:
-///
-/// ## `storage = "..."` (required)
-///
-/// Specifies how the field is stored:
-/// - `direct` - Direct field access (e.g., `Option<OutputValue>`)
-/// - `auto_set` - Uses AutoSet for small collections
-/// - `auto_map` - Uses AutoMap for key-value pairs
-/// - `auto_multimap` - Uses AutoMultimap for key -> set-of-values
-/// - `counter_map` - Uses CounterMap for reference counting
-/// - `flag` - Boolean flag stored in a compact TaskFlags bitfield (field type must be `bool`)
-///
-/// ## `category = "..."` (required)
-///
-/// Specifies the data category for persistence and access:
-/// - `data` - Frequently changed, bulk I/O
-/// - `meta` - Rarely changed, small I/O
-/// - `transient` - Field is not serialized (in-memory only)
-///
-/// ## Optional Modifiers
-///
-/// - `inline` - Field is stored inline on TaskStorage (default is lazy). Only use for hot-path
-///   fields that are frequently accessed.
-/// - `default` - Use `Default::default()` semantics instead of `Option` for inline direct fields.
-/// - `filter_transient` - Filter out transient values during serialization. For AutoMultimap
-///   fields, transient filtering is always applied to inner set values automatically.
-pub fn derive_task_storage(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as DeriveInput);
+pub fn task_storage(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    task_storage_impl(input.into()).into()
+}
 
-    match &input.data {
-        Data::Struct(data_struct) => {
-            let ident = &input.ident;
+fn task_storage_impl(input: TokenStream) -> TokenStream {
+    let input: ItemStruct = match syn::parse2(input) {
+        Ok(input) => input,
+        Err(e) => return e.to_compile_error(),
+    };
 
-            // Parse field annotations
-            let storage_fields = match &data_struct.fields {
-                Fields::Named(fields) => fields
-                    .named
-                    .iter()
-                    .map(parse_field_storage_attributes)
-                    .collect::<Vec<_>>(),
-                _ => {
-                    return syn::Error::new(
-                        input.span(),
-                        "TaskStorage can only be derived for structs with named fields",
-                    )
-                    .to_compile_error()
-                    .into();
-                }
-            };
-
-            // Create grouped fields container
-            let grouped_fields = GroupedFields::new(storage_fields);
-
-            // Generate the implementation
-            generate_task_storage_impl(ident, &grouped_fields)
+    // Parse field annotations
+    let storage_fields = match &input.fields {
+        Fields::Named(fields) => fields
+            .named
+            .iter()
+            .map(parse_field_storage_attributes)
+            .collect::<Vec<_>>(),
+        _ => {
+            return syn::Error::new(
+                input.ident.span(),
+                "#[task_storage] can only be applied to structs with named fields",
+            )
+            .to_compile_error();
         }
-        _ => syn::Error::new(input.span(), "TaskStorage can only be derived for structs")
-            .to_compile_error()
-            .into(),
-    }
+    };
+
+    // Create grouped fields container
+    let grouped_fields = GroupedFields::new(storage_fields);
+
+    // Generate the implementation (input struct is consumed - not emitted)
+    generate_task_storage_impl(&input.ident, &grouped_fields)
 }
 
 /// Parsed field information with cached derived values.
@@ -116,7 +74,7 @@ impl FieldInfo {
     }
 
     /// Generate the full `self.check_access(...)` call for this field.
-    fn check_access_call(&self) -> proc_macro2::TokenStream {
+    fn check_access_call(&self) -> TokenStream {
         if self.is_transient() {
             quote! { self.check_access(crate::backend::TaskDataCategory::All); }
         } else if self.category == Category::Meta {
@@ -127,7 +85,7 @@ impl FieldInfo {
     }
 
     /// Generate the full `self.track_modification(...)` call for this field.
-    fn track_modification_call(&self) -> proc_macro2::TokenStream {
+    fn track_modification_call(&self) -> TokenStream {
         if self.category == Category::Meta {
             quote! { self.track_modification(crate::backend::storage::SpecificTaskDataCategory::Meta); }
         } else {
@@ -147,7 +105,7 @@ impl FieldInfo {
     /// - For lazy fields: `self.typed().{field_name}()` yields `Option<&T>`
     ///
     /// Note: This is for collection types (AutoSet, CounterMap, AutoMap), not Direct fields.
-    fn collection_ref_expr(&self) -> proc_macro2::TokenStream {
+    fn collection_ref_expr(&self) -> TokenStream {
         let field_name = &self.field_name;
         // Both inline and lazy have accessor methods generated on TaskStorage
         quote! { self.typed().#field_name() }
@@ -161,7 +119,7 @@ impl FieldInfo {
     ///   needed)
     ///
     /// Note: This is for collection types (AutoSet, CounterMap, AutoMap), not Direct fields.
-    fn collection_mut_expr(&self) -> proc_macro2::TokenStream {
+    fn collection_mut_expr(&self) -> TokenStream {
         let field_name_mut = self.mut_ident();
         // Both inline and lazy have accessor methods generated on TaskStorage
         quote! { self.typed_mut().#field_name_mut() }
@@ -183,7 +141,7 @@ impl FieldInfo {
     /// Generate expression to get a Direct field value (returns `Option<&T>`).
     ///
     /// Delegates to TaskStorage accessor method `get_{field}()`.
-    fn direct_get_expr(&self) -> proc_macro2::TokenStream {
+    fn direct_get_expr(&self) -> TokenStream {
         let get_name = self.get_ident();
         quote! { self.typed().#get_name() }
     }
@@ -193,7 +151,7 @@ impl FieldInfo {
     /// Delegates to TaskStorage accessor method `set_{field}(value)`.
     /// For inline: returns `Option<T>` (old value)
     /// For lazy: returns `()` (no return value from current impl)
-    fn direct_set_expr(&self) -> proc_macro2::TokenStream {
+    fn direct_set_expr(&self) -> TokenStream {
         let set_name = self.set_ident();
         quote! { self.typed_mut().#set_name }
     }
@@ -201,7 +159,7 @@ impl FieldInfo {
     /// Generate expression to take a Direct field value.
     ///
     /// Delegates to TaskStorage accessor method `take_{field}()`.
-    fn direct_take_expr(&self) -> proc_macro2::TokenStream {
+    fn direct_take_expr(&self) -> TokenStream {
         let take_name = self.take_ident();
         quote! { self.typed_mut().#take_name() }
     }
@@ -210,7 +168,7 @@ impl FieldInfo {
     ///
     /// Delegates to TaskStorage accessor method `get_{field}_mut()`.
     /// Only available for lazy Direct fields (inline fields can use set/take).
-    fn direct_get_mut_expr(&self) -> proc_macro2::TokenStream {
+    fn direct_get_mut_expr(&self) -> TokenStream {
         let get_mut_name = self.get_mut_ident();
         quote! { self.typed_mut().#get_mut_name() }
     }
@@ -224,7 +182,7 @@ impl FieldInfo {
     /// Generate the find_lazy extractor closure for this lazy field.
     ///
     /// Returns `|f| match f { LazyField::Variant(v) => Some(v), _ => None }`
-    fn lazy_extractor_closure(&self) -> proc_macro2::TokenStream {
+    fn lazy_extractor_closure(&self) -> TokenStream {
         let variant_name = &self.variant_name;
         quote! {
             |f| match f {
@@ -237,7 +195,7 @@ impl FieldInfo {
     /// Generate the lazy field constructor expression.
     ///
     /// Returns `LazyField::Variant(value)` or `LazyField::Variant(Default::default())`
-    fn lazy_constructor(&self, value_expr: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
+    fn lazy_constructor(&self, value_expr: TokenStream) -> TokenStream {
         let variant_name = &self.variant_name;
         quote! { LazyField::#variant_name(#value_expr) }
     }
@@ -245,30 +203,19 @@ impl FieldInfo {
     /// Generate a matches closure for get_or_create_lazy.
     ///
     /// Returns `|f| matches!(f, LazyField::Variant(_))`
-    fn lazy_matches_closure(&self) -> proc_macro2::TokenStream {
+    fn lazy_matches_closure(&self) -> TokenStream {
         let variant_name = &self.variant_name;
         quote! {
             |f| matches!(f, LazyField::#variant_name(_))
         }
     }
 
-    /// Generate an unwrap closure for get_or_create_lazy (mutable reference).
+    /// Generate an unwrap closure that extracts the inner value from a LazyField variant.
     ///
     /// Returns `|f| match f { LazyField::Variant(v) => v, _ => unreachable!() }`
-    fn lazy_unwrap_closure(&self) -> proc_macro2::TokenStream {
-        let variant_name = &self.variant_name;
-        quote! {
-            |f| match f {
-                LazyField::#variant_name(v) => v,
-                _ => unreachable!(),
-            }
-        }
-    }
-
-    /// Generate an unwrap closure for take_lazy/set_lazy (consuming/owned).
     ///
-    /// Returns `|f| match f { LazyField::Variant(v) => v, _ => unreachable!() }`
-    fn lazy_unwrap_owned_closure(&self) -> proc_macro2::TokenStream {
+    /// Works for both borrowed and owned contexts (get_or_create_lazy, take_lazy, set_lazy).
+    fn lazy_unwrap_closure(&self) -> TokenStream {
         let variant_name = &self.variant_name;
         quote! {
             |f| match f {
@@ -350,7 +297,6 @@ enum StorageType {
     Direct,
     AutoSet,
     AutoMap,
-    AutoMultimap,
     CounterMap,
     Flag,
 }
@@ -393,11 +339,11 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
     let mut filter_transient = false;
     let mut use_default = false;
 
-    // Find and parse the task_storage attribute
+    // Find and parse the field attribute
     if let Some(attr) = field.attrs.iter().find(|attr| {
         attr.path()
             .get_ident()
-            .map(|ident| *ident == "task_storage")
+            .map(|ident| *ident == "field")
             .unwrap_or_default()
     }) {
         let nested = match attr.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated) {
@@ -406,7 +352,7 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
                 attr.meta
                     .span()
                     .unwrap()
-                    .error(format!("failed to parse task_storage attribute: {e}"))
+                    .error(format!("failed to parse field attribute: {e}"))
                     .emit();
                 Punctuated::new()
             }
@@ -431,7 +377,6 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
                                     "direct" => StorageType::Direct,
                                     "auto_set" => StorageType::AutoSet,
                                     "auto_map" => StorageType::AutoMap,
-                                    "auto_multimap" => StorageType::AutoMultimap,
                                     "counter_map" => StorageType::CounterMap,
                                     "flag" => StorageType::Flag,
                                     other => {
@@ -520,8 +465,8 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
             .span()
             .unwrap()
             .error(format!(
-                "field `{field_name}` is missing required #[task_storage(...)] attribute. \
-                 Expected #[task_storage(storage = \"...\", category = \"...\")]"
+                "field `{field_name}` is missing required #[field(...)] attribute. Expected \
+                 #[field(storage = \"...\", category = \"...\")]"
             ))
             .emit();
     }
@@ -534,9 +479,9 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
                 .span()
                 .unwrap()
                 .error(format!(
-                    "field `{}` requires explicit storage type. Add #[task_storage(storage = \
-                     \"...\")]. Valid types: \"direct\", \"auto_set\", \"auto_map\", \
-                     \"auto_multimap\", \"counter_map\", \"flag\"",
+                    "field `{}` requires explicit storage type. Add #[field(storage = \"...\")]. \
+                     Valid types: \"direct\", \"auto_set\", \"auto_map\", \"auto_multimap\", \
+                     \"counter_map\", \"flag\"",
                     field_name
                 ))
                 .emit();
@@ -552,9 +497,8 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
                 .span()
                 .unwrap()
                 .error(format!(
-                    "field `{}` requires explicit category. Add #[task_storage(category = \
-                     \"data\")], #[task_storage(category = \"meta\")], or #[task_storage(category \
-                     = \"transient\")]",
+                    "field `{}` requires explicit category. Add #[field(category = \"data\")], \
+                     #[field(category = \"meta\")], or #[field(category = \"transient\")]",
                     field_name
                 ))
                 .emit();
@@ -644,59 +588,21 @@ impl GroupedFields {
     }
 
     // =========================================================================
-    // Category-specific iterators
+    // Category-specific iterators for serialization
     // =========================================================================
 
-    /// Returns an iterator over inline data fields.
-    fn inline_data(&self) -> impl Iterator<Item = &FieldInfo> {
+    /// Returns an iterator over persistent (non-transient) inline fields for a category.
+    fn persistent_inline(&self, category: Category) -> impl Iterator<Item = &FieldInfo> {
         self.fields
             .iter()
-            .filter(|f| !f.is_flag() && !f.lazy && f.category == Category::Data)
+            .filter(move |f| !f.is_flag() && !f.lazy && !f.is_transient() && f.category == category)
     }
 
-    /// Returns an iterator over inline meta fields.
-    fn inline_meta(&self) -> impl Iterator<Item = &FieldInfo> {
+    /// Returns an iterator over persistent (non-transient) lazy fields for a category.
+    fn persistent_lazy(&self, category: Category) -> impl Iterator<Item = &FieldInfo> {
         self.fields
             .iter()
-            .filter(|f| !f.is_flag() && !f.lazy && f.category == Category::Meta)
-    }
-
-    /// Returns an iterator over lazy data fields.
-    fn lazy_data(&self) -> impl Iterator<Item = &FieldInfo> {
-        self.fields
-            .iter()
-            .filter(|f| !f.is_flag() && f.lazy && f.category == Category::Data)
-    }
-
-    /// Returns an iterator over lazy meta fields.
-    fn lazy_meta(&self) -> impl Iterator<Item = &FieldInfo> {
-        self.fields
-            .iter()
-            .filter(|f| !f.is_flag() && f.lazy && f.category == Category::Meta)
-    }
-
-    // =========================================================================
-    // Persistent (non-transient) field iterators for serialization
-    // =========================================================================
-
-    /// Returns an iterator over persistent (non-transient) inline meta fields.
-    fn persistent_inline_meta(&self) -> impl Iterator<Item = &FieldInfo> {
-        self.inline_meta().filter(|f| !f.is_transient())
-    }
-
-    /// Returns an iterator over persistent (non-transient) inline data fields.
-    fn persistent_inline_data(&self) -> impl Iterator<Item = &FieldInfo> {
-        self.inline_data().filter(|f| !f.is_transient())
-    }
-
-    /// Returns an iterator over persistent (non-transient) lazy meta fields.
-    fn persistent_lazy_meta(&self) -> impl Iterator<Item = &FieldInfo> {
-        self.lazy_meta().filter(|f| !f.is_transient())
-    }
-
-    /// Returns an iterator over persistent (non-transient) lazy data fields.
-    fn persistent_lazy_data(&self) -> impl Iterator<Item = &FieldInfo> {
-        self.lazy_data().filter(|f| !f.is_transient())
+            .filter(move |f| !f.is_flag() && f.lazy && !f.is_transient() && f.category == category)
     }
 }
 
@@ -705,9 +611,7 @@ impl GroupedFields {
 // =============================================================================
 
 /// Generate inline field clone assignments: `snapshot.field = self.field.clone();`
-fn gen_clone_inline_fields<'a>(
-    fields: impl Iterator<Item = &'a FieldInfo>,
-) -> Vec<proc_macro2::TokenStream> {
+fn gen_clone_inline_fields<'a>(fields: impl Iterator<Item = &'a FieldInfo>) -> Vec<TokenStream> {
     fields
         .map(|field| {
             let field_name = &field.field_name;
@@ -719,9 +623,7 @@ fn gen_clone_inline_fields<'a>(
 }
 
 /// Generate inline field restore assignments: `self.field = source.field;`
-fn gen_restore_inline_fields<'a>(
-    fields: impl Iterator<Item = &'a FieldInfo>,
-) -> Vec<proc_macro2::TokenStream> {
+fn gen_restore_inline_fields<'a>(fields: impl Iterator<Item = &'a FieldInfo>) -> Vec<TokenStream> {
     fields
         .map(|field| {
             let field_name = &field.field_name;
@@ -732,37 +634,15 @@ fn gen_restore_inline_fields<'a>(
         .collect()
 }
 
-/// Generate lazy field match arms with a custom body.
-/// `LazyField::Variant(data) => { <body> }`
-///
-/// The `body_fn` receives the field and returns the body TokenStream.
-/// The body can use `data` to reference the matched value.
-fn gen_lazy_match_arms<'a>(
-    fields: impl Iterator<Item = &'a FieldInfo>,
-    body_fn: impl Fn(&FieldInfo) -> proc_macro2::TokenStream,
-) -> Vec<proc_macro2::TokenStream> {
-    fields
-        .map(|field| {
-            let variant_name = &field.variant_name;
-            let body = body_fn(field);
-            quote! {
-                LazyField::#variant_name(data) => {
-                    #body
-                }
-            }
-        })
-        .collect()
-}
-
 /// Generate lazy field match arms with a custom body that also receives the index.
 /// `LazyField::Variant(data) => { <body> }`
 ///
 /// The `body_fn` receives the index and field, returning the body TokenStream.
 /// The body can use `data` to reference the matched value.
-fn gen_lazy_match_arms_indexed<'a>(
+fn gen_lazy_match_arms<'a>(
     fields: impl Iterator<Item = &'a FieldInfo>,
-    body_fn: impl Fn(usize, &FieldInfo) -> proc_macro2::TokenStream,
-) -> Vec<proc_macro2::TokenStream> {
+    body_fn: impl Fn(usize, &FieldInfo) -> TokenStream,
+) -> Vec<TokenStream> {
     fields
         .enumerate()
         .map(|(idx, field)| {
@@ -799,10 +679,10 @@ fn generate_task_storage_impl(_ident: &Ident, grouped_fields: &GroupedFields) ->
     // Generate snapshot clone and restore methods
     let snapshot_restore_methods = generate_snapshot_restore_methods(grouped_fields);
 
-    // Generate shrink_to_fit method
-    let shrink_to_fit_method = generate_shrink_to_fit_method(grouped_fields);
+    quote! {
+        // Import ShrinkToFit trait for the derive macro generated code
+        use turbo_tasks::ShrinkToFit as _;
 
-    let expanded = quote! {
         // Generated TaskFlags bitfield
         #task_flags_bitfield
 
@@ -821,21 +701,16 @@ fn generate_task_storage_impl(_ident: &Ident, grouped_fields: &GroupedFields) ->
         // Generated snapshot clone and restore methods
         #snapshot_restore_methods
 
-        // Generated shrink_to_fit method
-        #shrink_to_fit_method
-
         // Generated TaskStorageAccessors trait
         #accessors_trait
-    };
-
-    TokenStream::from(expanded)
+    }
 }
 
 /// Generate the TaskFlags bitfield using the bitfield crate.
 ///
 /// Persisted flags come first (bits 0-N), then transient flags (bits N+1-M).
 /// This allows serializing only the persisted portion.
-fn generate_task_flags_bitfield(grouped_fields: &GroupedFields) -> proc_macro2::TokenStream {
+fn generate_task_flags_bitfield(grouped_fields: &GroupedFields) -> TokenStream {
     let all_flags: Vec<_> = grouped_fields.all_flags().collect();
 
     // If no flags, don't generate the bitfield
@@ -905,7 +780,7 @@ fn generate_task_flags_bitfield(grouped_fields: &GroupedFields) -> proc_macro2::
 }
 
 /// Generate the LazyField enum containing all lazy fields
-fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> proc_macro2::TokenStream {
+fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> TokenStream {
     let all_lazy_fields: Vec<_> = grouped_fields.all_lazy().collect();
 
     // If no lazy_vec fields, don't generate the enum
@@ -977,7 +852,8 @@ fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> proc_macro2::Toke
         /// All lazily-allocated fields stored in a single Vec.
         /// Fields are stored directly (unboxed) to avoid allocation overhead.
         #[automatically_derived]
-        #[derive(Debug, Clone, PartialEq)]
+        #[derive(Debug, Clone, PartialEq, turbo_tasks::ShrinkToFit)]
+        #[shrink_to_fit(crate = "turbo_tasks::macro_helpers::shrink_to_fit")]
         pub enum LazyField {
             #(#variants),*
         }
@@ -1014,7 +890,7 @@ fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> proc_macro2::Toke
 }
 
 /// Generate the unified TaskStorage struct with all fields directly on it.
-fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> proc_macro2::TokenStream {
+fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> TokenStream {
     let has_lazy = grouped_fields.has_lazy();
     let has_flags = grouped_fields.has_flags();
 
@@ -1062,7 +938,8 @@ fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> proc_macro2:
         /// Unified typed storage containing all task fields.
         /// This is designed to be embedded in the actual InnerStorage for incremental migration.
         #[automatically_derived]
-        #[derive(Debug, Clone, Default, PartialEq)]
+        #[derive(Debug, Clone, Default, PartialEq, turbo_tasks::ShrinkToFit)]
+        #[shrink_to_fit(crate = "turbo_tasks::macro_helpers::shrink_to_fit")]
         pub struct TaskStorage {
             #(#field_defs,)*
             #flags_field
@@ -1078,8 +955,8 @@ fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> proc_macro2:
     }
 }
 
-fn generate_accessor_methods(grouped_fields: &GroupedFields) -> proc_macro2::TokenStream {
-    let mut methods = proc_macro2::TokenStream::new();
+fn generate_accessor_methods(grouped_fields: &GroupedFields) -> TokenStream {
+    let mut methods = TokenStream::new();
 
     // Generate accessor methods for all fields on TaskStorage
     // This encapsulates the storage strategy - callers use methods, not field access
@@ -1102,16 +979,13 @@ fn generate_accessor_methods(grouped_fields: &GroupedFields) -> proc_macro2::Tok
 ///
 /// For Direct fields, generates: `get_{field}()`, `set_{field}()`, `take_{field}()`
 /// For Collection fields, generates: `{field}()`, `{field}_mut()`
-fn generate_field_accessors(field: &FieldInfo) -> proc_macro2::TokenStream {
+fn generate_field_accessors(field: &FieldInfo) -> TokenStream {
     let field_name = &field.field_name;
     let field_type = &field.field_type;
 
     match field.storage_type {
         StorageType::Direct => generate_direct_field_accessors(field),
-        StorageType::AutoSet
-        | StorageType::AutoMap
-        | StorageType::AutoMultimap
-        | StorageType::CounterMap => {
+        StorageType::AutoSet | StorageType::AutoMap | StorageType::CounterMap => {
             generate_collection_field_accessors(field, field_name, field_type)
         }
         StorageType::Flag => {
@@ -1122,7 +996,7 @@ fn generate_field_accessors(field: &FieldInfo) -> proc_macro2::TokenStream {
 }
 
 /// Generate Direct field accessors on TaskStorage (get/set/take, and get_mut for lazy).
-fn generate_direct_field_accessors(field: &FieldInfo) -> proc_macro2::TokenStream {
+fn generate_direct_field_accessors(field: &FieldInfo) -> TokenStream {
     let field_name = &field.field_name;
     let field_type = &field.field_type;
 
@@ -1181,7 +1055,7 @@ fn generate_direct_field_accessors(field: &FieldInfo) -> proc_macro2::TokenStrea
         // Lazy: field is stored in Vec<LazyField>
         let extractor = field.lazy_extractor_closure();
         let matches_closure = field.lazy_matches_closure();
-        let unwrap_owned = field.lazy_unwrap_owned_closure();
+        let unwrap_owned = field.lazy_unwrap_closure();
         let constructor = field.lazy_constructor(quote! { value });
 
         quote! {
@@ -1214,7 +1088,7 @@ fn generate_collection_field_accessors(
     field: &FieldInfo,
     field_name: &syn::Ident,
     field_type: &syn::Type,
-) -> proc_macro2::TokenStream {
+) -> TokenStream {
     let ref_name = field.ref_ident();
     let mut_name = field.mut_ident();
 
@@ -1260,10 +1134,8 @@ fn generate_collection_field_accessors(
 ///
 /// The trait is designed to be used with TaskGuard, which implements the required methods
 /// and gets all the accessor methods for free.
-fn generate_task_storage_accessors_trait(
-    grouped_fields: &GroupedFields,
-) -> proc_macro2::TokenStream {
-    let mut trait_methods = proc_macro2::TokenStream::new();
+fn generate_task_storage_accessors_trait(grouped_fields: &GroupedFields) -> TokenStream {
+    let mut trait_methods = TokenStream::new();
 
     // Generate accessor methods for all non-flag fields (inline and lazy)
     for field in grouped_fields.all_fields() {
@@ -1335,7 +1207,7 @@ fn generate_task_storage_accessors_trait(
 /// Uses `FieldInfo` helpers to generate the correct access patterns:
 /// - For inline: direct field access via `self.typed().field` / `self.typed_mut().field`
 /// - For lazy: delegates to TaskStorage accessors
-fn generate_trait_accessor_methods(field: &FieldInfo) -> proc_macro2::TokenStream {
+fn generate_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
     let field_type = &field.field_type;
     let check_access = field.check_access_call();
     let ref_expr = field.collection_ref_expr();
@@ -1452,48 +1324,6 @@ fn generate_trait_accessor_methods(field: &FieldInfo) -> proc_macro2::TokenStrea
                 #automap_ops
             }
         }
-        StorageType::AutoMultimap => {
-            // For AutoMultimap types, generate immutable and mutable accessors plus multimap
-            // operations
-            let ref_name = field.ref_ident();
-            let mut_name = field.mut_ident();
-
-            let (return_type, ref_doc) = if is_option {
-                (
-                    quote! { Option<&#field_type> },
-                    "/// Get a reference to the multimap (may be None if not allocated)",
-                )
-            } else {
-                (
-                    quote! { &#field_type },
-                    "/// Get a reference to the multimap",
-                )
-            };
-
-            let base_accessor = quote! {
-                #[doc = #ref_doc]
-                fn #ref_name(&self) -> #return_type {
-                    #check_access
-                    #ref_expr
-                }
-
-                /// Get a mutable reference to the multimap (allocates if needed for lazy fields).
-                ///
-                /// Note: This does NOT track modifications. Call `track_modification` after
-                /// making changes to ensure persistence.
-                fn #mut_name(&mut self) -> &mut #field_type {
-                    #check_access
-                    #mut_expr
-                }
-            };
-
-            let automultimap_ops = generate_automultimap_ops(field);
-
-            quote! {
-                #base_accessor
-                #automultimap_ops
-            }
-        }
         StorageType::Flag => {
             // Flag fields have accessors generated on TaskFlags, not TaskStorageAccessors
             unreachable!("Flag fields should not reach generate_trait_accessor_methods")
@@ -1512,7 +1342,7 @@ fn generate_trait_accessor_methods(field: &FieldInfo) -> proc_macro2::TokenStrea
 /// - `set_{field}(value) -> Option<T>` - Set value, returning old value
 /// - `take_{field}() -> Option<T>` - Take value, clearing the field
 /// - `get_{field}_mut() -> Option<&mut T>` - Get mutable reference (lazy fields only)
-fn generate_direct_accessors(field: &FieldInfo) -> proc_macro2::TokenStream {
+fn generate_direct_accessors(field: &FieldInfo) -> TokenStream {
     let field_type = &field.field_type;
     let check_access = field.check_access_call();
     let track_modification = field.track_modification_call();
@@ -1599,7 +1429,7 @@ fn generate_direct_accessors(field: &FieldInfo) -> proc_macro2::TokenStream {
 ///
 /// Generates methods with `_item` suffix to distinguish single-item operations
 /// from potential bulk operations: `add_X_item`, `remove_X_item`, `has_X_item`
-fn generate_autoset_ops(field: &FieldInfo) -> proc_macro2::TokenStream {
+fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
     let field_type = &field.field_type;
 
     let Some(element_type) = extract_set_element_type(field_type) else {
@@ -1646,21 +1476,19 @@ fn generate_autoset_ops(field: &FieldInfo) -> proc_macro2::TokenStream {
     };
 
     // Remove uses find_lazy_mut for lazy to avoid allocation.
-    // Using nested if-let to avoid clippy::question_mark warnings in generated code.
     let remove_body = if is_option {
-        let variant_name = &field.variant_name;
+        let extractor = field.lazy_extractor_closure();
+
         quote! {
-            if let Some(set) = self.typed_mut().find_lazy_mut(|f| match f {
-                LazyField::#variant_name(v) => Some(v),
-                _ => None,
-            }) {
-                let removed = set.remove(item);
-                if removed {
-                    #track_modification
-                }
-                return removed;
+            let Some(set) = self.typed_mut().find_lazy_mut(#extractor) else {
+                return false;
+            };
+            let removed = set.remove(item);
+            if removed {
+                #track_modification
             }
-            false
+            return removed;
+
         }
     } else {
         quote! {
@@ -1749,10 +1577,10 @@ fn generate_autoset_ops(field: &FieldInfo) -> proc_macro2::TokenStream {
 /// - `remove_{field}(key) -> Option<V>` - Standard HashMap remove
 /// - `update_{field}_positive_crossing(key, delta) -> bool` - For i32 types
 /// - `get_{field}_entry(key) -> Option<&V>` - Single-item lookup
-fn generate_countermap_ops(field: &FieldInfo) -> proc_macro2::TokenStream {
+fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
     let field_type = &field.field_type;
 
-    let Some((key_type, value_type)) = extract_countermap_types(field_type) else {
+    let Some((key_type, value_type)) = extract_map_types(field_type, "CounterMap") else {
         return quote! {};
     };
 
@@ -1786,13 +1614,9 @@ fn generate_countermap_ops(field: &FieldInfo) -> proc_macro2::TokenStream {
     // without allocating it. For inline fields, we can use the mut_expr directly.
     let remove_body = if is_option {
         // Lazy: use find_lazy_mut to avoid allocating, only track modification if something was
-        // removed. Using ? operator to early-return None if map doesn't exist.
-        let variant_name = &field.variant_name;
+        let extractor = field.lazy_extractor_closure();
         quote! {
-            let map = self.typed_mut().find_lazy_mut(|f| match f {
-                LazyField::#variant_name(v) => Some(v),
-                _ => None,
-            })?;
+            let map = self.typed_mut().find_lazy_mut(#extractor)?;
             let result = map.remove(key);
             if result.is_some() {
                 #track_modification
@@ -1946,10 +1770,10 @@ fn generate_countermap_ops(field: &FieldInfo) -> proc_macro2::TokenStream {
 /// - `iter_{field}_entries() -> impl Iterator<Item = (&K, &V)>` - Iterate all
 /// - `{field}_len() -> usize` - Get count
 /// - `is_{field}_empty() -> bool` - Check if empty
-fn generate_automap_ops(field: &FieldInfo) -> proc_macro2::TokenStream {
+fn generate_automap_ops(field: &FieldInfo) -> TokenStream {
     let field_type = &field.field_type;
 
-    let Some((key_type, value_type)) = extract_automap_types(field_type) else {
+    let Some((key_type, value_type)) = extract_map_types(field_type, "AutoMap") else {
         return quote! {};
     };
 
@@ -2002,12 +1826,9 @@ fn generate_automap_ops(field: &FieldInfo) -> proc_macro2::TokenStream {
     // Generate remove body - for lazy fields, avoid allocation if map doesn't exist.
     // Using ? operator to early-return None if map doesn't exist.
     let remove_body = if is_option {
-        let variant_name = &field.variant_name;
+        let extractor = field.lazy_extractor_closure();
         quote! {
-            let map = self.typed_mut().find_lazy_mut(|f| match f {
-                LazyField::#variant_name(v) => Some(v),
-                _ => None,
-            })?;
+            let map = self.typed_mut().find_lazy_mut(#extractor)?;
             let result = map.remove(key);
             if result.is_some() {
                 #track_modification
@@ -2072,7 +1893,7 @@ fn generate_automap_ops(field: &FieldInfo) -> proc_macro2::TokenStream {
 }
 
 /// Extract the inner type from Option<T>, or return the type as-is if not Option
-fn extract_option_inner_type(ty: &Type) -> proc_macro2::TokenStream {
+fn extract_option_inner_type(ty: &Type) -> TokenStream {
     // Try to parse as Option<T> and extract T
     if let Type::Path(type_path) = ty
         && let Some(segment) = type_path.path.segments.last()
@@ -2088,7 +1909,7 @@ fn extract_option_inner_type(ty: &Type) -> proc_macro2::TokenStream {
 }
 
 /// Extract the element type K from AutoSet<K> (which is FxHashSet<K>)
-fn extract_set_element_type(ty: &Type) -> Option<proc_macro2::TokenStream> {
+fn extract_set_element_type(ty: &Type) -> Option<TokenStream> {
     if let Type::Path(type_path) = ty
         && let Some(segment) = type_path.path.segments.last()
         && (segment.ident == "AutoSet" || segment.ident == "FxHashSet")
@@ -2100,13 +1921,11 @@ fn extract_set_element_type(ty: &Type) -> Option<proc_macro2::TokenStream> {
     None
 }
 
-/// Extract key and value types from CounterMap<K, V> (which is FxHashMap<K, V>)
-fn extract_countermap_types(
-    ty: &Type,
-) -> Option<(proc_macro2::TokenStream, proc_macro2::TokenStream)> {
+/// Extract key and value types from a map type (e.g., AutoMap<K, V> or CounterMap<K, V>)
+fn extract_map_types(ty: &Type, expected_name: &str) -> Option<(TokenStream, TokenStream)> {
     if let Type::Path(type_path) = ty
         && let Some(segment) = type_path.path.segments.last()
-        && (segment.ident == "CounterMap" || segment.ident == "FxHashMap")
+        && segment.ident == expected_name
         && let syn::PathArguments::AngleBracketed(args) = &segment.arguments
     {
         let mut args_iter = args.args.iter();
@@ -2117,214 +1936,6 @@ fn extract_countermap_types(
         }
     }
     None
-}
-
-/// Extract key and value types from AutoMap<K, V> (which is FxHashMap<K, V>)
-fn extract_automap_types(
-    ty: &Type,
-) -> Option<(proc_macro2::TokenStream, proc_macro2::TokenStream)> {
-    if let Type::Path(type_path) = ty
-        && let Some(segment) = type_path.path.segments.last()
-        && (segment.ident == "AutoMap" || segment.ident == "FxHashMap")
-        && let syn::PathArguments::AngleBracketed(args) = &segment.arguments
-    {
-        let mut args_iter = args.args.iter();
-        if let Some(syn::GenericArgument::Type(key_type)) = args_iter.next()
-            && let Some(syn::GenericArgument::Type(value_type)) = args_iter.next()
-        {
-            return Some((quote! { #key_type }, quote! { #value_type }));
-        }
-    }
-    None
-}
-
-/// Extract key and value types from AutoMultimap<K, V> (which is FxHashMap<K, FxHashSet<V>>)
-fn extract_automultimap_types(
-    ty: &Type,
-) -> Option<(proc_macro2::TokenStream, proc_macro2::TokenStream)> {
-    if let Type::Path(type_path) = ty
-        && let Some(segment) = type_path.path.segments.last()
-        && segment.ident == "AutoMultimap"
-        && let syn::PathArguments::AngleBracketed(args) = &segment.arguments
-    {
-        let mut args_iter = args.args.iter();
-        if let Some(syn::GenericArgument::Type(key_type)) = args_iter.next()
-            && let Some(syn::GenericArgument::Type(value_type)) = args_iter.next()
-        {
-            return Some((quote! { #key_type }, quote! { #value_type }));
-        }
-    }
-    None
-}
-
-/// Generate operations for AutoMultimap (one-to-many key-value relationships).
-///
-/// Generates these methods for `field: AutoMultimap<K, V>`:
-/// - `add_{field}_value(key, value) -> bool` - add value to set for key, returns true if newly
-///   added
-/// - `remove_{field}_value(key, value) -> bool` - remove value from set for key, cleans up empty
-///   sets
-/// - `has_{field}_value(key, value) -> bool` - check if value exists in set for key
-/// - `iter_{field}()` - iterate all (key, value) pairs (flattening the sets)
-/// - `iter_{field}_values_for_key(key)` - iterate values for a specific key
-/// - `{field}_len() -> usize` - total number of key-value pairs
-/// - `is_{field}_empty() -> bool` - check if multimap is empty
-fn generate_automultimap_ops(field: &FieldInfo) -> proc_macro2::TokenStream {
-    let field_type = &field.field_type;
-
-    let Some((key_type, value_type)) = extract_automultimap_types(field_type) else {
-        return quote! {};
-    };
-
-    let check_access = field.check_access_call();
-    let track_modification = field.track_modification_call();
-    let mut_expr = field.collection_mut_expr();
-    let ref_expr = field.collection_ref_expr();
-    let is_option = field.is_option_ref();
-
-    // Method names
-    let add_value_name = field.infixed_ident("add", "value");
-    let remove_value_name = field.infixed_ident("remove", "value");
-    let has_value_name = field.infixed_ident("has", "value");
-    // Use a different name to avoid conflicts with manual implementations that may copy values
-    let iter_name = field.infixed_ident("iter", "all");
-    let iter_values_for_key_name = field.infixed_ident("iter", "values_for_key");
-    let len_name = field.len_ident();
-    let is_empty_name = field.is_empty_ident();
-
-    // Generate bodies based on whether ref access returns Option or not
-    let has_value_body = if is_option {
-        quote! { #ref_expr.is_some_and(|m| m.get(key).is_some_and(|s| s.contains(value))) }
-    } else {
-        quote! { #ref_expr.get(key).is_some_and(|s| s.contains(value)) }
-    };
-
-    let iter_body = if is_option {
-        quote! {
-            #ref_expr.into_iter().flat_map(|m| {
-                m.iter().flat_map(|(k, set)| set.iter().map(move |v| (k, v)))
-            })
-        }
-    } else {
-        quote! {
-            #ref_expr.iter().flat_map(|(k, set)| set.iter().map(move |v| (k, v)))
-        }
-    };
-
-    let iter_values_for_key_body = if is_option {
-        quote! {
-            #ref_expr.and_then(|m| m.get(key)).into_iter().flat_map(|s| s.iter())
-        }
-    } else {
-        quote! {
-            #ref_expr.get(key).into_iter().flat_map(|s| s.iter())
-        }
-    };
-
-    let len_body = if is_option {
-        quote! { #ref_expr.map_or(0, |m| m.values().map(|s| s.len()).sum()) }
-    } else {
-        quote! { #ref_expr.values().map(|s| s.len()).sum() }
-    };
-
-    let is_empty_body = if is_option {
-        quote! { #ref_expr.is_none_or(|m| m.values().all(|s| s.is_empty())) }
-    } else {
-        quote! { #ref_expr.values().all(|s| s.is_empty()) }
-    };
-
-    // For add: insert and only track modification if actually added
-    let add_body = quote! {
-        let inserted = #mut_expr.entry(key).or_default().insert(value);
-        if inserted {
-            #track_modification
-        }
-        inserted
-    };
-
-    // For remove: attempt removal directly, only track modification if actually removed.
-    // Using nested if-let to avoid clippy::question_mark warnings in generated code.
-    let remove_body = if is_option {
-        let variant_name = &field.variant_name;
-        quote! {
-            if let Some(map) = self.typed_mut().find_lazy_mut(|f| match f {
-                LazyField::#variant_name(v) => Some(v),
-                _ => None,
-            }) {
-                if let Some(set) = map.get_mut(key) {
-                    if set.remove(value) {
-                        if set.is_empty() {
-                            map.remove(key);
-                        }
-                        #track_modification
-                        return true;
-                    }
-                }
-            }
-            false
-        }
-    } else {
-        quote! {
-            let map = #mut_expr;
-            if let Some(set) = map.get_mut(key) {
-                if set.remove(value) {
-                    if set.is_empty() {
-                        map.remove(key);
-                    }
-                    #track_modification
-                    return true;
-                }
-            }
-            false
-        }
-    };
-
-    quote! {
-        /// Add a value to the set for the given key.
-        /// Returns true if the value was newly added, false if it already existed.
-        fn #add_value_name(&mut self, key: #key_type, value: #value_type) -> bool {
-            #check_access
-            #add_body
-        }
-
-        /// Remove a value from the set for the given key.
-        /// Returns true if the value was removed, false if it didn't exist.
-        /// Automatically cleans up empty sets.
-        fn #remove_value_name(&mut self, key: &#key_type, value: &#value_type) -> bool {
-            #check_access
-            #remove_body
-        }
-
-        /// Check if a value exists in the set for the given key.
-        fn #has_value_name(&self, key: &#key_type, value: &#value_type) -> bool {
-            #check_access
-            #has_value_body
-        }
-
-        /// Iterate over all (key, value) pairs in the multimap.
-        fn #iter_name(&self) -> impl Iterator<Item = (&#key_type, &#value_type)> + '_ {
-            #check_access
-            #iter_body
-        }
-
-        /// Iterate over all values for a specific key.
-        fn #iter_values_for_key_name<'a>(&'a self, key: &'a #key_type) -> impl Iterator<Item = &#value_type> + 'a {
-            #check_access
-            #iter_values_for_key_body
-        }
-
-        /// Get the total number of key-value pairs in the multimap.
-        fn #len_name(&self) -> usize {
-            #check_access
-            #len_body
-        }
-
-        /// Check if the multimap is empty.
-        fn #is_empty_name(&self) -> bool {
-            #check_access
-            #is_empty_body
-        }
-    }
 }
 
 fn capitalize(s: &str) -> String {
@@ -2341,7 +1952,7 @@ fn to_pascal_case(s: &str) -> String {
 }
 
 /// Generates trait accessor methods for a flag field (stored in TaskFlags bitfield)
-fn generate_flag_trait_accessor_methods(field: &FieldInfo) -> proc_macro2::TokenStream {
+fn generate_flag_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
     let field_name = &field.field_name;
     let set_name = field.set_ident();
 
@@ -2371,6 +1982,41 @@ fn generate_flag_trait_accessor_methods(field: &FieldInfo) -> proc_macro2::Token
     }
 }
 
+/// Generate encode body for a category (inline fields + lazy fields).
+fn gen_encode_body(grouped_fields: &GroupedFields, category: Category) -> TokenStream {
+    let inline: Vec<_> = grouped_fields
+        .persistent_inline(category.clone())
+        .map(generate_encode_inline_field)
+        .collect();
+    let lazy: Vec<_> = grouped_fields.persistent_lazy(category).collect();
+    let lazy_encode = generate_encode_lazy_fields(&lazy);
+
+    quote! {
+        #(#inline)*
+        #lazy_encode
+    }
+}
+
+/// Generate decode body for a category (inline fields + lazy fields).
+fn gen_decode_body(grouped_fields: &GroupedFields, category: Category) -> TokenStream {
+    let inline: Vec<_> = grouped_fields
+        .persistent_inline(category.clone())
+        .map(|field| {
+            let field_name = &field.field_name;
+            quote! {
+                self.#field_name = bincode::Decode::decode(decoder)?;
+            }
+        })
+        .collect();
+    let lazy: Vec<_> = grouped_fields.persistent_lazy(category).collect();
+    let lazy_decode = generate_decode_lazy_fields(&lazy);
+
+    quote! {
+        #(#inline)*
+        #lazy_decode
+    }
+}
+
 /// Generate encode/decode methods for TaskStorage serialization.
 ///
 /// Generates four methods:
@@ -2380,22 +2026,15 @@ fn generate_flag_trait_accessor_methods(field: &FieldInfo) -> proc_macro2::Token
 /// - `decode_data<D>(&mut self, decoder: &mut D)` - Decode data category fields
 ///
 /// Only persistent (non-transient) fields are encoded/decoded.
-fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> proc_macro2::TokenStream {
-    // Collect persistent fields by category using helpers
-    let persistent_inline_meta: Vec<_> = grouped_fields.persistent_inline_meta().collect();
-    let persistent_inline_data: Vec<_> = grouped_fields.persistent_inline_data().collect();
-    let persistent_lazy_meta: Vec<_> = grouped_fields.persistent_lazy_meta().collect();
-    let persistent_lazy_data: Vec<_> = grouped_fields.persistent_lazy_data().collect();
-
+fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> TokenStream {
     let has_flags = grouped_fields.persisted_flags().next().is_some();
 
-    // Generate encode_meta body
-    let encode_meta_inline: Vec<_> = persistent_inline_meta
-        .iter()
-        .map(|field| generate_encode_inline_field(field))
-        .collect();
+    let encode_meta_body = gen_encode_body(grouped_fields, Category::Meta);
+    let encode_data_body = gen_encode_body(grouped_fields, Category::Data);
+    let decode_meta_body = gen_decode_body(grouped_fields, Category::Meta);
+    let decode_data_body = gen_decode_body(grouped_fields, Category::Data);
 
-    let encode_meta_flags = if has_flags {
+    let encode_flags = if has_flags {
         quote! {
             // Encode only the persisted flag bits
             let persisted_flags = self.flags.persisted_bits();
@@ -2405,28 +2044,7 @@ fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> proc_macro2
         quote! {}
     };
 
-    let encode_meta_lazy = generate_encode_lazy_fields(&persistent_lazy_meta);
-
-    // Generate encode_data body
-    let encode_data_inline: Vec<_> = persistent_inline_data
-        .iter()
-        .map(|field| generate_encode_inline_field(field))
-        .collect();
-
-    let encode_data_lazy = generate_encode_lazy_fields(&persistent_lazy_data);
-
-    // Generate decode_meta body
-    let decode_meta_inline: Vec<_> = persistent_inline_meta
-        .iter()
-        .map(|field| {
-            let field_name = &field.field_name;
-            quote! {
-                self.#field_name = bincode::Decode::decode(decoder)?;
-            }
-        })
-        .collect();
-
-    let decode_meta_flags = if has_flags {
+    let decode_flags = if has_flags {
         quote! {
             // Decode only the persisted flag bits, preserving transient bits
             let persisted_flags: u16 = bincode::Decode::decode(decoder)?;
@@ -2435,21 +2053,6 @@ fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> proc_macro2
     } else {
         quote! {}
     };
-
-    let decode_meta_lazy = generate_decode_lazy_fields(&persistent_lazy_meta);
-
-    // Generate decode_data body
-    let decode_data_inline: Vec<_> = persistent_inline_data
-        .iter()
-        .map(|field| {
-            let field_name = &field.field_name;
-            quote! {
-                self.#field_name = bincode::Decode::decode(decoder)?;
-            }
-        })
-        .collect();
-
-    let decode_data_lazy = generate_decode_lazy_fields(&persistent_lazy_data);
 
     quote! {
         #[automatically_derived]
@@ -2460,15 +2063,8 @@ fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> proc_macro2
                 &self,
                 encoder: &mut E,
             ) -> Result<(), bincode::error::EncodeError> {
-                // Encode inline meta fields
-                #(#encode_meta_inline)*
-
-                // Encode flags (persisted bits only)
-                #encode_meta_flags
-
-                // Encode lazy meta fields
-                #encode_meta_lazy
-
+                #encode_meta_body
+                #encode_flags
                 Ok(())
             }
 
@@ -2478,12 +2074,7 @@ fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> proc_macro2
                 &self,
                 encoder: &mut E,
             ) -> Result<(), bincode::error::EncodeError> {
-                // Encode inline data fields
-                #(#encode_data_inline)*
-
-                // Encode lazy data fields
-                #encode_data_lazy
-
+                #encode_data_body
                 Ok(())
             }
 
@@ -2493,15 +2084,8 @@ fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> proc_macro2
                 &mut self,
                 decoder: &mut D,
             ) -> Result<(), bincode::error::DecodeError> {
-                // Decode inline meta fields
-                #(#decode_meta_inline)*
-
-                // Decode flags (persisted bits only)
-                #decode_meta_flags
-
-                // Decode lazy meta fields
-                #decode_meta_lazy
-
+                #decode_meta_body
+                #decode_flags
                 Ok(())
             }
 
@@ -2511,12 +2095,7 @@ fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> proc_macro2
                 &mut self,
                 decoder: &mut D,
             ) -> Result<(), bincode::error::DecodeError> {
-                // Decode inline data fields
-                #(#decode_data_inline)*
-
-                // Decode lazy data fields
-                #decode_data_lazy
-
+                #decode_data_body
                 Ok(())
             }
         }
@@ -2524,7 +2103,6 @@ fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> proc_macro2
 }
 
 /// Sentinel byte marking the end of lazy fields in serialization.
-/// Must be a value that cannot be a valid discriminant (discriminants start at 0).
 const LAZY_FIELD_SENTINEL: u8 = 0x00;
 
 // =============================================================================
@@ -2538,32 +2116,19 @@ const LAZY_FIELD_SENTINEL: u8 = 0x00;
 /// - `Set`: filter predicate for set elements
 /// - `Map`: filter predicate for map entries (key, value)
 /// - `CounterMap`: filter predicate for counter map entries (key only)
-/// - `MapWithSetValues`: filter predicate for map values that are sets
 #[derive(Clone, Copy)]
 enum FilterPredicateType {
     Option,
     Set,
     Map,
     CounterMap,
-    MapWithSetValues,
 }
 
 /// Generate the filter predicate closure for a field.
 ///
 /// Returns the predicate expression (e.g., `|k| !k.is_transient()`) and the predicate type.
 /// Returns `None` if no filtering is needed.
-fn generate_filter_predicate(
-    field: &FieldInfo,
-) -> Option<(proc_macro2::TokenStream, FilterPredicateType)> {
-    // AutoMultimap always filters transient values from inner sets (implicit behavior)
-    if field.storage_type == StorageType::AutoMultimap {
-        return Some((
-            // Filter entries where inner set has any non-transient values
-            quote! { |(_, v)| v.iter().any(|item| !item.is_transient()) },
-            FilterPredicateType::MapWithSetValues,
-        ));
-    }
-
+fn generate_filter_predicate(field: &FieldInfo) -> Option<(TokenStream, FilterPredicateType)> {
     if !field.filter_transient {
         return None;
     }
@@ -2582,7 +2147,6 @@ fn generate_filter_predicate(
             quote! { |(k, v)| !k.is_transient() && !v.is_transient() },
             FilterPredicateType::Map,
         )),
-        StorageType::AutoMultimap => unreachable!("AutoMultimap handled above"),
         StorageType::Flag => {
             // Flags are encoded in TaskFlags bitfield, not individually
             unreachable!("Flag fields should not reach generate_filter_predicate")
@@ -2600,10 +2164,7 @@ fn generate_filter_predicate(
 /// For non-filtered fields, encodes the value directly.
 /// For filtered fields, uses a single-pass collect to a Vec, then encodes.
 /// This avoids multiple iterations (check non-empty + count + encode).
-fn generate_encode_value(
-    field: &FieldInfo,
-    value_ref: proc_macro2::TokenStream,
-) -> proc_macro2::TokenStream {
+fn generate_encode_value(field: &FieldInfo, value_ref: TokenStream) -> TokenStream {
     let Some((predicate, pred_type)) = generate_filter_predicate(field) else {
         // No filtering needed, just encode normally
         return quote! {
@@ -2659,51 +2220,26 @@ fn generate_encode_value(
                 }
             }
         }
-        FilterPredicateType::MapWithSetValues => {
-            // For maps with set values, filter transient entries from the inner sets
-            // Collect outer entries that have non-transient inner values
-            quote! {
-                {
-                    // Collect entries where inner set has non-transient values
-                    let filtered: Vec<_> = (#value_ref).iter().filter(#predicate).collect();
-                    bincode::Encode::encode(&filtered.len(), encoder)?;
-                    for (key, value) in filtered {
-                        // Filter inner set values
-                        let inner: Vec<_> = value.iter()
-                            .filter(|item| !item.is_transient())
-                            .collect();
-                        bincode::Encode::encode(key, encoder)?;
-                        bincode::Encode::encode(&inner.len(), encoder)?;
-                        for item in inner {
-                            bincode::Encode::encode(item, encoder)?;
-                        }
-                    }
-                }
-            }
-        }
     }
 }
 
 /// Generate code to encode an inline field to bincode.
 ///
 /// Delegates to `generate_encode_value` with `&self.field_name` as the value reference.
-fn generate_encode_inline_field(field: &FieldInfo) -> proc_macro2::TokenStream {
+fn generate_encode_inline_field(field: &FieldInfo) -> TokenStream {
     let field_name = &field.field_name;
     generate_encode_value(field, quote! { &self.#field_name })
 }
 
-/// Generate code to encode a lazy field value with discriminant.
+/// Generate code to encode a lazy field value with index.
 ///
 /// For filtered fields, collects to a Vec first, then checks if non-empty before
-/// writing discriminant. This avoids multiple iterations over the data.
-fn generate_encode_lazy_field_with_discriminant(
-    field: &FieldInfo,
-    discriminant: u8,
-) -> proc_macro2::TokenStream {
+/// writing index. This avoids multiple iterations over the data.
+fn generate_encode_lazy_field_with_index(field: &FieldInfo, index: u8) -> TokenStream {
     let Some((predicate, pred_type)) = generate_filter_predicate(field) else {
         // No filtering needed - encode directly
         return quote! {
-            bincode::Encode::encode(&#discriminant, encoder)?;
+            bincode::Encode::encode(&#index, encoder)?;
             bincode::Encode::encode(data, encoder)?;
         };
     };
@@ -2715,7 +2251,7 @@ fn generate_encode_lazy_field_with_discriminant(
                 {
                     let filtered_value = data.as_ref().filter(#predicate);
                     if filtered_value.is_some() {
-                        bincode::Encode::encode(&#discriminant, encoder)?;
+                        bincode::Encode::encode(&#index, encoder)?;
                         bincode::Encode::encode(&filtered_value, encoder)?;
                     }
                 }
@@ -2727,7 +2263,7 @@ fn generate_encode_lazy_field_with_discriminant(
                 {
                     let filtered: Vec<_> = data.iter().filter(#predicate).collect();
                     if !filtered.is_empty() {
-                        bincode::Encode::encode(&#discriminant, encoder)?;
+                        bincode::Encode::encode(&#index, encoder)?;
                         bincode::Encode::encode(&filtered.len(), encoder)?;
                         for key in filtered {
                             bincode::Encode::encode(key, encoder)?;
@@ -2742,7 +2278,7 @@ fn generate_encode_lazy_field_with_discriminant(
                 {
                     let filtered: Vec<_> = data.iter().filter(#predicate).collect();
                     if !filtered.is_empty() {
-                        bincode::Encode::encode(&#discriminant, encoder)?;
+                        bincode::Encode::encode(&#index, encoder)?;
                         bincode::Encode::encode(&filtered.len(), encoder)?;
                         for (key, value) in filtered {
                             bincode::Encode::encode(key, encoder)?;
@@ -2752,42 +2288,21 @@ fn generate_encode_lazy_field_with_discriminant(
                 }
             }
         }
-        FilterPredicateType::MapWithSetValues => {
-            // Collect outer entries, check if non-empty, then encode with inner filtering
-            quote! {
-                {
-                    let filtered: Vec<_> = data.iter().filter(#predicate).collect();
-                    if !filtered.is_empty() {
-                        bincode::Encode::encode(&#discriminant, encoder)?;
-                        bincode::Encode::encode(&filtered.len(), encoder)?;
-                        for (key, value) in filtered {
-                            let inner: Vec<_> = value.iter()
-                                .filter(|item| !item.is_transient())
-                                .collect();
-                            bincode::Encode::encode(key, encoder)?;
-                            bincode::Encode::encode(&inner.len(), encoder)?;
-                            for item in inner {
-                                bincode::Encode::encode(item, encoder)?;
-                            }
-                        }
-                    }
-                }
-            }
-        }
     }
 }
 
 /// Generate code to encode lazy fields to bincode.
-/// Uses sentinel-terminated format: [discriminant, data]... [sentinel]
-fn generate_encode_lazy_fields(fields: &[&FieldInfo]) -> proc_macro2::TokenStream {
+/// Uses sentinel-terminated format: [index, data]... [sentinel]
+fn generate_encode_lazy_fields(fields: &[&FieldInfo]) -> TokenStream {
     if fields.is_empty() {
         return quote! {};
     }
 
     // Generate match arms for encoding each field variant
-    let encode_arms = gen_lazy_match_arms_indexed(fields.iter().copied(), |idx, field| {
-        let discriminant = idx as u8 + 1;
-        generate_encode_lazy_field_with_discriminant(field, discriminant)
+    let encode_arms = gen_lazy_match_arms(fields.iter().copied(), |idx, field| {
+        // add 1 so 0 is reserved for the sentinel
+        let idx = idx as u8 + 1;
+        generate_encode_lazy_field_with_index(field, idx)
     });
 
     quote! {
@@ -2805,7 +2320,7 @@ fn generate_encode_lazy_fields(fields: &[&FieldInfo]) -> proc_macro2::TokenStrea
 
 /// Generate code to decode lazy fields from bincode.
 /// Reads until sentinel byte (0x00) is encountered.
-fn generate_decode_lazy_fields(fields: &[&FieldInfo]) -> proc_macro2::TokenStream {
+fn generate_decode_lazy_fields(fields: &[&FieldInfo]) -> TokenStream {
     if fields.is_empty() {
         return quote! {};
     }
@@ -2816,9 +2331,9 @@ fn generate_decode_lazy_fields(fields: &[&FieldInfo]) -> proc_macro2::TokenStrea
         .enumerate()
         .map(|(idx, field)| {
             let variant_name = &field.variant_name;
-            let discriminant = idx as u8 + 1;
+            let idx = idx as u8 + 1;
             quote! {
-                #discriminant => LazyField::#variant_name(bincode::Decode::decode(decoder)?)
+                #idx => LazyField::#variant_name(bincode::Decode::decode(decoder)?)
             }
         })
         .collect();
@@ -2826,21 +2341,48 @@ fn generate_decode_lazy_fields(fields: &[&FieldInfo]) -> proc_macro2::TokenStrea
     quote! {
         // Decode lazy fields until LAZY_FIELD_SENTINEL
         loop {
-            let discriminant: u8 = bincode::Decode::decode(decoder)?;
-            let field = match discriminant {
+            let idx: u8 = bincode::Decode::decode(decoder)?;
+            let field = match idx {
                 #(#decode_arms,)*
                 #LAZY_FIELD_SENTINEL => {
                     break
                 }
                 _ => {
-                    return Err(bincode::error::DecodeError::Other(
-                        "Unknown lazy field discriminant",
+                    return Err(bincode::error::DecodeError::OtherString(
+                        format!("Unknown lazy field index: {idx}"),
                     ));
                 }
             };
             self.lazy.push(field);
         }
     }
+}
+
+/// Generate clone inline statements for a category.
+fn gen_clone_inline_for_category(
+    grouped_fields: &GroupedFields,
+    category: Category,
+) -> Vec<TokenStream> {
+    gen_clone_inline_fields(grouped_fields.persistent_inline(category))
+}
+
+/// Generate clone lazy match arms for a category.
+fn gen_clone_lazy_arms_for_category(
+    grouped_fields: &GroupedFields,
+    category: Category,
+) -> Vec<TokenStream> {
+    gen_lazy_match_arms(grouped_fields.persistent_lazy(category), |_, field| {
+        let variant_name = &field.variant_name;
+        quote! { snapshot.lazy.push(LazyField::#variant_name(data.clone())); }
+    })
+}
+
+/// Generate restore inline statements for a category.
+fn gen_restore_inline_for_category(
+    grouped_fields: &GroupedFields,
+    category: Category,
+) -> Vec<TokenStream> {
+    gen_restore_inline_fields(grouped_fields.persistent_inline(category))
 }
 
 /// Generate snapshot clone and restore methods for TaskStorage.
@@ -2852,25 +2394,17 @@ fn generate_decode_lazy_fields(fields: &[&FieldInfo]) -> proc_macro2::TokenStrea
 /// - `restore_meta_from(&mut self, source)` - Restore meta fields from source
 /// - `restore_data_from(&mut self, source)` - Restore data fields from source
 /// - `restore_all_from(&mut self, source)` - Restore all fields from source
-fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> proc_macro2::TokenStream {
+fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStream {
     let has_flags = grouped_fields.persisted_flags().next().is_some();
 
-    // Use helper functions to generate field operations
-    let clone_meta_inline = gen_clone_inline_fields(grouped_fields.persistent_inline_meta());
-    let clone_data_inline = gen_clone_inline_fields(grouped_fields.persistent_inline_data());
-    let clone_meta_lazy_arms =
-        gen_lazy_match_arms(grouped_fields.persistent_lazy_meta(), |field| {
-            let variant_name = &field.variant_name;
-            quote! { snapshot.lazy.push(LazyField::#variant_name(data.clone())); }
-        });
-    let clone_data_lazy_arms =
-        gen_lazy_match_arms(grouped_fields.persistent_lazy_data(), |field| {
-            let variant_name = &field.variant_name;
-            quote! { snapshot.lazy.push(LazyField::#variant_name(data.clone())); }
-        });
+    // Generate field operations by category
+    let clone_meta_inline = gen_clone_inline_for_category(grouped_fields, Category::Meta);
+    let clone_data_inline = gen_clone_inline_for_category(grouped_fields, Category::Data);
+    let clone_meta_lazy_arms = gen_clone_lazy_arms_for_category(grouped_fields, Category::Meta);
+    let clone_data_lazy_arms = gen_clone_lazy_arms_for_category(grouped_fields, Category::Data);
 
-    let restore_meta_inline = gen_restore_inline_fields(grouped_fields.persistent_inline_meta());
-    let restore_data_inline = gen_restore_inline_fields(grouped_fields.persistent_inline_data());
+    let restore_meta_inline = gen_restore_inline_for_category(grouped_fields, Category::Meta);
+    let restore_data_inline = gen_restore_inline_for_category(grouped_fields, Category::Data);
 
     // Generate flags handling for clone/merge
     let clone_meta_flags = if has_flags {
@@ -3064,78 +2598,6 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> proc_mac
                 self.lazy.extend(
                     source.lazy.into_iter().filter(|f| f.is_persistent())
                 );
-            }
-        }
-    }
-}
-
-/// Generate shrink_to_fit method for TaskStorage.
-///
-/// This generates a method that calls shrink_to_fit() on all collection-type fields
-/// (auto_set, counter_map, auto_map) to release excess memory.
-fn generate_shrink_to_fit_method(grouped_fields: &GroupedFields) -> proc_macro2::TokenStream {
-    // Helper to check if a storage type supports shrink_to_fit
-    fn supports_shrink_to_fit(storage_type: &StorageType) -> bool {
-        matches!(
-            storage_type,
-            StorageType::AutoSet
-                | StorageType::CounterMap
-                | StorageType::AutoMap
-                | StorageType::AutoMultimap
-        )
-    }
-
-    // Collect inline fields that support shrink_to_fit
-    let inline_shrink_calls: Vec<_> = grouped_fields
-        .all_inline()
-        .filter(|f| supports_shrink_to_fit(&f.storage_type))
-        .map(|field| {
-            let field_name = &field.field_name;
-            quote! {
-                self.#field_name.shrink_to_fit();
-            }
-        })
-        .collect();
-
-    // Collect lazy fields that support shrink_to_fit using the helper
-    let lazy_shrink_arms = gen_lazy_match_arms(
-        grouped_fields
-            .all_lazy()
-            .filter(|f| supports_shrink_to_fit(&f.storage_type)),
-        |_| quote! { data.shrink_to_fit(); },
-    );
-
-    // Only generate lazy field shrinking if there are lazy fields to shrink
-    let lazy_shrink_block = if lazy_shrink_arms.is_empty() {
-        quote! {}
-    } else {
-        quote! {
-            // Shrink lazy collection fields
-            for field in &mut self.lazy {
-                match field {
-                    #(#lazy_shrink_arms)*
-                    // Skip fields that don't support shrink_to_fit
-                    _ => {}
-                }
-            }
-        }
-    };
-
-    quote! {
-        #[automatically_derived]
-        impl TaskStorage {
-            /// Shrink all collection fields to fit their current contents.
-            ///
-            /// This releases excess memory from hash maps and hash sets that may have
-            /// grown larger than needed during task execution.
-            pub fn shrink_to_fit(&mut self) {
-                // Shrink inline collection fields
-                #(#inline_shrink_calls)*
-
-                #lazy_shrink_block
-
-                // Shrink the lazy vec itself
-                self.lazy.shrink_to_fit();
             }
         }
     }

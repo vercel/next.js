@@ -14,7 +14,7 @@ pub use non_local_value_macro::derive_non_local_value;
 pub use operation_value_macro::derive_operation_value;
 use syn::{Attribute, Meta, Token, punctuated::Punctuated, spanned::Spanned};
 pub use task_input_macro::derive_task_input;
-pub use task_storage_macro::derive_task_storage;
+pub use task_storage_macro::task_storage;
 pub use trace_raw_vcs_macro::derive_trace_raw_vcs;
 pub use value_debug_format_macro::derive_value_debug_format;
 pub use value_debug_macro::derive_value_debug;
