@@ -13,10 +13,7 @@ use crate::{
         },
         storage::{get, get_mut, remove},
     },
-    data::{
-        CachedDataItem, CachedDataItemKey, CachedDataItemValue, Dirtyness, InProgressState,
-        InProgressStateInner,
-    },
+    data::{CachedDataItem, CachedDataItemKey, Dirtyness, InProgressState, InProgressStateInner},
 };
 
 #[derive(Encode, Decode, Clone, Default)]
@@ -247,13 +244,9 @@ pub fn make_task_dirty_internal(
         .entered();
         *stale = true;
     }
-    let old = task.insert(CachedDataItem::Dirty {
-        value: Dirtyness::Dirty,
-    });
-    let (old_self_dirty, old_current_session_self_clean) = match old {
-        Some(CachedDataItemValue::Dirty {
-            value: Dirtyness::Dirty,
-        }) => {
+    let current = get!(task, Dirty);
+    let (old_self_dirty, old_current_session_self_clean, parent_priority) = match current {
+        Some(Dirtyness::Dirty(current_priority)) => {
             #[cfg(feature = "trace_task_dirty")]
             let _span = tracing::trace_span!(
                 "task already dirty",
@@ -263,17 +256,26 @@ pub fn make_task_dirty_internal(
             )
             .entered();
             // already dirty
+            let parent_priority = ctx.get_current_task_priority();
+            if current_priority >= &parent_priority {
+                // Update the priority to be the lower one
+                task.insert(CachedDataItem::Dirty {
+                    value: Dirtyness::Dirty(parent_priority),
+                });
+            }
             return;
         }
-        Some(CachedDataItemValue::Dirty {
-            value: Dirtyness::SessionDependent,
-        }) => {
+        Some(Dirtyness::SessionDependent) => {
+            let parent_priority = ctx.get_current_task_priority();
+            task.insert(CachedDataItem::Dirty {
+                value: Dirtyness::Dirty(parent_priority),
+            });
             // It was a session-dependent dirty before, so we need to remove that clean count
             let was_current_session_clean = remove!(task, CurrentSessionClean).is_some();
             if was_current_session_clean {
                 // There was a clean count for a session. If it was the current session, we need to
                 // propagate that change.
-                (true, true)
+                (true, true, parent_priority)
             } else {
                 #[cfg(feature = "trace_task_dirty")]
                 let _span = tracing::trace_span!(
@@ -287,10 +289,13 @@ pub fn make_task_dirty_internal(
             }
         }
         None => {
+            let parent_priority = ctx.get_current_task_priority();
+            task.insert(CachedDataItem::Dirty {
+                value: Dirtyness::Dirty(parent_priority),
+            });
             // It was clean before, so we need to increase the dirty count
-            (false, false)
+            (false, false, parent_priority)
         }
-        _ => unreachable!(),
     };
 
     let new_self_dirty = true;
@@ -343,7 +348,7 @@ pub fn make_task_dirty_internal(
         )) {
             drop(task);
             let task = ctx.task(task_id, TaskDataCategory::All);
-            ctx.schedule_task(task);
+            ctx.schedule_task(task, parent_priority);
         }
     }
 }

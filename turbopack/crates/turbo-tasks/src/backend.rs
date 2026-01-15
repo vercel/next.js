@@ -26,7 +26,7 @@ use turbo_rcstr::RcStr;
 
 use crate::{
     RawVc, ReadCellOptions, ReadOutputOptions, ReadRef, SharedReference, TaskId, TaskIdSet,
-    TraitRef, TraitTypeId, TurboTasksPanic, ValueTypeId, VcValueTrait, VcValueType,
+    TaskPriority, TraitRef, TraitTypeId, TurboTasksPanic, ValueTypeId, VcValueTrait, VcValueType,
     event::EventListener, macro_helpers::NativeFunction, magic_any::MagicAny,
     manager::TurboTasksBackendApi, raw_vc::CellId, registry,
     task::shared_reference::TypedSharedReference, task_statistics::TaskStatisticsApi,
@@ -414,6 +414,7 @@ pub trait Backend: Sync + Send {
     fn try_start_task_execution<'a>(
         &'a self,
         task: TaskId,
+        priority: TaskPriority,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Option<TaskExecutionSpec<'a>>;
 

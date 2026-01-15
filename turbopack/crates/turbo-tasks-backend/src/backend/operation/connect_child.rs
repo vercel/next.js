@@ -34,7 +34,7 @@ impl ConnectChildOperation {
                 new_children, ..
             })) = get_mut!(parent_task, InProgress)
             else {
-                panic!("Task is not in progress while calling another task");
+                panic!("Task is not in progress while calling another task: {parent_task:?}");
             };
 
             // Quick skip if the child was already connected before
@@ -74,7 +74,7 @@ impl ConnectChildOperation {
                     || ctx.get_task_desc_fn(child_task_id),
                 ))
             {
-                ctx.schedule_task(child_task);
+                ctx.schedule_task(child_task, ctx.get_current_task_priority());
             }
         }
 

@@ -292,10 +292,10 @@ impl TurboTasksApi for VcStorage {
         // no-op
     }
 
-    fn detached_for_testing(
+    fn spawn_detached_for_testing(
         &self,
-        _f: std::pin::Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
-    ) -> std::pin::Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>> {
+        _f: std::pin::Pin<Box<dyn Future<Output = ()> + Send + 'static>>,
+    ) {
         unimplemented!()
     }
 

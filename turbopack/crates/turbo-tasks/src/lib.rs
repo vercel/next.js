@@ -38,6 +38,7 @@
 #![feature(ptr_metadata)]
 #![feature(sync_unsafe_cell)]
 #![feature(async_fn_traits)]
+#![feature(impl_trait_in_assoc_type)]
 
 pub mod backend;
 mod capture_future;
@@ -68,6 +69,7 @@ mod output;
 pub mod panic_hooks;
 pub mod parallel;
 pub mod primitives;
+mod priority_runner;
 mod raw_vc;
 mod read_options;
 mod read_ref;
@@ -112,8 +114,8 @@ pub use crate::{
     magic_any::MagicAny,
     manager::{
         CurrentCellRef, ReadCellTracking, ReadConsistency, ReadTracking, TaskPersistence,
-        TurboTasks, TurboTasksApi, TurboTasksBackendApi, TurboTasksCallApi, Unused, UpdateInfo,
-        dynamic_call, emit, get_serialization_invalidator, mark_finished, mark_root,
+        TaskPriority, TurboTasks, TurboTasksApi, TurboTasksBackendApi, TurboTasksCallApi, Unused,
+        UpdateInfo, dynamic_call, emit, get_serialization_invalidator, mark_finished, mark_root,
         mark_session_dependent, prevent_gc, run, run_once, run_once_with_reason, trait_call,
         turbo_tasks, turbo_tasks_scope, turbo_tasks_weak, with_turbo_tasks,
     },

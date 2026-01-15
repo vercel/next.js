@@ -27,8 +27,8 @@ use tokio::time::{Duration, Instant};
 use tracing::{Span, trace_span};
 use turbo_tasks::{
     CellId, FxDashMap, KeyValuePair, RawVc, ReadCellOptions, ReadCellTracking, ReadConsistency,
-    ReadOutputOptions, ReadTracking, TRANSIENT_TASK_BIT, TaskExecutionReason, TaskId, TraitTypeId,
-    TurboTasksBackendApi, ValueTypeId,
+    ReadOutputOptions, ReadTracking, TRANSIENT_TASK_BIT, TaskExecutionReason, TaskId, TaskPriority,
+    TraitTypeId, TurboTasksBackendApi, ValueTypeId,
     backend::{
         Backend, CachedTaskType, CellContent, TaskExecutionSpec, TransientTaskRoot,
         TransientTaskType, TurboTasksExecutionError, TypedCellContent, VerificationMode,
@@ -51,8 +51,8 @@ use crate::{
         operation::{
             AggregationUpdateJob, AggregationUpdateQueue, ChildExecuteContext,
             CleanupOldEdgesOperation, ComputeDirtyAndCleanUpdate, ConnectChildOperation,
-            ExecuteContext, ExecuteContextImpl, Operation, OutdatedEdge, TaskGuard,
-            connect_children, get_aggregation_number, get_uppers, is_root_node,
+            ExecuteContext, ExecuteContextImpl, LeafDistanceUpdateQueue, Operation, OutdatedEdge,
+            TaskGuard, connect_children, get_aggregation_number, get_uppers, is_root_node,
             make_task_dirty_internal, prepare_new_children,
         },
         storage::{
@@ -575,7 +575,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
             // Check the dirty count of the root node
             let has_dirty_containers = task.has_dirty_containers();
-            if has_dirty_containers || is_dirty {
+            if has_dirty_containers || is_dirty.is_some() {
                 let activeness = get_mut!(task, Activeness);
                 let mut task_ids_to_schedule: Vec<_> = Vec::new();
                 // When there are dirty task, subscribe to the all_clean_event
@@ -641,7 +641,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             let has_dirty_containers = task.has_dirty_containers();
 
                             let task_description = ctx.get_task_description(task_id);
-                            let is_dirty_label = if is_dirty { ", dirty" } else { "" };
+                            let is_dirty_label = if let Some(parent_priority) = is_dirty {
+                                format!(", dirty({parent_priority})")
+                            } else {
+                                String::new()
+                            };
                             let has_dirty_containers_label = if has_dirty_containers {
                                 ", dirty containers"
                             } else {
@@ -733,10 +737,25 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     dependent_task = ?reader
                 )
                 .entered();
-                let _ = task.add(CachedDataItem::OutputDependent {
-                    task: reader.unwrap(),
+                let mut queue = LeafDistanceUpdateQueue::new();
+                let reader = reader.unwrap();
+                if task.add(CachedDataItem::OutputDependent {
+                    task: reader,
                     value: (),
-                });
+                }) {
+                    // Ensure that dependent leaf distance is strictly monotonic increasing
+                    let leaf_distance = get!(task, LeafDistance).copied().unwrap_or_default();
+                    let reader_leaf_distance =
+                        get!(reader_task, LeafDistance).copied().unwrap_or_default();
+                    if reader_leaf_distance.distance <= leaf_distance.distance {
+                        queue.push(
+                            reader,
+                            leaf_distance.distance,
+                            leaf_distance.max_distance_in_buffer,
+                        );
+                    }
+                }
+
                 drop(task);
 
                 // Note: We use `task_pair` earlier to lock the task and its reader at the same
@@ -753,6 +772,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         value: (),
                     });
                 }
+                drop(reader_task);
+
+                queue.execute(&mut ctx);
             }
 
             return result;
@@ -779,7 +801,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // It's not possible that the task is InProgress at this point. If it is InProgress {
         // done: true } it must have Output and would early return.
         task.add_new(item);
-        ctx.schedule_task(task);
+        ctx.schedule_task(task, TaskPriority::Initial);
 
         Ok(Err(listener))
     }
@@ -805,10 +827,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             if let Some(mut reader_task) = reader_task
                 && (!task.is_immutable() || cfg!(feature = "verify_immutable"))
             {
+                let reader = reader.unwrap();
                 let _ = task.add(CachedDataItem::CellDependent {
                     cell,
                     key,
-                    task: reader.unwrap(),
+                    task: reader,
                     value: (),
                 });
                 drop(task);
@@ -832,6 +855,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         value: (),
                     });
                 }
+                drop(reader_task);
             }
         }
 
@@ -932,7 +956,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             TaskExecutionReason::CellNotAvailable,
             || self.get_task_desc_fn(task_id),
         ));
-        ctx.schedule_task(task);
+        ctx.schedule_task(task, TaskPriority::Initial);
 
         Ok(Err(listener))
     }
@@ -1632,6 +1656,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     fn try_start_task_execution(
         &self,
         task_id: TaskId,
+        priority: TaskPriority,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> Option<TaskExecutionSpec<'_>> {
         enum TaskType {
@@ -1753,7 +1778,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     arg,
                 } = &*task_type;
                 (
-                    native_fn.span(task_id.persistence(), execution_reason),
+                    native_fn.span(task_id.persistence(), execution_reason, priority),
                     native_fn.execute(*this, &**arg),
                 )
             }
@@ -2439,7 +2464,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let old_dirtyness = get!(task, Dirty).cloned();
         let (old_self_dirty, old_current_session_self_clean) = match old_dirtyness {
             None => (false, false),
-            Some(Dirtyness::Dirty) => (true, false),
+            Some(Dirtyness::Dirty(_)) => (true, false),
             Some(Dirtyness::SessionDependent) => {
                 let clean_in_current_session = get!(task, CurrentSessionClean).is_some();
                 (true, clean_in_current_session)
@@ -2944,7 +2969,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let mut task = ctx.task(task_id, TaskDataCategory::All);
         let is_dirty = task.is_dirty();
         let has_dirty_containers = task.has_dirty_containers();
-        if is_dirty || has_dirty_containers {
+        if is_dirty.is_some() || has_dirty_containers {
             if let Some(activeness_state) = get_mut!(task, Activeness) {
                 // We will finish the task, but it would be removed after the task is done
                 activeness_state.unset_root_type();
@@ -3283,9 +3308,11 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
     fn try_start_task_execution(
         &self,
         task_id: TaskId,
+        priority: TaskPriority,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Option<TaskExecutionSpec<'_>> {
-        self.0.try_start_task_execution(task_id, turbo_tasks)
+        self.0
+            .try_start_task_execution(task_id, priority, turbo_tasks)
     }
 
     fn task_execution_completed(

@@ -8,7 +8,7 @@ use tracing::Span;
 use turbo_bincode::{AnyDecodeFn, AnyEncodeFn};
 
 use crate::{
-    RawVc, TaskExecutionReason, TaskInput, TaskPersistence,
+    RawVc, TaskExecutionReason, TaskInput, TaskPersistence, TaskPriority,
     magic_any::{MagicAny, any_as_encode},
     task::{
         IntoTaskFn, TaskFn,
@@ -238,7 +238,12 @@ impl NativeFunction {
         }
     }
 
-    pub fn span(&'static self, persistence: TaskPersistence, reason: TaskExecutionReason) -> Span {
+    pub fn span(
+        &'static self,
+        persistence: TaskPersistence,
+        reason: TaskExecutionReason,
+        priority: TaskPriority,
+    ) -> Span {
         let flags = match persistence {
             TaskPersistence::Persistent => "",
             TaskPersistence::Transient => "transient",
@@ -246,13 +251,14 @@ impl NativeFunction {
         tracing::trace_span!(
             "turbo_tasks::function",
             name = self.name,
+            priority = %priority,
             flags = flags,
             reason = reason.as_str()
         )
     }
 
-    pub fn resolve_span(&'static self) -> Span {
-        tracing::trace_span!("turbo_tasks::resolve_call", name = self.name)
+    pub fn resolve_span(&'static self, priority: TaskPriority) -> Span {
+        tracing::trace_span!("turbo_tasks::resolve_call", name = self.name, priority = %priority)
     }
 }
 impl PartialEq for NativeFunction {

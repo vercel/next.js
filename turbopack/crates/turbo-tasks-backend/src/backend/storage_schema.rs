@@ -453,8 +453,8 @@ mod tests {
 
         // Lazy direct fields
         assert!(storage.get_dirty().is_none());
-        storage.set_dirty(Dirtyness::Dirty);
-        assert_eq!(storage.get_dirty(), Some(&Dirtyness::Dirty));
+        storage.set_dirty(Dirtyness::SessionDependent);
+        assert_eq!(storage.get_dirty(), Some(&Dirtyness::SessionDependent));
 
         // Lazy collection fields (None until accessed via _mut)
         assert!(storage.output_dependencies().is_none());
@@ -596,7 +596,7 @@ mod tests {
         original.set_output(OutputValue::Output(TaskId::new(42).unwrap()));
         original.upper_mut().insert(TaskId::new(100).unwrap(), 7);
         original.upper_mut().insert(TaskId::new(200).unwrap(), 3);
-        original.set_dirty(Dirtyness::Dirty);
+        original.set_dirty(Dirtyness::SessionDependent);
         original.set_aggregated_dirty_container_count(5);
         original
             .aggregated_dirty_containers_mut()
