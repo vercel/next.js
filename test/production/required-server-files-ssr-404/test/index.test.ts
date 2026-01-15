@@ -3,8 +3,7 @@
 import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
-import { nextServer, startApp, waitFor } from 'next-test-utils'
-import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
+import { infra, nextServer, startApp, waitFor } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
 describe('Required Server Files', () => {
@@ -90,14 +89,14 @@ describe('Required Server Files', () => {
       })
 
       it('should render SSR page correctly', async () => {
-        const html = await renderViaHTTP(appPort, '/')
+        const html = await infra.render(appPort, '/')
         const $ = cheerio.load(html)
         const data = JSON.parse($('#props').text())
 
         expect($('#index').text()).toBe('index page')
         expect(data.hello).toBe('world')
 
-        const html2 = await renderViaHTTP(appPort, '/')
+        const html2 = await infra.render(appPort, '/')
         const $2 = cheerio.load(html2)
         const data2 = JSON.parse($2('#props').text())
 
@@ -107,7 +106,7 @@ describe('Required Server Files', () => {
       })
 
       it('should render dynamic SSR page correctly', async () => {
-        const html = await renderViaHTTP(appPort, '/dynamic/first')
+        const html = await infra.render(appPort, '/dynamic/first')
         const $ = cheerio.load(html)
         const data = JSON.parse($('#props').text())
 
@@ -115,7 +114,7 @@ describe('Required Server Files', () => {
         expect($('#slug').text()).toBe('first')
         expect(data.hello).toBe('world')
 
-        const html2 = await renderViaHTTP(appPort, '/dynamic/second')
+        const html2 = await infra.render(appPort, '/dynamic/second')
         const $2 = cheerio.load(html2)
         const data2 = JSON.parse($2('#props').text())
 
@@ -126,7 +125,7 @@ describe('Required Server Files', () => {
       })
 
       it('should render fallback page correctly', async () => {
-        const html = await renderViaHTTP(appPort, '/fallback/first')
+        const html = await infra.render(appPort, '/fallback/first')
         const $ = cheerio.load(html)
         const data = JSON.parse($('#props').text())
 
@@ -135,7 +134,7 @@ describe('Required Server Files', () => {
         expect(data.hello).toBe('world')
 
         await waitFor(2000)
-        const html2 = await renderViaHTTP(appPort, '/fallback/first')
+        const html2 = await infra.render(appPort, '/fallback/first')
         const $2 = cheerio.load(html2)
         const data2 = JSON.parse($2('#props').text())
 
@@ -144,7 +143,7 @@ describe('Required Server Files', () => {
         expect(isNaN(data2.random)).toBe(false)
         expect(data2.random).not.toBe(data.random)
 
-        const html3 = await renderViaHTTP(appPort, '/fallback/second')
+        const html3 = await infra.render(appPort, '/fallback/second')
         const $3 = cheerio.load(html3)
         const data3 = JSON.parse($3('#props').text())
 
@@ -153,7 +152,7 @@ describe('Required Server Files', () => {
         expect(isNaN(data3.random)).toBe(false)
 
         const { pageProps: data4 } = JSON.parse(
-          await renderViaHTTP(
+          await infra.render(
             appPort,
             `/_next/data/${buildId}/fallback/third.json`
           )
@@ -163,7 +162,7 @@ describe('Required Server Files', () => {
       })
 
       it('should render SSR page correctly with x-matched-path', async () => {
-        const html = await renderViaHTTP(
+        const html = await infra.render(
           appPort,
           '/some-other-path',
           undefined,
@@ -179,7 +178,7 @@ describe('Required Server Files', () => {
         expect($('#index').text()).toBe('index page')
         expect(data.hello).toBe('world')
 
-        const html2 = await renderViaHTTP(
+        const html2 = await infra.render(
           appPort,
           '/some-other-path',
           undefined,
@@ -198,7 +197,7 @@ describe('Required Server Files', () => {
       })
 
       it('should render dynamic SSR page correctly with x-matched-path', async () => {
-        const html = await renderViaHTTP(
+        const html = await infra.render(
           appPort,
           '/some-other-path?nxtPslug=first',
           undefined,
@@ -215,7 +214,7 @@ describe('Required Server Files', () => {
         expect($('#slug').text()).toBe('first')
         expect(data.hello).toBe('world')
 
-        const html2 = await renderViaHTTP(
+        const html2 = await infra.render(
           appPort,
           '/some-other-path?slug=second',
           undefined,
@@ -235,17 +234,12 @@ describe('Required Server Files', () => {
       })
 
       it('should render fallback page correctly with x-matched-path and routes-matches', async () => {
-        const html = await renderViaHTTP(
-          appPort,
-          '/fallback/first',
-          undefined,
-          {
-            headers: {
-              'x-matched-path': '/fallback/first',
-              'x-now-route-matches': 'nxtPslug=first',
-            },
-          }
-        )
+        const html = await infra.render(appPort, '/fallback/first', undefined, {
+          headers: {
+            'x-matched-path': '/fallback/first',
+            'x-now-route-matches': 'nxtPslug=first',
+          },
+        })
         const $ = cheerio.load(html)
         const data = JSON.parse($('#props').text())
 
@@ -253,7 +247,7 @@ describe('Required Server Files', () => {
         expect($('#slug').text()).toBe('first')
         expect(data.hello).toBe('world')
 
-        const html2 = await renderViaHTTP(
+        const html2 = await infra.render(
           appPort,
           `/fallback/[slug]`,
           undefined,
@@ -274,7 +268,7 @@ describe('Required Server Files', () => {
       })
 
       it('should return data correctly with x-matched-path', async () => {
-        const res = await fetchViaHTTP(
+        const res = await infra.fetch(
           appPort,
           `/_next/data/${buildId}/dynamic/first.json?nxtPslug=first`,
           undefined,
@@ -290,7 +284,7 @@ describe('Required Server Files', () => {
         expect(data.slug).toBe('first')
         expect(data.hello).toBe('world')
 
-        const res2 = await fetchViaHTTP(
+        const res2 = await infra.fetch(
           appPort,
           `/_next/data/${buildId}/fallback/[slug].json`,
           undefined,
@@ -309,7 +303,7 @@ describe('Required Server Files', () => {
       })
 
       it('should render fallback optional catch-all route correctly with x-matched-path and routes-matches', async () => {
-        const html = await renderViaHTTP(
+        const html = await infra.render(
           appPort,
           '/catch-all/[[...rest]]',
           undefined,
@@ -327,7 +321,7 @@ describe('Required Server Files', () => {
         expect(data.params).toEqual({})
         expect(data.hello).toBe('world')
 
-        const html2 = await renderViaHTTP(
+        const html2 = await infra.render(
           appPort,
           '/catch-all/[[...rest]]',
           undefined,
@@ -346,7 +340,7 @@ describe('Required Server Files', () => {
         expect(isNaN(data2.random)).toBe(false)
         expect(data2.random).not.toBe(data.random)
 
-        const html3 = await renderViaHTTP(
+        const html3 = await infra.render(
           appPort,
           '/catch-all/[[...rest]]',
           undefined,
@@ -366,7 +360,7 @@ describe('Required Server Files', () => {
         expect(isNaN(data3.random)).toBe(false)
         expect(data3.random).not.toBe(data.random)
 
-        const html4 = await renderViaHTTP(
+        const html4 = await infra.render(
           appPort,
           '/catch-all/[[...rest]]',
           { nxtPrest: 'frank' },
@@ -384,7 +378,7 @@ describe('Required Server Files', () => {
         expect(isNaN(data4.random)).toBe(false)
         expect(data4.random).not.toBe(data.random)
 
-        const html5 = await renderViaHTTP(
+        const html5 = await infra.render(
           appPort,
           '/catch-all/[[...rest]]',
           {},
@@ -402,7 +396,7 @@ describe('Required Server Files', () => {
         expect(isNaN(data5.random)).toBe(false)
         expect(data5.random).not.toBe(data.random)
 
-        const html6 = await renderViaHTTP(
+        const html6 = await infra.render(
           appPort,
           '/catch-all/[[...rest]]',
           { nxtPrest: 'frank' },
@@ -439,7 +433,7 @@ describe('Required Server Files', () => {
             expected: { domain: 'hello.com', rest: ['hello', 'world'] },
           },
         ])('should render $path', async ({ query, expected }) => {
-          const html = await renderViaHTTP(
+          const html = await infra.render(
             appPort,
             '/partial-catch-all/[domain]/[[...rest]]',
             query,
@@ -460,7 +454,7 @@ describe('Required Server Files', () => {
       })
 
       it('should return data correctly with x-matched-path for optional catch-all route', async () => {
-        const res = await fetchViaHTTP(
+        const res = await infra.fetch(
           appPort,
           `/_next/data/${buildId}/catch-all.json`,
           undefined,
@@ -476,7 +470,7 @@ describe('Required Server Files', () => {
         expect(data.params).toEqual({})
         expect(data.hello).toBe('world')
 
-        const res2 = await fetchViaHTTP(
+        const res2 = await infra.fetch(
           appPort,
           `/_next/data/${buildId}/catch-all/[[...rest]].json`,
           undefined,
@@ -493,7 +487,7 @@ describe('Required Server Files', () => {
         expect(data2.params).toEqual({ rest: ['hello'] })
         expect(data2.hello).toBe('world')
 
-        const res3 = await fetchViaHTTP(
+        const res3 = await infra.fetch(
           appPort,
           `/_next/data/${buildId}/catch-all/[[...rest]].json`,
           undefined,
@@ -521,7 +515,7 @@ describe('Required Server Files', () => {
           '/fallback/another/',
           '/fallback/another',
         ]) {
-          const res = await fetchViaHTTP(appPort, path, undefined, {
+          const res = await infra.fetch(appPort, path, undefined, {
             redirect: 'manual',
           })
 
@@ -530,7 +524,7 @@ describe('Required Server Files', () => {
       })
 
       it('should normalize catch-all rewrite query values correctly', async () => {
-        const html = await renderViaHTTP(
+        const html = await infra.render(
           appPort,
           '/some-catch-all/hello/world',
           {
@@ -549,25 +543,25 @@ describe('Required Server Files', () => {
       })
 
       it('should bubble error correctly for gip page', async () => {
-        const res = await fetchViaHTTP(appPort, '/errors/gip', { crash: '1' })
+        const res = await infra.fetch(appPort, '/errors/gip', { crash: '1' })
         expect(res.status).toBe(500)
         expect(await res.text()).toBe('Internal Server Error')
       })
 
       it('should bubble error correctly for gssp page', async () => {
-        const res = await fetchViaHTTP(appPort, '/errors/gssp', { crash: '1' })
+        const res = await infra.fetch(appPort, '/errors/gssp', { crash: '1' })
         expect(res.status).toBe(500)
         expect(await res.text()).toBe('Internal Server Error')
       })
 
       it('should bubble error correctly for gsp page', async () => {
-        const res = await fetchViaHTTP(appPort, '/errors/gsp/crash')
+        const res = await infra.fetch(appPort, '/errors/gsp/crash')
         expect(res.status).toBe(500)
         expect(await res.text()).toBe('Internal Server Error')
       })
 
       it('should normalize optional values correctly for SSP page', async () => {
-        const res = await fetchViaHTTP(
+        const res = await infra.fetch(
           appPort,
           '/optional-ssp',
           { nxtPrest: '', another: 'value' },
@@ -586,7 +580,7 @@ describe('Required Server Files', () => {
       })
 
       it('should normalize optional values correctly for SSG page', async () => {
-        const res = await fetchViaHTTP(
+        const res = await infra.fetch(
           appPort,
           '/optional-ssg',
           { rest: '', another: 'value' },
@@ -604,7 +598,7 @@ describe('Required Server Files', () => {
       })
 
       it('should normalize optional values correctly for API page', async () => {
-        const res = await fetchViaHTTP(
+        const res = await infra.fetch(
           appPort,
           '/api/optional',
           { nxtPrest: '', another: 'value' },
@@ -621,7 +615,7 @@ describe('Required Server Files', () => {
       })
 
       it('should match the index page correctly', async () => {
-        const res = await fetchViaHTTP(appPort, '/', undefined, {
+        const res = await infra.fetch(appPort, '/', undefined, {
           headers: {
             'x-matched-path': '/index',
           },
@@ -634,7 +628,7 @@ describe('Required Server Files', () => {
       })
 
       it('should match the root dynamic page correctly', async () => {
-        const res = await fetchViaHTTP(appPort, '/slug-1', undefined, {
+        const res = await infra.fetch(appPort, '/slug-1', undefined, {
           headers: {
             'x-matched-path': '/[slug]',
           },
@@ -652,7 +646,7 @@ describe('Required Server Files', () => {
           '/non-existent',
           '/404',
         ]) {
-          const res = await fetchViaHTTP(appPort, pathname, undefined, {
+          const res = await infra.fetch(appPort, pathname, undefined, {
             headers: {
               'x-matched-path': '/404',
               redirect: 'manual',
@@ -666,7 +660,7 @@ describe('Required Server Files', () => {
           '/_next/static/chunks/pages/index-abc123.js',
           '/_next/static/some-file.js',
         ]) {
-          const res = await fetchViaHTTP(appPort, pathname, undefined, {
+          const res = await infra.fetch(appPort, pathname, undefined, {
             headers: {
               'x-matched-path': '/404',
               redirect: 'manual',
