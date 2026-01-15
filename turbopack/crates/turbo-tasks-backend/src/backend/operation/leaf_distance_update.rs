@@ -152,6 +152,7 @@ impl LeafDistanceUpdateQueue {
         let dependents = iter_many!(task, OutputDependent { task } => task)
             // TODO Technically this is also needed, but there are cycles in the CellDependent graph
             // So we need to handle that properly first
+            // When enabling this, make sure to also call the leaf update queue when adding CellDependents
             // .chain(iter_many!(task, CellDependent { task, .. } => task))
             ;
         for dependent_id in dependents {

@@ -824,22 +824,13 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             if let Some(mut reader_task) = reader_task
                 && (!task.is_immutable() || cfg!(feature = "verify_immutable"))
             {
-                let mut queue = LeafDistanceUpdateQueue::new();
                 let reader = reader.unwrap();
-                if task.add(CachedDataItem::CellDependent {
+                let _ = task.add(CachedDataItem::CellDependent {
                     cell,
                     key,
                     task: reader,
                     value: (),
-                }) {
-                    // Ensure that dependent leaf distance is strictly monotonic increasing
-                    let leaf_distance = get!(task, LeafDistance).copied().unwrap_or_default();
-                    let reader_leaf_distance =
-                        get!(reader_task, LeafDistance).copied().unwrap_or_default();
-                    if reader_leaf_distance.min <= leaf_distance.min {
-                        queue.push(reader, leaf_distance.min, leaf_distance.max);
-                    }
-                }
+                });
                 drop(task);
 
                 // Note: We use `task_pair` earlier to lock the task and its reader at the same
@@ -862,8 +853,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     });
                 }
                 drop(reader_task);
-
-                queue.execute(ctx);
             }
         }
 
