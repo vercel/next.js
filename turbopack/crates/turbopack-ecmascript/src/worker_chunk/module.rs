@@ -50,8 +50,11 @@ impl WorkerLoaderModule {
 #[turbo_tasks::value_impl]
 impl Module for WorkerLoaderModule {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        Self::asset_ident_for(*self.inner)
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        // Include origin path in the ident to disambiguate worker loaders
+        // that reference the same worker from different origins
+        let origin_ident = AssetIdent::from_path(self.origin.origin_path().owned().await?);
+        Ok(Self::asset_ident_for(*self.inner).with_asset(rcstr!("origin"), origin_ident))
     }
 
     #[turbo_tasks::function]
