@@ -1,3 +1,6 @@
+// TODO(PR 2): Remove this once the storage schema is integrated with the rest of the codebase.
+// This module is scaffolding for the TaskStorage macro and is not yet used.
+#![allow(dead_code)]
 use std::{
     hash::{BuildHasherDefault, Hash},
     ops::{Add, AddAssign, Sub},
@@ -81,7 +84,7 @@ impl CounterValue for i32 {
 }
 
 impl<K, V> CounterMap<K, V> {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self(AutoMap::default())
     }
 
@@ -114,6 +117,7 @@ impl<K, V> CounterMap<K, V> {
 
 impl<K: Hash + Eq, V: CounterValue> CounterMap<K, V> {
     /// Insert a key-value pair. Panics if value is zero (invariant: zero values are not stored).
+    #[cfg(test)]
     pub fn insert(&mut self, key: K, value: V) -> Option<V> {
         debug_assert!(
             !value.is_zero(),
@@ -121,9 +125,7 @@ impl<K: Hash + Eq, V: CounterValue> CounterMap<K, V> {
         );
         self.0.insert(key, value)
     }
-}
 
-impl<K: Hash + Eq, V: CounterValue> CounterMap<K, V> {
     /// Update a counter by the given delta, returning `true` if the count
     /// crossed zero (became zero or became non-zero).
     ///
