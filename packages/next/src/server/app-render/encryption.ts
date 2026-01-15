@@ -153,11 +153,30 @@ export const encryptActionBoundArgs = React.cache(
       })
     }
 
+    const prerenderResumeDataCache = workUnitStore
+      ? getPrerenderResumeDataCache(workUnitStore)
+      : null
+    const renderResumeDataCache = workUnitStore
+      ? getRenderResumeDataCache(workUnitStore)
+      : null
+
     // Using Flight to serialize the args into a string.
     const serialized = await streamToString(
       renderToReadableStream(args, clientModules, {
         filterStackFrame,
         signal: hangingInputAbortSignal,
+        debugChannel:
+          // In Cache Components, we want to cache the encrypted result,
+          // and we use the unencrypted bound args as a cache key.
+          // In order to do that we need to strip debug info, because it
+          // contains timing information and thus changes each time we serialize the args.
+          // We can do this by piping debug info into a debug channel that throws it away.
+          process.env.NODE_ENV === 'development' &&
+          (prerenderResumeDataCache || renderResumeDataCache)
+            ? {
+                writable: new WritableStream({}),
+              }
+            : undefined,
         onError(err) {
           if (hangingInputAbortSignal?.aborted) {
             return
@@ -201,8 +220,6 @@ export const encryptActionBoundArgs = React.cache(
 
     startReadOnce()
 
-    const prerenderResumeDataCache = getPrerenderResumeDataCache(workUnitStore)
-    const renderResumeDataCache = getRenderResumeDataCache(workUnitStore)
     const cacheKey = actionId + serialized
 
     const cachedEncrypted =
