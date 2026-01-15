@@ -50,7 +50,7 @@ use turbopack_core::{
     PROJECT_FILESYSTEM_NAME, SOURCE_URL_PROTOCOL,
     diagnostics::PlainDiagnostic,
     error::PrettyPrintError,
-    issue::PlainIssue,
+    issue::{IssueFilter, PlainIssue},
     output::{OutputAsset, OutputAssets},
     source_map::{SourceMap, Token},
     version::{PartialUpdate, TotalUpdate, Update, VersionState},
@@ -86,6 +86,10 @@ const SLOW_FILESYSTEM_THRESHOLD: Duration = Duration::from_millis(100);
 static SOURCE_MAP_PREFIX: Lazy<String> = Lazy::new(|| format!("{SOURCE_URL_PROTOCOL}///"));
 static SOURCE_MAP_PREFIX_PROJECT: Lazy<String> =
     Lazy::new(|| format!("{SOURCE_URL_PROTOCOL}///[{PROJECT_FILESYSTEM_NAME}]/"));
+
+/// Next doesn't display warnings from node_modules, so configure turbopack to not report them
+/// either. This matches logic in `packages/next/src/server/dev/turbopack-utils.ts`
+pub const NEXT_ISSUE_FILTER: IssueFilter = IssueFilter::warnings_and_foreign_errors();
 
 #[napi(object)]
 #[derive(Clone, Debug)]
@@ -1190,7 +1194,7 @@ async fn hmr_update_with_issues_operation(
 ) -> Result<Vc<HmrUpdateWithIssues>> {
     let update_op = project_hmr_update_operation(project, identifier, state);
     let update = update_op.read_strongly_consistent().await?;
-    let issues = get_issues(update_op).await?;
+    let issues = get_issues(update_op, NEXT_ISSUE_FILTER).await?;
     let diagnostics = get_diagnostics(update_op).await?;
     let effects = Arc::new(get_effects(update_op).await?);
     Ok(HmrUpdateWithIssues {
@@ -1315,7 +1319,7 @@ async fn get_hmr_identifiers_with_issues_operation(
 ) -> Result<Vc<HmrIdentifiersWithIssues>> {
     let hmr_identifiers_op = project_container_hmr_identifiers_operation(container);
     let hmr_identifiers = hmr_identifiers_op.read_strongly_consistent().await?;
-    let issues = get_issues(hmr_identifiers_op).await?;
+    let issues = get_issues(hmr_identifiers_op, NEXT_ISSUE_FILTER).await?;
     let diagnostics = get_diagnostics(hmr_identifiers_op).await?;
     let effects = Arc::new(get_effects(hmr_identifiers_op).await?);
     Ok(HmrIdentifiersWithIssues {

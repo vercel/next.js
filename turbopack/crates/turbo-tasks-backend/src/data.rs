@@ -38,16 +38,37 @@ pub struct CellRef {
     pub cell: CellId,
 }
 
+impl CellRef {
+    /// Returns true if this cell reference points to a transient task.
+    pub fn is_transient(&self) -> bool {
+        self.task.is_transient()
+    }
+}
+
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Encode, Decode)]
 pub struct CollectibleRef {
     pub collectible_type: TraitTypeId,
     pub cell: CellRef,
 }
 
+impl CollectibleRef {
+    /// Returns true if this collectible reference points to a transient task.
+    pub fn is_transient(&self) -> bool {
+        self.cell.is_transient()
+    }
+}
+
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Encode, Decode)]
 pub struct CollectiblesRef {
     pub task: TaskId,
     pub collectible_type: TraitTypeId,
+}
+
+impl CollectiblesRef {
+    /// Returns true if this collectibles reference points to a transient task.
+    pub fn is_transient(&self) -> bool {
+        self.task.is_transient()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Encode, Decode)]
@@ -57,7 +78,11 @@ pub enum OutputValue {
     Error(TurboTasksExecutionError),
 }
 impl OutputValue {
-    fn is_transient(&self) -> bool {
+    /// Returns true if this output value references a transient task.
+    ///
+    /// Transient values should not be persisted to disk since they reference
+    /// tasks that will not exist after restart.
+    pub fn is_transient(&self) -> bool {
         match self {
             OutputValue::Cell(cell) => cell.task.is_transient(),
             OutputValue::Output(task) => task.is_transient(),
