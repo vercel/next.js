@@ -67,13 +67,9 @@ pub struct PriorityRunner<
 > {
     executor: E,
     target_workers: usize,
-    inner: Mutex<InnerState<T, P>>,
+    queue: Mutex<BinaryHeap<HeapItem<P, T>>>,
     active_polls: AtomicUsize,
     phantom: std::marker::PhantomData<C>,
-}
-
-struct InnerState<T, P> {
-    queue: BinaryHeap<HeapItem<P, T>>,
 }
 
 impl<
@@ -87,9 +83,7 @@ impl<
         Self {
             executor,
             target_workers: tokio::runtime::Handle::current().metrics().num_workers(),
-            inner: Mutex::new(InnerState {
-                queue: BinaryHeap::new(),
-            }),
+            queue: Mutex::new(BinaryHeap::new()),
             active_polls: AtomicUsize::new(0),
             phantom: std::marker::PhantomData,
         }
@@ -117,26 +111,26 @@ impl<
         priority: P,
         tx: Option<Sender<()>>,
     ) {
-        let mut inner = self.inner.lock();
-        if !inner.queue.is_empty() {
+        let mut queue = self.queue.lock();
+        if !queue.is_empty() {
             // If there is already work in the queue, we don't have any
             // free capacity so we can just push the task to the queue.
             // It will be picked up by existing workers.
-            inner.queue.push(HeapItem { priority, task, tx });
+            queue.push(HeapItem { priority, task, tx });
             return;
         }
         // The queue is empty, so we might have free capacity to spawn a new worker.
         let active_polls = self.active_polls.fetch_add(1, Ordering::Relaxed);
         if active_polls < self.target_workers {
             // We have free capacity, spawn a new worker to execute this task immediately.
-            drop(inner);
+            drop(queue);
 
             let future = self.executor.execute(execute_context, task, priority);
             WorkerFuture::spawn(future, tx, execute_context.clone(), self.clone(), true);
         } else {
             // No free capacity, push the task to the queue.
-            inner.queue.push(HeapItem { priority, task, tx });
-            drop(inner);
+            queue.push(HeapItem { priority, task, tx });
+            drop(queue);
 
             // Active polls might be reduced in the meantime and we might have free capacity now,
             // so we try to spawn a new worker if there is still work available.
@@ -154,8 +148,8 @@ impl<
         &self,
         execute_context: &Arc<C>,
     ) -> Option<(E::Future, Option<Sender<()>>)> {
-        let mut inner = self.inner.lock();
-        if let Some(heap_item) = inner.queue.pop() {
+        let mut queue = self.queue.lock();
+        if let Some(heap_item) = queue.pop() {
             let tx = heap_item.tx;
             Some((
                 self.executor
@@ -172,13 +166,13 @@ impl<
         execute_context: &Arc<C>,
         has_active_poll: bool,
     ) -> bool {
-        let mut inner = self.inner.lock();
-        if let Some(heap_item) = inner.queue.pop() {
+        let mut queue = self.queue.lock();
+        if let Some(heap_item) = queue.pop() {
             let tx = heap_item.tx;
             let new_future =
                 self.executor
                     .execute(execute_context, heap_item.task, heap_item.priority);
-            drop(inner);
+            drop(queue);
 
             if !has_active_poll {
                 self.active_polls.fetch_add(1, Ordering::Relaxed);
