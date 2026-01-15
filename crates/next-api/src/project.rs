@@ -2221,8 +2221,3 @@ fn all_assets_from_entries_operation(
     let assets = operation.connect();
     Ok(all_assets_from_entries(assets))
 }
-
-#[turbo_tasks::function]
-fn stable_endpoint(endpoint: Vc<Box<dyn Endpoint>>) -> Vc<Box<dyn Endpoint>> {
-    endpoint
-}

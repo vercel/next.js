@@ -184,9 +184,12 @@ impl AppPageLoaderTreeBuilder {
                 let identifier = magic_identifier::mangle(&format!("{name} #{i}"));
                 let inner_module_id = format!("METADATA_{i}");
 
+                // This should use the same importing mechanism as create_module_tuple_code, so that
+                // the relative order of items is retained (which isn't the case
+                // when mixing ESM imports and requires).
                 self.base
                     .imports
-                    .push(format!("import {identifier} from \"{inner_module_id}\";").into());
+                    .push(format!("const {identifier} = require(\"{inner_module_id}\");").into());
 
                 let source = dynamic_image_metadata_source(
                     *ResolvedVc::upcast(self.base.module_asset_context),
@@ -201,7 +204,7 @@ impl AppPageLoaderTreeBuilder {
                     .insert(inner_module_id.into(), module);
 
                 let s = "      ";
-                writeln!(self.loader_tree_code, "{s}{identifier},")?;
+                writeln!(self.loader_tree_code, "{s}{identifier}.default,")?;
             }
         }
         Ok(())
@@ -228,9 +231,12 @@ impl AppPageLoaderTreeBuilder {
             self.base.imports.push(helper_import);
         }
 
+        // This should use the same importing mechanism as create_module_tuple_code, so that the
+        // relative order of items is retained (which isn't the case when mixing ESM imports and
+        // requires).
         self.base
             .imports
-            .push(format!("import {identifier} from \"{inner_module_id}\";").into());
+            .push(format!("const {identifier} = require(\"{inner_module_id}\");").into());
         let module = StructuredImageModuleType::create_module(
             Vc::upcast(FileSource::new(path.clone())),
             BlurPlaceholderMode::None,
@@ -252,15 +258,21 @@ impl AppPageLoaderTreeBuilder {
         writeln!(
             self.loader_tree_code,
             "{s}  url: fillMetadataSegment({}, await props.params, {}, true) + \
-             `?${{{identifier}.src.split(\"/\").splice(-1)[0]}}`,",
+             `?${{{identifier}.default.src.split(\"/\").splice(-1)[0]}}`,",
             StringifyJs(&pathname_prefix),
             StringifyJs(metadata_route),
         )?;
 
         let numeric_sizes = name == "twitter" || name == "openGraph";
         if numeric_sizes {
-            writeln!(self.loader_tree_code, "{s}  width: {identifier}.width,")?;
-            writeln!(self.loader_tree_code, "{s}  height: {identifier}.height,")?;
+            writeln!(
+                self.loader_tree_code,
+                "{s}  width: {identifier}.default.width,"
+            )?;
+            writeln!(
+                self.loader_tree_code,
+                "{s}  height: {identifier}.default.height,"
+            )?;
         } else {
             // For SVGs, skip sizes and use "any" to let it scale automatically based on viewport,
             // For the images doesn't provide the size properly, use "any" as well.
@@ -268,7 +280,7 @@ impl AppPageLoaderTreeBuilder {
             let sizes = if path.has_extension(".svg") {
                 "any".to_string()
             } else {
-                format!("${{{identifier}.width}}x${{{identifier}.height}}")
+                format!("${{{identifier}.default.width}}x${{{identifier}.default.height}}")
             };
             writeln!(self.loader_tree_code, "{s}  sizes: `{sizes}`,")?;
         }
@@ -280,9 +292,12 @@ impl AppPageLoaderTreeBuilder {
             let identifier = magic_identifier::mangle(&format!("{name} alt text #{i}"));
             let inner_module_id = format!("METADATA_ALT_{i}");
 
+            // This should use the same importing mechanism as create_module_tuple_code, so that the
+            // relative order of items is retained (which isn't the case when mixing ESM imports and
+            // requires).
             self.base
                 .imports
-                .push(format!("import {identifier} from \"{inner_module_id}\";").into());
+                .push(format!("const {identifier} = require(\"{inner_module_id}\");").into());
 
             let module = self
                 .base
@@ -296,7 +311,7 @@ impl AppPageLoaderTreeBuilder {
                 .inner_assets
                 .insert(inner_module_id.into(), module);
 
-            writeln!(self.loader_tree_code, "{s}  alt: {identifier},")?;
+            writeln!(self.loader_tree_code, "{s}  alt: {identifier}.default,")?;
         }
 
         writeln!(self.loader_tree_code, "{s}}}]),")?;
