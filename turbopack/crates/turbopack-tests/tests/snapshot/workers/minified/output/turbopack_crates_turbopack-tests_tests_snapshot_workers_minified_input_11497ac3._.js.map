@@ -1,1 +1,0 @@
-{"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/minified/input/index.js"],"sourcesContent":["const url = new URL('./worker.js', import.meta.url)\nnew Worker(url)\n"],"names":["url","Worker"],"mappings":"w1BAAMA,IAAAA,EAAAA,CAAAA,CAAAA,EAAAA,CAAAA,CAAAA,sHACN,IAAIC,OAAAA,EAAAA,CAAAA,CAAAA"}

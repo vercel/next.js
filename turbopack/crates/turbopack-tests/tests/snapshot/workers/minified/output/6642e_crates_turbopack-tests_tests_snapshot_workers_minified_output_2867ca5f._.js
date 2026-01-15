@@ -1,3 +1,0 @@
-(()=>{let e=new URL(location.href),a=e.searchParams.get("params");if(!a&&e.hash.startsWith("#params=")&&(a=decodeURIComponent(e.hash.slice(8))),!a)return;let s=JSON.parse(a),t=s.globals.S??"",r=s.globals.NC??[];Object.assign(self,{TURBOPACK_CHUNK_SUFFIX:t,TURBOPACK_NEXT_CHUNK_URLS:r}),r.length>0&&importScripts(...r.map(e=>new URL(e,location.origin).toString()).reverse())})();
-
-//# sourceMappingURL=turbopack_crates_turbopack-tests_tests_snapshot_workers_minified_output_2867ca5f._.js.map

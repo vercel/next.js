@@ -1,3 +1,0 @@
-(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/aaf3a_crates_turbopack-tests_tests_snapshot_workers_minified_input_worker_f326356b.js","[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/minified/input/worker.js [test] (ecmascript)",(s,t,e)=>{self.postMessage("hello")}]);
-
-//# sourceMappingURL=aaf3a_crates_turbopack-tests_tests_snapshot_workers_minified_input_worker_f326356b.js.map
