@@ -66,9 +66,13 @@ pub struct PriorityRunner<
     E: Executor<C, T, P> + 'static,
 > {
     executor: E,
+    /// The target number of workers to spawn.
     target_workers: usize,
+    /// The queue of tasks to execute. These tasks are not scheduled yet.
     queue: Mutex<BinaryHeap<HeapItem<P, T>>>,
-    active_polls: AtomicUsize,
+    /// The number of active workers currently polling tasks.
+    /// Workers that responded with Poll::Pending are not counted until they are polled again.
+    active_workers: AtomicUsize,
     phantom: std::marker::PhantomData<C>,
 }
 
@@ -84,7 +88,7 @@ impl<
             executor,
             target_workers: tokio::runtime::Handle::current().metrics().num_workers(),
             queue: Mutex::new(BinaryHeap::new()),
-            active_polls: AtomicUsize::new(0),
+            active_workers: AtomicUsize::new(0),
             phantom: std::marker::PhantomData,
         }
     }
@@ -120,27 +124,48 @@ impl<
             return;
         }
         // The queue is empty, so we might have free capacity to spawn a new worker.
-        let active_polls = self.active_polls.fetch_add(1, Ordering::Relaxed);
-        if active_polls < self.target_workers {
+        let active_workers = self.active_workers.fetch_add(1, Ordering::Relaxed);
+        if active_workers < self.target_workers {
             // We have free capacity, spawn a new worker to execute this task immediately.
             drop(queue);
 
             let future = self.executor.execute(execute_context, task, priority);
-            WorkerFuture::spawn(future, tx, execute_context.clone(), self.clone(), true);
+            WorkerFuture::spawn(future, tx, execute_context.clone(), self.clone());
         } else {
             // No free capacity, push the task to the queue.
             queue.push(HeapItem { priority, task, tx });
             drop(queue);
 
-            // Active polls might be reduced in the meantime and we might have free capacity now,
-            // so we try to spawn a new worker if there is still work available.
-            let active_polls = self.active_polls.load(Ordering::Relaxed) - 1;
-            if active_polls >= self.target_workers
-                || !self.spawn_worker_if_work_available(execute_context, true)
-            {
-                // Undo the added active poll since we didn't spawn a new worker.
-                self.active_polls.fetch_sub(1, Ordering::Relaxed);
-            }
+            // Undo the added active worker since we didn't spawn a new worker.
+            self.decrease_active_workers(execute_context);
+        }
+    }
+
+    /// Tries to decrease the active worker count by 1.
+    /// If there is work available in the queue, a new worker is spawned instead.
+    fn reuse_or_decrease_active_workers(self: &Arc<Self>, execute_context: &Arc<C>) {
+        let active_workers = self.active_workers.load(Ordering::Relaxed) - 1;
+        if active_workers >= self.target_workers
+            || !self.spawn_worker_if_work_available(execute_context, true)
+        {
+            // Undo the added active worker since we didn't spawn a new worker.
+            // Beware the race condition here:
+            // If the active workers became lower in the meantime we might have free
+            // capacity now, so we try to spawn a new worker if
+            // there is work available.
+            self.decrease_active_workers(execute_context);
+        }
+    }
+
+    /// Tries to decrease the active worker count by 1.
+    /// If there is work available in the queue, a new worker is spawned instead.
+    fn decrease_active_workers(self: &Arc<Self>, execute_context: &Arc<C>) {
+        // If the active workers became lower we might have free
+        // capacity now, so we try to spawn a new worker if
+        // there is work available.
+        let active_workers = self.active_workers.fetch_sub(1, Ordering::Relaxed) - 1;
+        if active_workers < self.target_workers {
+            self.spawn_worker_if_work_available(execute_context, false);
         }
     }
 
@@ -150,6 +175,7 @@ impl<
     ) -> Option<(E::Future, Option<Sender<()>>)> {
         let mut queue = self.queue.lock();
         if let Some(heap_item) = queue.pop() {
+            drop(queue);
             let tx = heap_item.tx;
             Some((
                 self.executor
@@ -164,20 +190,20 @@ impl<
     fn spawn_worker_if_work_available(
         self: &Arc<Self>,
         execute_context: &Arc<C>,
-        has_active_poll: bool,
+        unused_active_count: bool,
     ) -> bool {
         let mut queue = self.queue.lock();
         if let Some(heap_item) = queue.pop() {
+            drop(queue);
             let tx = heap_item.tx;
             let new_future =
                 self.executor
                     .execute(execute_context, heap_item.task, heap_item.priority);
-            drop(queue);
 
-            if !has_active_poll {
-                self.active_polls.fetch_add(1, Ordering::Relaxed);
+            if !unused_active_count {
+                self.active_workers.fetch_add(1, Ordering::Relaxed);
             }
-            WorkerFuture::spawn(new_future, tx, execute_context.clone(), self.clone(), true);
+            WorkerFuture::spawn(new_future, tx, execute_context.clone(), self.clone());
             true
         } else {
             false
@@ -206,7 +232,7 @@ pin_project! {
         tx: Option<Sender<()>>,
         execute_context: Arc<C>,
         runner: Arc<PriorityRunner<C, T, P, E>>,
-        has_active_poll: bool,
+        is_active: bool,
     }
 }
 
@@ -222,14 +248,13 @@ impl<
         tx: Option<Sender<()>>,
         execute_context: Arc<C>,
         runner: Arc<PriorityRunner<C, T, P, E>>,
-        has_active_poll: bool,
     ) {
         tokio::task::spawn(Self {
             future,
             tx,
             execute_context,
             runner,
-            has_active_poll,
+            is_active: true,
         });
     }
 }
@@ -245,9 +270,11 @@ impl<
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let mut this = self.project();
-        if !*this.has_active_poll {
-            this.runner.active_polls.fetch_add(1, Ordering::Relaxed);
-            *this.has_active_poll = true;
+        if !*this.is_active {
+            // When the worker is not active (it previously returned Poll::Pending),
+            // we need to mark it as active again since it is being polled now.
+            this.runner.active_workers.fetch_add(1, Ordering::Relaxed);
+            *this.is_active = true;
         }
         loop {
             match this.future.as_mut().poll(cx) {
@@ -255,6 +282,14 @@ impl<
                     // Notify that the task is done
                     if let Some(tx) = this.tx.take() {
                         let _ = tx.send(());
+                    }
+
+                    let active_workers = this.runner.active_workers.load(Ordering::Relaxed);
+                    if active_workers > this.runner.target_workers {
+                        // There are more active workers than target, so we should end this
+                        // worker.
+                        this.runner.decrease_active_workers(this.execute_context);
+                        return Poll::Ready(());
                     }
 
                     // This future is done, we need to check the queue for more tasks,
@@ -278,7 +313,7 @@ impl<
                     } else {
                         // No more tasks to execute
                         // This worker ends here
-                        this.runner.active_polls.fetch_sub(1, Ordering::Relaxed);
+                        this.runner.decrease_active_workers(this.execute_context);
                         return Poll::Ready(());
                     }
                 }
@@ -286,26 +321,9 @@ impl<
                     // The current future is still pending, we need to suspend this worker.
                     // But we if there are free capacity we can spawn a new worker to pick up
                     // other tasks in the queue.
-
-                    // Quick check if we can spawn a new worker from the existing active poll.
-                    let active_polls = this.runner.active_polls.load(Ordering::Relaxed) - 1;
-                    if active_polls >= this.runner.target_workers
-                        || !this
-                            .runner
-                            .spawn_worker_if_work_available(this.execute_context, true)
-                    {
-                        // Undo the subtracted active poll since we didn't spawn a new worker.
-                        // If the active polls became lower in the meantime we might have free
-                        // capacity now, so we try to spawn a new worker if
-                        // there is work available.
-                        let active_polls =
-                            this.runner.active_polls.fetch_sub(1, Ordering::Relaxed) - 1;
-                        if active_polls < this.runner.target_workers {
-                            this.runner
-                                .spawn_worker_if_work_available(this.execute_context, false);
-                        }
-                    }
-                    *this.has_active_poll = false;
+                    this.runner
+                        .reuse_or_decrease_active_workers(this.execute_context);
+                    *this.is_active = false;
                     return Poll::Pending;
                 }
             }
