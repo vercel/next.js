@@ -157,7 +157,7 @@ export const imageConfigDefault: ImageConfigComplete = {
   minimumCacheTTL: 14400, // 4 hours
   formats: ['image/webp'],
   maximumRedirects: 3,
-  maximumResponseBody: 300_000_000, // 300MB
+  maximumResponseBody: 50_000_000, // 50 MB
   dangerouslyAllowLocalIP: false,
   dangerouslyAllowSVG: false,
   contentSecurityPolicy: `script-src 'none'; frame-src 'none'; sandbox;`,
